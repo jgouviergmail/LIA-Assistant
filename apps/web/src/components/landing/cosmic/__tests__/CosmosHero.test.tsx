@@ -54,6 +54,25 @@ describe('CosmosHero — functional overview', () => {
   );
 });
 
+describe('CosmosHero — promise and registration note (owner layout, 2026-10-30)', () => {
+  it('groups the tagline and the value line in one paragraph, so they share one typography', async () => {
+    const { getByText } = render(await CosmosHero({ lng: 'fr' }));
+    const tagline = getByText('landing.hero.subtitle_top').closest('p');
+    expect(tagline).not.toBeNull();
+    expect(getByText('landing.hero.home_value').closest('p')).toBe(tagline);
+  });
+
+  it('states the registration conditions under the three proof items', async () => {
+    const { getByText } = render(await CosmosHero({ lng: 'fr' }));
+    const note = getByText('landing.hero.home_access_note');
+    for (const proof of ['proof_origin', 'proof_accounts', 'proof_control']) {
+      expect(getByText(`landing.hero.${proof}`).compareDocumentPosition(note)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    }
+  });
+});
+
 describe('CosmosHero — guided demo CTA', () => {
   beforeEach(() => {
     variantMock.mockReset();

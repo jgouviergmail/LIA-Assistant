@@ -790,10 +790,13 @@ ${scan.summary}`
     await mockApi([
       briefingCardsMock,
       {
-        url: '**/api/v1/briefing/synthesis',
+        url: '**/api/v1/briefing/text',
+        method: 'POST',
         json: {
           greeting: { text: 'Welcome back', generated_at: null, usage: null },
           synthesis: null,
+          reused: false,
+          state: 'ready',
         },
       },
       {

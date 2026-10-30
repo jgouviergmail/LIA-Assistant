@@ -25,6 +25,7 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => {
 });
 
 import type {
+  ContactCard,
   ContextSection,
   RelationContext,
   RelationDetail,
@@ -653,11 +654,11 @@ describe('RelationDetailPanel — quick actions', () => {
     expect(href).not.toContain('intent=');
   });
 
-  it('offers one action per email, address and number of the contact card, each only prefilling', async () => {
-    // Owner request 2026-10-21: « Email … », « Itinéraire vers … », « Appel LIA … ».
-    connectors.value = [telephonyConnector('active')];
-    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    useRelationContext.mockReturnValue({
+  /** A contact card carrying the given reachable values. */
+  function contactContext(
+    reach: Pick<ContactCard, 'emails' | 'phones' | 'addresses'>
+  ): ReturnType<typeof useRelationContext> {
+    return {
       context: {
         ...providerContext(),
         contact: section({
@@ -668,16 +669,11 @@ describe('RelationDetailPanel — quick actions', () => {
             occupation: null,
             birthday: null,
             biography: null,
-            emails: [
-              { value: 'marie@client.fr', label: null },
-              { value: 'marie@atelier.fr', label: null },
-            ],
-            phones: [{ value: '+33 6 00 00 00 00', label: null }],
-            addresses: [{ value: '1 rue du Test, Paris', label: null }],
             relations: [],
             links: [],
             important_dates: [],
             messaging: [],
+            ...reach,
           },
         }),
       },
@@ -685,37 +681,111 @@ describe('RelationDetailPanel — quick actions', () => {
       refreshing: [],
       error: false,
       refreshSections: vi.fn(),
-    });
+    };
+  }
+
+  /** Two emails (so a menu), one address and one number (so direct actions). */
+  const FULL_REACH = {
+    emails: [
+      { value: 'marie@client.fr', label: 'home' },
+      { value: 'marie@atelier.fr', label: 'work' },
+    ],
+    phones: [{ value: '+33 6 00 00 00 00', label: null }],
+    addresses: [{ value: '1 rue du Test, Paris', label: null }],
+  };
+
+  /** The sheet's action bar, found by its translated name. */
+  function actionBar(): HTMLElement {
+    return screen.getByRole('group', { name: 'relations.actions_group' });
+  }
+
+  it('offers one entry per kind of the contact card, its label never the value', async () => {
+    // Owner request 2026-10-29: a label sized by its address made every
+    // relationship lay its buttons out differently at every width.
+    connectors.value = [telephonyConnector('active')];
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue(contactContext(FULL_REACH));
     const { user } = renderPanel();
 
-    const emails = screen.getAllByRole('button', { name: 'relations.action_email' });
-    const routes = screen.getAllByRole('button', { name: 'relations.action_route' });
-    const call = screen.getByRole('button', { name: 'relations.action_lia_call' });
-    expect(emails).toHaveLength(2);
-    expect(routes).toHaveLength(1);
-    // One column per kind, each sized to its widest button from `sm` up
-    // (`sm:w-max`) and the sheet's full width on a phone (owner request
-    // 2026-10-22), every button stretched to it and every row the tallest
-    // one's height.
-    const emailColumn = emails[0].parentElement;
-    const routeColumn = routes[0].parentElement;
-    const callColumn = call.parentElement;
-    expect(new Set([emailColumn, routeColumn, callColumn]).size).toBe(3);
-    for (const column of [emailColumn, routeColumn, callColumn]) {
-      expect(column).toHaveClass('grid', 'w-full', 'sm:w-max', 'sm:max-w-full', 'auto-rows-fr');
-      expect(column?.parentElement).toBe(emailColumn?.parentElement);
-    }
-    expect(emails[1].parentElement).toBe(emailColumn);
-    for (const button of [...emails, ...routes, call]) expect(button).toHaveClass('w-full');
-    await user.click(call);
+    // Commitment, then the card's three kinds — one entry each.
+    const buttons = within(actionBar()).getAllByRole('button');
+    // The visible label IS the accessible name, and it never carries a value.
+    expect(buttons.map(button => button.textContent?.trim())).toEqual([
+      'relations.action_loop',
+      'relations.action_email',
+      'relations.action_route',
+      'relations.action_lia_call',
+    ]);
+    // A single value acts directly; which one is shown on hover and read as
+    // the button's description — once, never repeated in its name.
+    const route = within(actionBar()).getByRole('button', { name: 'relations.action_route' });
+    expect(route).toHaveAccessibleDescription('1 rue du Test, Paris');
+    expect(
+      within(actionBar()).getByRole('button', { name: 'relations.action_lia_call' })
+    ).toHaveAccessibleDescription('+33 6 00 00 00 00');
 
+    const call = within(actionBar()).getByRole('button', { name: 'relations.action_lia_call' });
+    await user.click(call);
     const href = openChat.mock.calls[0][0] as string;
     expect(href.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
     // Calling someone never leaves on a click: the purpose is the person's to add.
     expect(href).not.toContain('intent=');
   });
 
-  it('opens a column only for a kind the card holds', () => {
+  it('lists several values of one kind in a menu, with their address-book labels', async () => {
+    connectors.value = [];
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue(contactContext(FULL_REACH));
+    const { user } = renderPanel();
+
+    const trigger = within(actionBar()).getByRole('button', { name: 'relations.action_email' });
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    await user.click(trigger);
+
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map(item => item.textContent)).toEqual([
+      'marie@client.frrelations.contact_label.home',
+      'marie@atelier.frrelations.contact_label.work',
+    ]);
+    await user.click(items[1]);
+
+    const href = openChat.mock.calls[0][0] as string;
+    expect(href.startsWith('/fr/dashboard/chat?draft=')).toBe(true);
+    // Writing to someone never leaves on a click: the subject is theirs to add.
+    expect(href).not.toContain('intent=');
+  });
+
+  it('opens the menu and picks a value from the keyboard alone', async () => {
+    connectors.value = [];
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue(contactContext(FULL_REACH));
+    const { user } = renderPanel();
+
+    within(actionBar()).getByRole('button', { name: 'relations.action_email' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getAllByRole('menuitem')[0]).toHaveFocus());
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(openChat).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('draws one shape per width: a list below the container threshold, one row above', () => {
+    // The geometry itself is measured in the browser
+    // (e2e/smoke/relations-action-bar.spec.ts); this pins the two shapes.
+    connectors.value = [telephonyConnector('active')];
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue(contactContext(FULL_REACH));
+    renderPanel();
+
+    expect(actionBar()).toHaveClass('grid', 'w-full', '@2xl:grid-flow-col', '@2xl:auto-cols-fr');
+    expect(actionBar().parentElement).toHaveClass('@container');
+    for (const button of within(actionBar()).getAllByRole('button')) {
+      expect(button).toHaveClass('w-full', 'justify-start', '@2xl:justify-center');
+    }
+  });
+
+  it('opens an entry only for a kind the card holds', () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     useRelationContext.mockReturnValue({
       context: providerContext(),
@@ -726,11 +796,12 @@ describe('RelationDetailPanel — quick actions', () => {
     });
     renderPanel();
 
-    // The provider fixture holds one email and nothing else: one column.
-    const email = screen.getByRole('button', { name: 'relations.action_email' });
-    expect(email.parentElement?.parentElement?.children).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'relations.action_route' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'relations.action_lia_call' })).toBeNull();
+    // The provider fixture holds one email and nothing else: one direct entry.
+    const email = within(actionBar()).getByRole('button', { name: 'relations.action_email' });
+    expect(email).not.toHaveAttribute('aria-haspopup');
+    expect(email).toHaveAccessibleDescription('marie@client.fr');
+    expect(screen.queryByRole('button', { name: /^relations\.action_route/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^relations\.action_lia_call/ })).toBeNull();
   });
 
   it.each([
@@ -739,49 +810,30 @@ describe('RelationDetailPanel — quick actions', () => {
   ])('offers no LIA call with %s, the rest of the card unchanged', (_case, held) => {
     connectors.value = held;
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
-    useRelationContext.mockReturnValue({
-      context: {
-        ...providerContext(),
-        contact: section({
-          contact: {
-            display_name: 'Marie Client',
-            nickname: null,
-            organization: null,
-            occupation: null,
-            birthday: null,
-            biography: null,
-            emails: [{ value: 'marie@client.fr', label: null }],
-            phones: [{ value: '+33 6 00 00 00 00', label: null }],
-            addresses: [],
-            relations: [],
-            links: [],
-            important_dates: [],
-            messaging: [],
-          },
-        }),
-      },
-      loading: false,
-      refreshing: [],
-      error: false,
-      refreshSections: vi.fn(),
-    });
+    useRelationContext.mockReturnValue(
+      contactContext({
+        emails: [{ value: 'marie@client.fr', label: null }],
+        phones: [{ value: '+33 6 00 00 00 00', label: null }],
+        addresses: [],
+      })
+    );
     renderPanel();
 
-    expect(screen.getByRole('button', { name: 'relations.action_email' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'relations.action_lia_call' })).toBeNull();
+    expect(screen.getByRole('button', { name: /^relations\.action_email/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^relations\.action_lia_call/ })).toBeNull();
   });
 
   it('offers no address-book action while no contact card was read', () => {
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     renderPanel();
 
-    for (const name of [
-      'relations.action_email',
-      'relations.action_route',
-      'relations.action_lia_call',
-    ]) {
-      expect(screen.queryByRole('button', { name })).toBeNull();
+    for (const key of ['email', 'route', 'lia_call']) {
+      expect(
+        screen.queryByRole('button', { name: new RegExp(`^relations\\.action_${key}`) })
+      ).toBeNull();
     }
+    // The bar itself stays: tracking a commitment needs no address book.
+    expect(within(actionBar()).getAllByRole('button')).toHaveLength(1);
   });
 });
 
@@ -1070,6 +1122,21 @@ describe('the order of the sheet is a contract, not a coincidence', () => {
       error: false,
       refreshSections: vi.fn(),
     });
+  });
+
+  it('puts the actions right under who this is, above the debrief', () => {
+    // Owner request 2026-10-29: what you can do with someone is read with
+    // their name, not after the synthesis. DOM order, which is also what a
+    // screen reader announces.
+    renderPanel();
+
+    const bar = screen.getByRole('group', { name: 'relations.actions_group' });
+    expect(precedes(screen.getByRole('heading', { level: 2, name: 'Gérard Dupont' }), bar)).toBe(
+      true
+    );
+    expect(precedes(bar, screen.getByRole('switch', { name: 'relations.debrief_switch' }))).toBe(
+      true
+    );
   });
 
   it('opens with the address book', () => {

@@ -41,7 +41,7 @@ graph entry → compaction_node
   │     │     ├─ split to_compact into chunks (≤ CHUNK_MAX_TOKENS=20k)
   │     │     ├─ for each chunk: _summarize_chunk()
   │     │     │     ├─ asyncio.wait_for(llm.ainvoke, timeout=PER_CHUNK=35s)
-  │     │     │     └─ tenacity retry × MAX_RETRIES=3 on (ConnectionError, TimeoutError)
+  │     │     │     └─ tenacity retry × MAX_RETRIES=3, only a call that never left (caller_may_relaunch)
   │     │     ├─ if multi-chunk OR prior summaries present: merge step (1 more LLM call)
   │     │     └─ return CompactionResult(strategy=single_chunk|multi_chunk,
   │     │            consolidated_previous_summaries=bool)
@@ -133,7 +133,7 @@ cover production).
 | `COMPACTION_MIN_MESSAGES` | `20` | 5–200 | Fast-path skip below this count. |
 | `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS` | `35` | 5–300 | Per-chunk `asyncio.wait_for`. |
 | `COMPACTION_GLOBAL_TIMEOUT_SECONDS` | `120` | 10–600 | Whole `compact()` budget. |
-| `COMPACTION_MAX_RETRIES` | `3` | 1–10 | Tenacity attempts per chunk. |
+| `COMPACTION_MAX_RETRIES` | `3` | 1–10 | Tenacity attempts per chunk — a relaunch only for a call that never reached the provider, on a client without a retry loop of its own, within `LLM_TRANSIENT_RETRY_MAX` (ADR-221 amendment 2026-10-28). |
 | `COMPACTION_RETRY_BACKOFF_BASE_SECONDS` | `1.0` | 0.1–10 | Exponential backoff base. |
 | `COMPACTION_INCLUDE_PREVIOUS_SUMMARIES` | `true` | bool | Consolidate prior `"compaction #N"`. |
 | `COMPACTION_IDENTIFIERS_REINSERT_MAX` | `30` | 0–200 | Identifiers written back per list when the summary dropped them (`0` = none). |
@@ -163,7 +163,7 @@ errors by type, skipped reasons, tokens saved.
 
 | Scenario | Detection | Response |
 |---|---|---|
-| Single LLM call slow > 35 s | `asyncio.wait_for(per_chunk)` | Tenacity retries up to 3× with backoff |
+| Single LLM call slow > 35 s | `asyncio.wait_for(per_chunk)` | Never sent again — the summary may be running and billed (Q3 of 2026-10-28); `TimeoutError` → `_truncation_fallback` |
 | Provider down (retries exhausted) | `tenacity.reraise=True` | Re-raised inside `_compact_impl_llm` → caught by outer `compact()` → `_truncation_fallback` |
 | Compaction global budget > 120 s | `asyncio.wait_for(global)` in `compact()` | `TimeoutError` → `_truncation_fallback` with `reason="global_timeout"` |
 | Cloudflare-style idle cut | `iter_with_keepalive` pulses every 15 s | Stream stays open |

@@ -65,6 +65,7 @@ from src.domains.agents.services.smart_catalogue_service import (
     get_smart_catalogue_service,
 )
 from src.domains.agents.tools.react_runner_budget import model_calls_for
+from src.infrastructure.llm.client_retries import may_send_in_another_form
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     planner_for_each_auto_corrections,
@@ -699,8 +700,9 @@ class SmartPlannerService:
         Drop-in replacement for ``await llm.ainvoke(messages, config=config)``:
         returns the same aggregated message (``.text`` exposes the JSON plan,
         proven byte-identical to ``ainvoke``), while pushing the model's
-        chain-of-thought through the custom SSE channel. Any failure or empty
-        result falls back to ``ainvoke`` so planning never breaks.
+        chain-of-thought through the custom SSE channel. An empty result, or a
+        failure that generated nothing, falls back to ``ainvoke``; a provider failure
+        that may have generated is raised — never a second generation (Q3 (a)).
 
         Args:
             llm: The planner ``BaseChatModel`` (from ``get_llm("planner")``).
@@ -724,7 +726,11 @@ class SmartPlannerService:
                 emit=make_reasoning_emit(node_name),
                 config=config,
             )
-        except Exception as exc:  # defensive: reasoning streaming must never break planning
+        except Exception as exc:  # a capture defect falls back; a provider failure does not
+            # Q3 (a): the buffered call is a second generation — never after an
+            # unknown outcome, never past the relaunch budget the client spent.
+            if not may_send_in_another_form(llm, exc):
+                raise
             logger.warning(
                 "planner_reasoning_stream_failed",
                 node=node_name,
@@ -874,9 +880,9 @@ class SmartPlannerService:
         return await build_iot_device_context(domains, config)
 
     @staticmethod
-    def _build_mcp_reference(selected_domains: list[str] | None = None) -> str:
+    async def _build_mcp_reference(selected_domains: list[str] | None = None) -> str:
         """Keep the historical facade for selected MCP reference collection."""
-        return build_mcp_reference(
+        return await build_mcp_reference(
             selected_domains,
             truncated_marker=lambda: _planner_lines()["mcp_truncated_marker"],
             render_reference=SmartPlannerService._render_mcp_format_reference,
@@ -1135,7 +1141,7 @@ class SmartPlannerService:
         # build_planner_human_message.
 
         # MCP reference content (read_me) — only when MCP domains are selected
-        mcp_reference = self._build_mcp_reference(intelligence.domains)
+        mcp_reference = await self._build_mcp_reference(intelligence.domains)
 
         # Skills L1 catalogue (agentskills.io standard)
         skills_catalog = self._build_skills_catalog(config)

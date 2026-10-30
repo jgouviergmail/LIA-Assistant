@@ -39,9 +39,12 @@ async def cached_cards_bundle(
     """Return the bundle and visible cache gaps; hidden is never a cache gap.
 
     Missing distinguishes a cold bundle from an uneventful day. Failed sources
-    are not cached, so they remain missing and can trigger a coalesced rebuild.
-    The caller owns visibility, consultations and each source's cache policy;
-    SMS is read live only when explicitly included, with previews opt-in.
+    are not cached; whether a recent failure counts as present is the READER's
+    choice: the service's completeness readers settle it on its attempt marker
+    (the synthesis, a waiting worker), while the owner of a build does not, so
+    the next build retries the source live (spec 2026-10-21 §5.7). The caller
+    owns visibility, consultations and each source's cache policy; SMS is read
+    live only when explicitly included, with previews opt-in.
     """
     now = datetime.now(UTC)
     names = tuple(name for name in SECTION_NAMES if include_sms or name != SECTION_SMS)

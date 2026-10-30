@@ -4,6 +4,44 @@ import { shade } from './painter';
 import { Model } from './model';
 import { ACCENTS, DARK, WOOD } from './palette';
 import { modelTable, paper } from './model-details';
+function benchArm(m: Model, x: number, d: number, seat: number, color: string): void {
+  // One L-shaped side joins the armrest to its rear upright without intersecting bevels.
+  const profile = [
+    [0.05, seat - 0.08],
+    [0.05, 1.1],
+    [0.2, 1.1],
+    [0.2, seat + 0.25],
+    [d - 0.05, seat + 0.25],
+    [d - 0.05, seat],
+    [0.2, seat],
+    [0.2, seat - 0.08],
+  ];
+  const side = (at: number) => profile.map(([y, z]) => ({ x: at, y, z }));
+  const a = side(x),
+    b = side(x + 0.15);
+  m.face(a, shade(color, -30));
+  m.face(b, shade(color, -7));
+  for (let i = 0; i < a.length; i++) {
+    const next = (i + 1) % a.length;
+    m.face([a[i], a[next], b[next], b[i]], shade(color, [0, 12, -7, 12, -7, -25, -7, -25][i]));
+  }
+}
+function benchWoodwork(m: Model, w: number, d: number, seat: number, color: string): void {
+  // Long seat slats and a vertical back, joined to the same two uprights.
+  for (let i = 0; i < 3; i++)
+    m.softBox(
+      0.17,
+      0.25 + i * ((d - 0.34) / 3),
+      seat - 0.08,
+      w - 0.34,
+      (d - 0.34) / 3 - 0.018,
+      0.08,
+      WOOD,
+      0.018
+    );
+  for (const x of [0.02, w - 0.17]) benchArm(m, x, d, seat, color);
+  for (const z of [0.79, 0.98]) m.box(0.14, 0.075, z, w - 0.28, 0.105, 0.11, WOOD);
+}
 function seating(m: Model, o: WorldProp, w: number, d: number): void {
   const color = o.tone === 'clay' && o.kind === 'sofa' ? '#bd283e' : ACCENTS[o.tone],
     bench = o.kind === 'bench',
@@ -11,31 +49,33 @@ function seating(m: Model, o: WorldProp, w: number, d: number): void {
   for (const x of [0.2, w - 0.35])
     for (const y of [0.18, d - 0.3]) m.box(x, y, 0, 0.15, 0.12, 0.3, DARK);
   m.box(0.06, 0.06, 0.28, w - 0.12, d - 0.12, seat - 0.28, color);
-  const count = bench ? 3 : 2;
+  const count = bench ? 0 : 2;
   for (let i = 0; i < count; i++) {
     const x = 0.18 + (i * (w - 0.36)) / count;
-    m.box(
+    m.softBox(
       x,
       0.23,
       seat - 0.08,
       (w - 0.4) / count - 0.035,
       d - 0.31,
       0.08,
-      bench ? '#b87d43' : shade(color, 14)
+      shade(color, 10),
+      0.025
     );
   }
-  for (const y of [0.08, 0.25]) if (bench) m.box(0.05, y, 0.85, w - 0.1, 0.1, 0.12, WOOD);
-  if (!bench) m.box(0.04, 0.04, 0.58, w - 0.08, 0.18, 0.63, color);
-  for (const x of [0.02, w - 0.17]) m.box(x, 0.05, seat, 0.15, d - 0.1, 0.25, color);
+  if (bench) benchWoodwork(m, w, d, seat, color);
   if (!bench) {
+    m.softBox(0.04, 0.04, 0.58, w - 0.08, 0.18, 0.63, color);
+    for (const x of [0.02, w - 0.17]) m.softBox(x, 0.05, seat, 0.15, d - 0.1, 0.25, color);
     // Piping and two small contrasting cushions separate the back from its seat.
-    m.panel(0.2, d - 0.075, seat - 0.015, w - 0.4, 0.018, shade(color, 43));
+    m.panel(0.2, d - 0.075, seat - 0.015, w - 0.4, 0.018, shade(color, 28));
+    m.panel(0.21, 0.225, seat + 0.005, w - 0.42, 0.035, shade(color, -29));
     for (const [x, cloth] of [
       [0.26, '#f1dba8'],
       [w - 0.68, '#416d7b'],
     ] as const) {
-      m.box(x, 0.25, seat, 0.39, 0.25, 0.29, cloth);
-      m.panel(x + 0.045, 0.503, seat + 0.08, 0.3, 0.025, '#f4e6c7');
+      m.softBox(x, 0.25, seat, 0.39, 0.25, 0.29, cloth);
+      m.panel(x + 0.06, 0.503, seat + 0.08, 0.27, 0.012, shade(cloth, 18));
     }
   }
 }
@@ -91,18 +131,15 @@ function bar(m: Model, w: number, d: number): void {
   }
 }
 function bottles(m: Model, w: number, d: number): void {
-  m.box(0.03, 0.03, 0.06, w - 0.06, d - 0.06, 0.8, '#815d3d');
-  m.panel(0.08, d + 0.001, 0.18, w - 0.16, 0.55, '#b38654');
-  m.box(0, 0, 0, 0.12, d, 2.5, WOOD);
-  m.box(w - 0.12, 0, 0, 0.12, d, 2.5, WOOD);
-  m.box(0, 0, 1, w, d, 0.12, WOOD);
-  m.box(0, 0, 2, w, d, 0.12, WOOD);
-  m.box(0, 0, 1, 0.12, d, 1.5, WOOD);
-  m.box(w - 0.12, 0, 1, 0.12, d, 1.5, WOOD);
+  m.box(0, 0, 0, w, d, 0.1, '#63503c');
+  m.box(0.1, 0.04, 0.1, w - 0.2, d - 0.04, 0.76, '#815d3d');
+  m.panel(0.14, d + 0.001, 0.18, w - 0.28, 0.55, '#b38654');
+  for (const x of [0, w - 0.1]) m.box(x, 0, 0.1, 0.1, d, 2.38, WOOD);
+  for (const z of [0.86, 1.62, 2.38]) m.box(0.1, 0, z, w - 0.2, d, 0.1, WOOD);
   for (let row = 0; row < 2; row++)
     for (let i = 0; i < Math.floor(w * 2); i++) {
       const x = 0.25 + i * 0.45,
-        z = 1.12 + row;
+        z = 0.96 + row * 0.76;
       m.box(x, 0.04, z, 0.2, 0.2, 0.33, ['#2c825f', '#a44935', '#c78e36'][i % 3]);
       m.box(x + 0.06, 0.1, z + 0.33, 0.08, 0.08, 0.15, '#c4bf82');
       m.panel(x + 0.02, 0.245, z + 0.1, 0.16, 0.12, '#efe0ae');

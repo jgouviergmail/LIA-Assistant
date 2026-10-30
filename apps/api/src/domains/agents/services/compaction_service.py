@@ -30,7 +30,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from tenacity import (
     AsyncRetrying,
-    retry_if_exception_type,
+    RetryCallState,
     stop_after_attempt,
     wait_exponential,
 )
@@ -53,6 +53,7 @@ from src.domains.agents.services.token_counter_service import (
     TokenCounterService,
     get_token_counter,
 )
+from src.infrastructure.llm.client_retries import caller_may_relaunch
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_view import content_for_model, model_view_content
@@ -446,8 +447,10 @@ class CompactionService:
         Summarize a single chunk of messages.
 
         Wraps the LLM call with `asyncio.wait_for` (per-chunk timeout) and a
-        `tenacity` retry loop with exponential backoff on transient errors
-        (`ConnectionError`, `asyncio.TimeoutError`, `TimeoutError`). Settings
+        `tenacity` retry loop with exponential backoff that sends a call again only
+        when `caller_may_relaunch` allows it: never once it may have reached the
+        provider (a timed-out summary may be running and billed — Q3 of 2026-10-28),
+        never on a client that owns its retries. Settings
         `compaction_per_chunk_timeout_seconds`, `compaction_max_retries`, and
         `compaction_retry_backoff_base_seconds` control these.
 
@@ -455,9 +458,8 @@ class CompactionService:
             Tuple of (summary, prompt_tokens, completion_tokens)
 
         Raises:
-            asyncio.TimeoutError: if a single attempt exceeds the per-chunk timeout
-                and tenacity has exhausted its retries.
-            ConnectionError: on persistent transient errors after retries.
+            TimeoutError: if the attempt exceeds the per-chunk timeout (never sent again).
+            Exception: whatever the call raised once no relaunch is allowed.
         """
         system_prompt = load_prompt("compaction_prompt")
 
@@ -474,6 +476,10 @@ class CompactionService:
 
         enriched_config = enrich_config_with_node_metadata(config, "compaction")
 
+        def relaunchable(state: RetryCallState) -> bool:
+            error = state.outcome.exception() if state.outcome is not None else None
+            return error is not None and caller_may_relaunch(llm, error, state.attempt_number - 1)
+
         response = None
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(settings.compaction_max_retries),
@@ -487,7 +493,7 @@ class CompactionService:
                 min=settings.compaction_retry_backoff_base_seconds,
                 max=30,
             ),
-            retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+            retry=relaunchable,
             reraise=True,
         ):
             with attempt:

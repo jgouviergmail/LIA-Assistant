@@ -26,7 +26,7 @@ const empty = {
  */
 const dashboardData: MockRoute[] = [
   {
-    url: '**/api/v1/briefing/cards',
+    url: '**/api/v1/briefing/cards/initial',
     json: {
       windows: briefingWindowsMock,
       cards: {
@@ -41,11 +41,21 @@ const dashboardData: MockRoute[] = [
         for_you: empty,
         workboard: empty,
       },
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
     },
   },
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: { text: 'Welcome back', generated_at: null, usage: null },
+      synthesis: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   { url: '**/api/v1/usage/**', json: {} },
 ];

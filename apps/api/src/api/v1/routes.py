@@ -30,6 +30,7 @@ from src.domains.auth.sessions_router import router as sessions_router
 from src.domains.auth.step_up_router import router as step_up_router
 from src.domains.avatars.relay import router as avatar_relay_router
 from src.domains.avatars.router import router as avatars_router
+from src.domains.briefing.progressive_router import router as briefing_progressive_router
 from src.domains.briefing.router import router as briefing_router
 from src.domains.capabilities.router import router as capabilities_router
 from src.domains.chat.router import router as chat_router
@@ -139,6 +140,7 @@ api_router.include_router(interests_explainability_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
 api_router.include_router(briefing_router)  # Today dashboard
+api_router.include_router(briefing_progressive_router)  # Today, progressive (D2)
 api_router.include_router(relations_router)  # Personal CRM (N-09, read-only)
 api_router.include_router(checklist_router)  # Starter checklist state (UXR A10)
 if getattr(settings, "account_export_enabled", False):

@@ -37,7 +37,8 @@ import { MailsCard } from './cards/MailsCard';
 import { RemindersCard } from './cards/RemindersCard';
 import { WeatherCard } from './cards/WeatherCard';
 import { WorkboardCard } from './cards/WorkboardCard';
-import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
+import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
+import { CardSkeleton, CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
 import { BriefingTextRecovery } from './BriefingTextRecovery';
 
 /**
@@ -138,19 +139,26 @@ function BriefingCardsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {sections.map((name, index) => (
           <div key={name} className="contents">
-            {CARD_RENDERERS[name](
-              cards,
-              {
-                isRefreshing: refreshingSections.has(name) || refreshingSections.has('all'),
-                onRefresh: () => refetchSection(name),
-                onInvalidate: () => invalidateSection(name),
-                staggerIndex: index,
-              },
-              windows
+            {/* A pending section is read on its own request: its tile holds the
+                card's geometry, never a missing source (D3). */}
+            {cards[name]?.status === 'pending' ? (
+              <CardSkeleton />
+            ) : (
+              CARD_RENDERERS[name](
+                cards,
+                {
+                  isRefreshing: refreshingSections.has(name) || refreshingSections.has('all'),
+                  onRefresh: () => refetchSection(name),
+                  onInvalidate: () => invalidateSection(name),
+                  staggerIndex: index,
+                },
+                windows
+              )
             )}
           </div>
         ))}
       </div>
+      {sections.some(name => cards[name]?.status === 'pending') && <LoadingAnnouncement />}
       {/* W7: a card with no source renders NOTHING (BriefingCard returns null),
           so an unconfigured account used to face silent holes. Name them once,
           below the grid, each linking to the settings that fill it. */}

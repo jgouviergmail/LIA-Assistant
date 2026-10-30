@@ -2,6 +2,19 @@
 
 import { useTranslation } from 'react-i18next';
 import { LandingCarousel, type CarouselSlide } from './LandingCarousel';
+import {
+  APPLICATION_VIEWS,
+  CAPTURE_STAGE_DEFAULT_WIDTH,
+  CAPTURE_THUMB_WIDTH,
+  CHAPTER_VIEWS,
+  MONITORING_VIEWS,
+  captureFileName,
+  captureOriginalPath,
+  captureStageSrcSet,
+  captureVariantPath,
+  type ApplicationView,
+  type CaptureCampaign,
+} from '@/lib/landing/captures';
 import homeProof from '../../../public/screenshots/manifest.json';
 import applicationProof from '../../../public/screenshots/proof/manifest.json';
 import extendedProof from '../../../public/screenshots/proof/extended-manifest.json';
@@ -11,50 +24,9 @@ import worldProof from '../../../public/screenshots/proof/world-manifest.json';
 /**
  * Real frontend views with fictional data, plus World and Grafana captures
  * supplied by the project. Each campaign records its own provenance.
- * The shared carousel provides navigation and full-screen inspection.
+ * The shared carousel provides navigation and full-screen inspection; the
+ * views and their static variants are declared in `lib/landing/captures.ts`.
  */
-
-// Follow the README's workflow groups, with libraries before their detail views.
-// Capture campaigns describe provenance; they must not dictate browsing order.
-const APPLICATION_VIEWS = [
-  { key: 'dashboard', file: 'dashboard-wide', campaign: 'home' },
-  { key: 'world', file: 'lia-world', campaign: 'world' },
-  { key: 'dossier', file: 'dossier', campaign: 'application' },
-  { key: 'relations', file: 'relations', campaign: 'application' },
-  { key: 'radio', file: 'radio', campaign: 'application' },
-  { key: 'places', file: 'places', campaign: 'application' },
-  { key: 'maps', file: 'maps', campaign: 'application' },
-  { key: 'routes', file: 'routes', campaign: 'application' },
-  { key: 'memory_library', file: 'memory-library', campaign: 'extended' },
-  { key: 'memory', file: 'memory', campaign: 'application' },
-  { key: 'portrait', file: 'portrait', campaign: 'extended' },
-  { key: 'avatar_picker', file: 'avatar-picker', campaign: 'extended' },
-  { key: 'psyche', file: 'psyche', campaign: 'extended' },
-  { key: 'psyche_evolution', file: 'psyche-evolution', campaign: 'extended' },
-  { key: 'journal', file: 'journal', campaign: 'extended' },
-  { key: 'routine_studio', file: 'routine-studio', campaign: 'extended' },
-  { key: 'routine_week', file: 'routine-week', campaign: 'extended' },
-  { key: 'workboard', file: 'workboard', campaign: 'extended' },
-  { key: 'workboard_dossier', file: 'workboard-dossier', campaign: 'extended' },
-  { key: 'knowledge_library', file: 'knowledge-library', campaign: 'extended' },
-  { key: 'knowledge', file: 'knowledge', campaign: 'application' },
-  { key: 'meetings_list', file: 'meetings-list', campaign: 'extended' },
-  { key: 'meetings', file: 'meetings', campaign: 'application' },
-  { key: 'meeting_transcript', file: 'meeting-transcript', campaign: 'extended' },
-  { key: 'meeting_templates', file: 'meeting-templates', campaign: 'extended' },
-  { key: 'approval', file: 'approval', campaign: 'application' },
-  { key: 'connections', file: 'connections', campaign: 'extended' },
-  { key: 'skills_library', file: 'skills-library', campaign: 'extended' },
-  { key: 'skill', file: 'skill', campaign: 'application' },
-  { key: 'model_routing', file: 'model-routing', campaign: 'extended' },
-  { key: 'consumption', file: 'consumption', campaign: 'extended' },
-  { key: 'administration', file: 'administration', campaign: 'application' },
-] as const;
-const MONITORING_VIEWS = [
-  { key: 'grafana_overview', file: 'grafana-overview', campaign: 'monitoring' },
-  { key: 'grafana_costs', file: 'grafana-costs', campaign: 'monitoring' },
-  { key: 'grafana_activity', file: 'grafana-activity', campaign: 'monitoring' },
-] as const;
 
 interface CaptureManifest {
   revision: string;
@@ -62,18 +34,13 @@ interface CaptureManifest {
 }
 
 // Every view keeps the revision and native dimensions of its capture campaign.
-const CAPTURE_CAMPAIGNS: Record<
-  string,
-  { manifest: CaptureManifest; directory: string; extension?: string }
-> = {
-  home: { manifest: homeProof, directory: '/screenshots' },
-  application: { manifest: applicationProof, directory: '/screenshots/proof' },
-  extended: { manifest: extendedProof, directory: '/screenshots/proof' },
-  monitoring: { manifest: monitoringProof, directory: '/screenshots/proof' },
-  world: { manifest: worldProof, directory: '/screenshots/proof', extension: 'jpg' },
+const CAPTURE_MANIFESTS: Record<CaptureCampaign, CaptureManifest> = {
+  home: homeProof,
+  application: applicationProof,
+  extended: extendedProof,
+  monitoring: monitoringProof,
+  world: worldProof,
 };
-
-type ApplicationView = (typeof APPLICATION_VIEWS)[number]['key'];
 
 export function ScreenshotsSection({
   monitoring = false,
@@ -88,19 +55,24 @@ export function ScreenshotsSection({
   const views = monitoring
     ? MONITORING_VIEWS
     : view
-      ? APPLICATION_VIEWS.filter(item => item.key === view)
+      ? [...APPLICATION_VIEWS, ...CHAPTER_VIEWS].filter(item => item.key === view)
       : APPLICATION_VIEWS;
-  const slides: CarouselSlide[] = views.map(({ key, file, campaign }) => {
-    const label = t(`landing.screenshots.proof.${key}`);
-    const { manifest, directory, extension = 'png' } = CAPTURE_CAMPAIGNS[campaign];
-    const filename = `${file}.${extension}`;
-    const capture = manifest.images.find(image => image.file === filename);
+  const slides: CarouselSlide[] = views.map(item => {
+    const label = t(`landing.screenshots.proof.${item.key}`);
+    const manifest = CAPTURE_MANIFESTS[item.campaign];
+    const capture = manifest.images.find(image => image.file === captureFileName(item));
+    const query = `?v=${manifest.revision}`;
     return {
-      key,
-      src: `${directory}/${filename}?v=${manifest.revision}`,
+      key: item.key,
+      src: `${captureOriginalPath(item)}${query}`,
       label,
       caption: label,
       aspectRatio: capture ? capture.width / capture.height : undefined,
+      variants: {
+        src: `${captureVariantPath(item.file, CAPTURE_STAGE_DEFAULT_WIDTH)}${query}`,
+        srcSet: captureStageSrcSet(item.file, capture?.width, query),
+        thumbSrc: `${captureVariantPath(item.file, CAPTURE_THUMB_WIDTH)}${query}`,
+      },
     };
   });
 

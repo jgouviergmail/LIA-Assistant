@@ -121,27 +121,31 @@ async def test_a_miss_on_a_model_that_refuses_the_forced_tool_never_tries_it() -
 
 @pytest.mark.parametrize("model", ["claude-opus-5-5", "claude-opus-5"])
 @pytest.mark.parametrize(
-    ("status", "retry_hint", "attempts"),
+    ("status", "retry_hint", "refused"),
     [
-        (400, None, 1),
-        (401, None, 1),
-        (403, None, 1),
-        (404, None, 1),
-        (413, None, 1),
-        (422, None, 1),
-        (408, None, 3),
-        (409, None, 3),
-        (425, None, 3),
-        (429, None, 3),
-        (503, None, 3),
-        (400, "true", 3),
-        (503, "false", 1),
+        (400, None, True),
+        (401, None, True),
+        (403, None, True),
+        (404, None, True),
+        (413, None, True),
+        (422, None, True),
+        (408, None, False),
+        (409, None, False),
+        (425, None, False),
+        (429, None, False),
+        (503, None, False),
+        (400, "true", False),
+        (503, "false", True),
     ],
 )
 async def test_a_provider_refusal_keeps_its_cause_and_never_retries(
-    status: int, retry_hint: str | None, attempts: int, model: str, monkeypatch: pytest.MonkeyPatch
+    status: int, retry_hint: str | None, refused: bool, model: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A rejected budget or request cannot heal by resending the same request."""
+    """A refusal cannot heal by resending; a transient failure is its client's to retry.
+
+    The client is at the relaunch policy's zero: the door sends the request ONCE whatever
+    the status (Q3 of 2026-10-28 — zero relaunches is a decision, never the door's three).
+    """
     calls: list[httpx.Request] = []
 
     def refuse(request: httpx.Request) -> httpx.Response:
@@ -172,16 +176,13 @@ async def test_a_provider_refusal_keeps_its_cause_and_never_retries(
                     llm=llm, messages=[], schema=_Answer, provider="anthropic", max_retries=3
                 )
 
-    assert len(calls) == attempts
-    retries = [entry for entry in logs if entry.get("event") == "structured_output_retry"]
-    assert [entry["attempt"] for entry in retries] == list(range(1, attempts))
-    exhausted = [
-        entry for entry in logs if entry.get("event") == "structured_output_all_retries_failed"
-    ]
-    assert len(exhausted) == (1 if attempts == 3 else 0)
-    if attempts == 1:
+    assert len(calls) == 1
+    assert not [entry for entry in logs if entry.get("event") == "structured_output_retry"]
+    assert isinstance(caught.value.original_error, anthropic.APIStatusError)
+    assert caught.value.original_error.status_code == status
+    assert caught.value.__cause__ is caught.value.original_error
+    if refused:
         assert isinstance(caught.value, structured_output.StructuredOutputRefusedError)
         assert caught.value.status_code == status
-        assert isinstance(caught.value.original_error, anthropic.APIStatusError)
-        assert caught.value.original_error.status_code == status
-        assert caught.value.__cause__ is caught.value.original_error
+    else:
+        assert isinstance(caught.value, structured_output.StructuredOutputCallError)

@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
@@ -30,18 +30,12 @@ from src.core.time_utils import (
 from src.core.time_utils import (
     seconds_to_next_local_midnight as _seconds_to_next_local_midnight,
 )
-from src.domains.briefing.cache_keys import (
-    EDITORIAL_MAILS_SECTION,
-    last_good_key,
-    section_cache_key,
-)
+from src.domains.briefing.act_decision import file_briefing_act
+from src.domains.briefing.cache_keys import EDITORIAL_MAILS_SECTION
 from src.domains.briefing.cache_state import classify_cache_state
 from src.domains.briefing.cached_cards import cached_cards_bundle, published_cards_bundle
 from src.domains.briefing.card_content import _has_content as _has_content
-from src.domains.briefing.classification import expire_cached_annotations
 from src.domains.briefing.constants import (
-    BRIEFING_SHARED_BUILD_WAIT_SECONDS,
-    ERROR_CODE_INTERNAL,
     SECTION_AGENDA,
     SECTION_AGENDA_TTL_SECONDS,
     SECTION_BIRTHDAYS,
@@ -66,10 +60,6 @@ from src.domains.briefing.constants import (
 )
 from src.domains.briefing.consultations import SURFACE as BRIEFING_SURFACE
 from src.domains.briefing.consultations import SectionReadObserver
-from src.domains.briefing.exceptions import (
-    ConnectorAccessError,
-    ConnectorNotConfiguredError,
-)
 from src.domains.briefing.fetchers import (
     fetch_agenda,
     fetch_birthdays,
@@ -94,12 +84,25 @@ from src.domains.briefing.schemas import (
     SynthesisResponse,
     TextSection,
 )
+from src.domains.briefing.section_outcomes import (
+    SectionKeys,
+    fetch_and_map,
+    persist_live_outcome,
+    read_generation,
+    read_section,
+    read_settled_section,
+    section_keys,
+)
 from src.domains.briefing.selected_cards import SectionPlan as _SectionPlan
 from src.domains.briefing.selected_cards import selected_cards_bundle
-from src.domains.briefing.sms_context import fetch_sms, revalidate_sms_card
+from src.domains.briefing.sms_context import (
+    PromptSms,
+    fetch_sms,
+    read_prompt_sms,
+    revalidate_sms_card,
+)
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
-from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_briefing import (
     briefing_build_duration_seconds,
     briefing_bundle_builds_total,
@@ -118,10 +121,9 @@ logger = structlog.get_logger(__name__)
 # Metric label values for the per-section origin counter. Since D-04 the
 # cache/live distinction IS exposed on the wire too (CardSection.from_cache):
 # "updated 2 h ago" without saying it came from a cache was freshness theater.
-_ORIGIN_LIVE = "live"
+# The live and stale origins are decided where the read is persisted.
 _ORIGIN_CACHE = "cache"
 _ORIGIN_HIDDEN = "hidden"  # UXR Lot 5 (B4): user-hidden placeholder, zero IO
-_ORIGIN_STALE = "stale"  # D-04: last known-good served alongside an ERROR
 
 # Whether a caller gathered the bundle or shared one already being gathered.
 _BUILD_OWNED = "owned"
@@ -289,11 +291,16 @@ class BriefingService:
         if force:
             return await self._gather_cards(force)
 
+        # Owner liveness (spec 2026-10-21 §5.7): a waiter keeps waiting while the
+        # owner's claim is alive and builds once it is gone without a complete
+        # bundle — one re-claiming waiter, not every waiter after a fixed timer.
         shared = await run_shared_flight(
             self._claim_key(),
             build=lambda: self._gather_cards(force),
             read_shared=self._published_bundle,
-            wait_budget_s=BRIEFING_SHARED_BUILD_WAIT_SECONDS,
+            read_settled=self._settled_bundle,
+            wait_budget_s=settings.briefing_shared_build_max_wait_seconds,
+            owner_liveness=True,
         )
         return shared.value
 
@@ -324,6 +331,15 @@ class BriefingService:
         """
         return await published_cards_bundle(self._read_section_cache)
 
+    async def _settled_bundle(self) -> CardsBundle | None:
+        """What a WAITING worker accepts: the bundle, a recently failed section settled.
+
+        The owner's own look (``_published_bundle``) never counts an attempt
+        marker, so the next owner retries the failed source live; a waiter of
+        the same build accepts it instead of waiting out its budget (E12).
+        """
+        return await published_cards_bundle(self._read_settled_section)
+
     def _flight_key(self, force: frozenset[str]) -> tuple[object, ...]:
         """What makes two bundle builds the same work.
 
@@ -352,35 +368,10 @@ class BriefingService:
     async def _record_cards_turn(
         self, *, run_id: str | None = None, route: str = "briefing_cards"
     ) -> None:
-        """File the act the consultations belong to.
-
-        Only when at least one source was actually read: a page load served
-        entirely from cache opened nothing, and a register row for it would
-        claim a read that never happened.
-
-        Never raises — the dashboard is already built when this runs.
-        """
-        try:
-            from src.domains.agents.effects.decision_recorder import record_decision
-            from src.domains.agents.effects.decisions import out_of_turn_decision
-            from src.domains.agents.effects.models import DecisionOutcome, EffectSource
-
-            decision = out_of_turn_decision(
-                run_id=run_id or self._consultation_run_id,
-                user_id=self.user.id,
-                thread_id=run_id or self._consultation_run_id,
-                # A request reached the API; nothing schedules the briefing.
-                source=EffectSource.USER.value,
-            )
-            decision.outcome = DecisionOutcome.ANSWERED
-            decision.route = route
-            await record_decision(decision)
-        except Exception as exc:  # noqa: BLE001 - observing never breaks the observed
-            logger.warning(
-                "briefing_cards_decision_not_recorded",
-                run_id=run_id or self._consultation_run_id,
-                error_type=type(exc).__name__,
-            )
+        """File the act the consultations belong to (``act_decision``). Never raises."""
+        await file_briefing_act(
+            user_id=self.user.id, run_id=run_id or self._consultation_run_id, route=route
+        )
 
     def _build_plan(
         self, force: frozenset[str], *, sms_previews: bool = False
@@ -583,25 +574,31 @@ class BriefingService:
 
         text_run_id = f"briefing_text_{uuid.uuid4().hex[:12]}"
         async with consultation_collector(text_run_id) as consulted:
-            (greeting_text, greeting_usage), (synthesis_text, synthesis_usage) = (
-                await asyncio.gather(
-                    generate_greeting(
-                        user=self.user,
-                        user_tz=self.user_tz,
-                        cards=cards,
-                        language=self.language,
-                    ),
-                    generate_synthesis(
-                        user=self.user,
-                        user_tz=self.user_tz,
-                        cards=cards,
-                        language=self.language,
-                    ),
-                )
-            )
+            # ONE SMS read for both prompts (E13); each still checks consent.
+            prompt_sms = await read_prompt_sms(self.user.id, cards.sms)
+            text = await self.compose_text(cards, prompt_sms)
         if consulted:
             await self._record_cards_turn(run_id=text_run_id, route="briefing_text")
+        return text
 
+    async def compose_text(self, cards: CardsBundle, prompt_sms: PromptSms) -> SynthesisResponse:
+        """The greeting and synthesis of a bundle: the two model calls, nothing else read."""
+        (greeting_text, greeting_usage), (synthesis_text, synthesis_usage) = await asyncio.gather(
+            generate_greeting(
+                user=self.user,
+                user_tz=self.user_tz,
+                cards=cards,
+                language=self.language,
+                prompt_sms=prompt_sms,
+            ),
+            generate_synthesis(
+                user=self.user,
+                user_tz=self.user_tz,
+                cards=cards,
+                language=self.language,
+                prompt_sms=prompt_sms,
+            ),
+        )
         now = datetime.now(UTC)
         return SynthesisResponse(
             greeting=TextSection(text=greeting_text, generated_at=now, usage=greeting_usage),
@@ -699,11 +696,12 @@ class BriefingService:
             ).inc()
             return CardSection(status=CardStatus.HIDDEN, generated_at=datetime.now(UTC))
 
-        cache_key = self._cache_key(name)
+        keys = self._section_keys(name)
 
-        # 1. Try cache (skipped when ttl=0 or force=True).
+        # 1. Try cache (skipped when ttl=0 or force=True). An attempt marker is
+        #    NOT read here: the cards retry a failed source live.
         if ttl > 0 and not force:
-            cached = await self._read_cache(cache_key)
+            cached = await self._read_cache(keys.cache)
             if cached is not None:
                 # D-04: say so on the wire — the badge reads "cache", not
                 # a false "freshly fetched".
@@ -716,30 +714,18 @@ class BriefingService:
         # 2. Live fetch + status mapping (extracted — CC discipline).
         # Only THIS branch is a consultation: a cache hit above reads Redis,
         # not the person's mailbox, and a hidden section never runs at all.
+        # The push generation is read BEFORE the fetch: the write after it is
+        # refused when a push invalidated the section meanwhile (E5).
+        generation = await read_generation(keys.generation) if ttl > 0 else None
         section = await self._read_live_section(name, fetcher, record=record, on_read=on_read)
 
-        # 3. Persist on cacheable outcomes (skip ttl=0 and ERROR — errors should
-        #    retry next request, not be sticky).
-        if ttl > 0 and section.status in (
-            CardStatus.OK,
-            CardStatus.EMPTY,
-            CardStatus.NOT_CONFIGURED,
-        ):
-            await self._write_cache(cache_key, section, ttl)
-
-        # 3b. D-04 stale-while-error net. On OK-with-data, remember the payload
-        # under a long-TTL side key; on ERROR, serve that last known-good copy
-        # ALONGSIDE the error so the card shows dated data instead of a hole.
-        # NOT_CONFIGURED never reaches this branch — after a connector
-        # disconnect the section raises ConnectorNotConfiguredError, so a
-        # stale copy can never leak past a disconnect (no purge needed).
-        origin = _ORIGIN_LIVE
-        if ttl > 0 and section.status is CardStatus.OK and section.data is not None:
-            await self._write_last_good(name, section)
-        elif ttl > 0 and section.status is CardStatus.ERROR:
-            section = await self._attach_stale(name, section)
-            if section.data is not None:
-                origin = _ORIGIN_STALE
+        # 3. Persist (section_outcomes): the cache on cacheable outcomes, the
+        #    D-04 last known-good copy, and for an ERROR its stale copy plus the
+        #    attempt marker the completeness readers settle on. NOT_CONFIGURED
+        #    never gets a stale copy: a disconnect cannot leak one.
+        section, origin = await persist_live_outcome(
+            name, section, keys=keys, ttl=ttl, generation=generation
+        )
 
         briefing_section_status_total.labels(
             section=name, status=section.status.value, origin=origin
@@ -778,77 +764,34 @@ class BriefingService:
         name: str,
         fetcher: Callable[[], Awaitable[Any]],
     ) -> CardSection:
-        """Run the live fetch and map the outcome to a CardSection.
-
-        Extracted from ``_section`` (CC discipline). **Never raises** — the
-        exception taxonomy maps to statuses; ERROR sections carry
-        ``last_attempt_at`` (D-04 honest freshness).
-        """
-        now = datetime.now(UTC)
-        try:
-            data = await fetcher()
-            return CardSection(
-                status=CardStatus.OK if _has_content(data) else CardStatus.EMPTY,
-                data=data if _has_content(data) else None,
-                generated_at=now,
-            )
-        except ConnectorNotConfiguredError as exc:
-            return CardSection(
-                status=CardStatus.NOT_CONFIGURED,
-                generated_at=now,
-                error_code=exc.error_code,
-            )
-        except ConnectorAccessError as exc:
-            logger.info(
-                "briefing_section_access_error",
-                section=name,
-                user_id=str(self.user.id),
-                error_code=exc.error_code,
-                source=exc.source,
-            )
-            return CardSection(
-                status=CardStatus.ERROR,
-                generated_at=now,
-                error_code=exc.error_code,
-                error_message=exc.message,
-                last_attempt_at=now,
-            )
-        except Exception as exc:  # safety net
-            logger.warning(
-                "briefing_section_failed",
-                section=name,
-                user_id=str(self.user.id),
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            return CardSection(
-                status=CardStatus.ERROR,
-                generated_at=now,
-                error_code=ERROR_CODE_INTERNAL,
-                last_attempt_at=now,
-            )
+        """Run the live fetch and map its outcome (``section_outcomes``). **Never raises**."""
+        return await fetch_and_map(name, fetcher, user_id=self.user.id)
 
     # =========================================================================
     # Redis helpers (defensive — cache is best-effort)
     # =========================================================================
 
     def _cache_key(self, name: str) -> str:
-        """The cache key of one section.
+        """The cache key of one section (built by ``briefing.cache_keys``)."""
+        return self._section_keys(name).cache
 
-        Built by ``briefing.cache_keys``, never here: the push invalidation in
-        another domain deletes the very same keys, and a second builder is how
-        one of them silently stopped matching.
+    def _section_keys(self, name: str) -> SectionKeys:
+        """Every key of one section, built by ``briefing.cache_keys`` and never here.
+
+        The push invalidation in another domain deletes the very same keys, and
+        a second builder is how one of them silently stopped matching.
 
         Args:
             name: Section name.
 
         Returns:
-            The fully scoped Redis key.
+            The section's cache, last-good, attempt-marker and generation keys.
         """
-        return section_cache_key(
+        return section_keys(
             user_id=self.user.id,
             language=self.language,
-            section=self._cache_section(name),
+            section=name,
+            cache_section=self._cache_section(name),
         )
 
     def _cache_section(self, name: str) -> str:
@@ -867,6 +810,58 @@ class BriefingService:
                 exclude_commercial_mails=True,
             )
         return await fetch_mails(user=self.user, user_tz=self.user_tz, language=self.language)
+
+    # =========================================================================
+    # One-plan reads for the progressive dashboard (``progressive.py``)
+    # =========================================================================
+
+    @property
+    def hidden_sections(self) -> frozenset[str]:
+        """The sections the person hid: never read, never cached."""
+        return self._hidden_sections
+
+    def consult_as(self, run_id: str) -> None:
+        """File this service's reads under an act's run id."""
+        self._consultation_run_id = run_id
+
+    def plans(self, force: frozenset[str] = frozenset()) -> tuple[_SectionPlan, ...]:
+        """How each section is obtained (gather order)."""
+        return self._build_plan(force, sms_previews=True)
+
+    async def read_plan(self, plan: _SectionPlan) -> CardSection:
+        """One section through the cards' own read (cache, live, outcomes). Never raises."""
+        return await self._section(plan.name, plan.fetcher, ttl=plan.ttl, force=plan.force)
+
+    async def cached_section(self, name: str, *, settled: bool = False) -> CardSection | None:
+        """A cache-eligible section's cache — a recent failure counts when ``settled``.
+
+        Never a fetch: it is asked only for visible, cache-eligible sections
+        (``progressive``), whose settled reader opens no source.
+        """
+        section = await (
+            self._read_settled_section(name) if settled else self._read_cache(self._cache_key(name))
+        )
+        if section is not None:
+            section.from_cache = True
+        return section
+
+    async def settled_bundle(self, served: Mapping[str, CardSection] | None = None) -> CardsBundle:
+        """What the text may read: caches and recent failures only; absent = unavailable.
+
+        Args:
+            served: What the act's first response showed (``act_snapshot``): read for a
+                section the cache let go since, so the text speaks of the same page.
+        """
+        if not served:
+            cards, _missing = await self._read_cached_bundle(sms_previews=True)
+            return cards
+
+        async def read(name: str, *, include_messages: bool = False) -> CardSection | None:
+            section = await self._read_settled_section(name, include_messages=include_messages)
+            return section if section is not None else served.get(name)
+
+        cards, _missing = await cached_cards_bundle(read, include_sms=True, sms_previews=True)
+        return cards
 
     async def read_cached_weather(self) -> CardSection | None:
         """Borrow weather for the companion; a miss NEVER starts a source fetch."""
@@ -922,7 +917,7 @@ class BriefingService:
     ) -> tuple[CardsBundle, frozenset[str]]:
         """Read permitted sections and distinguish a cold bundle from a quiet day."""
         return await cached_cards_bundle(
-            self._read_section_cache, include_sms=include_sms, sms_previews=sms_previews
+            self._read_settled_section, include_sms=include_sms, sms_previews=sms_previews
         )
 
     async def _read_section_cache(
@@ -948,72 +943,21 @@ class BriefingService:
             )
         return await self._read_cache(self._cache_key(name))
 
+    async def _read_settled_section(
+        self, name: str, *, include_messages: bool = False
+    ) -> CardSection | None:
+        """A completeness reader's view: a recent failed attempt settles the section (A8).
+
+        Read by the synthesis and by waiting workers, never by the cards' own
+        reads, which retry a failed source live.
+        """
+        if name in self._hidden_sections or name == SECTION_SMS:
+            return await self._read_section_cache(name, include_messages=include_messages)
+        return await read_settled_section(self._read_cache, self._section_keys(name))
+
     async def _read_cache(self, key: str) -> CardSection | None:
-        try:
-            redis = await get_redis_cache()
-            raw = await redis.get(key)
-            if raw is None:
-                return None
-            if isinstance(raw, bytes):
-                raw = raw.decode("utf-8")
-            return expire_cached_annotations(CardSection.model_validate_json(raw))
-        except Exception as exc:
-            logger.debug(
-                "briefing_cache_read_failed",
-                key=key,
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            return None
-
-    async def _write_cache(self, key: str, section: CardSection, ttl: int) -> None:
-        try:
-            redis = await get_redis_cache()
-            await redis.set(key, section.model_dump_json(), ex=ttl)
-        except Exception as exc:
-            logger.debug(
-                "briefing_cache_write_failed",
-                key=key,
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-
-    # =========================================================================
-    # D-04 stale-while-error net (last known-good side cache)
-    # =========================================================================
-
-    def _last_good_key(self, name: str) -> str:
-        """The long-TTL side key holding this section's last known-good payload."""
-        return last_good_key(
-            user_id=self.user.id,
-            language=self.language,
-            section=self._cache_section(name),
-        )
-
-    async def _write_last_good(self, name: str, section: CardSection) -> None:
-        """Remember an OK-with-data payload under the long-TTL side key.
-
-        Best-effort like every cache write. TTL 0 disables the net entirely.
-        """
-        ttl = settings.briefing_last_good_ttl_seconds
-        if ttl <= 0:
-            return
-        await self._write_cache(self._last_good_key(name), section, ttl)
-
-    async def _attach_stale(self, name: str, section: CardSection) -> CardSection:
-        """Fill an ERROR section with the last known-good payload, if any.
-
-        The error stays the STATUS (code, message, CTA all keep working); the
-        stale payload rides along with its own original timestamp so the card
-        can say "data from 09:12 — connector unreachable" instead of showing
-        a hole. A miss returns the section unchanged.
-        """
-        stale = await self._read_cache(self._last_good_key(name))
-        if stale is None or stale.data is None:
-            return section
-        section.data = stale.data
-        section.stale_generated_at = stale.generated_at
-        return section
+        """One cached section by key, or None (best-effort, see ``section_outcomes``)."""
+        return await read_section(key)
 
     # =========================================================================
     # Cache state classification (for the duration histogram label)
@@ -1023,5 +967,5 @@ class BriefingService:
     def _classify_cache_state(
         outcomes: Iterable[tuple[CardSection, bool]],
     ) -> str:
-        """Keep the existing helper and clock seam while sharing the pure calculation."""
-        return classify_cache_state(outcomes, now=datetime.now(UTC))
+        """Classify by provenance (``from_cache``), never by age (spec 2026-10-21 A8)."""
+        return classify_cache_state(outcomes)

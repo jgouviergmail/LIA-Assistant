@@ -13,7 +13,7 @@ Scopes required:
 """
 
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 
@@ -24,6 +24,7 @@ from src.domains.connectors.clients.normalizers.microsoft_calendar_normalizer im
     normalize_graph_calendar,
     normalize_graph_event,
 )
+from src.domains.connectors.clients.retry_policy import provider_idempotency_id
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -222,6 +223,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         Create a new calendar event.
@@ -238,6 +240,10 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             add_conference: When True, ask Graph to attach a Teams meeting
                 (isOnlineMeeting + onlineMeetingProvider). Parity with the
                 Google client's Meet creation.
+            idempotency_key: The effect's key (ADR-263); the event's
+                ``transactionId`` is derived from it, so a create whose answer was
+                lost is sent again and Graph keeps one event (S1). None: a key
+                minted for this call.
 
         Returns:
             Created event in Google Calendar format.
@@ -247,6 +253,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         effective_timezone = timezone or DEFAULT_TIMEZONE
 
         event_body: dict[str, Any] = {
+            "transactionId": provider_idempotency_id(idempotency_key or uuid4().hex, "microsoft"),
             "subject": summary,
             "start": {
                 "dateTime": start_datetime,
@@ -282,7 +289,8 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         else:
             endpoint = f"/me/calendars/{calendar_id}/events"
 
-        response = await self._make_request("POST", endpoint, json_data=event_body)
+        # Graph keeps one event per transactionId, so a lost answer may be resent.
+        response = await self._make_request("POST", endpoint, json_data=event_body, idempotent=True)
 
         logger.info(
             "microsoft_calendar_event_created",

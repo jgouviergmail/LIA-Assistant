@@ -34,6 +34,7 @@ import {
 } from '@/types/chat';
 import { DebugMetricsEntry } from '@/types/chat-state';
 import type { ExecutionTrace, ExecutionTraceStep } from '@/types/execution-trace';
+import { endMcpPreparationRun, handleMcpPreparationStep } from './mcp-preparation';
 import { SSEHandlerContext, ProgressMessageMetadata, type LiveStepTally } from './types';
 
 // Stable id used to morph the compaction toast in place (loading → success/warn)
@@ -623,6 +624,11 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     return;
   }
 
+  // A slow personal server is a toast; its generic step stays a progress step (spec §5.6).
+  if (handleMcpPreparationStep(chunk, context)) {
+    return;
+  }
+
   const {
     dispatch,
     withContext,
@@ -809,6 +815,7 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
   // to the completed message BEFORE STREAM_DONE flips status to idle. Skipped
   // when nothing was captured (e.g. a pure-conversation reply with no steps).
   attachExecutionTrace(context, assistantMessageId, metadata?.duration_ms);
+  endMcpPreparationRun(assistantMessageId);
 
   dispatch({
     type: 'STREAM_DONE',
@@ -1226,6 +1233,7 @@ export function handleError(chunk: ChatStreamChunk, context: SSEHandlerContext):
       error_code: errorCode,
     })
   );
+  endMcpPreparationRun(context.assistantMessageId);
 
   dispatch({
     type: 'STREAM_ERROR',

@@ -26,18 +26,17 @@ const DISPLAY_MS = 5000;
 const PENDING_MS = 60000;
 const LIMIT = 128;
 export function privateSpeechDeliveries(mailbox: WorldMailbox): SpeechDelivery[] {
-  return mailbox.messages
-    .filter(message => !message.outgoing)
-    .map(message => ({
-      id: message.id,
-      speaker: message.sender_id,
-      label: message.sender_alias,
-      text: message.text,
-      ready: message.status === 'original' || message.status === 'translated',
-      created: message.created_at,
-    }));
+  return mailbox.messages.map(message => ({
+    id: message.id,
+    speaker: message.sender_id,
+    label: message.sender_alias,
+    // The server projects the sender's original into text, even while the
+    // recipient's translation is pending. Only confirmed mailbox entries echo.
+    text: message.text,
+    ready: message.outgoing || message.status === 'original' || message.status === 'translated',
+    created: message.created_at,
+  }));
 }
-/** Public echo is intentional; private outgoing text stays excluded above. */
 export function publicSpeechDeliveries(mailbox: WorldMailbox): SpeechDelivery[] {
   return (mailbox.public_messages ?? []).map(message => ({
     id: message.id,

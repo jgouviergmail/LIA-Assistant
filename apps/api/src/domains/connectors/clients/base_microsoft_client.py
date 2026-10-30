@@ -31,6 +31,7 @@ from src.core.exceptions import AuthenticationError, ConnectorAPIError, External
 from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_oauth_client import BaseOAuthClient
+from src.domains.connectors.clients.retry_policy import may_resend
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -246,7 +247,7 @@ class BaseMicrosoftClient(BaseOAuthClient[ConnectorType]):
                 )
 
             except httpx.RequestError as e:
-                if attempt < 2:
+                if attempt < 2 and may_resend(method, e):
                     await asyncio.sleep(self._calculate_backoff(attempt))
                     continue
                 raise ExternalServiceError(

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.domains.product.constants import (
     CLIENT_EVENT_TYPES,
+    CLIENT_TIMING_METRICS,
     SEARCH_OUTCOMES,
     SEARCH_SURFACES,
     WEB_VITAL_RATIO_METRICS,
@@ -21,32 +22,35 @@ MAX_EVENTS_PER_BATCH = 20
 
 
 class ClientEventItem(BaseModel):
-    """One telemetry item — exactly one of the three bounded kinds.
+    """One telemetry item — exactly one of the four bounded kinds.
 
     Attributes:
-        kind: Item discriminator (funnel event, search, web vital).
+        kind: Item discriminator (funnel event, search, web vital, journey timing).
         event_type: Bounded ``CLIENT_EVENT_TYPES`` value (kind=event).
         surface: Bounded search surface (kind=search).
         outcome: Bounded search outcome (kind=search).
-        metric: Bounded Web Vital name (kind=vital).
-        value: Web Vital measurement (kind=vital) — seconds for LCP,
-            unitless for CLS; capped to reject garbage.
+        metric: Bounded Web Vital name (kind=vital) or journey timing name
+            (kind=timing, ``CLIENT_TIMING_METRICS``).
+        value: The measurement — seconds for LCP and every timing, unitless for
+            CLS; capped to reject garbage.
     """
 
-    kind: Literal["event", "search", "vital"] = Field(
-        description="Item discriminator: funnel event, search telemetry or Web Vital."
+    kind: Literal["event", "search", "vital", "timing"] = Field(
+        description="Item discriminator: funnel event, search telemetry, Web Vital or timing."
     )
     event_type: str | None = Field(
         default=None, description="Bounded client event type (kind=event)."
     )
     surface: str | None = Field(default=None, description="Bounded search surface (kind=search).")
     outcome: str | None = Field(default=None, description="Bounded search outcome (kind=search).")
-    metric: str | None = Field(default=None, description="Bounded Web Vital metric (kind=vital).")
+    metric: str | None = Field(
+        default=None, description="Bounded Web Vital (kind=vital) or timing (kind=timing) name."
+    )
     value: float | None = Field(
         default=None,
         ge=0,
         le=120,
-        description="Web Vital value (kind=vital) — seconds (LCP) or ratio (CLS).",
+        description="Seconds (LCP, every timing) or ratio (CLS).",
     )
 
     @field_validator("event_type")
@@ -73,7 +77,8 @@ class ClientEventItem(BaseModel):
     @field_validator("metric")
     @classmethod
     def _bounded_metric(cls, v: str | None) -> str | None:
-        if v is not None and v not in (WEB_VITAL_SECONDS_METRICS | WEB_VITAL_RATIO_METRICS):
+        known = WEB_VITAL_SECONDS_METRICS | WEB_VITAL_RATIO_METRICS | CLIENT_TIMING_METRICS
+        if v is not None and v not in known:
             raise ValueError(f"unknown metric '{v}'")
         return v
 

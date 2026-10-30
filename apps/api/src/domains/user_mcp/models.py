@@ -189,12 +189,20 @@ class UserMCPServer(BaseModel):
     discovered_tools_cache: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
-        doc="Cached list_tools() result for fast startup",
+        doc=(
+            "The server's catalogue snapshot: a version-2 envelope (tools in canonical order, "
+            "discovery date, configuration fingerprint, generation, read_me reference, the "
+            "server's ttlMs/cacheScope and instructions — infrastructure/mcp/catalogue_snapshot), "
+            "or a legacy list/dict written before 2026-10-28, read forever, never routed"
+        ),
     )
     tool_embeddings_cache: Mapped[dict | None] = mapped_column(
         JSONB,
         nullable=True,
-        doc="Pre-computed E5 embeddings for discovered tools (computed at registration)",
+        doc=(
+            "Tool vectors by raw tool name, with the embedding model and each vector's "
+            "identity (the texts it embeds) — reused per tool, refreshed on the turn path"
+        ),
     )
 
     # Connection tracking

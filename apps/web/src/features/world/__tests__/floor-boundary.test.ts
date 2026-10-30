@@ -29,3 +29,20 @@ it('ends an indoor floor at its outside wall face while leaving room seams and d
   expect(edges.has('1:1')).toBe(false);
   expect(edges.has('2:2')).toBe(false);
 });
+
+it('never inserts a grass strip where the indoor floor meets the paved terrace', () => {
+  const terrace = WORLD.zones.find(zone => zone.id === 'terrace')!;
+  const edges = floorEdgeBounds(WORLD);
+  const threshold = WORLD.props.filter(
+    prop =>
+      prop.kind === 'partition' &&
+      prop.y === terrace.y - 1 &&
+      prop.x >= terrace.x &&
+      prop.x < terrace.x + terrace.width
+  );
+  expect(threshold.length).toBeGreaterThan(0);
+  for (const wall of threshold) {
+    const crop = edges.get(wall.x + ':' + wall.y);
+    expect(crop ? crop.y + crop.height : 1, wall.id).toBe(1);
+  }
+});

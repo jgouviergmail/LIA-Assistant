@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "MCP servers",
-      "role": "Connect third-party MCP tools, including OAuth; result cards name their server and method. A server-declared cooldown pauses calls across workers.",
+      "role": "Connect third-party MCP tools, including OAuth, kept from one message to the next; result cards name their server and method. A server-declared cooldown pauses calls across workers.",
       "goal": "Extend LIA without waiting for a native integration.",
-      "src": "1409a780080c"
+      "src": "4213abb3483f"
     },
     "f.skills": {
       "name": "Skills and plugins",
@@ -271,9 +271,9 @@
     },
     "f.briefing": {
       "name": "Daily briefing",
-      "role": "The home page: agenda, emails, weather, reminders and a summary, read only once per page load.",
+      "role": "The home page: agenda, emails, weather, reminders and a summary, read only once per page load, each card shown as soon as it is ready.",
       "goal": "See where you stand at a glance.",
-      "src": "5ee486bb168c"
+      "src": "28bd35aaac51"
     },
     "f.routines": {
       "name": "Routines",

@@ -246,9 +246,9 @@
     },
     "t.mcp": {
       "name": "MCP-Client",
-      "role": "Ein Client-Pool pro Person, Standardschemata und dieselben Schutzregeln wie für native Werkzeuge; Quelle und Methode begleiten jede Ausgabeform. Serverseitige Wartefristen werden über Redis geteilt.",
+      "role": "Ein Client-Pool pro Person, Standardschemata und dieselben Schutzregeln wie für native Werkzeuge; Quelle und Methode begleiten jede Ausgabeform. Der Katalog eines persönlichen Servers ist ein Schnappschuss, der während seiner Neuprüfung ausgeliefert und beim Aufruf verifiziert wird; serverseitige Wartefristen werden über Redis geteilt.",
       "stack": ["Model Context Protocol", "Zwei Protokollrevisionen", "OAuth pro Aussteller"],
-      "src": "7d42a9fb7ca7"
+      "src": "26f19930dc70"
     },
     "t.skills": {
       "name": "Skills und Plugins",

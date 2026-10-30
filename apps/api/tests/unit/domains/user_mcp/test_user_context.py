@@ -273,6 +273,7 @@ class TestSetupUserMCPTools:
         server.tool_embeddings_cache = wrap_server_cache(
             {"hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]}},
             tool_metadata=[{"name": "hub_search", "description": "Search", "input_schema": {}}],
+            server_name="TestServer",
         )
 
         mock_repo = AsyncMock()
@@ -399,7 +400,11 @@ class TestSetupUserMCPTools:
         mock_compute.assert_awaited_once_with(tool_metadata=entry.tools, server_name="TestServer")
         mock_repo.update.assert_awaited_once_with(
             server,
-            {"tool_embeddings_cache": wrap_server_cache(fresh, tool_metadata=entry.tools)},
+            {
+                "tool_embeddings_cache": wrap_server_cache(
+                    fresh, tool_metadata=entry.tools, server_name="TestServer"
+                )
+            },
         )
 
     @pytest.mark.unit
@@ -523,11 +528,9 @@ class TestSetupUserMCPTools:
             assert len(ctx.tool_manifests) == 1
             assert ctx.tool_manifests[0].name == task_tool_name
 
-            # Server should be in iterative_servers set
-            assert "excalidraw" in ctx.iterative_servers
-
-            # reference_content still cached (for display, not planner injection)
-            assert "Excalidraw" in ctx.server_reference_content
+            # Its sub-agent calls read_me itself: no reference for the planner
+            # (spec 2026-10-21 §5.5b).
+            assert ctx.server_reference_sources == {}
         finally:
             cleanup_user_mcp_tools(token)
 
@@ -648,7 +651,6 @@ class TestSetupUserMCPTools:
             assert len(ctx.tool_instances) == 1
             server_prefix = str(server.id)[:8]
             assert f"mcp_user_{server_prefix}_task" not in ctx.tool_instances
-            assert len(ctx.iterative_servers) == 0
         finally:
             cleanup_user_mcp_tools(token)
 
@@ -1128,5 +1130,63 @@ class TestAccountScopePublication:
 
             manifest = next(m for m in ctx.tool_manifests if m.name.endswith("_task"))
             assert "own account" not in manifest.description
+        finally:
+            cleanup_user_mcp_tools(token)
+
+
+class TestRegistrationFailure:
+    """A server whose tools cannot be registered is absent from the turn, never fatal."""
+
+    @staticmethod
+    def _server(name: str) -> MagicMock:
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = name
+        server.url = f"https://{name.lower()}.example.com"
+        server.timeout_seconds = 30
+        server.hitl_required = None
+        server.domain_description = None
+        server.tool_embeddings_cache = None
+        server.iterative_mode = False
+        return server
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
+    async def test_one_failed_registration_keeps_the_other_servers(
+        self, mock_manifest, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        from src.infrastructure.mcp import user_context
+
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        broken, good = self._server("Broken"), self._server("Good")
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[broken, good])
+        mock_repo_cls.return_value = mock_repo
+        entry = MagicMock()
+        entry.tools = [{"name": "test_tool", "description": "Test", "input_schema": {}}]
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+        mock_manifest.return_value = MagicMock()
+        real_register = user_context._register_user_standard_server
+
+        def register(server, *args, **kwargs):  # type: ignore[no-untyped-def]
+            if server is broken:
+                raise RuntimeError("unregistrable tool schema")
+            return real_register(server, *args, **kwargs)
+
+        with patch.object(user_context, "_register_user_standard_server", register):
+            token = await setup_user_mcp_tools(uuid4())
+        try:
+            assert token is not None
+            ctx = user_mcp_tools_ctx.get()
+            assert ctx is not None
+            assert {inst.server_id for inst in ctx.tool_instances.values()} == {good.id}
         finally:
             cleanup_user_mcp_tools(token)

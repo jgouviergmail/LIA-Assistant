@@ -15,9 +15,9 @@ export function paintLampGlow(): Sprite {
   if (!c) throw new Error('Canvas unavailable');
   const glow = c.createRadialGradient(80, 80, 0, 80, 80, 80);
   glow.addColorStop(0, 'rgba(255,250,219,.95)');
-  glow.addColorStop(0.08, 'rgba(255,233,165,.85)');
-  glow.addColorStop(0.26, 'rgba(255,203,105,.40)');
-  glow.addColorStop(0.58, 'rgba(255,184,77,.12)');
+  glow.addColorStop(0.08, 'rgba(255,235,185,.72)');
+  glow.addColorStop(0.26, 'rgba(255,216,146,.28)');
+  glow.addColorStop(0.58, 'rgba(255,195,112,.07)');
   glow.addColorStop(1, 'rgba(255,184,77,0)');
   c.fillStyle = glow;
   c.fillRect(0, 0, 160, 160);
@@ -60,11 +60,11 @@ export function paintGroundShade(
   c.beginPath();
   screenRect(c, { x: 0, y: 0, width: world.width, height: world.height }, camera);
   c.clip();
-  c.fillStyle = nightColour(inside);
+  c.fillStyle = nightColour(inside, atmosphere.phase);
   c.fillRect(0, 0, camera.width, camera.height);
   clipOutdoors(c, world, camera);
   // Alpha composition gives exactly the outdoor level, not two stacked night tints.
-  c.fillStyle = nightColour((outside - inside) / (1 - inside));
+  c.fillStyle = nightColour((outside - inside) / (1 - inside), atmosphere.phase);
   c.fillRect(0, 0, camera.width, camera.height);
   c.restore();
 }
@@ -88,7 +88,7 @@ function drawGlow(
   const p = lightPosition(prop, ground),
     at = project(p, p.z);
   const table = prop.kind === 'tablelamp';
-  const w = (ground ? (table ? 100 : 250) : table ? 64 : 100) * camera.zoom;
+  const w = (ground ? (table ? 88 : 220) : table ? 52 : 76) * camera.zoom;
   const h = ground ? w * 0.5 : w;
   const x = (at.x - camera.center.x) * camera.zoom + camera.width / 2;
   const y = (at.y - camera.center.y) * camera.zoom + camera.height / 2;

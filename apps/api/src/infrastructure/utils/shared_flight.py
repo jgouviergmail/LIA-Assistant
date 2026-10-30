@@ -28,6 +28,17 @@ Three rules it does not bend:
 - **Every failure falls back to building.** Redis unreachable, the claim
   unreadable, the script refused — each one lands on the behaviour this seam
   replaces, never on something worse.
+
+**Owner liveness (opt-in, ``owner_liveness=True``).** A waiter that accepts
+nothing but a complete published result paid the whole budget whenever the
+owner published an incomplete one — a section failed, or a push invalidated it
+at the owner's end — then rebuilt, every waiter on its own (spec 2026-10-21,
+E12: measured on the briefing). With liveness the claim itself says whether
+the owner is still working: the owner holds it through ``held_claim``, which
+renews it and stops the build when it is lost; a waiter keeps waiting while it
+is held, with a polling backoff, and the first waiter to find it gone without
+a result takes it AGAIN and builds — the others wait for that one. The budget
+becomes a hard ceiling rather than a timer.
 """
 
 from __future__ import annotations
@@ -41,7 +52,7 @@ from typing import Any, NamedTuple, TypeVar
 import structlog
 
 from src.infrastructure.cache.redis import get_redis_cache
-from src.infrastructure.locks.redis_claim import release_claim, try_claim
+from src.infrastructure.locks.redis_claim import ClaimLost, held_claim, release_claim, try_claim
 
 logger = structlog.get_logger(__name__)
 
@@ -64,6 +75,14 @@ CLAIM_TTL_SECONDS = 30
 
 #: How often a waiter looks for the published result.
 POLL_INTERVAL_SECONDS = 0.02
+
+#: With owner liveness, the poll interval doubles up to this cap: a long build
+#: (a slow source) must not cost hundreds of reads per waiter.
+POLL_INTERVAL_CAP_SECONDS = 0.25
+
+# The waiter's clock and sleep, injectable in tests (the claim keeper keeps its own).
+_now = time.monotonic
+_sleep = asyncio.sleep
 
 
 class SharedFlightResult[V](NamedTuple):
@@ -88,6 +107,8 @@ async def run_shared_flight(
     read_shared: Callable[[], Awaitable[T | None]],
     wait_budget_s: float,
     claim_ttl_s: int = CLAIM_TTL_SECONDS,
+    owner_liveness: bool = False,
+    read_settled: Callable[[], Awaitable[T | None]] | None = None,
 ) -> SharedFlightResult[T]:
     """Do the work once across processes, or take what another one published.
 
@@ -101,7 +122,15 @@ async def run_shared_flight(
             Called by waiters only.
         wait_budget_s: How long a waiter may wait before doing the work itself.
         claim_ttl_s: How long the claim outlives a holder that died — longer
-            than the work itself may take.
+            than the work itself may take. With ``owner_liveness`` it is
+            renewed while the work runs, so it bounds a dead holder only.
+        owner_liveness: Wait while the owner's claim is held (up to the
+            budget, now a hard ceiling); build once it is gone without a
+            result, one re-claiming waiter at a time.
+        read_settled: With ``owner_liveness``, what a WAITER may accept: a
+            result the owner settled without completing it (a failure it
+            recorded). The owner's own look still requires ``read_shared``,
+            so the next owner retries what failed. Defaults to ``read_shared``.
 
     Returns:
         The value, and how this caller obtained it.
@@ -114,6 +143,17 @@ async def run_shared_flight(
     token = uuid.uuid4().hex
     redis = await _redis_or_none()
 
+    if redis is not None and owner_liveness:
+        return await _run_with_liveness(
+            redis,
+            claim_key,
+            token,
+            build=build,
+            read_shared=read_shared,
+            read_settled=read_settled or read_shared,
+            wait_budget_s=wait_budget_s,
+            claim_ttl_s=claim_ttl_s,
+        )
     if redis is None or not await _try_claim(redis, claim_key, token, claim_ttl_s):
         if redis is None:
             # No claim could be taken and none can be waited on: this is the
@@ -139,6 +179,115 @@ async def run_shared_flight(
     finally:
         await _release(redis, claim_key, token)
     return SharedFlightResult(value=value, claimed=True, waited=False)
+
+
+async def _run_with_liveness(
+    redis: Any,
+    claim_key: str,
+    token: str,
+    *,
+    build: Callable[[], Awaitable[T]],
+    read_shared: Callable[[], Awaitable[T | None]],
+    read_settled: Callable[[], Awaitable[T | None]],
+    wait_budget_s: float,
+    claim_ttl_s: int,
+) -> SharedFlightResult[T]:
+    """Claim and build, or wait while the owner's claim is held, then re-claim.
+
+    A waiter first looks for a SETTLED result (which may record a failure the
+    owner met), then tries the claim: that fails while the owner holds it, and
+    succeeds for exactly one waiter once the owner released it without a
+    result (or died and its claim expired) — the others keep waiting for that
+    waiter's result.
+
+    Args:
+        redis: The cache client.
+        claim_key: The claim's key.
+        token: This caller's owner token.
+        build: Does the work and publishes it.
+        read_shared: Returns the complete published result, or None (the
+            owner's look before it builds).
+        read_settled: Returns what a waiter may accept, or None.
+        wait_budget_s: The hard ceiling on waiting.
+        claim_ttl_s: The claim's life, renewed while the owner builds.
+
+    Returns:
+        The value, and how this caller obtained it.
+    """
+    if await _try_claim(redis, claim_key, token, claim_ttl_s):
+        return await _build_as_live_owner(
+            redis, claim_key, token, build, read_shared, claim_ttl_s, waited=False
+        )
+    deadline = _now() + wait_budget_s
+    interval = POLL_INTERVAL_SECONDS
+    while True:
+        shared = await _read_published(read_settled)
+        if shared is not None:
+            return SharedFlightResult(value=shared, claimed=False, waited=True)
+        if _now() >= deadline:
+            # The ceiling: a holder that is alive but never finishes must not
+            # strand anyone. Building is the floor, never an empty answer.
+            return SharedFlightResult(value=await build(), claimed=False, waited=True)
+        await _sleep(interval)
+        interval = min(interval * 2, POLL_INTERVAL_CAP_SECONDS)
+        if await _try_claim(redis, claim_key, token, claim_ttl_s):
+            # A waiter taking the claim over: the owner it waited for may have
+            # settled the result between this caller's read and its claim, and
+            # that result is what this waiter came for (measured across four
+            # real processes: the failed section was re-read without this).
+            return await _build_as_live_owner(
+                redis, claim_key, token, build, read_settled, claim_ttl_s, waited=True
+            )
+
+
+async def _build_as_live_owner(
+    redis: Any,
+    claim_key: str,
+    token: str,
+    build: Callable[[], Awaitable[T]],
+    read_shared: Callable[[], Awaitable[T | None]],
+    claim_ttl_s: int,
+    *,
+    waited: bool,
+) -> SharedFlightResult[T]:
+    """Look once, then build while the claim is kept alive; released by its token.
+
+    A claim lost mid-build stops the build: what a successor published is taken,
+    and only when nothing is there does this caller build without the claim.
+
+    Args:
+        redis: The cache client.
+        claim_key: The claim's key, already taken with ``token``.
+        token: The owner token.
+        build: Does the work and publishes it.
+        read_shared: Returns what this owner accepts instead of building: the
+            complete result for a fresh owner, the settled one for a waiter
+            that took the claim over.
+        claim_ttl_s: The claim's life, renewed on every refresh.
+        waited: Whether this caller waited before taking the claim.
+
+    Returns:
+        The value, and how this caller obtained it.
+
+    Raises:
+        Exception: Whatever ``build()`` raises, once the claim is released.
+    """
+    try:
+        async with held_claim(redis, claim_key, token, ttl_seconds=claim_ttl_s):
+            already = await _read_published(read_shared)
+            if already is not None:
+                return SharedFlightResult(value=already, claimed=False, waited=waited)
+            value = await build()
+    except ClaimLost as lost:
+        # The claim stopped protecting the build (a successor holds it): the
+        # build was stopped. What the successor already published is taken;
+        # building without the claim is the floor, never the first resort.
+        logger.info("shared_flight_claim_lost", reason=lost.reason)
+        successor = await _read_published(read_shared)
+        if successor is not None:
+            return SharedFlightResult(value=successor, claimed=False, waited=waited)
+        return SharedFlightResult(value=await build(), claimed=False, waited=waited)
+    return SharedFlightResult(value=value, claimed=True, waited=waited)
 
 
 async def _redis_or_none() -> Any | None:
@@ -222,6 +371,7 @@ async def _release(redis: Any, claim_key: str, token: str) -> None:
 __all__ = [
     "CLAIM_PREFIX",
     "CLAIM_TTL_SECONDS",
+    "POLL_INTERVAL_CAP_SECONDS",
     "SharedFlightResult",
     "run_shared_flight",
 ]

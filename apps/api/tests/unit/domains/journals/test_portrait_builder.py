@@ -249,6 +249,28 @@ class TestPortraitBuilderMetrics:
         counter_mock.inc.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_a_block_read_for_a_fingerprint_counts_nothing(self) -> None:
+        """Third fresh review: the dashboard text's identity reads the block on every text
+        request — a cache hit included — and counted it « present » in a prompt never sent."""
+        counter_mock = MagicMock(name="Counter")
+        counter_mock.labels.return_value = counter_mock
+
+        with (
+            _patch_settings(system_enabled=True),
+            _patch_db_context_factory((True, "PORTRAIT", "PORTRAIT_BRIEF")),
+            patch(
+                "src.domains.journals.portrait_builder.journal_portrait_present_total",
+                counter_mock,
+            ),
+        ):
+            block = await build_journal_user_model_block(
+                uuid4(), format="brief", flow="briefing", counted=False
+            )
+
+        assert block
+        counter_mock.inc.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_metric_failure_never_breaks_injection(self) -> None:
         """If the metrics client errors out, the prompt block must still be returned."""
         counter_mock = MagicMock(name="Counter")

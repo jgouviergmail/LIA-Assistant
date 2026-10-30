@@ -22,19 +22,36 @@ function disc(m: Model, x: number, y: number, z: number, radius: number): void {
   const back = ring(x, radius),
     front = ring(x + thickness, radius);
   m.face(back, '#35454d');
+  m.face(ring(x, radius * 0.78), '#3e515a');
+  m.face(ring(x, 0.065), '#bcc8c6');
   for (let i = 0; i < 8; i++)
     m.face(
       [back[i], back[(i + 1) % 8], front[(i + 1) % 8], front[i]],
       shade('#455760', Math.round(Math.sin((i * Math.PI) / 4) * 15))
     );
   m.face(front, '#273b46');
-  m.face(ring(x + thickness + 0.002, radius * 0.78), '#3e515a');
-  m.face(ring(x + thickness + 0.004, 0.065), '#bcc8c6');
+  m.face(ring(x + thickness, radius * 0.78), '#3e515a');
+  m.face(ring(x + thickness, 0.065), '#bcc8c6');
 }
 export function barbellModel(width: number, decor: DecorPresentation): ModelPart[] {
   const m = new Model();
   const { y, z } = barPosition(decor);
-  m.box(0, y, z, width, 0.08, 0.08, '#cbd8d7');
+  // Split at every plate face: one long shaft painted first was erased by the
+  // far plate silhouette, making it appear attached to the rim instead of the hub.
+  const ends = [
+    0,
+    0.02,
+    0.13,
+    0.15,
+    0.26,
+    width - 0.26,
+    width - 0.15,
+    width - 0.13,
+    width - 0.02,
+    width,
+  ];
+  for (let i = 1; i < ends.length; i++)
+    m.box(ends[i - 1], y, z, ends[i] - ends[i - 1], 0.08, 0.08, '#cbd8d7');
   for (const x of [0.15, width - 0.26]) disc(m, x, y + 0.04, z + 0.04, 0.33);
   for (const x of [0.02, width - 0.13]) disc(m, x, y + 0.04, z + 0.04, 0.25);
   return m.parts;

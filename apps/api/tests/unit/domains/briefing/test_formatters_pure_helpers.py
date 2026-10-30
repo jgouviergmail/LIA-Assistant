@@ -7,7 +7,7 @@ and the numeric aggregates it prints:
 * ``is_event_past`` filters the agenda. Anything it wrongly calls "past"
   disappears from the home page with no error anywhere — the user simply never
   sees the meeting.
-* the weather aggregates (``_pick_dominant_condition``,
+* the weather aggregates (``pick_dominant_condition``,
   ``_today_min_max_from_forecast``, ``_first_forecast_pop``) turn 3-hour slots
   into the single line the card prints. The bearing→compass mapping moved to
   ``core.geo_utils`` — see ``tests/unit/core/test_wind_cardinals.py``.
@@ -25,11 +25,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.domains.briefing.daily_strip import pick_dominant_condition
 from src.domains.briefing.formatters import (
     _first_forecast_pop,
     _format_all_day,
     _parse_from_header,
-    _pick_dominant_condition,
     _today_min_max_from_forecast,
     daily_average_from_breakdown,
     extract_today_value_from_summary,
@@ -191,18 +191,18 @@ class TestPickDominantCondition:
 
     def test_the_most_severe_condition_of_the_day_wins(self) -> None:
         # A single thunderstorm slot outranks a day of clear sky.
-        assert _pick_dominant_condition(["Clear", "Clear", "Clear", "Thunderstorm"]) == (
+        assert pick_dominant_condition(["Clear", "Clear", "Clear", "Thunderstorm"]) == (
             "Thunderstorm"
         )
 
     def test_frequency_breaks_a_tie_between_equal_severities(self) -> None:
-        assert _pick_dominant_condition(["Clear", "Clear", "Clouds"]) in {"Clear", "Clouds"}
+        assert pick_dominant_condition(["Clear", "Clear", "Clouds"]) in {"Clear", "Clouds"}
 
     def test_a_single_condition_is_returned_as_is(self) -> None:
-        assert _pick_dominant_condition(["Rain"]) == "Rain"
+        assert pick_dominant_condition(["Rain"]) == "Rain"
 
     def test_an_empty_day_is_unknown(self) -> None:
-        assert _pick_dominant_condition([]) == "Unknown"
+        assert pick_dominant_condition([]) == "Unknown"
 
 
 class TestTodayMinMaxFromForecast:

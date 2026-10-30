@@ -2603,13 +2603,16 @@ html:not(.dark) .landing-video-player {
    Nothing clips the planet box itself: the globe's violet glow spills ABOVE
    it, and a clip there cuts the glow along a straight line. Below the globe's
    foot (narrow screens, where 220vw is shorter than the footer) the ground it
-   fades into fills in. */
+   fades into fills in. The cap the finale shows above the footer is only what
+   lets the footer's menu and copyright bar stand on the planet, not a band of
+   sky of its own (owner, 2026-10-30: 36dvh was ~380px of blue above the menu). */
 .cosmos .cosmos-finale {
   overflow: clip visible;
 }
 .cosmos .cosmos-finale .cosmos-planet {
   --planet-reach: 120rem;
-  height: calc(36dvh + var(--planet-reach));
+  --planet-cap: 6rem;
+  height: calc(var(--planet-cap) + var(--planet-reach));
   margin-bottom: calc(-1 * var(--planet-reach));
   background: linear-gradient(to bottom, transparent 150vw, var(--cosmos-bg) 150vw);
 }

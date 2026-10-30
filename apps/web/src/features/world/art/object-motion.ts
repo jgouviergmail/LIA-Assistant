@@ -18,6 +18,8 @@ export function paintObjectMotion(
   reaction?: CosmeticFrame,
   season: Season = 'neutral'
 ): void {
+  // Position offsets desynchronise repeated fixtures without timers or more frames.
+  time += prop.x * 0.17 + prop.y * 0.11;
   if (prop.kind === 'billiards') paintBilliardBall(c, prop, reaction, reduced);
   paintRoomMotion(c, prop, time, reduced, atmosphere);
   if (!reduced) {

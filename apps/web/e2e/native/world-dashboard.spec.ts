@@ -19,8 +19,20 @@ async function dashboardData(page: Page, holdFirst?: Promise<void>) {
   const reads: string[] = [];
   let synthesis = 0;
   const payloads: Readonly<Record<string, unknown>> = {
-    '/briefing/cards': { cards: briefing.cards, windows: briefing.windows },
-    '/briefing/synthesis': { greeting: briefing.greeting, synthesis: briefing.synthesis },
+    '/briefing/cards/initial': {
+      cards: briefing.cards,
+      windows: briefing.windows,
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
+    },
+    '/briefing/text': {
+      greeting: briefing.greeting,
+      synthesis: briefing.synthesis,
+      reused: false,
+      state: 'ready',
+    },
     '/briefing/preferences': { hidden: [], order: HOME_ORDER },
     '/chat/users/me/statistics': HOME_STATISTICS,
     '/product/me/results': {
@@ -33,11 +45,11 @@ async function dashboardData(page: Page, holdFirst?: Promise<void>) {
     },
   };
   await page.route(
-    /\/api\/v1\/(?:briefing\/(?:cards|synthesis|preferences)|chat\/users\/me\/statistics|product\/me\/results)(?:\?.*)?$/,
+    /\/api\/v1\/(?:briefing\/(?:cards\/initial|text|preferences)|chat\/users\/me\/statistics|product\/me\/results)(?:\?.*)?$/,
     async route => {
       const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
       reads.push(path);
-      if (path === '/briefing/synthesis') {
+      if (path === '/briefing/text') {
         synthesis++;
         if (synthesis === 1 && holdFirst) await holdFirst;
       }

@@ -27,6 +27,7 @@ import structlog
 from src.core.config import settings
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.domains.connectors.clients.base_oauth_client import BaseOAuthClient
+from src.domains.connectors.clients.retry_policy import may_resend
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -257,7 +258,8 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
-                    await asyncio.sleep(wait_time)
+                    if attempt < max_retries - 1:  # never a wait after the last attempt
+                        await asyncio.sleep(wait_time)
                     continue
 
                 # Server error - retry with backoff
@@ -271,7 +273,8 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
-                    await asyncio.sleep(wait_time)
+                    if attempt < max_retries - 1:  # never a wait after the last attempt
+                        await asyncio.sleep(wait_time)
                     continue
 
                 # Client errors - don't retry
@@ -290,7 +293,7 @@ class BaseGoogleClient(BaseOAuthClient[ConnectorType]):
                 )
 
             except httpx.RequestError as e:
-                if attempt < max_retries - 1:
+                if attempt < max_retries - 1 and may_resend(method, e):
                     wait_time = self._calculate_backoff(attempt)
                     logger.warning(
                         "api_raw_request_network_error",

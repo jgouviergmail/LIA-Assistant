@@ -12,6 +12,7 @@ import re
 import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from typing import Literal
 from uuid import UUID
 
 import httpx2
@@ -37,6 +38,21 @@ return math.max(remaining, delay)
 
 class MCPToolExecutionError(RuntimeError):
     """A server returned a failed tool result, rather than a broken transport."""
+
+
+#: Why a call built from an unverified catalogue was refused (spec 2026-10-21 §5.5).
+DeclarationChangeReason = Literal["missing", "incompatible", "tightened"]
+
+
+class MCPDeclarationChangedError(MCPToolExecutionError):
+    """The tool's current declaration no longer admits the call: it was not sent."""
+
+    def __init__(self, reason: DeclarationChangeReason) -> None:
+        self.reason: DeclarationChangeReason = reason
+        super().__init__(
+            f"The server changed this tool since it was offered ({reason}); the call was "
+            "not sent. Do not retry it this turn: its catalogue is being refreshed."
+        )
 
 
 class MCPRateLimitError(MCPToolExecutionError):

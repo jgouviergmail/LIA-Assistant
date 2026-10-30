@@ -9,6 +9,7 @@
  */
 
 import { ChatStreamChunk, SSEChunkType } from '@/types/chat';
+import { noteChatFirstToken } from '@/lib/journey-timing';
 import { logger } from '@/lib/logger';
 import { SSEHandlerContext, SSEHandlerMap } from './types';
 import { handleResultPreview } from './result-preview';
@@ -175,6 +176,7 @@ export function processSSEChunk(chunk: ChatStreamChunk, context: SSEHandlerConte
     // Buffer instead of dispatching per token. Empty tokens are dropped
     // (they only produced no-op renders before).
     if (typeof chunk.content === 'string' && chunk.content) {
+      noteChatFirstToken();
       pendingTokens.push(chunk.content);
       pendingTokenContext = context;
       if (tokenFlushHandle === null) {

@@ -224,7 +224,7 @@ export const briefingWindowsMock = {
 };
 
 export const briefingCardsMock: MockRoute = {
-  url: '**/api/v1/briefing/cards',
+  url: '**/api/v1/briefing/cards/initial',
   json: {
     windows: briefingWindowsMock,
     cards: Object.fromEntries(
@@ -250,5 +250,9 @@ export const briefingCardsMock: MockRoute = {
         },
       ])
     ),
+    pending: [],
+    act: 'e2e-act',
+    act_expires_at: '2099-01-01T00:00:00Z',
+    section_concurrency: 4,
   },
 };

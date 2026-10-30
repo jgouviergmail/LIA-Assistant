@@ -137,6 +137,14 @@ product_web_vital_seconds = Histogram(
     buckets=[0.25, 0.5, 1.0, 1.5, 2.5, 4.0, 6.0, 10.0, 20.0],
 )
 
+product_client_timing_seconds = Histogram(
+    "product_client_timing_seconds",
+    "Journey timings measured in the browser (spec 2026-10-21 O2): chat first token, "
+    "dashboard first card / all cards / text — seconds a person waited, by device class",
+    ["metric", "device_class"],
+    buckets=[0.25, 0.5, 1.0, 1.5, 2.5, 4.0, 6.0, 10.0, 15.0, 20.0, 30.0, 60.0],
+)
+
 product_web_vital_ratio = Histogram(
     "product_web_vital_ratio",
     "Unitless Web Vitals (CLS) by device class",

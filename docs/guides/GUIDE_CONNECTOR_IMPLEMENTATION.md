@@ -425,6 +425,14 @@ async def safe_operation(client):
         await client.close()
 ```
 
+**Une requête perdue en transport n'est renvoyée que si elle ne peut pas répéter un acte**
+(`connectors/clients/retry_policy.may_resend`, amendement ADR-221 du 2026-10-29) : une lecture
+l'est toujours ; un POST qui a pu atteindre le fournisseur ne l'est jamais, sauf s'il est une
+lecture ou un effet qui ne se répète pas et que l'appelant le déclare (`_make_request(...,
+idempotent=True)`). Une **création** qui doit survivre à une réponse perdue porte l'idempotence du
+fournisseur, dérivée de la clé de l'effet (`provider_idempotency_id`) : voir les trois formes dans
+`docs/technical/CONNECTORS_PATTERNS.md`.
+
 ### Cleanup
 
 **Toujours fermer le client** :
@@ -536,6 +544,7 @@ class TestAPIKeyActivation:
 - [ ] Ajouter méthodes service `initiate_*` et `handle_*_callback`
 - [ ] Mettre à jour `CONNECTOR_LABELS` (frontend)
 - [ ] Ajouter les traductions i18n
+- [ ] Chaque POST : lecture ou effet non répétable → `idempotent=True` ; création → idempotence du fournisseur
 - [ ] Écrire les tests unitaires et d'intégration
 - [ ] Tester le flow complet (authorize → callback → use)
 

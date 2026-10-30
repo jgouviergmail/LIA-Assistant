@@ -64,9 +64,10 @@ class StructuredOutputCallError(StructuredOutputError):
     the door could not use. The provider's exception is both the ``__cause__`` and
     the ``original_error``, where whoever decides on a retry reads what the provider
     wrote (ADR-303): the discussion backoff defers on a 429 or a ``Retry-After``,
-    and the retry wrapper leaves a client that retries by itself to its own
-    attempts. Until 2026-10-23 the auto-tool door turned this failure into
-    « produced no valid tool call » with no cause: a discussion's context pass was
+    and the retry wrapper leaves a client that owns its retries to them
+    (``client_retries.caller_may_relaunch``). Until 2026-10-23 the auto-tool door
+    turned this failure into « produced no valid tool call » with no cause: a
+    discussion's context pass was
     lost to an Anthropic 503 that way, counted as the model's rejection.
     """
 
@@ -94,8 +95,13 @@ def _provider_status(error: BaseException) -> tuple[int | None, str | None]:
     return None, None
 
 
-def raise_if_provider_refused(error: Exception, provider: str, schema_name: str) -> None:
-    """Preserve deterministic HTTP failures before a fallback can erase them.
+def provider_answered(error: BaseException) -> bool:
+    """Whether the provider attached an HTTP status to the failure (it answered)."""
+    return _provider_status(error)[0] is not None
+
+
+def provider_refused(error: BaseException) -> bool:
+    """Whether the failure is a deterministic refusal no resend of the request can heal.
 
     SDKs expose a status and response, so no provider message is parsed; the
     status is read through the wrappers langchain adds (``_provider_status``).
@@ -105,11 +111,19 @@ def raise_if_provider_refused(error: Exception, provider: str, schema_name: str)
     """
     status, hint = _provider_status(error)
     if status is None or hint == "true":
-        return
-    if hint != "false" and (not 400 <= status < 500 or status in {408, 409, 425, 429}):
+        return False
+    return hint == "false" or (400 <= status < 500 and status not in {408, 409, 425, 429})
+
+
+def raise_if_provider_refused(error: Exception, provider: str, schema_name: str) -> None:
+    """Preserve deterministic HTTP failures before a fallback can erase them."""
+    if not provider_refused(error):
         return
     raise StructuredOutputRefusedError(
-        status_code=status, provider=provider, schema_name=schema_name, original_error=error
+        status_code=_provider_status(error)[0] or 0,
+        provider=provider,
+        schema_name=schema_name,
+        original_error=error,
     ) from error
 
 

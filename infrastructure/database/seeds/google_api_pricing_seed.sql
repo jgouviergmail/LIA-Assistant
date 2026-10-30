@@ -55,6 +55,7 @@ INSERT INTO google_api_pricing (
     (gen_random_uuid(), 'street_view', '/streetview/metadata', 'Street View Metadata (free)', 0.0000, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'weather', '/v1/currentConditions:lookup', 'Weather Current Conditions', 0.1500, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'weather', '/v1/forecast/hours:lookup', 'Weather Hourly Forecast', 0.1500, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
+    (gen_random_uuid(), 'weather', '/v1/forecast/days:lookup', 'Weather Daily Forecast', 0.1500, '2026-10-29T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'air_quality', '/v1/currentConditions:lookup', 'Air Quality Current Conditions', 5.0000, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'pollen', '/v1/forecast:lookup', 'Pollen Forecast', 10.0000, '2026-08-21T00:00:00+00:00', true, NOW(), NOW()),
     (gen_random_uuid(), 'web_risk', '/v1/uris:search', 'Web Risk Search', 0.5000, '2026-08-21T00:00:00+00:00', true, NOW(), NOW());

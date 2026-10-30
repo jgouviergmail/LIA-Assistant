@@ -1,10 +1,12 @@
 """Live SMS source for the existing briefing call, never an event-triggered model."""
 
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import perf_counter
 from uuid import UUID
 
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
@@ -56,28 +58,70 @@ async def revalidate_sms_card(cards: CardsBundle) -> CardsBundle:
     Returns:
         The bundle, its SMS section replaced when its proof no longer holds.
     """
-    data = cards.sms.data
+    section = await revalidate_sms_section(cards.sms)
+    return cards if section is cards.sms else cards.model_copy(update={"sms": section})
+
+
+async def revalidate_sms_section(section: CardSection) -> CardSection:
+    """The SMS section, or an error section when its messages changed since it was read.
+
+    Args:
+        section: An SMS section.
+
+    Returns:
+        The same section when its proof holds, else an error section.
+    """
+    data = section.data
     if not isinstance(data, SmsData) or not data.items or await sms_card_current(data):
-        return cards
+        return section
     now = datetime.now(UTC)
-    return cards.model_copy(
-        update={
-            "sms": CardSection(
-                status=CardStatus.ERROR,
-                generated_at=now,
-                last_attempt_at=now,
-                error_code=ERROR_CODE_INTERNAL,
-            )
-        }
+    return CardSection(
+        status=CardStatus.ERROR,
+        generated_at=now,
+        last_attempt_at=now,
+        error_code=ERROR_CODE_INTERNAL,
     )
 
 
-async def sms_for_prompt(
-    owner: UUID, section: CardSection, *, verbose: bool
-) -> tuple[str, SmsSignal | None]:
-    """File the actual source attempt, including an abandoned publication."""
+logger = structlog.get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class PromptSms:
+    """ONE read of the person's SMS for the dashboard's text, rendered for both prompts.
+
+    The greeting needs the counts and the synthesis the excerpts; reading the
+    excerpts once serves both (spec 2026-10-21, E13: a page load read the SMS
+    store three times). Each prompt still checks, before and after its model
+    call, that ``signal`` is current (consent, D10).
+
+    Attributes:
+        signal: The snapshot read; None when nothing was read.
+        brief: The greeting's rendering (counts only).
+        detailed: The synthesis' rendering (bounded excerpts).
+    """
+
+    signal: SmsSignal | None
+    brief: str
+    detailed: str
+
+
+#: Nothing read: no SMS card, consent missing, or a failed read.
+NO_PROMPT_SMS = PromptSms(signal=None, brief="", detailed="")
+
+
+async def read_prompt_sms(owner: UUID, section: CardSection) -> PromptSms:
+    """Read the SMS once for both prompts; file the source attempt, abandoned or not.
+
+    Args:
+        owner: The account.
+        section: The bundle's SMS card; nothing is read unless it is OK.
+
+    Returns:
+        The snapshot and its two renderings, or ``NO_PROMPT_SMS``.
+    """
     if section.status is not CardStatus.OK or not isinstance(section.data, SmsData):
-        return "", None
+        return NO_PROMPT_SMS
     started = perf_counter()
     opened = False
     answered = False
@@ -88,15 +132,22 @@ async def sms_for_prompt(
 
     try:
         async with asyncio.timeout(settings.sms_identity_timeout_seconds):
-            signal = await read_sms_signal(owner, include_bodies=verbose, on_read=source_opened)
+            signal = await read_sms_signal(owner, include_bodies=True, on_read=source_opened)
         answered = True
         budget = min(
             settings.sms_context_token_budget,
             max(1, get_effective_context_window_for_slot("briefing") // 20),
         )
-        return render_sms_signal(signal, verbose=verbose, budget=budget), signal
+        return PromptSms(
+            signal=signal,
+            brief=render_sms_signal(signal, verbose=False, budget=budget),
+            detailed=render_sms_signal(signal, verbose=True, budget=budget),
+        )
     except AuthorizationError, ResourceConflictError, SQLAlchemyError, OSError, TimeoutError:
-        return "", None
+        return NO_PROMPT_SMS
+    except Exception as exc:  # noqa: BLE001 - the text is built without SMS, never failed
+        logger.warning("briefing_sms_prompt_read_failed", error_type=type(exc).__name__)
+        return NO_PROMPT_SMS
     finally:
         if opened:
             record_surface_consultations(

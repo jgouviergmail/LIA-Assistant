@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "MCP-Server",
-      "role": "Fremde MCP-Werkzeuge anbinden, einschließlich OAuth; Ergebniskarten nennen Server und Methode. Eine vom Server erklärte Wartefrist pausiert Aufrufe über alle Worker hinweg.",
+      "role": "Fremde MCP-Werkzeuge anbinden, einschließlich OAuth, von einer Nachricht zur nächsten behalten; Ergebniskarten nennen Server und Methode. Eine vom Server erklärte Wartefrist pausiert Aufrufe über alle Worker hinweg.",
       "goal": "LIA erweitern, ohne auf eine native Integration zu warten.",
-      "src": "1409a780080c"
+      "src": "4213abb3483f"
     },
     "f.skills": {
       "name": "Skills und Plugins",
@@ -271,9 +271,9 @@
     },
     "f.briefing": {
       "name": "Tages-Briefing",
-      "role": "Die Startseite: Kalender, E-Mails, Wetter, Erinnerungen und eine Zusammenfassung, einmal pro Seitenaufruf gelesen.",
+      "role": "Die Startseite: Kalender, E-Mails, Wetter, Erinnerungen und eine Zusammenfassung, einmal pro Seitenaufruf gelesen, jede Karte angezeigt, sobald sie bereit ist.",
       "goal": "Auf einen Blick wissen, wo du stehst.",
-      "src": "5ee486bb168c"
+      "src": "28bd35aaac51"
     },
     "f.routines": {
       "name": "Routinen",

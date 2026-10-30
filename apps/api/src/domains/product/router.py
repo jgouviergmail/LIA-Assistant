@@ -23,6 +23,8 @@ from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session, get_optional_session
 from src.domains.product.constants import (
     ANONYMOUS_EVENT_TYPES,
+    CLIENT_TIMING_METRICS,
+    WEB_VITAL_RATIO_METRICS,
     WEB_VITAL_SECONDS_METRICS,
     ProductEventType,
     derive_device_class,
@@ -76,7 +78,10 @@ async def _rate_limit_product_events(request: Request) -> None:
 
 
 def _observe_prometheus_item(item: ClientEventItem, device_class: str) -> bool:
-    """Route a search/vital item to its bounded Prometheus family.
+    """Route a search, vital or timing item to its bounded Prometheus family.
+
+    Each kind reads its OWN vocabulary: a timing name sent as a vital, or the
+    reverse, is incomplete and dropped.
 
     Args:
         item: Validated telemetry item.
@@ -86,6 +91,7 @@ def _observe_prometheus_item(item: ClientEventItem, device_class: str) -> bool:
         True when the item was complete and observed.
     """
     from src.infrastructure.observability.metrics_product import (
+        product_client_timing_seconds,
         product_search_total,
         product_web_vital_ratio,
         product_web_vital_seconds,
@@ -100,11 +106,14 @@ def _observe_prometheus_item(item: ClientEventItem, device_class: str) -> bool:
         return True
     if item.metric is None or item.value is None:
         return False
-    family = (
-        product_web_vital_seconds
-        if item.metric in WEB_VITAL_SECONDS_METRICS
-        else product_web_vital_ratio
-    )
+    if item.kind == "timing":
+        family = product_client_timing_seconds if item.metric in CLIENT_TIMING_METRICS else None
+    elif item.metric in WEB_VITAL_SECONDS_METRICS:
+        family = product_web_vital_seconds
+    else:
+        family = product_web_vital_ratio if item.metric in WEB_VITAL_RATIO_METRICS else None
+    if family is None:
+        return False
     family.labels(metric=item.metric, device_class=device_class).observe(item.value)
     return True
 
@@ -150,7 +159,7 @@ async def ingest_client_events(
     dropped = 0
     db_events: list[ProductEventType] = []
     for item in batch.events:
-        if item.kind in ("search", "vital"):
+        if item.kind in ("search", "vital", "timing"):
             if _observe_prometheus_item(item, device_class):
                 accepted += 1
             else:

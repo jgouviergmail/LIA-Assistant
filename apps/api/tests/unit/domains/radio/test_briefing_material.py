@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from src.domains.briefing import section_outcomes
 from src.domains.briefing import service as briefing
 from src.domains.briefing.cache_keys import section_cache_key
 from src.domains.briefing.constants import SECTION_NAMES
@@ -30,6 +31,7 @@ from src.domains.radio.grid import AiredSegment, GridInputs, next_segment
 from src.domains.radio.packs import Desk, available_formats
 from src.domains.radio.personal import PersonalSource, briefing_drafts, personal_facts
 from src.domains.users.models import User
+from tests.helpers.briefing_cache_double import briefing_eval
 from tests.unit.domains.radio.test_day_source import DONE_EVENT, Reader, Recorder
 
 pytestmark = pytest.mark.unit
@@ -48,6 +50,12 @@ class Cache:
     async def set(self, key: str, value: str, *, ex: int) -> None:
         assert ex > 0
         self.values[key] = value
+
+    async def delete(self, *keys: str) -> int:
+        return sum(self.values.pop(key, None) is not None for key in keys)
+
+    async def eval(self, script: str, numkeys: int, *args: object) -> object:
+        return await briefing_eval(self, script, *args)
 
 
 async def test_cold_cache_still_schedules_the_personal_journal(
@@ -72,7 +80,7 @@ async def test_cold_cache_still_schedules_the_personal_journal(
         return AgendaData(events=[AgendaEventItem(title="Team meeting", start_local="10:00")])
 
     monkeypatch.setattr(adapters, "get_db_context", database)
-    monkeypatch.setattr(briefing, "get_redis_cache", redis)
+    monkeypatch.setattr(section_outcomes, "get_redis_cache", redis)
     monkeypatch.setattr(briefing, "fetch_agenda", agenda)
     cards = await (await adapters._cards_of(user.id))(frozenset({"agenda"}))
     facts = personal_facts(briefing_drafts(cards))
@@ -109,7 +117,7 @@ class Material:
         self.agenda_error = False
         self.agenda_empty = False
         self.recorder = Recorder()
-        monkeypatch.setattr(briefing, "get_redis_cache", self.redis)
+        monkeypatch.setattr(section_outcomes, "get_redis_cache", self.redis)
         # An unexpected source read is visible even if the section mapper catches it.
         for name in SECTION_NAMES:
             monkeypatch.setattr(briefing, f"fetch_{name}", self.unexpected)

@@ -46,6 +46,10 @@ class CardStatus(str, Enum):
     # UXR Lot 5 (B4): user-hidden section — placeholder emitted WITHOUT any
     # fetch or cache IO; the frontend never renders it.
     HIDDEN = "hidden"
+    # Spec 2026-10-21 §5.8: a cache-eligible section the progressive dashboard's
+    # initial response does not hold yet — read next by its own request. Produced
+    # by the initial route only, read by the card renderer only.
+    PENDING = "pending"
 
 
 # =============================================================================
@@ -714,4 +718,43 @@ class RefreshRequest(BaseModel):
         min_length=1,
         max_length=len(SECTION_NAMES) + 1,
         description="Sections to force-refresh; 'all' bypasses every cache.",
+    )
+
+
+class BriefingInitialResponse(BaseModel):
+    """GET /briefing/cards/initial — what the dashboard can show at once (spec §5.8).
+
+    Every cached or local section, the slow ones ``pending``; the act the
+    section reads and the text request belong to.
+    """
+
+    cards: CardsBundle
+    pending: list[str] = Field(..., description="Sections to read next, one request each.")
+    windows: BriefingWindows = Field(..., description="The windows the cards were built with.")
+    act: str = Field(..., description="The signed act the section and text requests present.")
+    act_expires_at: datetime = Field(..., description="When the act stops being honoured (UTC).")
+    section_concurrency: int = Field(
+        ..., ge=1, description="How many section requests the client may open at once."
+    )
+
+
+class BriefingTextRequest(BaseModel):
+    """POST /briefing/text — the greeting and synthesis of an act."""
+
+    act: str = Field(..., min_length=1, max_length=512, description="The act the text belongs to.")
+    force: bool = Field(False, description="Bypass a text already generated for these inputs.")
+
+
+class BriefingTextResponse(BaseModel):
+    """The greeting and synthesis, and how they were obtained."""
+
+    greeting: TextSection = Field(..., description="Single-sentence greeting (fallback if needed).")
+    synthesis: TextSection | None = Field(None, description="The synthesis, when there is one.")
+    reused: bool = Field(..., description="True when a text generated for the same inputs served.")
+    state: Literal["ready", "uncertain", "sms_stale"] = Field(
+        ...,
+        description=(
+            "ready; uncertain — the generation's lease was lost and nothing relaunched it; "
+            "sms_stale — the SMS changed while the text was generated."
+        ),
     )

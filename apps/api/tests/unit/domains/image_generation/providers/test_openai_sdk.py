@@ -8,11 +8,13 @@ import httpx
 import openai
 import pytest
 
+from src.core.config import settings
 from src.domains.image_generation.providers.base import (
     ImageGenerationError,
     ImageProviderNotConfiguredError,
 )
 from src.domains.image_generation.providers.openai_sdk import (
+    openai_sdk_client,
     require_provider_key,
     vendor_errors,
 )
@@ -24,6 +26,18 @@ def _status_error(status: int, body: object) -> openai.APIStatusError:
     return openai.APIStatusError(
         f"Error code: {status}", response=httpx.Response(status, request=_REQUEST), body=body
     )
+
+
+@pytest.mark.unit
+async def test_the_image_client_never_buys_a_timed_out_generation_twice() -> None:
+    """An image's outcome is unknown after a timeout: the relaunch policy, not the SDK's two."""
+    client = openai_sdk_client("openai", "sk-test")
+    try:
+        assert client.max_retries == settings.llm_transient_retry_max
+        assert type(client).__name__ == "_PolicyAsyncOpenAI"
+        assert type(client.with_options(timeout=1.0)).__name__ == "_PolicyAsyncOpenAI"
+    finally:
+        await client.close()
 
 
 @pytest.mark.unit

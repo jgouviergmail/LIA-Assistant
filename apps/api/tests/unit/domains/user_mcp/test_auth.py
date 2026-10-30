@@ -416,6 +416,50 @@ class TestRefreshTokens:
 
         auth._mark_auth_required_fn.assert_awaited_once()
 
+    async def test_a_refused_refresh_token_is_never_replayed(self) -> None:
+        """The SDK's dual-era handshake sends two requests: the dead token went out twice."""
+        auth = self._auth()
+        auth._get_creds_fn = AsyncMock(
+            return_value={
+                "access_token": "old",
+                "refresh_token": "revoked",
+                "client_id": "client-123",
+            }
+        )
+        post_patch, client = self._patch_post(self._http_response(400, {"error": "invalid_grant"}))
+
+        with post_patch, self._patch_no_redis():
+            for _ in range(2):  # the modern attempt, then the legacy fallback
+                flow = auth.async_auth_flow(httpx.Request("POST", "https://mcp.example.com/mcp"))
+                outgoing = await flow.__anext__()
+                with pytest.raises(StopAsyncIteration):
+                    await flow.asend(httpx.Response(401, request=outgoing))
+
+        assert client.post.await_count == 1
+        assert auth._mark_auth_required_fn.await_count == 2  # each refused request says so
+
+    async def test_a_new_refresh_token_is_tried_again(self) -> None:
+        """The person re-authorized: their new grant is not judged by the dead one."""
+        auth = self._auth()
+        tokens = iter(["revoked", "fresh-grant"])
+        auth._get_creds_fn = AsyncMock(
+            side_effect=lambda: {
+                "access_token": "old",
+                "refresh_token": next(tokens),
+                "client_id": "client-123",
+            }
+        )
+        post_patch, client = self._patch_post(self._http_response(400, {"error": "invalid_grant"}))
+
+        with post_patch, self._patch_no_redis():
+            for _ in range(2):
+                flow = auth.async_auth_flow(httpx.Request("POST", "https://mcp.example.com/mcp"))
+                outgoing = await flow.__anext__()
+                with pytest.raises(StopAsyncIteration):
+                    await flow.asend(httpx.Response(401, request=outgoing))
+
+        assert client.post.await_count == 2
+
     async def test_parallel_refresh_reuses_peers_rotation_without_writing_stale_state(self) -> None:
         auth = self._auth()
         old = {"access_token": "old", "refresh_token": "old-refresh", "client_id": "client"}

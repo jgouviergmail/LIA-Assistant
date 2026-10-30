@@ -2,7 +2,9 @@
 
 Covers behaviour introduced after the 2026-05-16 production incident:
 - Per-chunk timeout via `asyncio.wait_for`.
-- Exponential retry via `tenacity` on transient errors (ConnectionError, TimeoutError).
+- Exponential retry via `tenacity`, only for a call that never reached the provider on a
+  client with no retry loop of its own (`caller_may_relaunch`, Q3 of 2026-10-28): a timed-out
+  summary may be running and billed, and the factory's clients own their retries.
 - Global timeout around `compact()` with fallback to truncation.
 - Consolidation of previous "compaction #N" SystemMessages without losing them
   when the merge falls back to truncation.
@@ -16,6 +18,7 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -56,15 +59,54 @@ async def test_summarize_chunk_times_out(
         await service._summarize_chunk(fake_llm, "x", "en", config={})
 
 
+async def test_summarize_chunk_never_relaunches_a_timed_out_call(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    """A summary that timed out may be running and billed: it is never sent again (Q3)."""
+    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 0.05)
+    monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
+    monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
+
+    async def hang(*_a: object, **_kw: object) -> None:
+        await asyncio.sleep(2)
+
+    llm = MagicMock(spec=["ainvoke"])  # no retry loop of its own (the Ollama shape)
+    llm.ainvoke = AsyncMock(side_effect=hang)
+
+    with pytest.raises(TimeoutError):
+        await service._summarize_chunk(llm, "x", "en", config={})
+
+    assert llm.ainvoke.await_count == 1
+
+
+async def test_summarize_chunk_leaves_a_failed_call_to_a_client_owning_its_retries(
+    monkeypatch: pytest.MonkeyPatch, service: CompactionService
+) -> None:
+    """The factory's clients already spent the relaunch budget: one layer of retries only."""
+    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
+    monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
+    refused = httpx.ConnectError("refused", request=httpx.Request("POST", "http://x"))
+
+    llm = MagicMock(spec=["ainvoke", "max_retries"])
+    llm.max_retries = 2
+    llm.ainvoke = AsyncMock(side_effect=refused)
+
+    with pytest.raises(httpx.ConnectError):
+        await service._summarize_chunk(llm, "x", "en", config={})
+
+    assert llm.ainvoke.await_count == 1
+
+
 # ============================================================================
-# Retry on transient errors
+# Retry on a call that never left
 # ============================================================================
 
 
 async def test_summarize_chunk_retries_then_succeeds(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
-    """Tenacity retries on ConnectionError up to max_retries and then succeeds."""
+    """A call that never reached the provider is sent again, within the relaunch budget."""
     monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
@@ -78,10 +120,10 @@ async def test_summarize_chunk_retries_then_succeeds(
     async def flaky(*_a: object, **_kw: object):
         calls["n"] += 1
         if calls["n"] < 3:
-            raise ConnectionError("transient")
+            raise httpx.ConnectError("refused", request=httpx.Request("POST", "http://x"))
         return fake_response
 
-    fake_llm = MagicMock()
+    fake_llm = MagicMock(spec=["ainvoke"])
     fake_llm.ainvoke = AsyncMock(side_effect=flaky)
 
     summary, pt, ct = await service._summarize_chunk(fake_llm, "x", "en", config={})
@@ -94,19 +136,20 @@ async def test_summarize_chunk_retries_then_succeeds(
 async def test_summarize_chunk_exhausts_retries(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
-    """When all retries fail with ConnectionError, the last exception is re-raised."""
+    """When every attempt is refused, the last exception is re-raised."""
     monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 2)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
 
     async def always_fail(*_a: object, **_kw: object) -> None:
-        raise ConnectionError("permanent")
+        raise httpx.ConnectError("refused", request=httpx.Request("POST", "http://x"))
 
-    fake_llm = MagicMock()
+    fake_llm = MagicMock(spec=["ainvoke"])
     fake_llm.ainvoke = AsyncMock(side_effect=always_fail)
 
-    with pytest.raises(ConnectionError):
+    with pytest.raises(httpx.ConnectError):
         await service._summarize_chunk(fake_llm, "x", "en", config={})
+    assert fake_llm.ainvoke.await_count == 2
 
 
 # ============================================================================

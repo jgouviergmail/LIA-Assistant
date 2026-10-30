@@ -1741,7 +1741,7 @@
           "mode": "multi"
         }
       },
-      "description": "How each bounded drain of a Drive changes feed ended (ADR-304). 'truncated': the feed was longer than one wake reads — it kept its place and continues on the next sweep. 'rebased': a streak of truncated drains; the feed was rebased and the linked trees re-synchronised in full. A sustained 'truncated' share is a Drive busier than the published bounds (RAG_DRIVE_PUSH_MAX_PAGES, RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS)."
+      "description": "How each bounded drain of a Drive changes feed ended (ADR-304). 'truncated': the feed was longer than one wake reads — it kept its place and continues on the next sweep. 'interrupted': a page Google could not serve after others were read; the pages read were kept and the drain continues like a truncated one (2026-10-26 analysis, lot 2). 'held': a linked tree was still syncing; the token stayed and the window replays. 'rebased': a streak of truncated or interrupted drains; the feed was rebased and the linked trees re-synchronised in full. A sustained 'truncated' share is a Drive busier than the published bounds (RAG_DRIVE_PUSH_MAX_PAGES, RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS)."
     },
     {
       "id": 513,

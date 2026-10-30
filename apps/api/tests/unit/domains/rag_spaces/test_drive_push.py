@@ -18,19 +18,33 @@ What production measured on 2026-09-22, each pinned here:
 from __future__ import annotations
 
 import contextlib
+import inspect
 import uuid
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator, Coroutine, Iterator
 from typing import Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
+from prometheus_client import CollectorRegistry, Counter
+from structlog.testing import capture_logs
 
 from src.core.config import settings
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME, RAG_DRIVE_MAX_FILES_PER_SYNC
+from src.core.exceptions import ExternalServiceError
 from src.domains.rag_spaces import drive_push
 from src.domains.rag_spaces.drive_ingest import IngestResult, is_supported_drive_file
+from src.infrastructure.observability.metrics_push_channels import (
+    rag_drive_push_drains_total,
+)
+from tests.support.structlog_capture import fresh_module_logger
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_logger() -> Iterator[None]:
+    """Keep `capture_logs` reliable under xdist — see `tests/support`."""
+    yield from fresh_module_logger(drive_push)
 
 
 class _Sessions:
@@ -123,7 +137,10 @@ class _Harness:
 
         async def _list_changes(token: str, page_size: int = 0) -> dict[str, Any]:
             self.list_pages_seen_open.append(self.sessions.open)
-            return pages.pop(0)
+            page = pages.pop(0)
+            if isinstance(page, BaseException):
+                raise page
+            return page
 
         self.client = MagicMock()
         self.client.list_changes = AsyncMock(side_effect=_list_changes)
@@ -452,6 +469,119 @@ async def test_a_feed_error_is_counted_and_moves_nothing() -> None:
 
 
 # ============================================================================
+# A page Google cannot serve (2026-10-26 analysis, lots 2 and 3)
+# ============================================================================
+
+
+def _unavailable() -> ExternalServiceError:
+    return ExternalServiceError(
+        service_name="google_drive",
+        detail="google_drive API unavailable: ReadTimeout",
+        error_type="connection_error",
+    )
+
+
+def _drains(end: str) -> float:
+    return rag_drive_push_drains_total.labels(end=end)._value.get()
+
+
+async def test_a_page_google_cannot_serve_after_others_keeps_what_was_read() -> None:
+    """Measured in production: three wakes read 9 to 12 s of pages, then threw them away on
+    one slow page — the token did not move. The pages read are now handed over like a cut
+    drain: the window applied, the token moved past them, the wake re-queued."""
+    pages: list[Any] = [_page([_change("f1", "root")], next_token="p1"), _unavailable()]
+    harness = _Harness(sources=[_source("root", ["root"])], pages=pages)
+    user_id = uuid.uuid4()
+    interrupted = _drains("interrupted")
+
+    assert await harness.run(user_id) == "reindexed"
+
+    assert [c.kwargs["drive_file"]["id"] for c in harness.ingest.await_args_list] == ["f1"]
+    harness.channel_repo.advance_page_token.assert_awaited_once_with(
+        harness.channel.id, expected="t0", new="p1"
+    )
+    harness.enqueue.assert_awaited_once()
+    assert harness.enqueue.await_args.args[1:3] == (user_id, "google_drive")
+    assert _drains("interrupted") == interrupted + 1
+    assert list(harness.redis.values.values()) == [1]
+
+
+async def test_an_interrupted_drain_counts_toward_the_rebase() -> None:
+    """A cut is a cut: a feed that keeps failing past its first pages is rebased like one
+    that keeps being truncated."""
+    pages: list[Any] = [_page([], next_token="p1"), _unavailable()]
+    harness = _Harness(sources=[_source("root", ["root"])], pages=pages)
+    user_id = uuid.uuid4()
+    limit = settings.rag_drive_push_max_consecutive_truncations
+    harness.redis.values[f"rag:drive_push:truncations:{user_id}"] = limit - 1
+
+    assert await harness.run(user_id) == "rebased"
+
+    harness.channel_repo.advance_page_token.assert_awaited_once_with(
+        harness.channel.id, expected="t0", new="fresh"
+    )
+
+
+async def test_a_first_page_google_cannot_serve_is_an_error_without_a_trace() -> None:
+    """Nothing was read: the wake fails as before, but a provider that did not answer is
+    an expected event, logged as a warning — never an exception trace in the error panel."""
+    harness = _Harness(sources=[_source("root", ["root"])], pages=[_unavailable()])
+
+    with capture_logs() as logs:
+        assert await harness.run() == "error"
+
+    harness.channel_repo.advance_page_token.assert_not_awaited()
+    harness.enqueue.assert_not_awaited()
+    events = {(entry["event"], entry["log_level"]) for entry in logs}
+    assert ("rag_drive_push_feed_unavailable", "warning") in events
+    assert not any(event == "rag_drive_push_reindex_failed" for event, _ in events)
+
+
+async def test_any_other_failure_keeps_its_trace() -> None:
+    """Only a provider that did not answer is expected; a defect keeps its exception."""
+    harness = _Harness(sources=[_source("root", ["root"])], pages=[RuntimeError("defect")])
+
+    with capture_logs() as logs:
+        assert await harness.run() == "error"
+
+    assert ("rag_drive_push_reindex_failed", "error") in {
+        (entry["event"], entry["log_level"]) for entry in logs
+    }
+
+
+def test_every_wake_outcome_and_drain_end_is_exported_at_zero() -> None:
+    """A labelled counter that never fired exposes no series: Prometheus saw 1 error for 3
+    on 2026-10-26, because the first increase of a series is invisible to ``increase()``."""
+    assert set(drive_push.WAKE_OUTCOMES) == {
+        "reindexed",
+        "locked",
+        "no_linked_folder",
+        "rebased",
+        "error",
+    }
+    assert set(drive_push.DRAIN_ENDS) == {"drained", "truncated", "interrupted", "held", "rebased"}
+    # Fresh counters, so a series another test created cannot stand in for the export.
+    registry = CollectorRegistry()
+    wakes = Counter("rag_drive_push_reindex", "test", ["outcome"], registry=registry)
+    drains = Counter("rag_drive_push_drains", "test", ["end"], registry=registry)
+    with (
+        patch.object(drive_push, "rag_drive_push_reindex_total", wakes),
+        patch.object(drive_push, "rag_drive_push_drains_total", drains),
+    ):
+        drive_push._export_at_zero()
+    for outcome in drive_push.WAKE_OUTCOMES:
+        assert registry.get_sample_value("rag_drive_push_reindex_total", {"outcome": outcome}) == 0
+    for end in drive_push.DRAIN_ENDS:
+        assert registry.get_sample_value("rag_drive_push_drains_total", {"end": end}) == 0
+
+
+def test_the_export_at_zero_runs_when_the_module_is_imported() -> None:
+    """The helper is only worth something if the import calls it."""
+    source = inspect.getsource(drive_push)
+    assert "\n_export_at_zero()\n" in source
+
+
+# ============================================================================
 # Routing a TREE (ADR-297), preserved across the pages of one drain
 # ============================================================================
 
@@ -528,3 +658,18 @@ async def test_an_ingestion_ends_its_reads_before_the_download() -> None:
         )
     assert result.outcome == "queued"
     assert order == ["read", "commit", "download"]
+
+
+async def test_a_provider_failure_outside_the_feed_keeps_its_trace() -> None:
+    """Third fresh review: every ExternalServiceError of the wake — a credential read, the
+    rebase's start token — was logged as the feed being unavailable, without its trace.
+    Only a first page Google could not serve is that expected event."""
+    harness = _Harness(sources=[_source("root", ["root"])], pages=[_page([])])
+    harness.channel_repo.get_for_user = AsyncMock(side_effect=_unavailable())
+
+    with capture_logs() as logs:
+        assert await harness.run() == "error"
+
+    events = {(entry["event"], entry["log_level"]) for entry in logs}
+    assert ("rag_drive_push_reindex_failed", "error") in events
+    assert not any(event == "rag_drive_push_feed_unavailable" for event, _ in events)

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   isTelemetryEnabled,
+  trackClientTiming,
   trackProductEvent,
   trackSettingsSearch,
   trackShowroomEvent,
@@ -53,6 +54,18 @@ describe('product-telemetry', () => {
     expect(JSON.parse(init.body)).toEqual({
       events: [{ kind: 'event', event_type: 'demo_started' }],
     });
+  });
+
+  it('sends a wait past the bound AT the bound, never drops the tail it measures', () => {
+    vi.stubEnv('NEXT_PUBLIC_PRODUCT_TELEMETRY', 'true');
+    trackClientTiming('dashboard_text', 300);
+    trackClientTiming('chat_first_token', 1.23456);
+    trackClientTiming('chat_first_token', -1);
+    const sent = fetchMock.mock.calls.map(call => JSON.parse(call[1].body).events[0]);
+    expect(sent).toEqual([
+      { kind: 'timing', metric: 'dashboard_text', value: 120 },
+      { kind: 'timing', metric: 'chat_first_token', value: 1.235 },
+    ]);
   });
 
   it('posts search outcomes on the settings surface', () => {

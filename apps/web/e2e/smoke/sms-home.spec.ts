@@ -55,7 +55,7 @@ for (const width of [390, 1280]) {
     };
     const paid: string[] = [];
     page.on('request', request => {
-      if (request.url().endsWith('/briefing/synthesis')) paid.push(request.url());
+      if (request.url().endsWith('/briefing/text')) paid.push(request.url());
     });
     await mockApi([
       {

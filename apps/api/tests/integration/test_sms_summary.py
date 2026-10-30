@@ -192,7 +192,7 @@ async def test_stale_sms_read_is_recorded_without_publishing_its_data(
 ):
     from src.domains.agents.effects.treatments import treatment_collector
     from src.domains.briefing.schemas import CardSection, CardStatus, SmsData
-    from src.domains.briefing.sms_context import sms_for_prompt
+    from src.domains.briefing.sms_context import NO_PROMPT_SMS, read_prompt_sms
     from src.domains.sms.identity import IdentityBook
 
     db, user = sms_actor_session
@@ -208,11 +208,10 @@ async def test_stale_sms_read_is_recorded_without_publishing_its_data(
 
     monkeypatch.setattr("src.domains.sms.identity_resolution.load_identity_book", arrive)
     with treatment_collector(run_id="stale-sms-home-source") as rows:
-        result = await sms_for_prompt(
+        result = await read_prompt_sms(
             user.id,
             CardSection(status=CardStatus.OK, data=data, generated_at=datetime.now(UTC)),
-            verbose=True,
         )
-    assert result == ("", None)
+    assert result == NO_PROMPT_SMS
     sms = [row for row in rows if row.tool_name == "briefing:sms"]
     assert len(sms) == 1 and sms[0].outcome == "failed"

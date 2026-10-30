@@ -79,6 +79,64 @@ beforeEach(() => {
   chat.mounted.mockClear();
   chat.cleaned.mockClear();
 });
+/** The dashboard's act (spec 2026-10-21 §5.8): every card hidden, nothing pending. */
+const DASHBOARD_INITIAL = '/briefing/cards/initial';
+const HIDDEN_CARD = {
+  status: 'hidden',
+  data: null,
+  generated_at: '2026-10-28T08:00:00Z',
+  error_code: null,
+  error_message: null,
+  from_cache: false,
+  stale_generated_at: null,
+  last_attempt_at: null,
+};
+const DASHBOARD_ACT = {
+  cards: Object.fromEntries(
+    [
+      'weather',
+      'agenda',
+      'mails',
+      'birthdays',
+      'reminders',
+      'health',
+      'for_you',
+      'tasks',
+      'documents',
+      'workboard',
+    ].map(name => [name, HIDDEN_CARD])
+  ),
+  windows: {
+    birthdays_horizon_days: 7,
+    health_window_days: 14,
+    agenda_lookahead_hours: 24,
+    tasks_horizon_days: 7,
+    weather_forecast_days: 5,
+  },
+  pending: [],
+  act: 'act-1',
+  act_expires_at: '2026-10-28T08:10:00Z',
+  section_concurrency: 4,
+};
+/** The initial read serves the act; the text is a POST of its own, counted below. */
+function serveDashboardAct(): void {
+  vi.mocked(apiClient.get).mockImplementation(async (endpoint: string) =>
+    endpoint === DASHBOARD_INITIAL ? DASHBOARD_ACT : undefined
+  );
+  vi.mocked(apiClient.post).mockImplementation(async (endpoint: string) =>
+    endpoint === '/briefing/text'
+      ? {
+          greeting: { text: 'Hello', generated_at: '2026-10-28T08:00:00Z', usage: null },
+          synthesis: null,
+          reused: false,
+          state: 'ready',
+        }
+      : undefined
+  );
+}
+const textPurchases = () =>
+  vi.mocked(apiClient.post).mock.calls.filter(([endpoint]) => endpoint === '/briefing/text').length;
+
 describe('private native function controls', () => {
   it.each(['disabled', 'body'])(
     'returns to the scene when the retained opener is %s while the activity closes',
@@ -384,9 +442,8 @@ describe('private native function controls', () => {
       functionRef: ref,
       dashboardSeatKey: 'confirmed-seat',
     };
-    const synthesis = () =>
-      vi.mocked(apiClient.get).mock.calls.filter(([endpoint]) => endpoint === '/briefing/synthesis')
-        .length;
+    serveDashboardAct();
+    const synthesis = textPurchases;
     const view = render(<WorldFunctionControls {...props} enabled />);
     act(() => {
       expect(ref.current?.openScene({ kind: 'workspace', id: 'dashboard' })).toBe(true);
@@ -412,15 +469,15 @@ describe('private native function controls', () => {
   });
   it('asks the dashboard synthesis once when a failed identity read hides and reveals it', async () => {
     const identity = { fails: false };
+    serveDashboardAct();
     vi.mocked(apiClient.get).mockImplementation(async (endpoint: string) => {
+      if (endpoint === DASHBOARD_INITIAL) return DASHBOARD_ACT;
       if (endpoint !== '/auth/me') return undefined;
       if (identity.fails) throw new Error('offline');
       return { id: 'owner', is_active: true };
     });
     const logged = vi.spyOn(logger, 'error').mockImplementation(() => {});
-    const synthesis = () =>
-      vi.mocked(apiClient.get).mock.calls.filter(([endpoint]) => endpoint === '/briefing/synthesis')
-        .length;
+    const synthesis = textPurchases;
     const ref = createRef<WorldFunctionHandle>();
     try {
       render(

@@ -5,7 +5,7 @@ import { propStyleVariant } from './prop-style';
 import { seasonalPalette } from './seasonal-palette';
 
 /** Rounded, irregular foliage volumes. All facets are baked once into three reusable families. */
-function foliage(
+export function foliage(
   p: Painter,
   x: number,
   y: number,
@@ -16,7 +16,7 @@ function foliage(
 ): void {
   const ring = Array.from({ length: 10 }, (_, i) => {
     const a = (i * Math.PI) / 5,
-      r = radius * (0.9 + ((i * 7 + seed) % 5) * 0.035);
+      r = radius * (0.84 + ((i * 7 + seed) % 5) * 0.055);
     return { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
   });
   const scale = (q: (typeof ring)[number], factor: number, elevation: number) =>
@@ -25,7 +25,7 @@ function foliage(
     .map((a, i) => ({ a, b: ring[(i + 1) % ring.length], i }))
     .sort((a, b) => a.a.x + a.a.y + a.b.x + a.b.y - b.a.x - b.a.y - b.b.x - b.b.y);
   for (const { a, b, i } of faces) {
-    const light = [-14, -23, -22, -15, -5, 6, 13, 16, 4, -5][i];
+    const light = [-10, -16, -15, -10, -4, 5, 9, 12, 3, -4][i];
     p.polygon(
       [
         scale(a, 0.6, z - radius * 0.45),
@@ -53,19 +53,19 @@ function foliage(
         scale(b, 0.43, z + radius * 0.7),
         scale(a, 0.43, z + radius * 0.7),
       ],
-      shade(color, 8 + (i % 5) * 4)
+      shade(color, 9 + ((i + seed) % 4) * 3)
     );
   }
   p.polygon(
     ring.map(q => scale(q, 0.43, z + radius * 0.7)),
-    shade(color, 22)
+    shade(color, 19)
   );
   // Small leaf planes break up the facets, following the same upper-left light.
   for (let i = 0; i < 5; i++) {
     const a = i * 2.4 + seed,
       r = radius * 0.22;
     const q = { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
-    p.surface(q.x, q.y, z + radius * 0.71, radius * 0.12, radius * 0.09, shade(color, 32 + i * 2));
+    p.surface(q.x, q.y, z + radius * 0.71, radius * 0.12, radius * 0.09, shade(color, 25 + i));
   }
 }
 function branch(p: Painter, x: number, y: number, z: number, color: string): void {
@@ -140,10 +140,10 @@ export function paintTree(p: Painter, o: WorldProp): void {
   const leaf =
     p.season === 'neutral'
       ? blossom
-        ? '#df699c'
+        ? '#df87aa'
         : birch
-          ? '#79ae47'
-          : '#36844d'
+          ? '#7ca64d'
+          : '#438953'
       : blossom
         ? palette.blossom
         : palette.leaf;

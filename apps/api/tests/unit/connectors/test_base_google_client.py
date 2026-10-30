@@ -1161,3 +1161,52 @@ class TestMakeRequestExtraHeaders:
         headers = call_args.kwargs["headers"]
         # Only Authorization header
         assert headers == {"Authorization": "Bearer valid_token"}
+
+
+class TestNoWaitAfterTheLastAttempt:
+    """Fresh review B7: after its last 429 or 5xx a loop still slept its backoff (up to
+    4 s) before failing — every connector failure answered later, and the worst Drive
+    drain ran past the bound the boot guard computes."""
+
+    @staticmethod
+    def _answering(status_code: int) -> Mock:
+        response = Mock()
+        response.status_code = status_code
+        response.headers = {}
+        return response
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [429, 503])
+    async def test_make_request_waits_only_between_attempts(self, client, status_code):
+        http = AsyncMock()
+        http.get = AsyncMock(return_value=self._answering(status_code))
+        client._http_client = http
+        sleep = AsyncMock()
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_ensure_valid_token", AsyncMock(return_value="valid_token")),
+            patch("asyncio.sleep", sleep),
+        ):
+            with pytest.raises(HTTPException):
+                await client._make_request("GET", "/test", max_retries=3)
+
+        assert http.get.call_count == 3
+        assert sleep.await_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [429, 503])
+    async def test_make_raw_request_waits_only_between_attempts(self, client, status_code):
+        http = AsyncMock()
+        http.request = AsyncMock(return_value=self._answering(status_code))
+        client._http_client = http
+        sleep = AsyncMock()
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_ensure_valid_token", AsyncMock(return_value="valid_token")),
+            patch("asyncio.sleep", sleep),
+        ):
+            with pytest.raises(HTTPException):
+                await client._make_raw_request("GET", "/files/123", max_retries=3)
+
+        assert http.request.call_count == 3
+        assert sleep.await_count == 2

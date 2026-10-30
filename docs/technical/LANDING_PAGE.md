@@ -393,6 +393,11 @@ aucune regle `allow`. `NON_INDEXED_SEGMENTS` nomme, avec sa raison, chaque route
 `lib/__tests__/public-pages.test.ts` scanne `app/[lng]` pour exiger que toute route soit d'un cote ou de l'autre (meme
 traversee que la garde 401 ci-dessus).
 
+Depuis le 2026-10-28, `robots.ts` sert **un seul groupe** de regles a tous les robots, robots d'IA compris (recherche,
+consultation a la demande et entrainement) — decision du proprietaire —, car un groupe nomme ferait ignorer le groupe `*`
+au robot qu'il nomme (RFC 9309). Il ne bloque plus `/_next/*`, qui porte le JS, le CSS, les polices et les images
+optimisees dont un robot a besoin pour rendre une page publique, et rien de prive.
+
 ---
 
 ## 9. Responsive, theming
@@ -587,6 +592,15 @@ lines between separators. Application and Grafana galleries use the same
 uniform preview frame and controls. A full-page application original is shown
 from its top in the preview and remains complete in the full-screen lightbox.
 Other decks keep their existing native-ratio behavior.
+
+The thumbnails, the ambient band and the stage of a capture read pre-generated
+WebP variants declared in `apps/web/src/lib/landing/captures.ts` and written by
+`apps/web/scripts/build-capture-variants.mjs`; only the lightbox fetches the
+original. Re-run the script after any capture campaign — its guard refuses a
+variant written from a replaced original. Every `.landing-page` draws its icons
+from `publicSymbols`, a self-hosted cut of Material Symbols
+(`apps/web/scripts/build-public-icon-font.mjs`), never the 4 MB font the
+application loads. See the [ADR-330 amendment of 2026-10-28](../architecture/ADR-330-Landing-Media-Served-Without-Runtime-Work.md#amendment-2026-10-28--what-the-landing-downloads-before-the-first-scroll).
 
 See [the motion production procedure](MOTION_DESIGN.md) and
 [ADR-341](../architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md)

@@ -313,5 +313,149 @@
     "reason": "Reached only through @capacitor/cli 8.5.3 -> rimraf 6.1.3, the mobile shells' build tooling run on a developer machine or a CI runner; no web, API, sandbox image or self-host bundle ships it. The flaw needs a caller that aborts a glob walk with an AbortSignal and keeps acting on its later results; rimraf passes no signal there and the CLI walks the repository's own build output. Lifted when Capacitor's rimraf accepts glob >=14.0.2.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.4",
+    "ref": "GHSA-gj4f-r7mf-jjxh",
+    "reason": "Needs an untrusted string validated into a `Fraction` field. No model or adapter of the API declares one: `Fraction` appears in apps/api/src only inside field descriptions (checked 2026-10-30). 2.14.x lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.4",
+    "ref": "GHSA-qpmf-fgh3-ff25",
+    "reason": "Needs JSON validation into a model with `extra='allow'` AND a key type annotated on `__pydantic_extra__`. No model of the API annotates `__pydantic_extra__`; its only `extra='allow'` models (the e-mail normaliser's EmailMessage and EmailAttachment) declare no key type (checked 2026-10-30). 2.14.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.4",
+    "ref": "GHSA-3r8g-cqwr-jr29",
+    "reason": "Needs a TypedDict or a dataclass validated with aliased fields AND extra data allowed; BaseModel is not affected. The API's `extra='allow'` models are BaseModels, and its TypeAdapters target BaseModel unions, builtins and one stdlib dataclass (SenderIdentity) with neither alias nor extra (checked 2026-10-30). 2.14.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.5",
+    "ref": "GHSA-gj4f-r7mf-jjxh",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the developer's machine, never in production, and validates no untrusted input. The application's own pydantic (2.13.4) is accepted under the same advisory with its reachability check. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.5",
+    "ref": "GHSA-qpmf-fgh3-ff25",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the developer's machine, never in production, and validates no untrusted input. The application's own pydantic (2.13.4) is accepted under the same advisory with its reachability check. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.5",
+    "ref": "GHSA-3r8g-cqwr-jr29",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the developer's machine, never in production, and validates no untrusted input. The application's own pydantic (2.13.4) is accepted under the same advisory with its reachability check. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-2gh9-8m4r-2xwh",
+    "reason": "Development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-9w45-w2cj-r5hx",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-jmm4-8x35-q6fq",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-rjcv-6975-fwqp",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-mmf6-974m-4f43",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-5pjc-393q-rwmf",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-2gh9-8m4r-2xwh",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-9w45-w2cj-r5hx",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-jmm4-8x35-q6fq",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-rjcv-6975-fwqp",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-mmf6-974m-4f43",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-5pjc-393q-rwmf",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
   }
 ]

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -193,8 +193,8 @@ async def _run_section(*, cached: bool, hidden: bool) -> list:
     with (
         patch.object(BriefingService, "_read_cache", staticmethod(_read_cache)),
         patch.object(BriefingService, "_fetch_and_map", staticmethod(_fetch_and_map)),
-        patch.object(BriefingService, "_write_cache", staticmethod(_noop3)),
-        patch.object(BriefingService, "_write_last_good", staticmethod(_noop2)),
+        patch("src.domains.briefing.service.read_generation", AsyncMock(return_value=None)),
+        patch("src.domains.briefing.service.persist_live_outcome", _persisted_as_read),
         treatment_collector(run_id="briefing-run") as rows,
     ):
         await service._section(
@@ -203,12 +203,9 @@ async def _run_section(*, cached: bool, hidden: bool) -> list:
     return list(rows)
 
 
-async def _noop2(*_: object, **__: object) -> None:
-    return None
-
-
-async def _noop3(*_: object, **__: object) -> None:
-    return None
+async def _persisted_as_read(_name: str, section: object, **_: object) -> tuple[object, str]:
+    """The persistence after a live read, without a cache: the section as read."""
+    return section, "live"
 
 
 class _FakeUser:
@@ -453,8 +450,8 @@ class TestTheRegisterNeverCostsTheDashboard:
         with (
             patch.object(BriefingService, "_read_cache", staticmethod(_read_cache)),
             patch.object(BriefingService, "_fetch_and_map", staticmethod(_fetch_and_map)),
-            patch.object(BriefingService, "_write_cache", staticmethod(_noop3)),
-            patch.object(BriefingService, "_write_last_good", staticmethod(_noop2)),
+            patch("src.domains.briefing.service.read_generation", AsyncMock(return_value=None)),
+            patch("src.domains.briefing.service.persist_live_outcome", _persisted_as_read),
             patch.object(treatments_module, "record_out_of_turn_consultation", _explode),
         ):
             section = await service._section(

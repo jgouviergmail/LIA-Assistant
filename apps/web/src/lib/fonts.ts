@@ -133,6 +133,34 @@ export const firaCode = localFont({
 // Geist from npm package (Vercel's font)
 export const geistSans = GeistSans;
 
+/**
+ * The icons of the PUBLIC pages: Material Symbols Outlined cut down to the few
+ * icons they draw (the landing's demo), ~4 KB where the full variable font the
+ * application loads from Google Fonts is 4 MB — and the landing used to download
+ * it before the reader scrolled (measured 2026-10-28). `lia-components.css` maps
+ * `.landing-page .material-symbols-outlined` to this family, so the full font is
+ * never requested there; the application keeps it, because the cards the model
+ * writes may name any icon. Written by `scripts/build-public-icon-font.mjs`, held
+ * to what public pages draw by `__tests__/public-icon-font.guard.test.ts`.
+ *
+ * `display: 'block'`: an icon font in `swap` shows its ligature NAMES
+ * ("check_circle") while it loads. No metric-adjusted fallback: a system face
+ * shaped like this one does not exist.
+ */
+export const publicSymbols = localFont({
+  src: [
+    {
+      path: '../fonts/material-symbols-public/material-symbols-public.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+  ],
+  preload: false,
+  variable: '--font-public-symbols',
+  display: 'block',
+  adjustFontFallback: false,
+});
+
 // Combined class names for layout.tsx
 export const fontVariables = [
   notoSans.variable,
@@ -143,4 +171,5 @@ export const fontVariables = [
   libreBaskerville.variable,
   firaCode.variable,
   geistSans.variable,
+  publicSymbols.variable,
 ].join(' ');

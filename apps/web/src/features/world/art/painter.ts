@@ -77,8 +77,8 @@ export class Painter {
       Math.max(...points.map(point => point.x)),
       Math.max(...points.map(point => point.y))
     );
-    gradient.addColorStop(0, shade(color, light + 8));
-    gradient.addColorStop(1, shade(color, light - 7));
+    gradient.addColorStop(0, shade(color, light + 6));
+    gradient.addColorStop(1, shade(color, light - 5));
     this.polygon(points, gradient);
   }
   box(x: number, y: number, z: number, w: number, d: number, h: number, color: string): void {
@@ -98,8 +98,8 @@ export class Painter {
     if (h < 0.05 || w < 0.08 || d < 0.08) return;
     const c = this.ctx;
     c.save();
-    c.strokeStyle = shade(color, 38);
-    c.globalAlpha = 0.43;
+    c.strokeStyle = shade(color, 30);
+    c.globalAlpha = 0.34;
     c.lineWidth = 0.75;
     c.beginPath();
     c.moveTo(top[3].x, top[3].y);
@@ -114,6 +114,63 @@ export class Painter {
     c.lineTo(foot.x, foot.y);
     c.stroke();
     c.restore();
+  }
+  /** Faceted corner rounding and a narrow top bevel, baked at sprite creation. */
+  softBox(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    d: number,
+    h: number,
+    color: string,
+    bevel = 0.04
+  ): void {
+    const corner = Math.min(0.08, Math.min(w, d) * 0.14);
+    const b = Math.min(bevel, h / 3, corner * 0.65);
+    const ring = (inset: number) => [
+      { x: x + corner, y: y + inset },
+      { x: x + w - corner, y: y + inset },
+      { x: x + w - inset, y: y + corner },
+      { x: x + w - inset, y: y + d - corner },
+      { x: x + w - corner, y: y + d - inset },
+      { x: x + corner, y: y + d - inset },
+      { x: x + inset, y: y + d - corner },
+      { x: x + inset, y: y + corner },
+    ];
+    const outer = ring(0),
+      top = ring(b);
+    for (let i = 0; i < outer.length; i++) {
+      const a = outer[i],
+        next = (i + 1) % outer.length,
+        q = outer[next];
+      const dx = q.x - a.x,
+        dy = q.y - a.y;
+      if (dy <= dx) continue;
+      const light = -20 - (12 * (dy + dx)) / Math.hypot(dx, dy);
+      this.face(
+        [project(a, z), project(q, z), project(q, z + h - b), project(a, z + h - b)],
+        color,
+        light
+      );
+    }
+    for (let i = 0; i < outer.length; i++) {
+      const next = (i + 1) % outer.length;
+      this.polygon(
+        [
+          project(outer[i], z + h - b),
+          project(outer[next], z + h - b),
+          project(top[next], z + h),
+          project(top[i], z + h),
+        ],
+        shade(color, [20, 10, -6, -3, 8, 19, 28, 27][i])
+      );
+    }
+    this.face(
+      top.map(point => project(point, z + h)),
+      color,
+      12
+    );
   }
   /** Horizontal authored detail; avoids a three-face box for a flat mark. */
   surface(x: number, y: number, z: number, w: number, d: number, color: string): void {
@@ -141,15 +198,17 @@ export class Painter {
     const c = this.ctx;
     c.save();
     c.translate(p.x, p.y + 3);
-    c.scale(1, 0.45);
-    const radius = (w + d) * 15;
+    // Footprint-aligned spread: long benches no longer cast a round dark puddle.
+    c.transform(w * 32, w * 16, -d * 32, d * 16, 0, 0);
+    const radius = 0.64;
     const gradient = c.createRadialGradient(0, 0, 0, 0, 0, radius);
-    gradient.addColorStop(0, 'rgba(20,38,34,.34)');
-    gradient.addColorStop(0.38, 'rgba(20,38,34,.16)');
+    gradient.addColorStop(0, 'rgba(25,36,35,.31)');
+    gradient.addColorStop(0.28, 'rgba(25,36,35,.24)');
+    gradient.addColorStop(0.62, 'rgba(25,36,35,.07)');
     gradient.addColorStop(1, 'rgba(20,43,38,0)');
     c.fillStyle = gradient;
     c.beginPath();
-    c.ellipse(0, 0, radius, radius * 0.7, 0, 0, Math.PI * 2);
+    c.ellipse(0, 0, radius, radius, 0, 0, Math.PI * 2);
     c.fill();
     c.restore();
   }

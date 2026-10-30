@@ -211,9 +211,9 @@
     },
     "f.mcp": {
       "name": "Server MCP",
-      "role": "Collegare strumenti MCP esterni, OAuth compreso; le schede dei risultati indicano server e metodo. Una pausa dichiarata dal server sospende le chiamate tra worker.",
+      "role": "Collegare strumenti MCP esterni, OAuth compreso, conservati da un messaggio all'altro; le schede dei risultati indicano server e metodo. Una pausa dichiarata dal server sospende le chiamate tra worker.",
       "goal": "Estendere LIA senza aspettare un'integrazione nativa.",
-      "src": "1409a780080c"
+      "src": "4213abb3483f"
     },
     "f.skills": {
       "name": "Competenze e plugin",
@@ -271,9 +271,9 @@
     },
     "f.briefing": {
       "name": "Briefing del giorno",
-      "role": "La pagina iniziale: agenda, e-mail, meteo, promemoria e una sintesi, letti una sola volta per caricamento.",
+      "role": "La pagina iniziale: agenda, e-mail, meteo, promemoria e una sintesi, letti una sola volta per caricamento, ogni scheda mostrata appena è pronta.",
       "goal": "Sapere a che punto sei con un colpo d'occhio.",
-      "src": "5ee486bb168c"
+      "src": "28bd35aaac51"
     },
     "f.routines": {
       "name": "Routine",

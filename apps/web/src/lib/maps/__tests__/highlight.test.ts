@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { mapsData } from '../data';
 import { computeHighlight, edgeKey, matchBricks, stepNumbers } from '../highlight';
 import { buildBrickMap } from '../model';
 import { mapsDataFixture } from './fixtures';
@@ -81,6 +82,35 @@ describe('matchBricks', () => {
     expect(matchBricks(map.bricks, map.families, 'dashboard/chat')).toEqual(['f.one']);
     expect(matchBricks(map.bricks, map.families, 'converser')).toEqual(['f.one', 'f.two']);
     expect(matchBricks(map.bricks, map.families, '   ')).toEqual([]);
+  });
+
+  it('lets the prose answer only when no name or identifier does', () => {
+    // 'fil' is in the role of f.one alone, and in no name or identifier.
+    expect(matchBricks(map.bricks, map.families, 'fil')).toEqual(['f.one']);
+    // 'prevenir' is f.three's role AND its family: the family wins, the prose adds nothing.
+    expect(matchBricks(map.bricks, map.families, 'prevenir')).toEqual(['f.three']);
+  });
+
+  it('puts the bricks named after the search before those it only identifies', () => {
+    // Family 'Converser' holds f.one and f.two; only f.one is NAMED 'Conversation'.
+    // In reverse map order f.two comes first, and the name still leads: Enter opens it.
+    const reversed = [...map.bricks].reverse();
+    expect(matchBricks(reversed, map.families, 'convers')).toEqual(['f.one', 'f.two']);
+  });
+
+  it('answers the searches measured on the real functional map', () => {
+    // 2026-10-29: each of these lit bricks that only MENTION the word, and Enter
+    // opened one of them ('agenda' → request understanding, 'telephone' → personalities).
+    const real = buildBrickMap(mapsData('fr'), 'functional');
+    const search = (query: string): string[] => matchBricks(real.bricks, real.families, query);
+    expect(search('radio')).toEqual(['f.radio']);
+    expect(search('agenda')).toEqual(['f.calendar']);
+    expect(search('rappel')).toEqual(['f.reminders']);
+    expect(search('téléphone')).toEqual(['f.telephony']);
+    expect(search('monde')).toEqual(['f.world']);
+    expect(search('image')).toEqual(['f.images']);
+    // No brick is NAMED after the voice: the bricks that speak of it still answer.
+    expect(search('voix')).toContain('f.voice');
   });
 
   it('searches the stack and the paths of the technical map', () => {

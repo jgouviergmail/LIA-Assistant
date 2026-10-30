@@ -257,6 +257,7 @@ async def test_environment_borrows_only_its_owners_cached_observation_without_lo
 
     from src.domains.briefing.constants import SECTION_WEATHER
     from src.domains.briefing.schemas import CardSection, CardStatus, WeatherData
+    from src.domains.briefing.section_outcomes import write_section
     from src.domains.briefing.service import BriefingService
     from src.domains.world.environment import read_environment
 
@@ -274,7 +275,7 @@ async def test_environment_borrows_only_its_owners_cached_observation_without_lo
             location_city="PRIVATE_LOCATION",
         ),
     )
-    await service._write_cache(service._cache_key(SECTION_WEATHER), cached, 1800)
+    await write_section(service._cache_key(SECTION_WEATHER), cached, 1800)
     result = await read_environment(owner)
     assert result.timezone == "Asia/Tokyo" and result.weather is not None
     assert result.weather.condition_code == "Rain"

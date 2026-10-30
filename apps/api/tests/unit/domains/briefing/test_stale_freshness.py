@@ -24,6 +24,7 @@ from src.core.config import settings
 from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.briefing.schemas import CardSection, CardStatus, WeatherData
 from src.domains.briefing.service import BriefingService
+from tests.helpers.briefing_cache_double import briefing_eval
 
 
 def _make_user() -> SimpleNamespace:
@@ -63,10 +64,16 @@ class _FakeRedis:
         if ex is not None:
             self.ttls[key] = ex
 
+    async def delete(self, *keys: str) -> int:
+        return sum(self.store.pop(key, None) is not None for key in keys)
+
+    async def eval(self, script: str, numkeys: int, *args: object) -> object:
+        return await briefing_eval(self, script, *args)
+
 
 def _patch_redis(fake: _FakeRedis):
     return patch(
-        "src.domains.briefing.service.get_redis_cache",
+        "src.domains.briefing.section_outcomes.get_redis_cache",
         AsyncMock(return_value=fake),
     )
 
@@ -169,7 +176,7 @@ class TestFromCacheFlag:
         assert hit.from_cache is True
         # The STORED payload stays from_cache=false — the flag describes the
         # serving path, not the data, so it must be computed per read.
-        main_keys = [k for k in fake.store if ":lastgood:" not in k]
+        main_keys = [k for k in fake.store if ":lastgood:" not in k and ":gen:" not in k]
         assert len(main_keys) == 1
         assert '"from_cache":false' in fake.store[main_keys[0]].replace(" ", "")
 

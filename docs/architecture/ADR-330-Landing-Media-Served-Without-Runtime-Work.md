@@ -328,6 +328,59 @@ the clip announces its generator itself), the two playing in turn, for ever.
    as paused — otherwise the button said « pause » over a stopped element until
    the next video started.
 
+## Amendment 2026-10-28 — what the landing downloads before the first scroll
+
+A visitor measured the production landing at 119 requests and 7.48 MB
+transferred (14.86 MB decoded) before any scroll. Re-measured the same day (one Chromium visit, cache disabled,
+1920×1080, every request counted through the DevTools protocol): 121 requests,
+16.18 MB transferred. Three entries made 13 MB of it, and none was a choice:
+
+| Entry | Transferred | Cause |
+|---|---|---|
+| Images | 9.19 MB | The gallery's thumbnails (80-96 CSS px), its ambient band (32 px) and its stage drew the capture ORIGINALS — PNG of 0.35 to 0.8 MB — because the carousel set `unoptimized` on application captures to share one file between the preview and the lightbox. |
+| Icon font | 4.01 MB | The root layout loads Material Symbols Outlined from Google Fonts with its four axes and every icon; the landing's demo draws five. |
+| HTML + RSC prefetch | 0.78 + 1.10 MB (3.36 + 3.49 MB decoded) | The root layout handed its client `TranslationsProvider` the whole catalogue (2.2 MB of French), serialised into every page — see [ADR-024's amendment of the same day](ADR-024-i18n-Architecture.md#amendment-2026-10-28--the-browser-receives-the-catalogue-its-route-reads). |
+
+1. **The captures follow the illustrations' rule (decision 1 above).**
+   `apps/web/src/lib/landing/captures.ts` declares the views, their campaigns
+   and the widths — a thumbnail candidate and three stage candidates — and
+   `apps/web/scripts/build-capture-variants.mjs` writes the WebP variants
+   (sharp, the article settings: compared at 1:1 on a 1600-px capture, the
+   interface text is indistinguishable from the PNG at a tenth of its weight)
+   with a record of each original's SHA-256. The carousel draws a slide's
+   variants with a plain `<img srcset>`; only the full-screen view fetches the
+   original. A candidate is announced at the width it HAS (an original is never
+   enlarged), so a 1100-px capture's largest file is `1100w`. The guard
+   `captures.guard.test.ts` refuses a missing, orphan or stale variant — stale
+   meaning written from an original that has since been replaced. The module
+   imports nothing, so the script loads it through Node's type stripping and
+   cannot write names the page does not read. Measured on dev: every image the
+   landing requests is a variant, 3 to 10 KB a thumbnail, the 35 thumbnails
+   160 KB in all.
+2. **Public pages draw their icons from a subset of the same font.**
+   `publicSymbols` (`apps/web/src/lib/fonts.ts`, `next/font/local`, no
+   preload, `display: block` so a ligature name never shows) is a cut of
+   Material Symbols holding the icons public pages draw, on the axes the icon
+   rules of `lia-components.css` actually set; `.landing-page
+   .material-symbols-outlined` maps to it, so no element of a public page names
+   the full family and the browser never requests it. The application keeps
+   the full font: the cards the model writes may name any icon.
+   `apps/web/scripts/build-public-icon-font.mjs` fetches the cut from Google
+   Fonts by hand (the build fetches nothing) and records the request and the
+   file's SHA-256; `public-icon-font.guard.test.ts` refuses an icon a public
+   page can draw that the cut lacks — read from the six locales' HTML strings
+   and from the two modules that write an icon span, whose icons are tables
+   (`SHOWROOM_DECISION_ICONS`, `CARD_ACTION_ICONS`) — and any NEW module
+   writing one. Measured on dev: the icons render as glyphs (16 px wide at a
+   16-px size), the subset is the only icon font loaded.
+
+Not done, in writing: the application's own 4 MB. Every icon rule of the
+application pins `wght` 400, `GRAD` 0 and an `opsz` of 20 or 24, so a cut on
+those axes (all icons kept) would weigh 1.1 MB with no visible change — a
+measured option, not taken here. The video (decisions 2-3) is unchanged: its
+cost follows the time spent on the page, not the scroll. Not measured yet: the
+production figures after deployment.
+
 ## Alternatives rejected
 
 - **Committing the renditions.** 150–220 MB per 1080p file, past GitHub's

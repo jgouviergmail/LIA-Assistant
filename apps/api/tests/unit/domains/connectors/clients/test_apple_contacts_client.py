@@ -692,7 +692,7 @@ class TestHttpFailureHandling:
             patch.object(client, "_get_http_client", AsyncMock(return_value=http)),
             pytest.raises((ValueError, ConnectorAPIError)),
         ):
-            await client._create_contact_impl("Jane Doe", None, None, None, None)
+            await client._create_contact_impl("Jane Doe", None, None, None, None, contact_uid="u-1")
 
     async def test_create_contact_returns_resource_name(self, client: AppleContactsClient) -> None:
         redis = _fake_redis()
@@ -707,11 +707,41 @@ class TestHttpFailureHandling:
             ),
         ):
             result = await client._create_contact_impl(
-                "Jane Doe", "jane@example.com", None, None, None
+                "Jane Doe", "jane@example.com", None, None, None, contact_uid="u-1"
             )
 
-        assert result["resourceName"].endswith(".vcf")
+        assert result["resourceName"].endswith("/u-1.vcf")
         assert result["names"][0]["displayName"] == "Jane Doe"
+
+    async def test_a_resent_create_writes_the_same_contact_again(
+        self, client: AppleContactsClient
+    ) -> None:
+        """S1: the URL of a new contact is its uid; drawn inside the retry loop, a
+        resent create after a lost answer was a SECOND contact."""
+        redis = _fake_redis()
+        http = AsyncMock()
+        http.put = AsyncMock(side_effect=[TimeoutError("stored, answer lost"), _response(201)])
+        breaker = MagicMock(
+            check=AsyncMock(), record_success=AsyncMock(), record_failure=AsyncMock()
+        )
+
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_get_circuit_breaker", return_value=breaker),
+            patch.object(
+                client, "_discover_addressbook", AsyncMock(return_value="https://dav/book/")
+            ),
+            patch.object(client, "_get_http_client", AsyncMock(return_value=http)),
+            patch(
+                "src.domains.connectors.clients.apple_contacts_client.get_redis_session",
+                AsyncMock(return_value=redis),
+            ),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            await client.create_contact("Jane Doe", email="jane@example.com")
+
+        first, second = (call.args[0] for call in http.put.await_args_list)
+        assert first == second
 
     async def test_delete_contact_500_raises_instead_of_returning_false(
         self, client: AppleContactsClient

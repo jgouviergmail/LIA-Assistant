@@ -38,7 +38,7 @@ export async function PlatformSection({ lng }: { lng: string }) {
         </div>
         <h3 className="mt-8 mb-4 text-xl font-semibold">{t('landing.platform.dashboard_title')}</h3>
         <ScreenshotsSection monitoring />
-        <p className="mx-auto mt-3 max-w-3xl text-center text-xs leading-6 text-muted-foreground">
+        <p className="mx-auto mt-3 max-w-3xl text-center text-xs leading-5 text-muted-foreground">
           {t('landing.platform.dashboard_note')}
         </p>
         <div className="mt-8 grid gap-x-10 gap-y-7 sm:grid-cols-2">
@@ -48,7 +48,7 @@ export async function PlatformSection({ lng }: { lng: string }) {
                 <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
                 {t(`landing.platform.${key}.title`)}
               </h3>
-              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 {t(`landing.platform.${key}.body`)}
               </p>
             </article>
@@ -56,10 +56,10 @@ export async function PlatformSection({ lng }: { lng: string }) {
         </div>
         <div className="mt-9 border-l-2 border-primary/40 pl-5 sm:pl-6">
           <h3 className="text-xl font-semibold">{t('landing.platform.business_title')}</h3>
-          <p className="mt-3 max-w-[92ch] text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 max-w-[92ch] text-sm leading-6 text-muted-foreground">
             {t('landing.platform.business_body')}
           </p>
-          <p className="mt-3 max-w-[92ch] text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 max-w-[92ch] text-sm leading-6 text-muted-foreground">
             {t('landing.platform.business_scope')}
           </p>
         </div>

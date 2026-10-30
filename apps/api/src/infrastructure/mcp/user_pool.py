@@ -23,10 +23,10 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict, deque
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass, field
-from typing import Any, NoReturn
+from datetime import UTC, datetime
+from typing import Any, Final, NoReturn
 from uuid import UUID
 
 import httpx2
@@ -42,11 +42,39 @@ from src.core.constants import (
     MCP_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_TOOL_NAME,
 )
-from src.infrastructure.mcp.catalogue_fingerprint import (
-    canonical_fingerprint,
-    connection_fingerprint,
+from src.infrastructure.mcp.catalogue_fingerprint import connection_fingerprint
+from src.infrastructure.mcp.catalogue_snapshot import (
+    CatalogueSnapshot,
+    ValidSnapshot,
+    catalogue_fingerprint,
+    parse_catalogue_snapshot,
+    reserve_generation,
+    revalidation_horizon_seconds,
+    snapshot_routes,
+    stored_generation,
+)
+from src.infrastructure.mcp.declaration_check import (
+    DeclarationCheck,
+    check_for,
+    settle_declaration,
+)
+from src.infrastructure.mcp.pool_catalogue import (
+    Connection,
+    DiscoveredCatalogue,
+    PoolEntry,
+    cache_scope,
+    entry_from_snapshot,
+    list_every_tool,
+    mark_age,
+    normalize_tool,
+    refresh_reason,
+    serves_warm,
+    touched,
+    ttl_ms,
+    warm_entry,
 )
 from src.infrastructure.mcp.rate_limit import (
+    MCPDeclarationChangedError,
     MCPRateLimitError,
     MCPServerCooldown,
     MCPServerFailures,
@@ -57,10 +85,6 @@ from src.infrastructure.mcp.rate_limit import (
 from src.infrastructure.mcp.utils import (
     MCPModernOnlyServerError,
     build_client_info,
-    extract_app_meta,
-    extract_output_schema,
-    extract_tool_annotations,
-    extract_tool_title,
     is_modern_only_rejection,
     mcp_result_text,
     unwrap_exception_group,
@@ -68,6 +92,9 @@ from src.infrastructure.mcp.utils import (
 from src.infrastructure.observability.metrics_mcp import mcp_catalogue_cache_total
 
 logger = structlog.get_logger(__name__)
+
+#: ``get_or_connect`` called outside a turn's preparation (no stored catalogue given).
+NOT_PREPARING: Final = object()
 
 
 def _surface_root_cause(
@@ -152,25 +179,6 @@ async def _ephemeral_client(
         yield client
 
 
-@dataclass
-class PoolEntry:
-    """Tool metadata for a connected user MCP server (no persistent session)."""
-
-    user_id: UUID
-    server_id: UUID
-    last_used: float
-    url: str = ""
-    auth: httpx2.Auth | None = None
-    extra_headers: dict[str, str] | None = None  # plugin mcp.json fixed headers (ADR-225)
-    timeout_seconds: int = 30
-    tools: list[dict[str, Any]] = field(default_factory=list)
-    active_calls: int = 0  # Reference counter — prevents eviction during active tool calls
-    reference_content: str | None = None  # Auto-fetched read_me content (cached per entry)
-    discovered_at: float = field(default_factory=time.monotonic)
-    catalogue_fingerprint: str = ""
-    configuration_fingerprint: str = ""
-
-
 class UserMCPClientPool:
     """
     Tool metadata cache with ephemeral MCP connections.
@@ -191,6 +199,11 @@ class UserMCPClientPool:
         self._call_timestamps: dict[tuple[UUID, UUID], deque[float]] = defaultdict(deque)
         self._cooldowns = cooldowns if cooldowns is not None else MCPServerCooldown()
         self._failures = failures if failures is not None else MCPServerFailures()
+        # Told when a server's catalogue proved stale at use (spec 2026-10-21 §5.5);
+        # installed by the composition root, which owns the revalidation.
+        self.on_stale_catalogue: Callable[[UUID, UUID], None] | None = None
+        # Network discoveries of this process at once (spec 2026-10-21 §5.3).
+        self.discovery_slots = asyncio.Semaphore(settings.mcp_user_preparation_concurrency)
 
     @property
     def size(self) -> int:
@@ -206,6 +219,9 @@ class UserMCPClientPool:
         timeout_seconds: int = 30,
         extra_headers: dict[str, str] | None = None,
         force_refresh: bool = False,
+        *,
+        stored_catalogue: object = NOT_PREPARING,
+        on_discovery: Callable[[], None] | None = None,
     ) -> PoolEntry:
         """
         Get existing entry or discover tools from the server.
@@ -215,37 +231,61 @@ class UserMCPClientPool:
         that failed to connect is paused (point 29): it raises
         :class:`MCPServerPausedError` until the pause ends, except for the
         manual test (``force_refresh``), and a success clears the pause.
+
+        A turn's preparation passes the row's ``stored_catalogue`` (spec
+        2026-10-21 §5.2-5.3): the entry this worker holds for the same
+        configuration is served whatever its age (past the server's ``ttlMs``
+        it is unverified, checked at use; past the revalidation interval it is
+        due for a background revalidation), unless the row carries a newer
+        snapshot; else a routable snapshot is hydrated with no I/O; only
+        then does the network answer. A discovery holds one of the process's
+        ``discovery_slots`` and is bounded by
+        ``min(mcp_user_discovery_timeout_seconds, timeout_seconds)``;
+        ``on_discovery`` is called once a slot is held, right before it.
         """
         key = (user_id, server_id)
         configuration = connection_fingerprint(url, auth, timeout_seconds, extra_headers)
+        connection = Connection(url, auth, timeout_seconds, extra_headers)
+        preparing = stored_catalogue is not NOT_PREPARING and not force_refresh
+
+        if preparing:
+            # A turn served without the network never queues behind a discovery: a
+            # background revalidation holds this key's lock for its whole network
+            # wait (fresh review I3 — ADR-366 §3 says the turn never waits for it).
+            served = await self._serve_without_network(
+                key, configuration, False, stored_catalogue, connection
+            )
+            if served is not None:
+                return touched(served, auth, extra_headers)
 
         async with self._connect_locks[key]:
-            if self._cache_hit(key, configuration, force_refresh):
-                # Update auth in case tokens were refreshed
-                self._entries[key].auth = auth
-                self._entries[key].extra_headers = extra_headers
-                self._entries[key].last_used = time.monotonic()
-                return self._entries[key]
+            served = (
+                warm_entry(self._entries.get(key), configuration, stored_catalogue)
+                if preparing
+                else await self._serve_without_network(
+                    key, configuration, force_refresh, stored_catalogue, connection
+                )
+            )
+            if served is not None:
+                return touched(served, auth, extra_headers)
 
             await self._raise_if_cooling(key)
             if not force_refresh:
                 await self._raise_if_paused(key)
-
-            # Check global pool limit
-            max_total = settings.mcp_user_pool_max_total
-            while key not in self._entries and len(self._entries) >= max_total:
-                evicted = await self._evict_oldest_idle()
-                if not evicted:
-                    raise RuntimeError(
-                        f"User MCP pool is full ({max_total} entries) "
-                        "and no idle entries available for eviction"
-                    )
+            await self._make_room(key)
+            generation = reserve_generation()
 
             # Discover tools via ephemeral connection
             try:
-                tools, reference_content = await self._discover_tools(
-                    url, auth, timeout_seconds, extra_headers=extra_headers
-                )
+                async with self.discovery_slots:
+                    if on_discovery is not None:
+                        on_discovery()
+                    found = await self._discover_tools(
+                        url,
+                        auth,
+                        min(settings.mcp_user_discovery_timeout_seconds, timeout_seconds),
+                        extra_headers=extra_headers,
+                    )
             except MCPRateLimitError as exc:
                 await self._cooldowns.record(key, exc.retry_after)
                 raise
@@ -267,13 +307,15 @@ class UserMCPClientPool:
                 auth=auth,
                 extra_headers=extra_headers,
                 timeout_seconds=timeout_seconds,
-                tools=tools,
-                reference_content=reference_content,
+                tools=found.tools,
                 discovered_at=time.monotonic(),
-                catalogue_fingerprint=canonical_fingerprint(
-                    {"tools": tools, "reference": reference_content}
-                ),
+                catalogue_fingerprint=catalogue_fingerprint(found.tools),
                 configuration_fingerprint=configuration,
+                has_reference_tool=found.has_reference_tool,
+                server_ttl_ms=found.server_ttl_ms,
+                cache_scope=found.cache_scope,
+                server_instructions=found.server_instructions,
+                generation=generation,
             )
             self._entries[key] = entry
 
@@ -283,32 +325,132 @@ class UserMCPClientPool:
                 server_id=str(server_id),
                 pool_size=len(self._entries),
                 tool_count=len(entry.tools),
-                has_reference_content=reference_content is not None,
+                has_reference_tool=found.has_reference_tool,
+                listing=found.outcome,
             )
 
             return entry
+
+    def hydrate(
+        self,
+        *,
+        user_id: UUID,
+        server_id: UUID,
+        url: str,
+        auth: httpx2.Auth | None,
+        timeout_seconds: int,
+        extra_headers: dict[str, str] | None,
+        snapshot: CatalogueSnapshot,
+        verified: bool,
+    ) -> PoolEntry:
+        """Install the entry a persisted snapshot stands for — no I/O (spec 2026-10-21 §5.2).
+
+        Args:
+            user_id: The account.
+            server_id: The server.
+            url: The row's URL.
+            auth: The auth built for the row.
+            timeout_seconds: The row's tool timeout.
+            extra_headers: The row's fixed headers.
+            snapshot: A snapshot routable for this configuration.
+            verified: False once it is past its revalidation age.
+
+        Returns:
+            The installed entry.
+        """
+        entry = entry_from_snapshot(
+            snapshot,
+            user_id=user_id,
+            server_id=server_id,
+            url=url,
+            auth=auth,
+            timeout_seconds=timeout_seconds,
+            extra_headers=extra_headers,
+            verified=verified,
+        )
+        self._entries[(user_id, server_id)] = entry
+        return entry
+
+    async def pause_remaining(self, user_id: UUID, server_id: UUID) -> float:
+        """Seconds left in the server's failure pause (0 when it is not paused)."""
+        return await self._failures.remaining((user_id, server_id))
+
+    async def _serve_without_network(
+        self,
+        key: tuple[UUID, UUID],
+        configuration: str,
+        force_refresh: bool,
+        stored: object,
+        connection: Connection,
+    ) -> PoolEntry | None:
+        """The entry a turn can use without the network, or None."""
+        if stored is NOT_PREPARING:
+            return (
+                self._entries[key] if self._cache_hit(key, configuration, force_refresh) else None
+            )
+        if force_refresh:
+            return None
+        entry = self._entries.get(key)
+        if entry is not None and serves_warm(entry, configuration, stored_generation(stored)):
+            mcp_catalogue_cache_total.labels(result="hit").inc()
+            mark_age(entry, time.monotonic() - entry.discovered_at)
+            return entry
+        read = parse_catalogue_snapshot(stored)
+        if not (
+            isinstance(read, ValidSnapshot)
+            and snapshot_routes(read, configuration_fingerprint=configuration)
+        ):
+            mcp_catalogue_cache_total.labels(
+                result="miss" if entry is None else "configuration"
+            ).inc()
+            return None
+        await self._raise_if_cooling(key)
+        await self._raise_if_paused(key)
+        await self._make_room(key)
+        # Awaited outside the lock: a discovery may have installed the server's CURRENT
+        # catalogue meanwhile — an older snapshot never replaces it (third fresh review).
+        fresher = warm_entry(self._entries.get(key), configuration, stored)
+        if fresher is not None:
+            mcp_catalogue_cache_total.labels(result="hit").inc()
+            return fresher
+        mcp_catalogue_cache_total.labels(result="snapshot").inc()
+        snapshot = read.snapshot
+        age = snapshot.age_seconds(datetime.now(UTC))
+        hydrated = self.hydrate(
+            user_id=key[0],
+            server_id=key[1],
+            url=connection.url,
+            auth=connection.auth,
+            timeout_seconds=connection.timeout_seconds,
+            extra_headers=connection.extra_headers,
+            snapshot=snapshot,
+            verified=age < revalidation_horizon_seconds(snapshot),
+        )
+        mark_age(hydrated, age)
+        return hydrated
+
+    async def _make_room(self, key: tuple[UUID, UUID]) -> None:
+        """Respect the global pool limit before adding an entry."""
+        max_total = settings.mcp_user_pool_max_total
+        while key not in self._entries and len(self._entries) >= max_total:
+            evicted = await self._evict_oldest_idle()
+            if not evicted:
+                raise RuntimeError(
+                    f"User MCP pool is full ({max_total} entries) "
+                    "and no idle entries available for eviction"
+                )
 
     def _cache_hit(self, key: tuple[UUID, UUID], configuration: str, force_refresh: bool) -> bool:
         entry = self._entries.get(key)
         if entry is None:
             mcp_catalogue_cache_total.labels(result="miss").inc()
             return False
-        reason = self._refresh_reason(entry, configuration, force_refresh)
+        reason = refresh_reason(entry, configuration, force_refresh)
         if reason is None:
             mcp_catalogue_cache_total.labels(result="hit").inc()
             return True
         mcp_catalogue_cache_total.labels(result=reason).inc()
         return False
-
-    @staticmethod
-    def _refresh_reason(entry: PoolEntry, configuration: str, force_refresh: bool) -> str | None:
-        if force_refresh:
-            return "forced"
-        if entry.configuration_fingerprint and entry.configuration_fingerprint != configuration:
-            return "configuration"
-        if time.monotonic() - entry.discovered_at >= settings.mcp_user_pool_ttl_seconds:
-            return "age"
-        return None
 
     async def call_tool(
         self,
@@ -317,6 +459,9 @@ class UserMCPClientPool:
         tool_name: str,
         arguments: dict[str, Any],
         timeout_seconds: int = 30,
+        *,
+        built_from: str | None = None,
+        declaration: Mapping[str, Any] | None = None,
     ) -> str:
         """
         Execute a tool call via an ephemeral MCP connection.
@@ -324,6 +469,18 @@ class UserMCPClientPool:
         Creates a fresh connection (connect → initialize → call_tool → close)
         for each invocation. This avoids stale session issues where the MCP
         SDK's anyio background tasks die between pool creation and tool call.
+
+        A call is checked first, in the same session (spec 2026-10-21 §5.5), when
+        the entry is past its server's freshness (``catalogue_verified`` false) or
+        when the call was built from ANOTHER catalogue than the entry holds now (a
+        revalidation replaced it mid-turn — fresh review 2026-10-29): a call the
+        current declaration no longer admits raises
+        :class:`MCPDeclarationChangedError` unsent; a listing that differs from the
+        entry's catalogue schedules a revalidation; an equal one verifies it.
+
+        Args:
+            built_from: The catalogue fingerprint the calling adapter was built from.
+            declaration: The tool's declaration the call was built from.
         """
         key = (user_id, server_id)
         entry = self._entries.get(key)
@@ -335,6 +492,7 @@ class UserMCPClientPool:
         # Rate limiting (per-server sliding window)
         await self._check_rate_limit(key)
 
+        check = check_for(entry, tool_name, arguments, built_from, declaration)
         # Increment reference counter (eviction protection)
         entry.active_calls += 1
         try:
@@ -345,14 +503,44 @@ class UserMCPClientPool:
                 arguments=arguments,
                 timeout_seconds=timeout_seconds,
                 extra_headers=entry.extra_headers,
+                declaration=check,
             )
             entry.last_used = time.monotonic()
+            if check is not None:
+                settle_declaration(entry, check, check.verdict, self.on_stale_catalogue)
             return result
+        except MCPDeclarationChangedError as changed:
+            settle_declaration(entry, check, changed.reason, self.on_stale_catalogue)
+            raise
         except MCPRateLimitError as exc:
             await self._cooldowns.record(key, exc.retry_after)
             raise
         finally:
             entry.active_calls = max(0, entry.active_calls - 1)
+
+    async def fetch_reference(
+        self, user_id: UUID, server_id: UUID, timeout_seconds: int
+    ) -> str | None:
+        """Call a server's ``read_me`` over one ephemeral session (spec 2026-10-21 §5.5b).
+
+        The pool's own call path: cooling, rate limit and eviction protection
+        apply, and a server error is an error, never a reference.
+
+        Args:
+            user_id: The account.
+            server_id: The server, already in the pool.
+            timeout_seconds: The bound of the whole call.
+
+        Returns:
+            The reference text, or None when the answer carries none.
+
+        Raises:
+            Exception: Whatever the call raised (``TimeoutError`` past the bound).
+        """
+        text = await self.call_tool(
+            user_id, server_id, MCP_REFERENCE_TOOL_NAME, {}, timeout_seconds=timeout_seconds
+        )
+        return text or None
 
     async def read_resource(
         self,
@@ -549,65 +737,33 @@ class UserMCPClientPool:
         auth: httpx2.Auth | None,
         timeout_seconds: int,
         extra_headers: dict[str, str] | None = None,
-    ) -> tuple[list[dict[str, Any]], str | None]:
-        """Discover tools via an ephemeral MCP connection (connect → list → close).
+    ) -> DiscoveredCatalogue:
+        """Discover a server's catalogue via an ephemeral connection (connect → list → close).
 
-        The entire discovery (connect + list_tools + optional read_me) is
-        bounded by timeout_seconds via asyncio.wait_for to prevent silent hangs
-        when a server is unresponsive during connection or handshake.
+        The whole discovery (connect, every ``tools/list`` page) is bounded by
+        ``timeout_seconds`` via ``asyncio.wait_for`` so an unresponsive server
+        cannot hang silently. It never calls ``read_me``: the reference is read
+        at real use (spec 2026-10-21 §5.5b).
 
         Returns:
-            Tuple of (tools_list, reference_content). reference_content is the
-            result of calling the server's ``read_me`` tool (if it exists),
-            or None if not available. This content is cached in PoolEntry and
-            injected into the planner prompt for better parameter generation.
+            The tools in canonical order, with what the server said about its
+            list (``ttlMs``, ``cacheScope``), its handshake instructions, and
+            whether it exposes ``read_me``.
         """
 
-        async def _inner() -> tuple[list[dict[str, Any]], str | None]:
+        async def _inner() -> DiscoveredCatalogue:
             async with _ephemeral_client(url, auth, extra_headers) as client:
-                tools_result = await client.list_tools()
-
-                max_tools = settings.mcp_max_tools_per_server
-                tools_list = []
-                for tool in (tools_result.tools or [])[:max_tools]:
-                    app_resource_uri, app_visibility = extract_app_meta(tool)
-                    tools_list.append(
-                        {
-                            "name": tool.name,
-                            "description": tool.description or "",
-                            "input_schema": tool.input_schema or {},
-                            "output_schema": extract_output_schema(tool),
-                            "title": extract_tool_title(tool),
-                            "annotations": extract_tool_annotations(tool),
-                            "app_resource_uri": app_resource_uri,
-                            "app_visibility": app_visibility,
-                        }
-                    )
-
-                # Auto-inject: detect and call read_me tool (MCP convention).
-                # Reference tools provide format documentation that the planner
-                # needs to generate correct parameters (e.g., Excalidraw elements).
-                reference_content: str | None = None
-                read_me_tool = next(
-                    (t for t in (tools_result.tools or []) if t.name == MCP_REFERENCE_TOOL_NAME),
-                    None,
-                )
-                if read_me_tool:
-                    try:
-                        read_me_result = await client.call_tool(MCP_REFERENCE_TOOL_NAME, {})
-                        if read_me_result.content:
-                            for part in read_me_result.content:
-                                if hasattr(part, "text") and part.text:
-                                    reference_content = part.text
-                                    break
-                    except Exception as exc:
-                        logger.debug(
-                            "user_mcp_reference_fetch_failed",
-                            url=url,
-                            error=str(exc),
-                        )
-
-            return tools_list, reference_content
+                listed, first, outcome = await list_every_tool(client)
+                instructions = getattr(client, "instructions", None)
+            tools = sorted((normalize_tool(tool) for tool in listed), key=lambda t: t["name"])
+            return DiscoveredCatalogue(
+                tools=tools,
+                has_reference_tool=any(t["name"] == MCP_REFERENCE_TOOL_NAME for t in tools),
+                server_ttl_ms=ttl_ms(first),
+                cache_scope=cache_scope(first),
+                server_instructions=instructions if isinstance(instructions, str) else None,
+                outcome=outcome,
+            )
 
         try:
             return await asyncio.wait_for(_inner(), timeout=timeout_seconds)
@@ -624,6 +780,7 @@ class UserMCPClientPool:
         arguments: dict[str, Any],
         timeout_seconds: int,
         extra_headers: dict[str, str] | None = None,
+        declaration: DeclarationCheck | None = None,
     ) -> str:
         """Execute a tool call via an ephemeral MCP connection.
 
@@ -643,6 +800,8 @@ class UserMCPClientPool:
                     tool_name=tool_name,
                     arg_keys=list(arguments.keys()),
                 )
+                if declaration is not None:
+                    await declaration.verify(client)
 
                 result = await client.call_tool(tool_name, arguments)
 

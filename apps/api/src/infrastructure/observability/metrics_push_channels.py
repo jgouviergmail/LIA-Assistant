@@ -69,12 +69,14 @@ rag_drive_push_reindex_total = Counter(
 
 # ADR-304 — how each bounded drain of the Drive changes feed ended. A sustained
 # "truncated" share is a feed busier than one wake reads (it keeps its place and
-# continues); "held": a linked tree was still syncing, so the token stayed and
-# the window replays next sweep; "rebased" is the breaker giving up on
-# replaying a backlog.
+# continues); "interrupted": a page Google could not serve after others were
+# read — the pages read are kept and the drain continues like a truncated one;
+# "held": a linked tree was still syncing, so the token stayed and the window
+# replays next sweep; "rebased" is the breaker giving up on replaying a backlog.
+# Both counters are exported at zero for every value (``drive_push``).
 rag_drive_push_drains_total = Counter(
     "rag_drive_push_drains_total",
     "Bounded drains of the Drive changes feed, by how they ended.",
     ["end"],
-    # end: drained | truncated | held | rebased
+    # end: drained | truncated | interrupted | held | rebased
 )

@@ -32,10 +32,11 @@ function personLegs(
       box(x - 0.025, 0.8, Math.max(0.03, pose.elevation - 0.6), 0.25, 0.4, 0.12, '#34444b');
       continue;
     }
-    box(x, 0.32 + step, 0.08, 0.2, 0.29, 0.47, '#4d5a61');
-    box(x - 0.025, 0.31 + step, 0.03, 0.25, 0.4, 0.12, '#34444b');
-    box(x - 0.025, 0.31 + step, 0.02, 0.25, 0.4, 0.035, '#b0ad98');
-    front(x, 0.615 + step, 0.17, 0.2, 0.025, '#64716e');
+    const lift = Math.max(0, step / 0.11) ** 2 * 0.045;
+    box(x, 0.32 + step, 0.08 + lift, 0.2, 0.29, 0.47 - lift, '#4d5a61');
+    box(x - 0.025, 0.31 + step, 0.03 + lift, 0.25, 0.4, 0.12, '#34444b');
+    box(x - 0.025, 0.31 + step, 0.02 + lift, 0.25, 0.4, 0.035, '#b0ad98');
+    front(x, 0.615 + step, 0.17 + lift, 0.2, 0.025, '#64716e');
   }
 }
 function visibleHair(chosen: AvatarAppearance): AvatarAppearance['hair'] {
@@ -52,8 +53,8 @@ export function paintPerson(
   interaction?: PersonInteraction
 ): Sprite {
   const mesh = new ActorMesh(heading, pose?.kind === 'lie' ? pose.elevation : undefined);
-  const stride = Math.sin((phase * Math.PI) / 4) * 0.11;
-  const bob = pose?.kind === 'sit' ? pose.elevation - 0.53 : Math.abs(stride) * 0.16;
+  const stride = pose ? 0 : Math.sin((phase * Math.PI) / 4) * 0.11;
+  const bob = pose?.kind === 'sit' ? pose.elevation - 0.53 : (stride / 0.11) ** 2 * 0.012;
   const chosen = appearance ?? DEFAULT_AVATAR;
   const cloth = appearance ? AVATAR_COLORS[chosen.outfit_color] : ACCENTS[tone],
     skin = AVATAR_SKINS[chosen.skin],
@@ -63,7 +64,7 @@ export function paintPerson(
   personLegs(mesh, stride, pose);
   box(0.19, 0.23, 0.53 + bob, 0.64, 0.53, 0.65, cloth);
   front(0.22, 0.765, 0.55 + bob, 0.58, 0.035, shade(cloth, -20));
-  personArms(mesh, stride, bob, cloth, skin, interaction);
+  personArms(mesh, stride * 0.72, bob, cloth, skin, interaction);
   personOutfit(mesh, chosen.outfit, cloth, bob, pose?.kind === 'sit');
   box(0.4, 0.38, 1.17 + bob, 0.23, 0.28, 0.12, skin);
   box(0.18, 0.17, 1.28 + bob, 0.7, 0.68, 0.6, skin);

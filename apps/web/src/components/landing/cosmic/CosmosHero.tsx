@@ -35,7 +35,6 @@ const RISE_DELAYS = {
   badges: 0,
   title: 120,
   lede: 450,
-  sub: 550,
   cta: 650,
   trust: 780,
 } as const;
@@ -126,17 +125,14 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
               <span className="block">{t('landing.hero.title_line3')}</span>
             </h1>
 
+            {/* One paragraph, one typography: the tagline and the value line read as
+                a single promise (owner layout, 2026-10-30). */}
             <p
               {...rise(RISE_DELAYS.lede)}
-              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto leading-relaxed mb-3"
+              className="cosmos-rise text-base mobile:text-lg font-semibold text-foreground/90 max-w-2xl mx-auto leading-relaxed"
             >
-              {t('landing.hero.subtitle_top')}
-            </p>
-            <p
-              {...rise(RISE_DELAYS.sub)}
-              className="cosmos-rise text-sm mobile:text-base text-foreground/80 max-w-2xl mx-auto leading-relaxed"
-            >
-              {t('landing.hero.home_value')}
+              <span className="block">{t('landing.hero.subtitle_top')}</span>
+              <span className="block">{t('landing.hero.home_value')}</span>
             </p>
           </div>
 
@@ -160,15 +156,11 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <GithubIcon className="size-4" aria-hidden="true" />
               {t('landing.hero.home_code_link')}
             </a>
-
-            <p className="mb-5 text-xs leading-5 text-muted-foreground">
-              {t('landing.hero.home_access_note')}
-            </p>
 
             <div
               {...rise(RISE_DELAYS.trust)}
@@ -184,6 +176,15 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
                 </span>
               ))}
             </div>
+
+            {/* The registration conditions sit under the three proofs (owner layout,
+                2026-10-30), and rise with them. */}
+            <p
+              {...rise(RISE_DELAYS.trust)}
+              className="cosmos-rise mt-4 text-xs leading-5 text-muted-foreground"
+            >
+              {t('landing.hero.home_access_note')}
+            </p>
           </div>
 
           <LandingConstellation map={map} lng={lng} />

@@ -15,7 +15,7 @@ from langchain_google_genai._function_utils import convert_to_genai_function_dec
 from src.core.config import settings
 from src.domains.agents.services.react_tool_selector import bound_tool_tokens
 from src.domains.agents.services.tool_embeddings_envelope import (
-    read_server_cache,
+    reusable_vectors,
     wrap_server_cache,
 )
 from src.domains.agents.utils.token_utils import count_tokens
@@ -23,7 +23,7 @@ from src.infrastructure.mcp.auth import MCPOAuth2Auth, MCPStaticTokenAuth
 from src.infrastructure.mcp.catalogue_fingerprint import connection_fingerprint
 from src.infrastructure.mcp.semantic_observations import semantic_observation_data
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
-from src.infrastructure.mcp.user_pool import UserMCPClientPool
+from src.infrastructure.mcp.user_pool import DiscoveredCatalogue, UserMCPClientPool
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
 
@@ -31,15 +31,14 @@ def _pool():
     pool = UserMCPClientPool()
     pool._raise_if_cooling = AsyncMock()
     pool._discover_tools = AsyncMock(
-        return_value=(
-            [
+        return_value=DiscoveredCatalogue(
+            tools=[
                 {
                     "name": "find",
                     "description": "Find",
                     "input_schema": {"properties": {"query": {"type": "string"}}},
                 }
-            ],
-            None,
+            ]
         )
     )
     return pool
@@ -55,15 +54,14 @@ async def test_hot_account_refreshes_schema_age_while_another_account_stays_curr
     clock[0] = 130
     other = await pool.get_or_connect(UUID(int=3), UUID(int=2), "https://example.com", None)
     first.last_used = 159
-    pool._discover_tools.return_value = (
-        [
+    pool._discover_tools.return_value = DiscoveredCatalogue(
+        tools=[
             {
                 "name": "find",
                 "description": "Find",
                 "input_schema": {"properties": {"filter": {"type": "object"}}},
             }
-        ],
-        None,
+        ]
     )
     clock[0] = 161
     new = await pool.get_or_connect(UUID(int=1), UUID(int=2), "https://example.com", None)
@@ -146,7 +144,8 @@ def test_token_cache_tracks_serialized_schema_even_when_name_is_identical():
     assert after == oracle and after > before * 10
 
 
-def test_embedding_envelope_invalidates_metadata_but_not_dictionary_key_order():
+def test_embedding_envelope_keys_each_vector_by_the_text_it_embeds():
+    """A vector depends on its texts only (M6): key order and schema edits keep it."""
     tools = [
         {
             "name": "find",
@@ -155,14 +154,15 @@ def test_embedding_envelope_invalidates_metadata_but_not_dictionary_key_order():
         }
     ]
     vectors = {"find": {"description": [0.1, 0.2]}}
-    cache = wrap_server_cache(vectors, tool_metadata=tools)
-    assert read_server_cache(cache, tool_metadata=[dict(reversed(list(tools[0].items())))]) == (
-        vectors,
-        None,
-    )
-    changed = copy.deepcopy(tools)
-    changed[0]["input_schema"]["properties"]["query"]["format"] = "email"
-    assert read_server_cache(cache, tool_metadata=changed) == ({}, "catalogue_changed")
+    cache = wrap_server_cache(vectors, tool_metadata=tools, server_name="Mail")
+    reordered = [dict(reversed(list(tools[0].items())))]
+    assert reusable_vectors(cache, reordered, server_name="Mail") == (vectors, [])
+    schema_edit = copy.deepcopy(tools)
+    schema_edit[0]["input_schema"]["properties"]["query"]["format"] = "email"
+    assert reusable_vectors(cache, schema_edit, server_name="Mail") == (vectors, [])
+    reworded = copy.deepcopy(tools)
+    reworded[0]["description"] = "Find an email thread"
+    assert reusable_vectors(cache, reworded, server_name="Mail") == ({}, reworded)
 
 
 @pytest.mark.asyncio

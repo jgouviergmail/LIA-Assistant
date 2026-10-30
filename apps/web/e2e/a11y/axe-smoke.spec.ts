@@ -23,8 +23,14 @@ import { scanPage } from './scan';
 const dashboardData: MockRoute[] = [
   briefingCardsMock,
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: { text: 'Welcome back', generated_at: null, usage: null },
+      synthesis: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   { url: '**/api/v1/usage/**', json: {} },
 ];

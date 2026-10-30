@@ -31,7 +31,7 @@ const ROUTES: MockRoute[] = [
   // The dashboard's own reads: without them the page never leaves its skeleton
   // and the quick-access bar — the map's only door — is never asserted on.
   {
-    url: '**/api/v1/briefing/cards',
+    url: '**/api/v1/briefing/cards/initial',
     json: {
       windows: briefingWindowsMock,
       cards: {
@@ -46,11 +46,23 @@ const ROUTES: MockRoute[] = [
         for_you: EMPTY_SECTION,
         workboard: EMPTY_SECTION,
       },
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
     },
   },
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: 'Bonjour', synthesis: null, generated_at: GENERATED_AT, llm_usage: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: 'Bonjour',
+      synthesis: null,
+      generated_at: GENERATED_AT,
+      llm_usage: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   {
     url: '**/api/v1/conversations/me/messages*',

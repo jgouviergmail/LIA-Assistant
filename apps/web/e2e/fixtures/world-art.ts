@@ -1,4 +1,5 @@
 import type { WorldPropIndex } from '../../src/features/world/prop-index';
+import type { sortProps } from '../../src/features/world/prop-sort';
 import type { actorOccluders } from '../../src/features/world/occlusion';
 import type { paintHoverFootprint } from '../../src/features/world/art/hover';
 import type { crystalAura, paintCrystalAura } from '../../src/features/world/art/crystal-aura';
@@ -29,6 +30,7 @@ declare global {
   interface Window {
     worldArtOracle: {
       WorldPropIndex: typeof WorldPropIndex;
+      sortProps: typeof sortProps;
       actorOccluders: typeof actorOccluders;
       paintHoverFootprint: typeof paintHoverFootprint;
       crystalAura: typeof crystalAura;
@@ -79,6 +81,7 @@ export async function installArtOracle(page: Page): Promise<void> {
   }
   for (const entry of [
     'prop-index.ts',
+    'prop-sort.ts',
     'occlusion.ts',
     'art/hover.ts',
     'art/crystal-aura.ts',
@@ -99,7 +102,7 @@ export async function installArtOracle(page: Page): Promise<void> {
   const factories = [...modules]
     .map(([name, code]) => `${JSON.stringify(name)}:(module,exports,require)=>{${code}\n}`)
     .join(',');
-  const script = `(()=>{const factories={${factories}},cache=Object.create(null);function require(name){if(cache[name])return cache[name].exports;const m={exports:{}};cache[name]=m;factories[name](m,m.exports,require);return m.exports}window.worldArtOracle={...require('prop-index.ts'),...require('occlusion.ts'),...require('art/hover.ts'),...require('art/crystal-aura.ts'),...require('art/stars.ts'),...require('art/speech.ts'),...require('simulation.ts'),avatar:require('avatar-catalogue.ts').DEFAULT_AVATAR,...require('art/lighting.ts'),...require('art/atmosphere.ts'),...require('geometry.ts'),...require('art/props.ts'),...require('art/floors.ts'),...require('art/prop-style.ts'),world:require('definition.ts').WORLD,palettes:require('home-catalogue.ts').HOME_PALETTES}})();`;
+  const script = `(()=>{const factories={${factories}},cache=Object.create(null);function require(name){if(cache[name])return cache[name].exports;const m={exports:{}};cache[name]=m;factories[name](m,m.exports,require);return m.exports}window.worldArtOracle={...require('prop-index.ts'),...require('prop-sort.ts'),...require('occlusion.ts'),...require('art/hover.ts'),...require('art/crystal-aura.ts'),...require('art/stars.ts'),...require('art/speech.ts'),...require('simulation.ts'),avatar:require('avatar-catalogue.ts').DEFAULT_AVATAR,...require('art/lighting.ts'),...require('art/atmosphere.ts'),...require('geometry.ts'),...require('art/props.ts'),...require('art/floors.ts'),...require('art/prop-style.ts'),world:require('definition.ts').WORLD,palettes:require('home-catalogue.ts').HOME_PALETTES}})();`;
   await page.route('**/world-art-oracle', route =>
     route.fulfill({
       contentType: 'text/html',

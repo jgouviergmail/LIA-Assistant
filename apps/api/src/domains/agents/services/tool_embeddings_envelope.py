@@ -13,16 +13,21 @@ the ranking — and nothing refreshed them, because the only writer is a click i
 the settings.
 
 A cache therefore names its model (``embedding_model``, the same key the native
-catalogue's disk cache is hashed on) beside its vectors (``tools``). A reader
-that finds another model, or the legacy flat shape, treats the cache as STALE
-and says which: the context builder then recomputes it from the tools it has
-just fetched and persists the new envelope, so the row heals on the person's
+catalogue's disk cache is hashed on) beside its vectors (``tools``) and, since
+2026-10-28, each vector's IDENTITY — the hash of the exact texts it embeds. The
+catalogue used to be fingerprinted as an ordered whole: measured on production,
+a reordered or one-tool-edited listing threw every vector away (31
+recomputations, up to 16.4 s on a turn, spec 2026-10-21 §0ter H5). A reader now
+reuses each vector whose identity still holds and embeds only the rest; a row
+of another model, of a legacy shape, or with no envelope heals on the person's
 next turn rather than on their next visit to the settings.
 """
 
 from __future__ import annotations
 
-from typing import Any, Final, Literal
+import re
+from collections.abc import Mapping, Sequence
+from typing import Any, Final
 
 from src.core.config import settings
 from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
@@ -31,8 +36,12 @@ from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
 MODEL_KEY: Final = "embedding_model"
 #: Key of the vectors themselves, by raw MCP tool name.
 TOOLS_KEY: Final = "tools"
+#: Key of each vector's identity: the hash of the exact texts it was computed from.
+IDENTITIES_KEY: Final = "identities"
 
-StaleReason = Literal["legacy_shape", "model_changed", "catalogue_changed"]
+#: How many description words become keywords (the selector's own rule).
+_KEYWORD_WORDS: Final = 10
+_BOLD = re.compile(r"\*\*([^*]+)\*\*")
 
 
 def embedding_model_key() -> str:
@@ -44,36 +53,105 @@ def embedding_model_key() -> str:
     return f"{settings.memory_embedding_model}:{settings.memory_embedding_dimensions}"
 
 
-def wrap_server_cache(tools: dict[str, Any], *, tool_metadata: object = None) -> dict[str, Any]:
-    """The envelope to persist: the current model key beside the vectors."""
-    envelope = {MODEL_KEY: embedding_model_key(), TOOLS_KEY: tools}
-    if tool_metadata is not None:
-        envelope["catalogue_fingerprint"] = canonical_fingerprint(tool_metadata)
-    return envelope
+def tool_embedding_texts(
+    tool: Mapping[str, Any], *, server_name: str
+) -> tuple[str | None, list[str]]:
+    """The exact texts LIA embeds for one tool: its description line and its keywords.
 
-
-def read_server_cache(
-    cache: Any, *, tool_metadata: object = None
-) -> tuple[dict[str, Any], StaleReason | None]:
-    """The vectors of a persisted cache when this model wrote them, else why not.
+    One implementation, read by the embedder (``compute_tool_embeddings``) and
+    by the identity below, so a change in how the texts are composed changes
+    the identity too and the old vectors are recomputed (spec 2026-10-21 M6).
 
     Args:
-        cache: The column's value — the envelope, the legacy flat dict, or nothing.
+        tool: The tool's metadata (``name``, ``description``).
+        server_name: The server's name, a keyword of every tool.
 
     Returns:
-        ``(tools, stale)`` — the vectors by raw tool name and ``None``, or an
-        empty dict and the reason the cache cannot be trusted. An empty cache
-        is empty, not stale: there is nothing to recompute from it.
+        ``(description line or None, keywords)``.
     """
-    if not isinstance(cache, dict) or not cache:
-        return {}, None
-    if MODEL_KEY not in cache or TOOLS_KEY not in cache:
-        return {}, "legacy_shape"
-    if cache[MODEL_KEY] != embedding_model_key():
-        return {}, "model_changed"
-    if tool_metadata is not None and cache.get("catalogue_fingerprint") != canonical_fingerprint(
-        tool_metadata
-    ):
-        return {}, "catalogue_changed"
-    tools = cache[TOOLS_KEY]
-    return (tools if isinstance(tools, dict) else {}), None
+    name = str(tool.get("name", ""))
+    description = str(tool.get("description") or "")
+    line = _BOLD.sub(r"\1", description.split("\n")[0].strip()) if description else ""
+    words = [w.strip(".,;:!?") for w in description.split() if len(w.strip(".,;:!?")) > 3]
+    return (line or None), [server_name, name, *words[:_KEYWORD_WORDS]]
+
+
+def tool_identity(tool: Mapping[str, Any], *, server_name: str) -> str:
+    """The identity of one tool's vectors: the model and the exact texts they embed.
+
+    LangChain ``CacheBackedEmbeddings``' keying, applied per tool: a tool whose
+    texts did not change keeps its vectors whatever happened to the others.
+    """
+    description, keywords = tool_embedding_texts(tool, server_name=server_name)
+    return canonical_fingerprint(
+        {"model": embedding_model_key(), "description": description, "keywords": keywords}
+    )
+
+
+def catalogue_fingerprint(tools: Sequence[Mapping[str, Any]], *, server_name: str) -> str:
+    """A catalogue's fingerprint that ignores the ORDER a server lists its tools in.
+
+    MCP asks servers for a deterministic order without requiring it; measured,
+    one server's reordered listings recomputed every vector (spec §0ter H5).
+    """
+    ordered = sorted(tools, key=lambda tool: str(tool.get("name", "")))
+    return canonical_fingerprint({"server": server_name, "tools": ordered})
+
+
+def wrap_server_cache(
+    tools: Mapping[str, Any],
+    *,
+    tool_metadata: Sequence[Mapping[str, Any]],
+    server_name: str,
+) -> dict[str, Any]:
+    """The envelope to persist: the model key, the vectors and each vector's identity.
+
+    Args:
+        tools: Vectors by raw tool name.
+        tool_metadata: The tools they were computed from.
+        server_name: The server's name at computation time.
+
+    Returns:
+        A NEW dict, never a view of its inputs.
+    """
+    identities = {
+        str(tool["name"]): tool_identity(tool, server_name=server_name)
+        for tool in tool_metadata
+        if tool.get("name") in tools
+    }
+    return {MODEL_KEY: embedding_model_key(), TOOLS_KEY: dict(tools), IDENTITIES_KEY: identities}
+
+
+def reusable_vectors(
+    cache: Any, tools: Sequence[Mapping[str, Any]], *, server_name: str
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Split the current tools into those whose stored vectors still hold and the rest.
+
+    A stored vector is reused only when this model wrote it AND its identity
+    equals the current tool's. A legacy envelope (no identities), another
+    model, or no envelope at all reuses nothing: each is recomputed once.
+
+    Args:
+        cache: The column's value — the envelope, a legacy shape, or nothing.
+        tools: The tools the server lists now.
+        server_name: The server's current name.
+
+    Returns:
+        ``(kept vectors by tool name, tools to embed)``.
+    """
+    stored: Mapping[str, Any] = {}
+    identities: Mapping[str, Any] = {}
+    if isinstance(cache, dict) and cache.get(MODEL_KEY) == embedding_model_key():
+        stored_raw, identities_raw = cache.get(TOOLS_KEY), cache.get(IDENTITIES_KEY)
+        stored = stored_raw if isinstance(stored_raw, dict) else {}
+        identities = identities_raw if isinstance(identities_raw, dict) else {}
+    kept: dict[str, Any] = {}
+    missing: list[dict[str, Any]] = []
+    for tool in tools:
+        name = str(tool.get("name", ""))
+        identity = tool_identity(tool, server_name=server_name)
+        if name in stored and identities.get(name) == identity:
+            kept[name] = stored[name]
+        else:
+            missing.append(dict(tool))
+    return kept, missing

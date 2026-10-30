@@ -59,12 +59,24 @@ it('animates authored screens, game cabinets and jukebox at finite coordinates a
     const c = context(),
       p = c;
     paintRoomMotion(p, { ...prop(kind), facing: 0 }, 1, false);
-    paintRoomMotion(p, { ...prop(kind), facing: 2 }, 2, false);
-    const coordinates = [...c.fillRect.mock.calls, ...c.moveTo.mock.calls, ...c.arc.mock.calls];
+    paintRoomMotion(p, { ...prop(kind), facing: 1 }, 2, false);
+    const coordinates =
+      kind === 'arcade' ? c.fillRect.mock.calls : [...c.moveTo.mock.calls, ...c.arc.mock.calls];
     expect(coordinates).toHaveLength(2);
     expect(coordinates.flat().every(Number.isFinite)).toBe(true);
     expect(coordinates[0].slice(0, 2)).not.toEqual(coordinates[1].slice(0, 2));
     expect(c.save).toHaveBeenCalledTimes(2);
     expect(c.restore).toHaveBeenCalledTimes(2);
   }
+});
+
+it('keeps front-panel animation off the rear housings and clips arcade pixels to their screen', () => {
+  const c = context();
+  for (const facing of [2, 3] as const)
+    for (const kind of ['arcade', 'display', 'machine', 'jukebox', 'alarm'] as const)
+      paintRoomMotion(c, { ...prop(kind), facing }, 3, false);
+  expect(c.save).not.toHaveBeenCalled();
+  paintRoomMotion(c, { ...prop('arcade'), facing: 1 }, 3, false);
+  expect(c.clip).toHaveBeenCalledOnce();
+  expect(c.restore).toHaveBeenCalledOnce();
 });

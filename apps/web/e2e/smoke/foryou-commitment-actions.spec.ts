@@ -74,8 +74,14 @@ test('a closed commitment leaves the card instead of 404-ing on the next click',
   let closed = false;
   const routes: MockRoute[] = [
     {
-      url: '**/api/v1/briefing/synthesis',
-      json: { greeting: { text: 'Bonjour', generated_at: null, usage: null }, synthesis: null },
+      url: '**/api/v1/briefing/text',
+      method: 'POST',
+      json: {
+        greeting: { text: 'Bonjour', generated_at: null, usage: null },
+        synthesis: null,
+        reused: false,
+        state: 'ready',
+      },
     },
     { url: '**/api/v1/usage/**', json: {} },
     { url: `**/api/v1/open-loops/${LOOP_ID}/close`, method: 'POST', json: { id: LOOP_ID } },

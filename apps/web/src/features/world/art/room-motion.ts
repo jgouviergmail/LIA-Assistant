@@ -23,6 +23,8 @@ export function paintRoomMotion(
   reduced: boolean,
   a?: Atmosphere
 ): void {
+  // These decorations belong to the front panel, not to the rear casing.
+  if ((o.facing ?? 1) >= 2) return;
   if (o.kind === 'alarm') {
     const at = project({ x: o.x + 0.06, y: o.y + o.depth + 0.01 }, 0.87);
     c.save();
@@ -54,8 +56,21 @@ export function paintRoomMotion(
   c.fillStyle = '#f4d474';
   c.lineWidth = 1.2;
   if (o.kind === 'arcade') {
+    c.beginPath();
+    for (const [i, [x, z]] of [
+      [0.2, 1.28],
+      [w - 0.2, 1.28],
+      [w - 0.2, 1.88],
+      [0.2, 1.88],
+    ].entries()) {
+      const point = at(x, z);
+      if (i) c.lineTo(point.x, point.y);
+      else c.moveTo(point.x, point.y);
+    }
+    c.closePath();
+    c.clip();
     const p = at(
-      0.3 + ((time * 0.2 + o.x * 0.1) % 1) * (o.width - 0.7),
+      0.3 + ((time * 0.2 + o.x * 0.1) % 1) * (w - 0.7),
       1.55 + Math.sin(time * 1.7) * 0.08
     );
     c.fillRect(p.x, p.y, 3, 3);

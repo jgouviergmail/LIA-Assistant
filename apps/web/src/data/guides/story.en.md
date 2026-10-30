@@ -2,149 +2,118 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.6
+**Version**: 3.0
 **Date**: 2026-10-23
-**Application**: LIA v4.1.0
+**Application**: LIA v4.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
 
 ## 1. The essentials
 
-LIA is a complete multi-agent AI assistant — business connectors, voice, memory, user-to-user connections, six languages — designed, built and continuously operated in production, as a personal project.
+LIA is a complete multi-agent AI assistant. She has business connectors, she speaks, she remembers, she connects her users with one another and she works in six languages. I designed her, directed her development and keep her running in production, as a personal project.
 
-Nearly all of the code was written by an AI, under human direction: a written engineering rulebook, blocking automated checks, systematic review, recurring audits. The result is measured: **7.9/10** on a technical audit across 24 areas. The repository is open source; the audit's conclusions — strengths and weaknesses alike — are owned and summarized in this document.
+Nearly all of the code was written by an AI. My job was to direct it: a written engineering rulebook, automated checks that block anything non-compliant, a review of every change and regular audits. The result can be measured: the latest technical audit gives **7.9/10** across 24 areas. The repository is open source, and the full audit report is public, with its strengths and weaknesses, which I stand by.
 
 | Indicator | Value |
 | --- | --- |
-| Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Source lines (excluding tests) — 60 backend domain packages | **1,051,000+** |
-| Inventoried automated tests; suites selected for commits and releases | **69,000+** |
-| Documented architecture decisions (ADR) | **363** |
-| Versions shipped at a steady pace | **291** |
-| Languages, parity checked automatically | **6** |
+| Code written by an AI that was directed, supervised and checked | **≈ 100%** |
+| Source lines (excluding tests), spread across 60 backend domain packages | **1,059,000+** |
+| Automated tests inventoried, in suites matched to commits and to releases | **69,000+** |
+| Documented architecture decisions (ADR) | **364** |
+| Versions shipped at a steady pace | **292** |
+| Languages, with parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
-Conviction from experience: AI-assisted development can be industrialized today. The limiting factor is not the tool — it is the management framework you give it.
+What I take from it: AI-assisted development can already be industrialized. What limits it is not the tool but the management framework it is given.
 
-That discipline applies inside the product too. A small model decision can help select a route or format, but LIA constrains its choices, measures its cost and retains the authority to check and confirm the result. Optional native decisions extend that method without turning a model's confidence into permission.
+I applied the same discipline to the product. Sometimes LIA hands a small decision to a model, such as choosing a route or a format. When she does, she limits the possible choices, measures what that costs and keeps the authority to check and confirm the result. These decisions are optional, and a model's confidence never becomes a permission.
 
-Useful assistance also depends on continuity: finding a decision inside complete meeting minutes, passing a reusable capability to someone you trust, or seeing suggested places together. Each convenience keeps a boundary visible. A shared capability starts disabled without its sender’s credentials; a model’s email assessment remains a clue, never proof of safety; opening an interactive map remains your choice with its cost shown.
+The features built for long-term use show their limits too. A decision can be found again in the full minutes of a meeting. Reusable know-how can be passed on to a trusted person: a shared capability arrives switched off, without the sender's credentials. LIA can assess an email, but that assessment remains a clue and does not prove the email is safe. She can show the places she suggests together on one map; opening that interactive map remains the person's choice, and its cost is shown. A place picked on the map gives its details and a route, billed once and counted.
 
-Taking the initiative follows the same rule. LIA may open a personal discussion of its own accord, but only within the hours, sources and topics the person allowed, with its reasons, its context and its cost on display — and four reactions to answer it. The SMS a phone relays join a private archive the assistant reads only under a separate consent, and a place selected on a map gives its details and a route that is billed once and counted.
+LIA can also open a personal discussion on her own, but only at the hours, from the sources and on the topics the person has allowed. She shows why she is writing, what context she relies on and what it costs, and four reactions let the person answer. SMS messages relayed by a phone go into a private archive, which the assistant reads only with a separate consent.
 
 ## 2. The approach
 
-Generative AI transforms both what teams produce and how they produce it. On both topics, I did not want to base my convictions on market narratives: I chose to face the full reality of an AI system in production — costs, risks, operations, debt — and the reality of AI-assisted development, by practicing them end to end.
+Generative AI changes what teams produce, and also how they produce it. On both questions, I did not want to form an opinion from what the market was saying. I chose to face, myself, the full reality of an AI system in production, with its costs, its risks, its operations and its debt, and the reality of AI-assisted development, taking both all the way.
 
-The training ground: LIA, a multi-agent conversational AI assistant — mail, calendar, contacts and files across Google, Apple and Microsoft, real-time voice interface, long-term memory, document search, an animated character that embodies it — self-hosted and multilingual.
+My training ground is LIA, a self-hosted, multilingual, multi-agent conversational AI assistant. She handles email, calendar, contacts and files across Google, Apple and Microsoft. She offers a real-time voice interface, long-term memory and document search, and an animated character embodies her.
 
-The constraints were deliberate: alone, outside professional hours, minimal hardware budget, and the AI as the only developer. This project therefore does not measure individual velocity; it measures what demanding direction obtains from a properly framed AI.
+I set myself constraints: work alone, outside my working hours, on a minimal hardware budget, and hand all of the development to the AI. So this project does not measure how fast one person can produce. It measures what demanding direction gets out of a properly supervised AI.
 
 *Technical foundation: FastAPI · Next.js/React · LangGraph (agent orchestration) · PostgreSQL · Redis · Docker · Prometheus/Grafana/Loki/Tempo · 7 integrated AI model providers.*
 
 ## 3. The method
 
-An AI that codes produces volume; it only produces quality under constraint. Four mechanisms carried this project — none of them is a tool, all four are acts of management:
+Four mechanisms carried this project, and none of them is a tool: they are four acts of management. An AI that codes produces quickly and in volume, but it produces quality only under constraint, and setting that constraint is management work.
 
-- **A written rulebook, as for a team.** Architecture rules, conventions, mandated patterns with their canonical example in the code, documented known traps — versioned in the repository, enforceable on every delivery.
-- **Blocking automated checks.** Every structural rule is backed by a check that rejects non-compliant commits: strict typing, static analysis, custom detection of recurring bug patterns, six-language parity, a full test battery. The level of rigor depends neither on the vigilance of the moment nor on the AI's goodwill.
-- **A review that decides.** Nothing lands without an enforced cycle — impact analysis, proposal, explicit validation, implementation, verification. The AI proposes, the human decides; structural decisions are recorded and indexed so that every "why" outlives its author.
-- **Audits that disturb.** At regular intervals, the entire system is re-examined adversarially — findings verified against evidence, false positives eliminated, remediation planned in waves. This is what stops the slow drift that no day-to-day review can detect.
+- **A written rulebook**, as for a team. It sets the architecture rules, the conventions, the required patterns with their reference example in the code, and the traps already known. It is versioned in the repository, and every delivery must comply with it.
+- **Blocking automated checks**. Every important rule is backed by a check that rejects a non-compliant commit: strict typing, code analysis, custom detection of the bugs that keep coming back, parity across the six languages, a full test battery. The level of rigor depends neither on the vigilance of the moment nor on the AI's goodwill.
+- **A review that decides**. Nothing goes in without a fixed cycle: impact analysis, proposal, explicit approval, implementation, verification. The AI proposes, I decide. Important decisions are recorded and indexed, so that every “why” outlives the person who wrote it.
+- **Audits that shake things up**. At regular intervals, I have the whole system re-examined adversarially: every finding is checked against the evidence, false positives are discarded and remediation is planned in waves. This is what stops the slow drift that no day-to-day review detects.
 
-> Speed comes from the AI. Quality comes from the framework. And the framework is management work.
+Today I have several development agents working at the same time on the same repository. They come from two families of tools, and each one moves forward on its own piece of work, in its own copy of the repository (a “working tree”) or, sometimes, in a shared one. What holds them together is not their coordination but the common rulebook, with the same written rules and the same automated checks, the “guards” that block anything non-compliant before any delivery. If an agent renames a button, a guard points out that the help, the settings search and the words LIA uses to describe herself must follow. As with the code, none of their work is consolidated on the strength of a summary. Every file is attributed to its author by its fingerprint and by the agent's log, every merge is replayed in an isolated tree and then run through every check, and a backup comes before every switchover. The delivery that brings this work together starts with an inventory of what each agent actually changed, never with what it says it changed.
 
-Several agents can work on the same repository at once — two different families of tools, each in its own working tree. The rule is the same as for the code: nothing is consolidated on the strength of a summary. Every file is attributed to its author by its fingerprint and by the agent's log, every merge is replayed in an isolated tree and then checked by every gate, and a backup precedes every switch.
+In the product, a conversational interface becomes useful when it can act on its own tools: asking “Switch my answers to HTML + cards” must reach the same setting as the form. The conversation offers a simpler path, but it adds no right and no implicit permission. When LIA reports on what she does, preparing is not doing: a pending request, a saved change and a conflict must each be named for what they are. The animated companions make this work visible, with original designs and expressions that follow the activity, without passing off an intention as a completed action.
 
-### An intention, then a verifiable outcome
-
-A conversational interface becomes useful when it can act on its own tools. “Switch my answers to HTML + cards” should find the same setting as the form. Conversation provides a simpler route; it creates neither additional rights nor implied permission.
-
-The same rule governs the story: preparation is not completion. A waiting request, a recorded change and a conflict must be named separately. Animated companions make this work visible through original designs and activity-driven expressions, without turning intention into evidence of execution.
-
-### Several agents, one shared frame
-
-The project is now run with several development agents in parallel — each on its own work, sometimes in the same working tree. What holds them together is not coordination between them but the shared frame: the same written rules, the same guards, the same gates before any delivery. An agent may rename a button; it is a guard that reminds everyone that the help, the settings search and the vocabulary LIA uses to describe itself must follow. And the delivery that brings this work together starts with an inventory of what each one actually changed — never with what it announces.
-
-
-### A place to meet, with responsibilities intact
-
-A shared world gives the assistant a physical vocabulary: a library for knowledge, a multimedia studio for creation, a garden to explore with someone. The useful engineering decision is what crosses each boundary. A public avatar expresses a person’s choice; it exposes neither their assistant’s context nor their private home. A room opens an existing tool without granting a new permission.
-
-This applies to conversation too. Human messages have a separate, temporary lifetime. Translation is chosen and accounted for, while walking and drawing call no model. A richer interface remains governable when its costs, ownership and confirmations keep the same meaning.
-
-Play follows the same rule. A game’s moves are confirmed by the server and its computer opponent is a bounded search, not a model; a photo is drawn from what the person chose to show, never copied from the screen.
+The shared world gives the assistant places: a library for knowledge, a multimedia studio for creating, a garden to explore with others. The real engineering decision is about what crosses each boundary. A public avatar expresses a person's choice, without exposing their assistant's context or their private home. A room opens a tool that already exists, without granting any new permission. Messages exchanged between humans have a lifetime of their own, limited and separate from everything else. Translation is a choice and it is accounted for, while movement and the rendering of the scene call no model. In a game, every move is confirmed by the server, and the computer opponent is a bounded search, not a model. A photo is drawn from what the person chose to show, never copied from the screen. A richer interface stays governable as long as its costs, its ownership and its confirmations keep the same meaning.
 
 ---
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 363 documented:
+Here are three structural decisions, among the 364 documented.
 
-**Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Self-hosting gives you control of the server; account data is stored on the instance and connector credentials are encrypted. The remote services you choose still receive the data needed for their part of a request.
+The first is about **sovereignty**: I did not want any irreversible dependency on a vendor. The AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity and local models through Ollama) all go through the same abstraction, so each use can switch provider through configuration alone, with costs compared. On the services side, Google, Apple and Microsoft are interchangeable in each category, whether mail, calendar or contacts. Self-hosting gives control of the server: account data is stored on the instance and connector credentials are encrypted. The remote services the person chooses still receive the data they need for their part of the request.
 
-**AI economics — cost per request is a design criterion.** Two execution modes coexist: a deterministic, economical pipeline for everyday requests, and an autonomous agent mode for exploratory ones — the measured consumption gap ranges from 1 to 4-8×, for equivalent service on standard cases. Every call is counted per token, valued in euros, aggregated per user and per model, governed by quotas. Even a two-sentence notification is asked for without reasoning, because a model that thinks by default bills its thinking inside the answer budget. And the agent mode takes along only the tools the question calls for — chosen by relevance, never by order of arrival — because eighty tool schemas weighed most of a first call without being counted. And the count comes out right: every call is valued at the price the provider really bills — tariffs re-read on its pages, a cache write at its own price, off-peak hours with their days.
+The second is about **economics**: I treated the cost of every request as a design criterion. Two execution modes coexist. A deterministic, economical pipeline handles everyday requests, and an autonomous agent takes on exploratory ones. On standard cases, for the same service delivered, the measured consumption ratio between them is 1 to 4-8. Every call is counted to the token, valued in euros, aggregated per user and per model, and subject to quotas.
 
-**Risk control — no irreversible action without human validation.** Six levels of human control, graded by the sensitivity of the action — from clarification to confirmation of destructive operations. Behavior on interruption is specified and tested: a pending validation survives restarts, with no loss and no double execution. Several actions in one request are submitted one at a time, each on its own card, and the report says what was done and for whom. The phone follows the same line: the card protects a third party, so when LIA calls the person themselves — on a number they declared and verified by a spoken code — the card is the person; on the line — as in a live voice session in the browser, on the person's own Gemini, OpenAI or ElevenLabs key — the mode is the person's choice: the voice hands every request to the chat as it is said, with its confirmations, or reads alone and acts on nothing; and what runs on the person's own vendor key is billed there, shown once, never counted here. Whatever the platform itself pays for the person — a map lookup during a call, the briefing's weather, a photo shown — reaches their ledger, whatever the path. What a stranger sends — a mail, its attachment — stays data to read, never an instruction to follow. And a script the assistant writes reaches the web through a single door, the person's keys swapped in outside it — a host nobody permitted is asked before, with the data, without it, or not at all. And when the autonomous agent cannot obtain what it was asked for, it says so — with what it tried — rather than fill the gap. What must be exact — an amount, a duration, a conversion — is computed by a tool, never estimated by the model. And what leaves without confirmation is addressed to the person alone — an e-mail to oneself, a call to one's verified number: the recipient is not a parameter there, so nothing can divert it. Finally, a skill written elsewhere — taken from a public library or a plugin — works apart: never the person's connectors, the network only towards permitted hosts, and a skill the AI writes enters the person's space only on their click.
+Cost also comes down to the details: a two-sentence notification is requested without reasoning, because a model that thinks by default bills its thinking inside the budget of its answer. By default, the autonomous agent takes along only the tools the question calls for, chosen by relevance rather than by order of arrival: eighty tool descriptions made up most of its first call, without being counted. Finally, every call is valued at the price the provider actually bills, with rates re-read from its pages, cache writes billed at their true price and off-peak rates depending on the day.
+
+The third is about **risk control**: no irreversible action without human approval. Several levels of human control are staged according to how sensitive the action is, from a clarifying question to a confirmation card before acting. I had the behavior on interruption specified and tested: a pending approval survives a restart, with no loss and no double execution. When a request contains several actions, each one is submitted in turn, on its own card, and the report says what was done and for whom.
+
+On the phone, the confirmation card is there to protect a third party. When LIA calls the person themselves, on a number they declared and verified with a code read aloud, the person plays the role of the card. For their calls, as for a live voice session in the browser opened on their own Gemini, OpenAI or ElevenLabs key, they choose the mode: either the voice hands each request to the chat as it is spoken, with its confirmations, or it reads on its own and acts on nothing. What runs on their personal key is billed by the provider and shown once, but it is not counted here. What the platform pays for on their behalf, on the other hand, is recorded on their account, whatever the path: a map looked up during a call, the briefing's weather, a photo shown.
+
+What a stranger sends, an email or its attachment, remains data to read and never an instruction to follow. A script written by the assistant reaches the web only through a single door, and the person's keys are swapped in there, out of the script's reach; for a site nobody has allowed, LIA asks the person first, and they have three possible answers: with the data, without it, or not at all. When the autonomous agent cannot get what it was asked for, it says so, along with what it tried, instead of filling the gap. What must be exact, such as an amount, a duration or a conversion, is computed by a tool, never estimated by the model. What leaves without confirmation is addressed only to the person themselves, an email to oneself or a call to one's verified number: the recipient is not a parameter there, so nothing can redirect it. A skill written elsewhere, taken from a public library or a plugin, runs in isolation: it never accesses the person's connectors and reaches only permitted hosts. And a skill the AI writes enters the person's space only when they click.
 
 ## 5. Operations
 
-A system flown on instruments:
+I fly this system on instruments.
 
-- **Observability**: thirty-two dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 600 metrics; centralized structured logs; end-to-end distributed tracing — logs, metrics and traces keep facts only, never people's words or names. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from. And the instruments reach the processes themselves: each API worker publishes what it holds in memory, so a container total can be read process by process. And an instrument measures what it names: the latency alert counts only the turns a person waits for, and the host's daily report opens on what the supervision recorded rather than on a snapshot.
-- **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
-- **Supply chain**: every building block of the server pinned by its digest and inventoried with every version; a weekly watch reads the security advisories each dependency publishes — including those no public database relays — and an update waits out a cooling-off period, never moving backwards; every version is installed on blank machines before it is published.
-- **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
-- **Data protection**: security reviewed endpoint by endpoint; connector credentials and provider keys encrypted; account export and deletion. GDPR obligations also depend on how the instance is operated and which providers it uses.
+- **Observability**: about thirty dashboards cover application health, service commitments, AI costs, agent behavior and infrastructure. They rest on more than 600 metrics, centralized structured logs and end-to-end distributed tracing. Logs, metrics and traces keep facts only, never people's words or names. More than fifty operating procedures are written down, for diagnosis, remediation and restoration. The instruments reach down to the processes: each API worker publishes how much memory it holds, so a container's total can be read process by process. An instrument also measures what it says it measures: the latency alert counts only the turns a person waits for, and the server's daily report starts with what monitoring recorded, rather than with a snapshot.
+- **Self-diagnosis**: the assistant reads this telemetry herself. She checks herself at regular intervals, remembers the incidents she has diagnosed using those procedures, and works around a known outage in her answers. Every diagnosis shows the evidence it rests on.
+- **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64 and arm64).
+- **Supply chain**: every building block of the server is pinned by its digest and inventoried with every version. A weekly watch reads the security advisories each dependency publishes, including those no public database relays. An update waits out a cooling-off period and never moves backwards, and every version is installed on clean machines before it is published.
+- **Costs**: frugal infrastructure by choice, with about €150 of hardware, no licenses and open-source building blocks sized to the actual need.
+- **Data protection**: security is reviewed endpoint by endpoint, connector credentials and provider keys are encrypted, and every account can be exported or deleted. GDPR obligations also depend on how the instance is run and on the providers chosen.
 
-The product makes its engineering choices visible at a human scale. A conversation follows a person across devices without disturbing what they are reading; a radio starts when they choose to listen and names the news it draws upon and what it costs. A generated file has a lifetime the person can extend deliberately. Scheduled work and condition checks have separate clocks. These are small, observable promises, backed by source records, limits and tests, rather than a claim that an assistant simply knows what the person wants.
+The product makes these engineering choices visible to the person who uses it. The conversation follows someone from one device to another without disturbing what they are reading. The radio starts when the person chooses to listen; it names the news stories it draws on and shows what it costs. A generated file has a lifetime the person can extend, if they decide to. Scheduled work and condition checks each have their own clock. These are promises anyone can observe, backed by sources, limits and tests, rather than a claim to guess what the person wants.
 
-The same rule holds for what is not yet up to standard. The wake word "Dis LIA" is a small model trained offline and measured on a bench whose thresholds are published before training: the French model does not reach them yet, so it ships marked **beta**, and the product says so, rather than lowering the bar to be able to write "done". A voice session that falls asleep on a silence costs nothing, and only the person ends it.
+The same rule applies to what is not yet up to standard. The wake word “Dis LIA” is a small model trained offline, then measured on a bench whose thresholds were published before training. The French model does not reach them yet, so it ships as a **beta**, and the product says so, rather than lowering the bar to be able to write “done”. A voice session that falls asleep after a silence costs nothing, and only the person ends it.
 
-A visible presence must remain a controlled choice: the experimental Simli avatar uses existing speech and a personal key, with one audible output. Stopping it shows confirmed or pending closure; an open connection can consume the plan even during silence. Live standby closes it. Floating controls adapt to the available space without erasing the chosen placement. Qualification with the provider and real devices remains explicit. The same need for evidence applies to spending: each paid attempt retains its price and known usage, even after failure or cancellation.
+A visible presence must remain a choice under control. The experimental Simli avatar reuses the existing voice and runs on the personal key, with a single audible output. When it is stopped, it shows whether the closing is confirmed or still pending. An open connection can eat into the plan even in silence; putting Live mode on standby closes it. Floating elements adapt to the available space without erasing the chosen position. Validating the avatar with the provider and on real devices is still to be done, and that is stated. Spending, too, must be provable: each paid attempt keeps its rate and the known usage, even after a failure or a cancellation.
 
 ## 6. The proof
 
-The level claimed in this document comes from a complete technical audit: 24 areas scored, every finding verified in the code and cross-checked to eliminate false positives. The audit applies the project's own method — conducted with AI tooling, in an adversarial posture, every conclusion anchored in cross-checked evidence. Latest assessment, October 25, 2026: **7.9/10** on the committed version 3.6.0 — after 7.3 in August, then 8.0 and a counter-review at 7.8 on October 22 — with a profile openly acknowledged. The full report — scorecard, method, open findings and the protocol to reproduce it — is public: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
+The level stated in this document comes from a complete technical audit. All 24 areas are scored, and every finding is verified in the code, then cross-checked to rule out false positives. The audit applies the project's own method: it is carried out with AI tooling, in an adversarial stance, and every conclusion rests on evidence checked against the source. The latest assessment, on October 25, 2026, gives **7.9/10** on version 3.6.0 as recorded in the repository, with a profile I stand by. It follows 7.3 in August, then 8.0 and a counter-review at 7.8 on October 22. The full report is public, with the scoring grid, the method, the open findings and the protocol to reproduce it: [full audit report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md).
 
-**Confirmed strengths:**
+The action plan is organized in waves, each with measurable exit criteria. The first was delivered, then audited: the audit confirmed most of what had been delivered and reopened one point. That is how this project accounts for itself: with a measured level, gaps included, rather than a proclaimed one.
 
-- Reproducible configuration and dependencies: lockfiles consumed by the production builds, the exact API image rebuilt from the audited commit.
-- Shared contracts and declarative registries: adding an agent, a tool or a language follows documented paths, and the version surfaces are generated.
-- Documentation held true by gates: decisions, maps and quoted figures are checked against their sources on every change.
-- Delivery that runs what a developer runs: a thin CI on the same tasks, hermetic installation and delivery tests, migrations replayed from an empty database.
+I learned the hard way that a green test suite does not prove a feature works. It only proves that what was tested behaves as written. The defects that get through the gates are precisely the ones the gates were never asked to look for: a capability nobody calls, a figure nobody adds up, a guard that recognizes a name rather than a mechanism. They are almost never coding mistakes. They are questions nobody had asked.
 
-**Remediated after the previous audit — and observed by this one:**
+From this I drew a working rule: nothing is believed until it has run, on real data and along the path the user takes. A component can be correct and its page empty; a counter can be exact and answer the wrong question. So every delivery ends with an adversarial review, done cold, whose purpose is not to run through the tests but to catch the work out where they do not look. The interface journeys run on Chromium with every delivery, then every week on Firefox and WebKit, with an automated accessibility check, because one more engine sees what the others let through. And a feature meant to improve LIA's behavior stays a pilot until a before-and-after comparison, on a corpus kept apart, has shown that it does.
 
-- Notifications that tell the truth: a notification — of a call, of a message between connections, of an incident — counts as delivered only on an explicit, durable success.
-- Waits with a bound: the database cuts a lock wait or an idle transaction short before it can freeze an account.
-- A loop that closes: every finding is followed in a public register with its age, its deadline and its proof, and the backend coverage floor holds over the unit and integration suites together.
-- Alerting: every advertised combination of notification channels is assembled and tested, routing included.
-
-**What remains to be done — known, planned:**
-
-- A document reprocessed after a takeover must stay with its current owner, and each acquisition of the reindex lock must carry its own identity.
-- A token refresh must finish within the lease that protects it, retries and pauses included.
-- The browser test bench made exact on every engine, so that a failure always names a real cause.
-- Absolute structural debt — dense central functions, domains that depend on each other, typing exemptions — reduced batch by batch, driven by measurement.
-
-The action plan is organized in waves, each with measurable exit criteria; the first was delivered, then audited: the audit observed most of it among its positive controls and reopened one point. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
-
-That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
-
-Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover. And the interface journeys run on Chromium with every release, then every week on Firefox and WebKit, with an automated accessibility check: one more browser engine sees what the others let through. And when a feature claims to improve LIA's behaviour, it stays a pilot until a before/after comparison on a held-out corpus has shown it.
-
-What that review produces does not stop at the fix. Every defect found leaves behind a **structural guard** — a start-up check, a continuously verified invariant, a test that fails if the whole class of problem reappears. It is the only kind of progress that outlives the person who wrote it: a fix protects one line, a guard protects the rule.
+Every defect found leaves a **structural guard** behind: a startup check, an invariant verified continuously, or a test that fails if the whole class of problem comes back. It is the only kind of progress that outlives the person who wrote it: a fix protects a line, a guard protects the rule.
 
 ---
 
 ## 7. Convictions
 
-What this experience changes in a management practice:
+Here is what this experience changes in the way I lead.
 
-- **AI-assisted development is deployed as a management system, not as a tool.** Productivity gains are real and significant; they only last if the framework — rulebook, checks, review, audit — is installed before generalization. That is the order in which to introduce it in an organization.
-- **The economic governance of AI is decided at usage-design time.** Two architectures delivering the same service can differ by a factor of 4 to 8 in consumption: that choice belongs to technical leadership, upstream — bill control always arrives too late.
-- **Between blanket prohibition and blind trust, there is a governable path.** Graded human control can be specified, tested and audited; it is the approach regulatory requirements are converging on, and it is operational today.
-- **A leader who practices arbitrates better.** Build or buy, acceptable debt or not, credible vendor promise or not — these decisions gain accuracy when you have worked the material yourself. This project is a way of maintaining that proximity to the field.
+- AI-assisted development is rolled out as a **management system**, not as a tool. The productivity gains are real and significant, but they last only if the framework (rulebook, checks, review, audit) is in place before its use is generalized. That is the order in which to bring it into an organization.
+- The **economic governance** of AI is decided as early as the design of its uses. Two architectures that deliver the same service can differ by a factor of 4 to 8 in consumption. That choice belongs to technical leadership, upstream, because checking the bill always comes too late.
+- Between a blanket ban and blind trust, there is a **governable path**. Graded human control can be specified, tested and audited. It is the approach that regulatory requirements are sketching out, and it works today.
+- A leader who practices **makes better calls**. Build or buy, accept a debt or not, believe a vendor's promise or not: these decisions get sharper when the person making them has handled the material firsthand. This project is my way of keeping in touch with the reality on the ground.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the July 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on 2026-10-26. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the October 25, 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on October 26, 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

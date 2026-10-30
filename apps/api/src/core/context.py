@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.agents.services.smart_catalogue_service import CatalogueMetrics
     from src.domains.chat.service import TrackingContext
+    from src.infrastructure.mcp.reference_content import ReferenceSource
 
 # Context variable to access current tracker from anywhere in async call stack.
 # This enables implicit propagation of tracking context to Google API clients
@@ -107,12 +108,10 @@ class UserMCPToolsContext:
     server_domains: dict[str, str] = field(default_factory=dict)
     # Pre-computed E5 embeddings for semantic tool scoring (keyed by adapter name)
     tool_embeddings: dict[str, dict] = field(default_factory=dict)
-    # Auto-fetched read_me content per server (for planner prompt injection)
-    server_reference_content: dict[str, str] = field(default_factory=dict)
-    # ADR-062: Server names (lowercase) with iterative_mode=true.
-    # Used by smart_planner_service to skip reference_content injection
-    # (the ReAct agent calls read_me itself).
-    iterative_servers: set[str] = field(default_factory=set)
+    # Standard servers' guidance (handshake instructions, read_me) for the pipeline
+    # planner, read at real use (spec 2026-10-21 §5.5b): server_name → source.
+    # Iterative servers have none — their sub-agent calls read_me itself (ADR-062).
+    server_reference_sources: dict[str, ReferenceSource] = field(default_factory=dict)
     # server_id prefixes (first 8 hex chars) of servers whose credential is the
     # USER'S OWN (auth_type != none): their calls are account-scoped, and the
     # sub-agent prompt's {auth_context} variable says so (2026-09-02 — the fact

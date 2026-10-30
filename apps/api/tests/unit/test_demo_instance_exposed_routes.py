@@ -135,6 +135,14 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/auth/step-up/webauthn/verify",
         "POST /api/v1/auth/verify-email",
         "GET /api/v1/briefing/cards",
+        # Spec 2026-10-21 §5.8 (D2): the progressive dashboard the web now draws —
+        # the same reads as /cards and /synthesis split into one act (session
+        # required, the act signed for the account, the text under the same
+        # usage limits and generated once per input).
+        "GET /api/v1/briefing/cards/initial",
+        "GET /api/v1/briefing/sections/{name}",
+        "POST /api/v1/briefing/sections/{name}/refresh",
+        "POST /api/v1/briefing/text",
         # ADR-294: passive, account-scoped cached weather and civil timezone.
         # Requires the normal session (anonymous HTTP requests receive 401),
         # reveals no location, and can never trigger a provider or LLM call.

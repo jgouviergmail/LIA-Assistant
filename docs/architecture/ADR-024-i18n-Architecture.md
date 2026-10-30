@@ -219,6 +219,10 @@ export function middleware(request: NextRequest) {
 
 ### Frontend: Root Layout Integration
 
+> **Amended 2026-10-28** ([below](#amendment-2026-10-28--the-browser-receives-the-catalogue-its-route-reads)).
+> The layout no longer hands the whole catalogue to the browser: it leaves out
+> the subtrees only some routes read, and those routes add them back.
+
 ```typescript
 // apps/web/src/app/[lng]/layout.tsx
 
@@ -494,6 +498,50 @@ only when no path is rewritten any more — a prefixed default language, or a Ne
 release whose prediction follows the rewrite. `apps/web/e2e/smoke/public-prefetch-settles.spec.ts`
 names the loop: a bounded number of prefetches per link and segment, and none
 that misses its segment.
+
+---
+
+## Amendment 2026-10-28 — the browser receives the catalogue its route reads
+
+The root layout handed its client `TranslationsProvider` the language's whole
+catalogue (`i18n.options.resources`), and React serialises a client
+component's props into EVERY page: the production landing carried 3.36 MB of
+HTML, 2.58 MB of it RSC payload, and its prefetch of `/` 2.03 MB more (measured
+2026-10-28) — for a page whose client components read a fraction of the 2.2 MB
+of French. The `[lng]` layout segment the amendment above saw refetched is that
+catalogue.
+
+Four subtrees weigh 63 % of it and are read in the browser by two pages at most:
+`faq.sections` (the public and the dashboard FAQ), `faq.changelog` and
+`faq.intro` (the dashboard FAQ; the landing band and `/changelog` render the
+releases on the server) and `blog` (no client reader: every blog string is
+resolved on the server). So:
+
+1. **The root layout ships the catalogue without them**
+   (`omitTranslations(translationBundle(lng), ROUTE_SCOPED_TRANSLATIONS)`,
+   `apps/web/src/i18n/scoped-translations.ts`). Server components are
+   unaffected: `initI18next` keeps the whole catalogue.
+2. **A route that runs a reader in the browser scopes what it reads**:
+   `<ScopedTranslations lng scopes={[...]}>` (`components/ScopedTranslations.tsx`,
+   server) picks the subtrees — whole, or only some children, as the public FAQ
+   asks for its ten public sections, a quarter of `faq.sections` — and
+   `TranslationScope` (client) provides an instance holding the INHERITED
+   catalogue plus them, read from the parent instance rather than sent again.
+3. **The guard walks the import graph** (`i18n/__tests__/scoped-translations.guard.test.ts`):
+   a module holding a key literal under a scoped subtree, reached from a route
+   file through a chain holding a `'use client'` module, requires that route to
+   scope the subtree. Its first run found exactly the public FAQ and the
+   dashboard FAQ. Its blind spot is written in it: a scoped key a server
+   component hands a client one as a STRING prop — resolve it on the server.
+
+Measured on dev after the change: the landing's HTML 1.90 MB (RSC payload
+1.20 MB), no FAQ answer, no historical release and no article body in it; `/faq`
+carries its public sections and none of the others; `/dashboard/faq` carries all
+three subtrees. The rest of the catalogue (0.72 MB in French) still reaches
+every page: an import walk from the public routes reaches 1,674 modules, nearly
+the whole application, so no other top-level group could be left out without a
+per-route census of what each page reads. Splitting further is the same move — a
+subtree in `ROUTE_SCOPED_TRANSLATIONS` and a scope on the routes the guard names.
 
 ---
 

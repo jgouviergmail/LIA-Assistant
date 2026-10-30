@@ -31,6 +31,30 @@ export function SynthesisSkeleton() {
   );
 }
 
+/**
+ * One card's geometry while its section is read (a grid tile, or a `pending`
+ * section of the progressive dashboard). Decorative: the page announces its
+ * loading once, never per tile.
+ */
+export function CardSkeleton() {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4 h-[420px] sm:h-[470px]"
+      aria-hidden="true"
+      data-testid="briefing-card-skeleton"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-muted/60 motion-safe:animate-pulse" />
+        <div className="h-3 w-1/3 rounded bg-muted/60 motion-safe:animate-pulse" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-7 w-1/2 rounded bg-muted/70 motion-safe:animate-pulse" />
+        <div className="h-4 w-3/4 rounded bg-muted/50 motion-safe:animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
 export function CardsGridSkeleton() {
   return (
     <div
@@ -38,19 +62,7 @@ export function CardsGridSkeleton() {
       aria-hidden="true"
     >
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4 h-[420px] sm:h-[470px]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-muted/60 animate-pulse" />
-            <div className="h-3 w-1/3 rounded bg-muted/60 animate-pulse" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-7 w-1/2 rounded bg-muted/70 animate-pulse" />
-            <div className="h-4 w-3/4 rounded bg-muted/50 animate-pulse" />
-          </div>
-        </div>
+        <CardSkeleton key={i} />
       ))}
     </div>
   );

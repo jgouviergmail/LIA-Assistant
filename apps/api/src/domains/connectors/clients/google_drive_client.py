@@ -16,8 +16,10 @@ Scopes required:
 from typing import Any
 from uuid import UUID
 
+import httpx
 import structlog
 
+from src.core.config import settings
 from src.core.constants import (
     RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT,
     RAG_DRIVE_CHANGES_PAGE_SIZE_MAX,
@@ -31,6 +33,19 @@ from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import CacheService
 
 logger = structlog.get_logger(__name__)
+
+
+def changes_feed_timeout() -> httpx.Timeout:
+    """The changes feed's budget: the bulk-read budget to read, the standard one to connect.
+
+    Measured on 2026-10-26: a page of a long feed waited for its headers past the
+    generic 5 s read budget, three attempts in a row, and the whole drain was lost
+    (3 wakes of 1 292 in seven days, Google slow while the feed was long). A page of
+    1 000 changes is a bulk read; reaching Google is not.
+    """
+    return httpx.Timeout(
+        settings.http_timeout_connector_long, connect=settings.http_timeout_external_api
+    )
 
 
 class GoogleDriveClient(BaseGoogleClient):
@@ -454,6 +469,7 @@ class GoogleDriveClient(BaseGoogleClient):
                 ),
                 "includeRemoved": "true",
             },
+            timeout=changes_feed_timeout(),
         )
 
     async def watch_changes(

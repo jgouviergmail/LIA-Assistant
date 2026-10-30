@@ -168,15 +168,15 @@ class TestAtomicity:
         self, repo: Path, capsys
     ) -> None:
         """Version surfaces must not be rewritten if the count half cannot run."""
-        zh = repo / "apps/web/src/data/guides/how.zh.md"
-        _write(zh, "# How\n\n**应用**：LIA v1.31.2\n\n只有一次：241 篇 ADR。\n")
+        zh = repo / "apps/web/src/data/guides/story.zh.md"
+        _write(zh, "# Story\n\n**应用**：LIA v1.31.2\n")
         before = (repo / "README.md").read_bytes()
 
         assert main(["1.32.0", "--root", str(repo)]) == 2
 
         assert canonical_version(repo) == "1.31.2"
         assert (repo / "README.md").read_bytes() == before
-        assert "expected 3 occurrence" in capsys.readouterr().out
+        assert "expected 1 occurrence" in capsys.readouterr().out
 
 
 class TestCountsOnly:

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from copy import deepcopy
 from typing import Any
 from uuid import UUID
@@ -40,7 +40,11 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.infrastructure.mcp.gated_tool import EffectGatedMCPTool
-from src.infrastructure.mcp.rate_limit import MCPRateLimitError, MCPToolExecutionError
+from src.infrastructure.mcp.rate_limit import (
+    MCPDeclarationChangedError,
+    MCPRateLimitError,
+    MCPToolExecutionError,
+)
 from src.infrastructure.mcp.semantic_observations import (
     observation_notice,
     semantic_observation_data,
@@ -149,6 +153,10 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
     _gated_call: Callable[..., Awaitable[Any]] | None = PrivateAttr(default=None)
     _nullable_arguments: frozenset[str] = PrivateAttr(default_factory=frozenset)
     _output_schema: dict[str, object] | None = PrivateAttr(default=None)
+    # What the call is built from: the entry's catalogue and this tool's declaration.
+    # The pool checks a call whose catalogue is no longer the entry's (fresh review I2).
+    _built_from: str | None = PrivateAttr(default=None)
+    _declaration: dict[str, Any] | None = PrivateAttr(default=None)
     description: str = ""
     server_id: UUID = Field(default=UUID(int=0))
     user_id: UUID = Field(default=UUID(int=0))
@@ -181,11 +189,15 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
         server_prefix: str | None = None,
         reserved_aliases: Collection[str] = (),
         tool_alias: str | None = None,
+        built_from: str | None = None,
+        declaration: Mapping[str, Any] | None = None,
     ) -> UserMCPToolAdapter:
         """
         Create a UserMCPToolAdapter from discovered tool data.
 
-        Reuses build_args_schema() from the admin MCP tool_adapter.
+        Reuses build_args_schema() from the admin MCP tool_adapter. ``built_from``
+        (the entry's catalogue fingerprint) and ``declaration`` (this tool's) travel
+        with every call, so the pool can check a call against what it was built from.
         """
         # Prefix ensures uniqueness and identification as user MCP tool
         server_prefix = server_prefix or str(server_id)[:8]
@@ -219,6 +231,8 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
         )
         adapter._nullable_arguments = nullable_parameter_names(input_schema)
         adapter._output_schema = deepcopy(output_schema)
+        adapter._built_from = built_from
+        adapter._declaration = deepcopy(dict(declaration)) if declaration is not None else None
         return adapter
 
     async def _call_server(self, **kwargs: Any) -> UnifiedToolOutput:
@@ -247,6 +261,8 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 tool_name=self.mcp_tool_name,
                 arguments=arguments,
                 timeout_seconds=self.timeout_seconds,
+                built_from=self._built_from,
+                declaration=self._declaration,
             )
             observations = semantic_observation_data(
                 decode_mcp_result(raw_result), self._output_schema
@@ -412,23 +428,8 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 },
             )
 
-        except MCPRateLimitError as exc:
-            mcp_tool_invocations_total.labels(
-                server_name=self.server_name_label,
-                tool_name=self.mcp_tool_name,
-                status="error",
-            ).inc()
-            logger.info(
-                "user_mcp_tool_rate_limited",
-                server_id=str(self.server_id),
-                tool_name=self.mcp_tool_name,
-                retry_after=exc.retry_after,
-            )
-            return UnifiedToolOutput.failure(
-                message=str(exc),
-                error_code="RATE_LIMIT_EXCEEDED",
-                metadata={"retry_after": exc.retry_after},
-            )
+        except (MCPDeclarationChangedError, MCPRateLimitError) as exc:
+            return self._refusal(exc)
 
         except Exception as exc:
             mcp_tool_invocations_total.labels(
@@ -460,6 +461,36 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
                 server_name=self.server_name_label,
                 tool_name=self.mcp_tool_name,
             ).observe(elapsed)
+
+    def _refusal(self, exc: MCPDeclarationChangedError | MCPRateLimitError) -> UnifiedToolOutput:
+        """A typed refusal the server answered with — never a connection failure."""
+        mcp_tool_invocations_total.labels(
+            server_name=self.server_name_label,
+            tool_name=self.mcp_tool_name,
+            status="error",
+        ).inc()
+        if isinstance(exc, MCPRateLimitError):
+            logger.info(
+                "user_mcp_tool_rate_limited",
+                server_id=str(self.server_id),
+                tool_name=self.mcp_tool_name,
+                retry_after=exc.retry_after,
+            )
+            return UnifiedToolOutput.failure(
+                message=str(exc),
+                error_code="RATE_LIMIT_EXCEEDED",
+                metadata={"retry_after": exc.retry_after},
+            )
+        # The server answered with a new declaration (spec 2026-10-21 §5.5).
+        logger.info(
+            "user_mcp_tool_declaration_changed",
+            server_id=str(self.server_id),
+            tool_name=self.mcp_tool_name,
+            reason=exc.reason,
+        )
+        return UnifiedToolOutput.failure(
+            message=str(exc), error_code="CONFLICT", metadata={"reason": exc.reason}
+        )
 
     def _run(self, **kwargs: Any) -> str:
         """User MCP tools are async only."""

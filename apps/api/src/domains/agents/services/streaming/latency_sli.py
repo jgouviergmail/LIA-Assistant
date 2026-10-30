@@ -14,6 +14,11 @@ The out-of-turn funnel (``infrastructure/scheduler/out_of_turn_run``) declares,
 for the whole run, whether a person waits (only a live phone delegation does:
 the person is on the line); the stream observes the two histograms only when
 one does. An ordinary chat turn needs no declaration: the default is a person.
+
+The same door feeds the JOURNEY histograms (spec 2026-10-21, O1 and C1): they
+start with the request rather than the graph, so the wait before the graph —
+its phases, the first answer token after them, and the turns that ended
+without one — is a person's wait too, and a routine never feeds it.
 """
 
 from __future__ import annotations
@@ -21,11 +26,20 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from typing import Literal
 
 from src.infrastructure.observability.metrics_agents import (
     sse_streaming_duration_seconds,
     sse_time_to_first_token_seconds,
 )
+from src.infrastructure.observability.metrics_chat_journey import (
+    chat_journey_first_token_seconds,
+    chat_journey_unanswered_seconds,
+    chat_pre_graph_phase_seconds,
+)
+
+PreGraphPhase = Literal["conversation", "state", "archive", "mcp", "catalogue"]
+UnansweredOutcome = Literal["cancelled", "error", "interrupted"]
 
 _person_waiting_ctx: ContextVar[bool] = ContextVar("stream_person_waiting", default=True)
 
@@ -78,3 +92,39 @@ def observe_stream_duration(intention: str, seconds: float) -> None:
     """
     if a_person_is_waiting():
         sse_streaming_duration_seconds.labels(intention=intention).observe(seconds)
+
+
+def observe_pre_graph_phase(phase: PreGraphPhase, seconds: float) -> None:
+    """Record one phase of the wait before the graph starts, when someone waited for it.
+
+    Args:
+        phase: Which pre-graph step: the conversation setup, the state load
+            with its attachments, the archived request, the MCP preparation or
+            the turn's catalogue.
+        seconds: How long the phase took.
+    """
+    if a_person_is_waiting():
+        chat_pre_graph_phase_seconds.labels(phase=phase).observe(seconds)
+
+
+def observe_journey_first_token(seconds: float) -> None:
+    """Record the wait from the request to its first answer token, when someone waited.
+
+    Args:
+        seconds: From the start of the request — before the conversation
+            setup and the MCP preparation — to the first answer token.
+    """
+    if a_person_is_waiting():
+        chat_journey_first_token_seconds.observe(seconds)
+
+
+def observe_journey_unanswered(outcome: UnansweredOutcome, seconds: float) -> None:
+    """Record a turn that ended without an answer token, when someone waited.
+
+    Args:
+        outcome: Why it ended: the person left, the turn failed, or it asked
+            a question instead of answering.
+        seconds: How long the person had waited when it ended.
+    """
+    if a_person_is_waiting():
+        chat_journey_unanswered_seconds.labels(outcome=outcome).observe(seconds)

@@ -613,8 +613,8 @@ or CSS. Two complementary mechanisms enforce this:
 
 Cleanup contract: every SSE generator exit path (HITL `GraphInterrupt`,
 top-level `except`, normal end) MUST tear down the voice pipeline via the
-`VoiceStreamCoordinator` (ADR-122 — `cleanup_chat_pipeline()` /
-`cleanup()`, backed by `_cleanup_chat_voice_pipeline` in
+`VoiceStreamCoordinator` (ADR-122 — `cleanup()`, which tears down the chat pipeline
+then the parallel service, backed by `_cleanup_chat_voice_pipeline` in
 [voice_stream_helpers.py](../../apps/api/src/domains/agents/services/streaming/voice_stream_helpers.py))
 to cancel the drain task, the streamer's pending TTS tasks, and the
 underlying voice service (closes the persistent httpx client). The helper

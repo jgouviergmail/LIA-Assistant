@@ -66,7 +66,7 @@ from src.domains.briefing.prompt_cards import (
 from src.domains.briefing.prompt_cards import (
     _summarize_cards_for_llm as _summarize_cards_for_llm,
 )
-from src.domains.briefing.sms_context import sms_for_prompt
+from src.domains.briefing.sms_context import PromptSms
 from src.domains.sms.summary import sms_signal_current
 
 logger = structlog.get_logger(__name__)
@@ -83,6 +83,7 @@ async def generate_greeting(
     user_tz: ZoneInfo,
     cards: CardsBundle,
     language: str,
+    prompt_sms: PromptSms,
 ) -> tuple[str, LLMUsage | None]:
     """Generate the top-of-page greeting (single sentence, ~20 words).
 
@@ -108,20 +109,19 @@ async def generate_greeting(
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=False),
         )
-        sms_text, sms_source = await sms_for_prompt(user.id, cards.sms, verbose=False)
-        rendered += "\n" + sms_text
-        if not await sms_signal_current(sms_source):
-            return _fallback_greeting(user, user_tz, language), None
+        rendered += "\n" + prompt_sms.brief
+        if not await sms_signal_current(prompt_sms.signal):
+            return fallback_greeting(user, user_tz, language), None
         text, usage = await _invoke_and_track(
             rendered=rendered,
             user=user,
             target_prefix=BRIEFING_GREETING_TARGET_PREFIX,
             kind="greeting",
         )
-        if not await sms_signal_current(sms_source):
-            return _fallback_greeting(user, user_tz, language), usage
+        if not await sms_signal_current(prompt_sms.signal):
+            return fallback_greeting(user, user_tz, language), usage
         if not text:
-            return _fallback_greeting(user, user_tz, language), None
+            return fallback_greeting(user, user_tz, language), None
         return text, usage
     except Exception as exc:
         logger.warning(
@@ -131,7 +131,7 @@ async def generate_greeting(
             error_type=type(exc).__name__,
         )
         briefing_llm_invocations_total.labels(kind="greeting", outcome="error").inc()
-        return _fallback_greeting(user, user_tz, language), None
+        return fallback_greeting(user, user_tz, language), None
 
 
 async def generate_synthesis(
@@ -140,6 +140,7 @@ async def generate_synthesis(
     user_tz: ZoneInfo,
     cards: CardsBundle,
     language: str,
+    prompt_sms: PromptSms,
 ) -> tuple[str | None, LLMUsage | None]:
     """Generate a 2-3 sentence synthesis. Returns (None, None) when too few cards have data.
 
@@ -151,11 +152,8 @@ async def generate_synthesis(
         skipped or on failure.
     """
     try:
-        sms_text, sms_source = await sms_for_prompt(user.id, cards.sms, verbose=True)
-        cards_with_data = sum(1 for c in _iter_cards(cards) if c.status == CardStatus.OK) + bool(
-            sms_text
-        )
-        if cards_with_data < BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA:
+        sms_text = prompt_sms.detailed
+        if not synthesis_expected(cards, prompt_sms):
             briefing_llm_invocations_total.labels(kind="synthesis", outcome="skipped").inc()
             return None, None
         prompt_text = load_prompt(
@@ -177,7 +175,7 @@ async def generate_synthesis(
             health_window_days=app_settings.briefing_health_window_days,
         )
         rendered += "\n" + sms_text
-        if not await sms_signal_current(sms_source):
+        if not await sms_signal_current(prompt_sms.signal):
             return None, None
         text, usage = await _invoke_and_track(
             rendered=rendered,
@@ -185,7 +183,7 @@ async def generate_synthesis(
             target_prefix=BRIEFING_SYNTHESIS_TARGET_PREFIX,
             kind="synthesis",
         )
-        if not await sms_signal_current(sms_source):
+        if not await sms_signal_current(prompt_sms.signal):
             return None, usage
         if not text:
             return None, None
@@ -199,6 +197,22 @@ async def generate_synthesis(
         )
         briefing_llm_invocations_total.labels(kind="synthesis", outcome="error").inc()
         return None, None
+
+
+def synthesis_expected(cards: CardsBundle, prompt_sms: PromptSms) -> bool:
+    """Whether the bundle holds enough to summarise: below it, no synthesis is a normal outcome.
+
+    Args:
+        cards: The bundle the synthesis would read.
+        prompt_sms: The SMS block the prompts read.
+
+    Returns:
+        True when at least ``BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA`` sources hold data.
+    """
+    cards_with_data = sum(1 for c in _iter_cards(cards) if c.status == CardStatus.OK) + bool(
+        prompt_sms.detailed
+    )
+    return cards_with_data >= BRIEFING_SYNTHESIS_MIN_CARDS_WITH_DATA
 
 
 # =============================================================================
@@ -377,7 +391,31 @@ def _compute_time_of_day(user_tz: ZoneInfo) -> str:
     return TIME_OF_DAY_NIGHT
 
 
-async def _resolve_user_model_block(user: User) -> str:
+async def person_inputs_digest(user: User) -> str:
+    """What the greeting and synthesis prompts read of the person, as one digest.
+
+    The display name, LIA's personality instruction and the user model block (portrait
+    and rhythm) — part of the dashboard text's identity, so a change to any of them is
+    a new text (fresh review B1: a personality changed was answered for five minutes
+    with the greeting written under the old one).
+
+    Args:
+        user: The person the dashboard speaks to.
+
+    Returns:
+        A short hex digest.
+    """
+    material = "\x1f".join(
+        (
+            _resolve_display_name(user),
+            await _resolve_personality(user.id),
+            await _resolve_user_model_block(user, counted=False),
+        )
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:24]
+
+
+async def _resolve_user_model_block(user: User, *, counted: bool = True) -> str:
     """Compiled-portrait brief + rhythm block for the synthesis prompt.
 
     Ambient diffusion of the journal portrait (ADR-079 pattern, same as the
@@ -395,7 +433,7 @@ async def _resolve_user_model_block(user: User) -> str:
             )
 
             portrait = await build_journal_user_model_block(
-                user_id=str(user.id), format="brief", flow="briefing"
+                user_id=str(user.id), format="brief", flow="briefing", counted=counted
             )
         except Exception as exc:  # noqa: BLE001 — portrait is a bonus, never a blocker
             logger.warning(
@@ -407,7 +445,7 @@ async def _resolve_user_model_block(user: User) -> str:
     try:
         from src.domains.habits.ambient import build_habits_rhythm_block
 
-        rhythm = await build_habits_rhythm_block(user.id, flow="briefing")
+        rhythm = await build_habits_rhythm_block(user.id, flow="briefing", counted=counted)
     except Exception as exc:  # noqa: BLE001 — rhythm is a bonus, never a blocker
         logger.warning(
             "briefing_rhythm_block_failed",
@@ -440,7 +478,7 @@ async def _resolve_personality(user_id: UUID) -> str:
         return ""
 
 
-def _fallback_greeting(user: User, user_tz: ZoneInfo, language: str) -> str:
+def fallback_greeting(user: User, user_tz: ZoneInfo, language: str) -> str:
     """Static fallback when the LLM is unreachable.
 
     Localized in the 6 supported languages so the page never falls back to

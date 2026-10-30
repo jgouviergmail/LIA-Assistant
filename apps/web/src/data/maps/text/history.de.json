@@ -1917,6 +1917,11 @@
       "title": "Privates LIA in einer gemeinsamen isometrischen Welt",
       "summary": "Der Browser zeichnet die Welt, während Redis Zugang und Bewegung steuert; Aktionen behalten ihre nativen Oberflächen und Freigaben. Kontoname und Aussehen werden mit Zustimmung geteilt, Aktivitäten und Zuhause bleiben privat, Kontakte sehen nur einen groben Verbindungsstatus. Nachrichten bleiben zwischen ihren Empfängern, genehmigte Übersetzungen werden begrenzt und abgerechnet.",
       "src": "53942019983c"
+    },
+    "366": {
+      "title": "Der Katalog eines persönlichen MCP-Servers, ohne Warten bereitgestellt",
+      "summary": "Was ein persönlicher MCP-Server anbietet, wird am Konto aufbewahrt und von einer Nachricht zur nächsten wieder bereitgestellt, in jedem Prozess, während ein einziger es im Hintergrund erneut prüft. Die Server bereiten sich parallel vor; ein zu langsamer wird für diese Nachricht ausgelassen, in einem Hinweis genannt und ist für die nächste bereit. Ist die aufbewahrte Kopie nicht mehr frisch, prüft LIA vor dem Aufruf, ob das Werkzeug noch in derselben Form angeboten wird, und sendet ihn sonst nicht.",
+      "src": "b3d470a00714"
     }
   }
 }

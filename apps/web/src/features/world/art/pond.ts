@@ -50,13 +50,24 @@ export function paintPond(p: Painter, o: WorldProp): void {
     { x: 0.2, y: 2.5 },
     { x: 1.3, y: 1.25 },
   ];
-  rounded(p, shore, '#c6bd91');
+  rounded(p, shore, '#b6b297');
+  // Uneven sand and moss lie inside the existing shoreline, preserving its mask.
+  for (let i = 0; i < shore.length; i++) {
+    const a = shore[i],
+      b = shore[(i + 1) % shore.length];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const at = project({ x: 5 + (mid.x - 5) * 0.93, y: 4 + (mid.y - 4) * 0.93 });
+    c.fillStyle = i % 3 ? '#c5bea3' : '#929f7c';
+    c.beginPath();
+    c.ellipse(at.x, at.y, 5 + (i % 3) * 2, 1.8 + (i % 2) * 0.5, 0, 0, Math.PI * 2);
+    c.fill();
+  }
   const water = shore.map(point => ({ x: 5 + (point.x - 5) * 0.9, y: 4 + (point.y - 4) * 0.86 }));
-  rounded(p, water, '#67b9b4');
+  rounded(p, water, '#78aaa0');
   const deep = c.createLinearGradient(-100, 60, 100, 190);
-  deep.addColorStop(0, '#267c94');
-  deep.addColorStop(0.55, '#238f9d');
-  deep.addColorStop(1, '#439f9c');
+  deep.addColorStop(0, '#356b7d');
+  deep.addColorStop(0.55, '#3c8791');
+  deep.addColorStop(1, '#69a399');
   rounded(
     p,
     water.map(point => ({ x: 5 + (point.x - 5) * 0.84, y: 4 + (point.y - 4) * 0.78 })),
@@ -91,7 +102,9 @@ export function paintPondLife(
 ): void {
   c.save();
   for (let i = 0; i < 2; i++) {
-    const phase = time * 0.13 + i * Math.PI;
+    // The derivative stays non-negative: each fish coasts, then briefly lingers.
+    const clock = time * (0.11 + i * 0.015) + i * Math.PI;
+    const phase = clock + Math.sin(clock) * 0.55;
     const at = project({ x: prop.x + 5 + Math.cos(phase) * 1.5, y: prop.y + 4 + Math.sin(phase) });
     c.save();
     c.translate(at.x, at.y);

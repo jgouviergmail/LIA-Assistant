@@ -164,3 +164,57 @@ def test_the_router_keeps_only_what_it_routes() -> None:
     router.route([_change(f"x{i}", "elsewhere") for i in range(1000)] + [_change("f1", "root")])
     [touched] = router.touched()
     assert len(touched.changes) == 1
+
+
+# ============================================================================
+# The worst drain fits one wake (Drive push lot 1, 2026-10-29)
+# ============================================================================
+
+
+def test_the_worst_drain_fits_a_wake() -> None:
+    """Measured 2026-10-26: a page of a long feed waited past the generic 5 s read
+    budget three times and the whole drain was lost. The feed now reads under the
+    bulk-read budget, and the worst drain — the deadline, then a page started just
+    before it, every attempt and every backoff — must end before the wake is cut."""
+    from src.domains.rag_spaces.drive_changes import (
+        assert_drain_fits_a_wake,
+        worst_drain_seconds,
+    )
+
+    worst = worst_drain_seconds(DrainBounds.from_settings())
+
+    # 45 s of deadline + 3 attempts x (5 s connect + 30 s read) + 1 s + 2 s of backoff.
+    assert worst == (
+        settings.rag_drive_push_drain_deadline_seconds
+        + 3 * (settings.http_timeout_external_api + settings.http_timeout_connector_long)
+        + 3
+    )
+    assert worst < settings.push_wake_serve_timeout_seconds
+    assert_drain_fits_a_wake()
+
+
+def test_a_drain_that_outlives_its_wake_refuses_the_boot(monkeypatch) -> None:
+    from src.infrastructure.startup import registries
+
+    monkeypatch.setattr(settings, "push_channels_enabled", True)  # a deployment that drains
+    monkeypatch.setattr(
+        settings, "rag_drive_push_drain_deadline_seconds", settings.push_wake_serve_timeout_seconds
+    )
+
+    with pytest.raises(RuntimeError, match="Drive changes drain"):
+        registries.run_failfast_validations()
+
+
+def test_a_deployment_without_drive_push_boots_whatever_its_bulk_budget(monkeypatch) -> None:
+    """Fresh review B7: the guard ran with push channels off, so raising the generic bulk
+    budget (used by attachments and bulk reads) refused the boot of an instance that
+    never drains a Drive feed."""
+    from src.domains.rag_spaces.drive_changes import assert_drain_fits_a_wake
+
+    monkeypatch.setattr(settings, "http_timeout_connector_long", 300.0)
+    monkeypatch.setattr(settings, "push_channels_enabled", False)
+    assert_drain_fits_a_wake()
+
+    monkeypatch.setattr(settings, "push_channels_enabled", True)
+    with pytest.raises(AssertionError, match="not counted"):
+        assert_drain_fits_a_wake()

@@ -319,3 +319,23 @@ greeting that contradicts the card beside it (ADR-185).
   before `/synthesis` reads it and the race the harness exists to observe never
   happens. Two green-over-broken measurements were produced that way while this
   work was being done, and both are recorded in the harness docstring.
+
+## Amendment 2026-10-28 — a failed read settles its waiters, and one page load is one act across requests
+
+Measured (spec 2026-10-21 §0ter D-H4): a waiter accepted nothing but a COMPLETE published bundle, so
+one failed section, or a push that invalidated a section at the owner's end, cost every waiter the
+whole wait and then a read of that source each. A failed live read now writes an ATTEMPT MARKER
+(`section_outcomes.py`); the waiters of the same build accept a section settled by it, while the
+next owner still retries the source live. With owner liveness the claim says whether the owner is
+still working; the first waiter to find it gone without a result claims again and builds, the
+others wait for that one. A push bumps the section's generation before deleting it, and a write
+started before the bump is refused.
+
+The progressive dashboard (spec §5.8) keeps the act whole across REQUESTS: the initial response
+signs an act token (account, language, timezone, local day, hidden set, expiry); each pending
+section is read on its own request under a section-level claim and files its consultations, spend
+and decision under the act's run id — the decision once (`record_decision_once`); the text reads
+caches only (and the SMS previews, a local read) and is generated once per distinct input, its two
+model calls billed each on a run of its own as before. An expired act, or one whose context
+changed, answers `409 briefing_context_changed`; a foreign or unreadable token runs as a fresh act
+of the caller. See `docs/technical/BRIEFING_DOMAIN.md` § « The progressive dashboard ».

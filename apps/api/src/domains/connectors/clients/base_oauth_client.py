@@ -45,6 +45,11 @@ from src.core.exceptions import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.read_budget import source_http_hooks
+from src.domains.connectors.clients.retry_policy import (
+    CONNECTOR_REQUEST_ATTEMPTS,
+    backoff_seconds,
+    may_resend,
+)
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.session_scope import connector_unit_of_work
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -54,6 +59,11 @@ logger = structlog.get_logger(__name__)
 
 # Type variable for connector type (allows subclasses to use specific enum values)
 ConnectorTypeT = TypeVar("ConnectorTypeT")
+
+
+def _call_timeout(timeout: httpx.Timeout | None) -> httpx.Timeout | Any:
+    """The budget a call hands httpx: its own, else the client's (``USE_CLIENT_DEFAULT``)."""
+    return httpx.USE_CLIENT_DEFAULT if timeout is None else timeout
 
 
 class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
@@ -597,7 +607,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         """
         Calculate backoff time for retry attempts.
 
-        Uses exponential backoff: 1s, 2s, 4s, 8s...
+        Uses exponential backoff: 1s, 2s, 4s, 8s... (``retry_policy.backoff_seconds``,
+        which the Drive drain's boot guard reads too).
 
         Args:
             attempt: Current attempt number (0-indexed)
@@ -605,7 +616,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         Returns:
             Wait time in seconds
         """
-        return float(2**attempt)
+        return backoff_seconds(attempt)
 
     # =========================================================================
     # TEMPLATE METHOD: _make_request (with 3 hooks)
@@ -657,14 +668,21 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         endpoint: str,
         params: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
-        max_retries: int = 3,
+        max_retries: int = CONNECTOR_REQUEST_ATTEMPTS,
         extra_headers: dict[str, str] | None = None,
         *,
         content: bytes | None = None,
         base_url: str | None = None,
+        idempotent: bool | None = None,
+        timeout: httpx.Timeout | None = None,
     ) -> dict[str, Any]:
         """
         Make HTTP request to provider API with retry logic.
+
+        A transport failure is retried only when the request cannot repeat an act
+        (``retry_policy.may_resend``): a POST that may have reached the provider is
+        never sent again — measured, a lost answer to one event creation made three
+        events (S1).
 
         Template Method: uses 3 hooks for provider customization:
         - _parse_error_detail(): Extract error from response
@@ -682,6 +700,9 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 type goes in ``extra_headers`` (Gmail's upload URI takes RFC 822
                 bytes, or a multipart body carrying them).
             base_url: Another root than ``api_base_url`` for this call only.
+            idempotent: True for a POST that is a read or whose effect cannot
+                repeat, so a lost answer is resent; None lets the method decide.
+            timeout: A budget for this call only, in place of the client's.
 
         Returns:
             JSON response from API.
@@ -701,6 +722,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
         url = self._request_url(endpoint, base_url)
         client = await self._get_client()
+        request_timeout = _call_timeout(timeout)
 
         connector_type_value = (
             self.connector_type.value
@@ -748,21 +770,35 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
 
             try:
                 if method.upper() == "GET":
-                    response = await client.get(url, headers=headers, params=params)
+                    response = await client.get(
+                        url, headers=headers, params=params, timeout=request_timeout
+                    )
                 elif method.upper() == "POST":
                     response = await client.post(
-                        url, headers=headers, params=params, json=json_data, content=content
+                        url,
+                        headers=headers,
+                        params=params,
+                        json=json_data,
+                        content=content,
+                        timeout=request_timeout,
                     )
                 elif method.upper() == "PUT":
                     response = await client.put(
-                        url, headers=headers, params=params, json=json_data, content=content
+                        url,
+                        headers=headers,
+                        params=params,
+                        json=json_data,
+                        content=content,
+                        timeout=request_timeout,
                     )
                 elif method.upper() == "PATCH":
                     response = await client.patch(
-                        url, headers=headers, params=params, json=json_data
+                        url, headers=headers, params=params, json=json_data, timeout=request_timeout
                     )
                 elif method.upper() == "DELETE":
-                    response = await client.delete(url, headers=headers, params=params)
+                    response = await client.delete(
+                        url, headers=headers, params=params, timeout=request_timeout
+                    )
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -794,7 +830,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
-                    await asyncio.sleep(wait_time)
+                    if attempt < max_retries - 1:  # never a wait after the last attempt
+                        await asyncio.sleep(wait_time)
                     continue
 
                 # Server error - retry with backoff
@@ -808,7 +845,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         attempt=attempt + 1,
                         wait_time=wait_time,
                     )
-                    await asyncio.sleep(wait_time)
+                    if attempt < max_retries - 1:  # never a wait after the last attempt
+                        await asyncio.sleep(wait_time)
                     continue
 
                 # OAuth error (401) - invalidate connector and require reconnection
@@ -860,23 +898,8 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                 )
 
             except httpx.RequestError as e:
-                if attempt < max_retries - 1:
-                    wait_time = self._calculate_backoff(attempt)
-                    logger.warning(
-                        "api_request_error_retrying",
-                        user_id=str(self.user_id),
-                        connector_type=connector_type_value,
-                        error_type=type(e).__name__,
-                        attempt=attempt + 1,
-                        wait_time=wait_time,
-                    )
-                    await asyncio.sleep(wait_time)
-                    continue
-                raise ExternalServiceError(
-                    service_name=connector_type_value,
-                    detail=f"{connector_type_value} API unavailable: {type(e).__name__}",
-                    error_type="connection_error",
-                ) from e
+                resend = attempt < max_retries - 1 and may_resend(method, e, idempotent=idempotent)
+                await self._wait_before_resend_or_raise(e, attempt, resend, connector_type_value)
 
         # Max retries exceeded
         raise ExternalServiceError(
@@ -884,6 +907,37 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             detail=f"{connector_type_value} API: max retries exceeded",
             error_type="max_retries",
         )
+
+    async def _wait_before_resend_or_raise(
+        self, error: httpx.RequestError, attempt: int, resend: bool, connector_type_value: str
+    ) -> None:
+        """Wait the backoff before a resend, or end the call on its transport failure.
+
+        Args:
+            error: The transport failure of this attempt.
+            attempt: The attempt that failed (0-indexed).
+            resend: Whether the policy and the attempt budget allow another one.
+            connector_type_value: The connector, for the log and the error.
+
+        Raises:
+            ExternalServiceError: When the request is not sent again.
+        """
+        if not resend:
+            raise ExternalServiceError(
+                service_name=connector_type_value,
+                detail=f"{connector_type_value} API unavailable: {type(error).__name__}",
+                error_type="connection_error",
+            ) from error
+        wait_time = self._calculate_backoff(attempt)
+        logger.warning(
+            "api_request_error_retrying",
+            user_id=str(self.user_id),
+            connector_type=connector_type_value,
+            error_type=type(error).__name__,
+            attempt=attempt + 1,
+            wait_time=wait_time,
+        )
+        await asyncio.sleep(wait_time)
 
     # =========================================================================
     # CONNECTOR INVALIDATION (on auth failure)

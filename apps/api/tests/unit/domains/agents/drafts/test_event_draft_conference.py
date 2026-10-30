@@ -115,3 +115,26 @@ class TestExecuteEventDraftPassesTheFlag:
     async def test_flag_absent_defaults_to_false(self) -> None:
         client, _ = await self._execute(dict(_DRAFT_CONTENT), {"id": "evt-1"})
         assert client.create_event.call_args.kwargs["add_conference"] is False
+
+
+class TestExecuteEventDraftCreatesUnderTheEffectKey:
+    """S1: the provider identity of the event is derived from the effect's key, so a
+    resend inside the client is the same act (ADR-263 + the connector retry policy)."""
+
+    async def test_the_confirmed_drafts_key_reaches_the_client(self) -> None:
+        from src.domains.agents.effects.scope import EffectScope, effect_scope
+
+        scope = EffectScope(run_id="run-1", idempotency_key="draft:abc", approved=True)
+        with effect_scope(scope):
+            client, _ = await TestExecuteEventDraftPassesTheFlag()._execute(
+                dict(_DRAFT_CONTENT), {"id": "evt-1"}
+            )
+
+        assert client.create_event.call_args.kwargs["idempotency_key"] == "draft:abc"
+
+    async def test_outside_any_scope_the_client_mints_its_own(self) -> None:
+        client, _ = await TestExecuteEventDraftPassesTheFlag()._execute(
+            dict(_DRAFT_CONTENT), {"id": "evt-1"}
+        )
+
+        assert client.create_event.call_args.kwargs["idempotency_key"] is None

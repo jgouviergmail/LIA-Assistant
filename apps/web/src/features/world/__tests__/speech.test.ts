@@ -29,19 +29,13 @@ const box = (server_time: number, messages: WorldMessage[]): WorldMailbox => ({
   truncated: false,
   ttl_seconds: 1800,
 });
-it('never replays initial history, outgoing private text, untranslated or expired messages', () => {
+it('never replays initial history, untranslated incoming text or expired messages', () => {
   const speech = new WorldSpeech();
   speech.setActive(true);
   speech.receive(privateSpeechDeliveries(box(100, [message('old', 99)])), 100, 'private', 0);
   expect(speech.bubbles(0)).toEqual([]);
   speech.receive(
-    privateSpeechDeliveries(
-      box(101, [
-        message('old', 99),
-        { ...message('out', 101), outgoing: true },
-        message('pending', 101, null),
-      ])
-    ),
+    privateSpeechDeliveries(box(101, [message('old', 99), message('pending', 101, null)])),
     101,
     'private',
     1000
@@ -219,7 +213,7 @@ it('bounds presentation memory and ignores malformed or non-proactive notices', 
   expect(sim.noticeFollowing).toBe(false);
 });
 
-it('shows a new public self echo while never displaying an outgoing private message', () => {
+it('shows a new public self echo without replaying initial private history', () => {
   const speech = new WorldSpeech();
   speech.setActive(true);
   const publicMessage = {
@@ -244,6 +238,65 @@ it('shows a new public self echo while never displaying an outgoing private mess
   expect(speech.bubbles(1000).map(line => line.text)).toEqual(['Hello everyone']);
   expect(speech.bubbles(6000)).toEqual([]);
 });
+
+it.each(['pending', 'failed', 'uncertain', 'unavailable'] as const)(
+  'shows both private speakers while recipient translation is %s, without replay or extension',
+  status => {
+    const speech = new WorldSpeech(),
+      sim = createSimulation(WORLD);
+    sim.player.publicId = 'own';
+    sim.visitors = [
+      {
+        ...sim.player,
+        id: 'sender',
+        label: 'Camille',
+        from: sim.player.position,
+        target: sim.player.position,
+        blend: 0,
+      },
+    ];
+    const sent: WorldMessage = {
+      ...message('sent', 101, 'My literal reply'),
+      sender_id: 'own',
+      sender_alias: 'Me',
+      recipient_id: 'sender',
+      recipient_alias: 'Camille',
+      outgoing: true,
+      original: 'My literal reply',
+      status,
+    };
+    speech.setActive(true);
+    speech.receive(
+      privateSpeechDeliveries(box(100, [{ ...sent, id: 'history', created_at: 99 }])),
+      100,
+      'private',
+      0
+    );
+    expect(speech.bubbles(0)).toEqual([]);
+    const messages = [sent, message('incoming', 101)];
+    speech.receive(privateSpeechDeliveries(box(101, messages)), 101, 'private', 1000);
+    speech.advance(sim, 1000, true); // An open conversation must not hide either speaker.
+    expect(
+      speech.getSnapshot().map(({ speaker, text, kind }) => ({ speaker, text, kind }))
+    ).toEqual([
+      { speaker: 'own', text: 'My literal reply', kind: 'private' },
+      { speaker: 'sender', text: 'Translated', kind: 'private' },
+    ]);
+    speech.receive(
+      privateSpeechDeliveries(box(102, [{ ...sent, status: 'translated' }, messages[1]!])),
+      102,
+      'private',
+      2000
+    );
+    speech.advance(sim, 6000, false);
+    expect(speech.getSnapshot()).toEqual([]);
+    speech.setActive(false);
+    speech.setActive(true);
+    speech.receive(privateSpeechDeliveries(box(107, messages)), 107, 'private', 7000);
+    speech.advance(sim, 7000, false);
+    expect(speech.getSnapshot()).toEqual([]);
+  }
+);
 
 it('public speech waits for ready translated text without an original fallback', () => {
   const base = box(101, []);

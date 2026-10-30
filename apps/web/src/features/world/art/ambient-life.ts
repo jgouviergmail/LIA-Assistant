@@ -22,7 +22,9 @@ export function paintAmbientLife(
     const at = project(bird.point, bird.elevation);
     const reaction = reactions.get(bird.id);
     if (reaction) at.y -= Math.sin(reaction.phase * Math.PI) * 9;
-    const wing = 2 + Math.sin(time * 5 + i) * 3;
+    const cycle = (time * 0.22 + i * 0.37) % 1;
+    const flapping = Math.max(0, Math.min(1, cycle / 0.12, (0.62 - cycle) / 0.12));
+    const wing = 2 + Math.sin(time * 5 + i) * 3 * flapping;
     c.beginPath();
     c.moveTo(at.x - 5, at.y - wing);
     c.quadraticCurveTo(at.x - 2, at.y, at.x, at.y);

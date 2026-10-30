@@ -139,9 +139,12 @@ class TestAppleGracefulDegradation:
         client.user_id = uuid4()
         executed: dict[str, Any] = {}
 
-        async def fake_execute(operation: str, impl: Any, *args: Any) -> dict[str, Any]:
+        async def fake_execute(
+            operation: str, impl: Any, *args: Any, **kwargs: Any
+        ) -> dict[str, Any]:
             executed["operation"] = operation
             executed["args"] = args
+            executed["kwargs"] = kwargs
             return {"id": "apple-evt-1"}
 
         client._execute_with_retry = fake_execute  # type: ignore[method-assign]
@@ -152,3 +155,4 @@ class TestAppleGracefulDegradation:
         assert executed["operation"] == "create_event"
         # The flag never reaches the CalDAV impl (no conference concept there).
         assert True not in executed["args"]
+        assert set(executed["kwargs"]) == {"uid"}

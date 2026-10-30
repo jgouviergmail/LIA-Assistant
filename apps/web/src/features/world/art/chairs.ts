@@ -50,8 +50,8 @@ export function chairModel(m: Model, o: WorldProp): void {
   else fixedBase(m, frame);
   if ((o.facing ?? 1) === 1) backrest(m, o, task, upholstery);
   m.box(0.12, 0.12, 0.46, 0.76, 0.76, 0.09, frame);
-  m.box(0.16, 0.22, 0.55, 0.68, 0.6, 0.115, upholstery);
-  m.panel(0.2, 0.824, 0.585, 0.6, 0.012, shade(upholstery, 28));
+  m.softBox(0.16, 0.22, 0.55, 0.68, 0.6, 0.115, upholstery, 0.035);
+  m.panel(0.24, 0.824, 0.585, 0.52, 0.012, shade(upholstery, 19));
   if ((o.facing ?? 1) !== 1) backrest(m, o, task, upholstery);
   if (o.activity === 'routines') m.box(0.3, 0.19, 0.84, 0.4, 0.075, 0.2, '#e0bb63');
   if (task && o.height >= 1.3) {

@@ -1,6 +1,7 @@
 """Bound and attribute optional probe embeddings outside all write locks."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from typing import Protocol
 from uuid import UUID
 
@@ -37,6 +38,26 @@ def _bounded_metadata(tools: Sequence[Mapping[str, object]]) -> list[dict[str, s
     return admitted
 
 
+@contextmanager
+def embedding_attribution(user_id: UUID, session_id: str) -> Iterator[None]:
+    """Attribute the embeddings computed inside to the account, then restore the caller's.
+
+    Args:
+        user_id: The account that owns the spend.
+        session_id: The bounded label of the operation (no content).
+    """
+    previous = get_embedding_context()
+    set_embedding_context(str(user_id), session_id)
+    try:
+        yield
+    finally:
+        clear_embedding_context()
+        if previous is not None:
+            set_embedding_context(
+                previous.user_id, previous.session_id, previous.conversation_id, previous.run_id
+            )
+
+
 async def build_connection_embeddings(
     user_id: UUID,
     server_name: str,
@@ -47,15 +68,7 @@ async def build_connection_embeddings(
     if not metadata or await spend_blocked(user_id):
         return {}
     await enforce_usage_limit(user_id, layer="mcp_connection_embeddings")
-    previous = get_embedding_context()
-    set_embedding_context(str(user_id), f"mcp-connection:{user_id}")
-    try:
+    with embedding_attribution(user_id, f"mcp-connection:{user_id}"):
         return TypeAdapter(dict[str, JsonValue]).validate_python(
             await builder(tool_metadata=metadata, server_name=server_name[:100])
         )
-    finally:
-        clear_embedding_context()
-        if previous is not None:
-            set_embedding_context(
-                previous.user_id, previous.session_id, previous.conversation_id, previous.run_id
-            )

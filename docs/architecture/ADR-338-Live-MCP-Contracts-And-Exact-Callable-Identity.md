@@ -128,3 +128,13 @@ ownership checks or infer a business type from a suggestive field name.
 - [Registration aliases](../../apps/api/src/infrastructure/mcp/registration_aliases.py)
 - [User catalogue projection](../../apps/api/src/infrastructure/mcp/user_catalogue.py)
 - [Schema contract projection](../../apps/api/src/infrastructure/mcp/semantic_schema.py)
+
+## Amendment 2026-10-28 — a personal server's catalogue is a snapshot (ADR-366)
+
+For PERSONAL MCP servers only, a turn no longer discovers the catalogue live when the account's
+snapshot is valid or merely aged: the snapshot is served while one worker revalidates it, servers
+are prepared in parallel under a ceiling, and a server still preparing is left out of that turn
+without being cancelled (owner decisions Q1 and Q2 (a)). The exact callable identity of §2 is
+checked where it matters — at the moment of the call (`declaration_check.py`): a withdrawn tool, a
+rejected argument or a tightened declaration refuses the call before it is sent. See
+[ADR-366](ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md).

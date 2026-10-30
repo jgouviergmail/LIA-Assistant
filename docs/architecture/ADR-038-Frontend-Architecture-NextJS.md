@@ -126,6 +126,9 @@ apps/web/src/
 
 ### Server vs Client Components
 
+> **Superseded detail (2026-10-28).** The layout no longer hands the browser the
+> whole catalogue: see [ADR-024's amendment](ADR-024-i18n-Architecture.md#amendment-2026-10-28--the-browser-receives-the-catalogue-its-route-reads).
+
 ```typescript
 // apps/web/src/app/[lng]/layout.tsx (Server Component)
 export default async function RootLayout({ children, params }) {

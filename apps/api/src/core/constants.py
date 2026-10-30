@@ -118,6 +118,7 @@ AVAILABILITY_PROJECTION_MAX_EVENTS = 250
 GOOGLE_WEATHER_API_BASE_URL = "https://weather.googleapis.com"
 GOOGLE_WEATHER_FORECAST_PAGE_SIZE = 24  # API page cap for forecast/hours
 GOOGLE_WEATHER_MAX_FORECAST_HOURS = 240  # 10 days of hourly forecast
+GOOGLE_WEATHER_MAX_FORECAST_DAYS = 10  # forecast/days: up to 10 days, all in one page
 
 # ============================================================================
 # GOOGLE ENVIRONMENT APIS — AIR QUALITY + POLLEN (lot E, 2026-08)
@@ -3431,6 +3432,9 @@ MCP_MAX_STRUCTURED_ITEMS_PER_CALL = 25  # Cap structured items parsed from a sin
 MCP_APP_MAX_HTML_SIZE_DEFAULT = 2 * 1024 * 1024  # 2MB max HTML from read_resource (MCP Apps F2.6)
 MCP_DISPLAY_EMOJI = "\U0001f50c"  # 🔌 — Shared display emoji for MCP tools in card metadata
 MCP_REFERENCE_TOOL_NAME = "read_me"  # Convention: MCP tool providing format reference documentation
+# Discovery follows a server's tools/list pages (MCP: clients MUST NOT assume a fixed
+# page size) up to this many pages, a guard against a server that never stops paging.
+MCP_DISCOVERY_MAX_PAGES = 16
 MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT = 30000  # Max chars of read_me content injected in planner
 
 # MCP Per-User (evolution F2.1) — User-managed MCP servers
@@ -3444,7 +3448,26 @@ MCP_USER_MAX_SERVERS_PER_USER_DEFAULT = 20
 # The operator's ceiling: the quota is read where it is enforced, nothing is sized on it.
 # Raised from 20 when production asked for 50 (2026-10-01).
 MCP_USER_MAX_SERVERS_PER_USER_MAX = 100
-MCP_USER_POOL_TTL_SECONDS_DEFAULT = 900  # 15 min idle before connection eviction
+# Idle eviction of a worker's pool entry. A direct pool lookup also rediscovers an entry
+# older than this; a turn's preparation serves it and revalidates in the background
+# (MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS, spec 2026-10-21 §5.2).
+MCP_USER_POOL_TTL_SECONDS_DEFAULT = 900
+# Age after which a persisted personal-MCP catalogue snapshot is revalidated in the
+# background (spec 2026-10-21 §5.2) when the server states no ttlMs of its own; age
+# never refuses a snapshot, verification at use guards a changed declaration.
+MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS_DEFAULT = 900
+# Bound of a personal server's discovery and of its read_me fetch at real use (spec
+# 2026-10-21 §5.5b), below the server's own tool timeout: a server allowed 120 s per
+# tool call must not hold a turn's preparation that long.
+MCP_USER_DISCOVERY_TIMEOUT_SECONDS_DEFAULT = 15
+MCP_USER_DISCOVERY_TIMEOUT_SECONDS_MAX = 120
+# A turn prepares its personal servers in parallel (spec 2026-10-21 §5.3): at most this many
+# network discoveries per process at once, the turn waits at most the ceiling (a server
+# still discovering is left out of that turn and published for the next), and a server
+# still preparing over the network after the notice delay is reported as slow.
+MCP_USER_PREPARATION_CONCURRENCY_DEFAULT = 4
+MCP_USER_PREPARATION_CEILING_SECONDS_DEFAULT = 20
+MCP_USER_SLOW_PREPARATION_NOTICE_SECONDS_DEFAULT = 10
 # ADR-283 amendment 2026-10-12: per-worker bounds of what a turn's MCP catalogue leaves
 # behind. One entry per (server, embedding model, catalogue fingerprint) of compact
 # float32 vectors — about 8 MB for a server of a hundred tools at 1,536 dimensions, so
@@ -3596,6 +3619,22 @@ BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT = 5
 # kept as a fallback shown alongside a connector error. Long on purpose — it
 # only ever surfaces when the live fetch FAILS, clearly labeled as stale.
 BRIEFING_LAST_GOOD_TTL_SECONDS_DEFAULT = 172800  # 48 h
+# How long a request may wait for ANOTHER worker's bundle build while that
+# worker's claim is alive (owner liveness, spec 2026-10-21 §5.7). A hard ceiling,
+# not a timer: a waiter stops as soon as the bundle is published or the claim
+# disappears. Production's slowest measured build: 5.8 s.
+BRIEFING_SHARED_BUILD_MAX_WAIT_SECONDS_DEFAULT = 60
+# How long a failed section read stays "attempted" for the completeness readers
+# (the synthesis, a waiting worker), so they stop rebuilding — and re-opening —
+# a failing source. The cards' own reads ignore it and retry live.
+BRIEFING_SECTION_ATTEMPT_MARKER_SECONDS_DEFAULT = 120
+# The progressive dashboard (spec 2026-10-21 §5.8): a generated greeting + synthesis is
+# reused for this long when its inputs did not change; an act (one page load's reads)
+# is honoured for this long; the client opens at most this many section requests at
+# once (HTTP/1.1 allows 6 per host and the chat's SSE stream holds one).
+BRIEFING_TEXT_CACHE_TTL_SECONDS_DEFAULT = 300
+BRIEFING_ACT_TOKEN_TTL_SECONDS_DEFAULT = 600
+BRIEFING_SECTION_CONCURRENCY_DEFAULT = 4
 
 # Activity timeline ("what LIA did for you", Lot 1-A1) — read-only aggregation.
 # Same placement doctrine as the BRIEFING_* block above: config must import
@@ -5757,6 +5796,9 @@ EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 10
 #: rare. Being more patient is an operator decision, not a default.
 EMBEDDING_RATE_LIMIT_WAIT_SECONDS_DEFAULT: float = 0.4
 EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT: int = 2
+#: Relaunches a model call may get after a 429, a 5xx or a connection that never reached
+#: the provider — never after a timeout or a loss once sent (spec 2026-10-21 E2, Q3 (a)).
+LLM_TRANSIENT_RETRY_MAX_DEFAULT: int = 2
 EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT: float = 1.0
 
 #: Ceiling the defaults must respect, guarded by test: the seam is on a chat
@@ -6248,6 +6290,8 @@ DEVOPS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 600
 DEFAULT_EXECUTION_MODE: str = "pipeline"
 EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
+#: Every execution mode: what a tool declaring no restriction may run in (ADR-249).
+EXECUTION_MODES_ALL: frozenset[str] = frozenset({EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT})
 
 # ADR-335 — the owning agent of the application-settings catalogue (the forty
 # sections of ``domains/agents/application/``): read by its domain config and by

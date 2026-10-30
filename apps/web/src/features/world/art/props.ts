@@ -90,9 +90,12 @@ const DRAW: Record<PropKind, Draw> = {
     p.box(o.width - 0.22, 0.28, 0, 0.12, 0.18, 0.8, WOOD);
     p.box(0, 0.15, 0.7, o.width, 0.24, 1.35, '#426d69');
     p.panel(0.12, 0.4, 0.84, o.width - 0.24, 1.05, '#bca77f');
+    const paperWidth = Math.min(0.35, (o.width - 0.56) / 3),
+      gap = (o.width - 0.44 - paperWidth * 3) / 2;
     for (let i = 0; i < 3; i++) {
-      p.panel(0.22 + i * 0.5, 0.42, 1.05 + (i % 2) * 0.16, 0.35, 0.51, '#f2e8cf');
-      p.panel(0.26 + i * 0.5, 0.43, 1.38 + (i % 2) * 0.16, 0.24, 0.055, ACCENTS[o.tone]);
+      const x = 0.22 + i * (paperWidth + gap);
+      p.panel(x, 0.42, 1.05 + (i % 2) * 0.16, paperWidth, 0.51, '#f2e8cf');
+      p.panel(x + 0.04, 0.43, 1.38 + (i % 2) * 0.16, paperWidth - 0.08, 0.055, ACCENTS[o.tone]);
     }
   },
   mosaic: (p, o) => {
@@ -171,6 +174,7 @@ export function paintProp(
   paintScreenContent(painter, prop);
   if (
     shadow &&
+    !prop.support &&
     prop.height > 0.1 &&
     prop.kind !== 'partition' &&
     prop.kind !== 'wallCorner' &&

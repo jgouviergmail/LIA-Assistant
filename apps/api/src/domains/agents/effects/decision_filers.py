@@ -31,6 +31,7 @@ from typing import Final
 _CHAT_TURN: Final[str] = "domains/agents/api/service.py"
 _OUT_OF_TURN_FUNNEL: Final[str] = "infrastructure/proactive/tracking.py"
 _VOICE_SESSION: Final[str] = "infrastructure/scheduler/voice_session_closing.py"
+_BRIEFING_ACT: Final[str] = "domains/briefing/act_decision.py"
 
 #: Each module opening an accounting, and the modules that file its run's row.
 DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
@@ -50,8 +51,10 @@ DECISION_FILERS: Final[dict[str, tuple[str, ...]]] = {
     "domains/agents/telephony/live_tools.py": (_VOICE_SESSION,),
     "infrastructure/scheduler/voice_session_closing.py": (_VOICE_SESSION,),
     # A billed image, joined to the act that showed it — a turn, or the cards.
-    "domains/connectors/media_attribution.py": (_CHAT_TURN, "domains/briefing/service.py"),
-    "domains/briefing/service.py": ("domains/briefing/service.py", _OUT_OF_TURN_FUNNEL),
+    "domains/connectors/media_attribution.py": (_CHAT_TURN, _BRIEFING_ACT),
+    "domains/briefing/service.py": (_BRIEFING_ACT, _OUT_OF_TURN_FUNNEL),
+    # The progressive dashboard: one act across its section requests (D2), filed once.
+    "domains/briefing/progressive.py": (_BRIEFING_ACT, _OUT_OF_TURN_FUNNEL),
     # The out-of-turn funnel files what it bills, and the surfaces that open an
     # accounting around a whole act bill their model calls through it.
     "infrastructure/proactive/tracking.py": (_OUT_OF_TURN_FUNNEL,),

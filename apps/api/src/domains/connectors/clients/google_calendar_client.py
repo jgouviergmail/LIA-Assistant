@@ -8,21 +8,42 @@ LOT 5.4: Write operations with HITL integration.
 Inherits from BaseGoogleClient for common functionality.
 """
 
+import asyncio
 from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 
+from src.core.exceptions import ConnectorAPIError, ExternalServiceError
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.retry_policy import (
+    CREATE_SETTLE_READS,
+    backoff_seconds,
+    provider_idempotency_id,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
 logger = structlog.get_logger(__name__)
+
+
+def _create_may_have_happened(error: ExternalServiceError | ConnectorAPIError) -> bool:
+    """Whether a failed create may still have made its event (S1).
+
+    Every attempt carried this act's own id, so any of them may have been kept: a lost
+    answer, resends spent on a 5xx or a 429 after an earlier attempt was kept (the loop
+    then fails with no cause — third fresh review, 2026-10-29), or Google refusing the id
+    this very create chose. Only a 4xx other than 409 is an answer that nothing was kept;
+    no other act holds the id, so reading it back can never adopt someone else's event.
+    """
+    if isinstance(error, ConnectorAPIError):
+        return error.status_code == 409 or error.status_code >= 500
+    return True
 
 
 class GoogleCalendarClient(BaseGoogleClient):
@@ -85,6 +106,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         Create a new calendar event in Google Calendar.
@@ -105,6 +127,9 @@ class GoogleCalendarClient(BaseGoogleClient):
                 (conferenceData.createRequest + conferenceDataVersion=1).
                 Best-effort on Google's side: the event is created even if the
                 conference creation fails (the link is then simply absent).
+            idempotency_key: The effect's key (ADR-263); the event's id is derived
+                from it, so a create whose answer was lost is found again by that id
+                rather than sent twice (S1). None: a key minted for this call.
 
         Returns:
             Created event data with event ID
@@ -127,7 +152,9 @@ class GoogleCalendarClient(BaseGoogleClient):
 
         # Build event body per Google Calendar API spec
         # https://developers.google.com/calendar/api/v3/reference/events/insert
+        event_id = provider_idempotency_id(idempotency_key or uuid4().hex, "google")
         event_body: dict[str, Any] = {
+            "id": event_id,
             "summary": summary,
             "start": {
                 "dateTime": start_datetime,
@@ -162,14 +189,21 @@ class GoogleCalendarClient(BaseGoogleClient):
             }
             params = {"conferenceDataVersion": 1}
 
-        # Make API request to create event
-        # POST /calendars/{calendarId}/events
-        response = await self._make_request(
-            "POST",
-            f"/calendars/{calendar_id}/events",
-            json_data=event_body,
-            params=params,
-        )
+        # POST /calendars/{calendarId}/events — replay-safe: it carries its own id, which
+        # Google refuses once held (measured), so a lost answer is resent like Graph's
+        # transactionId and CalDAV's uid.
+        try:
+            response = await self._make_request(
+                "POST",
+                f"/calendars/{calendar_id}/events",
+                json_data=event_body,
+                params=params,
+                idempotent=True,
+            )
+        except (ExternalServiceError, ConnectorAPIError) as error:
+            if not _create_may_have_happened(error):
+                raise
+            response = await self._created_event_or_raise(calendar_id, event_id, error)
 
         logger.info(
             "calendar_event_created",
@@ -178,6 +212,45 @@ class GoogleCalendarClient(BaseGoogleClient):
         )
 
         return response
+
+    async def _created_event_or_raise(
+        self, calendar_id: str, event_id: str, error: ExternalServiceError | ConnectorAPIError
+    ) -> dict[str, Any]:
+        """Settle a create that may have happened by reading the event it named (S1).
+
+        Found, the create happened; « cancelled » is a final answer (the act was
+        undone); « not found » is read again, ``CREATE_SETTLE_READS`` times at most —
+        measured live, an event whose answer was lost read 404 at once while Google
+        was still writing it. Anything else leaves the failure standing.
+
+        Args:
+            calendar_id: The calendar the event was created in.
+            event_id: The id the create carried.
+            error: The create's failure.
+
+        Returns:
+            The created event.
+
+        Raises:
+            ExternalServiceError: ``error`` itself, when nothing proves the create.
+            ConnectorAPIError: ``error`` itself, when nothing proves the create.
+        """
+        for read in range(CREATE_SETTLE_READS):
+            if read:
+                await asyncio.sleep(backoff_seconds(read - 1))
+            try:
+                event = await self.get_event(event_id, calendar_id)
+            except ConnectorAPIError as lookup:
+                if lookup.status_code == 404:
+                    continue
+                raise error from lookup
+            except ExternalServiceError as lookup:
+                raise error from lookup
+            if not event or event.get("status") == "cancelled":
+                raise error
+            logger.info("calendar_event_create_reconciled", user_id=str(self.user_id))
+            return event
+        raise error
 
     async def query_freebusy(
         self,
@@ -204,7 +277,9 @@ class GoogleCalendarClient(BaseGoogleClient):
             "timeMax": time_max,
             "items": [{"id": calendar_id} for calendar_id in (calendar_ids or ["primary"])],
         }
-        response = await self._make_request("POST", "/freeBusy", json_data=body)
+        response = await self._make_request(
+            "POST", "/freeBusy", json_data=body, idempotent=True  # a read
+        )
         logger.info(
             "calendar_freebusy_queried",
             user_id=str(self.user_id),

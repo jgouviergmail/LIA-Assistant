@@ -1,7 +1,10 @@
-"""Supplied Google weather fields and OWM-compatible unit conversion."""
+"""Supplied Google weather fields, daily summaries and OWM-compatible unit conversion."""
 
 from collections.abc import Mapping
+from datetime import date
 from math import isfinite
+
+from src.domains.connectors.clients.weather_normalization import canonical_weather_main
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -14,6 +17,41 @@ def _number(value: object) -> float | None:
         if isinstance(value, int | float) and not isinstance(value, bool) and isfinite(value)
         else None
     )
+
+
+def _integer(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def daily_summary(day: Mapping[str, object]) -> dict[str, object] | None:
+    """One ``forecast/days`` entry as the card's daily strip reads it.
+
+    Args:
+        day: One entry of the provider's ``forecastDays``.
+
+    Returns:
+        Its local date, the provider's own low and high, and the day's and night's
+        OWM main conditions — or None when the entry lacks a valid date or either
+        temperature (never a guessed value). The provider's day runs from 07:00 to
+        07:00 the next day, local time (measured 2026-10-29), so its low is usually the
+        night that FOLLOWS the date, not the morning before it.
+    """
+    shown = _mapping(day.get("displayDate"))
+    year, month, number = (_integer(shown.get(key)) for key in ("year", "month", "day"))
+    low = _number(_mapping(day.get("minTemperature")).get("degrees"))
+    high = _number(_mapping(day.get("maxTemperature")).get("degrees"))
+    if year is None or month is None or number is None or low is None or high is None:
+        return None
+    try:
+        local = date(year, month, number).isoformat()
+    except ValueError:
+        return None
+    conditions = [
+        canonical_weather_main(str(kind))
+        for part in ("daytimeForecast", "nighttimeForecast")
+        if (kind := _mapping(_mapping(day.get(part)).get("weatherCondition")).get("type"))
+    ]
+    return {"date": local, "temp_min": low, "temp_max": high, "conditions": conditions}
 
 
 def google_weather_fields(payload: Mapping[str, object]) -> dict[str, object]:

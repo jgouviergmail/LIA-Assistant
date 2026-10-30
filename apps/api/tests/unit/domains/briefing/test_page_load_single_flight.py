@@ -431,7 +431,7 @@ async def test_a_page_load_survives_redis_being_down() -> None:
     with (
         rig.installed(),
         patch(
-            "src.domains.briefing.service.get_redis_cache",
+            "src.domains.briefing.section_outcomes.get_redis_cache",
             AsyncMock(side_effect=ConnectionError("redis-down")),
         ),
     ):

@@ -41,14 +41,25 @@ function thumbnailNames(): string[] {
     .filter(name => !name.startsWith('common.'));
 }
 
+/** Public path of a capture's static variant, with its campaign revision. */
+function variant(file: string, width: number, revision: string): string {
+  return `/screenshots/variants/${file}-${width}.webp?v=${revision}`;
+}
+
+/** The stage draws a variant and offers the larger ones; the original waits for full screen. */
+function expectStageVariants(image: HTMLElement, file: string, revision: string): void {
+  expect(image).toHaveAttribute('src', variant(file, 1024, revision));
+  expect(image.getAttribute('srcset')).toContain(`${variant(file, 640, revision)} 640w`);
+  expect(image.getAttribute('srcset')).toContain(variant(file, 1600, revision));
+}
+
 describe('ScreenshotsSection', () => {
-  it('keeps the application capture revision when opening the full-screen view', async () => {
+  it('shows a static variant on the stage and the revisioned original in full screen', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection view="dossier" />);
     const src = `/screenshots/proof/dossier.png?v=${applicationProof.revision}`;
     const image = screen.getByRole('img', { name: 'landing.screenshots.proof.dossier' });
-    expect(image).toHaveAttribute('src', src);
-    expect(image).not.toHaveAttribute('srcset');
+    expectStageVariants(image, 'dossier', applicationProof.revision);
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });
@@ -56,26 +67,37 @@ describe('ScreenshotsSection', () => {
   it('uses the monitoring revision for the Grafana images', () => {
     render(<ScreenshotsSection monitoring />);
     const image = screen.getByRole('img', { name: 'landing.screenshots.proof.grafana_overview' });
-    expect(image).toHaveAttribute(
-      'src',
-      `/screenshots/proof/grafana-overview.png?v=${monitoringProof.revision}`
-    );
-    expect(image).not.toHaveAttribute('srcset');
+    expectStageVariants(image, 'grafana-overview', monitoringProof.revision);
   });
 
-  it('starts with the personal hub and offers all 32 distinct application views', async () => {
+  it('loads no original until the visitor asks for the full-screen view', () => {
+    // The regression this pins: every thumbnail, the ambient band and the stage
+    // drew the 0.35-0.8 MB originals — 9.2 MB before the reader scrolled.
+    const { container } = render(<ScreenshotsSection />);
+    const sources = [...container.querySelectorAll('img')].map(img => img.getAttribute('src'));
+    expect(sources.length).toBeGreaterThan(32);
+    expect(sources.filter(src => !src?.startsWith('/screenshots/variants/'))).toEqual([]);
+    const thumbnail = within(
+      screen.getByRole('button', { name: 'landing.screenshots.proof.radio' })
+    ).getByRole('presentation', { hidden: true });
+    expect(thumbnail).toHaveAttribute('src', variant('radio', 256, applicationProof.revision));
+    expect(thumbnail).not.toHaveAttribute('srcset');
+  });
+
+  it('starts with the personal hub and offers all 31 distinct application views', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection />);
 
     const names = thumbnailNames();
-    expect(names).toHaveLength(32);
-    expect(new Set(names).size).toBe(32);
+    expect(names).toHaveLength(31);
+    expect(new Set(names).size).toBe(31);
     expect(applicationProof.images).toHaveLength(12);
     const extendedImages: { file: string }[] = extendedProof.images;
     expect(extendedImages).toHaveLength(18);
     expect(names[0]).toBe('landing.screenshots.proof.dashboard');
-    expect(names[1]).toBe('landing.screenshots.proof.world');
-    expect(names[2]).toBe('landing.screenshots.proof.dossier');
+    expect(names[1]).toBe('landing.screenshots.proof.dossier');
+    // The World capture belongs to its chapter (7) and is not repeated here.
+    expect(names).not.toContain('landing.screenshots.proof.world');
     expect(names).toContain('landing.screenshots.proof.radio');
     expect(names).toContain('landing.screenshots.proof.relations');
     expect(names).toContain('landing.screenshots.proof.meetings');
@@ -97,8 +119,7 @@ describe('ScreenshotsSection', () => {
     expect(names).not.toContain('landing.screenshots.proof.grafana_overview');
     const src = `/screenshots/dashboard-wide.png?v=${homeProof.revision}`;
     const image = screen.getByRole('img', { name: names[0] });
-    expect(image).toHaveAttribute('src', src);
-    expect(image).not.toHaveAttribute('srcset');
+    expectStageVariants(image, 'dashboard-wide', homeProof.revision);
     // The gallery uses the readable viewport capture and preserves its source in full screen.
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
@@ -108,9 +129,10 @@ describe('ScreenshotsSection', () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection view="world" />);
     const src = `/screenshots/proof/lia-world.jpg?v=${worldProof.revision}`;
-    expect(screen.getByRole('img', { name: 'landing.screenshots.proof.world' })).toHaveAttribute(
-      'src',
-      src
+    expectStageVariants(
+      screen.getByRole('img', { name: 'landing.screenshots.proof.world' }),
+      'lia-world',
+      worldProof.revision
     );
     expect(worldProof.images[0]).toMatchObject({ width: 2054, height: 1038 });
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
@@ -128,9 +150,11 @@ describe('ScreenshotsSection', () => {
     await user.keyboard('{End}');
 
     const src = `/screenshots/proof/administration.png?v=${applicationProof.revision}`;
-    expect(
-      screen.getByRole('img', { name: 'landing.screenshots.proof.administration' })
-    ).toHaveAttribute('src', src);
+    expectStageVariants(
+      screen.getByRole('img', { name: 'landing.screenshots.proof.administration' }),
+      'administration',
+      applicationProof.revision
+    );
     expect(
       screen.getByRole('button', { name: 'landing.screenshots.proof.administration' })
     ).toHaveAttribute('aria-current', 'true');
@@ -174,9 +198,11 @@ describe('ScreenshotsSection', () => {
     expect(activity).toHaveFocus();
     expect(activity).toHaveAttribute('aria-current', 'true');
     const src = `/screenshots/proof/grafana-activity.png?v=${monitoringProof.revision}`;
-    expect(
-      screen.getByRole('img', { name: 'landing.screenshots.proof.grafana_activity' })
-    ).toHaveAttribute('src', src);
+    expectStageVariants(
+      screen.getByRole('img', { name: 'landing.screenshots.proof.grafana_activity' }),
+      'grafana-activity',
+      monitoringProof.revision
+    );
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });

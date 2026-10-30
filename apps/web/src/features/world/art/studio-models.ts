@@ -41,8 +41,10 @@ function gallerySymbol(m: Model, o: WorldProp, y: number): void {
   }
 }
 function easel(m: Model, o: WorldProp, w: number): void {
-  for (const x of [0.1, w - 0.22]) m.box(x, 0.18, 0, 0.12, 0.16, 1.95, WOOD);
-  m.box(w / 2 - 0.06, 0.75, 0, 0.12, 0.12, 1.7, WOOD);
+  for (const x of [0.1, w - 0.22]) m.box(x, 0.18, 0, 0.12, 0.16, 1.78, WOOD);
+  m.box(w / 2 - 0.06, 0.02, 0, 0.12, 0.12, 1.7, WOOD);
+  m.box(w / 2 - 0.06, 0.02, 1.15, 0.12, 0.32, 0.08, WOOD);
+  m.box(0.16, 0.22, 0.45, w - 0.32, 0.08, 0.08, WOOD);
   m.box(0.02, 0.22, 0.74, w - 0.04, 0.14, 1.15, '#bd8c55');
   m.panel(0.1, 0.365, 0.82, w - 0.2, 0.99, '#faf2d9');
   gallerySymbol(m, o, 0.369);
@@ -71,8 +73,10 @@ function drawing(m: Model, w: number, d: number): void {
 function arcade(m: Model, o: WorldProp, w: number, d: number): void {
   const color = ACCENTS[o.tone];
   m.box(0.08, 0.08, 0, w - 0.16, d - 0.16, 0.9, DARK);
-  m.box(0, 0.08, 0.1, 0.13, d - 0.16, 2.3, color);
-  m.box(w - 0.13, 0.08, 0.1, 0.13, d - 0.16, 2.3, color);
+  for (const x of [0, w - 0.13]) {
+    m.box(x, 0.08, 0.1, 0.13, d - 0.16, 0.96, color);
+    m.box(x, 0.08, 1.06, 0.13, 0.8, 1.34, color);
+  }
   m.box(0.1, 0.12, 1, w - 0.2, 0.7, 1.13, DARK);
   m.panel(0.2, 0.825, 1.28, w - 0.4, 0.6, '#273f64');
   m.panel(0.27, 0.83, 1.36, w - 0.54, 0.09, '#71ded6');

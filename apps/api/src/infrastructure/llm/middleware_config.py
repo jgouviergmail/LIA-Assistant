@@ -12,9 +12,9 @@ Architecture (LangChain v1.1 / LangGraph v1.0):
 - Custom middleware (MessageHistoryMiddleware) remains unchanged
 
 Available LangChain Middleware (v1.1+):
-- ModelRetryMiddleware: Automatic retry on transient LLM failures
+- ModelRetryMiddleware: Automatic retry of a call that never reached the provider
 - SummarizationMiddleware: Context compression to manage token limits
-- ModelFallbackMiddleware: Automatic provider failover on errors
+- ModelFallbackMiddleware: Automatic provider failover on a failure whose outcome is known
 - ToolRetryMiddleware: Retry failed tool executions
 - ModelCallLimitMiddleware: Prevent infinite loops and cost explosion
 - ContextEditingMiddleware: Prune verbose tool results
@@ -34,7 +34,9 @@ if TYPE_CHECKING:
 from langchain.chat_models import init_chat_model
 
 from src.core.config import settings
+from src.infrastructure.llm.fallback_policy import KnownOutcomeFallbackMiddleware
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.utils.request_outcome import never_reached_the_server
 
 logger = get_logger(__name__)
 
@@ -402,6 +404,11 @@ def _create_retry_middleware() -> Any | None:
     - max_delay: float (default: 60.0) - maximum delay cap
     - jitter: bool (default: True) - add random variation ±25%
 
+    ``retry_on`` is ``never_reached_the_server``: a call that may have reached the provider
+    is never sent again — its generation may be running and billed (owner decision Q3 (a)
+    of 2026-10-28). The middleware cannot see the model, so a refused connection is still
+    retried here above a client's own loop: it buys nothing twice.
+
     See: https://docs.langchain.com/oss/python/langchain/middleware/built-in
 
     Returns:
@@ -419,6 +426,7 @@ def _create_retry_middleware() -> Any | None:
             initial_delay=settings.retry_initial_delay,
             max_delay=settings.retry_max_delay,
             jitter=settings.retry_jitter,
+            retry_on=never_reached_the_server,
             on_failure="continue",  # Return AIMessage on failure instead of raising
         )
 
@@ -440,7 +448,9 @@ def _create_retry_middleware() -> Any | None:
         try:
             from langchain.agents.middleware import ModelRetryMiddleware
 
-            return ModelRetryMiddleware(max_retries=settings.retry_max_attempts)
+            return ModelRetryMiddleware(
+                max_retries=settings.retry_max_attempts, retry_on=never_reached_the_server
+            )
         except TypeError, ImportError, ValueError, RuntimeError:
             return None
     except (ImportError, ValueError, RuntimeError, AttributeError) as e:
@@ -570,17 +580,17 @@ def _create_summarization_middleware(
 
 def _create_fallback_middleware(primary_model: str) -> Any | None:
     """
-    Create ModelFallbackMiddleware for multi-provider resilience.
+    Create the model fallback middleware for multi-provider resilience.
 
     LangChain ModelFallbackMiddleware API (v1.1+):
-    - first_model: str | BaseChatModel (required) - primary model to use
-    - *additional_models: str | BaseChatModel - fallback models in priority order
+    - first_model: str | BaseChatModel (required) - the FIRST FALLBACK (the
+      primary is the agent's own model; it is never put in the chain again)
+    - *additional_models: str | BaseChatModel - further fallbacks in priority order
 
-    Falls back to alternative models on:
-    - Rate limit errors (429)
-    - API errors (500, 502, 503, 504)
-    - Timeout errors
-    - Authentication errors
+    Falls back to alternative models on a failure whose outcome is known — an
+    error status (429, 5xx, an authentication refusal) or a request that never
+    left — and NEVER after a timeout or a connection lost once sent, where the
+    primary's generation may be running and billed (``fallback_policy.py``).
 
     See: https://docs.langchain.com/oss/python/langchain/middleware/built-in
 
@@ -594,14 +604,18 @@ def _create_fallback_middleware(primary_model: str) -> Any | None:
         return None
 
     try:
-        from langchain.agents.middleware import ModelFallbackMiddleware
-
         # Only the entries the catalogue can actually serve (ADR-244). Mounting
         # a chain whose targets do not exist is worse than mounting none: the
         # middleware reports a failover capability the deployment does not have.
         from src.infrastructure.llm.failover import usable_fallback_models
 
-        fallback_models = usable_fallback_models(settings.fallback_models)
+        # Never the primary again: its client already spent its relaunch budget
+        # (one layer of retries, Q3 of 2026-10-28).
+        fallback_models = [
+            name
+            for name in usable_fallback_models(settings.fallback_models)
+            if name != primary_model
+        ]
 
         if not fallback_models:
             logger.warning(
@@ -612,8 +626,9 @@ def _create_fallback_middleware(primary_model: str) -> Any | None:
             )
             return None
 
-        # Create middleware with primary + fallbacks
-        middleware = ModelFallbackMiddleware(primary_model, *fallback_models)
+        # The chain proper, entered only when the primary's outcome is known: after a
+        # timeout its generation may be running and billed (fallback_policy.py).
+        middleware = KnownOutcomeFallbackMiddleware(*fallback_models)
 
         logger.info(
             "fallback_middleware_created",

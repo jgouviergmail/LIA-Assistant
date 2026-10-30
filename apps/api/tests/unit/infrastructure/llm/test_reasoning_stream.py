@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
+from langchain_core.messages import AIMessageChunk
 
 from src.core.constants import REASONING_MAX_CHARS_PER_NODE
 from src.infrastructure.llm.reasoning_stream import (
@@ -315,3 +316,36 @@ class TestStreamReasoningEvents:
         )
         assert result is out
         assert emitted == []
+
+
+class _BreaksAfter:
+    """A runnable whose stream raises after ``chunks`` model chunks."""
+
+    def __init__(self, chunks: int) -> None:
+        self.chunks = chunks
+
+    async def astream_events(self, _payload: Any, **_kw: Any) -> Any:
+        for _ in range(self.chunks):
+            yield {
+                "event": "on_chat_model_stream",
+                "data": {"chunk": AIMessageChunk(content="a")},
+                "parent_ids": ["root"],
+            }
+        raise RuntimeError("stream cut")
+
+
+@pytest.mark.asyncio
+async def test_a_stream_that_broke_after_its_first_chunk_says_so() -> None:
+    """Never a stream after its first byte (Q3): the failure carries the note the relaunch
+    gate reads, and a stream that broke before any chunk carries none."""
+    from src.infrastructure.llm.client_retries import STREAM_BEGAN_NOTE, stream_began
+    from src.infrastructure.llm.reasoning_stream import stream_reasoning_events
+
+    with pytest.raises(RuntimeError) as began:
+        await stream_reasoning_events(_BreaksAfter(1), [], emit=lambda _text: None)
+    with pytest.raises(RuntimeError) as never_began:
+        await stream_reasoning_events(_BreaksAfter(0), [], emit=lambda _text: None)
+
+    assert STREAM_BEGAN_NOTE in getattr(began.value, "__notes__", ())
+    assert stream_began(began.value) is True
+    assert stream_began(never_began.value) is False

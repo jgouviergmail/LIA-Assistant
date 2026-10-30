@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.infrastructure.mcp.user_pool import PoolEntry, UserMCPClientPool
+from src.infrastructure.mcp.user_pool import DiscoveredCatalogue, PoolEntry, UserMCPClientPool
 
 
 @pytest.fixture
@@ -272,6 +272,7 @@ class TestCallTool:
                 arguments={"query": "hello"},
                 timeout_seconds=30,
                 extra_headers=None,
+                declaration=None,  # a discovered entry is verified: no check at use
             )
 
     @pytest.mark.asyncio
@@ -335,10 +336,73 @@ class TestGetOrConnect:
             pool,
             "_discover_tools",
             new_callable=AsyncMock,
-            return_value=(mock_tools, None),
+            return_value=DiscoveredCatalogue(tools=mock_tools),
         ):
             entry = await pool.get_or_connect(uid, sid, "https://mcp.example.com", MagicMock(), 30)
 
         assert entry.tools == mock_tools
         assert entry.reference_content is None
         assert pool.size == 1
+
+
+class TestMakeRoom:
+    """The global bound: an idle entry makes room, a pool of busy ones refuses."""
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_pool.settings")
+    async def test_a_full_pool_evicts_its_oldest_idle_entry(self, mock_settings, pool) -> None:
+        mock_settings.mcp_user_pool_max_total = 1
+        old_key = (uuid4(), uuid4())
+        pool._entries[old_key] = _make_entry(*old_key, last_used=time.monotonic() - 60)
+
+        await pool._make_room((uuid4(), uuid4()))
+
+        assert old_key not in pool._entries
+
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_pool.settings")
+    async def test_a_pool_full_of_busy_entries_refuses(self, mock_settings, pool) -> None:
+        mock_settings.mcp_user_pool_max_total = 1
+        busy_key = (uuid4(), uuid4())
+        pool._entries[busy_key] = _make_entry(*busy_key, active_calls=1)
+
+        with pytest.raises(RuntimeError, match="pool is full"):
+            await pool._make_room((uuid4(), uuid4()))
+
+        assert busy_key in pool._entries
+
+
+class TestForcedRefreshDuringPreparation:
+    @pytest.mark.asyncio
+    async def test_a_forced_refresh_never_serves_the_stored_snapshot(self, pool) -> None:
+        """The manual test asks the network, whatever the row or the worker holds."""
+        from src.infrastructure.mcp.user_pool import Connection
+
+        key = (uuid4(), uuid4())
+        pool._entries[key] = _make_entry(*key)
+        served = await pool._serve_without_network(
+            key,
+            "cfg",
+            True,
+            {"version": 2, "generation": 1},
+            Connection("https://mcp.example.com/sse", MagicMock(), 30, None),
+        )
+
+        assert served is None
+
+
+class TestFetchReference:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("answer", "expected"), [("# Guide", "# Guide"), ("", None)])
+    async def test_the_reference_is_the_read_me_answer_or_nothing(
+        self, pool, answer: str, expected: str | None
+    ) -> None:
+        from src.infrastructure.mcp.user_pool import MCP_REFERENCE_TOOL_NAME
+
+        user_id, server_id = uuid4(), uuid4()
+        pool.call_tool = AsyncMock(return_value=answer)
+
+        assert await pool.fetch_reference(user_id, server_id, 7) == expected
+        pool.call_tool.assert_awaited_once_with(
+            user_id, server_id, MCP_REFERENCE_TOOL_NAME, {}, timeout_seconds=7
+        )

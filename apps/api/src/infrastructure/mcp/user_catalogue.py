@@ -1,4 +1,11 @@
-"""Fresh request routing descriptions without overwriting stored operator text."""
+"""Request routing descriptions without overwriting stored operator text.
+
+The capabilities a description states come from the server's declarations —
+discovered over the network this turn, or read from the persisted snapshot
+(spec 2026-10-21 §5.2, ADR-338 amendment for personal servers' turn
+preparation only). One wording, « Declared capabilities: », is true for both;
+the provenance says which, for the debug panel and the register.
+"""
 
 from __future__ import annotations
 
@@ -15,20 +22,23 @@ from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
 class UserServerCatalogue:
     description: str
     fingerprint: str
-    source: Literal["stored+discovered", "discovered"]
+    source: Literal["stored+discovered", "discovered", "stored+snapshot", "snapshot"]
 
 
 def describe_user_server(
     server_name: str,
     stored_description: str | None,
     tools: Sequence[Mapping[str, object]],
+    *,
+    from_snapshot: bool = False,
 ) -> UserServerCatalogue:
-    """Preserve operator text and state the currently usable discovered capabilities.
+    """Preserve operator text and state the server's currently usable declared capabilities.
 
     Args:
         server_name: User-facing server identity.
         stored_description: Existing description, whose provenance is not assumed.
         tools: Only declarations whose adapters and manifests were built successfully.
+        from_snapshot: The declarations come from the persisted snapshot, not the network.
 
     Returns:
         A deterministic description and fingerprint for this request's catalogue.
@@ -39,17 +49,23 @@ def describe_user_server(
     ]
     fresh = auto_generate_server_description(descriptions, server_name, tool_names=names)
     description = (
-        f"{stored_description}\nCurrent discovered capabilities: {fresh}"
-        if stored_description
-        else fresh
+        f"{stored_description}\nDeclared capabilities: {fresh}" if stored_description else fresh
     )
     return UserServerCatalogue(
         description=description,
         fingerprint=canonical_fingerprint(
             {"tools": list(tools), "stored_description": stored_description}
         ),
-        source="stored+discovered" if stored_description else "discovered",
+        source=_source(stored=bool(stored_description), from_snapshot=from_snapshot),
     )
+
+
+def _source(
+    *, stored: bool, from_snapshot: bool
+) -> Literal["stored+discovered", "discovered", "stored+snapshot", "snapshot"]:
+    if from_snapshot:
+        return "stored+snapshot" if stored else "snapshot"
+    return "stored+discovered" if stored else "discovered"
 
 
 def publish_user_server(
@@ -57,12 +73,9 @@ def publish_user_server(
     server_name: str,
     domain: str,
     catalogue: UserServerCatalogue,
-    reference_content: str | None,
 ) -> None:
     """Publish a server only after its usable tools and manifests exist."""
     ctx.server_domains[server_name] = domain
     ctx.server_descriptions[server_name] = catalogue.description
     ctx.server_catalogue_fingerprints[server_name] = catalogue.fingerprint
     ctx.server_description_sources[server_name] = catalogue.source
-    if reference_content:
-        ctx.server_reference_content[server_name] = reference_content

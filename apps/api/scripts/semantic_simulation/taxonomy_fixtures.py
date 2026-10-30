@@ -71,7 +71,7 @@ def _user_server(variant: MenuVariant) -> UserMCPToolsContext:
         None,
         [{"name": "create_diagram" if iterative else "read_record", "description": description}],
     )
-    publish_user_server(ctx, name, domain, catalogue, None)
+    publish_user_server(ctx, name, domain, catalogue)
     return ctx
 
 

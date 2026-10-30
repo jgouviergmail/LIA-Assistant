@@ -27,6 +27,7 @@ from src.core.config import settings
 from src.core.constants import (
     GOOGLE_WEATHER_API_BASE_URL,
     GOOGLE_WEATHER_FORECAST_PAGE_SIZE,
+    GOOGLE_WEATHER_MAX_FORECAST_DAYS,
     GOOGLE_WEATHER_MAX_FORECAST_HOURS,
     HTTP_MAX_CONNECTIONS,
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
@@ -42,6 +43,7 @@ from src.domains.connectors.clients.google_geocoding_helpers import (
 )
 from src.domains.connectors.clients.google_weather_projection import (
     convert_owm_units,
+    daily_summary,
     google_weather_fields,
 )
 from src.domains.connectors.clients.weather_normalization import (
@@ -197,6 +199,9 @@ class GoogleWeatherClient:
 
     connector_type = ConnectorType.GOOGLE_WEATHER
     api_base_url = GOOGLE_WEATHER_API_BASE_URL
+    #: The card reads its daily strip from the provider's own summaries — one request
+    #: for every day, where the hourly pages cap at 24 hours each (spec 2026-10-21 W1b).
+    native_daily_summaries = True
 
     def __init__(self, user_id: UUID, rate_limit_per_second: int = 10) -> None:
         """Initialize with the platform API key (no per-user credentials).
@@ -208,6 +213,8 @@ class GoogleWeatherClient:
         self.user_id = user_id
         self._rate_limit_interval = 1.0 / rate_limit_per_second
         self._last_request_time = 0.0
+        self._http: httpx.AsyncClient | None = None
+        self._closed = False
 
     @property
     def api_key(self) -> str:
@@ -226,26 +233,43 @@ class GoogleWeatherClient:
             await asyncio.sleep(self._rate_limit_interval - elapsed)
         self._last_request_time = time.time()
 
+    def _transport(self) -> httpx.AsyncClient:
+        """The instance's one HTTP client, opened at its first request.
+
+        A card reads current conditions and five forecast pages: on a fresh
+        client per request each paid its own TLS setup (about 672 ms measured,
+        spec 2026-10-21 §0ter W1). The read-budget hooks stay bound to the
+        instance's account.
+
+        Raises:
+            RuntimeError: The instance was closed — a late request (an orphaned
+                forecast page) must not open a client nobody would close.
+        """
+        if self._closed:
+            raise RuntimeError("GoogleWeatherClient used after close()")
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                timeout=float(settings.http_timeout_weather),
+                event_hooks=source_http_hooks(self.user_id),
+                limits=httpx.Limits(
+                    max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
+                    max_connections=HTTP_MAX_CONNECTIONS,
+                ),
+            )
+        return self._http
+
     async def _make_request(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         """GET one Weather API endpoint with the platform key."""
         await self._rate_limit()
         query = {**params, "key": self.api_key}
-        async with httpx.AsyncClient(
-            timeout=float(settings.http_timeout_weather),
-            event_hooks=source_http_hooks(self.user_id),
-            limits=httpx.Limits(
-                max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
-                max_connections=HTTP_MAX_CONNECTIONS,
-            ),
-        ) as client:
-            response = await client.get(f"{self.api_base_url}{endpoint}", params=query)
-            if response.status_code >= 400:
-                raise ConnectorAPIError(
-                    connector_type=self.connector_type.value,
-                    status_code=response.status_code,
-                    detail="Google Weather API error",
-                )
-            return dict(response.json())
+        response = await self._transport().get(f"{self.api_base_url}{endpoint}", params=query)
+        if response.status_code >= 400:
+            raise ConnectorAPIError(
+                connector_type=self.connector_type.value,
+                status_code=response.status_code,
+                detail="Google Weather API error",
+            )
+        return dict(response.json())
 
     async def _resolve_point(
         self, lat: float | None, lon: float | None, city: str | None, country: str | None
@@ -268,7 +292,15 @@ class GoogleWeatherClient:
     # =========================================================================
 
     async def close(self) -> None:
-        """No-op: HTTP clients are per-call (briefing/heartbeat call close())."""
+        """Release the HTTP client; idempotent, and the instance serves nothing after it.
+
+        Every owner closes: the briefing fetcher, the heartbeat aggregator, the
+        discussion weather and ``ToolDependencies.aclose``.
+        """
+        self._closed = True
+        http, self._http = self._http, None
+        if http is not None:
+            await http.aclose()
 
     async def reverse_geocode(self, lat: float, lon: float, limit: int = 5) -> list[dict[str, Any]]:
         """Reverse geocode via Google Geocoding, in the OWM geo/1.0 list shape."""
@@ -442,6 +474,36 @@ class GoogleWeatherClient:
             cnt=min(days, 10) * 8,  # 8 three-hour slots per day, 10-day cap
         )
         return aggregate_daily_forecast(forecast, days, user_timezone)
+
+    async def get_daily_summaries(
+        self, lat: float, lon: float, *, lang: str | None, days: int
+    ) -> list[dict[str, Any]]:
+        """The provider's own daily summaries, in ONE billed request.
+
+        Args:
+            lat: Latitude.
+            lon: Longitude.
+            lang: Language of the request (the summaries carry codes, not words).
+            days: How many days from today, bounded by the provider's ten.
+
+        Returns:
+            One summary per readable day (``daily_summary``), in the provider's order.
+        """
+        wanted = min(max(days, 1), GOOGLE_WEATHER_MAX_FORECAST_DAYS)
+        payload = await self._make_request(
+            "/v1/forecast/days:lookup",
+            params={
+                "location.latitude": lat,
+                "location.longitude": lon,
+                "unitsSystem": "METRIC",
+                "languageCode": lang or resolve_language(),
+                "days": wanted,
+                "pageSize": wanted,
+            },
+        )
+        track_google_api_call("weather", "/v1/forecast/days:lookup", cached=False)
+        summaries = (daily_summary(day) for day in payload.get("forecastDays", []))
+        return [summary for summary in summaries if summary is not None][:wanted]
 
     @staticmethod
     def get_weather_icon_url(icon_code: str, size: str = "2x") -> str:

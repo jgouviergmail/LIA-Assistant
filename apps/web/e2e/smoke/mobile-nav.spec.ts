@@ -15,8 +15,16 @@ import { test, expect, briefingCardsMock, type MockRoute } from '../fixtures';
 const ROUTES: MockRoute[] = [
   briefingCardsMock,
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: 'Bonjour', synthesis: null, generated_at: null, llm_usage: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: 'Bonjour',
+      synthesis: null,
+      generated_at: null,
+      llm_usage: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   { url: '**/api/v1/usage/**', json: {} },
 ];

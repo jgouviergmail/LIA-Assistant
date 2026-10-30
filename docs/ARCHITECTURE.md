@@ -25,6 +25,28 @@ activation interactive facturée au clic ([cartes HTML](technical/HTML_CARDS.md)
 Ces flux réutilisent les contrats de sources et de contexte existants sans
 ajouter de clé d'état LangGraph pour une simple annotation ou un widget.
 
+## Attendre moins, et le dire
+
+Le catalogue d'un serveur MCP personnel est un instantané rangé sur la ligne du
+compte : chaque worker le sert, même juste après un redémarrage, pendant qu'un
+seul le revalide en arrière-plan sous une revendication à jeton propriétaire.
+Les serveurs qu'il faut interroger de nouveau sont préparés en parallèle sous un
+plafond ; un serveur lent est nommé dans une notice, un serveur laissé de côté
+termine sa préparation pour le message suivant, et un appel vérifie la
+déclaration sur laquelle il s'appuie avant d'être envoyé. Voir
+[ADR-366](architecture/ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md).
+
+L'accueil se remplit carte par carte sous un même acte signé : ce que le cache
+sert s'affiche d'emblée, chaque carte lente arrive par sa propre requête, et le
+bonjour comme la synthèse s'écrivent une fois toutes les cartes arrivées. Voir
+[ADR-271](architecture/ADR-271-One-Page-Load-One-Act-Of-Reading.md) et
+[le domaine briefing](technical/BRIEFING_DOMAIN.md).
+
+Une génération dont l'issue est inconnue n'est jamais relancée, et une requête
+de connecteur n'est renvoyée que si elle ne peut pas répéter un acte : une
+création d'événement porte l'idempotence propre au fournisseur. Voir
+[ADR-221](architecture/ADR-221-Timeout-Par-Emplacement-Applique.md).
+
 ## Monde partagé et fonctions privées
 
 Le [monde LIA](technical/WORLD_PROTOTYPE.md) propose une autre entrée dans
@@ -472,7 +494,13 @@ apps/api/src/
         ├── oauth_flow.py        # OAuth 2.1 flow for MCP servers
         ├── tool_adapter.py      # MCP tool → LangChain tool adaptation
         ├── user_tool_adapter.py # Per-user MCP tool binding
-        ├── user_pool.py         # Connection pool (per-user sessions)
+        ├── user_pool.py         # Connection pool (per-user sessions): memory, snapshot or network
+        ├── user_preparation.py  # Parallel preparation of a turn's personal servers under a ceiling
+        ├── catalogue_snapshot.py     # A personal server's catalogue kept on the account's row (ADR-366)
+        ├── catalogue_revalidation.py # Background revalidation under an owner-token claim
+        ├── pool_catalogue.py    # A pool entry's catalogue: warm, hydrated or discovered
+        ├── declaration_check.py # The declaration a call relies on, verified at use
+        ├── reference_content.py # read_me fetched at real use, once per server
         ├── user_context.py      # ContextVar[UserMCPToolsContext]
         ├── security.py          # MCP transport security
         ├── registration.py      # Server discovery & registration

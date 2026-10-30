@@ -17,7 +17,9 @@ from src.domains.agents.services.tool_vectors import (
     get_server_vector_cache,
     reset_server_vector_cache,
 )
-from src.infrastructure.mcp.user_context import _usable_tool_embeddings
+from src.infrastructure.mcp.server_vectors import (
+    usable_tool_embeddings as _usable_tool_embeddings,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -25,7 +27,16 @@ TOOLS: list[dict[str, Any]] = [{"name": "hub_search", "description": "Search", "
 ENVELOPE = wrap_server_cache(
     {"hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]], "keyword_names": ["srv"]}},
     tool_metadata=TOOLS,
+    server_name="TestServer",
 )
+
+
+@pytest.fixture(autouse=True)
+def _account_may_spend() -> Iterator[None]:
+    with patch(
+        "src.domains.usage_limits.enforcement.spend_blocked", new=AsyncMock(return_value=False)
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +64,7 @@ def repo() -> Iterator[AsyncMock]:
 
 
 def _server() -> Any:
-    return SimpleNamespace(id=uuid4(), name="TestServer")
+    return SimpleNamespace(id=uuid4(), name="TestServer", user_id=uuid4())
 
 
 class TestParsedOncePerCatalogue:
@@ -71,17 +82,20 @@ class TestParsedOncePerCatalogue:
 
     async def test_a_changed_catalogue_reads_the_envelope_again(self, repo: AsyncMock) -> None:
         server = _server()
-        changed = [*TOOLS, {"name": "hub_fetch", "description": "Fetch", "input_schema": {}}]
-        repo.get_tool_embeddings_cache.side_effect = [
-            ENVELOPE,
-            wrap_server_cache({}, tool_metadata=changed),
-        ]
+        fetch = {"name": "hub_fetch", "description": "Fetch", "input_schema": {}}
+        changed = [*TOOLS, fetch]
+        repo.get_by_id = AsyncMock(return_value=MagicMock())
 
-        await _usable_tool_embeddings(server, TOOLS)
-        after = await _usable_tool_embeddings(server, changed)
+        with patch(
+            "src.domains.agents.services.tool_selector.compute_tool_embeddings",
+            new=AsyncMock(return_value={"hub_fetch": {"description": [0.5, 0.6]}}),
+        ) as compute:
+            await _usable_tool_embeddings(server, TOOLS)
+            after = await _usable_tool_embeddings(server, changed)
 
         assert repo.get_tool_embeddings_cache.await_count == 2
-        assert after == {}
+        compute.assert_awaited_once_with(tool_metadata=[fetch], server_name="TestServer")
+        assert set(after) == {"hub_search", "hub_fetch"}
         assert len(get_server_vector_cache()) == 2
 
     async def test_two_servers_never_share_an_entry(self, repo: AsyncMock) -> None:
@@ -101,13 +115,31 @@ class TestTheReadIsBestEffort:
         assert await _usable_tool_embeddings(server, TOOLS) == {}
         assert len(get_server_vector_cache()) == 0, "a failure is never cached"
 
-    async def test_a_row_without_envelope_is_empty_and_cached(self, repo: AsyncMock) -> None:
+    async def test_a_row_without_envelope_heals_once_then_is_cached(self, repo: AsyncMock) -> None:
         repo.get_tool_embeddings_cache.return_value = None
+        repo.get_by_id = AsyncMock(return_value=MagicMock())
         server = _server()
 
-        assert await _usable_tool_embeddings(server, TOOLS) == {}
-        assert await _usable_tool_embeddings(server, TOOLS) == {}
+        with patch(
+            "src.domains.agents.services.tool_selector.compute_tool_embeddings",
+            new=AsyncMock(return_value={"hub_search": {"description": [0.5, 0.6]}}),
+        ) as compute:
+            await _usable_tool_embeddings(server, TOOLS)
+            await _usable_tool_embeddings(server, TOOLS)
+
+        compute.assert_awaited_once()
         repo.get_tool_embeddings_cache.assert_awaited_once()
+
+    async def test_an_unreadable_ceiling_costs_the_ranking_never_the_tools(
+        self, repo: AsyncMock
+    ) -> None:
+        repo.get_tool_embeddings_cache.return_value = None
+        with patch(
+            "src.domains.usage_limits.enforcement.spend_blocked",
+            new=AsyncMock(side_effect=ConnectionError("redis down")),
+        ):
+            assert await _usable_tool_embeddings(_server(), TOOLS) == {}
+        assert len(get_server_vector_cache()) == 0, "an incomplete set is never cached"
 
 
 class TestAStaleEnvelopeIsRecomputedThenCached:

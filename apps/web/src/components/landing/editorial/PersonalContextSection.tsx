@@ -61,7 +61,7 @@ export async function PersonalContextSection({ lng }: { lng: string }) {
             <Brain className="size-6 shrink-0 text-primary" aria-hidden="true" />
             {t('landing.context.center_title')}
           </h3>
-          <p className="mt-3 max-w-[75ch] text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 max-w-[75ch] text-sm leading-6 text-muted-foreground">
             {t('landing.context.center_body')}
           </p>
           <div
@@ -82,7 +82,7 @@ export async function PersonalContextSection({ lng }: { lng: string }) {
             </div>
           ))}
         </dl>
-        <p className="mt-7 max-w-[90ch] text-xs leading-6 text-muted-foreground">
+        <p className="mt-7 max-w-[90ch] text-xs leading-5 text-muted-foreground">
           {t('landing.context.control')}
         </p>
       </div>

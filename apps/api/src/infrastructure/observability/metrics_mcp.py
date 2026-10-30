@@ -21,6 +21,42 @@ from prometheus_client import Counter, Gauge, Histogram
 mcp_catalogue_cache_total = Counter(
     "mcp_catalogue_cache_total", "MCP catalogue reuse or bounded rediscovery", ["result"]
 )
+# outcome: published | configuration_changed | inactive | missing | superseded
+mcp_user_catalogue_publications_total = Counter(
+    "mcp_user_catalogue_publications_total",
+    "Conditional writes of a personal MCP catalogue snapshot, by outcome",
+    ["outcome"],
+)
+# outcome: fetched | empty | failed | timed_out | busy — a personal server's read_me
+# fetched at real use (spec 2026-10-21 §5.5b); busy = another worker holds the claim.
+mcp_user_reference_fetches_total = Counter(
+    "mcp_user_reference_fetches_total",
+    "Personal MCP read_me fetches at real use, by outcome",
+    ["outcome"],
+)
+# One personal server's preparation for a turn (spec 2026-10-21 §5.3).
+# source: catalogue (memory or persisted snapshot, no network) | network
+# outcome: ready | paused | failed | timed_out
+mcp_user_server_preparation_seconds = Histogram(
+    "mcp_user_server_preparation_seconds",
+    "Preparation of one personal MCP server for a turn, by source and outcome",
+    ["source", "outcome"],
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0],
+)
+# outcome: published | configuration_changed | inactive | missing | superseded | busy |
+# paused | failed | timed_out — a background revalidation of an aged catalogue (§5.4).
+mcp_user_catalogue_revalidations_total = Counter(
+    "mcp_user_catalogue_revalidations_total",
+    "Background revalidations of a personal MCP catalogue, by outcome",
+    ["outcome"],
+)
+# outcome: identical | compatible | missing | incompatible | tightened — a call built
+# from an unverified personal catalogue, checked in its own session (§5.5).
+mcp_user_declaration_checks_total = Counter(
+    "mcp_user_declaration_checks_total",
+    "Personal MCP tool declarations checked at use, by outcome",
+    ["outcome"],
+)
 mcp_semantic_unusable_values_total = Counter(
     "mcp_semantic_unusable_values_total",
     "Received MCP values unusable under declared known formats",

@@ -19,8 +19,9 @@ import { cn } from '@/lib/utils';
  *   instead of floating inside a fixed-height box (a 0.88-ratio capture in a
  *   768x620 frame left 29 % of the stage empty; the home page left 47 %).
  * - What letterboxing remains is filled by an out-of-focus copy of the same
- *   picture. Served at 32 px (~1 KB) it also arrives first, so it doubles as
- *   the progressive placeholder while the full image decodes.
+ *   picture. Served small (the thumbnail's own variant for a capture, 32 px
+ *   through the optimizer for the deck) it also arrives first, so it doubles
+ *   as the progressive placeholder while the full image decodes.
  * - Navigation is shown when there is more than one view. Those controls are
  *   always visible: the previous arrows were `opacity-0
  *   group-hover:opacity-100`, i.e. permanently invisible on touch devices
@@ -45,6 +46,23 @@ export interface CarouselSlide {
   caption: string;
   /** Native ratio for a full-page capture, kept readable in a narrower frame. */
   aspectRatio?: number;
+  /**
+   * Pre-generated static variants (`lib/landing/captures.ts`): the stage reads
+   * `src`/`srcSet`, the thumbnail and the ambient band read `thumbSrc`, and
+   * only the full-screen view fetches `src` above. A slide without them goes
+   * through the image optimizer (the slide deck).
+   */
+  variants?: SlideVariants;
+}
+
+/** A slide's pre-generated WebP candidates. */
+export interface SlideVariants {
+  /** The stage candidate for a browser that ignores `srcSet`. */
+  src: string;
+  /** Every stage candidate, with the width it actually has. */
+  srcSet: string;
+  /** The small candidate shared by the thumbnail and the ambient band. */
+  thumbSrc: string;
 }
 
 export type CarouselVariant = 'portrait' | 'wide' | 'application';
@@ -110,12 +128,62 @@ export interface LandingCarouselProps {
   uniformFrame?: boolean;
 }
 
+/**
+ * One picture of a slide, filling its positioned frame.
+ *
+ * A slide with static variants is drawn by a plain `<img>` from them — the
+ * candidates already exist as files, so `next/image` would only add a resize
+ * on the host and a response the CDN cannot cache (ADR-330). The stage offers
+ * every candidate; a preview (thumbnail, ambient band) takes the small one.
+ * A slide without variants keeps the image optimizer.
+ */
+function SlideImage({
+  slide,
+  stage,
+  sizes,
+  alt,
+  className,
+}: {
+  slide: CarouselSlide;
+  /** The stage picture, rather than a thumbnail or the ambient band. */
+  stage: boolean;
+  sizes: string;
+  alt: string;
+  className: string;
+}) {
+  const hidden = alt === '' ? true : undefined;
+  if (!slide.variants) {
+    return (
+      <Image
+        src={slide.src}
+        alt={alt}
+        aria-hidden={hidden}
+        fill
+        sizes={sizes}
+        className={className}
+      />
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- pre-generated static variants, no optimizer (ADR-330)
+    <img
+      src={stage ? slide.variants.src : slide.variants.thumbSrc}
+      srcSet={stage ? slide.variants.srcSet : undefined}
+      sizes={stage ? sizes : undefined}
+      alt={alt}
+      aria-hidden={hidden}
+      loading="lazy"
+      decoding="async"
+      className={cn('absolute inset-0 size-full', className)}
+    />
+  );
+}
+
 /** Selection stays above the variable-height image in a mixed gallery. */
 function CarouselThumbnailRail({
   slides,
   index,
   frame,
-  variant,
   mixedFormats,
   railRef,
   thumbRefs,
@@ -124,7 +192,6 @@ function CarouselThumbnailRail({
   slides: readonly CarouselSlide[];
   index: number;
   frame: Frame;
-  variant: CarouselVariant;
   mixedFormats: boolean;
   railRef: React.RefObject<HTMLDivElement | null>;
   thumbRefs: React.RefObject<(HTMLButtonElement | null)[]>;
@@ -161,11 +228,10 @@ function CarouselThumbnailRail({
               : 'border-border/40 opacity-55 hover:border-border hover:opacity-90'
           )}
         >
-          <Image
-            src={slide.src}
-            unoptimized={variant === 'application'}
+          <SlideImage
+            slide={slide}
+            stage={false}
             alt=""
-            fill
             sizes={frame.thumbSizes}
             className="object-cover object-top"
           />
@@ -222,7 +288,6 @@ function CarouselNavigation({
 function CarouselImageStage({
   active,
   frame,
-  variant,
   uniformFrame,
   index,
   total,
@@ -235,7 +300,6 @@ function CarouselImageStage({
 }: {
   active: CarouselSlide;
   frame: Frame;
-  variant: CarouselVariant;
   uniformFrame: boolean;
   index: number;
   total: number;
@@ -261,26 +325,23 @@ function CarouselImageStage({
       )}
       style={!uniformFrame && active.aspectRatio ? { aspectRatio: active.aspectRatio } : undefined}
     >
-      {/* Ambient light fills the frame. Application proofs use their
-          revisioned originals, shared by the browser cache with the
-          sharp image; decks retain the small optimized source. */}
-      <Image
+      {/* Ambient light fills the frame: the thumbnail's own small candidate,
+          already in the browser cache, blurred; decks retain the small
+          optimized source. */}
+      <SlideImage
         key={`${active.src}#ambient`}
-        src={active.src}
-        unoptimized={variant === 'application'}
+        slide={active}
+        stage={false}
         alt=""
-        aria-hidden="true"
-        fill
         sizes="32px"
         className="scale-110 object-cover opacity-45 blur-2xl saturate-150"
       />
       <div aria-hidden="true" className="absolute inset-0 bg-background/30" />
-      <Image
+      <SlideImage
         key={active.src}
-        src={active.src}
-        unoptimized={variant === 'application'}
+        slide={active}
+        stage
         alt={active.label}
-        fill
         sizes={frame.sizes}
         className={portrait && uniformFrame ? 'object-cover object-top' : 'object-contain'}
       />
@@ -396,7 +457,6 @@ export function LandingCarousel({
       slides={slides}
       index={index}
       frame={frame}
-      variant={variant}
       mixedFormats={mixedFormats}
       railRef={railRef}
       thumbRefs={thumbRefs}
@@ -432,7 +492,6 @@ export function LandingCarousel({
         <CarouselImageStage
           active={active}
           frame={frame}
-          variant={variant}
           uniformFrame={uniformFrame}
           index={index}
           total={total}

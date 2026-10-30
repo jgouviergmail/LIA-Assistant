@@ -115,7 +115,6 @@
     "docs/architecture/ADR-218-Surface-Verifiee-Du-Demonstrateur.md",
     "docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md",
     "docs/architecture/ADR-220-Comptabilite-Usage-LLM-Declaree.md",
-    "docs/architecture/ADR-221-Timeout-Par-Emplacement-Applique.md",
     "docs/architecture/ADR-222-Suppression-Strategie-HITL-Non-Cablee.md",
     "docs/architecture/ADR-223-Tarification-LLM-Par-Plages-Horaires-UTC.md",
     "docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md",

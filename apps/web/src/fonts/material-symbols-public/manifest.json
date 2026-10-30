@@ -1,0 +1,7 @@
+{
+  "axes": "opsz,wght,FILL,GRAD@20..24,400,0..1,0",
+  "icons": ["block", "check_circle", "delete", "edit_note", "forward", "info", "phone", "reply"],
+  "source": "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0&icon_names=block,check_circle,delete,edit_note,forward,info,phone,reply&display=block",
+  "file": "material-symbols-public.woff2",
+  "sha256": "51574139049cc3d245559449558819a13ae327010612b4194dda5ca8d5eee3f3"
+}

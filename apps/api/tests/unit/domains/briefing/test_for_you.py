@@ -281,6 +281,7 @@ class TestForYouInSynthesis:
     async def test_synthesis_prompt_receives_portrait_block(self):
 
         from src.domains.briefing import llm as briefing_llm
+        from src.domains.briefing.sms_context import NO_PROMPT_SMS
 
         user = SimpleNamespace(
             id=uuid4(),
@@ -320,6 +321,7 @@ class TestForYouInSynthesis:
                 user_tz=TZ,
                 cards=self._bundle_with_for_you(),
                 language="fr",
+                prompt_sms=NO_PROMPT_SMS,
             )
 
         assert text == "Synthèse."

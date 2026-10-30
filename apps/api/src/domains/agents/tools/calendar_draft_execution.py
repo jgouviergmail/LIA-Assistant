@@ -13,6 +13,7 @@ import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
+from src.domains.agents.effects.scope import current_scope
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -117,6 +118,8 @@ async def execute_event_draft(
 
     client, resolved_type = await resolve_client_for_category("calendar", user_id, deps)
     calendar_id = await _resolve_calendar_id(draft_content, client, user_id, resolved_type, deps)
+    # The effect's key names this act, so a resend inside the client is the same act (S1).
+    scope = current_scope()
 
     result = await client.create_event(
         summary=draft_content["summary"],
@@ -128,6 +131,7 @@ async def execute_event_draft(
         attendees=draft_content.get("attendees"),
         calendar_id=calendar_id,
         add_conference=draft_content.get("add_conference", False),
+        idempotency_key=scope.idempotency_key if scope is not None else None,
     )
 
     # No PII at INFO: the event title is user content (ids and flags only).

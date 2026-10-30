@@ -88,6 +88,7 @@ from src.domains.agents.utils.react_budget import (
 from src.domains.agents.utils.react_budget import (
     uncharged_wall_seconds as _uncharged_wall_seconds,
 )
+from src.infrastructure.llm.client_retries import may_send_in_another_form
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -404,8 +405,9 @@ async def react_call_model_node(
 
     # Stream the model's reasoning live (thinking models) to the progress UI via
     # the custom channel, while returning the SAME aggregated AIMessage as
-    # ``ainvoke`` (tool_calls/content identical — proven by prod POC). On any
-    # failure or empty result, fall back to ``ainvoke`` so the loop never breaks.
+    # ``ainvoke`` (tool_calls/content identical — proven by prod POC). An empty
+    # result or a failure that generated nothing falls back to ``ainvoke``; a
+    # provider failure that may have generated is raised (Q3 (a)).
     from src.infrastructure.llm.reasoning_stream import (
         make_reasoning_emit,
         stream_reasoning_events,
@@ -427,7 +429,11 @@ async def react_call_model_node(
                 emit=make_reasoning_emit("react_call_model"),
                 config=config,
             )
-        except Exception as exc:  # defensive: reasoning streaming must never break the loop
+        except Exception as exc:  # a capture defect falls back; a provider failure does not
+            # Q3 (a): the buffered call is a second generation — never after an
+            # unknown outcome, never past the relaunch budget the client spent.
+            if not may_send_in_another_form(llm_with_tools, exc):
+                raise
             logger.warning(
                 "react_reasoning_stream_failed",
                 iteration=iteration + 1,

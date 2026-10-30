@@ -66,8 +66,8 @@ function weightbench(m: Model, o: WorldProp, w: number, d: number, decor: DecorP
   m.box(w - 0.25, 0.1, 0, 0.15, d - 0.2, 0.2, DARK);
   for (const y of [0.35, d - 0.5]) m.box(0.3, y, 0.2, w - 0.6, 0.15, 0.48, '#859b9f');
   m.box(0.4, 0.3, 0.65, w - 0.8, d - 0.6, 0.22, FURNITURE[o.tone].fabric);
-  for (const x of [0.1, w - 0.25]) m.box(x, 0.4, 0.2, 0.15, 0.15, 1.6, '#9eafb3');
-  for (const x of [0.07, w - 0.28]) m.box(x, 0.32, 1.48, 0.21, 0.27, 0.09, '#687e85');
+  for (const x of [0.3, w - 0.45]) m.box(x, 0.4, 0.2, 0.15, 0.15, 1.35, '#9eafb3');
+  for (const x of [0.27, w - 0.48]) m.box(x, 0.32, 1.48, 0.21, 0.27, 0.09, '#687e85');
   if (decor.press === undefined) m.parts.push(...barbellModel(w, decor));
 }
 function dumbbells(m: Model, w: number): void {

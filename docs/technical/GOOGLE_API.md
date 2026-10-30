@@ -49,6 +49,7 @@ L'application utilise deux catégories d'APIs Google :
 | **Web Risk API** | `/v1/uris:search` | **100,000 req** | $0.50 | Web Risk Search (filtrage URL, lot D) |
 | **Weather API** | `/v1/currentConditions:lookup` | **10,000 req** | $0.15 | Météo actuelle (lot E, connecteur google_weather) |
 | **Weather API** | `/v1/forecast/hours:lookup` | **10,000 req** | $0.15 | Prévisions horaires 10 j (lot E) |
+| **Weather API** | `/v1/forecast/days:lookup` | **10,000 req** | $0.15 | Résumés journaliers de la carte météo, 1 requête pour 5 jours (W1b, même SKU « Weather Usage ») |
 | **Air Quality API** | `/v1/currentConditions:lookup` | **10,000 req** | $5.00 | Qualité de l'air (lot E, connecteur google_environment) |
 | **Pollen API** | `/v1/forecast:lookup` | **5,000 req** | $10.00 | Prévisions polliniques 5 j (lot E) |
 | **Street View Static** | `/streetview` (+metadata gratuit) | **10,000 req** | $7.00 | Vignettes lieux/adresses (lot SV) — Static Street View ($2 dans le seed jusqu'à l'audit du 2026-09-23) |

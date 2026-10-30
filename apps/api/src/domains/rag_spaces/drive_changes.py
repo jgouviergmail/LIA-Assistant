@@ -27,6 +27,8 @@ from uuid import UUID
 
 from src.core.config import settings
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
+from src.domains.connectors.clients.google_drive_client import changes_feed_timeout
+from src.domains.connectors.clients.retry_policy import worst_request_seconds
 
 
 class DriveFeedError(Exception):
@@ -76,6 +78,49 @@ class ChangesPage:
     changes: list[dict[str, Any]]
     resume_token: str
     drained: bool
+
+
+def worst_drain_seconds(bounds: DrainBounds) -> float:
+    """The longest one drain can run: its deadline, then the page it started just before.
+
+    The deadline is read after each page, so the last page can start a moment before
+    it and then spend the whole budget of a request (every attempt, every backoff).
+
+    Args:
+        bounds: The drain's published bounds.
+
+    Returns:
+        Seconds.
+    """
+    return bounds.deadline_seconds + worst_request_seconds(changes_feed_timeout())
+
+
+def assert_drain_fits_a_wake() -> None:
+    """Refuse a drain that can outlive the wake serving it (boot, ADR-085 doctrine).
+
+    A wake past ``PUSH_WAKE_SERVE_TIMEOUT_SECONDS`` is cut: a drain that can run
+    longer is lost whole — its pages read, its token unmoved. Only a deployment that
+    drains a Drive feed is held to it (``PUSH_CHANNELS_ENABLED``): the bulk-read budget
+    also serves attachments and other bulk reads.
+
+    Not counted, and named: a 429's own ``Retry-After`` beyond the backoff, the rate
+    limiter's wait and a token refresh — none measured near the margin.
+
+    Raises:
+        AssertionError: Naming the worst drain, the wake's ceiling and what is not counted.
+    """
+    if not settings.push_channels_enabled:
+        return
+    worst = worst_drain_seconds(DrainBounds.from_settings())
+    ceiling = settings.push_wake_serve_timeout_seconds
+    if worst >= ceiling:
+        raise AssertionError(
+            f"the worst Drive changes drain ({worst:.0f} s: RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS "
+            "plus every attempt of one page under HTTP_TIMEOUT_CONNECTOR_LONG and "
+            f"HTTP_TIMEOUT_EXTERNAL_API) reaches PUSH_WAKE_SERVE_TIMEOUT_SECONDS ({ceiling} s); "
+            "not counted: a Retry-After beyond the backoff, the rate limiter's wait, a token "
+            "refresh"
+        )
 
 
 def _resume_of(page: dict[str, Any]) -> tuple[str, bool]:

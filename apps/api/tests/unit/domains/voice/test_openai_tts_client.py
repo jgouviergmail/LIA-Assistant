@@ -15,6 +15,7 @@ import pytest
 from openai import AsyncOpenAI
 from structlog.testing import capture_logs
 
+from src.core.config import settings
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.openai_tts_client import OpenAITTSClient
@@ -30,6 +31,16 @@ def _configured_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         LLMConfigOverrideCache, "get_api_key", classmethod(lambda cls, provider: "sk-test")
     )
+
+
+async def test_a_timed_out_spoken_answer_is_never_bought_twice() -> None:
+    """A billed generation's outcome is unknown after a timeout: the relaunch policy decides."""
+    client = OpenAITTSClient()
+    try:
+        assert client._client.max_retries == settings.llm_transient_retry_max
+        assert type(client._client).__name__ == "_PolicyAsyncOpenAI"
+    finally:
+        await client.close()
 
 
 async def _failed_with(answer: Callable[[httpx.Request], httpx.Response]) -> TTSProviderError:

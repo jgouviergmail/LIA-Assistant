@@ -130,3 +130,12 @@ renames, Docker boot + manual pipeline/ReAct/voice check.
 - Risk accepted: three unpinned micro-branches (chat/parallel start failures,
   PATH 1 timeout) — pure verbatim moves covered by warning logs and the
   manual voice checklist.
+
+## Amendment 2026-10-29 — the GraphInterrupt fallback releases everything
+
+The fallback kept the pre-extraction exit exactly: `cleanup_chat_pipeline()` alone, the
+parallel voice service left open, the pooled tool clients unclosed and the turn's request
+scopes never handed back (fresh review of the latency programme, m3). It now makes the
+releases every other exit makes — `reset_scopes()`, then `release_each(cleanup,
+tool_deps.aclose)` — and the chat-pipeline teardown is a private step of `cleanup()`
+(`_cleanup_chat_pipeline`). Pinned by the stream characterization's scenario 9.

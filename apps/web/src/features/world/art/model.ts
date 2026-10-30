@@ -3,6 +3,7 @@ import type { Facing } from './actor-direction';
 import type { WorldProp } from '../types';
 import type { Painter } from './painter';
 import { project } from '../geometry';
+import { orderedModelParts } from './model-order';
 export interface ModelVertex {
   x: number;
   y: number;
@@ -18,6 +19,7 @@ export type ModelPart =
       depth: number;
       height: number;
       color: string;
+      bevel?: number;
     }
   | { kind: 'face'; points: readonly ModelVertex[]; color: string };
 export class Model {
@@ -32,6 +34,19 @@ export class Model {
     color: string
   ): void {
     this.parts.push({ kind: 'box', x, y, z, width, depth, height, color });
+  }
+  /** Rounded corners keep the same support plane and bounds as a box. */
+  softBox(
+    x: number,
+    y: number,
+    z: number,
+    width: number,
+    depth: number,
+    height: number,
+    color: string,
+    bevel = 0.04
+  ): void {
+    this.parts.push({ kind: 'box', x, y, z, width, depth, height, color, bevel });
   }
   surface(x: number, y: number, z: number, w: number, d: number, color: string): void {
     this.face(
@@ -102,10 +117,22 @@ export function orientModel(
   });
 }
 export function paintModel(p: Painter, parts: readonly ModelPart[]): void {
-  for (const part of parts) {
-    if (part.kind === 'box')
-      p.box(part.x, part.y, part.z, part.width, part.depth, part.height, part.color);
-    else
+  for (const part of orderedModelParts(parts)) {
+    if (part.kind === 'box') {
+      if (part.bevel === undefined)
+        p.box(part.x, part.y, part.z, part.width, part.depth, part.height, part.color);
+      else
+        p.softBox(
+          part.x,
+          part.y,
+          part.z,
+          part.width,
+          part.depth,
+          part.height,
+          part.color,
+          part.bevel
+        );
+    } else
       p.polygon(
         part.points.map(q => project(q, q.z)),
         part.color

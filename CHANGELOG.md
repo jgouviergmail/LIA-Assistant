@@ -5,6 +5,134 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-10-30
+
+**Less waiting, plainly said.**
+A message no longer waits in silence for your personal MCP servers, the home page fills in
+card by card, and a model call or a connector act whose outcome is unknown is never
+repeated. The public pages — home, why, how, story and the blog — were rewritten shorter and
+plainer in the six languages, and the home page downloads far less before the first scroll.
+
+### Added
+
+- 🧰 **A personal MCP catalogue is a snapshot** (ADR-366): what each of your MCP servers
+  offers is kept on the account's own row — tools in canonical order, a generation reserved
+  before the discovery, configuration and catalogue fingerprints, the server's cache hints —
+  and published by compare-and-set, so a message on any worker, right after a restart
+  included, reuses it instead of asking the server again. Past its age (the server's own
+  `ttlMs`, capped at a day, else `MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS`) it keeps
+  serving while one worker revalidates it in the background under an owner-token claim
+  (`mcp:catalogue`, `USER_RUNTIME`). Measured in production before the change: 48 % of chat
+  turns asked at least one personal server first, p95 19.2 s; on Docker dev a cold turn on
+  another worker now hydrates the snapshot in 0.01 s.
+- ⏳ **Parallel preparation under a ceiling, and a named notice**: servers that must be asked
+  again are prepared in parallel (`MCP_USER_PREPARATION_CONCURRENCY`,
+  `MCP_USER_DISCOVERY_TIMEOUT_SECONDS`); one still preparing after
+  `MCP_USER_SLOW_PREPARATION_NOTICE_SECONDS` raises a polite, closable notice that names it,
+  one still preparing at `MCP_USER_PREPARATION_CEILING_SECONDS` is left out of this message —
+  the notice says so — and finishes for the next one, never cancelled. Past three slow
+  servers, one grouped notice still names them.
+- 🛡️ **Verification at use**: when a kept catalogue is no longer fresh, a call first reads
+  the server's current listing; a withdrawn tool, an argument the current schema rejects or a
+  tightened declaration refuses the call before it is sent (`MCPDeclarationChangedError`,
+  typed `CONFLICT`). `read_me` is fetched when the planner or the loop really needs it, once
+  per server across workers.
+- 🏠 **Progressive dashboard** (ADR-271 amendment): the cards LIA can serve at once appear
+  immediately; each slower card shows its outline and fills in on its own request under one
+  signed act (account, language, timezone, local day, hidden set, expiry —
+  `BRIEFING_ACT_TOKEN_TTL_SECONDS`), at most `BRIEFING_SECTION_CONCURRENCY` at once; the
+  greeting and the synthesis are written once every card has arrived and reused for
+  `BRIEFING_TEXT_CACHE_TTL_SECONDS` while their inputs are unchanged. A failed read leaves an
+  attempt marker (`BRIEFING_SECTION_ATTEMPT_MARKER_SECONDS`) so the waiters and the synthesis
+  do not reopen a failing source, a waiter never waits past
+  `BRIEFING_SHARED_BUILD_MAX_WAIT_SECONDS`, and an expired or changed act answers
+  `409 briefing_context_changed`. Refreshing one card reads that card alone.
+- ⏱️ **Journey timings** (ADR-119 amendment): the server measures a chat turn from the request
+  to its first useful byte, and the browser reports four bounded durations with no content —
+  first chat token, first card, all cards, the day's text (`product_client_timing_seconds`);
+  Grafana dashboard 25 gains a « Progressive load » row, dashboards 01 and 26 the journey.
+
+### Changed
+
+- 🔁 **A generation whose outcome is unknown is never relaunched** (ADR-221 amendment): one
+  policy for every model family — never after a timeout or a transport failure once the
+  request may have been sent, at most `LLM_TRANSIENT_RETRY_MAX` relaunches after a 429, a 5xx
+  or a connection that never left, never a stream after its first byte — and a failed call is
+  never answered by another form of the same request. Measured before: three requests after
+  one read timeout on the OpenAI wire and on Anthropic, six on Gemini after a 500. The
+  operator's failover chain (`FALLBACK_MODELS`) follows the same rule; no caller mounts it yet,
+  as ADR-221 states.
+- 📅 **A connector request is resent only when it cannot repeat an act** (ADR-221 amendment):
+  an event create carries the provider's own idempotency — a Google event id (a 409, then a
+  read-back), a Graph `transactionId`, a CalDAV uid fixed before Apple's retry loop — while
+  contacts, tasks and mail are sent once. Measured before: one lost answer made three Google
+  events; measured after on a real Google calendar: one.
+- ☁️ **Weather in one call**: the daily forecast comes from Google Weather's
+  `forecast/days:lookup` — three requests instead of six for a card — and the weather and
+  environment clients set up one connection per host per card; the new SKU is priced
+  (migration `b2a59e675271` and the Google API pricing seed).
+- 🧠 **Tool embeddings leave the critical path**: a vector's identity covers only the text it
+  embeds; only a new or changed tool is embedded, in one batch, and unchanged tools keep theirs.
+- 💬 **The turn is saved first**: the person's message is committed and archived before the
+  MCP preparation starts.
+- 📁 **Drive push drain** (ADR-304 amendment): the changes feed reads under the bulk-read
+  budget, a page Google cannot serve after a first page interrupts the drain like a truncation
+  (window kept, token advanced, wake re-queued), its two counters are exported at zero, and a
+  boot guard proves the worst drain fits a wake.
+- 🪶 **A lighter home page** (ADR-330 and ADR-024 amendments): thumbnails, band and stage read
+  pre-generated WebP variants, the public pages draw their icons from a 4 KB self-hosted cut of
+  Material Symbols instead of the 4 MB font, and the FAQ and blog catalogues reach only the
+  pages that read them. Measured on dev: the home page HTML from 3.36 MB to 1.90 MB.
+- 📝 **Public pages rewritten**: home, why, how, story and every blog article, shorter and
+  plainer, in the author's voice and the six languages, each under a tested length budget;
+  the home page also breathes more (a two-line hero, roomier line heights, a smaller closing
+  planet, a centred footer).
+- 📇 **Relations**: the action bar offers one entry per kind — Email, Directions and, with
+  telephony, Call — with a menu when a contact has several addresses or numbers, address-book
+  labels in the reader's language and 44 px targets.
+- 🌍 **World**: one material palette (marble, woven carpet, timber, glazed ceramic, metal),
+  baked contact shade, dawn, evening and night tints shared by terrain and objects, bounded
+  lamp halos; in a private conversation your own sent message now shows above your avatar,
+  once the server confirmed it.
+- 🤖 **robots.txt**: one rule group for every crawler, AI crawlers included, and `/_next/*` is
+  no longer blocked, since crawlers need it to render the public pages.
+- 🗺️ **Map search** matches names and strong identifiers first, prose as a fallback.
+- 🔎 **Dependency watch**: the pydantic and platformdirs advisories published on 2026-10-29 are
+  accepted in writing with their reachability check — no `Fraction` field, no typed
+  `__pydantic_extra__`, no aliased TypedDict or dataclass with extra data in the API;
+  platformdirs only in development tooling — and the fixed versions land at the next Python
+  refresh, after its cooldown (ADR-331).
+
+### Fixed
+
+- 🔌 **Chat stream**: the stream is closed in the reader's own task, request scopes are reset
+  once, and the GraphInterrupt fallback now releases the voice service and the pooled tool
+  clients like every other exit (ADR-122 amendment).
+- 🔑 **MCP sign-in**: a refresh token an MCP server refused is remembered by its fingerprint
+  (never the secret) and never sent again — the SDK's two-request handshake replayed it on
+  each 401; the next grant is tried instead.
+- 🌍 **World**: continuous fountain coping, joined bench backrests, an unobstructed easel, a
+  coaxial telescope, a phone stand resting on its table, arcade animation kept inside the
+  screen, bottle shelves open from both sides, foreground wall tiles in front of long
+  furniture (picking keeps the same order), coaxial barbell joints and no grass between indoor
+  floors and the terrace.
+- 🏠 **Dashboard**: a worker that lost its build claim reads its successor's result before
+  building again, and a section invalidated by a push is no longer rewritten by a read that
+  started before it.
+- 📖 **Help and FAQ**: dictation is described as it works — in the account's language, one of
+  the six interface languages — and a sub-agent's confirmation by mode.
+- 🧮 **Derived counts**: the summary written for language models (`llms.txt`) quoted 32 Grafana
+  dashboards against a real 33; its dashboard count is now a declared surface, derived like
+  the others.
+
+### Tests
+
+- 🧪 Hermetic browser journeys for the progressive dashboard, the MCP preparation notices, the
+  relations action bar, the World art refinement and private speech; the retry policy measured
+  per provider against a real local server, synchronous and asynchronous; the revalidation
+  claim proven with two actors on real Redis; guards on the capture variants, the public icon
+  font, the route-scoped translations and the public pages' length budgets.
+
 ## [4.1.0] - 2026-10-28
 
 **A livelier world. Play, gesture and keep the moment.**

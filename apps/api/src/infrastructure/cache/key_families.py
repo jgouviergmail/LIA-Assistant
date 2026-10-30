@@ -110,6 +110,11 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # consecutive-failure count and the pause, shared by every worker. A reset
     # must not lift a pause the server earned.
     "mcp:failure": KeyScope.USER_RUNTIME,
+    # Spec 2026-10-21 §5.5b: one worker fetches a personal server's read_me (and,
+    # from M2, revalidates its catalogue) while the others wait their turn — a
+    # claim, expiring on its own; a reset deleting it would let every worker
+    # fetch at once.
+    "mcp:catalogue": KeyScope.USER_RUNTIME,
     # ADR-304: consecutive truncated Drive push drains — a circuit breaker's
     # state, not a cache (``rag`` is): a reset must not re-arm the breaker.
     "rag:drive_push": KeyScope.USER_RUNTIME,

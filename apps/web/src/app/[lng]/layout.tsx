@@ -27,8 +27,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SnowfallEffect } from '@/components/effects/SnowfallEffect';
 import { LandingVideoHostSection } from '@/components/landing/video/LandingVideoHostSection';
-import { languages } from '@/i18n/settings';
-import { initI18next, validateLanguage } from '@/i18n';
+import { defaultNS, languages } from '@/i18n/settings';
+import { translationBundle, validateLanguage } from '@/i18n';
+import { ROUTE_SCOPED_TRANSLATIONS, omitTranslations } from '@/i18n/scoped-translations';
 import { WebSiteJsonLd, OrganizationJsonLd } from '@/components/seo/JsonLd';
 import { buildAppMetadata } from '@/lib/app-metadata';
 import '@/styles/globals.css';
@@ -97,11 +98,12 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
   const { lng: lngParam } = await params;
   const lng = validateLanguage(lngParam);
 
-  // Load translations server-side
-  const i18n = await initI18next(lng);
-  const resources = i18n.options.resources;
-
-  // Debug: Log resources (removed - use logger if needed)
+  // The props of a client component are serialised into EVERY page, so the
+  // catalogue goes without the subtrees only some routes read; those routes
+  // add them back (`i18n/scoped-translations.ts`).
+  const resources = {
+    [lng]: { [defaultNS]: omitTranslations(translationBundle(lng), ROUTE_SCOPED_TRANSLATIONS) },
+  };
 
   return (
     <html lang={lng} className={`${inter.variable} ${fontVariables}`} suppressHydrationWarning>
@@ -132,11 +134,7 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
           <ColorThemeProvider>
             <FontProvider>
               <SnowfallEffect />
-              <TranslationsProvider
-                locale={lng}
-                namespaces={['translation']}
-                resources={resources || {}}
-              >
+              <TranslationsProvider locale={lng} namespaces={['translation']} resources={resources}>
                 <QueryProvider>
                   <AuthProvider>
                     <LoggingProvider>

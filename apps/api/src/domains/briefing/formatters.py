@@ -6,7 +6,6 @@ No DB/provider I/O or business state. Malformed-source diagnostics retain their 
 from __future__ import annotations
 
 import math
-from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any, Final
@@ -23,10 +22,15 @@ from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.constants import BRIEFING_FORECAST_ALERT_HORIZON_HOURS
+from src.domains.briefing.daily_strip import (
+    WEATHER_EMOJI_DEFAULT,
+    WEATHER_EMOJI_MAP,
+    aggregate_daily_forecast,
+    daily_items_from_summaries,
+)
 from src.domains.briefing.schemas import (
     AgendaEventItem,
     AirQuality,
-    DailyForecastItem,
     ForecastAlert,
     ForecastAlertKind,
     HealthSummaryItem,
@@ -57,27 +61,6 @@ _FORECAST_ALERT_KIND_BY_OWM_MAIN: dict[str, ForecastAlertKind] = {
 # Weather formatting
 # =============================================================================
 
-# Map OpenWeatherMap "main" condition codes to a single emoji.
-# Reference: https://openweathermap.org/weather-conditions
-WEATHER_EMOJI_MAP: dict[str, str] = {
-    "Clear": "☀️",
-    "Clouds": "☁️",
-    "Rain": "🌧️",
-    "Drizzle": "🌦️",
-    "Thunderstorm": "⛈️",
-    "Snow": "❄️",
-    "Mist": "🌫️",
-    "Smoke": "🌫️",
-    "Haze": "🌫️",
-    "Dust": "🌫️",
-    "Fog": "🌫️",
-    "Sand": "🌫️",
-    "Ash": "🌫️",
-    "Squall": "🌬️",
-    "Tornado": "🌪️",
-}
-WEATHER_EMOJI_DEFAULT = "🌤️"
-
 
 def format_weather_data(
     *,
@@ -88,6 +71,7 @@ def format_weather_data(
     daily_forecast_days: int,
     now: datetime,
     environment: dict[str, Any] | None = None,
+    daily_summaries: list[dict[str, Any]] | None = None,
 ) -> WeatherData:
     """Build a WeatherData payload from OpenWeatherMap responses.
 
@@ -107,6 +91,9 @@ def format_weather_data(
         environment: Optional AQ/pollen extras (2026-08) as returned by
             ``weather_environment_enrichment.fetch_environment_extras``.
             ``None`` (the default) leaves the card exactly as before.
+        daily_summaries: The provider's own daily summaries (W1b,
+            ``GoogleWeatherClient.get_daily_summaries``), whose low and high cover
+            the whole day; ``None`` aggregates the strip from the 3-h slots.
 
     Returns:
         WeatherData ready for the UI.
@@ -149,8 +136,13 @@ def format_weather_data(
         rule=BRIEFING_CARD_ALERT_RULE,
     )
 
-    # 5-day daily summary aggregated from the 3-h forecast slots.
-    daily_forecast = _aggregate_daily_forecast(forecast, user_tz, daily_forecast_days)
+    # 5-day daily summary: the provider's own days when it serves them, else the
+    # aggregation of the 3-h forecast slots.
+    daily_forecast = (
+        daily_items_from_summaries(daily_summaries, daily_forecast_days)
+        if daily_summaries is not None
+        else aggregate_daily_forecast(forecast, user_tz, daily_forecast_days)
+    )
 
     return WeatherData(
         temperature_c=round(temp, 1),
@@ -200,111 +192,6 @@ def _pollen_from_extras(environment: dict[str, Any] | None) -> list[PollenItem]:
         for item in items
         if isinstance(item, dict) and item.get("name")
     ]
-
-
-# Conditions ranked by "severity" — when a day has a mix, we surface the more
-# notable one as the daily icon (rain dominates over clear, etc.).
-_CONDITION_SEVERITY: dict[str, int] = {
-    "Thunderstorm": 100,
-    "Tornado": 100,
-    "Snow": 90,
-    "Rain": 80,
-    "Drizzle": 70,
-    "Squall": 60,
-    "Fog": 50,
-    "Mist": 50,
-    "Haze": 50,
-    "Smoke": 50,
-    "Dust": 50,
-    "Sand": 50,
-    "Ash": 50,
-    "Clouds": 30,
-    "Clear": 10,
-}
-
-
-def _pick_dominant_condition(condition_codes: list[str]) -> str:
-    """Pick the most representative condition code for a day.
-
-    Rule: the condition with the highest severity score wins. If two conditions
-    tie (e.g. all "Clear"), the most frequent one wins (mode).
-    """
-    if not condition_codes:
-        return "Unknown"
-    # Count occurrences
-    counts: dict[str, int] = {}
-    for code in condition_codes:
-        counts[code] = counts.get(code, 0) + 1
-    # Sort by (severity desc, count desc) and take the first
-    return max(
-        counts.keys(),
-        key=lambda c: (_CONDITION_SEVERITY.get(c, 20), counts[c]),
-    )
-
-
-def _aggregate_daily_forecast(
-    forecast: dict[str, Any],
-    user_tz: ZoneInfo,
-    daily_forecast_days: int,
-) -> list[DailyForecastItem]:
-    """Aggregate the 3-h forecast slots into per-day summaries (today + next N days).
-
-    For each day:
-    - temp_min / temp_max = min and max across all slots of that day
-    - condition_code = dominant condition (severity-weighted, then frequency)
-    - icon_emoji from WEATHER_EMOJI_MAP
-
-    Days with too few slots (e.g. last day with only 1 slot late at night) are
-    still surfaced — the user benefits from any signal beyond today.
-    """
-    today_local = datetime.now(user_tz).date()
-    horizon_end = today_local.toordinal() + (daily_forecast_days - 1)
-
-    by_day: dict[str, dict[str, Any]] = {}
-    for entry in forecast.get("list", []) or []:
-        try:
-            ts = entry.get("dt")
-            if ts is None:
-                continue
-            slot_local = datetime.fromtimestamp(int(ts), tz=user_tz)
-            slot_date = slot_local.date()
-            if slot_date.toordinal() > horizon_end:
-                continue
-            date_key = slot_date.isoformat()
-        except ValueError, TypeError, OSError:
-            continue
-
-        bucket = by_day.setdefault(date_key, {"temps": [], "conditions": [], "date_obj": slot_date})
-
-        slot_main = entry.get("main", {}) or {}
-        for key in ("temp_min", "temp_max", "temp"):
-            val = slot_main.get(key)
-            if val is not None:
-                with suppress(TypeError, ValueError):
-                    bucket["temps"].append(float(val))
-
-        weather_arr = entry.get("weather", []) or []
-        if weather_arr:
-            code = weather_arr[0].get("main")
-            if code:
-                bucket["conditions"].append(str(code))
-
-    items: list[DailyForecastItem] = []
-    for date_key in sorted(by_day.keys()):
-        bucket = by_day[date_key]
-        if not bucket["temps"]:
-            continue
-        condition = _pick_dominant_condition(bucket["conditions"])
-        items.append(
-            DailyForecastItem(
-                date_iso=date_key,
-                temp_min_c=round(min(bucket["temps"]), 1),
-                temp_max_c=round(max(bucket["temps"]), 1),
-                condition_code=condition,
-                icon_emoji=WEATHER_EMOJI_MAP.get(condition, WEATHER_EMOJI_DEFAULT),
-            )
-        )
-    return items[:daily_forecast_days]
 
 
 def _today_min_max_from_forecast(

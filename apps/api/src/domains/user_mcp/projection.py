@@ -17,6 +17,7 @@ from src.domains.user_mcp.schemas import (
     MCPDiscoveredToolResponse,
     UserMCPServerResponse,
 )
+from src.infrastructure.mcp.catalogue_snapshot import parse_catalogue_snapshot
 
 if TYPE_CHECKING:
     from src.domains.user_mcp.service import UserMCPServerService
@@ -34,9 +35,9 @@ def server_to_response(
 ) -> UserMCPServerResponse:
     tools: list[MCPDiscoveredToolResponse] = []
     tool_count = 0
-    if server.discovered_tools_cache:
-        cache = server.discovered_tools_cache
-        tool_list = cache if isinstance(cache, list) else cache.get("tools", [])
+    # Every shape the column ever held (snapshot, legacy list or dict), one parser.
+    tool_list = parse_catalogue_snapshot(server.discovered_tools_cache).tools
+    if tool_list:
         tool_count = len(tool_list)
         end = tools_offset + tools_limit if tools_limit is not None else None
         tools = [

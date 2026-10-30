@@ -60,8 +60,20 @@ async function dashboardReads(page: Page) {
   const briefing = homeBriefing();
   if (briefing.synthesis) briefing.synthesis.text = SYNTHESIS;
   const payloads: Readonly<Record<string, unknown>> = {
-    '/briefing/cards': { cards: briefing.cards, windows: briefing.windows },
-    '/briefing/synthesis': { greeting: briefing.greeting, synthesis: briefing.synthesis },
+    '/briefing/cards/initial': {
+      cards: briefing.cards,
+      windows: briefing.windows,
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
+    },
+    '/briefing/text': {
+      greeting: briefing.greeting,
+      synthesis: briefing.synthesis,
+      reused: false,
+      state: 'ready',
+    },
     '/briefing/preferences': { hidden: [], order: HOME_ORDER },
     '/chat/users/me/statistics': HOME_STATISTICS,
     '/product/me/results': {
@@ -77,7 +89,8 @@ async function dashboardReads(page: Page) {
     page,
     Object.entries(payloads).map(([path, json]) => ({
       url: new RegExp(`/api/v1${path}(?:\\?.*)?$`),
-      method: 'GET',
+      // The text is the act's one POST (spec 2026-10-21 §5.8); every other read is a GET.
+      method: path === '/briefing/text' ? ('POST' as const) : ('GET' as const),
       json,
     }))
   );
@@ -150,9 +163,7 @@ for (const [device, viewport] of [
       panel.getByRole('heading', { name: en.dashboard.results.title })
     ).toBeVisible();
     await world.afterSnapshots(10);
-    expect(briefings.filter(path => path === '/briefing/synthesis')).toEqual([
-      '/briefing/synthesis',
-    ]);
+    expect(briefings.filter(path => path === '/briefing/text')).toEqual(['/briefing/text']);
     expect(desk.poses()).toEqual([SLOT.id]);
     const opened = await scanPage(
       page,

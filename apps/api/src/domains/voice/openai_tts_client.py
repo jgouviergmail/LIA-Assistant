@@ -30,6 +30,7 @@ from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.voice.exceptions import TTSProviderError
 from src.domains.voice.protocol import RawAudioSpec
 from src.domains.voice.vendor_refusal import Refusal, bounded_code
+from src.infrastructure.llm.providers.retry_policy import adopt_relaunch_policy
 from src.infrastructure.observability.metrics_voice import (
     voice_tts_errors_total,
     voice_tts_latency_seconds,
@@ -114,8 +115,10 @@ class OpenAITTSClient:
         self.speed = speed if speed is not None else 1.0
         self.response_format: OpenAITTSFormat = response_format or "mp3"
 
-        # Initialize async OpenAI client
-        self._client = AsyncOpenAI(api_key=LLMConfigOverrideCache.get_api_key("openai") or "")
+        # A spoken answer is a billed generation: never bought twice after a timeout.
+        self._client = adopt_relaunch_policy(
+            AsyncOpenAI(api_key=LLMConfigOverrideCache.get_api_key("openai") or "")
+        )
 
     @property
     def provider_name(self) -> str:

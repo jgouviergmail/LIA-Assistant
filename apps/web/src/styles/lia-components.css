@@ -1381,6 +1381,16 @@ html.dark[data-oled] {
     'opsz' 20;
 }
 
+/* Public pages draw their few icons from a ~4 KB subset of the same font
+   (`publicSymbols` in lib/fonts.ts) instead of the 4 MB variable font: no
+   element there names the full family, so the browser never requests it. The
+   application keeps the full font — the cards the model writes may name any
+   icon. A family with no fallback on purpose: a missing icon must show up in
+   the guard (`public-icon-font.guard.test.ts`), not as a 4 MB download. */
+.landing-page .material-symbols-outlined {
+  font-family: var(--font-public-symbols);
+}
+
 /* Icon container for consistent sizing and alignment */
 .lia-icon {
   display: inline-flex;

@@ -37,6 +37,9 @@ class _EphemeralPool:
         tool_name: str,
         arguments: dict[str, object],
         timeout_seconds: int,
+        *,
+        built_from: str | None = None,
+        declaration: object = None,
     ) -> str:
         return await UserMCPClientPool._execute_call_ephemeral(
             "https://synthetic.example/mcp", None, tool_name, arguments, timeout_seconds

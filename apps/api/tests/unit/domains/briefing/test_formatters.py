@@ -63,6 +63,56 @@ class TestFormatWeatherData:
         assert out.location_city == "Paris"
         assert out.forecast_alert is None
 
+    def test_the_providers_own_days_make_the_daily_strip(self) -> None:
+        """W1b: the strip comes from the provider's summaries, never from slots it no longer reads."""
+        summaries = [
+            {
+                "date": "2026-10-29",
+                "temp_min": 4.46,
+                "temp_max": 12.04,
+                "conditions": ["Clouds", "Rain"],
+            },
+            {
+                "date": "2026-10-30",
+                "temp_min": 3.0,
+                "temp_max": 9.0,
+                "conditions": ["Clear", "Clear"],
+            },
+            {"date": "2026-10-31", "temp_min": 2.0, "temp_max": 8.0, "conditions": []},
+        ]
+        out = format_weather_data(
+            current={"main": {"temp": 10.0}, "weather": [{"main": "Clouds"}]},
+            forecast={"list": []},  # the slots cover the alert's 24 h only
+            city="Paris",
+            user_tz=PARIS,
+            daily_forecast_days=2,
+            now=ALERT_NOW,
+            daily_summaries=summaries,
+        )
+
+        assert [(day.date_iso, day.temp_min_c, day.temp_max_c) for day in out.daily_forecast] == [
+            ("2026-10-29", 4.5, 12.0),
+            ("2026-10-30", 3.0, 9.0),
+        ]
+        # The day's most severe condition, as the slot aggregation picks it.
+        assert out.daily_forecast[0].condition_code == "Rain"
+        assert out.daily_forecast[0].icon_emoji == WEATHER_EMOJI_MAP["Rain"]
+
+    def test_a_day_without_conditions_reads_unknown(self) -> None:
+        out = format_weather_data(
+            current={"main": {"temp": 10.0}, "weather": [{"main": "Clouds"}]},
+            forecast={"list": []},
+            city=None,
+            user_tz=PARIS,
+            daily_forecast_days=5,
+            now=ALERT_NOW,
+            daily_summaries=[
+                {"date": "2026-10-31", "temp_min": 2.0, "temp_max": 8.0, "conditions": []}
+            ],
+        )
+        assert out.daily_forecast[0].condition_code == "Unknown"
+        assert out.daily_forecast[0].icon_emoji == WEATHER_EMOJI_DEFAULT
+
     def test_unknown_condition_falls_back_to_default_emoji(self) -> None:
         current = {
             "main": {"temp": 12},

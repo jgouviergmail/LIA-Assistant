@@ -96,9 +96,16 @@ export function stepNumbers(flow: FlowView): Map<string, string> {
 }
 
 /**
- * The bricks a search matches, in map order — on the words a reader would type:
- * the name, the role, the goal, the family, and the identifiers (domains,
- * screens, technologies, paths).
+ * The bricks a search matches, best first — on the words a reader would type.
+ *
+ * A brick's NAME, or one of its identifiers (its family, domains, screens,
+ * technologies, paths), is a strong match. Its role and goal answer only when
+ * nothing matches strongly: that prose MENTIONS other bricks, and every mention
+ * used to light up beside the brick the reader named — "radio" lit the talking
+ * avatar ("Radio keeps its player"), and Enter on "agenda" opened the request
+ * understanding brick, whose role names the agenda (measured 2026-10-29).
+ * Names come first, then identifiers, each in map order: the first is the one
+ * Enter opens.
  */
 export function matchBricks(
   bricks: readonly BrickView[],
@@ -108,20 +115,14 @@ export function matchBricks(
   const needle = foldForSearch(query.trim());
   if (!needle) return [];
   const familyName = new Map(families.map(f => [f.id, f.name]));
-  return bricks
-    .filter(b =>
-      foldForSearch(
-        [
-          b.name,
-          b.role,
-          b.goal ?? '',
-          familyName.get(b.family) ?? '',
-          ...b.domains,
-          ...b.surfaces,
-          ...b.stack,
-          ...b.paths,
-        ].join(' ')
-      ).includes(needle)
-    )
-    .map(b => b.id);
+  const holds = (...texts: string[]): boolean => foldForSearch(texts.join(' ')).includes(needle);
+  const named = bricks.filter(b => holds(b.name));
+  const identified = bricks.filter(
+    b =>
+      !holds(b.name) &&
+      holds(familyName.get(b.family) ?? '', ...b.domains, ...b.surfaces, ...b.stack, ...b.paths)
+  );
+  const strong = [...named, ...identified];
+  const matched = strong.length > 0 ? strong : bricks.filter(b => holds(b.role, b.goal ?? ''));
+  return matched.map(b => b.id);
 }

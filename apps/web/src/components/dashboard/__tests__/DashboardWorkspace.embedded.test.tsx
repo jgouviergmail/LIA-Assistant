@@ -104,23 +104,37 @@ const limits: UserUsageLimitResponse = {
   cycle_start: statistics.current_cycle_start,
   cycle_end: '2026-11-01T00:00:00Z',
 };
+const INITIAL = '/briefing/cards/initial';
+const TEXT = '/briefing/text';
+/** One act of the progressive dashboard: every section settled, nothing pending. */
+function initialOf(bundle: CardsBundle) {
+  return {
+    cards: bundle,
+    windows,
+    pending: [],
+    act: 'act-1',
+    act_expires_at: '2026-10-27T08:10:00Z',
+    section_concurrency: 4,
+  };
+}
+const NATIVE_TEXT = {
+  greeting: { text: 'Native greeting', generated_at: '2026-10-27T08:00:00Z', usage: null },
+  synthesis: { text: 'Native synthesis', generated_at: '2026-10-27T08:00:00Z', usage: null },
+  reused: false,
+  state: 'ready',
+};
 beforeEach(() => {
   auth.id = 'owner-one';
   get.mockReset();
   post.mockReset();
+  post.mockImplementation(async path => {
+    if (path === TEXT) return NATIVE_TEXT;
+    throw new Error('Unexpected private dashboard write: ' + path);
+  });
   get.mockImplementation(async path => {
     switch (path) {
-      case '/briefing/cards':
-        return { cards, windows };
-      case '/briefing/synthesis':
-        return {
-          greeting: { text: 'Native greeting', generated_at: '2026-10-27T08:00:00Z', usage: null },
-          synthesis: {
-            text: 'Native synthesis',
-            generated_at: '2026-10-27T08:00:00Z',
-            usage: null,
-          },
-        };
+      case INITIAL:
+        return initialOf(cards);
       case '/product/me/results':
         return results;
       case '/chat/users/me/statistics':
@@ -134,6 +148,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 const reads = (path: string) => get.mock.calls.filter(call => call[0] === path);
+/** The text purchases: one per act, never one per resume. */
+const textReads = () => post.mock.calls.filter(call => call[0] === TEXT);
 
 it('retains the complete native dashboard across suspension without another text purchase or poll', async () => {
   const view = render(<DashboardWorkspace lng="en" ownerId={auth.id} active />);
@@ -153,8 +169,8 @@ it('retains the complete native dashboard across suspension without another text
   expect(screen.queryByText('Native synthesis')).not.toBeVisible();
   vi.useRealTimers();
   view.rerender(<DashboardWorkspace lng="en" ownerId={auth.id} active />);
-  await waitFor(() => expect(reads('/briefing/cards')).toHaveLength(2));
-  expect(reads('/briefing/synthesis')).toHaveLength(1);
+  await waitFor(() => expect(reads(INITIAL)).toHaveLength(2));
+  expect(textReads()).toHaveLength(1);
   expect(screen.getByText('Native synthesis')).toBeVisible();
 });
 
@@ -172,7 +188,7 @@ it('fences an obsolete owner and aborts the statistics and limit transports when
   view.rerender(<DashboardWorkspace lng="en" ownerId="owner-one" active />);
   await act(async () => {});
   expect(screen.queryByText('Native synthesis')).not.toBeInTheDocument();
-  expect(reads('/briefing/synthesis')).toHaveLength(1);
+  expect(textReads()).toHaveLength(1);
 });
 
 it('retains private invalidations while hidden and refreshes only cards when resumed', async () => {
@@ -190,11 +206,9 @@ it('retains private invalidations while hidden and refreshes only cards when res
   };
   const original = get.getMockImplementation();
   get.mockImplementation((path, config) =>
-    path === '/briefing/cards'
-      ? Promise.resolve({ cards: reminderCards, windows })
-      : original!(path, config)
+    path === INITIAL ? Promise.resolve(initialOf(reminderCards)) : original!(path, config)
   );
-  post.mockResolvedValue({
+  const fresh = {
     cards: {
       ...reminderCards,
       reminders: {
@@ -207,19 +221,27 @@ it('retains private invalidations while hidden and refreshes only cards when res
       },
     },
     windows,
-  });
+  };
+  // The changed card is re-read on its own route, from the server's same state.
+  post.mockImplementation(async path =>
+    path === TEXT
+      ? NATIVE_TEXT
+      : path === '/briefing/sections/reminders/refresh'
+        ? fresh.cards.reminders
+        : fresh
+  );
   const view = render(<DashboardWorkspace lng="en" ownerId={auth.id} active />);
   await screen.findByText('Cached reminder');
   await screen.findByText('Native synthesis');
   view.rerender(<DashboardWorkspace lng="en" ownerId={auth.id} active={false} />);
   act(() => publishApplicationResources(auth.id, new Set(['reminders'])));
-  expect(post).not.toHaveBeenCalled();
+  expect(post.mock.calls.filter(call => call[0] !== TEXT)).toEqual([]);
   view.rerender(<DashboardWorkspace lng="en" ownerId={auth.id} active />);
   await screen.findByText('Fresh after hidden');
-  expect(post.mock.calls.map(call => [call[0], call[1]])).toEqual([
-    ['/briefing/refresh-cards', { sections: ['reminders'] }],
+  expect(post.mock.calls.filter(call => call[0] !== TEXT).map(call => call[0])).toEqual([
+    '/briefing/sections/reminders/refresh',
   ]);
-  expect(reads('/briefing/synthesis')).toHaveLength(1);
+  expect(textReads()).toHaveLength(1);
 });
 
 it('withdraws SMS-derived text received while hidden without buying a replacement', async () => {
@@ -230,5 +252,5 @@ it('withdraws SMS-derived text received while hidden without buying a replacemen
   view.rerender(<DashboardWorkspace lng="en" ownerId={auth.id} active />);
   await waitFor(() => expect(screen.queryByText('Native synthesis')).not.toBeInTheDocument());
   expect(screen.getByText('dashboard.briefing.text_unavailable')).toBeVisible();
-  expect(reads('/briefing/synthesis')).toHaveLength(1);
+  expect(textReads()).toHaveLength(1);
 });

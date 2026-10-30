@@ -72,7 +72,7 @@ export function paintTelescope(p: Painter): void {
     p.box(x - 0.075, y - 0.075, 0, 0.15, 0.15, 0.065, DARK);
     tube(
       p,
-      { x: (x + hub.x) / 2, y: (y + hub.y) / 2, z: 0.52 },
+      { x: (x + hub.x) / 2, y: (y + hub.y) / 2, z: (foot.z + hub.z) / 2 },
       { ...hub, z: 0.4 },
       0.018,
       '#83938a',
@@ -83,10 +83,21 @@ export function paintTelescope(p: Painter): void {
   p.box(0.81, 0.78, 1.14, 0.28, 0.24, 0.13, '#b48f53');
   const at = (t: number) => ({ x: 0.27 + t * 1.4, y: 0.9, z: 1.08 + t * 0.95 });
   tube(p, at(-0.16), at(0), 0.085, DARK);
-  tube(p, at(0), at(1), 0.22, '#c7a66d');
-  for (const t of [0.16, 0.66]) tube(p, at(t), at(t + 0.06), 0.24, '#8e743f');
+  // Consecutive coaxial sections: a collar's solid end cap must never cover
+  // the barrel which continues in front of it.
+  for (const [start, end, radius, color] of [
+    [0, 0.16, 0.22, '#c7a66d'],
+    [0.16, 0.22, 0.24, '#8e743f'],
+    [0.22, 0.66, 0.22, '#c7a66d'],
+    [0.66, 0.72, 0.24, '#8e743f'],
+    [0.72, 0.94, 0.22, '#c7a66d'],
+  ] as const)
+    tube(p, at(start), at(end), radius, color);
   tube(p, at(0.94), at(1.09), 0.265, '#344c50');
   tube(p, at(1.091), at(1.096), 0.215, '#448597');
   tube(p, at(1.097), at(1.1), 0.145, '#74bac3');
-  tube(p, { x: 0.53, y: 0.9, z: 1.61 }, { x: 0.93, y: 0.9, z: 1.81 }, 0.055, DARK);
+  const finder = (t: number) => ({ ...at(t), z: at(t).z + 0.3 });
+  for (const t of [0.25, 0.48])
+    tube(p, { ...at(t), z: at(t).z + 0.18 }, finder(t), 0.025, '#8e743f', 6);
+  tube(p, finder(0.2), finder(0.53), 0.055, DARK);
 }

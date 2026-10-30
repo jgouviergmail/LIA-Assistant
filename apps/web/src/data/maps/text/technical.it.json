@@ -246,9 +246,9 @@
     },
     "t.mcp": {
       "name": "Client MCP",
-      "role": "Un pool di client per persona, schemi standard e le stesse protezioni degli strumenti nativi; fonte e metodo accompagnano ogni forma di uscita. Le pause dichiarate dai server sono condivise tramite Redis.",
+      "role": "Un pool di client per persona, schemi standard e le stesse protezioni degli strumenti nativi; fonte e metodo accompagnano ogni forma di uscita. Il catalogo di un server personale è un'istantanea servita mentre viene riconvalidata e verificata alla chiamata; le pause dichiarate dai server sono condivise tramite Redis.",
       "stack": ["Model Context Protocol", "Due revisioni del protocollo", "OAuth per emittente"],
-      "src": "7d42a9fb7ca7"
+      "src": "26f19930dc70"
     },
     "t.skills": {
       "name": "Competenze e plugin",

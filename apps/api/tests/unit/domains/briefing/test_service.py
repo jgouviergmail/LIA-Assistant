@@ -126,7 +126,7 @@ class TestHasContent:
 def _patch_redis_off():
     """Patch get_redis_cache to raise — forces all reads/writes to fail gracefully."""
     return patch(
-        "src.domains.briefing.service.get_redis_cache",
+        "src.domains.briefing.section_outcomes.get_redis_cache",
         side_effect=ConnectionError("redis-down"),
     )
 

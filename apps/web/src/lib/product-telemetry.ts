@@ -61,10 +61,27 @@ export type SearchOutcome = 'results' | 'zero_results' | 'result_used';
 
 export type VitalMetric = 'lcp' | 'cls';
 
+/**
+ * Journey timings (spec 2026-10-21 O2): seconds a person waited, measured where
+ * they wait — never content. The exact mirror of the backend CLIENT_TIMING_METRICS.
+ */
+export type ClientTiming =
+  | 'chat_first_token'
+  | 'dashboard_first_card'
+  | 'dashboard_all_cards'
+  | 'dashboard_text';
+
+/**
+ * The backend's bound on a measurement. A longer wait is sent AT the bound: it still lands
+ * in the histogram's overflow bucket, where dropping it would bias the measured tail down.
+ */
+const TIMING_MAX_SECONDS = 120;
+
 type TelemetryItem =
   | { kind: 'event'; event_type: ProductFunnelEvent }
   | { kind: 'search'; surface: 'settings'; outcome: SearchOutcome }
-  | { kind: 'vital'; metric: VitalMetric; value: number };
+  | { kind: 'vital'; metric: VitalMetric; value: number }
+  | { kind: 'timing'; metric: ClientTiming; value: number };
 
 export function isTelemetryEnabled(): boolean {
   return typeof window !== 'undefined' && process.env.NEXT_PUBLIC_PRODUCT_TELEMETRY === 'true';
@@ -135,4 +152,11 @@ export function trackVitals(vitals: ReadonlyArray<{ metric: VitalMetric; value: 
     vitals.map(({ metric, value }) => ({ kind: 'vital' as const, metric, value })),
     true
   );
+}
+
+/** One journey timing, in seconds; a wait past the backend's bound is sent at the bound. */
+export function trackClientTiming(metric: ClientTiming, seconds: number): void {
+  if (!(seconds >= 0)) return;
+  const bounded = Math.min(seconds, TIMING_MAX_SECONDS);
+  send([{ kind: 'timing', metric, value: Math.round(bounded * 1000) / 1000 }]);
 }

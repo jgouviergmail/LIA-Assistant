@@ -16,7 +16,7 @@ LIA decides to delegate when:
 
 Simple factual questions are always handled directly — experts are only mobilised when they add real value.
 
-**You stay in control:** before launching an expert, LIA asks for your confirmation. If you decline, the assistant automatically switches to a standard plan without sub-agents.
+**You stay in control in ReAct mode:** before launching an expert, LIA asks for your confirmation, because an expert takes longer and costs more; if you decline, it carries on without one. In Pipeline mode, an expert planned for your question starts without asking: it only searches and reads, and changes nothing.
 
 ## What does a sub-agent actually do?
 
@@ -31,7 +31,7 @@ LIA then hands you that analysis **as written**, keeping its sections and source
 ## Can I disable sub-agents?
 Sub-agent activation is **managed at the application level** by your administrator (via a global configuration flag); it is not a per-user setting in your account.
 
-In practice, **you stay in control on each delegation**: before launching the experts, LIA asks for your confirmation. If you decline, the assistant automatically switches to a standard plan without sub-agents — you can keep refusing on a per-question basis.
+In practice, in ReAct mode **you decide on each delegation**: LIA asks before launching the experts, and you can refuse question by question. In Pipeline mode a delegation starts without asking, since it only reads.
 
 If you would prefer to **never** see sub-agent delegations, ask your administrator to disable the feature globally.
 

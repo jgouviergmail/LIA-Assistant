@@ -251,7 +251,8 @@ async def test_both_discovery_paths_preserve_the_sdk_output_contract():
         yield session
 
     with patch("src.infrastructure.mcp.user_pool._ephemeral_client", ephemeral):
-        user_tools, _ = await UserMCPClientPool._discover_tools("https://example.com", None, 30)
+        found = await UserMCPClientPool._discover_tools("https://example.com", None, 30)
+    user_tools = found.tools
     assert user_tools[0]["output_schema"] == OUTPUT_SCHEMA
 
 

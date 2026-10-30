@@ -118,6 +118,7 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     loading: vi.fn(),
+    dismiss: vi.fn(),
   }),
 }));
 
@@ -455,6 +456,36 @@ describe('useChat — nominal send/stream/done cycle', () => {
 
     expect(result.current.apiAvailable).toBe(true);
     expect(result.current.isConnected).toBe(true);
+  });
+});
+
+describe('useChat — MCP preparation notices end with the stream (fresh review m4)', () => {
+  it('closes a slow server notice when the connection is lost before any done or error chunk', async () => {
+    const { toast } = await import('sonner');
+    const slow = {
+      type: 'execution_step',
+      content: '',
+      metadata: {
+        step_type: 'mcp_preparation',
+        i18n_key: 'chat.mcp_preparation.slow',
+        server_key: 'srv-1',
+        server_name: 'Notes',
+        phase: 'slow',
+        elapsed_ms: 10000,
+      },
+    } as ChatStreamChunk;
+    h.streamChat.mockImplementation(async (_req: unknown, onChunk: OnChunk, onError: OnError) => {
+      onChunk(slow);
+      onError(new Error('network down'));
+    });
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('test');
+    });
+
+    expect(toast).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ duration: Infinity }));
+    expect(toast.dismiss).toHaveBeenCalledWith(expect.stringMatching(/^mcp-prep:.*:srv-1$/));
   });
 });
 

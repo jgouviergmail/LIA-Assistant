@@ -4,8 +4,10 @@ import { DARK, WOOD } from './palette';
 export function modelTable(m: Model, w: number, d: number, color = WOOD): void {
   for (const x of [0.16, w - 0.3])
     for (const y of [0.16, d - 0.3]) m.box(x, y, 0, 0.14, 0.14, 0.82, DARK);
-  m.box(0, 0, 0.82, w, d, 0.16, color);
-  m.surface(0.06, 0.06, 0.985, w - 0.12, d - 0.12, shade(color, 15));
+  m.softBox(0, 0, 0.82, w, d, 0.16, color, 0.035);
+  m.surface(0.15, 0.13, 0.985, w - 0.3, 0.018, shade(color, 24));
+  // A narrow apron recess separates the top from its supporting frame.
+  m.panel(0.18, d - 0.05, 0.79, w - 0.36, 0.025, '#394741');
 }
 export function paper(m: Model, x: number, y: number, z = 1): void {
   m.box(x, y, z, 0.6, 0.5, 0.025, '#f4f0df');

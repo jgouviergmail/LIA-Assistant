@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-23) | 33 dashboards, 861 panels (rows excluded)
+> **Version 5.0** | 2026-10-22 (panel counts re-measured 2026-10-23) | 33 dashboards, 876 panels (rows excluded)
 
 ---
 
@@ -158,7 +158,7 @@ Dans le fichier de provisioning, un `$` litteral s'ecrit `$$` (sinon `$__tags` e
 | 22 | Compaction | `22-compaction` | lia, compaction || 13 | Sante compaction (executions, fallbacks truncation, writer unavailable), timeouts, volume et economies de tokens |
 | 23 | Journals & User Model | `23-journals-user-model` | lia, journals, user-model || 18 | Extraction, actions sur entrees, consolidation par niveaux, portrait utilisateur |
 | 24 | Telephony | `24-telephony` | lia, telephony, calls || 15 | Appels sortants par statut, duree, reapers de recuperation (T1), webhooks ignores |
-| 25 | Today Briefing | `25-briefing` | lia, briefing || 10 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh |
+| 25 | Today Briefing | `25-briefing` | lia, briefing || 14 | Duree de build par etat de cache, statuts par section, invocations LLM, refresh, chargement progressif par etape |
 | 26 | Product Value, Activation & Retention | `26-product-value` | lia, product, value, growth, outcomes || 45 | Cockpit produit (ADR-178) : North Star E1/E2, funnel d'activation, qualite agentique, retention, couts EUR, qualite des donnees — v0 avec panels LIVE/PRE-WIRED/TEXT |
 | 27 | Meetings | `27-meetings` | lia, meetings, minutes || 11 | Reunions par statut, duree de traitement par etape, moteurs de transcription (distant / local) et issues, comptes rendus rendus et reformates (ADR-258, ADR-259) |
 | 28 | Effect Ledger & Registers | `28-effect-ledger` | lia, ledger, transparency, ai-act || 27 | Effets reclames / clos / abandonnes, consultations par domaine, lacunes du registre, retard de scellement de la chaine, croissance des registres (ADR-263, ADR-270) |
@@ -312,9 +312,9 @@ Feature journaux : extraction (volume, duree, erreurs), actions sur les entrees 
 
 Appels sortants agentiques : appels par statut terminal, duree des appels (plafonnee par la duree maximale de l'agent sur le portail ElevenLabs), reapers de recuperation T1 (notifications et syntheses de retour re-dispatchees apres crash), webhooks post-appel ignores par le filtre HMAC/foreign.
 
-### 25 - Today Briefing (10 panels)
+### 25 - Today Briefing (14 panels)
 
-Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cache (cold = LLM-bound, warm = quasi instantane), statuts de build par section (agenda, mails, meteo...), volume par section, invocations LLM (greeting / synthese) par issue, refreshes utilisateur.
+Page d'accueil Today Briefing (BRIEFING_DOMAIN) : duree de build par etat de cache (cold = LLM-bound, warm = quasi instantane), statuts de build par section (agenda, mails, meteo...), volume par section, invocations LLM (greeting / synthese) par issue, refreshes utilisateur (le rafraichissement d'une carte compte en `single`). Le chargement progressif (spec 2026-10-21 §5.8) a sa propre rangee : duree p95 et volume de chaque etape d'un chargement (`initial`, `section`, `text`, `refresh`, `briefing_act_step_duration_seconds`) ; la duree de build ne couvre plus que le refresh complet et les clients des routes de bundle.
 
 ### 26 - Product Value, Activation & Retention (45 panels)
 

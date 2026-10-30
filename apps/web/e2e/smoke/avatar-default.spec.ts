@@ -21,8 +21,14 @@ const applicationRoutes: MockRoute[] = [
   ...chatRoutes([]),
   briefingCardsMock,
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: { text: 'Welcome back', generated_at: null, usage: null }, synthesis: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: { text: 'Welcome back', generated_at: null, usage: null },
+      synthesis: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   { url: '**/api/v1/briefing/companion-context', json: { timezone: 'UTC', weather: null } },
   { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },

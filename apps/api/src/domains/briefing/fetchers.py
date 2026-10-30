@@ -37,10 +37,11 @@ from src.core.time_utils import now_utc
 from src.domains.agents.services.qualification.publication import source_binding
 from src.domains.agents.tools.weather_environment_enrichment import (
     environment_enrichment_active,
-    fetch_environment_extras,
+    extras_when_active,
 )
 from src.domains.briefing.classification import classify_briefing_items
 from src.domains.briefing.constants import (
+    BRIEFING_WEATHER_ALERT_SLOTS,
     BRIEFING_WEATHER_FORECAST_CNT,
     EDITORIAL_MAIL_SCAN_MAX,
     ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
@@ -110,6 +111,7 @@ from src.domains.workboard.constants import CLOSED_STATUSES
 from src.domains.workboard.models import WorkboardTicket
 from src.domains.workboard.repository import WorkboardRepository
 from src.domains.workboard.summary_queries import read_attention
+from src.infrastructure.async_utils import settled_or_raise
 from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
@@ -150,16 +152,13 @@ async def fetch_weather(
         source=_CARD_WEATHER_SOURCE,
         with_environment=True,
     )
-
-    # Fail-quiet: None and the card renders exactly as before.
-    environment = (
-        await fetch_environment_extras(user.id, location.lat, location.lon, language)
-        if environment_active
-        else None
-    )
+    # A provider serving its own daily summaries (W1b) is read for the alert's 24 hours
+    # plus ONE daily request; the others keep their five days of slots (one OWM call).
+    native_daily = getattr(client, "native_daily_summaries", False) is True
+    days = settings.briefing_weather_daily_forecast_days
 
     try:
-        results = await asyncio.gather(
+        settled = await asyncio.gather(
             client.get_current_weather(
                 lat=location.lat,
                 lon=location.lon,
@@ -171,11 +170,22 @@ async def fetch_weather(
                 lon=location.lon,
                 units="metric",
                 lang=language,
-                cnt=BRIEFING_WEATHER_FORECAST_CNT,
+                cnt=BRIEFING_WEATHER_ALERT_SLOTS if native_daily else BRIEFING_WEATHER_FORECAST_CNT,
+            ),
+            (
+                client.get_daily_summaries(location.lat, location.lon, lang=language, days=days)
+                if native_daily
+                else _no_daily_summaries()
             ),
             resolve_city_name(lat=location.lat, lon=location.lon, client=client),
-            return_exceptions=False,
+            # AQ/pollen beside the weather calls, not before them (fail-quiet).
+            extras_when_active(environment_active, user.id, location.lat, location.lon, language),
+            # Every sibling settles before the card fails: one left running billed its
+            # provider after the act's spend was filed, on a client closed under it
+            # (fresh review B3).
+            return_exceptions=True,
         )
+        current, forecast, daily, city, environment = settled_or_raise(settled, quiet={4})
     except (
         TimeoutError,
         httpx.HTTPError,
@@ -191,16 +201,21 @@ async def fetch_weather(
     finally:
         await client.close()
 
-    current, forecast, city = results
     return format_weather_data(
         current=current,
         forecast=forecast,
         city=city if isinstance(city, str) else None,
         user_tz=user_tz,
-        daily_forecast_days=settings.briefing_weather_daily_forecast_days,
+        daily_forecast_days=days,
         now=now_utc(),
         environment=environment,
+        daily_summaries=daily,
     )
+
+
+async def _no_daily_summaries() -> None:
+    """The daily strip of a provider without its own summaries: aggregated from its slots."""
+    return None
 
 
 #: The source name the card's refusals carry — whichever provider serves it.

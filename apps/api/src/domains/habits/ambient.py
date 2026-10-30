@@ -78,12 +78,15 @@ def _unusual_absence(
     )
 
 
-async def build_habits_rhythm_block(user_id: str | UUID, flow: str = "response") -> str:
+async def build_habits_rhythm_block(
+    user_id: str | UUID, flow: str = "response", *, counted: bool = True
+) -> str:
     """Build the ambient rhythm block for prompt injection.
 
     Args:
         user_id: User UUID (str or UUID).
         flow: Caller flow name for the presence counter.
+        counted: False when the block is read for an identity rather than sent.
 
     Returns:
         Self-labelled ``<UserRhythmContext>…</UserRhythmContext>`` block, or
@@ -117,7 +120,7 @@ async def build_habits_rhythm_block(user_id: str | UUID, flow: str = "response")
         )
         if not lines:
             return ""
-        for kind in kinds:
+        for kind in kinds if counted else ():
             with suppress(Exception):
                 habit_ambient_block_total.labels(flow=flow, kind=kind).inc()
         return "<UserRhythmContext>\n" + "\n".join(lines) + "\n</UserRhythmContext>"

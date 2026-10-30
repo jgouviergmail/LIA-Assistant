@@ -109,3 +109,49 @@ déploiement.
 transaction inactive terminée par le serveur, comptée, puis le pool qui sert de nouveau, un
 `SET LOCAL` prioritaire, et le moteur des sessions qui démarre borné — la suite d'intégration
 tourne désormais sous les bornes de production. Tests unitaires et quatre mutants tués.
+
+## Amendment 2026-10-28 — the turn commits before the MCP preparation; the progressive routes hold no session
+
+Measured at runtime (spec 2026-10-21 §0ter H6): one backend stayed `idle in transaction` for the
+whole personal-MCP preparation of a chat turn, its age following the wait. The turn's own writes
+(state, archived request) are committed before the preparation starts
+(`agents/api/turn_preparation.py`), and the preparation runs with no session open. The four
+progressive dashboard routes authenticate through `get_current_active_session_for_stream` (a
+session of its own, closed before the route): measured on Docker dev, a section read waiting 4 s on
+a slow source held no `idle in transaction`, where the old `/briefing/cards` held one for the whole
+wait.
+
+## Amendment 2026-10-29 — the changes feed reads under the bulk-read budget, and the worst drain fits its wake
+
+Measured on 2026-10-26 in production (read-only): 3 wakes of 1 292 in seven days failed on
+`GET /changes`, each page waiting for its headers past the generic 5 s read budget three attempts in
+a row, in the middle of a long feed — the pages already read were thrown away and the token did not
+move. The network of the host was sound at those instants; Google was slow while the feed was long.
+A page of 1 000 changes is a bulk read: `list_changes` now reads under `HTTP_TIMEOUT_CONNECTOR_LONG`
+and connects under `HTTP_TIMEOUT_EXTERNAL_API` (`changes_feed_timeout`, a per-call budget of
+`_make_request`); every other request keeps the client's.
+
+A longer budget is only safe if the drain still ends before its wake is cut. The worst drain is its
+deadline plus one page started just before it, every attempt and every backoff
+(`drive_changes.worst_drain_seconds`, read from `retry_policy.worst_request_seconds`): 45 + 3 × (5 +
+30) + 3 = 153 s with the defaults, under `PUSH_WAKE_SERVE_TIMEOUT_SECONDS` (180). The boot refuses a
+configuration where it is not (`assert_drain_fits_a_wake`, in `run_failfast_validations`) — on a
+deployment that drains a Drive feed only (`PUSH_CHANNELS_ENABLED`: the bulk-read budget also serves
+attachments, and an instance without Drive push must not be refused for it), naming what the bound
+does not count: a `Retry-After` beyond the backoff, the rate limiter's wait, a token refresh. No
+request loop waits after its last attempt any more: after a final 429 or 5xx both loops slept their
+backoff (4 s) before failing, which delayed every connector failure and ran the worst drain past the
+bound (fresh review 2026-10-29).
+
+**A page Google cannot serve no longer throws away the pages read before it** (lot 2 of the
+2026-10-26 analysis). When a page fails for want of the provider (`ExternalServiceError`: every
+attempt timed out, refused or failed in transport) after at least one page was read, the drain ends
+like a cut one: the window read is offered, the token moves past it, the wake is re-queued, the end is
+`interrupted`, and the cut counts toward the rebase streak exactly as a truncation does. When the
+FIRST page fails, nothing was read and the wake fails as before — logged as a warning
+(`rag_drive_push_feed_unavailable`, the transport cause only), never as an exception trace, because a
+provider that did not answer is an expected event; any other failure keeps its trace. Both counters
+(`rag_drive_push_reindex_total{outcome}`, `rag_drive_push_drains_total{end}`) are exported at zero for
+every value at import (lot 3): Prometheus had counted 1 failed wake where Loki logged 3. Still open:
+the channel renewal re-anchors the token (`push_channels/service.py`, `_open`) and would drop a window
+still waiting — latent, never observed.

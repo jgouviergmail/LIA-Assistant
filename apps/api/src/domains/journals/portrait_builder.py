@@ -130,6 +130,7 @@ async def build_journal_user_model_block(
     max_tokens: int | None = None,
     budget_prefix: str = "",
     require_phone_context: bool = False,
+    counted: bool = True,
 ) -> str:
     """Build the user-model portrait block for prompt injection.
 
@@ -151,6 +152,8 @@ async def build_journal_user_model_block(
         budget_prefix: Already rendered frame occupying the same token budget.
         require_phone_context: Recheck the owner's current phone-context consent
             and native journal-domain permission on the freshly read account.
+        counted: False when the block is read for an identity (the dashboard text's
+            fingerprint) rather than sent: a block no prompt carried is never counted.
 
     Returns:
         Formatted ``<UserModelContext>...</UserModelContext>`` block ready
@@ -178,9 +181,10 @@ async def build_journal_user_model_block(
         budgeted = f"{budget_prefix}\n\n{block}" if budget_prefix else block
         if max_tokens is not None and OpenAITokenCounter().count(budgeted, "gpt-4o") > max_tokens:
             return ""
-        # Count the block only after the whole native frame fits.
-        with suppress(Exception):
-            journal_portrait_present_total.labels(flow=flow, format=format).inc()
+        # Count the block only after the whole native frame fits, and only when sent.
+        if counted:
+            with suppress(Exception):
+                journal_portrait_present_total.labels(flow=flow, format=format).inc()
         return block
     except Exception as exc:  # pragma: no cover — defensive
         logger.warning(

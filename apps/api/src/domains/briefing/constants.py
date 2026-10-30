@@ -83,14 +83,14 @@ BRIEFING_WEATHER_FORECAST_CNT = 40
 # « Rain at 15:00 », today.
 BRIEFING_FORECAST_ALERT_HORIZON_HOURS = 24
 
-# How long a request waits for ANOTHER uvicorn worker to publish the bundle
-# before building it itself (ADR-271 amendment). Production runs four workers
-# (`WEB_CONCURRENCY=4`), so the two requests of a page load usually land on
-# different ones and the in-process seam cannot reach across. Waiting costs the
-# waiter nothing it would not have spent building the same bundle, and it saves
-# the sources from being opened twice. Bounded well under the claim's own TTL,
-# and generous enough for the slowest build measured in production (5.8 s).
-BRIEFING_SHARED_BUILD_WAIT_SECONDS = 10.0
+# The 3-h slots a provider serving its own daily summaries is read for (W1b): the
+# alert's horizon alone — its daily strip comes from ONE daily request instead.
+BRIEFING_WEATHER_ALERT_SLOTS = BRIEFING_FORECAST_ALERT_HORIZON_HOURS // 3
+
+# How long a section's push generation lives (seconds). It fences a read IN
+# FLIGHT, which lasts seconds; an expired generation reads as 0 and only ever
+# refuses a write (the next read is live), never lets a stale one through.
+SECTION_GENERATION_TTL_SECONDS = 3600
 
 # =============================================================================
 # Section names (Literal alignment for RefreshRequest schema).

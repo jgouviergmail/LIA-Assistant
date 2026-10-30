@@ -14,7 +14,7 @@ Created: 2026-03-10
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -28,6 +28,7 @@ from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
     normalize_vevent,
 )
+from src.domains.connectors.clients.retry_policy import provider_idempotency_id
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 
@@ -198,12 +199,18 @@ class AppleCalendarClient(BaseAppleClient):
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """Create a new event.
 
         ``add_conference`` is accepted for provider parity but ignored:
         CalDAV/iCloud has no conference-creation concept (graceful
         degradation — the event is created without a video link).
+
+        The event's ``uid`` is fixed BEFORE the retry loop, derived from the effect's
+        ``idempotency_key`` (ADR-263): the object's URL derives from it, so a resend
+        writes the same object again — caldav mints a new uid per save otherwise, and
+        a resent create was a second event (S1).
         """
         if add_conference:
             logger.debug(
@@ -221,6 +228,7 @@ class AppleCalendarClient(BaseAppleClient):
             location,
             attendees,
             calendar_id,
+            uid=provider_idempotency_id(idempotency_key or uuid4().hex, "apple"),
         )
 
     async def update_event(
@@ -419,8 +427,10 @@ class AppleCalendarClient(BaseAppleClient):
         location: str | None,
         attendees: list[str] | None,
         calendar_id: str,
+        *,
+        uid: str,
     ) -> dict[str, Any]:
-        """Create a new event via CalDAV."""
+        """Create a new event via CalDAV, under the ``uid`` its caller fixed."""
         calendar = await self._get_calendar(calendar_id)
 
         # Parse WITHOUT stamping UTC so the requested timezone can apply to
@@ -431,6 +441,7 @@ class AppleCalendarClient(BaseAppleClient):
         dtend = self._apply_timezone(_parse_iso_datetime(end_datetime, assume_utc=False), timezone)
 
         kwargs: dict[str, Any] = {
+            "uid": uid,
             "dtstart": dtstart,
             "dtend": dtend,
             "summary": summary,

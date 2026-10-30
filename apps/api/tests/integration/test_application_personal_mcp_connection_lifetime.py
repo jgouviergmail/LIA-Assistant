@@ -1,6 +1,7 @@
 """Independent sessions prove probe/billing lock lifetime and late DNS edit refusal."""
 
 import asyncio
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -27,6 +28,7 @@ from src.infrastructure.mcp.personal_state_gateway import (
     PersonalMCPStateGateway,
     configure_personal_mcp_state,
 )
+from src.infrastructure.mcp.pool_catalogue import PoolEntry
 from tests.integration.domains.skills.test_per_account_skill_names import _user
 
 pytestmark = pytest.mark.integration
@@ -84,8 +86,13 @@ async def test_probe_external_work_has_no_actor_lock_and_late_endpoint_edits_ref
             async def connect(**kwargs):
                 if stage == "network":
                     await independent_write("network")
-                return SimpleNamespace(
-                    tools=[{"name": "read", "description": "Read owned records"}]
+                # The pool's own entry: the generation it reserved before this discovery.
+                return PoolEntry(
+                    user_id=owner,
+                    server_id=server_id,
+                    last_used=time.monotonic(),
+                    tools=[{"name": "read", "description": "Read owned records"}],
+                    generation=1,
                 )
 
             async def description(**kwargs):

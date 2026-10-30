@@ -1,2057 +1,267 @@
-# LIA — Vollständiger technischer Leitfaden
+# LIA — Technischer Leitfaden
 
-> Architektur, Patterns und Engineering-Entscheidungen eines KI-Multi-Agent-Assistenten der nächsten Generation.
->
-> Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
+> Wie LIA aufgebaut ist, in groben Zügen. Die Details stehen im Code, in den ADR und in der Dokumentation des Repositorys.
 
-**Version**: 5.6
+**Version**: 6.0
 **Datum**: 2026-10-23
-**Application**: LIA v4.1.0
+**Application**: LIA v4.2.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
 
 ## Inhaltsverzeichnis
 
-1. [Kontext und grundlegende Entscheidungen](#1-kontext-und-grundlegende-entscheidungen)
-2. [Technologie-Stack](#2-technologie-stack)
-3. [Backend-Architektur: Domain-Driven Design](#3-backend-architektur-domain-driven-design)
-4. [LangGraph: Multi-Agent-Orchestrierung](#4-langgraph-multi-agent-orchestrierung)
-5. [Die konversationelle Ausführungspipeline](#5-die-konversationelle-ausführungspipeline)
-6. [Das Planungssystem (ExecutionPlan DSL)](#6-das-planungssystem-executionplan-dsl)
-7. [Smart Services: intelligente Optimierung](#7-smart-services-intelligente-optimierung)
-8. [Semantisches Routing und KI-gestützte Embeddings](#8-semantisches-routing-und-ki-gestützte-embeddings)
-9. [Human-in-the-Loop: 6-Schichten-Architektur](#9-human-in-the-loop-6-schichten-architektur)
-10. [State-Management und Message Windowing](#10-state-management-und-message-windowing)
-11. [Gedächtnissystem und psychologisches Profil](#11-gedächtnissystem-und-psychologisches-profil)
-12. [Multi-Provider-LLM-Infrastruktur](#12-multi-provider-llm-infrastruktur)
-13. [Konnektoren: Multi-Provider-Abstraktion](#13-konnektoren-multi-provider-abstraktion)
-14. [MCP: Model Context Protocol](#14-mcp-model-context-protocol)
-15. [Sprachsystem (STT/TTS)](#15-sprachsystem-stttts)
-16. [Proaktivität: Heartbeat und geplante Aktionen](#16-proaktivität-heartbeat-und-geplante-aktionen)
-17. [RAG Spaces und hybride Suche](#17-rag-spaces-und-hybride-suche)
-18. [Browser Control und Web Fetch](#18-browser-control-und-web-fetch)
-19. [Sicherheit: Defence in Depth](#19-sicherheit-defence-in-depth)
-20. [Observability und Monitoring](#20-observability-und-monitoring)
-21. [Performance: Optimierungen und Metriken](#21-performance-optimierungen-und-metriken)
-22. [CI/CD und Qualität](#22-cicd-und-qualität)
-23. [Übergreifende Engineering-Patterns](#23-übergreifende-engineering-patterns)
-24. [Architekturentscheidungen (ADR)](#24-architekturentscheidungen-adr)
-25. [Evolutionspotenzial und Erweiterbarkeit](#25-evolutionspotenzial-und-erweiterbarkeit)
-26. [Psyche Engine: Dynamische emotionale Intelligenz](#26-psyche-engine-dynamische-emotionale-intelligenz)
-27. [Deterministisches Gewohnheitslernen](#27-deterministisches-gewohnheitslernen)
-28. [Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation](#28-eine-instanz-regieren-ausgaben-fähigkeiten-installation)
-29. [Per Datei verwalten: Die Arbeitsmappe ist das Formular](#29-per-datei-verwalten-die-arbeitsmappe-ist-das-formular)
-30. [Sichtbare Arbeit, gesteuertes Lernen](#30-sichtbare-arbeit-gesteuertes-lernen)
-31. [Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur](#31-ausdrucksstarke-augen-eine-von-signalen-gesteuerte-figur)
-32. [Native Apps: eine Hülle, dein Server](#32-native-apps-eine-hülle-dein-server)
-33. [Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest](#33-selbstdiagnose-ein-assistent-der-die-eigene-telemetrie-liest)
-34. [Rechnen statt raten: ein flüchtiges Skript in der Skill-Sandbox](#34-rechnen-statt-raten-ein-flüchtiges-skript-in-der-skill-sandbox)
-35. [Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen](#35-eine-farbe-messen-bevor-man-sie-ausliefert-die-palette-der-einstellungen)
-36. [Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register](#36-ein-merkmal-ist-keine-reaktion-das-von-der-antwort-deklarierte-register)
-37. [Drei Mechanismen für eine Konvergenz: eine Spitze glätten, die kein Limit sieht](#37-drei-mechanismen-für-eine-konvergenz-eine-spitze-glätten-die-kein-limit-sieht)
-38. [Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag](#38-besprechungsprotokolle-die-zeile-ist-der-job-die-vorlage-der-vertrag)
-39. [Drei Register, und das, um das niemand gebeten hatte](#39-drei-register-und-das-um-das-niemand-gebeten-hatte)
-40. [Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen](#40-ein-debriefing-je-beziehung-was-zehn-abschnitte-nicht-sagen)
-41. [Das Ticket-Board: eine Zeile, zwei Seiten und eine Assistentin, die fragt](#41-das-ticket-board-eine-zeile-zwei-seiten-und-eine-assistentin-die-fragt)
-42. [Die Anatomie eines Prozesses: was er lädt, ist deklariert, gemessen und begrenzt](#42-die-anatomie-eines-prozesses-was-er-lädt-ist-deklariert-gemessen-und-begrenzt)
-43. [Der Live-Modus: zwei Intelligenzen, eine Naht – und eine Regel pro Modus](#43-der-live-modus-zwei-intelligenzen-eine-naht--und-eine-regel-pro-modus)
-44. [Karten, die zeigen, was empfangen wurde, und Aktionen, die zu ihrer Nachricht gehören](#44-karten-die-zeigen-was-empfangen-wurde-und-aktionen-die-zu-ihrer-nachricht-gehören)
-45. [Anwendungsbefehle: eine Absicht, aktuelle Berechtigung](#45-anwendungsbefehle-eine-absicht-aktuelle-berechtigung)
-46. [LIAs Welt](#46-lias-welt)
-47. [Fazit](#47-fazit)
----
-
-## 1. Kontext und grundlegende Entscheidungen
-
-### 1.1. Warum diese Entscheidungen?
-
-Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das Projekt zielt auf einen Multi-Agent-KI-Assistenten, der **auf bescheidener Hardware selbst gehostet werden kann** (Raspberry Pi 5, ARM64), mit vollständiger Transparenz, Datensouveränität und Multi-Provider-LLM-Unterstützung. Diese Anforderungen haben den gesamten Stack bestimmt.
-
-| Anforderung | Architektonische Konsequenz |
-|------------|--------------------------|
-| Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
-| Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), mit Fernet verschlüsselte Zugangsdaten, lokale Redis-Sessions |
-| Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 640 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 363 ADRs, über 69.000 automatisierte Tests in Backend und Frontend, native Observability, HITL auf 6 Ebenen |
-| Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
-
-### 1.2. Architekturprinzipien
-
-| Prinzip | Implementierung |
-|----------|----------------|
-| **Domain-Driven Design** | Bounded Contexts in `src/domains/`, explizite Aggregate, Schichten Router/Service/Repository/Model |
-| **Hexagonale Architektur** | Ports (Python-Protokolle) und Adapter (konkrete Google/Microsoft/Apple-Clients) |
-| **Event-Driven** | SSE-Streaming, ContextVar-Propagation, Fire-and-Forget-Hintergrundaufgaben |
-| **Defence in Depth** | 5 Schichten für Usage Limits, 6 HITL-Ebenen, 3 Anti-Halluzinations-Schichten |
-| **Feature Flags** | Jedes Subsystem aktivierbar/deaktivierbar (`{FEATURE}_ENABLED`) |
-| **Configuration as Code** | Pydantic BaseSettings zusammengesetzt via MRO, Prioritätskette APPLICATION > .ENV > CONSTANT |
-
-### 1.3. Codebase-Metriken
-
-| Metrik | Wert |
-|----------|--------|
-| Tests | Über 69.000 automatisierte Tests mit pytest und Vitest (Abdeckungsschwellen fixiert, ADR-116) |
-| pytest-Fixtures | 1.391, davon 58 über conftest geteilt |
-| Dokumentationsdokumente | 835 |
-| ADRs (Architecture Decision Records) | 363 |
-| Prometheus-Metriken | 640 Definitionen |
-| Grafana-Dashboards | 32 |
-| Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
+1. [Überblick](#1-überblick)
+2. [Ein nach Domänen gegliedertes Backend](#2-ein-nach-domänen-gegliedertes-backend)
+3. [Der Weg einer Nachricht](#3-der-weg-einer-nachricht)
+4. [Mit Vorsicht handeln](#4-mit-vorsicht-handeln)
+5. [Gedächtnis und Kontext](#5-gedächtnis-und-kontext)
+6. [Die Modelle](#6-die-modelle)
+7. [Konnektoren und Werkzeuge](#7-konnektoren-und-werkzeuge)
+8. [Stimme, Live-Modus und Telefon](#8-stimme-live-modus-und-telefon)
+9. [Die Initiative](#9-die-initiative)
+10. [Sicherheit und Privatsphäre](#10-sicherheit-und-privatsphäre)
+11. [Beobachten und messen](#11-beobachten-und-messen)
+12. [Die Oberflächen](#12-die-oberflächen)
+13. [Wie dieser Code gepflegt wird](#13-wie-dieser-code-gepflegt-wird)
+14. [Weiterlesen](#14-weiterlesen)
 
 ---
 
-## 2. Technologie-Stack
+## 1. Überblick
 
-### 2.1. Backend
+Ich habe LIA so entworfen, dass sie bei dir läuft, auf bescheidener Hardware. Die Referenzplattform ist ein Raspberry Pi 5 (ARM64), und alles Weitere folgt daraus: eine einzige Maschine, eine lokale PostgreSQL-Datenbank und ein lokales Redis, keine anderswo gehostete Datenbank. Zugangsdaten und Schlüssel der Anbieter werden verschlüsselt gespeichert.
 
-| Technologie | Version | Rolle | Warum diese Wahl |
-|-------------|---------|------|-------------------|
-| Python | 3.14 | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
-| FastAPI | 0.141.1 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
-| LangGraph | 1.2.14 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
-| LangChain Core | 1.5.6 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
-| SQLAlchemy | 2.0.54 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |
-| PostgreSQL | 16 + pgvector | Datenbank + Vektorsuche | Native LangGraph-Checkpoints, semantische HNSW-Suche, Reife |
-| Redis | 7.4 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
-| Pydantic | 2.13.4 | Validierung + Serialisierung | `ConfigDict`, `field_validator`, Settings-Komposition via MRO |
-| structlog | 25.5 | Strukturiertes Logging | JSON-Ausgabe mit automatischer PII-Filterung, snake_case Events |
-| Gemini Embeddings | gemini-embedding-001 | Semantische Embeddings | Mehrsprachige Gemini-Embeddings (Gedächtnis, Routing, Interessen, Journale) — ADR-069 |
-| Playwright | 1.63 | Browser-Automatisierung | Chromium Headless (Debians eigenes Paket, bei jedem Image-Build erneuert), CDP Accessibility Tree, Cross-Platform |
-| APScheduler | 3.x | Hintergrund-Jobs | Cron/Interval-Trigger, kompatibel mit Redis Leader Election |
-
-### 2.2. Frontend
-
-| Technologie | Version | Rolle |
-|-------------|---------|------|
-| Next.js | 16.4.2 | App Router, SSR, ISR |
-| React | 19.3.1 | UI mit Server Components |
-| TypeScript | 6.0.3 | Striktes Typing |
-| TailwindCSS | 4.3.3 | Utility-First CSS |
-| TanStack Query | 5.x | Server State Management, Cache, Mutations |
-| Radix UI | v2 | Barrierefreie UI-Primitives |
-| react-i18next | 17.0 | i18n (6 Sprachen), Namespace-basiert |
-| Zod | 4.x | Runtime-Validierung der Debug-Schemata |
-
-### 2.3. Unterstützte LLM-Provider
-
-| Provider | Modelle | Besonderheiten |
-|----------|---------|-------------|
-| OpenAI | GPT-6 (astra, sol, luna), GPT-5.6 (terra, sol, luna), GPT-5.5, GPT-5.4 (+ mini), GPT-5.x (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Natives Prompt Caching, Responses API, reasoning_effort |
-| Anthropic | Claude Fable 5.1/5, Claude Opus 5.5/5/4.8/4.7/4.6/4.5, Claude Sonnet 5/4.6/4.5, Claude Haiku 4.5 | Extended Thinking, Prompt Caching |
-| Google | Gemini 3.8/3.7/3.6/3.5 Flash, Gemini 3.1 Pro, Gemini 2.5 Pro/Flash | Multimodal, Dual-Vector-Embeddings |
-| DeepSeek | deepseek-flash (V4.1), deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduzierte Kosten, natives Reasoning |
-| Perplexity | Sonar, Sonar Pro | Search-Augmented Generation |
-| Qwen | Qwen 3.8 (Max, Flash), 3.7 (Max, Plus, Flash), 3.6 (Plus, Flash), 3.5 (Plus, Flash), qwen3-max | Thinking Mode, Tools + Vision (Alibaba Cloud) |
-| Ollama | Jedes lokale Modell (Fähigkeiten vom Server gelesen) | Nativer Client: gesteuertes Denken, Kontextfenster, eingeschränktes JSON. Null API-Kosten, Self-Hosted |
-
-**Warum 7 Provider?** Die Auswahl ist kein Selbstzweck. Es ist eine Resilienzstrategie: Jeder Knoten der Pipeline kann einem anderen Provider zugewiesen werden. Wenn OpenAI die Preise erhöht, wechselt der Router auf DeepSeek. Wenn Anthropic einen Ausfall hat, wird die Antwort auf Gemini umgeleitet. Die LLM-Abstraktion (`src/infrastructure/llm/factory.py`) verwendet das Factory Pattern mit `init_chat_model()`, überschrieben durch spezifische Adapter (`ResponsesLLM` für die OpenAI Responses API, Eligibility per Regex `^(gpt-4\.1|gpt-5|gpt-6|o[1-9])`).
-
-**Der Sonderfall lokaler Modelle.** Sechs Anbieter sprechen eine entfernte API; der siebte läuft bei dir, und LIA spricht mit ihm über seine **native API** (`langchain-ollama`) statt über seine OpenAI-Kompatibilitätsschicht. Der Unterschied ist nicht kosmetisch: die Kompatibilitätsschicht kann weder `think` ausdrücken (das Denken eines denkenden Modells abschalten oder seine Tiefe wählen) noch `num_ctx` (das Kontextfenster, das ein lokaler Server sonst nach seinem Videospeicher wählt und das den Anfang eines zu langen Prompts stillschweigend abschneidet), noch die Denkspur von der Antwort trennen. Und weil ein Modellname nichts über seine Fähigkeiten sagt, werden sie **vom Server gelesen** (`/api/show`: Werkzeuge, Bildverstehen, Denken, Kontextlänge) und speisen sowohl die Ausführung als auch den Verwaltungsbildschirm — eine Denktiefe erreicht so nie ein Modell, das nicht denkt und das der Server ablehnen würde.
-
----
-
-## 3. Backend-Architektur: Domain-Driven Design
-
-### 3.1. Domänenstruktur
-
-```
-apps/api/src/
-├── core/                         # Übergreifender technischer Kern
-│   ├── config/                   # Pydantic BaseSettings-Module zusammengesetzt via MRO
-│   │   ├── __init__.py           # Settings-Klasse (finale MRO)
-│   │   ├── agents.py, database.py, llm.py, mcp.py, voice.py, usage_limits.py, ...
-│   ├── constants.py              # 2 000+ zentralisierte Konstanten
-│   ├── exceptions.py             # Zentralisierte Exceptions (raise_user_not_found, etc.)
-│   └── i18n.py                   # i18n-Bridge → Settings
-│
-├── domains/                      # Bounded Contexts (DDD)
-│   ├── agents/                   # HAUPTDOMÄNE — LangGraph-Orchestrierung
-│   │   ├── nodes/                # Graphknoten: Pipeline, ReAct, HITL, Initiative
-│   │   ├── services/             # Smart Services, HITL, Context Resolution
-│   │   ├── tools/                # Werkzeuge nach Domäne (@tool + ToolResponse)
-│   │   ├── orchestration/        # ExecutionPlan, Parallel Executor, Validators
-│   │   ├── registry/             # AgentRegistry, domain_taxonomy, Catalogue
-│   │   ├── semantic/             # Semantic Router, Expansion Service
-│   │   ├── middleware/           # Memory Injection, Personality Injection
-│   │   ├── prompts/v1/           # versionierte .txt-Prompt-Dateien
-│   │   ├── graphs/               # Ein Agent-Builder pro Domäne
-│   │   ├── context/              # Context Store (Data Registry), Decorators
-│   │   └── models.py             # MessagesState (TypedDict + Custom Reducer)
-│   ├── auth/                     # OAuth 2.1, BFF-Sessions, RBAC
-│   ├── connectors/               # Multi-Provider-Abstraktion (Google/Apple/Microsoft)
-│   ├── rag_spaces/               # Upload, Chunking, Embedding, hybrides Retrieval
-│   ├── journals/                 # Introspektive Tagebücher
-│   ├── interests/                # Erlernen von Interessensgebieten
-│   ├── heartbeat/                # LLM-gesteuerte proaktive Benachrichtigungen
-│   ├── channels/                 # Multi-Kanal (Telegram)
-│   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
-│   ├── skills/                   # Standard agentskills.io
-│   ├── sub_agents/               # Kurzlebige, delegierte Sub-Agenten, nur lesend
-│   ├── peers/                    # Verbindungen zwischen Nutzern (Assistent-zu-Assistent-Relais)
-│   ├── relations/                # Persönliches CRM (Aggregation + Favoriten)
-│   ├── usage_limits/             # Kontingente pro Benutzer (5-Layer Defence)
-│   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp, live, telephony, workboard, meetings…
-│
-└── infrastructure/               # Übergreifende Schicht
-    ├── llm/                      # Factory, Providers, Adapter, Embeddings, Tracking
-    ├── cache/                    # Redis Sessions, LLM Cache, JSON Helpers
-    ├── mcp/                      # MCP Client Pool, Auth, SSRF, Tool Adapter, Excalidraw
-    ├── browser/                  # Playwright Session Pool, CDP, Anti-Erkennung
-    ├── rate_limiting/            # Verteiltes Redis Sliding Window
-    ├── scheduler/                # APScheduler, Leader Election, Locks
-    └── observability/            # Prometheus-Metriken pro Subsystem, OTel-Tracing
-```
-
-### 3.2. Konfigurationsprioritätskette
-
-Eine fundamentale Invariante durchzieht das gesamte Backend. Sie wird überall durchgesetzt, da eine Abweichung zwischen einer Konstante und der tatsächlichen Produktionskonfiguration einen stillen Fehler verursacht:
-
-```
-APPLICATION (Admin UI / DB) > .ENV (settings) > CONSTANT (fallback)
-```
-
-**Warum diese Kette?** Die Konstanten (`src/core/constants.py`) dienen ausschließlich als Fallback für Pydantic-`Field(default=...)`- und SQLAlchemy-`server_default=`-Werte. Ein Administrator, der ein LLM-Modell über die Oberfläche ändert, muss diese Änderung sofort wirksam sehen, ohne erneutes Deployment. Zur Laufzeit liest jeglicher Code `settings.field_name`, niemals direkt eine Konstante.
-
-### 3.3. Schichten-Patterns
-
-| Schicht | Verantwortlichkeit | Schlüssel-Pattern |
-|--------|---------------|-------------|
-| **Router** | HTTP-Validierung, Auth, Serialisierung | `Depends(get_current_active_session)`, `check_resource_ownership()` |
-| **Service** | Geschäftslogik, Orchestrierung | Konstruktor erhält `AsyncSession`, erstellt Repositories, zentralisierte Exceptions |
-| **Repository** | Datenzugriff | Erbt von `BaseRepository[T]`, Paginierung `tuple[list[T], int]` |
-| **Model** | DB-Schema | `Mapped[Type]` + `mapped_column()`, `UUIDMixin`, `TimestampMixin` |
-| **Schema** | I/O-Validierung | Pydantic v2, `Field()` mit Beschreibung, getrennte Request/Response |
-
----
-
-## 4. LangGraph: Multi-Agent-Orchestrierung
-
-### 4.1. Warum LangGraph? (ADR-001)
-
-Die Wahl von LangGraph anstelle von LangChain allein, CrewAI oder AutoGen basiert auf drei nicht verhandelbaren Anforderungen:
-
-1. **State Persistence**: `TypedDict` mit Custom Reducers, persistiert über PostgreSQL-Checkpoints — ermöglicht die Wiederaufnahme einer Konversation nach HITL-Unterbrechung
-2. **Zyklen und Interrupts**: Native Unterstützung von Schleifen (HITL-Ablehnung → Neuplanung) und des `interrupt()`-Patterns — ohne das der HITL mit 6 Schichten unmöglich wäre
-3. **SSE-Streaming**: Native Integration mit Callback Handlers — entscheidend für die Echtzeit-UX
-
-CrewAI und AutoGen waren einfacher in der Einarbeitung, aber keines von beiden unterstützte das Interrupt/Resume-Pattern, das für HITL auf Plan-Ebene erforderlich ist. Diese Entscheidung hat ihren Preis: Die Lernkurve ist steiler (Graph-Konzepte, bedingte Kanten, State-Schemata).
-
-### 4.2. Der Hauptgraph
-
-LIA bietet zwei Ausführungsmodi (pro Benutzer über einen Toggle in der Chat-Header umschaltbar): **Pipeline** (Standard, deterministisch und token-effizient) und **ReAct** (autonom und iterativ). Der Router klassifiziert die Anfrage zuerst (direktes Gespräch oder umsetzbar) und leitet sie dann an den aktiven Modus weiter.
+Drei Prinzipien leiten den Rest. Zuerst **Transparenz**: Observability ist von Anfang an Teil der Architektur, und jedes verbrauchte Token wird mit seinen Kosten erfasst. Dann **Defence in Depth**: Quoten, Bestätigungen und Schutzmechanismen gegen Halluzinationen sind voneinander unabhängige Schichten. Und schließlich **Unabhängigkeit von den Anbietern**: Jede Rolle im System kann einem anderen Modell anvertraut werden, was mich vor einer Preiserhöhung ebenso schützt wie vor einem Ausfall.
 
 ```mermaid
-graph TD
-    A[User Message] --> CP[Compaction]
-    CP --> B[Router Node]
-    B -->|conversation| C[Response Node]
-    B -->|pipeline mode| D[Planner Node]
-    B -->|react mode| R1[ReAct Setup]
-    D -->|empty plan| C
-    D --> E[Semantic Validator]
-    E -->|ambiguous| CL[Clarification]
-    CL --> E
-    E -->|replan| D
-    E --> F{Approval Gate}
-    F --> G[Task Orchestrator]
-    G --> H[Domain Agents + Tools]
-    G -->|drafts| HD[HITL Dispatch]
-    G -->|bulk action| FE[FOR_EACH Confirm]
-    FE -->|approved| G
-    H --> I[Initiative]
-    HD --> I
-    I --> C
-    R1 --> R2[ReAct Call Model]
-    R2 -->|tool_calls| R3[ReAct Execute Tools]
-    R3 --> R2
-    R3 -->|draft| HD
-    R2 -->|declared gap| R5[ReAct Recovery]
-    R5 --> R2
-    R2 -->|done| R4[ReAct Finalize]
-    R4 --> I
-    C --> J[SSE Stream]
+flowchart LR
+    U["Browser, mobile App"] --> W["Next.js-Oberfläche"]
+    W -->|"Sitzungscookie"| A["FastAPI-API"]
+    T["Telegram"] -->|"Webhook"| A
+    A --> G["LangGraph-Graph"]
+    G --> C["Konnektoren Google, Microsoft, Apple"]
+    G --> M["KI-Modelle"]
+    A --> P[("PostgreSQL + pgvector")]
+    A --> R[("Redis")]
+    A -.-> O["Monitoring"]
 ```
 
-### 4.3. Graphknoten
+Der Stack ist bewusst klassisch:
 
-| Knoten | Datei | Rolle | Windowing |
-|------|---------|------|-----------|
-| Router v3 | `router_node_v3.py` | Binäre Klassifikation conversation/actionable | 5 Turns |
-| QueryAnalyzer | `query_analyzer_service.py` | Domänenerkennung, Intent-Extraktion | — |
-| Planner v3 | `planner_node_v3.py` | ExecutionPlan-DSL-Generierung | 10 Turns |
-| Semantic Validator | `semantic_validator.py` | Validierung von Abhängigkeiten und Kohärenz | — |
-| Approval Gate | `approval_gate_node.py` | Lässt jeden Plan passieren: bestätigt wird pro Aktion | — |
-| Task Orchestrator | `task_orchestrator_node.py` | Parallele Ausführung, Kontextweitergabe | — |
-| HITL Dispatch | `hitl_dispatch_node.py` | `interrupt()` für einen Entwurf, eine Disambiguierung oder eine Tool-Bestätigung | — |
-| Response | `response_node.py` | Anti-Halluzinations-Synthese, 3 Schutzschichten | 20 Turns |
+| Schicht | Wahl |
+| --- | --- |
+| Backend | Python 3.14, FastAPI, durchgehend asynchron |
+| Orchestrierung der Agenten | LangGraph 1.x |
+| Daten | PostgreSQL mit pgvector: Daten, Checkpoints des Graphen und Vektorsuche |
+| Cache und Koordination | Redis: Cache, Sitzungen, Ratenbegrenzung, Leader-Wahl |
+| Frontend | Next.js 16 (App Router), React 19, striktes TypeScript |
+| Modelle | OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Qwen und jedes lokale Modell über Ollama |
+| Logs | Strukturiertes JSON, personenbezogene Daten gefiltert |
 
-### 4.4. AgentRegistry und Domain Taxonomy
+Ein lokales Modell läuft ohne API-Kosten, vollständig bei dir. Die API läuft in mehreren Workern; eine Leader-Wahl in Redis reserviert die geplanten Aufgaben für einen einzigen von ihnen. Jedes optionale Subsystem wird über ein Flag aktiviert, und die Konfiguration folgt einer einzigen Kaskade: Was der Administrator in der Anwendung einstellt, hat Vorrang vor der Umgebung, die wiederum Vorrang vor den Konstanten im Code hat. Ich wollte eine einzige Kaskade, weil eine Konstante, die stillschweigend von der tatsächlichen Konfiguration abweicht, die am schwersten zu erkennenden Bugs erzeugt.
 
-Die `AgentRegistry` zentralisiert die Registrierung von Agenten (`registry.register_agent()` in `main.py`), den `ToolManifest`-Katalog und die `domain_taxonomy.py`, die jede Domäne mit ihrem `result_key` und ihren Aliasen definiert.
+Ein geführtes Installationsprogramm stellt ein paar Fragen, legt das Administratorkonto an, ohne ein Geheimnis im Klartext zu schreiben, prüft, dass die Installation wirklich funktioniert, und kann sie später neu konfigurieren, ohne die Schlüssel erneut abzufragen ([LIA installieren](/de/faq#faq-self_hosting)).
 
-**Warum ein zentralisiertes Register?** Ohne dieses würde das Hinzufügen eines Agenten die Änderung von 5+ Dateien erfordern. Mit dem Register deklariert sich ein neuer Agent an einem einzigen Punkt und ist automatisch für Routing, Planung und Ausführung verfügbar.
+In Größenordnungen: mehr als 350 ADR, Hunderte Prometheus-Metriken, Zehntausende automatisierte Tests, eine Oberfläche in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch).
 
-### 4.5. Domain Taxonomy
+*Weiterlesen: [allgemeine Architektur](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE.md) · [Selbst-Hosting](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_SELF_HOSTING.md) · [Modellanbieter](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_PROVIDERS.md) · [administrierbare Fähigkeiten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-217-Capacites-Administrables.md)*
 
-Jede Domain ist eine deklarative `DomainConfig`: Name, Agents, `result_key` (kanonischer Schlüssel für `$steps`-Referenzen), `related_domains`, Priorität und Routingfähigkeit. Die `DOMAIN_REGISTRY` ist die einzige Wahrheitsquelle, die von drei Subsystemen konsumiert wird: SmartCatalogue (Filterung), semantische Expansion (benachbarte Domains) und Initiative-Phase (struktureller Vorfilter).
+## 2. Ein nach Domänen gegliedertes Backend
 
-### 4.6. Tool Manifests
+Das Backend folgt dem Domain-Driven Design. Jede fachliche Domäne (Agenten, Konnektoren, Stimme, Gedächtnis, Erinnerungen, Gespräche…) ist ein isolierter Kontext in `src/domains/`, nach demselben Muster gegliedert: Router, Service, Repository, Modell, Schema. Daneben trägt ein übergreifender Kern (`core`) die Konfiguration und die gemeinsamen Regeln, und eine gemeinsame Infrastrukturschicht bündelt, was alle brauchen: die Modell-Factory, den Cache, den MCP-Client, den Browser, die Ratenbegrenzung, den Aufgabenplaner, die Observability.
 
-Jedes Tool deklariert ein `ToolManifest` über einen fluenten `ToolManifestBuilder`: Parameter, Outputs, Kostenprofil, Berechtigungen und mehrsprachige `semantic_keywords` für das Routing. Manifeste werden vom Planner (Katalog-Injektion), dem semantischen Router (Keyword-Matching) und dem Agent-Builder (Tool-Verdrahtung) konsumiert. Siehe Abschnitt 23 für die vollständige Tool-Architektur.
+Für die externen Dienste habe ich eine hexagonale Architektur gewählt. Die Werkzeuge kennen nur Python-Protokolle (Ports), und die Clients für Google, Microsoft, Apple oder Philips Hue setzen sie um (Adapter). Einen Anbieter hinzuzufügen berührt also nicht den Code, der ihn aufruft.
 
----
+Das Repository ist ein Monorepo: `apps/api` für das Backend, `apps/web` für die Oberfläche, `infrastructure/` für Docker und das Monitoring, `docs/` für die Dokumentation. Ein Administrator, der in der Oberfläche ein Modell ändert, sieht die Änderung sofort wirksam, ohne neues Deployment, weil die laufende Konfiguration in der Datenbank liegt.
 
-## 5. Die konversationelle Ausführungspipeline
+*Weiterlesen: [einen Konnektor erstellen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_CONNECTOR_IMPLEMENTATION.md) · [einen Agenten erstellen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_AGENT_CREATION.md) · [ein Werkzeug erstellen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_TOOL_CREATION.md) · [einen Kanal hinzufügen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/templates/NEW_CHANNEL_CHECKLIST.md) · [einen Modellanbieter hinzufügen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_PROVIDER_CONSTRAINTS.md) · [eine proaktive Aufgabe hinzufügen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/templates/NEW_PROACTIVE_TASK_CHECKLIST.md)*
 
-### 5.1. Detaillierter Ablauf einer aktionsfähigen Anfrage
+## 3. Der Weg einer Nachricht
 
-1. **Empfang**: Benutzernachricht → SSE-Endpunkt `/api/v1/chat/stream`
-2. **Kontext**: `request_tool_manifests_ctx` ContextVar wird einmalig aufgebaut (ADR-061: 3-Layer Defence)
-3. **Router**: Binäre Klassifikation mit Konfidenz-Scoring (high > 0.85, medium > 0.65)
-4. **QueryAnalyzer**: Identifiziert Domänen via LLM + Post-Expansion-Validierung (Gate-Keeper, der deaktivierte Domänen filtert)
-5. **SmartPlanner**: Generiert einen `ExecutionPlan` (strukturiertes JSON-DSL)
-   - Pattern Learning: Konsultiert den bayesschen Cache (Bypass bei Konfidenz > 90 %)
-   - Skill Detection: Deterministische Skills werden über `_has_potential_skill_match()` geschützt
-6. **Semantic Validator**: Überprüft die Kohärenz der Abhängigkeiten zwischen Schritten
-7. **Approval Gate**: Lässt den Plan passieren — bestätigt wird pro Aktion, dort, wo sie vorbereitet wird: ein FOR_EACH-Stapel vor seiner Ausführung, ein Entwurf oder eine Tool-Bestätigung, sobald der Orchestrator sie vorbereitet hat (HITL Dispatch, `interrupt()`)
-8. **Task Orchestrator**: Führt Schritte in parallelen Wellen via `asyncio.gather()` aus
-   - Filtert übersprungene Schritte VOR dem Gather (ADR-005 — behebt einen Bug der doppelten Ausführung Plan+Fallback)
-   - Kontextweitergabe über Data Registry (InMemoryStore)
-   - FOR_EACH-Pattern für Masseniterationen
-9. **Response Node**: Synthetisiert die Ergebnisse, Injection von Gedächtnis + Journalen + RAG
-10. **SSE Stream**: Token für Token zum Frontend
-11. **Hintergrundaufgaben** (Fire-and-Forget): Gedächtnisextraktion, Journalextraktion, Interessenerkennung
+Ich habe LangGraph für die Orchestrierung der Agenten gewählt, weil es drei Dinge mitbrachte, die ich brauchte: einen als Checkpoints in PostgreSQL gespeicherten Zustand, Zyklen und `interrupt()`, mit dem sich ein Durchlauf anhalten lässt, um eine Bestätigung einzuholen, und dann genau dort fortsetzen lässt, wo er stehen geblieben war. Ohne diesen Mechanismus gibt es keine ernsthafte menschliche Bestätigung.
 
-### 5.2. ContextVar: implizite Zustandspropagation
+Jede Nachricht geht zuerst durch einen **Router**, der sie als einfaches Gespräch oder als Anfrage einordnet, die eine Aktion verlangt. Ein Gespräch geht direkt zur Antwort. Eine Aktion folgt dem Modus, der im Kopf des Chats gewählt ist.
 
-Ein kritischer Mechanismus ist die Verwendung von Python-`ContextVar` zur Zustandspropagation ohne Parameter-Threading:
-
-| ContextVar | Rolle | Warum |
-|------------|------|----------|
-| `current_tracker` | TrackingContext für LLM-Token-Tracking | Vermeidet die Weitergabe eines Trackers durch 15 Funktionsschichten |
-| `request_tool_manifests_ctx` | Pro Anfrage gefilterte Tool-Manifeste | Einmal aufgebaut, von 7+ Verbrauchern gelesen (eliminiert Duplikation ADR-061) |
-
-Dieser Ansatz gewährleistet eine Isolation pro Anfrage in einem asyncio-Kontext, ohne Funktionssignaturen zu verunreinigen.
-
-### 5.3. ReAct-Ausführungsmodus (ADR-070)
-
-LIA bietet einen zweiten Ausführungsmodus: **ReAct** (Reasoning + Acting). Anstatt vorab zu planen, ruft das LLM iterativ Tools auf, beobachtet die Ergebnisse und entscheidet autonom den nächsten Schritt.
-
-**Architektur**: 5 eigene Knoten im übergeordneten LangGraph-Graphen (kein Subgraph):
-
-```
-Router → react_setup → react_call_model ↔ react_execute_tools → react_finalize → Response
-                              ↕ <unresolved>
-                       react_recovery
+```mermaid
+flowchart TD
+    M["Nachricht"] --> R{"Router"}
+    R -->|"Gespräch"| S["Antwort"]
+    R -->|"Aktion, Modus Pipeline"| P["Planer"]
+    P --> V["Semantischer Validator"]
+    V --> O["Orchestrator, Schritte parallel"]
+    O --> A["Domänen-Agenten"]
+    A --> S
+    R -->|"Aktion, Modus ReAct"| L["ReAct-Schleife"]
+    L -->|"Werkzeug, Ergebnis, nächste Entscheidung"| L
+    L --> S
+    S -->|"SSE-Stream"| U["Bildschirm"]
 ```
 
-**Pipeline vs ReAct — Engineering-Abwägungen**:
+Im Modus **Pipeline**, dem Standardmodus, schreibt der Planer vor jeder Ausführung einen `ExecutionPlan`: einen Plan in JSON, dessen Schritte über ihre Abhängigkeiten verbunden sind. Ein zweites Modell, getrennt vom Planer, validiert diesen Plan, damit kein Modell seine eigene Arbeit beurteilt. Der Orchestrator führt die Schritte dann in parallelen Wellen aus. Der Modus **ReAct** lässt das Modell dagegen ein Werkzeug aufrufen, das Ergebnis lesen und über das Weitere entscheiden, Schritt für Schritt.
 
-| Aspekt | Pipeline (Standard) | ReAct (⚡) |
-|--------|-------------------|-----------|
-| **Token-Kosten** | **4–8× niedriger** — 1 Planner- + 1 Antwort-Aufruf | 1 LLM-Aufruf pro Iteration (2–15 Iterationen typisch) |
-| **Planung** | Vorab ExecutionPlan mit semantischer Validierung | Keine — LLM entscheidet Schritt für Schritt |
-| **Parallelausführung** | Ja — `asyncio.gather()` Wellen | Nein — sequenzielle Tool-Aufrufe |
-| **Anpassungsfähigkeit** | Folgt dem Plan starr | Passt sich bei jedem Tool-Ergebnis an |
-| **Kontrolle** | Voll — Planner-DSL, HITL-Gates, Validatoren | Minimal — promptgesteuertes Verhalten |
-| **Kostenvorhersehbarkeit** | Hoch — begrenzt durch Planschritte | Niedrig — abhängig vom LLM-Reasoning |
-| **Ideal für** | Strukturierte Multi-Domain-Anfragen | Explorative Recherche, mehrdeutige Fragen |
+Ich habe beide behalten, weil sie zwei Bedürfnisse erfüllen. Die Pipeline plant, parallelisiert, kontrolliert sich selbst und sieht ihre Kosten voraus: ein Aufruf für den Planer und einer für die Antwort, gegenüber einem Aufruf pro Iteration bei ReAct, also 4- bis 8-mal weniger Tokens. ReAct passt sich jedem Ergebnis an, was für eine explorative Recherche oder eine mehrdeutige Anfrage besser ist. Beide Modi teilen sich die Werkzeug-Registry, die Bestätigungen, den Antwortknoten und die Observability.
 
-Der Pipeline-Modus ist eine echte Ingenieursleistung: SmartPlanner, Semantic Validator, Bayesianischer Pattern-Cache und paralleler Executor liefern zusammen die gleiche funktionale Leistung wie ReAct bei einem Bruchteil der Token-Kosten. Der Kompromiss liegt bei der Anpassungsfähigkeit — wenn die optimale Tool-Reihenfolge nicht vorab vorhersagbar ist, glänzt ReActs iteratives Reasoning.
+Die Wahl der Domänen und Werkzeuge läuft über einen **semantischen Router** mit Embeddings statt über Schlüsselwörter oder das Modell allein: Er ist günstiger und irrt sich seltener. Jedes Werkzeug deklariert ein Manifest (Parameter, Ausgaben, Kosten, Berechtigungen, Schlüsselwörter in mehreren Sprachen), das der Planer, der Router und der Agenten-Builder lesen, und jeder Agent wird ein einziges Mal in einer zentralen Registry deklariert. Smart Services senken den Verbrauch weiter, indem sie die Analyse der Anfragen cachen und wiederkehrende Pläne lernen. Nach einem Durchlauf mit Aktion schaut ein Initiativ-Knoten, nur lesend, was das Ergebnis anderswo bedeutet: Angekündigter Regen verweist auf die Aktivitäten im Freien in deinem Kalender.
 
-Die Ausgaben eines Zuges gehorchen einem Erhaltungssatz (ADR-256): Denkzeit und Werkzeugzeit sind zwei benannte Budgets, niemals eines — eine Delegation (Unteragent, iterative MCP-Aufgabe, Browser-Lauf) öffnet hinter einem einzigen Tool-Aufruf ihre eigene LLM-Schleife und würde an ihrer Pipeline-Grenze allein 100 % des Denkbudgets ausmachen. Jeder Tool-Aufruf trägt eine individuelle Grenze aus denselben Timeout-Familien wie der Pipeline-Modus, so gewählt, dass sie nie strenger ist als die Grenze, die die darunterliegende Schicht bereits anwendet; ein vom Tool selbst ausgelöster Timeout wird dem Tool zugeschrieben, nicht unserem eigenen Schnitt. Die Stoppbedingung bleibt ein einziges Prädikat mit zwei Lesern: Der Router wendet es zum Entscheiden an, der Finalize-Knoten zum Erklären.
+Ein paar Regeln halten das Ganze ehrlich. Eine Anfrage ohne Handlungsabsicht kann keinen Plan erzeugen, der irgendetwas ändert, und das ist eine deterministische Regel, geprüft vor jedem Modellaufruf. Ein Änderungsplan, der seine Korrekturversuche aufgebraucht hat, wird nicht ausgeführt: LIA stellt eine Frage, statt falsche Daten zu schreiben. Eine Ablehnung oder ein Fehlschlag wird nie als erledigte Aktion dargestellt, und sobald der Plan ausgeführt ist, wird nichts hinter deinem Rücken wiederholt: Die Antwort nennt jeden Fehlschlag, welches Werkzeug, warum, und die genaue Gesamtzahl. Für einen Modus, der sich unterwegs selbst korrigiert, gibt es ReAct.
 
-Beide Modi teilen sich dasselbe Tool-Register, HITL-System, den Response-Knoten und die Observability-Infrastruktur. Benutzer wechseln über einen Schalter im Chat-Header zwischen den Modi.
+Die Antwort kommt Token für Token per SSE. Die Generierung ist von der Verbindung entkoppelt: Ein losgelöster Producer veröffentlicht in einen eigenen Redis-Stream für den Durchlauf, und die Seite ist nur einer seiner Abonnenten. Den Tab zu schließen hält also nichts an, und die Antwort wartet auf dich.
 
-Was ein Werkzeug zurückgibt, wird **Element für Element unter einem Token-Budget in den Kontext der Schleife projiziert** (ADR-286). Die schwerste Elementliste eines Ergebnisses wird an Elementgrenzen geblättert — ein zugelassenes Element ist vollständig, der Block bleibt gültiges JSON, Skalare reisen ganz, und das erste Element kommt immer durch — unter `min(REACT_TOOL_RESULT_MAX_TOKENS, Fenster × REACT_TOOL_RESULT_WINDOW_FRACTION)`, wobei das Fenster das des ReAct-Slots ist. Ein Schnitt wird dem Modell nach dem Tag für externe Inhalte **gesagt** (wie viele von wie vielen, und der Weg zum Rest) und je Werkzeug gezählt, sodass ein Postfach voller Nachrichten das Modell nie als Auszug erreicht, der mitten in den Kopfzeilen der ersten abgeschnitten ist. Der rohe Anbieterbaum verlässt den E-Mail-Builder nie, und ein Werkzeug, dessen Daten nur der Pipeline-Executor einspeist, erklärt sich als Pipeline-only, statt einer Schleife angeboten zu werden, die es nicht ausführen kann.
+*Weiterlesen: [die zwei Modi](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-070-ReAct-Execution-Mode.md) · [die Wahl von LangGraph](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-001-LangGraph-Orchestration.md) · [der Graph im Detail](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_LANGRAPH.md) · [der Router](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/ROUTER.md) · [der Plan und seine parallele Ausführung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-014-ExecutionPlan-Parallel-Executor.md) · [der Planer und die Massenoperationen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PLANNER.md) · [der semantische Router](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-048-Semantic-Tool-Router.md) · [die Werkzeug-Manifeste](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-019-Agent-Manifest-Catalogue-System.md) · [ein Fehlschlag der Pipeline wird genannt, nie wiederholt](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md) · [die Wiedergabe von Werkzeugfehlern](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-303-Tool-Failure-Restitution.md) · [Durchläufe, die den Tab überleben](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-117-Background-Chat-Runs.md) · [der ReAct-Modus](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/REACT_EXECUTION_MODE.md)*
 
-Ein Durchgang schuldet sich außerdem ein Arbeitsgedächtnis, das ihn überdauert. Der Zustand ist durch ein Nachrichtenfenster begrenzt, und ein ReAct-Durchgang fügt pro Iteration zwei Nachrichten hinzu — ein hinreichend langer Durchgang verdrängt somit **seine eigene Frage** aus diesem Fenster, woraufhin die Fensterung, die Historie und laufende Schleife trennt, überhaupt keinen Trennpunkt mehr findet. Der Reducer heftet die Frage des Durchgangs daher wieder an, wenn die Kürzung sie verdrängt hat, auf beiden Zweigen, und die Kopplung zwischen Iterationsbudget und Fenstergröße trägt einen Namen, statt als unausgesprochene arithmetische Beziehung zu existieren. Auch was ein Durchgang dem Modell tatsächlich liefert, wird gemessen — Prompt-Größe pro Iteration und ihr Anteil am Kontextfenster des Modells — denn Iterationen und Dauer einer Schleife zu zählen, sagt nichts über das, was wächst.
+## 4. Mit Vorsicht handeln
 
-Die Werkzeuge, die die Schleife erhält, werden **nach Relevanz gebunden, nie nach Registrierungsreihenfolge** (ADR-293). Der Router berechnet ohnehin ein Embedding der Frage, um die Domänen zu bewerten; aus demselben Vektor ordnet er jedes verfügbare Manifest — native Werkzeuge wie die MCP-Server der Person — zu einer globalen Rangfolge, die die Schleife liest. Die Auswahl setzt sich zusammen, ohne dass irgendwo ein Werkzeugname geschrieben steht: die Werkzeuge der erkannten Domänen, dann die besten jeder anderen Familie, damit jede erreichbar bleibt, dann die Spitze der Rangfolge bis zu einem veröffentlichten Budget; die Obergrenze ist nur ein Sicherheitsnetz per stabiler Sortierung. Eine von Hand deklarierte „Kern“-Liste ist grundsätzlich ausgeschlossen: Sie schriebe die Nutzung eines Kontos in ein Mehrbenutzerprodukt ein, wo die Abdeckung pro Familie dasselbe strukturell sagt. Die Schleife montiert außerdem den Wissensraum-Block, den die Pipeline injiziert, gelesen aus dem Bündel, das der Router vorgeladen hat, ohne es zu verbrauchen: Was die Pipeline weiß, weiß die Schleife. Die Zahl der gebundenen Werkzeuge und die Tokens ihrer Schemata werden gemessen, denn dieses Präfix kann den Großteil des ersten Aufrufs ausmachen. Eine **Bindungseinheit** — mehrere Werkzeuge, die zusammen eine einzige Fähigkeit bilden — wird ganz oder gar nicht gebunden, und ein Katalog aus vielen Einheiten, etwa die Einstellungen der Anwendung, wird über seine Domäne gebunden, wenn der Router sie erkennt, nie über das Ende der Rangliste: Ein Kalender-Zug bindet so etwa halb so viele Werkzeuge.
+LIA fragt vor dem, was wirklich geschehen wird: vor jedem Entwurf (eine E-Mail, ein Termin, eine Löschung), vor jeder Massenoperation, die mindestens ein Element ändert, vor jedem Werkzeug, das deklariert, dass es eine Bestätigung braucht. Die Bestätigung wird Aktion für Aktion eingeholt, dort, wo die Aktion vorbereitet wird, und nicht für den ganzen Plan. Umgekehrt fragt eine Aktion, die nichts umlenken kann, nach nichts: Eine E-Mail, die du dir selbst schickst, geht direkt hinaus.
 
-Eine Schleife wird **am Ergebnis gemessen** (ADR-310). Anzuhalten, sobald das Modell kein Werkzeug mehr aufruft, würde die Beharrlichkeit davon abhängig machen, wie ein konfiguriertes Modell einen Satz liest. Jede Angabe, die sich die Schleife vorgenommen hat – die Anfrage der Person und jede Gegenprüfung, die sie begonnen hat –, endet erhalten oder erklärt in einem `<unresolved>`-Block, der den Entwurf abschließt, mit den versuchten Stufen: der korrigierte Aufruf, dann eine andere, als `(fallback)` benannte Quelle, dann die Erklärung. Ein einziges Prädikat, `should_recover`, liest die Erklärung und ruft dasjenige auf, das über den Abbruch entscheidet (`react_exit_reason`), statt es zu kopieren; es leitet zu `react_recovery`, einem fünften Knoten, der kein Modell aufruft: Er entfernt den Entwurf genau im Moment des Durchgangs aus dem Verlauf, und jeder folgende Aufruf des Durchgangs erhält vorübergehend – nie in `messages` geschrieben – den Entwurf und eine Anweisung direkt dahinter. Die Durchgänge sind begrenzt (`REACT_RECOVERY_PASSES_MAX`), nach Ausgang gezählt, und ein Durchgang, der ohne brauchbare Antwort endete, gibt den Entwurf zurück, statt ihn gegen nichts zu tauschen. Davor ersetzt ein Werkzeug nie einen Wert, den es nicht lesen kann: Das Wetter lehnt ein unlesbares Datum mit dem erwarteten Format und dem heutigen Datum ab, unter einem Vertrag, den eine einzige Konstante veröffentlicht, die sowohl das Manifest als auch das Schema des Werkzeugs lesen – die Schleife bindet das Schema, nie das Manifest. Eine Seite, die ein Werkzeug bewusst an seiner Obergrenze abgeschnitten hat, ist keine Lücke: Unter den begonnenen Lesevorgängen öffnet nur ein gescheiterter einen Durchgang — der Schnitt ist dem Modell bereits mitgeteilt.
-
-Ein Werkzeugfehler wird dort **strukturell** gelesen (ADR-303): Der Inhalt einer `ToolMessage` trägt die Prosa des Werkzeugs, also ist das einzige ehrliche Urteil eine Markierung, die die Nachricht selbst trägt – `status="error"`, die den Checkpoint übersteht. Ein einziges Erfolgsprädikat, `core/tool_outcome.explicit_success`, dient der Schleife, dem Konsultationsregister und den Metriken: Ein erklärter Fehler erkauft, wie ein leeres Ergebnis, keine Iteration. Und wenn eine Person in ihren Einstellungen häufigen Austausch wählt (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` legt nur die Voreinstellung eines Kontos fest, das nicht gewählt hat, ADR-308), bindet die Schleife alle Werkzeuge in Registrierungsreihenfolge und setzt den Kontext des Durchgangs hinter die Frage – in der Form, die jeder Anbieter akzeptiert, beim Start erklärt und geprüft –, damit das Präfix eines Durchgangs das des nächsten ist: Auf einem Prüfstand aus 396 echten Durchgängen liegt die Ersparnis je nach Cache-Mechanismus bei 18 bis 42 % pro Durchgang, ein Modell ohne Cache zahlt drauf, und ein gezählter Rückfall auf die Relevanzauswahl übernimmt, wenn der Katalog die Obergrenze oder das Kontextfenster übersteigt. Auch der Verlauf fällt dann blockweise weg, verankert am Durchgangszähler, damit jeder Durchgang den vorigen fortsetzt: Die drei gehen zusammen, weil sich keines allein lohnt, und gelegentlicher Austausch behält die Relevanzauswahl, deren Kosten nicht vom Abstand zwischen zwei Durchgängen abhängen.
-
-### Eine Delegation liefert immer ihr Arbeitsergebnis (ADR-083)
-
-Ein delegierter Experte, eine Browser-Aufgabe oder eine iterative MCP-Aufgabe öffnet hinter einem einzigen Tool-Aufruf eine eigene Modellschleife, begrenzt in Graph-Schritten: N Schritte erkaufen N÷2 Modellaufrufe. Erreicht die Schleife ihre Grenze, endet sie nicht mehr mit dem generischen Satz von LangGraph, der als Erfolg durchging: Ihr letzter Aufruf läuft ohne Werkzeug und schreibt das Arbeitsergebnis aus dem, was sie gefunden hat. Jeder Leser — die Delegation, die Browser-Aufgabe, die MCP-Aufgabe, der Skill-Runner — übersetzt einen typisierten Ausgang (beantwortet, leer, Fehler, am Budget abgeschlossen), statt Text zu lesen, und ein Fehlschlag sagt, wie weit er gekommen ist. Der Planner und die ReAct-Schleife erhalten dieselben Fakten darüber, was der Experte erreichen kann, und die Größengrenze der Anweisung setzt das Werkzeug in beiden Modi selbst durch: Eine unmögliche Delegation wird abgelehnt, bevor ein Modell läuft.
-
-### 5.4. Entkoppelte Ausführungen: Die Generierung überlebt die Verbindung (ADR-117)
-
-Klassisches SSE-Streaming hat einen strukturellen Makel: Die Generierung lebt *im* HTTP-Response-Generator. Tab schließen, wegnavigieren oder Netzwerkverlust tötet die Verbindung — und mit ihr den gesamten Konversationszug. LIA entkoppelt beides: Ein **entkoppelter Producer** (eine von der Anfrage unabhängige asyncio-Task) führt den Graphen aus und publiziert jeden Chunk in einen **Redis Stream pro Run**; der SSE-Endpunkt wird zum bloßen **Subscriber**, der diesen Stream weiterreicht.
-
-- **Verbindungsabbruch ≠ Abbruch** — die Seite zu schließen beendet das Abonnement, nie die Generierung. Die Benutzernachricht wird *vor* Ausführungsbeginn archiviert, die Antwort wird serverseitig fertiggestellt und wartet in der Konversation.
-- **Live-Wiederaufnahme** — bei der Rückkehr (Seiten-Mount, Tab-Sichtbarkeit) erkennt das Frontend den aktiven Run, spielt alle bereits emittierten Chunks ab (ohne Pacing) und wechselt dann auf den Live-Strom; die Grenze ist ein SSE-Transportkommentar (`: replay-end`), der Chunk-Vertrag bleibt unberührt. Während des Replays werden Seiteneffekte (Toasts, Audio) unterdrückt, während der Reducer die laufende Antwortblase rekonstruiert.
-- **Stille-Erkennung auf Client-Seite** — die Wiederaufnahme setzt weiterhin voraus, dass der Client weiß, dass er wieder aufnehmen muss. Ein vom Betriebssystem eingefrorener Tab erhält weder Ende noch Fehler: Der Lesevorgang bleibt hängen, die Oberfläche glaubt weiter zu empfangen, und der Schutz für einen lebenden Stream blockiert genau die Wiederaufnahme. Ein am Herzschlag-Rhythmus des Servers ausgerichtetes Stille-Budget entscheidet: Danach wird die tote Verbindung verworfen, der Zustand kehrt in den Ruhezustand zurück und das oben beschriebene Wiederanklinken übernimmt. Browser-Timer frieren mit dem Tab ein, die Frist läuft also beim Aufwachen ab — genau dann, wenn sie nützt.
-- **Ein Run pro Konversation** — ein Redis-Lock (`SET NX EX` + Producer-Heartbeat + zombie-sichere konditionale Lua-Freigabe) lässt einen konkurrierenden Sendeversuch mit HTTP 409 antworten, den das Frontend in ein stilles Wiederanhängen verwandelt.
-- **Worker-übergreifender Abbruch** — der Sende-Button verwandelt sich in einen Stop-Button; das Abbruchsignal läuft über Redis und wird producerseitig gepollt (~1 s), auch wenn der Producer in einem anderen Worker lebt als die HTTP-Anfrage. Die Teilantwort bleibt erhalten und wird als „unterbrochen“ markiert; bereits verbrauchte Tokens bleiben abgerechnet — die Abrechnung wird auf jedem Ausstiegspfad eingehalten, Kills eingeschlossen.
-- **Stimme nur, wenn jemand zuhört** — die Subscriber-Präsenz (ein Redis-Zähler mit periodisch neu gespannter TTL) steuert die Sprachsynthese: kein TTS für einen Run, dem niemand zuhört, und ein Zuhörer, der mittendrin dazustößt, bekommt die Stimme für den Rest.
-- **Sauberes Herunterfahren** — beim Shutdown entleert der Lifespan laufende Producer, bevor er die Kontrolle abgibt; ein getöteter Run archiviert sein Teilergebnis mit dem Flag `interrupted`, und eine Reparatur zu Beginn des nächsten Zugs räumt verwaiste `tool_calls` auf, die ein unterbrochener Checkpoint hinterlassen würde (strikte Provider lehnen sie beim nächsten Zug ab).
-
-Das Ganze wird über ein Feature-Flag und ein Dutzend env-konfigurierbarer Einstellungen (TTLs, Heartbeat, Drain, Polling) gesteuert, die beim Boot validiert werden — eine mit der Lock-TTL unvereinbare Heartbeat-Periode verweigert den Start.
-
----
-
-**Verankerung an jüngsten Entitäten.** Bei einem Zug ohne Werkzeugaufruf ist das Register des laufenden Zuges konstruktionsbedingt leer (Schutz vor Kontamination), und der Gesprächsverlauf schließt Werkzeugmeldungen bewusst aus: Das Antwortmodell hat dann *keinerlei* maßgebliche strukturierte Daten und kann frühere Prosa nur umformulieren. Die jüngsten Entitäten aus dem State werden deshalb über einen eigenen Prompt-Abschnitt erneut eingespeist — nach Aktualität ausgewählt, altersbegrenzt, ohne Speicherzugriff und ausdrücklich nachrangig gegenüber den Daten des laufenden Zuges. Eine Autoritätsregel ergänzt das: Das Erfinden eines Entitätsattributs ist untersagt, und ein angefragter, aber nie erhaltener Wert muss als fehlend benannt werden.
-
-### 5.5. Generierte Artefakte: von der Anfrage zur herunterladbaren Datei (ADR-226)
-
-Die Pipeline kann mit einer Datei enden statt nur mit Prosa. Das Werkzeug `generate_document` folgt derselben Architektur wie die Bildgenerierung — ein virtueller Agent im Katalog, kein eigener Graphknoten — aber sein „Generator" ist ein dedizierter LLM-Slot (`document_generation`, administrierbar wie jeder andere), aufgerufen mit **strukturierter Ausgabe, typisiert je Formatfamilie**: tabellarischer Inhalt für CSV/Excel, ein Abschnittsbaum für Word/PDF/Markdown/Text, eine Folienliste für PowerPoint. Das Schema wird *vor* dem Aufruf gewählt, jede Antwort ist also strikt schema-validiert; dann baut ein **reiner lokaler Renderer** die exakten Bytes — openpyxl, python-docx, python-pptx, PyMuPDF: die bereits für die RAG-Extraktion mitgelieferten Bibliotheken, die hier schreiben statt lesen, ohne jeden Dokumentdienst von Dritten.
-
-Drei Designentscheidungen tragen das Feature. Erstens die Ehrlichkeit des Artefakts: Tabellenzellen werden gegen Formel-Injektion neutralisiert (eine Probe bewies, dass openpyxl `=1+2` als lebendige Formel speichert), während legitime negative Zahlen unberührt bleiben, und ein Fehler nach dem bezahlten LLM-Aufruf liefert einen expliziten Fehler — nie eine Phantomkarte. Zweitens die Verkettung: Der Planer kann die Ergebnisse eines Web-Recherche-Schritts in den Dokumentschritt einspeisen (`source_data`), sodass „recherchieren, dann als CSV formalisieren" eine einzige Anfrage ist. Drittens der Lebenszyklus: Die Datei landet im bestehenden Attachment-Store mit derselben TTL-Bereinigung wie generierte Bilder, und ihre Karte — live über den SSE-Done-Chunk geliefert und über einen gemeinsamen Serialisierer in den Nachrichten-Metadaten persistiert — zeigt das exakte Ablaufdatum.
-
-**Die Sorgfalt gehört dem Renderer, die Bedeutung dem Modell (ADR-274).** Das Schema, das der Autoren-Slot ausfüllt, ist *semantisch*: es benennt, was eine Sache ist — eine Überschrift, eine geordnete Folge, ein Zitat, ein Hinweis, ein Kapitelauftakt, ein zweispaltiger Vergleich, eine Tabelle mit Bildunterschrift — und nie, wie sie zu zeichnen ist. Die Layoutentscheidung liegt beim Renderer, der sie mit den nativen Mitteln des Formats ausdrückt, statt sie nachzuahmen: benannte Formatvorlagen, `PAGE`/`NUMPAGES`-Felder und eine mehrstufige Nummerierungsdefinition in Word, sodass Word Inhaltsverzeichnis und Zahlen selbst neu berechnet; die Layouts und Platzhalter der Vorlage in PowerPoint auf einer 16:9-Bühne; eine benannte Tabelle über typisierten Spalten in Excel, wodurch Filtern und Sortieren gratis sind; Lesezeichen, Links und exakte Seitenzahlen im PDF, gewonnen, indem der Textkörper einmal paginiert und der Vorspann davor gesetzt wird. Diese Teilung erspart dem Modell einen Katalog von Vorlagen — eine gestalterische Entscheidung, die es nicht beurteilen kann — und lässt das Rendering sich verbessern, ohne das Schema anzufassen.
-
-**Text wird gemessen, bevor er gesetzt wird.** PowerPoint berechnet beim Öffnen einer Datei keine automatische Anpassung, und die Anpassung der Bibliothek liegt um den Faktor zwei daneben: der Renderer misst deshalb selbst, mit einem gegen PowerPoint kalibrierten Schätzer — ein Vollbreiten-Zeichen zählt ein ganzes Em, ein lateinisches einen gemessenen Bruchteil. Was nicht passt, wird zuerst bis zu einer Lesbarkeitsgrenze verkleinert und dann in „Titel (2/3)“-Folien geteilt; ein zu langer Aufzählungspunkt wird am Satzende getrennt. Abgeschnitten wird nie, denn auf dem Bildschirm abgeschnittener Text ist ohne Warnung verlorene Information. Dasselbe Prinzip gilt für den Modellaufruf: eine Antwort, die der Anbieter als abgeschnitten meldet, wird unter Nennung ihres Budgets abgelehnt (ADR-275) und nie so geschlossen, dass sie wie ein vollständiges Dokument aussieht.
-
-Die Bildgenerierung folgt derselben Regel des erklärten Angebots (ADR-305). Eine **Familie** – OpenAI GPT Image, Qwen Image 3.0 – erklärt, was ein Modell akzeptiert: seine Qualitäten, seine Größen (eine feste Liste oder eine Flächenhülle), seine Abrechnungsstufen und ob das Referenzbild einer Bearbeitung pro Bild berechnet wird. Jede Oberfläche liest diese eine Antwort: Ein Modell, das keine Familie erklärt, wird weder bepreist noch angeboten, ausgewählt oder ausgeführt. Ein Client pro Anbieter führt das konfigurierte Modell aus – die OpenAI-Bearbeitung läuft über `images.edit` auf diesem Modell, wo ein Umweg über die Responses-API das Standardmodell des SDK und ein Textmodell ausführen würde, das niemand zählt –, ein als URL geliefertes Ergebnis wird sofort unter einer Host-Allowlist heruntergeladen, begrenzt und geprüft, und die Vorliebe der Person ist eine Absicht, die zur Laufzeit in das Angebot des Modells aufgelöst wird (die günstigste angebotene Qualität, die Größe gleicher Ausrichtung mit der nächstliegenden Fläche) und dann als wirksamer Wert veröffentlicht wird. Das gewählte Format wird einmal für alle Anbieter angewendet, indem das Bild vor dem Speichern umgewandelt wird.
-
-Auf Wunsch der Person kann die Beschreibung eines **neuen** Bildes vor dem Aufruf von einem eigenen Slot umgeschrieben werden, nach den Empfehlungen, die jeder Anbieter veröffentlicht (ADR-315). Das ist eine Verbesserung, nie ein Tor: Ein in Anführungszeichen zitierter Text muss unverändert zurückkommen, und eine leere, zu lange oder gescheiterte Umschreibung lässt die ursprüngliche Beschreibung hinausgehen; eine Bearbeitung wird nie umgeschrieben; der Aufruf wird abgerechnet und protokolliert wie jeder andere, und die Galerie behält die Worte der Person. Der Betreiber kann die Option für die ganze Instanz zurückziehen, und der Optionsbildschirm veröffentlicht diesen Zustand, statt eine wirkungslose Einstellung anzubieten.
-
-### 5.6. Was die Person behält: erzeugte Dateien und behaltene Antworten (ADR-279, ADR-282)
-
-Ein Artefakt und eine Antwort folgen zwei verschiedenen Lebenszyklen, sobald sie existieren, und beide gehören der Person, nicht der Unterhaltung. Eine erzeugte Datei — ein Bild, ein Dokument, ein Browser-Screenshot — ist ein Anhang mit gestempelter **Herkunft**, in einer eigenen Galerie gelistet, mit genauer Gesamtzahl und sichtbarer Aufbewahrungsfrist; das Leeren einer Unterhaltung entfernt, was die Person hochgeladen hat, und nie, was LIA erzeugt hat, weil eine Bereinigung entfernt, was ihre Familie deklariert, nicht, was ihr bloß ähnelt.
-
-Eine Antwort, die die Person behalten will, ist ein anderes Objekt: Sie ist Prosa, sie muss genau so gerendert werden wie die Sprechblase, und sie muss eine Unterhaltung überleben, die oft zurückgesetzt wird. Ein **Lesezeichen ist daher eine Kopie, nie ein Verweis**. Beim Klick werden die Antwort (Markdown oder ein angereichertes HTML-Dokument, unverändert), die Anfrage, die sie hervorgebracht hat, und das Datum der Antwort in eine eigene Tabelle geschrieben. Die beiden Verweise auf die Unterhaltung sind `SET NULL` beim Löschen: Sie dienen nur dem Umschalter an der Sprechblase, solange die Unterhaltung lebt. Die Anfrage wird **serverseitig** unter demselben Sichtbarkeitsprädikat aufgelöst wie im Chat — die letzte sichtbare Nachricht der Person vor der Antwort, nie die synthetische Frage eines außer der Reihe ausgeführten Laufs — und eine Benachrichtigung, die LIA aus eigener Initiative gesendet hat, behält keine Anfrage statt einer falschen. Ein partieller eindeutiger Index macht den Umschalter konstruktiv idempotent, das Limit des Kontos wird veröffentlicht, weil es durchgesetzt wird, Seite und Gesamtzahl kommen aus demselben `WHERE`, und der Schalter des Betreibers schützt allein den Akt des Behaltens: Bereits Behaltenes bleibt lesbar, exportierbar und löschbar.
-
-Das Lesen und Löschen eigener Dateien überlebt die Upload-Obergrenze: der Router `attachments` wird unabhängig von `ATTACHMENTS_ENABLED` eingehängt, die Fähigkeitswache sitzt allein auf dem Upload. Da jedes erzeugte Dokument über diese Leseroute ausgeliefert wird, macht eine Instanz, die erzeugt, ohne Uploads anzunehmen — der Demonstrator —, das von ihr Erzeugte öffenbar, und der Ablaufdurchlauf läuft für die vier Produzenten der Tabelle, nie nur für den Upload.
-
-Eine aufbewahrte Antwort wird außerdem **als Dokument eines Wissensraums indexiert** (ADR-291): ein Raum pro Konto, über seine Rolle gefunden und nie über seinen Namen, beim ersten Lesezeichen angelegt, standardmäßig aktiv, außerhalb der Raum- und Dokumentgrenzen. Das Lesezeichen bleibt der Datensatz und das Dokument seine Projektion — ein datierter Titel, die zitierte Anfrage, die Antwort in Markdown umgewandelt, wenn sie eine HTML-Seite war —, sodass der angezeigte Zustand (indexiert, ausstehend, unter einer Ausgabengrenze zurückgestellt, deaktiviert, fehlerhaft) vom Dokument abgeleitet wird, solange es existiert, und die Kosten erst gemeldet werden, wenn es bereit ist. Eine Projektion wird beansprucht, bevor sie berechnet wird, die Fähigkeits- und Ausgabentore werden beim Akt gelesen, und ein Nachholen reitet auf dem Wartungstakt der Räume und bedient zuerst das am längsten nicht versuchte Lesezeichen — ein Konto unter Quote lässt die anderen nicht verhungern. Das Löschen des Lesezeichens entfernt das Dokument; das Dokument wird aus dem Raum weder verschoben noch gelöscht, und ein über seine Rolle verwalteter Raum wird nicht von Hand gelöscht.
-
-Was erzeugt wurde, lässt sich auch **durch Fragen** wiederfinden (ADR-318): Ein Lesewerkzeug durchsucht die lebende Galerie nach Wörtern des Titels, Familie und Zeitraum und zeigt die gefundenen Dateien als die eigenen Karten des Chats, mit der exakten Gesamtzahl. Ein erzeugtes Bild lässt sich als Kopie **mit einer Verbindung teilen** (ADR-316): Der Klick ist die Bestätigung — kein Entwurf, kein Modell; zwei Tageskontingente werden je Absender unter einer transaktionsgebundenen Sperre serialisiert; die Dateikopie, die Galeriezeile der Empfängerseite und das Freigaberegister werden in einer einzigen Transaktion geschrieben; danach wird der Chat der Empfängerseite nach bestem Bemühen erreicht, auf einer eigenen Sitzung. Der Kommentar eines Dritten wird dort **wörtlich** zitiert: neutralisiert durch numerische Zeichenreferenzen, weil der Chat Markdown mit rohem HTML und `https:`-Bildern rendert und ein Backslash-Escape als Formel dargestellt würde.
-
-## 6. Das Planungssystem (ExecutionPlan DSL)
-
-### 6.1. Planstruktur
-
-```python
-ExecutionPlan(
-    steps=[
-        ExecutionStep(
-            step_id="get_meetings",
-            tool_name="get_events",
-            parameters={"date": "tomorrow"},
-            dependencies=[]
-        ),
-        ExecutionStep(
-            step_id="send_reminders",
-            tool_name="send_email",
-            parameters={"subject": "Rappel réunion"},
-            dependencies=["get_meetings"],
-            for_each="$steps.get_meetings.events",
-            for_each_max=10
-        )
-    ]
-)
+```mermaid
+sequenceDiagram
+    participant T as Du
+    participant L as LIA
+    participant S as Dienst
+    T->>L: Verschieb meinen Termin am Donnerstag
+    L->>L: Bereitet den Entwurf vor und trägt die Aktion ins Register ein
+    L->>T: Bestätigungskarte
+    T->>L: Freigeben
+    L->>S: Führt genau das aus, was gezeigt wurde
+    S-->>L: Ergebnis
+    L->>L: Schließt die Aktion mit diesem Ergebnis ab
+    L->>T: Was wirklich passiert ist
 ```
 
-### 6.2. FOR_EACH-Pattern
+Was du bestätigst, ist genau der zuletzt angezeigte Inhalt, und jede Änderung wird nur einmal ausgeführt. Mehrere Entwürfe desselben Durchlaufs werden einzeln geprüft. Du kannst frei formuliert antworten: Ein Modell ordnet deine Antwort als Zustimmung, Ablehnung oder Änderungswunsch ein. Außerhalb des Gesprächs holt ein Ticket seine Bestätigung auf dem Ticket selbst ein, und eine Routine, die läuft, während niemand vor dem Bildschirm sitzt, stellt keine Frage: Sie lehnt die Aktion ab und sagt es, sonst würde deine nächste Nachricht als Antwort gelten. Ein Befehl an den Chat („zeig meine Antworten als Karten“) folgt derselben Regel, und verlangt er eine Kontoverbindung, einen Schlüssel oder die Auswahl einer Datei, geschieht dieser Schritt im authentifizierten Browser. LIA prüft das verlangte Ergebnis an dem, was sie beobachten kann, aber eine Delegation an ein Werkzeug beweist für sich allein nicht alle seine internen Wirkungen. Ebenso verhindert eine Sperre eine doppelte Ausführung, ohne garantieren zu können, dass ein externer Anbieter nur einmal handelt.
 
-**Warum ein dediziertes Pattern?** Massenoperationen (eine E-Mail an 12 Kontakte senden) können nicht als 12 statische Schritte geplant werden — die Anzahl der Elemente ist vor der Ausführung des vorherigen Schritts unbekannt. FOR_EACH löst dieses Problem mit Schutzmaßnahmen:
-- HITL-Schwelle: Jede Mutation >= 1 Element löst eine obligatorische Genehmigung aus
-- Konfigurierbares Limit: `for_each_max` verhindert unbegrenzte Ausführungen
-- Dynamische Referenz: `$steps.{step_id}.{field}` für Ergebnisse vorheriger Schritte
+Auch die Antwort selbst hat einen Rahmen: Das Modell schreibt nur auf Grundlage der echten Ergebnisse der Werkzeuge. Und alles, was LIA tut, wird in drei getrennte **Register** eingetragen: die Aktionen, die Abfragen und die Durchläufe. Ihre Summen lassen sich nicht addieren, denn ein Durchlauf kann fünf Quellen abfragen, ohne etwas zu ändern. Eine Aktion wird eingetragen, bevor sie stattfindet, und erst mit einem ausdrücklichen Ergebnis abgeschlossen. Ein Gespräch zu löschen entfernt die Dateien, die du darin gesendet hast, nicht die, die LIA für dich erzeugt hat.
 
-Die Identität eines korrelierten Ergebnisses schließt sein Elternobjekt ein. Werkzeuge leiten ihre Id allein aus dem Inhalt ab — Wetter aus `Ort + Tag`, eine Route aus `Start + Ziel` — sodass zwei Iterationen über Elternobjekte mit denselben Attributen dieselbe Id erzeugen würden und der Akkumulator, ein schlichtes `dict.update()`, das erste still überschriebe. Die Id wird daher je Elternobjekt über einen deterministischen Fingerabdruck gebildet, was Identitäten auch bei einer Wiederholung oder Fortsetzung nach Unterbrechung stabil hält.
+*Weiterlesen: [die Bestätigungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HITL.md) · [die Autoritätskette und die Register](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) · [die Register aus Nutzersicht](/de/faq#faq-registers) · [die Tickets](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORKBOARD.md) · [die Anwendungsbefehle](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/APPLICATION_COMMANDS.md) · [was eine Delegation beweist](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) · [Werkzeugbeispiele, E-Mail an sich selbst und Entwürfe](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/05_tool_examples.md) · [die Synthese der Antwort](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/RESPONSE.md)*
 
-### 6.3. Parallele Ausführung in Wellen
+## 5. Gedächtnis und Kontext
 
-Der `parallel_executor.py` organisiert die Schritte in Wellen (DAG):
-1. Identifiziert Schritte ohne unaufgelöste Abhängigkeiten → nächste Welle
-2. Filtert übersprungene Schritte (nicht erfüllte Bedingungen, Fallback-Zweige) — **vor** `asyncio.gather()`, nicht danach (ADR-005: danach zu filtern, würde API-Aufrufe und Kosten verdoppeln)
-3. Führt die Welle mit Fehlerisolation pro Schritt aus
-4. Speist die Data Registry mit den Ergebnissen
-5. Wiederholt bis zur vollständigen Planabarbeitung
+Der Zustand eines Gesprächs ist ein `MessagesState`, den LangGraph nach jedem Knoten als Checkpoint in PostgreSQL speichert. Dadurch lässt sich ein Durchlauf nach einer Bestätigung fortsetzen, auch Stunden später. Die Ergebnisse der Werkzeuge liegen nicht im Nachrichtenverlauf, sondern in einer eigenen Daten-Registry, sodass sie erhalten bleiben, wenn der Verlauf gekürzt wird. Ab einer Schwelle werden ältere Austausche zusammengefasst; ein Badge zeigt, wie voll der Kontext ist, und `/resume` löst diese Zusammenfassung auf Wunsch aus. Im ReAct-Modus wird, was eine Schleife bereits gelesen hat, als Checkpoint gespeichert und im Durchlauf wiederverwendet; ein Abbruch vor diesem Checkpoint kann dazu führen, dass eine Quelle erneut gelesen wird.
 
-### 6.4. Semantischer Validator
+Das Langzeitgedächtnis, die Wissensräume und der Kontext der Werkzeuge liegen in derselben Datenbank, mit pgvector. Nach jedem Austausch extrahiert eine Hintergrundaufgabe die Erinnerungen aus der letzten Nachricht; Erinnerungen, die der Frage nahekommen, kehren in den nächsten Kontext zurück, und das Gedächtnis ist auch ein Werkzeug, das der Planer und ReAct befragen. Eine dauerhafte Anweisung („antworte kürzer“) wird angeheftet und ist sichtbar. Wird ein sensibles Thema berührt, verbietet eine Direktive, zu scherzen oder etwas herunterzuspielen.
 
-Vor der HITL-Genehmigung prüft ein dediziertes LLM (vom Planner getrennt, um Selbstvalidierungs-Bias zu vermeiden) den Plan anhand von 14 Problemtypen in vier Kategorien: **Kritisch** (halluzinierte Fähigkeit, Geistabhängigkeit, logischer Zyklus), **Semantisch** (Kardinalitäts-Mismatch, Scope-Overflow/-Underflow, falsche Parameter), **Sicherheit** (gefährliche Mehrdeutigkeit, implizite Annahme) und **FOR_EACH** (fehlende Kardinalität, ungültige Referenz). Short-Circuit für triviale Pläne (1 Schritt), optimistisches 1-s-Timeout.
+Um dieses Gedächtnis herum habe ich mehrere Schichten ergänzt. Die **Tagebücher** sind LIAs Aufzeichnungen in der Ich-Form; aus ihnen ergibt sich ein Porträt der Person, mit den Quellen, aus denen es gespeist wurde, und es lässt sich nur über indirekte Hebel korrigieren. Die **Psyche Engine** gibt LIA einen psychologischen Zustand, der sich mit jedem Austausch verändert und in ihrem Stil durchscheint, ohne angekündigt zu werden; sie lernt außerdem, Bereich für Bereich, wo LIA verlässlich ist, anhand von Belegen; das ist ein Pilotversuch, für den vorerst kein Gewinn behauptet wird. Sie hat eine eingestandene Grenze: Sie meldet fast nie eine ruhige, wenig intensive Emotion, und dieser Teil ihrer Aktivierung bleibt gesperrt. Die **Interessen** werden in deinen Anfragen erkannt und aus mehreren Quellen gespeist. Die **Gewohnheiten** schließlich werden ohne trainiertes Modell gelernt, über statistische Tests, und dafür hatte ich drei Gründe, jeder für sich ausreichend: Ein Raspberry Pi hat kein Trainingsbudget, eine Formel lässt sich der Person offenlegen, die sie betrifft, und bei so kleinen Datenmengen würde ein Modell vor allem das Rauschen lernen.
 
-Ergänzend erkennt ein **selbstanreicherndes Anti-Halluzinations-Register** (`hallucinated_tools.json`) vom LLM erfundene Tools über persistente Regex-Muster. Jede neue Halluzination wird automatisch zum Register hinzugefügt. Halluzinierte Schritte werden entfernt und der Planner wird gezwungen, mit echten Katalog-Tools neu zu planen.
+*Weiterlesen: [die Checkpoints](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-022-LangGraph-State-Checkpointing.md) · [die Daten-Registry](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-012-Data-Registry-StandardToolOutput-Pattern.md) · [die Kompaktierung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/COMPACTION_v2.md) · [die gesicherten Lesevorgänge von ReAct](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md) · [das Gedächtnis in PostgreSQL](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-066-Memory-PostgreSQL-Migration.md) · [das Langzeitgedächtnis](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LONG_TERM_MEMORY.md) · [das Gedächtnis als Suchwerkzeug](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md) · [die dauerhaften Regeln](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-236-procedural-memory.md) · [die Tagebücher und das Porträt](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/JOURNALS.md) · [die Psyche Engine](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PSYCHE_ENGINE.md) · [ihre gemessene Grenze](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md) · [die Psyche aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/22_psyche.md) · [die aus Belegen gelernte Wirksamkeit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md) · [die Interessen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/INTERESTS.md) · [die Gewohnheiten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/28_habits.md) · [die Suche in den Tagebüchern und den Registern](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)*
 
-Ein Urteil klassifiziert, es verurteilt nicht — und eine **Diagnose ist keine Frage**. Wenn ein *schreibender* Plan seine automatischen Replans ausgeschöpft hat, verweigert der Validator die Ausführung und übergibt an eine HITL-Rückfrage: Falsche Daten zu schreiben kostet mehr, als zu fragen. Was der Nutzerin dann gestellt wird, ist eine Frage **in ihrer Sprache**, aus einer Tabelle von fünfzehn Einträgen, deren Vollständigkeit beim Start **in beide Richtungen** geprüft wird — ein Problem, das der Code auslösen kann, ohne dass eine Frage dafür geschrieben ist, verhindert den Start der Anwendung, und eine Frage, die kein Code auslösen kann, ebenso. Die interne Fehlerbeschreibung bleibt in der Ablaufspur, wo sie hingehört. Dasselbe Prinzip gilt für die Werte: Ein in einer früheren Runde angegebener Parameter wird **aus dem vorherigen Plan übernommen** statt neu erfunden, denn die Reparatur erkennt eine Dokumentationsadresse und überschreibt nie einen echten Wert — eine Meinungsänderung wird immer respektiert (ADR-195).
+## 6. Die Modelle
 
-Die Ehrlichkeit des Urteils reicht bis in die Ausführung. Jedes Werkzeug liefert ein typisiertes Urteil — Erfolg oder Ablehnung, mit Ursache — und der Plan-Executor reicht es **unverändert** weiter: Eine Ablehnung wird nie als erledigte Aktion dargestellt, ein fehlgeschlagener Schritt zählt nicht als „ausgeführt“ (die Schicht, die Blockaden benennt, behält damit ihre Wahrheit), und ein Fehlschlag wird nie als Gesprächskontext gespeichert. Ist die verletzte Beschränkung nicht reparierbar — der Inhalt des Nutzers überschreitet eine im Katalog veröffentlichte Grenze —, wird sie zur **ersten gestellten Frage**, mit den exakten Zahlen und in der Sprache des Nutzers, statt einer generischen Rückfrage. Und was eine Massenoperation bestätigt, ist die nach der Vorausführung **gemessene** Anzahl, nie eine theoretische Obergrenze.
+Eine einzige Factory instanziiert das Modell jedes unterstützten Anbieters und wendet seinen Adapter an. Jede Rolle hat ihren eigenen Modellplatz (das Gespräch, die Planung, das Bild, die Transkription, die Sprachsynthese…), der in der Administration ohne neues Deployment eingestellt wird. Der Modellkatalog liegt in der Datenbank und deklariert Modell für Modell seine Fähigkeiten, die Parameter, die es akzeptiert, und die Denkstufen, die es kennt; der Konfigurationsbildschirm bietet so nur an, was die API des Modells wirklich akzeptiert.
 
-Ein Prüfer hat zudem einen blinden Fleck, gegen den man entwerfen muss: Ein Richter, den man um ein Urteil bittet, prüft zuverlässig, was ein Plan **enthält**, und übersieht, was ihm **fehlt**. Die Prüfung beginnt daher mit einem Abdeckungsdurchlauf — die Anforderungen aufzählen, die die Anfrage aufstellt, und dann prüfen, ob jede einen abdeckenden Schritt hat — bevor sich irgendein Urteil bildet. Zwei Schutzmechanismen verhindern ein Auslösen bei gesunden Plänen: Eine Anforderung, die durch die ANALYSE bereits abgerufener Daten erfüllt wird, gehört dem Response-LLM und ist konstruktionsbedingt abgedeckt; und eine Anforderung, die keine Fähigkeit bedienen kann, ist ebenso wenig ein fehlender Schritt. Ein als fehlend gemeldeter Schritt nimmt dieselbe stille Neuplanung wie jeder andere reparierbare Mangel.
+Manche Aufgaben sind keine Generierungen, sondern begrenzte Entscheidungen: ein Format wählen, eine E-Mail einstufen. Sie können einer nativen Entscheidungs-Engine anvertraut werden, jede hinter ihrem eigenen Schalter und einem Hauptschalter. Eine unsichere Entscheidung fällt auf die übliche Verarbeitung zurück, und weder Rechte noch Bestätigungen werden an sie delegiert. Ein Einstufungsurteil authentifiziert keinen Absender, und ein auf einem Testkorpus gemessener Gewinn ist kein Versprechen für jede Anfrage.
 
-### 6.5. Die Wahrheit einer Referenz (ADR-194)
+Jeder Modellaufruf, in der Pipeline wie in den Hintergrundaufgaben, wird erfasst und anhand der Tarife in der Datenbank bewertet, dann pro Durchlauf zusammengefasst. Bei den Kosten kommt die größte Ersparnis aus dem Cache der Anbieter. Jeder Prompt stellt seinen stabilen Inhalt vor eine Markierung und den anfragespezifischen Inhalt dahinter, und die Infrastruktur übersetzt diese Markierung in den Cache-Mechanismus jedes Anbieters. Da jeder Modellplatz das Modell wechseln kann, stimme ich diesen Cache nicht auf ein bestimmtes Modell ab: Ich ziele auf den besten Durchschnitt, und ein Modell ohne Cache zahlt nichts mehr. Die Untersuchungen zu anderen lokalen Engines (oMLX, llama.cpp, LM Studio) sind Qualifizierungen, keine ausgelieferten Integrationen: Es zählen nur die Anbieter, die die Instanz anbietet.
 
-Eine schrittübergreifende Referenz (`$steps.get_meetings.events[0].title`) wird vom Planer geschrieben, **bevor** der Schritt gelaufen ist. Der Pfad muss deshalb auf Anhieb stimmen, sonst scheitert der Plan nach kostenpflichtigen API-Aufrufen und der Wartezeit der Nutzerin.
+*Weiterlesen: [die Modellauswahl](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-026-LLM-Model-Selection-Strategy.md) · [der Katalog in der Datenbank](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) · [der Konfigurationsbildschirm](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_CONFIG_ADMIN.md) · [die nativen Entscheidungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md) · [ihre Integration](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/JEV_INTEGRATION.md) · [die Einstufung von E-Mails](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/EMAIL_EVENT_CLASSIFICATION.md) · [ein Prompt-Layout für alle Caches](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md) · [die Filterung des Werkzeugkatalogs](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md) · [die untersuchten lokalen Engines](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/16_other.md)*
 
-Was ihn stimmen lässt, ist ein **Vertrag**: Jedes Werkzeug-Manifest veröffentlicht die Pfade, die seine Ausgabe trägt, und die Continuous Integration beweist diesen Vertrag vor jedem Zusammenführen von Code. Die Prüfung steuert das reale Werkzeug an — seinen echten Builder, den echten Referenz-Resolver, den rekonstruierten Merge — und vergleicht, was das Manifest veröffentlicht, mit dem, was die Ausführung liefert: den Pfad selbst, seine **Form** (Datensatz, Liste, Liste von Datensätzen) und seinen **Typ** (Zeichenkette, Zahl, Objekt). Der Planer liest diesen Typ, um zu entscheiden, worin er einen Wert verketten kann: Ein falscher Typ zerbricht einen Plan genauso sicher wie ein falscher Pfad.
+## 7. Konnektoren und Werkzeuge
 
-Der Vertrag ist bewusst **asymmetrisch**: Alles Veröffentlichte muss produziert werden, nie umgekehrt. Ein Manifest listet *Beispiele*, keine vollständige Aufzählung — `events[0].summary` ist real, ob jemand daran gedacht hat, es aufzuschreiben, oder nicht; die Umkehrung zu verlangen würde legitime Pfade ablehnen.
+Jede Konnektor-Kategorie (E-Mail, Kalender, Kontakte, Aufgaben, Dateien, Zuhause) ist ein Python-Protokoll. Pro Kategorie ist jeweils nur ein Anbieter aktiv, und die OAuth-Einwilligung wird einmal pro Google- oder Microsoft-Konto erteilt. Die Dienste, die von der Person nichts verlangen (Wikipedia, das Lesen von Seiten, die Orte, das Wetter), gehören der Instanz und sind für alle aktiv. Bei E-Mails wird jede Nachricht einmal zusammengefasst und dann wiederverwendet, ein Anhang wird als Text oder über ein Vision-Modell gelesen, und ein Versand wird nach einer verlorenen Empfangsbestätigung nie wiederholt.
 
-Die Abdeckung wird genannt statt angenommen: Was sich aufgrund der Bauform eines Werkzeugs schwer ansteuern lässt, wird in einer Schuldenakte beziffert und datiert, statt implizit zu bleiben. Zur Laufzeit ist das Netz `ReferenceResolver`, der einen expliziten Fehler wirft, statt ins Leere aufzulösen.
+Die Werkzeuge beruhen auf fünf kombinierbaren Schichten: einer gemeinsamen Konnektor-Basis (OAuth, Cache, Injection), einem Decorator, Formatierern pro Domäne, dem Manifest, das der Planer liest, und einem Katalog-Loader. Die **MCP**-Werkzeuge werden in gewöhnliche LangChain-Werkzeuge umgewandelt und kommen in denselben Katalog, der von einer Nachricht zur nächsten erhalten bleibt, damit eine Nachricht in der Regel auf keinen Server wartet; ein MCP-Server muss HTTPS verwenden, seine Zugangsdaten werden verschlüsselt, und LIA glaubt einer Annotation, die eine Änderung ankündigt, nie aber einer, die behauptet, nur zu lesen. **Plugins** im Format Agent Plugins werden als Ganzes installiert, ohne lokalen Server. **Skills** nach dem Standard agentskills.io können eine kleine App im Chat darstellen oder ihre eigenen Befehle in einer Kopie ihres Ordners ausführen; ein Skill von anderswo läuft isoliert und erhält nie das Token eines Konnektors.
 
-### 6.6. Vor der Ausführung korrigiert, beim Scheitern benannt (Panic Mode)
+Wenn ein Schritt eine echte Berechnung braucht, kann der ReAct-Modus ein kurzes Python-Skript schreiben und es in einem Wegwerf-Container ausführen. Dieses Skript erreicht das Web nur über einen einzigen Proxy, sieht den Schlüssel der Person nicht (der Proxy setzt ihn nur auf dem erlaubten Host ein), und bei einem unbekannten Host wird nachgefragt, mit drei möglichen Antworten. In beiden Modi laufen Berechnungen, Zeitspannen und Währungsumrechnungen über exakte Werkzeuge statt über das Modell. Ein Agent kann auch einen Browser steuern (Playwright) oder eine Seite in Text umwandeln.
 
-Ein Plan wird korrigiert, solange das noch nichts kostet: **bevor** er läuft. Über die begrenzten Neuplanungen des Validators hinaus (6.4) fängt der **Panic Mode** die Fälle ab, in denen die Domain-Filterung zu aggressiv war: Lässt der gefilterte Katalog dem Planer keinen ausführbaren Plan, wird die Planung einmal über einem breiteren Katalog wiederholt.
+Die Dokumente der **Wissensräume** werden zerlegt, vektorisiert und in PostgreSQL abgelegt statt in einer externen Vektordatenbank, dann über eine hybride, semantische und lexikalische Suche wiedergefunden. Ein Raum kann einem Drive-Ordner samt Unterordnern oder einem Gmail-Label folgen, ohne das ganze Postfach zu indexieren. Es gibt keine Zeichenerkennung: Ein gescanntes PDF wird in dieser Form nicht indexiert. Von außen gesendete Daten (SMS, Schrittzahl, Herzfrequenz, von einem iPhone, einem Android-Gerät oder jedem System, das JSON senden kann) kommen über Endpunkte herein, die mit einem eingeschränkten, widerrufbaren Token authentifiziert werden, getrennt von der Sitzung.
 
-Ist ein Plan gelaufen, wird nichts hinter dem Rücken der Person wiederholt. Einen vorübergehenden Ausfall eines Anbieters wiederholt bereits der Client, der ihn traf, mit Backoff hinter einem Circuit Breaker; ein inaktiver Connector oder ein abgelehntes Konto lässt sich nicht wegplanen; ein leeres Ergebnis ist eine Antwort; und eine gescheiterte Handlung wird nie unter ihrem Schlüssel wiederholt (ADR-263). Jeder gescheiterte Schritt erreicht die Antwort daher **vollständig**, und die Fehler-Direktive nennt ihn — welches Tool, warum und die genaue Anzahl (ADR-303). Ein Zähler nach typisiertem Fehlercode macht die Fehlermodi messbar, auch einen Fehler, der schon vor dem Aufruf eines Tools entsteht, etwa eine Referenz auf einen früheren Schritt, die nicht aufgelöst werden konnte. Der Modus, der sich selbst korrigiert, ist ReAct, nach Wahl der Person (ADR-310); nach der Ausführung sagt die Pipeline, was gescheitert ist, und errät nie eine Wiederaufnahme (ADR-346).
+Für eine komplexe Aufgabe delegiert LIA an kurzlebige, rein lesende Sub-Agenten. Sie erzeugt auch Dateien: Dokumente, Bilder, Screenshots, die in einer Galerie abgelegt, behalten, per E-Mail verschickt oder, bei einem Bild, mit einer Person geteilt werden, die mit der Instanz verbunden ist.
 
----
+*Weiterlesen: [die Konnektor-Patterns](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/CONNECTORS_PATTERNS.md) · [die gebündelte OAuth-Einwilligung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) · [die Dienste der Instanz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md) · [die Konnektoren aus Nutzersicht](/de/faq#faq-connectors) · [die E-Mails und ihre Zusammenfassungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md) · [die Anhänge](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md) · [die Zeitlimits pro Modellplatz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-221-Timeout-Par-Emplacement-Applique.md) · [die Basis der Werkzeuge](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-015-ConnectorTool-Base-Class-Pattern.md) · [MCP](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/MCP_INTEGRATION.md) · [der Standard Agent Plugins](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md) · [die Plugins](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PLUGINS_INTEGRATION.md) · [die Skills](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SKILLS_INTEGRATION.md) · [die Skills aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/12_skills.md) · [Skills von Dritten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) · [einen Skill ändern](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-165-Skill-Editing-By-Regeneration.md) · [eine Fähigkeit teilen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PEER_CAPABILITY_TRANSFERS.md) · [das kurzlebige Python](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md) · [der Netzwerkausgang der Sandbox](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md) · [die berechneten Antworten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/35_computed_answers.md) · [der Browser](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/BROWSER_CONTROL.md) · [das Lesen von Seiten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WEB_FETCH.md) · [die Wissensräume](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-055-RAG-Spaces-Architecture.md) · [ihr Leitfaden](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_RAG_SPACES.md) · [ihre Nutzung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/14_rag_spaces.md) · [ein Drive-Ordner ist ein Baum](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md) · [ein Gmail-Label als Quelle](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md) · [die eingebaute FAQ](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-058-System-RAG-Spaces.md) · [ein Dokument aus einem Raum anhängen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md) · [die Sub-Agenten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/13_sub_agents.md) · [die Gesundheitsdaten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HEALTH_METRICS.md) · [ihre Aufnahme](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-076-Health-Metrics-Ingestion.md) · [die Gesundheit aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/23_health_metrics.md) · [die SMS](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SMS_INGESTION.md) · [die Dokumentenerstellung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DOCUMENT_GENERATION.md) · [die Dokumente aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/32_document_generation.md) · [die Bilder](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/21_image_generation.md) · [die erzeugten Dateien](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/39_generated_files.md) · [eine Datei behalten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md) · [per E-Mail senden](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md) · [die Anhänge im Eingabefeld](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/ATTACHMENTS_INTEGRATION.md) · [die behaltenen Antworten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/40_bookmarks.md)*
 
-### 6.7. Aufgerufene Fähigkeit: wenn die Anfrage kein Satz ist
+## 8. Stimme, Live-Modus und Telefon
 
-Ein Plan entsteht aus Text. Kommt die Anfrage jedoch von einem **Knopf** — eine benannte Karte, angehakte Kästchen —, besitzt das System diese Gewissheit, **bevor** irgendein Modell befragt wird. Sie in Prosa zu verwandeln und dann drei stochastische Stufen (Analysator, Planer, Validierer) für ihre Rückgewinnung aufzuwenden, zerstört Information und bezahlt dafür, sie wiederzufinden. So kann das erwartete Werkzeug den besten Wert des Katalogs erreichen und der Plan trotzdem ein allgemeines aufrufen.
+Die klassische Stimme besteht aus unabhängigen Bausteinen. Das Aktivierungswort „Dis LIA“ wird im Browser erkannt, und nichts wird gesendet, bevor es gehört wurde; vorerst wird nur das französische Modell ausgeliefert, in der Beta. Das Diktat wird in der Sprache des Kontos transkribiert, auf dem Server und offline mit Whisper, oder je nach Einstellung von einer entfernten Engine. Die Sprachsynthese hat mehrere Anbieter, standardmäßig das kostenlose Edge, und die Antwort wird schon Satz für Satz vorgelesen, während der Rest noch geschrieben wird. Ein experimenteller sprechender Avatar kann hinzukommen, mit dem Simli-Schlüssel der Person, über den auch die Stille berechnet wird, solange die Verbindung offen bleibt.
 
-Die Anfrage trägt daher neben dem angezeigten Satz die **aufgerufene Fähigkeit**: ein Paar `{capability, subject}`. `capability` ist ein **geschlossenes** `Literal`, das Pydantic an der HTTP-Grenze zurückweist — der Browser benennt eine Fähigkeit, **nie** ein Werkzeug, und der Server entscheidet, welches nur lesende Werkzeug sie umsetzt. Diese Tür führt zu keinem verändernden Werkzeug. Der Transport zum Planer ist eine anfragebezogene `ContextVar`, an derselben Stelle und mit derselben Disziplin gesetzt wie die Skill-Einstellungen.
+Der **Live-Modus** ist ein echtes Gespräch von Stimme zu Stimme. Ich habe ihm zwei Intelligenzen und eine einzige Naht gegeben: Das Sprachmodell führt das Gespräch, und jede Anfrage nach Daten oder einer Aktion geht über eine einzige Funktion, `send_to_lia`, an die Chat-Engine. Die Anfrage wird zu einem gewöhnlichen Chat-Durchlauf, mit seinen Bestätigungen, seinen Registern und seinen Quoten. Die Stimme besitzt weder ein Werkzeug noch Zugangsdaten noch ein eigenes Gedächtnis.
 
-Angewendet wird sie **vor der Validierung**, genau wie das Zurückholen von Werten in ihre Grenzen: was mechanisch reparierbar ist, wird repariert und nie als Mangel gemeldet. Der Plan wird **bereichert, nicht ersetzt** — alles, was der Planer vorgesehen hat und das etwas beiträgt, bleibt; was er vorgesehen hat und die Fähigkeit ohnehin abdeckt, entfällt, denn eine unpassende Antwort neben einer benannten Lücke widerspricht ihr. Zwei Sicherungen: ein Schritt, den ein anderer noch liest — über eine erklärte Abhängigkeit **oder** eine `$steps`-Referenz —, bleibt erhalten, und ein Plan ohne Schritte (offene Rückfrage, an einen Skill delegierte Ausführung) wird nie in eine Ausführung verwandelt. Eine Garantie, die eine Frage überschreibt, ist keine Garantie.
-
-### Was ein Leseschritt gefunden hat, erreicht die Antwort (ADR-347)
-
-Im Pipeline-Modus schreibt die Antwort ein Modell, das die Werkzeuge nicht sieht: Es liest die Nachricht jedes Schritts und die Elemente, die der Zug registriert hat. Ein Lesewerkzeug legt seine Fakten jedoch in `structured_data` ab — die Fahrzeiten einer Routenmatrix, die Anschlüsse einer Fahrt, die nächste Seite einer Suche. Der Executor projiziert daher, was dieser Block über die bereits angezeigten Karten hinaus beiträgt, mit den Funktionen des ReAct-Modus selbst (ADR-286): nach Inhalt verglichen, an Elementgrenzen geschnitten, als Inhalt Dritter eingehüllt, unter dem Token-Budget des Antwort-Slots, jeder Schnitt benannt und gezählt. Die Antwort liest ihn in einem einzigen Abschnitt, der der Ausführungszusammenfassung beigefügt ist, und der persistierte Zustand behält keinen Block eines anderen Zugs. Ein Werkzeug, dessen Nachricht seine Daten bereits wiedergibt, erklärt das, mit einer beim Start geprüften Begründung.
-
-Derselbe Vertrag schließt die umgekehrte Tür: Ein Fehlschlag, den die Nutzlast eines Konnektors erklärt, wird nie als Erfolg zurückgegeben — ein Netz an den Durchgangsstellen der Konnektoren korrigiert ihn, protokolliert ihn und zählt ihn —, und eine FOR_EACH-Schleife, deren Elemente teilweise scheitern, behält ihre Erfolge und benennt jedes gescheiterte Element. Ein Element erreicht seinen Schritt vollständig: Die Ersetzung von `$item` ist strukturell, nie ein erneut geparster JSON-String.
-
----
-
-## 7. Smart Services: intelligente Optimierung
-
-### 7.1. Das gelöste Problem
-
-Ohne Optimierung würde die Skalierung auf 10+ Domänen die Kosten explodieren lassen: Der Übergang von 3 Tools (Kontakte) auf 30+ Tools (10 Domänen) verzehnfacht die Prompt-Größe und damit die Kosten pro Anfrage (ADR-003). Die Smart Services bringen diese Kosten auf das Niveau eines Einzeldomänensystems zurück.
-
-| Service | Rolle | Mechanismus | Gemessener Gewinn |
-|---------|------|-----------|-------------|
-| `QueryAnalyzerService` | Routing-Entscheidung | LRU-Cache (TTL 5 Min.) | ~35 % Cache Hit |
-| `SmartPlannerService` | Plangenerierung | Bayessches Pattern Learning | Bypass > 90 % Konfidenz |
-| `SmartCatalogueService` | Tool-Filterung | Filterung nach Domäne | 96 % Token-Reduktion |
-| `PlanPatternLearner` | Lernen | Bayessches Scoring Beta(2,1) | ~2 300 eingesparte Tokens pro Replan |
-
-### 7.2. PlanPatternLearner
-
-**Funktionsweise**: Wenn ein Plan validiert und erfolgreich ausgeführt wird, wird seine Tool-Sequenz in Redis gespeichert (Hash `plan:patterns:{tool→tool}`, TTL 30 Tage). Für zukünftige Anfragen wird ein bayesscher Score berechnet: `Konfidenz = (α + Erfolge) / (α + β + Erfolge + Misserfolge)`. Über 90 % wird der Plan direkt ohne LLM-Aufruf wiederverwendet.
-
-**Schutzmaßnahmen**: K-Anonymität (mindestens 3 Beobachtungen für Vorschlag, 10 für Bypass), exaktes Domänen-Matching, maximal 3 injizierte Patterns (~45 Token Overhead), striktes Timeout von 5 ms.
-
-**Bootstrapping**: 50+ vordefinierte Golden Patterns beim Start, jeweils mit 20 simulierten Erfolgen (= 95,7 % anfängliche Konfidenz).
-
-### 7.3. QueryIntelligence
-
-Der QueryAnalyzer liefert weit mehr als Domain-Erkennung — er erzeugt eine tiefe `QueryIntelligence`-Struktur: unmittelbare Absicht vs. Endziel (`UserGoal`: FIND_INFORMATION, TAKE_ACTION, COMMUNICATE...), implizite Absichten (z.B. „Kontakt finden“ bedeutet wahrscheinlich „etwas senden“), antizipierte Fallback-Strategien, FOR_EACH-Kardinalitätshinweise und softmax-kalibrierte Domain-Konfidenzwerte. Dies gibt dem Planner ein reicheres Bild als einfache Keyword-Extraktion.
-
-### 7.4. Semantischer Pivot
-
-Anfragen in jeder Sprache werden automatisch ins Englische übersetzt, bevor Embedding-Vergleiche stattfinden, was die sprachübergreifende Genauigkeit verbessert. Redis-gecacht (TTL 5 Min, ~5 ms bei Hit vs ~500 ms bei Miss), über ein schnelles LLM.
-
-### 7.5. Katalog-Abschluss
-
-Die semantische Filterung bewertet Werkzeuge anhand einer **englischen Umschreibung der Anfrage, die ein Modell bei jeder Runde neu erzeugt**: Dieselbe Frage kann also zwei verschiedene Kataloge ergeben. Verlangen die ausgewählten Werkzeuge einen Wert, den keines von ihnen liefern kann – die ID einer Nachricht, um darauf zu antworten –, ist der Raum gültiger Pläne leer, **bevor** das Modell überhaupt beginnt. Es kann dann nur noch einen Werkzeugnamen erfinden.
-
-Der Abschluss wendet eine Regel an, die die Anfrage nie ansieht: *Jede Art von Wert, die ein Werkzeug im Katalog benötigt, muss von einem anderen Werkzeug im Katalog erzeugt werden.* Das ist ein Linker, der offene Referenzen auflöst, keine Suche, die rät. Zwei Bedingungen machen die Regel korrekt statt bloß plausibel: Ein Werkzeug erfüllt nie seine eigene Anforderung („auf eine E-Mail antworten“ erzeugt ebenfalls eine Nachrichten-ID – die der gerade gesendeten), und nur ein **lesendes** Werkzeug gilt als Quelle (man löst keinen Versand aus, um eine Kennung zu erfahren). Der Preis ist gering: Der Abschluss fügt dem Katalog typischerweise **ein Werkzeug** hinzu.
-
----
-
-### 7.6. Domänenübergreifende Erreichbarkeit
-
-Das Schließen des Katalogs klärt, was ein Plan **verketten** darf. Davor steht eine andere Frage: welche Werkzeuge überhaupt **hineinkommen**. Die Filterung verwirft jedes Werkzeug, dessen Domäne nicht zu den erkannten gehört — **bevor** irgendein semantischer Wert gelesen wird. Ein wirklich domänenübergreifendes Werkzeug ist damit für jede anders eingeordnete Anfrage unsichtbar, so gut es auch bewertet sein mag.
-
-Das Werkzeug für den 360°-Überblick zu einer Person ist der Musterfall: Es lebt in der Domäne `contact`, während die Anweisung des Analysators jede Frage zu einem verbundenen Nutzer in die Domäne `peer` schickt. Ohne Abhilfe hätte es die beste Bewertung des gesamten Katalogs und käme doch nie beim Planer an — nur zu funktionieren, wenn das Modell von seiner Anweisung abweicht, ist ein stochastischer Ausweg, kein regulärer Pfad.
-
-Ein Manifest erklärt daher die **zusätzlichen** Domänen, aus denen es erreichbar ist, und eine **einzige Implementierung** beantwortet „ist dieses Werkzeug im Geltungsbereich?“ für beide Filterstrategien, statt dass jede dieselbe Frage für sich stellt. Jeder Wert wird bei der Registrierung gegen das Domänenregister geprüft: eine unbekannte Domäne verweigert den Start, statt das Werkzeug still unauffindbar zu machen. Sparsam zu deklarieren — jede zusätzliche Domäne erweitert die Auswahl für **alle** Anfragen dieser Domäne. Das ist nicht dasselbe wie zwei Domänen zu verknüpfen: Verknüpfen zieht ihre gesamten Werkzeugkästen ineinander und bläht jeden betroffenen Katalog auf. Hier bewegt sich ein Werkzeug, keine Domäne.
-
-### 7.7. Der Katalog einer Domäne ist ein Angebot an Fähigkeiten
-
-Die Filterung nach Domäne hat eine Folge: **Was der Katalog einer Domäne enthält, bestimmt, was der Planer wollen kann**. Böte die Anrufdomäne nichts als einen Anruf, würde „Wann habe ich meine Frau zuletzt angerufen?“ zu einem zweistufigen Plan — den Kontakt suchen und dann **sie anrufen, um sie danach zu fragen**.
-
-Das wäre keine Laune des Modells, sondern die einzige Art zu gehorchen. Der Prompt nennt `Primary domain: telephony`, und eine Regel prüft, ob der Plan diese Domäne abdeckt: Enthält der Katalog von `telephony` **genau eine Fähigkeit — einen Anruf tätigen**, heißt die eigene Primärdomäne abzudecken zu handeln.
-
-Die handelnden Domänen tragen daher auch ihre Lesefähigkeit, **jede in ihrer eigenen Domäne** — den Anrufverlauf, offene Zusagen, weitergeleitete Nachrichten. Die Alternative über die zusätzlichen Domänen aus dem vorigen Abschnitt ist ausgeschlossen: Diese Werkzeuge von `contact` aus erreichbar zu machen, würde schreibende Werkzeuge aus den vollsten Katalogen verdrängen, da die Obergrenze fest ist. Eine Lesefähigkeit darf keine Schreibfähigkeit kosten.
-
-Eine **deterministische** Regel vervollständigt das Ganze, vor jedem Modellaufruf: nicht-mutierende Absicht erkannt + Plan ruft ein schreibendes Werkzeug auf → Plan ungültig. Sie läuft mit den übrigen Pre-LLM-Regeln und ist damit außer Reichweite jener Ausnahme, die einen gut verketteten, mit einer Mutation endenden Plan von der Prüfung befreit — also genau die fehlerhafte Form: Ohne sie würde ein Plan umso weniger geprüft, je besser er geformt ist.
-
-Beide Katalog-Obergrenzen (normal und Panikmodus) sind Einstellungen, mit einer Prüfung beim Start: **die Rückfall-Obergrenze liegt nie unter der normalen**, sonst böte das Sicherheitsnetz weniger als der Weg, der gerade gescheitert ist.
-
----
-
-## 8. Semantisches Routing und KI-gestützte Embeddings
-
-### 8.1. Warum semantische Embeddings? (ADR-049)
-
-Das rein LLM-basierte Routing hatte zwei Probleme: Kosten (jede Anfrage = ein LLM-Aufruf) und Genauigkeit (das LLM lag bei ~20 % der Multi-Domänen-Fälle falsch). Semantische Embeddings lösen beide Probleme:
-
-| Eigenschaft | Wert |
-|-----------|--------|
-| Anbieter | Google Gemini (`gemini-embedding-001`) |
-| Sprachen | 100+ |
-| Genauigkeitsgewinn | +48 % bei Q/A-Matching vs. LLM-Routing allein |
-
-### 8.2. Semantic Tool Router (ADR-048)
-
-Jedes `ToolManifest` besitzt mehrsprachige `semantic_keywords`. Die Anfrage wird in ein Embedding transformiert und dann per Kosinusähnlichkeit mit **Max-Pooling** verglichen (Score = MAX pro Tool, nicht Durchschnitt — vermeidet semantische Verwässerung). Doppelschwelle: >= 0.70 = hohe Konfidenz, 0.60-0.70 = Unsicherheit.
-
-### 8.3. Semantische Expansion
-
-Der `expansion_service.py` fügt dem Planner-Katalog die Domänen hinzu, die eine fehlende Information liefern können. Der Auslöser ist **evidenzgesteuert**: Die Erkennung von Personenreferenzen ist die Vereinigung dreier Quellen — die Mappings des Memory-Resolvers (per Konstruktion Personenreferenzen), extrahierte relationale Referenzen selbst wenn die Auflösung keinen Fakt findet, und die typisierten Referenzen des Analyse-LLM. Eine referenzierte Entität (Person → `Contact`, Termin → `CalendarEvent`, Ort → `Place`, E-Mail → `EmailMessage`) bringt die Domänen ein, deren Ontologie-`properties` einen von den ausgewählten Tools benötigten Typ liefern — eine Verankerung, die jede blinde Expansion verhindert, mit konfigurierbarer Obergrenze und Vollständigkeitsprüfung des Mappings beim Start (ADR-120).
-
-Gespeist wird die Schicht von **tiefgehend annotierten** Manifesten (`semantic_type` auf Parametern und Outputs: Termin-Teilnehmer, E-Mail-Absender, Routenziel — ADR-121), die auch die domänenübergreifenden Jinja2-Verknüpfungsvorschläge und eine **Ausführungs-Schutzvorrichtung** antreiben: Ein Personenname kann niemals einen adress-/e-mail-typisierten Parameter erreichen — der Aufruf schlägt vor jeder API-Ausgabe mit einem behebbaren Fehler fehl, in beiden Ausführungsmodi. Die Post-Expansion-Validierung (ADR-061, Layer 1) filtert weiterhin vom Administrator deaktivierte Domänen.
-
----
-
-## 9. Human-in-the-Loop: 6-Schichten-Architektur
-
-### 9.1. Warum pro Aktion? (Phase 7 → Phase 8 → heute)
-
-Der ursprüngliche Ansatz (Phase 7) unterbrach die Ausführung **während** der Tool-Aufrufe — jedes sensible Tool erzeugte eine Unterbrechung. Die UX war unzureichend (unerwartete Pausen) und die Kosten hoch (Overhead pro Tool).
-
-Phase 8 legte den **vollständigen Plan** dem Benutzer **vor** jeder Ausführung vor: eine einzige Unterbrechung, ein Gesamtüberblick, bearbeitbare Parameter — um den Preis, darauf vertrauen zu müssen, dass der Planner einen getreuen Plan erstellt. Die Bestätigung pro Aktion hat sie abgelöst: Das Plan-Genehmigungstor lässt jetzt jeden Plan passieren, und die Person bestätigt, was tatsächlich geschehen wird, dort, wo es vorbereitet wird — jeder Entwurf auf seiner eigenen Karte, eine Frage pro Entwurf (§9.3), ein FOR_EACH-Stapel vor seiner Ausführung, ein Tool, das erklärt, eine Bestätigung zu schulden.
-
-### 9.2. Die Genehmigungstypen
-
-| Typ | Auslöser | Mechanismus |
-|------|-------------|-----------|
-| `CLARIFICATION` | Erkannte Mehrdeutigkeit | `interrupt()` mit LLM-Frage |
-| `DRAFT_CRITIQUE` | Ein Entwurf (E-Mail, Event, Kontakt …) oder ein Tool-Aufruf, der eine Bestätigung schuldet | `interrupt()` mit der Karte des Entwurfs; eine gewünschte Änderung wird erneut vorgelegt |
-| `ENTITY_DISAMBIGUATION` | Mehrere Treffer für einen Namen | `interrupt()` mit den Kandidaten |
-| `TOOL_CONFIRMATION` | Ein Tool-Aufruf, der ohne Entwurf auf Genehmigung wartet | `interrupt()` mit dem Aufruf |
-| `FOR_EACH_CONFIRMATION` | Massenmutationen | `interrupt()` mit Operationszählung |
-| `PLAN_APPROVAL` | Derzeit keiner: das Genehmigungstor lässt jeden Plan passieren | — |
-| `DESTRUCTIVE_CONFIRM` | Derzeit keiner: registriert, von keinem Knoten ausgelöst | — |
-
-**Was nichts zu bestätigen hat.** Eine Aktion fragt nichts, wenn nichts sie umleiten kann. Die E-Mail an sich selbst (ADR-314) hat keinen Empfänger als Parameter: Die Adresse ist die, die der Anbieter des verbundenen Postfachs nennt, oder, ohne Postfach, die bestätigte Adresse des Kontos über LIAs Relais — kein fremder Text kann sie also umleiten. Das Werkzeug erklärt sich `reversible` mit schriftlicher Begründung, sodass eine Routine ihr Ergebnis senden kann, wo ein Entwurf abgelehnt wird. Eine eingetippte Adresse, die zufällig die eigene ist, geht dagegen über den Entwurf: Ein Empfänger, der die Bestätigung manchmal überspränge, wäre ein Ziel für Injektionen.
-
-**Entwürfe im Postfach** (ADR-344) folgen derselben Regel: Einen Entwurf speichern, eine Antwort oder eine Weiterleitung als Entwurf vorbereiten, ihn bearbeiten oder in den Papierkorb verschieben erreicht niemanden — der Entwurf bleibt im Postfach der Person, und der Papierkorb lässt sich rückgängig machen —, also wird nichts gefragt. Nur das Senden geht über eine Karte, die den Entwurf so zeigt, wie das Postfach ihn hält, und seinen Fingerabdruck trägt: Ein inzwischen im Postfach geänderter Entwurf wird nicht gesendet, und eine auf der Karte verlangte Änderung wird vor dem Versand geschrieben.
-
-### 9.3. Entwurfskritik: eine Beschreibung, eine Frage je Entwurf
-
-Ein zu bestätigender Entwurf und der Bericht seiner Ausführung werden **einmal beschrieben** — eine Kartenspezifikation aus beschrifteten Zeilen, Notizen und Blöcken, die je Entwurfstyp ein Renderer aus dem Anzeigeregister baut — und **je Oberfläche gezeichnet**: im Chat dasselbe `lia-card`-Markup wie eine E-Mail oder ein Termin (Kopfzeile, Illustration, Felder mit ihren Symbolen, Text als Block); auf einem Ticket, in einem externen Kanal oder im Anzeigemodus `markdown` das Markdown, das der Ticket-Kommentar glätten kann. Die Oberfläche entscheidet der Run, nie rät sie ein Aufrufer. Ein Bericht sagt, was getan wurde, an wen und womit: Jede Zeile eines Stapels trägt die Schlüsselfelder, die ihr Typ deklariert, und einen begrenzten Auszug des gesendeten Textes, zitiert mit den Anführungszeichen der Sprache. Vorher/Nachher-Vergleich bei Aktualisierungen, Irreversibilitätswarnungen, i18n-Beschriftungen und anklickbare Links gehören zu dieser Beschreibung.
-
-Ein Zug, der **mehrere unabhängige Entwürfe** vorbereitet — zwei E-Mails, einen Termin und eine Aufgabe, mehrere Werkzeugaufrufe einer ReAct-Iteration — legt sie **einen Entwurf je Unterbrechung** vor: Die Folge beginnt mit der Liste all dessen, was der Zug vorbereitet hat, jeder Entwurf hat seine Karte, seine Frage und seine Änderung, die Position wird genannt („Entwurf 2 von 3“), und nichts läuft vor der letzten Antwort; die gesammelten Entscheidungen werden dann gemeinsam ausgeführt, jede unter ihrem eigenen Typ, und ein abgebrochener Entwurf wird gemeldet statt verloren. Nur ein Stapel, den die Person **als Liste vorab genehmigt** hat — die Einträge eines in diesem Zug genehmigten FOR_EACH-Schritts, eines Typs — behält seine gebündelte Bestätigung. Ein Ticket folgt derselben Identität (dem Entwurf auf dem Bildschirm), und ein neuer Zug beginnt immer ohne Entwurf in Prüfung.
-
-### 9.4. Antwortklassifikation
-
-Wenn der Benutzer auf einen Genehmigungsprompt antwortet, kategorisiert ein Full-LLM-Klassifikator (kein Regex) die Antwort in 5 Entscheidungen: **APPROVE**, **REJECT**, **EDIT** (gleiche Aktion, andere Parameter), **REPLAN** (völlig andere Aktion) oder **AMBIGUOUS**. Eine Degradierungslogik verhindert False Positives: ein EDIT mit fehlenden Parametern wird zu AMBIGUOUS herabgestuft, was eine Klärungsnachfrage auslöst.
-
-### 9.5. Replay-sichere Überarbeitungsschleifen (ADR-092)
-
-Die Resume-Semantik von LangGraph führt den unterbrochenen Node **vollständig** neu aus: Vergangene `interrupt()`-Aufrufe liefern ihre gespeicherten Werte, alles andere läuft erneut live. Jede Schleife um `interrupt()` innerhalb eines Nodes wiederholt daher ihre Seiteneffekte (LLM- und API-Aufrufe) bei jeder Benutzerentscheidung. Beide Überarbeitungsschleifen — iterative Entwurfsbearbeitung und Bulk-Bestätigung (dedizierter `for_each_confirm`-Node) — folgen einem normativen Muster: **ein `interrupt()` pro Node-Ausführung**, der Schleifenzustand fließt durch den checkpointed Graph-State, die Iteration erfolgt über eine bedingte Self-Loop-Kante. Durch kompilierte Replay-Harnische bewiesene Garantie: Jede LLM-Änderung läuft genau einmal und der bestätigte Inhalt ist exakt der zuletzt angezeigte.
-
-### 9.6. Compaction Safety
-
-4 Bedingungen verhindern die LLM-Komprimierung (Zusammenfassung alter Nachrichten) während aktiver Genehmigungsflüsse. Ohne diesen Schutz könnte eine Zusammenfassung den kritischen Kontext einer laufenden Unterbrechung löschen.
-
----
-
-## 10. State-Management und Message Windowing
-
-### 10.1. MessagesState und Custom Reducer
-
-Der LangGraph-State ist ein `TypedDict` mit einem Reducer `add_messages_with_truncate`, der tokenbasierte Trunkierung, Validierung von OpenAI-Nachrichtensequenzen und Deduplizierung von Tool-Nachrichten verwaltet.
-
-Der State wird durch einen **typisierten Ausführungskontext** ergänzt (`LiaRuntimeContext`, ADR-231): eine eingefrorene Dataclass, die als `context_schema` des Graphen deklariert ist und Identität, Einstellungen und lebende Abhängigkeiten des Runs trägt (SSE-Queue, Werkzeug-Container). Anders als der State wird dieser Kontext nie gecheckpointet noch kopiert — die Objektidentität bleibt vom Knoten über den Subgraphen bis zum Werkzeug erhalten — und ein Assert am Eingang des Graphen weist jeden Run ohne Kontext ab, auch beim Fortsetzen eines HITL-Interrupts, wo ein Fehlen sonst stumm degradieren würde.
-
-### 10.2. Warum Windowing pro Knoten? (ADR-007)
-
-**Das Problem**: Eine Konversation mit 50+ Nachrichten erzeugte 100k+ Token Kontext, mit einer Latenz > 10 s für den Router und explodierenden Kosten.
-
-**Die Lösung**: Jeder Knoten operiert auf einem anderen Fenster, kalibriert auf seinen tatsächlichen Bedarf:
-
-| Knoten | Turns | Begründung |
-|------|-------|---------------|
-| Router | 5 | Schnelle Entscheidung, minimaler Kontext genügt |
-| Planner | 10 | Kontextbedarf für die Planung, aber nicht die gesamte Historie |
-| Response | 20 | Reicher Kontext für natürliche Synthese |
-
-**Gemessene Auswirkung**: E2E-Latenz -50 % (10 s → 5 s), Kosten -77 % bei langen Konversationen, Qualität erhalten dank Data Registry, die Tool-Ergebnisse unabhängig von Nachrichten speichert.
-
-### 10.3. Context Compaction
-
-Wenn die Token-Anzahl einen dynamischen Schwellenwert überschreitet (Verhältnis zum Context Window des Antwortmodells), wird eine LLM-Zusammenfassung generiert. Kritische Identifikatoren (UUIDs, URLs, E-Mails) werden beibehalten. Einsparverhältnis: ~60 % pro Komprimierung. Befehl `/resume` für manuelles Auslösen.
-
-**Betriebliche Resilienz**: Jeder LLM-Aufruf wird in ein `asyncio.wait_for` pro Chunk (Standard 35 s) und ein globales Budget von 120 s eingebettet. Bei vorübergehenden Fehlern wiederholt `tenacity.AsyncRetrying` bis zu 3-mal mit exponentiellem Backoff. Wenn die Zusammenfassung weiterhin nicht abgeschlossen werden kann, kürzt ein expliziter Fallback (`_truncation_fallback`) den älteren Verlauf sauber mit einer lesbaren `SystemMessage`, die Identifikatoren bewahrt — kein stiller Stub. Frühere `compaction #N`-Zusammenfassungen werden im Merge konsolidiert, statt Turn für Turn angehäuft.
-
-**SSE-Custom-Mode-Signal**: Der Knoten emittiert `compaction_start` / `compaction_done` über `langgraph.config.get_stream_writer()` durch einen `stream_mode="custom"` (LangGraph 1.x). Der Streaming-Service übersetzt diese Payloads in `ChatStreamChunk(type="execution_step")`. Im Frontend bleibt ein auf einer stabilen ID (`COMPACTION_TOAST_ID`) gemorphter sonner-Toast während der gesamten Komprimierung sichtbar, das Eingabefeld ist über `status="compacting"` gesperrt, und eine `ContextUsagePill` zeigt fortlaufend das Tokens/Schwellen-Verhältnis. Das gleichzeitige SSE-Keepalive (`iter_with_keepalive`) pulst alle 15 s `: heartbeat` während stiller Awaits, um Cloudflare-Idle-Cuts zu neutralisieren. Fünf Prometheus-Metriken (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) speisen ein dediziertes Grafana-Dashboard.
-
-**Die Herkunft überlebt die Zusammenfassung.** Eine Zusammenfassung aus Nachrichten mit Drittanbietertext erbt ein Herkunftsbanner, und der Zusammenfassungs-Prompt meldet Behauptungen Dritter in einem eigenen Abschnitt, ihrer Quelle zugeordnet — siehe §19.6.
-
-### 10.4. PostgreSQL-Checkpointing
-
-Vollständiger State wird nach jedem Knoten checkpointet, Speicherdauer und Größe pro Knoten gemessen (`checkpoint_save_duration_seconds`, `checkpoint_size_bytes`). Die Eingabe des Graphen ist das **Diff des Zuges**, nie der wiederhergestellte State: Der Lader behält eine Kopie der wiederhergestellten Werte, und der Stream übergibt dem Graphen nur, was sich seitdem geändert hat, sodass ein unveränderter Kanal nicht bei jedem Zug eine neue Version erhält — ein abgeleitetes Diff, das kein Zwischenschreiber deklarieren muss. Checkpointer und Store laufen jeweils auf einem dedizierten PostgreSQL-Verbindungspool pro Worker (Größen per Umgebung einstellbar): parallele Unterhaltungen serialisieren nicht über eine einzige Verbindung, und eine abgebrochene Verbindung wird beim Checkout erkannt und automatisch ersetzt (ADR-111).
-
-### 10.5. Die System-Blöcke eines ReAct-Zuges sind Zustand (ADR-169/170)
-
-`get_windowed_messages(include_system=True)` **zieht jede `SystemMessage` nach vorn**, ohne Fensterbegrenzung. Die System-Blöcke jedes Zuges in den Verlauf zu stapeln, hieße daher, bei jedem Aufruf alle bisherigen Kopien erneut zu senden — den Prompt der Schleife einmal pro vergangenem Zug, bei jedem LLM-Aufruf jeder Iteration. Ein Präfix, das mit jedem Zug wächst, trifft nie einen Präfix-Cache eines Anbieters, und ein Anbieter wie Anthropic weist die Sequenz zurück: Eine `SystemMessage` darf nicht mitten in einem Verlauf stehen.
-
-Die Blöcke leben daher in einem eigenen Zustandsschlüssel und werden bei jedem Aufruf führend neu zusammengesetzt — das Präfix bleibt stabil. Der Schlüssel gehört zum versionierten Zustandsschema, mit einer additiven, idempotenten Migration. Das Windowing entfernt geerbte `SystemMessage`s aus dem Verlauf, **außer der Compaction-Zusammenfassung**, dem verdichteten Gedächtnis der Unterhaltung: Die Kontiguität wiederherzustellen, darf diese Zusammenfassung nie kosten.
-
-**Die Frist der Schleife misst die Rechenzeit, nicht die Wanduhr.** `interrupt()` wirft: Der Knoten kehrt nie zurück, keine Zustandsänderung wird persistiert, kein Zeitstempel erneuert, und die Wiederaufnahme betritt erneut den unterbrochenen Knoten, ohne den Router zu wiederholen, in dem das Zurücksetzen lebt: Nach der Wanduhr würde die Zeit, die eine Person zum Antworten braucht, als Rechenzeit zählen. Ein nach einer Bestätigung wiederaufgenommener Zug würde dann bei der nächsten Routing-Entscheidung abgeschnitten und seine Antwort durch einen zweiten LLM-Aufruf neu erzeugt, die mehrstufige Arbeit verloren. Eine Stagnationssperre vervollständigt das Ganze: Beim vierten identischen Werkzeugaufruf wird das Modell zum Kurswechsel aufgefordert, beim fünften endet der Zug. Der Fingerabdruck ist ein HMAC auf den Anwendungsschlüssel — er übersteht eine Wiederaufnahme auf einem anderen Worker — und nur Fingerabdruck und Zähler erreichen den Checkpoint, nie der Werkzeugname oder seine Argumente.
-
----
-
-### Eine Unterhaltung folgt dem gespeicherten Zustand
-
-Eine Antwort kann aus einem anderen Tab, Anruf, einer Routine oder einem externen Kanal kommen. Der Server meldet eine Änderung erst nach dem Datenbank-Commit; der Browser liest dann den authentifizierten Verlauf und fügt Nachrichten anhand ihrer gespeicherten Identität ein. Nach einer Unterbrechung holt er nach, was der Signalkanal nicht aufbewahrt. Ältere Seiten, Leseposition und laufende Arbeit bleiben erhalten; eine Benachrichtigung ist nie selbst der Nachrichteninhalt.
-
----
-
-## 11. Gedächtnissystem und psychologisches Profil
-
-### 11.1. Architektur
-
-```
-PostgreSQL + pgvector
-├── memories                                        → Langzeitgedächtnis: Fakten, Vorlieben, psychologisches Profil
-├── rag_documents + rag_chunks                      → Wissensräume, hybride Suche
-└── AsyncPostgresStore (user_id, "context", domain) → Tool-Kontext (Data Registry)
+```mermaid
+sequenceDiagram
+    participant P as Du
+    participant V as Sprachmodell
+    participant L as Chat-Engine von LIA
+    P->>V: Du sprichst
+    V->>L: send_to_lia mit deiner Anfrage
+    L->>L: Gewöhnlicher Chat-Durchlauf, Bestätigungen inklusive
+    L-->>V: Antwort oder Frage
+    V->>P: Es antwortet dir laut
 ```
 
-### 11.2. Erweitertes Gedächtnisschema
+Eine Live-Sitzung schläft ein, statt zu sterben: Im Ruhezustand ist die Verbindung zum Anbieter geschlossen, und nichts wird berechnet. Die Kosten beim Live-Anbieter laufen über den Schlüssel der Person und werden von LIA nie erfasst. In Live direkt liest die Stimme deine Daten selbst, ohne etwas zu ändern.
 
-Jede Erinnerung ist ein strukturiertes Dokument mit:
-- `content`, `category` (Präferenz, Fakt, Persönlichkeit, Beziehung, Sensibilität...)
-- `importance` (1-10), `emotional_weight` (-10 bis +10)
-- `usage_nuance`: Wie diese Information auf einfühlsame Weise verwendet werden soll
-- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
+Das **Telefon** übernimmt dieselben zwei Modi. LIA kann nach einer Bestätigung für dich eine dritte Person anrufen oder dich selbst unter einer verifizierten Nummer erreichen, und dann hast du am Telefon deine Daten und alle ihre Funktionen, wie im Chat. Wenn LIA eine dritte Person anruft, hat der Anruf-Agent nur ein lesendes Frei/Belegt-Werkzeug: Der Schutz deines Kalenders ist strukturell, er hängt nicht von einer Anweisung in einem Prompt ab. Am Telefon gibt es den Live-Modus nur, wenn der Anbieter deine Instanz erreichen kann.
 
-**Warum ein emotionales Gewicht?** Ein Assistent, der weiß, dass deine Mutter krank ist, diese Tatsache aber wie jede andere Information behandelt, ist bestenfalls unbeholfen, schlimmstenfalls verletzend. Das emotionale Gewicht ermöglicht die Aktivierung der `DANGER_DIRECTIVE` (Verbot zu scherzen, zu minimieren, zu vergleichen, zu bagatellisieren), wenn ein sensibles Thema berührt wird.
+Eine Besprechung wird im Browser aufgenommen: Das Audio geht in kleinen Segmenten hinaus, wird dann transkribiert und zu einem strukturierten Protokoll zusammengefasst, das in einem Wissensraum abgelegt wird. Das persönliche Radio schließlich produziert nur während einer Hörsitzung und behält nichts zum erneuten Anhören.
 
-Dauerhafte Anweisungen werden **beim Anlegen angeheftet**: Solange sie angeheftet sind, darf die automatische Pflege sie nicht umschreiben. Du kannst sie selbst bearbeiten, lösen oder löschen. Auch eine gelöste Verfahrensanweisung darf automatisch nur mit einem Nachfolger außer Kraft gesetzt werden.
+*Weiterlesen: [die Stimme aus Nutzersicht](/de/faq#faq-voice_mode) · [der Live-Ruhezustand und das Aktivierungswort](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md) · [die Stimmen und die Synthese](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) · [der sprechende Avatar](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SPEAKING_AVATAR.md) · [der Live-Modus](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) · [die Telefonie aus Nutzersicht](/de/faq#faq-telephony) · [das Telefon als Kanal](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md) · [das Radio](/de/faq#faq-radio) · [die Besprechungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/MEETINGS.md) · [das strukturierte Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md) · [die Protokollvorlagen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md)*
 
-### 11.3. Extraktion und Injection
+## 9. Die Initiative
 
-**Extraktion**: Nach jeder Konversation analysiert ein Hintergrundprozess die letzte Benutzernachricht, angepasst an die aktive Persönlichkeit. Kosten werden über `TrackingContext` verfolgt.
+LIA ergreift die Initiative in drei Formen. Ein periodischer **Heartbeat** schaut sich deine Quellen an und schreibt dir nur, wenn ein Signal es rechtfertigt, und nennt dabei ein oder zwei geprüfte Fakten. Mit einer Quelle verbunden zu sein und zu akzeptieren, von ihr unterbrochen zu werden, sind zwei getrennte Entscheidungen. Eine Push-Benachrichtigung von Google kann diesen Heartbeat für eine einzelne Person wecken, und ein **Moment** (das Ende einer Besprechung, das Eintreffen einer erwarteten Mail) wird auf die Minute bedient statt beim nächsten Durchgang. Die **proaktiven Gespräche** schließlich verlangen eine Antwort, mit ihren eigenen Regeln: Uhrzeiten, ein Höchstmaß pro Tag, sensible Themen, die privat bleiben, Ausgaben, die reserviert werden, bevor sie anfallen.
 
-**Injection**: Die Middleware `memory_injection.py` sucht semantisch ähnliche Erinnerungen, baut das injizierbare psychologische Profil auf und aktiviert bei Bedarf die `DANGER_DIRECTIVE`. Injection in den System-Prompt des Response Node.
+**Routinen** werden nach einem Zeitplan oder bei einer Bedingung ausgelöst, nicht bei beidem, und eine Wochenansicht zeigt, was wirklich passiert ist. Eine Erinnerung kann sich wiederholen. Das **Ticket-Board** gibt einer Aufgabe einen Lebenszyklus, einen Verantwortlichen und ein Ergebnis.
 
-**Welche Züge das Gedächtnis speisen.** Eine Nachricht, die eine Aktion auslöst, zählt genauso wie ein Gespräch: Das Fortsetzen eines Entwurfs fügt keine Nachricht ein, sodass die ursprüngliche Anfrage zum Zeitpunkt der Extraktion weiterhin die letzte Äußerung des Nutzers ist. Umgekehrt werden **vom System erzeugte** Nachrichten — das bei einer HITL-Ablehnung eingefügte Gerüst — in ihren Metadaten markiert und sowohl als Ziel wie als Kontext ausgeschlossen: niemals an ihrem Text erkannt, denn es existiert in sechs Sprachen. Schließlich gilt die Heuristik, die Bestätigungen verwirft, nur für das, was der Nutzer tatsächlich getippt hat — auf einen Personennamen angewandt, ließe sie die Erinnerungen an Kontakte verschwinden, deren Nachname „gut“ oder „cool“ ähnelt. Jede Entscheidung wird pro Teilsystem und Ausgang gezählt (`post_response_extraction_scheduled_total`), statt Debug-Logs überlassen zu bleiben.
+Zwei Regeln begrenzen das Ganze. Die Initiative liest nur: Ein Schreibvorgang wird vorgeschlagen, nie von selbst ausgeführt. Und ein erneuter Versuch derselben Ausführung wird abgelehnt, sobald das Wirkungsregister zeigt, dass die Aktion schon ausgeführt wurde. Die Seite Aktivität zeigt an einem Ort alles, was LIA allein unternommen hat, mit exakten Summen.
 
-### 11.4. Gedächtnissuche über zwei Vektoren
+*Weiterlesen: [der Heartbeat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HEARTBEAT_AUTONOME.md) · [die Erlaubnis zu unterbrechen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-197-Interrupt-Permission-Is-Not-Connection.md) · [das Wecken per Push](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md) · [die Momente und die Beobachtungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-281-Anticipated-Moments-And-Mail-Watches.md) · [die proaktiven Gespräche](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PROACTIVE_DISCUSSIONS.md) · [ihre Zustellung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md) · [ihr Kontext](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md) · [ihr Budget](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md) · [die Routinen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/10_scheduled_actions.md) · [die Woche der Routinen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md) · [die Erinnerungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/07_reminders.md) · [eine Erinnerung, die immer einen Text hat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md) · [die Initiative, nur lesend](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-062-Agent-Initiative-Phase.md) · [das Ticket-Board](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-276-Workboard.md) · [die Seite Aktivität](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-234-activity-timeline.md) · [eine Benachrichtigung bewerten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/09_proactive_notifications.md)*
 
-Jede Erinnerung trägt **zwei Embeddings**: eines über ihren Inhalt, eines über die auslösenden Schlüsselwörter. Die Anfrage wird mit beiden verglichen, der bessere Treffer gewinnt (`LEAST(dist_content, dist_keyword)`, Rückfall auf den Inhalt, wenn der Schlüsselwortvektor leer ist).
+## 10. Sicherheit und Privatsphäre
 
-**Eine einzige Suchtür** (ADR-313). Eine Anfrage wird als *Schlüssel* eingebettet — ohne die Trivialitätsmuster des Gesprächs, die mit echten Namen und kurzen Fragen kollidieren —, bevor eine Sitzung geöffnet wird; dann werden die lebenden Erinnerungen der Person oberhalb der Relevanzschwelle geliefert, auf Wunsch auf Kategorien eingegrenzt. Alle Aufrufer gehen durch sie: die Gedächtnisfakten des Planers, der Initiative und der Referenzauflösung, der 360°-Rückblick auf eine Person und die Nachschlagevorgänge am Telefon, die „was weiß ich über X“ mit X beantworten statt mit den neuesten Erinnerungen.
+Die Sicherheit ist in unabhängigen Schichten gedacht, und jede Angriffsart hat ihren eigenen Schutz. Konten melden sich über OAuth 2.1 an, und die Rechte folgen Rollen. Für die Sitzungen habe ich das BFF-Pattern gewählt: ein HTTP-only-Cookie und eine Sitzung in Redis statt eines JWT, der, läge er im Browser, XSS ausgesetzt wäre, schwer zu transportieren und nicht widerrufbar. Ein Konto lässt sich mit Passkeys und einem zweiten Faktor schützen, jedes verbundene Gerät lässt sich widerrufen, und das Verknüpfen einer Google-Identität ändert nie den Status eines Kontos. Die Nutzungsgrenzen gelten an allen Zugängen, Routinen inklusive.
 
-**Und gezielt nachgeschlagen.** Eine routbare Domäne trägt ein Lesewerkzeug, sodass die ReAct-Schleife und der Planer ein Thema nachschlagen können, das die Nachricht nicht nannte — den Absender einer gerade gelesenen E-Mail, einen in einem Dokument genannten Ort. Seine Grenzen werden aus den Quellen veröffentlicht, die es durchsetzt (das Kategorievokabular *ist* das gespeicherte, die Ergebnisobergrenze *ist* die Einstellung), die Präferenz der Person lehnt es ab wie die Einspeisung, eine sensible Erinnerung kommt mit ihrer Nutzungsnuance markiert zurück, und ein Fehler wird klassifiziert, nie „nichts erinnert“. Die hybride Suche BM25 + Embeddings lebt dort, wo sie dient: in den RAG Spaces (Abschnitt 17).
+Alles, was für die Person ausgeführt wird, wird als feindlich behandelt: Der Code der Skills läuft in einem Wegwerf-Container, und eine Aufgabe auf einem entfernten Server wird vorbereitet und dann bestätigt. Ebenso bleibt alles, was LIA liest, Daten und wird nicht zu einer Anweisung. Die Herkunft ist eine Eigenschaft der Daten: Jeder Inhaltstyp wird einmal eingestuft, ein unbekannter Typ wird als extern behandelt, und ein Typ, den niemand eingestuft hat, verhindert den Start der Anwendung.
 
-### 11.5. Stratifizierte Tagebücher (Journals)
+Oberhalb der Debug-Stufe trägt eine Logzeile Fakten (Zahlen, Kennungen, Codes, den Host einer Adresse), weder das, was du geschrieben hast, noch das, was ein Modell über dich geschrieben hat. Zwei Vorbehalte: Die Fehlermeldung eines externen Dienstes in einem unbekannten Format kann noch ein Bruchstück davon zitieren, und die Debug-Stufe, die in Produktion abgeschaltet ist, behält mehr davon. Die Datenbank wird automatisch gesichert: Mit den Standardeinstellungen kann höchstens ein Tag an Daten verloren gehen. Die Kopie außer Haus und die Anhänge bleiben außerhalb dieser Sicherungen.
 
-Der Assistent führt introspektive Reflexionen, organisiert nach vier Themen (Selbstreflexion, Benutzerbeobachtungen, Ideen/Analysen, Erkenntnisse) UND vier Abstraktionsebenen (`L0` Rohbeobachtung, `L1` Direktive `WENN→TUE WEIL`, `L2` übergreifendes Muster, `L3` Porträt-Facette — siehe [ADR-079](https://github.com/jgouviergmail/LIA/blob/main/docs/architecture/ADR-079-Stratified-Journal-Consciousness.md)). Jeder Eintrag trägt einen epistemischen Status (`confidence` ∈ {low, medium, high}) und zwei Zähler (`evidence_count`, `contradiction_count`).
+Zwei Grenzen solltest du kennen. Diese Maßnahmen belegen für sich allein nicht die DSGVO-Konformität eines Deployments. Und das Löschen von Rohmesswerten, etwa deiner Gesundheitsdaten, löscht nicht die daraus abgeleiteten Erinnerungen, die ihre eigenen Kontrollen haben.
 
-**Doppelauslöser**: Post-Konversations-Extraktion (fire-and-forget, häufig, leichtgewichtig) + periodische Konsolidierung (4–12 h pro Benutzer, komplex).
+*Weiterlesen: [die Sicherheit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SECURITY.md) · [die BFF-Authentifizierung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-002-BFF-Pattern-Authentication.md) · [die Passkeys](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-143-Strong-Authentication-Passkeys.md) · [die Geräte](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-144-Device-Sessions.md) · [die Nutzungsgrenzen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/USAGE_LIMITS.md) · [die Sandbox](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-149-Security-Remediation-Wave-1.md) · [die Herkunft der Inhalte](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-167-Content-Trust-Registry.md) · [die Privatsphäre aus Nutzersicht](/de/faq#faq-privacy) · [Logs ohne personenbezogene Daten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PII_LOGGING_SECURITY.md) · [eine Logzeile trägt Fakten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md) · [die Sicherungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-109-PostgreSQL-Backup-Strategy.md) · [die Herkunft einer Erinnerung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-201-Provenance-Is-A-Bounded-Reference.md)*
 
-**Gemini Dual-Vector-Embeddings** (`gemini-embedding-001`, 1536d, ADR-069): ein Vektor auf `title + content`, einer auf `search_hints`. Die Suche verwendet `LEAST(dist_content, dist_keyword)` pro Zeile, um das introspektive Vokabular des Assistenten und das Vokabular des Benutzers zu überbrücken.
+## 11. Beobachten und messen
 
-**Verzögerte Selbstauswertung T → T+1**: `MessagesState.injected_journal_ids` (symmetrisch zu `injected_memories`) trägt die IDs zwischen Runden. Der `response_node` liest die IDs der vorherigen Runde am Anfang, übergibt sie an den Post-Konversations-Extraktor und schreibt die IDs der aktuellen Runde am Ende. Der Extraktor sieht die angewandten Direktiven + die Reaktion des Benutzers im selben Prompt und signalisiert `evidence_outcome="evidence" | "contradiction"` bei Update-Aktionen — der Service erhöht die Zähler atomar (Anti-Halluzinations-Schicht 4: der LLM signalisiert nur ein Ergebnis, der Service besitzt die Ganzzahlen). **Null zusätzliche LLM-Kosten** (gleicher Extraktionsaufruf, angereicherter Prompt).
+Das Monitoring ist Teil des Deployments: Prometheus und Grafana für die Metriken, Loki für die Logs, Tempo für die Traces, Langfuse für die Modellaufrufe, Alertmanager für die Alarme. Der Code definiert Hunderte Metriken, rund dreißig Dashboards werden einsatzbereit mitgeliefert, und das Ausgeben der Metriken ist defensiv: Eine Metrik, die fehlschlägt, bringt keine Anfrage zu Fall.
 
-**Ambiente Diffusion des Nutzer-Porträts**: Die Konsolidierung produziert im **gleichen LLM-Aufruf** (kein zusätzlicher Aufruf) ein `portrait_full` (die analytische Lesart, Konversation/Planer) und ein `portrait_brief` (zwei oder drei Sätze als eigene Aussagen, sekundäre Flüsse), jeweils unter einem dem Modell genannten Token-Ziel, die in der `users`-Tabelle persistiert werden. Der Builder `build_journal_user_model_block(user_id, format, flow)` (`src/domains/journals/portrait_builder.py`, Spiegel von `build_psyche_prompt_block`) gibt einen `<UserModelContext>...</UserModelContext>`-Block mit graceful degradation zurück. Verbreitet über **8 Flüsse**: 2 primäre im Vollformat (`response_node`, `planner_node_v3`) und 6 sekundäre im Kurzformat (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
+Das Debugging habe ich auch in die Oberfläche gebracht, weil ein Agent schwer zu debuggen ist: Das Debug-Panel zeigt für jeden Austausch die Absicht, den Plan, jedes Werkzeug und jeden Modellaufruf, und man sieht, warum eine Anfrage teuer war oder warum diese oder jene Domäne gewählt wurde, ohne Grafana zu öffnen.
 
-**Drei Nutzer-Korrekturhebel** auf das Porträt (niemals direkt editierbar): (1) CRUD-Bearbeitungen der L3-Quelleinträge, (2) `POST /journals/portrait/feedback` (Freitext → L0-Eintrag mit `source=user_correction` + synchrone Re-Konsolidierung, die L3-Einträge neu gewichtet), (3) `POST /journals/consolidate` (manuelle Konsolidierung, umgeht Cooldown).
+Bei den Kosten wird jeder Euro, den die Plattform für eine Person zahlt, für sie nachverfolgt, angezeigt, zugeordnet und gezählt, egal, wie er ausgegeben wurde. Neben den Quoten pro Konto gibt es eine Ausgabenobergrenze für die Instanz, weil mehrere Konten mal ihre Quote immer noch eine unbegrenzte Ausgabe sind. Ein Betreiber schaltet eine Fähigkeit ab, ohne neu zu deployen: Was das Deployment erlaubt und was der Betreiber wählt, wirken zusammen, und die kleinere der beiden Grenzen gilt.
 
-**Dedup-Disziplin**: kein Write-Time-Guard. Bei der Konsolidierung führt `STEP 1` einen expliziten Paar-Scan durch, der semantische Duplikate fusioniert, und `STEP 5` clustert konvergente L1 aktiv zu L2-Mustern.
+LIA liest auch ihre eigene Telemetrie, um sich selbst zu diagnostizieren: Jeder kritische Alarm wird mit seiner Vorgehensweise per E-Mail verschickt und wird zu einem Vorfall, und ihre Empfehlungen bleiben Vorschläge. Ein Administrator kann sogar Claude Code CLI aus dem Chat heraus steuern, um seinen Server zu untersuchen.
 
-**4 Anti-Halluzinations-Schichten**: Pydantic `field_validator` auf UUIDs, ID-Referenztabelle im Prompt, Filterung der Aktionen durch bekannte IDs bei Extraktion und Konsolidierung, und atomare Zähler-Inkremente (der LLM signalisiert nur `evidence_outcome`).
+Eine Klarstellung zur Performance: Die gemessenen Latenzen sind die der Infrastruktur. Die Antwortzeit, die du spürst, hängt vor allem von der Abfolge der Modellaufrufe ab, von ein paar Sekunden bis zu mehreren Dutzend, je nach Anfrage und Hardware. Und die Skalierung über eine einzige Maschine hinaus (mehrere Knoten, Replikate, Redis im Cluster) bleibt eine mögliche Weiterentwicklung, keine Realität. Zwei Fragen bleiben offen: das Wachstum des Speichers eines Workers über mehrere Tage und die Aufbewahrung der Checkpoints von LangGraph.
 
-**Dedizierte Observability**: 11 Prometheus-Metriken in `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}` usw.
+*Weiterlesen: [der Observability-Stack](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-020-Observability-Stack.md) · [das Debug-Panel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL.md) · [seine Architektur](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL_ARCHITECTURE.md) · [die Obergrenze der Instanz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md) · [jede Ausgabe untersteht zwei Obergrenzen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) · [die Verwaltung per Arbeitsmappe](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/TABULAR_ADMIN_IO.md) · [die gezielten Ankündigungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md) · [die Demo-Instanz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEMO_INSTANCE.md) · [die Selbstdiagnose](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DIAGNOSTICS_DOMAIN.md) · [die Alarme und ihre Belastbarkeit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md) · [Claude CLI aus dem Chat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md) · [die Anatomie eines Workers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-283-Worker-Memory-Anatomy.md) · [die vollständigen Auszüge der Register](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-273-Complete-Register-Extractions.md) · [die Organisation der Hintergrundaufgaben](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-046-Background-Job-Scheduling.md)*
 
-Das Porträt wird aus **allem gelesen, was LIA über die Person bewahrt** (ADR-292, ADR-343): Zusätzlich zu den Tagebüchern gehen neun Quellen — Erinnerungen, Interessen, gelernte Gewohnheiten, Beziehungs-Debriefs, offene Fäden, Workboard-Tickets, Routinen, geplante Erinnerungen und aufbewahrte Antworten — in den Konsolidierungsprompt ein, jede vollständig gelesen. Die Tagebuch-Domäne importiert keine dieser Domänen — zwei von ihnen importieren sie bereits —, also bietet sich jede Quelle über ein geteiltes Register mit geschlossenem Vokabular an, das der Start explizit installiert und unvollständig ablehnt. Ein Leser antwortet `used | empty | disabled | unavailable` mit einer exakten Gesamtzahl, unter seinen beim Akt gelesenen Toren (Obergrenze, Schalter des Betreibers, Präferenz der Person), und wirft nie: Eine blinde Quelle wird benannt, nie als leer gelesen. Eine einzige physische Grenze ersetzt die Obergrenzen pro Quelle — ein Anteil des Kontextfensters des Konsolidierungs-Slots; darüber hinaus verlieren die letzten Abschnitte ganze Elemente von ihrem Ende her, und der Schnitt wird in der Herkunft genannt.
+## 12. Die Oberflächen
 
-Das Porträt ist eine **Analyse, kein Inventar**: Die Konsolidierung liest die Person quer durch die Quellen in sieben Facetten (Haltung, Fokus, Kontext, Rhythmus, Spannung, Interaktion, Unsicherheit), benennt ein Muster, ohne seine Elemente aufzuzählen, und schreibt die Kurzfassung als zwei oder drei eigene Aussagen. Kein zweites Modell prüft diese Lesarten — was Erfindung verweigert, ist strukturell: Eine Lesart zitiert Elemente des aktuellen Schnappschusses, und ein Absatz, der ein einzelnes Element umformuliert, einen Namen aus den Belegen, eine Zahl, eine Adresse oder ein Datum im Fließtext trägt, wird verworfen; eine Aussage oder eine Wartungsaktion, die der Schnappschuss nicht trägt, wird repariert oder allein verworfen, nie fatal für den bezahlten Durchlauf. Die Herkunft wird mit dem Porträt persistiert, im selben Schreibvorgang, und darunter gezeichnet; eine Änderung der Tagebücher markiert das Porträt als veraltet, ohne es je zu löschen, und das Löschen von Einträgen zieht nur die Lesarten zurück, die sie stützten.
+Die Weboberfläche ist eine Next.js-Anwendung, die sich wie eine App installieren lässt (PWA). Der Chat aktualisiert das Gespräch ohne Neuladen, stellt mathematische Formeln und farbig hervorgehobenen Code dar, behält einen Entwurf pro Konto und lässt sich durchsuchen; die Einstellungen haben ihre eigene Suche, ein tiefschwarzes Design für OLED-Bildschirme und eine einstellbare Textgröße.
 
-**Die Tagebücher lassen sich auch gezielt durchsuchen** (ADR-318). Über die Einspeisung hinaus durchsucht ein Lesewerkzeug — in beiden Modi — die Tagebücher der Person nach einem unterwegs gefundenen Thema, über dieselben Vektoren, an der *konfigurierten* Ähnlichkeitsschwelle statt der gelernten, und liefert nur Direktiven, Muster und Facetten: Eine rohe, noch nicht konsolidierte `L0`-Beobachtung kommt nie heraus. Die Präferenz der Person lehnt es ab wie die Einspeisung.
+In der Anzeige als Karten, einem der drei wählbaren Modi neben einfachem HTML und Markdown, wird eine Antwort mit Daten nicht vom Modell formatiert: Der Server stellt sie als deterministische **Karten** in HTML dar, unabhängig von Modell und Modus, und archiviert sie mit der Nachricht. Eine Karte zeigt einen empfangenen Fakt vollständig und erfindet nichts, und eine Aktion von einer Karte aus bereitet eine Anfrage vor, statt zu handeln. Damit die Oberfläche stimmig bleibt, habe ich Regeln geschrieben, die Tests prüfen: Ein Status bezieht seinen Farbton aus einer einzigen Tabelle, eine Aktion hat eine Wichtigkeitsstufe, und eine Listenzeile zeigt ihre Aktionen auf eine einzige Weise. Die Browser- und Barrierefreiheitstests zielen auf Stufe WCAG AA, ohne die Darstellung auf einem physischen Gerät oder die Treue der Übersetzungen zu zertifizieren.
 
-### 11.6. Interessensystem
+Die mobilen Apps sind native Hüllen, einmal pro Store veröffentlicht. Sie laden die Serveradresse, die beim ersten Start eingegeben wird, und duplizieren die Oberfläche nicht, weil eine einzige App allen dienen muss, die LIA hosten. Unter Android laufen die Benachrichtigungen über das Firebase-Projekt deines eigenen Servers; unter iOS, wo nur der Herausgeber einer App benachrichtigen kann, weckt ein minimales Relay das Telefon. Einen Text oder einen Link vom Telefon aus mit LIA zu teilen bereitet einen Chat-Entwurf vor, der nicht von selbst abgeschickt wird.
 
-Erkennung durch Analyse der Anfragen mit bayesscher Gewichtsentwicklung (konfigurierbarer Decay). Interessen werden per Batch-LLM-Clustering zu **Themen** gruppiert (abgeleitete, selbstheilende Daten), und die Benachrichtigungsauswahl zieht mit **zweistufiger Seltenheit** (Themen-Cooldown + Priorität für die am wenigsten bedienten Themen und Interessen) — eine Leidenschaft monopolisiert nie die Benachrichtigungen. Multi-Source-Inhalte (Perplexity, Brave, Wikipedia, LLM-Reflexion) mit deterministisch angehängten **klickbaren Quellenlinks**. Benutzerfeedback (Daumen hoch/runter/blockieren) passt die Gewichtungen an; nächtliche Fusion von Quasi-Duplikaten.
+Rund um den Chat reagiert ein Begleiter mit ausdrucksstarken Augen auf den ganzen Ablauf einer Antwort, und jede Antwort trägt einen kleinen Stimmungs-Avatar. **LIAs Welt** ist eine weitere Oberfläche: ein gemeinsames Haus mit Garten, in dem man herumspaziert, ohne dass ein Raum zusätzliche Rechte gewährt. Sprachübertragung zwischen Personen und Föderation zwischen Instanzen sind dort nicht umgesetzt. Das Präsentationsvideo wiederum zeigt Nachbildungen der Oberfläche und Demodaten.
 
----
+Zwei Personen derselben Instanz können ihre Assistenten verbinden, damit diese einander Nachrichten übermitteln, und die Seite Beziehungen bündelt, was jede Person betrifft, mit einem vom Modell verfassten Debriefing.
 
-**Die Selbstbewertungsschleife des Journals und die adaptive Schwelle.** In eine Antwort injizierte Direktiven werden im nächsten Zug im Licht der Nutzerreaktion neu bewertet: Das LLM signalisiert nur `evidence` oder `contradiction`, das System besitzt die Zähler, und eine serverseitige Klammer verbietet „hohes“ Vertrauen für eine operative Direktive ohne Beleg — L2/L3 bleiben frei, ihr Beleg ist die Konvergenz zwischen Einträgen. Die Konsolidierungs-Eignung ist delta-gesteuert (Arbeit existiert: nie konsolidiert, oder ein Eintrag seit dem letzten Lauf berührt), nie ein absoluter Zählwert. Schließlich ist die Ähnlichkeitsschwelle für eine Injektion nicht global: Ein begrenzter (0,55–0,70), hysteretischer (ein 0,01-Schritt pro 24 h), abschaltbarer Regler lernt sie pro Nutzer aus der realen Verteilung seiner Scores — der Zustand ist beratend (Redis, gleitende TTL), ein fehlgeschlagenes Lesen fällt auf den statischen Standard zurück.
+*Weiterlesen: [der Chat aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/02_chat.md) · [die Einstellungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/03_settings.md) · [die Suche in den Einstellungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-172-Settings-Quick-Search.md) · [die ersten Schritte](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/01_getting_started.md) · [der Chat, der dem Server folgt](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md) · [die Karten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md) · [ihre Darstellung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HTML_CARDS.md) · [die Orte und die Wege](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md) · [der bekannte Standort](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md) · [die Primitive und ihr Vertrag](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-206-A-Primitive-Owns-Its-Contract.md) · [die Android-App](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_MOBILE_ANDROID.md) · [die nativen Benachrichtigungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-246-Native-Push-And-Wake-Relay.md) · [die Apps aus Nutzersicht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/33_native_apps.md) · [die ausdrucksstarken Augen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-240-expressive-eyes-widget.md) · [die nativen Begleiter](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/NATIVE_AVATAR_VOLUME.md) · [das Präsentationsvideo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md) · [die Fähigkeitenkarte](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/30_platform_capabilities.md) · [die Welt](/de/faq#faq-world) · [ihr Prototyp](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORLD_PROTOTYPE.md) · [die Verbindungen zwischen Assistenten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/26_peer_connections.md) · [die Beziehungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/27_relations.md) · [das Debriefing einer Beziehung](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-269-Relationship-Debrief.md) · [Telegram](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/18_telegram.md)*
 
-## 12. Multi-Provider-LLM-Infrastruktur
+## 13. Wie dieser Code gepflegt wird
 
-E-Mail- und Terminbewertungen sind unabhängige optionale native Anwendungen. Geschlossene Annotationen verbinden sichtbare Evidenz, Umfang und Gültigkeit mit einer Annahmerichtlinie für Anzeige und Antwort. Eigentümer, Konto, Revision, Modell und Prompt-Identität trennen den Cache; begrenzte Claims bündeln überlappende Arbeit. Ein gemeinsamer präzisionsbewusster Validator bewahrt rohe Wahrscheinlichkeiten und verweigert fehlerhafte Antworten. Unsicherheit, Kontingente oder Ausfälle lassen die Quelldaten ohne erfundenes Kennzeichen bestehen. Diese Hinweise authentifizieren keinen Absender, beweisen keinen Betrug und erlauben keine Aktion.
+Jede Änderung durchläuft lokale Prüfungen (vor dem Commit, vor dem Push) und dann die Continuous Integration auf GitHub Actions, die genau dieselben Befehle aufruft wie ein Entwickler. Die Python-Abhängigkeiten sind Absichtsmanifeste, kompiliert zu universellen Lockfiles, die den Hash jedes Pakets tragen: Derselbe Commit installiert immer dieselben geprüften Versionen, auf jeder Architektur.
 
-### 12.1. Factory Pattern
+Die Regeln des Projekts hängen nicht vom Gedächtnis derer ab, die gegenlesen: Automatische Wächter halten sie. Mehrere von ihnen berechnen den Schutz aus der Quelle der Wahrheit neu (den Code selbst, die tatsächlich eingebundenen Routen, die Konnektor-Registry), statt eine von Hand geschriebene Liste festzuschreiben, und wurden absichtlich ausgehebelt, um zu prüfen, dass sie wirklich fehlschlagen. Anderswo können Referenzlisten nur schrumpfen, damit keine technische Schuld unbemerkt wächst. Die Prompts sind versionierte Textdateien, eine pro Prompt, gelesen von einem einzigen Loader. Mehr als 350 ADR halten die Entscheidungen, die verworfenen Alternativen und die akzeptierten Kompromisse fest, und Zehntausende Tests, die Continuous Integration und die strikte Typisierung erlauben es, das System ohne Regressionen weiterzuentwickeln.
 
-```python
-llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=True)
-```
+Ein vollständiges technisches 360-Grad-Audit ist samt Protokoll im Repository veröffentlicht, damit jeder es wiederholen kann. Wie dieser Code geschrieben wurde, fast vollständig von einer gelenkten und kontrollierten KI, erzählt der [Erfahrungsbericht](/de/story).
 
-`get_llm()` löst die effektive Konfiguration über `get_llm_config_for_agent(settings, agent_type)` auf (Code-Defaults → DB-Admin-Overrides), instanziiert das Modell und wendet die spezifischen Adapter an.
+*Weiterlesen: [die Continuous Integration](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/CI_CD.md) · [das Sperren der Abhängigkeiten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-112-Python-Dependency-Locking.md) · [die versionierten Prompts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-025-Prompt-Engineering-Versioning.md) · [das öffentliche Audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)*
 
-### 12.2. Eine Konfiguration pro Rolle
+## 14. Weiterlesen
 
-Das effektive Register trennt Gesprächsrollen, native Entscheidungen, Bilderzeugung, Transkription und Sprachsynthese. Die Übersetzung von Weltnachrichten hat einen eigenen Gesprächsplatz. Native Entscheidungen umfassen Sitzungsvorlagen und spezialisierte JEV-Anwendungen. Jeder Platz ist unabhängig über die Admin-Oberfläche konfigurierbar, ohne erneutes Deployment:
+Dieser Leitfaden stützt sich auf den Code, auf mehr als 800 technische Dokumente und auf die ADR. Zum Weiterlesen:
 
-| Kategorie | Konfigurierbare Typen |
-|-----------|-------------------|
-| Pipeline | router, query_analyzer, planner, semantic_validator, context_resolver |
-| Antwort | response, hitl_question_generator |
-| Hintergrund | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
-| Agenten | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
-| Native Entscheidungen (JEV) | meeting_template_selection, jev_memory_reference_presence, jev_hitl_rejection, usw. |
-| Bild und Stimme | image_generation, voice_transcription, voice_tts, radio_voice |
+- der [Index der Dokumentation](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/INDEX.md) und der [Index der ADR](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR_INDEX.md);
+- die [Architektur der Agenten](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_AGENT.md) und der [LangGraph-Graph](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_LANGRAPH.md);
+- die [lebendigen Karten](/de/maps), die die Funktionen, die Technik und die Geschichte der Entscheidungen zeigen;
+- die [FAQ](/de/faq) für die tägliche Nutzung und der [Erfahrungsbericht](/de/story) für die Methode.
 
-Einige Aufgaben verwenden eine native Entscheidung statt eines generativen Chat-Aufrufs. Das JEV-Register bindet jeden Einsatz an einen eigenen Schalter und Modellplatz; ein Hauptschalter pausiert alle. Jede Operation hält ihren Pfad fest, bietet begrenzte Kandidaten an, prüft die gesamte Antwort und fällt bei Unsicherheit zurück. Der gemeinsame Laufzeitpfad zählt kostenpflichtigen Versuch und Rückfall getrennt; Rechte und HITL bleiben im normalen Codepfad.
-
-Zwei optionale, standardmäßig ausgeschaltete Anwendungen fragen nur, ob eine Anfrage keine persönlichen Bezüge zur Extraktion enthält und ob eine Antwort alle ausstehenden Aktionen ablehnt. Sie erzeugen weder Namen noch Handlungsbefugnis. Bei Unsicherheit bleibt der vorhandene Extraktor oder Freigabeklassifikator zuständig; eine teilweise Ablehnung folgt weiterhin dem üblichen Bestätigungsweg.
-
-### 12.3. Token Tracking
-
-Der `TrackingContext` verfolgt jeden LLM-Aufruf mit `call_type` ("chat"/"embedding"), `sequence` (monotoner Zähler), `duration_ms`, Tokens (Input/Output/Cache) und aus den DB-Tarifen berechnetem Preis. Tracker teilen eine `run_id` für die Aggregation. Das Debug-Panel zeigt alle Aufrufe (Pipeline + Hintergrundaufgaben) in einer einheitlichen chronologischen Ansicht an.
-
-Die Zählung selbst ist **vertraglich, nicht zufällig**: Ein OpenAI-kompatibler Anbieter sendet das `usage`-Objekt bei einer Streaming-Antwort nur, wenn die Anfrage es verlangt. Jeder Chat-Anbieter deklariert daher seinen Abrechnungsmodus in einem Register — explizite `stream_usage`-Anforderung, native SDK-Zählung oder bewusste Ausnahme (kostenlose lokale Modelle, Schlüssel des Endnutzers) — dessen Vollständigkeit beim Start geprüft wird: Die Anwendung verweigert den Start bei einem nicht deklarierten Anbieter (ADR-220, ADR-085-Doktrin). Ein bezahlter Aufruf, der ohne Zählung endet, erhöht einen eigenen Zähler, protokolliert eine Warnung und löst einen Alarm mit Schwellwert null aus: Die gesamte Klasse stiller Abrechnungslücken wird zum Signal. Dieselbe Doktrin gilt für Timeouts: Das administrierbare `timeout_seconds` pro Einsatzort wird als Transport-Grenze pro Versuch an den Client jedes Anbieters übergeben — die `asyncio.wait_for`-Barrieren der Knoten bleiben die Grenze der Nutzererfahrung — und jeder Standardwert wird mit realen Produktionslatenzen abgeglichen (ADR-221).
-
-Die Preisgestaltung selbst folgt der Uhr des Anbieters: Manche Anbieter berechnen ihre Textmodelle nach UTC-Tageszeit, mit Spitzenfenstern zu einem Vielfachen des Nebenzeit-Tarifs. Jede Preiszeile kann daher optionale, überlappungsfreie UTC-Zeitfenster tragen — Mitternachtsübergang eingeschlossen —, die die Stückpreise während ihres Fensters ersetzen, während die Basisspalten der Standardtarif bleiben. Ein Fenster kann zudem seine Wochentage nennen — die des UTC-Tages, an dem es öffnet, sodass ein Fenster über Mitternacht zu seinem Starttag gehört —, denn Spitzenzeiten können reine Werktagssache sein: DeepSeek berechnet seine Wochenenden ganztägig zum Nebenzeit-Tarif. Eine einzige Implementierung löst das aktive Fenster für beide Kostenpfade auf: Jeder Aufruf wird zu seinem eigenen Zeitpunkt bewertet — dem, den der Anbieter in Rechnung stellt — und eine historisch neu berechnete Nachricht behält den Tarif ihrer ursprünglichen Stunde. Die Fenster wandern mit den zeitlich versionierten Preiszeilen, werden im LLM-Tarifdialog verwaltet, und die Referenzdaten enthalten DeepSeeks offiziellen Zeitfenster-Tarif (ADR-223).
-
-Ein Tarif ist nur etwas wert, wenn er **derjenige ist, den der Anbieter berechnet**. Ein Schreibvorgang in den Prompt-Cache wird zu seinem Preis berechnet – dem 1,25-Fachen der Eingabe bei Anthropic und bei OpenAI für die Generationen, die ihn melden, dem Doppelten für einen Claude-Schreibvorgang, der eine Stunde hält –, als vierte Größe des einzigen Nutzungslesers gezählt, und ein AST-Wächter lehnt jede Preistür ab, die ihn vergäße (ADR-306). Die Preise selbst werden auf den Seiten der Anbieter nachgelesen, und eine Korrekturmigration ersetzt nur einen Wert, den LIA ausgeliefert hat, nie einen, den eine Administratorin oder ein Administrator eingegeben hat; ein Google-Maps-Aufruf wird der SKU zugeordnet, die seine Anfrage auslöst – eine Route mit Verkehr oder Maut ist keine einfache Route, eine Matrix wird pro Element berechnet. Und der Preiscache ist eine **von allen Workern geteilte** Tabelle: Jeder baut ihn beim Start aus der Datenbank neu auf – nie aus einem Blob, der älter ist als die letzte Migration –, und jeder Schreiber, ob Tarif oder Wechselkurs, veröffentlicht die Invalidierung nach seinem Commit, sodass ein geänderter Preis sofort jeden Worker erreicht, nicht nur den, der ihn geschrieben hat (ADR-063).
-
-**Jeder Anbieterversuch behält seinen eigenen Tarifstand**, sein Modell, seine Startzeit und seinen Wechselkurs. Ein erneuter Versuch kann den Vorgänger nicht neu bewerten. Bekannter Verbrauch eines fehlgeschlagenen oder abgebrochenen Versuchs bleibt verbucht; Cache-Lesen und -Schreiben werden getrennt bewertet, ohne Tokens doppelt zu zählen. Fehlende Verbrauchsdaten bleiben sichtbar fehlend statt als erfundene Null zu erscheinen.
-
-### 12.4. DB-source-of-truth Admin-Katalog
-
-Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische funktionale Fähigkeiten (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`) und vor allem die **modellspezifische Sampling-Matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) sowie die **akzeptierte Reasoning-Skala** (`reasoning_enum_values`, JSONB-Liste) und den i18n-Schlüssel ihres Hilfetexts (`reasoning_doc_i18n_key`). Diese Deklaration pro Modell erspart dem Frontend jeden Regex, der erraten müsste, welche Slider auszublenden sind: Der Konfigurations-LLM-Dialog liest die DB-Flags direkt und zeigt nur die Parameter, die die API des Modells tatsächlich akzeptiert. Diese Skala **deklariert** nicht, was ein Modell akzeptiert, sie **schränkt es ein**: Was ein Modell akzeptiert, wird aus seinem Paar (Anbieter, Modell) abgeleitet, und das Reasoning hat eine einzige gespeicherte *Form*, gemeinsam für alle Anbieter.
-
-Der Tarifierungs-LLM-Bildschirm schreibt diese Skala **direkt**: Er zeigt die Tiefen, die die Familie des Modells anbietet — live aufgelöst durch `GET /admin/llm/reasoning-family`, über dieselbe Funktion wie Übersetzer und Validator — und man **hakt ab**, was dieses konkrete Modell ablehnt. Alles angehakt speichert nichts: Die Skala der Familie gilt unverändert. Die Excel-Arbeitsmappe (ADR-228) führt dieselben zwei Spalten, und ihr Import lehnt eine Tiefe außerhalb der Familie ab und **nennt dabei die akzeptierten**: Eine Tabelle kann keine Kontrollkästchen darstellen, also wandert die Garantie zum Import. Kein Template-Mechanismus — „die Form jenes vorhandenen Modells kopieren“ — tritt an diese Stelle: Er würde Modelle nach ihrer *gespeicherten* Skala statt nach Familie gruppieren, und ein Kopieren über Familien hinweg würde still Tiefen entfernen. Siehe `docs/technical/LLM_REASONING_IDENTITY.md`.
-
-**Eine Modellfamilie wird einmal deklariert, und eine kurze Antwort wird ohne Nachdenken angefordert** (ADR-285). Die *Familie* eines Modells ist die Form seiner Reasoning-API — ein Schalter und eine Aufwandsleiter bei DeepSeek, ein Budget bei Gemini 2.5, eine Stufe bei OpenAI — und sie leitet sich aus einer einzigen Deklaration in `reasoning/profiles.py` ab, die Adapter, Validator und der Umweg der strukturierten Ausgabe alle lesen: drei private Präfixtests ließen sonst das umbenannte Spitzenmodell eines Anbieters durch alle drei zugleich, ohne angebotene Leiter und ohne gesendeten Ausschalter. Dieselbe Naht dient den Aufrufern, die zwei Sätze brauchen: bei einem Modell, das standardmäßig nachdenkt, rechnet der Anbieter das Nachdenken *innerhalb* von `max_tokens` ab (OpenAI, Anthropic, Gemini und DeepSeek tun das alle), sodass ein kleines Budget verborgenes Nachdenken und keine Antwort kauft. `short_answer_config` deklariert daher *kein Nachdenken*, wo das aufgelöste Profil es abschalten kann, und behält sein kleines Budget nur dort; sonst bleibt das Budget des Slots, denn eine Grenze, die das Nachdenken einschließt, ist keine Grenze für die Antwort. Die Ausgabegrenze einer Familie wird ebenso aus der Katalogzeile gelesen statt aus einem Literal.
-
-**Ein Ausgabebudget, das auf der Grenze bleibt, die das Modell akzeptiert** (ADR-244). Das `max_tokens` eines Slots ist eine für ein Modell gewählte Zahl, und es überlebt das Modell: Auf ein Modell mit niedrigerer Grenze umgestellt, würde der Slot bei jedem Aufruf abgelehnt. Eine einzige Regel (`infrastructure/llm/output_cap.py`) sagt, wessen Grenze bekannt ist — die Katalogzeile, deren Herkunft für sie bürgt (`imported` oder `verified`), bei einem Anbieter, der eine durchsetzt —, und drei Leser fragen sie: die Auflösung des Slots, sodass jeder Leser des Budgets (die einem Dokument versprochene Länge, die Größe der Teile eines Transkripts) mit der Zahl arbeitet, die der Anbieter annimmt; die Tür des Clients, für einen Aufrufer mit eigenem Budget; und die Admin-Metadaten, die die Grenze veröffentlichen, damit der Bildschirm ein Budget darüber markiert. Im Zweifel geht die Anfrage wie konfiguriert hinaus: Die Regel kann eine Ablehnung ersparen, nie ein Budget kürzen, für das niemand gebürgt hat.
-
-### 12.5. Provider-agnostisches Prompt-Caching
-
-Jeder Provider berechnet weniger (und antwortet schneller), wenn der Anfang eines Prompts über Anfragen hinweg byte-identisch ist — aber jeder mit eigenem Mechanismus: Anthropics `cache_control`-Blöcke, OpenAIs `prompt_cache_key`-Routing, implizite Präfix-Caches bei DeepSeek/Qwen/Gemini. LIA trennt die Verantwortlichkeiten: Jeder versionierte System-Prompt stellt seinen statischen Inhalt (Rolle, Regeln, Beispiele, Ausgabeformat) an den Anfang, dann einen kanonischen Marker `--- DYNAMIC CONTEXT ---`, dann alle anfragespezifischen Inhalte (Datum, Anfrage, Kontext, Tool-Katalog). Die Templates bleiben modellneutral; die Infrastrukturschicht übersetzt den Marker in den Dialekt jedes Providers — den `cache_control`-Split für Anthropic, den Cache-Routing-Schlüssel für OpenAI, gar nichts für die impliziten Caches, die vom stabilen Präfix direkt profitieren. Der Planner-Prompt — der teuerste der Pipeline — bietet so ein zu ~77 % byte-stabiles, cachebares Präfix zwischen zwei beliebigen Anfragen. Shrink-only-CI-Guards verriegeln die Konvention: Jeder dynamische Prompt muss den Marker tragen, kein Platzhalter darf ihm ohne begründete Ausnahme vorausgehen, und die Byte-Stabilität des Planner-Präfixes wird bei jedem Build geprüft.
-
-Die Konvention ist **ein Aufbau für alle Cache-Mechanismen** (ADR-309): Stabiles vor Wechselndem, eine einzige Lesart der Grenze (`core/prompt_layout.split_at_marker`) und kein Cache-Schreibvorgang, den niemand wieder liest. Ein Einzelaufruf – Analysator, Initiative, Extraktion von Erinnerungen, Interessen und Journal – schickt seinen festen Teil als Systemnachricht, wo jeder Adapter ihn markieren kann; Anbieter mit Haltepunkten erhalten ihren am Ende des statischen Präfixes, egal welche Form das System hat (ein listenförmiges System würde den Haltepunkt sonst auf die Daten des Durchgangs setzen: nichts wiedergelesen, alles zum 1,25-Fachen neu geschrieben); Anbieter mit nur explizitem Cache werden explizit markiert; eine Anfrage, die keine Werkzeugschleife fortsetzen wird, schreibt nur ihre erklärten Haltepunkte; und die Antwort sendet das Gespräch ein einziges Mal, als vollständige Nachrichten. Was jede Modellgeneration akzeptiert – Sampling, erzwungene Werkzeugwahl, sechs Formen des Nachdenkens, implizite Tiefe, an ihr Gespräch gebundene Denkblöcke –, wird an der API gemessen und in einer einzigen Tabelle erklärt (`core/claude_surface.py` für Claude), die Denkregeln, Adapter, strukturierte Ausgabe und Administration lesen. Ein Modell ohne Cache zahlt nichts dazu: Die Optimierung zielt auf den Durchschnitt der Mechanismen, nie auf ein Modell.
-
-**Von Runde zu Runde wird der Cache gelesen statt neu geschrieben** (ADR-362). Bei einem Cache mit Haltepunkten wird ein Eintrag nur an einem Haltepunkt geschrieben und nur gefunden, wenn man von den Haltepunkten der nächsten Anfrage zurückgeht: In einer Werkzeugschleife wird das Ende des Verlaufs daher selbst zu einem Lesepunkt, und die nächste Runde liest ihren ganzen Verlauf zurück, statt ihn erneut zu schreiben — 439 geschriebene Token statt 1.685, gemessen an zwei Generationen. Wartet eine Person bei häufigem Austausch auf ihre Antwort, werden die beiden Punkte, die die nächste Runde lesen wird — das statische Präfix und das Ende des Verlaufs —, für die längere Lebensdauer des Anbieters geschrieben, bei Claude eine Stunde: Die Runden einer Person liegen Minuten auseinander, nicht Sekunden, und nach einer Pause von sieben Minuten kostete der erste Aufruf der nächsten Runde 89 % weniger. Diese Stunde wird an jeder Preistür zu ihrem eigenen Tarif berechnet, im Stream eingeschlossen — die API nennt sie nur in ihrem ersten Ereignis —, jeder Aufruf erfasst seine Cache-Schreibvorgänge, und ein Stream, der sie verschweigt, wird gezählt und gemeldet. Die Überlegungen einer früheren Runde gehen schließlich an das Modell zurück, das sie geschrieben hat, wenn seine Generation sie behält, ohne sie an das Gespräch zu binden — nie an ein anderes Modell, nie an eine Generation, die sie ablehnen würde.
-
----
-
-## 13. Konnektoren: Multi-Provider-Abstraktion
-
-### 13.1. Architektur über Protokolle
-
-```
-ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
-     ├── GoogleGmailClient       implements EmailClientProtocol
-     ├── MicrosoftOutlookClient  implements EmailClientProtocol
-     ├── AppleEmailClient        implements EmailClientProtocol
-     └── PhilipsHueClient        implements SmartHomeClientProtocol
-```
-
-**Warum Python-Protokolle?** Das strukturelle Duck Typing ermöglicht das Hinzufügen eines neuen Providers, ohne den aufrufenden Code zu ändern. Der `ProviderResolver` garantiert, dass nur ein Anbieter pro funktionaler Kategorie aktiv ist.
-
-### 13.2. Normalizer
-
-Jeder Provider gibt Daten in seinem eigenen Format zurück. Dedizierte Normalizer (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) konvertieren providerspezifische Antworten in einheitliche Domain-Modelle. Ein neuer Provider erfordert nur die Implementierung des Protokolls und seines Normalizers — der aufrufende Code bleibt unverändert.
-
-Für E-Mail ist dieses einheitliche Modell gemessen, nicht angenommen: Die drei Normalizer erzeugen dasselbe `EmailMessage`-Vokabular — einen Textkörper, nie HTML, aus dem der zitierte Verlauf und die Signatur an der Client-Grenze entfernt werden (sechs Sprachen, gemessen an einem Korpus von 48 Texten) — und keiner fabriziert das Format eines anderen Anbieters. `get_emails_tool` wählt dann anhand der Frage, was es liefert, mit ausgewiesenen Kosten: `metadata` listet ohne Text, `full` liest einen sauberen, absatzweise paginierten Text, `summary` argumentiert über eine **Zusammenfassung pro Nachricht** (das Wesentliche, Kernpunkte, Aufgaben, Kategorie, Wichtigkeit), einmal von einem kleinen Modell ohne Reasoning berechnet, dreißig Tage zwischengespeichert und von den Ausgabengrenzen verweigert — nie erfunden, wenn das Modell scheitert. Das ermöglicht „fasse meine ungelesenen Mails zusammen“ oder „eine Synthese der Newsletter dieser Woche“ über zwanzig Nachrichten, ohne alle zu laden, für Gmail, Outlook und Apple gleichermaßen (ADR-287).
-
-### 13.3. Wiederverwendbare Patterns
-
-`BaseOAuthClient` (Template Method mit 3 Hooks), `BaseGoogleClient` (Paginierung via pageToken), `BaseMicrosoftClient` (OData). Circuit Breaker, verteiltes Redis Rate Limiting, Token-Erneuerung durch eine einzige Tür (ADR-302): ein Austausch pro Token über Aufrufer und Worker hinweg, keine Transaktion während des Anbieteraufrufs, ein Schreibvorgang, der an den Ausgangstoken gebunden ist, und ein `invalid_grant`, das vor dem Trennen eines Dienstes erneut geprüft wird.
-
-Bei Google und Microsoft wird die Einwilligung pro Anbieterkonto gebündelt statt für jeden Dienst wiederholt. Eine Freigabe verwaltet die genehmigten Berechtigungen und die Erneuerung; Gmail, Kalender, Drive und die Microsoft-Gegenstücke bleiben getrennte Fähigkeiten, die sich aktivieren oder trennen lassen. Der OAuth-Rücksprung prüft erwartete Identität und Aussteller, State und PKCE, ohne still ein anderes Konto einzusetzen.
-
-**Keine Transaktion bleibt über einen Netzwerkaufruf hinweg offen** (ADR-304). Ein Konnektor-Client, der auf der Sitzung seines Aufrufers gebaut ist, würde diese Sitzung – und ihre Transaktion – zwingen, offen zu bleiben, während der Anbieter antwortet, mitunter minutenlang, und dem Pool für die ganze Wartezeit eine Verbindung entziehen. Ein Client wird daher nie auf `ConnectorService(db)` gebaut – ein Wächter benennt das Konstruktorargument, ohne Ausnahmeliste –; eine einzige Tür öffnet den aktiven Client einer Kategorie in einer kurzen Sitzung und schließt ihn auf jedem Weg; ein Job, der seine Sitzung behält, committet seine Lesevorgänge vor jedem Warten; jede Konnektoroperation des Chat-Durchgangs beendet ihre Transaktion, und der Nutzungsstempel eines API-Schlüssels ist ein eigener atomarer JSONB-Merge unter einer begrenzten Sperrwartezeit. Hintergrundarbeit folgt derselben Regel: Eine Erinnerung wird einzeln beansprucht, committet und dann ohne offene Transaktion zugestellt; der Drive-Push-Feed rückt per Compare-and-Set vor, in Seiten, die nach Anzahl und Zeit begrenzt sind; und nur der Leader-Worker setzt den Telegram-Webhook. Und die Datenbank begrenzt, was der Code vergessen könnte: Jede Verbindung der Anwendung öffnet sich mit einer Grenze für Sperrwartezeiten und einer für untätige Transaktionen, und jede erreichte Grenze wird gezählt und alarmiert.
-
-### 13.4. Zwei Wege zur Authentifizierung
-
-Nicht jeder Konnektor verlangt ein Konto. Ein **OAuth-Konnektor** hält die persönlichen Zugangsdaten der Nutzerin: Gmail, Kalender, Kontakte, Drive. Ein **Dienst mit Plattformschlüssel** hält keine nutzerbezogenen Daten — es gibt nichts einzuschalten, und der Schlüssel gehört der Installation: Routen, Orte, Wetter, Umwelt. `ConnectorType.uses_global_api_key` trägt diese Unterscheidung, und die Werkzeugbasis wählt den Zugangsdatenpfad anhand des **aufgelösten** Typs. Eine funktionale Kategorie kann daher beides mischen: Wetter akzeptiert einen Anbieter mit persönlichem Schlüssel ebenso wie einen Plattformdienst, ohne dass der Aufrufer weiß, wer geantwortet hat.
-
-Es gibt einen dritten Fall: einen Client, der **das Token eines benachbarten Konnektors ausleiht**. Tabellen und Dokumente lesen und schreiben mit dem Token von Drive, die Gmail-Einstellungen mit dem von Gmail. In den Einstellungen erscheint kein zusätzlicher Konnektor, und das ist beabsichtigt — autorisiert wurde ein Arbeitsbereich, keine API. Der Client-Cache berücksichtigt das: Nur auf Nutzer und Konnektortyp geschlüsselt, ließe er zwei Klassen mit gemeinsamem Token einander bedienen; sein Schlüssel trägt daher auch den Klassennamen.
-
-Die Unterscheidung entscheidet auch, was überhaupt zu einem **Konto** gehört. Fünf Konnektoren verlangen nichts von der Person — Wikipedia, das Seiten-Browsing, Orte, Wetter, Umwelt — und gehören daher der Instanz: keine Zeile pro Konto, nichts in den Einstellungen, und ein einziges Prädikat (`connectors/keyless.py`) entscheidet, ob sie allen dienen — ein vom Administrator abgeschalteter Typ, ein fehlender Plattformschlüssel oder deaktiviertes Seiten-Browsing hält ihn für alle zurück. In der Wetterkategorie gewinnt der Anbieter der Person, der von Google ist der Standard; ein Test hält die fünf aus der Aktivierungsliste der Einstellungen heraus (ADR-307).
-
-### 13.5. Agentische Telefonie (ADR-127)
-
-LIA kann im Namen des Nutzers einen ausgehenden Anruf tätigen, ein zielorientiertes Gespräch führen und anschließend eine schriftliche Zusammenfassung in den Chat zurückspielen. Anders als die obigen Lese-/Schreib-Connectoren steuert der Telefonie-Connector einen **Drittanbieter-Sprachagenten** (ElevenLabs Agents) über das Telefonnetz, pro Nutzer konfiguriert (eigene Zugangsdaten) — LIA nimmt keine eigene Abrechnung vor.
-
-**Datenschutz durch Fähigkeiten, nicht durch Prompts.** Der Anruf-Agent verfügt über ein einziges schreibgeschütztes Verfügbarkeitstool, das nur Frei/Gebucht-Zeitfenster auflöst; er kann nie Titel, Teilnehmer, Orte oder Inhalte von Ereignissen lesen. Die Garantie ist strukturell — das Tool stellt diese Daten schlicht nicht bereit — und keine Prompt-Anweisung, von der sich das Modell abbringen ließe.
-
-**Rückweg.** Der Anruf wird nie aufgezeichnet und das Transkript nie gespeichert. Am Ende des Anrufs löst ein pro Nutzer HMAC-signierter Webhook eine werkzeuglose LLM-Synthese aus, die eine kurze, ablaufende Zusammenfassung erzeugt, asynchron in das Gespräch zurückgespielt (derselbe Kanal für abgekoppelte Ausführungen wie ADR-117) mit einem optionalen Ein-Tipp-Folgeentwurf. Jeder Anruf erfordert vor dem Wählen eine HITL-Bestätigung, und das gesamte Subsystem steht hinter einem Feature-Flag.
-
-**Das Telefon als Kanal (ADR-290).** Die Bestätigungskarte schützt einen Dritten, der nie um etwas gebeten hat; ruft LIA *die Person selbst* an, ist die, die bestätigen würde, die, die abnimmt — sofern die Nummer nachweislich ihre ist. Die Identität ist daher eine in den Einstellungen hinterlegte Nummer, vollständig angezeigt, dann durch einen Anruf bestätigt, in dem LIA einen Code vorliest, den die Person eintippt (begrenzte Versuche, ein kurzlebiger, an die Nummer gebundener Code, ein Vergleich in konstanter Zeit, dieselbe Stundengrenze wie jeder bezahlte Anruf); nie ein Namensabgleich, und das Werkzeug für Dritte lehnt diese Nummer ab. **Derselbe** Sprachagent bedient drei Mandate — das für Dritte im Agenten eingebrannt, das der Inhaberin und das der Bestätigung als serverseitig gerendertes Override pro Anruf — damit nichts vom Kontext der Person je in einen Agenten eingebrannt wird, der auch Fremde anruft; und wie der Agent *klingt* (Modell, Sprache, Stimme, Audioformat, Dauerobergrenze) gehört dem Portal des Anbieters, nie einer Einstellung, weil der Anbieter ein PATCH mit dem Gespeicherten verschmilzt und ein festgelegtes Modell bei jeder Synchronisation mit der Denk-Einstellung des Portals kollidieren würde. `call_me` trägt konstruktionsbedingt keine Karte, was auch einer Routine erlaubt, es einzuplanen. Der Anruf nimmt den Kontext des Chats unter einem Token-Budget mit (Erinnerungen, Kalender, Erinnerungshinweise, offene Fäden, letzte Austausche — ein Schalter schaltet ihn ab) und die für die Assistentin eingestellte Persönlichkeit, jeder Lesezugriff im Register der Konsultationen abgelegt. Hinter einem zweiten Schalter **liest der Agent LIA live** während des Anrufs und handelt in nichts: das Werkzeugset ist eine Regel über den Katalog statt einer Liste — jedes Werkzeug, das nur liest, aus einem Bereich, den das Telefon anbietet, dessen Pflichtparameter eine Stimme aussprechen kann (56 Werkzeuge in 24 Bereichen, plus ein natives Gedächtnis-Abrufen) — für den Anruf der Inhaberin an den Agenten gehängt, weil der Anbieter Werkzeug-IDs in einem Override pro Anruf ablehnt, und jedes Ergebnis wird vor der Seitenaufteilung Element für Element auf das reduziert, was eine Stimme sagen kann (eine Kennung, ein Link, eine verschachtelte Struktur erreichen die Stimme nie; vier Wochenendtermine passen dorthin, wo roh nur ein einziger Platz fände). Jeder Bereich hat einen eigenen Schalter der Person, bei jedem Rückruf aus ihrer Zeile gelesen. Endet der Anruf, kommt das Gesagte als **eigene Nachricht der Person** zurück: das Transkript wird zusammengefasst und dann durch die Engine außerhalb des Zuges als ein *von der Person gesprochener* Zug wiedergegeben — Gedächtnis-, Journal- und Psyche-Extraktionen laufen wie im Chat, die Nachricht trägt ein Telefon-Abzeichen, ein Entwurf wartet im Chat auf Bestätigung. Die Übernahme wird vor dem Zug beansprucht und per bedingter Aktualisierung abgeschlossen, ein Absturz mitten in der Übernahme fällt an eine Benachrichtigung zurück, die sagt, warum, und zehn Übernahme-Urteile werden gezählt und in der Anrufliste gezeichnet — „niemand hat abgenommen“ und „die Leitung ist ausgefallen“ unterschieden von „jemand anderes hat geantwortet“. Jeder Euro eines Anrufs landet unter einer Lauf-ID — die Live-Abfragen, die Zusammenfassung, der übernommene Zug —, sodass die Zusammenfassung pro Lauf, die der Chat-Zähler ohnehin liest, die Rechnung des Anrufs ist, an der übernommenen Antwort und in der Anrufliste; was auf dem eigenen Anbieterschlüssel der Person läuft, wird dort abgerechnet und hier nie gezählt.
-
-**Eine Regel je Modus, gleich auf welcher Leitung (ADR-301).** Das Gespräch auf der einen Leitung am *Ende* zu übertragen und auf der anderen jede Bitte *währenddessen* an den Chat zu reichen, ergäbe zwei Wahrheiten für ein Wort. Eine Sprachsitzung hat daher einen Modus, und nur ihm folgt die Regel: in **Live** (Standard des Telefons, gewählt unter Einstellungen › Mein Telefon) hält die Stimme weder Kontext noch Werkzeug und übergibt jede Bitte an LIA durch eine einzige Funktion — dieselbe, die das Live des Browsers seinem Anbieter erklärt —, die der Server in einen Chat-Zug der Person verwandelt, während sie spricht: LIAs Fragen (eine Frage IST das Ergebnis, die nächste Bitte setzt den fragenden Zug fort), die Bestätigungen, die Register, die Kontingente und die Spur in der Unterhaltung kommen mit; in **Live direkt** liest die Stimme für die Person, handelt in nichts, und ihre Worte werden am Ende als Nachricht von ihr übertragen — auf der Leitung wie im Browser. Ein Abschluss führt die Bücher beider Leitungen: die rein gesprochenen Austausche archiviert, die Karte mit genauen Zahlen, die Entscheidung, das Lernen — oder die Zusammenfassung, der übertragene Zug und die beim Abschluss neu geschriebene Karte mit neu gelesenen Kosten. Live wird nur dort angeboten, wo der Telefonanbieter die Instanz zurückrufen kann; sonst sagen es die Einstellungen und der Anruf läuft direkt. Das Verhalten der Anbieter-Engine legt drei Regeln fest: Die Stimme kündigt den Aufruf an und führt das Gespräch weiter, eine späte Antwort ginge nach dem Zeitlimit des Anbieters verloren — die Brücke antwortet also davor —, und ein Austausch mit einer Delegation gehört ganz dem Graphen.
-
-### 13.6. Einen Anhang lesen: seinen Text, wenn er einen hat, sonst das Vision-Modell
-
-Die Anhänge einer Nachricht aufzulisten ist ein Metadaten-Lesen; einen zu öffnen ist ein Download, und die drei Clients stellen ihn hinter EINER Methode des E-Mail-Protokolls bereit — gleicher Name, gleiche Auswahlregel, gleiche Fehler —, weil die Asymmetrie zwischen Anbietern die Quelle der Konnektor-Bugs ist. Die Auswahl ist ein gemeinsamer Helfer: nach Kennung, sonst nach Namen, ein mehrdeutiger Name wird mit seinen Kandidaten abgelehnt. Das muss so sein, denn eine Gmail-Anhangskennung ist nicht stabil: sie kann sich zwischen zwei Lesungen derselben Nachricht ändern, sodass die von einer Auflistung gelieferte Kennung schon verschwunden sein kann, wenn das Werkzeug die Nachricht erneut liest. Eine veraltete Kennung ist daher keine Lüge: der Name entscheidet, wenn er gegeben ist, ein einzelner Teil ist eindeutig, und jeder andere Fall antwortet mit den AKTUELLEN Kennungen, damit das Modell es erneut versucht.
-
-Die Bytes liest ein Modul, das keinen Client berührt. Der MIME-Typ kommt aus den Magic Bytes, der Header des Absenders ist nur ein Rückfall; ein Dokument durchläuft die Extraktion der Wissensbereiche (fünfzehn Formate) in einem Arbeits-Thread; ein Bild, oder ein PDF, dessen Seiten Bilder und keine Textebene tragen, wird zu einer begrenzten, verkleinerten Menge von PNG-Seiten gerendert und dem Vision-Slot übergeben — das Raster selbst ist begrenzt, eine Seite von 200 Zoll Kantenlänge darf vor jeder Verkleinerung keine Gigabytes belegen —, und eine abgeschnittene Seitenmenge wird dem Modell gesagt statt als Ganzes gelesen. Der Vision-Aufruf ist die Ausgabe des Zugs, getragen von der Konfiguration der Laufzeit, damit die Obergrenzen des Kontos und der Instanz ihn beide sehen; eine Quotenablehnung ist « übersprungen », nie « fehlgeschlagen », und eine abgeschnittene Antwort ist eine Ablehnung. Die Größengrenze reicht bis zum Client hinab, sodass ein Teil, den die Auflistung bereits als zu groß ausweist, abgelehnt wird, bevor ein einziges Byte fließt. Was zurückkommt, wird in Teilen serviert wie ein Mailtext und als externer Inhalt eingehüllt, sein Dateiname im Tag maskiert — ein Anhang ist, was ein Fremder geschickt hat, und sein Name ebenso.
-
-### Ein Adressbuch, ganz gelesen und einmal abgeglichen
-
-Beim Eintippen eines Empfängers in „Per E-Mail senden“ werden die Kontakte der Person vorgeschlagen. Die drei Anbieter suchen jeweils auf ihre Weise — drei Arten, einen Namen abzugleichen —, also liest jeder Kontakte-Client das **ganze Adressbuch** hinter einer Schnittstelle (die Paginierung von Google People mit jedem wiederholten Parameter, Graphs `@odata.nextLink`, der CardDAV-Cache), unter einer deklarierten Obergrenze, deren Schnitt genannt wird. Das Buch wird verdichtet — Namen, Adressen, Nummern —, in einer deklarierten Redis-Familie mit Versionsstempel zwischengespeichert, nur einmal über alle Worker gebaut und von jedem Schreibvorgang an Kontakten verworfen; ein Tastendruck liest zuerst den Stempel und öffnet weder Buch noch Konnektor, wenn diese Version schon projiziert ist. Der Abgleich hat eine einzige Implementierung: Namen über die Identitätsfaltung des Produkts, Adressen über ihre normalisierte Form, Ziffern über die Nummernvarianten des Telefonie-Bereichs. Das Lesen des Buchs ist eine Konsultation im Register, nie bei einem Cache-Treffer, und nichts von einem Kontakt gelangt in ein Log.
-
-### Ein Anbieter, der langsamer wird, ist kein ausgefallener Anbieter
-
-Eine 429-Ablehnung auf dem Schlüssel einer Person — Brave, Perplexity — ist Gegendruck auf diesem Schlüssel, nicht der Gesundheitszustand des Dienstes: Der Client wartet sie mit Jitter ab und gibt sie, wenn sie anhält, typisiert mit ihrer Wartezeit zurück, statt den Circuit Breaker zu öffnen, den alle Konten teilen. Auf der Mail-Seite wird ein Senden, eine Antwort oder eine Weiterleitung nach einer verlorenen Empfangsbestätigung nie wiederholt — ein gemeldeter Fehlschlag ist besser als eine zweimal versandte E-Mail —, ein Versand, der nur für einen Teil der Empfänger angenommen wurde, sagt es, und eine Weiterleitung lehnt ab, bevor sie schreibt, statt einen Anhang zu verlieren. Eine iCloud-Nachricht trägt einen Fingerabdruck ihres Ordners, der Papierkorb wird über seine Rolle gefunden, und der Verbindungstest prüft jedes gewählte Protokoll statt nur des ersten.
-
----
-
-## 14. MCP: Model Context Protocol
-
-Peer-Freigaben nutzen die nativen Installationswege statt eines zweiten Ausführungssystems. Der Server fixiert ein bereinigtes Paket hinter einem geprüften Digest, prüft Eigentum und bestätigte Beziehung bei der Bestätigung erneut und installiert eine unabhängige deaktivierte Kopie. Zugangsdaten, OAuth-Freigaben und Bestätigungsausnahmen werden nie übertragen. Dauerhafte Claims, Fencing und Belege erlauben Wiederaufnahme ohne Überschreiben der Empfängeränderungen. Nur serverseitige Herkunft gewährt einem aktivierten Peer-Skill die ausdrückliche Richtlinie eigener Skills.
-
-### 14.1. Architektur
-
-Der `MCPClientManager` verwaltet den Lifecycle der Verbindungen (Exit Stacks), die Tool-Erkennung (`session.list_tools()`) und die automatische LLM-gestützte Generierung von Domänenbeschreibungen. Der `ToolAdapter` normalisiert MCP-Tools auf das LangChain-`@tool`-Format mit strukturiertem Parsing der JSON-Antworten in einzelne Items.
-
-LIA folgt der aktuellen Protokollrevision — **2026-07-28** — in beiden Hälften dessen, was ein Server offenlegt: wie man mit ihm spricht und was er deklariert. Eine Deklaration zu lesen ist ein eigenständiges Problem, und es hat genau eine Implementierung (ADR-255). Die Spezifikation definiert das Eingabeschema eines Werkzeugs als JSON Schema 2020-12 und lässt darin *jedes* Schlüsselwort zu: ein optionaler Parameter kann als `"type": ["string", "null"]` ebenso geschrieben werden wie als `anyOf`, eine verschachtelte Struktur über einen `$ref` nach `$defs` deklariert werden, eine geschlossene Menge über `enum` oder `const`. Zwei Verbraucher lesen dieselbe Deklaration — der Adapter, der daraus die dem Modell angebotene Signatur macht, und der Katalog, der daraus einen Planungseintrag macht — und zwei Lesarten einer Sache geraten am Ende immer auseinander. `json_schema.py` ist daher die einzige Instanz, und ein Paritätstest vergleicht, was jeder daraus ableitet. Jede Funktion dort ist total: sie antwortet auf jede Deklaration, die ein Server senden kann, denn eine Ausnahme kostet dort ein Werkzeug, und ein verlorenes Werkzeug ist eine Fähigkeit, die der Nutzerin fehlt, ohne dass es ihr jemand sagt. Was unentscheidbar bleibt — ein `not`, eine unauffindbare Referenz — wird großzügig typisiert statt verworfen, und was der Server tatsächlich durchsetzt (geschlossene Mengen, Grenzen, Größen) wird dem Planer in genau dem Constraint-Vokabular veröffentlicht, das native Werkzeuge verwenden.
-
-Ist der Client **dual-era** (MCP SDK v2, ADR-224): Er spricht die zustandslose Protokollrevision 2026-07-28 und fällt für ältere Server automatisch auf den bisherigen `initialize`-Handshake zurück — jeder bereits konfigurierte Server arbeitet unverändert weiter, während Server der neuen Generation erreichbar werden. LIA identifiziert sich im Handshake (`clientInfo`), und ein Server, der jede von LIA gesprochene Revision ablehnt, erzeugt eine handlungsleitende Diagnose statt eines rohen Transportfehlers in verschachtelten `ExceptionGroup`s.
-
-Dieselbe Offenheit erstreckt sich vom Übertragungsprotokoll auf das **Paketformat**. LIA ist ein konformer Client des offenen Standards Agent Plugins v1.0.0 (agent-plugins.org): Ein Plugin ist ein schlichtes Verzeichnis — ein `plugin.json`-Manifest mit geschlossenem Schema, agentskills.io-Skills unter `skills/`, MCP-Server in `mcp.json` — und dasselbe Paket installiert sich unverändert in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code und LIA. Das Design stützt sich vollständig auf bereits vorhandene Schichten: Die Erkennung leitet ein Plugin-Archiv in eine Staging-Pipeline, die die Härtung des Skill-Importers wiederverwendet (begrenzte Extraktion, Zip-Slip-Schutz, atomare Installation pro Skill mit Rollback), `mcp.json`-Einträge werden auf Benutzer-MCP-Server abgebildet, und Quoten werden global vor dem ersten Schreibvorgang geprüft — eine Installation bleibt nie halbfertig liegen. Zwei Prinzipien bestimmen den Lebenszyklus. Erstens Resilienz pro Komponente mit völliger Ehrlichkeit: Eine Komponente, die nicht installiert werden kann — ein stdio-Server, den LIA bewusst nie startet, eine Namenskollision, ein ungültiger Skill — wird *übersprungen und gesagt*, mit übersetztem Grund in einem vollständigen Bericht pro Komponente; nichts wird je als installiert vorgetäuscht. Zweitens Herkunft als Invariante: Jede Komponente trägt das Plugin, das sie mitbrachte, Namenskollisionen werden nur innerhalb derselben Herkunft aufgelöst (ein Plugin kann nie einen von Hand erstellten Skill übernehmen, und umgekehrt), Updates sind Re-Importe, die konfigurierte Zugangsdaten bewahren, und Entfernen geschieht nur als Gruppen-Deinstallation — ein Plugin kann nie stillschweigend amputiert enden.
-
-### 14.2. MCP-Sicherheit
-
-Obligatorisches HTTPS, SSRF-Prävention (DNS-Auflösung + IP-Blocklist), Fernet-Verschlüsselung der Credentials, OAuth 2.1 (DCR + PKCE S256), Redis Rate Limiting pro Server/Tool, API Guard 403 auf Proxy-Endpunkte für deaktivierte Server (ADR-061 Layer 3). Ein hinzugefügter Server bestimmt nie, was die API abruft: Ein entferntes `$ref` im Ergebnisschema eines Werkzeugs wird nicht heruntergeladen, und eine Weiterleitung wird nur innerhalb des eigenen Origins des Servers verfolgt — vier Tests gegen echte lokale Server halten das SDK an diese Eigenschaft.
-
-Der OAuth-Fluss wendet die Autorisierungsanforderungen von 2026-07-28 an: Der `iss`-Parameter (RFC 9207) wird vor dem Einlösen des Autorisierungscodes gegen den aufgezeichneten Issuer validiert, Client-Credentials sind an den ausstellenden Autorisierungsserver gebunden (eine erkannte Änderung verwirft sie und registriert neu, statt Geheimnisse an die falsche Stelle zu senden), und die Dynamic Client Registration deklariert ihren `application_type`. Jede Regel trägt eine explizite Toleranz für bestehende Registrierungen, und das Ablehnen des Zustimmungsbildschirms führt den Benutzer mit einer eigenen Informationsmeldung zu seinen Einstellungen zurück statt zu einem nackten 422.
-
-Die Verhaltensannotationen eines Werkzeugs (`readOnlyHint`, `destructiveHint`) werden **nur in eine Richtung** gelesen. Die Spezifikation ist hier normativ: Ein Client muss sie als nicht vertrauenswürdig behandeln, solange sie nicht von einem vertrauenswürdigen Server stammen. Einer deklarierten Mutation wird daher geglaubt — schlimmstenfalls erkauft sich ein lügender Server eine überflüssige Bestätigung —, einer Nur-Lesen-Behauptung hingegen nie, denn eine deklarierte Kategorie sticht die Namensheuristik und würde das Werkzeug aus dem Sicherheitsnetz gegen ungültige Mutationen und aus der HITL-Bereichserkennung herausnehmen. Im iterativen Modus, wo alle Werkzeuge eines Servers eine einzige Bestätigungseinstellung teilen, fragt ein Werkzeug, das der Server selbst als zerstörend deklariert, in jedem Fall nach.
-
-### 14.3. MCP Iterative Mode (ReAct)
-
-MCP-Server mit `iterative_mode: true` verwenden einen dedizierten ReAct-Agenten (Observe/Think/Act-Schleife) anstelle des statischen Planners. Der Agent liest zunächst die Serverdokumentation, versteht das erwartete Format und ruft dann die Tools mit den richtigen Parametern auf. Besonders effektiv für Server mit komplexer API (z. B. Excalidraw). Pro Server in der Admin- oder Benutzerkonfiguration aktivierbar. Angetrieben vom generischen `ReactSubAgentRunner` (geteilt mit dem Browser Agent).
-
-Zwei Fakten reisen mit jedem Server als Daten, nie als Prompt-Prosa. Ein Benutzerserver, dessen Zugangsdaten die eigenen des Benutzers sind (OAuth, persönlicher Bearer oder API-Schlüssel), veröffentlicht seinen Kontobezug überall dort, wo das Modell seine Fähigkeiten liest — Beschreibung des Delegations-Tools, Planner-Manifest, Kontext des Unteragenten und generierte Domänenbeschreibung —, sodass „meine Repositories“ auf das verbundene Konto aufgelöst wird statt in einer Rückfrage zu enden; ein Server ohne Authentifizierung veröffentlicht nichts, denn das Gegenteil zu behaupten wäre eine erfundene Fähigkeit. Und der Unteragent gibt seine Daten zurück, nicht eine Anzahl: Seine Ausgabe trägt denselben Vertrag aus Nachricht plus begrenztem Datenblock wie jedes ReAct-Tool, Inhalte Dritter werden als extern markiert.
-
----
-
-## 15. Sprachsystem (STT/TTS)
-
-### 15.1. STT
-
-Wake Word „Dis LIA“: die openWakeWord-Architektur — ein geteiltes Mel-Spektrogramm und Embedding, dazu ein kleiner Klassifikator pro Phrase —, offline auf synthetischen Stimmen und frei lizenzierten Korpora trainiert, von ONNX Runtime Web in einem Worker ausgeführt (WASM ohne Threads: weder `SharedArrayBuffer` noch Isolation, also auch auf iOS und in den nativen Hüllen; kein externer Versand). Jede Datei trägt ihren SHA-256 im Namen und wird vor dem Start geprüft; ein zweiter Klassifikator auf denselben Embeddings hört „LIA, stop“ und unterbricht das Vorlesen. Ein Prüfstand veröffentlicht seine Schwellen vor dem Training und senkt sie nie: das französische Modell, das einzige ausgelieferte, ist als **Beta** deklariert, weil es sie noch nicht erreicht, und ein Guard hält diesen Status in beide Richtungen am Urteil des Prüfstands (ADR-329). Whisper-Small-Transkription (99+ Sprachen, offline) im Backend via ThreadPoolExecutor. STT-Sprache pro Nutzer; pro Worker ein begrenzter LRU-Cache von `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, standardmäßig eins) — beim Erzeugen wird nichts geladen, die erste Transkription bezahlt das Laden ihrer Sprache, eine Verdrängung gibt Speicher an das System zurück, und die residente Zahl wird pro Worker veröffentlicht (`voice_stt_recognizers_loaded`).
-
-**Latenzoptimierungen**: Wiederverwendung des KWS-Mikrofonstreams → Aufnahme (~200-800 ms eingespart), WebSocket-Vorverbindung, `getUserMedia` + WS parallelisiert via `Promise.allSettled`, AudioWorklet-Cache.
-
-### 15.2. TTS
-
-**Catalogue-driven** Factory (ADR-081): `factory.get_tts_client()` liest den aktiven `voice_tts`-Override (Provider + Modell + Stimme + Tuning, gespeichert in `llm_config_overrides.voice_tts.provider_config` JSONB) und instanziiert den passenden Client. Fünf ausgelieferte Provider: Edge (kostenlos, Standard), OpenAI (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini und Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`). Jeder gehörte Satz geht durch eine einzige Tür (`voice/spoken.speak`) und wird einmal abgerechnet, in der Einheit der Engine, die gesprochen hat — Zeichen, UTF-8-Bytes bei Fish Audio, gemeldete Token bei Gemini —, und jede Fish-Audio-Anfrage belegt, wie jede ElevenLabs-Synthese, einen Platz im geteilten Kontingent ihres Anbieterkontos. Eine Person kann LIA zwei eigene Stimmen unter denen der Engine geben (`users.lia_voices`, pro Anbieter gespeichert: ein Modellwechsel behält sie): Der Chat liest sie an seiner einzigen Sprachnaht, nachsichtig — eine Stimme, die nicht mehr angeboten wird, lässt die des Administrators sprechen. Ein Vokabular expressiver Marker erhält einen Dialekt pro Engine: LIA schreibt Marker nur in Text, der gesprochen werden soll, und ein vorgelesener Text macht nie eine eckige Klammer zu einem Marker (ADR-345). Jeder Marker trägt, was er bedeutet und wann er passt: Er färbt die Nachricht, nie den Ausgang von LIAs eigenem Tun — eine Bestätigung, ein Fehlschlag, eine Suche ohne Treffer —, und der Code hält, was er halten kann: Ein Kommentar erklärt, ob er von behaltenen Elementen spricht, und ohne sie (ein Fehlschlag, eine Suche ohne Treffer) erhält er überhaupt kein Marker-Budget, was auch immer sein Modell schreibt; einen Marker auf einer Bestätigung, die Elemente behalten hat, muss der Prompt verhindern. Fehlt der API-Key eines kostenpflichtigen Providers, fällt die Factory transparent auf Edge zurück (Warnung geloggt). Progressives Streaming Satz für Satz via `ProgressiveSentenceStreamer` (ADR-082) zur Latenzminimierung — der erste Satz wird synthetisiert, während das LLM noch weitere generiert. Ein Trennzeichen beendet einen Satz nur am Ende der Eingabe oder wenn ein Leerzeichen folgt (ADR-154): auf dem progressiven Weg wächst der Puffer Token für Token, sodass `"3."` ein völlig normaler Übergangszustand ist — Dezimalzahlen, Preise, Versionsnummern und URLs bleiben am Stück, und beide Zerleger (`_extract_sentences` und der Streamer) sind durch eine gemeinsame Falltabelle sowie einen Test fixiert, der ihre Übereinstimmung verlangt.
-
----
-
-### 15.3. Ein optionales Gesicht für die Stimme
-
-Der experimentelle sprechende Avatar nutzt nach ausdrücklicher Aktivierung **deinen persönlichen Simli-Schlüssel**. Er begleitet Sprachkommentare und direktes wie delegiertes Live in einem schwebenden Fenster mit drei Größen, verschiebbar mit Zeiger oder Tastatur. Der Browser sendet die vorhandene Stimme an Simli und nutzt dessen Medien als einzige hörbare Ausgabe. Die Verbindung bleibt zwischen Antworten offen: **Auch Stille verbraucht deinen Simli-Tarif**. Live-Standby schließt sie; das Aufwecken öffnet eine neue Verbindung. Radio behält seinen eigenen Player. Lippenbewegungen und das Verhalten auf Android/iOS müssen noch auf echten Geräten qualifiziert werden; die Funktion bleibt Beta.
-
-Die API kontrolliert die Simli-Verbindung mit einem einmaligen Ticket: Sie leitet Signalisierung und LIAs Sprachausgabe weiter, während die zurückgegebenen WebRTC-Medien Simli mit dem Browser verbinden. Das Anbieter-Token bleibt serverseitig verschlüsselt. Fehlende bestätigte Anwesenheit fordert die Schließung an; ein abrupter Serverstopp bleibt durch die Sitzungsdauer des Anbieters begrenzt. Lange Antworten laufen in Reihenfolge durch eine begrenzte Audio-Warteschlange, die der tatsächlichen Wiedergabe folgt. Eine Unterbrechung beendet den laufenden Ton; eine andere Ausgabe wiederholt keinen bereits gehörten Abschnitt. Avatar, Begleiter und Verknüpfungen bleiben beim Öffnen der mobilen Tastatur, Drehen oder Zoomen im sichtbaren Bereich; danach kehrt deine bevorzugte Position zurück, ohne durch diese Anpassungen überschrieben zu werden.
-
-### Eine Station, solange jemand zuhört
-
-Das Radio hat zwei Ebenen: Eine gemeinsame Redaktion sammelt öffentliche Feeds; die persönliche Antenne wählt das Programm aus einem festen Raster und den erlaubten Quellen. Modelle schreiben und sprechen begrenzte Abschnitte; eine Prüfung kontrolliert Quellen, Zahlen und Rollen vor der Ausstrahlung. Der Player zeigt Quellen und Kontokosten. Die Antenne produziert nur bei aktiver Sitzung, unter Timer und dem Kapazitätsschalter der Instanz, ohne Wiederholung. Eine Dialogaufnahme trägt nie mehr Stimmen, als die Engine annimmt — die Grenze wird je Engine-Familie deklariert —, und wo ein Format ein Gespräch führt (Gesprächsrunde, Debatte, Kommentar, Eröffnung, Sendeschluss), kann eine Stimme ihren Beitrag mit einer Reaktion eröffnen — einem leisen Lachen, einem Lachen, einem Seufzer —, höchstens `RADIO_REACTIONS_MAX` pro Sendung, die der deterministische Redakteur entfernt, wenn sie auf einer Faktenzeile landet.
-
-Der redaktionelle Filter entfernt Werbung, Sponsoring, Rabatte und Kaufaufforderungen und bewahrt nützliche Nachrichten, Rechnungen, Reservierungen und Termine. Der Mix respektiert das Syntheseformat: Rohes PCM oder u-law erhält einen WAV-Container mit der deklarierten Kodierung und Abtastrate; bereits kodiertes Audio bleibt vor der lokalen FFmpeg-Zusammenstellung unverändert. Im Browser läuft die Instrumentalmusik des Senders durchgehend; unter jeder Stimme senkt sie sich schneller, als die Stille am Anfang eines Segments dauert, damit kein erstes Wort verdeckt wird, und steigt danach langsam wieder an.
-
----
-
-## 16. Proaktivität: Heartbeat und geplante Aktionen
-
-### 16.1. Heartbeat: 2-Phasen-Architektur
-
-**Phase 1 — Entscheidung** (der Slot `heartbeat_decision`, ein sparsames Modell aus dem Admin-Katalog):
-1. `EligibilityChecker`: Opt-in, Zeitfenster, Cooldown (1h global, 30 Min. pro Typ), kürzliche Aktivität — optionale `notification_filter`/`cross_type_filters` trennen das Eligibility-Budget jedes Kanals vom gemeinsamen Ledger
-2. `ContextAggregator`: 15 Quellen parallel (`asyncio.gather`): Calendar, Weather (Änderungserkennung), Tasks, Emails, Interests, Aktivität, jüngste Heartbeat-/Interessen-Benachrichtigungen, weitere proaktive Oberflächen (ausgelöste Erinnerungen, Automatisierungsergebnisse, Anrufberichte — das erweiterte Anti-Redundanz-Fenster), Health, SMS, anstehende Geburtstage Offene Schleifen (das Verpflichtungsregister, ADR-139), Gewohnheiten (eine gelernte Routine, deren übliches Zeitfenster verstrichen ist, samt dem, was sie üblicherweise verlangt) und Arbeitsboard. Ein **zweiter Durchlauf** leitet dann eine dynamische semantische Anfrage aus dem aggregierten Kontext ab, um Journale und Erinnerungen auszuwählen (ADR-135-Symmetrie), und berechnet die verkehrsbewusste Abfahrtsempfehlung (Routes-ETA, per Flag). Interessen kommen als **abwechslungsreiche Auswahl** (`pick_varied_sample`: ein Interesse pro Thema, am längsten nicht bediente Themen zuerst) — das Modell kann nur nennen, was es sieht, die Rotation ist also mechanisch
-
-   **Verbunden zu sein und unterbrochen zu werden sind zwei Entscheidungen** (ADR-197). Vierzehn dieser Quellen tragen einen eigenen Schalter, der **vor** dem Abruf greift: eine abgelehnte Quelle speist die Entscheidung nicht mehr *und* kostet keinen API-Aufruf mehr, ohne den Dienst zu trennen — also ohne das Werkzeug zu verlieren, mit dem man fragt. Gespeichert wird die **Ablehnung**, nie die Erlaubnis: `NULL` bedeutet „nie geäußert“, sodass ein bestehendes Konto sein Verhalten behält und eine später ergänzte Quelle aktiv ist, bis jemand sie ablehnt. Was keine Quelle ist — Aktivität, die Anti-Redundanz-Fenster — bleibt konstruktionsbedingt außerhalb des Registers: sie abzuschalten würde den Assistenten wiederholen lassen, nicht seltener unterbrechen. Und eine Abhängigkeit wird **deklariert und veröffentlicht**: der Aufbruchshinweis liest den Kalender des ersten Durchlaufs, eine Ablehnung des Kalenders würde ihn also verstummen lassen; das Panel sagt es, statt einen wirkungslosen Schalter stehen zu lassen.
-3. LLM Structured Output: `skip` | `notify` plus `interest_topic` (wortwörtlich aus der Auswahl kopiert, Fail-open-Laufzeitprüfung) und per `Literal` beschränkte Quellenlabels — ein Label außerhalb des Vokabulars wird repariert oder verworfen und gezählt, nie für die ganze Entscheidung fatal. Zweistufige Anti-Redundanz: Quelle und **Inhalt** — die letzten 10 Benachrichtigungen über 7 Tage werden mit Auszügen injiziert, was das erneute Vorschlagen eines Themas auch aus anderer Quelle verbietet
-
-**Phase 1b — Anreicherung** (wenn `interest_topic` gesetzt): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) unter hartem Timeout, dedupliziert gegen die Embeddings kürzlicher Benachrichtigungen. Vollständig fail-open: Flag aus, Fehler oder leeres Ergebnis → die Nachricht geht ohne Fakten raus.
-
-**Phase 2 — Generierung** (bei Notify): LLM schreibt mit Persönlichkeit + Benutzersprache um. Wurden Fakten abgerufen, verlangt ein VERIFIED-FACTS-Block das Nennen von 1-2 konkreten Elementen ohne jede Erfindung, und Quellenlinks werden deterministisch angehängt. Multi-Kanal-Dispatch, als zugestellt erst verbucht, wenn die Nachricht archiviert, gepusht oder über einen Kanal gesendet wurde — nie auf ein bloßes SSE-Ereignis hin (ADR-263). Eine Interessen-Erwähnung wird ins gemeinsame Ledger geschrieben (`InterestNotification(source='heartbeat')`): das Thema pausiert dann für beide proaktiven Kanäle.
-
-Jede Quelle ist durch ein Zeitbudget begrenzt und fällt unabhängig aus. Dieses Budget umfasst einen Anteil an einer mit den übrigen Fetchern geteilten Event-Loop — es ist kein Datenbank-Timeout: Ein Lesevorgang, der Zehntausende Rohzeilen holt, um wenige Dutzend Zahlen zu erzeugen, würde es im Normalbetrieb überschreiten und den Worker während der Dekodierung blockieren. Die Gesundheitssignale stützen sich daher auf eine in der Datenbank berechnete Tagesaggregation, und ein Ausfall wird gezählt und zeitlich erfasst statt stillschweigend übergangen — eine Quelle, die durch Verschwinden scheitert, hinterlässt in der Benachrichtigung selbst keine Spur.
-
-**Der Aktivitätswächter ist eine injizierte Sonde, die Auswahl ist fair.** Die Regel „einen aktiven Nutzer nicht unterbrechen“ wird über einen Port (`ActivityProbe`) durchgesetzt, den jeder Planer mit der realen Aktivitätsquelle verdrahtet — die letzte menschliche Nachricht, automatisierte Zeilen ausgeschlossen, begrenzt auf den Cooldown-Horizont. Der generische Prüfer kennt kein Domänenmodell: Er erhält die Sonde, und ein Lesefehler fließt in die Fehlerzählung des Runners ein, statt sich in eine Erlaubnis aufzulösen. Vorgelagert schiebt die Kandidatenauswahl das Aktivierungs-Flag in SQL und randomisiert die Reihenfolge (`ORDER BY random()`): Jenseits der Batchgröße kann kein Konto systematisch zuletzt bedient werden. Ein SQL-Zeitfenster-Vorfilter ist ausgeschlossen: Eine einzige korrupte Zeitzone ließe den ganzen Batch scheitern, für einen Gewinn im Mikrosekundenbereich.
-
-### 16.2. Agent Initiative (ADR-062)
-
-LangGraph-Node nach der Ausführung: Nach jedem aktionsfähigen Turn analysiert die Initiative die Ergebnisse und überprüft proaktiv domänenübergreifende Informationen (schreibgeschützt). Beispiele: Regenvorhersage → Kalender auf Outdoor-Aktivitäten prüfen, E-Mail mit Terminerwähnung → Verfügbarkeit prüfen, Aufgabe mit Deadline → Kontext in Erinnerung rufen. 100 % prompt-gesteuert (keine hardcodierte Logik), struktureller Vorfilter (benachbarte Domänen), Injection von Gedächtnis + Interessensgebieten, Vorschlagsfeld für Write-Aktionen. Konfigurierbar über `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
-
-Derselbe Node emittiert außerdem bis zu 3 **Folge-Chips** — kurze Anfragen, die der Nutzer wahrscheinlich als Nächstes senden wird, in seiner Sprache formuliert und in den sichtbaren Ergebnissen verankert. Serverseitige Sanitisierung (Clamp, case-insensitives Dedupe, hartes Limit) und ein Pop-once-Handoff pro Run tragen sie sowohl in den SSE-`done`-Chunk als auch in die archivierten Nachrichten-Metadaten: Die Chips erscheinen live und überleben ein Neuladen; Antippen füllt nur das Eingabefeld vor.
-
-### 16.3. Geplante Aktionen und Erinnerungen
-
-APScheduler mit Redis Leader Election (SETNX, TTL 120s, Recheck 5s) für die Schleife, `FOR UPDATE SKIP LOCKED` für die Isolation, automatisch genehmigte Pläne, Abschaltung nach 5 aufeinanderfolgenden Fehlschlägen.
-
-**Eine Wiederholung ist ein Produkt**: welche Kalendertage × welche Tageszeiten. Eine einzige Maschine (`src/core/recurrence`) antwortet für Routinen wie für Erinnerungen — `dateutil.rrule` zählt die Tage auf, jeder Moment wird mit `fold=0` lokalisiert, und die Reihe wird geordnet und nach Zeitpunkt entdoppelt, denn bei der Umstellung auf die Winterzeit fallen zwei Wanduhrzeiten auf denselben Zeitpunkt. Die Tage werden nie einem Cron überlassen: ein `IntervalTrigger` überspringt den ganzen Tag, wenn sich der Versatz um Mitternacht ändert — 142 Ausführungen pro Jahr in 73 Zeitzonen, ohne Spur in den Protokollen.
-
-**Die Erinnerung, die nur einmal klingelt, ist keine Ausnahme, sondern der Regelfall**: gefragt, was als Nächstes zu setzen ist, antwortet `rearm_after` bei einer verbrauchten Einzelgelegenheit `None`, und `None` bedeutet „löschen“. Nirgends fragt ein Zweig „wiederholt sich das?“. Eine Folge für die Typisierung: `trigger_at` einer Erinnerung bleibt NOT NULL — eine Erinnerung ohne Zukunft wird gelöscht —, während `next_trigger_at` einer Routine nullable ist, denn dort ist die Konfiguration das Wertvolle.
-
-Die Obergrenzen werden **vom Verbraucher injiziert**, nie im Modell gelesen: 12 Auslösungen pro Tag für eine Routine, 48 für eine Erinnerung. Jedes Gesprächswerkzeug veröffentlicht die Grenzen, die es durchsetzt (ADR-184), sodass eine Zahl außerhalb der Grenzen vom Clamp des Planers repariert und nicht als Fehler gemeldet wird.
-
-Jeder Tick endet mit einer Zeile in einer **Ausführungshistorie**, beim Ergebnis in der Markierungstransaktion geschrieben — fünf Ausgänge, einer je Executor-Ausgang, in einem Savepoint und nie blockierend. Die laufende Woche wird serverseitig mit derselben Maschine berechnet: eine Zelle nimmt die letzte Ausführung, deren bedienter Zeitpunkt dem des Slots **gleicht**, nie ein Toleranzfenster — so setzt eine Planänderung das Raster konstruktionsbedingt zurück, und der Browser liest den Plan nie erneut, er zeichnet nur.
-
-Der Satz der Erinnerung folgt derselben Regel wie jede kurze Antwort: Er wird **ohne Nachdenken** angefordert, wo das Modell anhalten kann, mit einem kleinen Antwortbudget — und eine Antwort, die leer zurückkommt oder die der Anbieter als an seinem Budget abgeschnitten meldet, ist eine Verweigerung und keine Nachricht. Der geschriebene Ersatzsatz geht an ihrer Stelle hinaus, die entstandene Ausgabe bleibt verbucht, und die Warnung nennt das Modell und seine Nachdenk-Tokens. Eine Benachrichtigung ist die einzige Handlung aus LIAs eigener Initiative, die eine Person wirklich erlebt; sie kommt nie als Glocke und sonst nichts an.
-
-### 16.4. Eine Push-Benachrichtigung, die zu einer Entscheidung führt
-
-Ein Push-Kanal, der nur Caches invalidiert, würde Frische für eine Karte kaufen, die niemand geöffnet hat. Eine verarbeitete Benachrichtigung **stellt den Nutzer daher in eine Warteschlange** — `SET NX` je (Nutzer, Anbieter), ein Schwall ist also ein einziges Wecken, datiert vom ersten — und der Webhook antwortet weiterhin mit 200, ohne etwas zu entscheiden. Ein kurzer, leader-gewählter Durchlauf bedient die Warteschlange unter der **vollständigen** Eignungsprüfung: Zeitfenster, Sperrzeiten, Quellenpräferenz — der Heartbeat hat weder Tageskontingent noch probabilistische Glättung; die Entscheidung urteilt (ADR-328).
-
-Das Mail-Delta wird **vorab gelesen, nie verbraucht**, solange das Wecken nicht bedient ist: Ein abgelehntes Wecken lässt die Nachricht für den nächsten Durchgang liegen — die beiden Gmail-Anker bleiben bewusst getrennt (der des Kanals ist das zuletzt *gesehene* Ereignis, der des Heartbeats die zuletzt *verbrauchte* Mail). Der Vorfilter ist deterministisch und als Einstellungen veröffentlicht: erforderliches Label, ausgeschlossene Kategorien, Verteilerpost draußen; ein Ereignis innerhalb des Vorausblicks, von jemand anderem geändert oder auf Antwort wartend. Und die Entscheidung weiß, warum sie geweckt wurde: Eine FRESH-Zeile eröffnet ihren Kontext, und die Prüfzeile hält `trigger = push | tick` fest, was der Verlauf anzeigt.
-
-Eine Drive-Änderung ist gar keine Entscheidung: Sie leert den Änderungsstrom ab dem Token des Kanals und indexiert genau die Dateien neu, die unter einem verknüpften Ordner liegen — über dieselbe Datei-Ingestion, die auch die vollständige Synchronisierung nutzt.
-
-### 16.5. Antizipierte Momente und minutengenau bediente Wachen (ADR-281)
-
-Der Heartbeat ist **periodisch**: Er kann nicht zu einem Zeitpunkt zurückkehren. Ein Meeting endet um 15:00, der nächste Durchlauf fällt auf 15:22 in ein Los, in dem das Konto vielleicht gar nicht ist, und das Kalenderfenster des Kontexts beginnt bei `now` und blickt nach vorn — ein beendetes Meeting ist für die Entscheidung unsichtbar. Eine Tabelle `proactive_moments` hält deshalb die Zeitpunkte: eine Zeile pro Konto und Quelle, eindeutig über `(Konto, Art, Quelle)`, damit ein Meeting nie zwei Momente erzeugt, von einem Detektor abgelegt und von einem einzigen Sweep bedient — mit Jitter, unter einer Scheduler-Sperre, deren TTL an das Intervall gebunden ist. Der Anspruch ist ein `FOR UPDATE SKIP LOCKED`, gefolgt von einem bedingten `UPDATE` in derselben Transaktion, mit einem Besitzer-Token; ein Anspruch, den niemand abgeschlossen hat, wird nach seiner Frist **zurückgeholt**, nie unsterblich gelassen. Bevor er bedient wird, wird ein Moment **erneut geprüft**: ein abgesagtes Meeting, ein abgelehntes, oder eine Person, die bereits geschrieben hat — er wird verworfen.
-
-Ein Moment läuft unter dem **vollständigen** Eignungsprüfer und umgeht nur den gelernten Rhythmus — genau wie ein push-getriebenes Aufwecken, und aus demselben Grund: Ein Zeitpunkt lässt sich nicht verschieben. Die Frage wird **gestellt, nie die Bewertung**: eine offene Frage, höchstens zwei Fakten, kein Urteil, nie zwei gestapelte Momente und nie dieselbe Frage zweimal. Die Wache „im Meeting“ liest den Kalender hinter einem Redis-Verdikt-Cache und zeichnet bei einem Treffer keine Einsicht auf; ein gescheitertes Lesen erklärt sich als `failed`. Die Kontrolle wird mit der Fähigkeit geliefert: ein Schalter pro Art, der Schalter der Fähigkeit selbst, ein Zähler pro Art und Ausgang sowie eine Latenz „fällig → benachrichtigt“ auf dem Heartbeat-Dashboard, und `task moments:preflight`, das sagt, was einem Konto angeboten würde — ohne etwas zu schreiben.
-
-Dasselbe Aufwecken bedient die **Wachen**: Eine Bedingungsroutine „Mail von diesem Absender“ würde sonst bis zu zwei Stunden auf den Durchlauf des Executors warten; das Aufwecken, das das Gmail-Delta ohnehin hält, bedient sie vor dem Verdikt des Vorfilters — der Vorfilter antwortet „ist das ein Aufwecken wert“, eine Wache antwortet „ist das, worauf ich warte“. Es führt die Routine nie aus: Es zieht ihre Fälligkeit vor, der Executor bleibt der einzige Richter, und es scharft jenseits der veröffentlichten TTL des Such-Caches, weil ein Cache, der vor Ankunft der Mail gefüllt wurde, „nicht erfüllt“ antworten würde und dieses Verdikt die Scharfschaltung verbraucht. Eine beendete Routine **schließt** (`is_enabled = false`, `status = completed`) — ihr Ende hat eine einzige Autorität, das bereits gespeicherte `SeriesEnd`. Und der „Beobachten“-Chip des Briefings schreibt diese Routine, mit dem Absender als Schlüssel und nie dem Betreff, nachdem er gelesen hat, was das Konto bereits hält.
-
----
-
-### Eine Routine hat nur eine Uhr
-
-Der Editor trennt Zeitplan und Bedingung. Eine geplante Routine nutzt die Wiederholungslogik; eine bedingte hat keinen Zeitplan und wird im Takt ihrer Quelle geprüft. Eine Prüfung ohne neue passende Tatsache erzeugt keinen Lauf. Beide unterliegen denselben Grenzen, Bestätigungen und sichtbaren Wochenverläufen, wenn sie wirklich handeln. Eine Wetterbedingung liest immer Google Weather, die einzige Quelle, die die Plattform garantiert: Eine einzige Regel, geteilt mit der Briefing-Karte, behält den ersten Stunden-Slot einer beobachteten Wetterlage im Horizont (standardmäßig 4 Stunden), dessen Niederschlagswahrscheinlichkeit die veröffentlichte Schwelle (50 %) echt übersteigt, und die an den Lauf übergebene Notiz nennt Uhrzeit, Tag, Zeitzone, Wahrscheinlichkeit und Quelle. Ein Prüftakt, der länger ist als der Horizont, wird beim Start abgelehnt, damit kein Zeitfenster unbeobachtet bleibt.
-
-### Eine Routine stellt nie eine Frage, die niemand sehen wird
-
-Eine Routine läuft, ohne dass jemand vor dem Bildschirm sitzt. Eine Bestätigung oder eine Netzwerkfrage der Sandbox, in diesem Kontext gestellt, bliebe im Thread hängen, und die nächste Nachricht der Person diente ihr als Antwort. Ein Zug, der niemanden fragen kann, lehnt daher ab und sagt, wo die Aktion erlaubt werden kann; ein Ticket dagegen kann fragen. Die Reservierung einer Routine wird von einem Token gehalten: Die Wiederaufnahme gibt nie einen noch lebenden Lauf frei, ein verspäteter Abschluss überschreibt nicht den eines anderen Ticks, und ein neuer Versuch nach einer Zeitüberschreitung wird abgelehnt, sobald das Register der Aktionen eine bereits ausgeführte Aktion zeigt — eine Routine wiederholt nie, was sie getan hat. Ein Leader des Schedulers, der seinen Lease verliert, pausiert bis zu seiner Wiederwahl, und das Herunterfahren des Servers startet keine Aufgabe mehr.
-
-### Gespräche, die LIA beginnt, auf einem lesbaren Kontext
-
-Eine Benachrichtigung informiert; ein Gespräch lädt zur Antwort ein. Proaktive Gespräche haben deshalb eine eigene Richtlinie, einen eigenen Takt und eigene Durchläufe, nie vom Heartbeat geliehen (ADR-358): Die Person erlaubt sie, legt ihre Uhrzeiten und ein Tageslimit fest, und jede Quelle wie jedes sensible Thema ist eine eigene Erlaubnis, bei jedem Durchlauf neu gelesen.
-
-**Der Kontext ist eine abgeleitete Basis, kein verborgenes Gedächtnis** (ADR-359). Jede erlaubte Quelle wird über ein einziges typisiertes Gateway in datierte Beobachtungen gelesen und zu Episoden und qualifizierten Mustern verdichtet, die ihren Zeitraum, ihre Abdeckung und ihre aktuelle Autorität tragen. Die Person sieht jedes Element und kann es ausschließen — die zugehörigen Belege gehen mit —, löschen, alles verwerfen oder einen Neuaufbau verlangen; ein Neuaufbau arbeitet mit Epochen und Prüfpunkten, deckt Durchlauf für Durchlauf jedes zugelassene Faktum ab und kann weder einen menschlichen Ausschluss rückgängig machen noch einen verworfenen Kontext zurückholen.
-
-**Ausgaben werden reserviert, bevor sie entstehen** (ADR-360). Ein Durchlauf reserviert den kleineren Wert aus seiner eigenen Obergrenze und dem verbleibenden Tagesspielraum — für das Konto und für die ganze Instanz —, startet nur, wenn sein erster Aufruf hineinpasst, und staffelt seine Modellaufrufe, erst entscheiden, dann schreiben, unter veröffentlichten, endlichen Grenzen. Eine Enthaltung, ein Abbruch oder ein verworfener Entwurf behält seine bekannten Kosten im Konto-Ledger, jeder Durchlauf hält fest, warum er endete, und die Prompt-Obergrenze ist das Fenster des konfigurierten Slots, nie ein im Code geschriebenes Budget.
-
-**Veröffentlichen ist ein Akt, Zustellen ein anderer.** Die archivierte Nachricht, der logische Auftakt und die Outbox-Absicht werden gemeinsam festgeschrieben; die native Zustellung folgt, und ein eigener Zug der Person, eine Freigabe oder ein Alarm behalten Vorrang. Ein Auftakt, der ein sensibles Thema berührt, bleibt privat — eine maskierte Push-Nachricht, nie ein externer Kanal —, und jeder Auftakt wird in den Registern als Akt aus LIAs eigener Initiative abgelegt, neben den Quellen, die sein Durchlauf gelesen hat.
-
----
-
-## 17. RAG Spaces und hybride Suche
-
-### 17.1. Pipeline
-
-Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Hybride Suche (Cosine + BM25 mit Alpha-Fusion) → Kontextinjection in den **Response Node**.
-
-Hinweis: Die RAG-Injection erfolgt im Antwortknoten, nicht im Planner. Der Planner erhält stattdessen die Injection der persönlichen Journale über `build_journal_context()`.
-
-Ein Dokument, das nicht indexiert werden konnte, **sagt warum**: Ein geschlossener Code wird auf der Zeile gespeichert (Datei fehlt, Extraktion fehlgeschlagen, kein Text, keine Passagen, zu viele Passagen, Versuche erschöpft) und bei der Anzeige in sechs Sprachen übersetzt, unter der Zeile des Dokuments. Der häufigste Fall — eine gescannte PDF, deren Seiten Bilder ohne Textebene tragen — wird von der wirklich leeren Datei unterschieden und mit seiner Abhilfe gezeigt: die Datei in Google Docs öffnen, das den Text erkennt, und sie dann über die Drive-Quelle dem Raum hinzufügen. Es wird keine Zeichenerkennung versprochen, die der Code nicht liefert.
-
-### 17.2. System RAG Spaces (ADR-058)
-
-Integrierte FAQ, indexiert aus `docs/knowledge/`. Erkennung `is_app_help_query` durch QueryAnalyzer, Rule 0 Override im RoutingDecider, App Identity Prompt (~200 Token, Lazy Loading). Die Aktualität wird an einem SHA-256 über die Quelldateien **und** am gespeicherten Korpus selbst beurteilt (ein Chunk pro geparster Eintrag, genau ein Dokument): eine passende Signatur über der falschen Zeilenzahl ist eine Reparatur, kein No-op. Die Auto-Indexierung läuft in jedem uvicorn-Worker, daher wird die Zeile des Raums mit `FOR UPDATE SKIP LOCKED` beansprucht — ein Schreiber, die übrigen überspringen ohne Warteschlange — und jeder Vektor entsteht **vor** der ersten löschenden Anweisung: eine Ablehnung des Anbieters löscht nichts, und der vorherige Korpus bedient weiter (ADR-162).
-
-### 17.3. E-Mail-Quellen: was die Nutzerin auswählt (ADR-262)
-
-Ein Raum kann einem **Gmail-Label** folgen. Nur die Konversationen mit diesem
-Label werden gerendert — eine Konversation, ein Markdown-Dokument: Betreff als
-Titel, Nachrichten in Reihenfolge, ausschließlich die *Namen* der Anhänge —
-und wie jedes andere Dokument indexiert. Wird das Label in Gmail entfernt,
-verschwindet das Dokument beim nächsten Durchlauf: die Löschgeste ist die
-bereits vertraute.
-
-Das Indexieren des gesamten Postfachs ist ausgeschlossen: es
-dupliziert ein persönliches Archiv in einen zweiten Speicher, verbraucht
-Embeddings für einen Korpus aus vor allem Benachrichtigungen und Listen und
-verwässert die Suche mit Text, den niemand behalten wollte. Ein Label ist eine
-Auswahl, die im täglich genutzten Werkzeug gepflegt wird. Die vollständige
-Synchronisierung verankert den Gmail-Verlauf **vor** dem Auflisten, sodass
-eine währenddessen eintreffende Nachricht im nächsten inkrementellen Durchlauf
-nachgeholt wird; dieser Durchlauf nutzt den Push-Weckruf aus Abschnitt 16 und
-unterliegt keiner Benachrichtigungsschranke — Indexieren ist kein Entscheiden.
-
-### 17.4. Ein Drive-Ordner ist ein Baum, und die Zahl ist exakt (ADR-297)
-
-Google Drive listet eine Ebene pro Aufruf, also wird ein verknüpfter Ordner in Breitensuche durchlaufen, zweifach begrenzt — Dateien und Ordner — und der Schnitt wird ausgesprochen: eine Verknüpfung wird weder gelistet noch verfolgt, ein zweimal erreichter Ordner nur einmal durchlaufen, ein unlesbarer Unterordner gezählt und übersprungen, und nur eine unlesbare Wurzel ist ein Fehler. Die Menge der durchlaufenen Ordner reist mit der Quelle, sodass der Push-Pfad eine Änderung über den ganzen Baum leitet und die Menge dem Feed folgen lässt — ein unter dem Baum angelegter Ordner tritt bei, bevor die darin angelegten Dateien im selben Feed ankommen. Ein Ordner innerhalb eines bereits verknüpften Baums, oder darüber, wird abgelehnt: zwei Quellen, die nach Datei-Kennung deduplizieren, würden sich bei jeder Synchronisation gegenseitig die Dokumente stehlen.
-
-Die vor einer großen Synchronisation angezeigte Zahl berechnet der Code, der indexiert: derselbe Durchlauf, dieselben Prädikate für « unterstützt » und « unverändert », die Dokumentobergrenze des Bereichs. Er klassifiziert jede Datei — neu, geändert, unverändert, nicht unterstützt, jenseits der Kapazität —, und die Schaltfläche fragt die Person nur ab einer Schwelle, die die Instanz setzt; ein durch eine Grenze abgeschnittener Durchlauf sagt « mindestens ». Jede Synchronisation, manuell oder im Hintergrund, hinterlegt eine Einsichtnahme für den Akt — und ein Lesen außerhalb jedes Laufs veröffentlicht seinen eigenen, weil das Register nur behält, was ein Sammler einsammelt.
-
-### 17.5. Ein Dokument eines Bereichs kommt als Kopie in eine Nachricht (ADR-295)
-
-Die Suche des Chats liest allein die aktiven Bereiche, sodass ein in einem pausierten Bereich indexiertes Dokument aus einer Frage heraus unerreichbar wäre, ohne den ganzen Bereich zu reaktivieren. Das « + » des Eingabefelds listet daher die fertigen Dokumente jedes Bereichs, den die Person besitzt, ein pausierter markiert statt versteckt, mit einer Seite und einer exakten Gesamtzahl, und das gewählte Dokument wird über den eigenen Mechanismus der Anhänge KOPIERT: die gespeicherte Datei unter neuem Namen, der Text über die Extraktion der Wissensbereiche — fünfzehn Formate, nicht die Bild-und-PDF-Liste des Uploads —, die Zeile ein Upload, sodass ein Zurücksetzen der Unterhaltung die Kopie entfernt und der Bereich, sein Index und seine Datei nie berührt werden. Nur ein fertiges Dokument wird angeboten, beide Fähigkeitsschalter müssen offen sein, und dem Modell wird gesagt, wenn der Text an der Obergrenze liegt: ein Schnitt wird ausgesprochen, nie stillschweigend angewandt.
-
----
-
-## 18. Browser Control und Web Fetch
-
-### 18.1. Web Fetch
-
-URL → SSRF-Validierung (DNS + IP-Blocklist) → Verbindung an die geprüfte Adresse gebunden (Name in `Host` und SNI, keine zweite DNS-Auflösung) → Weiterleitungen von Hand verfolgt, jeder Schritt vor jedem Kontakt neu geprüft → Readability-Extraktion (Fallback Full Page) → HTML-Bereinigung → Markdown → `<external_content>`-Wrapping (Prompt-Injection-Prävention). Redis-Cache 10 Min.
-
-### 18.2. Browser Control (ADR-059)
-
-Autonomer ReAct-Agent (Playwright steuert das Chromium der Distribution, das mit ihr aktualisiert wird; ein fehlgeschlagener Start wird gezählt). Redis-gesicherter Session Pool mit Cross-Worker-Recovery. CDP Accessibility Tree für elementbasierte Interaktion. Anti-Erkennung (Chrome UA, Webdriver-Flag-Entfernung, dynamische Locale/Timezone). Automatisches Cookie-Banner-Dismiss (20+ mehrsprachige Selektoren). Separates Read/Write Rate Limiting (je 40 pro Session).
-
----
-
-## 19. Sicherheit: Defence in Depth
-
-### 19.1. BFF-Authentifizierung (ADR-002)
-
-**Warum BFF statt JWT?** JWT in localStorage = XSS-anfällig, 90 % Overhead in der Größe, Widerruf unmöglich. Das BFF-Pattern mit HTTP-only Cookies + Redis-Sessions eliminiert alle drei Probleme. Migration v0.3.0: Speicher -90 % (1.2 MB → 120 KB), Session Lookup P95 < 5 ms, OWASP-Score B+ → A.
-
-**Starke Authentifizierung (ADR-143/144).** Über Passwort und Google-OAuth hinaus kann das Konto durch **WebAuthn-Passkeys** (discoverable Credentials, Conditional UI im E-Mail-Feld, Einmal-Redis-Challenges, Klon-Erkennung über Signaturzähler, keine Enumeration auf dem anonymen Pfad) und einen **TOTP-Zweitfaktor** (zweistufiger Login über ein kurzlebiges Pending-Token, explizites Matched-Timestep-Anti-Replay, 10 gehashte Einmal-Backup-Codes) geschützt werden. Sensible Aktionen — Credential-Verwaltung, Export, Geräte-Widerruf, Passwort-Deaktivierung — laufen über eine **Step-up-Reauthentifizierung**: ein 5-Minuten-Fenster, das durch jede vollständige Anmeldung geöffnet wird (Sudo-Semantik), mit einem **typisierten 403**-Vertrag (`step_up_required`, nie ein einfacher 401, der zu /login umleiten würde). **Meine Geräte** listet jede BFF-Sitzung unter einer opaken `display_id` mit bewusst begrenzten Metadaten (UA/OS-Familien, auf /24 gekürzte IP), widerruft ein Gerät oder alle anderen und trennt den SSE-Stream einer widerrufenen Sitzung binnen eines Keepalive-Ticks; eine Push-Benachrichtigung meldet jede Anmeldung von einem Gerät, das nicht durch ein gültiges FCM-Token bestätigt ist.
-
-**Eine föderierte Identität verleiht kein Recht.** Das Verknüpfen einer Google-Identität ändert nie den Status eines Kontos: Eine Registrierung, die auf Freigabe wartet, bleibt wartend, ein gesperrtes Konto bleibt gesperrt. Die angegebene Adresse wird nur geglaubt, wenn Google für sie bürgt; war sie nie bewiesen, beweist die Verknüpfung sie, widerruft Passwort und Sitzungen der anmeldenden Person und benachrichtigt die Administration wie bei einer E-Mail-Bestätigung; ein gelöschtes Konto wird nie wiederbelebt, und eine Ablehnung trägt einen begrenzten Grund. „Wer ruft an?“ hat eine einzige Antwort, `resolve_client_ip`, die Administrationsaudits, Sitzungsadresse und Ratenbegrenzungen lesen – ein AST-Wächter lehnt jede andere Lesart des Headers ab, den der Besucher schreibt, und der Webserver gibt die Adresse weiter, die Cloudflare bestätigt. Schließlich ist die Logging-Konfiguration der erste Import der Anwendung, und ein Werkzeug bindet seinen Logger in dem Moment, in dem es loggt: Ein früher gebundener Logger behielte die Standardwerte von structlog, ohne Level- und ohne Datenschutzfilter.
-
-### 19.2. Usage Limits: 5-Layer Defence in Depth
-
-| Schicht | Abfangpunkt | Warum diese Schicht |
-|--------|---------------------|-----------------------|
-| Layer 0 | Chat Router (HTTP 429) | Blockieren, bevor der SSE-Stream überhaupt beginnt |
-| Layer 1 | Agent Service (SSE Error) | Abdeckung geplanter Aktionen, die den Router umgehen |
-| Layer 2 | `invoke_with_instrumentation()` | Zentraler Guard für alle Hintergrunddienste |
-| Layer 3 | Proactive Runner | Überspringen für blockierte Benutzer |
-| Layer 4 | Direkte Migration `.ainvoke()` | Abdeckung nicht zentralisierter Aufrufe |
-
-**Fail-Open**-Design: Infrastrukturausfälle blockieren keine Benutzer.
-
-### 19.3. Angriffsprävention
-
-| Vektor | Schutz |
-|---------|------------|
-| XSS (LLM-Rendering) | `rehype-sanitize`-Grenze in der Chat-Markdown-Pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`, auditiertes Schema — `script`/`iframe`/`form`/Handler entfernt), HTTP-only Cookies, Backend-CSP; MCP/Skill Apps laufen nie durch Markdown (Sentinel → sandboxed iframe-Widget) |
-| CSRF | SameSite=Lax |
-| SQL Injection | SQLAlchemy ORM (parametrisierte Abfragen) |
-| SSRF | DNS-Auflösung + IP-Blockliste (Web Fetch, MCP, Browser); die Skill-Installation per URL nutzt denselben Validator mit strikteren Regeln: nur https, Weiterleitungen verweigert, gestreamtes Größenlimit, TOTALE Transfer-Deadline, Rate-Limit pro Nutzer Der Browser geht weiter: **jede Anfrage einer Seite** — Weiterleitung, Unterressource, iframe, XHR — löst ihr eigenes Ziel hinter einem begrenzten Verdikt-Cache auf, und ein Fehler bricht ab, statt durchzureichen. Eine geprüfte URL geht nur über `pinned_stream`: Die Verbindung zielt auf die Adresse, die die Prüfung aufgelöst hat (kein *DNS-Rebinding*), nie über einen Client, der Weiterleitungen folgt (ADR-326). |
-| Dekompressionsbombe | Ein komprimierter Body wird von LIA selbst unter der Leseobergrenze dekodiert (gzip, deflate, zstd); eine Kodierung, die sie nicht begrenzen kann, und ein abgeschnittener Stream werden abgelehnt (ADR-326) |
-| Prompt Injection | Herkunft von den Daten getragen: 24 klassifizierte Typen (fail-closed, Assert beim Start), Markierung auf den drei Flächen, die das LLM erreichen, 7 Musterfamilien in 6 Sprachen erkannt, ohne den Inhalt je umzuschreiben (ADR-167); `<external_content>`-Marker werkzeugseitig beibehalten |
-| Rate Limiting / IP-Spoofing | Verteiltes Redis Sliding Window (atomisches Lua); vertrauenswürdige Proxy-Kette — API-Ports loopback-gebunden (cloudflared = einziger Eingang), uvicorn `--proxy-headers`, `request.client.host` validiert als einzige IP-Quelle (kein geteilter globaler Bucket, rohes XFF nie gelesen) Eine globale Obergrenze steht als echte ASGI-Middleware auf demselben geteilten Limiter vor jeder Route, sodass ein einzelner Client nicht die gesamte API verbrauchen kann; Health-Probes bleiben ausgenommen, damit die Überwachung nie gedrosselt wird. |
-| Scanner und Credential Stuffing | Reine ASGI-Zulassung vor dem Routing: unterschiedliche 404 auf unbekannten Routen und abgelehnte Anmelde- oder MFA-Daten werden pro kanonischer Client-IP in atomaren, gleitenden Redis-Fenstern gezählt; über der Schwelle folgt eine feste, temporäre Sperre, die alle API-Worker teilen. Gewöhnliche Ressourcen- und Sitzungsfehler zählen nie; interne Aufrufer, exakte Health-Probes und `OPTIONS` bleiben zugelassen; ein Redis-Ausfall lässt den Verkehr durch, sichtbar in den Metriken, im Degradationsalarm und in der Diagnose (ADR-353). Jede 429 wird einmal auf WARNING mit kanonischer Client-IP, Methode, Pfad ohne Query, Status und Dauer protokolliert — ein Log-Feld, nie ein Metrik-Label (ADR-354) |
-| Feindseliger Text (ReDoS) | Die Markdown-/HTML-Abflacher — Push, Stimme, Ticketkommentare, Radio, E-Mail-Karten — laufen in der Event-Loop: Jede gepaarte Spanne ist begrenzt (`MARKDOWN_SPAN_MAX_CHARS`), und kein Zeichen gehört zwei benachbarten Klassen an; Wachstums- (n, dann 4n) und vollständige Äquivalenztests auf API- und Browserseite sichern die Linearität (ADR-326) |
-| Missbrauch des Passwort-Resets | Eine einzige Entscheidung, angewandt bei der Anforderung des Links und bei seiner Verwendung: nichts für einen Administrator oder ein gelöschtes Konto, ein Hinweis — nie ein Link — für ein Konto, das sich mit Google ohne Passwort anmeldet; ein E-Mail-Budget pro Konto, egal welche IP fragt; ein Link, gebunden an sein Konto und an einen Fingerabdruck seines Passworts, durch jede Änderung zurückgezogen; alarmiert (ADR-363) |
-| Bots an den Passwort-Türen | Eine optionale Cloudflare-Turnstile-Prüfung bei Registrierung, Anmeldung und Reset-Anfrage, nach dem IP-Limiter, nur für diese Tür dieser Instanz gültig; kann Cloudflare nicht antworten, geht nur die Anmeldung durch (ADR-364) |
-| Supply Chain | Jede Build-Eingabe per Digest fixiert (GitHub Actions, Images, Sprachen, Werkzeuge); wöchentliche Beobachtung der Hinweise, die jede Abhängigkeit veröffentlicht, und der Supportenden, jeder Befund behoben oder schriftlich akzeptiert; Aktualisierung nach einer Karenzzeit, die nie zurückgeht, eine Sicherheitskorrektur wird zur Untergrenze (ADR-331); Geheimnis-Scan vor jedem Push; eine CycloneDX-SBOM zu jedem Release |
-
-### 19.4. Dauerhaftigkeit der Daten: automatisierte Backups (ADR-109)
-
-**Ein Backup ist erst dann real, wenn die Wiederherstellung bewiesen wurde.** Ein `postgres-backup`-Sidecar sichert die gesamte Datenbank per Cron-Zeitplan mit dreistufiger Rotation (täglich / wöchentlich / monatlich); jeder Parameter — Zeitplan, Aufbewahrung, Zielverzeichnis, pg_dump-Optionen — wird über `.env` gesteuert. Die Dumps tragen `--clean --if-exists`: Die Wiederherstellung ist ein einziger Befehl, in die Live-Datenbank oder einen Wegwerf-Container. Auch die Übung selbst ist versioniert: `task backup:verify` stellt den letzten Dump in einem ephemeren pgvector-Container wieder her und vergleicht die Alembic-Schemarevision und Referenz-Zeilenzahlen mit der Live-Quelle. RPO: ≤ 24 h (einstellbar). Die akzeptierten Grenzen (Off-Site-Kopie, Attachments-Volume) sind in ADR-109 dokumentiert statt implizit gelassen.
-
-### 19.5. Isolieren, was ausgeführt wird
-
-Drei Flächen führen etwas im Auftrag der Nutzerin aus, und jede wird konstruktiv als feindlich behandelt.
-
-**Skill-Skripte laufen in einem Wegwerf-Container.** Kein Docker-Socket, kein Netzwerk (ein Skript, das die Assistentin für eine Berechnung schreibt, und der Befehl eines Skills, der seine Hosts deklariert, sind die Ausnahmen, und sie verlassen den Container nur durch eine einzige Tür — den Ausgangs-Proxy aus §34), ein schreibgeschütztes Root-Dateisystem mit kleinem beschreibbarem tmpfs, eine unprivilegierte uid, alle Capabilities entzogen sowie Obergrenzen für Speicher, Prozesse, CPU und Dateigröße. Entscheidend ist, was ein Kindprozess *erbt*: In der Produktion gehört die API zur `docker`-Gruppe, und eine Gruppe wird vererbt — ein bloßer uid-Wechsel ließe den Socket erreichbar. Der QUELLTEXT des Skripts wird als Argument übergeben statt gemountet, denn die API ist selbst ein Container und ein Bind würde gegen den Host aufgelöst; das hält zugleich stdin für die JSON-Nutzlast frei, auf der der Vertrag beruht. Ist kein Daemon erreichbar, wird die Ausführung verweigert statt herabgestuft — eine Sandbox, die sich selbst abschaltet, schützt nichts.
-
-**Infrastrukturaufgaben werden bestätigt, nicht unterstellt.** Eine Aufgabe auf einem entfernten Server wird vorbereitet, nicht gestartet: Die Bestätigung zeigt den Zielserver, den vollständigen Aufgabentext und die Anweisungen, die das Modell selbst in den entfernten Prompt geschrieben hat — genau das Feld, das eine Injection nutzen würde, darf nicht verborgen bleiben. Das Privileg wird bei der Ausführung erneut geprüft, denn Rechte, die beim Formulieren galten, gelten bei der Freigabe womöglich nicht mehr.
-
-**Anfragekörper werden begrenzt, bevor sie gelesen werden.** Die Obergrenze greift vor dem Handler — auf der deklarierten Länge, wo es sie gibt, und auf gezählten Bytes, wo nicht —, sodass der Speicherspitzenwert von uns bestimmt wird und nicht vom Aufrufer; bei Webhooks geschieht das vor der Authentifizierung. Ihre Konsistenz mit den Upload-Grenzen je Endpunkt wird beim Start geprüft: Ein Widerspruch verweigert den Start, statt als entfernte Ablehnung aufzutauchen, die kein Log erklärt.
-
-### 19.6. Die Herkunft des Inhalts wird von den Daten getragen (ADR-167)
-
-**Ein Text, den LIA liest, ist kein Text, den LIA ausführt.** Der Text einer E-Mail, die von ihrem Organisator verfasste Beschreibung einer Einladung, eine Webseite, die redaktionelle Zusammenfassung eines Ortes, das Ergebnis eines MCP-Servers: Sie alle landen im Prompt, und jeder kann darin eine Anweisung hinterlegen.
-
-Eine werkzeugweise Markierung hält nicht, aus zwei Gründen. **Sie vergisst**: Eine von Hand gepflegte Liste zu markierender Werkzeuge lässt ganze Familien durch — die Websuche, die MCP-Server, sogar ein E-Mail-Werkzeug, dessen eigener Docstring ankündigt, dass es *„FULL email content (body, headers, attachments)“* zurückgibt. **Und sie trifft nicht die richtige Fläche**: Inhalt erreicht das Modell über zwei Wege, von denen keiner ein Werkzeug ist, darunter `generate_data_for_filtering`, das den Block `{data_for_filtering}` des Antwort-Prompts bei **jedem** datenerzeugenden Zug aufbaut, in **beiden** Ausführungsmodi.
-
-Herkunft ist daher eine Eigenschaft der **Daten**: Jeder Registry-Typ wird einmal klassifiziert, ein unbekannter oder leerer Typ gilt als *extern* (fail-closed), und ein Vollständigkeits-Assert beim Start verweigert den Boot bei einem nicht klassifizierten Typ — dieselbe Doktrin wie ADR-085. Die meisten Typen stammen von Dritten.
-
-**Erkennen, niemals bereinigen.** Sieben Musterfamilien werden in den sechs Sprachen erkannt — Rollenübernahme, Anweisungsentführung, Persona-Wechsel, Exfiltration, ein in Fremdtext genanntes LIA-Werkzeug, unsichtbares Unicode, eine in einem HTML-Kommentar versteckte Direktive — und der Inhalt geht **unverändert** an das Modell, begleitet von einem Hinweis, der die Familie benennt. Bereinigen hieße, eine E-Mail umzuschreiben, die der Nutzer womöglich unverändert lesen will, im Tausch gegen eine Garantie, die die nächste Umgehung widerlegen würde. Die Erkennung ist auf die ersten 20 000 Zeichen begrenzt und **protokolliert den Text nie**: Er ist konstruktionsbedingt vom Angreifer kontrolliert und enthält regelmäßig die Daten des Nutzers.
-
-**Und eine Kennzeichnung, die das Zusammenfassen nicht überlebt, ist eine Kennzeichnung mit Verfallsdatum.** Die Kompaktierung liest das Gespräch und gibt es als `SystemMessage` wieder aus — den Kanal höchster Autorität, der in jedem späteren Durchgang erhalten bleibt, weil er das komprimierte Gedächtnis des Gesprächs *ist*. Ein Zusammenfasser, dem man aufträgt, Bezeichner, Entscheidungen und Ergebnisse zu bewahren, und dem man nichts über die Herkunft sagt, erhebt die Forderung eines Absenders getreulich zur feststehenden Tatsache. Die Markierung wandert daher mit: Eine Zusammenfassung, die aus Nachrichten mit Drittanbietertext entsteht, erbt ein Herkunftsbanner, das beim Schreiben berechnet und nicht aus dem abgeleitet wird, was das Modell zu wiederholen beliebte; und der Zusammenfassungs-Prompt meldet Behauptungen Dritter in einem eigenen Abschnitt, ihrer Quelle zugeordnet. Das Banner steht hinter der Markierung, an der vier Leser diese Nachricht erkennen — ein geänderter Präfix hätte das komprimierte Gedächtnis des Gesprächs still verschwinden lassen. Der deterministische Rückfall folgt derselben Regel: Bezeichner, die aus einem markierten Bereich stammen, werden als nicht vertrauenswürdig aufgeführt statt als Schlüsselbezeichner des Gesprächs, und eine nicht geschlossene Markierung färbt die gesamte Nachricht.
-
-### 19.7. Eine Protokollzeile trägt Fakten, nie Worte (ADR-317)
-
-Oberhalb der Debug-Stufe trägt eine Protokollzeile **Fakten** — Zahlen, Längen, Kennungen, Codes, den Host einer URL — und nie den Text, den eine Person geschrieben hat oder ein Modell über sie: Anfragen, Interessen, Namen von Dateien, Labels oder Räumen, besuchte Seiten. Die Regel wird **am Wert** bewacht, nicht am Feldnamen: Ein Test liest jeden Protokollaufruf des Codes und lehnt eine Vorschau (`x[:n]` von etwas anderem als einer Kennung) oder einen aus Inhalt abgeleiteten Wert ab, wie auch immer er heißt; jede Ausnahme trägt ihre schriftliche Begründung. Was ein Fehlertext **zitiert**, hält der Filter zurück — `DETAIL` und `CONTEXT` von PostgreSQL, die Parameter von SQLAlchemy, Pydantics `input_value`, auch in Tracebacks —, ein Datenbankfehler wird durch seine Fakten beschrieben (SQLSTATE, Constraint, Tabelle), und Anbieterschlüssel werden in jeder protokollierten URL maskiert, auf jeder Stufe. Zwei Grenzen werden so genannt, wie sie sind: Die Fehlermeldung eines externen Dienstes in einem unbekannten Format kann noch einen Wert zitieren, und die Debug-Stufe — in der Produktion ausgeschaltet — behält mehr. Metriken und Traces folgen derselben Regel: Ein Metrik-Label und der Name eines Traces tragen die Routenvorlage, nie die konkrete Adresse — ein Name in `/relations/{name}` wird weder zu einer Prometheus-Serie noch zu einem nach Tempo exportierten Attribut.
-
----
-
-### Erzeugte Dateien haben eine erklärte Lebensdauer
-
-Eine erzeugte Datei kann ohne Frist bleiben, wenn sie innerhalb der veröffentlichten Anzahl- und Größengrenzen behalten wird. Die Bereinigung löscht nur fällige Zeilen in einer bedingten Anweisung, dann deren Dateien; ein vorher gespeichertes Behalten gewinnt. Die Freigabe setzt eine neue Frist, und Chatkarten lesen den aktuellen Zustand. Für E-Mail nutzt jeder Anbieter denselben Anhangsvertrag: Das verbundene Postfach erreicht gewählte Empfänger, LIAs Relay nur die bestätigte Kontoadresse. Jeder Weg zeigt vorher sein Größenlimit.
-
-### Was zu einem Anbieter hineingeht, und was herauskommt
-
-Inhalte Dritter reisen in einer Hülle, von der das Modell weiß, dass es ihr nicht gehorcht; ihr Tag wird in jeder Schreibweise neutralisiert — Groß- und Kleinschreibung, volle Breite, unsichtbare Zeichen, NFKC-Normalisierung —, und die Injektionserkennung liest den Text so, wie ein Modell ihn lesen würde. In der Gegenrichtung reist die Ablehnung eines Anbieters — Konnektoren, Places, Routes, Geokodierung, Telefonie, Sprach-Engines — über ihre Fakten, Status und Code, nie über ihre Prosa, die ein privates Feld zitieren kann. Der Log-Filter maskiert außerdem Anbieterschlüssel und Bearer-Tokens, die in einem Fehler zitiert werden, und ein Netzwerkskript der Sandbox kann den Schlüssel, den ein entfernter Dienst als Echo zurückschickt, nicht mehr herausbringen. Die Mailserver — das SMTP-Relais der Instanz, IMAP und SMTP von iCloud — legen vor jeder Authentifizierung ein geprüftes Zertifikat vor.
-
----
-
-## 20. Observability und Monitoring
-
-### 20.1. Stack
-
-| Technologie | Rolle |
-|-------------|------|
-| Prometheus | 640 benutzerdefinierte Metriken (RED Pattern) |
-| Grafana | 32 produktionsreife Dashboards |
-| Loki | Aggregierte strukturierte JSON-Logs, von Grafana Alloy gesammelt (dieselbe Maskierung bei der Erfassung) |
-| Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC), nach der Routenvorlage benannt |
-| Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
-| Alertmanager | Kern vitaler Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
-| structlog | Strukturiertes Logging mit PII-Filterung |
-
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 640 definiert; die Metriken, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Ohne diesen Wächter kann eine offen ausfallende Heartbeat-Quelle tagelang einen Teil der Gesundheitssignale verwerfen, ohne dass eine Metrik es bemerkt (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
-
-### 20.2. Eingebettetes Debug-Panel
-
-Das Debug-Panel in der Chat-Oberfläche bietet Echtzeit-Introspektion pro Konversation: Intent-Analyse, Ausführungspipeline, LLM-Pipeline (chronologische Zusammenführung aller LLM- + Embedding-Aufrufe), Kontext/Gedächtnis, Intelligenz (Cache Hits, Pattern Learning), Journale (Injection + Hintergrund-Extraktion), Lifecycle-Timing.
-
-Die Debug-Metriken werden in `sessionStorage` persistiert (maximal 50 Einträge).
-
-**Warum ein Debug-Panel in der UI?** In einem Ökosystem, in dem KI-Agenten notorisch schwer zu debuggen sind (nicht-deterministisches Verhalten, undurchsichtige Aufrufketten), eliminiert die direkte Zugänglichkeit der Metriken in der Oberfläche die Reibung, Grafana öffnen oder Logs lesen zu müssen. Der Operator sieht sofort, warum eine Anfrage teuer war oder warum der Router eine bestimmte Domäne gewählt hat.
-
----
-
-### 20.3. DevOps Claude CLI (nur Admin)
-
-Administratoren können über die LIA-Konversation direkt mit Claude Code CLI interagieren, um Serverprobleme in natürlicher Sprache zu diagnostizieren. Claude CLI ist im API-Docker-Container installiert und wird lokal via Subprocess ausgeführt, mit Docker-Socket-Zugriff auf alle Container. Berechtigungen sind pro Umgebung konfigurierbar und der Zugriff ist auf Superuser beschränkt. Jeder Lauf startet mit dem Modell und dem Aufwand, die die Administration festlegt (`DEVOPS_CLAUDE_MODEL`, `DEVOPS_CLAUDE_EFFORT`), über eine einzige Konstruktion der Argumente lokal wie per SSH, und das CLI meldet sich mit seinem eigenen langlebigen Token an (`CLAUDE_CODE_OAUTH_TOKEN`) — nie mit der Kopie einer Entwicklersitzung, die eine Aktualisierung auf dem anderen Rechner ungültig machen würde.
-
-### 20.4. Ein Label ist ein Stream-Multiplikator, kein Suchfeld
-
-Eine Aggregations-Pipeline lädt dazu ein, alles zum indizierten Label zu machen,
-wonach man filtern könnte: den Ereignisnamen, das sendende Modul, die Trace-ID.
-Die Intuition ist falsch und teuer. In Loki ist ein **Stream** eine eindeutige
-Kombination von Labelwerten, und die Menge der im Speicher gehaltenen Streams ist
-das **kartesische Produkt** dieser Werte. Ein Feld mit offener Wertemenge zu
-promoten — ein freier Ereignisname, schlimmer noch eine ID pro Anfrage — macht
-nichts besser durchsuchbar; es plant einen Speicherüberlauf ein.
-
-Die Regel ist daher positionell statt funktional: **nur ein Feld mit kleiner,
-geschlossener Wertemenge wird ein Label** (der Schweregrad, vier Werte). Alles
-andere wird beim Lesen gefiltert, wo die Kosten pro Abfrage anfallen statt
-dauerhaft und geteilt zu sein:
-
-```
-{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
-```
-
-Der Zeilenfilter steht bewusst vor dem JSON-Parsing: So kann die Engine ganze
-Blöcke überspringen, ohne sie zu dekodieren.
-
-Zwei Wächter begleiten die Regel, weil sie lautlos gebrochen wird. Der erste
-verbietet, dass ein Feld mit offener Kardinalität wieder Label wird. Der zweite
-**leitet** die verbotene Menge aus der Pipeline-Konfiguration ab und prüft, dass
-kein Dashboard einen Stream über eines davon auswählt — ein Selektor auf einem
-Nicht-Label schlägt nicht fehl, er trifft schlicht keinen Stream, und das Panel
-bleibt leer, während es völlig gesund aussieht.
-
-Dasselbe Prinzip gilt für den Transport: Eine Pipeline schreibt die Nutzlast, die
-sie befördert, nicht um. Die Zeile durch den Inhalt eines
-einzelnen Feldes zu ersetzen, nähme der Auswertung genau das
-strukturierte JSON, das die Anwendung ausgibt.
-
-### 20.5. Signale, die aufeinander verweisen, eine Kette, die sich selbst überwacht
-
-Eine Metrik, eine Logzeile und ein Trace erzählen dieselbe Anfrage — vorausgesetzt, man kommt vom einen zum anderen (ADR-333). Jede Verbindung wurde in der Produktion gemessen, bevor sie repariert wurde: Das abgeleitete Feld Log → Trace suchte `trace_id=` in JSON-Zeilen (keine einzige von 200 Zeilen erkannt), die Verbindung Trace → Metriken hatte beim Provisioning ihre Labels verloren, und Prometheus empfing 19.045 Exemplars pro Tag, ohne ein einziges zu behalten. Jetzt öffnet eine Zeile ihren Trace, ein Trace seine Logs und Metriken, ein Latenzpunkt sein Beispiel, und das Label `job` nennt den Dienst, statt für alle Container `api` zu lauten. Die Kette selbst — Loki, Alloy, Tempo, Grafana — wird über eine geschlossene Liste von rund zwanzig Serien statt neuntausend abgefragt, ein Alarm warnt, wenn Zeilen verloren gehen, und eine Wache hält jede gelesene Serie an ihre Liste. Alle Dashboards zeigen beim Öffnen sieben Tage (Logs und Traces vier Stunden) mit einem gemeinsamen Menü: eine Konvention, die ein Test hält, nicht das Gedächtnis.
-
-**Ein Alarm misst, was er benennt** (ADR-119). Das Histogramm der Zeit bis zum ersten Token beobachtet nur Durchläufe, auf die eine Person wartet: Eine Routine, ein Ticket oder ein Anruf-Relay laufen durch denselben Streaming-Code, aber niemand wartet auf sie, und mitgezählt würden sie für ein Warten alarmieren, das niemand hatte. Eine einzige Tür entscheidet (`streaming/latency_sli.py`, durch einen AST-Test bewacht), und die Regel wird erst ab einer Mindestzahl von Durchläufen in zehn Minuten ausgewertet: Unter 1 / (1 − 0,95) Beobachtungen ist das 95. Perzentil eines Histogramms nur seine langsamste Beobachtung. Der Tagesbericht des Hosts folgt demselben Anspruch: Er beginnt mit dem, was die Überwachung aufgezeichnet hat — ausgelöste Alarme, Zustand der Kette, offene Vorfälle, Neustarts und Speicherspitzen — und nennt jede Quelle, die er nicht lesen konnte, statt sie für Stille zu halten.
-
----
-
-## 21. Performance: Optimierungen und Metriken
-
-### 21.1. Schlüsselmetriken (P95)
-
-| Metrik | Wert | SLO |
-|----------|--------|-----|
-| API-Latenz | 450 ms | < 500 ms |
-| Erstes SSE-Ereignis (Anfrage bestätigt) | 380 ms | < 500 ms |
-| Router-Latenz | 800 ms | < 2 s |
-| Planner-Latenz | 2.5 s | < 5 s |
-| Semantisches Embedding | ~100 ms | < 200 ms |
-| Redis Session Lookup | < 5 ms | P95 |
-
-> Diese Latenzen messen die Infrastruktur. Die vollständige wahrgenommene Antwortzeit hängt von der LLM-Aufrufkaskade ab (von wenigen Sekunden bis zu mehreren Dutzend, je nach Komplexität der Anfrage und Hardware) — das ist der wichtigste Optimierungshebel, in Produktion gemessen.
-
-### 21.2. Implementierte Optimierungen
-
-| Optimierung | Gemessener Gewinn | Kompromiss |
-|-------------|-------------|-----------|
-| Message Windowing | -50 % Latenz, -77 % Kosten | Verlust von altem Kontext (kompensiert durch Data Registry) |
-| Smart Catalogue | 96 % Token-Reduktion | Panic Mode erforderlich bei zu aggressiver Filterung |
-| Pattern Learning | 89 % LLM-Einsparungen | Bootstrapping erforderlich (Golden Patterns) |
-| Prompt Caching | 90 % Rabatt | Abhängig von Provider-Unterstützung |
-| Semantische Embeddings | Hochpräzises mehrsprachiges Routing | Abhängig von API-Anbieterverfügbarkeit |
-| Parallele Ausführung | Latenz = max(Schritte) | Komplexität der Abhängigkeitsverwaltung |
-| Context Compaction | ~60 % pro Komprimierung | Informationsverlust (abgemildert durch ID-Beibehaltung) |
-
-### Eine öffentliche Seite arbeitet nicht pro Anfrage
-
-Die öffentlichen Seiten sind vorgerendert und hostneutral: nichts Deployment-Spezifisches gelangt ins Image. Die Illustrationen des Blogs sind daher **vorab erzeugt** — vier WebP-Breiten und ein Social-Bild pro Artikel, unverändert ausgeliefert: eine statische Datei wird am Netzwerkrand anhand ihrer Endung gecacht, eine Antwort des Bildoptimierers nie, und eine Größenanpassung auf Abruf kostete auf dem Raspberry Pi bis zu mehrere Sekunden. Das Video der Startseite wird dagegen **vom Betreiber zur Laufzeit deklariert** (`LANDING_MEDIA_BASE_URL`, ein Manifest, gelesen hinter Timeout und Cache): ohne es existiert der Abschnitt nicht. Ein einziges `<video>`-Element lebt für den ganzen Besuch, vom Layout eingebunden und je nach Seite nur eingerahmt, angedockt oder verborgen; seine Titel pulsieren auf einer offline berechneten Beat-Karte — kalibrierte Onsets, lokal ermittelte Taktschwerpunkte —, gelesen von der Uhr des dargestellten Bildes, nie von einem Mikrofon. Die Bewegung schweigt unter `prefers-reduced-motion` (ADR-330).
-
----
-
-## 22. CI/CD und Qualität
-
-### 22.1. Pipeline
-
-```
-Pre-commit (lokal)                GitHub Actions CI
-========================          =========================
-.bak files check                  Lint Backend (Ruff + Black + MyPy strict)
-Secrets grep                      Lint Frontend (ESLint + ratchets + tsc)
-Infra-/Personendaten (Denylist)   Code Hygiene (i18n, Docs, Zyklen, CI-Parität)
-Ruff + Black + MyPy               Secret scan (Gitleaks)
-Schnelle Unit Tests               Unit + Agents Tests, Coverage-Untergrenze
-Erkennung kritischer Patterns     Integration Tests (PostgreSQL + Redis)
-Sync i18n-Schlüssel               Migrations-Replay (von Grund auf)
-Alembic-Migrationskonflikte       Frontend Tests + Coverage-Schwellen
-.env.example-Vollständigkeit      E2E + a11y (Playwright + axe)
-ESLint + TypeScript Check         Docker Build · Installer-Untergrenze
-Pre-push: Geheimnis-Scan          ─────────────────────────
-                                  Security Workflow (Push, PR, wöchentlich)
-                                    CodeQL (Python + JS)
-                                    pip-audit + npm audit
-                                    Trivy filesystem scan
-                                    SBOM generation
-                                  Abhängigkeitsbeobachtung (wöchentlich, ADR-331)
-                                  E2E- + a11y-Matrix: Chromium · Firefox · WebKit (wöchentlich)
-```
-
-### 22.2. Standards
-
-| Aspekt | Tool | Konfiguration |
-|--------|-------|---------------|
-| Python-Formatierung | Black | line-length=100 |
-| Python-Linting | Ruff | E, W, F, I, B, C4, UP, ASYNC2 |
-| Typprüfung | MyPy | Strict Mode |
-| Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
-| Tests | pytest | `asyncio_mode = "auto"` |
-| Coverage | Fixierte Untergrenze (Ratchet: nach jedem Gewinn angehoben, nie gesenkt) | In CI erzwungen |
-
-### 22.3. Reproduzierbare Dependency-Builds
-
-Die Backend-Abhängigkeiten sind durchgängig verriegelt. Die requirements-Dateien
-sind Absichts-Manifeste; was jede Umgebung tatsächlich installiert —
-Produktions-Image, Dev-Container, CI, lokales venv — sind committete universelle
-Lockfiles, kompiliert mit `uv pip compile --universal`: eine einzige Datei für
-linux/amd64, linux/arm64 und Windows, die die ~200 tatsächlich ausgelieferten
-Pakete mit SHA256-Hashes jeder veröffentlichten Datei festschreibt. Vanilla-pip
-installiert sie mit `--require-hashes` — derselbe Commit erzeugt also immer
-dasselbe Image, Byte für Byte verifizierbar. Ein CI-Guard lässt jede
-Manifest-Änderung ohne Lock-Regenerierung fehlschlagen, und `pip-audit` sowie
-die Release-SBOM lesen das Lockfile — der vollständige transitive Baum wird
-auditiert und inventarisiert, nicht nur die deklarierten Pakete.
-
-Das Lock sagt, was installiert ist; bleibt zu entscheiden, **wann eine Version hereinkommen darf** (ADR-331). Kein CI-Gate sieht alles: Die Sicherheitshinweise, die ein Projekt in seinem eigenen Repository veröffentlicht, erreichen nicht immer die öffentlichen Datenbanken — die Prüfung fand zwanzig —, und ein Supportende lässt keinen Test scheitern. Eine wöchentliche Beobachtung liest sie, zusammen mit den Registries und der Browser-Engine, gegen eine Liste datierter, begründeter Akzeptanzen: Ein Befund wird behoben oder schriftlich akzeptiert, nie still. Die Aktualisierung wartet eine Karenzzeit ab, gezählt ab der installierten Version — wenige Tage für einen Patch, zwei Wochen für eine Minor-, zwei Monate für eine Major-Version — und verweigert jeden Rückschritt; eine transitive Sicherheitskorrektur wird zur Manifest-Untergrenze. Jede andere Eingabe des Produktions-Builds — Basis-Images, Python, Node, globale Werkzeuge, das Transkriptionsmodell — ist per Version und Digest fixiert, und ein netzloser Guard prüft, dass ein Image in allen Compose-Dateien und allen Workflows nur eine Referenz hat.
-
----
-
-### 22.4. Das Audit ist öffentlich — und reproduzierbar
-
-Das in diesem Guide beschriebene Qualitätsniveau ist nicht selbst deklariert: ein vollständiges technisches 360°-Audit — **7,9/10 über 24 normalisierte Bereiche** des ISO/IEC-25010-Rasters, offene Befunde inklusive — ist im Repository veröffentlicht ([vollständiger Bericht](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), zusammen mit dem [Audit-Protokoll](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md), das jeden Zyklus reproduzierbar macht: gepinnter Commit, Nachweisanforderungen pro Bereich, verankerte Bewertung und ein versioniertes Skript, das Größe in logischen SLOC misst. Der Bericht endet mit den exakten Befehlen, um die Messungen selbst zu reproduzieren. Jeder Befund, den die Berichte nennen, steht in einem maschinenlesbaren Register, das bei jedem Dokumentations-Build geprüft wird: Eine Schließung oder Behebung trägt ihren Nachweis, und eine Version wird verweigert, solange ein vorrangiger Befund seine Frist überschritten hat.
-
-### 22.5. Eine Wache taugt nur so viel wie das, was sie misst
-
-`html { overflow-x: hidden }` beschneidet einen horizontalen Überlauf, statt
-einen Scroll zu erzeugen. Jede Wache auf Basis von `scrollWidth - clientWidth`
-ist damit **strukturell blind** für ein Bedienelement, das aus dem Bild
-geschoben wurde: Sie würde bei jeder Breite null melden, während
-eine Abmelde-Schaltfläche Hunderte Pixel jenseits des rechten Randes läge. Die
-Wache vergleicht daher die Box jedes interaktiven Elements mit dem Ansichtsfenster
-— Breite für Breite **und Sprache für Sprache**: Deutsch und Italienisch tragen
-die längsten Beschriftungen und brechen zuerst.
-
-Dieselbe Logik gilt für die Höhe: `100vh` bezeichnet das *große* Ansichtsfenster,
-also jenes bei eingefahrener Adressleiste — nicht den Zustand, in dem eine Seite
-auf dem Telefon lädt. Ein Test verbietet jede Höhenbeschränkung allein in `vh`,
-mit schriftlicher Ausnahmeliste und einem Selbsttest, der belegt, dass der
-Detektor noch erkennt.
-
-Und was das mobile Layout weglassen darf, steht in einer Tabelle statt im
-Ermessen: Jede breitenabhängige Fläche erklärt, ob sie blockierend, ersetzt oder
-nur für den Desktop ist — mit Begründung. Tests halten diese Tabelle gegen den
-Code: Der Ort muss existieren, die Tailwind-Variante der angegebenen Schwelle
-tragen, und eine Fläche, die Daten holt oder tickt, muss **bedingt gemountet**
-werden statt nur versteckt: `display:none` mountet die Komponente trotzdem, die
-weiter Netz und Akku für etwas verbraucht, das niemand sehen wird.
-
-### 22.6. Ein Deployment stört den laufenden Stack nicht
-
-Das Deployment-Verzeichnis **an Ort und Stelle** neu aufzubauen wirkt harmlos:
-löschen, kopieren, Container neu erstellen. Diese Überlegung übergeht, wie ein
-Bind Mount funktioniert. Docker löst ihn beim Erstellen des Containers zu einem
-**Inode** auf, nicht zu einem Pfad, der bei jedem Lesen neu ausgewertet wird. Den
-Verzeichnisinhalt zu löschen ersetzt also nicht, was ein laufender Container
-sieht — es zerstört die Inodes unter ihm. Während des gesamten Builds, rund zehn
-Minuten, sieht die Anwendung, die noch antwortet, ihre eingehängten Verzeichnisse
-als **leer**.
-
-Der Entwurf verschiebt das Problem, statt seine Dauer zu verkürzen. Das Bundle
-wird in einem separaten Wartebereich abgelegt, den kein Container einhängt; der
-Build läuft vollständig dort. Der abschließende Wechsel ist ein **Umbenennen**,
-und daran hängt alles: Umbenennen erhält den Inode, also lesen noch lebende
-Container weiterhin genau das, was sie eingehängt haben, bis sie Sekunden später
-bewusst neu erstellt werden. Die Shell, die das Deployment-Skript ausführt,
-behält aus demselben Grund ihren offenen Deskriptor.
-
-Zwei vorherige Generationen bleiben auf der Platte, wodurch ein Rollback Sekunden
-statt eines Neuaufbaus kostet. Die Folgerung steht im Skript:
-**Datenbanksicherungen liegen außerhalb des ausgelieferten Baums**. Ein Dump, den
-ein Deployment erreichen kann, ist kein Dump, und die einzig verlässliche Garantie
-ist die Position — kein Versprechen, ihn in Ruhe zu lassen.
-
-## 23. Übergreifende Engineering-Patterns
-
-### 23.1. Tool-System: 5-Schichten-Architektur
-
-Das Tool-System ist in fünf komponierbaren Schichten aufgebaut und reduziert den Boilerplate pro Tool von ~150 Zeilen auf ~8 Zeilen (94 % Reduktion):
-
-| Schicht | Komponente | Rolle |
-|---------|-----------|------|
-| 1 | `ConnectorTool[ClientType]` | Generische Basis: OAuth Auto-Refresh, Client-Caching, Dependency Injection |
-| 2 | `@connector_tool` | Meta-Dekorator: `@tool` + Metriken + Rate Limiting + Kontextspeicherung |
-| 3 | Formatter | `ContactFormatter`, `EmailFormatter`... — domänenspezifische Ergebnisnormalisierung |
-| 4 | `ToolManifest` + Builder | Deklarative Deklaration: Parameter, Outputs, Kosten, Berechtigungen, semantische Keywords |
-| 5 | Catalogue Loader | Dynamische Introspektion, Manifest-Generierung, Domain-Gruppierung |
-
-Rate Limits sind kategoriebasiert: Read (20/Min), Write (5/Min), Expensive (2/5 Min). Tools können entweder einen String (Legacy) oder ein strukturiertes `UnifiedToolOutput` (Data-Registry-Modus) erzeugen.
-
-### 23.2. Data Registry
-
-Die Data Registry (`InMemoryStore`) entkoppelt Tool-Ergebnisse von der Nachrichtenhistorie. Ergebnisse werden per Request über `@auto_save_context` gespeichert und überleben das Message-Windowing — das macht aggressives knotenweises Windowing (5/10/20 Turns) ohne Verlust des Tool-Output-Kontexts möglich. Schrittübergreifende Referenzen (`$steps.X.field`) lösen gegen die Registry auf, nicht gegen Nachrichten.
-
-### 23.3. Fehlerarchitektur
-
-Alle Tools geben `ToolResponse` (Erfolg) oder `ToolErrorModel` (Fehler) mit einem `ToolErrorCode`-Enum (18+ Typen: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) und einem `recoverability`-Flag zurück. Auf API-Seite ersetzen zentralisierte Exception-Raiser (`raise_user_not_found`, `raise_permission_denied`...) überall rohe HTTPExceptions — null rohe `raise HTTPException` im Code, abgesichert durch einen CI-Guard und ein Vertragstest-Netz, das byte-identische Antworten nachweist — für konsistente, auf jedem Fehlerpfad protokollierte und gemessene (Prometheus) Fehlerverträge.
-
-### 23.4. Prompt-System
-
-Versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/` (eine pro Prompt, das `PromptName`-Literal durch einen Test synchron gehalten), geladen über `load_prompt()` mit einem LRU-Cache, der größer als der gesamte Korpus ist. Versionen konfigurierbar über Umgebungsvariablen.
-
-**Ein Prompt sagt, was der Code erzwingt, und sonst nichts** (ADR-284). Jeder `{placeholder}` einer Datei hat einen Erzeuger in dem Modul, das sie lädt, und eine Datei, die `{{` enthält, wird mit `.format()` gerendert — ein AST-Wächter liest beides pro Datei. Eine Anweisung pro Kontext lebt in der Datei und wird nur ausgegeben, wenn der Inhalt existiert (`response_context_sections.txt`), sodass ein nackter Zug keine leere Hülle und keine Anweisung zu einem fehlenden Dokument trägt. Die Grenze, die ein Prompt veröffentlicht, ist die Grenze, die das Werkzeug erzwingt, aus einer Konstante; eine Zahl kommt aus einer Einstellung und eine Tatsache aus dem Code, der sie anwendet; eine Fähigkeit wird nur versprochen, wenn der Zug sie ausführen kann. Prosa lebt nie in einer `.py`, ein Ersatztext auch nicht: einzeilige Gerüste liegen in `Schlüssel|Vorlage`-Zeilendateien, die ein einziger Parser liest (`parse_prompt_sections`), und eine fehlende Datei ist ein kaputtes Deployment, das laut scheitert, statt einer stillen zweiten Formulierung.
-
-### 23.5. Zentralisierte Komponentenaktivierung (ADR-061)
-
-Die Filterung aktivierter und deaktivierter Komponenten hat eine einzige Implementierung in drei Schichten, statt bei jedem Verbraucher kopiert zu werden:
-
-| Schicht | Mechanismus |
-|---------|-----------|
-| Schicht 1 | Domain-Gatekeeper: validiert LLM-Domains gegen `available_domains` |
-| Schicht 2 | `request_tool_manifests_ctx`: ContextVar einmalig pro Request erstellt |
-| Schicht 3 | API-Guard 403 auf MCP-Proxy-Endpoints |
-
-### 23.6. Feature Flags
-
-Jedes optionale Subsystem wird durch ein `{FEATURE}_ENABLED`-Flag gesteuert, geprüft beim Start (Scheduler-Registrierung), bei der Routen-Verdrahtung und beim Knoteneintritt (sofortiger Short-Circuit). Dies ermöglicht das Deployment der vollständigen Codebasis bei schrittweiser Subsystem-Aktivierung.
-
-### 23.7. Angereicherte Skills: HTML-Frames und Bilder
-
-Skills (Standard agentskills.io) können zusätzlich zu Text auch **interaktive HTML-Frames** und **Bilder** über einen typisierten JSON-Vertrag `SkillScriptOutput` zurückgeben. Das Python-Skript schreibt auf stdout:
-
-```json
-{ "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
-```
-
-Die drei Kanäle sind unabhängig und kombinierbar (nur Text, Text+Frame, Text+Bild oder alle drei). Die vollständige Pipeline nutzt die bestehende Data-Registry-Infrastruktur wieder:
-
-```
-run_skill_script → parse_skill_stdout() → SkillScriptOutput
-                 → build_skill_app_output() → RegistryItem(type=SKILL_APP)
-                 → ReactToolWrapper._accumulated_registry
-                 → response_node → SkillAppSentinel.render() → <div class="lia-skill-app">
-                 → SSE registry_update + sentinel HTML
-                 → MarkdownContent.tsx → SkillAppWidget (iframe sandbox + image card)
-```
-
-**Mehrschichtige Sicherheit**: iframe sandbox `allow-scripts allow-popups` (niemals `allow-same-origin`), strikte CSP automatisch injiziert in `frame.html` für benutzerimportierte Skills (`connect-src 'none'`, `frame-src 'none'`), Limit `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, minimalistische `postMessage`-Bridge ohne `tools/call` oder `resources/read`.
-
-**Galerie-Vorschauen.** Die Detailansicht einer Fähigkeit liefert `assets/preview.png` aus und fällt auf ein Symbol zurück, wenn die Datei fehlt — ein Rückfall, der von einem schlicht leeren Vorschaubild nicht zu unterscheiden ist. Die Vorschauen der System-Fähigkeiten werden deshalb **generiert**: Ein versioniertes Skript hält eine Zeichnung je Fähigkeit vor, in reiner Geometrie ohne Schriftart-Abhängigkeit, wodurch die Ausgabe auf allen Maschinen identisch ist. Eine Prüfung schlägt fehl, wenn einer Fähigkeit die Zeichnung fehlt oder das ausgelieferte Bild nicht mehr dem entspricht, was ihr Generator erzeugt.
-
-**Runtime-Konventionen**: `_lang` und `_tz` werden automatisch in `parameters` injiziert (da POSIX-Locales im Container nicht installiert sind, nutzen die Skripte Inline-Übersetzungstabellen statt `strftime`+`setlocale`). Theme und Locale werden live über `postMessage` + `MutationObserver` auf `<html class>` und `<html lang>` synchronisiert. Iframe-Auto-Resize via `getBoundingClientRect().bottom` (iframe-resizer-Pattern). Client-seitige Interaktivität ausschließlich über `addEventListener` (kein Inline-`onclick` unter CSP) und `crypto.getRandomValues` für Zufallswerte.
-
-**Primacy-Effekt**: `skills_context` wird als dedizierte zweite System-Message mit dem Präfix `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"` injiziert, was sicherstellt, dass die `references/*.md` eines aktiven Skills Vorrang vor den generischen `<ResponseGuidelines>` haben.
-
-**Konditionales Rendering**: `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — diese Widgets werden unabhängig vom `user_display_mode` (Rich HTML / Markdown / Cards) als HTML injiziert, während die übrigen RegistryItems weiterhin vom Cards-Modus abhängig bleiben.
-
-Eine Bibliothek eingebauter Skills demonstriert den Vertrag: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — jeder veranschaulicht eine unterschiedliche Kombination der drei Kanäle.
-
-**Skill-Lebenszyklus**: Jeder Skill durchläuft eine einzige gehärtete Import-Pipeline (`SkillImportService`) — strikte agentskills.io-Namensvalidierung vor jedem Dateisystemzugriff (Path-Traversal-Schutz), Zip-Expansionslimits, Staging + Swap mit automatischer Wiederherstellung der vorherigen Version bei Fehlern und Namen, die pro Konto eindeutig sind: Jede Suche nennt ihren Geltungsbereich, und ein persönlicher Skill verdeckt einen gleichnamigen System-Skill nur für die Person, der er gehört. Der integrierte Skill-Generator nutzt dieselbe Pipeline über das Tool `import_user_skill`: Ein im Chat erstellter Skill wird validiert und unter der Antwort als Karte vorgeschlagen, die die Person liest und mit einem Klick installiert — ohne manuellen Upload, und nichts, was das Modell schreibt, gelangt ohne diesen Klick in ihre Skills. Skills, deren Workflow sich über mehrere Runden erstreckt, deklarieren `dialogue: true` im Frontmatter, was der Chat-Override des QueryAnalyzers respektiert (ihre Erkennung überlebt konversationelle Folgeantworten), während der Skill-ReAct-Runner den gefensterten Gesprächsverlauf erhält, um den Dialog fortzusetzen statt ihn neu zu starten.
-
-Die Skills-Oberfläche ist eine **Galerie**: Karten öffnen ein Detailblatt mit lokalisierter Beschreibung, den deklarierten **Ausgabekanälen** (der Loader liest das `outputs:`-Frontmatter-Feld, das der Generator validiert — Parität CI-gepinnt), einem mitgelieferten `assets/preview.png` über einen dedizierten Endpoint (Traversal-Guard per Namensmuster, Größenlimit, undifferenziertes 404 für admin-deaktivierte Skills) und einem Herkunftshinweis auf jeder Nicht-System-Skill. Die Installation akzeptiert neben dem Datei-Upload eine zweite Quelle: eine https-URL, gehärtet wie in §19.3 beschrieben, die exakt dieselbe Import-Pipeline speist (`skill_url_imports_total{outcome}` zählt jeden Pfad).
-
-**Eine Fähigkeit ändern.** Das erneute Importieren der eigenen Fähigkeit ist ein atomares Upsert (ADR-118), und das Bearbeiten aus dem Chat beruht auf drei Bedingungen: Das Manifest bleibt lesbar, obwohl die Aktivierung das Frontmatter entfernt, sodass eine Anpassung die Felder bewahrt, die sie nicht berührt; ein Ersetzen behält das Vorschaubild, das der Chat nicht transportieren kann; und bei einem Namenskonflikt verlangt der Prompt des Generators, die vorhandene Fähigkeit zu aktualisieren, statt eine umbenannte Kopie anzulegen. Eine Änderung ist daher eine **vollständige Neuerzeugung** unter demselben Namen, der das Lesen des aktuellen Pakets vorausgeht. Das Werkzeug **schlägt vor**, nur die Person installiert: Der Vorschlag durchläuft alle Prüfungen des Imports, ohne etwas zu schreiben, wird in Redis unter einer Obergrenze pro Konto gehalten, seine Karte zeigt, was ein Ersatz hinzufügt, ändert und entfernt, und die Installation — per Token beansprucht, idempotent — lehnt ab, wenn sich der ersetzte Skill geändert hat, seit die Karte ihn beschrieben hat (ADR-327).
-
-**Anderswo geschriebene Skills.** Ein Skill trägt seine Herkunft — System, von der Person geschrieben, von einer Adresse geholt, von einem Plugin mitgebracht oder aus der Bibliothek installiert — und die letzten drei sind **Drittanbieter-Skills**, einmal pro Anfrage von einem einzigen Modul entschieden (`skills/trust.py`); im Zweifel gilt ein Skill als fremd. Ein fremder Skill ist in den Katalogen markiert, seine Priorität wird ignoriert, er führt nie einen Plan aus, und seine Anweisungen laufen nur im isolierten Runner, der ausschließlich seine eigenen Skripte und Ressourcen bindet — keinen Konnektor. Seine Antwort wird ohne entfernte Bilder und ohne HTML dargestellt, und nichts, was er schreibt, bleibt der Person verborgen. Die **Bibliothek** durchsucht skills.sh, liest das GitHub-Repository, das das Portal nennt, und friert den Branch schon bei der Vorschau auf einen Commit ein: Installiert wird, was gelesen wurde, jede Datei gegen ihren Git-Blob-SHA geprüft, die veröffentlichten Audits unter jedem möglichen Namen gelesen, und ein Update ist ein Ordner, dessen Git-Baum sich bewegt hat. Schließlich kann ein Skill **eigene Befehle ausführen** (`run_skill_command`), in einer Kopie seines Ordners im Wegwerf-Container: Ordner und Dateien der Runde gehen als ein Archiv über die Standardeingabe hinein, was er unter `out/` schreibt, kommt ebenso zurück, und eine Datei behält ihren Typ nur, wenn Name und erste Bytes übereinstimmen. Jeder solche Lauf startet aus einem eigenen Image — Python, Node, die Kommandozeilenwerkzeuge und die zugesagten Bibliotheken, ohne Docker-Client und ohne Anwendungscode —, dessen jeder Befehl von einem Test ausgeführt wird, bevor er dem Modell zugesagt wird; das Netzwerk eines Befehls geht durch die Tür aus §34.
-
-### 23.8. Konversations-Verlauf, Suche und reiches Chat-Rendering
-
-Sechs bereichsübergreifende Funktionen teilen dieselbe Produktphilosophie: **sofortiges Feedback, keine Server-Kosten, wenn nicht nötig**.
-
-- **Lese-Invariante & reifes Eingabefeld** — eine streamende Antwort reißt einen nach oben gescrollten Leser nie weg: Die Follow-Entscheidung misst die Geometrie live im Entscheidungsmoment (wachstumskompensiert), ein expliziter Sende-Tick tritt an die Stelle von Daten-Diff-Heuristiken, die an der echten Engine falsch auslösen, und ein schwebender Button mit Badge der Offscreen-Antworten bringt den Leser zurück. Das Eingabefeld trägt einen persistenten Entwurf pro Nutzer (debounced, beim Logout gelöscht), ein ↑/↓-Blättern über die letzten 10 Sendungen, `/`-Slash-Befehle (WAI-ARIA-Combobox auf der nativen Textarea, akzent-insensitives lokalisiertes Filtern) und eine In-Flow-Aktionszeile unter jeder Antwort (Kopieren, Behalten, Teilen, Herunterladen, Feedback, Ausführungs-Trace — Teilen öffnet das Teilen-Menü des Systems und dann die Verbindungen, deren Auswahl das Eingabefeld vorausfüllt, statt zu senden; Herunterladen schreibt eine datierte Markdown-Datei).
-- **Konversations-Verlaufssuche** — Query-Parameter `?search=` auf `GET /conversations/me/messages`. Die Filterung nutzt PostgreSQL `ILIKE` (case-insensitive, akzent-sensitiv — Vertrag per Test gesperrt). Das Frontend verwendet ein `useMemo` auf `messages`, um geladene Nachrichten sofort zu filtern; der Backend-Endpoint bleibt als latente Fähigkeit für eine zukünftige Deep-Search-UI verfügbar.
-- **Scroll-up-Paginierung** — derselbe Endpoint, Keyset-Cursor `?before=<created_at>` mit Rückgabe von `has_more` und `next_cursor`. Die Chat-UI bindet einen `IntersectionObserver` an einen 1-px-Sentinel oberhalb der ersten Nachricht; ältere Seiten werden mit ID-basierter Deduplizierung vorangestellt, und ein gemeinsam genutztes `wasPrependRef` lässt den Auto-Scroll-zum-Boden-`useEffect` diesen Zyklus überspringen, sodass die Ansicht genau dort verankert bleibt, wo der Leser war. Der bestehende zusammengesetzte Index `(conversation_id, created_at DESC)` macht jede Seite zu einem Index-only-Seek, unabhängig von der Konversationslänge. Die Seitenbegrenzungen (Standard 50, harte Obergrenze 200) sind via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT` env-konfigurierbar.
-- **LaTeX-Rendering** — Die mathematischen und wissenschaftlichen Formeln, die LIA schreibt (`$inline$` / `$$block$$`), werden über KaTeX in `MarkdownContent.tsx` gerendert. Da der Assistent seine gesamte Antwort als HTML ausgibt, erkennt ein `rehypeMathInText`-Plugin die `$`/`$$`-Trennzeichen auf hast-Ebene — nachdem `rehypeRaw` das HTML expandiert hat — und wandelt sie in die Marker um, die `rehype-katex` rendert; `remark-math`, auf Markdown beschränkt, sieht in HTML eingebettetes Math nie. Reihenfolge: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`; die Math-Schritte lesen nur bereits sanitisierten Text und erzeugen Spans mit festen Klassen, also keine neue Angriffsfläche. Ein referenziertes Dollarzeichen (`&#36;`, so zeichnet eine Karte das `$` eines Werts) ist ein wörtliches: Ein Schritt auf dem Text markiert es vor den Math-Schritten, und `rehypeRestoreDollars` schreibt es danach zurück.
-- **Syntax-Highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 Sprachen bei Bedarf registriert über `SyntaxHighlighter.registerLanguage(...)`, um das initiale Bundle klein zu halten (Sprachen werden beim ersten Code-Block nachgeladen). Theme wechselt automatisch `one-dark` / `one-light`, gesteuert durch `next-themes`.
-
-- **Rich-HTML-Modus: ein Komponenten-Vokabular** — wählt der Nutzer den Rich-HTML-Anzeigemodus, stellt die Prompt-Direktive sieben vom Design-System gestylte Komponenten bereit (Hinweisboxen mit Titel, Icon-Chips, native `details`-Bereiche, Schlüssel-Wert-Listen, responsive Spalten, nummerierte Schritte, Kennzahlen-Kacheln) plus die Inline-Akzente `mark`/`kbd`/`abbr`, unter einer expliziten Layout-Regel — jede Antwort mit Daten ist eine komponierte Seite (ein einleitender Satz, ein Abschnitt pro Facette in seiner Komponente, ein abschließender Callout), und die Form folgt den Daten der Antwort, nie der Form früherer Antworten. Die Anreicherung ist rein deklarativ (Prompt + CSS + Sanitize-Allowlist: sechs inerte Tags ergänzt, Plugin-Reihenfolge unverändert), und ein CI-Guard schlägt fehl, wenn die Direktive eine Klasse ankündigt, die das Stylesheet nicht abdeckt. Kopieren und Teilen flachen das HTML zu lesbarem Text ab (Zwischenablage mit zwei Formaten `text/html` + `text/plain`), ein Client-Spiegel der `html_to_text`-Semantik des Backends; eine Datei erhält dagegen Markdown: Der `.md`-Export (Download, E-Mail, Lesezeichen) schreibt nur die HTML-Bereiche, wie CommonMark sie liest, in GFM um — Callouts als GFM-Hinweise, Kacheln als Tabellen, Karten als Überschrift mit Stichpunkten — und lässt das Markdown des Modells unangetastet; Icon-Ligaturen sind von der Suchhervorhebung ausgenommen.
-
-### 23.9. Persistenz des proaktiven Feedbacks
-
-Nutzerfeedback auf proaktive Benachrichtigungen (👍/👎/🚫 auf Interessen, Heartbeat) wird direkt in `conversation_messages.message_metadata` JSONB persistiert, über `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. Das Update ist **per `user_id` gescoped** über eine Subquery auf `conversations.user_id`, um Cross-Tenant-Leaks zu verhindern.
-
-Das Frontend liest den initialen Zustand aus `message.metadata?.feedback_submitted` (Buttons bleiben beim Reload für bereits bewertete Nachrichten ausgeblendet) und wendet das Feedback **optimistisch** an (Buttons ausgeblendet + proaktiver Toast vor der Netzwerkmutation). Die Metadata-Keys sind in `src/core/field_names.py` zentralisiert (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
-
-### 23.10. i18n-fähige Tools: thread-sicheres Pattern
-
-Die i18n der Tools beruht auf einem klaren Vertrag zwischen asynchronem Aufruf (`execute_api_call`) und synchronem Formatieren des Ergebnisses (`format_registry_response`). Da Tool-Instanzen **nebenläufige Singletons** sind, die über alle Requests geteilt werden, kann der Sprachzustand nicht auf der Instanz leben.
-
-`ConnectorTool` stellt daher zwei Helfer bereit: `_fetch_language()` (async, liest die Nutzer-Locale aus dem Kontext) und `_language_from_result(result)` (sync, liest die Sprache aus dem Ergebnis selbst), verbunden durch eine Konstante `_LANGUAGE_RESULT_KEY = "_language"`, die als interner Vertrag dient. Keine Instanz-Mutation, keine ContextVar erforderlich für diesen Fluss, und jedes Ergebnis trägt die Sprache, mit der es formatiert wurde. `.po`/`.mo`-Dateien werden in das Docker-Image kompiliert.
-
-Die vollständige Anwendung auf Wetter (`gettext.gettext(text, language)` explizit über alle 6 Call-Sites propagiert) und auf die 6 Hue-Tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) garantiert, dass die Ausgaben in der Sprache des Nutzers gerendert werden — niemals im Service-Default.
-
-### 23.11. Observability-Architektur
-
-Observability ruht auf drei Säulen: **defensive Emission** auf dem kritischen Pfad, vorverdrahtete **Grafana-Dashboards** (33 Dashboards / 861 Panels, die App, Infra und jedes Business-Subsystem abdecken) und **DB-gestützte Gauges**, die durch einen periodischen Updater gepflegt werden.
-
-Ein 26. Dashboard macht aus dieser Telemetrie ein Produkt-Cockpit (ADR-178): Ergebnisse werden E1 validiert (explizite Bestätigung des Nutzers) oder E2 (eine über ein volles Verhaltensfenster unkorrigiert gebliebene Aktion), die exakte deduplizierte Zählung lebt in PostgreSQL — veränderliche Zustände lassen sich nie aus Prometheus-Zählern ableiten — und Grafana liest sie über eine Nur-Lese-Rolle, die auf Aggregat-Views mit fixiertem Statement-Timeout beschränkt ist.
-
-Die Prometheus-Instrumentierung ist systematisch in `try/except Exception: pass` mit Lazy-Imports (`from ... import foo` innerhalb des try) gekapselt, damit kein Metrik-Problem je auf den Ausführungspfad propagiert. Drei dedizierte Postgres-Indizes (`ix_conversations_updated_at` für DAU/WAU, `ix_conversations_created_at` für das Conversations-Histogramm, `ix_connectors_status` für die Aktivierungsrate) bringen die Updater-Queries auf einer bevölkerten DB von ~500 ms auf <50 ms.
-
-Auf Validierungsseite zählt ein FastAPI-Handler `RequestValidationError` die 422er per `field` + `error_type` auf `validation_errors_total`, mit Cap auf 10 Fehler/Request und Truncation auf 40 Zeichen, um die Kardinalität zu begrenzen. Der 422-Vertrag (Standard-FastAPI-Antwort mit `detail`) bleibt strikt erhalten.
-
-Um die tatsächliche Aktivierungsdauer der Connectors ohne Eingriff in den Servicecode zu messen, erfassen **SQLAlchemy Event Listeners** `before_insert` / `after_insert` auf `Connector` das Intervall SQL-Flush → Completion. Doppelte Metrik: `oauth_connector_activation_total` (Counter) + `oauth_connector_activation_duration_seconds` (Histogram).
-
-**DB-gestützte Gauges**, alle 30 s aktualisiert: DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis-Pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
-
-Um die **Prometheus-Kardinalitätsexplosion** auf `connector_api_*{operation}` zu verhindern, werden API-Pfade vor der Emission Segment für Segment sanitisiert: UUID/id/hex_id/token werden durch Platzhalter `{uuid}`, `{id}`, `{hex_id}`, `{token}` ersetzt. Ohne diesen Schutz würde jede Google-/Apple-/Microsoft-API-Anfrage mit einer Ressourcen-ID eine neue Prometheus-Serie erzeugen.
-
-### 23.12. Externes Event-Ingest über gescopte Tokens
-
-LIA akzeptiert externe Event-Ingestionen (iPhone-Apple-Health-Messwerte, Drittanbieter-Payloads, künftige IoT-Kanäle) über ein einheitliches Pattern: REST-Endpoints, authentifiziert durch ein **gescoptes Bearer-Token**, unabhängig vom Session-Cookie-System. Das ist der Mechanismus, auf dem die Domäne [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) beruht (Herzfrequenz + Schritte, gepusht durch eine iOS-Shortcuts-Automatisierung), und er dient als Vorlage für jeden zukünftigen eingehenden Connector.
-
-**Warum ein Token und nicht die User-ID**: Ein Nutzer-Identifier leakt naturgemäß (URLs, JWT-Payload, Logs, Screenshots, Exporte). Ein Token ist ein **rotierbares, widerrufbares Secret**, gescoped auf einen einzigen Endpoint. Das Präfix (`hm_` für Health Metrics) typisiert den Scope.
-
-**Persistenz**: Die Token-Tabelle speichert **ausschließlich den SHA-256-Digest** des Rohwerts. Der Klartextwert (Präfix + ~32 Zeichen `secrets.token_urlsafe`) wird genau einmal bei der Erzeugung preisgegeben. Ein 8-Zeichen-Anzeigepräfix bleibt zur Identifikation sichtbar. Mehrere aktive Tokens können parallel existieren, mit individueller Widerrufsmöglichkeit.
-
-**Idempotentes Batch-Upsert**: Jeder Request enthält eine Liste selbst-gezeitstempelter Samples (`date_start` / `date_end` ISO 8601 mit Offset). Der Server normalisiert auf UTC, kürzt auf die Sekunde, und wendet ein PostgreSQL-UPSERT `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE ... RETURNING (xmax = 0)` an, um Inserts und Updates in einem einzigen Roundtrip zu unterscheiden. Praktische Konsequenz: Der iOS-Client kann den gesamten Tag bei jedem Entsperren erneut pushen ohne Duplikat-Risiko — vorhandene Zeilen werden einfach überschrieben.
-
-**Flexibler Parser**: iOS-Kurzbefehle emittieren Payloads in vier Formen je nach Autor (kanonisches JSON-Array, NDJSON, `{"data":[…]}`-Envelope, oder „Dictionnaire“-Wrapping `{"<ndjson_blob>":{}}`, bei dem das NDJSON als einziger Schlüssel eines äußeren Dicts mit leerem Wert codiert ist). Ein Parser vor dem Service flacht alle vier Formen auf eine standard `list[dict]` vor der Validierung ab — keine Einschränkung darauf, wie der Kurzbefehl nutzerseitig autoriert ist.
-
-**Intra-Batch-Dedupe mit kind-spezifischem Arbitrage**: PostgreSQL verweigert einem `ON CONFLICT DO UPDATE`, dieselbe Zielzeile zweimal zu berühren (`CardinalityViolationError`). iOS emittiert jedoch legitim überlappende Samples (Apple Watch + iPhone, die dasselbe Intervall melden). Ein Helper fusioniert Duplikate **vor** dem UPSERT mit einer pro-Kind gewählten Strategie: **MAX** für Schritte (Watch und iPhone zählen komplementäre Teilmengen der Bewegung — MAX nähert die tatsächliche Wahrheit besser an als SUM-Doppelzählung oder AVG-Unterzählung), **AVG** (gerundet) für die Herzfrequenz (Fusion zweier Sensoren, die auf dasselbe Signal zielen). Collapsierte Duplikate werden in der Response als `updated` zurückgemeldet und über `health_samples_batch_duplicates_total{kind}` verfolgt.
-
-**Gemischte Validierung pro Sample**: Jedes Sample wird individuell akzeptiert oder abgelehnt mit seinem 0-basierten Index und einem begrenzten Grund (`out_of_range | malformed | missing_field | invalid_date`). Gültige Nachbarn im selben Batch werden persistiert — ein punktueller Sensor-Glitch lässt nicht den ganzen Tag verloren gehen. Protokolle enthalten nur Zähler je Grund, keine Rohwerte; diese Datenschutzmaßnahme belegt keine DSGVO-Konformität für jeden Betrieb.
-
-**Sicherheit**: Per-Token-Redis-Sliding-Window-Rate-Limit (60 Req/h Standard, konfigurierbar), Header `WWW-Authenticate: Bearer` (RFC 7235) auf 401, `Retry-After` auf 429, Sample-Obergrenze pro Request mit `HTTP 413` darüber hinaus. Die Konto-Löschung übernimmt der Kontolöschdienst, der jede Gesundheitstabelle explizit bereinigt (das Soft-Delete-Kontomodell behält die `users`-Zeile, sodass die FK-Kaskade nie ausgelöst wird); das Gerät eines gelöschten Kontos kann nicht mehr einliefern.
-
-**Visualisierung**: Ein polymorpher Python-Aggregator durchläuft die nach `date_start` sortierten Samples in einem Fenster und emittiert einen Punkt pro Bucket (Stunde/Tag/Woche/Monat/Jahr), mit `AVG/MIN/MAX` auf den `heart_rate`-Samples und `SUM` auf den `steps`-Samples. Leere Buckets werden mit `has_data=False` emittiert, damit das Frontend (`recharts`, `connectNulls={false}`) ehrliche Lücken statt einer Interpolation anzeigt. Die Settings-Komponente nutzt das Pattern `SettingsSection` + Accordion (4 Untersektionen: API + Tokens, Diagramme, Statistiken, Datenverwaltung) wieder und zeigt das **tatsächliche Aggregationsfenster** an, um die Verwirrung „die Stats bewegen sich nicht, wenn ich die Periode ändere“ zu entschärfen (HF ist invariant, wenn alle Daten in das kleinste Fenster passen).
-
-**Anbindung an die zentralen Schleifen**: Ein **einziger Benutzer-Opt-in-Toggle** steuert vier Konsumenten auf einen Schlag — Konversation (Assistent-Tools), Heartbeat (Quelle `health_signals`), Memory-Extraktion (Prompt-Platzhalter `{health_context}` + optionales `context_biometric`-JSONB-Blob auf Memories mit hoher emotionaler Gewichtung) und Journal (Extraktion + Konsolidierung). Alle vier erhalten dieselbe **sachliche, nicht-rohe Projektion**: Deltas gegenüber der Baseline, Richtungstrends, strukturelle Ereignisse (Inaktivitäts-Streaks usw.) — niemals Rohwerte. Die rollierende 28-Tage-Baseline wählt automatisch `bootstrap` (einfacher Median solange weniger als 7 Tage Historie verfügbar sind — dem LLM weitergegeben, damit es seine Aussagen qualifiziert) und wechselt dann zu `rolling`. Das Löschen von Rohmesswerten betrifft die Tabelle `health_samples`; abgeleitete Erinnerungen und andere Aufzeichnungen haben eigene Löschkontrollen.
-
-**Dieselbe Grenze trägt SMS** (ADR-357). Eine iPhone-Kurzbefehle-Automation sendet jede Nachricht mit einem reinen Schreib-Token des Telefons (`pi_`); eine stabile Ereignis-UUID macht aus einer Wiederholung ein Duplikat und aus anderem Inhalt unter derselben Kennung einen Konflikt, Element für Element in einem Batch. Quittung, verschlüsselte Nachricht, ihr Suchindex und eine Outbox pro Ziel werden in einer einzigen Transaktion festgeschrieben, und ein Worker mit Lease stellt eine Push-Nachricht ohne Inhalt zu. Erkannte Zugangsgeheimnisse werden vor der Speicherung ausgeschlossen, der Assistent liest das Archiv nur mit einer eigenen Einwilligung, und jeder Leser — Chat, Beziehungen, Proaktivität, Radio, ein Anruf — erhält begrenzte externe Belege nach einer frischen Prüfung von Eigentümer, Einwilligung und Quelle. Der persönliche Export streamt die lesbaren Nachrichten, und eine Löschung macht gehostete Exporte ungültig.
-
-### 23.13. Installierbare Anwendung (PWA)
-
-Sechs lokalisierte Manifeste (`/manifest-{lng}.json` — lokalisiertes `lang`, `start_url`, drei Shortcuts, getrennte `any`/`maskable`-Icon-Einträge; die strukturelle Parität der 6 Dateien ist test-gepinnt) werden pro Seite via `generateMetadata` verlinkt, mit echten PNG-Icons und einem `apple-touch-icon` (iOS ignoriert SVG-Touch-Icons stillschweigend). Das **Share-Target** des OS (`GET /{lng}/share`) komponiert geteilte Titel/Text/URL in einen begrenzten Chat-Entwurf über die bestehende `?draft=`-Schiene — nie automatisch gesendet. Ein dezenter Installationshinweis erscheint ab dem dritten Besuch (nie im Standalone-Display-Mode, dauerhaft ablehnbar); Chromium erhält einen echten Install-Prompt via `beforeinstallprompt`, iOS die Anleitung Teilen → Zum Home-Bildschirm.
-
-**Die Position überlebt den mobilen Lebenszyklus** (ADR-219). Eine vom OS eingefrorene PWA baut ihren Zustand nie neu auf: Ohne Vorkehrung liefe die Position stillschweigend ab, und jede Anfrage fiele auf die Heimatadresse zurück. Jede Positionsauflösung läuft daher durch eine einzige Kaskade — lebendige Browser-Position, sonst zuletzt gespeicherte Position (Opt-in, verschlüsselt, frisch unter 24 h), sonst Heimatadresse —, die geplante Aktionen ohne Browser ohne eigenen Code erben. Zwei Ehrlichkeitsregeln begrenzen sie: eine gespeicherte Position reist mit ihrem Alter, und das Modell nennt es („basierend auf deiner letzten bekannten Position um 9:30“), nie als aktuelle Position; und „zu Hause“ wird nie aus einer unterwegs erfassten Position aufgelöst. Bei Rückkehr in den Vordergrund wird die Berechtigung neu geprüft: noch erteilt, aktualisiert sich die Position stillschweigend; zurückgefallen — iOS tut das nach Inaktivität — liefert ein Banner direkt beim Öffnen des Chats die Nutzergeste, die das native Berechtigungsblatt verlangt.
-
-### 23.14. Navigationsindex: eine Tabelle, zwei entgegengesetzt blickende Wächter
-
-Die Einstellungsseite stapelt rund dreißig eingeklappte Bereiche über mehrere Tabs. Sie zu erreichen verlangt eine Tabelle, die ein URL-Token einem Tab und einem Akkordeon-Wert zuordnet. Eine solche Tabelle verfällt nie lautstark: Sie hört eines Tages einfach auf, die Seite zu beschreiben.
-
-Zwei Wächter halten sie, und sie blicken in entgegengesetzte Richtungen. Der erste läuft von der Tabelle zum Code: Jeder Eintrag muss eine existierende Datei benennen, dort den beanspruchten Wert deklarieren und in dem angekündigten Tab liegen — wobei der Tab aus der Seite gelesen und nicht ein zweites Mal deklariert wird. Der zweite läuft vom Code zur Tabelle: **jede** in einem Tab-Panel gerenderte Komponente muss indexiert, strukturell oder mit schriftlicher Begründung ausdrücklich ausgenommen sein. Ein vierter Ausgang existiert nicht, sodass ein morgen hinzugefügter Bereich eine Entscheidung genau dann erzwingt, wenn er hinzugefügt wird, statt still zu verschwinden.
-
-Der darauf aufgebaute Suchindex ist **typseitig** vollständig: Seine Metadaten sind ein `Record`, dessen Schlüssel die Vereinigung der Token bilden — eine Destination hinzuzufügen, ohne zu sagen, wie sie heißt, kompiliert nicht. Der Abgleich stützt sich auf den Normalisierer, den alle Suchoberflächen des Produkts teilen: Groß- und Kleinschreibung, Diakritika, typografische Apostrophe und geschützte Leerzeichen werden auf die Form gefaltet, die eine Tastatur erzeugt. Diese Faltung gehorcht einer harten Bedingung — ein Codepunkt für einen Codepunkt, sonst verschieben sich die Highlighter, die Offsets auf den Originaltext zurückrechnen, um genau denselben Betrag.
-
-Eine Destination kann dennoch berechtigterweise fehlen: Mehrere Bereiche rendern nur, wenn die Funktion aktiv oder die Daten vorhanden sind, und das inaktive Tab-Panel ist nicht eingehängt — nichts kann es im Voraus beobachten. Die Entscheidung lautet, diese Destinationen im Index zu behalten und bei der Ankunft die Beobachtung auszusprechen, statt eine sichtbare Sackgasse gegen einen unsichtbaren falschen Negativbefund zu tauschen.
-
----
-
-### 23.15. Begrenzte Herkunft: ein Verweis, niemals eine Kopie
-
-Eine Schlussfolgerung, die das System bildet — eine Erinnerung, ein Journaleintrag, ein Interesse — muss die eine Frage beantworten können, die sie korrigierbar macht: Woher kommt sie? Zwei naive Antworten stehen bereit, und beide sind falsch. Die Ursprungsnachricht in die Schlussfolgerung zu kopieren macht sie zu einem dauerhaften Archiv: Das Löschen der Unterhaltung löscht nichts mehr, da ihr Inhalt anderswo überlebt. Die Erklärung vom Modell neu erzeugen zu lassen liefert eine plausible Rekonstruktion, also eine Erfindung.
-
-Die Tabelle `provenance_references` speichert nur einen **Zeiger und einen Zeitstempel**: die Subjekt-ID, die Unterhaltungs- und Nachrichten-ID sowie ein `outcome` aus `origin`, `evidence`, `contradiction`. Die Asymmetrie der Fremdschlüssel trägt die gesamte Doktrin:
-
-| Verknüpfung | Regel | Grund |
-|-------------|-------|-------|
-| zum Subjekt (Erinnerung, Journal, Interesse) | `CASCADE` | ein Verweis auf eine gelöschte Schlussfolgerung hat kein Subjekt mehr |
-| zu Unterhaltung und Nachricht | `SET NULL` | das Löschen einer Unterhaltung **leert den Verweis und lässt die Zeile stehen**, mit Datum: das ist der Grabstein |
-
-`CASCADE` auf der Quellseite hätte selbst den Hinweis getilgt, dass eine Quelle existierte — was sich genau wie „das System hat das erfunden“ liest. Die Spur ist auf fünf Verweise je Subjekt begrenzt, beim Schreiben gekappt, und diese Grenze wird in der Antwort **veröffentlicht**: Was das System durchsetzt, sagt es auch. Eine `CHECK`-Bedingung erzwingt genau ein Subjekt je Zeile, denn ein polymorphes Paar `(kind, id)` kann kein Fremdschlüssel sein — und ohne Fremdschlüssel wäre der Grabstein durch gar nichts garantiert.
-
-Der Schreibvorgang ist **best-effort und in einem Sicherungspunkt isoliert**. Best-effort allein genügt nicht: Ein fehlgeschlagenes `flush` hinterlässt die Sitzung in einem Fehlerzustand, sodass das Verschlucken der Ausnahme den Tod des Aufrufers nur auf dessen nächste Anweisung verschiebt. Der Sicherungspunkt macht das Verschlucken ehrlich — Herkunft erklärt eine Schlussfolgerung, sie bedingt sie nie.
-
-### 23.16. Fähigkeitenkarte: ein Durchgang, drei Zustände, keine Punktzahl
-
-Was der Assistent für ein Konto leisten kann, wird nicht clientseitig mit einem Hook je Subsystem abgefragt — das wären ein Dutzend Anfragen beim Mounten und ebenso viele Gelegenheiten, dass zwei Antworten derselben Tatsache widersprechen. Die Auflösung geschieht in **einem serverseitigen Durchgang**, einem `asyncio.gather` unabhängiger Sonden, **jede auf eigener Sitzung** — eine `AsyncSession` ist bei nebenläufiger Nutzung nicht sicher. Eine fehlschlagende Sonde fällt auf „nicht bereit“ zurück: Eine Karte, die sich nicht zeichnet, weil eine Tabelle unerreichbar war, ist schlimmer als eine Karte mit einem dunklen Knoten.
-
-Drei Zustände, und die Unterscheidung der letzten beiden trägt den Sinn: **nicht verfügbar** (die Instanz hat das Subsystem deaktiviert — der Knoten ist *abwesend*, niemals ausgegraut: ein Bedienelement, das das Produkt nicht einlösen kann, ist schlimmer als gar keines), **ruhend** (verfügbar, nichts eingerichtet — es trägt den nächsten Schritt), **aktiv** (wirklich nutzbar, mit der Zahl, die es belegt).
-
-Nichts Veröffentlichtes ist ein Level, ein Fortschrittsprozentsatz oder ein Vergleich, und ein Test formuliert das als Schemabedingung. Die Darstellung folgt derselben Regel: Die Zeichnung ist dekorativ und für assistive Technologien verborgen, während alles Erreichbare ein benannter Link ist — ein `<circle>` mit `onClick` sähe identisch aus und wäre ohne Maus unbrauchbar. Die Figur verbindet die aktiven Fähigkeiten in **Winkelreihenfolge**, der einzigen Reihenfolge, die sich um einen inneren Punkt nicht selbst schneiden kann.
-
-### 23.17. Ein Status benennt einen Ton, er schreibt seine Farben nicht selbst
-
-Eine Statusmarkierung zu rendern — eine Priorität, eine Richtung, eine Rolle — wirkt trivial, und genau deshalb schreibt am Ende jeder Bildschirm seine eigenen Klassen. Komponenten, die jede ihre eigene Zuordnungstabelle für dieselbe Aufgabe führen, zahlen dafür dreifach.
-
-**Die versprochene Unterscheidung kann fehlen.** Zwei Stufen, bei 10 % Deckkraft über Tokens gerendert, die in OKLCH 23° auseinanderliegen, sind auf dem Bildschirm dieselbe Stufe. Kein Code-Review fängt das ab: Die beiden Zeilen lesen sich im Quelltext verschieden und auf dem Schirm gleich.
-
-**Handgeschriebene Klassen umgehen die Kontrastprüfung.** Die Prüfung des Designsystems verifiziert jedes Paar, das die Komponenten tatsächlich erzeugen, über fünf Themes in Hell, Dunkel und absolutem Schwarz. Was anderswo steht, ist nicht darin.
-
-**Ein unbekannter Status fällt auf den Rückfallwert der Tabelle**, was einen Wert rot darstellen kann, den niemand je dringend genannt hat.
-
-Ein einziges Modul liefert deshalb Funktionen, die eine **Komponentenvariante** zurückgeben, niemals eine Klasse. Daraus folgen zwei Regeln:
-
-| Regel | Grund |
-|-------|-------|
-| Die Hierarchie trägt die **Dichte**, nicht der Farbton allein | Ein voller Grund gegen eine Tönung bleibt lesbar für jemanden, der die beiden Farben verwechselt, und in Graustufen |
-| Ein unbekannter Wert ist **neutral** | Eine unerkannte Stufe als dringend darzustellen ist eine Behauptung, die niemand aufgestellt hat |
-
-Formkorollar: Eine Markierung ist für ein **Wort** gemacht. Die Komponente fixiert ihre Höhe, sodass ein dreizeiliger Satz herausläuft und wie durchgestrichen wirkt. Langes wird durch typografisches Gewicht hervorgehoben, das nichts über die Länge annimmt.
-
-### Das Designsystem als geprüfter Vertrag
-
-Visuelle Konsistenz ist ein werkzeuggestützter Vertrag statt einer Review-Disziplin (ADR-206 bis ADR-208). Ein Status wählt seine Farbe nicht selbst: Er **benennt einen Ton**, und eine einzige Tabelle entscheidet (`status-tone.ts`), abgedeckt vom Kontrast-Guard über fünf Themes in Hell, Dunkel und absolutem Schwarz. Eine Aktion wählt ihre Form nicht selbst: ihre **Flughöhe** tut es — gefüllt zum Erstellen, gefüllt rot für Massenlöschung, rot im Ruhezustand für das Löschen einer Zeile, Kontur für die echte Sekundäraktion. Und eine Listenzeile zeigt ihre Aktionen auf **genau eine Weise**, gestützt auf eine gemeinsame Komponente.
-
-Absolutes Schwarz (ADR-243) erweitert diesen Vertrag, statt ihn aufzuweichen. Es zu einem dritten Theme zu machen wäre naheliegend gewesen; es hätte aber die Klasse `dark` von der Seite entfernt und damit neun interne Prüfungen auf ihren hellen Zweig umgelegt — helle Syntaxhervorhebung auf schwarzer Seite, weiße Diagramme — und anschließend die gesamte öffentliche Website auf ihre helle Variante zurückgeschickt. Absolutes Schwarz ist daher eine **Verfeinerung** des Dunkelmodus, getragen von einem eigenen Attribut, dessen Selektor die fünf Akzente unabhängig von der Dateireihenfolge schlägt. Sechs neutrale Flächen bewegen sich, keine Akzentfarbe: Ränder behalten sogar ihren dunklen Wert, der sich vor Schwarz besser abhebt als vor dem ursprünglichen Grau. Die Flächen sind gegen den ausgelieferten Dunkelmodus kalibriert, nicht gegen Null, sodass sich nichts schlechter abhebt als im Dunkelmodus.
-
-Die Textgröße folgt derselben Logik der Verfeinerung (eine Einstellung pro Konto, von 14 bis 20 px). Die Wurzelgröße zu vergrößern hätte alles vergrößert — Abstände, Bereiche, Symbole — und Chat wie Debug-Panel gestaucht; es ist daher eine **Textskala**, `--lia-text-scale`, die die Tailwind-Schriftskala, die Text-Tokens, den `body` und ein Utility `text-px-N` multipliziert, das jede von Hand geschriebene Pixelgröße ersetzt. Layout-Maße bleiben in festen `rem`. Zwei Fallen halten Tests fest: `tailwind-merge` muss lernen, dass `text-px-N` eine Größe ist, sonst hält es sie für eine Farbe und entfernt die benachbarte Farbe; und ein End-to-End-Test vergleicht die Boxen der Bereiche bei 14, 16 und 20 px, von 320 bis 1.440 px Breite.
-
-Die Einstellungsoberfläche selbst folgt derselben Doktrin von Struktur statt Disziplin (ADR-227). Die Seite rendert als Master-Detail-Schale — eine permanente Leiste der Bereiche neben einem Panel, das genau einen davon einhängt, eine Übersicht beschreibender Karten, wenn nichts ausgewählt ist — und listet nichts von Hand: Reihenfolge, Gruppierung und die eingehängte Komponente leiten sich aus der Deep-Link-Tabelle und zwei compiler-vollständigen Registern ab, jedes durch Tests gegen die Quelltexte der Bereiche bewiesen. Die Konsequenz ist architektonisch, nicht kosmetisch: Ein Bereich existiert auf der Seite genau dann, wenn die Tabellen ihn deklarieren, kein Layout wird von Bereich zu Bereich dupliziert, und nur der gewählte Bereich lädt — die übrigen feuern beim Öffnen eines Tabs keine Anfrage. Abwesenheit bleibt ehrlich: Ein Bereich, der legitim nichts rendert (Instanz ohne MFA, nie ein Anruf), zeigt einen expliziten leeren Zustand, der weiter nachschaut — spät antwortende Daten ersetzen die Meldung.
-
-Dieselbe Doktrin beantwortet ein leiseres Versagen: eine Oberfläche, die unbemerkt aufhört, das Produkt zu beschreiben (ADR-229). Die Fähigkeitskarte — die Seite, die beantwortet „was kann mein Assistent für mich tun?“ — ist der Bildschirm, dessen ganze Aufgabe Aktualität ist, und eine eingefrorene Knotenliste fiele mit jeder ausgelieferten Fähigkeit weiter zurück; eine schriftliche Konvention genügt dort nicht, die Antwort ist daher strukturell. Zwei deklarierte Tabellen partitionieren die Plattform-Fähigkeiten in „zeichnet einen Knoten“ und „bewusst nicht auf der Karte, aus diesem geschriebenen Grund“, und ein Assert läuft beim IMPORT: Eine Fähigkeit, die ohne Entscheidung hinzugefügt wird, lässt den Start scheitern, statt unsichtbar auszuliefern. Ein Begleit-Guard liest die drei Client-Oberflächen, die der Assert nicht sieht — die Plätze im Diagramm, die „nächster Schritt“-Links, die sechs Sprachen — denn ein Guard, der nur Python beobachtet, übersähe die TypeScript-Hälfte der Drift. Dieselbe Aggregation speist danach die Einstellungsübersicht: Eine Anfrage sagt, was jeder Bereich gerade enthält, in genau den Worten der Fähigkeitsliste — und schweigt vollständig, solange die Antwort unterwegs ist, wenn sie fehlschlug, oder für einen Bereich, von dem sie nichts weiß.
-
-Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eines `inline`-Elements werden **berechnet, aber nie gezeichnet**. Ein `<label>` ist im Browser standardmäßig inline, deshalb ist die Label-Primitive als `block` deklariert — sonst erzeugt jedes `space-y-*` über einem Bedienelement denselben Drei-Pixel-Abstand, gleich welchen Werts, und eine Rekalibrierung ändert den Code, ohne einen Pixel zu bewegen. Daraus folgt der Reflex: Wenn eine visuelle Einstellung keine Wirkung zeigt, zuerst `display` und DOM-Geometrie im echten Browser messen, bevor die Auslieferung verdächtigt wird. Eine Wache sichert das ab.
-
-### Eine Tiefe, die sich lesen lässt, eine Schaltfläche, die sich selbst treu bleibt
-
-Zwei Oberflächenregeln wurden zu Komponentenverträgen statt zu Gewohnheiten. Die erste betrifft die Tiefe: Ein Panel deklariert seine Fläche — primär oder verschachtelt —, die Flächen wechseln in jedem Theme zwischen hell, dunkler, hell ab, absolutes Schwarz inklusive, und ein Feld nimmt über eine einzige CSS-Variable den Gegenton des Panels an, das es trägt; ein Browsertest misst die berechneten Farben statt der Klassen. Die zweite betrifft das Warten: Eine beschäftigte Schaltfläche behält ihre Beschriftung, ihre Größe und den Fokus, erklärt sich als `aria-busy`, ignoriert ein zweites Drücken, ohne sich zu deaktivieren, und Paginierung wie Zeilenaktionen folgen derselben Regel. Chronologische Listen — Besprechungen, Anrufe — ordnen sich nach lokalem Tag und Tageszeit, mit einem Beginn und einem Ende, das nie aus einer Dauer erraten wird, und ein Ladefehler behält die bereits angezeigten Zeilen, statt sich als leere Liste auszugeben. Auf dem Telefon berechnet LIAs Begleiter einen freien Platz fern von Feldern, Schaltflächen und Überschriften, schrumpft zu einem Punkt, wenn er keinen findet, und überschreibt nie die Position, die die Person gewählt hat.
-
-## 24. Architekturentscheidungen (ADR)
-
-363 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
-
-| ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
-|-----|----------|----------------|---------------|
-| 001 | LangGraph für Orchestrierung | Bedarf an State-Persistenz + HITL-Interrupts | HITL-Wiederaufnahme auf persistiertem State |
-| 002 | BFF-Pattern (JWT → Redis) | JWT XSS-anfällig, Widerruf unmöglich | Speicher -90 %, OWASP A |
-| 003 | Dynamische Filterung nach Domäne | 10x Prompt-Größe = 10x Kosten | 73-83 % Katalogreduktion |
-| 005 | Filterung VOR asyncio.gather | Plan + Fallback parallel ausgeführt = 2x Kosten | -50 % Kosten für Fallback-Pläne |
-| 007 | Message Windowing pro Knoten | Lange Konversationen = 100k+ Token | -50 % Latenz, -77 % Kosten |
-| 048 | Semantic Tool Router | Ungenaues LLM-Routing bei Multi-Domäne | +48 % Genauigkeit |
-| 049 | Semantische Embeddings | Ungenaues reines LLM-Routing | +48 % Genauigkeit via semantische Embeddings |
-| 057 | Personal Journals | Keine Reflexionskontinuität zwischen Sessions | Injection in Planner + Response |
-| 061 | Centralized Component Activation | 7+ duplizierte Filterstellen | Einzelquelle, 3 Schichten |
-
----
-
-## 25. Evolutionspotenzial und Erweiterbarkeit
-
-### 25.1. Erweiterungspunkte
-
-| Erweiterung | Schnittstelle | Dokumentation |
-|-----------|-----------|---------------|
-| Neuer Konnektor | `OAuthProvider` Protocol + Client Protocol | `GUIDE_CONNECTOR_IMPLEMENTATION.md` + Checkliste |
-| Neuer Agent | `register_agent()` + ToolManifest | `GUIDE_AGENT_CREATION.md` |
-| Neues Tool | `@tool` + ToolResponse/ToolErrorModel | `GUIDE_TOOL_CREATION.md` |
-| Neuer Kanal | `BaseChannelSender` + `BaseChannelWebhookHandler` | `NEW_CHANNEL_CHECKLIST.md` |
-| Neuer LLM-Provider | Adapter + Model Profiles | Erweiterbare Factory |
-| Neue proaktive Aufgabe | `ProactiveTask` Protocol | `NEW_PROACTIVE_TASK_CHECKLIST.md` |
-
-### 25.2. Skalierbarkeit
-
-| Dimension | Aktuelle Strategie | Mögliche Weiterentwicklung |
-|-----------|-------------------|-------------------|
-| Horizontal | 4 Uvicorn Worker + Redis Leader Election | Kubernetes + HPA |
-| Daten | PostgreSQL + pgvector | Sharding, Read Replicas |
-| Cache | Redis Single Instance | Redis Cluster |
-| Observability | Vollständiger eingebetteter Stack | Managed Grafana Cloud |
-
----
-
-## 26. Psyche Engine: Dynamische emotionale Intelligenz
-
-### 26.1. Architektur mit 5 Schichten
-
-Die Psyche Engine verleiht dem Assistenten einen dynamischen psychologischen Zustand, der sich mit jeder Interaktion weiterentwickelt, inspiriert vom ALMA-Modell (A Layered Model of Affect, Gebhard 2005) und vom PAD-Raum nach Mehrabian.
-
-| Schicht | Zeitskala | Inhalt |
-|---------|-----------|--------|
-| 1 — Persönlichkeit | Dauerhaft | Big Five (O/C/E/A/N), geerbt von der gewählten Persönlichkeit. Sie modulieren die emotionale Reaktivität, die Empathie und die Erholungsgeschwindigkeit. |
-| 2 — Stimmung | Stunden | Position im PAD-Raum (Vergnügen/Erregung/Dominanz) → 14 unterscheidbare Stimmungen. Klingt zur Grundlinie der Persönlichkeit ab. |
-| 3 — Emotionen | Minuten | 22 diskrete Emotionen (höchstens 4 gleichzeitig) mit einer Intensität [0-100 %]. Sie verschieben die Stimmung über ihren PAD-Vektor. Kreuzunterdrückung ±30 %. |
-| 4 — Beziehung | Wochen | 4 Phasen (Orientierung → Erkundend → Affektiv → Stabil). Fortschritt nur in eine Richtung. Tiefe, Wärme, Vertrauen. |
-| 5 — Antriebe | Pro Sitzung | Neugier (Energie des Austauschs) und Engagement (Qualität). Erfahrung pro Bereich, aus Belegen gelernt (siehe unten). |
-
-### 26.2. Grundprinzip: „Show, Don't Tell“
-
-Der Assistent sagt nie „Ich bin glücklich“ — stattdessen wird sein Vokabular wärmer, seine Sätze werden länger, seine Vorschläge mutiger. Wer mit ihm spricht, nimmt eine lebendige Persönlichkeit wahr, ohne ausdrückliche Gefühlsbekundungen.
-
-### 26.3. Einspeisung der Direktiven
-
-Jede Nachricht erzeugt einen `<PsycheDirectives>`-Block (~100-120 Tokens) mit:
-- **MOOD**: Label + Intensität + eine konkrete Verhaltensdirektive (z. B. „Respond with calm assurance. Use measured, flowing sentences.“)
-- **EMOTIONS**: die 3 stärksten Emotionen mit ihren Direktiven (z. B. „empathy (72%): Mirror the user's emotional tone.“)
-- **RELATIONSHIP**: Phase + Beziehungsdirektive
-- **DRIVES**: Neugier/Engagement mit ihren Auslöseschwellen
-- **EVOLUTION**: Verschiebung von Stimmung/Emotion seit der letzten Nachricht
-
-Ein Verkörperungsleitfaden von 540 Wörtern (`psyche_usage_directive.txt`) erklärt dem LLM, wie jeder Zustand in konkretes Verhalten übersetzt wird — Stimmung für Stimmung, Intensitäten, Übergänge, soziale Distanz je Beziehungsphase.
-
-### 26.4. Selbstbewertung ohne Zusatzkosten
-
-Nach jeder Antwort bewertet sich das LLM selbst über ein verstecktes XML-Tag `<psyche_eval/>`: Valenz der Person, ausgelöste Emotion, Intensität, Qualität des Austauschs. Dieses Tag wird entfernt, bevor die Antwort die Person erreicht. Kein zusätzlicher LLM-Aufruf — die Bewertung ist Teil der Antwortgenerierung. Diese Selbstbewertung speist die Stimmung, die Emotionen und die Beziehung — nie eine Kompetenz.
-
-### 26.5. Globale Einspeisung
-
-Der Psyche-Kontext wird in **alle** nutzerseitigen Generierungspunkte eingespeist: Hauptantwort (reichhaltiges Format), proaktive Benachrichtigungen, Erinnerungen, E-Mails, Sprachausgabe, Unteragenten, Initiative, Fallback (kompaktes Format mit Direktiven für die aktuelle Stimmung).
-
-### 26.6. Frontend
-
-- **Emotionaler Avatar**: Stimmungs-Emoji mit farbigem Ring an jeder Nachricht, pro Nachricht in den Metadaten gespeichert.
-- **Dashboard mit 4 Grafiken**: Stimmung (PAD), Emotionen (Verlauf je Emotion), Beziehung, Antriebe — recharts mit einer Zeitraumwahl von 24 h bis 90 Tagen.
-- **Interaktiver Lernleitfaden**: 7 Abschnitte, geordnet von Schicht 1 bis 5, mit beschreibenden Tabellen der 14 Stimmungen und 22 Emotionen.
-- **Einstellungen**: Expressivität, Stabilität, Auffrischen der Stimmung, vollständiges Zurücksetzen mit ausdrücklicher Angabe, was erhalten bleibt und was zurückgesetzt wird.
-
-### 26.7. Der Ruherahmen, nach Messung neu zentriert
-
-Die Mehrabian-Abbildung lässt **alle 14** Katalogpersönlichkeiten bei D > 0 ruhen (Spanne +0,063 bis +0,349), und Dämpfung, eine Homothetie, kann das nicht beheben: Ohne weitere Stellschraube blieben die fünf Stimmungszentroide, die negative Dominanz verlangen, im Ruhezustand unerreichbar. Zwei Stellschrauben antworten darauf — eine Verschiebung nach der Dämpfung und ein Tor für den Freude-Impuls anhaltender Qualität —, und ihre Standardwerte stammen aus einer Messung an realen Momentaufnahmen statt aus einer Intuition.
-
-Bei 0,20 umspannt der Katalog die Null — 7 von 14 Persönlichkeiten ruhen darunter, ihre Reihenfolge exakt erhalten, P und A unberührt —, und die berichtete Bewertung behält die Kontrolle über den Emotionskanal, statt dass ein Impuls die Freude unabhängig von der Bewertung krönt. Die Grenze ist ebenfalls festgehalten: Die Erregung bleibt blockiert, nicht durch die Geometrie der Ruhepunkte, sondern durch einen Bewertungsstrom, der nie eine Emotion mit geringer Erregung meldet — diese Stellschraube behebt das nicht und darf nicht so gelesen werden, als täte sie es.
-
-### Eine Erfahrung, aus Belegen gelernt, nie aus der eigenen Note (ADR-348)
-
-Sieben kognitive Bereiche — Planung, Information, emotionale Unterstützung, Kreativität, Technik, Soziales, Organisation — bewahren jeweils eine private Erfahrung auf zwei Achsen, die nie verschmolzen werden: das **geprüfte Ergebnis**, also das, was die endgültige Abdeckung der verlangten Ergebnisse festgestellt hat (nie ein HTTP-Status oder ein generisches Erfolgs-Flag), und die **ausgedrückte Nützlichkeit**, das 👍/👎 zur endgültigen Antwort. Ein Zug bildet eine Episode; der ohnehin laufende Anfrageanalysator ordnet ihr höchstens zwei Bereiche zu, ohne zusätzlichen Modellaufruf. Eine ausstehende Bestätigung, eine Ablehnung, ein Kontingent oder ein fehlender Konnektor sind ausgeschlossen: Sie sind keine kognitiven Fehlschläge. Ein Index existiert erst ab fünf Beobachtungen seiner eigenen Achse innerhalb von 90 Tagen, bei höchstens 500 Episoden: Ein einzelner Austausch macht keine Stärke und keine Schwäche mehr.
-
-Eine reine Funktion leitet daraus höchstens eine Anpassung ab: einen Punkt nachprüfen, den der Zug offen lässt, wenn ein erlaubter Lesezugriff im Budget existiert, sonst die Grenze benennen, oder eine einzige Frage zur aktuellen Mehrdeutigkeit stellen, wenn die Nützlichkeit des Bereichs gering ist. Der Planner, jeder ReAct-Aufruf und die Synthese lesen denselben versionierten Block; er ändert weder Modell noch Werkzeug, Berechtigung, Budget oder Bestätigung, und die Fakten des Zugs haben stets Vorrang vor der Historie. Die Belege sind privat, werden mit dem Konto exportiert und durch ein vollständiges Zurücksetzen oder eine Bereinigung gelöscht; der Psyche-Bildschirm zeigt sie als „Noch kein Index“, „Im Lernprozess“ oder „Beobachtet“, nie als Genauigkeitsprozentsatz. Es ist ein Pilot: Kein Gewinn wird beansprucht, bevor ein Vergleich an einem separat gehaltenen Korpus vorliegt.
-
-Die vierzehn Persönlichkeiten tragen ihre Merkmale im Referenzdatensatz, der bei der Installation geprüft wird, und ein Konto, das nie gewählt hat, folgt dem Profil der Standardpersönlichkeit.
-
----
-
-## 27. Deterministisches Gewohnheitslernen
-
-LIA lernt den Aktivitätsrhythmus (2-4h-Fenster pro Wochentags-/Wochenendklasse) und wiederkehrende Anfragen („jeden Montagmorgen die E-Mails“) ohne trainiertes Modell. Drei Gründe, jeder für sich ausreichend: Die Produktion läuft auf einem Raspberry Pi 5 (kein Trainingsbudget), die Interessen-Doktrin verlangt eine dem Nutzer publizierbare Formel, und bei Pro-Nutzer-Volumina würde ein Modell Rauschen lernen, wo kalibrierte statistische Tests Fehlalarme präzise kontrollieren.
-
-Die statistische Einheit ist der **Tag**, nie die Nachricht — Zählung pro Nachricht wird durch Tagesschübe verfälscht (eine in Simulation gemessene Fehlalarmquote von 83-100 %). Ein Fenster wird nur beansprucht, wenn Tagespräsenz, eine Wilson-99%-Untergrenze, Split-Half-Konsistenz, Aktualität und ein Selektivitätskriterium alle halten, mit Ein-/Austritts-Hysterese gegen Flattern. Die Kalibrierung stammt aus einem Simulationsharnisch: 0-0,3 % Fehlalarme bei musterlosem Verhalten, 98-100 % Erkennung in 21-28 Tagen, Verlernen in ~9 Tagen.
-
-Das härteste Problem ist nicht der Detektor, sondern die **Daten**: Unterhaltungen sind konzeptbedingt flüchtig (jederzeit zurücksetzbar), Aktivität aggregiert daher über vier dauerhafte Quellen, per Stundenmaximum fusioniert — lebende Nachrichten, Run-Zusammenfassungen, das Audit-Journal der Zurücksetzungen (eine menschliche Geste per Konstruktion) und eine tägliche Aktivitätsbank. Jede Quelle durchläuft eine **Whitelist menschlicher Sitzungen**, sonst ginge die 07:00-Nachricht einer täglichen geplanten Aktion — der Fahrplan des Schedulers selbst — als Nutzergewohnheit durch. Die Whitelist versagt in Richtung langsameren Lernens (sichtbar), nie in Richtung einer erfundenen Gewohnheit (unsichtbar).
-
-Der Konsum ist bewusst zurückhaltend: Umgebungskontext für Antworten und Briefing, höchstens ein Hinweis auf eine verpasste Routine pro Tag, nach zwei ignorierten Hinweisen stummgeschaltet, bis die Routine wieder vorkommt, und ein Benachrichtigungs-Timing, das gelernte Fenster bevorzugt, ohne je die vom Nutzer gesetzten Grenzen zu erweitern — eine Anti-Aushungerungs-Regel garantiert, dass eine leere Schnittmenge nichts ändert. Jeder angewandte Schwellenwert wird im Panel publiziert: Eine angezeigte Gewohnheit ist bewiesen, oder sie existiert nicht.
-
-Die zweite Hälfte — die **wiederkehrenden Anfragen** — liest die Entscheidung des Routers in geschlossenem Vokabular: genau den Wert, aus dem das Produkt-Dashboard ableitet, sodass eine als Aktion gezählte Runde eine Runde ist, die das Ledger aufzeichnet. Die Signatur bleibt allein die Primärdomäne. Vier Formen sind benannt: täglich, Werktage, wöchentlich und **intermittierend** — „mehrmals pro Woche gegen 9 Uhr“ — entschieden durch die Dichte verschiedener Tage über die zulässige Spanne, nie durch die Sperre: Ein 3×/Woche wird nie als „jeden Tag“ versprochen. Die Schwellen werden auf einem dauerhaften Prüfstand gemessen (`task habits:calibration:measure`, 300 Versuche pro Zelle, dichte und moderate Populationen jeweils mit einer verstreuten Kontrolle bei gleichem Volumen): Ein Tagesrhythmus wird an T+14 erkannt, ein 3×/Woche zwischen T+21 und T+35, ein zu 90 % eingehaltenes wöchentliches Ritual an T+42 — über fünf Slots, damit eine verpasste Woche die Sperre nicht tötet — mit 0-0,3 % falschen Sperren bei strukturloser Nutzung; die vom Prüfstand abgelehnten Lockerungen bleiben in seinen Tabellen. Und Stille ist ein Alarm: `RecurrenceLedgerSilent` vergleicht handlungsfähige menschliche Runden mit gelandeten Schreibvorgängen — ein Ledger, das nichts schreibt, während man mit ihm spricht, ist kein diskretes Ledger, sondern ein kaputtes.
-
-**Was gelernt wurde, wird über EIN Prädikat konsumiert — und per Ausführung auditiert.** Das Gewohnheiten-Panel bearbeitet Spiegelzeilen — ein Fenster lässt sich pausieren oder sperren —, und die drei Verbraucher des Profils (Heartbeat-Block, Tick-Scoring, Umgebungsblock) lesen sie durch eine einzige Tür, sonst würde ein gesperrtes Fenster die Ticks weiter steuern: `habits/consumption.py::load_consumable_profile` behält nur Fenster mit aktiver Zeile, und der Fensterschlüssel hat einen einzigen Erzeuger. Eine gelernte Gewohnheit hat einen Lebenszyklus, den der nächtliche Job besitzt (`recurrence_sync`: befördern, auffrischen, behalten, zurückstufen — nur aktive Zeilen, nie im Zweifel, und auch für ein stilles Konto, das genau der Fall der Rückstufung ist), nie der Chat-Vorschlag. Das Lern-Gate (`learning_gate.read_learning_gate`, fail-closed) schließt jede Tür — den Ledger-Schreibvorgang, den Initiative-Detektor, das Seeding — und folgt `HABITS_ENABLED` plus dem Fähigkeitsschalter `habits`, gelesen bei der Handlung: `habits` und `heartbeat` gehören zur service-durchgesetzten Familie statt zur routergeschützten von ADR-280, weil die Routen das Archiv sind. Die Entscheidung **deklariert** ihr Angebot (`HeartbeatDecision.habit_offered`, Regel 24), statt dass das Angebotsbudget an einem vom Modell gewählten Quellen-Label hängt, und das Angebot hat einen Gegenstand: Der `immediate_intent` des Analysators ist ein begrenztes Histogramm in der Ledger-Nutzlast — nie Teil des Schlüssels, was jedes Ledger fragmentieren würde —, sodass `usual_intent` die Zeile, den Prompt (« usually asks for a 'search' on 'email' ») und das Panel über das geschlossene Vokabular `IMMEDIATE_INTENTS` erreicht. Das Tick-Scoring lebt in `habits/tick_scoring.py` mit einer `TickSurface` je Durchlauf, an dessen Eligibility-Checker gepinnt, und der Interessen-Durchlauf wendet beide Gates an — die Meeting-Sperre und den gelernten Rhythmus; ein Aufwecken umgeht den Rhythmus, tritt aber vor einem Meeting beiseite, wobei das Kalenderurteil `next_start` trägt, damit der Rhythmus nie einen Termin verdeckt. Die Präsenz ist standardmäßig an, und „zuletzt gesehen“ zählt einen Präsenz-Ping. Und das Register der Nachschlagevorgänge wird um den ganzen Durchlauf herum gespeist, Eligibility eingeschlossen: Der Aggregator liest schon in `select_target`, und ein erst in `generate_content` geöffneter Kollektor würde keinen seiner Lesevorgänge erfassen.
-
-## 28. Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation
-
-Eine Instanz zu regieren heißt, drei Fragen zu beantworten: wie viel sie ausgeben darf, was eine Betreiberin abschalten darf, ohne neu zu deployen, und wie jemand anderes das Projekt installiert und betreibt. Die Nutzungslimits pro Konto beantworten eine andere Frage — wie viel ein Konto verbraucht —, und N Konten × ihr Kontingent bleibt unbegrenzte Ausgabe: Das Instanzlimit ist daher eine eigenständige Schranke, keine Summe von Kontingenten.
-
-Das Instanzlimit ist ein **tägliches UTC-Register**, dessen Autorität PostgreSQL ist. Die Kosten jedes Laufs gelangen über ein einziges `INSERT ... ON CONFLICT DO UPDATE` mit Spaltenarithmetik hinein, innerhalb der Transaktion, die ohnehin die Token-Zusammenfassung persistiert — beide landen gemeinsam oder gar nicht, die Prüfung sieht also nie eine unvollständige Sicht. Das Insert läuft über einen SAVEPOINT: eine fehlgeschlagene Anweisung ohne Savepoint zu schlucken vergiftet die Transaktion und reißt den Commit des Aufrufers mit — genau die Buchführung ginge verloren, die man schreiben wollte. Das Erfassen ist **nicht** daran gebunden, dass ein Limit existiert; wäre es das, gäbe es ein Fenster, in dem eine Administration ein Limit setzt, während der Zähler stumm ist, und das Limit löste nie aus — die Falle der wirkungslosen Einstellung (ADR-183). Die Prüfung selbst ist in `check_user_allowed` komponiert, dem einen Tor, das Chat-Router, SSE-Schranke, Sprach-WebSocket und alle geplanten Jobs bereits passieren: Abdeckung entsteht durch Konstruktion, statt die Kontrolle in jeden Aufrufer zu kopieren und den nächsten zu vergessen. Zwei Eigenschaften folgen daraus, beide getestet: das Instanzurteil wird **vor und außerhalb** des Nutzer-Caches berechnet (ein zwischengespeichertes Erlaubt gäbe nach der Erschöpfung die ganze TTL lang weiter aus), und es ist unabhängig vom Flag der Nutzerlimits (eine Kopplung würde eines von beiden still entschärfen). Schließlich kehrt sich die Fehlerdoktrin bewusst um: ein Nutzerlimit scheitert **offen** — schlimmstenfalls eine Nachricht zu viel; eine unbekannte Instanzausgabe scheitert **geschlossen** — schlimmstenfalls das gesamte Budget.
-
-Das Limit hält nur, wenn das Buch vollständig ist, und die Regel gilt nicht nur dem Modell: **Jeder Euro, den die Plattform für eine Person zahlt, wird für diese Person verfolgt, angezeigt, zugeordnet und gezählt – welche Modalität oder welcher Pfad auch immer** (ADR-272, Ergänzung). Eine Google-Maps-Abfrage ganz ohne Modellaufruf – eine Route während eines Telefonats oder einer direkten Live-Sitzung – zählt daher als eigenständige Ausgabe: Die beiden Persistenztüren des Trackers lesen ein einziges Prädikat, `pending_families()`, und eine Wache verweigert einen Datensatzbehälter, den es nicht liest. Der Google-Aufrufzähler schlägt nie offen fehl: Ohne Umgebungs-Tracker wird der Aufruf in `google_api_calls_unaccounted_total` gezählt, von einem Alarm auf null gehalten. Jede Oberfläche außerhalb eines Zuges – Heartbeat, Briefing, Besprechungen, Bildproxys – öffnet ihre eigene Buchführung um den ganzen Akt über eine einzige Tür, die Straße jedes Moduls ist in einem Register – dem Geschwister von `LLM_SPEND_ROADS` – deklariert und über den Importgraphen geprüft, ein berechnetes Bild wird dort gezählt, wo Google es berechnet – am Proxy, auf dem 200, über eine über (Lauf-Id, Konto) signierte Lauf-Id an seinen Zug gebunden –, und eine einzige Spalte, `billed_cost_eur`, trägt, was ein Lauf gekostet hat.
-
-Administrierbare Fähigkeiten folgen demselben Modell zweier zusammengesetzter Schranken — was das Deployment erlaubt, was die Betreiberin darin wählt, die kleinere gewinnt —, doch ihre Schwierigkeit liegt woanders: **wo** eine Fähigkeit tatsächlich durchgesetzt wird. Drei Modi werden ausdrücklich deklariert, denn die falsche Wahl erzeugt einen Schalter, der nichts abschaltet. `agents` entfernt die Werkzeuge der Fähigkeit aus dem Katalog des Durchlaufs, der einmal gebaut wird (`services/turn_catalogue.build_turn_catalogue`) und von allem gelesen wird, was ein Werkzeug anbietet — dem Planer, der ReAct-Schleife, dem Ranking des Routers, der Initiative, einem delegierten Subagenten, dem fertigen Plan eines Skills: ein Filter, nicht einer pro Modus. `route_enforced` lässt eine Router-Abhängigkeit mit einem stabilen Code und dem Namen der Fähigkeit ablehnen, nie mit einem Satz: das Frontend sagt in der Sprache der Lesenden, welche Funktion aus ist. `service_enforced` schneidet an einem internen Engpass: die Sprachausgabe hat **überhaupt keine Route** — sie entsteht im Chat-Stream, und eine Router-Abhängigkeit hätte dort nichts durchgesetzt. Zwei Start-Wächter berechnen die Deklaration gegen die Wirklichkeit neu — existieren die genannten Agenten im lebenden Katalog, ist die deklarierte Route noch montiert —, indem sie die Router-Objekte ablaufen statt den Text der Dateien, damit ein Verschieben der Route mitgeführt und nicht übersehen wird.
-
-Der Installer wendet dieselbe Regel auf die Artefaktkette an: einem Etikett nie vertrauen. Standard ist ein **lokaler Build** aus der ausgecheckten Quelle; der Prebuilt-Modus akzeptiert nur `repository@sha256:...`-Referenzen aus einem Manifest, dessen Qualifikation ausdrücklich `passed` lautet, und das Hochstufen einer Version baut nichts neu — es erzeugt das semantische Tag aus bereits qualifizierten Digests. Geheimnisse kommen über stdin als ein einziges JSON-Dokument, das die Administration über die vorhandene Passwort-Autorität anlegt und die Anbieterschlüssel in derselben Transaktion verschlüsselt; nichts läuft über `argv`, und nichts landet im Wiederaufnahmezustand, der nur nicht geheime Fakten und SHA-256-Fingerabdrücke speichert und bei Abweichung vor jeder Compose-Mutation stoppt. Referenzdaten werden in einer einzigen Transaktion eingespielt, ein `psql`, `ON_ERROR_STOP=1`, gefolgt von einer blockierenden Prüfdatei und einem Marker, der in derselben Transaktion geschrieben wird. Und `/ready` ist notwendig, ohne je hinreichend zu sein: ein geheimnisfreier Verifizierer prüft den einzigen Alembic-Kopf, den exakten Marker, die Nachbedingungen der Referenzdaten, eine aktive Administration, entschlüsselbare Anbieterzeilen und die Anbieterabdeckung **auf der nach dem Seeding wirksamen Konfiguration** — jener, die die erste Nachricht benutzen wird, und nicht den Code-Standards, die das Seeding gerade überschrieben hat. Eine laufende Installation ändert sich, ohne neu installiert zu werden: `--reconfigure` stellt die Routing- und Fähigkeitsfragen erneut und zeigt dabei die geltenden Antworten, listet jeden Konfigurationswert auf, den die neuen Antworten überschreiben würden, und ändert nichts, bevor die Betreiberin bestätigt, ersetzt jede geprüfte Datei nach einer privaten Sicherung in einem atomaren Schritt, erstellt die Container neu, ohne die Images neu zu bauen, und stellt die vorherigen Dateien und den vorherigen Stack wieder her, wenn der neue nicht bereit zurückkommt.
-
-Der rote Faden ist eine Eigenschaft der Tests selbst. Ein Test, der festhält, was der Code am Tag der Lieferung tut, bleibt grün, während das System abdriftet: Eine handgeschriebene Liste beschreibt kein System, sie beschreibt, was ihre Autorin über das System wusste. Diese Wächter **berechnen** den Schutz daher aus der Quelle der Wahrheit neu — die Kostenfamilien, die die Lauf-Zusammenfassung wirklich veröffentlicht, per AST gelesen; die Routen, die die Anwendung wirklich montiert, konfrontiert mit der Auswertungsreihenfolge des Randes; der Konnektor-Router in beide Richtungen abgelaufen, damit unklassifiziert und klassifiziert-aber-abmontiert gleichermaßen rot werden. Jeder Wächter wird absichtlich in die Irre geführt, um zu prüfen, dass er rot wird.
-
-Der öffentliche Demonstrator wendet diese Grenzen auf sich selbst an und macht sie lesbar. Jede Fähigkeit des Registers ist in seiner Umgebungsvorlage schriftlich entschieden — ein- oder ausgeschaltet, mit Begründung — und zwei Wachen verweigern eine dem Code-Standard überlassene Obergrenze oder eine Abweichung zwischen Entwicklungs- und Produktionsvorlage; die Zählung der erreichbaren Routen hängt die Router unter genau diesen Obergrenzen ein, sodass eine abgeschaltete Familie nicht erscheint und eine eingeschaltete Route für Route geschrieben steht. Schließlich veröffentlicht jede Instanz in ihrer öffentlichen Konfiguration den wirksamen Zustand aller Fähigkeiten — Obergrenze und Schalter verknüpft — und die Instanz, die einen Demonstrator ankündigt, liest diese Konfiguration serverseitig und zeigt sie neben dem Link: die Liste dessen, was ein Besucher vorfinden wird und was nicht, folgt der Umgebungsdatei der Demonstration, niemand pflegt sie von Hand.
-
-**Eine Ankündigung sagt, an wen sie gerichtet war** (ADR-312). Das Publikum einer Ankündigung der Administration wird aufgelöst, bevor ihre Zeile geschrieben wird, und ihre Empfänger werden mit ihr gespeichert: Eine gezielte Ankündigung wird nur ihnen ausgeliefert — auch bei ihrer nächsten Anmeldung —, und eine Auswahl, die kein aktives Konto trifft, wird abgelehnt, statt an niemanden oder an alle zu gehen. Der Verlauf liefert eine Seite und ihre exakte Gesamtzahl, eine begrenzte Stichprobe der Empfänger mit ihrer exakten Anzahl, den Ablaufzeitpunkt und die gewählte Frist — in vier Abfragen, wie groß die Seite auch ist.
-
-## 29. Per Datei verwalten: Die Arbeitsmappe ist das Formular
-
-Der LLM-Modellkatalog umfasst über hundert Einträge; jeder trägt rund zwanzig Merkmale und einen vierdimensionalen Tarif. Ein Dialog je Modell ist angemessen, um einen einzelnen Preis zu korrigieren, und absurd, um die ganze Preistabelle aufzunehmen, die ein Anbieter zwei- oder dreimal im Jahr überarbeitet. Die Antwort ist kein weiterer Bildschirm, sondern ein **deklaratives Fundament**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` beschreiben eine Arbeitsmappe, und beide Richtungen werden daraus abgeleitet — der Writer erzeugt die Datei, der Reader liest sie zurück. Das Fundament importiert keine Domäne; die Domäne liefert nur eine Spaltendeklaration und einen Applier, der über ihren eigenen Service geht. Das Verfahren auf einen anderen Verwaltungsbildschirm zu übertragen heißt, eine Deklaration zu schreiben — keinen Formatcode.
-
-### 29.1. Drei Eigenschaften, die einen Export von einer Verwaltung trennen
-
-**Spalten werden über den technischen Schlüssel aufgelöst, nie über die Position.** Die erste Zeile trägt die invarianten Schlüssel und bleibt ausgeblendet; die zweite trägt die übersetzten Beschriftungen, nach Blöcken eingefärbt, und die Daten beginnen in der dritten. Eine Spalte umsortieren, ausblenden, hinzufügen oder in einer Sprache exportieren und in einer anderen zurückspielen: ohne Wirkung auf das Lesen.
-
-**Nichts wird implizit gelöscht.** Eine in der Datei fehlende Zeile löscht niemals etwas — ein in Excel aktiv gebliebener Filter kann keinen Katalog leeren. Die Entfernung läuft über eine ausdrückliche Zustandsspalte, und sie wieder auf wahr zu setzen reaktiviert — eine Deaktivierung hat also stets ihre Umkehrung.
-
-**Die Vorschau verpflichtet.** Der Import läuft in zwei Schritten: Der erste schreibt nichts und liefert den Plan Feld für Feld; der zweite **leitet ihn erneut ab** und verweigert, wenn er von dem gelesenen abweicht. Eine optimistische Sperre **je Zeile** — ein Fingerabdruck in einer ausgeblendeten Spalte — verweigert nur die zwischenzeitlich geänderten Zeilen: Wer ein unbeteiligtes Modell anfasst, bringt nicht die ganze Datei zu Fall. Und was sich nicht geändert hat, wird nicht geschrieben: Ohne diese Regel hinterließe ein erneuter Import des ganzen Katalogs so viele nutzlose Tarifversionen, wie er Zeilen hat.
-
-### 29.2. Die Datei sagt, was ist — nicht, was man annimmt
-
-Drei abgeleitete, schreibgeschützte Spalten existieren, weil die Rohdaten in die Irre führen. Ein Modell ohne aktiven Tarif wird stillschweigend mit null abgerechnet: Die Datei schreibt es aus. Ein Tarif mit Zeitfenstern — die Schwachlastzeiten eines Anbieters — läse sich wie ein Pauschaltarif, lägen seine Fenster nur auf einem Blatt, das niemand zu öffnen Anlass hat: Er erscheint daher in der Zeile, die den Preis trägt. Und der exportierte Modus ist stets der reale Zustand, nie die Anweisung „erben“, die eine Schreibvorgabe ist und kein Zustand.
-
-Die Vollständigkeit wiederum wird **bewacht** statt erinnert. Ein Treuetest, der eine Extraktion mit sich selbst vergleicht, sähe nie eine vergessene Spalte: Das Orakel ist daher das Datenbankschema — jede fachliche Spalte wird exportiert oder mit schriftlicher Begründung ausgeschlossen — und eine morgen ergänzte Spalte färbt die Continuous Integration rot. Das ist die Doktrin der Registry-Vollständigkeitszusicherungen (ADR-085), angewandt auf ein Dateiformat.
-
-### 29.3. Ein Tarif hat eine Antwort, und eine Migration erfindet nichts
-
-Einen Katalog zu exportieren setzt eine einfache Antwort voraus: Wie lautet der Tarif eines Modells? Es gibt konstruktionsbedingt genau eine: Ein eindeutiger Index lässt je Modell nur einen aktiven Tarif zu, jeder Lesepfad wählt in deterministischer Ordnung — zwei Lesevorgänge können im selben Augenblick keine zwei Preise für dasselbe Modell liefern —, und der Preiscache liest bei einem datierten Modell zuerst den exakten Namen, der normalisierte Name ist nur Rückfall, sodass ein datiertes Modell mit eigenem Tarif nie zum Preis seines Basismodells abgerechnet wird. Ohne diese Eindeutigkeit hätte der Export keinen Gegenstand: Er wüsste nicht, welche Zeile er zeigen soll.
-
-Daraus folgt eine Regel, die über diese Domäne hinausreicht: **Eine Migration erfindet niemals Fachdaten.** Die intuitive Regel — die jüngste Zeile behalten — kann falsch sein: Richtig kann die ältere Zeile sein, und die Abrechnungs*einheit* selbst kann sich von einer Zeile zur nächsten unterscheiden. Eine Aufräum-Migration führt daher nur streng identische Dubletten zusammen und hält an, indem sie die abweichenden **benennt**. Die Entscheidung bleibt beim Menschen.
-
-### 29.4. Das Format ist kein Detail
-
-Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers, geteilt statt neu geschrieben, und gelesen wird blockweise begrenzt — eine Datei außerhalb der Vorlage wird abgewiesen, bevor sie vollständig im Speicher liegt. Der Rest hängt an einer OOXML-Eigenheit, die sich rächt: Die Booleans des Blattschutzes bedeuten „gesperrt“, wenn sie wahr sind, sodass das Schützen des Blattes zum Sperren von fünf berechneten Spalten **das Hinzufügen eines Modells verbieten würde**; und das Attribut, das eine Auswahlliste zu aktivieren scheint, blendet sie in Wahrheit aus. Beide Verhalten sind durch Zusicherungen auf dem erzeugten XML festgenagelt, denn eine gutgläubige Korrektur an einem von beiden würde die halbe Ergonomie der Datei stillschweigend entfernen.
-
-## 30. Sichtbare Arbeit, gesteuertes Lernen
-
-Die Aktivitätsseite ist ein **reines Read-Model**: Parallele Fetcher (eine Session pro Quelle, da `AsyncSession` nicht nebenläufig ist) aggregieren die vorhandenen Audit-Tabellen, die Summen sind exakte `COUNT(*)` über das ganze Fenster, Obergrenzen sind deklariert, und eine ausgefallene Quelle wird aufgeführt statt stillschweigend ergänzt — ehrliches Zählen (ADR-185), durchgängig angewandt. Das Gedächtnis führt eine **Supersession-Spur**: Eine automatische Korrektur erzeugt einen Nachfolger und archiviert die alte Tatsache (`superseded_by_id`), jeder Lesevorgang filtert die aktive Menge über ein zentrales Prädikat, und die Spur wird nach der Aufbewahrungsfrist bereinigt; die manuelle Bearbeitung behält ihre Überschreibungshoheit. Gelernte Regeln sind eine **eigenständige Gedächtniskategorie**, an den Anfang des Prompts eingefügt, unter denselben Schutzmechanismen (Anheften, Aufbewahrung, DSGVO). Die Sprachprosodie ist eine **begrenzte Modulation** (Totband, harte Grenzen, Flag) der administrierten Einstellungen — nie ein Ersatz. Und die Autonomie bleibt gedeckelt: Das ReAct-Iterationsbudget passt sich der Domänenbreite der Anfrage an, ohne je die konfigurierte Obergrenze zu überschreiten, und eine unbekannte Komplexität erhält die volle Obergrenze — gespart wird nur beim nachweislich Einfachen.
-
-## 31. Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur
-
-Das Augen-Widget des Chats (ADR-240) beruht auf einem einzigen Prinzip: **kein neues Signal, keine neuen Kosten**. Eine reine Engine — Entscheidungstabellen mit injiziertem RNG und injizierten Uhren — leitet einen von zwanzig Ausdrücken aus einer Prioritätskette ab (Fehler > HITL-Frage > Stimme > Interaktion > Reaktion des Zuges > Benachrichtigung > Tippen > Inaktivität > Stimmung × Uhrzeit), gespeist ausschließlich aus vorhandener Maschinerie: Chat-Zustandsmaschine, SSE-Ausführungsschritte (Nachdenken vs. Tool-Suche), HITL-Karte, Sprach-Zustandsmaschine und Psyche-Engine. Die Reaktion auf jede Antwort liest den emotionalen Selbstbericht, den das Modell seinem eigenen Zug bereits anhängt, mit einem streng sprachneutralen heuristischen Fallback (Interpunktion, Emojis, Struktur — chinesische Vollbreite eingeschlossen). Das Rendering ist deklarativ — ein Ausdrucksattribut, CSS-Variablen und ein Animationsblatt, in dem Augenlider **reine geometrische Morphs** sind (verankerte vertikale Kompression, Rotation pro Auge, Radienformung): nirgendwo Clipping, jeder Zwischenzustand bleibt eine glatte Kurve. Das Leben zwischen den Ereignissen — Blinzeln, Blicksakkaden, stimmungsgewichtete Gesten, Tagtraum-Miniszenen, seltener Slapstick — lebt in Schedulern mit eigenen Timern, pausiert bei verstecktem Tab oder minimiertem Widget und erstarrt unter `prefers-reduced-motion`. Die wählbaren klassischen Looks teilen dieses eine Skelett: ein generisches Register, in dem ein neuer Blick eine id, ein gescoptes CSS-Blatt und sechs Locale-Einträge kostet — Vollständigkeit ist ein Test, keine Konvention.
-
-Das Gesicht lebt zwischen zwei Antworten, und dieses Leben ist ein Rig, kein Stylesheet (ADR-252, ADR-264). Eine TypeScript-Laufzeit berechnet jeden Kanal in jedem Frame — analytische Federn, additive Schleifen, Bänder aus Keys — und veröffentlicht das Ergebnis als `--rig-*`-Eigenschaften, die das Stylesheet nur liest: Ein Stylesheet deklariert nie eine davon und legt nie eine Transition auf einen Wert, der sich sechzigmal pro Sekunde ändert. Die Braue hat einen Bogen und bleibt in Ruhe leicht präsent; ein einziger Atem trägt die Masse, die Brauen und die Mundbreite auf derselben Periode; der Blick hebt die Brauen und ein Blinzeln senkt sie, im Rig gekoppelt als **absolute Beiträge statt Inkremente**, weil der schnelle Ruhepfad nur die Kanäle neu schreibt, auf denen eine Schleife reitet — ein Inkrement würde dort die ganze Sitzung lang driften, was ein Test festhält, indem er zwanzigtausend kleine Schritte mit einem einzigen vergleicht. Sprache hat Phrasen (eine Hüllkurve durch den Schluss, eine Öffnung, die im Einheitsintervall bleibt) und Brauen, die in unregelmäßigem Muster interpunktieren. Der Mund hat ein Eigenleben — relative Mimiken in zufälliger Kadenz, vom Rig geplant — und zehn kurze Szenen auf einem ruhenden Gesicht, von jedem Ausdruckswechsel abgebrochen, das Gesicht genau dort, wo es war, gegen ein Zwillings-Rig geprüft. Der Zufall stammt aus einem separaten, geseedeten Strom, nie aus `Math.random`, damit die Widget-Tests deterministisch bleiben; das lebendige Halten ist in den Tests ein Pixel-Budget — in Ruhe sichtbar, unter zwei Pixeln, exakt null auf einem konzentrierten Gesicht. Dasselbe Widget begrüßt Besucher auf der öffentlichen Startseite: kein Konto, eine Position pro Oberfläche, BIP männlich dort unabhängig von der im Chat gespeicherten Auswahl dargestellt, während der Chat den Stil des Nutzers behält — und die Vorschauen des Stilwählers schalten dieses Leben ab, denn eine Vorschau vergleicht Silhouetten.
-
-Jeder Kanal des Rigs wird gegen eine Messung dessen abgestimmt, was die Seite tatsächlich rendert (ADR-294). Die Braue sitzt auf dem Auge und wiegt: Sie hat Masse, zieht sich zusammen und **führt** jeden Ausdruck, statt ihm zu folgen. Die Sprache ist keine Schleife, sondern eine erzeugte Phrase — Silben, Pausen, Betonungen —, die nichts wiederholt; die Schläge der Ausdrücke werden bei jedem Zug verzerrt, sodass zwei Blinzler, zwei Lächeln, zwei Blicke nie identisch sind. Die Sketche warten auf echte Ruhezeit auf einer Uhr, die die Seite über Navigationen hinweg behält, denn eine bei jedem Mount zurückgesetzte Uhr ließe die Szene nie ankommen. All das liest sich in den Kanälen, die das Rig veröffentlicht, Bild für Bild gemessen.
-
----
-
-## 32. Native Apps: eine Hülle, dein Server
-
-Die Android- und iOS-Apps (ADR-246) sind **WebView-Hüllen**, einmal pro Store veröffentlicht, Clients für jeden selbst gehosteten Server: Die WebView lädt den **entfernten Ursprung** des Servers, dessen URL beim ersten Start eingegeben wird. Die Oberfläche wird nie dupliziert — der httpOnly-Cookie-Sitzungsvertrag, der die PWA sicher macht, ist genau das, was die Hüllen möglich macht — und jede Plattform-Aussage ist **gemessen, nicht angenommen** (`scripts/mobile-probe/`).
-
-**Die Anmeldung folgt dem einzigen Weg, den Google erlaubt**: Der OAuth-Ablauf wechselt in den System-Browser und kehrt über einen `lia://auth-callback`-Link zurück, eingelöst gegen die Sitzung über einen Einmal-Code, der an einen Prüfwert gebunden ist, den nur die WebView besitzt — ein abgefangener Link ist wertlos, was das eigene Schema akzeptabel macht (App Links fixieren Domains zur Build-Zeit, unmöglich, wenn eine App jeden Server bedient). Diese Verkabelung schloss eine bestehende TOTP-Umgehung der föderierten Anmeldung.
-
-**Push ist nativ und bewusst asymmetrisch.** Android initialisiert Firebase **zur Laufzeit** mit Optionen, die der Server veröffentlicht: Die Benachrichtigungen eines Selbst-Hosters verlassen nie sein eigenes Projekt. iOS kann das nicht — APNs gehorcht nur dem Apple-Team, dem die Bundle-ID gehört — also wird die veröffentlichte App über ein **zustandsloses Relais** geweckt: Der Handle *ist* das versiegelte Geräte-Token (Fernet, eigener Schlüssel), die Benachrichtigung ist ein fester Satz in sechs Sprachen, und das Relais erfährt nie, wer geweckt wurde oder warum. Zweifel löscht nie ein Gerät: Nur „Handle unlesbar“ und „Gerät verschwunden“ dürfen ein Token verwerfen.
-
-**Alle zwölf OAuth-Abgänge kehren in die App zurück** — die Entscheidung „in den System-Browser wechseln“ fällt einmal, am Engpass, den jeder Ablauf ohnehin teilt, und die Rückkehr liest die Ursprungs-Oberfläche aus dem OAuth-State, geschrieben von der einzigen Funktion im Code, die einen erzeugt. Ein **eigener Prüfstand** fährt die echte Debug-App im Emulator über den WebView-Devtools-Socket — zehn Szenen ganz ohne Server, das Scheitern der Navigation zu einer `.invalid`-Origin dient als Orakel.
-
-## 33. Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest
-
-All diese Observability zu emittieren und nichts davon zu lesen heißt: überall instrumentiert und sich selbst gegenüber blind. Das Selbstdiagnose-Subsystem (ADR-247) schließt die Schleife mit einer Designregel pro Säule.
-
-**Lesen wirft nie.** Die Prometheus/Loki/Alertmanager-Clients (`infrastructure/telemetry/`) verdichten jeden Fehlermodus — Timeout, 5xx, defektes JSON, offener Schutzschalter, deaktivierte Quelle — zu einem typisierten `unavailable`-Ergebnis. Eine Installation ohne Observability-Stack läuft unverändert: eine leere URL deaktiviert die Quelle.
-
-**Keine freie Abfragesprache verlässt je ein LLM.** Ein Katalog benannter Abfragen (Vollständigkeits-Assert beim Boot) ist der einzige PromQL-Produzent; ein beschränkter Builder der einzige LogQL-Produzent — geschlossenes Service-Enum, striktes Event-Muster, Zeitraum- und Volumendeckel als Konstanten. Injection lässt sich nicht buchstabieren, und Loki (OOM-Historie auf dem Pi) ist per Konstruktion geschützt.
-
-**Die Selbstprüfung arbeitet auch blind.** Die Leader-Schleife bewertet goldene Signale über Prometheus *und* In-Process-Sonden (PostgreSQL, Redis, Schutzschalter, die eigene Lebendigkeit): Ist Prometheus tot, werden die betroffenen Prüfungen `unknown`, doch die Schleife läuft weiter — und `unknown` deckelt das Gesamtverdikt bei `degraded`, denn blind ist nicht gesund, und Blindheit ist kein Ausfall.
-
-**Ein Ausfall, ein Vorfall.** Der Alertmanager-Webhook (Bearer, committete Fragmente, in CI wiederholte Matrix) und kritische Verdikte konvergieren zu genau einem Vorfall pro Korrelationsschlüssel — partieller Unique-Index, atomarer Upsert unter Webhook-gegen-Leader-Konkurrenz. Die LLM-Diagnose gründet auf dem Runbook des Alarms, ist durch ein atomares Tagesbudget gedeckelt, und ihre Empfehlungen bleiben Vorschläge: nichts wird aus Modelltext ausgeführt.
-
-**Das Wissen um den Ausfall formt die Antwort.** Ein bei gesunder Plattform kostenloser Advisor injiziert beeinträchtigte Fähigkeiten in die Planung („Brave down → Perplexity"), und die Synthese erhält die Fehlschläge des Laufs typisiert — Code und Nachrichtenkopf, nie ein rohes Log — mit einer Ehrlichkeitsdirektive: sagen, was gelang, was scheiterte und warum, und nie eine Diagnose erfinden.
-
-**Der Diagnostiker liest seine Beweise in dem Moment, in dem er diagnostiziert.** Ein Wert und seine Schwelle sind ein Urteil, keine Diagnose: Nur mit ihnen würde das Modell „unzureichende Beweise“ antworten, während die Aufschlüsselung in Prometheus liegt und der fehlschlagende Pfad in Loki. Jeder Vorfall deklariert daher ein *Rezept* — die Katalogabfragen und Logereignisse, die für seinen Korrelationsschlüssel zu lesen sind, beim Start auf Vollständigkeit geprüft — und die Diagnosepumpe sammelt das Paket einmal pro Vorfall, nach der Budgetschranke: aufgeschlüsselte Reihen, einen begrenzten Logauszug, gefiltert durch eine geschlossene Allowlist und den Bereiniger personenbezogener Daten, den laufenden Build und seine Laufzeit. Jede Quelle degradiert für sich: Ein unerreichbarer Logspeicher kostet die Diagnose ihren Auszug, nie die Diagnose, und wird als nicht verfügbar benannt statt als Stille gelesen. Was das Modell gesehen hat, wird mit dem gespeichert, was es geschrieben hat, und dem Administrator unter dem Urteil gezeichnet.
-
-**Eine verlorene Auflösung hält keinen Vorfall offen.** Ein Vorfall, der aus einem Alarm entstand, schließt sich mit der Auflösungsmeldung, die Alertmanager schickt; ging diese Meldung verloren, schloss ihn nichts anderes. Jeder Tick der Selbstprüfung liest daher die Alarme, die Alertmanager für aktiv hält, außerhalb jeder Transaktion, und schließt den Vorfall eines Alarms, der fehlt und so lange still geblieben ist, wie `DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS` festlegt, mit einem Eintrag in seinem Verlauf. Ein stummgeschalteter oder unterdrückter Alarm zählt als aktiv, ein unerreichbarer Alertmanager schließt nichts, und ein fehlgeschlagener Abgleich kostet nur sich selbst, nie den Tick.
-
-**Eine Sonde nennt den Schritt, der scheiterte.** Die Prüfung des ausgehenden Plattformverkehrs löst auf und verbindet sich dann, in zwei benannten Phasen, und bestätigt einen Verlust über getaktete Versuche, bevor sie die Plattform für abgeschnitten erklärt (ADR-361): Eine Sonde, die sich erholt oder langsamer als ihr Schwellwert geantwortet hat, ist beeinträchtigt — sichtbar auf der Statusseite, nie als Bereitschaftsalarm. Ein einzelnes verlorenes DNS-Datagramm liest sich nicht mehr als Ausfall.
-
-## 34. Rechnen statt raten: ein flüchtiges Skript in der Skill-Sandbox
-
-Frag ein Sprachmodell, wie lange eine Reihe von Zwischenstopps insgesamt dauert, welche Namen in zwei Listen zugleich vorkommen oder was eine Zahlenspalte unter Berücksichtigung der Zeitzonen ergibt: Es antwortet — plausibel, flüssig, und nichts in der Antwort zeigt dir, dass sie falsch ist. Das ist kein Prompt-Fehler: Das nächste Token vorherzusagen ist keine Arithmetik. Fünf Zeilen Python schon.
-
-**Alltägliche Rechnungen warten nicht auf ein Skript: Sie sind Werkzeuge** (ADR-318). In beiden Modi wird eine Rechnung in einen Baum zerlegt und in exakter Dezimalarithmetik ausgewertet — nie ausgeführt —, die Unendlichkeiten, die die Dezimalbibliothek ohne Fehler zurückgibt (`0 ** -1`, `ln(0)`), werden abgelehnt, und ein Ergebnis, das gerundet werden musste, sagt es. Eine Dauer wird zwischen zwei absoluten Zeitpunkten gezählt, weil zwei Zeitstempel derselben Zone auf ihrer Wanduhrzeit subtrahiert werden und für die 25 Stunden einer Zeitumstellung 24 ergäben. Eine Umrechnung liest den Referenzkurs der EZB und nennt sein Datum. Jede durchgesetzte Grenze ist eine Einstellung, formuliert in dem Wortlaut, den das Manifest des Planers und das ReAct-Schema gleichermaßen lesen. Das folgende flüchtige Skript bleibt für das, was kein Werkzeug abdeckt.
-
-**Keine zweite Sandbox.** Das Skript läuft in der Skill-Sandbox (SEC-001), die bereits gehärtet ist: Wegwerf-Container, kein Docker-Socket, `--network none`, schreibgeschütztes Wurzeldateisystem, uid 65534, sämtliche Capabilities entzogen. `execute_source` übergibt ihr lediglich einen Quelltext statt eines Dateipfads, und beide Wege teilen sich einen einzigen Ausführungskern — ein Satz Isolationsflags, sodass sich unmöglich einer härten und der andere vergessen lässt.
-
-**Die Kosten sind gemessen, nicht angenommen.** Auf einem Raspberry Pi dauert ein Kaltstart rund 300 ms, mit numpy unter einer halben Sekunde — weniger als 2 % des Ausführungsbudgets —, und pandas kostet im API-Image etwa 1,5 % seiner Größe, da seine harten Abhängigkeiten schon enthalten sind. Die Intuition „pandas würde alles schwerfällig machen“ liegt um eine Größenordnung daneben.
-
-**Nur der autonome Modus, und zweifach durchgesetzt.** Das Manifest des Werkzeugs deklariert `execution_modes={"react"}`, und *jeder* Leser des Katalogs wendet den Filter an, sodass der deterministische Planer das Werkzeug nie zu sehen bekommt: Ein Planer, der es sähe, würde einen Schritt einplanen, den die Ausführung anschließend verweigert — eine für den Nutzer erfundene Sackgasse. Das Werkzeug prüft den Modus beim Aufruf zusätzlich im typisierten Laufzeitkontext. Eine einzige Durchsetzung wäre eine Falle; zwei ergeben einen Vertrag.
-
-**Alles, was durchgesetzt wird, wird veröffentlicht.** Das Manifest nennt, was ein Lauf erreichen darf — nichts, solange er seine Hosts nicht angibt —, das Fehlen von Datenbank und jedem beschreibbaren Dateisystem außerhalb von `/tmp`, die genaue Bibliotheksliste, die Größen- und Zeitbudgets — und sagt ausdrücklich, wann man *nicht* zu dem Werkzeug greifen soll. Ohne diesen letzten Satz wird ein fähiges Werkzeug zum Hammer; ohne den ersten verbrennt das Modell eine Iteration damit, eine Grenze durch Anstoßen zu entdecken.
-
-**Die Daten kommen über stdin, das Budget lebt im Graph-Zustand.** Die Zeilen des Zuges in den Quelltext zu kopieren würde diese Token doppelt bezahlen und genau die großen Fälle abschneiden, die das Feature rechtfertigen. Und das Budget pro Zug lebt bewusst nicht in einer Kontextvariablen: Ein in einer asyncio-Task gesetzter Wert ist für eine Geschwister-Task unsichtbar, und ein Graph-Executor darf jeden Knoten in seiner eigenen ausführen — der Zustand ist der einzige Ort, an dem ein Budget eine Iteration überlebt.
-
-**Die Ausgabe ist nicht vertrauenswürdig, der Code ist prüfbar.** Was ein Skript ausgibt, stammt aus modellgeschriebenem Code über Fremddaten und wird daher als nicht vertrauenswürdiger Inhalt markiert, genau wie der Text einer E-Mail. Der Code selbst ist samt erklärtem Zweck und Ausgabe für Administratoren im Debug-Panel sichtbar: Ihn zu verstecken brächte keine Sicherheit — das Modell hat ihn geschrieben, er steht bereits in seinem Kontext — und kostete die gesamte Nachprüfbarkeit.
-
-**Das Web durch eine einzige Tür, und die Tür ist die Topologie.** Ein Skript darf das Web erreichen — nur ein Skript, das seine Hosts angibt, und nur über einen eigenen Ausgangs-Proxy. Ein Netzwerklauf tritt einem internen Docker-Netz bei, dessen einziges geroutetes Mitglied dieser Proxy ist: ein roher Socket hat kein Ziel, und genau das ist die Umgehung, die ein Proxy per Umgebungsvariable offen lässt (`HTTPS_PROXY` ist ein Vorschlag; ein Netz mit einem Ausgang ist eine Tatsache). Der Proxy terminiert TLS unter einer Autorität, die er beim Start prägt, erlaubt nur die Hosts, die die API für die gerade lebenden Läufe gerendert hat, lehnt private Bereiche, den Server selbst und Cloud-Metadaten beim Verbindungsaufbau ab und begrenzt den Körper, den er weiterleitet. Sein Zustand lebt in tmpfs-Volumes, die sein eigener Einstiegspunkt schreibt — ein Init-Container taugt dafür nicht, weil Docker das tmpfs bei dessen Ende freigibt.
-
-**Ein Schlüssel reist als Token, und das Token ist außerhalb seines Laufs nichts wert.** Jeder Host trägt einen von vier Status — abgeleitet aus den API-Schlüssel-Konnektoren der Person, vom Betreiber erlaubt, von der Person gewährt oder unbekannt. Für den Host eines Konnektors liest das Skript `os.environ["LIA_KEY_<KONNEKTOR>"]`, ein Token pro Lauf, das der Proxy allein auf diesem Host gegen den echten Schlüssel der Person tauscht: der Schlüssel gelangt nie in den Container, und OAuth-Tokens wie die Schlüssel der Instanz werden nie angeboten. Die Status werden aus den Client-Klassen abgeleitet — Basis-URL, Header, Präfix — und nie in eine zweite Tabelle getippt, sodass die Regel des Proxys und der echte Aufruf des Clients nicht auseinanderlaufen können.
-
-**Ein unbekannter Host wird erfragt, mit drei Antworten, innerhalb der Schleife.** Die Karte nennt die Hosts und den vom Modell erklärten Zweck mit einer Zahl der Daten des Durchgangs — nie die Daten —, und die Person erlaubt mit den Daten, ohne sie (stdin trägt dann nichts) oder lehnt ab; die Antwort wird als Erlaubnis unter einer veröffentlichten Obergrenze gemerkt. Wo die Frage entschieden wird, zählt so viel wie das, was sie fragt: der Knoten löst die Unterbrechung selbst aus, wie die Bestätigung eines verändernden Werkzeugs, und ruft bei der Wiederaufnahme denselben Aufruf unter der Antwort erneut auf, sodass der Rest der Anfrage weitergeht. Die Karte dem Entwurfs-Dispatch zu übergeben, hätte sie als Aktion ausgeführt und aus ihrem Ergebnis geantwortet, jeden späteren Schritt fallen lassend — eine Erlaubnis ist keine Aktion.
-
-**Der Befehl eines Skills nimmt dieselbe Tür.** Ein Befehl, den ein Skill ausführt, deklariert seine Hosts auf dieselbe Weise und trifft auf dieselben vier Status, mit zwei Unterschieden, die aus seiner Herkunft und seinem Ausführungsort folgen. Ein anderswo geschriebener Skill erhält nie das Token eines Connectors: Seine Befehle erreichen nur, was der Betreiber oder die Person freigegeben hat. Und die Karte wird nur dort gezeigt, wo ihre Antwort den Aufruf fortsetzen kann — in der ReAct-Schleife; überall sonst, in einem Durchgang im Pipeline-Modus oder einer Routine, könnte niemand antworten, also wird der Host abgelehnt, mit dem Namen der Einstellung, in der die Person ihn von Hand freigibt. npm, git und curl liegen im Image, jedes auf die Zertifizierungsstelle des Proxys ausgerichtet.
-
-**Der Prompt wird gemessen, bevor man ihm vertraut.** Sagt man einem Modell, `LIA_KEY_X` in den Header zu setzen, schickt es den Namen der Variablen als Wert; die Zeile buchstabiert daher das Lesen. Die Bibliotheken, die der Prompt verspricht, leben in einer einzigen direkt gepinnten Tabelle und werden bei jedem CI-Lauf im gebauten Image importiert, und die vier Rollen — rechnen, diagnostizieren, eine Lücke füllen, umwandeln — werden mit den Grenzen genannt, die der Code durchsetzt, aus den Einstellungen gelesen statt in Prosa geschrieben.
-
-## 35. Eine Farbe messen, bevor man sie ausliefert: die Palette der Einstellungen
-
-Die Einstellungsseite listet über fünfzig Abschnitte. Dasselbe Symbol, in derselben Farbe, auf demselben Feld ließe dem Auge zur Orientierung nur eine einzige, wiederholte Form.
-
-**Farbe repariert keine wiederholte Form.** Zwei Stecker bleiben zwei Stecker, auch in zwei Farben: Form und Farbe sind zwei verschiedene Antworten — eine eigene Zeichnung je Abschnitt, dann ein Farbton je **Gruppe**. Je Gruppe und nie je Eintrag: zwölf Farben sind eine Karte, die das Auge lernt, eine je Abschnitt wäre ein Rauschen, das es entziffert.
-
-**Tokens, keine Utility-Klassen.** Die Palette ist fest und liegt außerhalb der vom Nutzer gewählten Akzentfarbe — die zweite solche Abweichung des Produkts nach dem cyanfarbenen Skill-Abzeichen. Als wörtliche Klassen geschrieben wäre sie aus dem Sichtfeld der Kontrastprüfung gefallen, die Token-Paare liest; als `--color-settings-*` geschrieben fällt sie konstruktionsbedingt hinein. Was man erzwingt, muss für das lesbar sein, was es prüft.
-
-**Der sRGB-Gamut ist kein Zylinder.** Zwölf gleichmäßig verteilte Farbtöne mit einem Chroma und einer Helligkeit je Modus halten nicht: Bei 55 % Helligkeit trägt ein Violett 0,25 Chroma, während ein Petrol bei 0,09 endet, und ein Ton außerhalb des Gamuts wird vom Browser stillschweigend beschnitten, der dann weder den geschriebenen Farbton noch das Chroma darstellt. Jeder Farbton trägt daher sein eigenes Maximum, abzüglich einer Reserve.
-
-**Gleichmäßiger Abstand ist kein wahrgenommener Abstand.** Sobald das Chroma dem Gamut folgt, können gleichmäßig verteilte Farbtöne unter die Unterscheidbarkeitsschwelle fallen, die die Prüfung selbst setzt. Die zwölf Winkel werden daher **gesucht**, und zwar auf dem schlechteren der beiden Modi: Die beiden Helligkeiten schneiden verschiedene Scheiben des Gamuts, und ein nur am hellen Thema optimierter Satz kann im dunklen noch ein zu nahes Paar lassen. Das nächste Paar bleibt so deutlich über der Schwelle.
-
-**Farbe nennt nie einen Zustand.** Der geöffnete Abschnitt hebt sich durch Hintergrund, Schriftstärke und Akzentfarbe ab — nicht dadurch, dass er ein dreizehnter Farbton würde — und ob eine Fähigkeit aktiv ist, zeigt weiterhin ein gefüllter oder hohler Punkt. Das ist WCAG 1.4.1 ernst genommen: wer diese zwölf Töne nicht wahrnimmt, verliert keine Information. Da das Symbol ein nicht-textliches grafisches Objekt ist, liegt seine Schwelle bei 3:1, gemessen auf den beiden Untergründen, die es tatsächlich belegt — dem Kartenfeld und der blanken Leiste, samt Hover.
-
-**Eine Regel für beide Listen.** Die Übersichtskarte und die Leistenzeile lesen dieselbe Funktion: sie können bei einem Abschnitt nicht auseinanderlaufen, und ein Aufrufer außerhalb der Tabelle fällt auf die Akzentfarbe zurück statt auf nichts.
-
-## 36. Ein Merkmal ist keine Reaktion: das von der Antwort deklarierte Register
-
-Das Gesicht des Begleiters wählt seinen Ausdruck am Ende eines Zuges nicht aus der dominanten Emotion der Psyche: Von Zug zu Zug bleibt diese Emotion fast immer dieselbe, bis auf wenige Hundertstel.
-
-**Das ist kein Fehler der Psyche, das ist ihre Definition.** Eine Psyche modelliert ein Innenleben: sie ist ein **Merkmal**, sie bewegt sich langsam, und genau das wird von ihr verlangt. Der Fehler bestünde darin, sie für ein **punktuelles Ereignis** antworten zu lassen — ein Argmax über einen nahezu konstanten Vektor ist eine Konstante.
-
-**Nur wer die Antwort geschrieben hat, kennt ihr Register.** Jede andere Quelle liest bloß deren Oberfläche. Die Antwort deklariert daher ihr Register selbst, in einem Vokabular, das der Animation gehört und sonst nichts: zwölf Register, gewählt unter einer einzigen Bedingung — *zwei Register, die das Gesicht identisch spielen würde, sind ein Register mit zwei Namen.* Deshalb ist die Liste nicht länger.
-
-**Im Datenstrom, weil sich zwei Anforderungen kreuzen.** Das Signal muss von dem Modell kommen, das die Antwort geschrieben hat, **und** in dem Moment eintreffen, in dem die Antwort eintrifft — das Gesicht reagiert auf den Abschluss, und ein Hintergrunddurchlauf kommt danach. Eine Markierung am Ende der Generierung erfüllt beides: kein zusätzlicher Modellaufruf, und sie kommt mit dem letzten Token. Das Muster ist nicht eigens erfunden — es ist der Selbstbericht der Psyche, in der Produktion erprobt. Fragmente werden aus dem Stream gefiltert, damit nichts auf dem Bildschirm aufblitzt, und die vollständige Markierung wird aus dem gespeicherten Text entfernt.
-
-**Die Intensität ist eine Spielanweisung, keine Konfidenz.** Die Darstellung **übertreibt** sie, statt sie wiederzugeben: eine Zeichenfigur, die eine 0,8 als 0,8 spielt, wirkt wie ein Videoanruf. Und es ist das **Register, das begrenzt**, was Intensität kaufen kann — eine sachliche Antwort mit maximaler Intensität bleibt ein neutrales Gesicht, mit Überzeugung vorgetragen, nie eine Feier. Die Intensität sagt, wie stark das Register durchkam; sie sagt nie, welches es war.
-
-**Was durchgesetzt wird, muss veröffentlicht sein.** Ein Register, das die Anweisung anbietet und der Code ablehnt, erzeugt still einen Zug ohne Gesicht; ein Register, das der Code akzeptiert und die Anweisung verschweigt, ist ein Gesicht, das nie eintritt. Ein Test hält beide Listen zusammen, und die Browser-Kopie wird an der Server-Kopie gemessen.
-
-**Die Markierung kommt nicht in jedem Zug, und der Rückfall berücksichtigt das.** Ob ein Antwortmodell seine Markierungen ausgibt, ist eine Eigenschaft dieses Modells, nicht der Funktion — manche setzen sie nur alle paar Züge. Ein Gesicht, das nur in einem von acht Zügen reagierte, wäre ein kaputtes Gesicht; der Rückfall liefert daher nie ein leeres Ergebnis: er liest die **Form** der Antwort — Länge, Codeblöcke, Interpunktionsdichte, Emoji, niemals Wörter, sodass alle sechs Sprachen sich gleich verhalten — und spricht **dasselbe Vokabular** wie die Markierung. Eine Registertabelle, eine Amplitudenkurve, ein Weg.
-
-**Und die Psyche behält, was sie gut kann**: die Stimmungsfamilie im Ruhezustand — Atemrhythmus, Blinzeltakt, Gewichtung der Ruhegesten. Ein Merkmal soll ein Ruheverhalten färben, nie eine Reaktion.
-
-## 37. Drei Mechanismen für eine Konvergenz: eine Spitze glätten, die kein Limit sieht
-
-**Ein Intervall-Trigger zählt ab dem Scheduler-Start, daher richten sich Perioden mit gemeinsamem Teiler für immer aus.** Das ist Arithmetik, nicht Last: Aufgaben von 5, 15, 30 und 60 Minuten starten irgendwann in derselben Sekunde und bleiben dort für die Lebensdauer des Prozesses. Wenn jede einen Agenten startet und jeder Agent Embeddings berechnet, kann diese Ein-Sekunden-Spitze beim Anbieter scheitern, wo ein gleichmäßiger Rhythmus mit demselben Volumen fehlerfrei durchläuft.
-
-**Drei Mechanismen, drei Rollen — und sie zu unterscheiden ist der Entwurf.** **Jitter** behandelt die Ursache: 15 % der Periode, Untergrenze 5 s, stets streng unter der Periode, damit zwei Läufe sich weder überlappen noch vertauschen. Die **Glättung** würde an einer solchen Spitze nichts ändern — eine Handvoll Aufrufe reißt kein Minutenlimit — sie ist die Versicherung fürs Wachstum, daher ein bewusst **kurzes** Fenster: Ein Minutenlimit sieht keine Spitze. Der **Wiederholversuch** kehrt den Rest zusammen.
-
-**Keiner der drei ist ein Tor.** Die Glättung komponiert den bestehenden Ratenbegrenzer, statt einen zweiten hinzuzufügen — ein gleitendes Fenster, ein Lua-Skript, ein Metriksatz — und sie läuft **offen** ab: Das Warten ist begrenzt, und wer seinen Anteil gewartet hat, geht trotzdem durch. Unsere eigene Drosselung darf nie der Grund sein, warum eine Antwort ihr Gedächtnis verliert. Ist Redis nicht erreichbar, lautet die Antwort sofort „kein Platz“, und der Aufruf geht hinaus.
-
-**Ein Wiederholversuch braucht eine Fabrik, kein Awaitable.** Eine Coroutine lässt sich genau einmal erwarten: Eine Naht, die `client.aembed_query(...)` hält, kann sie nicht erneut starten — das zweite Await wirft, statt aufzurufen. Und die Klassifikation ist **strukturell**: der Statuscode entlang der Ursachenkette gelesen, nie der Meldungstext, den eine Umformulierung des Anbieters still entwerten würde. Folgerung: Eine Schicht, die ihren Wiederholversuch erschöpft, muss ihre **Ursache verketten**, sonst liest die Schicht darüber eine stumme Hülle und erklärt für endgültig, was es nicht war.
-
-**Und was nicht gemessen wird, sieht man nicht.** Der Zähler der Anbieteraufrufe wird zum falschen Nenner, sobald wiederholt wird: Ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. „Plattformzustand“ zählt daher **Ergebnisse** — eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet — und ein zweiter Zähler sagt, was die Glättung mit jedem Versuch tat, denn „Budget zu klein“ und „Redis ausgefallen“ verlangen entgegengesetzte Maßnahmen.
-
-## 38. Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag
-
-**Eine Besprechung sind Stunden Audio von einem Gerät, das einschlafen, sein Netz verlieren oder versehentlich geschlossen werden kann — die Aufnahme ist deshalb für den Fehlerfall entworfen, nicht für den Normalfall.** Der Browser nimmt in kurzen Segmenten auf und lädt jedes als Rohkörper-Anfrage hoch, sobald es existiert; ein Segment ist eine Datei auf dem Server, unter temporärem Namen geschrieben und atomar umbenannt, sodass vier API-Worker außer der Reihe empfangen können, ohne je Bytes zu verschränken, ein doppelter Upload ein harmloses Überschreiben ist und das Erkennen einer Lücke ein Verzeichnislisting. Zwei Quellen stehen hinter einer Schnittstelle: Opus über `MediaRecorder`, wo die Engine vertrauenswürdig ist, rohes 16-kHz-PCM über das AudioWorklet, das die Spracheingabe schon überall sonst nutzt — der einzige Weg auf Apple-Geräten, deren Recorder einen Container erzeugt, den das Backend ablehnt, und sich in Startbildschirm-Apps fehlverhält. Das Format ist eine reine Funktion der Umgebung, einmal vor dem ersten Byte entschieden. Uploads gehen in Reihenfolge hinaus, wiederholen mit einem Backoff, der nie aufgibt, solange die Aufnahme läuft, und warten — statt zu scheitern —, während der Browser offline ist; ein Stopp meldet die eigene Zählung der Warteschlange, und Sequenzen, die der Server nie erhielt, werden namentlich abgelehnt.
-
-**Die Besprechungszeile ist der dauerhafte Job.** Ihr Status trägt den ganzen Lebenszyklus — Aufnahme, unterbrochen, gestoppt, in Verarbeitung, fertig oder gescheitert —, und jeder Übergang ist ein einziges bedingtes `UPDATE`. Der Verarbeitungsanspruch nimmt einen Lease, Heartbeats erneuern ihn und veröffentlichen dabei die Stufe, die die Seite zeigt (Normalisieren, Transkribieren, Synthetisieren, Indexieren), ein verlorener Heartbeat bricht jede spätere Wirkung ab, und Reaper treiben gestoppte Waisen und abgelaufene Leases innerhalb eines begrenzten Versuchsbudgets erneut an. Ablehnungen, die keine Pipeline-Fehler sind — ein Nutzungslimit, keine Engine verfügbar — geben den Job frei, ohne einen Versuch zu verbrauchen. Und weil ein Bulk-Update die Identity Map von SQLAlchemy veraltet lässt, lässt jede folgende Lesung zuerst die Session verfallen — sonst könnte ein Stopp noch `status: recording` antworten.
-
-**Engines bilden eine Kette, und die Kette wird zweimal durchlaufen.** Einmal vor der ersten Sekunde, allein aus dem Cache der Anbieterschlüssel: der Sprach-Slot der Administration, dann ElevenLabs Scribe, OpenAI `gpt-4o-transcribe-diarize` oder Fish Audio `transcribe-1-pro` — ganze Datei, Sprecher getrennt, eine Aufnahme, die länger ist, als Fish Audio in einer Anfrage annimmt, schon vor dem Hochladen übersprungen —, dann das lokale Whisper. Der lokale Pfad beschränkt sich nie auf ein einzelnes Fenster von dreißig Sekunden, das von allem Längeren stillschweigend nur die ersten dreißig Sekunden zurückgäbe — ein Defekt, den ein Sprachbefehl nie trifft und eine Besprechung immer: Langes Audio wird von Silero VAD in Sprechfenster von höchstens zwanzig Sekunden geschnitten, jedes einzeln dekodiert, mit festen Fenstern, wenn das Modell fehlt — nie Abschneiden. Die Kette wird bei der Verarbeitung erneut durchlaufen: Ein dauerhafter Fehler eines Anbieters (abgelehnter Schlüssel, zu große Datei) übergibt an die nächste Engine innerhalb der Nutzerpräferenz; nur Stille, die etwas über das Audio sagt, oder ein vorübergehender Fehler, der zum Wiederholungsbudget gehört, stoppt den Lauf. Ohne diesen zweiten Lauf ließe ein falsch konfigurierter Schlüssel an der Spitze der Kette jede Besprechung scheitern, während eine Stufe tiefer ein gültiger Schlüssel wartet.
-
-**Die Vorlage ist der Vertrag, und dem Modell wird nicht Byte für Byte vertraut.** Die Abschnitte des Nutzers — Schlüssel, Bezeichnung, Anweisung, Art — werden in einen einzigen Aufruf mit strukturierter Ausgabe gerendert; wenn das Transkript das Fenster des Modells überläuft, wird es zuerst Teil für Teil verdichtet, sodass ein 128k-Modell auch für eine dreistündige Besprechung treue Protokolle liefert. Das Modell antwortet in einer permissiven Form, und ein Reparaturschritt faltet sie in den strengen Bericht: übersprungene Abschnitte kommen leer zurück, erfundene werden verworfen, eine Nutzlast in der falschen Form für ihre Art wird konvertiert, Teilnehmende auf Sprecherkennungen beschränkt, die tatsächlich gesprochen haben. Der erzeugte Bericht ist unveränderlich; was der Nutzer bearbeitet, ist eine Kopie, „Wiederherstellen“ kopiert zurück, „Neu erstellen“ führt die Synthese auf dem gespeicherten Transkript mit der aktuellen Vorlage erneut aus. Ein einziger Serializer erzeugt das Markdown, das der Wissensraum „Meetings“ indexiert (über seine Rolle gefunden, ein Dokument pro Besprechung, an Ort und Stelle neu geschrieben und mit ihr gelöscht), den abschnittsweisen Inhalt, den der PDF-Renderer in eine Datei verwandelt, und das HTML, das die E-Mail trägt — die drei können sich also nie widersprechen.
-
-**Jede bezahlte Einheit wird verbucht und gezeigt.** Eine Besprechung verbraucht Audio bei der Transkriptions-Engine und Tokens beim Synthesemodell, Verdichtungsläufe und Neuaufbauten eingeschlossen; beides erreicht die Bücher der Plattform wie jeder Austausch — das Audio über die Statistik der entfernten Spracherkennung, die Tokens unter einer `run_id`, die die archivierte Chat-Nachricht trägt, sodass die Historie genau wie bei jeder proaktiven Benachrichtigung mit dem Token-Protokoll verknüpft wird. Die Zeile behält die eigene Ausgabe des Protokolls, damit die Seite die exakte Summe mit ihrer Aufschlüsselung nennt, die Karte nennt beide Einheiten und ihre Summe, und ein Modell ohne verwalteten Preis liefert `null`: Ein unbekannter Preis ist kein kostenloser. Dieselbe Ehrlichkeit durchzieht das Protokoll selbst — eine Lücke wird benannt, nie überbrückt; eine unbenannte Stimme bleibt S2; ein offen gebliebener Vorschlag ist keine Entscheidung.
-
-**Das Protokollformat wurde zu einer Bibliothek, und die Wahl hat einen einzigen Ort.** Dreißig integrierte Vorlagen leben im Code, ihre Wörter in einem i18n-Datenmodul, und eine Zusicherung beim Start verweigert den Bootvorgang, wenn ein Name in einer der sechs Sprachen fehlt: Was ein Validator ablehnen kann, darf der Katalog nicht ausliefern. Eine Vorlage wird durch eine Referenz benannt — `builtin:<Schlüssel>` oder `user:<uuid>` —, die Besprechungen, Einstellungen und Anfragen anstelle einer Zeile austauschen, sodass eine integrierte Vorlage keine Datenbankzeile braucht und eine gelöschte Vorlage eine Referenz hinterlässt, deren Leser auf den gespeicherten Schnappschuss zurückfallen. Die Wahl folgt **einer Rangfolge**: die von der Besprechung getragene Referenz, dann der Standard der Einstellung, dann das Sprachmodell, das einen Transkriptauszug liest und oberhalb einer Vertrauensschwelle wählt, dann die integrierte Standardvorlage; jedes Ergebnis wird gezählt und mit der genannten Begründung auf die Zeile geschrieben, sodass die Seite eine Tatsache zeigt und keine Rekonstruktion. Eine fünfte Abschnittsart gibt das Transkript selbst zurück: Es passt nicht in eine Antwort — der Synthese-Slot gibt höchstens achttausend Token aus —, also wird es Teil für Teil neu geschrieben, jeder durch das effektive Ausgabefenster begrenzt, wobei ein fehlender Index den Teil einmal aufspaltet und eine verdächtig kurze Antwort einmal wiederholt wird. Ein bereits geschriebenes Protokoll neu zu schreiben nutzt beim Ersetzen die dauerhafte Regeneration und legt beim neuen Protokoll eine abgeleitete Zeile an, die auf ihre Quelle zeigt — nie eine Kopie: Das Transkript ist dasselbe, das Protokoll nicht. Dieselbe Sorge um die Reihenfolge regiert die Dokumente der Wissensbereiche: Da `rag_chunks.space_id` denormalisiert ist und von der Suche gelesen wird, schreibt ein Verschieben die Zeile und ihre Abschnitte, committet, **dann** verschiebt es die Datei; ein fehlgeschlagenes Umbenennen macht beides rückgängig und meldet es nur für dieses Dokument, und ein Stapel hält nie für ein Element an — jede Kennung kommt erledigt oder übersprungen mit ihrem Code zurück.
-
-**Eine Aufnahme, die man schon hat, kommt durch dieselbe Tür.** Eine WAV-, MP3- oder M4A-Datei wird zu einer Besprechung auf derselben dauerhaften Zeile: `uploading`, eine pro Konto — ein Teilindex sagt es, keine Konvention —, ihre Stücke gesendet unter Grenzen, die der Server vor dem ersten Byte veröffentlicht, jede Stücknummer begrenzt, damit eine gefälschte Nummer den Abschluss nicht eine Milliarde Lücken aufzählen lässt. Die Datei ist eine nicht vertrauenswürdige Eingabe: Ihre ersten Bytes müssen das angegebene Format sein, ffmpeg liest sie allein über den Demuxer dieses Formats, nur aus lokalen Dateien und ohne je einer QuickTime-Referenz zu folgen, und ihre Länge wird gemessen — und über der Obergrenze abgelehnt —, bevor irgendeine Engine bezahlt wird.
-
-## 39. Drei Register, und das, um das niemand gebeten hatte
-
-**Ein Assistent, der handelt, muss sagen können, was er getan, was er gelesen hat und in welchem Zug.** Drei Register beantworten das und werden nie vermischt: Das erste nimmt eine Zeile je **Aktion**, vor ihrer Ausführung beansprucht und nur aus einem ausdrücklichen Ergebnis geschlossen; das zweite eine Zeile je **Einsichtnahme**, benannt als Fähigkeit und nie als Suchinhalt; das dritte eine Zeile je **Zug**, das Rückgrat, an dem die beiden anderen hängen. Ihre Summen addieren sich nicht, und das ist gewollt: Ein Zug kann fünf Quellen einsehen und gar nichts verändern.
-
-**Die Garantie ist strukturell, die Tür jedoch einzig.** Die Aufzeichnung wird auf der Fähigkeit installiert, sobald sie deklariert ist — ein neues Werkzeug kann sie also nicht vergessen —, nur bliebe eine Fähigkeit unsichtbar, die über ihren *Client* statt über das Werkzeugtor erreicht wird: Die Register folgen dem Graphen, und Briefing, Durchläufe oder Heartbeat rufen Modell und Konnektoren direkt auf. Ohne weitere Vorkehrung läse sich die Liste dessen, was die Assistentin von sich aus unternimmt, leer, was immer sie täte — die schärfste Fassung der Lücke, denn eine proaktive Benachrichtigung ist der eine Akt eigener Initiative, den ein Mensch tatsächlich erlebt.
-
-**Die Antwort ist kein weiterer Detektor, sie ist eine Deklaration.** Jede Oberfläche, die ohne Werkzeug liest — das Briefing, das Beziehungs-Debriefing, der periodische Durchlauf, die Interessen, die Wissensräume —, deklariert ihr Vokabular in einer einzigen Tabelle, und die Startprüfung kontrolliert die so deklarierten Fähigkeiten neben den Werkzeugen. Jedes Modul, das einen Connector-Client importiert, ist einzeln aufgeführt: Aufzeichner, Nicht-Leser mit schriftlicher Begründung oder Schuld — eine leere Schuldtabelle, die nur schrumpfen kann. Das Register wird **angeboten**, statt geholt zu werden: Die Agenten-Domäne importiert die Beziehungs-Domäne bereits, ein Rückimport schlösse also einen Kreis, den ein lokaler Import nur verstecken würde.
-
-**Wohin ein Euro geht, ist deklariert, nie erschlossen.** Die Buchführung ist ambient — ein Knoten gibt über einen Kontext aus, den ein Vorfahre veröffentlicht hat —, sodass die Frage „wird das gezählt?“ per Dateilektüre zu falschen Schlüssen führt, in beide Richtungen. Eine Tabelle benennt daher jede Aufrufstelle und das Register, das sie erreicht, und eine Prüfung, die Aufrufe per AST liest, stellt sicher, dass jedes Modul tut, was seine Zeile deklariert. Zählen ist allerdings nur die Hälfte einer Obergrenze: Die andere ist, **vorher zu fragen**, und jede Stelle muss eine Obergrenze erreichen, die ablehnen kann. Drei Formen ließen eine Stelle unbegrenzt — ein Register, das eine Hülle statt der Tür benennt, eine Prüfung, die vor dem Fragen aussteigt, eine Ablehnung in zwei verschiedenen Gestalten —, und jede ist konstruktiv geschlossen. Eine Ablehnung folgt ihrem Transportweg und nie ihrem Urteil: Eine Anfrage wirft, eine Hintergrundaufgabe verzichtet und protokolliert sich als **übersprungen**, nie als *gescheitert*.
-
-**Zwei Endpunkte, die einen Bildschirm bedienen, sind ein Lesevorgang.** Das Dashboard holt Karten und Zusammenfassung parallel; baute jede das Bündel der Sektionen für sich, würde jeder Connector zweimal geöffnet und zwei Sätze Einsichtnahmen für einen Lesevorgang abgelegt. Die Frage, die über einen Neuaufbau entscheidet, lautet „wurde dieses Bündel gebaut?“, nie „enthält es etwas Interessantes?“ — die zweite unterscheidet keinen kalten Cache von einem ruhigen Tag. Wer zuerst fragt, baut; die anderen erhalten dasselbe Objekt — im Prozess und über die vier Worker einer Produktionsinstanz hinweg, durch einen Anspruch, den allein sein Eigentümer freigibt.
-
-**Ein Auszug ist vollständig, oder er ist kein Auszug.** Die Zeilen der herunterladbaren Aufzeichnungen zu begrenzen, damit sie in den Speicher eines Raspberry Pi passen, hieße, die Beschränkung auf die falsche Größe anzuwenden: **Knapp ist der Speicher; begrenzt würde die Wahrheit**, und ein Kopf, der „abgeschnitten“ meldet, gibt der Person die fehlende Aufzeichnung nicht zurück. Ein serverseitiger Cursor begrenzt daher den Puffer, nie die Zeilen; die Anzahl ist exakt — eine Aggregation über dieselbe Anweisung, die der Rumpf durchläuft — und wird vor der ersten Zeile veröffentlicht, sodass ein Auszug ohne obere Schranke eine bekommt: den Zeitpunkt seiner Erzeugung, im Kopf benannt statt still gesetzt.
-
-**Die Assistentin liest ihre eigenen Register** (ADR-318). Auf „was hast du diese Woche für mich getan?“ antwortet ein Lesewerkzeug aus den beiden Registern, mit exakten Summen und demselben Urheberfilter wie die Reiter — was die Person verlangt hat, was LIA von sich aus unternommen hat — statt aus der Erinnerung an ein Gespräch. Ein Register dient so zwei Lesern ohne zwei Implementierungen: dem Bildschirm, der es zeichnet, und der Antwort, die es zusammenfasst.
-
-## 40. Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen
-
-**Eine Karte stapelt zehn Abschnitte, und niemand liest zehn Abschnitte.** Was ein Leser zuerst sucht — wo stehe ich mit dieser Person, und was ist anzusprechen —, ist eine Zusammenfassung, die keine Aggregation erzeugt. Sie wird daher vom Modell oben auf die Karte geschrieben: was offen ist, was als Nächstes ansteht, was zu merken lohnt. Ihre Erzeugung ist **faul**: Sie entsteht beim Öffnen der Karte, höchstens einmal pro lokalem Tag des Lesers, nie durch einen Planer — die Zahl der Beziehungen ist unbegrenzt — und nie während eines Chat-Zuges. Genau drei Neuerzeugungen sind legitim: die Sprache, der angefragte Umfang und eine ausdrückliche Bitte.
-
-**Zwei Zusammenstellungen schüfen zwei Autoritäten darüber, wer jemand ist.** Die Beweiszusammenstellung lebt daher in einem eigenen Modul, das das im Chat antwortende Werkzeug und das Debriefing teilen. Eine solche Teilung prüft sich nicht durch Lesen: Eine Golden-Datei friert die Ausgabe ein — achtzehn Umfangsfälle, Nutzlast und Nachricht Byte für Byte verglichen. Die Anbieterhälfte wird nur für die Sektionen gelesen, die der Umfang verlangt — sie ganz zu lesen, um sie dann zu verwerfen, würde externe Aufrufe gegen eine Auswahl abrechnen, die der Leser bereits getroffen hat —, und diese Verengung verlangt einen dritten Status: „Ich habe absichtlich nicht nachgesehen“ ist weder „nichts gefunden“ noch „konnte nicht nachsehen“.
-
-**Nichts wird erfunden, und ein Fehlschlag zerstört nichts.** Kein Befund schließt auf *leer*, ohne das Modell zu rufen, und eine gescheiterte Aktualisierung **behält den vorherigen Text** unter einer Zeile, die es sagt: Eine brauchbare Zusammenfassung durch ein leeres Feld zu ersetzen, macht aus „ich konnte nicht aktualisieren“ ein „es gibt nichts“. Der Anspruch ist eine einzige SQL-Anweisung, und jeder Abschluss schreibt nur seine eigenen Spalten — bereit, leer, gescheitert —, weil ein einziger Abschluss den Rumpf beim ersten Fehlschlag überschreiben würde. Was das Schreiben gekostet hat, wird mit ihr gespeichert und darunter gezeigt; da null Kosten eine Behauptung sind, zeigt eine stumme Zeile nichts statt „0,00 €“.
-
-**Im Chat tritt das Debriefing neben den Peer-Block — mit der umgekehrten Anweisung.** Der Peer-Block nennt exakte Fakten, weil er sie im Zug selbst liest; derselbe Satz über einer datierten Zusammenfassung wäre eine Maschine für falsche Behauptungen. Die Vorlage sagt daher, dass sie datiert ist, trägt ihr **Alter** und nicht nur ihr Datum, und verweist jede Zahl, jede Anzahl und jeden Status an die Werkzeuge. Eine mehrdeutige Namensübereinstimmung fügt **nichts** ein: Das Verzeichnis enthält jede je geöffnete Beziehung, Firmennamen und Rufnummern eingeschlossen, und ein Fehltreffer gäbe die Akte einer Person auf eine Frage nach einer anderen heraus.
-
-**Ein Name wird aufgelöst, nie erraten.** Man sagt „Marie“, selten den ganzen Namen. Eine einzige Regel entscheidet, was ein gesprochener Name in einem beliebigen Verzeichnis bezeichnet — zuerst der normalisierte volle Name, dann jedes gesagte Wort als ganzes Wort des Namens, nie ein Fragment oder ein Editierabstand —, und mehrere Identitäten auf der entscheidenden Stufe sind eine zu stellende Frage, nie eine Wahl nach Reihenfolge. Ein Peer-Werkzeug liest nur die angenommenen Verbindungen; die Beziehungsliste zieht nur ab und macht aus einer Teilübereinstimmung eine Frage, wenn auch jemand anderes darauf passt.
-
-**Ein Faden, fünf Quellen, ein Cursor.** Die Zeitleiste der Karte führt Zusagen, Anrufe, Erinnerungen, weitergeleitete Nachrichten und SMS zusammen, das Neueste zuerst. Jede Quelle wird um eine Seite strikt nach dem zuletzt gelieferten Eintrag gebeten — ein Keyset auf (Zeitpunkt, Art, Kennung), nie ein Offset —, sodass ein Eintrag, der zwischen zwei Seiten ankommt, weder wiederholt noch verloren wird und eine Seite fünf Lesezugriffe kostet, wie tief sie auch liegt.
-
-## 41. Das Ticket-Board: eine Zeile, zwei Seiten und eine Assistentin, die fragt
-
-**Eine Arbeitseinheit braucht einen Lebenszyklus, einen Inhaber und ein Ergebnis** — und keine andere Fläche hat alle drei. Die Aufgabenliste eines Anbieters hat keinen Lebenszyklus; eine Erinnerung ist ein Anstoß in einem Augenblick, und nach dem Klingeln bleibt nichts; eine Routine ist eine wiederholte Anweisung, die nie fertig wird. Ein Ticket trägt Titel, Beschreibung, Priorität, Daten, Unter-Tickets, Kommentare und eine Historie durch sieben Spalten, und sein Inhaber kann der Eigentümer sein, eine verbundene Person oder die Assistentin selbst.
-
-**Eine Zeile, von beiden Seiten gelesen.** Ein Board ist „ich besitze es ODER ich halte es“, einmal als Repository-Prädikat geschrieben, das jede Lesung wiederverwendet — zwei Abfragen wären zwei Autoritäten darüber, was ein geteiltes Ticket sagt. Ein Ticket, das die aufrufende Seite nicht sieht, antwortet genau wie eines, das nicht existiert: Keine Kennung lässt sich abtasten. Die Seite und ihre Zählungen je Spalte stammen aus derselben gefilterten Anweisung: Eine Überschrift, die sieben nennt, über einer Spalte, die drei zeigt, wäre schlimmer als gar keine Überschrift.
-
-**Was die Datenbank tragen kann und was nicht.** Die Inhaberspalte steht auf `SET NULL`, weil vier Wege eine `users`-Zeile hart löschen und nur einer davon die Kontobereinigung ausführt — eine Kaskade würde das Ticket des Eigentümers zerstören, wenn dessen Gegenüber geht. Der Invariant „eine verbundene Person hält ein Ticket nur unter einer angenommenen Verbindung“ ist bewusst KEINE Einschränkung: Ein `CHECK` über zwei Spalten, die eine Fremdschlüsselaktion berühren kann, ist in jeder Kaskadenrichtung verletzbar, keine Reihenfolge ist garantiert, und PostgreSQL kennt kein aufschiebbares `CHECK`. Er lebt daher im Service, der die Verbindung bei jedem Schreiben erneut prüft — was ohnehin die richtige Regel ist: Eine Freigabe wird zur Ausführungszeit geprüft und nie aus einer gespeicherten Zeile gelesen.
-
-**Ein Durchlauf beansprucht ein Ticket und schließt aus einem Ergebnis ab.** Jede Minute gibt ein Job mit Jitter zuerst die Ansprüche frei, die ein toter Worker noch hält, und beansprucht dann ein einziges Ticket unter `FOR UPDATE SKIP LOCKED` mit einem bedingten `UPDATE`, das festgeschrieben wird, bevor irgendeine Arbeit beginnt — wer fünf genommen hätte, ließe fünf zurück. Abgeschlossen wird aus einem ausdrücklichen Ergebnis, nie aus dem Ausbleiben einer Ausnahme, und der Durchlauf benennt, was er getan hat: Drei Ablehnungen können ein beanspruchtes Ticket stoppen, und keine davon ist ein Fehlschlag. Ein inaktives Konto ist endgültig; eine Kontingentgrenze und ein laufendes Gespräch geben den Anspruch zurück, erstatten den Durchlauf dem Budget des Tickets und werden als *übersprungen* protokolliert.
-
-**Außerhalb eines Zuges fragt sie, statt abzulehnen.** Außerhalb eines Gesprächs lehnt das Ausführungstor sowohl eine Bestätigung als auch einen Entwurf ab, weil es niemanden zu fragen gibt. Ein Ticket-Durchlauf hat jedoch jemanden: Das Tor lässt eine Herkunft, die einen Entwurf tragen kann, genau die Karte bauen, die der Chat gezeigt hätte; das Ticket landet in „zu bestätigen“ und hält sie, und der nächste Kommentar des Eigentümers klassifiziert die Antwort **ganz ohne Modellaufruf** — ein gefaltetes Lexikon in sechs Sprachen, in dem ein bloßes Ja freigibt, ein bloßes Nein schließt und alles andere zur Anweisung wird. Die Wiederholung läuft dann im Graphen unter einer Prüfsummensperre: Der Durchlauf veröffentlicht die Identität dessen, was er gezeigt hat, und der vom Werkzeug neu gebaute Entwurf passiert nur unter genau dieser Identität und unter keiner weiteren.
-
-**Was ein Durchlauf schreibt und wohin.** Ein Durchlauf archiviert sein Briefing und seine Frage als Zeilen DES DURCHLAUFS — aus dem Chat herausgehalten, vom Entscheidungsregister referenziert, von der Aufbewahrung nach dem Abschluss des Tickets entfernt —, während die Benachrichtigung, die die Person lesen soll, eine gewöhnliche Nachricht ist. Der Unterschied ist eine ABGELEITETE Spalte statt eines Stempels in den Metadaten, berechnet an der einen Stelle, die die Zeile baut; und jede archivierte Zug-Metadatenstruktur wird von einem benannten Erbauer gebaut, unter einer Wache, die ein an der Aufrufstelle geschriebenes Wörterbuch ablehnt — genau so würde eine Löschvorschau den Chat erreichen.
-
-**Nichts wird mitgeteilt, bevor es wahr ist.** Eine Zuweisungsnachricht wird während der Transaktion des Tickets gesammelt und verlässt sie nach dem Commit durch eine einzige Tür — abgesichert, damit keine Nachricht auf eine Zeile warten kann, die ihre eigene Transaktion noch hält.
-
-## 42. Die Anatomie eines Prozesses: was er lädt, ist deklariert, gemessen und begrenzt
-
-Ein API-Server besteht aus mehreren Prozessen: einem Supervisor, der keine Anfrage bedient, und Workern, die alles bedienen. Jeder hält aus anderen Gründen Speicher, und „der Container belegt fünf Gigabyte“ sagt nichts Nützliches, solange unklar ist, welcher Prozess was hält. LIA wendet hier eine einzige Regel an: **Was ein Prozess lädt, ist deklariert, pro Prozess gemessen und dort begrenzt, wo es sich vervielfacht.** Jeder Posten wird auf dem Zielhost in einem Wegwerfprozess gemessen, bevor er angefasst wird: Eine erste Lesart täuscht oft, und genau deshalb misst man.
-
-Der Supervisor lädt die Anwendung nicht. Die uvicorn-Kommandozeile importiert die Anwendung im Elternprozess, um einen frühen Importfehler zu erzeugen, und verwirft sie dann — ein Elternprozess, der nur seine Worker beobachtet, hielte so mehrere hundert Megabyte für die gesamte Lebensdauer des Containers. `python -m src.serve` fährt dieselbe Kette `Config → Server → Multiprocess` mit denselben Optionen, ohne diesen Import; eine AST-Wache verbietet dem Modul jeden Import aus `src`, und der frühe Fehler wird vom Health-Check gemeldet, den das Deployment ohnehin liest. Im selben Geist wird eine schwere Bibliothek — PDF-Rendering, Tabellenrechnung, Audio-Engines — dort importiert, wo sie gebraucht wird, und nie beim Start: eine Liste deklariert die gemessenen Kosten jeder einzelnen, und eine Wache verweigert jeden Import auf Modulebene unter `src/`, auch einen in einem `try` auf Modulebene versteckten.
-
-Was ein Singleton lädt, multipliziert sich mit der Zahl der Worker. Ein residentes Transkriptionsmodell pro jemals angefragter Sprache in einem Singleton pro Prozess ließe jeden Worker mit jeder neuen Sprache wachsen; der Cache ist daher begrenzt (`VOICE_STT_MAX_RECOGNIZERS`, standardmäßig eins), das am längsten Unbenutzte fliegt heraus, beim Erzeugen wird nichts geladen, eine Verdrängung gibt Speicher an das System zurück — gemessen — und eine laufende Dekodierung behält ihre eigene Referenz. Und jeder Worker veröffentlicht, was er hält: `lia_worker_memory_bytes{kind}` liest jeder Worker aus seinem eigenen `/proc/self/status`, eine Serie pro lebendem Worker, die mit ihm verschwindet, auf zwei Panels gezeichnet und vom Alarm `ApiWorkerMemoryHigh` überwacht, der den Prozess benennt. Das antwortet auf eine strukturelle Grenze: cAdvisor sieht den Container, und der Multiprozess-Modus von prometheus_client exportiert keine Prozessmetrik.
-
-Das Verbindungsbudget hat einen Boden, nicht nur eine Decke. Die Spitze zu begrenzen — was die Pools öffnen dürfen — genügt nicht: Jede persistente Verbindung ist zugleich ein untätiges Postgres-Backend mit sieben Megabyte, neben den `shared_buffers`. `ConnectionBudget.persistent_total` benennt diesen Boden, und eine Wache liest die Compose-Datei (Speicherlimit, `shared_buffers`) zusammen mit den beiden ausgelieferten `.env`-Profilen — dem vollständigen und dem minimalen des Selbsthosters, fehlende Schlüssel lösen wie beim Start zu den Code-Standards auf: der Boden muss unter der Hälfte des Limits bleiben, damit die Datenbank die andere Hälfte für ihren Cache behält. Ausgeliefertes Profil: fünf persistente Verbindungen und fünfzehn im Überlauf pro Worker, ein Limit von zwei Gibibyte. Zwei Fragen bleiben offen und stehen geschrieben: das Wachstum eines Workers ohne Transkription über mehrere Tage, das die Serien pro Worker messbar machen, und die Aufbewahrung der LangGraph-Checkpoints.
-
-Was ein Worker sein ganzes Leben lang hält, nimmt seine **kompakte Form an, einmal**. Die Vektoren des Werkzeug-Selektors sind `float32`-Arrays — ein Vektor mit 1 536 Dimensionen schrumpft von etwa 49 KB als Liste von Python-Floats auf 6 KB —, die Vektoren der MCP-Server einer Person werden einmal pro Katalog und Worker dekodiert statt bei jedem Zug, eine MCP-Argumentklasse wird einmal pro Schema gebaut, ein BM25-Index wird ersetzt, wenn sich sein Korpus ändert, statt sich anzusammeln, und der beim Start aufgebaute Heap wird zuletzt im Lifespan eingefroren: Was bis zum Ende des Prozesses lebt, verlässt den zyklischen Collector, der dann nur noch durchsucht, was die Züge allozieren. Jeder dieser Posten wurde durch eine Zählung nach Typen und Größen, in einen laufenden Worker injiziert, benannt, bevor er angefasst wurde.
-
-## 43. Der Live-Modus: zwei Intelligenzen, eine Naht – und eine Regel pro Modus
-
-Eine Sitzung von Sprache zu Sprache läuft auf einem Live-Modell, das die Person mit **ihrem eigenen Schlüssel** verbindet – eine eigene Konnektor-Kategorie, `live`, additiv: Mehrere Schlüssel können aktiv sein, die Sitzungen öffnen sich auf dem gewählten, und ein Modell zu wählen *heißt*, seinen Anbieter zu wählen. Der Anbieter rechnet über deinen persönlichen Schlüssel ab; das Plattformbuch erfasst diese Ausgaben nicht. Der Browser zeigt verfügbare Verbrauchs- und Kostendaten separat. Die API prägt einen einmal nutzbaren Berechtigungsnachweis und rendert das Setup; der Browser spielt es wörtlich ab und öffnet die Verbindung selbst, sodass **der Live-Ton ohne Avatar die direkte Anbieterverbindung nutzt**. Vier Verhaltensweisen des Anbieters, an seiner echten API geprüft, setzen je eine Regel: Die Einschränkung eines Berechtigungsnachweises sperrt die Systemanweisung nicht; ein verbrauchter Einmal-Nachweis kann sich nicht neu verbinden (jede Neuverbindung prägt einen frischen für denselben Datensatz); der Anbieter akzeptiert stillschweigend einen unbekannten Stimmennamen (die Stimme wird gegen eine mitgelieferte, datierte Liste geprüft); ein roher Browser-WebSocket wird nur von einer einzigen Methode angenommen.
-
-Das Design ist **eine Naht zwischen zwei Intelligenzen** (ADR-299). Das Sprachmodell besitzt das Gespräch – zuhören, sprechen, unterbrechen, eine Wartezeit füllen – und delegiert jede Bitte um Daten oder eine Aktion über eine einzige deklarierte `NON_BLOCKING`-Funktion, `send_to_lia`, an die Chat-Engine. Der Browser macht aus diesem Aufruf einen gewöhnlichen `POST /chat/stream` unter dem eigenen Cookie der Person: Der delegierte Zug läuft im Graphen (HITL, Register, Kontingente, Archiv, Lernen), zeichnet sich mit dem Sitzungsstempel im Verlauf, und die Brücke reicht der Stimme eine begrenzte, geglättete Antwort – oder LIAs offene Frage, die *die* Antwort ist. Die Stimme hält nie ein Werkzeug, einen Nachweis oder eine eigene Zeile. Eine Sitzung ist eine Entscheidungszeile; jeder delegierte Zug ist ein eigener Lauf; die Abschlusskarte summiert die Zusammenfassungszeilen dieser Läufe. Ein zweiter Anbieter kam hinzu, ohne dass eine Zeile der Brücke sich bewegte (ADR-300): Ein Anbieter **deklariert seine Leitung** – `connection` (`token`: der Browser öffnet den Socket mit dem Nachweis des Anbieters; `offer`: die API prägt ihre eigene Nonce und tauscht das SDP des Browsers auf dem Schlüssel der Person) und `delegation_wire` (`tool`; oder `native`, wo der Anbieter eine Id und einen Versatz ohne Text sendet und die Bitte im Browser aus dem Transkript zusammengesetzt wird) – und die Naht verzweigt nie auf seinen Namen. Der dritte, ElevenLabs Agents, setzte den *Agenten* der Person dorthin, wo ein Modell steht: Alles außer dem Prompt und LIAs Werkzeugen bleibt auf seinem Portal, seine Werkzeuge werden vor der Prägung per Fingerabdruck an den Agenten gehängt, und seine Abrechnung ist als `vendor` deklariert – die Plattform bepreist nichts, der Zähler zeigt nur die Uhr, und die Rechnung des Anbieters wird einmal am Ende gelesen, nach dem Schließ-Handshake, mit dem er sie abschließt.
-
-Eine **direkte Sitzung** ist die Telefonleitung im Browser: Die Stimme hält LIAs Lesewerkzeuge selbst – die abgeleitete Menge des Telefons abzüglich der eigenen Schalter der Person – hinter einer einzigen Werkzeugtür unter einem Budget pro Sitzung, und delegiert nie. Diese Wahl hat einen bekannten Preis: Die Werkzeugdeklarationen machen den Großteil des Setups aus, und der erste Zug kostet weit mehr als der delegierte – eine direkte Sitzung kauft Latenz, nie Ersparnis. Die Nutzungsberichte des Anbieters werden im Browser gefaltet und mit dem Tarif bepreist, den der Start veröffentlicht, unter dem letzten Untertitel gezeichnet; Kosten, die einen nicht hinterlegten Tarif bräuchten, sind nicht verfügbar, nie teilweise; ein Live-Modell wird nur angeboten, wenn die Tariftabelle es deklariert. Zwei gemessene Fallen leben im Player: Geminis affektiver Dialog schließt den Socket beim ersten, was das Modell beantworten muss, und Chrome 152 wiederholt den ersten Renderblock eines geplanten Chunks – der PCM-Player ist ein einziges AudioWorklet, das eine Warteschlange liest, nie ein Quellknoten pro Chunk.
-
-Dieselben zwei Modi gelten für das Telefon (ADR-301): Das Gespräch auf der einen Leitung an seinem *Ende* weiterzugeben und auf der anderen jede Bitte *währenddessen* zu delegieren, ergäbe zwei Wahrheiten für ein Wort. Eine Sprachsitzung hat daher einen **Modus** und einen **Träger**, und die Regel folgt allein dem Modus: `delegated` („Live“), jede Bitte ein Chat-Zug der Person, während sie gesagt wird; `direct` („Live direkt“), die Stimme liest, handelt nicht, und die Worte werden am Ende als eigener Zug der Person weitergegeben. **Ein Abschluss** bedient beide Leitungen, aufgerufen von der End-Route des Browsers und dem Post-Call-Webhook des Telefons; was die Leitungen teilen, lebt außerhalb beider in `domains/voice_sessions/`, und der Live-Modus des Telefons ist die Delegation des Browsers serverseitig – ein asynchrones Anbieterwerkzeug mit dem Namen und Schema des Browsers, eine Brücke, die die TypeScript-Brücke Regel für Regel spiegelt (die neueste Bitte gewinnt über eine Redis-Markierung, die die laufende Brücke abfragt; eine Frage, die LIA stellte, ist das Ergebnis, und die nächste Bitte setzt den Lauf fort, der sie stellte). Auf dem Motor des Anbieters kündigt die Stimme den Aufruf an und spricht weiter, und eine späte Antwort jenseits seiner Grenze geht verloren: Die Brücke antwortet daher vorher. Der effektive Modus wird abgeleitet und veröffentlicht – Live gibt es nur dort, wo der Rückruf-Host öffentlich ist – und ein Runner hält über den Zug hinweg keine Datenbanksitzung, sodass keine Verbindung `idle in transaction` wartet, während er mit dem Modell spricht.
-
-**Eine Sitzung schläft, sie stirbt nicht** (ADR-329). Die Stille des Modells, eine verborgene Seite oder der Knopf der Person versetzen die Sitzung in den Schlaf: der Browser schließt die Verbindung zum Anbieter — nichts läuft, nichts wird berechnet — und meldet es dann; der Datensatz bleibt beansprucht, lebt bis zu einer langen Standby-Grenze statt bis zu seiner Obergrenze und wechselt von den aktiven Sitzungen der Instanz in ihre Standby-Menge. Nur die Person beendet eine Sitzung. Ein Aufwecken öffnet eine **neue** Verbindung: die API lehnt der Reihe nach ab (schon wach, Obergrenze, Erzeugungsrate, Instanzgrenze), **erzeugt das Setup neu** im Moment des Aufweckens mit der Funktion des Starts selbst — gesprochene Uhrzeit, innerer Zustand, aktuelle Schalter —, erzeugt den Schlüssel und schreibt erst dann den Datensatz als wach: eine Ablehnung lässt die Sitzung genau so schlafend, wie sie war. Das Gedächtnis gehört der Anwendung, nie dem Anbieter; die Obergrenze verschiebt sich um die Schlafdauer, sodass jede Zahl — Karte, Entscheidungszeile, Histogramm, Zähler — die wache Zeit zählt, und eine direkte Sitzung gibt ihre Worte bei jedem Standby weiter. Im Browser leiht sich eine Richtlinie (`LiveStandby`) die Leitung des Controllers, hört bei sichtbarer Seite auf einer eigenen Aufnahme auf „Dis LIA“ und prüft nach jeder Wartezeit, ob die Sitzung noch die ist, die der Store hält.
-
-## 44. Karten, die zeigen, was empfangen wurde, und Aktionen, die zu ihrer Nachricht gehören
-
-Eine Antwort, die Daten trägt, wird vom Server als HTML-Karten gerendert, mit der Nachricht archiviert und dann vom Chat durch eine strenge Bereinigung hindurch wieder gelesen. Das Rendering bleibt **deterministisch und serverseitig** (ADR-332): ein einziger Renderer, unabhängig vom Modell und vom Ausführungsmodus. Typisierte Adapter je Familie übersetzen die Aliasse der Anbieter, Einheiten und optionale Werte in gemeinsame Primitive — Titel, Volltext, Fakten, native Aufklappbereiche —, und der Browser fügt nur hinzu, was HTML nicht kann: Galerie, Betrachter, Wahl eines Zeitfensters, Verfassen. Eine archivierte Antwort, die wieder geöffnet wird, nimmt denselben Weg; ohne JavaScript bleibt sie lesbar.
-
-**Ein empfangener Fakt wird vollständig gezeigt und nie erfunden.** Fehlend, null und falsch sind drei verschiedene Zustände: Eine Karte erzeugt keine Standarduhrzeit, löscht keine Kosten von null und verwendet keine technische Kennung als Namen. Die Uhr der Quelle läuft durch einen einzigen Parser — ein expliziter Versatz ist maßgeblich, eine unbekannte Zone wird nie als UTC gelesen, ein ganztägiges Datum bleibt ein Kalenderdatum —, und Microsofts native Wiederholung bleibt ein nativer Fakt statt einer erfundenen Regel. Das ist eine Regel für das, was **empfangen** wurde: Keine Liste fordert mehr Felder an, und ein Detail zu öffnen ruft weder einen Anbieter noch ein Modell noch ein Werkzeug auf.
-
-**Das Modell liest eine Sicht, nie die Karte.** Die Nachricht des Assistenten trägt eine versionierte semantische Sicht dessen, was die Person gesehen hat; der Verlauf, die Compaction und jeder spätere Aufruf lesen sie anstelle des HTML. Eine Sonde hatte es gezeigt: Der Text einer E-Mail, den der Modus „Metadaten“ zurückhielt, kam im nächsten Zug über das HTML ihrer Karte zurück. Die Grenze „nur Anzeige“ ist jetzt durch Konstruktion garantiert, und eine Änderung der Darstellung kostet weder einen zusätzlichen Aufruf noch einen schwereren Prompt.
-
-**Eine Aktion gehört zu der Nachricht, die ihre Quelle gezeigt hat.** Aus einer Karte zu antworten, weiterzuleiten oder eine Erinnerung anzupassen bereitet eine Anfrage vor, nie einen Versand: Beim Klick liest der Server die Antwort erneut — die des Kontos, im laufenden Gespräch, aus ihrem Lauf —, dazu die kanonische Quelle und die Berechtigung des Kontos; Bestätigung, Änderung und Wiederaufnahme prüfen dieselbe Bindung erneut, und eine Quelle ohne strukturelle Bindung an ein Konto bietet keine Aktion an. Eine HTML-Klasse oder ein Attribut, das ein externer Text geschrieben hat, autorisiert nie etwas.
-
-**Eine Karte im Browser ist eine gezählte Ausgabe.** Eine Route kann sich als interaktive Google-Karte auf der exakten Geometrie des Anbieters öffnen; eine Alternative zu wählen berechnet nichts neu. Die Aktivierung ist ausdrücklich und kündigt ihre geschätzten Kosten an; der Schlüssel wird erst nach einer authentifizierten Zulassung freigegeben, unter den Obergrenzen des Kontos und der Instanz, gebunden an eine kurzlebige signierte Berechtigung, und jeder Aufbau wird in den bestehenden Registern unter einem dauerhaften Lauf verbucht — ohne neue Tabelle. Was LIA zählt, ist der vom Browser beobachtete Aufbau, nicht die Rechnung von Google: Der Schlüssel muss beim Anbieter weiterhin eingeschränkt und gedeckelt werden.
-
-Die Überlagerungen — Fenster, Menüs, Listen, Tooltips, Betrachter, Benachrichtigungen — teilen ein und dasselbe Glas, gebaut auf den Tokens des Themes; eine Vorliebe für reduzierte Transparenz oder erzwungene Farben macht eine Fläche deckend, reduzierte Bewegung entfernt dekorative Übergänge, und ein Fenster gibt den Fokus an das Bedienelement zurück, das es geöffnet hat. Jedes Rendering wird von seinem echten Erzeuger bis zur Serialisierung im Register getestet, mit ausdrücklichen Nullen, Falsch-Werten, Abwesenheiten und feindlichen Eingaben.
-
-Eine Auswahl wird nur behauptet, wenn Belege ihre Elemente und Daten bestimmen; bei unsicheren Zeitfiltern bleiben die kanonischen Ergebnisse erhalten. MCP-Karten nennen Server, öffentlichen Ursprung und aufgerufene Methode bei strukturierten, Listen- und Textausgaben; eine erklärte Wartefrist gilt gemeinsam für alle Worker. Wettersymbole folgen den gelieferten Bedingungen. Das Löschen einer E-Mail über ihre Karte prüft das genaue verbundene Postfach und verlangt weiterhin Bestätigung.
-
-**Ein Ort liefert seine Details und eine Route, einmal gezählt** (ADR-355, ADR-356). Die Position-Karte nummeriert jeden Ort — dieselbe Nummer in der Liste und auf seiner Markierung. Ein ausgewählter Ort zeigt die Fakten, die die Antwort schon erworben hat, ohne neue Suche, und berechnet eine Route über einen einzigen authentifizierten Endpunkt, der den Startpunkt bestimmt: die Browserposition, wenn sie bereits freigegeben ist, sonst die zuletzt bekannte, datierte Position, sonst das Zuhause; zu Fuß bis einschließlich 2 km, sonst mit dem Auto, einmal korrigiert, wenn der tatsächliche Fußweg länger ist. Jeder bezahlte Aufruf wird genau einmal unter der bestehenden Preisgestaltung und den Kontingenten verbucht, Ablehnungen und Abbrüche eingeschlossen, und Popups am Desktop wie Dialoge am Telefon teilen dieselben Fakten und einen einzigen Scrollbereich.
-
----
-
-## 45. Anwendungsbefehle: eine Absicht, aktuelle Berechtigung
-
-Der Chat kann Präferenzen lesen und Operationen auf LIA-Ressourcen gemäß dem tatsächlich angebotenen Katalog vorbereiten. Die deklarierte Operation bestimmt Eingaben, Ergebnisse, UI-Bereiche, Rechte und Bestätigungspolitik. Angebotene Werte verwenden native Optionen und Bezeichnungen; das Modell erfindet keine neue Formularoption.
-
-### Ein Befehl ist an seinen Inhalt gebunden
-
-Die Zustimmung benennt den genauen Inhalt und dessen Digest. Der Befehl speichert Identität, Phase, Ablauf und Konto-/Ursprungs-/Gerätekontext; sensible Inhalte sind verschlüsselt. Vor dem Schreiben liest der Executor Berechtigung und Ressourcenversion erneut. Ein Versionsvergleich (CAS) lehnt Schreiben auf Grundlage eines veralteten Zustands ab. Eine abgesicherte Übernahme begrenzt doppelte Anwendungsausführung, verspricht aber keine Genau-einmal-Transaktion bei sämtlichen externen Anbietern.
-
-### Private Eingaben bleiben in ihrer Oberfläche
-
-Eine Fortsetzung übergibt OAuth, Schlüssel, Dateien oder Gerätezustimmung an den authentifizierten Browser. Ursprung und Sitzung werden geprüft; private Werte werden nicht zu Modellargumenten. Ereignisse können die Oberfläche auffordern, betroffene Ressourcen erneut zu lesen, ohne neue Werte oder private Admininhalte zu veröffentlichen. Payload-Verschlüsselung ersetzt niemals Zugriffskontrollen.
-
-### Die Antwort folgt Belegen statt Absichten
-
-Eine vorbereitete Anfrage, eine ausstehende Bestätigung und eine gespeicherte Änderung sind unterschiedliche Zustände. LIA nennt beobachtete Ergebnisse und unterscheidet Teilergebnisse, Warten, Konflikte, Ablauf und Fehler. Hat sich die Ressource seit der Vorbereitung geändert, kann der Befehl abgelehnt werden und eine neue Anfrage nötig sein. Eine Delegation an ein Werkzeug beweist allein nicht alle internen Auswirkungen.
-
-### Aktuelle Abfragen und identifizierte Werkzeuge
-
-Unabhängige, ausdrücklich geeignete Abfragen können in checkpointierten Segmenten mit begrenzter Parallelität laufen. Änderungen erhalten diese Erlaubnis nicht allein durch ihre Nähe im Plan. Ein Abbruch vor dem Checkpoint kann erneutes Lesen verursachen; lokale Wiederverwendung verspricht weder eine einzige globale Abfrage noch dauerhaft aktuelle Zustände.
-
-In ReAct kann eine genaue, vollständige und noch aktuelle Abfrage innerhalb derselben Anfrage wiederverwendet werden. Eine Änderung entwertet betroffene Beobachtungen; eine neue Anfrage kann eine neue Abfrage benötigen. Referenzen behalten Typ und Quelle: Eine Stadt ist kein Kontakt. Daten folgen Kontext und Zeitzone der Anfrage; Wetterwerte nennen ihre Einheiten, statt unbekannte Werte willkürlich umzurechnen.
-
-LIA nutzt tatsächlich entdeckte Schemata und Ergebniskontrakte mit Identität, Alter und Fingerabdruck. Ein lesbarer Name oder Alias ersetzt nicht die Identität des angebotenen Servers und Werkzeugs. Persönliche und administrative Server bleiben getrennt. Strukturierte Ergebnisse sind entsprechend ihrem Vertrag nutzbar; beliebige Schemata und externe Daten werden nicht zu interner Wahrheit. Fehlende oder unsichere Verträge bleiben entsprechend gekennzeichnet, mit den geltenden Bestätigungen.
-
-### Visuelle Entscheidungen und klare Grenzen
-
-Native Begleiter nutzen offline vorbereitete Grafiken und ein gemeinsames Rig. Ihr Volumen ist angenähert; Gesichtselemente und Zubehör folgen der Kopfbewegung, ohne die gesamte verdeckte Anatomie zu rekonstruieren. Die Bewegung hat einen einzigen Eigentümer, Ressourcen einen Lebenszyklus; reduzierte oder statische Darstellung bleibt verfügbar. Der Präsentationsfilm nutzt UI-Nachbildungen und Beispieldaten und belegt weder Geräteperformance noch eine TV-Zertifizierung.
-
-JEV-Entscheidungen werden unter Administration › JEV-Integrationen mit einem Hauptschalter und einzelnen Nutzungen konfiguriert. Sie sind optional, standardmäßig aus und benötigen gültige Konfiguration und Preise. Das Modell hilft, Werte zu klassifizieren oder innerhalb eines erklärten Bereichs auszuwählen; Kompatibilität, Rechte und Ausführung bleiben im Code. Unsichere, nicht verfügbare oder deaktivierte Urteile nutzen die deterministischen Schutzregeln. Diagnosen sind optional und begrenzt; parameter_kind ist standardmäßig aus. Ein bezahlter fehlgeschlagener Aufruf und sein Fallback werden beide erfasst. Testergebnisse versprechen nicht denselben Nutzen für alle Anfragen.
-
-Die Studien zu oMLX, llama.cpp und LM Studio sind Qualifikations- oder Entwurfsarbeiten, keine neu ausgelieferten Integrationen. Nutze die tatsächlich auf deiner Instanz angebotenen Anbieter. Der Simli-Videoavatar bleibt experimentell, optional und von einem externen Dienst abhängig; er ist von nativen Begleitern getrennt.
-
----
-
-## 46. LIAs Welt
-
-Die Welt bietet einen weiteren Zugang zur bestehenden Assistentin: ein im Browser mit **Canvas 2D** gezeichnetes isometrisches Haus mit Garten, React-Steuerung und privaten nativen Ansichten. Zwischengespeicherte Zeichnungen, Ausblenden außerhalb des Sichtfelds, Qualitätsstufen und reduzierte Bewegung begrenzen die Clientarbeit. Gehen, LIAs Rundgänge und dekorative Atmosphäre rufen kein Modell auf; die Atmosphäre nutzt frisches zwischengespeichertes Wetter ohne neue Anbieteranfrage.
-
-**Gemeinsame Anwesenheit hat eine Serverautorität.** Eine authentifizierte native Sitzung erhält ein kurzlebiges Einmalticket; WebSocket-Authentifizierung erfolgt im ersten Frame, nie über URL-Zugangsdaten. Redis koordiniert Eintritt, Kollisionen, Verbindungsleases und die Kontrolle eines Tabs. Kontorichtlinien, Fähigkeiten und Blockierungen filtern jede Ansicht. Fällt die Autorität aus, pausiert die Bewegung, statt eine unabhängige lokale Welt zu erfinden.
-
-**Öffentliches Aussehen ist eine Wahl; private Arbeit bleibt privat.** Der Eintritt verlangt die Erlaubnis, gewählten Namen und Avatar in der Welt zu zeigen; bestätigte Kontakte erhalten auch grobe Anwesenheit und Hausstatus. Gemeinsame Bewegung überträgt weder Hausinhalte noch Dokumente oder Assistentenkontext. Hausfarben und Avataränderungen behalten Eigentümer- und Revisionsprüfungen, Export und Kontolöschung. Die Räume beziehen Funktionen aus nativen Inventaren und öffnen bestehende Arbeitsbereiche; sie erteilen keine zusätzlichen Rechte, senden keinen Entwurf und umgehen HITL nicht.
-
-**Menschlicher Text hat eine eigene Lebensdauer.** Vorübergehende private Inhalte in Redis und inhaltsfreie SQL-Versuchsmarkierungen trennen Direktnachrichten von Assistentenverlauf und Lernen. Der eigene Platz `world_message_translator` nutzt native Modellauflösung, Ausgabenkontrollen und private Verbrauchsbelege. Nur eine ausdrückliche Wahl startet eine bezahlte Übersetzung; das Original bleibt erhalten, fehlgeschlagene oder ungewisse Versuche werden nie automatisch wiederholt. Der Server prüft strikte versionierte Nachrichten und begrenzte Größen. Browsertests und automatische Barrierefreiheitsprüfungen stützen das WCAG-AA-Ziel; sie zertifizieren weder echte Geräteleistung noch sprachliche Genauigkeit eines Anbieters. Menschliche Sprachübertragung und Föderation bleiben außerhalb dieser Umsetzung.
-
-**Auch Spiele haben eine Autorität.** Jeder Automat ist an genau eine deterministische Regel-Engine gebunden — Tic-Tac-Toe, Vier in einer Reihe oder Reversi — und die Redis-Autorität, die die Bewegung regelt, verwaltet auch Einwilligung, Züge, Ergebnisse, Fristen und Revanchen. Ein hinzukommender Spieler wird nur durch die ausdrückliche Annahme des Gastgebers aufgenommen. Jeder Befehl trägt Runde, Revision, Steuerung und Operationskennung, sodass eine ungewisse Bestätigung exakt wiederholt wird und nie einen Zug auf einem neuen Brett erneut ausführt. Der Computer ist eine begrenzte lokale Suche mit regelkonformem Ausweichzug, vorbereitet, bevor eine Sperre gesetzt wird; er ruft kein Modell auf. Nur aktuelle Teilnehmer erhalten das Brett, und die Kontolöschung entfernt Teilnahmen, Anfragen und Belege.
-
-**Ein Foto ist eine Projektion, kein Bildschirmfoto.** Eine Kopie des laufenden Canvas würde Besucher und Overlays erfassen; deshalb zeichnet ein unabhängiger Renderer ein Standbild aus einer Allowlist — Aussehen und Pose des Eigentümers, LIA, die Kamera und die öffentliche Kulisse — und exportiert es als begrenztes JPEG mit fester Signatur. Die mobilen Hüllen melden eine native Teilen-Funktion, prüfen die Bytes und halten sie in einem privaten, ablaufenden Cache; hochgeladen wird nichts.
-
-**Gesten und Signale bleiben begrenzt.** Sechs Gesten werden vom Server bestätigt und ratenbegrenzt. Gegenstände zeigen begrenzte Zähler der eigenen Erinnerungen, Nachrichten, Tickets und erzeugten Dateien des Eigentümers, gelesen über die nativen Endpunkte. Jahreszeiten, Dekorreaktionen und LIAs Mimik sind lokale Darstellung; sie speichern nichts und rufen keinen Anbieter auf.
-
-Der **Kanal Alle** friert beim Annehmen einer Nachricht die berechtigten anwesenden Empfänger ein, ohne blockierte Konten und private Häuser. Spätere Besucher erhalten alte Sendungen nicht. Übersetzung bündelt benötigte Sprachen über denselben Modellplatz, mit Abrechnung beim Sender und ohne automatische bezahlte Wiederholung. Öffentliche und private Gespräche behalten getrennte Entwürfe, Einwilligungen und Lesepositionen.
-
-**Optionaler lokaler Klang** nutzt statische Originaldateien für Räume und Garten mit eigener kontogebundener Lautstärke. Die Wiedergabe beginnt nach Wahl, ruft keinen Anbieter auf und pausiert für Mikrofon, Assistentenstimme, Live und Radio. Verlassen, Hintergrundmodus oder Autoritätsverlust unterbrechen den Klang.
-
----
-
-## 47. Fazit
-
-LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
-
-Die 363 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die über 69.000 automatisierten Tests, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
-
-Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
-
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (800+ Dokumente), der 363 ADRs und des Changelogs (v1.0 bis v4.1.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+Der Code steht unter AGPL-3.0, auf [GitHub](https://github.com/jgouviergmail/LIA-Assistant).

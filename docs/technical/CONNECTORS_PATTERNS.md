@@ -615,6 +615,18 @@ def classify_http_error(status_code: int, response_body: dict) -> dict:
 | 403 (permissions) | insufficient_permissions | No | Request new scopes |
 | 429 | rate_limit | Yes | Respect Retry-After header |
 | 5xx | server_error | Yes | Exponential backoff |
+| Transport failure (timeout, lost connection) | connection_error | Only if the request cannot repeat an act | `retry_policy.may_resend`: a replay-safe method, a POST its caller declares `idempotent=True`, or a request that never left (ADR-221 amendment 2026-10-29) |
+
+A **create** that must survive a lost answer carries the provider's own idempotency, derived from the
+effect register's key by `provider_idempotency_id`: a Graph `transactionId`, a CalDAV `uid` fixed
+before the retry loop, a Google event `id` (resent like the other two: Google refuses an id it holds
+with a 409, measured), read back by `GET` after any failure but a 4xx other than 409 — « not found »
+read again `CREATE_SETTLE_READS` times, since Google may still be writing it. An Apple contact's uid is
+drawn once per call before its loop (not derived from the key). Creates with no provider idempotency to
+carry — Google and Graph contacts and tasks, a mail send — are sent once after they may have been
+received: a lost answer is a reported failure, never a second contact. A new create follows one of
+these shapes; a new POST that is a read, or whose effect cannot repeat, passes `idempotent=True` —
+anything else is sent once after it may have been received.
 
 ---
 

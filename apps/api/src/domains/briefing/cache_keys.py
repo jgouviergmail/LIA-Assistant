@@ -30,6 +30,9 @@ from src.core.i18n import SUPPORTED_LANGUAGES
 from src.domains.briefing.constants import BRIEFING_CACHE_PREFIX
 
 _LAST_GOOD = "lastgood"
+_ATTEMPT = "attempt"
+_GENERATION = "gen"
+_ACT = "act"
 EDITORIAL_MAILS_SECTION = "mails:editorial-v1"
 
 # Completeness raised, not asserted, so it survives -O — the same shape
@@ -75,6 +78,52 @@ def last_good_key(*, user_id: UUID | str, language: str, section: str) -> str:
     return f"{BRIEFING_CACHE_PREFIX}:{_LAST_GOOD}:{user_id}:{language}:{section}"
 
 
+def act_snapshot_key(*, user_id: UUID | str, act_id: str) -> str:
+    """The act-scoped copy of the sections one page load served (``act_snapshot``).
+
+    Args:
+        user_id: Whose dashboard.
+        act_id: The act the first response opened.
+
+    Returns:
+        The fully scoped Redis key.
+    """
+    return f"{BRIEFING_CACHE_PREFIX}:{_ACT}:{user_id}:{act_id}"
+
+
+def attempt_marker_key(*, user_id: UUID | str, language: str, section: str) -> str:
+    """The short-lived key recording that one section's last live read failed.
+
+    Read only by the completeness readers (spec 2026-10-21 §5.7), under the
+    ``briefing:v2`` family by longest-prefix matching.
+
+    Args:
+        user_id: Whose dashboard.
+        language: The language the payload was formatted in.
+        section: Section name.
+
+    Returns:
+        The fully scoped Redis key.
+    """
+    return f"{BRIEFING_CACHE_PREFIX}:{_ATTEMPT}:{user_id}:{language}:{section}"
+
+
+def section_generation_key(*, user_id: UUID | str, section: str) -> str:
+    """The key counting push invalidations of one section — every language at once.
+
+    A push knows the source changed, never which language the person reads in,
+    so the generation that fences a read in flight is language-independent.
+
+    Args:
+        user_id: Whose dashboard.
+        section: Section name, as the push invalidation names it.
+
+    Returns:
+        The fully scoped Redis key.
+    """
+    return f"{BRIEFING_CACHE_PREFIX}:{_GENERATION}:{user_id}:{section}"
+
+
 def section_keys_every_language(*, user_id: UUID | str, section: str) -> list[str]:
     """Every cache key one section can occupy, across the supported languages.
 
@@ -117,7 +166,10 @@ def section_keys_every_language(*, user_id: UUID | str, section: str) -> list[st
 
 __all__ = [
     "EDITORIAL_MAILS_SECTION",
+    "act_snapshot_key",
+    "attempt_marker_key",
     "last_good_key",
+    "section_generation_key",
     "section_cache_key",
     "section_keys_every_language",
 ]

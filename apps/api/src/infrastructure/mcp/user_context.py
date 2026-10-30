@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from contextvars import Token
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -32,6 +32,8 @@ from pydantic import JsonValue
 
 from src.core.config import settings
 from src.core.constants import (
+    EXECUTION_MODE_REACT,
+    EXECUTION_MODES_ALL,
     MCP_ITERATIVE_TASK_SUFFIX,
     MCP_REFERENCE_TOOL_NAME,
     MCP_USER_TOOL_NAME_PREFIX,
@@ -40,6 +42,7 @@ from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
 from src.domains.agents.registry.domain_taxonomy import deduplicate_mcp_slugs
 from src.infrastructure.mcp.auth import build_auth_for_server
 from src.infrastructure.mcp.rate_limit import MCPServerPausedError
+from src.infrastructure.mcp.reference_content import reference_source
 from src.infrastructure.mcp.registration import (
     get_admin_mcp_domains,
     record_tool_registration_failure,
@@ -47,7 +50,13 @@ from src.infrastructure.mcp.registration import (
 from src.infrastructure.mcp.task_identity import bind_task_identity
 from src.infrastructure.mcp.tool_aliases import allocate_user_prefixes, user_tool_aliases
 from src.infrastructure.mcp.user_catalogue import describe_user_server, publish_user_server
-from src.infrastructure.mcp.user_pool import PoolEntry, UserMCPClientPool, get_user_mcp_pool
+from src.infrastructure.mcp.user_pool import PoolEntry, get_user_mcp_pool
+from src.infrastructure.mcp.user_preparation import (
+    EventSink,
+    ServerPreparation,
+    preparation_ceiling_seconds,
+    prepare_user_servers,
+)
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
 
@@ -58,121 +67,53 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+#: A standard server's ``read_me`` is offered to the ReAct loop only: the pipeline
+#: planner receives its content instead (spec 2026-10-21 §5.5b, E10).
+_READ_ME_MODES = frozenset({EXECUTION_MODE_REACT})
+
 
 # ============================================================================
 # Standalone setup / cleanup (for flat integration without nesting)
 # ============================================================================
 
 
-async def _usable_tool_embeddings(
-    server: UserMCPServer, tools: list[dict[str, Any]]
-) -> dict[str, Any]:
-    """The server's vectors in their compact form, parsed once per catalogue per worker.
-
-    The per-worker :class:`~src.domains.agents.services.tool_vectors.ServerVectorCache`
-    answers first, keyed by the server, the embedding model and the fingerprint
-    of the tools just discovered. On a miss the persisted envelope is read
-    ALONE (the listing that served the turn deferred it) and, when this model
-    wrote it for this catalogue, converted to float32 arrays and cached; else it
-    is recomputed and saved as before. Measured on production (ADR-283
-    amendment 2026-10-12): every turn used to parse about a thousand vectors of
-    1,536 Python floats, and each request context still alive held its own copy.
-
-    Best-effort in both halves: a recompute that fails leaves the tools
-    unranked for the turn (they still bind through their family's coverage)
-    and never fails the request. The new envelope is written in a short
-    transaction of its own, once the embeddings are computed (ADR-304).
+async def setup_user_mcp_tools(user_id: UUID, *, on_event: EventSink | None = None) -> Token | None:
+    """Prepare the account's servers and install them as the request context.
 
     Args:
-        server: The ``UserMCPServer`` row, read in a session already closed.
-        tools: The tools the pool just discovered on the server.
-
-    Returns:
-        Vectors by raw MCP tool name — arrays, possibly empty.
-    """
-    from src.domains.agents.services.tool_embeddings_envelope import (
-        embedding_model_key,
-        read_server_cache,
-        wrap_server_cache,
-    )
-    from src.domains.agents.services.tool_vectors import (
-        compact_tool_vectors,
-        get_server_vector_cache,
-    )
-    from src.domains.user_mcp.repository import UserMCPServerRepository
-    from src.infrastructure.database.session import get_db_context
-    from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
-
-    cache = get_server_vector_cache()
-    key = (str(server.id), embedding_model_key(), canonical_fingerprint(tools))
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
-
-    try:
-        async with get_db_context() as db:
-            envelope = await UserMCPServerRepository(db).get_tool_embeddings_cache(server.id)
-    except Exception as exc:
-        # The envelope used to travel with the row; read alone, its failure must
-        # cost the turn its ranking of this server's tools, never the tools.
-        logger.warning(
-            "user_mcp_tool_embeddings_read_failed",
-            server_id=str(server.id),
-            error_type=type(exc).__name__,
-        )
-        return {}
-    vectors, stale = read_server_cache(envelope, tool_metadata=tools)
-    if stale is None or not tools:
-        compact = compact_tool_vectors(vectors)
-        cache.put(key, compact)
-        return compact
-    try:
-        from src.domains.agents.services.tool_selector import compute_tool_embeddings
-
-        recomputed = await compute_tool_embeddings(tool_metadata=tools, server_name=server.name)
-        if not recomputed:
-            return {}
-        async with get_db_context() as db:
-            repo = UserMCPServerRepository(db)
-            row = await repo.get_by_id(server.id)
-            if row is not None:
-                await repo.update(
-                    row,
-                    {"tool_embeddings_cache": wrap_server_cache(recomputed, tool_metadata=tools)},
-                )
-        logger.info(
-            "user_mcp_tool_embeddings_refreshed",
-            server_id=str(server.id),
-            reason=stale,
-            tool_count=len(recomputed),
-        )
-        compact = compact_tool_vectors(recomputed)
-        cache.put(key, compact)
-        return compact
-    except Exception as exc:
-        logger.warning(
-            "user_mcp_tool_embeddings_refresh_failed",
-            server_id=str(server.id),
-            reason=stale,
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-        return {}
-
-
-async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
-    """
-    Setup user MCP tools for a chat request.
-
-    Queries enabled+active servers, connects via the pool, builds tool
-    adapters and manifests, sets the ContextVar. The servers are read in a
-    session of their own, closed before any server is connected: it used to
-    run on the turn's session, which then waited on every MCP handshake —
-    and on the embedding refresh it wrote there (ADR-304).
+        user_id: The account.
+        on_event: Receives each server's preparation phases.
 
     Returns:
         ContextVar token for cleanup (None if nothing was set).
         Caller MUST pass this to cleanup_user_mcp_tools() in a finally block.
+    """
+    ctx = await prepare_user_mcp_context(user_id, on_event=on_event)
+    return None if ctx is None else user_mcp_tools_ctx.set(ctx)
+
+
+async def prepare_user_mcp_context(
+    user_id: UUID, *, on_event: EventSink | None = None
+) -> UserMCPToolsContext | None:
+    """
+    Build the user MCP tools context for a chat request — without installing it.
+
+    Queries enabled+active servers, prepares them in parallel under one ceiling
+    (spec 2026-10-21 §5.3: from this worker's memory or the persisted catalogue
+    when it can, over the network otherwise), builds tool adapters and
+    manifests in the servers' order. The servers are read in a session of their
+    own, closed before any server is connected: it used to run on the turn's
+    session, which then waited on every MCP handshake — and on the embedding
+    refresh it wrote there (ADR-304). The caller installs the context
+    (``setup_user_mcp_tools``, or the turn once its notices are streamed):
+    built in a task of its own, it never touches the request's ``ContextVar``.
+
+    Args:
+        user_id: The account.
+        on_event: Receives each server's preparation phases (progress notices).
+
+    Returns:
+        The context, or None when no server brings a tool.
     """
     # Short-circuit: feature disabled → no-op
     if not getattr(settings, "mcp_user_enabled", False):
@@ -207,16 +148,22 @@ async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
     from src.domains.agents.tools.tool_registry import list_tool_names
 
     prefixes = allocate_user_prefixes([s.id for s in servers], reserved=list_tool_names())
-    for server in servers:
-        await _register_user_server(
-            server, user_id, pool, ctx, domains[server.name], prefixes[server.id]
+    preparations = await prepare_user_servers(
+        user_id,
+        servers,
+        pool,
+        on_event=on_event,
+        ceiling_s=preparation_ceiling_seconds(),
+        auth_for=build_auth_for_server,
+    )
+    for server, prepared in zip(servers, preparations, strict=True):
+        _register_prepared(
+            server, prepared, user_id, ctx, domains[server.name], prefixes[server.id]
         )
 
-    # Set ContextVar only if we have at least one tool
+    # A context only if we have at least one tool
     if not ctx.tool_instances:
         return None
-
-    token = user_mcp_tools_ctx.set(ctx)
 
     logger.info(
         "user_mcp_session_ready",
@@ -231,55 +178,76 @@ async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
         ),
     )
 
-    return token
+    return ctx
 
 
-async def _register_user_server(
+def _register_prepared(
     server: UserMCPServer,
+    prepared: ServerPreparation,
     user_id: UUID,
-    pool: UserMCPClientPool,
     ctx: UserMCPToolsContext,
     domain: str,
-    server_prefix: str | None = None,
+    server_prefix: str,
 ) -> None:
-    """Discover one server and publish it only after usable registration succeeds."""
+    """Register one prepared server, or say why it is absent from this turn."""
+    if prepared.outcome != "ready" or prepared.entry is None:
+        _log_absent(server, prepared, user_id)
+        return
+    hitl_required = (
+        server.hitl_required
+        if server.hitl_required is not None
+        else getattr(settings, "mcp_hitl_required", True)
+    )
+    register = (
+        _register_user_iterative_server
+        if settings.mcp_react_enabled and server.iterative_mode
+        else _register_user_standard_server
+    )
     try:
-        entry = await pool.get_or_connect(
-            user_id=user_id,
-            server_id=server.id,
-            url=server.url,
-            auth=build_auth_for_server(server),
-            timeout_seconds=server.timeout_seconds,
-            extra_headers=server.extra_headers,
+        register(
+            server,
+            prepared.entry,
+            user_id,
+            ctx,
+            hitl_required,
+            prepared.embeddings,
+            domain,
+            server_prefix,
         )
-        hitl_required = (
-            server.hitl_required
-            if server.hitl_required is not None
-            else getattr(settings, "mcp_hitl_required", True)
+    except Exception:
+        logger.warning(
+            "user_mcp_server_registration_failed",
+            user_id=str(user_id),
+            server_id=str(server.id),
+            exc_info=True,
         )
-        embeddings = await _usable_tool_embeddings(server, entry.tools)
-        register = (
-            _register_user_iterative_server
-            if settings.mcp_react_enabled and server.iterative_mode
-            else _register_user_standard_server
-        )
-        register(server, entry, user_id, ctx, hitl_required, embeddings, domain, server_prefix)
-    except MCPServerPausedError as paused:
+
+
+def _log_absent(server: UserMCPServer, prepared: ServerPreparation, user_id: UUID) -> None:
+    if isinstance(prepared.error, MCPServerPausedError):
         # A known state, not a new failure (point 29): the server failed to
         # connect earlier and waits out its pause — no traceback every turn.
         logger.info(
             "user_mcp_server_paused",
             user_id=str(user_id),
             server_id=str(server.id),
-            retry_in_seconds=paused.retry_in_seconds,
+            retry_in_seconds=prepared.error.retry_in_seconds,
         )
-    except Exception:
+    elif prepared.outcome == "deferred":
+        # Q2 (a): still discovering at the ceiling; it publishes for the next turn.
+        logger.info(
+            "user_mcp_server_deferred",
+            user_id=str(user_id),
+            server_id=str(server.id),
+            waited_seconds=round(prepared.duration_s, 3),
+        )
+    else:
         logger.warning(
             "user_mcp_server_connect_failed",
             user_id=str(user_id),
             server_id=str(server.id),
-            server_name=server.name,
-            exc_info=True,
+            outcome=prepared.outcome,
+            exc_info=prepared.error,
         )
 
 
@@ -306,8 +274,6 @@ def _register_user_standard_server(
     for tool_data in entry.tools:
         if is_app_only(tool_data.get("app_visibility")):
             continue
-        if tool_data["name"] == MCP_REFERENCE_TOOL_NAME and entry.reference_content:
-            continue
         try:
             adapter = UserMCPToolAdapter.from_discovered_tool(
                 server_id=server.id,
@@ -322,6 +288,8 @@ def _register_user_standard_server(
                 server_url=server.url,
                 output_schema=tool_data.get("output_schema"),
                 server_prefix=server_prefix,
+                built_from=entry.catalogue_fingerprint,
+                declaration=tool_data,
                 tool_alias=aliases[str(tool_data["name"])],
             )
             manifest = _build_user_tool_manifest(
@@ -335,6 +303,11 @@ def _register_user_standard_server(
                 annotations=tool_data.get("annotations"),
                 output_schema=tool_data.get("output_schema"),
                 server_key=str(server.id),
+                execution_modes=(
+                    _READ_ME_MODES
+                    if tool_data["name"] == MCP_REFERENCE_TOOL_NAME
+                    else EXECUTION_MODES_ALL
+                ),
             )
             ctx.tool_manifests.append(manifest)
             ctx.tool_instances[adapter.name] = adapter
@@ -355,9 +328,16 @@ def _register_user_standard_server(
             ctx,
             server.name,
             domain,
-            describe_user_server(server.name, server.domain_description, registered),
-            entry.reference_content,
+            describe_user_server(
+                server.name,
+                server.domain_description,
+                registered,
+                from_snapshot=entry.from_snapshot is True,
+            ),
         )
+        source = reference_source(server, entry, user_id=user_id, domain=domain)
+        if source is not None:
+            ctx.server_reference_sources[server.name] = source
 
 
 def cleanup_user_mcp_tools(token: Token | None) -> None:
@@ -477,6 +457,8 @@ def _register_user_iterative_server(
                 server_url=server.url,
                 output_schema=tool_data.get("output_schema"),
                 server_prefix=server_id_prefix,
+                built_from=entry.catalogue_fingerprint,
+                declaration=tool_data,
                 tool_alias=aliases[str(tool_data["name"])],
                 reserved_aliases=(
                     f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}",
@@ -514,7 +496,12 @@ def _register_user_iterative_server(
 
     if not registered:
         return
-    catalogue = describe_user_server(server.name, server.domain_description, registered)
+    catalogue = describe_user_server(
+        server.name,
+        server.domain_description,
+        registered,
+        from_snapshot=entry.from_snapshot is True,
+    )
 
     # 2. Create per-server task tool instance (named copy of the generic tool).
     # The description must speak the SERVER'S domain: bind_tools serializes
@@ -561,12 +548,9 @@ def _register_user_iterative_server(
     )
     ctx.tool_manifests.append(task_manifest)
     ctx.tool_instances[task_tool_name] = named_task_tool
-    publish_user_server(ctx, server.name, domain, catalogue, entry.reference_content)
+    publish_user_server(ctx, server.name, domain, catalogue)
     if account_scoped:
         ctx.account_scoped_prefixes.add(server_id_prefix)
-
-    # Track iterative servers for reference_content skip in planner
-    ctx.iterative_servers.add(server.name.lower())
 
     logger.info(
         "user_mcp_server_registered_iterative",
@@ -662,6 +646,7 @@ def _build_user_tool_manifest(
     annotations: dict | None = None,
     output_schema: dict | None = None,
     server_key: str | None = None,
+    execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
 ) -> ToolManifest:
     """Build a ToolManifest for a user MCP tool.
 
@@ -672,6 +657,7 @@ def _build_user_tool_manifest(
         server_domain: Per-server domain slug (e.g., "mcp_huggingface_hub").
         annotations: Server-declared behaviour hints, believed only where
             they tighten a decision (see ``declared_tool_category``).
+        execution_modes: The modes that may run the tool (ADR-249).
     """
     from src.infrastructure.mcp.registration import (
         build_mcp_tool_manifest,
@@ -698,4 +684,5 @@ def _build_user_tool_manifest(
         output_schema=output_schema,
         mcp_origin="user",
         mcp_server_key=server_key,
+        execution_modes=execution_modes,
     )

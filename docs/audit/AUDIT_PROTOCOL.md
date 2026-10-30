@@ -157,7 +157,8 @@ Execute in this order — the figures rule is *constants first, then texts*:
    Performance note. All link to `docs/audit/README.md`.
 5. `apps/web/src/data/guides/story.{en,fr,de,es,it,zh}.md` — the audit figures appear in the
    opening paragraph, the numbers table and the audit section; keep the six versions in sync.
-   The How guides quote the score too (`how.*.md`, « The audit is public — and reproducible »).
+   The `how` guides link the audit without quoting its score: since their 2026-10-29 rewrite
+   they are summaries under a tested length budget and quote no figure the audit owns.
 6. `docs/INDEX.md` — verify the audit entry is present and current; then the two texts that
    speak for the product outside the app: `docs/knowledge/01_getting_started.md` (the help
    corpus LIA answers from) and `apps/web/public/llms.txt`.

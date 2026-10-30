@@ -20,6 +20,7 @@ from src.domains.agents.services.streaming.latency_sli import (
     a_person_is_waiting,
     awaited_by_a_person,
     observe_first_token,
+    observe_pre_graph_phase,
     observe_stream_duration,
 )
 from tests._repo_paths import find_apps_api_root
@@ -27,9 +28,16 @@ from tests._repo_paths import find_apps_api_root
 pytestmark = pytest.mark.unit
 
 _SRC = find_apps_api_root() / "src"
-_GUARDED = {"sse_time_to_first_token_seconds", "sse_streaming_duration_seconds"}
+_GUARDED = {
+    "sse_time_to_first_token_seconds",
+    "sse_streaming_duration_seconds",
+    "chat_pre_graph_phase_seconds",
+    "chat_journey_first_token_seconds",
+    "chat_journey_unanswered_seconds",
+}
 _ALLOWED = {
     "infrastructure/observability/metrics_agents.py",  # the definitions
+    "infrastructure/observability/metrics_chat_journey.py",  # the definitions
     "domains/agents/services/streaming/latency_sli.py",  # the one door
 }
 
@@ -83,6 +91,23 @@ class TestAPersonIsWaitingUnlessARunSaysOtherwise:
 
 async def _probe() -> bool:
     return a_person_is_waiting()
+
+
+def _phase_count(phase: str) -> float:
+    return REGISTRY.get_sample_value("chat_pre_graph_phase_seconds_count", {"phase": phase}) or 0.0
+
+
+def test_pre_graph_phases_are_observed_only_while_a_person_waits() -> None:
+    """The wait before the graph is a person's wait too: a routine never feeds it."""
+    before = _phase_count("mcp")
+
+    with awaited_by_a_person(False):
+        observe_pre_graph_phase("mcp", 19.0)
+    assert _phase_count("mcp") == before
+
+    with awaited_by_a_person(True):
+        observe_pre_graph_phase("mcp", 0.4)
+    assert _phase_count("mcp") == before + 1
 
 
 def test_the_two_histograms_are_fed_through_one_door() -> None:

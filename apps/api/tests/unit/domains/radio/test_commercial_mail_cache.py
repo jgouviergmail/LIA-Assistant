@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.briefing import fetchers, service
+from src.domains.briefing import fetchers, section_outcomes, service
 from src.domains.briefing.cache_keys import section_keys_every_language
 from src.domains.briefing.schemas import CardSection, CardStatus, MailItem, MailsData
 from src.domains.connectors import active_client
@@ -19,6 +19,7 @@ from src.domains.push_channels.cache_invalidation import invalidate_for_provider
 from src.domains.radio import adapters
 from src.domains.radio.personal import PersonalSource, briefing_drafts, personal_facts
 from src.domains.users.models import User
+from tests.helpers.briefing_cache_double import briefing_eval
 
 pytestmark = pytest.mark.unit
 
@@ -34,9 +35,10 @@ class Cache:
         self.data[key] = value
 
     async def delete(self, *keys):
-        for key in keys:
-            self.data.pop(key, None)
-        return len(keys)
+        return sum(self.data.pop(key, None) is not None for key in keys)
+
+    async def eval(self, script, numkeys, *args):
+        return await briefing_eval(self, script, *args)
 
     async def scan_iter(self, *, match):
         return
@@ -83,7 +85,7 @@ async def test_same_owner_concurrent_radio_and_dashboard_do_not_share_promotiona
         yield Database()
 
     monkeypatch.setattr(active_client, "open_active_client", opened)
-    monkeypatch.setattr(service, "get_redis_cache", redis)
+    monkeypatch.setattr(section_outcomes, "get_redis_cache", redis)
     monkeypatch.setattr(service, "fetch_mails", fetchers.fetch_mails)
     monkeypatch.setattr(fetchers.settings, "briefing_max_mails_items", 1)
     monkeypatch.setattr(adapters, "get_db_context", database)
@@ -115,16 +117,16 @@ async def test_same_owner_concurrent_radio_and_dashboard_do_not_share_promotiona
     assert editorial._cache_key("mails") != ordinary._cache_key("mails")
     assert editorial._flight_key(frozenset()) != ordinary._flight_key(frozenset())
     assert editorial._claim_key() != ordinary._claim_key()
-    assert editorial._last_good_key("mails") != ordinary._last_good_key("mails")
+    assert editorial._section_keys("mails").last_good != ordinary._section_keys("mails").last_good
     assert editorial._cache_key("mails") in cache.data
-    assert editorial._last_good_key("mails") in cache.data
-    assert editorial._last_good_key("mails") in section_keys_every_language(
+    assert editorial._section_keys("mails").last_good in cache.data
+    assert editorial._section_keys("mails").last_good in section_keys_every_language(
         user_id=user.id, section="mails"
     )
     monkeypatch.setattr("src.domains.push_channels.cache_invalidation.get_redis_cache", redis)
     await invalidate_for_provider("google_gmail", user.id)
     assert editorial._cache_key("mails") not in cache.data
-    assert editorial._last_good_key("mails") not in cache.data
+    assert editorial._section_keys("mails").last_good not in cache.data
 
 
 async def test_old_unfiltered_payload_and_lastgood_cannot_satisfy_editorial_read(
@@ -143,7 +145,7 @@ async def test_old_unfiltered_payload_and_lastgood_cannot_satisfy_editorial_read
         ),
     )
     cache.data[normal._cache_key("mails")] = old.model_dump_json()
-    cache.data[normal._last_good_key("mails")] = old.model_dump_json()
+    cache.data[normal._section_keys("mails").last_good] = old.model_dump_json()
 
     async def redis():
         return cache
@@ -152,7 +154,7 @@ async def test_old_unfiltered_payload_and_lastgood_cannot_satisfy_editorial_read
         assert kwargs["exclude_commercial_mails"] is True
         raise TimeoutError
 
-    monkeypatch.setattr(service, "get_redis_cache", redis)
+    monkeypatch.setattr(section_outcomes, "get_redis_cache", redis)
     monkeypatch.setattr(service, "fetch_mails", failed)
     cards = await editorial.read_selected_cards(frozenset({"mails"}))
     assert cards.mails.status is CardStatus.ERROR and cards.mails.data is None

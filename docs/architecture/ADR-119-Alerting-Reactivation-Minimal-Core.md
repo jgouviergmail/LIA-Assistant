@@ -190,3 +190,13 @@ written: the entrypoint no longer selects between two templates.
    `test_alertmanager_template_guard.py` holds the rule: an audience route no
    loaded alert reaches fails the build unless it is declared dormant with its
    reason, and a declared one that becomes reached must leave the declaration.
+
+## Amendment 2026-10-28 — the journey is measured where the person waits
+
+The server-side SLI started after the MCP preparation, so the wait before the graph was in the logs
+and in no alert (spec 2026-10-21 §0ter H8). Two measurements now run beside it, without replacing
+it: the chat turn's journey on the server (`streaming/journey_timing.py`, from the request to the
+first useful byte, cancellation and interruption closed explicitly), and the browser's own timings
+(`product_client_timing_seconds`: chat first token, dashboard first card, all cards, text — durations
+only, a bounded vocabulary, panels on dashboards 01 and 26). `SSELatencyP95High` migrates to the
+journey only after two weeks of observation; until then both are read side by side.

@@ -133,7 +133,7 @@ class TestTheBuilderItself:
                 {
                     normal._cache_key(SECTION_MAILS),
                     editorial._cache_key(SECTION_MAILS),
-                    editorial._last_good_key(SECTION_MAILS),
+                    editorial._section_keys(SECTION_MAILS).last_good,
                 }
             )
         assert set(keys) == expected

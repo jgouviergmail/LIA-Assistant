@@ -18,6 +18,7 @@ import {
 import apiClient from './api-client';
 import { turnstileHeaders } from './turnstile';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
+import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
 import type { ExchangeRhythm } from '@/lib/exchange-rhythm';
 
 export interface User {
@@ -215,6 +216,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * feature it protects.
    */
   useEffect(() => {
+    // In-memory notices of a slow personal server belong to the account that saw them.
+    resetMcpPreparationNotices();
     if (user?.id) purgeSensitiveClientStorageOnAccountChange(user.id);
   }, [user?.id]);
 

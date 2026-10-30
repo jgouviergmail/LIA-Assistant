@@ -31,9 +31,38 @@ briefing_section_status_total = Counter(
     # origin:  live | cache
 )
 
+briefing_section_attempt_markers_total = Counter(
+    "briefing_section_attempt_markers_total",
+    "Attempt markers of failed briefing section reads (spec 2026-10-21, A8).",
+    ["outcome"],
+    # outcome: written — a live read failed and its section is settled for the
+    #                     completeness readers;
+    #          settled — a completeness reader took the marker instead of
+    #                     rebuilding (one avoided re-read of the failing source);
+    #          cleared — a later success removed it.
+)
+
+briefing_section_writes_fenced_total = Counter(
+    "briefing_section_writes_fenced_total",
+    "Section cache writes refused because a push invalidated the section during the read (E5).",
+    ["section"],
+    # section: the closed briefing section vocabulary (weather, agenda, mails, ...)
+)
+
+briefing_act_step_duration_seconds = Histogram(
+    "briefing_act_step_duration_seconds",
+    "Server time of each step of a progressive dashboard load (spec 2026-10-21 §5.8).",
+    ["step"],
+    # step: initial (the first response: cached and local sections) | section (one
+    #       pending section of the act) | text (the greeting and synthesis) | refresh
+    #       (one card re-read on request). A page load no longer calls the bundle
+    #       build, whose duration only sees a refresh-all and external clients.
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0),
+)
+
 briefing_refresh_requests_total = Counter(
     "briefing_refresh_requests_total",
-    "User-initiated POST /briefing/refresh requests.",
+    "User-initiated refreshes: POST /briefing/refresh and a card's own refresh route.",
     ["scope"],
     # scope: single | all
 )

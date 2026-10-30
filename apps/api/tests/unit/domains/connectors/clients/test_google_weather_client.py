@@ -411,3 +411,92 @@ class TestGeocodeDelegation:
             new=AsyncMock(return_value=None),
         ):
             assert await client.geocode("Nowhere-Ville-Inconnue") == []
+
+
+def _day(year: int, month: int, day: int, low: float, high: float, by_day: str, by_night: str):
+    return {
+        "displayDate": {"year": year, "month": month, "day": day},
+        "minTemperature": {"degrees": low, "unit": "CELSIUS"},
+        "maxTemperature": {"degrees": high, "unit": "CELSIUS"},
+        "daytimeForecast": {"weatherCondition": {"type": by_day}},
+        "nighttimeForecast": {"weatherCondition": {"type": by_night}},
+    }
+
+
+class TestDailySummaries:
+    """The card's daily strip in ONE billed request (spec 2026-10-21 W1b)."""
+
+    async def test_one_request_returns_the_providers_own_days(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {
+            "forecastDays": [
+                _day(2026, 10, 29, 4.5, 12.25, "CLOUDY", "RAIN"),
+                _day(2026, 10, 30, 3.0, 9.0, "CLEAR", "CLEAR"),
+            ]
+        }
+        with patch(
+            "src.domains.connectors.clients.google_weather_client.track_google_api_call"
+        ) as tracker:
+            days = await client.get_daily_summaries(48.85, 2.35, lang="fr", days=2)
+
+        assert request_spy.await_count == 1
+        endpoint, params = request_spy.await_args.args[0], request_spy.await_args.kwargs["params"]
+        assert endpoint == "/v1/forecast/days:lookup"
+        assert params["days"] == 2 and params["pageSize"] == 2
+        assert params["unitsSystem"] == "METRIC" and params["languageCode"] == "fr"
+        tracker.assert_called_once_with("weather", "/v1/forecast/days:lookup", cached=False)
+        assert days == [
+            {
+                "date": "2026-10-29",
+                "temp_min": 4.5,
+                "temp_max": 12.25,
+                "conditions": ["Clouds", "Rain"],
+            },
+            {
+                "date": "2026-10-30",
+                "temp_min": 3.0,
+                "temp_max": 9.0,
+                "conditions": ["Clear", "Clear"],
+            },
+        ]
+
+    async def test_a_day_without_its_temperatures_or_date_is_left_out(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        unreadable = _day(2026, 10, 31, 0.0, 0.0, "CLEAR", "CLEAR")
+        del unreadable["maxTemperature"]
+        undated = _day(2026, 11, 1, 1.0, 2.0, "CLEAR", "CLEAR")
+        del undated["displayDate"]
+        request_spy.return_value = {"forecastDays": [unreadable, undated]}
+
+        with patch("src.domains.connectors.clients.google_weather_client.track_google_api_call"):
+            assert await client.get_daily_summaries(1.0, 2.0, lang="en", days=5) == []
+
+    async def test_the_request_is_bounded_by_the_providers_ten_days(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {"forecastDays": []}
+        with patch("src.domains.connectors.clients.google_weather_client.track_google_api_call"):
+            await client.get_daily_summaries(1.0, 2.0, lang="en", days=40)
+
+        assert request_spy.await_args.kwargs["params"]["days"] == 10
+
+    def test_the_client_declares_it_serves_daily_summaries(
+        self, client: GoogleWeatherClient
+    ) -> None:
+        assert client.native_daily_summaries is True
+
+    async def test_an_impossible_date_is_left_out(
+        self, client: GoogleWeatherClient, request_spy: AsyncMock
+    ) -> None:
+        request_spy.return_value = {
+            "forecastDays": [
+                _day(2026, 2, 30, 1.0, 2.0, "CLEAR", "CLEAR"),
+                _day(2026, 3, 1, 3.0, 4.0, "CLEAR", "RAIN"),
+            ]
+        }
+        with patch("src.domains.connectors.clients.google_weather_client.track_google_api_call"):
+            days = await client.get_daily_summaries(1.0, 2.0, lang="en", days=2)
+
+        assert [day["date"] for day in days] == ["2026-03-01"]

@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 
 import { partialDateLabel } from '@/lib/briefing-utils';
 import type { ContactCard, ContactValue } from '@/hooks/useRelations';
+import { localizeContactLabel } from '@/lib/relations/contact-label';
 
 /** Only these two schemes are turned into a web link — `javascript:` never is. */
 const SAFE_LINK = /^https?:\/\//i;
@@ -92,20 +93,10 @@ const contactLinks = {
   },
 };
 
-/**
- * Localize a provider label, keeping the provider's own word as a fallback.
- *
- * `home`, `work`, `spouse`, `anniversary`… are vocabulary, not prose, and the
- * six locales carry the ones we know. Anything else is what the user typed into
- * their address book and is shown untouched.
- */
+/** The provider labels in the reader's language (`localizeContactLabel`). */
 function useLabel(): (label: string | null) => string | null {
   const { t } = useTranslation();
-  return (label: string | null) => {
-    if (!label) return null;
-    const key = label.trim().toLowerCase();
-    return t(`relations.contact_label.${key}`, { defaultValue: label });
-  };
+  return (label: string | null) => localizeContactLabel(t, label);
 }
 
 /** One labelled value of the contact card. */

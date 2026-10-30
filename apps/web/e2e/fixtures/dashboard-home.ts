@@ -320,14 +320,26 @@ export function homeRoutes(user: TestUser, briefing = homeBriefing()): MockRoute
       },
     },
     {
-      url: '**/api/v1/briefing/cards',
+      url: '**/api/v1/briefing/cards/initial',
       method: 'GET',
-      json: { cards: briefing.cards, windows: briefing.windows },
+      json: {
+        cards: briefing.cards,
+        windows: briefing.windows,
+        pending: [],
+        act: 'e2e-act',
+        act_expires_at: '2099-01-01T00:00:00Z',
+        section_concurrency: 4,
+      },
     },
     {
-      url: '**/api/v1/briefing/synthesis',
-      method: 'GET',
-      json: { greeting: briefing.greeting, synthesis: briefing.synthesis },
+      url: '**/api/v1/briefing/text',
+      method: 'POST',
+      json: {
+        greeting: briefing.greeting,
+        synthesis: briefing.synthesis,
+        reused: false,
+        state: 'ready',
+      },
     },
     {
       url: '**/api/v1/briefing/preferences',

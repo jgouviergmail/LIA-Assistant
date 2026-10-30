@@ -11,14 +11,14 @@ export const dynamic = 'force-dynamic';
 /**
  * Dynamic robots.txt generation
  *
- * Strategy:
- * - Allow traditional search engines (Googlebot, Bingbot) on public pages,
- *   read from the shared declaration the sitemap uses (`lib/public-pages.ts`)
- *   so a page can never be announced to crawlers and left out of the allow-list
- * - Allow AI search bots (OAI-SearchBot, Claude-SearchBot, PerplexityBot) for GEO visibility
- * - Allow user-triggered AI fetches (ChatGPT-User, Claude-User)
- * - Block AI training crawlers (GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider)
- * - Block all bots from authenticated areas (/dashboard, /api)
+ * Strategy — ONE group, the same rules for every crawler, AI bots included
+ * (search, user-triggered fetches and training alike):
+ * - Allow the public pages, read from the shared declaration the sitemap uses
+ *   (`lib/public-pages.ts`) so a page can never be announced to crawlers and
+ *   left out of the allow-list
+ * - Block the authenticated areas (/dashboard, /api)
+ * - Never block `/_next/*`: it holds the JS, CSS, fonts and optimized images a
+ *   crawler needs to render the public pages, and nothing private
  */
 export default function robots(): MetadataRoute.Robots {
   const locales = languages;
@@ -37,73 +37,14 @@ export default function robots(): MetadataRoute.Robots {
   const blockedPaths = [
     ...baseBlockedPaths,
     '/api/*',
-    '/_next/*',
     ...locales.flatMap(lng => baseBlockedPaths.map(p => `/${lng}${p}`)),
   ];
 
   const origin = getSiteOrigin();
   return {
-    rules: [
-      // --- AI Training Crawlers: BLOCK everything ---
-      {
-        userAgent: 'GPTBot',
-        disallow: ['/'],
-      },
-      {
-        userAgent: 'ClaudeBot',
-        disallow: ['/'],
-      },
-      {
-        userAgent: 'Google-Extended',
-        disallow: ['/'],
-      },
-      {
-        userAgent: 'CCBot',
-        disallow: ['/'],
-      },
-      {
-        userAgent: 'Bytespider',
-        disallow: ['/'],
-      },
-      {
-        userAgent: 'anthropic-ai',
-        disallow: ['/'],
-      },
-
-      // --- AI Search Bots: ALLOW public pages ---
-      {
-        userAgent: 'OAI-SearchBot',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-      {
-        userAgent: 'ChatGPT-User',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-      {
-        userAgent: 'Claude-SearchBot',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-      {
-        userAgent: 'Claude-User',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-      {
-        userAgent: 'PerplexityBot',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-
-      // --- Default: Allow public, block authenticated areas ---
-      {
-        userAgent: '*',
-        allow: publicPaths,
-        disallow: blockedPaths,
-      },
-    ],
+    // A named group would make its crawler ignore this one (RFC 9309), so a
+    // per-bot group is only ever written to give that bot DIFFERENT rules.
+    rules: [{ userAgent: '*', allow: publicPaths, disallow: blockedPaths }],
     // robots.txt requires an absolute sitemap URL; without a configured
     // origin the line is honestly omitted rather than invented.
     ...(origin ? { sitemap: `${origin}/sitemap.xml` } : {}),

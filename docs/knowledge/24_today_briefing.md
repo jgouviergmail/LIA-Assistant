@@ -84,3 +84,12 @@ The full charts and statistics live in the **Health data** section of the settin
 ## What does the Weather card show?
 
 The current conditions for your location, drawn as an illustrated sky that matches them, with air quality and in-season pollen where the instance offers them, then a strip of the coming days with their minimum and maximum temperatures — how many days is set by your administrator. Day names follow your interface language.
+
+## Why do some cards appear before others on the home page?
+
+The home page fills in as it can:
+• **At once:** the cards LIA can show without waiting — your reminders, your tickets, your SMS, and whatever was read a moment ago
+• **One by one:** a card whose source is slower (weather, calendar, mails…) shows its outline while it loads, then fills in on its own, without waiting for the others. It never asks you to set up a source while it is only loading
+• **Last:** the greeting and the summary of the day, written once every card has arrived — and reused if you reload the page soon after, so the same day is not written twice
+
+Refreshing one card reads only that card again; the summary follows at its next writing.

@@ -213,11 +213,24 @@ LIA shares one interpretation between the model's tool signature and the planner
 The protocol lets a server publish a **readable name** alongside a tool's technical identifier. When it does, that is what appears in the discovered-tools list — *Financial accounts* rather than `accounts__list_financial_accounts`. The technical identifier stays beside it: that is the one found again in logs and in rules.
 
 **🛡️ The confirmation:**
-A server can also declare that a tool is **destructive**. LIA believes that declaration — but in one direction only:
-• A tool announced as destructive asks for confirmation **even if** confirmation is switched off for that server
-• A server claiming to be harmless never earns a free pass
-• This is what the specification recommends: a third-party server's annotations may strengthen a protection, never lift one
+A server can also declare that a tool is **destructive**. LIA believes that declaration in one direction only: a server claiming to be harmless never earns a free pass. This is what the specification recommends: a third-party server's annotations may strengthen a protection, never lift one.
+
+Where LIA asks today depends on the server and the mode:
+• **A server your administrator added**: a tool announced as destructive asks for confirmation in both modes, **even if** confirmation is switched off for that server. On a server in iterative mode, LIA asks once before the task when confirmation is on for the server, and its tools do **not** ask on their own yet
+• **Your own server, in ReAct mode**: with confirmation on, LIA asks before each of its tools. With confirmation off, it still asks before a tool announced as destructive, but only on a server in **iterative mode**
+• **Your own server, in Pipeline mode** (a routine run in Pipeline mode included): LIA does **not** ask before its tools yet, whatever the server's setting. For a server whose actions you want to approve one by one, use ReAct mode
 
 ## How does LIA check what an MCP tool can do?
 
 LIA uses the schemas and result contracts actually discovered, with their identity, age and fingerprint. A readable name or alias does not replace the offered server and tool identity. Personal and administrator servers remain separate. Structured results can be used where their contract permits; arbitrary schemas or external data do not become internal truth. Missing or uncertain contracts stay declared as such, with applicable confirmation protections.
+
+## Why does a reply sometimes wait for one of my MCP servers, and what does the notice mean?
+
+LIA keeps what each of your MCP servers offers (its tools) and reuses it from one message to the next, so a message usually waits for none of them — even right after a restart, and on any of the instance's workers.
+
+**⏳ When a server must be asked again** (the first time, or after you changed its settings), LIA prepares your servers **in parallel**:
+• If one takes a while, a small notice names it: *“… is taking a while to get ready”*. Turning the server off in Settings shortens the wait, at the cost of its tools
+• If it is still not ready after a short wait, your message is answered **without that server's tools**, and the notice says so. The server keeps getting ready: it is there for your next message
+• A server that changes what it offers is re-read in the background while the last known version keeps serving
+
+**🛡️ Before using a tool**, when what it keeps of the server is no longer fresh, LIA checks that the server still offers it in the same form. If the server withdrew the tool, or changed its parameters in a way the call no longer fits, the call is **not sent** and LIA tells you.

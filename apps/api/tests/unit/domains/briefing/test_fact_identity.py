@@ -188,7 +188,7 @@ class TestTheWeatherRoutinesOwnRead:
         extras = AsyncMock()
         with (
             patch(f"{_FETCHERS}.resolve_city_name", city),
-            patch(f"{_FETCHERS}.fetch_environment_extras", extras),
+            patch(f"{_FETCHERS}.extras_when_active", extras),
         ):
             alert = await _read(client, location=SimpleNamespace(lat=48.85, lon=2.35))
 

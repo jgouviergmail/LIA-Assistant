@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 363 ADR files (ADR-365 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 364 ADR files (ADR-366 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -58,7 +58,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (363 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (364 ADR files) |
 
 ### Pour les Product Managers
 
@@ -117,6 +117,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LIA world V1 and extensible foundation](./superpowers/specs/2026-10-09-lia-isometric-world-v1-scope.md) | Accepted launch scope, typed evolution contracts, retained social/private/mobile experience and conditional assisted-work planning objectives | Scope accepted; generic design required |
 | [LIA world global architecture and game-quality review](./superpowers/specs/2026-10-09-lia-isometric-world-global-review.md) | Fresh source audit and primary research; strict translation attempts, socket security, movement/camera/input, integration lifetimes, risk oracles and measurable quality gates | Accepted V1 refined; runtime qualification pending |
 | [LIA world: MalinosLand reference and concepts](./superpowers/specs/2026-10-20-lia-world-malinosland-reference.md) | Owner-selected visual base, inspected source/screenshots, reusable game concepts, selective Phaser investigation and LIA/licensing boundaries | Visual reference accepted; implementation and qualification pending |
+| [LIA World experiences: cross-cutting dossier](./superpowers/specs/2026-10-29-world-experiences/README.md) | Four workstreams, verified native contracts, shared arbitrations, acceptance criteria and separate-chat launch prompts | Proposed framing; owner decisions open |
 
 ---
 

@@ -256,6 +256,7 @@ class CalendarClientProtocol(Protocol):
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
         add_conference: bool = False,
+        idempotency_key: str | None = None,
     ) -> dict: ...
 
     async def update_event(

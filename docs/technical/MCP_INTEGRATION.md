@@ -495,6 +495,32 @@ Cleanup:
 > (~1.5s handshake per call) is acceptable given typical MCP tool call latency
 > (3-10s).
 
+### The catalogue on the turn (ADR-366)
+
+A turn no longer waits for a personal server's discovery when the account already holds its
+catalogue (measured before: 48 % of turns discovered a server first, p95 19.2 s):
+
+- **Snapshot.** The catalogue is a snapshot on the server's row (generation, configuration and
+  catalogue fingerprints, the server's cache hints), published by compare-and-set; one pool door
+  serves memory, then the snapshot, then the network (`MCP_USER_DISCOVERY_TIMEOUT_SECONDS`, a
+  process-wide bound of concurrent discoveries).
+- **Revalidation.** A snapshot is verified at use past its age — the server's positive `ttlMs`,
+  else `MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS` (an mcp 2.x server without hints sends `0`,
+  the SDK's default, read as no hint) — and served while one worker revalidates it in the
+  background past the larger of that age and the setting (`mcp:catalogue` claim); the outcome is
+  counted.
+- **Ceiling.** Servers are prepared in parallel; one still preparing at
+  `MCP_USER_PREPARATION_CEILING_SECONDS` is left out of this turn and keeps preparing for the next.
+- **Verified at use.** A call checks the declaration it relies on against the server's current
+  listing: a withdrawn tool, a rejected argument or a tightened declaration is refused before it is
+  sent (`CONFLICT`); a compatible change is sent and schedules a revalidation.
+- **`read_me` at real use**, once across workers, refreshed in the background.
+- **Notices.** A server still preparing after a short delay raises a polite, closable notice naming
+  it; one left out at the ceiling says « not used for this message ». Past three slow servers, ONE
+  grouped notice still names them — the first three in the language's quotes, then how many others
+  (`chat.mcp_preparation.quoted_name`, `others`, the locale's list joining) — and a run that ends
+  closes what it still shows.
+
 ### Protocol Revisions & SDK (ADR-223)
 
 LIA runs the **MCP Python SDK v2** (`mcp>=2.2.0`) as a **dual-era client**

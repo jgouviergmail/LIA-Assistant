@@ -26,6 +26,7 @@ import { describe, it, expect } from 'vitest';
 
 import pkg from '../../../../package.json';
 import en from '../../../../locales/en/translation.json';
+import { PUBLIC_FAQ_SECTIONS } from '../../faq/faq-sections';
 import { HOW_TOC_SECTIONS, WHY_TOC_SECTIONS, STORY_TOC_SECTIONS } from '../guides-toc';
 import type { GuideTocSection } from '../guides-toc';
 
@@ -107,6 +108,79 @@ const headerDate = (text: string): string | null =>
       line.match(/^\*\*(?:Date|Datum|Fecha|Data|日期)\*\*\s*[:：]\s*(\d{4}-\d{2}-\d{2})\s*$/)
     )
     .find(Boolean)?.[1] ?? null;
+
+/** Every markdown link target that stays on the site (starts with `/`). */
+const onSiteLinks = (text: string): string[] =>
+  [...text.matchAll(/\]\((\/[^)\s]*)\)/g)].map(m => m[1]);
+
+const PAGE_ANCHORS: Record<string, readonly string[]> = {
+  '/how': HOW_TOC_SECTIONS.map(s => s.id),
+  '/why': WHY_TOC_SECTIONS.map(s => s.id),
+  '/story': STORY_TOC_SECTIONS.map(s => s.id),
+  '/faq': PUBLIC_FAQ_SECTIONS.map(s => `faq-${s}`),
+};
+const BARE_PAGES = new Set(['/how', '/why', '/story', '/faq', '/maps', '/privacy', '/terms']);
+
+/**
+ * Why an on-site link would land nowhere, or `null` when it resolves.
+ *
+ * Guide anchors are assigned positionally from the TOC arrays and the public
+ * FAQ exposes only `PUBLIC_FAQ_SECTIONS`, so an anchor that reads right in the
+ * markdown can silently scroll to the top of the page after a rename. A link
+ * carries its guide's locale prefix (`/en/story`), none for French, the
+ * unprefixed default locale — otherwise it reaches the reader in another
+ * language.
+ */
+const unresolvedLink = (target: string, lang: (typeof LANGS)[number] = 'fr'): string | null => {
+  const prefix = lang === 'fr' ? '' : `/${lang}`;
+  const localized = prefix === '' || target === prefix || target.startsWith(`${prefix}/`);
+  if (!localized || /^\/(en|fr|de|es|it|zh)(\/|#|$)/.test(target.slice(prefix.length))) {
+    return `${target}: a ${lang} guide links with the "${prefix || '(none)'}" locale prefix`;
+  }
+  const [page, anchor] = (target.slice(prefix.length) || '/').split('#');
+  if (anchor === undefined) {
+    return BARE_PAGES.has(page) ? null : `${target}: no such page`;
+  }
+  const anchors = PAGE_ANCHORS[page];
+  if (!anchors) return `${target}: no anchors on ${page}`;
+  return anchors.includes(anchor) ? null : `${target}: no anchor "${anchor}" on ${page}`;
+};
+
+/** Every `href` of a blog article body that stays on the site. */
+const blogOnSiteLinks = (html: string): string[] =>
+  [...html.matchAll(/href="(\/[^"]*)"/g)].map(m => m[1]);
+
+/** The blog articles of a locale (their bodies are HTML kept in the translation file). */
+const blogArticles = (lang: (typeof LANGS)[number]): Record<string, { body: string }> =>
+  (
+    JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'locales', lang, 'translation.json'), 'utf-8')
+    ) as { blog: { articles: Record<string, { body: string }> } }
+  ).blog.articles;
+
+const REPO_HOME = 'https://github.com/jgouviergmail/LIA-Assistant';
+const REPO_BLOB = `${REPO_HOME}/blob/main/`;
+const REPO_ROOT = path.join(process.cwd(), '..', '..');
+
+/** Every markdown link target that points at GitHub. */
+const repoLinks = (text: string): string[] =>
+  [...text.matchAll(/\]\((https:\/\/github\.com\/[^)\s]*)\)/g)].map(m => m[1]);
+
+/**
+ * Why a GitHub link of a guide would 404, or `null` when the document exists.
+ *
+ * The guides point at repository documents (ADRs, technical docs) rather than
+ * restating them, in six languages at once; a renamed ADR would otherwise leave
+ * every locale linking to nothing, and `doc_audit` does not follow http links.
+ */
+const missingRepoDoc = (url: string): string | null => {
+  if (url === REPO_HOME) return null;
+  if (!url.startsWith(REPO_BLOB)) return `${url}: not a document of ${REPO_HOME} on main`;
+  const relative = url.slice(REPO_BLOB.length).split('#')[0];
+  return fs.existsSync(path.join(REPO_ROOT, relative))
+    ? null
+    : `${url}: ${relative} does not exist`;
+};
 
 describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
   it('has one navigation entry per section, in every locale', () => {
@@ -214,6 +288,121 @@ describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
     const stale = LANGS.filter(lang => !read(name, lang).includes(`LIA v${pkg.version}`));
 
     expect(stale, `these guides do not stamp LIA v${pkg.version}: ${stale.join(', ')}`).toEqual([]);
+  });
+});
+
+describe('guide on-site links', () => {
+  it('resolves known targets', () => {
+    expect(unresolvedLink('/how#ddd')).toBeNull();
+    expect(unresolvedLink(`/faq#faq-${PUBLIC_FAQ_SECTIONS[0]}`)).toBeNull();
+    expect(unresolvedLink('/maps')).toBeNull();
+  });
+
+  it('rejects unknown targets', () => {
+    expect(unresolvedLink('/how#nope')).not.toBeNull();
+    expect(unresolvedLink('/faq#faq-nope')).not.toBeNull();
+    expect(unresolvedLink('/nowhere')).not.toBeNull();
+  });
+
+  it('requires the guide locale prefix', () => {
+    expect(unresolvedLink('/en/how#ddd', 'en')).toBeNull();
+    expect(unresolvedLink('/how#ddd', 'en')).not.toBeNull();
+    expect(unresolvedLink('/en/how#ddd', 'fr')).not.toBeNull();
+  });
+
+  it('extracts on-site links only', () => {
+    expect(onSiteLinks('[a](/story) [b](https://x.y/z) [c](#local)')).toEqual(['/story']);
+  });
+
+  it.each(FAMILIES.flatMap(({ name }) => LANGS.map(lang => [name, lang] as const)))(
+    'every on-site link of %s.%s resolves',
+    (name, lang) => {
+      const broken = onSiteLinks(read(name, lang))
+        .map(target => unresolvedLink(target, lang))
+        .filter(Boolean);
+
+      expect(broken).toEqual([]);
+    }
+  );
+});
+
+describe('blog article on-site links', () => {
+  it('extracts on-site hrefs only', () => {
+    expect(blogOnSiteLinks('<a href="/how#ddd">a</a> <a href="https://x.y">b</a>')).toEqual([
+      '/how#ddd',
+    ]);
+  });
+
+  it.each(LANGS)('every on-site link of the %s blog resolves', lang => {
+    const broken = Object.entries(blogArticles(lang)).flatMap(([slug, article]) =>
+      blogOnSiteLinks(article.body)
+        .map(target => unresolvedLink(target, lang))
+        .filter(Boolean)
+        .map(reason => `${slug}: ${reason}`)
+    );
+
+    expect(broken).toEqual([]);
+  });
+});
+
+describe('guide repository links', () => {
+  it('resolves a document of the repository', () => {
+    expect(missingRepoDoc(`${REPO_BLOB}docs/ARCHITECTURE.md`)).toBeNull();
+    expect(missingRepoDoc(`${REPO_BLOB}docs/ARCHITECTURE.md#anchor`)).toBeNull();
+    expect(missingRepoDoc(REPO_HOME)).toBeNull();
+  });
+
+  it('rejects a missing document and another repository', () => {
+    expect(missingRepoDoc(`${REPO_BLOB}docs/nope.md`)).not.toBeNull();
+    expect(
+      missingRepoDoc('https://github.com/jgouviergmail/LIA/blob/main/docs/ARCHITECTURE.md')
+    ).not.toBeNull();
+  });
+
+  it.each(FAMILIES.flatMap(({ name }) => LANGS.map(lang => [name, lang] as const)))(
+    'every repository link of %s.%s exists on main',
+    (name, lang) => {
+      const broken = repoLinks(read(name, lang))
+        .map(url => missingRepoDoc(url))
+        .filter(Boolean);
+
+      expect(broken).toEqual([]);
+    }
+  );
+});
+
+/**
+ * `why`, `how` and `story` are summaries, and their size is a ratchet.
+ *
+ * Releases used to append a paragraph per feature: by 2026-10-28 `why` held about
+ * 15,000 French words and `how` about 53,000 — an hour and four hours of reading
+ * for pages meant to be understood in broad strokes. They were rewritten
+ * (2026-10-29) and these ceilings are the measured size of that rewrite plus 10 %.
+ * SHRINK-ONLY: lower a ceiling when a page shrinks, never raise one to absorb a
+ * release — a feature changes a sentence; what does not fit belongs to the FAQ or
+ * `docs/`. Words for the five alphabetic locales, non-whitespace characters for
+ * zh; link targets are not prose, so they are not counted.
+ */
+const GUIDE_BUDGETS: Record<'why' | 'how' | 'story', Record<(typeof LANGS)[number], number>> = {
+  why: { en: 3886, fr: 4012, de: 3889, es: 4047, it: 3898, zh: 8185 },
+  how: { en: 5630, fr: 6173, de: 5644, es: 6349, it: 5942, zh: 13169 },
+  // `story` joined on 2026-10-29, rewritten in the author's voice the same day:
+  // measured size of that rewrite plus 10 %, same rule as above.
+  story: { en: 3666, fr: 3893, de: 3581, es: 3957, it: 3748, zh: 7404 },
+};
+
+const guideSize = (text: string, lang: (typeof LANGS)[number]): number => {
+  const prose = text.replace(/\]\([^)]*\)/g, ']');
+  return lang === 'zh'
+    ? prose.replace(/\s/g, '').length
+    : prose.split(/\s+/).filter(Boolean).length;
+};
+
+describe('guide length budget', () => {
+  it.each(
+    (['why', 'how', 'story'] as const).flatMap(name => LANGS.map(lang => [name, lang] as const))
+  )('%s.%s stays within its length budget', (name, lang) => {
+    expect(guideSize(read(name, lang), lang)).toBeLessThanOrEqual(GUIDE_BUDGETS[name][lang]);
   });
 });
 

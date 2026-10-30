@@ -229,27 +229,6 @@ FIXED_SURFACES: tuple[Surface, ...] = (
         re.compile(rf"<strong>Version {_VERSION}</strong>"),
         "README version block",
     ),
-    # The `how` guides close on a provenance note naming the changelog range
-    # the document was written against. It is a claim about coverage, and the
-    # document IS extended every release — so the range belongs to the bump,
-    # not to whoever remembers. It stopped at v1.33.0 for four releases while
-    # the guide's own sections described v1.37.0 features. The separator is
-    # part of the sentence, hence one declaration per locale.
-    *(
-        Surface(
-            f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(rf"v1\.0 {separator} v{_VERSION}"),
-            f"how.{locale}.md provenance note (changelog range)",
-        )
-        for locale, separator in (
-            ("en", "to"),
-            ("fr", "à"),
-            ("de", "bis"),
-            ("es", "a"),
-            ("it", "a"),
-            ("zh", "至"),
-        )
-    ),
 )
 
 #: Surfaces quoting a derived count. The ``constants.ts`` patterns are anchored
@@ -288,59 +267,6 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         re.compile(rf"ADR-{_COUNT} latest"),
         "adr_latest",
         "CLAUDE.md ADR-index pointer (latest number)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(rf"{_COUNT} 篇 ADR"),
-        "adr_files",
-        "how.zh.md ADR count (the zh guide quotes an exact number, the 5 "
-        "others say '100+')",
-        expected=3,
-    ),
-    # The `how` guides carry the ADR count TWICE each: once in the reliability
-    # row, once in the codebase-metrics table. Only the zh phrasing was
-    # declared, so the table figure drifted to 242 in all six languages while
-    # the guard stayed green. Declared per locale because the label is
-    # translated and the digit grouping is part of the language.
-    *(
-        CountSurface(
-            f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(rf"\| {label} \| {_COUNT} \|"),
-            "adr_files",
-            f"how.{locale}.md codebase-metrics table (ADR count)",
-        )
-        for locale, label in (
-            ("en", r"ADRs \(Architecture Decision Records\)"),
-            ("fr", r"ADRs \(Architecture Decision Records\)"),
-            ("de", r"ADRs \(Architecture Decision Records\)"),
-            ("es", r"ADRs \(Architecture Decision Records\)"),
-            ("it", r"ADR \(Architecture Decision Record\)"),
-        )
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(
-            rf"\| ADR\uff08\u67b6\u6784\u51b3\u7b56\u8bb0\u5f55\uff09 \| {_COUNT} \u7bc7 \|"
-        ),
-        "adr_files",
-        "how.zh.md codebase-metrics table (ADR count)",
-    ),
-    # Every "N ADRs" of the five non-zh `how` guides, not just the reliability
-    # row. The row alone was declared, so the three PROSE occurrences of the
-    # same number drifted to 245 against a real 248 — in the same file, three
-    # lines below a guarded 248. A table guard cannot see a sentence: the zh
-    # surface above matches the token itself, and this is its counterpart.
-    # `expected=4` also means a sixth occurrence fails loudly instead of
-    # joining silently, which is the guide-stamp doctrine applied to counts.
-    *(
-        CountSurface(
-            f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(rf"\b{_COUNT} ADRs\b"),
-            "adr_files",
-            f"how.{locale}.md ADR count (reliability row + 3 prose sentences)",
-            expected=4,
-        )
-        for locale in ("en", "fr", "de", "es", "it")
     ),
     # The `story` guides' key-figures table joined on 2026-08-27. It is the most
     # public claim the project makes about itself, and it was the only counter
@@ -396,11 +322,10 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
             ),
         )
     ),
-    # Two ADR counters written in PROSE rather than in a table, which is exactly
-    # why they escaped every surface: story's "among the N documented" (240 in
-    # six languages against a real 245) and how.zh's "N 篇 MADR 格式的 ADR"
-    # (242, one word outside the declared "N 篇 ADR" regex, while its five
-    # siblings were corrected). A guard that only reads tables guards tables.
+    # An ADR counter written in PROSE rather than in a table, which is exactly
+    # why it escaped every surface: story's "among the N documented" (240 in
+    # six languages against a real 245). A guard that only reads tables guards
+    # tables.
     *(
         CountSurface(
             f"{GUIDES_DIR}/story.{locale}.md",
@@ -419,12 +344,6 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
                 rf"\u5728 {_COUNT} \u4e2a\u5df2\u8bb0\u5f55\u7684\u51b3\u7b56\u4e2d",
             ),
         )
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(rf"{_COUNT} \u7bc7 MADR"),
-        "adr_files",
-        "how.zh.md MADR sentence (ADR count)",
     ),
     # docs/INDEX.md joined on 2026-08-27: it quoted the ADR count TWICE, with two
     # different wrong values (229 in its metrics table, 243 in the architects'
@@ -522,286 +441,34 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         "adr_latest",
         "README.md ADR section (latest ADR number)",
     ),
-    # The FAQ question count: the README and the six `why` guides quote the size
-    # of the in-app FAQ, a value its locale owns (v3.2.0: ten sections joined it,
-    # 375 questions became 491, and nothing would have caught the next change).
+    # The FAQ question count: the README quotes the size of the in-app FAQ, a
+    # value its locale owns (v3.2.0: ten sections joined it, 375 questions became
+    # 491, and nothing would have caught the next change). The `why` and `how`
+    # guides quote no count since their 2026-10-29 rewrite: they are summaries
+    # under a length budget (guides-structure.test.ts), and a summary points at
+    # the source instead of restating a value the code owns.
     CountSurface(
         "README.md",
         re.compile(rf"whose {_COUNT} questions cover every feature"),
         "faq_questions",
         "README.md knowledge spaces sentence (FAQ question count)",
     ),
-    *(
-        CountSurface(
-            f"{GUIDES_DIR}/why.{locale}.md",
-            re.compile(pattern),
-            "faq_questions",
-            f"why.{locale}.md transparency paragraph (FAQ question count)",
-        )
-        for locale, pattern in (
-            ("en", rf"— {_COUNT} questions, in six languages —"),
-            ("fr", rf"— {_COUNT} questions, en six langues —"),
-            ("de", rf"— {_COUNT} Fragen in sechs Sprachen —"),
-            ("es", rf"—{_COUNT} preguntas, en seis idiomas—"),
-            ("it", rf"— {_COUNT} domande, in sei lingue —"),
-            ("zh", rf"六种语言，共 {_COUNT} 个问题"),
-        )
-    ),
-    # Anchored on the TABLE CELL (`| N ...`), not on the words alone: the same
-    # guides legitimately say "23 Prometheus metrics files" (a file count) and
-    # "11 Prometheus metrics in metrics_journals.py" (a per-module count). A
-    # looser pattern swallowed all four and would have forced two unrelated
-    # numbers to follow the global total.
-    CountSurface(
-        f"{GUIDES_DIR}/how.en.md",
-        re.compile(rf"\| {_COUNT} (?:Prometheus metrics,|custom metrics \(RED)"),
-        "prometheus_metrics",
-        "how.en.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.fr.md",
-        re.compile(rf"\| {_COUNT} métriques (?:Prometheus,|custom \(RED)"),
-        "prometheus_metrics",
-        "how.fr.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.de.md",
-        re.compile(rf"\| {_COUNT} (?:Prometheus-Metriken,|benutzerdefinierte Metriken \(RED)"),
-        "prometheus_metrics",
-        "how.de.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.es.md",
-        re.compile(rf"\| {_COUNT} métricas (?:Prometheus,|custom \(RED)"),
-        "prometheus_metrics",
-        "how.es.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.it.md",
-        re.compile(rf"\| {_COUNT} metriche (?:Prometheus,|custom \(RED)"),
-        "prometheus_metrics",
-        "how.it.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(rf"\| {_COUNT} (?:Prometheus 指标、|自定义指标（RED)"),
-        "prometheus_metrics",
-        "how.zh.md metric count (transparency row + Prometheus row)",
-        expected=2,
-    ),
-    # The same guides restate the total once more, in PROSE, and that sentence
-    # drifted for four releases (490 against a real 492) while every guarded
-    # table cell stayed green: a guard that watches a table cannot see a
-    # paragraph. Anchored on the words that follow the number so it cannot
-    # collide with the table rows above.
-    CountSurface(
-        f"{GUIDES_DIR}/how.en.md",
-        re.compile(rf"{_COUNT} defined; the"),
-        "prometheus_metrics",
-        "how.en.md metric count (coverage sentence)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.fr.md",
-        re.compile(rf"{_COUNT} définies ; les"),
-        "prometheus_metrics",
-        "how.fr.md metric count (coverage sentence)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.de.md",
-        re.compile(rf"{_COUNT} definiert; die"),
-        "prometheus_metrics",
-        "how.de.md metric count (coverage sentence)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.es.md",
-        re.compile(rf"{_COUNT} definidas; las"),
-        "prometheus_metrics",
-        "how.es.md metric count (coverage sentence)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.it.md",
-        re.compile(rf"{_COUNT} definite; le"),
-        "prometheus_metrics",
-        "how.it.md metric count (coverage sentence)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(rf"{_COUNT} 项；其中"),
-        "prometheus_metrics",
-        "how.zh.md metric count (coverage sentence)",
-    ),
-    # And the blog article, which no guard had ever looked inside: it said
-    # 473 against a real 492, in its TITLE — the most visible sentence of
-    # the page — and again in its body. Each surface is anchored on the
-    # words that follow it in its own sentence, because the bare phrase
-    # also matches an unrelated "5 métriques Prometheus" in the same file:
-    # the same collision the guide surfaces above already guard against.
-    # The dashboard count that follows is matched as a digit run, not as a
-    # literal: anchoring on the number itself made this guard red every time
-    # an unrelated tile was added to Grafana, which is noise rather than drift.
-    CountSurface(
-        "apps/web/locales/en/translation.json",
-        re.compile(rf"{_COUNT} Prometheus Metrics, \d+"),
-        "prometheus_metrics",
-        "blog observability article title (en)",
-    ),
-    CountSurface(
-        "apps/web/locales/en/translation.json",
-        re.compile(rf"{_COUNT} Prometheus metrics covering"),
-        "prometheus_metrics",
-        "blog observability article body (en)",
-    ),
-    CountSurface(
-        "apps/web/locales/fr/translation.json",
-        re.compile(rf"{_COUNT} métriques Prometheus, \d+"),
-        "prometheus_metrics",
-        "blog observability article title (fr)",
-    ),
-    CountSurface(
-        "apps/web/locales/fr/translation.json",
-        re.compile(rf"{_COUNT} métriques Prometheus couvrant"),
-        "prometheus_metrics",
-        "blog observability article body (fr)",
-    ),
-    CountSurface(
-        "apps/web/locales/de/translation.json",
-        re.compile(rf"{_COUNT} Prometheus-Metriken, \d+"),
-        "prometheus_metrics",
-        "blog observability article title (de)",
-    ),
-    CountSurface(
-        "apps/web/locales/de/translation.json",
-        re.compile(rf"{_COUNT} Prometheus-Metriken für"),
-        "prometheus_metrics",
-        "blog observability article body (de)",
-    ),
-    CountSurface(
-        "apps/web/locales/es/translation.json",
-        re.compile(rf"{_COUNT} métricas Prometheus, \d+"),
-        "prometheus_metrics",
-        "blog observability article title (es)",
-    ),
-    CountSurface(
-        "apps/web/locales/es/translation.json",
-        re.compile(rf"{_COUNT} métricas Prometheus que cubren"),
-        "prometheus_metrics",
-        "blog observability article body (es)",
-    ),
-    CountSurface(
-        "apps/web/locales/it/translation.json",
-        re.compile(rf"{_COUNT} metriche Prometheus, \d+"),
-        "prometheus_metrics",
-        "blog observability article title (it)",
-    ),
-    CountSurface(
-        "apps/web/locales/it/translation.json",
-        re.compile(rf"{_COUNT} metriche Prometheus che coprono"),
-        "prometheus_metrics",
-        "blog observability article body (it)",
-    ),
-    CountSurface(
-        "apps/web/locales/zh/translation.json",
-        re.compile(rf"{_COUNT}个Prometheus指标、\d+"),
-        "prometheus_metrics",
-        "blog observability article title (zh)",
-    ),
-    CountSurface(
-        "apps/web/locales/zh/translation.json",
-        re.compile(rf"{_COUNT}个Prometheus指标，覆盖"),
-        "prometheus_metrics",
-        "blog observability article body (zh)",
-    ),
-    # The `how` guides quote the total a THIRD time, in their codebase-metrics
-    # table (« | Prometheus metrics | N definitions | »), and the blog article
-    # carries it in its EXCERPT as well as its title and body. Neither was
-    # declared, so both still said 589 after four metrics joined (ADR-319 to
-    # ADR-321) while every declared surface read 593 (found 2026-09-26): the
-    # bump never wrote them and the guard never read them.
-    CountSurface(
-        f"{GUIDES_DIR}/how.en.md",
-        re.compile(rf"\| Prometheus metrics \| {_COUNT} definitions \|"),
-        "prometheus_metrics",
-        "how.en.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.fr.md",
-        re.compile(rf"\| Métriques Prometheus \| {_COUNT} définitions \|"),
-        "prometheus_metrics",
-        "how.fr.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.de.md",
-        re.compile(rf"\| Prometheus-Metriken \| {_COUNT} Definitionen \|"),
-        "prometheus_metrics",
-        "how.de.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.es.md",
-        re.compile(rf"\| Métricas Prometheus \| {_COUNT} definiciones \|"),
-        "prometheus_metrics",
-        "how.es.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.it.md",
-        re.compile(rf"\| Metriche Prometheus \| {_COUNT} definizioni \|"),
-        "prometheus_metrics",
-        "how.it.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        f"{GUIDES_DIR}/how.zh.md",
-        re.compile(rf"\| Prometheus 指标 \| {_COUNT} 定义 \|"),
-        "prometheus_metrics",
-        "how.zh.md codebase-metrics row (metric count)",
-    ),
-    CountSurface(
-        "apps/web/locales/en/translation.json",
-        re.compile(rf"observability with {_COUNT} metrics, dedicated"),
-        "prometheus_metrics",
-        "blog observability article excerpt (en)",
-    ),
-    CountSurface(
-        "apps/web/locales/fr/translation.json",
-        re.compile(rf"entreprise avec {_COUNT} métriques, des dashboards"),
-        "prometheus_metrics",
-        "blog observability article excerpt (fr)",
-    ),
-    CountSurface(
-        "apps/web/locales/de/translation.json",
-        re.compile(rf"Observability mit {_COUNT} Metriken, dedizierten Grafana"),
-        "prometheus_metrics",
-        "blog observability article excerpt (de)",
-    ),
-    CountSurface(
-        "apps/web/locales/es/translation.json",
-        re.compile(rf"empresarial con {_COUNT} métricas, dashboards"),
-        "prometheus_metrics",
-        "blog observability article excerpt (es)",
-    ),
-    CountSurface(
-        "apps/web/locales/it/translation.json",
-        re.compile(rf"enterprise con {_COUNT} metriche, dashboard"),
-        "prometheus_metrics",
-        "blog observability article excerpt (it)",
-    ),
-    CountSurface(
-        "apps/web/locales/zh/translation.json",
-        re.compile(rf"可观测性：{_COUNT}个指标、专用Grafana"),
-        "prometheus_metrics",
-        "blog observability article excerpt (zh)",
-    ),
     # The summary written for language models quotes the same three counts as the
     # landing; it stayed at 630 metrics, 360 ADRs and 286 releases while every
-    # guarded surface moved on (v3.6.0 preparation).
+    # guarded surface moved on (v3.6.0 preparation). Its dashboard count was left
+    # out when the Grafana counts were derived, and read 32 against a real 33
+    # (v4.2.0 preparation).
     CountSurface(
         "apps/web/public/llms.txt",
         re.compile(rf"\b{_COUNT} Prometheus metrics\b"),
         "prometheus_metrics",
         "llms.txt observability line (metrics)",
+    ),
+    CountSurface(
+        "apps/web/public/llms.txt",
+        re.compile(rf"\b{_COUNT} Grafana dashboards\b"),
+        "grafana_dashboards",
+        "llms.txt observability line (dashboard count)",
     ),
     CountSurface(
         "apps/web/public/llms.txt",
@@ -904,94 +571,6 @@ COUNT_SURFACES: tuple[CountSurface, ...] = (
         re.compile(rf"grafana/dashboards/` - {_COUNT} dashboards Grafana"),
         "grafana_dashboards",
         "OBSERVABILITY_AGENTS.md source tree (dashboard count)",
-    ),
-    *(
-        CountSurface(
-            f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(pattern),
-            source,
-            f"how.{locale}.md observability pillars ({source})",
-        )
-        for locale, dashboards, panels in (
-            ("en", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} panels covering"),
-            ("fr", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} panels couvrant"),
-            ("de", rf"\({_COUNT} Dashboards / ", rf" / {_COUNT} Panels"),
-            ("es", rf"\({_COUNT} dashboards / ", rf" / {_COUNT} paneles"),
-            ("it", rf"\({_COUNT} dashboard / ", rf" / {_COUNT} pannelli"),
-            ("zh", rf"（{_COUNT} 个仪表盘 / ", rf" / {_COUNT} 面板"),
-        )
-        for pattern, source in ((dashboards, "grafana_dashboards"), (panels, "grafana_panels"))
-    ),
-    *(
-        CountSurface(
-            f"{GUIDES_DIR}/how.{locale}.md",
-            re.compile(pattern),
-            "grafana_dashboards",
-            f"how.{locale}.md stack table (dashboard count)",
-        )
-        for locale, pattern in (
-            ("fr", rf"\| Grafana \| {_COUNT} dashboards production-ready \|"),
-            ("es", rf"\| Grafana \| {_COUNT} dashboards production-ready \|"),
-            ("it", rf"\| Grafana \| {_COUNT} dashboard production-ready \|"),
-            ("zh", rf"\| Grafana \| {_COUNT} 个生产就绪仪表板 \|"),
-        )
-    ),
-    # The observability blog article names the dashboards and counts them FIVE
-    # times per locale: the title, the heading, the opening sentence, and the
-    # numbered range ("31 of them numbered 01 to 31"), whose two ends follow the
-    # dashboards that carry a two-digit prefix.
-    *(
-        CountSurface(
-            f"apps/web/locales/{locale}/translation.json",
-            re.compile(pattern),
-            source,
-            f"observability blog article ({locale}, {label})",
-        )
-        for locale, shapes in (
-            ("en", (
-                (rf"{_COUNT} Grafana Dashboards, and", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT} Grafana dashboards</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA provides {_COUNT} Grafana dashboards,", "grafana_dashboards", "sentence"),
-                (rf", {_COUNT} of them numbered 01 to", "grafana_numbered_dashboards", "numbered"),
-                (rf"numbered 01 to {_COUNT}:", "grafana_numbered_dashboards", "range end"),
-            )),
-            ("fr", (
-                (rf"{_COUNT} dashboards Grafana et tracing", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT} dashboards Grafana</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA fournit {_COUNT} tableaux de bord Grafana", "grafana_dashboards", "sentence"),
-                (rf"dont {_COUNT} numérotés de 01 à", "grafana_numbered_dashboards", "numbered"),
-                (rf"numérotés de 01 à {_COUNT} :", "grafana_numbered_dashboards", "range end"),
-            )),
-            ("de", (
-                (rf"{_COUNT} Grafana-Dashboards und", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT} Grafana-Dashboards</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA liefert {_COUNT} Grafana-Dashboards,", "grafana_dashboards", "sentence"),
-                (rf"davon {_COUNT} nummeriert von 01 bis", "grafana_numbered_dashboards", "numbered"),
-                (rf"nummeriert von 01 bis {_COUNT}:", "grafana_numbered_dashboards", "range end"),
-            )),
-            ("es", (
-                (rf"{_COUNT} dashboards Grafana y tracing", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT} dashboards Grafana</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA proporciona {_COUNT} paneles de control Grafana", "grafana_dashboards", "sentence"),
-                (rf", {_COUNT} de ellos numerados del 01 al", "grafana_numbered_dashboards", "numbered"),
-                (rf"numerados del 01 al {_COUNT}:", "grafana_numbered_dashboards", "range end"),
-            )),
-            ("it", (
-                (rf"{_COUNT} dashboard Grafana e tracing", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT} dashboard Grafana</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA fornisce {_COUNT} dashboard Grafana,", "grafana_dashboards", "sentence"),
-                (rf"di cui {_COUNT} numerati da 01 a", "grafana_numbered_dashboards", "numbered"),
-                (rf"numerati da 01 a {_COUNT}:", "grafana_numbered_dashboards", "range end"),
-            )),
-            ("zh", (
-                (rf"{_COUNT}个Grafana仪表板和", "grafana_dashboards", "title"),
-                (rf"<h2>{_COUNT}个Grafana仪表板</h2>", "grafana_dashboards", "heading"),
-                (rf"LIA提供{_COUNT}个Grafana仪表板", "grafana_dashboards", "sentence"),
-                (rf"其中{_COUNT}个编号为01至", "grafana_numbered_dashboards", "numbered"),
-                (rf"编号为01至{_COUNT}：", "grafana_numbered_dashboards", "range end"),
-            )),
-        )
-        for pattern, source, label in shapes
     ),
 )
 

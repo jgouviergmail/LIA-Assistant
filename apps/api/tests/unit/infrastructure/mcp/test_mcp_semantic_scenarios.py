@@ -325,7 +325,9 @@ def test_output_union_publishes_only_common_bridges_resolvable_in_every_valid_va
 async def test_request_accounts_keep_discovered_types_and_sdk_payloads_isolated():
     calls = []
 
-    async def call_tool(*, user_id, server_id, tool_name, arguments, timeout_seconds):
+    async def call_tool(
+        *, user_id, server_id, tool_name, arguments, timeout_seconds, built_from, declaration
+    ):
         calls.append((user_id.int, server_id, tool_name, arguments))
         return structured_result_text(
             CallToolResult(

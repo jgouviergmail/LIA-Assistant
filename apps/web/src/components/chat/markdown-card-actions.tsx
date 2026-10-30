@@ -22,6 +22,18 @@ interface MessageActionContext {
   messageId?: string;
   onCompose?: (draft: CardCompositionDraft) => void;
 }
+
+/**
+ * The icon each composing action draws. Public pages draw icons from a subset
+ * of the icon font (`lib/fonts.ts`), whose guard reads this table.
+ */
+export const CARD_ACTION_ICONS: Record<CardComposeAction, string> = {
+  reply: 'reply',
+  forward: 'forward',
+  delete_email: 'delete',
+  cancel_reminder: 'delete',
+};
+
 const MessageActions = createContext<MessageActionContext>({ projection: null });
 const ItemActions = createContext<CardActionItem | null>(null);
 
@@ -107,7 +119,7 @@ export function MarkdownCardButton({
       {enabled && action ? (
         <>
           <span className="material-symbols-outlined" aria-hidden="true">
-            {action === 'reply' ? 'reply' : action === 'forward' ? 'forward' : 'delete'}
+            {CARD_ACTION_ICONS[action]}
           </span>
           {t(`chat.card_actions.${action}`)}
         </>

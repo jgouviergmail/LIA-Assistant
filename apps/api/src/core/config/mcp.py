@@ -42,6 +42,9 @@ from src.core.constants import (
     MCP_OAUTH_HTTP_TIMEOUT_SECONDS,
     MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
     MCP_SERVER_VECTOR_CACHE_MAX_DEFAULT,
+    MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS_DEFAULT,
+    MCP_USER_DISCOVERY_TIMEOUT_SECONDS_DEFAULT,
+    MCP_USER_DISCOVERY_TIMEOUT_SECONDS_MAX,
     MCP_USER_FAILURE_PAUSE_BASE_SECONDS_DEFAULT,
     MCP_USER_FAILURE_PAUSE_MAX_SECONDS_DEFAULT,
     MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
@@ -49,6 +52,9 @@ from src.core.constants import (
     MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT,
     MCP_USER_POOL_MAX_TOTAL_DEFAULT,
     MCP_USER_POOL_TTL_SECONDS_DEFAULT,
+    MCP_USER_PREPARATION_CEILING_SECONDS_DEFAULT,
+    MCP_USER_PREPARATION_CONCURRENCY_DEFAULT,
+    MCP_USER_SLOW_PREPARATION_NOTICE_SECONDS_DEFAULT,
 )
 
 
@@ -255,8 +261,60 @@ class MCPSettings(BaseSettings):
         default=MCP_USER_POOL_TTL_SECONDS_DEFAULT,
         ge=60,
         description=(
-            "Idle TTL for user MCP connections in the pool (seconds). "
-            "Connections unused for this duration are evicted."
+            "Idle eviction of a personal MCP server's pool entry (seconds). A direct pool "
+            "lookup also rediscovers an entry older than this; a turn's preparation serves "
+            "it and revalidates it in the background instead."
+        ),
+    )
+
+    mcp_user_catalogue_revalidate_after_seconds: int = Field(
+        default=MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS_DEFAULT,
+        ge=60,
+        le=86_400,
+        description=(
+            "Age (seconds) after which a persisted personal MCP catalogue snapshot is "
+            "revalidated in the background when the server states no ttlMs of its own. "
+            "Age never refuses a snapshot."
+        ),
+    )
+
+    mcp_user_discovery_timeout_seconds: int = Field(
+        default=MCP_USER_DISCOVERY_TIMEOUT_SECONDS_DEFAULT,
+        ge=1,
+        le=MCP_USER_DISCOVERY_TIMEOUT_SECONDS_MAX,
+        description=(
+            "Bound (seconds) of a personal MCP server's discovery and of its read_me fetch "
+            "at real use; the server's own tool timeout applies when it is shorter."
+        ),
+    )
+
+    mcp_user_preparation_concurrency: int = Field(
+        default=MCP_USER_PREPARATION_CONCURRENCY_DEFAULT,
+        ge=1,
+        le=32,
+        description=(
+            "Network discoveries of personal MCP servers one worker runs at once; the "
+            "others wait for a slot."
+        ),
+    )
+
+    mcp_user_preparation_ceiling_seconds: int = Field(
+        default=MCP_USER_PREPARATION_CEILING_SECONDS_DEFAULT,
+        ge=1,
+        le=120,
+        description=(
+            "Longest a turn waits for its personal MCP servers. A server still discovering "
+            "is left out of that turn, finishes in the background and serves the next one."
+        ),
+    )
+
+    mcp_user_slow_preparation_notice_seconds: int = Field(
+        default=MCP_USER_SLOW_PREPARATION_NOTICE_SECONDS_DEFAULT,
+        ge=1,
+        le=120,
+        description=(
+            "Delay after which a personal MCP server still preparing over the network is "
+            "reported as slow."
         ),
     )
 

@@ -19,6 +19,7 @@ from src.domains.briefing.constants import (
     SECTION_DOCUMENTS,
     SECTION_MAILS,
 )
+from src.domains.briefing.section_outcomes import bump_section_generation
 from src.domains.push_channels.models import PushChannelProvider
 from src.infrastructure.cache.redis import get_redis_cache
 
@@ -52,6 +53,12 @@ async def invalidate_for_provider(provider: str, user_id: UUID) -> None:
     with contextlib.suppress(Exception):
         redis = await get_redis_cache()
         section = _PROVIDER_SECTIONS[provider]
+        # The generation FIRST (E5, a lease fence): a read already in flight
+        # that writes after this bump is refused, and one that wrote before it
+        # is removed by the delete below — never a stale card for a whole TTL.
+        # A refused bump must not cost the delete, which is today's behaviour.
+        with contextlib.suppress(Exception):
+            await bump_section_generation(user_id=user_id, section=section)
         # Every language variant: this path knows a source changed, not which
         # language the person reads in. Building the key here by hand is what
         # made this deletion silently miss when the key gained its language

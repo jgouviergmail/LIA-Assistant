@@ -405,7 +405,10 @@ Chaque composant a son propre poste ; la liste complete est `LLM_TYPES_REGISTRY`
 
 ### ModelFallbackMiddleware
 
-En cas d'echec du provider principal, le systeme bascule automatiquement sur les modeles de fallback :
+**Non monte aujourd'hui (verifie le 2026-10-29)** : `create_agent_middleware_stack` n'ajoute la chaine que si
+son appelant passe le modele principal de l'agent, et son seul appelant (`base_agent_builder`) ne l'a jamais
+fait. La brancher ou la retirer reste une decision du proprietaire (amendement ADR-221). Une fois montee, en
+cas d'echec du provider principal, elle bascule sur les modeles de fallback :
 
 ```bash
 # Liste ordonnee de fallback (CSV)
@@ -413,6 +416,18 @@ FALLBACK_MODELS=claude-sonnet-4-6,deepseek-v4-flash
 ```
 
 Le middleware detecte automatiquement le provider a partir du nom du modele et tente chaque fallback dans l'ordre.
+
+La bascule n'a lieu que pour un echec dont l'issue est connue : un statut d'erreur du fournisseur (429, 5xx,
+refus d'authentification) ou une requete qui n'est jamais partie. Apres un timeout ou une connexion perdue une
+fois la requete envoyee, la generation du modele principal peut etre en cours et facturee : aucun autre modele
+n'est appele (`fallback_policy.KnownOutcomeFallbackMiddleware`, decision Q3 du 2026-10-28, amendement ADR-221).
+La chaine commence au premier modele de secours, jamais au modele principal, dont le client a deja epuise son
+budget de relance.
+
+Aucun appelant ne repond non plus a un appel echoue par une AUTRE requete (l'appel bufferise du planificateur
+et de la boucle ReAct apres un flux echoue, la porte suivante de la sortie structuree) sans
+`client_retries.may_send_in_another_form` : seulement apres un refus deterministe, un defaut hors du fil
+(capture), ou un appel que `caller_may_relaunch` autorise — jamais apres une issue inconnue.
 
 ### Responses API (OpenAI)
 

@@ -1917,6 +1917,11 @@
       "title": "Private LIA in a shared isometric world",
       "summary": "The browser draws the world while Redis arbitrates access and movement; actions retain their native interfaces and approvals. Account name and appearance are shared with consent, activities and home stay private, and peers see only a coarse connection status. Messages stay between their recipients, and consented translations are bounded and accounted.",
       "src": "53942019983c"
+    },
+    "366": {
+      "title": "A personal MCP server's catalogue, served without waiting",
+      "summary": "What a personal MCP server offers is kept on the account and served again from one message to the next, on any process, while a single one re-checks it in the background. Servers get ready in parallel; one that is too slow is left out of that message, named in a notice, and ready for the next. When the kept copy has outlived its freshness, LIA checks before the call that the tool is still offered in the same form, and otherwise refuses to send it.",
+      "src": "b3d470a00714"
     }
   }
 }

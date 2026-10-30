@@ -145,6 +145,8 @@ const PINNED: ReadonlyArray<{ key: string; placeholders?: readonly string[] }> =
     placeholders: ['n'],
   })),
   { key: 'relations.peer_link_connected' },
+  // The name of the sheet's action bar, read by a screen reader with the person's name.
+  { key: 'relations.actions_group', placeholders: ['name'] },
   // Proactive discussions: a rebuild's progress, the last update and the last run,
   // a ceiling reached and the hub's history — several are built from a server value
   // at runtime.

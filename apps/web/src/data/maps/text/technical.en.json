@@ -242,9 +242,9 @@
     },
     "t.mcp": {
       "name": "MCP client",
-      "role": "A client pool per person, standard tool schemas and native-equivalent guards; source and method metadata travel with every output shape. Server-declared cooldowns are shared through Redis.",
+      "role": "A client pool per person, standard tool schemas and native-equivalent guards; source and method metadata travel with every output shape. A personal server's catalogue is a snapshot served while it is revalidated and verified at the call; Redis shares server-declared cooldowns.",
       "stack": ["Model Context Protocol", "Two protocol revisions", "Per-issuer OAuth"],
-      "src": "7d42a9fb7ca7"
+      "src": "26f19930dc70"
     },
     "t.skills": {
       "name": "Skills and plugins",

@@ -103,6 +103,7 @@ class TestTheBackgroundSurfacesActuallySkip:
 
         from src.domains.briefing.llm import generate_synthesis
         from src.domains.briefing.schemas import CardsBundle, CardSection, CardStatus
+        from src.domains.briefing.sms_context import NO_PROMPT_SMS
 
         def _empty() -> CardSection:
             return CardSection(status=CardStatus.NOT_CONFIGURED, generated_at=datetime.now(UTC))
@@ -122,6 +123,7 @@ class TestTheBackgroundSurfacesActuallySkip:
                 user_tz=ZoneInfo("Europe/Paris"),
                 cards=bundle,
                 language="fr",
+                prompt_sms=NO_PROMPT_SMS,
             )
 
         assert (text, usage) == (None, None)

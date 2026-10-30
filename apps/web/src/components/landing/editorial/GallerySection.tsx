@@ -47,7 +47,7 @@ export function GallerySection() {
               },
             ]}
           />
-          <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-6 text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-3xl text-center text-xs leading-5 text-muted-foreground">
             {t('landing.gallery.provenance')}
           </p>
         </FadeInOnScroll>

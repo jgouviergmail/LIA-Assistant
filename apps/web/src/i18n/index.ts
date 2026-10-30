@@ -8,6 +8,7 @@
 import { createInstance, type i18n as I18nInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next/initReactI18next';
 import { getOptions, type Language, languages, fallbackLng } from './settings';
+import type { TranslationTree } from './scoped-translations';
 
 /**
  * Validate and normalize a language parameter to a supported Language type
@@ -38,6 +39,18 @@ const translations = {
   it: { translation: translationIT },
   zh: { translation: translationZH },
 };
+
+/**
+ * A language's whole catalogue, as the server holds it.
+ *
+ * What reaches the BROWSER is narrower: see `scoped-translations.ts`.
+ *
+ * @param lng - A supported language.
+ * @returns The `translation` namespace of that language.
+ */
+export function translationBundle(lng: Language): TranslationTree {
+  return translations[lng].translation;
+}
 
 /**
  * Initialize i18next instance for a specific language

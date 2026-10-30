@@ -20,7 +20,7 @@ Invariants:
 import asyncio
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from contextlib import suppress
+from contextlib import aclosing, suppress
 
 from redis.asyncio import Redis
 
@@ -153,17 +153,20 @@ async def _produce(
             name=f"chat-run-cancel-watch-{stream_id}",
         )
     try:
-        async for chunk in chat_stream:
-            if chunk.type == "router_decision" and chunk.metadata:
-                intention_label = chunk.metadata.get("intention", "unknown")
-            # Mirror the archive accumulation rule of the service layer:
-            # tokens append, content_replacement REPLACES (photo injection).
-            if chunk.type == "token" and isinstance(chunk.content, str):
-                response_content += chunk.content
-            elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
-                response_content = chunk.content
-            await publish_chunk(redis, stream_id, chunk.model_dump_json())
-            chunk_count += 1
+        # A stop that lands on a publication, outside the generator, still closes it
+        # here, in this task: its exits must run in the context the turn set.
+        async with aclosing(chat_stream):
+            async for chunk in chat_stream:
+                if chunk.type == "router_decision" and chunk.metadata:
+                    intention_label = chunk.metadata.get("intention", "unknown")
+                # Mirror the archive accumulation rule of the service layer:
+                # tokens append, content_replacement REPLACES (photo injection).
+                if chunk.type == "token" and isinstance(chunk.content, str):
+                    response_content += chunk.content
+                elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
+                    response_content = chunk.content
+                await publish_chunk(redis, stream_id, chunk.model_dump_json())
+                chunk_count += 1
     except asyncio.CancelledError:
         # User cancellation (Lot 3, cooperative via the cancel watcher) or
         # hard kill (drain timeout / loop teardown). Either way the

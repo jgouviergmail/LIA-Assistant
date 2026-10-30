@@ -40,7 +40,7 @@ from typing import Any, Final, Literal, get_args
 from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_MS,
     EXECUTION_MODE_PIPELINE,
-    EXECUTION_MODE_REACT,
+    EXECUTION_MODES_ALL,
     MCP_TOOL_NAME_PREFIX,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
@@ -628,9 +628,7 @@ class ToolManifest:
     # Behavior
     #: Execution modes this tool may run in (ADR-249). Both by default; a
     #: restriction is a CONTRACT the planner catalogue reads, not a convention.
-    execution_modes: frozenset[str] = field(
-        default_factory=lambda: frozenset({EXECUTION_MODE_PIPELINE, EXECUTION_MODE_REACT})
-    )
+    execution_modes: frozenset[str] = EXECUTION_MODES_ALL
     max_iterations: int = 1
     supports_dry_run: bool = False
     # Explicit execution contracts: absence never implies concurrency or reuse.

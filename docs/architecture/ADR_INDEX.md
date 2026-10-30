@@ -5397,3 +5397,11 @@ graph TD
 **Status**: Accepted design, implemented behind the World capability, 2026-10-23. Physical-device and supplier translation qualification remain release gates.
 
 **Decision**: Browser Canvas rendering with bounded native Redis authority, participant-scoped human text and accounted translation. The native account name and chosen appearance are shared with consent; accepted peers see only coarse connection/home status. Existing private panels preserve permissions, HITL, registries and quotas; deterministic owner decoration and cached atmosphere do not call models. The guided installer offers an explicit opt-in; unknown presence is stated rather than inferred from session lifetime or a learning marker. Direct human audio remains a proposal.
+
+### ADR-366: A personal MCP catalogue is a snapshot — served while it is revalidated, verified at use
+
+**File**: [ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md](ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md)
+
+**Status**: Accepted, 2026-10-28. Amends ADR-338 (§2 and §7, personal servers' turn preparation only), ADR-260 (the `mcp:catalogue` family).
+
+**Decision**: A personal server's catalogue lives as a snapshot on the account's row (generation, fingerprints, the server's cache hints), published by compare-and-set; one pool door serves memory, then the snapshot, then the network under a process-wide discovery bound. A snapshot past its age is served while one worker revalidates it (the server's `ttlMs` honoured); servers are prepared in parallel and one still preparing at the ceiling is left out of the turn, never cancelled. A call checks the declaration it relies on against the server's current listing and refuses, before sending, a withdrawn tool, a rejected argument or a tightened declaration. `read_me` is fetched when actually needed, once across workers. A slow server raises a polite notice naming it. Measured: 48 % of turns discovered a server before the graph (p95 19.2 s); a hydrated cold turn now takes 0.01 s.

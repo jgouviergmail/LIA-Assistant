@@ -179,6 +179,25 @@ class TestBuildBlock:
         assert "08:00-10:00" in block
         assert "Never mention this learned profile" in block
 
+    async def test_a_block_read_for_a_fingerprint_counts_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Third fresh review: read for the dashboard text's identity, never sent."""
+        from unittest.mock import MagicMock
+
+        import src.domains.habits.ambient as ambient
+
+        counter = MagicMock(name="Counter")
+        counter.labels.return_value = counter
+        monkeypatch.setattr(ambient, "habit_ambient_block_total", counter)
+        monkeypatch.setattr(settings, "habits_enabled", True, raising=False)
+        _wire(monkeypatch, _profile(MORNING), datetime.now(UTC))
+
+        block = await build_habits_rhythm_block(uuid.uuid4(), flow="briefing", counted=False)
+
+        assert block.startswith("<UserRhythmContext>")
+        counter.inc.assert_not_called()
+
     async def test_user_preference_off_is_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(settings, "habits_enabled", True, raising=False)
         _wire(monkeypatch, _profile(MORNING), datetime.now(UTC), user_enabled=False)

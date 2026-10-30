@@ -112,7 +112,9 @@ def test_endpoint_cache_misses_and_malformed_data_never_fetch_weather(raw: str |
     cache = MagicMock()
     cache.get = AsyncMock(return_value=raw)
     with (
-        patch("src.domains.briefing.service.get_redis_cache", AsyncMock(return_value=cache)),
+        patch(
+            "src.domains.briefing.section_outcomes.get_redis_cache", AsyncMock(return_value=cache)
+        ),
         patch("src.domains.briefing.service.fetch_weather", new_callable=AsyncMock) as fetch,
         TestClient(app) as client,
     ):
@@ -133,7 +135,9 @@ def test_endpoint_projects_a_fresh_observation_without_location_or_a_second_read
     cache = MagicMock()
     cache.get = AsyncMock(return_value=cached.model_dump_json().encode())
     with (
-        patch("src.domains.briefing.service.get_redis_cache", AsyncMock(return_value=cache)),
+        patch(
+            "src.domains.briefing.section_outcomes.get_redis_cache", AsyncMock(return_value=cache)
+        ),
         TestClient(app) as client,
     ):
         result = client.get("/briefing/companion-context")
@@ -149,7 +153,10 @@ def test_redis_failure_degrades_to_the_accounts_clock() -> None:
     user = User(id=uuid4(), language="en", timezone="Pacific/Auckland")
     app.dependency_overrides[get_current_active_session] = lambda: user
     with (
-        patch("src.domains.briefing.service.get_redis_cache", AsyncMock(side_effect=TimeoutError)),
+        patch(
+            "src.domains.briefing.section_outcomes.get_redis_cache",
+            AsyncMock(side_effect=TimeoutError),
+        ),
         TestClient(app) as client,
     ):
         result = client.get("/briefing/companion-context")

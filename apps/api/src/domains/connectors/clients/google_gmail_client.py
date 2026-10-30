@@ -816,9 +816,9 @@ class GoogleGmailClient(
             >>> result = await client.trash_email(message_id="abc123")
             >>> print(result["labelIds"])  # Will contain "TRASH"
         """
+        # Trashing a trashed message changes nothing: a lost answer may be resent (S1).
         response = await self._make_request(
-            "POST",
-            f"/users/me/messages/{message_id}/trash",
+            "POST", f"/users/me/messages/{message_id}/trash", idempotent=True
         )
 
         logger.info(
@@ -848,8 +848,7 @@ class GoogleGmailClient(
             >>> result = await client.untrash_email(message_id="abc123")
         """
         response = await self._make_request(
-            "POST",
-            f"/users/me/messages/{message_id}/untrash",
+            "POST", f"/users/me/messages/{message_id}/untrash", idempotent=True
         )
 
         logger.info(
@@ -1434,10 +1433,9 @@ class GoogleGmailClient(
         if remove_label_ids:
             payload["removeLabelIds"] = remove_label_ids
 
+        # The same labels applied twice leave the message as once (S1).
         response = await self._make_request(
-            "POST",
-            f"/users/me/messages/{message_id}/modify",
-            json_data=payload,
+            "POST", f"/users/me/messages/{message_id}/modify", json_data=payload, idempotent=True
         )
 
         logger.info(
@@ -1483,9 +1481,7 @@ class GoogleGmailClient(
             payload["removeLabelIds"] = remove_label_ids
 
         await self._make_request(
-            "POST",
-            "/users/me/messages/batchModify",
-            json_data=payload,
+            "POST", "/users/me/messages/batchModify", json_data=payload, idempotent=True
         )
 
         logger.info(

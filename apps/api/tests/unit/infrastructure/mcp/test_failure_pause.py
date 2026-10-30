@@ -21,7 +21,7 @@ from src.infrastructure.mcp.rate_limit import (
     MCPServerFailures,
     MCPServerPausedError,
 )
-from src.infrastructure.mcp.user_pool import UserMCPClientPool
+from src.infrastructure.mcp.user_pool import DiscoveredCatalogue, UserMCPClientPool
 
 pytestmark = pytest.mark.unit
 
@@ -66,7 +66,9 @@ class TestAFailedConnectionPausesTheServer:
     async def test_a_success_clears_the_pause(self) -> None:
         pool, failures = _pool()
         key = (uuid4(), uuid4())
-        with patch.object(pool, "_discover_tools", new=AsyncMock(return_value=([], None))):
+        with patch.object(
+            pool, "_discover_tools", new=AsyncMock(return_value=DiscoveredCatalogue(tools=[]))
+        ):
             await pool.get_or_connect(*key, _URL, None, 5)
 
         failures.clear.assert_awaited_once_with(key)
@@ -78,7 +80,9 @@ class TestTheManualTestAndTheQuota:
         """The person pressing « test » after fixing the server must not wait."""
         pool, failures = _pool(paused_for=600.0)
         key = (uuid4(), uuid4())
-        with patch.object(pool, "_discover_tools", new=AsyncMock(return_value=([], None))):
+        with patch.object(
+            pool, "_discover_tools", new=AsyncMock(return_value=DiscoveredCatalogue(tools=[]))
+        ):
             await pool.get_or_connect(*key, _URL, None, 5, force_refresh=True)
 
         failures.remaining.assert_not_awaited()

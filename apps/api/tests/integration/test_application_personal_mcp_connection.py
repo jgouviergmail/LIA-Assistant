@@ -1,6 +1,7 @@
 """A confirmed MCP probe guards the real original cache/status write path."""
 
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -22,6 +23,7 @@ from src.infrastructure.mcp.personal_state_gateway import (
     PersonalMCPStateGateway,
     configure_personal_mcp_state,
 )
+from src.infrastructure.mcp.pool_catalogue import PoolEntry
 from tests.helpers.runtime_context import make_tool_runtime
 from tests.integration.application_runtime_context import installed_runtime_context
 
@@ -74,14 +76,19 @@ async def test_personal_mcp_probe_is_confirmed_current_and_truthful(
             await async_session.commit()
         if scenario in {"failed", "failed_cached"}:
             raise TimeoutError("private credential in connection error")
-        return SimpleNamespace(
+        # The pool's own entry: the generation it reserved before this discovery.
+        return PoolEntry(
+            user_id=owner,
+            server_id=server_id,
+            last_used=time.monotonic(),
             tools=[
                 {
                     "name": "list_repos",
                     "description": "Repositories",
                     "input_schema": {"private": "schema"},
                 }
-            ]
+            ],
+            generation=1,
         )
 
     network = AsyncMock(side_effect=connect)

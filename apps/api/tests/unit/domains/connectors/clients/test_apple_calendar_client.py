@@ -68,6 +68,7 @@ async def test_create_event_applies_requested_timezone(client, mock_calendar):
             location=None,
             attendees=None,
             calendar_id="primary",
+            uid="fixed-uid",
         )
 
     kwargs = mock_calendar.save_event.await_args.kwargs
@@ -97,6 +98,7 @@ async def test_create_event_naive_without_timezone_falls_back_to_utc(client, moc
             location=None,
             attendees=None,
             calendar_id="primary",
+            uid="fixed-uid",
         )
 
     kwargs = mock_calendar.save_event.await_args.kwargs
@@ -122,6 +124,7 @@ async def test_create_event_aware_input_wins_over_timezone_param(client, mock_ca
             location=None,
             attendees=None,
             calendar_id="primary",
+            uid="fixed-uid",
         )
 
     kwargs = mock_calendar.save_event.await_args.kwargs

@@ -48,6 +48,12 @@ import Link from 'next/link';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { directionTone } from '@/lib/status-tone';
 
 import { toast } from 'sonner';
@@ -97,9 +103,9 @@ import {
   type RelationShare,
 } from '@/hooks/useRelations';
 import {
-  contactQuickActions,
+  contactActionGroups,
+  type ContactActionGroup,
   type QuickAction,
-  type QuickActionColumn,
 } from '@/lib/relations/contact-actions';
 import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
 import { TELEPHONY_CONNECTOR_TYPES } from '@/components/settings/connectors/constants';
@@ -475,12 +481,21 @@ function PeerMessagesSection({
  * the deliberate act. Writing to another human is never that.
  *
  * The message action appears only on a live connection: offering it after a
- * removal would promise a relay that cannot happen. Below them, the address
- * book's actions: one per email, postal address and number of the contact
- * card, one column per kind (owner request 2026-10-21) — still `?draft=`, the
- * subject or the purpose is the person's to add. A call is offered only on a
- * NUMBER, and only while the account holds an active telephony connector:
- * the generic « call » that let LIA guess the number is gone.
+ * removal would promise a relay that cannot happen. After them, the address
+ * book's actions, ONE entry per kind (`contactActionGroups`) — still
+ * `?draft=`, the subject or the purpose is the person's to add. A call is
+ * offered only on a NUMBER, and only while the account holds an active
+ * telephony connector: the generic « call » that let LIA guess the number is
+ * gone.
+ *
+ * Every label is short and none carries a value, so the bar has exactly two
+ * shapes (owner request 2026-10-29, after the buttons sized by their address
+ * fell apart at every width between a phone and a desktop): one row of
+ * equal-width buttons when the SHEET is wide enough for the widest label of
+ * the six languages, one full-width list with the labels on the left below
+ * that (owner request 2026-10-22: a thumb gets a whole row, never a chip). A
+ * container query, not a viewport breakpoint — the sheet's width is what the
+ * row must fit in.
  */
 function QuickActions({
   detail,
@@ -526,69 +541,108 @@ function QuickActions({
     },
   ];
 
-  const columns = contactQuickActions(card, t, { telephony });
+  const groups = contactActionGroups(card, t, { telephony });
 
   return (
-    <div className="space-y-3">
-      {/* Full width on a phone, its label on the left, like every action of
-          the sheet (owner request 2026-10-22): a row of chips left a thumb two
-          small targets. */}
-      <div className="flex flex-wrap justify-center gap-2">
+    <div className="@container flex justify-center">
+      {/* `auto-cols-fr` in a grid sized to its content: every column takes the
+          widest button's width, so the row reads as one bar whatever the
+          language. */}
+      <div
+        role="group"
+        aria-label={t('relations.actions_group', { name })}
+        className="grid w-full gap-2 @2xl:w-auto @2xl:auto-cols-fr @2xl:grid-flow-col"
+      >
         {actions.map(action => (
-          <QuickActionButton
-            key={action.key}
-            action={action}
-            lng={lng}
-            className="w-full justify-start sm:w-auto sm:justify-center"
-          />
+          <QuickActionButton key={action.key} action={action} lng={lng} />
+        ))}
+        {groups.map(group => (
+          <ContactActionEntry key={group.kind} group={group} lng={lng} />
         ))}
       </div>
-      {columns.length > 0 && <ContactActionColumns columns={columns} lng={lng} />}
     </div>
   );
 }
 
 /**
- * The address book's actions: one column per kind, every button of a column
- * the size of its largest one (owner request 2026-10-21).
- *
- * A column is a one-track grid sized to its content (`w-max`): the track
- * takes the widest button, every button stretches to it, and `auto-rows-fr`
- * gives every row the tallest one's height. `max-w-full` caps a column at the
- * sheet's width — a long address then wraps inside its buttons instead of
- * pushing the page sideways — and the columns wrap under one another on a
- * narrow screen. On a phone every column, and so every button, takes the full
- * width of the sheet, its label on the left like every action of the sheet
- * (owner request 2026-10-22).
+ * The shape every button of the bar shares: a full row with its label on the
+ * left in the list, centred in its column in the row. `min-h-11`: these are
+ * the card's primary actions, and at 30 px on a phone they were wide enough to
+ * look clickable, too short to hit reliably (measured 2026-08-01).
  */
-function ContactActionColumns({ columns, lng }: { columns: QuickActionColumn[]; lng: string }) {
+const ACTION_BAR_BUTTON = 'min-h-11 w-full justify-start @2xl:justify-center';
+
+/**
+ * One kind of the address book: its one value acts directly, several open a
+ * menu listing each with the labels the address book stored it under.
+ */
+function ContactActionEntry({ group, lng }: { group: ContactActionGroup; lng: string }) {
+  const { icon: Icon, label, targets } = group;
+  if (targets.length === 1) {
+    const [target] = targets;
+    return (
+      <QuickActionButton
+        action={{ key: target.key, icon: Icon, label, draft: target.draft }}
+        value={target.value}
+        lng={lng}
+      />
+    );
+  }
   return (
-    <div className="flex flex-wrap items-start justify-center gap-2">
-      {columns.map(column => (
-        <div key={column.kind} className="grid w-full auto-rows-fr gap-2 sm:w-max sm:max-w-full">
-          {column.actions.map(action => (
-            <QuickActionButton
-              key={action.key}
-              action={action}
-              lng={lng}
-              className="h-auto w-full justify-start whitespace-normal text-left [overflow-wrap:anywhere]"
-            />
-          ))}
-        </div>
-      ))}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="default" size="sm" className={ACTION_BAR_BUTTON}>
+          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+          {label}
+          <ChevronDown className="ml-auto h-3.5 w-3.5 @2xl:ml-0" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      {/* At least the trigger's width — in the list, the menu lines up with the
+          row it opened from — and a value too long for the cap wraps on its
+          spaces rather than leaving the screen. */}
+      <DropdownMenuContent
+        align="start"
+        className="min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[min(24rem,calc(100vw-1rem))]"
+      >
+        {targets.map(target => (
+          <DropdownMenuItem
+            key={target.key}
+            onSelect={() => openChatDeepLink(chatDraftHref(lng, target.draft))}
+            className="whitespace-normal [overflow-wrap:anywhere]"
+          >
+            <Icon className="text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1">{target.value}</span>
+            {target.tags.map(tag => (
+              <span
+                key={tag}
+                className="shrink-0 rounded-full bg-muted px-2 py-px text-px-10 font-medium uppercase text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-/** One quick action: a solid call to action that prefills the composer. */
+/**
+ * One quick action: a solid call to action that prefills the composer.
+ *
+ * @param value - The one value the action reaches, when it reaches one, since
+ *   the label alone no longer says which: shown on hover and read as the
+ *   button's DESCRIPTION — the name stays the visible label. Put in the name
+ *   as well, a screen reader announced the value twice.
+ */
 function QuickActionButton({
   action,
   lng,
-  className,
+  value,
 }: {
   action: QuickAction;
   lng: string;
-  className?: string;
+  value?: string;
 }) {
   const { icon: Icon, label, draft } = action;
   return (
@@ -602,11 +656,9 @@ function QuickActionButton({
       // codebase's actual convention.
       variant="default"
       size="sm"
+      title={value}
       onClick={() => openChatDeepLink(chatDraftHref(lng, draft))}
-      // `min-h-11`: these read as chips, but they are the card's primary
-      // actions and were 30 px tall on a phone — wide enough to look
-      // clickable, too short to hit reliably (measured 2026-08-01).
-      className={cn('min-h-11', className)}
+      className={ACTION_BAR_BUTTON}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {label}
@@ -1020,6 +1072,12 @@ export function RelationDetailPanel({
         onRefreshAll={() => refreshSections([...CONTEXT_SECTIONS])}
       />
 
+      {/* Right under who this is, above the debrief (owner request
+          2026-10-29): what you can do with someone is read with their name,
+          not after the synthesis. The caveat below stays next to the evidence
+          it qualifies. */}
+      <QuickActions detail={detail} card={contactCardOf(context)} lng={lng} />
+
       {/* Best-effort caveat: shown on a normalized name match OR whenever a
           memory is attached — memories are matched by name substring, which
           can over-match even on an EXACT loop/call identity (a common first
@@ -1030,8 +1088,9 @@ export function RelationDetailPanel({
         </p>
       )}
 
-      {/* First: it is the answer the reader came for. Everything below is the
-          evidence they would otherwise have had to assemble themselves. */}
+      {/* The first section: it is the answer the reader came for. Everything
+          below is the evidence they would otherwise have had to assemble
+          themselves. */}
       <RelationDebriefSection
         debrief={debrief}
         loading={debriefLoading}
@@ -1041,8 +1100,6 @@ export function RelationDetailPanel({
         onRebuild={rebuildDebrief}
         onToggle={onDebriefToggle}
       />
-
-      <QuickActions detail={detail} card={contactCardOf(context)} lng={lng} />
 
       <RelationSections
         name={name}

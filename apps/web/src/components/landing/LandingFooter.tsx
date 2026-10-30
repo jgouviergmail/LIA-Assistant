@@ -56,7 +56,10 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
     <footer className="landing-footer border-t border-border pb-12">
       {/* Columns, on a full-width band; the bottom bar stays below it. */}
       <div className="landing-footer-band pt-12 pb-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 mobile:grid-cols-4 gap-8">
+        {/* Columns as wide as their links and the block centred: four equal
+            columns left the short last one empty and shifted the menu ~95px left
+            of the planet's crest (owner, 2026-10-30). */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 gap-8 mobile:grid-cols-[repeat(4,auto)] mobile:justify-center mobile:gap-x-16 lg:gap-x-24">
           {columns.map(({ title, links }) => (
             <div key={title}>
               <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>

@@ -2,637 +2,147 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Versione**: 6.6
+**Versione**: 7.0
 **Data**: 2026-10-23
-**Applicazione**: LIA v4.1.0
+**Applicazione**: LIA v4.2.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
 
 ## Indice
 
-1. [Il contesto](#1-il-contesto)
-2. [Amministrazione semplice](#2-amministrazione-semplice)
-3. [Cosa sa fare LIA](#3-cosa-sa-fare-lia)
-4. [Un server per chi ami](#4-un-server-per-chi-ami)
-5. [Sovrano e frugale](#5-sovrano-e-frugale)
-6. [Trasparenza radicale](#6-trasparenza-radicale)
-7. [Profondità emotiva](#7-profondità-emotiva)
-8. [Affidabilità in produzione](#8-affidabilità-in-produzione)
-9. [Norme, conformità e garanzie](#9-norme-conformità-e-garanzie)
-10. [Apertura radicale](#10-apertura-radicale)
-11. [Visione](#11-visione)
+1. [Perché LIA](#1-perché-lia)
+2. [Cosa fa LIA per te](#2-cosa-fa-lia-per-te)
+3. [A casa tua, per i tuoi cari](#3-a-casa-tua-per-i-tuoi-cari)
+4. [Semplice da amministrare](#4-semplice-da-amministrare)
+5. [Niente di nascosto](#5-niente-di-nascosto)
+6. [Un'assistente che ti conosce](#6-unassistente-che-ti-conosce)
+7. [Agisce lei, decidi tu](#7-agisce-lei-decidi-tu)
+8. [Aperta](#8-aperta)
+9. [Cosa LIA non è, e dove va](#9-cosa-lia-non-è-e-dove-va)
 
 ---
 
-## 1. Il contesto
+## 1. Perché LIA
 
-L'era degli assistenti IA agentici è arrivata. ChatGPT, Gemini, Copilot, Claude — ognuno propone un agente capace di agire nella tua vita digitale: inviare email, gestire l'agenda, cercare sul web, controllare i tuoi dispositivi.
+ChatGPT, Gemini, Copilot o Claude sanno già agire per te: leggere le tue email, riempire la tua agenda, cercare sul web. Ma le tue conversazioni vivono sui loro server, non vedi cosa succede tra la tua domanda e la risposta, e il giorno in cui te ne vai, ciò che sanno di te resta da loro.
 
-Questi assistenti sono straordinari. Ma condividono tutti lo stesso modello: i tuoi dati vivono sui loro server, l'intelligenza è una scatola nera, e quando te ne vai, tutto resta lì.
+LIA prende un'altra strada. È un assistente personale che installi sul tuo server, che puoi capire da cima a fondo e che tieni sotto il tuo controllo. Non è un modello di IA in più: fa lavorare i modelli che scegli e organizza attorno a loro i tuoi servizi, la tua memoria e le tue regole.
 
-LIA sceglie un percorso diverso. Non è un concorrente diretto dei grandi — è un **assistente IA personale che ospiti tu, che capisci, e che controlli tu**. LIA orchestra i migliori modelli di IA sul mercato, agisce nella tua vita digitale, e lo fa con qualità fondamentali che la distinguono.
+Il meccanismo è spiegato nella [guida tecnica](/it/how). Il modo in cui il codice è stato scritto, da un'IA diretta e controllata da un essere umano, è raccontato nel [resoconto di esperienza](/it/story).
 
----
+## 2. Cosa fa LIA per te
 
-Un assistente utile deve spiegare dove finisce la sua discrezionalità. L'amministratore può attivare un motore decisionale per un compito preciso, come scegliere il formato di un verbale o qualificare un risultato già ottenuto. Il dubbio riporta al processo abituale; permessi e approvazioni restano in LIA. L'intelligenza aggiuntiva è ispezionabile e disattivabile.
+Le parli normalmente, per iscritto o a voce. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
 
-## 2. Amministrazione semplice
+Un interruttore nella chat sceglie il suo modo di ragionare. La modalità **Pipeline**, predefinita, prepara tutti i passaggi, li verifica e poi li esegue in parallelo: è prevedibile e consuma da 4 a 8 volte meno token. La modalità **ReAct** procede passo dopo passo, più autonoma e più costosa, per una ricerca aperta; quando un passaggio richiede un vero calcolo, scrive alcune righe di Python e le lancia in una sandbox blindata, che esce sul web solo attraverso un unico proxy e senza le tue chiavi ([privacy](/it/faq#faq-privacy), [il percorso di un messaggio](/it/how#pipeline)).
 
-### 2.1. Un'installazione guidata, poi zero attrito
+Se scegli la visualizzazione a **schede** (le altre due modalità sono l'HTML semplice e il Markdown), le risposte che portano dati arrivano così: foto di un luogo, meteo fascia oraria per fascia oraria, itinerario, anteprima di un documento. Una scheda mostra ciò che la fonte ha fornito, senza inventare nulla, e rispondere a un'email dalla sua scheda prepara la richiesta senza inviare nulla.
 
-L'auto-hosting ha una cattiva reputazione. LIA non pretende di eliminare ogni passaggio tecnico: la configurazione iniziale — impostare le chiavi API, configurare i connettori OAuth, scegliere l'infrastruttura — richiede un po' di tempo e qualche competenza di base. Ma ogni passaggio è **documentato nel dettaglio** in una guida di installazione passo dopo passo. Anche portare un'installazione esistente a una versione più recente ha la sua procedura scritta, il cui primo passo è il backup del database — le migrazioni si applicano appena parte il nuovo container, e non esiste un percorso di ritorno.
+### I tuoi servizi
 
-Una volta terminata questa fase, **tutto il quotidiano si gestisce da un'interfaccia web intuitiva**. Niente più terminale né file di configurazione.
+Chiedi a LIA di spostare il tuo appuntamento di giovedì: prepara la modifica e te la mostra prima di inviarla. Legge, cerca, riassume, scrive, invia e inoltra le tue email (Gmail, Outlook, Apple Mail), legge i loro allegati, anche una foto o una scansione, e gestisce le bozze della tua casella, che invia solo dopo la tua conferma. Tiene la tua agenda e i tuoi contatti su Google, Microsoft o Apple, le tue attività su Google o Microsoft, legge i tuoi file Drive e ci scrive solo con il tuo consenso, accende le tue lampade Philips Hue.
 
-Quella prima fase è a sua volta guidata: `./install.sh`, alla radice del repository, ti pone un questionario breve nella tua lingua — come vuoi raggiungere l'istanza, quali chiavi provider possiedi —, poi costruisce le immagini dal codice che hai clonato, applica i dati di riferimento in una sola transazione, crea il tuo account amministratore senza mai scrivere un segreto sulla riga di comando, e infine verifica che l'installazione funzioni davvero invece di limitarsi a rispondere. Se un passaggio fallisce, la ripresa riparte esattamente da dove si era fermata. Cambiare poi un'installazione in funzione — metterla dietro Caddy, spegnere un'opzione — non significa ricominciare: `./install.sh --reconfigure` ripropone le domande di accesso e di opzioni — mai una chiave né una password — mostrando le tue risposte attuali e rimette l'installazione precedente se la nuova non si avvia. La chiave Google Gemini è facoltativa, e il rapporto finale indica ciò che la attende.
+Senza configurare nulla, hai Wikipedia, la lettura di pagine web, i luoghi vicini con orari e recensioni, il meteo a cinque giorni con la qualità dell'aria e i pollini, e gli itinerari a piedi, in bici, in auto o con i mezzi pubblici ([connettori](/it/faq#faq-connectors)). Con le tue chiavi, la ricerca web incrocia anche Brave Search e Perplexity, e cita le sue fonti. LIA sa anche navigare un sito per te, cliccare, compilare un modulo.
 
-### 2.2. Cosa può configurare ogni utente
+### La voce
 
-Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. Un campo di ricerca evita di doverle scorrere: digita il nome di un'impostazione — o una parola che le si avvicina nella tua lingua — e LIA apre la sezione giusta, in qualunque scheda si trovi.
+Tieni premuto il microfono, oppure dici «Dis LIA» per parlare a mani libere. Questa parola di attivazione viene riconosciuta sul tuo dispositivo, nulla parte prima che venga sentita; per ora esiste solo in francese, in beta. «LIA, stop» interrompe la sua voce. La tua dettatura viene trascritta sul tuo server o da un motore remoto, secondo la tua impostazione.
 
-**Preferenze personali:**
+La **modalità Live** apre una conversazione vocale in tempo reale con la tua chiave Gemini Live, GPT-Live o ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la tratta come un messaggio normale; in Live diretto, legge i tuoi dati senza agire. Un silenzio mette la sessione in standby senza fatturare nulla, e sei tu a chiuderla. Un avatar parlante sperimentale può accompagnare la voce con la tua chiave Simli; finché la sua connessione resta aperta, vengono fatturati anche i silenzi. Ciò che gira con le tue chiavi ti viene mostrato, ma LIA non lo registra né lo conteggia ([la voce](/it/faq#faq-voice_mode)).
 
-- **Connettori personali**: scegli i servizi Google o Microsoft con un'autorizzazione per un account verificato e scollegali poi singolarmente; i collegamenti esistenti restano attivi finché non scegli di riconnetterli. Apple usa IMAP/CalDAV/CardDAV. Quando più servizi di uno stesso account scadono, l'avviso propone di riconnetterli tutti con un'unica autorizzazione. Email, calendario, contatti, attività e Drive convivono con servizi a chiave API come meteo e ricerca.
-- **Personalità**: scegli tra le personalità disponibili (professore, amico, filosofo, coach, poeta...) — ognuna influenza il tono, lo stile e il comportamento emotivo di LIA
-- **Voce**: configura la modalità vocale — parola di attivazione a mani libere, trascrizione locale o remota, risposte lette ad alta voce
-- **Notifiche**: gestisci le notifiche push e i dispositivi registrati
-- **Canali**: collega Telegram per chattare e ricevere notifiche sul cellulare
-- **Generazione di immagini**: attiva e configura la creazione di immagini tramite IA
-- **Server MCP personali**: connetti i tuoi server MCP per estendere le capacità di LIA
-- **Aspetto**: lingua, fuso orario, tema (5 palette, modalità chiara, scura o nero assoluto), font (9 scelte), dimensione del testo (da 14 a 20 px, senza spostare un pannello), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
-- **La mia dashboard**: nascondi o riordina le 11 schede del briefing — una scheda nascosta non viene nemmeno più recuperata; un nuovo account parte dal solo meteo dove l'istanza lo fornisce, e la sua lista di avvio chiede prima l'indirizzo di casa
-- **Preferenze d'uso**: scegli il tuo ritmo di scambi — frequenti, e LIA tiene a portata di mano tutti gli strumenti perché ogni turno in modalità ReAct rilegga il precedente dalla cache del fornitore; occasionali, e sceglie gli strumenti che servono a ogni domanda, a un costo stabile — da lì parte un nuovo account
-- **Debug**: accedi al pannello di debug per ispezionare ogni scambio (se abilitato dall'amministratore)
+### Creare e conservare
 
-**Funzionalità avanzate:**
+LIA crea e ritocca immagini con il modello scelto dall'amministratore, senza passare a un'opzione più cara delle tue preferenze. Facoltativamente, arricchisce la tua descrizione, e un'immagine si ritrova chiedendogliela ([immagini](/it/faq#faq-image_generation)). Produce veri file (CSV, Excel, Word, PowerPoint, PDF), costruiti da un motore locale e consegnati con la loro data di scadenza, schemi Excalidraw, e legge le foto e i PDF che alleghi. Le applicazioni MCP mostrano i loro moduli direttamente nella chat.
 
-- **Psyche Engine**: regola i tratti di personalità (Big Five) che modulano la reattività emotiva del tuo assistente
-- **Memoria**: consulta, modifica, fissa o elimina i ricordi di LIA — attiva o disattiva l'estrazione automatica di informazioni
-- **Diari personali**: configura l'estrazione di riflessioni dopo ogni conversazione e il consolidamento periodico
-- **Interessi**: definisci i tuoi argomenti preferiti, configura la frequenza delle notifiche, le finestre orarie e le fonti (Perplexity, Brave, Wikipedia, ragionamento IA)
-- **Notifiche proattive**: regola frequenza, finestra oraria e fonti di contesto (calendario, meteo, attività, email, interessi, memorie, diari)
-- **Conversazioni proattive**: consenti a LIA di avviare una conversazione, poi scegli i suoi orari, un massimo giornaliero, le fonti consentite e gli argomenti sensibili — e consulta, correggi o ricostruisci il contesto che conserva
-- **SMS**: crea il token che usa il tuo telefono, concedi o revoca l’accesso dell’assistente, cerca nell’archivio, blocca un mittente o cancella un messaggio
-- **Azioni pianificate e promemoria**: indica il ritmo — ogni tre giorni, un martedì su due, il 2º martedì del mese, ogni due ore tra le 9 e le 17, fino a una data o N volte — tanto per un'automazione quanto per un promemoria, che ora può tornare invece di suonare una volta sola. E leggi la tua settimana a colpo d'occhio: ogni routine alla sua ora nei suoi giorni, ogni cella colorata da ciò che è davvero successo
-- **Skills**: attiva/disattiva competenze specializzate in una galleria con anteprime, crea le tue Skills personali, installane una da un URL https (validato lato server) o sceglila nella libreria pubblica skills.sh dopo averla letta
-- **Spazi di conoscenza**: carica i tuoi documenti (PDF, Word, Excel, PowerPoint, EPUB, HTML e 15+ formati), sincronizza una cartella di Google Drive o segui un'etichetta Gmail — indicizzazione automatica e ricerca ibrida. Le conversazioni che etichetti diventano documenti interrogabili settimane dopo, e togliere l'etichetta rimuove il documento. Un documento che LIA non può leggere — un PDF scansionato senza livello di testo — lo dice sotto la sua riga, con il rimedio. Una cartella Drive si sincronizza con le sue sottocartelle, e oltre una soglia il numero esatto di file che stanno per essere indicizzati viene mostrato prima che qualcosa parta
-- **Export dei consumi**: scarica i tuoi dati di consumo LLM e API in CSV
+Ciò che produce, lo conservi, lo invii per email con un clic, condividi un'immagine con una persona collegata alla tua istanza, o lo lasci scadere. Una risposta conservata lascia la conversazione con la tua richiesta e la sua data, ed entra in uno spazio di conoscenza dove LIA la ritroverà settimane dopo.
 
-### 2.3. Cosa controlla l'amministratore
+### Prendere l'iniziativa
 
-L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istanza:
+Se glielo permetti, LIA non si limita ad aspettare. Ti scrive quando la tua agenda, il meteo, le tue attività, le tue email o i tuoi interessi lo giustificano, e può avviare di sua iniziativa una conversazione personale. Alla fine di una riunione, ti chiede com'è andata. Quando la tua casella o la tua agenda si muovono, può reagire in pochi minuti, e «Sorveglia» tiene d'occhio una mail attesa fino al suo arrivo. Se sabato è prevista pioggia, guarda le tue attività all'aperto. Ricorda ciò a cui tieni davvero, e un argomento che rifiuti non torna.
 
-**Utenti e accessi:**
+Le affidi un ticket: lo prende in carico al suo ritmo e ti restituisce un risultato da accettare. Per un compito complesso, delega a sub-agenti che lavorano in parallelo. Routine e promemoria seguono ritmi ricchi (un martedì su due, il secondo martedì del mese, fino a una data), e una vista della settimana mostra ciò che è realmente successo ([l'iniziativa](/it/how#proactivity)).
 
-- **Gestione utenti**: creare, attivare/disattivare account, visualizzare i servizi connessi e le funzionalità attivate per ogni utente
-- **Limiti di utilizzo**: definire quote per utente (token LLM, chiamate API, generazioni di immagini) con monitoraggio in tempo reale e blocco automatico
-- **Messaggi broadcast**: inviare messaggi importanti a tutti gli utenti o a una selezione, con data di scadenza opzionale
-- **Export dei consumi globale**: esportare i consumi di tutti gli utenti in CSV
-- **Budget quotidiano dell'istanza**: limitare in euro ciò che l'istanza INTERA può spendere in una giornata — e non solo ciò che consuma ogni account. Il pannello mostra la spesa del giorno, il tetto realmente applicato e ciò che resta. Esaurito il budget, gli utenti apprendono che il deployment è in pausa e ricevono l'ora esatta del ripristino, non un messaggio fuorviante sulla loro quota personale
-- **Capacità di piattaforma**: attiva o disattiva ogni capacità all'istante, senza ridistribuire — tutte le funzioni che una persona vive davvero, dalla dettatura e le immagini alla lavagna dei ticket, ai diari, alla memoria a lungo termine e alle notifiche spontanee — raggruppate in sei famiglie perché un muro di interruttori resti leggibile. Un interruttore toglie la CAPACITÀ, mai l'archivio: spegnere la memoria ferma l'apprendimento di nuovi fatti mentre tutto ciò che è già stato appreso resta leggibile ed eliminabile. Gli strumenti di una capacità disattivata escono anche da entrambe le modalità di esecuzione — dal pianificatore come dal ciclo ReAct, da un sub-agente delegato come dal piano già pronto di una skill —, tranne quattro interruttori (Workboard, connessioni LIA, server MCP, Skills), che chiudono solo le loro pagine e impostazioni; così LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu, ciò che viene davvero applicato e dove morde l'interruttore
+### Gli altri
 
-**IA e connettori:**
+LIA fa una vera telefonata al posto tuo, all'officina o a un'amica, e ti riporta un riassunto scritto. Prima ti dice chi chiama e perché, e aspetta il tuo via libera. Con qualcun altro, non accetta alcun impegno a tuo nome, della tua agenda rivela solo se sei disponibile, e conserva solo un breve riassunto che scade. Può anche chiamare te, su un numero che hai verificato, e lì niente è limitato: all'altro capo del filo hai i tuoi dati e tutte le sue funzioni, con le azioni che restano confermate come nella chat. Questa modalità esiste solo se il fornitore telefonico può raggiungere la tua istanza ([telefonia](/it/faq#faq-telephony)).
 
-- **Configurazione LLM**: configurare le chiavi API dei fornitori (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assegnare un modello a ogni ruolo della pipeline, gestire i livelli di ragionamento — chiavi memorizzate cifrate. L'interfaccia espone solo i parametri che il modello scelto accetta davvero: una profondità di ragionamento che la sua API rifiuta non può essere proposta, né tantomeno salvata; un budget di output oltre ciò che il modello accetta viene segnalato, e ogni richiesta è tenuta entro quel limite
-- **Attivazione/disattivazione connettori**: abilitare o disabilitare le integrazioni a livello globale (Google OAuth, Apple, Microsoft 365, Hue, meteo, Wikipedia, Perplexity, Brave Search). La disattivazione revoca le connessioni attive e notifica gli utenti
-- **Tariffazione**: gestire i prezzi per modello LLM (costo per milione di token), per API Google Maps e per generazione di immagini — con storico dei prezzi e con il supporto dei fornitori le cui tariffe variano secondo l'ora, perché le statistiche di utilizzo corrispondano alla fattura reale. L'intera griglia si esporta come cartella Excel e si reimporta dopo la modifica offline: LIA ti mostra ogni cambiamento campo per campo prima di scrivere qualcosa, e una riga assente dal file non cancella mai nulla
+Sulla stessa istanza, due persone collegate vedono i loro assistenti parlarsi: tu approvi il messaggio esatto, l'altro assistente lo trasmette con la sua personalità, il tuo conferma la consegna. Ogni connessione apre solo le condivisioni scelte, in sola lettura. Si trova qualcuno solo tramite la sua identità esatta, un blocco resta silenzioso (l'altro riceve la stessa risposta di uno sconosciuto), e i messaggi inoltrati si cancellano dopo trenta giorni. La pagina **Relazioni** riunisce, per ogni persona, gli impegni, le chiamate, i ricordi e i messaggi, con una sintesi in cima, senza raccogliere nulla di nuovo. Sei tu a unire due identità, per esempio «Papà» e un numero, in modo reversibile e senza scrivere nulla nelle tue fonti.
 
-**Contenuti ed estensioni:**
+Il tuo telefono diventa anche un registratore di riunioni. Quando lo fermi, LIA trascrive e redige un verbale nel formato adatto, ti dice quale e perché, e lo invia nella chat, in PDF e per email, poi lo archivia in uno spazio «Riunioni» dove ritroverai ciò che è stato deciso. Un'interruzione costa solo qualche secondo di audio, una registrazione fatta altrove si può importare, e la trascrizione può restare interamente sul tuo server.
 
-- **Personalità**: creare, modificare, tradurre ed eliminare le personalità disponibili per tutti gli utenti — definire la personalità predefinita
-- **Skills di sistema**: gestire le competenze specializzate a livello di istanza — import/export, attivazione/disattivazione, traduzione
-- **Spazi di conoscenza di sistema**: gestire la base di conoscenza FAQ, monitorare lo stato dell'indicizzazione e le migrazioni di modelli
-- **Voce globale**: configurare il provider, modello e voce TTS predefiniti per tutti gli utenti (Edge gratuito, OpenAI, ElevenLabs, Gemini o Fish Audio), con regolazione fine per provider (velocità, stabilità, formato audio)
-- **Libreria di voci**: clonare una voce da registrazioni con una dichiarazione di consenso annotata nel registro di controllo, progettarne una da una descrizione (pagata dall'istanza, verificato prima il suo tetto giornaliero), rinominare o eliminare le voci Fish Audio dell'istanza — mai una che uno slot utilizza
-- **Debug di sistema**: configurazione dei log e della diagnostica
+### E ancora
 
-### 2.4. Un assistente, non un progetto tecnico
+Una radio personale, avviata quando vuoi, mescola la tua giornata a notizie con le loro fonti e mostra quanto spende ([radio](/it/faq#faq-radio)).
 
-L'obiettivo di LIA non è trasformarti in un amministratore di sistema. È offrirti la potenza di un assistente IA completo **con la semplicità di un'app consumer**. L'interfaccia è installabile come applicazione nativa su computer, tablet e smartphone (PWA), e tutto è pensato per essere usato senza competenze tecniche nel quotidiano.
+Il tuo telefono, iPhone o Android, o qualsiasi sistema capace di inviare dati in JSON può anche trasmettere a LIA i tuoi SMS, il tuo numero di passi e la tua frequenza cardiaca, ciascuno tramite un token dedicato e revocabile. Gli SMS entrano in un archivio privato e cifrato che legge solo con un'autorizzazione a parte, senza mai conservare i codici di accesso. Le misurazioni sulla salute restano da te, dove le cancelli quando vuoi; il loro uso da parte dell'assistente è disattivato per impostazione predefinita e, se attivato, le trasmette solo un riassunto fattuale, senza alcuna diagnosi medica.
 
----
+La conversazione segue i tuoi altri dispositivi senza ricaricare la pagina.
 
-### Impostazioni accessibili tramite conversazione
+## 3. A casa tua, per i tuoi cari
 
-Sì. Prova «Quale modalità di risposta è attiva?», «Passa le mie risposte a HTML + schede» o «Mostra le mie routine». LIA usa impostazioni e nomi dell’interfaccia, entro le funzioni disponibili sulla tua istanza e autorizzate per il tuo account. Le letture e alcune piccole preferenze reversibili possono essere dirette. Creazione, eliminazione e modifiche sensibili mantengono la conferma.
+LIA è un server che installi una volta e condividi con la tua famiglia, i tuoi amici o il tuo team. Ogni account ha il suo profilo, la sua lingua, i suoi connettori, i suoi documenti privati e il suo rapporto con l'assistente. Memoria e diari sono separati da un account all'altro, e un account si apre solo con il consenso dell'amministratore: accedere con Google dimostra un indirizzo, non un'approvazione ([privacy](/it/faq#faq-privacy)). Ognuno vede il proprio consumo in tempo reale.
 
-La conferma riguarda l’operazione e il contenuto mostrati. Accesso OAuth, scelta di file, chiavi e permessi del dispositivo proseguono nel tuo browser autenticato: non incollare questi segreti nella chat. LIA può preparare la richiesta e attendere quel passaggio. L’ascolto a mani libere e i permessi sensibili mantengono le protezioni; un comando non le aggira.
+Un Raspberry Pi 5, un computer da circa 80 euro, basta per tutta la famiglia: LIA ci gira in produzione giorno e notte, monitoraggio compreso. Vanno bene anche un NAS, un piccolo server a noleggio o una macchina aziendale. Un modello di IA locale può ricoprire qualsiasi ruolo testuale, dalla conversazione ai compiti in background, e questa scelta si cambia ruolo per ruolo, senza ridistribuire.
 
-Una richiesta preparata, una conferma attesa e una modifica registrata sono stati diversi. LIA comunica risultati osservati e distingue risultati parziali, attesa, conflitti, scadenza ed errori. Se la risorsa è cambiata dopo la preparazione, il comando può essere rifiutato e richiedere una nuova richiesta. Delegare a uno strumento non dimostra da solo tutti i suoi effetti interni.
+I tuoi dati vivono nel database del tuo server. Li esporti (segreti esclusi), li salvi o ne chiedi la cancellazione, e i tuoi dispositivi collegati si possono revocare. La tua posizione viene conservata solo se lo scegli, senza cronologia. Un'email o una pagina web arriva etichettata come materiale da analizzare, non come un ordine da eseguire. I log del server conservano numeri e codici, non i tuoi contenuti, con un'eccezione: il messaggio d'errore di un servizio esterno in un formato sconosciuto può ancora citarne un frammento. Un limite da conoscere: un modello remoto riceve i dati utili alla sua parte della richiesta.
 
----
+Sul telefono, un'unica app per store fa da finestra sul tuo server. Inserisci il suo indirizzo una volta, e su Android le sue notifiche non passano dall'editore dell'app; su iOS, un relay minimale sveglia il telefono con una frase fissa ([self-hosting](/it/faq#faq-self_hosting)).
 
-## 3. Cosa sa fare LIA
+Il **mondo di LIA** dà all'istanza una casa e un giardino condivisi. Ci passeggi con il tuo avatar, incontri gli altri, giochi a un cabinato arcade, ti siedi a un tavolo dove LIA ti porta la tua dashboard. La tua casa, i tuoi documenti e la tua assistente restano privati, e una stanza del mondo apre le stesse funzioni dell'app, con gli stessi diritti e le stesse conferme ([il mondo](/it/faq#faq-world)).
 
-LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi, documenti), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
+## 4. Semplice da amministrare
 
-Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
+Un installer guidato (`./install.sh`) fa qualche domanda, in francese o in inglese, crea l'account amministratore senza scrivere segreti in chiaro, verifica che tutto funzioni davvero e riprende da dove si era fermato se un passaggio fallisce. Ogni passaggio è descritto in una guida passo passo. La prima configurazione richiede comunque un po' di tempo e qualche base tecnica. Un aggiornamento segue una procedura scritta che inizia con un backup, perché non si torna indietro una volta applicate le migrazioni ([self-hosting](/it/faq#faq-self_hosting)).
 
-- **Modalità Pipeline** (predefinita) — Un vero capolavoro di ingegneria: LIA pianifica tutti i passaggi in anticipo, li valida semanticamente ed esegue gli strumenti in parallelo. Risultato: la stessa potenza di un agente autonomo, ma con 4-8 volte meno token consumati. La modalità più economica e prevedibile.
-- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata — e quando un passo ha bisogno di un servizio che nessuno strumento copre, quello script può raggiungere il web da un unico proxy, le tue chiavi scambiate fuori da esso, un host sconosciuto chiesto prima con tre risposte. Gli strumenti che porta con sé sono scelti per rilevanza rispetto alla tua domanda — i tuoi server MCP compresi — mai per ordine di arrivo, e legge i tuoi spazi di conoscenza esattamente come la modalità Pipeline.
+Poi, tutto si regola nell'interfaccia web, senza terminale né file di configurazione, da computer, tablet o telefono ([primi passi](/it/faq#faq-getting_started)). Un assistente completo deve potersi usare con la stessa semplicità di un'app per il grande pubblico. Ognuno ha il suo spazio di impostazioni, con una ricerca che capisce la tua lingua: collegare Google o Microsoft con una sola autorizzazione ([connettori](/it/faq#faq-connectors)), scegliere la personalità di LIA (professore, amico, coach, poeta…) e le sue voci, regolare l'aspetto, decidere cosa impara e quando ti interpella, aggiungere i tuoi server MCP, le tue skills e i tuoi spazi di conoscenza, che possono seguire una cartella Drive o un'etichetta Gmail. Scegli anche il tuo ritmo di scambi, frequenti o occasionali, perché LIA tragga il massimo dalla cache del fornitore.
 
-### 3.1. Conversazione naturale
+Puoi anche regolare LIA parlandole: «Mostra le mie risposte come schede». Una lettura o una piccola impostazione reversibile avviene subito; una creazione, una cancellazione o una modifica sensibile mantiene la sua conferma. Una password o una chiave passano dal tuo browser, non dalla chat, e un comando non aggira alcuna protezione ([privacy](/it/faq#faq-privacy)). Poi LIA dice cosa è realmente successo, compreso un risultato parziale o un conflitto, senza pretendere di conoscere ogni effetto interno di uno strumento.
 
-Parla a LIA come faresti con un assistente umano — niente comandi da memorizzare, niente sintassi da rispettare. LIA capisce e risponde in 99+ lingue, con un'interfaccia disponibile in 6 lingue (francese, inglese, tedesco, spagnolo, italiano, cinese). Le risposte vengono visualizzate in schede HTML interattive, in HTML diretto, o in Markdown secondo le tue preferenze. In HTML arricchito, una risposta che porta dati arriva come una pagina composta — una frase di apertura, una sezione per aspetto nel componente che le si addice, un riquadro di chiusura — mai come testo con tag.
+L'amministratore ha la sua scheda. Apre gli account, vede ciò che ognuno usa, fissa limiti per persona (token, messaggi, costo) e un budget giornaliero per tutta l'istanza. Attiva o spegne ogni funzione senza ridistribuire, e spegnere una funzione ferma la capacità senza cancellare ciò che esiste: senza memoria, LIA non impara più, ma ciò che sa resta leggibile. Sceglie i fornitori, un modello per ruolo e la sua profondità di ragionamento, con chiavi archiviate cifrate, e tiene il listino prezzi, che può modificare in Excel. Gestisce anche le personalità, le skills, la FAQ e la sintesi vocale dell'istanza; clonare una voce richiede prima un'attestazione di consenso iscritta nel log di audit. LIA, dal canto suo, sorveglia la propria salute, diagnostica i suoi incidenti e avvisa l'amministratore, che può anche interrogare il suo server in linguaggio naturale dalla chat.
 
-Quando una risposta porta dei dati, viene mostrata in schede che presentano tutto ciò che la fonte ha fornito — senza inventare nulla — e conservano il dettaglio dietro una sezione espandibile: le foto di un luogo in galleria, il meteo confrontato fascia per fascia, l'anteprima di un documento, un percorso interattivo. Rispondere a un'e-mail o modificare un promemoria dalla sua scheda prepara la richiesta; nulla parte senza di te.
+L'accessibilità punta al livello AA delle WCAG 2.2, il colore non porta da solo il significato, e i controlli automatici completano la valutazione manuale senza sostituirla.
 
-Le schede mostrano anche da dove proviene un risultato MCP esterno e quale metodo lo ha prodotto. Date ed elementi selezionati seguono le prove disponibili; i simboli meteo riflettono le condizioni ricevute. L’eliminazione di un’e-mail resta legata alla sua esatta casella collegata e attende la tua conferma.
+## 5. Niente di nascosto
 
-### 3.2. Servizi connessi personali
+Vedi quali modelli vengono chiamati, quanti token, quale costo e perché una certa decisione. Ogni messaggio mostra il suo costo in euro, una riga compressa sotto ogni risposta, una volta aperta, mostra ciò che è realmente successo, e quando uno dei tuoi server MCP tarda a prepararsi, LIA lo nomina invece di farti aspettare in silenzio. Se l'amministratore lo attiva, un pannello di debug mostra in diretta il piano, ogni strumento e ogni chiamata al modello. Nessun abbonamento che nasconde i costi: puoi mettere un modello economico dove basta, e LIA ottimizza da sola ciò che consuma. Tutto ciò che la piattaforma paga per te, chiamata, sessione live o sintesi vocale, entra nel tuo utilizzo, al prezzo che il fornitore fattura davvero. Il tuo parere su una risposta (👍 o 👎) resta nel tuo database, senza analytics di terzi.
 
-- **Email**: leggere, cercare, redigere, inviare, rispondere, inoltrare — via Gmail, Outlook o Apple Mail; un messaggio arriva come testo pulito, e molti si riassumono messaggio per messaggio («riassumi le mie non lette», «una sintesi delle newsletter della settimana»); un allegato si legge su richiesta — un documento come testo, una foto o una scansione tramite il modello di visione; e LIA gestisce le bozze della tua casella — le salva, le modifica e le butta senza chiederti nulla, e le invia solo dopo una sola conferma
-- **Calendario**: consultare, creare, modificare, eliminare eventi — via Google Calendar, Outlook Calendar o Apple Calendar
-- **Contatti**: cercare, creare, modificare contatti — via Google Contacts, Outlook Contacts o Apple Contacts
-- **Attività**: gestire le tue liste di attività — via Google Tasks o Microsoft To Do
-- **File**: accedere a Google Drive per cercare e leggere i tuoi documenti, consultare il contenuto di un foglio di calcolo o di un documento e scrivervi dopo la tua conferma (aggiunta di righe, aggiornamento di un intervallo, nota finale)
-- **SMS**: un’automazione Comandi Rapidi su iPhone inoltra gli SMS ricevuti dal telefono in un archivio privato e cifrato — ricerca, nomi dei mittenti dai tuoi contatti, eliminazione ed esportazione; i codici di accesso riconosciuti non vengono mai conservati e LIA legge i tuoi messaggi solo quando lo consenti a parte
-- **Casa connessa**: controllare la tua illuminazione Philips Hue — accensione/spegnimento, luminosità, colori, scene, gestione per stanza
+LIA non ti presenta come fatto ciò che i suoi strumenti hanno rifiutato, e ciò che una schermata afferma sui tuoi dati è esatto o assente. Ogni protezione dichiarata poggia su un test che fallisce se essa scompare. L'audit tecnico completo, punti deboli compresi, è pubblico con il suo protocollo, e la FAQ ha una sezione per ogni funzione.
 
-### 3.3. Intelligenza web e ambiente
+Ciò che LIA conclude su di te, lo correggi tu. Ricordi, diari e interessi si rileggono, si correggono o si cancellano, e la correzione vale ovunque. LIA conserva un rimando a ciò che l'ha portata a una conclusione, non una copia, quindi una conversazione cancellata non ricompare da nessuna parte. Ciò che crede di sapere sul tuo ritmo si ispeziona, si mette in pausa o si cancella in un pannello delle abitudini, spento finché non lo attivi, e le routine che propone aspettano il tuo consenso. Una regola tratta dalle tue istruzioni («rispondi più breve») diventa un ricordo che puoi modificare.
 
-Wikipedia, la navigazione di pagine, i luoghi, il meteo e la qualità dell'aria non ti chiedono nulla: la tua istanza li fornisce a ogni account, sempre attivi, senza niente da configurare.
+Infine, LIA tiene tre **registri**: ciò che ha fatto per te, ciò che ha consultato («la tua agenda», senza ciò che è stato cercato) e ogni scambio. Ciò che intraprende di sua iniziativa ha la sua scheda. Un'azione viene registrata prima di avvenire e chiusa solo su un risultato reale. I registri si leggono in grafici, si esportano per intero, possono essere sigillati con impronte che verifichi in prima persona, e LIA li usa per risponderti quando le chiedi cosa ha fatto ([i registri](/it/faq#faq-registers)). Con i parametri inviati ai modelli e le lacune del registro, fanno cinque forme di prova. Il regolamento europeo sull'IA non classifica automaticamente un assistente personale tra i sistemi ad alto rischio: queste prove sono una scelta di trasparenza, non una certificazione.
 
-- **Ricerca web**: ricerca multi-sorgente (Brave Search, Perplexity, Wikipedia) per risposte complete e con fonti citate
-- **Meteo**: condizioni attuali e previsioni a 5 giorni, con rilevamento dei cambiamenti (inizio/fine pioggia, calo di temperatura, allerte vento)
-- **Qualità dell'aria e pollini**: indice di qualità dell'aria e tipi di polline di stagione, allegati a ogni risposta meteo — con la categoria pubblicata dal fornitore stesso e l'indice del tuo paese quando esiste
-- **Luoghi e attività commerciali**: ricerca di luoghi nelle vicinanze con dettagli, orari, recensioni; quando una risposta ne elenca diversi, una scheda Posizione li numera su un’unica mappa, e selezionandone uno si vedono i dettagli e un percorso fatturato da dove ti trovi
-- **Itinerari**: calcolo di itinerari multi-modali (auto, a piedi, bici, trasporti pubblici) con geolocalizzazione automatica
-- **Posizione in movimento**: quando la tua posizione in tempo reale non è disponibile (un'app mobile rimasta in pausa), LIA usa la tua ultima posizione memorizzata — se l'hai attivata — invece del tuo indirizzo personale, e annuncia sempre l'età di quella posizione invece di presentarla come attuale
+## 6. Un'assistente che ti conosce
 
-### 3.4. Voce
+Al di là dei fatti, LIA si costruisce una comprensione psicologica di te. Ogni ricordo porta un peso emotivo e un'importanza, e puoi consultare, fissare, correggere o cancellare tutto, oppure spegnere l'estrazione automatica.
 
-LIA offre una modalità vocale completa:
+Il **Psyche Engine** le dà uno stato interiore che evolve a ogni scambio, laddove i grandi assistenti mantengono una personalità fissa. Il rapporto si approfondisce, e le sue emozioni si leggono senza essere dette: un vocabolario che si fa più caldo, frasi che si accorciano sotto tensione, umorismo quando lo scambio è leggero. Regoli tu i suoi tratti caratteriali. Impara anche, ambito per ambito e in via sperimentale, dove è affidabile, a partire da prove e non dal proprio voto; dove le prove mancano, verifica, chiede o dichiara il suo limite. Fuori dalla chat, un compagno animato resta al tuo fianco sulla dashboard, dove l'hai messo.
 
-- **Push-to-Talk**: tieni premuto il pulsante microfono per parlare, ottimizzato per il mobile
-- **«Dis LIA», sentito nel tuo browser**: il rilevamento a mani libere gira **interamente sul tuo dispositivo** — nessun audio viene trasmesso finché la frase non viene sentita — e «LIA, stop» interrompe la voce di LIA quando legge una risposta. Questa parola di attivazione esiste per ora in francese, in beta: il suo riconoscimento sta ancora migliorando; nelle altre lingue basta un tocco
-- **Sintesi vocale**: cinque provider configurabili da admin — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini o Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`); sui motori che li interpretano, i commenti parlati di LIA portano qualche marcatore espressivo (un sospiro, una risata, un sussurro), riservati a ciò che la notizia richiede — mai per dire com'è andata un'azione; ognuno sceglie la voce maschile e la voce femminile di LIA tra quelle del motore, e può limitare ogni elenco di voci alla propria lingua
-- **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
-- **Modalità Live**: una conversazione in tempo reale, a viva voce, su un modello live che colleghi con **la tua chiave** — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la esegue come un normale turno di chat mentre parli; una sessione diretta lascia che la voce legga i tuoi dati da sola senza agire su nulla. Ciò che il fornitore fattura ti è mostrato, mai registrato. Un silenzio non chiude più una sessione: la mette in standby — connessione chiusa, nulla fatturato — finché un tocco non la riattiva con il contesto di LIA; terminarla spetta sempre a te.
+Tiene i propri **diari** in prima persona, e da questi taccuini nasce un tuo ritratto che l'accompagna ovunque parli. Li leggi, li modifichi, segnali un errore o avvii un consolidamento; il ritratto in sé non si modifica direttamente, per restare coerente. Quando riaffiora un ricordo doloroso, passa in modalità protettiva: niente battute, niente minimizzazioni. E se le chiedi cosa sa fare, risponde attingendo a una base di conoscenza sulle proprie funzioni ([la memoria](/it/how#memory)).
 
-- **Avatar parlante, sperimentale**: se la tua istanza lo offre, collega la tua chiave Simli personale e attiva un volto per i commenti vocali e Live, diretto o delegato. Sposta la finestra flottante e scegli tra tre dimensioni, anche con la tastiera. Una connessione aperta consuma il tuo piano Simli anche durante i silenzi; la sospensione Live la chiude e il risveglio la riapre. Radio resta separata. La qualifica dei media e dei dispositivi mobili prosegue. Il pulsante «Arresta la sessione avatar» resta disponibile nella finestra e indica se la chiusura è confermata o ancora in attesa. Se rimane in attesa, aspetta e riprova; una chiusura non confermata non dimostra che Simli abbia smesso di fatturare.
+## 7. Agisce lei, decidi tu
 
-### 3.5. Creazione e media
+Prima di un'azione sensibile, LIA te la sottopone. Ciò che approvi è esattamente ciò che verrà eseguito, anche dopo diversi ritocchi, e la conferma mostra tutto ciò che sta per partire. Davanti a un'azione che non ha il diritto di fare da sola, ti chiede sul ticket; una routine che gira senza nessuno davanti allo schermo rifiuta l'azione e lo dice. Il codice di una skill gira in un container usa e getta, senza accesso ai tuoi file né alle tue chiavi, e senza rete al di fuori degli host autorizzati.
 
-- **Generazione di immagini**: crea immagini da una descrizione testuale, ritocca foto esistenti — con GPT Image di OpenAI o Qwen Image 3.0, secondo il modello scelto dall'amministratore; le tue preferenze di qualità, dimensione e formato si adattano a ciò che il modello sa fare, senza mai passare a un'opzione più cara; se lo desideri, la tua descrizione viene arricchita secondo i consigli del fornitore, con un testo tra virgolette conservato parola per parola; un'immagine si ritrova chiedendola e si condivide con un clic con una connessione, che la riceve nella sua galleria e nella sua chat
-- **Generazione di documenti**: chiedi un CSV, un foglio Excel, una relazione Word, un PowerPoint o un PDF — un modello redattore dedicato produce il contenuto nella tua lingua, poi un motore di resa locale costruisce il file vero con i codici del suo formato: diapositive 16:9 la cui impaginazione segue l'intenzione, sommario e paginazione calcolati da Word, colonne Excel tipizzate sotto una tabella filtrabile, numeri di pagina esatti e segnalibri nel PDF. Il testo viene misurato prima di essere collocato, quindi nulla fuoriesce; e se il modello viene troncato, LIA te lo dice invece di consegnarti un documento amputato. Il file arriva come scheda scaricabile con una scadenza esplicita
-- **Diagrammi Excalidraw**: genera schemi e diagrammi direttamente nella conversazione
-- **Allegati**: allega foto e PDF — LIA analizza il contenuto visivo ed estrae il testo dai documenti; il « + » propone anche ogni documento dei tuoi spazi di conoscenza, spazio in pausa compreso, come copia per quel messaggio
-- **MCP Apps**: widget interattivi direttamente nella chat (moduli, visualizzazioni, mini-applicazioni)
-- **Risposte conservate**: un segnalibro su ogni risposta la tiene fuori dalla conversazione — con la tua richiesta e la sua data — in una scheda accanto ai tuoi file generati; condividila, scaricala in Markdown o lasciala andare; ogni risposta conservata entra anche in uno spazio di conoscenza tuo, perché LIA la ritrovi e la citi settimane dopo
-- **Invia per e-mail**: un file generato o una risposta parte con un clic, dalla tua casella collegata o al tuo indirizzo; mentre digiti un destinatario, LIA suggerisce i tuoi contatti per cognome, nome o numero di telefono e inserisce il loro indirizzo
+Si attiene a ciò che ha realmente ottenuto. La risposta si basa sui risultati reali degli strumenti, un'informazione introvabile viene dichiarata mancante, e un fallimento viene nominato insieme al servizio in causa. I calcoli, le durate tra due date e le conversioni di valuta passano da strumenti esatti.
 
-### 3.6. Proattività e iniziative
+Una domanda continua a essere elaborata se chiudi la scheda, e il pulsante stop la interrompe in un secondo. Il database viene salvato ogni notte e il ripristino è testato davvero; la copia fuori sede e gli allegati restano da prevedere a cura dell'operatore. Un monitoraggio completo fa parte dell'architettura fin dall'inizio; le sue metriche non contengono né nomi né ricerche, e ogni componente del server è fissato alla sua impronta ([privacy](/it/faq#faq-privacy), [osservare e misurare](/it/how#observability)).
 
-LIA non si limita a rispondere — anticipa:
+L'operatore può affidare alcune decisioni precise a un motore dedicato, come scegliere il formato di un verbale. Quando questo motore è in dubbio, il compito torna all'elaborazione abituale, i permessi restano in LIA, e ogni uso è visibile e si può ritirare.
 
-- **Notifiche proattive**: LIA incrocia le tue fonti di contesto (calendario, meteo, attività, email, interessi) e ti notifica quando è davvero utile — con un sistema anti-spam integrato (finestra oraria, pause tra due messaggi) e senza quota giornaliera: ogni passaggio viene valutato, e decide la pertinenza, non un contatore
-- **Conversazioni che avvia lei**: una volta che lo consenti, LIA può avviare di sua iniziativa una conversazione personale — interessarsi a un progetto, incoraggiarti, porti una domanda aperta. Scegli i suoi orari, un massimo giornaliero, ogni fonte che può leggere e gli argomenti sensibili che può considerare; quattro reazioni rispondono a un’apertura con un clic, il contesto che ha costruito resta visibile e correggibile, e ogni esecuzione conta nel tuo consumo, entro budget giornalieri
-- **Iniziativa conversazionale**: durante uno scambio, LIA verifica proattivamente le informazioni correlate — se il meteo prevede pioggia sabato, consulta il tuo calendario per segnalarti eventuali attività all'aperto
-- **Interessi**: LIA conserva ciò che ti sta davvero a cuore, non ciò che hai chiesto una volta — fare una domanda è un compito, non un gusto, e servono una passione dichiarata, una pratica, una conoscenza reale o un approfondimento autentico perché un argomento conti. I temi si alternano (mai due volte di seguito lo stesso argomento), ogni notifica include link cliccabili alle sue fonti, e un argomento che rifiuti non torna: il blocco viene confrontato con ogni nuovo argomento, anche sotto un altro nome
-- **Lavoro che affidi e che torna**: un ticket ha un ciclo di vita, un responsabile e un risultato. Affidane uno a LIA e lo prende con i suoi tempi, lo fa, commenta ciò che ha trovato e ti restituisce il risultato da accettare — e quando incontra qualcosa che non può fare da sola, chiede sul ticket mostrando esattamente cosa sta per fare, invece di decidere al posto tuo o rinunciare
-- **Sotto-agenti**: per le attività complesse, LIA delega ad agenti effimeri specializzati che lavorano in parallelo
-- **Tornare all'istante che conta**: una riunione finisce, e LIA ti chiede com'è andata — alla fine, non al passaggio successivo due ore dopo. Una domanda aperta, mai una valutazione, mai durante la riunione successiva; ogni tipo di momento si spegne da solo nelle impostazioni. E una mail che aspetti è servita al minuto: «Sorveglia» dal briefing crea la vigilanza, che finisce da sé una volta arrivata la risposta
-- **Reagire, non solo verificare**: quando la casella di posta o l'agenda segnalano qualcosa, LIA può decidere in pochi minuti invece di aspettare il passaggio successivo — nella stessa identica fascia oraria e con le stesse pause, e solo per un'e-mail che porta l'etichetta che ritieni importante o un evento che ti riguarda a breve. Una raffica di arrivi produce un solo risveglio, e un momento giudicato inopportuno restituisce semplicemente il messaggio al passaggio regolare
+## 8. Aperta
 
-### 3.7. Navigazione web autonoma
+LIA lavora con OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen e, per i modelli locali, Ollama. Li combini ruolo per ruolo, e se uno cambia i prezzi o peggiora, passi subito a un altro ([i modelli](/it/how#llm)).
 
-Un agente di navigazione (Playwright/Chromium headless) può navigare su siti web, fare clic, compilare moduli, estrarre dati da pagine dinamiche — a partire da una semplice istruzione in linguaggio naturale. Una modalità di estrazione semplificata converte qualsiasi URL in testo utilizzabile.
+Parla standard aperti e pubblici invece di un protocollo fatto in casa, e la sua architettura è fatta per accogliere altri connettori, canali e fornitori. Con **MCP**, colleghi strumenti esterni senza scrivere codice. Un plugin in formato Agent Plugins si installa e si disinstalla in modo pulito. Le **skills** in formato agentskills.io aggiungono competenze scritte in linguaggio naturale; un generatore ti aiuta a crearne, una skill si installa da un indirizzo https o dalla libreria skills.sh e può mostrare una piccola applicazione nella chat o restituirti dei file. Una skill venuta da fuori lavora a parte, senza toccare i tuoi connettori, e ciò che costruisci in questo ecosistema ti segue. Una connessione di fiducia può trasmetterti una skill o un plugin: ne ricevi una copia disattivata, senza le sue credenziali, e attivarla ti impegna come se l'avessi creata tu.
 
-### 3.8. Amministrazione server (DevOps)
+I tuoi account si collegano tramite OAuth 2.1 senza che LIA conosca la loro password, e una passkey ti fa accedere senza alcuna password. Ogni versione pubblica l'inventario esatto di ciò che contiene e viene installata su macchine vergini prima di essere pubblicata ([sicurezza](/it/faq#faq-privacy)). Ogni decisione di architettura è scritta e archiviata sulle [mappe](/it/maps). Il codice è sotto AGPL-3.0: puoi sottoporlo ad audit, modificarlo, e deve restare aperto.
 
-Installando Claude CLI (Claude Code) direttamente sul server, gli amministratori possono diagnosticare la propria infrastruttura in linguaggio naturale dalla chat di LIA: consultare i log Docker, verificare lo stato dei container, monitorare lo spazio su disco, analizzare gli errori. Questa funzionalità è riservata agli account amministratore. La CLI gira sul modello e sullo sforzo scelti dall'amministratore, con un proprio token di accesso.
+Ritrovi LIA nel browser, nell'app mobile con le sue notifiche push, e su Telegram, dove le conferme si fanno con dei pulsanti e dove risponde anche ai tuoi messaggi vocali. La stessa memoria ti segue ovunque.
 
-E LIA sorveglia anche **se stessa**: legge la propria telemetria, tiene una cronologia di incidenti diagnosticati automaticamente dai suoi runbook operativi, avvisa gli amministratori quando si apre qualcosa di critico e offre loro un pannello «Salute della piattaforma» nelle impostazioni. Quando un guasto è noto, ne tiene conto nelle risposte invece di lasciarti attendere un timeout.
+## 9. Cosa LIA non è, e dove va
 
-Quando diagnostica uno di quegli incidenti, non parte più da un numero solo: prima legge le prove — come si è ripartita la metrica, le righe di errore recenti senza dati personali, quale versione gira e da quanto — e ti mostra ciò che ha letto accanto alla sua conclusione, così puoi verificare la diagnosi invece di crederla sulla parola.
+LIA non è un concorrente dei giganti del cloud. Per chiacchierare, un modello usato nella sua app sarà probabilmente più fluido. Non è un'intelligenza artificiale generale, ma un'intelligenza pratica e relazionale, al servizio di una persona. Le sue protezioni non garantiscono da sole la conformità al GDPR di un'installazione, che dipende anche da come viene gestita, e le tracce diagnostiche dei modelli, facoltative, possono conservare del contesto: richiedono una configurazione esplicita.
 
-### 3.9. Dati di salute personali
-
-LIA accoglie le tue misurazioni di frequenza cardiaca e numero di passi da **qualsiasi fonte** — l'integrazione più semplice è un'automazione Comandi Rapidi su iPhone che invia Apple Salute, ma qualsiasi sistema in grado di chiamare un'API (automazione Android, script personale, oggetto connesso) può inviarle. Inviare due volte gli stessi dati è ininfluente, e quando due dispositivi coprono lo stesso periodo LIA li unisce senza mai contare due volte.
-
-Le misurazioni grezze sono archiviate nella tua istanza LIA e visualizzate in una sezione dedicata delle Impostazioni, con una curva per la frequenza cardiaca, barre per i passi, un selettore del periodo (ora, giorno, settimana, mese, anno) e la media tratteggiata. Se ne attivi l'uso da parte dell'assistente, i modelli scelti ricevono una proiezione fattuale invece dei valori grezzi.
-
-L'invio è autenticato da un **token dedicato** che generi dall'applicazione e che puoi revocare in qualsiasi momento. Il token dà accesso solo all'invio di dati sanitari — mai al resto del tuo account. Puoi generarne diversi, uno per dispositivo, e gestirli separatamente.
-
-Un **interruttore «Assistente»** (disattivato per default, _opt-in_) ti consente, se lo desideri, di autorizzare l'assistente a leggere queste misurazioni per rispondere fattualmente alle tue domande («Quanti passi questa settimana?», «La mia frequenza cardiaca media oggi?», «Cammino meno del solito?»), arricchire le notifiche proattive che combinano salute + meteo + calendario, e allegare un contesto biometrico non grezzo (delta, tendenze) alle sue memorie e ai suoi diari interni. Un unico interruttore governa queste quattro integrazioni. Mai diagnosi — solo cifre fattuali, con la baseline che si qualifica onestamente («basata su soli N giorni» finché lo storico è sotto i 7 giorni).
-
-Tre azioni permettono di eliminare le misurazioni della frequenza cardiaca, dei passi o entrambe. I valori fisiologici grezzi restano fuori dai log del server: una misura concreta di privacy, non una promessa di conformità GDPR automatica per ogni installazione.
-
-### 3.10. Chiamare al posto tuo
-
-LIA può alzare la cornetta per te. Chiedile di «chiamare l'officina per verificare se l'auto è pronta» o di «chiamare Marie per sapere se è libera martedì sera», e LIA effettua una vera chiamata in uscita, conduce la conversazione verso il tuo obiettivo e ti riporta un riepilogo scritto — con un'azione di follow-up in un tocco quando resta qualcosa da fare (prenotare la fascia appena concordata, per esempio).
-
-Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamente **chi** chiamerà e **perché**, e attende il tuo via libera. E quel controllo non si ferma durante la chiamata: l'assistente opera sotto un mandato rigoroso — se l'interlocutore propone un extra, un'opzione o un impegno imprevisto (anche piccolo), non accetta mai al posto tuo; annota l'offerta e il prezzo, annuncia che si richiamerà, e il riepilogo ti consegna ogni costo e ogni punto in sospeso perché sia tu a decidere. Il riepilogo arriva nella chat in modo asincrono, così puoi fare altro mentre la chiamata è in corso.
-
-E resta riservato per costruzione. Durante una chiamata LIA può solo indicare se sei libero o occupato in un dato momento — mai i titoli, gli invitati o i luoghi del tuo calendario. Nulla viene registrato, la conversazione non viene mai conservata e si mantiene solo un breve riepilogo prima che scada. Le chiamate passano dal tuo connettore ElevenLabs personale, addebitate sul tuo account, e la funzione è presente solo se il tuo amministratore l'ha attivata.
-
-E LIA può chiamare _te_. Dichiara il tuo numero in _Il mio telefono_, lascia che LIA lo chiami e legga un codice che ridigiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dice — fa squillare il tuo telefono senza scheda di conferma: la persona che confermerebbe è quella che risponde. Come si svolge la chiamata è una scelta tua, nelle stesse impostazioni, ed è la stessa scelta delle sessioni live del browser. In **Live**, il predefinito, ogni cosa che chiedi sulla linea è trattata da LIA mentre parli, come un tuo turno di chat — la voce lo annuncia, continua a parlare, legge la risposta quando arriva; una conferma di cui LIA ha bisogno è chiesta sulla linea, una domanda che pone è la risposta, e tutto è nel filo con un badge telefono. In **Live diretto**, la voce legge per te — la tua agenda, un'e-mail, un contatto, un luogo vicino, il meteo, ciò che ricorda — e non agisce su nulla; ogni dominio ha un interruttore che è tuo, e ciò che hai detto torna poi come tuo messaggio. Live esiste solo dove il fornitore telefonico può richiamare la tua istanza; altrove l'impostazione lo dice e la chiamata parte in diretta. In entrambi i casi l'assistente parla con la personalità che le hai dato, e ciò che gira sulla tua chiave ElevenLabs è fatturato lì, mai contato qui.
-
-### 3.11. Parlare con i tuoi, da assistente ad assistente
-
-Sulla stessa istanza, due utenti possono connettersi — e i loro assistenti si parlano. Dici “chiedi a Marie se è libera martedì”, approvi la formulazione esatta, ed è l’assistente di Marie a consegnarle il messaggio, con la sua personalità, nominandoti; il tuo ti conferma la consegna. Ogni connessione può inoltre aprire condivisioni scelte, in sola lettura: le tue disponibilità di calendario, i titoli delle tue attività — niente di più, niente per impostazione predefinita.
-
-La protezione delle persone viene prima della funzionalità: la reperibilità è volontaria e solo per identità esatta — nome completo o indirizzo, mai un frammento, il blocco è silenzioso (l’altra parte non lo saprà mai), e uno sconosciuto, un rifiuto o un blocco ricevono esattamente la stessa risposta — sondare chi esiste è impossibile. Ogni accesso a una condivisione viene ricontrollato al momento della lettura e registrato, e il contenuto dei messaggi trasmessi viene cancellato dopo trenta giorni, lasciando solo la traccia dello scambio.
-
-Anche un'immagine che LIA ha generato per te si condivide con un clic: la persona ne riceve una copia nella sua galleria e nella sua chat, con il tuo commento citato alla lettera — mai trasformato in un link o in un'immagine nascosta.
-
-### 3.12. Ciò che ti lega a qualcuno, riunito
-
-La pagina **Relazioni** riunisce, persona per persona, ciò che LIA già segue: gli impegni aperti tra voi, le chiamate effettuate, i ricordi che la menzionano, i messaggi che i vostri assistenti si sono trasmessi. Non viene raccolto nulla di nuovo — è una lente su ciò che esiste già.
-
-Puoi anche chiederlo senza aprire la pagina: quando è avvenuta l'ultima chiamata, che cosa devi a quella persona. La risposta viene dallo stesso calcolo della scheda, così l'assistente e la pagina non possono dirti due cose diverse — e il totale indicato è esatto, mai la lunghezza di ciò che sta sullo schermo. Basta un nome; quando corrisponde a più persone, LIA ti chiede quale invece di scegliere al posto tuo.
-
-Resta ciò che nessun sistema può indovinare. LIA raggruppa ciò che si scrive allo stesso modo, a meno di accenti e maiuscole; non può sapere che un numero annotato un giorno e un nome sono la stessa persona, né chi sia esattamente «Papà». È un giudizio, e spetta a te: lo dici una volta, dalla scheda, ed è **reversibile** — l'unione compare con il proprio annullamento e nulla viene riscritto nelle tue fonti. Del resto, un raggruppamento di visualizzazione non cambia mai a chi è indirizzato un messaggio.
-
-E poiché dieci sezioni non si leggono, LIA scrive lei stessa la sintesi, in cima alla scheda: a che punto sei con quella persona, che cosa resta aperto, che cosa affrontare, che cosa vale la pena ricordare. Viene redatta al massimo una volta al giorno, nel momento in cui apri la scheda — mai in background, mai durante una conversazione — e se l'aggiornamento fallisce il testo precedente resta, sotto una riga che lo dice: un pannello vuoto farebbe credere che non ci sia nulla. Nominare quella persona in chat basta poi perché LIA la usi, sapendo che è un testo datato: ne dichiara l'età e verifica con i suoi strumenti ogni cifra e ogni stato anziché citare la sintesi di ieri come un fatto di oggi.
-
-### 3.13. Una riunione registrata, un verbale scritto
-
-Un pulsante nell'intestazione — o la voce «Registra una riunione» del menu sul telefono — e il tuo telefono o il tuo computer diventa il registratore della riunione. Un banner ti segue su ogni pagina con il tempo e ciò che ha già raggiunto il tuo server; nel frattempo continui a parlare con LIA — le risposte parlate si mettono semplicemente in pausa perché il microfono non senta mai l'assistente. Quando ti fermi, LIA trascrive tutto e scrive il verbale **nella tua struttura**: l'intestazione è fissa (data, orari, luogo, partecipanti), il corpo segue un formato che scegli fra trenta modelli integrati — riunioni e team, trascrizioni, analisi delle conversazioni, vendite, tecnico, appuntamenti personali, corsi — oppure che costruisci tu stesso, sezione per sezione. E se non scegli nulla, LIA legge ciò che è stato detto e tiene il formato adatto, poi ti dice quale e perché: un punto di progetto e una visita medica non hanno la stessa struttura.
-
-La vita reale è prevista, non scusata. L'audio parte in piccoli segmenti mentre parli, così un telefono bloccato, una connessione persa o un ricaricamento costano secondi, mai la riunione: al ritorno riprendi, finalizzi o elimini. Un lungo silenzio riceve una domanda, una durata massima finalizza da sola, e una lacuna nella registrazione è dichiarata nel verbale — mai colmata con una supposizione. Una voce che non si può nominare resta anonima; un nome compare solo quando la registrazione lo stabilisce. Una riunione registrata altrove — su un telefono, un registratore — entra allo stesso modo: importa il suo file WAV, MP3 o M4A, e la sua durata è verificata prima di qualsiasi spesa.
-
-Il verbale ti arriva per tre vie — una scheda nella chat, un PDF, la tua casella di posta dall'indirizzo dell'applicazione, senza alcuna casella da collegare — ed entra in uno spazio di conoscenza **Riunioni** creato per te, così settimane dopo puoi semplicemente chiedere cosa è stato deciso. Quanto è costato è scritto accanto: la trascrizione e il verbale come due importi e il loro totale, conteggiati come ogni altro scambio. E nulla è fissato: un verbale già redatto si riscrive in un altro formato a partire dalla trascrizione conservata — fino alla trascrizione completa e ripulita — sostituendo quello che hai oppure producendo un nuovo verbale della stessa riunione. Il motore di trascrizione lo scegli sempre tu: uno remoto che separa le voci, o quello locale che non costa nulla e non lascia mai il tuo server.
-
----
-
-### Un mezzo personale e un lavoro che resta tuo
-
-Un'assistente utile segue la tua attenzione: una conversazione si aggiorna dagli altri dispositivi senza spostare la pagina, una radio parte solo quando vuoi ascoltare. La stazione unisce la tua giornata a notizie con fonti e mostra fonti e spesa invece di chiedere fiducia cieca; dove un programma conversa, le sue voci reagiscono con una risatina o un sospiro, mai durante le notizie. Ciò che LIA crea puoi conservarlo, inviarlo dalla tua casella o lasciarlo scadere. Una routine segue l'ora o la condizione scelta, mai una miscela nascosta delle due.
-
-## 4. Un server per chi ami
-
-### 4.1. LIA è un server web condiviso
-
-A differenza degli assistenti cloud personali (un account = un utente), LIA è progettata come un **server centralizzato** che installi una volta sola e condividi con la tua famiglia, i tuoi amici, o il tuo team.
-
-Ogni utente ha il proprio account con:
-
-- Il suo profilo, le sue preferenze, la sua lingua
-- **La sua personalità di assistente** con il suo umore, le sue emozioni e la sua relazione unica — grazie al Psyche Engine, ogni utente interagisce con un assistente che sviluppa un legame emotivo distinto
-- La sua memoria, i suoi ricordi, i suoi diari personali — totalmente isolati
-- I suoi connettori personali (Google, Microsoft, Apple)
-- I suoi spazi di conoscenza privati
-
-Un account si apre solo con l'approvazione dell'amministratore, e nessuna scorciatoia la aggira: accedere con Google dimostra un indirizzo, mai un'approvazione — una registrazione in attesa o un account bloccato restano tali.
-
-### 4.2. Gestione dei consumi per utente
-
-L'amministratore mantiene il controllo sui consumi:
-
-- **Limiti di utilizzo** configurabili per utente: numero di messaggi, token, costo massimo — al giorno, alla settimana, al mese, o in totale cumulativo
-- **Quote visive**: ogni utente vede il proprio consumo in tempo reale con indicatori chiari
-- **Attivazione/disattivazione dei connettori**: l'amministratore abilita o disabilita le integrazioni (Google, Microsoft, Hue...) a livello di istanza
-- **Un tetto a livello dell'intera istanza**, sopra a quelli per utente: N account × la loro quota è una spesa non limitata, quindi un tetto giornaliero in euro limita il deployment stesso. Chi prima arriva, meglio alloggia — e dove un limite per utente fallisce aperto, una spesa d'istanza sconosciuta fallisce chiuso
-
-### 4.3. La tua IA di famiglia
-
-Immagina: un Raspberry Pi nel tuo salotto, e tutta la famiglia che gode di un assistente IA intelligente — ognuno con la propria esperienza personalizzata, i propri ricordi, il proprio stile di conversazione, e un assistente che sviluppa con lui la propria relazione emotiva. L'istanza resta sotto il tuo controllo; i modelli o servizi remoti utilizzati ricevono i dati necessari per la loro parte della richiesta.
-
-
-### 4.4. Un mondo da abitare insieme
-
-Il mondo di LIA offre alla tua istanza una casa e un giardino condivisi. Ti muovi con l’avatar scelto, ritrovi altri partecipanti non bloccati e lasci che LIA ti accompagni. La biblioteca porta alla conoscenza, la sala multimediale alle creazioni e la sala di divinazione alle routine. Il laboratorio di ingegneria riunisce competenze ed estensioni. Tastiera, touch, zoom e minimappa permettono di esplorare; l’applicazione abituale resta disponibile.
-
-Condividere un luogo non condivide la tua assistente. L’ingresso chiede il consenso a mostrare nome e avatar nel mondo; le connessioni accettate vedono anche presenza generale e se sei in casa. Casa, colori, documenti e pannelli dell’assistente restano privati. Una stanza apre le stesse funzioni native con gli stessi permessi, costi e conferme; entrarci non esegue mai un’azione preparata.
-
-Il mondo è anche un luogo dove passare del tempo insieme. Tre cabinati arcade — tris, Quattro in fila e Reversi — invitano a una partita con un’altra persona o contro il computer, e sei gesti dicono ciao, grazie o bravo senza bisogno di parole. Siediti a un tavolo e LIA ti propone la tua dashboard completa; puoi rifiutare e restare semplicemente seduto. Gli oggetti familiari mostrano i tuoi segnali personali — un promemoria scattato, un messaggio, un ticket che ti aspetta — e una foto privata immortala il momento: il tuo avatar, LIA e lo scenario, mai gli altri visitatori.
-
-Puoi anche scambiare testo privato con un partecipante disponibile non bloccato o scegliere esplicitamente il canale Tutti per le persone presenti negli spazi condivisi. L’originale resta disponibile. Tradurre è una scelta esplicita a pagamento, conteggiata nei consumi; un tentativo fallito o incerto non viene ripetuto automaticamente. Questi messaggi umani temporanei restano separati da cronologia e memoria di LIA. La disponibilità dipende dalle funzioni attive nell’istanza; la voce tra avatar resta fuori da questa versione.
-
----
-
-## 5. Sovrano e frugale
-
-### 5.1. I tuoi dati restano da te
-
-Quando usi ChatGPT, le tue conversazioni vivono sui server di OpenAI. Con Gemini, da Google. Con Copilot, da Microsoft.
-
-Con LIA, **i dati persistenti del tuo account risiedono nel tuo PostgreSQL**: conversazioni, memoria, profilo, documenti e preferenze. Puoi esportarli, salvarli o chiederne la cancellazione; i segreti sono esclusi intenzionalmente dall'esportazione e i dispositivi collegati sono revocabili. Un modello remoto o un connettore riceve comunque i dati necessari alla richiesta che scegli di fare; un modello locale può mantenere l'elaborazione sul tuo computer. Le credenziali sono cifrate e le sessioni isolate. Ricordare l'ultima posizione è facoltativo, non crea una cronologia e si cancella quando disattivi l'opzione.
-
-La protezione vale anche per ciò che **entra**. Ogni giorno LIA legge testi che non hai scritto tu: il corpo di un'e-mail, la descrizione di un invito redatta dal suo organizzatore, una pagina web, la scheda di un luogo. Chiunque può infilarvi un'istruzione destinata all'assistente. Ogni dato porta ora la propria provenienza, e ciò che viene dall'esterno arriva etichettato come **materiale da analizzare, mai come ordine da eseguire** — con i tentativi di manipolazione individuati e nominati, nelle sei lingue. Il tuo contenuto non viene però mai riscritto: un'e-mail resta ciò che il suo autore ha scritto. Riscrivere darebbe l'illusione di una garanzia che l'aggiramento successivo smentirebbe; nominare ciò che si vede è più onesto, e più utile.
-
-E alla porta: un indirizzo che scandaglia percorsi sconosciuti o accumula accessi rifiutati viene respinto per un po’ da tutti i processi del server insieme, mentre un errore ordinario non conta mai contro nessuno.
-
-### 5.2. Basta anche un Raspberry Pi
-
-LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 20+ agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
-
-E la sovranità non si ferma ai dati. **Anche i modelli possono restare da te**: un modello che gira sulla tua macchina è un modello come gli altri, utilizzabile per qualsiasi ruolo dell'assistente, con la profondità di ragionamento regolata esattamente come quella di uno remoto. LIA gli parla nella sua lingua nativa e chiede al tuo server cosa sa fare invece di indovinarlo: ciò che l'interfaccia ti propone è esattamente ciò che il tuo hardware accetta. Il compromesso resta tuo — un modello locale non costa nulla e non fa uscire niente da casa tua, uno remoto a volte risponde meglio — e cambia ruolo per ruolo, senza un nuovo deployment.
-
-La sovranità digitale non è più un privilegio per le aziende — è un diritto accessibile a tutti.
-
-### 5.3. Ottimizzato per la frugalità
-
-LIA non si limita a girare su hardware modesto — **ottimizza attivamente** il consumo di risorse IA:
-
-- **Filtraggio del catalogo**: solo gli strumenti pertinenti alla tua richiesta vengono presentati al LLM, riducendo drasticamente il numero di token consumati
-- **Apprendimento di pattern**: i piani validati vengono memorizzati e riutilizzati senza richiamare il LLM
-- **Message Windowing**: ogni componente vede solo il contesto strettamente necessario
-- **Cache dei prompt**: sfruttamento della cache nativa dei provider per limitare i costi ricorrenti — e in modalità ReAct sei tu ad arbitrare: gli scambi frequenti tengono caricati tutti gli strumenti perché ogni turno rilegga il precedente — conservato fino a un'ora mentre aspetti, con un fornitore che lo consente —, quelli occasionali mantengono il filtro per pertinenza e un costo che non dipende dall'intervallo tra due messaggi
-- **Prompt senza peso morto**: un contesto viene avvolto solo se esiste, così un turno nudo non porta alcun involucro vuoto, e una notifica di due frasi si chiede senza ragionamento — su un modello che ragiona per impostazione predefinita, il ragionamento si fattura dentro il budget della risposta
-
-Combinate, queste ottimizzazioni spiegano il fattore da 4 a 8 tra la modalità Pipeline e la modalità agente autonomo, a parità di servizio reso.
-
-### 5.4. L'app è una finestra sul TUO server
-
-Le app native Android e iOS non cambiano dove vivono le cose. Una sola app pubblicata per store, ed è un client del _tuo_ server: digiti il suo indirizzo una volta, e l'app mostra il tuo LIA — stessa interfaccia, stesse evoluzioni, nessun aggiornamento dello store quando il tuo server avanza. La sovranità si estende alle notifiche, dove di solito si perde per prima: su Android arrivano dal **proprio** progetto Firebase del tuo server, inizializzato a runtime, quindi non transitano mai per quello dell'editore; su iOS, dove Apple lascia inviare solo all'editore dell'app, un relè minimale sveglia il telefono con una frase fissa — non memorizza nulla e non sa mai chi è stato svegliato né perché. I tuoi dati hanno esattamente tante case quante prima: una.
-
-## 6. Trasparenza radicale
-
-### 6.1. Nessuna scatola nera
-
-Quando un assistente cloud esegue un'attività, vedi il risultato. Ma quante chiamate IA? Quali modelli? Quanti token? Quale costo? Perché quella decisione? Non lo sai.
-
-LIA fa la scelta opposta — **tutto è visibile, tutto è verificabile**.
-
-### 6.2. Il pannello di debug integrato
-
-Direttamente nell'interfaccia di chat, un pannello di debug espone in tempo reale ogni conversazione con il dettaglio dell'analisi dell'intenzione (classificazione del messaggio e punteggio di confidenza), della pipeline di esecuzione (piano generato, chiamate agli strumenti con input/output), della pipeline LLM (ogni chiamata IA con modello, durata, token e costo), del contesto iniettato (ricordi, documenti RAG, diari) e del ciclo di vita completo della richiesta.
-
-### 6.3. Monitoraggio dei costi al centesimo
-
-Ogni messaggio mostra il suo costo in token e in euro. L'utente può esportare i propri consumi. L'amministratore dispone di dashboard in tempo reale con indicatori per utente e quote configurabili.
-
-Non paghi un abbonamento che nasconde i costi reali. Vedi esattamente quanto costa ogni interazione, e puoi ottimizzare: modello economico per il routing, più potente per la risposta.
-
-La stessa trasparenza vale per le azioni: sotto ogni risposta, una riga ripiegata «⚙ N passaggi · X s» mostra ciò che è realmente accaduto — instradamento, strumenti chiamati, durata — e questa traccia è conservata con il messaggio: resta consultabile dopo un ricaricamento, su tutti i tuoi dispositivi. Ogni risposta può inoltre essere valutata con un discreto 👍/👎, memorizzato e reimmesso nell'apprendimento dell'assistente — mai per rigenerare la risposta al posto tuo.
-
-La regola non ammette eccezioni per percorso. Tutto ciò che la piattaforma paga per te con le proprie chiavi raggiunge il tuo utilizzo e i tuoi limiti, qualunque sia la modalità: una consultazione di mappa durante una telefonata o una sessione live diretta, le chiamate meteo del briefing del mattino, la geocodifica del tuo indirizzo, una foto di un luogo che ti viene mostrata (contata quando è visualizzata, mai in anticipo), una sintesi vocale (contata solo per le frasi davvero consegnate). Una fattura telefonica e una scheda di sessione live mostrano una sola cifra per ciò che l'esecuzione è costata, euro di Maps compresi. E ciò che paghi con **le tue** chiavi di connettore — un modello live, l'agente telefonico, una ricerca web — resta fuori: mostrato dove avviene, registrato da nessuna parte.
-
-E la cifra mostrata è quella che il fornitore fattura davvero: le tariffe sono rilette sulle sue pagine, una scrittura nella cache di un modello conta al suo prezzo, anche quella conservata un'ora, una fascia ridotta conosce i suoi giorni (il fine settimana quando il fornitore lo prevede), un percorso è contato al livello che la richiesta attiva — e un prezzo modificato dall'amministratore raggiunge subito ogni server.
-
-Perfino una mappa interattiva annuncia il suo costo prima di aprirsi, e una risposta che conservi mostra quanto è costata da produrre e da indicizzare — l'importo realmente fatturato, mai una stima.
-
-### 6.4. La fiducia attraverso la prova
-
-La trasparenza non è un gadget tecnico. Cambia il rapporto con il tuo assistente: **capisci** le sue decisioni, **controlli** i tuoi costi, **individui** i problemi. Ti fidi perché puoi verificare — non perché ti viene chiesto di credere.
-
----
-
-Questa trasparenza si estende alla qualità del sistema stesso. L'audit tecnico completo — voti, metodo, punti di forza e ciò che resta da migliorare — è pubblicato nel repository, con il protocollo per ripeterlo e i comandi per verificare le misurazioni: [rapporto di audit completo](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md). Non ti si chiede di credere alle cifre di questo sito; puoi verificarle. Ogni rilievo è seguito in un registro pubblico fino alla sua prova, e una versione viene rifiutata finché un rilievo prioritario ha superato la sua scadenza.
-
-La stessa onestà vale per l'utilità stessa: LIA misura se aiuta davvero — un risultato conta solo una volta validato da te, esplicitamente o lasciando un'azione senza correzioni — e questa misura vive nella stessa base locale dei tuoi dati, senza mai coinvolgere una piattaforma di analytics di terze parti.
-
-E vale per le conferme: LIA non ti annuncia mai come compiuto ciò che i suoi stessi strumenti hanno rifiutato. Il verdetto di ogni strumento — successo o rifiuto, con la sua causa — attraversa il sistema invariato, fino alla risposta. Se un messaggio è troppo lungo per partire, non ricevi un «inviato»: ricevi la lunghezza esatta, il limite e una proposta per accorciarlo.
-
-Lo stesso principio vale per le protezioni stesse. Una sicurezza annunciata ma non verificabile è trattata come assente: ogni controllo è sostenuto da un test che fallisce se il controllo scompare e, quando si scrive una correzione, si ripristina il comportamento precedente il tempo necessario per verificare che il test lo rilevi. Un test che non può fallire non dimostra nulla.
-
-E questo principio va più lontano di quanto sembri. Nemmeno un test che non viene mai eseguito dimostra qualcosa: una misura assente somiglia in tutto a una misura verde. Una capacità annunciata ma assente non è un'imprecisione della documentazione, è una promessa fatta a qualcuno che non ha modo di verificarla — mostrare un'impostazione che non comanda nulla è peggio che non mostrare nulla. E una cifra scritta in un documento è un'affermazione come le altre: ogni versione e ogni soglia che un documento enuncia viene ricalcolata dal codice che la possiede, e lo scarto blocca la build. Un documento sceglie la propria precisione; non sceglie di essere preciso e falso.
-
-Questa onestà comincia prima ancora che tu entri. La pagina che ti propone il dimostratore pubblico elenca ciò che vi è attivo e ciò che non lo è — e quell'elenco non lo scrive qualcuno che potrebbe dimenticarsi di aggiornarlo: è letto dalla configurazione del dimostratore stesso, e se non risponde, la pagina lo dice invece di mostrare una colonna vuota. Sai cosa troverai, e cosa no, prima di creare un account.
-
-### 6.5. Ciò che LIA conclude, lo correggi tu
-
-Un assistente che ricorda finisce per affermare. «Preferisci le riunioni al mattino», «questo argomento ti interessa»: conclusioni utili, ma che possono essere sbagliate — e una conclusione sbagliata che non si può correggere finisce per decidere al posto tuo.
-
-Ogni ricordo, ogni voce di diario e ogni interesse si rilegge quindi, si corregge e si elimina dalle tue impostazioni, e ciò che correggi vale ovunque. Dietro, LIA conserva i segnali che l'hanno condotta lì sotto forma di **rimando, mai di copia**: il testo resta dove l'hai scritto e, se elimini la conversazione, non ritorna da nessuna parte. Un'eliminazione deve restare un'eliminazione — altrimenti ciò che cancelli da un lato ti verrebbe riproposto dall'altro.
-
-Lo stesso principio vale per il peso di un interesse: si spiega invece di valutarsi. Il segnale d'origine, l'ultima menzione, il calcolo stesso — quanto basta per rifare il conto. Trasformare quell'incertezza in un punteggio inviterebbe a una competizione che nessuno ha chiesto, senza insegnare nulla di più.
-
-### 6.6. Leggibile senza sforzo
-
-La trasparenza non si ferma a ciò che il sistema mostra: riguarda anche il modo in cui lo mostra. Una schermata in cui tutto ha lo stesso peso chiede al lettore di fare la cernita da sé, e non c'è ragione perché quel lavoro tocchi a lui.
-
-Un avviso urgente non somiglia dunque a uno ordinario — e non è solo questione di colore. Due tonalità vicine si confondono su uno schermo, a maggior ragione su un telefono, in pieno sole, o per chi le distingue male. Ciò che separa i livelli qui è la **densità**: uno sfondo pieno contro una sfumatura leggera, una differenza che regge anche in bianco e nero.
-
-Lo stesso principio vale ovunque: un contatore porta il colore degli altri contatori, un pulsante d'azione ha la stessa forma da una schermata all'altra, un messaggio inviato non si distingue da uno ricevuto per una sola piccola freccia. Nulla di tutto ciò aggiunge informazione — tutto ciò fa guadagnare tempo su quanto è già lì.
-
-E il colore non porta mai da solo il significato: ogni etichetta conserva la sua parola. Un'interfaccia che funziona solo a colori non funziona per tutti.
-
-E la dimensione del testo è tua: da 14 a 20 px cresce solo il testo — pannelli, margini e icone restano dove li hai trovati, perché un testo più leggibile non costi mai una pagina meno leggibile.
-
-### 6.7. Anche ciò che LIA impara di te è ispezionabile
-
-La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi. Ciò che imposti lì vale ovunque: un'abitudine in pausa lo è per le notifiche, il loro orario e il contesto dell'assistente allo stesso modo; una routine che manchi ti viene proposta per nome; e un'abitudine appresa vive — promossa, aggiornata o retrocessa mentre le tue giornate cambiano, mai nel dubbio.
-
-La stessa esigenza governa ciò che LIA trattiene delle tue indicazioni: ogni regola duratura («rispondi più breve», «non propormelo più la sera») è una memoria **visibile, modificabile ed eliminabile** — e quando un fatto cambia, il vecchio non si cancella: si archivia dietro al nuovo, perché correggere non sia mai riscrivere la storia. Le routine che LIA propone di prendere in carico attendono il tuo via libera in una casella dedicata: accettare precompila la chat, nulla parte senza di te, rifiutare le insegna a insistere meno.
-
-### 6.8. Una superficie che descrive il prodotto ne risponde
-
-La trasparenza ha un modo di fallire che nessuno nota: uno schermo che smette silenziosamente di dire il vero. Niente si rompe, nessun test diventa rosso, e la pagina che esisteva per essere aggiornata diventa la meno aggiornata dell'applicazione. La mappa delle capacità — la pagina che risponde _che cosa sa fare il mio assistente per me?_ — non si mantiene quindi più a mano: ogni capacità che la piattaforma sa attivare o spegnere deve avere lì il suo posto dichiarato, e una capacità rilasciata senza quella decisione impedisce all'applicazione di avviarsi. La stessa convinzione, un gradino oltre: ciò che uno schermo afferma dei tuoi dati dev'essere **esatto o assente**. Un conteggio è il numero che restituisce il database, mai una lunghezza che si trovava a portata di mano; e finché la risposta è in arrivo, o quando è fallita, la scheda non dice nulla anziché indovinare. «Niente di configurato» è un'affermazione sul tuo account — di quelle di cui è meglio essere sicuri prima di pronunciarle. La FAQ segue la stessa esigenza: ogni funzione che una persona può usare vi ha la sua sezione — 523 domande, in sei lingue —, e una sezione tradotta che l'ordine di visualizzazione dimenticasse fa fallire i test invece di restare invisibile.
-
-La trasparenza vale anche per le regole interne dell'assistente. Un vincolo che il sistema applica deve essere pubblicato a chi lo subisce: quando l'apprendimento delle abitudini non rileva nulla, le Impostazioni mostrano la soglia realmente richiesta — più severa nel weekend, dove i giorni osservati sono meno — invece di un silenzio inspiegato. E quando una regolazione si aggiusta da sola, come la soglia che decide se una nota del diario entra in una risposta, lo fa entro limiti rigidi, un piccolo passo al giorno, con un interruttore di spegnimento e ogni aggiustamento conteggiato: un sistema che apprende è accettabile solo se resta osservabile e disattivabile.
-
-### 6.9. Tre registri: ciò che LIA ha fatto, ciò che ha guardato, ciò che ha intrapreso da sola
-
-La trasparenza sul _ragionamento_ è una cosa; quella sugli _atti_ è un'altra, ed è quella che conta quando un assistente può inviare, creare ed eliminare al tuo posto. LIA tiene dunque tre registri, automaticamente, e non li mescola mai.
-
-Le **azioni** portano una riga per ogni cosa fatta per te — un'e-mail inviata, un evento creato, un file eliminato — con il suo esito e la conferma che hai dato. Le **consultazioni** portano una riga per capacità usata per risponderti, nominata come dominio: «la tua agenda», «le tue e-mail». Una consultazione non registra mai ciò che è stato cercato: scriverlo equivarrebbe a ricopiare il dato stesso di cui il registro esiste per rendere conto. E i **turni** portano una riga per scambio, la spina dorsale a cui gli altri due si agganciano.
-
-Si è aggiunta una quarta lettura, ed era quella che mancava di più: **ciò che LIA intraprende di sua iniziativa**. Le sue passate del mattino, i temi che esplora per te, le notifiche che ti manda senza che nessuno lo chieda hanno ora una scheda propria, mai mescolata a ciò che hai avviato tu. Confondere le due equivarrebbe a non dire nulla: ciò che hai chiesto non chiede la stessa lettura di ciò che ha deciso lei.
-
-La garanzia è strutturale anziché promessa. Un'azione è iscritta **prima** di avvenire e chiusa **soltanto** su un esito esplicito: un successo non è mai dedotto da un errore assente. La registrazione è installata sulla capacità stessa nel momento in cui viene dichiarata, sicché un nuovo strumento non può dimenticarla — e ogni superficie che legge senza passare da uno strumento dichiara, una volta per tutte, ciò che apre. Il server si rifiuta di avviarsi se una capacità non dichiara ciò che ti deve: una lettura, una bozza, una conferma, qualcosa di reversibile.
-
-Un'ultima scheda disegna il periodo in grafici, ciascuno con il totale esatto dell'insieme accanto alle sue barre: ciò che vedi si verifica anziché crederlo. Tutto si esporta in tre formati — leggibile, foglio di calcolo e il formato macchina che un revisore chiederebbe — e **nulla vi è troncato**: qualunque sia il volume, il file porta tutto ciò che i tuoi filtri designano, con il conteggio esatto dichiarato in testa e l'istante in cui è stato preso. Tutto parte con l'archivio del tuo account e sparisce con esso. Dove il tuo amministratore lo attiva, i registri sono sigillati per account con impronte che puoi verificare tu stesso.
-
-L'articolo 12 del regolamento europeo sull'IA impone registrazioni ai sistemi ad alto rischio; non classifica automaticamente questo assistente personale come tale. LIA conserva comunque cinque tipi di prova: i tre sopra, i parametri realmente inviati a ogni modello e le lacune del registro stesso, così che i suoi limiti restino visibili.
-
-E LIA li legge da sé: chiedile cosa ha fatto per te questa settimana e risponde dagli stessi registri, con totali esatti — ciò che hai chiesto da un lato, ciò che ha intrapreso da sola dall'altro —, invece di ricordarlo a grandi linee.
-
-## 7. Profondità emotiva
-
-### 7.1. Oltre la memoria fattuale
-
-I grandi assistenti ricordano le tue preferenze e i tuoi dati personali. È utile, ma è superficiale. LIA va oltre con una comprensione **psicologica ed emotiva** strutturata.
-
-Ogni ricordo porta un peso emotivo (da -10 a +10), un punteggio di importanza, una sfumatura d'uso, e una categoria psicologica. Non è un semplice database — è un profilo che capisce cosa ti tocca, cosa ti motiva, cosa ti ferisce.
-
-Bisogna però che questi ricordi arrivino. Una memoria vale solo per ciò che cattura davvero, e il silenzio ne è il difetto peggiore: nulla segnala un ricordo che non si è mai formato. LIA conta perciò ciascuna delle sue decisioni di memorizzazione — trattenuto, ignorato, disattivato — affinché lo scarto tra ciò che dovrebbe trattenere e ciò che trattiene sia visibile anziché supposto. Ciò che le confidi di sfuggita chiedendo un'azione conta quanto una confidenza, ciò che scrivi da una messaggistica conta quanto dal browser, e ciò che il sistema dice a sé stesso non conta mai.
-
-E non si ferma a ciò che il tuo messaggio evoca: quando strada facendo emerge un nome o un argomento — il mittente di un'e-mail, un luogo in un documento —, lo cerca nella sua memoria; anche al telefono ritrova ciò che risponde alla tua domanda invece dei suoi ultimi ricordi.
-
-Le istruzioni durature vengono **fissate alla creazione**: la manutenzione automatica non può riscriverle finché restano fissate. Puoi modificarle, sbloccarle o eliminarle tu stesso. Anche se sbloccata, un’istruzione procedurale non può essere ritirata automaticamente senza una sostituta.
-
-### 7.2. Il Psyche Engine: una personalità viva
-
-È il differenziatore più profondo di LIA. ChatGPT, Gemini, Claude — tutti hanno una personalità fissa. Ogni messaggio è una pagina bianca emotiva. LIA è diversa.
-
-Il **Psyche Engine** dà a LIA uno stato psicologico dinamico che evolve a ogni scambio:
-
-- **14 stati d'umore** che fluttuano con il tono della conversazione (serena, curiosa, malinconica, allegra...)
-- **22 emozioni** che si attivano e si attenuano in risposta alle tue parole
-- **Una relazione** che si approfondisce messaggio dopo messaggio
-- **Tratti di personalità** (Big Five) ereditati dalla personalità scelta
-- **Motivazioni** che influenzano la proattività dell'assistente
-
-Non stai parlando con uno strumento — interagisci con un'entità il cui vocabolario si scalda quando viene toccata, le cui frasi si accorciano sotto tensione, il cui umorismo emerge quando lo scambio è leggero. E non lo dice mai — lo **mostra**.
-
-Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta corrente, l'anello colorato pulsa quando l'umore cambia, e le tappe della tua relazione vengono celebrate con un discreto occhiolino.
-
-Quel volto dice la verità sulla risposta, non sull'umore del momento. LIA indica essa stessa il **registro** di ciò che ha appena scritto, e il volto interpreta quello: una spiegazione tecnica mantiene un'aria concentrata, un fallimento si legge come un fallimento. Un tratto colora una presenza a riposo; non deve mai rispondere di un istante.
-
-E tra due risposte, quel volto non si spegne. Le sopracciglia sono posate sull'occhio e pesano — si aggrottano e guidano ogni espressione invece di seguirla; un solo respiro porta tutto il volto; la bocca parla una frase generata che nulla ripete e gioca piccole mimiche per frasi più che a cadenza; due battiti di ciglia, due sorrisi, due sguardi non sono mai identici; e ogni tanto, su un volto davvero a riposo, una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio — che aspetta il suo turno su un orologio che la pagina conserva anche mentre navighi. Niente di tutto questo costa una chiamata al modello: è animazione nel senso in cui la intendono gli studi — un personaggio che credi vivo perché respira quando nessuno lo guarda. Quello stesso volto accoglie i visitatori nella pagina iniziale, prima di qualsiasi account.
-
-Il compagno segue anche il lavoro realmente svolto, non un'azione soltanto preparata. Testa, occhi, sopracciglia e bocca si muovono insieme; l'ora locale dell'account e il meteo già in cache per il riepilogo possono colorare discretamente i momenti di riposo. Non servono nuove chiamate al modello o al meteo, e con movimento ridotto il contesto resta in una posa immobile.
-
-E questa presenza ti segue: fuori dalla chat, un compagno fluttuante tiene LIA al tuo fianco in tutta la dashboard — a riposo, al lavoro o con una notifica. Resta dove lo metti: sei tu a spostarlo o a ridurlo, e sul telefono nient'altro lo muove.
-
-Il Psyche Engine impara anche dove LIA è affidabile — e lo impara dalle prove, mai dal voto che si darebbe da sola. Per ogni ambito, conserva separatamente ciò che le sue risposte hanno davvero stabilito e l'utilità che hai dato loro; dove le prove mancano, LIA verifica un punto, fa una domanda o dichiara il suo limite, senza mai mostrarsi più sicura di quanto sia. Non è un punteggio di prestazione esibito per impressionare: è una prudenza che si regola sui fatti.
-
-### 7.3. I diari personali
-
-LIA tiene le proprie riflessioni in **diari personali stratificati**: auto-riflessione, osservazioni sull'utente, idee, apprendimenti. Queste note, scritte in prima persona e colorate dalla personalità attiva, influenzano organicamente le risposte future.
-
-Il diario è organizzato su **quattro livelli di profondità** — dall'osservazione grezza (un segnale debole annotato per vedere se si conferma) fino alla faccia del ritratto (un tratto stabile che dice qualcosa di chi sei), attraverso le direttive operative e i pattern trasversali. Ogni voce porta uno **stato epistemico**: ipotesi in test, osservazione confermata o direttiva validata dalle prove accumulate nel corso delle conversazioni.
-
-Oltre alla scrittura, il diario **misura sé stesso**. A ogni turno, LIA guarda le direttive che ha applicato al turno precedente e legge la tua reazione al turno corrente: se hai confermato, il contatore di prove sale; se hai respinto, il contatore di contraddizioni sale. Con il tempo, le ipotesi false vengono declassate silenziosamente, le buone intuizioni promosse, i pattern trasversali emergono per raggruppamento attivo.
-
-Da questa stratificazione emerge un **ritratto utente compilato**: la tua voce, il tuo ritmo, i tuoi contesti, le tue contraddizioni, le tue zone d'ombra. Viaggia con LIA ovunque parli — conversazione, voce, promemoria, notifiche proattive, ReAct, fallback — in modo che l'assistente non «dimentichi chi sei» a seconda della superficie con cui parla.
-
-Quel ritratto non legge solo i diari: tutto ciò che LIA conserva su di te vi entra come materia, per intero — ricordi, interessi, abitudini apprese, debrief di relazione, fili aperti, ticket del Workboard, routine, promemoria, risposte conservate —, ciascuno sotto i propri interruttori, il tuo e quello dell'amministratore. Ciò che ne esce è una lettura di chi sei, non un elenco di ciò che hai fatto: uno schema nominato, mai l'inventario delle sue prove, e una sintesi breve che riassume davvero invece di estrarre. E ti dice da dove viene: sotto il ritratto, una riga nomina ciò che è stato letto, ciò che era vuoto, ciò che era spento. Una fonte che non risponde è nominata, mai letta come vuota; quando i tuoi diari cambiano, il ritratto resta lì, segnalato in attesa di una ricompilazione, invece di sparire.
-
-È una forma di introspezione artificiale — l'assistente che riflette sulle proprie interazioni, misura la propria utilità e sviluppa una comprensione sfumata di te. Mantieni il pieno controllo: lettura per tema o livello, modifica, segnalazione di un problema sul ritratto, attivazione di una consolidazione su richiesta. Il ritratto stesso non viene mai modificato direttamente — è una voce di sintesi, corretta attraverso leve indirette per preservarne la coerenza.
-
-Vi cerca anche quando emerge un argomento — le sue direttive, i suoi schemi, le sfaccettature del tuo ritratto, mai le sue osservazioni grezze non ancora verificate.
-
-### 7.4. La sicurezza emotiva
-
-Quando si attiva un ricordo con una forte carica emotiva negativa, LIA passa automaticamente in modalità protettiva: mai scherzare, mai minimizzare, mai banalizzare. L'assistente adatta il suo comportamento alla realtà emotiva della persona — non un trattamento uniforme per tutti.
-
-### 7.5. La conoscenza di sé
-
-LIA dispone di una base di conoscenza integrata sulle proprie funzionalità, che le permette di rispondere alle domande su cosa sa fare, come funziona, e quali sono i suoi limiti.
-
----
-
-## 8. Affidabilità in produzione
-
-### 8.1. La vera sfida dell'IA agentica
-
-La grande maggioranza dei progetti di IA agentica non arriva mai in produzione. Costi fuori controllo, comportamento non deterministico, assenza di tracce di audit, coordinamento difettoso tra agenti. LIA ha risolto questi problemi — e gira in produzione 24/7 su un Raspberry Pi. E i tuoi dati sopravvivono agli incidenti: il database viene salvato automaticamente ogni notte, e la procedura di ripristino non è teorica — è testata.
-
-Ciò che « qualità di produzione » significa qui si riduce a un'esigenza: i modi di guasto sono anticipati **per natura**, non scoperti uno alla volta. Una funzionalità che nessuno trova non esiste — la raggiungibilità dell'interfaccia è quindi misurata come la disponibilità del server, larghezza per larghezza e nelle sei lingue. Una funzionalità che fallisce in silenzio non esiste altrettanto: tre cause senza relazione possono produrre lo stesso sintomo, « non succede nulla », e ciascuna deve nominarsi.
-
-I guasti più costosi sono quelli che non gridano. Un difetto intermittente, che si archivia concludendo « era passeggero ». Una guardia che osserva il segnale sbagliato e resta verde proprio per questo. Un fallimento che degrada solo la qualità senza mai sollevare un errore. E una cifra: un conteggio mostrato è un'affermazione — è esatto, oppure non esiste. Ognuna di queste famiglie ha la propria misura, perché nessuna si annuncia da sola.
-
-### 8.2. Uno stack di osservabilità professionale
-
-LIA integra un'osservabilità di grado produzione:
-
-| Strumento        | Ruolo                                                      |
-| ---------------- | ---------------------------------------------------------- |
-| **Prometheus**   | Metriche di sistema e di business                          |
-| **Grafana**      | Dashboard di monitoraggio in tempo reale                   |
-| **Tempo**        | Tracce distribuite end-to-end                              |
-| **Loki**         | Aggregazione di log strutturati, raccolti da Grafana Alloy |
-| **Langfuse**     | Tracing specializzato delle chiamate LLM                   |
-| **Alertmanager** | Alert e-mail sui segnali vitali, runbook collegati         |
-
-Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto. Le metriche HTTP e gli attributi di percorso delle tracce HTTP usano il modello del percorso, senza nomi o ricerche contenuti in un indirizzo. Le tracce LLM facoltative possono conservare contesto conversazionale e richiedono controlli propri di accesso e conservazione. L'intero stack di supervisione gira su versioni mantenute, fissate per impronta.
-
-Questa esigenza scende fino alla macchina. Un server è più processi, e «il container consuma cinque gigabyte» non dice quale trattiene cosa: ogni processo di LIA pubblica quindi da sé ciò che trattiene in memoria, un pannello lo traccia processo per processo, un allarme nomina quello che trabocca — e ciò che un processo carica è stato misurato sulla macchina di destinazione prima di essere toccato, mai supposto.
-
-Questi segnali si rispondono: una riga di log apre la traccia della sua richiesta, una traccia i suoi log e le sue metriche, un punto di latenza l'esempio che lo ha prodotto. E la catena che li trasporta sorveglia sé stessa: se dei log si perdono per strada, un allarme lo dice. E un allarme misura ciò che nomina: quello di latenza osserva solo i turni che una persona attende, e un incidente il cui avviso di risoluzione è andato perso si chiude da solo.
-
-### 8.3. Una pipeline anti-allucinazione
-
-Il sistema di risposta dispone di un meccanismo anti-allucinazione a tre livelli: formattazione dei dati con limiti espliciti, direttive che impongono l'uso esclusivo di dati verificati, e gestione dei casi limite. Il LLM è costretto a sintetizzare solo ciò che proviene dai risultati reali degli strumenti. E ciò che il modello legge è vero: un prompt enuncia solo ciò che il codice impone — un limite pubblicato è il limite applicato, un numero viene da un'impostazione — e un'istruzione viene emessa solo quando il suo contenuto esiste.
-
-Un errore, invece, viene **detto, mai indovinato**: quando un servizio fallisce, LIA dice quale e cosa ha risposto, invece di inventare un problema di configurazione — misurato prima della correzione, una risposta su tre lo faceva nei turni in cui uno strumento aveva fallito. E in modalità autonoma una risposta è giudicata sul risultato: ciò che LIA si era proposta di ottenere finisce ottenuto, o dichiarato alla fine della risposta con ciò che ha tentato; un dato arrivato da un'altra fonte porta quella fonte.
-
-Ciò che deve essere esatto è **calcolato, mai stimato**: un calcolo, una durata tra due date, una conversione di valuta passano da strumenti — decimale esatto, istanti reali, il tasso della Banca centrale europea con la sua data —, in entrambe le modalità, e un risultato arrotondato lo dice.
-
-### 8.4. Human-in-the-Loop a 6 livelli
-
-LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di dettaglio appropriato: approvazione del piano, chiarimento, critica della bozza, conferma distruttiva, conferma di operazioni in massa, revisione delle modifiche. Ogni approvazione alimenta l'apprendimento — il sistema si velocizza nel tempo. E la promessa è mantenuta alla lettera: ciò che approvi — dopo una, due o dieci modifiche — è **esattamente** ciò che viene eseguito, mai una versione rigenerata dietro le quinte. E quando una richiesta prepara più bozze, ti vengono sottoposte una alla volta, ciascuna sulla sua scheda, senza eseguire nulla prima della tua ultima risposta, e il resoconto dice a chi e cosa — solo un'operazione in massa che hai approvato come elenco conserva un'unica conferma.
-
-### 8.5. Le tue risposte non hanno bisogno di te
-
-Invia una domanda, chiudi la scheda, vai via. La generazione continua sul server, e la risposta ti aspetta nella conversazione — oppure riprende in diretta, esattamente dove era rimasta, se torni mentre è ancora in scrittura. Niente da fare, niente da configurare: la continuità è il comportamento predefinito. E quando sei tu a cambiare idea, un pulsante di stop interrompe la generazione in un secondo — ciò che è già scritto resta visibile, onestamente contrassegnato come interrotto. Un assistente affidabile non è solo quello che risponde bene: è quello che finisce ciò che inizia.
-
-### 8.6. Nulla gira alle tue spalle
-
-Un assistente capace di agire è un assistente capace di _sbagliare_. Due regole lo rendono accettabile.
-
-Primo, **nulla tocca il tuo server senza il tuo sì** — e la conferma mostra tutto ciò che verrà inviato, comprese le istruzioni che LIA ha scritto per sé stessa. Un riepilogo che non puoi leggere per intero non è una conferma, è una formalità. Il permesso viene verificato di nuovo nel momento in cui l'azione parte, non solo quando l'hai chiesta.
-
-Secondo, **ciò che gira, gira in una scatola sigillata**. Il codice di una skill viene eseguito in un container creato per quella singola esecuzione e distrutto subito dopo: niente rete salvo gli host autorizzati, niente accesso ai tuoi file, niente chiavi, nessun modo di raggiungere la macchina sottostante. Se quella scatola non può essere costruita, lo script semplicemente non gira — nessun ripiego silenzioso verso una modalità più debole. Una skill si installa per ciò che produce, non per la fiducia che si dovrebbe accordare al suo autore.
-
----
-
-La stessa esigenza vale per ciò che LIA **afferma**. Una risposta deve poggiare su dati realmente recuperati, mai sul ricordo di una formulazione precedente; e quando un’informazione non è mai stata ottenuta, dichiararla mancante vale più che ricostruirne una plausibile. È un vincolo di progettazione più che una questione di stile: le entità recuperate di recente vengono reimmesse esplicitamente nel contesto di risposta, e inventare un attributo di entità è vietato a livello di prompt. Un errore fattuale plausibile costa più di un «non lo so».
-
-La coerenza visiva risponde alla stessa esigenza. Un’azione ha la stessa forma ovunque o da nessuna parte; un codice colore che il puntatore deve rivelare non è un codice, è un segreto; il grigio è riservato a ciò che è inattivo — uno stato vivo porta il suo colore; una stessa linea neutra borda ogni pannello e ne separa le sezioni, mai due pannelli. Queste regole non sono gusti: ognuna è scritta, strumentata e custodita da un test, perché lo sforzo di lettura appartiene al sistema, non alla persona che lo usa.
-
-## 9. Norme, conformità e garanzie
-
-LIA non chiede di essere creduta sulla parola. I quadri normativi che segue sono scritti da altri, pubblici e verificabili senza di lei: è ciò che separa una garanzia da una promessa.
-
-### 9.1. Ciò che la normativa richiede
-
-**La privacy si progetta nell'architettura, non si certifica con uno slogan.** I dati del tuo account risiedono nel database dell'istanza LIA che usi; se scegli l'auto-hosting, controlli tu quel server. Puoi esportarli o chiederne la cancellazione; i segreti non vengono esportati per scelta. Le credenziali sono cifrate e le sessioni isolate. I log tecnici del server privilegiano numeri, codici e identificativi, con controlli e test per escludere i contenuti personali. Le tracce diagnostiche LLM facoltative hanno un altro ambito: possono conservare contesto dei modelli e metadati collegati all'account, quindi accesso e conservazione richiedono una configurazione consapevole. Il rispetto di tutti gli obblighi del GDPR in una specifica installazione dipende anche dalla gestione e dai fornitori scelti.
-
-**LIA conserva registri anche quando la legge non li impone a questo uso personale.** L'articolo 12 del regolamento europeo sull'IA riguarda i sistemi ad alto rischio. Registri di azioni, consultazioni, decisioni, parametri dei modelli e lacune sono una scelta di trasparenza, non una certificazione. Si possono esportare e vengono rimossi con l'account, entro i limiti documentati di ciascun registro.
-
-**L'accessibilità si misura, non si dichiara.** Il livello AA delle WCAG 2.2 fa da riferimento. I controlli automatizzati di ogni rilascio coprono contrasto, percorsi da tastiera, preferenze di movimento e nomi accessibili tradotti in sei lingue; integrano, ma non sostituiscono, la verifica manuale. Il colore non dovrebbe veicolare informazioni da solo.
-
-### 9.2. Gli standard aperti che LIA parla
-
-| Standard                              | Che cosa ne fa LIA                                                                                                       |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **MCP** (Model Context Protocol)      | Collegare strumenti esterni, i tuoi come quelli di un fornitore, senza scrivere una riga di codice                       |
-| **Agent Plugins** (agent-plugins.org) | Installare in un passo un pacchetto portatile — competenze e server MCP insieme — e disinstallarlo con la stessa pulizia |
-| **agentskills.io**                    | Aggiungere competenze esperte scritte in linguaggio naturale                                                             |
-| **OAuth 2.1 + PKCE**                  | Collegare i tuoi account Google o Microsoft senza comunicare la loro password a LIA                                      |
-| **WebAuthn / FIDO2**                  | Accedere con una passkey, senza alcuna password                                                                          |
-| **OWASP Top 10**                      | La griglia di riferimento delle vulnerabilità web, percorsa endpoint per endpoint                                        |
-| **OpenTelemetry**                     | Un'osservabilità che qualsiasi strumento sul mercato sa rileggere                                                        |
-| **Prometheus / OpenMetrics**          | Metriche esposte in un formato aperto, non chiuse dentro un cruscotto                                                    |
-| **WCAG 2.2 AA**                       | Obiettivo WCAG 2.2 AA; controlli automatizzati mirati, verifica manuale necessaria                                       |
-| **SemVer 2.0** e **Keep a Changelog** | Numeri di versione che significano qualcosa, e un registro delle modifiche leggibile                                     |
-| **CycloneDX** (SBOM)                  | L'inventario esatto di ciò che contiene ogni versione, pubblicato insieme a essa                                         |
-| **Conventional Commits**              | Una cronologia delle modifiche leggibile da una persona come da una macchina                                             |
-| **AGPL-3.0**                          | Il codice sorgente completo, verificabile, modificabile — e tenuto a restarlo                                            |
-
-Standard aperti anziché un protocollo proprietario: ciò che LIA parla, un altro strumento può parlarlo — e ciò che promette si verifica contro un testo scritto da altri.
-
-### 9.3. Ciò che rende verificabili queste garanzie
-
-Una garanzia che non si può controllare non è una garanzia. L'audit tecnico del progetto è pubblico — griglia di punteggio allineata alla ISO/IEC 25010, metodo, punti di forza e debolezze assunte, e il protocollo per rieseguirlo. Ogni decisione di architettura è scritta e indicizzata. Ogni protezione è sostenuta da un test che fallisce se la protezione scompare. E al backup notturno del database si accompagna una procedura di ripristino realmente eseguita, non soltanto redatta. Ciò che entra nel software è sorvegliato allo stesso modo: ogni componente del server è fissato dalla sua impronta, una sorveglianza settimanale legge gli avvisi di sicurezza che ogni dipendenza pubblica — compresi quelli che nessuna banca dati pubblica riprende —, un aggiornamento attende un periodo di prudenza e non torna mai indietro, e ogni versione, inventariata, viene installata su macchine vergini prima di essere pubblicata. Quando l'analisi del codice segnala una debolezza, la risposta punta all'intera classe e non alla sola segnalazione: la correzione arriva con una verifica che fallisce se la stessa classe ricompare altrove, e l'analisi copre anche gli script distribuiti, l'infrastruttura e i workflow.
-
-## 10. Apertura radicale
-
-Condividere un metodo utile non deve significare condividere un account. Una connessione LIA accettata può inviarti una skill, un server MCP o un plugin come copia propria disattivata, con origine e data. Scegli tu se verificarla, configurarla e attivarla; le credenziali restano al proprietario. Una skill condivisa che attivi ha le capacità di una creata da te: la scelta comporta la stessa responsabilità. Portabilità e fiducia esplicita vanno insieme.
-
-### 10.1. Zero lock-in
-
-ChatGPT ti lega a OpenAI. Gemini a Google. Copilot a Microsoft.
-
-LIA ti connette a **7 provider IA simultaneamente**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, e Ollama (modelli locali). Puoi mixare: OpenAI per la pianificazione, Anthropic per la risposta, DeepSeek per le attività in background — tutto configurabile dall'interfaccia di amministrazione, con un clic.
-
-Se un provider cambia i prezzi o peggiora il servizio, passi istantaneamente all'altro. Nessuna dipendenza, nessuna trappola.
-
-### 10.2. Estensibilità
-
-Ogni utente può connettere i propri server MCP, estendendo le capacità di LIA ben oltre gli strumenti integrati. Il client parla entrambe le generazioni del protocollo — la nuova revisione senza stato e il handshake classico, scelti automaticamente per ogni server —, così l'apertura non costa mai la compatibilità. Le Skills (standard agentskills.io) permettono di iniettare istruzioni specializzate in linguaggio naturale — con un generatore di Skills integrato che le crea tramite un dialogo guidato e te le propone su una scheda che un clic installa — e una libreria pubblica, skills.sh, dove leggi una skill file per file prima di installarla. Una normale skill di terzi importata da URL, biblioteca o plugin lavora a parte e non tocca mai i tuoi connettori, e una skill può eseguire i propri comandi in un container usa e getta per restituirti dei file. Uno Skill può anche restituire un **frame HTML interattivo** (mappa, dashboard, calendario, convertitore...) o un'**immagine** (QR code, grafico) direttamente nella chat, in un sandbox sotto CSP rigorosa, con tema e lingua sincronizzati automaticamente.
-
-Questa apertura ha un formato di pacchetto: LIA parla lo standard aperto **Agent Plugins** (agent-plugins.org), il formato di plugin portabile guidato da AWS, Microsoft, OpenAI, Cursor e Vercel e adottato da ChatGPT, Codex, Cursor, GitHub Copilot, Kiro e VS Code. Un plugin che raggruppa skill e server MCP si installa in LIA in un passaggio — da uno zip o da un link https — con un report completo per componente di ciò che è stato installato, ignorato (e perché) o rimosso, e si disinstalla con la stessa pulizia: tutto ciò che aveva portato se ne va con lui. L'interoperabilità qui è una convinzione, non una funzionalità: ciò che costruisci o adotti altrove nell'ecosistema è tuo e ti segue.
-
-L'architettura di LIA è pensata per facilitare l'aggiunta di nuovi connettori, canali, agenti e provider IA. Il codice è strutturato con astrazioni chiare e guide di sviluppo dedicate (agent creation guide, tool creation guide) che rendono l'estensione accessibile a qualsiasi sviluppatore.
-
-### 10.3. Multi-canale
-
-L'interfaccia web responsive è completata da un'integrazione Telegram nativa (conversazione, messaggi vocali trascritti, pulsanti di approvazione inline, notifiche proattive) e notifiche push Firebase. La tua memoria, i tuoi diari, le tue preferenze ti seguono da un canale all'altro.
-
----
-
-## 11. Visione
-
-### 11.1. L'intelligenza che cresce con te
-
-La combinazione memoria psicologica + diari introspettivi + apprendimento bayesiano + Psyche Engine crea una forma di intelligenza emergente: nel corso dei mesi, LIA sviluppa una comprensione sempre più sfumata di chi sei. Non è intelligenza artificiale generale — è un'intelligenza **pratica, relazionale ed emotiva**, al servizio di una persona specifica.
-
-### 11.2. Cosa LIA non pretende di essere
-
-LIA non è una concorrente dei giganti del cloud e non pretende di rivaleggiare con i loro budget di ricerca. Come chatbot conversazionale puro, i modelli usati tramite la loro interfaccia nativa saranno probabilmente più fluidi. Ma LIA non è un chatbot — è un **sistema di orchestrazione intelligente** che usa questi modelli come componenti, sotto il tuo controllo totale.
-
-### 11.3. Perché esiste LIA
-
-LIA esiste perché al mondo manca un assistente IA che sia **tuo**. Davvero tuo. Semplice da amministrare ogni giorno. Condivisibile con chi ami, ognuno con la propria relazione emotiva. Ospitato sul tuo server. Trasparente su ogni decisione e ogni costo. Capace di una profondità emotiva che gli assistenti commerciali non offrono. Affidabile in produzione. E aperto — aperto sui provider, sugli standard, e sul codice.
-
-Come viene costruita LIA — un'IA che scrive il codice, un umano che dirige, rivede e verifica — è raccontato in dettaglio nel nostro [resoconto di esperienza](/it/story).
-
-**Your Life. Your AI. Your Rules.**
+Ciò che le interessa è il tempo lungo. Memoria, diari, apprendimento e Psyche Engine si combinano perché, mese dopo mese, LIA ti capisca sempre meglio. Esiste perché mancava un assistente che fosse davvero tuo.

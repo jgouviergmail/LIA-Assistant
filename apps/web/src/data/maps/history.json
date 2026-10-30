@@ -4559,6 +4559,21 @@
         "t.postgres",
         "t.llmfactory"
       ]
+    },
+    {
+      "adr": 366,
+      "date": "2026-10-28",
+      "theme": "reliability",
+      "functional": [
+        "f.mcp",
+        "f.chat"
+      ],
+      "technical": [
+        "t.mcp",
+        "t.postgres",
+        "t.redis",
+        "t.sse"
+      ]
     }
   ]
 }

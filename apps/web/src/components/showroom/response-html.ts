@@ -13,11 +13,19 @@ function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * The icon each decision's chip draws. Public pages draw these from a subset of
+ * the icon font (`lib/fonts.ts`), whose guard reads this table.
+ */
+export const SHOWROOM_DECISION_ICONS: Record<ShowroomDecisionKind, string> = {
+  confirm: 'check_circle',
+  edit: 'edit_note',
+  cancel: 'block',
+};
+
 function chip(decision: ShowroomDecisionKind): string {
   const tone = decision === 'cancel' ? 'amber' : decision === 'edit' ? 'indigo' : 'green';
-  const icon =
-    decision === 'confirm' ? 'check_circle' : decision === 'edit' ? 'edit_note' : 'block';
-  return `<span class="lia-chip lia-chip--${tone}"><span class="material-symbols-outlined">${icon}</span>`;
+  return `<span class="lia-chip lia-chip--${tone}"><span class="material-symbols-outlined">${SHOWROOM_DECISION_ICONS[decision]}</span>`;
 }
 
 function decisionRows(id: ShowroomMissionId, t: TFunction, decisions: Decisions): string {

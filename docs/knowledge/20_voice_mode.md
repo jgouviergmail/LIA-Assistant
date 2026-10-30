@@ -12,7 +12,7 @@ When voice mode is off and the text field is empty, hold the send button to reco
 
 ## Does voice recognition support my language?
 
-Yes! LIA uses Whisper (99+ languages) and automatically transcribes in your preferred language configured in Settings. The wake word itself only exists in French for now ("Dis LIA", in beta: its recognition is still improving); in the other interface languages, tap the badge to speak. The main speech-to-text works in any language.
+Yes, if it is one of the six interface languages (French, English, German, Spanish, Italian, Chinese). LIA transcribes your voice in your account's language, chosen in Settings: it does not guess the language you speak, so to dictate in another of these languages, change your account's. The wake word itself only exists in French for now ("Dis LIA", in beta: its recognition is still improving); in the other interface languages, tap the badge to speak.
 
 ## Is my voice data sent to external services?
 

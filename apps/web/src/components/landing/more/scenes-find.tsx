@@ -3,7 +3,8 @@
  * the group tones that turn a flat list into a map, the everyday-words settings
  * search, settings deep links that survive a reload, full history search, the
  * minutes-template library whose categories open closed, the phone logo
- * navigation, the written debrief that opens a relationship card, a
+ * navigation, the written debrief that opens a relationship card, one button
+ * per kind of action on a person's page, a
  * relationship's rows dated like an e-mail, the number a place shares between
  * its list row and its pin, and the sandbox-network permissions a person
  * revokes in place. Timer-driven micro-demos; last phase = resting frame.
@@ -24,8 +25,10 @@ import {
   Hash,
   KeyRound,
   Link2,
+  Mail,
   MessageSquare,
   Moon,
+  Navigation,
   NotebookPen,
   Palette,
   PanelLeft,
@@ -38,6 +41,7 @@ import {
   ShieldCheck,
   Star,
   Undo2,
+  UserRound,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -665,6 +669,74 @@ function RelationDebriefScene({ active, labels }: SceneProps) {
   );
 }
 
+type GroupedPhase = 'bar' | 'hover' | 'menu' | 'picked';
+const GROUPED_STEPS: readonly TimelineStep<GroupedPhase>[] = [
+  { at: 0, state: 'bar' },
+  { at: 700, state: 'hover' },
+  { at: 1300, state: 'menu' },
+  { at: 2200, state: 'picked' },
+];
+
+/** The action kinds of the bar: the first one holds several addresses. */
+const GROUPED_KINDS = [Mail, Navigation, PhoneCall] as const;
+
+/**
+ * One button per kind of action on a person's page; the kind with several
+ * addresses opens a menu that names each one in the reader's language.
+ */
+function GroupedActionsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(GROUPED_STEPS, { active });
+  const open = phase === 'menu' || phase === 'picked';
+  return (
+    <div className={cn(STAGE, 'justify-start gap-1.5 pt-6')}>
+      <div className="flex w-3/4 items-center gap-1.5">
+        <UserRound className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+        <SkeletonLine w="w-1/2" />
+      </div>
+      <div className="relative grid w-3/4 grid-cols-3 gap-1.5">
+        {GROUPED_KINDS.map((Icon, index) => (
+          <span
+            key={index}
+            className={cn(
+              'flex h-6 items-center justify-center gap-0.5 rounded-md bg-primary text-primary-foreground transition-shadow duration-300 motion-reduce:transition-none',
+              index === 0 && phase !== 'bar' && 'ring-2 ring-primary/30'
+            )}
+          >
+            <Icon className="h-3 w-3" aria-hidden="true" />
+            {index === 0 && <ChevronDown className="h-2.5 w-2.5" aria-hidden="true" />}
+          </span>
+        ))}
+        <div
+          className={cn(
+            'absolute left-0 top-full mt-1 w-32 rounded-md border border-border bg-background py-0.5 shadow-sm transition-all duration-300 ease-out motion-reduce:transition-none',
+            open ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
+          )}
+        >
+          {[labels.home, labels.work].map((label, row) => (
+            <span
+              key={row}
+              className={cn(
+                'flex items-center gap-1.5 px-1.5 py-1 text-px-9',
+                phase === 'picked' && row === 0 && 'bg-primary/10'
+              )}
+            >
+              <Mail className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+              <span className="font-medium text-foreground/80">{label}</span>
+              <SkeletonLine w="w-10" className="h-1" />
+            </span>
+          ))}
+        </div>
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'picked' ? 'left-[24%] top-[60%]' : 'left-[26%] top-[38%]',
+          phase === 'bar' ? 'opacity-0' : 'opacity-100'
+        )}
+      />
+    </div>
+  );
+}
+
 type DockPhase = 'open' | 'folded' | 'moved' | 'reopened';
 const DOCK_STEPS: readonly TimelineStep<DockPhase>[] = [
   { at: 0, state: 'open' },
@@ -1175,6 +1247,7 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,
   relation_debrief: RelationDebriefScene,
+  grouped_actions: GroupedActionsScene,
   pinned_dock: PinnedDockScene,
   network_grants: NetworkGrantsScene,
   skill_library: SkillLibraryScene,

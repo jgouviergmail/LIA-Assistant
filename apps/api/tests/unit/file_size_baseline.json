@@ -4,7 +4,7 @@
   "frozen": {
     "core/exceptions.py": 848,
     "domains/agents/api/router.py": 768,
-    "domains/agents/api/service.py": 992,
+    "domains/agents/api/service.py": 982,
     "domains/agents/display/components/base.py": 881,
     "domains/agents/drafts/service.py": 935,
     "domains/agents/nodes/hitl_dispatch_node.py": 686,

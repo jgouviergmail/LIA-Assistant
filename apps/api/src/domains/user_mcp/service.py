@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
-from src.domains.user_mcp.connection_embeddings import build_connection_embeddings
 from src.domains.user_mcp.description_generation import generate_domain_description
 from src.domains.user_mcp.installation import OfflineMCPInstallation, check_creation_constraints
 from src.domains.user_mcp.models import (
@@ -444,6 +443,8 @@ class UserMCPServerService:
         if before_connect is not None:
             await before_connect(self.db)
 
+        from src.domains.user_mcp.catalogue_publication import probe_update_data
+
         try:
             auth = build_auth_for_server(server)
             entry = await pool.get_or_connect(
@@ -456,53 +457,12 @@ class UserMCPServerService:
                 force_refresh=True,
             )
 
-            # Build single update dict (avoids multiple flush/refresh roundtrips)
-            from src.core.time_utils import now_utc
-
-            update_data: dict = {
-                "discovered_tools_cache": entry.tools,
-                "status": UserMCPServerStatus.ACTIVE.value,
-                "last_connected_at": now_utc(),
-                "last_error": None,
-            }
-
-            # Auto-generate domain_description if not user-provided
-            if not server.domain_description:
-                generated_desc = await self._llm_generate_description(
-                    tool_list=entry.tools,
-                    server_name=server.name,
-                    account_scoped=server.auth_type != UserMCPAuthType.NONE.value,
-                    user_id=server.user_id,
-                )
-                update_data["domain_description"] = generated_desc
-
-            # Compute E5 embeddings for semantic scoring (evolution F2.1)
-            try:
-                from src.domains.agents.services.tool_embeddings_envelope import (
-                    wrap_server_cache,
-                )
-                from src.domains.agents.services.tool_selector import (
-                    compute_tool_embeddings,
-                )
-
-                tool_embeddings = await build_connection_embeddings(
-                    user_id,
-                    server.name,
-                    entry.tools,
-                    compute_tool_embeddings,
-                )
-                if tool_embeddings:
-                    # The model that wrote the vectors travels with them: a
-                    # cache of another width scored every tool 0 in silence.
-                    update_data["tool_embeddings_cache"] = wrap_server_cache(
-                        tool_embeddings, tool_metadata=entry.tools
-                    )
-            except Exception:
-                logger.warning(
-                    "user_mcp_embedding_computation_failed",
-                    server_id=str(server_id),
-                    exc_info=True,
-                )
+            # One update: status, the version-2 snapshot, description and vectors.
+            # The pool reserved the generation BEFORE the discovery: a slower,
+            # older one never overwrites it.
+            update_data = await probe_update_data(
+                self, server, entry, user_id=user_id, generation=entry.generation
+            )
 
             logger.info(
                 "user_mcp_server_test_success",
@@ -581,13 +541,10 @@ class UserMCPServerService:
         """
         server = await self.get_with_ownership_check(server_id, user_id)
 
-        if not server.discovered_tools_cache:
-            raise ValidationError("No tools discovered yet — test connection first")
+        from src.infrastructure.mcp.catalogue_snapshot import parse_catalogue_snapshot
 
-        # Handle both list and dict cache formats (same pattern as router._server_to_response)
-        cache = server.discovered_tools_cache
-        tool_list: list[dict] = cache if isinstance(cache, list) else cache.get("tools", [])
-
+        # Every shape the column ever held (snapshot, legacy list or dict), one parser.
+        tool_list = [dict(t) for t in parse_catalogue_snapshot(server.discovered_tools_cache).tools]
         if not tool_list:
             raise ValidationError("No tools discovered yet — test connection first")
 

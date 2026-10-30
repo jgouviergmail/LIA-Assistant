@@ -11,7 +11,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from contextlib import suppress
+from contextlib import aclosing, suppress
 from typing import TYPE_CHECKING, Any
 
 from langgraph.errors import GraphInterrupt
@@ -28,26 +28,27 @@ from src.core.field_names import (
 )
 from src.core.i18n import normalize_language, resolve_language
 from src.core.turn_verdicts import verdict_collector
-from src.domains.agents.api.archive_first import (
-    archive_user_message_first,
-    turn_attachment_meta,
-)
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
     persist_psyche_snapshot,
     with_injected_journal_versions,
 )
-from src.domains.agents.api.attachments_injection import inject_attachments_into_state
 from src.domains.agents.api.error_messages import SSEErrorMessages
 from src.domains.agents.api.hitl_pending import extract_decision_type, hitl_stale_chunks
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk, composition_request
+from src.domains.agents.api.turn_preparation import (
+    MCPPreparation,
+    TurnStateRequest,
+    prepare_turn_state,
+    release_each,
+    reset_turn_scopes,
+)
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.effects.decision_recorder import decision_recorder
 from src.domains.agents.effects.decisions import (
     note_answered,
-    note_request_message,
     turn_decision,
 )
 from src.domains.agents.effects.treatment_recorder import treatment_recorder
@@ -65,6 +66,7 @@ from src.domains.agents.services.streaming.followup_metadata import (
     pop_motivation,
 )
 from src.domains.agents.services.streaming.journey_timing import JourneyTiming
+from src.domains.agents.services.streaming.latency_sli import observe_pre_graph_phase
 from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
@@ -385,38 +387,43 @@ class AgentService(
 
         # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
         # Uses: OrchestrationService, StreamingService, ConversationOrchestrator
-        async for chunk in self._stream_with_new_services(
-            user_message,
-            user_id,
-            session_id,
-            user_timezone,
-            resolve_language(user_language),
-            user_display_name,
-            original_run_id,
-            browser_context,
-            user_memory_enabled,
-            user_journals_enabled,
-            user_psyche_enabled,
-            user_display_mode,
-            user_execution_mode,
-            is_automated_source,
-            auto_approve_plan,
-            attachment_ids,
-            run_id=run_id,
-            archive_user_message=archive_user_message,
-            has_listeners=has_listeners,
-            stt_provider=stt_provider,
-            stt_audio_duration_seconds=stt_audio_duration_seconds,
-            stt_cost_usd=stt_cost_usd,
-            stt_cost_eur=stt_cost_eur,
-            hitl_decision=hitl_decision,
-            directive=directive,
-            client_user_agent=client_user_agent,
-            live_session_id=live_session_id,
-            spoken_text=spoken_text,
-            application_origin=application_origin,
-        ):
-            yield chunk
+        # Closed with this stream, in the reader's task: left to the loop's finalizer,
+        # the turn's exits ran later in another context (every scope reset refused).
+        async with aclosing(
+            self._stream_with_new_services(
+                user_message,
+                user_id,
+                session_id,
+                user_timezone,
+                resolve_language(user_language),
+                user_display_name,
+                original_run_id,
+                browser_context,
+                user_memory_enabled,
+                user_journals_enabled,
+                user_psyche_enabled,
+                user_display_mode,
+                user_execution_mode,
+                is_automated_source,
+                auto_approve_plan,
+                attachment_ids,
+                run_id=run_id,
+                archive_user_message=archive_user_message,
+                has_listeners=has_listeners,
+                stt_provider=stt_provider,
+                stt_audio_duration_seconds=stt_audio_duration_seconds,
+                stt_cost_usd=stt_cost_usd,
+                stt_cost_eur=stt_cost_eur,
+                hitl_decision=hitl_decision,
+                directive=directive,
+                client_user_agent=client_user_agent,
+                live_session_id=live_session_id,
+                spoken_text=spoken_text,
+                application_origin=application_origin,
+            )
+        ) as turn:
+            async for chunk in turn:
+                yield chunk
 
     async def _stream_with_new_services(
         self,
@@ -527,6 +534,7 @@ class AgentService(
         # Extended DB session scope: covers entire graph execution for tool reuse
         async with get_db_context() as db:
             # === Step 1: Setup conversation (get/create, tracking, OAuth scopes) ===
+            setup_started = time.perf_counter()
             context = await conversation_orchestrator.setup_conversation(
                 user_id, session_id, run_id, db, language=user_language
             )
@@ -593,11 +601,6 @@ class AgentService(
                 bind_skill_context,
                 capability_directive_ctx,
                 request_tool_manifests_ctx,
-                reset_skill_context,
-            )
-            from src.infrastructure.mcp.user_context import (
-                cleanup_user_mcp_tools,
-                setup_user_mcp_tools,
             )
 
             _directive_token = capability_directive_ctx.set(directive)
@@ -616,9 +619,31 @@ class AgentService(
                 _active_skills_token = bind_skill_context(
                     set(_skill_state.active), _skill_state.third_party
                 )
+            observe_pre_graph_phase("conversation", time.perf_counter() - setup_started)
 
             _user_mcp_token = None  # Initialized before try for safe cleanup in except
             _manifests_token = None  # Initialized before try for safe cleanup in except
+            scopes_reset = False
+
+            def reset_scopes() -> None:
+                """Hand the request scopes back ONCE, whichever exit gets there first.
+
+                A stop or a failure may land after the answered turn already reset
+                them (while its clients close): a token resets once, a second
+                ``reset`` raises and would replace how the turn ended.
+                """
+                nonlocal scopes_reset
+                if not scopes_reset:
+                    scopes_reset = True
+                    reset_turn_scopes(
+                        user_mcp=_user_mcp_token,
+                        admin_mcp=_admin_mcp_token,
+                        skills=_active_skills_token,
+                        manifests=_manifests_token,
+                        directive=_directive_token,
+                        connectors=_connectors_token,
+                    )
+
             # Voice coordination initialised here (instead of inside
             # ``async with tracker``) so the outer ``except`` cleanup branch
             # can reference it even when the exception fires before the inner
@@ -678,38 +703,42 @@ class AgentService(
                     # mid-flight still publishes what it had to repair.
                     verdict_collector(),
                 ):
-                    # === Per-user MCP tools setup (evolution F2.1) ===
-                    _user_mcp_token = await setup_user_mcp_tools(user_id)
-
-                    # === Build per-request filtered tool manifests (centralized) ===
-                    # One catalogue for every execution mode: a switched-off
-                    # capability, an unconnected provider and a refused
-                    # application operation are withheld in one place.
-                    from src.domains.agents.registry import get_global_registry
-                    from src.domains.agents.services.turn_catalogue import build_turn_catalogue
-
-                    _manifests_token = request_tool_manifests_ctx.set(
-                        await build_turn_catalogue(
-                            get_global_registry(), user_id, context.active_connector_types
-                        )
-                    )
-
-                    # === Step 2: Load or create state using OrchestrationService ===
+                    # === Step 2: state, attachments and the archived request ===
+                    # Everything the turn reads from the database comes first;
+                    # the MCP preparation below may wait seconds on a server.
                     try:
-                        state = await orchestration_service.load_or_create_state(
+                        prepared = await prepare_turn_state(
+                            TurnStateRequest(
+                                conversation_id=conversation_id,
+                                user_message=user_message,
+                                user_id=user_id,
+                                session_id=session_id,
+                                run_id=run_id,
+                                user_timezone=user_timezone,
+                                user_language=user_language,
+                                oauth_scopes=oauth_scopes,
+                                personality_instruction=personality_instruction,
+                                is_hitl_resumption=is_hitl_resumption,
+                                user_display_name=user_display_name,
+                                hitl_decision=hitl_decision,
+                                attachment_ids=attachment_ids,
+                                auto_approve_plan=auto_approve_plan,
+                                archive_user_message=archive_user_message,
+                                stt_kwargs={
+                                    "stt_provider": stt_provider,
+                                    "stt_audio_duration_seconds": stt_audio_duration_seconds,
+                                    "stt_cost_usd": stt_cost_usd,
+                                    "stt_cost_eur": stt_cost_eur,
+                                },
+                                is_automated_source=is_automated_source,
+                                live_session_id=live_session_id,
+                                spoken_text=spoken_text,
+                                card_composition=composition_request(browser_context),
+                            ),
                             graph=self.graph,
-                            conversation_id=conversation_id,
-                            user_message=user_message,
-                            user_id=user_id,
-                            session_id=session_id,
-                            run_id=run_id,
-                            user_timezone=user_timezone,
-                            user_language=user_language,
-                            oauth_scopes=oauth_scopes,
-                            personality_instruction=personality_instruction,
-                            is_hitl_resumption=is_hitl_resumption,
-                            user_display_name=user_display_name,
-                            hitl_decision=hitl_decision,
+                            db=db,
+                            orchestration_service=orchestration_service,
+                            conv_service=conv_service,
                         )
                     except HitlDecisionStaleError as stale_err:
                         # Lot 1 option B, fail-closed: a one-click decision that
@@ -725,60 +754,8 @@ class AgentService(
                         for chunk in hitl_stale_chunks(user_language):
                             yield chunk
                         return
-
-                    # === ATTACHMENT INJECTION (evolution F4) ===
-                    # Load attachments and inject metadata + hint into state
-                    # AFTER load_or_create_state, BEFORE graph execution
-                    if attachment_ids and getattr(settings, "attachments_enabled", False):
-                        await inject_attachments_into_state(
-                            state=state,
-                            attachment_ids=attachment_ids,
-                            user_id=user_id,
-                            user_language=user_language,
-                            run_id=run_id,
-                            db=db,
-                        )
-
-                    # === AUTO-APPROVE: inert since v1.0.0 — the router resets the
-                    # flag at the turn start, before any reader (ADR-323). Kept until
-                    # a policy for unattended runs is decided. ===
-                    if auto_approve_plan:
-                        state["plan_approved"] = True
-                        logger.info(
-                            "auto_approve_plan_injected",
-                            run_id=run_id,
-                            user_id=str(user_id),
-                        )
-
-                    # === ARCHIVE-FIRST (ADR-117): persist the user turn NOW ===
-                    # The user message must survive client disconnects,
-                    # cancellations and crashes. End-of-run HITL flags
-                    # (decision_type, hitl_interrupted) are patched onto this
-                    # row during finalization below.
-                    stt_kwargs = {
-                        "stt_provider": stt_provider,
-                        "stt_audio_duration_seconds": stt_audio_duration_seconds,
-                        "stt_cost_usd": stt_cost_usd,
-                        "stt_cost_eur": stt_cost_eur,
-                    }
-                    _attachment_meta = turn_attachment_meta(state, attachment_ids)
-                    archived_user_msg_id: uuid.UUID | None = None
-                    if archive_user_message:
-                        archived_user_msg_id = await archive_user_message_first(
-                            conv_service=conv_service,
-                            conversation_id=conversation_id,
-                            user_message=user_message,
-                            run_id=run_id,
-                            is_hitl_resumption=is_hitl_resumption,
-                            attachment_meta=_attachment_meta,
-                            stt_kwargs=stt_kwargs,
-                            is_automated_source=is_automated_source,
-                            live_session_id=live_session_id,
-                            spoken_text=spoken_text,
-                            card_composition=composition_request(browser_context),
-                        )
-                        # POINT at what was asked; never copy it (ADR-263, lot 6).
-                        note_request_message(archived_user_msg_id)
+                    state = prepared.state
+                    archived_user_msg_id = prepared.archived_user_msg_id
 
                     # === TRACKING: Count user message ===
                     # Count ALL user messages (initial AND HITL responses)
@@ -787,6 +764,36 @@ class AgentService(
                     # - HITL response: "yes" → count=1
                     # This ensures accurate message_count in user_statistics for billing/analytics.
                     await tracker.increment_message_count()
+
+                    # The setup's reads end here (ADR-304): preparing the person's
+                    # MCP servers may wait seconds on a remote server, and this
+                    # session must not wait with it in an open transaction.
+                    await db.commit()
+
+                    # === Per-user MCP tools setup (evolution F2.1) ===
+                    # A person waiting is told which server is slow (spec §5.6).
+                    phase_started = time.perf_counter()
+                    mcp = MCPPreparation(user_id, run_id=run_id, live_session_id=live_session_id)
+                    async with aclosing(mcp.notices()) as notices:
+                        async for notice in notices:
+                            yield notice
+                    _user_mcp_token = mcp.install()
+                    catalogue_started = time.perf_counter()
+                    observe_pre_graph_phase("mcp", catalogue_started - phase_started)
+
+                    # === Build per-request filtered tool manifests (centralized) ===
+                    # One catalogue for every execution mode: a switched-off
+                    # capability, an unconnected provider and a refused
+                    # application operation are withheld in one place.
+                    from src.domains.agents.registry import get_global_registry
+                    from src.domains.agents.services.turn_catalogue import build_turn_catalogue
+
+                    _manifests_token = request_tool_manifests_ctx.set(
+                        await build_turn_catalogue(
+                            get_global_registry(), user_id, context.active_connector_types
+                        )
+                    )
+                    observe_pre_graph_phase("catalogue", time.perf_counter() - catalogue_started)
 
                     # === Step 3: Execute graph stream using OrchestrationService + StreamingService ===
                     # Content tracking for archiving and metrics
@@ -954,13 +961,6 @@ class AgentService(
                         # Commit tracking data BEFORE generator exits
                         await tracker.commit()
 
-                        # Cancel the chat-mode sentence streamer if it was
-                        # spun up — otherwise the LLM feeder + in-flight TTS
-                        # tasks would leak when this generator returns
-                        # (the tracker context exit does not propagate
-                        # to background tasks).
-                        await voice_coordinator.cleanup_chat_pipeline()
-
                         logger.info(
                             "tracking_committed_on_graph_interrupt_fallback",
                             run_id=run_id,
@@ -968,7 +968,12 @@ class AgentService(
                         )
 
                         # Exit generator cleanly - HITL will resume on next user message
-                        # Do NOT re-raise - this is expected behavior for HITL flow
+                        # Do NOT re-raise - this is expected behavior for HITL flow. The
+                        # early return still owes every release the other exits make:
+                        # the scopes, the voice resources, the pooled clients.
+                        journey_timing.close("interrupted")
+                        reset_scopes()
+                        await release_each(voice_coordinator.cleanup, tool_deps.aclose)
                         return
 
                     # === Step 5: Finalize conversation ===
@@ -1545,22 +1550,9 @@ class AgentService(
                         metadata=done_metadata,
                     )
 
-                # Cleanup user MCP tools ContextVar (evolution F2.1)
-                # MUST be outside the if block — cleanup is required even on HITL interrupt
-                cleanup_user_mcp_tools(_user_mcp_token)
-                _user_mcp_token = None
-
-                # Cleanup admin MCP disabled ContextVar (evolution F2.5)
-                if _admin_mcp_token is not None:
-                    admin_mcp_disabled_ctx.reset(_admin_mcp_token)
-                # Cleanup the skill context (active + third-party names)
-                if _active_skills_token is not None:
-                    reset_skill_context(_active_skills_token)
-                # Cleanup per-request tool manifests ContextVar
-                if _manifests_token is not None:
-                    request_tool_manifests_ctx.reset(_manifests_token)
-                capability_directive_ctx.reset(_directive_token)
-                active_connector_types_ctx.reset(_connectors_token)
+                # The request scopes this turn installed — MUST be outside the if
+                # block: cleanup is required even on HITL interrupt.
+                reset_scopes()
 
                 # Voice services own a persistent httpx client (TTS) that
                 # must be closed deterministically — without this, the
@@ -1573,34 +1565,37 @@ class AgentService(
                 # (same rationale as the voice-service cleanup above).
                 await tool_deps.aclose()
 
+            except asyncio.CancelledError, GeneratorExit:
+                # The person left (client gone, run stopped) before the end. Every
+                # reader closes this stream in its own task, which may go on (an
+                # out-of-turn retry runs its next attempt in it): the request scopes
+                # are handed back, then the pooled clients this run owns released.
+                journey_timing.close("cancelled")
+                # Only a stream finalized in ANOTHER context refuses the reset: the
+                # scopes it set belong to a task that is gone.
+                with suppress(ValueError):
+                    reset_scopes()
+                await release_each(
+                    lambda: voice_coordinator.cleanup(log_close_failure=False),
+                    tool_deps.aclose,
+                )
+                raise
             except Exception as e:
                 # The turn's outcome is NOT recorded here: by the time this
                 # handler runs, ``decision_recorder.__aexit__`` has already
                 # written the row. It derives the verdict from the exception
                 # itself, which is the only place that can (ADR-263, lot 6).
-                # Cleanup user MCP tools ContextVar on error (evolution F2.1)
-                cleanup_user_mcp_tools(_user_mcp_token)
-                # Cleanup admin MCP disabled ContextVar on error (evolution F2.5)
-                if _admin_mcp_token is not None:
-                    admin_mcp_disabled_ctx.reset(_admin_mcp_token)
-                # Cleanup the skill context on error
-                if _active_skills_token is not None:
-                    reset_skill_context(_active_skills_token)
-                # Cleanup per-request tool manifests ContextVar on error
-                if _manifests_token is not None:
-                    request_tool_manifests_ctx.reset(_manifests_token)
-                capability_directive_ctx.reset(_directive_token)
-                active_connector_types_ctx.reset(_connectors_token)
+                journey_timing.close("error")
+                # The request scopes this turn installed, on error too.
+                reset_scopes()
 
-                # Voice services owned by this generator must be torn down
-                # so their persistent httpx clients aren't leaked when the
-                # exception propagates upwards.
-                # best-effort
-                with suppress(Exception):
-                    await voice_coordinator.cleanup(log_close_failure=False)
-                    # Close connector clients cached by ToolDependencies
-                    # (aclose is itself best-effort per client).
-                    await tool_deps.aclose()
+                # Voice services and the connector clients cached by
+                # ToolDependencies own persistent httpx clients: released before
+                # the exception propagates, each on its own (best-effort).
+                await release_each(
+                    lambda: voice_coordinator.cleanup(log_close_failure=False),
+                    tool_deps.aclose,
+                )
 
                 logger.error(
                     "new_service_architecture_error",

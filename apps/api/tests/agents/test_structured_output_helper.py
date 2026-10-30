@@ -24,10 +24,12 @@ import json
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
+from src.core.config import settings
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
     get_structured_output,
@@ -521,57 +523,76 @@ async def test_json_mode_reraises_structured_output_error(invalid_json: str):
 # ============================================================================
 
 
-@pytest.mark.asyncio
-async def test_retry_success_after_transient_failure(simple_decision_json: str):
-    """Test that retry mechanism succeeds after transient failures."""
-    # Mock LLM for JSON mode fallback (no .bind())
-    mock_llm = AsyncMock()
+def _never_left() -> Exception:
+    """A failure whose request never reached the provider (the connection was refused)."""
+    failure = Exception("connection refused")
+    failure.__cause__ = httpx.ConnectError(
+        "refused", request=httpx.Request("POST", "https://provider.example/v1")
+    )
+    return failure
 
-    # First call fails, second call succeeds
-    mock_llm.ainvoke.side_effect = [
-        Exception("Transient network error"),
-        AIMessage(content=simple_decision_json),
-    ]
 
-    messages = [HumanMessage(content="Test")]
+def _client_without_retry_loop() -> AsyncMock:
+    """A model whose client has no retry loop of its own (Ollama): the caller's loop decides.
 
+    A bare mock answers every attribute, ``max_retries`` included, and so reads as a
+    client owning its retries — which the caller's loop never doubles.
+    """
+    mock_llm = AsyncMock()  # JSON mode fallback (no .bind())
+    del mock_llm.max_retries
+    return mock_llm
+
+
+async def _run_with_retry(mock_llm: AsyncMock, max_retries: int = 3) -> SimpleDecision:
     with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
         mock_settings.provider_supports_structured_output = {"ollama": False}
-
-        result = await get_structured_output_with_retry(
-            llm=mock_llm, messages=messages, schema=SimpleDecision, provider="ollama", max_retries=3
+        return await get_structured_output_with_retry(
+            llm=mock_llm,
+            messages=[HumanMessage(content="Test")],
+            schema=SimpleDecision,
+            provider="ollama",
+            max_retries=max_retries,
         )
 
-    # Should succeed on second attempt
+
+@pytest.mark.asyncio
+async def test_a_call_that_never_left_is_sent_again_and_succeeds(simple_decision_json: str):
+    """A refused connection bought nothing: the caller's loop sends it again (Q3, ADR-221)."""
+    mock_llm = _client_without_retry_loop()
+    mock_llm.ainvoke.side_effect = [_never_left(), AIMessage(content=simple_decision_json)]
+
+    result = await _run_with_retry(mock_llm)
+
     assert isinstance(result, SimpleDecision)
     assert mock_llm.ainvoke.call_count == 2
 
 
 @pytest.mark.asyncio
-async def test_retry_exhausted_raises_final_error():
-    """Test that all retries exhausted raises the final error."""
-    # Mock LLM for JSON mode fallback (no .bind())
-    mock_llm = AsyncMock()
+async def test_a_call_that_never_left_stops_at_the_relaunch_budget():
+    """Relaunches are bounded by LLM_TRANSIENT_RETRY_MAX, and by the caller's own attempts."""
 
-    # All calls fail
-    mock_llm.ainvoke.side_effect = Exception("Persistent error")
+    def refused(*_args: object, **_kwargs: object) -> AIMessage:
+        raise _never_left()
 
-    messages = [HumanMessage(content="Test")]
+    mock_llm = _client_without_retry_loop()
+    mock_llm.ainvoke.side_effect = refused
 
-    with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
-        mock_settings.provider_supports_structured_output = {"ollama": False}
+    with pytest.raises(StructuredOutputError):
+        await _run_with_retry(mock_llm, max_retries=3)
 
-        with pytest.raises(StructuredOutputError):
-            await get_structured_output_with_retry(
-                llm=mock_llm,
-                messages=messages,
-                schema=SimpleDecision,
-                provider="ollama",
-                max_retries=3,
-            )
+    assert mock_llm.ainvoke.call_count == min(3, 1 + settings.llm_transient_retry_max)
 
-    # Should have tried 3 times
-    assert mock_llm.ainvoke.call_count == 3
+
+@pytest.mark.asyncio
+async def test_a_call_whose_outcome_is_unknown_is_never_sent_again():
+    """A failure that may have reached the provider may be running and billed: one request."""
+    mock_llm = _client_without_retry_loop()  # the one client the caller's loop may relaunch on
+    mock_llm.ainvoke.side_effect = Exception("Transient network error")  # no proof it never left
+
+    with pytest.raises(StructuredOutputError):
+        await _run_with_retry(mock_llm, max_retries=3)
+
+    assert mock_llm.ainvoke.call_count == 1
 
 
 # ============================================================================

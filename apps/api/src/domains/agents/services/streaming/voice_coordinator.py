@@ -854,14 +854,13 @@ class VoiceStreamCoordinator:
                 **extra_log_fields,
             )
 
-    async def cleanup_chat_pipeline(self) -> None:
-        """Tear down the chat-mode voice pipeline only (GraphInterrupt path).
+    async def _cleanup_chat_pipeline(self) -> None:
+        """Tear down the chat-mode voice pipeline: the LLM feeder and in-flight TTS tasks.
 
-        The GraphInterrupt fallback exits the generator before the normal
-        cleanup: without this, the LLM feeder + in-flight TTS tasks would
-        leak when the generator returns (the tracker context exit does not
-        propagate to background tasks). The parallel-mode service is NOT
-        closed here — exactly the pre-extraction behavior.
+        The tracker context exit does not propagate to background tasks, so they
+        are cancelled here, by ``cleanup`` — on every exit of the run, the
+        GraphInterrupt fallback's included since 2026-10-29 (it used to tear down
+        this pipeline alone and leave the parallel service open).
         """
         await _cleanup_chat_voice_pipeline(
             self._chat_voice_streamer,
@@ -885,7 +884,7 @@ class VoiceStreamCoordinator:
                 ``contextlib.suppress`` keeps the exact pre-extraction
                 semantics (remaining cleanup steps are then skipped).
         """
-        await self.cleanup_chat_pipeline()
+        await self._cleanup_chat_pipeline()
         # Parallel-mode (agent) voice service is closed via the task that
         # owns it — but we close defensively here too in case the task
         # already finished with an exception that bypassed the local cleanup.

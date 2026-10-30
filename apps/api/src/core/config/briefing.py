@@ -20,6 +20,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    BRIEFING_ACT_TOKEN_TTL_SECONDS_DEFAULT,
     BRIEFING_AGENDA_LOOKAHEAD_HOURS_DEFAULT,
     BRIEFING_AUDIO_MAX_CHARS_DEFAULT,
     BRIEFING_AUDIO_MAX_SENTENCES_DEFAULT,
@@ -35,7 +36,11 @@ from src.core.constants import (
     BRIEFING_MAX_SMS_ITEMS_DEFAULT,
     BRIEFING_MAX_TASKS_ITEMS_DEFAULT,
     BRIEFING_MAX_WORKBOARD_ITEMS_DEFAULT,
+    BRIEFING_SECTION_ATTEMPT_MARKER_SECONDS_DEFAULT,
+    BRIEFING_SECTION_CONCURRENCY_DEFAULT,
+    BRIEFING_SHARED_BUILD_MAX_WAIT_SECONDS_DEFAULT,
     BRIEFING_TASKS_HORIZON_DAYS_DEFAULT,
+    BRIEFING_TEXT_CACHE_TTL_SECONDS_DEFAULT,
     BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT,
 )
 
@@ -159,5 +164,52 @@ class BriefingSettings(BaseSettings):
             "How long (seconds) the last known-good payload of a section is "
             "kept as a stale fallback shown alongside a connector error "
             "(D-04). 0 disables the stale-while-error net."
+        ),
+    )
+    briefing_shared_build_max_wait_seconds: int = Field(
+        default=BRIEFING_SHARED_BUILD_MAX_WAIT_SECONDS_DEFAULT,
+        ge=5,
+        le=300,
+        description=(
+            "Hard ceiling (seconds) on how long a request waits for another worker's "
+            "bundle build while that worker's claim is alive; it stops earlier as soon "
+            "as the bundle is published or the claim disappears."
+        ),
+    )
+    briefing_section_attempt_marker_seconds: int = Field(
+        default=BRIEFING_SECTION_ATTEMPT_MARKER_SECONDS_DEFAULT,
+        ge=0,
+        le=900,
+        description=(
+            "How long (seconds) a failed section read stays settled for the completeness "
+            "readers (synthesis, waiting workers) so they do not reopen a failing source. "
+            "The cards' own reads retry live. 0 disables the marker."
+        ),
+    )
+    briefing_text_cache_ttl_seconds: int = Field(
+        default=BRIEFING_TEXT_CACHE_TTL_SECONDS_DEFAULT,
+        ge=0,
+        le=3600,
+        description=(
+            "How long (seconds) a generated greeting + synthesis is reused when its inputs "
+            "(sections, windows, slot, prompts, local hour, SMS) did not change. 0 disables."
+        ),
+    )
+    briefing_act_token_ttl_seconds: int = Field(
+        default=BRIEFING_ACT_TOKEN_TTL_SECONDS_DEFAULT,
+        ge=30,
+        le=3600,
+        description=(
+            "How long (seconds) one dashboard load's act is honoured for its section and text "
+            "requests; past it the client starts a new load."
+        ),
+    )
+    briefing_section_concurrency: int = Field(
+        default=BRIEFING_SECTION_CONCURRENCY_DEFAULT,
+        ge=1,
+        le=5,
+        description=(
+            "Section requests the dashboard opens at once (published by the initial response); "
+            "HTTP/1.1 allows 6 per host and the chat's stream holds one."
         ),
     )

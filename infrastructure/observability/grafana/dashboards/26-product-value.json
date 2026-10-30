@@ -1941,6 +1941,61 @@
       ],
       "title": "Decision mix — confirm / edit / cancel (1h)",
       "type": "timeseries"
+    },
+    {
+      "id": 115,
+      "type": "row",
+      "title": "Journey timings (browser)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "panels": []
+    },
+    {
+      "id": 116,
+      "type": "timeseries",
+      "title": "Journey timings p75 — chat first token, dashboard first card / all cards / text",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum by (le, metric) (rate(product_client_timing_seconds_bucket[1d])))",
+          "legendFormat": "{{metric}} p75 (s)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Seconds a person waited, measured in the browser (spec 2026-10-21 O2): from sending to the first answer token, and from the dashboard's load to its first card, all its cards and its text. Runs beside the server-side SLI; SSELatencyP95High migrates only after two weeks of observation (ADR-119 amendment)."
     }
   ],
   "refresh": "5m",

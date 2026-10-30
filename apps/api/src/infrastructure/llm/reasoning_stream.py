@@ -40,6 +40,7 @@ from src.core.constants import (
     REASONING_MAX_CHARS_PER_NODE,
     REASONING_SSE_STEP_TYPE,
 )
+from src.infrastructure.llm.client_retries import STREAM_BEGAN_NOTE
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -333,30 +334,39 @@ async def stream_reasoning_events(
     # Stream the runnable AS-IS — no reasoning injection. Reasoning is enabled
     # (or not) by the factory per the admin config; here we only surface what the
     # model already emits.
-    async for event in runnable.astream_events(payload, **astream_kwargs):
-        delta = extract_reasoning_delta(event)
-        if delta:
-            coalescer.feed(delta)
+    began = False
+    try:
+        async for event in runnable.astream_events(payload, **astream_kwargs):
+            delta = extract_reasoning_delta(event)
+            if delta:
+                coalescer.feed(delta)
 
-        event_type = event.get("event")
-        if event_type not in ("on_chain_end", "on_chat_model_end"):
-            continue
+            event_type = event.get("event")
+            began = began or event_type == "on_chat_model_stream"
+            if event_type not in ("on_chain_end", "on_chat_model_end"):
+                continue
 
-        output = event.get("data", {}).get("output")
-        # Primary: the root runnable's terminal event (``parent_ids == []``).
-        # ``parent_ids`` is a v2 guarantee ("Root Events will have an empty list").
-        parent_ids = event.get("parent_ids")
-        if parent_ids is not None and len(parent_ids) == 0:
-            root_output = output
-            saw_root_output = True
+            output = event.get("data", {}).get("output")
+            # Primary: the root runnable's terminal event (``parent_ids == []``).
+            # ``parent_ids`` is a v2 guarantee ("Root Events will have an empty list").
+            parent_ids = event.get("parent_ids")
+            if parent_ids is not None and len(parent_ids) == 0:
+                root_output = output
+                saw_root_output = True
 
-        # Fallback bookkeeping (only used if no root event is ever seen): prefer a
-        # chain end (structured output) over a chat-model end (raw aggregated msg).
-        if event_type == "on_chain_end":
-            fallback_output = output
-            saw_fallback_chain_end = True
-        elif event_type == "on_chat_model_end" and not saw_fallback_chain_end:
-            fallback_output = output
+            # Fallback bookkeeping (only used if no root event is ever seen): prefer a
+            # chain end (structured output) over a chat-model end (raw aggregated msg).
+            if event_type == "on_chain_end":
+                fallback_output = output
+                saw_fallback_chain_end = True
+            elif event_type == "on_chat_model_end" and not saw_fallback_chain_end:
+                fallback_output = output
+    except Exception as exc:
+        # Never a stream after its first byte (Q3 (a)): the caller's relaunch gate
+        # reads this note, whatever the failure's type says.
+        if began:
+            exc.add_note(STREAM_BEGAN_NOTE)
+        raise
 
     coalescer.close()
     return root_output if saw_root_output else fallback_output

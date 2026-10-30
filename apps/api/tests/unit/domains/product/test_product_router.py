@@ -146,6 +146,45 @@ def test_search_and_vitals_hit_bounded_families(client: TestClient) -> None:
     assert _StubRepo.events == []  # search/vitals never touch the database
 
 
+def test_journey_timings_hit_their_own_family(client: TestClient) -> None:
+    """Spec 2026-10-21 O2: four client durations, seconds, no content, their own histogram."""
+    from src.infrastructure.observability.metrics_product import product_client_timing_seconds
+
+    names = ("chat_first_token", "dashboard_first_card", "dashboard_all_cards", "dashboard_text")
+    before = {
+        name: product_client_timing_seconds.labels(metric=name, device_class="unknown")._sum.get()
+        for name in names
+    }
+
+    resp = client.post(
+        "/product/events",
+        json={"events": [{"kind": "timing", "metric": name, "value": 1.5} for name in names]},
+    )
+
+    assert resp.status_code == 202
+    assert resp.json() == {"accepted": 4, "dropped": 0}
+    for name in names:
+        assert product_client_timing_seconds.labels(
+            metric=name, device_class="unknown"
+        )._sum.get() == pytest.approx(before[name] + 1.5)
+    assert _StubRepo.events == []
+
+
+def test_a_name_from_the_other_vocabulary_is_dropped(client: TestClient) -> None:
+    """A timing name is no Web Vital, and a Web Vital no timing: each kind reads its own."""
+    resp = client.post(
+        "/product/events",
+        json={
+            "events": [
+                {"kind": "vital", "metric": "chat_first_token", "value": 1.0},
+                {"kind": "timing", "metric": "lcp", "value": 1.0},
+            ]
+        },
+    )
+    assert resp.status_code == 202
+    assert resp.json() == {"accepted": 0, "dropped": 2}
+
+
 @pytest.mark.parametrize(
     "bad_item",
     [
@@ -153,6 +192,8 @@ def test_search_and_vitals_hit_bounded_families(client: TestClient) -> None:
         {"kind": "search", "surface": "cli", "outcome": "results"},
         {"kind": "vital", "metric": "fid", "value": 1.0},
         {"kind": "vital", "metric": "lcp", "value": 999.0},
+        {"kind": "timing", "metric": "page_rendered", "value": 1.0},
+        {"kind": "timing", "metric": "chat_first_token", "value": 999.0},
     ],
 )
 def test_out_of_vocabulary_rejected(client: TestClient, bad_item: dict) -> None:

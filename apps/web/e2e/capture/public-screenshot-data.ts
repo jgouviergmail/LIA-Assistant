@@ -583,9 +583,17 @@ export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
         context_threshold: 100000,
       },
     },
-    { url: '**/api/v1/briefing/cards', json: { windows: briefingWindowsMock, cards } },
+    { url: '**/api/v1/briefing/cards/initial', json: {
+      windows: briefingWindowsMock,
+      cards,
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
+    } },
     {
-      url: '**/api/v1/briefing/synthesis',
+      url: '**/api/v1/briefing/text',
+      method: 'POST',
       json: {
         greeting: {
           text: 'Good morning, Alex. A clear plan and a little room to breathe.',
@@ -597,6 +605,8 @@ export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
           generated_at: CAPTURE_TIME,
           usage: null,
         },
+        reused: false,
+        state: 'ready',
       },
     },
     {

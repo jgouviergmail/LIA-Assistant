@@ -1,4 +1,9 @@
-"""Request catalogue oracles using the real pool, adapters and manifest factories."""
+"""Request catalogue oracles using the real pool, adapters and manifest factories.
+
+The harness keeps what a turn publishes in its rows, and runs the REAL background
+revalidation when a turn scheduled one (spec 2026-10-21 §5.4): an aged catalogue is
+served, then refreshed for the next turn (Q1).
+"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -20,8 +25,11 @@ from src.domains.agents.registry.agent_registry import AgentRegistry
 from src.domains.agents.services.analysis.domain_availability import build_available_domains
 from src.domains.agents.services.tool_embeddings_envelope import wrap_server_cache
 from src.domains.user_mcp.models import UserMCPServer
+from src.infrastructure.mcp.catalogue_revalidation import revalidate_catalogue
+from src.infrastructure.mcp.catalogue_snapshot import CatalogueSnapshot, snapshot_to_jsonb
 from src.infrastructure.mcp.user_context import cleanup_user_mcp_tools, setup_user_mcp_tools
-from src.infrastructure.mcp.user_pool import UserMCPClientPool
+from src.infrastructure.mcp.user_pool import DiscoveredCatalogue, UserMCPClientPool
+from tests.helpers.redis_double import InMemoryRedis
 
 
 def _tool(name: str, description: str = "Search current records") -> dict[str, JsonValue]:
@@ -55,6 +63,7 @@ class RoutingHarness:
     clock: list[float] = field(default_factory=lambda: [1000.0])
     queried_accounts: list[UUID] = field(default_factory=list)
     compute_embeddings: AsyncMock = field(default_factory=lambda: AsyncMock(return_value={}))
+    scheduled: list[tuple[UUID, UUID]] = field(default_factory=list)
 
     def server(
         self,
@@ -77,11 +86,35 @@ class RoutingHarness:
             hitl_required=False,
             iterative_mode=iterative,
             domain_description=description,
-            tool_embeddings_cache=wrap_server_cache({}, tool_metadata=tools),
+            # Vectors already in place for every tool: no embedding work on the turn.
+            tool_embeddings_cache=wrap_server_cache(
+                {str(tool["name"]): {"description": [0.1, 0.2]} for tool in tools},
+                tool_metadata=tools,
+                server_name=name,
+            ),
         )
         self.servers.append(server)
         self.discoveries[server.url] = tools
         return server
+
+    async def revalidate(self) -> None:
+        """Run, for real, every revalidation the turns scheduled."""
+        scheduled, self.scheduled = self.scheduled, []
+        for user_id, server_id in scheduled:
+            assert await revalidate_catalogue(user_id, server_id) == "published"
+
+    async def publish(
+        self,
+        *,
+        user_id: UUID,
+        server_id: UUID,
+        snapshot: CatalogueSnapshot,
+        tool_embeddings: object,
+    ) -> str:
+        for server in self.servers:
+            if server.id == server_id:
+                server.discovered_tools_cache = snapshot_to_jsonb(snapshot)
+        return "published"
 
     async def context(self) -> UserMCPToolsContext:
         token = await setup_user_mcp_tools(self.account_id)
@@ -104,11 +137,11 @@ def routing(monkeypatch: pytest.MonkeyPatch) -> RoutingHarness:
         timeout_seconds: int,
         *,
         extra_headers: dict[str, str] | None = None,
-    ) -> tuple[list[dict[str, JsonValue]], None]:
+    ) -> DiscoveredCatalogue:
         result = harness.discoveries[url]
         if isinstance(result, Exception):
             raise result
-        return result, None
+        return DiscoveredCatalogue(tools=result)
 
     async def not_cooling(key: tuple[UUID, UUID]) -> None:
         pass
@@ -120,6 +153,9 @@ def routing(monkeypatch: pytest.MonkeyPatch) -> RoutingHarness:
         async def get_enabled_active_for_user(self, account_id: UUID) -> list[UserMCPServer]:
             harness.queried_accounts.append(account_id)
             return list(harness.servers)
+
+        async def get_by_id(self, server_id: UUID) -> UserMCPServer | None:
+            return next((s for s in harness.servers if s.id == server_id), None)
 
         async def get_tool_embeddings_cache(self, server_id: UUID) -> dict[str, object] | None:
             # The envelope is read alone (ADR-283 amendment): the fake mirrors
@@ -136,6 +172,25 @@ def routing(monkeypatch: pytest.MonkeyPatch) -> RoutingHarness:
     monkeypatch.setattr(settings, "mcp_user_enabled", True)
     monkeypatch.setattr(settings, "mcp_react_enabled", True)
     monkeypatch.setattr(settings, "mcp_user_pool_ttl_seconds", 60)
+    monkeypatch.setattr(settings, "mcp_user_catalogue_revalidate_after_seconds", 60)
+    for module in ("user_preparation", "catalogue_revalidation"):
+        monkeypatch.setattr(
+            f"src.infrastructure.mcp.{module}.publish_catalogue_if_current", harness.publish
+        )
+    monkeypatch.setattr(
+        "src.infrastructure.mcp.user_preparation.schedule_catalogue_revalidation",
+        lambda user_id, server_id: harness.scheduled.append((user_id, server_id)),
+    )
+    monkeypatch.setattr(
+        "src.infrastructure.mcp.catalogue_revalidation.get_user_mcp_pool", lambda: pool
+    )
+    monkeypatch.setattr(
+        "src.infrastructure.mcp.catalogue_revalidation.get_redis_cache",
+        AsyncMock(return_value=InMemoryRedis()),
+    )
+    failures = AsyncMock()
+    failures.remaining = AsyncMock(return_value=0.0)
+    monkeypatch.setattr(pool, "_failures", failures)
     monkeypatch.setattr(pool, "_discover_tools", discover)
     monkeypatch.setattr(pool, "_raise_if_cooling", not_cooling)
     monkeypatch.setattr("src.infrastructure.mcp.user_pool.time.monotonic", lambda: harness.clock[0])
@@ -216,6 +271,11 @@ async def test_fresh_capabilities_survive_stored_description_and_schema_refresh(
     assert "search_v1" in before.server_descriptions[server.name]
     routing.clock[0] += 61
     routing.discoveries[server.url] = [_tool("reconcile_v2", "Reconcile current invoices")]
+    served = await routing.context()
+    # Q1: the aged catalogue serves this turn and is revalidated in the background.
+    assert "search_v1" in served.server_descriptions[server.name]
+    assert routing.scheduled == [(routing.account_id, server.id)]
+    await routing.revalidate()
     after = await routing.context()
     assert server.domain_description == custom
     assert after.server_descriptions[server.name].startswith(custom)
@@ -250,6 +310,9 @@ async def test_schema_only_refresh_updates_manifest_and_fingerprint(
     }
     routing.discoveries[server.url] = [changed]
     routing.clock[0] += 61
+    served = await routing.context()
+    assert served.tool_manifests[0].parameters[0].semantic_type == "email_address"
+    await routing.revalidate()
     after = await routing.context()
     assert before.tool_manifests[0].parameters[0].semantic_type == "email_address"
     assert after.tool_manifests[0].parameters[0].semantic_type == "Date"

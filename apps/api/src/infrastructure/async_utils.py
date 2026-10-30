@@ -24,7 +24,7 @@ Example:
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Collection, Coroutine, Sequence
 from typing import Any, Final
 
 from src.infrastructure.observability.logging import get_logger
@@ -350,3 +350,26 @@ async def write_through_cancellation(
         # A failure still reaches a caller that has not been stopped.
         task.result()
     return cancelled
+
+
+def settled_or_raise(results: Sequence[object], *, quiet: Collection[int] = ()) -> list[Any]:
+    """The answers of a ``gather(..., return_exceptions=True)``, the first failure raised.
+
+    Every sibling settled before this reads them: a fail-fast ``gather`` raised at the
+    first failure and left the others running past the act that owned them — their spend
+    appended to an exited tracker, their client closed under them (briefing review B3).
+
+    Args:
+        results: What the gather returned, in its order.
+        quiet: Positions whose failure stands for « nothing » (``None``) instead of raising.
+
+    Returns:
+        The answers, a quiet failure read as ``None``.
+
+    Raises:
+        BaseException: The first failure outside ``quiet``, as it was raised.
+    """
+    for position, result in enumerate(results):
+        if isinstance(result, BaseException) and position not in quiet:
+            raise result
+    return [None if isinstance(result, BaseException) else result for result in results]

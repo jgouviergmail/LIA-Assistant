@@ -264,6 +264,72 @@ async def test_the_retry_wrapper_leaves_a_failed_call_to_a_client_that_retries_b
     assert isinstance(caught.value.__cause__, anthropic.InternalServerError)
 
 
+async def test_the_retry_wrapper_never_relaunches_a_call_its_client_was_told_not_to(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``LLM_TRANSIENT_RETRY_MAX=0`` means no relaunch at all, not the door's three (Q3)."""
+    calls: list[httpx.Request] = []
+
+    def overloaded(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            503, json={"type": "error", "error": {"type": "overloaded_error", "message": "x"}}
+        )
+
+    monkeypatch.setattr(structured_output, "enforce_usage_limit", AsyncMock())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(overloaded)) as http:
+        llm = ChatAnthropic(
+            model="claude-opus-5-5", anthropic_api_key=SecretStr("test"), max_retries=0
+        )
+        async with anthropic.AsyncAnthropic(
+            api_key="test", http_client=http, max_retries=0, timeout=30.0
+        ) as sdk:
+            monkeypatch.setitem(llm.__dict__, "_async_client", sdk)
+            with pytest.raises(StructuredOutputCallError):
+                await get_structured_output_with_retry(
+                    llm=llm, messages=[], schema=_Verdict, provider="anthropic", max_retries=3
+                )
+
+    assert len(calls) == 1
+
+
+def _client_without_retries(*outcomes: BaseException | BaseMessage) -> MagicMock:
+    """A chat client with no retry loop of its own (the Ollama shape: no ``max_retries``)."""
+    llm = MagicMock(spec=["ainvoke"])
+    llm.ainvoke = AsyncMock(side_effect=list(outcomes))
+    return llm
+
+
+async def _door(llm: MagicMock) -> _Verdict:
+    with patch.object(structured_output, "enforce_usage_limit", AsyncMock()):
+        with patch.object(structured_output, "settings") as patched:
+            patched.provider_supports_structured_output = {"ollama": False}
+            return await get_structured_output_with_retry(
+                llm=llm, messages=[HumanMessage(content="hi")], schema=_Verdict, provider="ollama"
+            )
+
+
+async def test_the_retry_wrapper_never_relaunches_a_call_that_may_have_run() -> None:
+    """A timeout's outcome is unknown: sending it again may buy the generation twice (Q3)."""
+    llm = _client_without_retries(TimeoutError("slow"), AIMessage(content='{"answer": "x"}'))
+
+    with pytest.raises(StructuredOutputCallError):
+        await _door(llm)
+
+    assert llm.ainvoke.call_count == 1
+
+
+async def test_the_retry_wrapper_relaunches_a_call_that_never_left() -> None:
+    """A refused connection reached no provider: the one loop it has may send it again."""
+    refused = httpx.ConnectError("refused", request=_REQUEST)
+    llm = _client_without_retries(refused, AIMessage(content='{"answer": "x"}'))
+
+    result = await _door(llm)
+
+    assert result.answer == "x"
+    assert llm.ainvoke.call_count == 2
+
+
 async def test_the_retry_wrapper_still_retries_a_genuine_miss() -> None:
     """An unusable ANSWER is the wrapper's to retry, whatever the client's own policy."""
     answers: list[BaseMessage] = [

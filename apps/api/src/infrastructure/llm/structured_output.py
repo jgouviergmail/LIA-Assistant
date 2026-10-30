@@ -60,7 +60,7 @@ from pydantic import BaseModel, ValidationError
 from src.core.claude_surface import claude_surface, requests_thinking
 from src.core.config import settings
 from src.core.constants import CAPABILITY_PROVENANCE_VERIFIED
-from src.infrastructure.llm.client_retries import client_retries_by_itself
+from src.infrastructure.llm.client_retries import caller_may_relaunch, may_send_in_another_form
 from src.infrastructure.llm.invoke_helpers import (
     enrich_config_preserving_callbacks,
     enrich_config_with_node_metadata,
@@ -566,10 +566,11 @@ async def _structured_via_auto_tool[T: BaseModel](
             error=str(exc),
             error_type=type(exc).__name__,
         )
-        if last_door:
-            # No other door follows: the call's own failure is the answer. Returned
-            # as « nothing usable », a 503 read as « produced no valid tool call »,
-            # lost its cause and was counted the model's rejection (2026-10-22).
+        if last_door or not may_send_in_another_form(llm, exc):
+            # No other door follows, or the next one would be a second generation
+            # (Q3 (a)): the call's own failure is the answer. Returned as « nothing
+            # usable », a 503 read as « produced no valid tool call », lost its cause
+            # and was counted the model's rejection (2026-10-22).
             failure = call_failure(exc, provider, schema_name, "Auto-tool structured output")
             _count_outcome(provider, schema_name, "call_failed")
             raise failure from exc
@@ -1129,9 +1130,11 @@ async def get_structured_output_with_retry[T: BaseModel](
 
     Useful for production environments where LLM API calls may occasionally fail
     due to network issues, rate limits, or temporary service outages. A failed
-    CALL is left to a client that retries by itself (``client_retries_by_itself``):
-    the vendor SDK already spent its attempts on it. An unusable answer, or a call
-    on a client without retries of its own, is retried here.
+    CALL is sent again here only when ``caller_may_relaunch`` says so: never on a
+    client that owns its retries (the vendor SDK already spent the budget the
+    relaunch policy gave it, zero included), and never once the request may have
+    reached the provider — a timeout's generation may be running and billed (Q3).
+    An unusable ANSWER is retried here whatever the client.
 
     Args:
         llm: LangChain BaseChatModel instance
@@ -1174,10 +1177,11 @@ async def get_structured_output_with_retry[T: BaseModel](
             # refused budget or complete a cut answer (ADR-275).
             raise
         except StructuredOutputError as e:
-            if isinstance(e, StructuredOutputCallError) and client_retries_by_itself(llm):
-                # Its client already retried this very failure (the vendor SDK: with
-                # backoff and the provider's Retry-After); a second loop multiplied
-                # its attempts, nine requests for one 503 (2026-10-22, ADR-100).
+            if isinstance(e, StructuredOutputCallError) and not caller_may_relaunch(
+                llm, e, attempt - 1
+            ):
+                # Its client already retried this very failure (nine requests for one
+                # 503, 2026-10-22, ADR-100), or the call may have run (Q3, ADR-221).
                 raise
             last_error = e
             if attempt == max_retries:

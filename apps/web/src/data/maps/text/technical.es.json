@@ -246,9 +246,9 @@
     },
     "t.mcp": {
       "name": "Cliente MCP",
-      "role": "Un pool de clientes por persona, esquemas del estándar y las mismas guardas que las herramientas nativas; fuente y método acompañan todas las formas de salida. Redis comparte las pausas declaradas por los servidores.",
+      "role": "Un pool de clientes por persona, esquemas del estándar y las mismas guardas que las herramientas nativas; fuente y método acompañan todas las formas de salida. El catálogo de un servidor personal es una instantánea servida mientras se revalida y verificada en la llamada; Redis comparte las pausas declaradas por los servidores.",
       "stack": ["Model Context Protocol", "Dos revisiones del protocolo", "OAuth por emisor"],
-      "src": "7d42a9fb7ca7"
+      "src": "26f19930dc70"
     },
     "t.skills": {
       "name": "Habilidades y plugins",

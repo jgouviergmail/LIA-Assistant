@@ -121,29 +121,16 @@ You can also ask in the chat:
 **💡 Good to know:** in every mode, copying a message gives you clean readable text — HTML answers are flattened automatically, and paste as rich text where the target supports it.
 
 ## Which languages are supported for voice transcription?
-LIA's voice mode supports **99+ languages** thanks to Whisper:
+LIA transcribes your dictation in **your account's language**, one of the six languages of the interface: French, English, German, Spanish, Italian or Chinese.
 
-**🌍 Main languages:**
-• 🇫🇷 French
-• 🇬🇧 English
-• 🇩🇪 German
-• 🇪🇸 Spanish
-• 🇮🇹 Italian
-• 🇨🇳 Chinese (Mandarin)
-• 🇯🇵 Japanese
-• 🇰🇷 Korean
-• 🇵🇹 Portuguese
-• 🇷🇺 Russian
-• And 89 more languages!
-
-**🔄 Automatic detection:**
-You don't need to configure the language. LIA automatically detects which language you're speaking.
+**🔤 Choosing the language:**
+It comes from your account (Settings › Preferences). To dictate in another of these languages, change it there: LIA does not guess the language you speak.
 
 **🎯 The wake word:**
-"Dis LIA" exists in French for now, in beta: its recognition is still improving. The other interface languages do not have their phrase yet — tapping the badge and the long press work everywhere. Once recording starts, speak in any language.
+"Dis LIA" exists in French for now, in beta: its recognition is still improving. The other interface languages do not have their phrase yet — tapping the badge and the long press work everywhere.
 
-**💰 100% free:**
-Transcription uses Whisper locally on the server, with no external API costs.
+**💰 Local by default:**
+By default, transcription runs on your server with Whisper, at no API cost. If you choose the remote engine in your voice settings, it is the one your administrator configured, and its cost is counted in your usage.
 
 ## Voice mode isn't working, what should I do?
 Here are **solutions to common voice mode issues**:

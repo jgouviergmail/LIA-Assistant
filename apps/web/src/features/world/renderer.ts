@@ -12,6 +12,7 @@ import { paintStars } from './art/stars';
 import { SpeechPainter } from './art/speech';
 import type { WorldSpeech } from './speech';
 import { SpriteCache, freeSprite } from './art/sprite-cache';
+import { paintPathVerge } from './art/terrain-edge';
 import { appearanceSignature } from './avatar-catalogue';
 import { avatarLabelOffset } from './art/person-accessories';
 import { isSheltered } from './shelter';
@@ -231,7 +232,7 @@ export class WorldRenderer {
     return preparePhotoAsset(this.lia?.prepareImage(), signal);
   }
   setAtmosphere(value: Atmosphere): void {
-    if (nightStrength(value.phase) !== nightStrength(this.atmosphere.phase)) {
+    if (value.phase !== this.atmosphere.phase) {
       for (const [key, sprite] of this.sprites) {
         if (!key.includes(':night:')) continue;
         freeSprite(sprite);
@@ -264,7 +265,7 @@ export class WorldRenderer {
       prop.kind === 'weightbench' && presentation.press !== undefined ? LIFTING : presentation;
     const key =
       this.propKey(prop, mask) +
-      (strength ? ':night:' + strength : '') +
+      (strength ? ':night:' + this.atmosphere.phase + ':' + strength : '') +
       ':' +
       (decor === NO_DECOR ? NO_DECOR_SIGNATURE : decorSignature(decor));
     const paint = () =>
@@ -277,7 +278,8 @@ export class WorldRenderer {
           reaction,
           decor
         ),
-        strength
+        strength,
+        this.atmosphere.phase
       );
     return reaction || Object.keys(decor).length
       ? this.reactiveSprites.get(key + ':reaction:' + reaction, paint)
@@ -345,6 +347,8 @@ export class WorldRenderer {
           ? this.floorTile('grass', floorVariant('grass', cx + x, cy + y))
           : undefined;
         paintFloorCell(ctx, tile, { x: p.x + anchorX, y: p.y + anchorY }, edge, grass);
+        if (kind === 'path')
+          paintPathVerge(ctx, this.world, cx + x, cy + y, { x: p.x + anchorX, y: p.y + anchorY });
       }
     const result = {
       x: cx,
@@ -454,7 +458,7 @@ export class WorldRenderer {
     if (strength) {
       c.save();
       c.globalCompositeOperation = 'source-atop';
-      c.fillStyle = nightColour(strength);
+      c.fillStyle = nightColour(strength, this.atmosphere.phase);
       c.fillRect(p.x - 80, p.y - 112, 160, 160);
       c.restore();
     }
@@ -580,8 +584,15 @@ export class WorldRenderer {
     // The bar is rigid and the projection linear: one sprite per bench and light,
     // moved along its lift, never one sprite per quantised press position.
     const sprite = this.asset(
-      'held:' + this.propKey(prop) + (strength ? ':night:' + strength : ''),
-      () => shadeSprite(paintHeldBarbell(prop, this.quality === 'high' ? 2 : 1.5), strength)
+      'held:' +
+        this.propKey(prop) +
+        (strength ? ':night:' + this.atmosphere.phase + ':' + strength : ''),
+      () =>
+        shadeSprite(
+          paintHeldBarbell(prop, this.quality === 'high' ? 2 : 1.5),
+          strength,
+          this.atmosphere.phase
+        )
     );
     const at = project(prop);
     const lift = heldBarbellOffset(prop, decor);
@@ -643,10 +654,16 @@ export class WorldRenderer {
     return null;
   }
   private pickProp(pixel: Point): SceneTarget | null {
-    const candidates = sortProps([
-      ...this.propIndex.query({ x: pixel.x, y: pixel.y, width: 1, height: 1 }),
-      ...(this.cosmetics.cat ? [this.cosmetics.cat] : []),
-    ]);
+    // The index retains the complete scene order, including wall dependencies
+    // outside this pixel's candidates. Insert the moving cat as render() does.
+    const candidates = this.propIndex.query({ x: pixel.x, y: pixel.y, width: 1, height: 1 }),
+      cat = this.cosmetics.cat;
+    if (cat) {
+      const index = candidates.findIndex(
+        prop => cat.x + cat.y + cat.width + cat.depth <= prop.x + prop.y + prop.width + prop.depth
+      );
+      candidates.splice(index < 0 ? candidates.length : index, 0, cat);
+    }
     for (let index = candidates.length - 1; index >= 0; index--) {
       const prop = candidates[index];
       if (hasPickSurface(prop) && this.hitsProp(prop, pixel))

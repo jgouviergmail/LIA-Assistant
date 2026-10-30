@@ -1066,7 +1066,9 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Automatic fallback to alternative providers on errors (rate limits, outages)
 
-    # NOTE: ModelFallbackMiddleware is always enabled (automatic provider failover)
+    # NOTE: the failover chain is mounted only when the caller of
+    # create_agent_middleware_stack passes the agent's primary model, and no caller
+    # does (verified 2026-10-29): it is not active — ADR-221 amendment.
 
     fallback_models: str = Field(
         default=FALLBACK_MODELS_DEFAULT,
@@ -1483,7 +1485,10 @@ class AgentsSettings(BaseSettings):
         default=COMPACTION_MAX_RETRIES_DEFAULT,
         ge=1,
         le=10,
-        description="Tenacity attempts per chunk on transient errors.",
+        description=(
+            "Tenacity attempts per chunk; a relaunch only for a call that never "
+            "reached the provider (caller_may_relaunch)."
+        ),
     )
     compaction_retry_backoff_base_seconds: float = Field(
         default=COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,

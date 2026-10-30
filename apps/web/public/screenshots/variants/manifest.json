@@ -1,0 +1,150 @@
+{
+  "generator": "apps/web/scripts/build-capture-variants.mjs",
+  "widths": [256, 640, 1024, 1600],
+  "webp": {
+    "quality": 82,
+    "effort": 6
+  },
+  "sources": {
+    "dashboard-wide": {
+      "original": "/screenshots/dashboard-wide.png",
+      "sha256": "380319fcf7f9191cbd796408383a5c859d146eed4b04d45c754167d51eeca1e7"
+    },
+    "lia-world": {
+      "original": "/screenshots/proof/lia-world.jpg",
+      "sha256": "f5d7ac542d8135c9a81baca445787246fe4f568b5abfbe8f9e34702067f2bab6"
+    },
+    "dossier": {
+      "original": "/screenshots/proof/dossier.png",
+      "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82"
+    },
+    "relations": {
+      "original": "/screenshots/proof/relations.png",
+      "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1"
+    },
+    "radio": {
+      "original": "/screenshots/proof/radio.png",
+      "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b"
+    },
+    "places": {
+      "original": "/screenshots/proof/places.png",
+      "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4"
+    },
+    "maps": {
+      "original": "/screenshots/proof/maps.png",
+      "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662"
+    },
+    "routes": {
+      "original": "/screenshots/proof/routes.png",
+      "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a"
+    },
+    "memory-library": {
+      "original": "/screenshots/proof/memory-library.png",
+      "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7"
+    },
+    "memory": {
+      "original": "/screenshots/proof/memory.png",
+      "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba"
+    },
+    "portrait": {
+      "original": "/screenshots/proof/portrait.png",
+      "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516"
+    },
+    "avatar-picker": {
+      "original": "/screenshots/proof/avatar-picker.png",
+      "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab"
+    },
+    "psyche": {
+      "original": "/screenshots/proof/psyche.png",
+      "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533"
+    },
+    "psyche-evolution": {
+      "original": "/screenshots/proof/psyche-evolution.png",
+      "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77"
+    },
+    "journal": {
+      "original": "/screenshots/proof/journal.png",
+      "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901"
+    },
+    "routine-studio": {
+      "original": "/screenshots/proof/routine-studio.png",
+      "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de"
+    },
+    "routine-week": {
+      "original": "/screenshots/proof/routine-week.png",
+      "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce"
+    },
+    "workboard": {
+      "original": "/screenshots/proof/workboard.png",
+      "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d"
+    },
+    "workboard-dossier": {
+      "original": "/screenshots/proof/workboard-dossier.png",
+      "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce"
+    },
+    "knowledge-library": {
+      "original": "/screenshots/proof/knowledge-library.png",
+      "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a"
+    },
+    "knowledge": {
+      "original": "/screenshots/proof/knowledge.png",
+      "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1"
+    },
+    "meetings-list": {
+      "original": "/screenshots/proof/meetings-list.png",
+      "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf"
+    },
+    "meetings": {
+      "original": "/screenshots/proof/meetings.png",
+      "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a"
+    },
+    "meeting-transcript": {
+      "original": "/screenshots/proof/meeting-transcript.png",
+      "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2"
+    },
+    "meeting-templates": {
+      "original": "/screenshots/proof/meeting-templates.png",
+      "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b"
+    },
+    "approval": {
+      "original": "/screenshots/proof/approval.png",
+      "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d"
+    },
+    "connections": {
+      "original": "/screenshots/proof/connections.png",
+      "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b"
+    },
+    "skills-library": {
+      "original": "/screenshots/proof/skills-library.png",
+      "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e"
+    },
+    "skill": {
+      "original": "/screenshots/proof/skill.png",
+      "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839"
+    },
+    "model-routing": {
+      "original": "/screenshots/proof/model-routing.png",
+      "sha256": "3c84e2293878d650a25ce9112d00c52957df8a99213db2b493ef51f5a4cc9241"
+    },
+    "consumption": {
+      "original": "/screenshots/proof/consumption.png",
+      "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2"
+    },
+    "administration": {
+      "original": "/screenshots/proof/administration.png",
+      "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4"
+    },
+    "grafana-overview": {
+      "original": "/screenshots/proof/grafana-overview.png",
+      "sha256": "1adecad4734d18dfa4891f3d97d82ac88396c8565e32ea952d8953a1ed82572c"
+    },
+    "grafana-costs": {
+      "original": "/screenshots/proof/grafana-costs.png",
+      "sha256": "cbcf2fde1e15461dd9b7cb6a1f07f1c695e745a3eac9cd0abbd7e431bea78468"
+    },
+    "grafana-activity": {
+      "original": "/screenshots/proof/grafana-activity.png",
+      "sha256": "a45cb0b3f6e167e0a06744b6454062782e83cecc83fe01836b74f4bf043f2260"
+    }
+  }
+}

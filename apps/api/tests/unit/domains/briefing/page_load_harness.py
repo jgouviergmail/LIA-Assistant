@@ -49,8 +49,11 @@ from src.domains.briefing.schemas import (
     WeatherData,
     WorkboardData,
 )
+from src.domains.briefing.section_outcomes import BUMP_GENERATION_SCRIPT, FENCED_WRITE_SCRIPT
 from src.domains.briefing.service import BriefingService
 from src.domains.connectors.birthdays import BirthdayItem
+from src.infrastructure.locks.redis_claim import REFRESH_SCRIPT
+from tests.helpers.briefing_cache_double import briefing_eval
 
 #: Every section the service builds, in the order it gathers them.
 SECTION_NAMES: tuple[str, ...] = (
@@ -138,15 +141,35 @@ class FakeRedis:
         self._store[key] = (value, self._clock.now + (ex if ex else 10**9))
         return True
 
-    async def eval(self, script: str, numkeys: int, *args: str) -> int:
-        """Compare-and-delete, as the claim's release uses it."""
+    async def eval(self, script: str, numkeys: int, *args: Any) -> Any:
+        """The four scripts the briefing runs, each with its real semantics.
+
+        The fenced section write and the generation bump (``section_outcomes``),
+        the claim's renewal and its compare-and-delete release (``redis_claim``).
+        """
         self.ops["eval"] += 1
+        if script in (FENCED_WRITE_SCRIPT, BUMP_GENERATION_SCRIPT):
+            return await briefing_eval(self, script, *args)
         key, token = args[0], args[1]
         entry = self._store.get(key)
-        if entry is not None and entry[0] == token:
+        owned = entry is not None and entry[0] == token
+        if script == REFRESH_SCRIPT:
+            if owned:
+                self._store[key] = (token, self._clock.now + int(args[2]))
+            return int(owned)
+        if owned:
             del self._store[key]
-            return 1
-        return 0
+        return int(owned)
+
+    async def delete(self, *keys: str) -> int:
+        """Drop keys, returning how many existed."""
+        self.ops["delete"] += 1
+        removed = 0
+        for key in keys:
+            if await self.get(key) is not None:
+                del self._store[key]
+                removed += 1
+        return removed
 
     def keys(self) -> list[str]:
         """Every live key, for assertions about what was cached."""
@@ -282,7 +305,7 @@ class Rig:
         with ExitStack() as stack:
             stack.enter_context(
                 patch(
-                    "src.domains.briefing.service.get_redis_cache",
+                    "src.domains.briefing.section_outcomes.get_redis_cache",
                     AsyncMock(return_value=self.redis),
                 )
             )

@@ -1917,6 +1917,11 @@
       "title": "LIA privato in un mondo isometrico condiviso",
       "summary": "Il browser disegna il mondo mentre Redis gestisce accesso e movimenti; le azioni conservano interfacce e approvazioni native. Nome dell'account e aspetto sono condivisi con consenso, attività e casa restano private e i contatti vedono solo uno stato di connessione generale. I messaggi restano tra i destinatari e le traduzioni autorizzate sono limitate e contabilizzate.",
       "src": "53942019983c"
+    },
+    "366": {
+      "title": "Il catalogo di un server MCP personale, servito senza attese",
+      "summary": "Ciò che un server MCP personale offre viene conservato sull'account e servito di nuovo da un messaggio all'altro, su qualsiasi processo, mentre uno solo lo ricontrolla in background. I server si preparano in parallelo; uno troppo lento viene escluso da quel messaggio, nominato in un avviso, e pronto per il successivo. Quando la copia conservata non è più fresca, LIA verifica prima della chiamata che lo strumento sia ancora offerto nella stessa forma, altrimenti si rifiuta di inviarla.",
+      "src": "b3d470a00714"
     }
   }
 }

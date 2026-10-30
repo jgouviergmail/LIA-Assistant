@@ -118,6 +118,12 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Google where to send change notices; it fetches no content, and the "
         "read those notices trigger is recorded by whoever performs it."
     ),
+    "domains/rag_spaces/drive_changes.py": (
+        "Imports the changes feed's timeout factory and the connector loop's request "
+        "bound for its boot guard (``assert_drain_fits_a_wake``, 2026-10-29); it calls "
+        "no client — the feed is read through the client its caller hands it, by "
+        "``drive_push``, which records the read."
+    ),
     "domains/rag_spaces/mail_render.py": (
         "Borrows two STATIC parsers from the Gmail client to turn a thread "
         "resource it was handed into a document. Its own docstring says it: "

@@ -105,14 +105,15 @@ Yes, in four ways:
 
 • **The quick actions** — write a message, follow a commitment — prepare the
   request in the composer; nothing is sent without you.
-• **The address book's actions** — one button per email (**Email …**), postal
-  address (**Directions to …**) and, while your telephony connector is active,
-  number (**LIA call …**), one column per kind, every button of a column as wide
-  as its widest — prepare the request too: you add the subject or the purpose.
-  A call is offered on a number only; there is no longer a call button that
-  leaves LIA to find the number. On the contact card itself, an email opens your
-  mail app, a number places a real call from your device and an address opens in
-  Google Maps.
+• **The address book's actions** — **Email**, **Directions** and, while your
+  telephony connector is active, **Call**, one button per kind in the same bar
+  as the quick actions, right under the person's name and above the debrief. A
+  single value acts directly (it shows on hover); several open a menu listing
+  each with its address-book label (home, work…). They prepare the request too:
+  you add the subject or the purpose. A call is offered on a number only; there
+  is no call button that leaves LIA to find the number. On the contact card
+  itself, an email opens your mail app, a number places a real call from your
+  device and an address opens in Google Maps.
 • **A memory** shown on the card is a link into the long-term memory section,
   where you can correct or delete it. The link leads to the section, not to the
   row: the list is paginated and filterable, so promising to land on that exact
@@ -121,8 +122,10 @@ Yes, in four ways:
   email, an excerpt of at most four lines shows the preview your mailbox
   provides.
 
-On a phone, every action button of the card takes the full width of the
-screen, its label on the left.
+The bar has two shapes and no third: on a sheet wide enough for its widest
+label in any of the six languages, one row of equal-width buttons; below that —
+on a phone — one list, every button the full width of the screen, its label on
+the left.
 
 Sent and received items each carry their own colour, on relayed messages as on
 emails — the direction used to be told apart by a small arrow alone.

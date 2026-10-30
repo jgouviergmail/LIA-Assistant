@@ -73,6 +73,90 @@ export const relationTimelinePage = {
 };
 
 /**
+ * What `/relations/{name}/context` answers for Gérard: the address-book entry,
+ * the mail and the meetings. Exported so a spec can derive a variant (another
+ * value on the card) without restating the whole payload.
+ */
+export const relationContextPayload = {
+  contact: {
+    status: 'ok',
+    from_cache: false,
+    generated_at: '2026-07-30T09:00:00Z',
+    contact: {
+      display_name: 'Gérard Dupont',
+      nickname: null,
+      organization: 'Menuiserie Dupont',
+      occupation: 'Menuisier',
+      birthday: '--04-07',
+      biography: null,
+      emails: [{ value: 'gerard@example.com', label: 'work' }],
+      phones: [{ value: '+33600000000', label: 'mobile' }],
+      addresses: [
+        {
+          // Deliberately long, with spaces: it must wrap on the spaces at
+          // 320 px, never be chopped mid-word.
+          value: '12 rue des Lilas Blancs, 69008 Lyon Métropole, France',
+          label: 'home',
+        },
+      ],
+      relations: [{ value: 'Claire Lefèvre', label: 'spouse' }],
+      // One unbreakable token far wider than 320 px: the case that decides
+      // whether the card overflows the viewport or wraps inside it.
+      links: [
+        {
+          value: 'https://example.com/menuiserie-dupont/realisations/terrasses-bois',
+          label: null,
+        },
+      ],
+      important_dates: [{ value: '2011-09-03', label: 'anniversary' }],
+      messaging: [],
+    },
+    emails: [],
+    events: [],
+  },
+  emails: {
+    status: 'ok',
+    from_cache: false,
+    generated_at: '2026-07-30T09:00:00Z',
+    contact: null,
+    emails: [
+      {
+        id: 'm1',
+        direction: 'received',
+        subject: 'Devis pour la terrasse',
+        occurred_at: '2026-07-28T09:00:00Z',
+        // The whole mail contract (`ExchangedEmail`): an excerpt is the
+        // second line of its row, in its section and on the timeline.
+        excerpt: 'Bonjour, voici le chiffrage révisé, à valider avant vendredi.',
+      },
+    ],
+    events: [],
+  },
+  events: {
+    status: 'ok',
+    from_cache: false,
+    generated_at: '2026-07-30T09:00:00Z',
+    contact: null,
+    emails: [],
+    events: [
+      {
+        id: 'e1',
+        summary: 'Visite du chantier',
+        starts_at: '2026-08-05T09:00:00Z',
+        // The whole event contract (`SharedEvent`): the API always sends it.
+        ends_at: null,
+        is_past: false,
+        role: 'organizer',
+        organizer_known: true,
+      },
+    ],
+  },
+  addresses_used: 1,
+  window_days: 90,
+  email_window_days: 365,
+};
+
+/**
  * The 360° relationship fixture, shared by every spec that opens a contact.
  *
  * Extracted 2026-08-03: the accessibility journey and the mobile-overflow
@@ -201,84 +285,7 @@ export const relationsData: MockRoute[] = [
     // AFTER the catch-all above (LIFO). The single-segment glob does not match
     // a two-segment path anyway, but the order now states the intent correctly.
     url: '**/api/v1/relations/*/context',
-    json: {
-      contact: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: {
-          display_name: 'Gérard Dupont',
-          nickname: null,
-          organization: 'Menuiserie Dupont',
-          occupation: 'Menuisier',
-          birthday: '--04-07',
-          biography: null,
-          emails: [{ value: 'gerard@example.com', label: 'work' }],
-          phones: [{ value: '+33600000000', label: 'mobile' }],
-          addresses: [
-            {
-              // Deliberately long, with spaces: it must wrap on the spaces at
-              // 320 px, never be chopped mid-word.
-              value: '12 rue des Lilas Blancs, 69008 Lyon Métropole, France',
-              label: 'home',
-            },
-          ],
-          relations: [{ value: 'Claire Lefèvre', label: 'spouse' }],
-          // One unbreakable token far wider than 320 px: the case that decides
-          // whether the card overflows the viewport or wraps inside it.
-          links: [
-            {
-              value: 'https://example.com/menuiserie-dupont/realisations/terrasses-bois',
-              label: null,
-            },
-          ],
-          important_dates: [{ value: '2011-09-03', label: 'anniversary' }],
-          messaging: [],
-        },
-        emails: [],
-        events: [],
-      },
-      emails: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: null,
-        emails: [
-          {
-            id: 'm1',
-            direction: 'received',
-            subject: 'Devis pour la terrasse',
-            occurred_at: '2026-07-28T09:00:00Z',
-            // The whole mail contract (`ExchangedEmail`): an excerpt is the
-            // second line of its row, in its section and on the timeline.
-            excerpt: 'Bonjour, voici le chiffrage révisé, à valider avant vendredi.',
-          },
-        ],
-        events: [],
-      },
-      events: {
-        status: 'ok',
-        from_cache: false,
-        generated_at: '2026-07-30T09:00:00Z',
-        contact: null,
-        emails: [],
-        events: [
-          {
-            id: 'e1',
-            summary: 'Visite du chantier',
-            starts_at: '2026-08-05T09:00:00Z',
-            // The whole event contract (`SharedEvent`): the API always sends it.
-            ends_at: null,
-            is_past: false,
-            role: 'organizer',
-            organizer_known: true,
-          },
-        ],
-      },
-      addresses_used: 1,
-      window_days: 90,
-      email_window_days: 365,
-    },
+    json: relationContextPayload,
   },
   {
     // AFTER the catch-all (LIFO), like `/context` above. Serving a READY

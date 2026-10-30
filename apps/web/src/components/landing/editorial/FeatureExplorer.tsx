@@ -154,7 +154,7 @@ export function FeatureExplorer({ items, labels }: FeatureExplorerProps) {
                   <Icon aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-primary" />
                   {item.title}
                 </h4>
-                <p className="mt-3 max-w-[65ch] text-sm leading-7 text-muted-foreground">
+                <p className="mt-3 max-w-[65ch] text-sm leading-6 text-muted-foreground">
                   {item.description}
                 </p>
               </div>

@@ -49,6 +49,8 @@ import {
   SSEHandlerContext,
   type LiveStepTally,
 } from '@/lib/sse-handlers';
+import { clearChatTurnTiming, markChatTurnStarted } from '@/lib/journey-timing';
+import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
 import { DEBUG_PANEL_TOTAL_WIDTH_PX } from '@/lib/constants';
 
 /**
@@ -273,6 +275,14 @@ export const useChat = ({
   // State management with useReducer (replaces multiple useState calls)
   const [state, baseDispatch] = useReducer(chatReducer, createInitialState());
 
+  // A stream that ends without its done or error chunk — a local abort, a lost or
+  // erroring connection — still closes the preparation notices it showed: a « slow »
+  // toast has no duration of its own (fresh review m4).
+  const sseStatus = state.streaming.sseStatus;
+  useEffect(() => {
+    if (sseStatus === 'disconnected' || sseStatus === 'error') resetMcpPreparationNotices();
+  }, [sseStatus]);
+
   // Persist debug metrics history to sessionStorage so it survives page navigation
   useEffect(() => {
     persistDebugMetricsHistory(state.debugMetricsHistory);
@@ -416,6 +426,8 @@ export const useChat = ({
       stepTalliesRef.current = new Map();
       reasoningBufRef.current = '';
       resetTokenBatching();
+      // A resumed run was not sent from here: its first token measures no wait.
+      clearChatTurnTiming();
 
       logger.info('chat_resume_active_run', withContext({ component: 'useChat' }));
       dispatch({ type: 'SSE_CONNECTING' });
@@ -703,6 +715,7 @@ export const useChat = ({
         // Drop any tokens still buffered by a previous (cancelled) stream —
         // a late animation-frame flush must never leak into this message.
         resetTokenBatching();
+        markChatTurnStarted();
 
         await chatSSEClient.streamChat(
           request,

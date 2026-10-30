@@ -559,6 +559,144 @@
             }
           },
           "description": "Number of HTTP requests in progress."
+        },
+        {
+          "id": 31,
+          "type": "timeseries",
+          "title": "Chat wait before the graph, by phase (p95)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 16,
+            "x": 8,
+            "y": 18
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, phase) (rate(chat_pre_graph_phase_seconds_bucket[5m])))",
+              "legendFormat": "{{phase}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Where a chat turn a person waits for spends its time BEFORE the graph starts: conversation setup, state load with attachments, archived request, MCP server preparation (bounded by its ceiling) and the turn's catalogue. The SSE first-token latency starts after all of them."
+        },
+        {
+          "id": 32,
+          "type": "timeseries",
+          "title": "Chat journey: request to first answer token (p50 / p95)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 26
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(chat_journey_first_token_seconds_bucket[5m])))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(chat_journey_first_token_seconds_bucket[5m])))",
+              "legendFormat": "p95",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "The wait a person has from sending a chat message to its first answer token, INCLUDING the pre-graph preparation (conversation setup, state, archive, MCP servers, catalogue). Runs in parallel with the TTFT SLI, which starts at the graph; routines and other runs nobody waits for are excluded."
+        },
+        {
+          "id": 33,
+          "type": "timeseries",
+          "title": "Chat turns ended without an answer, by outcome",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 26
+          },
+          "targets": [
+            {
+              "expr": "sum by (outcome) (increase(chat_journey_unanswered_seconds_count[1h])) or vector(0)",
+              "legendFormat": "{{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto"
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "description": "Chat turns a person waited for that ended before any answer token, per hour: cancelled (the person left), error (the turn failed), interrupted (it asked a question instead of answering). These never reach the TTFT histogram."
         }
       ]
     },
@@ -1288,6 +1426,109 @@
           "description": "Total file attachments uploaded."
         }
       ]
+    },
+    {
+      "id": 34,
+      "type": "row",
+      "title": "Journey timings (browser)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "panels": []
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "Chat first token p95 (browser)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 63
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(product_client_timing_seconds_bucket{metric=\"chat_first_token\"}[$__rate_interval])))",
+          "legendFormat": "p95 (s)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "From the person's send to the first rendered answer token, measured in the browser (spec 2026-10-21 O2). A progress step is never a first token."
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "Dashboard all cards p95 (browser)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 63
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(product_client_timing_seconds_bucket{metric=\"dashboard_all_cards\"}[$__rate_interval])))",
+          "legendFormat": "p95 (s)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "From the dashboard's load to its last settled card, measured in the browser (spec 2026-10-21 O2)."
     }
   ]
 }

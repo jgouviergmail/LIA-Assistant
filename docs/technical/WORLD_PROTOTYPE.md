@@ -394,6 +394,16 @@ its pure contracts have a strict coverage gate. Surface detail is baked into
 cached sprites. Night lights reuse one halo and are culled against the zoomed
 viewport. They are decorative, never an assertion of peer connection state.
 
+The [visual refinement plan](../superpowers/plans/2026-10-28-world-visual-refinement.md)
+keeps the same texture identities, actor frame count and effect budgets. Small
+bevels preserve support planes; fountain coping is a continuous ring. Authored
+model parts are ordered at sprite creation so rear housings hide front details.
+Scene ordering keeps foreground wall tiles in front of long furniture, and
+picking reuses that same order. Bottle shelves remain open on both sides.
+Marble veins, textile weave, contact shade and path verges are baked. Existing
+dawn/evening/night phases share their tint between terrain and objects; lamp
+halos stay bounded. Motion timing changes use the existing simulation clock.
+
 The [art completion plan](../superpowers/plans/2026-10-24-world-art-completion.md)
 and V1 ledger record the artwork passes. `smoke/world-art.spec.ts` runs the exact
 trusted painter modules in real browser canvases, checks complete silhouettes
@@ -546,10 +556,14 @@ transport. An account-owned channel observes the existing mailbox and device
 notification callback. No human text is added to shared spatial snapshots, logs,
 browser storage or a new LLM prompt.
 
-Private bubbles contain only the native ready text; a missing translation never
-falls back to the original. Initial history is not replayed. A new message from
-the same speaker replaces its bubble, with expiry measured by the monotonic
-browser clock. Participant removal and account authority loss remove presentation.
+Private bubbles show both the peer's ready text and the owner's sent messages
+above their respective avatars. An outgoing echo comes only from the confirmed
+mailbox projection: its text is the sender's original, independent of recipient
+translation status. Incoming text still requires a ready native projection; a
+missing translation never falls back to the original. Initial history is not
+replayed. A new message from the same speaker replaces its bubble, with expiry
+measured by the monotonic browser clock. Participant removal and account
+authority loss remove presentation.
 
 A native proactive opening temporarily directs the local LIA actor through the
 existing walkable navigation. Display waits for arrival and the closing of private

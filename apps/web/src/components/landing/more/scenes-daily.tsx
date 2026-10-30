@@ -1,5 +1,6 @@
 /**
- * Scenes of section 05 — "Day to day": customizable briefing grid, starter
+ * Scenes of section 05 — "Day to day": customizable briefing grid, the home
+ * page filling in card by card, starter
  * checklist with its micro-celebration, empty-chat starters, PWA install, the
  * notice that names an SMS's sender while the phone's stays content-free, and a
  * ticket history naming both ends of every hand-over.
@@ -88,6 +89,71 @@ function BriefingCustomScene({ active }: SceneProps) {
         <BriefingCard className={cn(swapped && '-translate-x-[calc(100%+0.375rem)]')} />
         <BriefingCard />
         <BriefingCard dimmed={phase === 'hide'} />
+      </div>
+    </div>
+  );
+}
+
+type ProgressivePhase = 'first' | 'second' | 'third' | 'text';
+const PROGRESSIVE_STEPS: readonly TimelineStep<ProgressivePhase>[] = [
+  { at: 0, state: 'first' },
+  { at: 900, state: 'second' },
+  { at: 1700, state: 'third' },
+  { at: 2500, state: 'text' },
+];
+
+/** The phases in which each card of the grid is filled: two at once, two later. */
+const CARD_FILLED_IN: readonly (readonly ProgressivePhase[])[] = [
+  ['first', 'second', 'third', 'text'],
+  ['first', 'second', 'third', 'text'],
+  ['second', 'third', 'text'],
+  ['third', 'text'],
+];
+
+/**
+ * The home page fills in as it can: what is ready shows at once, a slower card
+ * holds its outline until it arrives, and the day's summary comes last.
+ */
+function ProgressiveHomeScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(PROGRESSIVE_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'justify-center gap-1.5')}>
+      <div
+        className={cn(
+          'flex w-full max-w-[210px] items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 transition-opacity duration-500 ease-out motion-reduce:transition-none',
+          phase === 'text' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <Sparkles className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+        <SkeletonLine w="w-3/4" className="h-1.5" />
+      </div>
+      <div className="grid w-full max-w-[210px] grid-cols-2 gap-1.5">
+        {CARD_FILLED_IN.map((filledIn, index) => {
+          const filled = filledIn.includes(phase);
+          return (
+            <div
+              key={index}
+              className={cn(
+                'flex h-10 flex-col justify-center gap-1 rounded-md border px-2 transition-colors duration-500 ease-out motion-reduce:transition-none',
+                filled
+                  ? 'border-border bg-background'
+                  : 'border-dashed border-muted-foreground/30 bg-transparent'
+              )}
+            >
+              {filled ? (
+                <>
+                  <SkeletonLine w="w-2/3" className="h-1.5" />
+                  <SkeletonLine w="w-1/3" className="h-1.5" />
+                </>
+              ) : (
+                <SkeletonLine
+                  w="w-1/2"
+                  className={cn('h-1.5 opacity-60', active && 'motion-safe:animate-pulse')}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1316,6 +1382,7 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
+  progressive_home: ProgressiveHomeScene,
   card_actions: CardActionsScene,
   folded_settings: FoldedSettingsScene,
   exchange_rhythm: ExchangeRhythmScene,

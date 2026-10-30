@@ -1,2051 +1,267 @@
-# LIA — Complete Technical Guide
+# LIA — Technical Guide
 
-> Architecture, patterns and engineering decisions of a next-generation multi-agent AI assistant.
->
-> Technical presentation documentation for architects, engineers and technical experts.
+> How LIA is built, in broad strokes. The details are in the code, the ADRs and the repository's documentation.
 
-**Version**: 5.6
+**Version**: 6.0
 **Date**: 2026-10-23
-**Application**: LIA v4.1.0
+**Application**: LIA v4.2.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
 
 ## Table of Contents
 
-1. [Context and founding choices](#1-context-and-founding-choices)
-2. [Technology stack](#2-technology-stack)
-3. [Backend architecture: Domain-Driven Design](#3-backend-architecture--domain-driven-design)
-4. [LangGraph: multi-agent orchestration](#4-langgraph--multi-agent-orchestration)
-5. [The conversational execution pipeline](#5-the-conversational-execution-pipeline)
-6. [The planning system (ExecutionPlan DSL)](#6-the-planning-system-executionplan-dsl)
-7. [Smart Services: intelligent optimization](#7-smart-services--intelligent-optimization)
-8. [Semantic routing and AI-powered embeddings](#8-semantic-routing-and-ai-powered-embeddings)
-9. [Human-in-the-Loop: 6-layer architecture](#9-human-in-the-loop--6-layer-architecture)
-10. [State management and message windowing](#10-state-management-and-message-windowing)
-11. [Memory system and psychological profile](#11-memory-system-and-psychological-profile)
-12. [Multi-provider LLM infrastructure](#12-multi-provider-llm-infrastructure)
-13. [Connectors: multi-provider abstraction](#13-connectors--multi-provider-abstraction)
-14. [MCP: Model Context Protocol](#14-mcp--model-context-protocol)
-15. [Voice system (STT/TTS)](#15-voice-system-stttts)
-16. [Proactivity: Heartbeat and scheduled actions](#16-proactivity--heartbeat-and-scheduled-actions)
-17. [RAG Spaces and hybrid search](#17-rag-spaces-and-hybrid-search)
-18. [Browser Control and Web Fetch](#18-browser-control-and-web-fetch)
-19. [Security: defence in depth](#19-security--defence-in-depth)
-20. [Observability and monitoring](#20-observability-and-monitoring)
-21. [Performance: optimizations and metrics](#21-performance--optimizations-and-metrics)
-22. [CI/CD and quality](#22-cicd-and-quality)
-23. [Cross-cutting engineering patterns](#23-cross-cutting-engineering-patterns)
-24. [Architecture Decision Records (ADR)](#24-architecture-decision-records-adr)
-25. [Evolution potential and extensibility](#25-evolution-potential-and-extensibility)
-26. [Psyche Engine: Dynamic Emotional Intelligence](#26-psyche-engine-dynamic-emotional-intelligence)
-27. [Deterministic habit learning](#27-deterministic-habit-learning)
-28. [Governing an instance: spend, capabilities, installation](#28-governing-an-instance-spend-capabilities-installation)
-29. [Administering by file: the workbook is the form](#29-administering-by-file-the-workbook-is-the-form)
-30. [Visible work, governed learning](#30-visible-work-governed-learning)
-31. [Expressive eyes: a character driven by signals](#31-expressive-eyes-a-character-driven-by-signals)
-32. [Native apps: one shell, your server](#32-native-apps-one-shell-your-server)
-33. [Self-diagnostics: an assistant that reads its own telemetry](#33-self-diagnostics-an-assistant-that-reads-its-own-telemetry)
-34. [Computing instead of guessing: an ephemeral script in the skills sandbox](#34-computing-instead-of-guessing-an-ephemeral-script-in-the-skills-sandbox)
-35. [Measuring a colour before shipping it: the settings palette](#35-measuring-a-colour-before-shipping-it-the-settings-palette)
-36. [A trait is not a reaction: the register the answer declares](#36-a-trait-is-not-a-reaction-the-register-the-answer-declares)
-37. [Three mechanisms for one convergence: shaping a burst a ceiling cannot see](#37-three-mechanisms-for-one-convergence-shaping-a-burst-a-ceiling-cannot-see)
-38. [Meeting minutes: the row is the job, the template is the contract](#38-meeting-minutes-the-row-is-the-job-the-template-is-the-contract)
-39. [Three registers, and the one nobody had asked for](#39-three-registers-and-the-one-nobody-had-asked-for)
-40. [A debrief per relationship: what ten sections do not say](#40-a-debrief-per-relationship-what-ten-sections-do-not-say)
-41. [The workboard: one row, two sides, and an assistant that asks](#41-the-workboard-one-row-two-sides-and-an-assistant-that-asks)
-42. [The anatomy of a process: what it loads is declared, measured and bounded](#42-the-anatomy-of-a-process-what-it-loads-is-declared-measured-and-bounded)
-43. [The live mode: two intelligences, one seam — and one policy per mode](#43-the-live-mode-two-intelligences-one-seam--and-one-policy-per-mode)
-44. [Cards that show what was received, and actions that belong to their message](#44-cards-that-show-what-was-received-and-actions-that-belong-to-their-message)
-45. [Application commands: an intention, current authority](#45-application-commands-an-intention-current-authority)
-46. [LIA World](#46-lia-world)
-47. [Conclusion](#47-conclusion)
----
-
-## 1. Context and founding choices
-
-### 1.1. Why these choices?
-
-Every technical decision in LIA addresses a concrete constraint. The project aims to be a multi-agent AI assistant **self-hostable on modest hardware** (Raspberry Pi 5, ARM64), with full transparency, data sovereignty, and multi-provider LLM support. These constraints have guided the entire stack.
-
-| Constraint | Architectural consequence |
-|------------|--------------------------|
-| ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
-| Data sovereignty | Local PostgreSQL (no SaaS DB), credentials encrypted with Fernet, local Redis sessions |
-| Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 640 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 363 ADRs, 69,000+ automated backend and frontend tests, native observability, 6-level HITL |
-| Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
-
-### 1.2. Architectural principles
-
-| Principle | Implementation |
-|-----------|----------------|
-| **Domain-Driven Design** | Bounded contexts in `src/domains/`, explicit aggregates, Router/Service/Repository/Model layers |
-| **Hexagonal Architecture** | Ports (Python protocols) and adapters (concrete Google/Microsoft/Apple clients) |
-| **Event-Driven** | SSE streaming, ContextVar propagation, fire-and-forget background tasks |
-| **Defence in Depth** | 5 layers for usage limits, 6 HITL levels, 3 anti-hallucination layers |
-| **Feature Flags** | Each subsystem toggleable (`{FEATURE}_ENABLED`) |
-| **Configuration as Code** | Pydantic BaseSettings composed via MRO, priority chain APPLICATION > .ENV > CONSTANT |
-
-### 1.3. Codebase metrics
-
-| Metric | Value |
-|--------|-------|
-| Tests | 69,000+ automated tests with pytest and Vitest (ratcheted coverage thresholds, ADR-116) |
-| pytest fixtures | 1,391, 58 of them shared through conftest |
-| Documentation documents | 835 |
-| ADRs (Architecture Decision Records) | 363 |
-| Prometheus metrics | 640 definitions |
-| Grafana dashboards | 32 |
-| Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
+1. [Overview](#1-overview)
+2. [A backend split by domain](#2-a-backend-split-by-domain)
+3. [The journey of a message](#3-the-journey-of-a-message)
+4. [Acting with care](#4-acting-with-care)
+5. [Memory and context](#5-memory-and-context)
+6. [The models](#6-the-models)
+7. [Connectors and tools](#7-connectors-and-tools)
+8. [Voice, Live mode and phone](#8-voice-live-mode-and-phone)
+9. [Initiative](#9-initiative)
+10. [Security and privacy](#10-security-and-privacy)
+11. [Observing and measuring](#11-observing-and-measuring)
+12. [The interfaces](#12-the-interfaces)
+13. [How this code is kept in shape](#13-how-this-code-is-kept-in-shape)
+14. [Going further](#14-going-further)
 
 ---
 
-## 2. Technology stack
+## 1. Overview
 
-### 2.1. Backend
+I designed LIA to run in your home, on modest hardware. The reference platform is a Raspberry Pi 5 (ARM64), and everything that follows comes from that: a single machine, a local PostgreSQL database and a local Redis, no database hosted elsewhere. Credentials and provider keys are stored encrypted.
 
-| Technology | Version | Role | Why this choice |
-|------------|---------|------|-----------------|
-| Python | 3.14 | Runtime | Richest ML/AI ecosystem, native async, complete typing |
-| FastAPI | 0.141.1 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
-| LangGraph | 1.2.14 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
-| LangChain Core | 1.5.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
-| SQLAlchemy | 2.0.54 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
-| PostgreSQL | 16 + pgvector | Database + vector search | Native LangGraph checkpoints, HNSW semantic search, maturity |
-| Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, atomic sliding window (Lua), SETNX leader election |
-| Pydantic | 2.13.4 | Validation + serialization | `ConfigDict`, `field_validator`, settings composition via MRO |
-| structlog | 25.5 | Structured logging | JSON output with automatic PII filtering, snake_case events |
-| Gemini Embeddings | gemini-embedding-001 | Semantic embeddings | Gemini multilingual embeddings (memory, routing, interests, journals) — ADR-069 |
-| Playwright | 1.63 | Browser automation | Headless Chromium (Debian's own package, refreshed at every image build), CDP accessibility tree, cross-platform |
-| APScheduler | 3.x | Background jobs | Cron/interval triggers, compatible with Redis leader election |
-
-### 2.2. Frontend
-
-| Technology | Version | Role |
-|------------|---------|------|
-| Next.js | 16.4.2 | App Router, SSR, ISR |
-| React | 19.3.1 | UI with Server Components |
-| TypeScript | 6.0.3 | Strict typing |
-| TailwindCSS | 4.3.3 | Utility-first CSS |
-| TanStack Query | 5.x | Server state management, cache, mutations |
-| Radix UI | v2 | Accessible UI primitives |
-| react-i18next | 17.0 | i18n (6 languages), namespace-based |
-| Zod | 4.x | Runtime validation of debug schemas |
-
-### 2.3. Supported LLM Providers
-
-| Provider | Models | Specifics |
-|----------|--------|-----------|
-| OpenAI | GPT-6 (astra, sol, luna), GPT-5.6 (terra, sol, luna), GPT-5.5, GPT-5.4 (+ mini), GPT-5.x (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Native prompt caching, Responses API, reasoning_effort |
-| Anthropic | Claude Fable 5.1/5, Claude Opus 5.5/5/4.8/4.7/4.6/4.5, Claude Sonnet 5/4.6/4.5, Claude Haiku 4.5 | Extended thinking, prompt caching |
-| Google | Gemini 3.8/3.7/3.6/3.5 Flash, Gemini 3.1 Pro, Gemini 2.5 Pro/Flash | Multimodal, dual-vector embeddings |
-| DeepSeek | deepseek-flash (V4.1), deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduced cost, native reasoning |
-| Perplexity | Sonar, Sonar Pro | Search-augmented generation |
-| Qwen | Qwen 3.8 (Max, Flash), 3.7 (Max, Plus, Flash), 3.6 (Plus, Flash), 3.5 (Plus, Flash), qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
-| Ollama | Any local model (capabilities read from the server) | Native client: controlled thinking, context window, constrained JSON. Zero API cost, self-hosted |
-
-**Why 7 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|gpt-6|o[1-9])`).
-
-**The special case of local models.** Six providers speak a remote API; the seventh runs on your machine, and LIA talks to it through its **native API** (`langchain-ollama`) rather than its OpenAI compatibility layer. The distinction is not cosmetic: the compatibility layer cannot express `think` (switching off the thinking of a model that thinks, or choosing its depth), nor `num_ctx` (the context window, which a local server otherwise picks from its video memory and which silently trims the start of an oversized prompt), nor separate the thinking trace from the answer. And because a model name says nothing about its capabilities, they are **read from the server** (`/api/show`: tools, vision, thinking, context length) and feed both the runtime and the administration screen — so a thinking depth never reaches a model that does not think, which the server would refuse.
-
----
-
-## 3. Backend architecture: Domain-Driven Design
-
-### 3.1. Domain structure
-
-```
-apps/api/src/
-├── core/                         # Cross-cutting technical core
-│   ├── config/                   # Pydantic BaseSettings modules composed via MRO
-│   │   ├── __init__.py           # Settings class (final MRO)
-│   │   ├── agents.py, database.py, llm.py, mcp.py, voice.py, usage_limits.py, ...
-│   ├── constants.py              # 2,000+ centralized constants
-│   ├── exceptions.py             # Centralized exceptions (raise_user_not_found, etc.)
-│   └── i18n.py                   # i18n → settings bridge
-│
-├── domains/                      # Bounded Contexts (DDD)
-│   ├── agents/                   # MAIN DOMAIN — LangGraph orchestration
-│   │   ├── nodes/                # Graph nodes: pipeline, ReAct, HITL, initiative
-│   │   ├── services/             # Smart Services, HITL, context resolution
-│   │   ├── tools/                # Tools by domain (@tool + ToolResponse)
-│   │   ├── orchestration/        # ExecutionPlan, parallel executor, validators
-│   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
-│   │   ├── semantic/             # Semantic router, expansion service
-│   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # versioned .txt prompt files
-│   │   ├── graphs/               # One agent builder per domain
-│   │   ├── context/              # Context store (Data Registry), decorators
-│   │   └── models.py             # MessagesState (TypedDict + custom reducer)
-│   ├── auth/                     # OAuth 2.1, BFF sessions, RBAC
-│   ├── connectors/               # Multi-provider abstraction (Google/Apple/Microsoft)
-│   ├── rag_spaces/               # Upload, chunking, embedding, hybrid retrieval
-│   ├── journals/                 # Introspective journals
-│   ├── interests/                # Interest learning
-│   ├── heartbeat/                # LLM-driven proactive notifications
-│   ├── channels/                 # Multi-channel (Telegram)
-│   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
-│   ├── skills/                   # agentskills.io standard
-│   ├── sub_agents/               # Ephemeral, delegated, read-only sub-agents
-│   ├── peers/                    # User-to-user connections (assistant-to-assistant relay)
-│   ├── relations/                # Personal CRM (aggregation + favorites)
-│   ├── usage_limits/             # Per-user quotas (5-layer defence)
-│   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp, live, telephony, workboard, meetings…
-│
-└── infrastructure/               # Cross-cutting layer
-    ├── llm/                      # Factory, providers, adapters, embeddings, tracking
-    ├── cache/                    # Redis sessions, LLM cache, JSON helpers
-    ├── mcp/                      # MCP client pool, auth, SSRF, tool adapters, Excalidraw
-    ├── browser/                  # Playwright session pool, CDP, anti-detection
-    ├── rate_limiting/            # Distributed Redis sliding window
-    ├── scheduler/                # APScheduler, leader election, locks
-    └── observability/            # Prometheus metrics per subsystem, OTel tracing
-```
-
-### 3.2. Configuration priority chain
-
-A fundamental invariant permeates the entire backend. It is enforced everywhere, because a divergence between a constant and the actual production configuration causes a silent bug:
-
-```
-APPLICATION (Admin UI / DB) > .ENV (settings) > CONSTANT (fallback)
-```
-
-**Why this chain?** Constants (`src/core/constants.py`) serve exclusively as fallbacks for Pydantic `Field(default=...)` and SQLAlchemy `server_default=`. An administrator who changes an LLM model from the interface must see that change take effect immediately, without redeployment. At runtime, all code reads `settings.field_name`, never a constant directly.
-
-### 3.3. Layer patterns
-
-| Layer | Responsibility | Key pattern |
-|-------|---------------|-------------|
-| **Router** | HTTP validation, auth, serialization | `Depends(get_current_active_session)`, `check_resource_ownership()` |
-| **Service** | Business logic, orchestration | Constructor receives `AsyncSession`, creates repositories, centralized exceptions |
-| **Repository** | Data access | Inherits `BaseRepository[T]`, pagination `tuple[list[T], int]` |
-| **Model** | DB schema | `Mapped[Type]` + `mapped_column()`, `UUIDMixin`, `TimestampMixin` |
-| **Schema** | I/O validation | Pydantic v2, `Field()` with description, separate request/response |
-
----
-
-## 4. LangGraph: multi-agent orchestration
-
-### 4.1. Why LangGraph? (ADR-001)
-
-The choice of LangGraph over LangChain alone, CrewAI, or AutoGen is based on three non-negotiable requirements:
-
-1. **State persistence**: `TypedDict` with custom reducers, persisted via PostgreSQL checkpoints — allows resuming a conversation after HITL interruption
-2. **Cycles and interrupts**: native support for loops (HITL rejection → re-planning) and the `interrupt()` pattern — without which the 6-layer HITL would be impossible
-3. **SSE Streaming**: native integration with callback handlers — critical for real-time UX
-
-CrewAI and AutoGen were easier to get started with, but neither supported the interrupt/resume pattern required for plan-level HITL. This choice has a cost: the learning curve is steeper (graph concepts, conditional edges, state schemas).
-
-### 4.2. The main graph
-
-LIA exposes two execution modes (toggleable per user via the chat header): **Pipeline** (default, deterministic and token-efficient) and **ReAct** (autonomous and iterative). The Router classifies the request first (direct conversation or actionable) then dispatches to the active mode.
+Three principles guide the rest. **Transparency** first: observability is part of the architecture from the start, and every token consumed is tracked with its cost. **Defense in depth** next: quotas, confirmations and guardrails against hallucinations are independent layers. **Provider independence** last: each role in the system can be given to a different model, which protects me from a price rise as much as from an outage.
 
 ```mermaid
-graph TD
-    A[User Message] --> CP[Compaction]
-    CP --> B[Router Node]
-    B -->|conversation| C[Response Node]
-    B -->|pipeline mode| D[Planner Node]
-    B -->|react mode| R1[ReAct Setup]
-    D -->|empty plan| C
-    D --> E[Semantic Validator]
-    E -->|ambiguous| CL[Clarification]
-    CL --> E
-    E -->|replan| D
-    E --> F{Approval Gate}
-    F --> G[Task Orchestrator]
-    G --> H[Domain Agents + Tools]
-    G -->|drafts| HD[HITL Dispatch]
-    G -->|bulk action| FE[FOR_EACH Confirm]
-    FE -->|approved| G
-    H --> I[Initiative]
-    HD --> I
-    I --> C
-    R1 --> R2[ReAct Call Model]
-    R2 -->|tool_calls| R3[ReAct Execute Tools]
-    R3 --> R2
-    R3 -->|draft| HD
-    R2 -->|declared gap| R5[ReAct Recovery]
-    R5 --> R2
-    R2 -->|done| R4[ReAct Finalize]
-    R4 --> I
-    C --> J[SSE Stream]
+flowchart LR
+    U["Browser, mobile app"] --> W["Next.js interface"]
+    W -->|"session cookie"| A["FastAPI API"]
+    T["Telegram"] -->|"webhook"| A
+    A --> G["LangGraph graph"]
+    G --> C["Google, Microsoft, Apple connectors"]
+    G --> M["AI models"]
+    A --> P[("PostgreSQL + pgvector")]
+    A --> R[("Redis")]
+    A -.-> O["Monitoring"]
 ```
 
-### 4.3. Graph nodes
+The stack is deliberately classic:
 
-| Node | File | Role | Windowing |
-|------|------|------|-----------|
-| Router v3 | `router_node_v3.py` | Binary classification conversation/actionable | 5 turns |
-| QueryAnalyzer | `query_analyzer_service.py` | Domain detection, intent extraction | — |
-| Planner v3 | `planner_node_v3.py` | ExecutionPlan DSL generation | 10 turns |
-| Semantic Validator | `semantic_validator.py` | Dependency validation and coherence | — |
-| Approval Gate | `approval_gate_node.py` | Passes every plan through: confirmation is asked per action | — |
-| Task Orchestrator | `task_orchestrator_node.py` | Parallel execution, context passing | — |
-| HITL Dispatch | `hitl_dispatch_node.py` | `interrupt()` for a draft, a disambiguation or a tool confirmation | — |
-| Response | `response_node.py` | Anti-hallucination synthesis, 3 guard layers | 20 turns |
+| Layer | Choice |
+| --- | --- |
+| Backend | Python 3.14, FastAPI, asynchronous end to end |
+| Agent orchestration | LangGraph 1.x |
+| Data | PostgreSQL with pgvector: data, graph checkpoints and vector search |
+| Cache and coordination | Redis: cache, sessions, rate limits, leader election |
+| Frontend | Next.js 16 (App Router), React 19, strict TypeScript |
+| Models | OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Qwen, and any local model through Ollama |
+| Logs | Structured JSON, personal data filtered out |
 
-### 4.4. AgentRegistry and Domain Taxonomy
+A local model runs with no API cost, entirely in your home. The API runs as several workers; a leader election in Redis reserves scheduled jobs for just one of them. Each optional subsystem is turned on by a flag, and configuration follows a single cascade: what the administrator sets in the app wins over the environment, which wins over the code's constants. I wanted a single cascade because a constant that silently drifts from the real configuration produces the hardest bugs to see.
 
-The `AgentRegistry` centralizes agent registration (`registry.register_agent()` in `main.py`), the `ToolManifest` catalogue, and the `domain_taxonomy.py` which defines each domain with its `result_key` and aliases.
+A guided installer asks a few questions, creates the administrator account without writing any secret in clear text, checks that the installation really works and can reconfigure it later without asking for the keys again ([installing LIA](/en/faq#faq-self_hosting)).
 
-**Why a centralized registry?** Without it, adding an agent would require modifying 5+ files. With the registry, a new agent declares itself at a single point and is automatically available for routing, planning, and execution.
+In orders of magnitude: more than 350 ADRs, hundreds of Prometheus metrics, tens of thousands of automated tests, an interface in six languages (French, English, German, Spanish, Italian, Chinese).
 
-### 4.5. Domain Taxonomy
+*Going further: [overall architecture](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE.md) · [self-hosting](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_SELF_HOSTING.md) · [model providers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_PROVIDERS.md) · [administrable capabilities](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-217-Capacites-Administrables.md)*
 
-Each domain is a declarative `DomainConfig`: name, agents, `result_key` (canonical key for `$steps` references), `related_domains`, priority, and routability. The `DOMAIN_REGISTRY` is the single source of truth consumed by three subsystems: SmartCatalogue (filtering), semantic expansion (adjacent domains), and Initiative phase (structural pre-filter).
+## 2. A backend split by domain
 
-### 4.6. Tool Manifests
+The backend follows Domain-Driven Design. Each business domain (agents, connectors, voice, memory, reminders, conversations…) is an isolated context in `src/domains/`, split the same way: router, service, repository, model, schema. Alongside them, a cross-cutting core (`core`) carries the configuration and the shared rules, and a shared infrastructure layer groups what they all need: the model factory, the cache, the MCP client, the browser, rate limits, the job scheduler, observability.
 
-Each tool declares a `ToolManifest` via a fluent `ToolManifestBuilder`: parameters, outputs, cost profile, permissions, and multilingual `semantic_keywords` for routing. Manifests are consumed by the planner (catalogue injection), the semantic router (keyword matching), and the agent builder (tool wiring). See section 23 for the full tool architecture.
+I chose a hexagonal architecture for external services. Tools know only Python protocols (ports), and the Google, Microsoft, Apple or Philips Hue clients implement them (adapters). Adding a provider therefore does not touch the code that calls it.
 
----
+The repository is a monorepo: `apps/api` for the backend, `apps/web` for the interface, `infrastructure/` for Docker and monitoring, `docs/` for the documentation. An administrator who changes a model in the interface sees it take effect at once, without redeploying, because the live configuration is in the database.
 
-## 5. The conversational execution pipeline
+*Going further: [creating a connector](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_CONNECTOR_IMPLEMENTATION.md) · [creating an agent](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_AGENT_CREATION.md) · [creating a tool](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_TOOL_CREATION.md) · [adding a channel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/templates/NEW_CHANNEL_CHECKLIST.md) · [adding a model provider](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_PROVIDER_CONSTRAINTS.md) · [adding a proactive task](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/templates/NEW_PROACTIVE_TASK_CHECKLIST.md)*
 
-### 5.1. Detailed flow of an actionable request
+## 3. The journey of a message
 
-1. **Reception**: User message → SSE endpoint `/api/v1/chat/stream`
-2. **Context**: `request_tool_manifests_ctx` ContextVar built once (ADR-061: 3-layer defence)
-3. **Router**: Binary classification with confidence scoring (high > 0.85, medium > 0.65)
-4. **QueryAnalyzer**: Identifies domains via LLM + post-expansion validation (gate-keeper that filters disabled domains)
-5. **SmartPlanner**: Generates an `ExecutionPlan` (structured JSON DSL)
-   - Pattern Learning: consults the Bayesian cache (bypass if confidence > 90%)
-   - Skill detection: deterministic Skills are protected via `_has_potential_skill_match()`
-6. **Semantic Validator**: Verifies inter-step dependency coherence
-7. **Approval Gate**: Passes the plan through — confirmation is asked per action, where the action is prepared: a FOR_EACH lot before it runs, a draft or a tool confirmation once the orchestrator has prepared it (HITL Dispatch, `interrupt()`)
-8. **Task Orchestrator**: Executes steps in parallel waves via `asyncio.gather()`
-   - Filters skipped steps BEFORE gather (ADR-005 — fixes a bug causing double execution plan+fallback)
-   - Context passing via Data Registry (InMemoryStore)
-   - FOR_EACH pattern for bulk iterations
-9. **Response Node**: Synthesizes results, memory + journals + RAG injection
-10. **SSE Stream**: Token by token to the frontend
-11. **Background tasks** (fire-and-forget): memory extraction, journal extraction, interest detection
+I chose LangGraph to orchestrate the agents because it brought three things I needed: state persisted as checkpoints in PostgreSQL, cycles, and `interrupt()`, which lets a turn be suspended to ask for a confirmation and then resumed exactly where it stopped. Without this mechanism, there is no serious human confirmation.
 
-### 5.2. ContextVar: implicit state propagation
+Each message first goes through a **router**, which classifies it as plain conversation or as a request that calls for an action. A conversation goes straight to the response. An action follows the mode chosen in the chat header.
 
-A critical mechanism is the use of Python `ContextVar` to propagate state without parameter threading:
-
-| ContextVar | Role | Why |
-|------------|------|-----|
-| `current_tracker` | TrackingContext for LLM token tracking | Avoids passing a tracker through 15 layers of functions |
-| `request_tool_manifests_ctx` | Per-request filtered tool manifests | Built once, read by 7+ consumers (eliminates duplication ADR-061) |
-
-This approach maintains per-request isolation in an asyncio context without polluting function signatures.
-
-### 5.3. ReAct execution mode (ADR-070)
-
-LIA offers a second execution mode: **ReAct** (Reasoning + Acting). Instead of planning upfront, the LLM iteratively calls tools, observes results, and decides the next step autonomously.
-
-**Architecture**: 5 custom nodes in the parent LangGraph graph (not a subgraph):
-
-```
-Router → react_setup → react_call_model ↔ react_execute_tools → react_finalize → Response
-                              ↕ <unresolved>
-                       react_recovery
+```mermaid
+flowchart TD
+    M["Message"] --> R{"Router"}
+    R -->|"conversation"| S["Response"]
+    R -->|"action, Pipeline mode"| P["Planner"]
+    P --> V["Semantic validator"]
+    V --> O["Orchestrator, steps in parallel"]
+    O --> A["Domain agents"]
+    A --> S
+    R -->|"action, ReAct mode"| L["ReAct loop"]
+    L -->|"tool, result, next decision"| L
+    L --> S
+    S -->|"SSE stream"| U["Screen"]
 ```
 
-**Pipeline vs ReAct — engineering trade-offs**:
+In **Pipeline** mode, the default, the planner writes an `ExecutionPlan` before anything runs: a JSON plan whose steps are linked by their dependencies. A second model, separate from the planner, validates this plan, so that no model judges its own work. The orchestrator then runs the steps in parallel waves. **ReAct** mode, by contrast, lets the model call a tool, read the result and decide what comes next, step by step.
 
-| Aspect | Pipeline (default) | ReAct (⚡) |
-|--------|-------------------|-----------|
-| **Token cost** | **4–8× lower** — 1 planner + 1 response call | 1 LLM call per iteration (2–15 iterations typical) |
-| **Planning** | Upfront ExecutionPlan with semantic validation | None — LLM decides step by step |
-| **Parallel execution** | Yes — `asyncio.gather()` waves | No — sequential tool calls |
-| **Adaptability** | Follows plan rigidly | Pivots on each tool result |
-| **Control** | Full — planner DSL, HITL gates, validators | Minimal — prompt-driven behavior |
-| **Cost predictability** | High — bounded by plan steps | Low — depends on LLM reasoning |
-| **Best for** | Well-structured multi-domain requests | Exploratory research, ambiguous queries |
+I kept both because they meet two needs. The Pipeline plans, parallelizes, checks itself and forecasts its cost: one call to the planner and one for the response, against one call per iteration for ReAct, which means 4 to 8 times fewer tokens. ReAct adapts to each result, which is better for an exploratory search or an ambiguous request. Both modes share the tool registry, the confirmations, the response node and the observability.
 
-The Pipeline mode is a genuine engineering achievement: the SmartPlanner, Semantic Validator, Bayesian pattern cache, and parallel executor together deliver the same functional power as ReAct while consuming a fraction of the tokens. The trade-off is adaptability — when the optimal tool sequence cannot be predicted upfront, ReAct's iterative reasoning excels.
+Domains and tools are chosen by an embedding-based **semantic router** rather than by keywords or by the model alone: it costs less and makes fewer mistakes. Each tool declares a manifest (parameters, outputs, cost, permissions, keywords in several languages) read by the planner, the router and the agent builder, and each agent declares itself once in a central registry. Smart Services cut consumption further by caching query analysis and learning the plans that come back. After an actionable turn, an initiative node looks, read-only, at what the result implies elsewhere: forecast rain points to the outdoor activities in your calendar.
 
-A turn's spending obeys a conservation law (ADR-256): reasoning time and tool time are two named budgets, never one — a single delegation (a sub-agent, an iterative MCP task, a browser run) opens its own LLM loop behind one tool call, and at its pipeline bound it would equal 100% of the reasoning budget on its own. Every tool call carries an individual bound drawn from the same timeout families as the Pipeline mode, chosen so it is never stricter than the bound the layer below already applies, and a timeout raised by the tool itself is attributed to the tool, not to the loop's own cut. The stop condition remains one predicate with two readers: the router applies it to decide, the finalize node to explain.
+A few rules keep the whole thing honest. A request with no intent to act cannot produce a plan that changes anything, and that is a deterministic rule, checked before any call to the model. A modification plan that runs out of correction attempts is not executed: LIA asks a question rather than write wrong data. A refusal or a failure is never presented as a completed action, and once the plan has run, nothing is replayed behind your back: the answer states each failure, which tool, why, and the exact total. For a mode that corrects itself along the way, there is ReAct.
 
-Both modes share the same tool registry, HITL system, response node, and observability infrastructure. Users switch between them via a toggle in the chat header.
+The answer arrives token by token over SSE. Generation is decoupled from the connection: a detached producer publishes to a Redis stream specific to the turn, and the page is just one of its subscribers. Closing the tab therefore stops nothing, and the answer waits for you.
 
-What a tool returns is **projected into the loop's context item by item, under a token budget** (ADR-286). The heaviest item list of a result is paged at item boundaries — an admitted item is complete, the block stays valid JSON, the scalars travel whole and the first item always passes — under `min(REACT_TOOL_RESULT_MAX_TOKENS, window × REACT_TOOL_RESULT_WINDOW_FRACTION)`, the window being the ReAct slot's own. A cut is **stated** to the model after the external-content tag (how many of how many, and the way to the rest) and counted per tool, so that a mailbox of full messages never reaches the model as a dump cut in the middle of the first one's headers. The provider's raw tree never leaves the e-mail builder, and a tool whose data only the pipeline executor injects declares itself pipeline-only rather than being offered to a loop that cannot run it.
+*Going further: [the two modes](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-070-ReAct-Execution-Mode.md) · [the choice of LangGraph](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-001-LangGraph-Orchestration.md) · [the graph in detail](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_LANGRAPH.md) · [the router](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/ROUTER.md) · [the plan and its parallel execution](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-014-ExecutionPlan-Parallel-Executor.md) · [the planner and bulk operations](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PLANNER.md) · [the semantic router](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-048-Semantic-Tool-Router.md) · [tool manifests](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-019-Agent-Manifest-Catalogue-System.md) · [a pipeline failure is said, never replayed](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-346-Advisory-Replanner-Retired-A-Pipeline-Failure-Is-Said-Never-Replayed.md) · [reporting tool failures](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-303-Tool-Failure-Restitution.md) · [turns that outlive the tab](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-117-Background-Chat-Runs.md) · [ReAct mode](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/REACT_EXECUTION_MODE.md)*
 
-A turn also owes itself a working memory that outlives it. State is bounded by a message window, and a ReAct turn appends two messages per iteration — so a long enough turn pushes **its own question** out of that window, after which the windowing that splits history from the current loop no longer finds a split point at all. The reducer therefore re-pins the turn's question when truncation evicts it, on both of its branches, and the coupling between the iteration budget and the window size carries a name rather than living as an unstated arithmetic relation. What a turn actually delivers to the model is measured too — the prompt size per iteration and its share of the model's context window — because counting a loop's iterations and duration says nothing about the thing that grows.
+## 4. Acting with care
 
-The tools the loop receives are **bound by relevance, never by registration order** (ADR-293). The router already computes an embedding of the question to score the domains; from the same vector it orders every available manifest — native tools and the person's MCP servers alike — into a global ranking the loop reads. The selection composes without any tool name written anywhere: the detected domains' tools, then the best of every other family so that each stays reachable, then the head of the ranking up to a published budget; the cap is only a safety net by stable sort. A hand-declared "core" list is ruled out on principle: it would encode one account's usage into a multi-user product, where family coverage says the same thing structurally. The loop also mounts the knowledge-spaces block the pipeline injects, read from the bundle the router prefetched without consuming it: what the pipeline knows, the loop knows. The number of bound tools and their schema tokens are measured, because that prefix can weigh most of the first call. A **binding unit** — several tools that make up a single capability — is bound whole or not at all, and a catalogue made of many units, such as the application's settings, is bound through its domain when the router detects it, never through the tail of the ranking: an agenda turn thus binds about half as many tools.
+LIA asks before what is actually going to happen: each draft (an email, an event, a deletion), each bulk operation that changes at least one item, each tool that declares it owes a confirmation. Confirmation is asked action by action, where the action is prepared, and not on the whole plan. Conversely, an action that nothing can divert asks for nothing: an email you send to yourself goes out directly.
 
-A loop is **judged on its result** (ADR-310). Stopping as soon as the model calls no more tools would make persistence depend on how a configured model reads one sentence. Every fact the loop set out to obtain — the person's request and each cross-check it started — ends obtained or declared in an `<unresolved>` block that closes the draft, with the rungs tried: the corrected call, then another source named `(fallback)`, then the declaration. One predicate, `should_recover`, reads the declaration and calls the one that decides the stop (`react_exit_reason`) instead of copying it; it routes to `react_recovery`, a fifth node that calls no model: it removes the draft from the thread at the very moment of the pass, and each later call of the turn receives, transiently — never written to `messages` —, the draft and a directive placed right after it. Passes are bounded (`REACT_RECOVERY_PASSES_MAX`), counted by outcome, and a pass that would end with no usable answer hands the draft back rather than trade it for nothing. Upstream, a tool never replaces a value it cannot read: the weather refuses an unreadable date with the accepted format and today's date, under a contract published by one constant that both the manifest and the tool's schema read — the loop binds the schema, never the manifest. A page a tool deliberately cut at its cap is not a gap: among the reads the loop started, only a failed read opens a pass — the cut is already stated to the model.
-
-A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, which survives the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, buys no iteration. And when a person chooses frequent exchanges in their settings (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` only sets the default of an account that has not chosen, ADR-308), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: on a bench of 396 real turns, the saving ranges from 18 to 42 % per turn depending on the cache mechanism, a model with no cache pays extra, and a counted fallback to the relevance selection takes over when the catalogue exceeds the cap or the window. The history then drops by blocks too, anchored on the turn counter, so that each turn extends the previous one: the three travel together because none of them pays alone, and occasional exchanges keep the relevance selection, whose cost does not depend on the gap between two turns.
-
-### A delegation always returns its deliverable (ADR-083)
-
-A delegated expert, a browser task or an iterative MCP task opens its own model loop behind a single tool call, bounded in graph steps: N steps buy N÷2 model calls. When the loop reaches its bound it no longer stops on LangGraph's generic sentence, which used to pass for a success: its last call runs with no tool and writes the deliverable from what it found. Every reader — the delegation, the browser task, the MCP task, the skill runner — maps a typed outcome (answered, empty, error, closed on budget) instead of reading text, and a failure says how far it got. The planner and the ReAct loop are told the same facts about what the expert can reach, and the instruction's size cap is enforced by the tool itself in both modes: an impossible delegation is refused before any model runs.
-
-### 5.4. Detached executions: generation survives the connection (ADR-117)
-
-Classic SSE streaming has a structural flaw: generation lives *inside* the HTTP response generator. Closing the tab, navigating away or losing the network kills the connection — and, with it, the whole conversation turn. LIA decouples the two: a **detached producer** (an asyncio task independent of the request) executes the graph and publishes every chunk to a **per-run Redis Stream**; the SSE endpoint is reduced to a **subscriber** relaying that stream.
-
-- **Disconnection ≠ cancellation** — closing the page stops the subscription, never the generation. The user message is archived *before* execution starts, the answer finishes server-side and waits in the conversation.
-- **Live resume** — on return (page mount, tab visibility), the frontend detects the active run, replays every chunk already emitted (without pacing) then switches to the live tail; the boundary is an SSE transport comment (`: replay-end`), so the chunk contract stays untouched. During replay, side effects (toasts, audio) are suppressed while the reducer rebuilds the in-progress bubble.
-- **Client-side silence detection** — resuming still assumes the client knows it must resume. A tab frozen by the operating system receives neither end nor error: the read stays pending, the interface believes it is still receiving, and the guard meant to protect a live stream blocks precisely the resume. A silence budget calibrated on the server's heartbeat rhythm settles it: past that, the dead connection is dropped, the state returns to idle and the reattachment above takes over. Browser timers freeze with the tab, so the deadline fires on wake-up — exactly when it is useful.
-- **One run per conversation** — a Redis lock (`SET NX EX` + producer heartbeat + zombie-safe conditional Lua release) makes a concurrent send answer HTTP 409, which the frontend turns into a silent reattachment.
-- **Cross-worker cancellation** — the send button morphs into a stop button; the cancel signal travels through Redis and is polled producer-side (~1 s), even when the producer lives in a different worker than the HTTP request. The partial answer is kept and badged "interrupted"; tokens already consumed stay billed — billing is honored on every exit path, kills included.
-- **Voice only if someone is listening** — subscriber presence (a Redis counter with a periodically re-armed TTL) gates voice synthesis: no TTS for a run nobody is listening to, and a listener joining mid-run gets voice for the remainder.
-- **Clean shutdown** — on shutdown, the lifespan drains in-flight producers before yielding; a killed run archives its partial flagged `interrupted`, and a turn-start repair cleans up the dangling `tool_calls` an interrupted checkpoint would leave behind (strict providers reject them on the next turn).
-
-The whole system is governed by a feature flag and a dozen env-tunable settings (TTLs, heartbeat, drain, polling) validated at boot — a heartbeat period incompatible with the lock TTL refuses to start.
-
----
-
-**Grounding on recent entities.** On a turn that calls no tool, the current-turn registry is empty by construction (an anti-contamination guard) and the conversational history deliberately excludes tool messages: the response model then has *no* authoritative structured data at all, and can only rephrase earlier prose. The most recent entities in state are therefore re-injected through a dedicated prompt section — selected by recency, age-bounded, with no store round-trip, and explicitly subordinate to current-turn data. An authority rule completes it: inventing an entity attribute is forbidden, and a value that was requested but never received must be announced as missing.
-
-### 5.5. Generated artifacts: from request to downloadable file (ADR-226)
-
-The pipeline can end on a file rather than only on prose. The `generate_document` tool follows the same architecture as image generation — a virtual agent in the catalogue, no dedicated graph node — but its "generator" is a dedicated LLM slot (`document_generation`, admin-configurable like every other slot) called with **structured output typed per format family**: tabular content for CSV/Excel, a section tree for Word/PDF/Markdown/text, a slide list for PowerPoint. The schema is selected *before* the call, so every response is strict-schema validated, then a **pure local renderer** builds the exact bytes — openpyxl, python-docx, python-pptx, PyMuPDF: the libraries already shipped for RAG extraction, here writing instead of reading, with zero third-party document service.
-
-Three design decisions carry the feature. First, honesty of the artifact: spreadsheet cells are neutralized against formula injection (a probe proved openpyxl stores `=1+2` as a live formula) while legitimate negative numbers stay untouched, and a failure after the paid LLM call returns an explicit error — never a phantom card. Second, chaining: the planner can feed the results of a web-research step into the document step (`source_data`), so "research then formalize as CSV" is one request. Third, lifecycle: the file lands in the existing attachments store with the same TTL purge as generated images, and its card — delivered live through the SSE done chunk and persisted in message metadata through one shared serializer — displays the exact expiry deadline.
-
-**The craft belongs to the renderer, the meaning to the model (ADR-274).** The schema the writer slot fills is *semantic*: it names what a thing is — a heading, an ordered sequence, a quote, a callout, a part opener, a two-column comparison, a captioned table — and never how to draw it. The layout decision belongs to the renderer, which expresses it through each format's native mechanisms rather than imitating them: named styles, `PAGE`/`NUMPAGES` fields and a multilevel numbering definition in Word, so the contents and the numbers are recomputed by Word itself; the template's own layouts and placeholders in PowerPoint, on a 16:9 stage; a named Table over typed columns in Excel, so filtering and sorting come for free; bookmarks, links and exact page numbers in the PDF, obtained by paginating the body once and concatenating the front matter ahead of it. This split avoids handing the model a catalogue of templates to choose from — a drawing decision it cannot judge — and lets the renderer improve without touching the schema.
-
-**Text is measured before it is placed.** PowerPoint computes no autofit when a file is opened, and the library's own fit is wrong by a factor of two: the renderer therefore measures itself, with an estimator calibrated against PowerPoint — a full-width glyph counting one whole em, a Latin glyph a measured fraction. What does not fit is first shrunk to a readability floor, then split into “Title (2/3)” slides; an over-long bullet is cut at a sentence end. Nothing is ever clipped, because text cut off on screen is information lost without warning. The same principle governs the model call: an answer the provider reports as truncated is refused with its budget named (ADR-275), never closed up to look like a complete document.
-
-Image generation follows the same declared-offer rule (ADR-305). A **family** — OpenAI GPT Image, Qwen Image 3.0 — declares what a model accepts: its qualities, its sizes (a fixed list or an area envelope), its billing tiers, and whether an edit's reference image is billed per image. Every surface reads that one answer: a model no family declares is neither priced, offered, selected nor run. One client per provider runs the configured model — the OpenAI edit goes through `images.edit` on that model, where a detour through the Responses API would run the SDK's default model and a text model nobody counts —, a result delivered as a URL is downloaded at once under a host allowlist, bounded and checked, and the person's preference is an intent resolved at run time to the model's offer (the cheapest offered quality, the size of the same orientation and nearest area), then published as the effective value. The chosen format is applied once for every provider, by converting the image before it is stored.
-
-At the person's option, the description of a **new** image can be rewritten before the call by a dedicated slot, following the advice each provider publishes (ADR-315). It is an enhancement, never a gate: a text quoted between quotation marks must come back intact, and a rewrite that is empty, too long or failed lets the original description go out; an edit is never rewritten; the call is billed and audited like any other, and the gallery keeps the person's own words. The operator can withdraw the option for the whole instance, and the options screen publishes that state rather than offering a setting that does nothing.
-
-### 5.6. What the person keeps: produced files and kept answers (ADR-279, ADR-282)
-
-An artifact and an answer follow two different lifecycles once they exist, and both belong to the person rather than to the conversation. A produced file — an image, a document, a browser screenshot — is an attachment stamped with its **origin**, listed in a gallery of its own with an exact total and a visible retention deadline; clearing a conversation removes what the person uploaded and never what LIA produced, because a purge removes what its family declares, not what merely looks like it.
-
-An answer the person wants to keep is a different object: it is prose, it must render exactly as the bubble did, and it must outlive a conversation that is reset often. So a **bookmark is a copy, never a pointer**. At the click, the answer (markdown or a rich HTML document, verbatim), the request that produced it and the answer's date are written to a table of their own. The two references kept towards the conversation are `SET NULL` on delete: they only serve the toggle on the bubble while the conversation lives. The request is resolved **server-side** under the same visibility predicate the chat uses — the last visible user message before the answer, never the synthetic question of a run executed out of turn — and a notification LIA sent on its own initiative keeps no request rather than a wrong one. A partial unique index makes the toggle idempotent by construction, the account's cap is published because it is enforced, page and total come from one `WHERE`, and the operator's switch guards the act of keeping alone: what was already kept stays readable, exportable and deletable.
-
-Reading and deleting one's own files survives the uploads ceiling: the `attachments` router is mounted whatever `ATTACHMENTS_ENABLED` says, the capability guard sitting on the upload alone. Since every generated document is served by that read, an instance that generates without accepting uploads — the demonstrator — makes what it produces openable, and the expiry sweep runs for the table's four producers, never for uploads alone.
-
-A kept answer is also **indexed as a document of a knowledge space** (ADR-291): one space per account, found by its role and never by its name, created at the first bookmark, active by default, outside the space and document caps. The bookmark stays the record and the document its projection — a dated title, the quoted request, the answer converted to Markdown when it was an HTML page — so the exposed state (indexed, pending, deferred under a spend ceiling, disabled, in error) is derived from the document while it exists, and the cost is reported only once ready. A projection is claimed before it is computed, the capability and spend gates are read at the act, and a backfill rides the spaces' maintenance tick, serving the least recently attempted bookmark first — an account under quota never starves the others. Deleting the bookmark removes the document; the document is neither moved nor deleted from the space, and a space managed by its role is not deleted by hand.
-
-What was produced can also be found **by asking** (ADR-318): a read tool searches the live gallery by words of the title, family and period, and shows the files it finds as the chat's own cards, with the exact total. A generated image can be **shared with a connection** as a copy (ADR-316): the click is the confirmation — no draft, no model; two daily quotas are serialised per sender under a transaction-scoped lock; the file copy, the recipient's gallery row and the share ledger are written in one transaction; then the recipient's chat is reached on a best-effort basis, on a session of its own. A third party's comment is quoted there **literally**: neutralised with numeric character references, because the chat renders Markdown with raw HTML and `https:` images, and a backslash escape would be rendered as a formula.
-
-## 6. The planning system (ExecutionPlan DSL)
-
-### 6.1. Plan structure
-
-```python
-ExecutionPlan(
-    steps=[
-        ExecutionStep(
-            step_id="get_meetings",
-            tool_name="get_events",
-            parameters={"date": "tomorrow"},
-            dependencies=[]
-        ),
-        ExecutionStep(
-            step_id="send_reminders",
-            tool_name="send_email",
-            parameters={"subject": "Rappel réunion"},
-            dependencies=["get_meetings"],
-            for_each="$steps.get_meetings.events",
-            for_each_max=10
-        )
-    ]
-)
+```mermaid
+sequenceDiagram
+    participant T as You
+    participant L as LIA
+    participant S as Service
+    T->>L: Move my Thursday appointment
+    L->>L: Prepares the draft and records the action in the register
+    L->>T: Confirmation card
+    T->>L: Approve
+    L->>S: Executes exactly what was shown
+    S-->>L: Result
+    L->>L: Closes the action on that result
+    L->>T: What actually happened
 ```
 
-### 6.2. FOR_EACH pattern
+What you confirm is exactly the last content shown, and each change runs only once. Several drafts in the same turn are reviewed one by one. You can reply in your own words: a model classifies your answer as agreement, refusal or a request for changes. Outside a conversation, a ticket asks for its confirmation on the ticket itself, and a routine running with nobody in front of the screen asks no question: it refuses the action and says so, otherwise your next message would pass for an answer. A command given to the chat ("switch my answers to cards") follows the same rule, and when it needs an account connection, a key or a file to be chosen, that step happens in the authenticated browser. LIA checks the requested outcome against what she can observe, but a delegation to a tool does not by itself prove all of its internal effects. Likewise, a lock prevents a double execution without being able to guarantee that an outside provider will act only once.
 
-**Why a dedicated pattern?** Bulk operations (sending an email to 12 contacts) cannot be planned as 12 static steps — the number of elements is unknown before executing the previous step. FOR_EACH solves this problem with safeguards:
-- HITL threshold: any mutation >= 1 element triggers mandatory approval
-- Configurable limit: `for_each_max` prevents unbounded executions
-- Dynamic reference: `$steps.{step_id}.{field}` for previous step results
+The answer itself is framed: the model writes only from the tools' real results. And everything LIA does is recorded in three separate **registers**: actions, consultations and turns. Their totals do not add up, since one turn can consult five sources without changing anything. An action is recorded before it happens and closed only on an explicit result. Erasing a conversation removes the files you sent in it, not the ones LIA produced for you.
 
-The identity of a correlated result includes its parent. Tools derive their id from content alone — weather from `place + day`, a route from `origin + destination` — so two iterations over parents sharing those attributes would produce the same id, and the accumulator, a plain `dict.update()`, would silently overwrite the first. The id is therefore derived per parent through a deterministic fingerprint, which also keeps identities stable across a replay or a resume after an interruption.
+*Going further: [confirmations](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HITL.md) · [the authority chain and the registers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) · [the registers on the user side](/en/faq#faq-registers) · [tickets](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORKBOARD.md) · [application commands](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/APPLICATION_COMMANDS.md) · [what a delegation proves](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) · [tool examples, email to yourself and drafts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/05_tool_examples.md) · [synthesizing the answer](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/RESPONSE.md)*
 
-### 6.3. Parallel execution in waves
+## 5. Memory and context
 
-The `parallel_executor.py` organizes steps into waves (DAG):
-1. Identifies steps with no unresolved dependencies → next wave
-2. Filters skipped steps (unmet conditions, fallback branches) — **before** `asyncio.gather()`, not after (ADR-005: filtering afterwards would double the API calls and their cost)
-3. Executes the wave with per-step error isolation
-4. Feeds the Data Registry with results
-5. Repeats until plan completion
+A conversation's state is a `MessagesState` that LangGraph checkpoints in PostgreSQL after every node. That is what lets a turn resume after a confirmation, even hours later. Tool results do not live in the message history but in a separate data registry, so they survive when the history is truncated. Past a threshold, older exchanges are summarized; a badge shows how full the context is, and `/resume` triggers that summary on demand. In ReAct mode, what a loop has already read is checkpointed and reused within the turn; a stop before that checkpoint can cause a source to be read again.
 
-### 6.4. Semantic Validator
+Long-term memory, knowledge spaces and tool context live in the same database, with pgvector. After each exchange, a background job extracts memories from the last message; memories close to the question come back into the next context, and memory is also a tool that the planner and ReAct consult. A lasting instruction ("answer more briefly") is pinned and visible. When a sensitive subject comes up, a directive forbids joking or minimizing.
 
-Before HITL approval, a dedicated LLM (distinct from the planner, to avoid self-validation bias) inspects the plan against 14 issue types across four categories: **Critical** (hallucinated capability, ghost dependency, logical cycle), **Semantic** (cardinality mismatch, scope overflow/underflow, wrong parameters), **Safety** (dangerous ambiguity, implicit assumption), and **FOR_EACH** (missing cardinality, invalid reference). Short-circuit for trivial plans (1 step), optimistic 1 s timeout.
+Around this memory, I added several layers. The **journals** are LIA's notebooks, in the first person; a portrait of the person emerges from them, with the sources that fed it, and it can only be corrected through indirect levers. The **Psyche Engine** gives LIA a psychological state that evolves with every exchange and shows in her style without being announced; it also learns, domain by domain, where she is reliable, from evidence; it is a pilot, with no gain claimed for now. It has an acknowledged limit: it almost never reports a calm, low-intensity emotion, and that part of its activation stays locked. **Interests** are detected in your requests and fed by several sources. **Habits**, finally, are learned without a trained model, through statistical tests, and I had three reasons, each sufficient on its own: a Raspberry Pi has no training budget, a formula can be published to the person it concerns, and on such small volumes a model would mostly learn noise.
 
-Additionally, a **self-enriching anti-hallucination registry** (`hallucinated_tools.json`) detects tools invented by the LLM (e.g. `resolve_reference_tool`) via persistent regex patterns. Each new hallucination is automatically added to the registry for faster detection in subsequent plans. Hallucinated steps are removed and the planner is forced to replan with real catalogue tools — eliminating an entire class of execution failures without human intervention.
+*Going further: [checkpoints](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-022-LangGraph-State-Checkpointing.md) · [the data registry](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-012-Data-Registry-StandardToolOutput-Pattern.md) · [compaction](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/COMPACTION_v2.md) · [ReAct's checkpointed reads](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-337-Checkpointed-ReAct-Read-Segments-And-Turn-Local-Reuse.md) · [memory in PostgreSQL](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-066-Memory-PostgreSQL-Migration.md) · [long-term memory](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LONG_TERM_MEMORY.md) · [memory as a search tool](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md) · [lasting rules](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-236-procedural-memory.md) · [journals and the portrait](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/JOURNALS.md) · [the Psyche Engine](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PSYCHE_ENGINE.md) · [its measured limit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md) · [the psyche on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/22_psyche.md) · [efficacy learned from evidence](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-348-Efficacy-Learned-From-Evidence-Results-And-Usefulness-Kept-Apart.md) · [interests](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/INTERESTS.md) · [habits](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/28_habits.md) · [searching the journals and the registers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)*
 
-A verdict classifies, it does not condemn — and a **diagnosis is not a question**. When a *writing* plan exhausts its automatic replans, the validator refuses to execute it and hands over to a HITL clarification: writing wrong data costs more than asking. What the user is then asked is a question **in their own language**, drawn from a table of fifteen entries whose completeness is asserted at boot **in both directions** — an issue the code can raise with no written question refuses to start the application, and so does a question no code can raise. The internal issue description stays in the trace, where it belongs. The same principle covers the values: a parameter supplied in an earlier turn is **carried over from the previous plan** rather than re-imagined, because the repair recognises a documentation placeholder and never overwrites a genuine value — a change of mind is always honoured (ADR-195).
+## 6. The models
 
-The verdict's honesty extends all the way into execution. Every tool returns a typed verdict — success or refusal, with its cause — and the plan executor propagates it **unchanged**: a refusal is never presented as a completed action, a failed step is not counted as "executed" (so the layer that names blockers keeps its truth), and a failure is never saved as conversational context. When the violated constraint is unrepairable — the user's own content exceeds a bound published in the catalogue — it becomes the **first question asked**, with the exact numbers and in the user's language, rather than a generic question. And what a bulk operation confirms is the count **measured** after pre-execution, never a theoretical cap.
+A single factory instantiates the model of any supported provider and applies its adapter. Each role has its model slot (conversation, planning, images, transcription, speech synthesis…), set in the administration without redeploying. The model catalogue lives in the database and declares, model by model, its capabilities, the parameters it accepts and the reasoning scale it knows; the configuration screen therefore offers only what the model's API really accepts.
 
-A reviewer also has a blind spot worth designing against: a judge asked for a verdict reliably checks what a plan **contains** and misses what it **lacks**. So the inspection opens with a coverage pass — enumerate the demands the request establishes, then check each has a covering step — before any verdict is formed. Two shields keep it from firing on healthy plans: a demand met by ANALYSIS of data the plan already fetches belongs to the response LLM and is covered by construction, and a demand no capability can serve is not a missing step either. A step reported missing routes to the same silent re-planning as every other repairable defect.
+Some tasks are not generations but bounded decisions: choosing a format, qualifying an email. They can be handed to a native decision engine, each behind its own switch and a general switch. An uncertain decision falls back to the usual processing, and neither rights nor confirmations are delegated to it. A qualification verdict authenticates no sender, and a gain measured on a test corpus is no promise for every request.
 
-### 6.5. Reference truth (ADR-194)
+Every model call, in the pipeline as in background jobs, is tracked and priced from the rates in the database, then grouped by turn. On cost, the main saving comes from the providers' cache. Each prompt places its stable content before a marker and the request-specific content after it, and the infrastructure translates that marker into each provider's caching mechanism. Since every slot can change model, I do not tune this cache for any one model: I aim for the best average, and a model without a cache pays nothing extra. The studies run on other local engines (oMLX, llama.cpp, LM Studio) are qualifications, not shipped integrations: only the providers the instance offers count.
 
-A cross-step reference (`$steps.get_meetings.events[0].title`) is written by the planner **before** the step has run. The path therefore has to be right the first time, or the plan fails after paid API calls and the user's wait.
+*Going further: [model selection](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-026-LLM-Model-Selection-Strategy.md) · [the catalogue in the database](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md) · [the configuration screen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/LLM_CONFIG_ADMIN.md) · [native decisions](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md) · [their integration](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/JEV_INTEGRATION.md) · [qualifying emails](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/EMAIL_EVENT_CLASSIFICATION.md) · [one layout for every cache](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md) · [filtering the tool catalogue](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-003-Multi-Domain-Dynamic-Filtering.md) · [the local engines studied](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/16_other.md)*
 
-What makes it right is a **contract**: every tool manifest publishes the paths its output carries, and continuous integration proves that contract before any code is merged. The check drives the real tool — its actual builder, the real reference resolver, the reconstructed merge — and compares what the manifest publishes to what execution produces: the path itself, its **shape** (record, list, list of records) and its **type** (string, number, object). The planner reads that type to decide what it can chain a value into, so a wrong type breaks a plan just as surely as a wrong path.
+## 7. Connectors and tools
 
-The contract is deliberately **asymmetric**: everything published must be produced, never the reverse. A manifest lists *examples*, not an exhaustive enumeration — `events[0].summary` is real whether or not anyone thought to write it down, and demanding the converse would reject legitimate paths.
+Each connector category (email, calendar, contacts, tasks, files, home) is a Python protocol. Only one provider is active at a time per category, and OAuth consent is given once per Google or Microsoft account. Services that ask nothing of the person (Wikipedia, page reading, places, weather) belong to the instance and are active for everyone. On the email side, each message is summarized once and then reused, an attachment is read as text or by a vision model, and a send is never retried after a lost acknowledgment.
 
-Coverage is stated rather than assumed: what a tool's shape makes hard to drive is costed and dated in a debt file instead of being left implicit. At runtime the net is `ReferenceResolver`, which raises an explicit error rather than resolving to nothing.
+Tools rest on five composable layers: a common connector base (OAuth, cache, injection), a decorator, per-domain formatters, the manifest the planner reads, and a catalogue loader. **MCP** tools are converted into ordinary LangChain tools and join the same catalogue, kept from one message to the next so that a message usually waits for no server; an MCP server must use HTTPS, its credentials are encrypted, and LIA believes an annotation that announces a modification, never one that claims to be read-only. **Plugins** in the Agent Plugins format install as a single block, with no local server. **Skills** following the agentskills.io standard can render a small app in the chat or run their own commands in a copy of their folder; a skill from elsewhere runs isolated and never receives a connector's token.
 
-### 6.6. Corrected before it runs, said when it fails (Panic Mode)
+When a step needs a real calculation, ReAct mode can write a short Python script and run it in a disposable container. This script reaches the web only through a single proxy, does not see the person's key (the proxy substitutes it on the one authorized host), and an unknown host is asked about with three possible answers. In both modes, calculations, durations and currency conversions go through exact tools rather than the model. An agent can also drive a browser (Playwright) or convert a page into text.
 
-A plan is corrected while correcting it is still free: **before** it runs. Beyond the validator's bounded re-plans (6.4), **Panic Mode** catches the cases where domain filtering was too aggressive: when the filtered catalogue leaves the planner no workable plan, planning is retried once over a wider catalogue.
+Documents in **knowledge spaces** are chunked, embedded and stored in PostgreSQL rather than in an external vector database, then retrieved by a hybrid search, semantic and lexical. A space can follow a Drive folder with its subfolders, or a Gmail label, without indexing the whole mailbox. There is no character recognition: a scanned PDF is not indexed as is. Data sent from outside (SMS, step count, heart rate, from an iPhone, an Android or any system able to send JSON) comes in through endpoints authenticated by a limited-scope, revocable token, separate from the session.
 
-Once a plan has run, nothing is replayed behind the person's back. A transient provider failure is already retried inside the client that met it, with backoff behind a circuit breaker; an inactive connector or a refused account cannot be planned away; an empty result is an answer; and a failed act is never replayed under its key (ADR-263). So every failed step reaches the response **whole**, and the failures directive states it — which tool, why, and the exact count (ADR-303). A counter by typed error code makes the failure modes measurable, including a failure that happens before a tool is even called, such as a reference to an earlier step that could not be resolved. The mode that corrects itself is ReAct, which the person chooses (ADR-310); after execution, the pipeline says what failed and never guesses a recovery (ADR-346).
+For a complex task, LIA delegates to ephemeral, read-only sub-agents. She also produces files: documents, images, screenshots, filed in a gallery, kept, sent by email or, for an image, shared with a person connected to the instance.
 
----
+*Going further: [connector patterns](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/CONNECTORS_PATTERNS.md) · [grouped OAuth consent](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) · [the instance's services](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md) · [connectors on the user side](/en/faq#faq-connectors) · [emails and their summaries](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md) · [attachments](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md) · [per-slot timeouts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-221-Timeout-Par-Emplacement-Applique.md) · [the tool base](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-015-ConnectorTool-Base-Class-Pattern.md) · [MCP](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/MCP_INTEGRATION.md) · [the Agent Plugins standard](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md) · [plugins](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PLUGINS_INTEGRATION.md) · [skills](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SKILLS_INTEGRATION.md) · [skills on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/12_skills.md) · [third-party skills](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-327-Skill-Library-And-Third-Party-Skills.md) · [editing a skill](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-165-Skill-Editing-By-Regeneration.md) · [sharing a capability](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PEER_CAPABILITY_TRANSFERS.md) · [ephemeral Python](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md) · [the sandbox's network egress](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md) · [computed answers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/35_computed_answers.md) · [the browser](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/BROWSER_CONTROL.md) · [page reading](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WEB_FETCH.md) · [knowledge spaces](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-055-RAG-Spaces-Architecture.md) · [their guide](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_RAG_SPACES.md) · [their use](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/14_rag_spaces.md) · [a Drive folder is a tree](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md) · [a Gmail label as a source](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md) · [the built-in FAQ](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-058-System-RAG-Spaces.md) · [attaching a document from a space](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md) · [sub-agents](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/13_sub_agents.md) · [health data](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HEALTH_METRICS.md) · [its ingestion](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-076-Health-Metrics-Ingestion.md) · [health on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/23_health_metrics.md) · [SMS](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SMS_INGESTION.md) · [document generation](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DOCUMENT_GENERATION.md) · [documents on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/32_document_generation.md) · [images](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/21_image_generation.md) · [generated files](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/39_generated_files.md) · [keeping a file](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md) · [sending by email](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md) · [composer attachments](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/ATTACHMENTS_INTEGRATION.md) · [kept answers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/40_bookmarks.md)*
 
-### 6.7. Invoked capability: when the request is not a sentence
+## 8. Voice, Live mode and phone
 
-A plan is born from text. But when the request comes from a **button** — a named card, ticked boxes — the system holds that certainty **before** any model is consulted. Serialising it into prose and then spending three stochastic stages (analyzer, planner, validator) recovering it destroys information and pays to find it again. The expected tool can thus hold the best score in the catalogue while the plan still calls a generic one.
+Classic voice is made of independent building blocks. The wake word "Dis LIA" is detected in the browser and sends nothing before it is heard; only the French model ships for now, in beta. Dictation is transcribed in the account's language, on the server and offline with Whisper, or by a remote engine depending on the setting. Speech synthesis has several providers, free Edge by default, and the answer starts being read sentence by sentence while the rest is still being written. An experimental talking avatar can be added, on the person's Simli key, which also bills silences as long as the connection stays open.
 
-The request therefore carries, alongside the displayed sentence, the **invoked capability**: a `{capability, subject}` pair. `capability` is a **closed** `Literal`, rejected by Pydantic at the HTTP boundary — the browser names a capability, **never** a tool, and the server decides which read-only tool implements it. This door does not lead to a mutating tool. Transport to the planner is a request-scoped `ContextVar`, set in the same place and with the same discipline as the skill preferences.
+**Live mode** is a real speech-to-speech conversation. I gave it two intelligences and a single seam: the voice model carries the conversation, and every request for data or for an action goes to the chat engine through a single function, `send_to_lia`. The request becomes an ordinary chat turn, with its confirmations, its registers and its quotas. The voice owns no tool, no credential and no memory of its own.
 
-It is applied **before validation**, exactly like clamping out-of-range parameters: what is mechanically repairable is repaired, never reported as a defect. The plan is **enriched, not replaced** — everything the planner intended that adds something stays; what it intended that the capability already covers is dropped, because an unrelated answer placed next to a stated gap contradicts it. Two guards: a step another one still reads — through a declared dependency **or** a `$steps` reference — is kept, and a plan with no steps (pending clarification, execution delegated to a skill) is never turned into an execution. A guarantee that overrides a question is not a guarantee.
-
-### What a read step found reaches the answer (ADR-347)
-
-In Pipeline mode, the answer is written by a model that never sees the tools: it reads each step's message and the items the turn recorded. Yet a read tool keeps its facts in `structured_data` — a route matrix's durations, a journey's connections, a search's next page. The executor therefore projects what that block carries beyond the cards already shown, through the ReAct mode's own functions (ADR-286): compared by content, cut at item boundaries, wrapped as third-party content, under the response slot's token budget, every cut stated and counted. The answer reads it in one section joined to the execution summary, and the persisted state keeps no other turn's block. A tool whose message already renders its data declares so, with a reason checked at startup.
-
-The same contract closes the opposite door: a failure a connector's payload declares is never returned as a success — a net at the connector chokepoints corrects it, logs it and counts it —, and a FOR_EACH loop whose items partly fail keeps its successes and names each failed item. An item reaches its step whole: the `$item` substitution is structural, never a re-parsed JSON string.
-
----
-
-## 7. Smart Services: intelligent optimization
-
-### 7.1. The problem solved
-
-Without optimization, scaling to 10+ domains would make costs explode: going from 3 tools (contacts) to 30+ tools (10 domains) multiplies prompt size by 10x and therefore cost per request by 10x (ADR-003). Smart Services bring this cost back to mono-domain system levels.
-
-| Service | Role | Mechanism | Measured gain |
-|---------|------|-----------|---------------|
-| `QueryAnalyzerService` | Routing decision | LRU cache (TTL 5 min) | ~35% cache hit |
-| `SmartPlannerService` | Plan generation | Bayesian Pattern Learning | Bypass > 90% confidence |
-| `SmartCatalogueService` | Tool filtering | Domain-based filtering | 96% token reduction |
-| `PlanPatternLearner` | Learning | Bayesian scoring Beta(2,1) | ~2,300 tokens saved per replan |
-
-### 7.2. PlanPatternLearner
-
-**How it works**: When a plan is validated and executed successfully, its tool sequence is stored in Redis (hash `plan:patterns:{tool→tool}`, TTL 30 days). For future requests, a Bayesian score is calculated: `confidence = (α + successes) / (α + β + successes + failures)`. Above 90%, the plan is reused directly without an LLM call.
-
-**Safeguards**: K-anonymity (minimum 3 observations for suggestion, 10 for bypass), exact domain matching, maximum 3 injected patterns (~45 tokens overhead), strict 5 ms timeout.
-
-**Bootstrapping**: 50+ predefined golden patterns at startup, each with 20 simulated successes (= 95.7% initial confidence).
-
-### 7.3. QueryIntelligence
-
-The QueryAnalyzer does more than detect domains — it produces a deep `QueryIntelligence` structure: immediate intent vs ultimate goal (`UserGoal`: FIND_INFORMATION, TAKE_ACTION, COMMUNICATE...), implicit intents (e.g. "find contact" probably means "send something"), anticipated fallback strategies, FOR_EACH cardinality hints, and softmax-calibrated domain confidence scores. This gives the planner a richer picture than simple keyword extraction.
-
-### 7.4. Semantic Pivot
-
-Queries in any language are automatically translated to English before embedding comparison, improving cross-lingual accuracy. Redis-cached (5 min TTL, ~5 ms on hit vs ~500 ms on miss), using a fast LLM.
-
-### 7.5. Catalogue closure
-
-Semantic filtering scores tools against an **English paraphrase of the request, regenerated on every turn by a model**: the same question can therefore produce two different catalogues. If the selected tools require a datum none of them can produce — the id of a message in order to reply to it — the space of valid plans is empty **before** the model even starts. All it can do then is invent a tool name.
-
-Closure applies a rule that never looks at the request: *every kind of datum required by a tool in the catalogue must be produced by another tool in the catalogue*. It is a linker resolving undefined references, not a search guessing which one is relevant. Two conditions make it correct rather than merely plausible: a tool never satisfies itself ("reply to an email" also produces a message id — the one it just sent), and only a **read** tool counts as a source (one does not trigger a send to discover an identifier). The price is small: closure typically adds **one tool** to the catalogue.
-
----
-
-### 7.6. Cross-domain reachability
-
-Closing the catalogue settles what a plan may **chain**. A question comes before it: which tools **enter** at all. Filtering drops every tool whose domain is not among those detected — **before** any semantic score is consulted. A genuinely cross-domain tool is therefore invisible to every query classified elsewhere, however well it scores.
-
-The 360° person-overview tool is the textbook case: it lives in the `contact` domain, while the analyzer's own instructions send any question about a connected user to the `peer` domain. Left alone, it would hold the best score in the whole catalogue and never reach the planner — succeeding only when the model steps outside its instructions is a stochastic escape, not the nominal path.
-
-A manifest therefore declares the **additional** domains it is reachable from, and a **single implementation** answers "is this tool in scope?" for both filtering strategies, rather than each asking the same question on its own. Every value is validated at registration against the domain registry: an unknown domain refuses to boot rather than making the tool silently unreachable. To be declared sparingly — each added domain widens the choice offered for **every** query in that domain. This is not relating two domains to each other: relating pulls their entire toolboxes into one another and swells every catalogue involved. Here one tool moves, not a domain.
-
-### 7.7. A domain's catalogue is an offer of capabilities
-
-Per-domain filtering has a corollary: **what a domain's catalogue contains dictates what the planner can want**. If the calls domain offered nothing but placing a call, "when did I last call my wife?" would become a two-step plan — find the contact, then **phone her to ask**.
-
-This would not be a whim of the model but the only way to obey. The prompt announces `Primary domain: telephony` and a rule checks that the plan covers that domain: if the `telephony` catalogue holds **exactly one capability — placing a call**, covering its primary domain means acting.
-
-The domains that act therefore carry their read capability too, **each in its own domain** — the call history, open commitments, relayed messages. The alternative wiring, through the additional domains of the previous section, is ruled out: making those tools reachable from `contact` would evict mutation tools from the busiest catalogues, the cap being fixed. A read capability must not cost a write one.
-
-A **deterministic** rule completes the arrangement, before any model call: non-mutating intent detected + plan calling a mutation tool → plan invalid. It runs with the other pre-LLM rules, hence out of reach of the exemption that skips review for a well-chained plan ending on a mutation — which is exactly the offending shape: without it, the better formed the plan, the less it would be checked.
-
-Both catalogue caps (normal and panic mode) are settings, with a boot-time guard: **the fallback cap is never below the normal one**, or the safety net would offer strictly less than the path that just failed.
-
----
-
-## 8. Semantic routing and AI-powered embeddings
-
-### 8.1. Why semantic embeddings? (ADR-049)
-
-Purely LLM-based routing had two problems: cost (each request = one LLM call) and accuracy (the LLM was wrong about domains in ~20% of multi-domain cases). Semantic embeddings solve both:
-
-| Property | Value |
-|----------|-------|
-| Provider | Google Gemini (`gemini-embedding-001`) |
-| Languages | 100+ |
-| Accuracy gain | +48% on Q/A matching vs LLM-only routing |
-
-### 8.2. Semantic Tool Router (ADR-048)
-
-Each `ToolManifest` has multilingual `semantic_keywords`. The query is transformed into an embedding, then compared by cosine similarity with **max-pooling** (score = MAX per tool, not average — avoids semantic dilution). Dual threshold: >= 0.70 = high confidence, 0.60-0.70 = uncertainty.
-
-### 8.3. Semantic Expansion
-
-The `expansion_service.py` adds to the planner catalogue the domains able to provide a missing piece of data. The trigger is **evidence-driven**: person-reference detection is the union of three sources — the memory resolver's mappings (person references by construction), relational references extracted even when resolution finds no fact, and the analysis LLM's typed references. A referenced entity (person → `Contact`, meeting → `CalendarEvent`, place → `Place`, email → `EmailMessage`) brings in the domains whose ontology-type `properties` provide a type required by the selected tools — an anchoring that prevents any blind expansion, with a configurable cap and boot-time completeness checks on the mapping (ADR-120).
-
-The layer is fed by **deeply annotated** manifests (`semantic_type` on parameters and outputs: event attendees, email sender, route destination — ADR-121), which also power cross-domain Jinja2 linking suggestions and an **execution guard**: a person's name can never reach an address/email-typed parameter — the call fails before any API spend with a recoverable error, in both execution modes. Post-expansion validation (ADR-061, Layer 1) still filters domains disabled by the administrator.
-
----
-
-## 9. Human-in-the-Loop: 6-layer architecture
-
-### 9.1. Why per action? (Phase 7 → Phase 8 → today)
-
-The initial approach (Phase 7) interrupted execution **during** tool calls — each sensitive tool generated an interruption. The UX was poor (unexpected pauses) and the cost was high (per-tool overhead).
-
-Phase 8 submitted the **complete plan** to the user **before** any execution: a single interruption, a global view, editable parameters — at the price of trusting the planner to produce a faithful plan. Confirmation per action superseded it: the plan-approval gate now passes every plan through, and the person confirms what will actually happen where it is prepared — each draft on its own card, one question per draft (§9.3), a FOR_EACH lot before it runs, a tool that declares it owes a confirmation.
-
-### 9.2. The approval types
-
-| Type | Trigger | Mechanism |
-|------|---------|-----------|
-| `CLARIFICATION` | Ambiguity detected | `interrupt()` with LLM question |
-| `DRAFT_CRITIQUE` | A draft (e-mail, event, contact…) or a tool call that owes a confirmation | `interrupt()` with the draft's card; an edit asked for is shown again |
-| `ENTITY_DISAMBIGUATION` | Several matches for one name | `interrupt()` with the candidates |
-| `TOOL_CONFIRMATION` | A tool call awaiting approval without a draft | `interrupt()` with the call |
-| `FOR_EACH_CONFIRMATION` | Bulk mutations | `interrupt()` with operation count |
-| `PLAN_APPROVAL` | None today: the approval gate passes every plan through | — |
-| `DESTRUCTIVE_CONFIRM` | None today: registered, emitted by no node | — |
-
-**What has nothing to confirm.** An action asks nothing when nothing can divert it. The e-mail to oneself (ADR-314) has no recipient parameter: the address is the one the connected mailbox's provider states, or, without a mailbox, the account's verified address through LIA's relay — so no third-party text can redirect it. The tool declares `reversible` with its written reason, so a routine can send its result where a draft is refused. A typed address that happens to be one's own still goes through the draft: a recipient that sometimes skipped confirmation would be an injection target.
-
-**Mailbox drafts** (ADR-344) follow the same rule: saving a draft, preparing a reply or a forward as a draft, editing it or moving it to the trash reaches nobody — the draft stays in the person's mailbox and the trash can be undone — so nothing is asked. Only sending goes through a card, which shows the draft as the mailbox holds it and carries its fingerprint: a draft edited in the mailbox meanwhile is not sent, and a change asked on the card is written before it leaves.
-
-### 9.3. Draft critique: one description, one question per draft
-
-A draft to confirm and the report of its execution are **described once** — a card specification of labelled rows, notes and blocks, built by one renderer per draft type from the display registry — and **drawn per surface**: in the chat, the same `lia-card` markup as an e-mail or an event (header, illustration, fields with their icons, body in a block); on a ticket, on an external channel or under the `markdown` display mode, the Markdown the ticket comment can flatten. The surface is decided by the run, never guessed by a caller. A report says what was done, to whom and with what: each line of a batch carries the key fields its type declares and a bounded excerpt of the text sent, quoted with the language's own quotation marks. Before/after comparison for updates, irreversibility warnings, i18n labels and clickable links are part of that description.
-
-A turn that prepares **several independent drafts** — two e-mails, an event and a task, several tool calls of one ReAct iteration — submits them **one draft per interruption**: the sequence opens on the list of everything the turn prepared, each draft has its own card, its own question and its own edit, the position is stated ("Draft 2 of 3"), and nothing runs before the last answer; the banked decisions are then executed together, each under its own type, and a cancelled draft is reported rather than lost. Only a lot the person **pre-approved as a list** — the items of a FOR_EACH step approved in that turn, of one type — keeps its grouped confirmation. A ticket follows the same identity (the draft on screen), and a new turn always starts with no draft under review.
-
-### 9.4. Response Classification
-
-When the user responds to an approval prompt, a full-LLM classifier (not regex) categorizes the answer into 5 decisions: **APPROVE**, **REJECT**, **EDIT** (same action, different parameters), **REPLAN** (different action entirely), or **AMBIGUOUS**. Demotion logic prevents false positives: an EDIT with missing parameters is demoted to AMBIGUOUS, triggering a clarification follow-up.
-
-### 9.5. Replay-safe review loops (ADR-092)
-
-LangGraph's resume semantics re-execute the interrupted node **in full**: past `interrupt()` calls return their cached values, but everything else runs live again. Any loop written around `interrupt()` inside a node therefore replays its side effects (LLM calls, API calls) on every user decision. Both review loops — iterative draft editing and bulk-operation confirmation (dedicated `for_each_confirm` node) — follow a normative pattern: **one `interrupt()` per node execution**, loop state flows through the checkpointed graph state, and iteration happens through a conditional self-loop edge. Guarantee proven by compiled replay harnesses: each LLM modification runs exactly once and the confirmed content is exactly the last content displayed.
-
-### 9.6. Compaction Safety
-
-4 conditions prevent LLM compaction (summarization of old messages) during active approval flows. Without this protection, a summary could delete the critical context of an ongoing interruption.
-
----
-
-## 10. State management and message windowing
-
-### 10.1. MessagesState and custom reducer
-
-The LangGraph state is a `TypedDict` with an `add_messages_with_truncate` reducer that handles token-based truncation, OpenAI message sequence validation, and tool message deduplication.
-
-The state is complemented by a **typed run context** (`LiaRuntimeContext`, ADR-231): a frozen dataclass declared as the graph's `context_schema`, carrying the run's identity, preferences and live dependencies (SSE queue, tool container). Unlike the state, this context is never checkpointed nor copied — object identity is preserved from node to subgraph to tool — and an assert at the graph's entrance refuses any run whose context is missing, including on the resume of a HITL interrupt, where an absence would otherwise degrade silently.
-
-### 10.2. Why per-node windowing? (ADR-007)
-
-**The problem**: a conversation of 50+ messages generated 100k+ tokens of context, with latency > 10 s for the router and exploding costs.
-
-**The solution**: each node operates on a different window, calibrated to its actual need:
-
-| Node | Turns | Justification |
-|------|-------|---------------|
-| Router | 5 | Fast decision, minimal context suffices |
-| Planner | 10 | Needs context for planning, but not the entire history |
-| Response | 20 | Rich context for natural synthesis |
-
-**Measured impact**: E2E latency -50% (10 s → 5 s), cost -77% on long conversations, quality preserved thanks to the Data Registry which stores tool results independently from messages.
-
-### 10.3. Context Compaction
-
-When the token count exceeds a dynamic threshold (ratio of the response model's context window), an LLM summary is generated. Critical identifiers (UUIDs, URLs, emails) are preserved. Savings ratio: ~60% per compaction. `/resume` command for manual triggering.
-
-**Operational resilience**: every LLM call is wrapped in an `asyncio.wait_for` per chunk (35 s default) and a global 120 s budget. On transient errors, `tenacity.AsyncRetrying` retries up to 3 times with exponential backoff. If the summary still cannot complete, an explicit fallback (`_truncation_fallback`) cleanly truncates the older history with a readable `SystemMessage` that preserves identifiers — no silent stub. Prior `compaction #N` summaries are consolidated into the merge instead of stacking turn after turn.
-
-**SSE custom-mode signal**: the node emits `compaction_start` / `compaction_done` via `langgraph.config.get_stream_writer()` through a `stream_mode="custom"` (LangGraph 1.x). The streaming service translates these payloads into `ChatStreamChunk(type="execution_step")`. On the frontend a sonner toast morphed on a stable id (`COMPACTION_TOAST_ID`) stays visible for the duration of the compaction, the input is locked via `status="compacting"`, and a `ContextUsagePill` continuously shows the tokens/threshold ratio. The concurrent SSE keepalive (`iter_with_keepalive`) pulses `: heartbeat` every 15 s during silent awaits to neutralize Cloudflare idle cuts. Five Prometheus metrics (`compaction_chunk_timeouts_total`, `compaction_global_timeouts_total`, `compaction_total_duration_seconds`, `compaction_writer_unavailable_total`, `compaction_executions_total{strategy}`) feed a dedicated Grafana dashboard.
-
-**Provenance survives the summary.** A summary built from messages carrying third-party text inherits a provenance banner, and the summarising prompt reports third-party claims in a dedicated section attributed to their source — see §19.6.
-
-### 10.4. PostgreSQL Checkpointing
-
-Full state checkpointed after each node, save duration and size measured per node (`checkpoint_save_duration_seconds`, `checkpoint_size_bytes`). The graph input is the **turn's diff**, never the restored state: the loader keeps a copy of the restored values and the stream hands the graph only what changed since, so an unchanged channel takes no new version on every turn — a derived diff that no intermediate writer has to declare. Checkpointer and store each run on a dedicated PostgreSQL connection pool per worker (sizes tunable via environment): concurrent conversations never serialize on a single connection, and a connection dropped while idle is detected at checkout and replaced automatically (ADR-111).
-
-### 10.5. A ReAct turn's system blocks are state (ADR-169/170)
-
-`get_windowed_messages(include_system=True)` **hoists every `SystemMessage` to the front**, with no window limit. Stacking each turn's system blocks into the history would therefore re-send every past copy on every call — the loop's prompt repeated once per past turn, on every LLM call of every iteration. A prefix that grows each turn never hits a provider prefix cache, and a provider such as Anthropic refuses the sequence: a `SystemMessage` cannot sit in the middle of a history.
-
-The blocks therefore live in a dedicated state key and are recomposed leading at each call — the prefix stays stable. The key belongs to the versioned state schema, with an additive, idempotent migration. Windowing drops legacy `SystemMessage`s from the history **except the compaction summary**, the conversation's condensed memory: restoring contiguity must never cost that summary.
-
-**The loop's deadline is measured on compute, not on wall clock.** `interrupt()` raises: the node never returns, no state update is persisted, no timestamp is refreshed, and the resume re-enters the interrupted node without replaying the router where the reset lives: on the wall clock, the time a person takes to answer would count as compute. A turn resumed after a confirmation would then be cut at the next routing decision and its answer re-synthesised by a second LLM call, the multi-step work lost. A no-progress guard completes the set: on the fourth identical tool call the model is asked to change approach, on the fifth the turn concludes. The digest is an HMAC keyed on the application secret — it survives a resume on another worker — and only the digest and a counter reach the checkpoint, never the tool name or its arguments.
-
----
-
-### A conversation follows committed state
-
-An answer can arrive from another tab, a call, a routine or an external channel. The server announces a conversation change only after its database transaction commits; the browser then fetches the authenticated history and merges messages by their recorded identity. A reconnect also fetches what the signal channel could not retain. This preserves earlier pages, reading position and work in progress without trusting a notification as message content.
-
----
-
-## 11. Memory system and psychological profile
-
-### 11.1. Architecture
-
-```
-PostgreSQL + pgvector
-├── memories                                        → Long-term memory: facts, preferences, psychological profile
-├── rag_documents + rag_chunks                      → Knowledge spaces, hybrid search
-└── AsyncPostgresStore (user_id, "context", domain) → Tool context (Data Registry)
+```mermaid
+sequenceDiagram
+    participant P as You
+    participant V as Voice model
+    participant L as LIA chat engine
+    P->>V: You speak
+    V->>L: send_to_lia with your request
+    L->>L: Ordinary chat turn, confirmations included
+    L-->>V: Answer or question
+    V->>P: It answers you out loud
 ```
 
-### 11.2. Enriched memory schema
+A Live session falls asleep instead of dying: during standby, the connection to the provider is closed and nothing is billed. The Live provider's spend is paid by the person's key and is never recorded by LIA. In Live direct, the voice reads your data itself without changing anything.
 
-Each memory is a structured document with:
-- `content`, `category` (preference, fact, personality, relationship, sensitivity...)
-- `importance` (1-10), `emotional_weight` (-10 to +10)
-- `usage_nuance`: how to use this information in a caring manner
-- Embedding `gemini-embedding-001` (1536d) via pgvector HNSW
+The **phone** takes up the same two modes. LIA can call a third party for you after confirmation, or call you on a verified number, and you then have your data and all her functions on the phone, as in the chat. When LIA calls a third party, the calling agent has only a read-only free/busy tool: the protection of your calendar is structural, it does not depend on an instruction in a prompt. On the phone, Live mode exists only if the provider can reach your instance.
 
-**Why an emotional weight?** An assistant that knows your mother is ill but treats this fact like any other piece of data is at best clumsy, at worst hurtful. The emotional weight enables the `DANGER_DIRECTIVE` (prohibition on joking, minimizing, comparing, trivializing) when a sensitive subject is touched upon.
+A meeting is recorded from the browser: the audio leaves in small segments, then it is transcribed and summarized into structured minutes, filed in a knowledge space. The personal radio, finally, produces only during a listening session and keeps nothing for a later replay.
 
-Standing instructions are **pinned when created**: automated maintenance cannot rewrite them while pinned. You can edit, unpin or delete them yourself. Even unpinned, a procedural instruction cannot be retired automatically without a successor.
+*Going further: [voice on the user side](/en/faq#faq-voice_mode) · [Live standby and the wake word](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md) · [voices and speech synthesis](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-345-Fish-Audio-Served-Whole-One-Door-One-Allowance-Cues-Each-Engine-Reads.md) · [the talking avatar](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SPEAKING_AVATAR.md) · [Live mode](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md) · [telephony on the user side](/en/faq#faq-telephony) · [the phone as a channel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md) · [the radio](/en/faq#faq-radio) · [meetings](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/MEETINGS.md) · [structured minutes](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md) · [minutes templates](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md)*
 
-### 11.3. Extraction and injection
+## 9. Initiative
 
-**Extraction**: after each conversation, a background process analyzes the last user message, adapted to the active personality. Cost tracked via `TrackingContext`.
+LIA takes initiative in three forms. A periodic **heartbeat** looks at your sources and writes to you only if a signal warrants it, naming one or two verified facts. Being connected to a source and agreeing to be interrupted by it are two separate decisions. A push notification from Google can wake this heartbeat for a single person, and a **moment** (the end of a meeting, the arrival of an expected email) is served to the minute rather than at the next pass. **Proactive discussions**, finally, call for a reply, with their own policy: hours, a daily maximum, sensitive topics kept private, spend reserved before it happens.
 
-**Injection**: the `memory_injection.py` middleware searches for semantically close memories, builds the injectable psychological profile, and activates the `DANGER_DIRECTIVE` if necessary. Injected into the Response Node's system prompt.
+**Routines** trigger on a schedule or on a condition, not both, and a week view shows what actually happened. A reminder can repeat. The **ticket board** gives a task a lifecycle, a holder and a result.
 
-**Which turns feed memory.** A message that triggers an action counts as much as a conversation: resuming a draft injects no message, so the original request is still the user's last utterance when extraction runs. Conversely, messages **fabricated by the system** — the scaffolding injected on a HITL refusal — are flagged in their metadata and excluded both as target and as context: never recognised by their text, since they exist in six languages. Finally, the heuristic that discards acknowledgements only applies to what the user actually typed — applied to a person's name, it would make the memories of contacts whose surname resembles "fine" or "cool" disappear. Every decision is counted per subsystem and per outcome (`post_response_extraction_scheduled_total`), rather than left to debug logs.
+Two rules bound all of this. Initiative only reads: a write is proposed, never executed on its own. And a new attempt at the same run is refused as soon as the effect register shows the action already done. The Activity page shows in one place everything LIA undertook on her own, with exact totals.
 
-### 11.4. Dual-vector memory search
+*Going further: [the heartbeat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HEARTBEAT_AUTONOME.md) · [permission to interrupt](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-197-Interrupt-Permission-Is-Not-Connection.md) · [push wake-up](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md) · [moments and watches](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-281-Anticipated-Moments-And-Mail-Watches.md) · [proactive discussions](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PROACTIVE_DISCUSSIONS.md) · [their delivery](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-358-Independent-Proactive-Discussions-And-Native-Delivery.md) · [their context](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-359-Longitudinal-Discussion-Context-And-User-Control.md) · [their budget](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-360-Bounded-Discussion-Research-And-Accounted-Abstention.md) · [routines](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/10_scheduled_actions.md) · [the routines' week](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md) · [reminders](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/07_reminders.md) · [a reminder that always has a text](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md) · [read-only initiative](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-062-Agent-Initiative-Phase.md) · [the ticket board](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-276-Workboard.md) · [the Activity page](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-234-activity-timeline.md) · [rating a notification](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/09_proactive_notifications.md)*
 
-Every memory carries **two embeddings**: one over its content, one over the keywords that trigger it. The query is compared to both and the better match wins (`LEAST(dist_content, dist_keyword)`, falling back to content when the keyword vector is null).
+## 10. Security and privacy
 
-**One lookup door** (ADR-313). A query is embedded as a *key* — without the conversational triviality patterns, which collide with real names and short questions — before a session opens, then the person's live memories above the relevance floor are served, optionally narrowed to categories. Every caller goes through it: the memory facts of the planner, the initiative and reference resolution, the 360° recall of a person, and the phone's lookups, which answer « what do I know about X » with X rather than with the latest memories.
+Security is designed as independent layers, each type of attack having its own protection. Accounts sign in through OAuth 2.1 and rights follow roles. For sessions, I chose the BFF pattern: an HTTP-only cookie and a session in Redis rather than a JWT, which would be exposed to XSS if it lived in the browser, heavy to carry and impossible to revoke. An account can be protected with passkeys and a second factor, each connected device can be revoked, and linking a Google identity never changes an account's status. Usage limits apply at every door, routines included.
 
-**And looked up on purpose.** A routable domain carries a read tool, so the ReAct loop and the planner can look up a subject the message did not name — the sender of an e-mail they just read, a place named in a document. Its bounds are published from the sources it enforces (the category vocabulary *is* the stored one, the result ceiling *is* the setting), the person's preference refuses it as it refuses the injection, a sensitive memory comes back flagged with its usage nuance, and a failure is classified, never « nothing remembered ». Hybrid BM25 + embeddings search lives where it serves: RAG Spaces (section 17).
+Everything that runs for the person is treated as hostile: skill code runs in a disposable container, and a task on a remote server is prepared and then confirmed. Likewise, what LIA reads remains data and does not become an instruction. Provenance is a property of the data: each content type is classified once, an unknown type is treated as external, and a type nobody has classified keeps the application from starting.
 
-### 11.5. Stratified journals
+Above debug level, a log line carries facts (numbers, identifiers, codes, the host of an address), not what you wrote or what a model wrote about you. Two caveats: the error message of an outside service in an unknown format can still quote a fragment of it, and the debug level, switched off in production, keeps more. The database is backed up automatically: at most one day of data can be lost with the default settings. The off-site copy and the attachments stay outside these backups.
 
-The assistant maintains introspective reflections organized along four themes (self-reflection, user observations, ideas/analyses, learnings) AND four abstraction levels (`L0` raw observation, `L1` `WHEN→DO BECAUSE` directive, `L2` transversal pattern, `L3` portrait facet — see [ADR-079](https://github.com/jgouviergmail/LIA/blob/main/docs/architecture/ADR-079-Stratified-Journal-Consciousness.md)). Each entry carries an epistemic status (`confidence` ∈ {low, medium, high}) and two counters (`evidence_count`, `contradiction_count`).
+Two limits are worth knowing. These measures do not on their own demonstrate a deployment's GDPR compliance. And deleting raw measurements, such as your health data, does not delete the memories derived from them, which have their own controls.
 
-**Dual trigger**: post-conversation extraction (fire-and-forget, frequent, lightweight) + periodic consolidation (4–12 h per user, complex).
+*Going further: [security](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/SECURITY.md) · [BFF authentication](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-002-BFF-Pattern-Authentication.md) · [passkeys](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-143-Strong-Authentication-Passkeys.md) · [devices](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-144-Device-Sessions.md) · [usage limits](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/USAGE_LIMITS.md) · [the sandbox](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-149-Security-Remediation-Wave-1.md) · [content provenance](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-167-Content-Trust-Registry.md) · [privacy on the user side](/en/faq#faq-privacy) · [logs without personal data](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/PII_LOGGING_SECURITY.md) · [a log line carries facts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md) · [backups](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-109-PostgreSQL-Backup-Strategy.md) · [a memory's provenance](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-201-Provenance-Is-A-Bounded-Reference.md)*
 
-**Gemini dual-vector embeddings** (`gemini-embedding-001`, 1536d, ADR-069): one vector on `title + content`, one on `search_hints`. Search uses `LEAST(dist_content, dist_keyword)` per row to bridge the assistant's introspective vocabulary and the user's vocabulary.
+## 11. Observing and measuring
 
-**Deferred self-evaluation T → T+1**: `MessagesState.injected_journal_ids` (symmetric to `injected_memories`) carries the IDs across turns. The `response_node` reads the previous turn's IDs at start, passes them to the post-conversation extractor, then writes the current turn's IDs at the end. The extractor sees the applied directives + the user's reaction in the same prompt and signals `evidence_outcome="evidence" | "contradiction"` on update actions — the service atomically increments the counters (anti-hallucination layer 4: the LLM only signals an outcome, the service owns the integers). **Zero added LLM cost** (same extraction call, enriched prompt).
+Monitoring ships with the deployment: Prometheus and Grafana for metrics, Loki for logs, Tempo for traces, Langfuse for model calls, Alertmanager for alerts. The code defines hundreds of metrics, some thirty dashboards ship ready to use, and metric emission is defensive: a metric that fails does not bring down a request.
 
-**Ambient diffusion of the user-model portrait**: consolidation produces, in the **same LLM call** (zero added call), a `portrait_full` (the analytical reading, conversation/planner) and a `portrait_brief` (two or three sentences written as claims of their own, secondary flows), each under a token target stated to the model, persisted on the `users` table. The builder `build_journal_user_model_block(user_id, format, flow)` (`src/domains/journals/portrait_builder.py`, mirror of `build_psyche_prompt_block`) returns a `<UserModelContext>...</UserModelContext>` block with graceful degradation. Diffused across **8 flows**: 2 primary in full format (`response_node`, `planner_node_v3`) and 6 secondary in brief format (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
+I also put debugging in the interface, because an agent is hard to debug: for each exchange, the debug panel shows the intent, the plan, each tool and each model call, and you can see why a request was expensive or why a given domain was chosen without opening Grafana.
 
-**Three user correction levers** on the portrait (never directly editable): (1) CRUD edits on the L3 source entries, (2) `POST /journals/portrait/feedback` (free text → L0 entry with `source=user_correction` + synchronous re-consolidation that re-weights L3 entries), (3) `POST /journals/consolidate` (manual consolidation, bypasses cooldown).
+On costs, every euro the platform pays for a person is traced, shown, attributed and counted for them, however it was spent. An instance spending cap exists alongside the per-account quotas, because several accounts multiplied by their quota are still an unbounded spend. An operator turns a capability off without redeploying: what the deployment allows and what the operator chooses are combined, and the smaller of the two bounds wins.
 
-**Dedup discipline**: no write-time guard. At consolidation, `STEP 1` performs an explicit pairwise scan that merges semantic duplicates, and `STEP 5` actively clusters convergent L1s into L2 patterns.
+LIA also reads her own telemetry to diagnose herself: each vital alert is sent by email with its procedure and becomes an incident, and her recommendations remain proposals. An administrator can even drive Claude Code CLI from the chat to examine their server.
 
-**4-layer anti-hallucination**: Pydantic `field_validator` on UUIDs, reference ID table in the prompt, filtering of actions by known IDs at extraction and consolidation, and atomic counter increments (the LLM only signals `evidence_outcome`).
+A note on performance: the measured latencies are the infrastructure's. The response time you feel depends mostly on the chain of model calls, from a few seconds to several tens of seconds depending on the request and the hardware. And scaling beyond a single machine (several nodes, replicas, clustered Redis) remains a possible evolution, not a reality. Two questions remain open: the growth of a worker's memory over several days and the retention of LangGraph's checkpoints.
 
-**Dedicated observability**: 11 Prometheus metrics in `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`, etc.
+*Going further: [the observability stack](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-020-Observability-Stack.md) · [the debug panel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL.md) · [its architecture](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL_ARCHITECTURE.md) · [the instance cap](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md) · [every spend answers to two caps](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) · [administration by workbook](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/TABULAR_ADMIN_IO.md) · [targeted broadcasts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md) · [the demo instance](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEMO_INSTANCE.md) · [self-diagnosis](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DIAGNOSTICS_DOMAIN.md) · [alerts and their resilience](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md) · [Claude CLI from the chat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md) · [the anatomy of a worker](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-283-Worker-Memory-Anatomy.md) · [complete register extractions](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-273-Complete-Register-Extractions.md) · [how background jobs are organized](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-046-Background-Job-Scheduling.md)*
 
-The portrait is read from **everything LIA keeps about the person** (ADR-292, ADR-343): on top of the journals, nine sources — memories, interests, learned habits, relationship debriefs, open loops, Workboard tickets, routines, reminders and kept answers — enter the consolidation prompt, each read whole. The journals domain imports none of those domains — two of them already import it — so each source is offered through a shared registry with a closed vocabulary, installed explicitly at boot and refused when incomplete. A reader answers `used | empty | disabled | unavailable` with an exact total, under its gates read at the act (ceiling, operator switch, the person's preference), and never raises: a blind source is named, never read as empty. One physical bound replaces the per-source caps — a share of the consolidation slot's context window; beyond it, the last sections lose whole items from their end and the cut is stated in the provenance.
+## 12. The interfaces
 
-The portrait is an **analysis, not an inventory**: the consolidation reads the person across the sources on seven facets (posture, focus, context, rhythm, tension, interaction, uncertainty), names a pattern without walking through its items, and writes the brief as two or three claims of its own. No second model reviews those readings — what refuses invention is structural: a reading cites items of the current snapshot, and a paragraph restating a single item, a name the evidence carries, a figure, an address or a date in the prose is dropped; a claim or a maintenance action the snapshot cannot carry is repaired or dropped alone, never fatal to the paid pass. The provenance is persisted with the portrait, in the same write, and drawn under it; a journal change marks the portrait stale without ever erasing it, and deleting entries withdraws only the readings they supported.
+The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per account, and can be searched; the settings have their own search, a pure black theme for OLED screens and an adjustable text size.
 
-**The journals can also be looked up on purpose** (ADR-318). Beyond the injection, a read tool — in both modes — searches the person's journals for a subject found along the way, over the same vectors, at the *configured* similarity floor rather than the learned one, and serves only directives, patterns and facets: a raw, not yet consolidated `L0` observation never comes out. The person's preference refuses it as it refuses the injection.
+In the cards display, one of three modes to choose from along with plain HTML and Markdown, an answer that carries data is not formatted by the model: the server renders it as deterministic HTML **cards**, independent of the model and the mode, archived with the message. A card shows a received fact in full and invents nothing, and an action from a card prepares a request instead of acting. To keep the interface consistent, I wrote rules that tests check: a status takes its tone from a single table, an action has a level of importance, and a list row exposes its actions in a single way. Browser and accessibility tests target WCAG level AA, without certifying the rendering on a physical device or the accuracy of the translations.
 
-### 11.6. Interest system
+The mobile apps are native shells published once per store. They load the server address entered at first launch and do not duplicate the interface, because a single app must serve everyone who hosts LIA. On Android, notifications go through your own server's Firebase project; on iOS, where only an app's publisher can send notifications, a minimal relay wakes the phone. Sharing a text or a link to LIA from the phone prepares a chat draft, which does not go out on its own.
 
-Detection through query analysis with Bayesian weight evolution (configurable decay). Interests are grouped into **subjects** by batch LLM clustering (derived, self-healing data), and notification selection draws with **two-level rarity** (per-subject cooldown + priority to the least-served subjects and interests) — one passion never monopolizes notifications. Multi-source content (Perplexity, Brave, Wikipedia, LLM reflection) with deterministically appended **clickable source links**. User feedback (thumbs up/down/block) adjusts weights; nightly merge of near-duplicates.
+Around the chat, a companion with expressive eyes reacts to the whole cycle of an answer, and each answer carries a small mood avatar. **LIA World** is another interface: a shared house and garden where you stroll around, without any room granting extra rights. Voice between people and federation between instances are not implemented there. The presentation video, for its part, shows interface replicas and demonstration data.
 
----
+Two people on the same instance can link their assistants so that they pass messages to each other, and the Relations page gathers what concerns each person, with a debrief written by the model.
 
-**The journal's self-evaluation loop and the adaptive threshold.** Directives injected into a reply are re-evaluated at the next turn in light of the user's reaction: the LLM only signals `evidence` or `contradiction`, the system owns the counters, and a server-side clamp forbids "high" confidence on an operational directive without evidence — L2/L3 stay free, their evidence being cross-entry convergence. Consolidation eligibility is delta-driven (work exists: never consolidated, or an entry touched since the last pass), never an absolute count. Finally, the similarity threshold deciding an injection is not global: a bounded (0.55–0.70), hysteretic (one 0.01 step per 24h), switchable controller learns it per user from the real distribution of their scores — state is advisory (Redis, sliding TTL), a failed read falls back to the static default.
+*Going further: [the chat on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/02_chat.md) · [the settings](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/03_settings.md) · [searching the settings](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-172-Settings-Quick-Search.md) · [getting started](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/01_getting_started.md) · [the chat that follows the server](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md) · [cards](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md) · [their rendering](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HTML_CARDS.md) · [places and routes](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md) · [the known location](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md) · [primitives and their contract](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-206-A-Primitive-Owns-Its-Contract.md) · [the Android app](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_MOBILE_ANDROID.md) · [native notifications](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-246-Native-Push-And-Wake-Relay.md) · [the apps on the user side](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/33_native_apps.md) · [the expressive eyes](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-240-expressive-eyes-widget.md) · [native companions](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/NATIVE_AVATAR_VOLUME.md) · [the presentation video](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-341-Editable-Motion-Production-And-Exclusive-Presentation.md) · [the capability map](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/30_platform_capabilities.md) · [LIA World](/en/faq#faq-world) · [its prototype](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORLD_PROTOTYPE.md) · [connections between assistants](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/26_peer_connections.md) · [relations](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/27_relations.md) · [a relationship's debrief](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-269-Relationship-Debrief.md) · [Telegram](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/18_telegram.md)*
 
-## 12. Multi-provider LLM infrastructure
+## 13. How this code is kept in shape
 
-Email and appointment assessments are independent optional native usages. Closed annotations bind the visible evidence, scope and validity to one acceptance policy shared by display and answer synthesis. Owner/account/revision, model and prompt identity partition the cache; overlapping work coalesces under bounded claims. A common precision-aware validator preserves raw probabilities and refuses malformed answers. Uncertainty, quotas or unavailable services keep the source result without inventing a label. These judgments remain advisory and cannot authenticate a sender, prove fraud or authorize an action.
+Every change passes local gates (before the commit, before the push) and then continuous integration on GitHub Actions, which calls exactly the same commands as a developer. Python dependencies are intent manifests compiled into universal lockfiles that carry each package's hash: the same commit always installs the same verified versions, on every architecture.
 
-### 12.1. Factory Pattern
+The project's rules do not rely on the memory of whoever reviews: automated guards hold them. Several of them recompute the protection from the source of truth (the code itself, the routes actually mounted, the connector registry) instead of pinning a handwritten list, and were deliberately broken to check that they really fail. Elsewhere, reference lists can only shrink, so that no debt grows in silence. Prompts are versioned text files, one per prompt, read by a single loader. More than 350 ADRs record the decisions, the alternatives set aside and the trade-offs accepted, and tens of thousands of tests, continuous integration and strict typing let the system evolve without regressions.
 
-```python
-llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=True)
-```
+A full 360-degree technical audit is published in the repository with its protocol, so that anyone can run it again. How this code was written, almost entirely by an AI that was directed and checked, is told in the [field report](/en/story).
 
-`get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
+*Going further: [continuous integration](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/CI_CD.md) · [dependency locking](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-112-Python-Dependency-Locking.md) · [versioned prompts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-025-Prompt-Engineering-Versioning.md) · [the public audit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)*
 
-### 12.2. A configuration for each role
+## 14. Going further
 
-The effective registry separates conversational roles, native decisions, image generation, transcription and speech synthesis. World message translation has its own conversational slot. Native decisions include meeting-template selection and specialised JEV uses. Each slot is independently configurable through the Admin UI, without redeployment:
+This guide draws on the code, on more than 800 technical documents and on the ADRs. To go further:
 
-| Category | Configurable types |
-|----------|-------------------|
-| Pipeline | router, query_analyzer, planner, semantic_validator, context_resolver |
-| Response | response, hitl_question_generator |
-| Background | memory_extraction, interest_extraction, journal_extraction, journal_consolidation |
-| Agents | contacts_agent, emails_agent, calendar_agent, browser_agent, etc. |
-| Native decisions (JEV) | meeting_template_selection, jev_memory_reference_presence, jev_hitl_rejection, etc. |
-| Image and voice | image_generation, voice_transcription, voice_tts, radio_voice |
+- the [documentation index](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/INDEX.md) and the [ADR index](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR_INDEX.md);
+- the [agent architecture](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_AGENT.md) and the [LangGraph graph](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/ARCHITECTURE_LANGRAPH.md);
+- the [living maps](/en/maps), which show the functions, the technology and the history of the decisions;
+- the [FAQ](/en/faq) for everyday use, and the [field report](/en/story) for the method.
 
-Some tasks use a native decision rather than a generative chat call. The JEV registry binds each use to its own switch and model slot; a general switch can pause them all. Each operation snapshots its routing, presents bounded candidates, validates the complete answer, and falls back on uncertainty. The shared runtime counts the paid attempt and any fallback separately, while authorization and HITL remain in the normal code path.
-
-Two optional uses, off by default, ask only whether a query has no personal references to extract and whether a reply rejects every pending action. They produce neither names nor permission to act. Uncertainty preserves the existing extractor or approval classifier; rejecting only part of a batch still follows the ordinary confirmation path.
-
-### 12.3. Token Tracking
-
-The `TrackingContext` tracks each LLM call with `call_type` ("chat"/"embedding"), `sequence` (monotonic counter), `duration_ms`, tokens (input/output/cache), and cost calculated from DB pricing. Trackers share a `run_id` for aggregation. The debug panel displays all invocations (pipeline + background tasks) in a unified chronological view.
-
-The counting itself is **contractual, not incidental**: an OpenAI-compatible provider only emits the `usage` object on a streamed response when the request asks for it. Every chat provider therefore declares its accounting mode in a registry — explicit `stream_usage` request, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys) — whose completeness is verified at startup: the application refuses to boot on an undeclared provider (ADR-220, ADR-085 doctrine). A paid call completing without usage increments a dedicated counter, logs a warning and fires a zero-threshold alert: the whole class of silent accounting holes becomes a signal. The same doctrine applies to timeouts: the administrable per-slot `timeout_seconds` is passed to each provider's client as the per-attempt transport bound — the nodes' `asyncio.wait_for` barriers remain the user-experience bound — and every default is checked against real production latencies (ADR-221).
-
-Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. A window may also name the days it applies on — those of the UTC day it opens, so a window running past midnight belongs to the day it started — because peak hours can be a weekday matter: DeepSeek bills its weekends off-peak all day. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
-
-A tariff is only worth anything if it is **the one the provider bills**. A write to the prompt cache is billed at its price — 1.25 times the input at Anthropic and at OpenAI for the generations that report it, twice the input for a Claude write kept an hour —, counted as the fourth quantity of the single usage reader, and an AST guard refuses any pricing door that would forget it (ADR-306). The prices themselves are re-read on the providers' pages, and a correction migration replaces only a value LIA shipped, never one an administrator entered; a Google Maps call is filed at the SKU its request triggers — a route with traffic or tolls is not a plain route, a matrix is billed per element. And the pricing cache is a table **shared by every worker**: each rebuilds it from the database at startup — never from a blob older than the last migration — and every writer, tariff or exchange rate, publishes the invalidation after its commit, so an edited price reaches every worker at once, not just the one that wrote it (ADR-063).
-
-**Each provider attempt keeps its own tariff snapshot**, model, start time and exchange rate. A retry cannot reprice its predecessor. Known usage from a failed or cancelled attempt remains charged, and cache reads and writes are valued separately without counting the same tokens twice. Missing usage stays visible as missing rather than becoming a fabricated zero.
-
-### 12.4. DB-source-of-truth admin catalogue
-
-The `llm_models` table carries the full catalogue: provider, classic functional capabilities (`supports_tools`, `supports_structured_output`, `supports_strict_mode`, `supports_streaming`, `supports_vision`), and above all the **per-model sampling matrix** (`supports_temperature`, `supports_top_p`, `supports_frequency_penalty`, `supports_presence_penalty`) plus the **accepted reasoning ladder** (`reasoning_enum_values`, a JSONB list) and its help-text i18n key (`reasoning_doc_i18n_key`). This per-model declaration spares the frontend any regex guessing which sliders to hide: the Configuration LLM dialog reads the DB flags directly and exposes only the parameters the model's API actually accepts. That ladder does not **declare** what a model accepts, it **narrows** it: what a model accepts is derived from its (provider, model) pair, and reasoning has a single stored *shape*, common to every provider.
-
-The Pricing LLM admin screen writes that ladder **directly**: it renders the depths the model's family offers — resolved live by `GET /admin/llm/reasoning-family`, through the same function as the translator and the validator — and you **untick** the ones this particular model refuses. Ticking everything stores nothing: the family's ladder applies as is. The Excel workbook (ADR-228) carries the same two columns, and its import refuses a depth outside the family **while naming the ones that would have been accepted**: a spreadsheet cannot render checkboxes, so the guarantee moves to import time. No template mechanism — “copy the shape of that existing model” — stands in for it: it would group models by their *stored* ladder rather than by family, so copying one across families would silently remove depths. See `docs/technical/LLM_REASONING_IDENTITY.md`.
-
-**A model family is declared once, and a short answer is asked for without reasoning** (ADR-285). The *family* of a model is the shape of its reasoning API — a toggle and an effort ladder for DeepSeek, a budget for Gemini 2.5, a level for OpenAI — and it is derived from one declaration in `reasoning/profiles.py` that the adapter, the validator and the structured-output detour all read: three private prefix tests would otherwise let a vendor's renamed flagship slip through all of them at once, with no ladder offered and no off switch sent. The same seam serves the callers that need two sentences: on a model that thinks by default, the provider bills the thinking *inside* `max_tokens` (OpenAI, Anthropic, Gemini and DeepSeek all do), so a small budget buys hidden reasoning and no answer. `short_answer_config` therefore declares *no reasoning* wherever the resolved profile can switch it off and keeps its small budget only there; elsewhere the slot's own budget stands, because a cap that includes the thinking is not a cap on the answer. The output ceiling of a family, likewise, is read from the catalogue row rather than from a literal.
-
-**An output budget held to the cap the model accepts** (ADR-244). A slot's `max_tokens` is a figure chosen for a model, and it outlives the model: switched to a model with a lower cap, the slot would be refused on every call. One rule (`infrastructure/llm/output_cap.py`) says whose cap is known — the catalogue row whose provenance vouches for it (`imported` or `verified`), on a provider that enforces one — and three readers ask it: the slot resolution, so every reader of the budget (the length promised to a document, the size of a transcript's parts) works with the figure the provider accepts; the client door, for a caller passing its own budget; and the admin metadata, which publishes the cap so the screen flags a budget above it. In doubt the request goes as configured: the rule may spare a refusal, never shorten a budget nobody vouched against.
-
-### 12.5. Provider-agnostic prompt caching
-
-Every provider bills less (and answers faster) when the beginning of a prompt is byte-identical across requests — but each with its own mechanism: Anthropic's `cache_control` blocks, OpenAI's `prompt_cache_key` routing, implicit prefix caches on DeepSeek/Qwen/Gemini. LIA separates the concerns: every versioned system prompt places its static content (role, rules, examples, output format) first, then a canonical `--- DYNAMIC CONTEXT ---` marker, then all per-request content (datetime, query, context, tool catalogue). Templates stay model-neutral; the infrastructure layer translates the marker into each provider's dialect — the `cache_control` split for Anthropic, the cache-routing key for OpenAI, nothing at all for the implicit caches, which benefit from the stable prefix as-is. The planner prompt — the pipeline's most expensive — exposes a ~77% byte-stable cacheable prefix across any two requests. Shrink-only CI guards lock the convention: every dynamic prompt must carry the marker, no placeholder may precede it without a justified exception, and the planner prefix's byte stability is asserted on every build.
-
-The convention is **one layout for every cache mechanism** (ADR-309): stable before volatile, one reading of the boundary (`core/prompt_layout.split_at_marker`), and no cache write nobody will read. A single call — the analyzer, the initiative, the memory, interest and journal extractions — sends its fixed part as a system message, where each adapter can mark it; providers with breakpoints get theirs at the end of the static prefix whatever the system's shape (a list-shaped system would otherwise put the breakpoint on the turn's data: nothing read back, everything rewritten at 1.25x); those with an explicit cache only are marked explicitly; a request no tool loop will extend writes its declared breakpoints only; and the response sends the conversation once, as whole messages. What each model generation accepts — sampling, a forced tool choice, six shapes of thinking, an implicit depth, thinking blocks bound to their conversation — is measured on the API and declared in one table (`core/claude_surface.py` for Claude) that the reasoning rules, the adapter, structured output and the administration read. A model with no cache pays nothing extra: the optimisation aims at the average over mechanisms, never at one model.
-
-**From one turn to the next, the cache is read back instead of rewritten** (ADR-362). With breakpoint caching, an entry is written only at a breakpoint and found only by walking back from the next request's own: inside a tool loop the history's end is therefore a read point too, and the next turn reads its whole history back instead of writing it again — 439 tokens written instead of 1,685, measured on two generations. When a person is waiting in frequent exchanges, the two points the next turn will read — the static prefix and the history's end — are written for the provider's longer lifetime, an hour on Claude: a person's turns come minutes apart, not seconds, and after a seven-minute pause the next turn's first call cost 89 % less. The hour is billed at its own rate through every pricing door, a stream included — the API names it only in its first event —, every call records its cache writes, and a stream that leaves it unnamed is counted and alerted. An earlier turn's thinking goes back to the model that wrote it when that generation keeps it without binding it to the conversation — never to another model, never to a generation that would refuse it.
-
----
-
-## 13. Connectors: multi-provider abstraction
-
-### 13.1. Protocol-based architecture
-
-```
-ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
-     ├── GoogleGmailClient       implements EmailClientProtocol
-     ├── MicrosoftOutlookClient  implements EmailClientProtocol
-     ├── AppleEmailClient        implements EmailClientProtocol
-     └── PhilipsHueClient        implements SmartHomeClientProtocol
-```
-
-**Why Python protocols?** Structural duck typing allows adding a new provider without modifying calling code. The `ProviderResolver` guarantees that only one provider is active per functional category.
-
-### 13.2. Normalizers
-
-Each provider returns data in its own format. Dedicated normalizers (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convert provider-specific responses into unified domain models. Adding a new provider requires only implementing the protocol and its normalizer — calling code remains unchanged.
-
-For e-mail that unified model is measured, not assumed: the three normalizers produce the same `EmailMessage` vocabulary — a text body, never HTML, with the quoted history and the signature removed at the client boundary (six languages, measured on a corpus of 48 bodies) — and none of them fabricates another provider's format. `get_emails_tool` then chooses what it serves from the question, with its cost stated: `metadata` lists without bodies, `full` reads a clean body paginated by paragraph, `summary` reasons over a **digest per message** (the gist, key points, actions, category, importance) computed once by a small model without reasoning, cached for thirty days and refused by the spend ceilings — never invented when the model fails. That is what makes "summarise my unread mail" or "a synthesis of this week's newsletters" possible over twenty messages without loading them all, for Gmail, Outlook and Apple alike (ADR-287).
-
-### 13.3. Reusable patterns
-
-`BaseOAuthClient` (template method with 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, distributed Redis rate limiting, token renewal through one door (ADR-302): one exchange per token across callers and workers, no transaction held during the provider call, a write conditioned on the token it started from, and an `invalid_grant` re-verified before a service is disconnected.
-
-For Google and Microsoft, the person's consent is grouped by provider account rather than repeated for each service. A single grant owns the approved scopes and refresh lifecycle; Gmail, Calendar, Drive or their Microsoft counterparts remain separate capabilities that the person can enable or disconnect. The callback binds the grant to the expected identity and issuer, verifies state and PKCE, and never silently substitutes another account.
-
-**No transaction stays open across a network call** (ADR-304). A connector client built on its caller's session would force that session — and its transaction — to stay open while the provider answers, sometimes for minutes, taking a connection away from the pool for the whole wait. So a client is never built on `ConnectorService(db)` — a guard names the constructor argument, with no allowlist —; one door opens a category's active client in a short session and closes it on every path; a job that keeps its session commits its reads before every wait; each connector operation of the chat turn ends its transaction, and an API key's usage stamp is an atomic JSONB merge of its own, under a bounded lock timeout. Background work follows the same rule: a reminder is claimed alone, committed, then notified with no transaction open; the Drive push feed advances by compare-and-set, in pages bounded in number and in time; and only the leader worker sets the Telegram webhook. And the database bounds what the code might forget: every application connection opens with a lock-wait bound and an idle-transaction bound, and each bound reached is counted and alerted.
-
-### 13.4. Two credential paths
-
-Not every connector asks for an account. An **OAuth connector** holds the user's personal credentials: Gmail, Calendar, Contacts, Drive. A **platform-key service** holds no per-user data — there is nothing for the user to switch on, and the key belongs to the installation: Routes, Places, Weather, Environment. `ConnectorType.uses_global_api_key` carries the distinction, and the tool base picks the credentials path from the **resolved** type. One functional category can therefore mix both: weather accepts a personal-key provider as readily as a platform service, without the caller knowing which one answered.
-
-A third case exists: a client that **borrows a sibling connector's token**. Spreadsheets and documents read and write with Drive's token; Gmail settings with Gmail's. No extra connector appears in the settings, and that is deliberate — the user authorized a workspace, not an API. The client cache accounts for it: keyed on the user and the connector type alone, it would let two classes sharing a token serve each other, so its key carries the class name as well.
-
-The distinction also decides what belongs to an **account** at all. Five connectors ask nothing of the person — Wikipedia, page browsing, Places, Weather, Environment — so they belong to the instance: no per-account row, nothing in the settings, and one predicate (`connectors/keyless.py`) decides whether they serve everyone — a type the administrator switched off, a platform key the instance lacks or page browsing disabled withholds it for all. In the weather category the person's own provider wins and Google's is the default; a test keeps the five off the settings' activation list (ADR-307).
-
-### 13.5. Agentic telephony (ADR-127)
-
-LIA can place an outbound phone call on the user's behalf, hold a goal-directed conversation, and reinject a written summary back into the chat. Unlike the read/write connectors above, the telephony connector drives a **third-party voice agent** (ElevenLabs Agents) over the phone network, configured per user (bring-your-own credentials) — LIA performs no cost metering of its own.
-
-**Data protection by capability, not by prompt.** The call agent is provisioned with a single read-only availability tool that resolves free/busy slots only; it can never read event titles, attendees, locations or content. The guarantee is structural — the tool simply does not expose that data — rather than a prompt instruction the model could be talked out of.
-
-**Return path.** The call is never recorded and the transcript is never persisted. When the call ends, a per-user HMAC-signed webhook triggers a tool-less LLM synthesis that produces a short, expiring summary, reinjected asynchronously into the conversation (the same detached-run channel as ADR-117) with an optional one-tap follow-up draft. Every call is gated by a HITL confirmation before dialing, and the whole subsystem sits behind a feature flag.
-
-**The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model would collide with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (56 tools over 24 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events fit where a single raw one would). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
-
-**One policy per mode, whichever the line (ADR-301).** Relaying the conversation at its *end* on one line while the other hands every request to the chat *during* it would make two truths for one word. A voice session therefore has a mode, and the policy follows it alone: in **Live** (the phone's default, chosen in Settings › My phone) the voice holds neither context nor tool and hands every request to LIA through one function — the very one the browser's Live declares to its provider — which the server turns into a chat turn of the person while they speak: LIA's questions (a question IS the result, the next request resumes the turn that asked), the confirmations, the registers, the quotas and the trace in the conversation come with it; in **Live direct** the voice reads for the person, acts on nothing, and their words are relayed at the end as a message from them — on the line as in the browser. One closing keeps both lines' books: the voice-only exchanges archived, the card with exact figures, the decision, the learning — or the synthesis, the relayed turn and the card rewritten when it settles, its cost re-read. Live is offered only where the phone provider can call the instance back; otherwise the settings say so and the call runs direct. The provider's engine sets three rules: the voice announces the call and keeps the conversation going, a late answer would be lost past the provider's timeout — so the bridge answers before it —, and an exchange holding a delegation belongs to the graph whole.
-
-### 13.6. Reading an attachment: its text when it has one, the vision slot otherwise
-
-Listing a message's attachments is a metadata read; opening one is a download, and the three clients expose it behind ONE method of the e-mail protocol — the same name, the same selection rule, the same errors — because provider asymmetry is where connector bugs come from. The selection is one shared helper: by handle, else by name, an ambiguous name refused with its candidates. It has to be, because a Gmail attachment handle is not stable: it can change between two reads of the same message, so the handle a listing served may already be gone when the tool re-reads it. A stale handle is therefore not a lie: the name decides when given, a single part is unambiguous, and any other case answers with the CURRENT handles for the model to retry.
-
-The bytes are read by a module that touches no client. The MIME type comes from the magic bytes, the sender's header being only a fallback; a document goes through the knowledge spaces' own extraction (fifteen formats) in a worker thread; a picture, or a PDF whose pages carry images and no text layer, is rendered to a bounded, downscaled set of PNG pages and handed to the vision slot — the raster itself is bounded, a page 200 inches a side must not allocate gigabytes before any downscale — and a cut page set is stated to the model rather than read as the whole. The vision call is the turn's spend, travelling on the runtime's own configuration so the account's and the instance's ceilings both see it; a quota refusal is « skipped », never « failed », and a truncated answer is a refusal. The bound on size travels down to the client, so a part the listing already says is too large is refused before a single byte moves. What comes back is served in parts like a mail body and wrapped as external content, its file name escaped inside the tag — an attachment is what a stranger sent, and so is its name.
-
-### An address book read whole, matched once
-
-Typing a recipient in "Send by e-mail" suggests the person's contacts. The three providers each search their own way — three ways of matching a name —, so every contacts client reads the **whole book** behind one interface (Google People's pagination with every parameter repeated, Graph's `@odata.nextLink`, the CardDAV cache), under a declared ceiling whose cut is stated. The book is compacted — names, addresses, numbers —, cached in a declared Redis family with a version stamp, built once across workers and dropped by every contacts write; a keystroke reads the stamp first and opens neither the book nor the connector when that version is already projected. Matching has one implementation: names through the product's identity folding, addresses through their normalised form, digits through the telephony domain's number variants. Reading the book is a consultation in the register, never on a cache hit, and nothing of a contact reaches a log.
-
-### A provider that slows down is not a provider that is down
-
-A 429 refusal on a person's key — Brave, Perplexity — is backpressure on that key, not the service's health: the client waits it out with jitter and, when it persists, hands it back typed with its delay, instead of opening the breaker every account shares. On the mail side, a send, a reply or a forward is never retried after a lost acknowledgement — a failure stated is better than an e-mail sent twice —, a send accepted for part of its recipients says so, and a forward refuses before writing rather than lose an attachment. An iCloud message carries a digest of its folder, the trash is found by its role, and the connection test checks every protocol chosen rather than the first one.
-
----
-
-## 14. MCP: Model Context Protocol
-
-Peer sharing composes the native installers rather than creating a parallel execution system. The server freezes a sanitized package behind a reviewed digest, checks ownership and the accepted relationship again on confirmation, and installs an independently owned disabled copy. Credentials, OAuth grants and approval exemptions never enter the transfer. Durable claims, fencing and receipts make retries resumable while preserving recipient edits. Only server-owned provenance grants the explicit authored-policy exception to an enabled peer skill.
-
-### 14.1. Architecture
-
-The `MCPClientManager` manages connection lifecycle (exit stacks), tool discovery (`session.list_tools()`), and automatic LLM-based domain description generation. The `ToolAdapter` normalizes MCP tools to the LangChain `@tool` format, with structured parsing of JSON responses into individual items.
-
-LIA tracks the current revision of the protocol — **2026-07-28** — on both halves of what a server exposes: how it is spoken to, and what it declares. Reading a declaration is a problem in its own right, and it has exactly one implementation (ADR-255). The specification defines a tool's input schema as JSON Schema 2020-12 and admits *every* keyword in it: an optional parameter may be spelled `"type": ["string", "null"]` or as an `anyOf`, a nested structure declared through a `$ref` into `$defs`, a closed set through `enum` or `const`. Two consumers read that same declaration — the adapter, which turns it into the signature offered to the model, and the catalogue, which turns it into a planning entry — and two readings of one thing always end up disagreeing. `json_schema.py` is therefore the single authority, and a parity test compares what each derives from it. Every function there is total: it answers for any declaration a server can send, because raising costs a tool, and a lost tool is a capability the user no longer has without being told. What stays undecidable — a `not`, an unreachable reference — is typed permissively rather than discarded, and what the server actually enforces (closed sets, bounds, sizes) is published to the planner in the very constraint vocabulary native tools use.
-
-The client is **dual-era** (MCP SDK v2, ADR-224): it speaks the stateless 2026-07-28 protocol revision and automatically falls back to the legacy `initialize` handshake for earlier servers — every already-configured server keeps working unchanged while new-generation servers become reachable. LIA identifies itself in the handshake (`clientInfo`), and a server that rejects every revision LIA speaks produces an actionable diagnostic instead of a raw transport error buried in nested `ExceptionGroup`s.
-
-The same openness extends from the wire protocol to the **package format**. LIA is a conformant client of the Agent Plugins v1.0.0 open standard (agent-plugins.org): a plugin is a plain directory — a closed-schema `plugin.json` manifest, agentskills.io skills under `skills/`, MCP servers declared in `mcp.json` — and the same package installs unchanged in ChatGPT, Codex, Cursor, GitHub Copilot, Kiro, VS Code and LIA. The design leans entirely on existing layers: detection routes a plugin archive to a staging pipeline that reuses the skills importer's hardening (bounded extraction, zip-slip guards, per-skill atomic install with rollback), `mcp.json` entries map onto per-user MCP servers, and quotas are pre-checked globally before the first write so an install is never left half-done. Two principles govern the lifecycle. First, per-component resilience with total honesty: a component that cannot be installed — an stdio server LIA deliberately never launches, a name collision, an invalid skill — is *skipped and said*, with a translated reason in an exhaustive per-component report; nothing is ever pretended installed. Second, provenance as an invariant: every component carries the plugin that brought it, name collisions are only resolved within the same provenance (a plugin can never capture a manually-created skill, nor the reverse), updates are re-imports that preserve configured credentials, and removal only happens as a group uninstall — a plugin can never end up silently amputated.
-
-### 14.2. MCP Security
-
-Mandatory HTTPS, SSRF prevention (DNS resolution + IP blocklist), Fernet credential encryption, OAuth 2.1 (DCR + PKCE S256), Redis rate limiting per server/tool, API guard 403 on proxy endpoints for disabled servers (ADR-061 Layer 3). A server someone adds never chooses what the API fetches: a remote `$ref` in a tool's output schema is not downloaded, and a redirect is followed only within the server's own origin — four tests against real loopback servers hold the SDK to that property.
-
-The OAuth flow applies the 2026-07-28 authorization requirements: the `iss` parameter (RFC 9207) is validated against the recorded issuer before the authorization code is redeemed, client credentials are bound to the issuing authorization server (a detected change discards them and re-registers instead of sending secrets to the wrong party), and Dynamic Client Registration declares its `application_type`. Each rule carries an explicit tolerance for existing registrations, and declining the consent screen brings the user back to their settings with a dedicated informational message instead of a bare 422.
-
-A tool's behaviour annotations (`readOnlyHint`, `destructiveHint`) are read in **one direction only**. The specification is normative here: a client must treat them as untrusted unless they come from a trusted server. A declared mutation is therefore believed — at worst a lying server buys itself a needless confirmation — while a read-only claim never is, because a declared category outranks the name heuristic and would pull the tool out of the invalid-mutation safety net and out of HITL scope detection. In iterative mode, where every tool of a server shares one confirmation setting, a tool the server itself declares destructive asks for confirmation regardless.
-
-### 14.3. MCP Iterative Mode (ReAct)
-
-MCP servers with `iterative_mode: true` use a dedicated ReAct agent (observe/think/act loop) instead of the static planner. The agent first reads the server documentation, understands the expected format, then calls tools with the correct parameters. Particularly effective for servers with complex APIs (e.g., Excalidraw). Togglable per server in admin or user configuration. Powered by the generic `ReactSubAgentRunner` (shared with the browser agent).
-
-Two facts travel with each server as data, never as prompt prose. A user server whose credential is the user's own (OAuth, personal bearer or API key) publishes its account scope everywhere the model reads its capabilities — the delegation tool's description, the planner manifest, the sub-agent's context and the generated domain description — so "my repositories" resolves to the connected account instead of a question; an unauthenticated server publishes nothing, because claiming otherwise would be an invented capability. And the sub-agent returns its data, not a count: its output carries the same message-plus-bounded-data contract as every ReAct tool, with third-party payloads wrapped as external content.
-
----
-
-## 15. Voice system (STT/TTS)
-
-### 15.1. STT
-
-Wake word "Dis LIA": the openWakeWord architecture — a shared melspectrogram and embedding, plus a small classifier per phrase — trained offline on synthetic voices and permissively licensed corpora, run by ONNX Runtime Web in a worker (single-threaded WASM: no `SharedArrayBuffer`, no isolation, so iOS and the native shells too; zero external transmission). Every file is named after its SHA-256 and checked before it runs; a second classifier over the same embeddings hears "LIA, stop" and cuts the reading. A bench publishes its thresholds before training and never lowers them: the French model, the only one shipped, is declared **beta** because it does not reach them yet, and a guard holds that status to the bench's verdict both ways (ADR-329). Whisper Small transcription (99+ languages, offline) server-side via ThreadPoolExecutor. Per-user STT language; per worker, a bounded LRU cache of `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, one by default) — nothing loaded at construction, the first transcription pays the load for its language, an eviction returns memory to the system, and the resident count is published per worker (`voice_stt_recognizers_loaded`).
-
-**Latency optimizations**: KWS → recording microphone stream reuse (~200-800 ms saved), WebSocket pre-connection, `getUserMedia` + WS parallelized via `Promise.allSettled`, AudioWorklet Worklet cache.
-
-### 15.2. TTS
-
-**Catalogue-driven** factory (ADR-081): `factory.get_tts_client()` reads the active `voice_tts` override (provider + model + voice + tuning, stored in `llm_config_overrides.voice_tts.provider_config` JSONB) and instantiates the matching client. Five providers ship: Edge (free, default), OpenAI (`tts-1` / `tts-1-hd`), ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`), Gemini and Fish Audio (`s2.1-pro`, `s2-pro`, `drama-3`). Every heard sentence goes through one door (`voice/spoken.speak`) and is billed once, in the unit of the engine that spoke — characters, UTF-8 bytes for Fish Audio, reported tokens for Gemini — and every Fish Audio request, like every ElevenLabs synthesis, takes one slot of its vendor account's shared allowance. A person may give LIA two voices of their own among the engine's (`users.lia_voices`, kept per provider: a model change keeps them): the chat reads them at its one voice seam, forgivingly — a voice no longer offered speaks with the administrator's. One cue vocabulary gets a dialect per engine: LIA writes cues only in text meant to be spoken, and text it reads aloud never turns a bracket into a cue (ADR-345). Each cue carries what it means and when it fits: it colours the news, never how LIA's own act went — a confirmation, a failure, a search that found nothing —, and the code holds what it can: a comment declares whether it speaks of retained records, and without them (a failure, an empty search) it gets no cue budget at all, whatever its model writes; a cue on a confirmation that did retain records is the prompt's to prevent. When a paid provider's API key is missing, the factory falls back to Edge transparently (logged warning). Progressive sentence-by-sentence streaming via `ProgressiveSentenceStreamer` (ADR-082) to minimize latency — the first sentence is synthesized while the LLM still generates the rest. A delimiter closes a sentence only at end of input or when followed by a space (ADR-154): on the progressive path the buffer grows token by token, so `"3."` is a perfectly normal transient state — decimals, prices, version numbers and URLs stay in one piece, and both splitters (`_extract_sentences` and the streamer) are pinned by a shared case table plus a test that requires them to agree.
-
----
-
-### 15.3. An optional face for the voice
-
-The experimental speaking avatar uses your **personal Simli key**, after explicit activation. It accompanies voice comments and both direct and delegated Live in a floating window with three sizes, movable by pointer or keyboard. The browser sends the existing voice to Simli and uses its returned media as the single audible output. The connection stays open between replies: **silence also consumes your Simli plan**. Live standby closes it; waking opens a new connection. Radio keeps its own player. Lip movement and Android/iOS behavior still require real-device qualification; this remains a beta feature.
-
-The API controls the Simli connection through a single-use ticket: it relays signalling and LIA’s spoken output, while returned WebRTC media connects Simli to the browser. The provider token stays encrypted server-side. Loss of validated presence requests closure; an abrupt server stop remains bounded by the provider duration limit. Long answers play in order through a bounded audio queue paced by actual playback. An interruption cuts the current sound; another output never replays a passage already heard. The avatar, companion and shortcuts stay within the visible area when the mobile keyboard opens, you rotate the screen or zoom; your preferred position returns afterwards without these adjustments overwriting it.
-
-### A station that exists while its listener is there
-
-The radio has two layers: an instance newsroom collects public feeds, while a personal antenna chooses a programme from a deterministic grid and the listener's permitted sources. Models write and speak bounded segments; verification checks their citations, numbers and roles before they air. The player shows sources and account spend. The antenna produces only during an active session, with a timer and an instance capability switch; it keeps no replay. A dialogue take never holds more voices than the engine accepts — the limit is declared per engine family —, and where a format converses (a discussion, a debate, the editorial, the opening, the sign-off) a voice may open its line with a reaction — a chuckle, a laugh, a sigh —, at most `RADIO_REACTIONS_MAX` per programme, which the deterministic editor removes when it lands on a fact line.
-
-The editorial filter removes advertising, sponsorships, discounts and purchase pitches while retaining useful news, invoices, reservations and appointments. Mixing respects the synthesis format: raw PCM or u-law receives a WAV container carrying its declared encoding and sample rate; already encoded audio passes through unchanged before local FFmpeg assembly. In the browser, the station's own instrumental music plays throughout and dips under every voice faster than the silence a segment opens with, so no first word is covered, then comes back up slowly.
-
----
-
-## 16. Proactivity: Heartbeat and scheduled actions
-
-### 16.1. Heartbeat: 2-phase architecture
-
-**Phase 1 — Decision** (the `heartbeat_decision` slot, a frugal model chosen in the admin catalogue):
-1. `EligibilityChecker`: opt-in, time window, cooldown (1h global, 30 min per type), recent activity — optional `notification_filter`/`cross_type_filters` keep each flow's eligibility budget separate from the shared ledger
-2. `ContextAggregator`: 15 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, SMS, upcoming Birthdays Open loops (the commitments ledger, ADR-139), Habits (a learned routine whose usual slot passed, with what it usually asks for) and the Workboard. A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
-
-   **Being connected and being interrupted are two decisions** (ADR-197). Fourteen of these sources carry their own switch, applied **before** the fetch: a refused source stops feeding the decision *and* stops costing an API call, without disconnecting the service — so without losing the tool you ask with. Storage holds the **refusal**, never the permission: `NULL` means “never expressed”, so an existing account keeps its behaviour and a source added later is on until someone refuses it. What is not a source — activity, the anti-redundancy windows — stays out of the registry by construction: gating those would make the assistant repeat itself rather than interrupt less. And a dependency is **declared then published**: leave-by advice reads the calendar of the first pass, so refusing the calendar would silence it; the panel says so instead of leaving a live switch with no effect.
-3. LLM structured output: `skip` | `notify` plus `interest_topic` (copied verbatim from the sample, fail-open runtime guard) and source labels constrained by a `Literal` — a label outside the vocabulary is repaired or dropped and counted, never fatal to the whole decision. Two-level anti-redundancy: source, and **content** — the last 10 notifications over 7 days are injected with their excerpts, which forbids re-proposing a theme even when it came from a different source
-
-**Phase 1b — Enrichment** (when `interest_topic` is set): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) under a hard timeout, deduplicated against recent notification embeddings. Fully fail-open: flag off, failure or empty result → the message ships without facts.
-
-**Phase 2 — Generation** (if notify): LLM rewrites with personality + user language. When facts were fetched, a VERIFIED FACTS block requires naming 1-2 concrete items without ever inventing, and source links are appended deterministically. Multi-channel dispatch, filed delivered only once the message was archived, pushed or sent on a channel — never on an SSE event alone (ADR-263). An interest mention is written to the shared ledger (`InterestNotification(source='heartbeat')`): the subject then rests for both proactive flows.
-
-Every source is bounded by a time budget and fails independently. That budget covers a share of an event loop shared with the other fetchers — it is not a database timeout: a read pulling tens of thousands of raw rows to produce a few dozen numbers would blow it under nominal conditions, freezing the worker for the duration of the decode. Health signals therefore rely on a per-day aggregation computed in the database, and a source that drops out is counted and timed rather than silently missing — a source that fails by disappearing leaves no trace in the notification itself.
-
-**The activity guard is an injected probe, and selection is fair.** The "don't interrupt an active user" rule is enforced through a port (`ActivityProbe`) that each scheduler wires to the real activity source — the latest human message, automated rows excluded, bounded to the cooldown horizon. The generic checker knows no domain model: it receives the probe, and a read failure propagates to the runner's failure accounting instead of dissolving into permission. Upstream, candidate-account selection pushes the enablement flag into SQL and randomizes order (`ORDER BY random()`): beyond the batch size, no account can be systematically served last. A SQL time-window prefilter is ruled out: a single corrupt timezone would fail the whole batch, for a microsecond-scale gain.
-
-### 16.2. Agent Initiative (ADR-062)
-
-Post-execution LangGraph node: after each actionable turn, the initiative analyzes results and proactively checks cross-domain information (read-only). Examples: rain weather → check calendar for outdoor activities, email mentioning a meeting → check availability, task deadline → recall context. 100% prompt-driven (no hardcoded logic), structural pre-filter (adjacent domains), memory + interest injection, suggestion field for proposing write actions. Configurable via `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`.
-
-The same node also emits up to 3 **follow-up chips** — short requests the user is likely to send next, phrased in their language and grounded in the visible results. Server-side sanitization (clamp, case-insensitive dedupe, hard cap) and a pop-once per-run handoff carry them into both the SSE `done` chunk and the archived message metadata, so the chips render live and survive a reload; tapping one only pre-fills the input.
-
-### 16.3. Scheduled actions and reminders
-
-APScheduler with Redis leader election (SETNX, TTL 120s, recheck 5s) for the loop, `FOR UPDATE SKIP LOCKED` for isolation, auto-approved plans, auto-disable after 5 consecutive failures.
-
-**A recurrence is a product**: which calendar days × which times of day. One engine (`src/core/recurrence`) answers for routines and reminders alike — `dateutil.rrule` enumerates the days, each moment is localised with `fold=0`, and the series is ordered then de-duplicated by instant, because two wall clocks collapse onto one instant at the autumn transition. Days are never handed to a cron: an `IntervalTrigger` skips the whole day when the offset changes at local midnight — 142 runs a year across 73 timezones, with nothing in the logs.
-
-**The reminder that rings once is not an exception, it is the general case**: asked what to arm next, `rearm_after` answers `None` for a consumed single occurrence, and `None` means "delete". Nothing anywhere asks "does this repeat". A typing consequence: a reminder's `trigger_at` stays NOT NULL — a reminder with no future is deleted — where a routine's `next_trigger_at` is nullable, its configuration being the thing of value.
-
-Caps are **injected by the consumer**, never read from the model: 12 firings a day for a routine, 48 for a reminder. Each conversation tool publishes the bounds it enforces (ADR-184), so an out-of-bounds number is repaired by the planner's own clamp instead of being reported as a defect.
-
-Every tick ends with a row in a **run history**, written at the result inside the marking transaction — five outcomes, one per executor exit, in a savepoint and never blocking the routine. The current week is computed server-side with the engine that arms the runs: a cell takes the last run whose served instant **equals** the slot's, never a tolerance window, so a schedule change resets the grid by construction and the browser never re-reads the schedule — it paints.
-
-The reminder's sentence follows the same rule as any short answer: it is asked for **without reasoning** where the model can stop, on a small answer budget — and an answer that comes back empty, or that the provider reports as cut at its budget, is a refusal rather than a message. The written fallback goes out in its place, the spend that happened is kept, and the warning names the model and its reasoning tokens. A notification is the one act of LIA's own initiative a person actually experiences; it never arrives as a bell and nothing else.
-
-### 16.4. A push notification that leads to a decision
-
-A push channel that only invalidated caches would buy freshness for a card nobody opened. A processed notification therefore **queues a wake** — `SET NX` per (user, provider), so a storm is one wake dated by the first — and the webhook still answers 200 without deciding anything. A short leader-elected sweep serves the queue under the **full** eligibility checker: window, cooldowns, the user's source preference — the heartbeat has neither a daily quota nor a probabilistic smoothing; the decision is the judge (ADR-328).
-
-The mail delta is **previewed, never consumed** until the wake is served, so a refused wake leaves the message for the next tick — the two Gmail anchors stay distinct on purpose (the channel's is the last event *seen*, the heartbeat's the last mail *consumed*). The pre-filter is deterministic and published as settings: a required label, excluded categories, list mail out; an event starting within the lookahead, changed by someone else or awaiting the user's answer. And the decision knows why it was woken: a FRESH line opens its context, and the audit row persists `trigger = push | tick`, which the history renders.
-
-A Drive change is not a decision at all: it drains the changes feed from the channel's token and reindexes exactly the files sitting under a linked folder, through the per-file ingestion the full sync shares.
-
-### 16.5. Anticipated moments, and watches served to the minute (ADR-281)
-
-The heartbeat is **periodic**: it cannot return to an instant. A meeting ends at 15:00, the next pass falls at 15:22 on a batch the account may not be in, and the context's calendar window starts at `now` and looks forward — a finished meeting is invisible to the decision. A `proactive_moments` table therefore holds the instants: one row per account and per source, unique on `(account, kind, source)` so a meeting never produces two moments, filed by a detector and served by a single sweep — jittered, under a scheduler lock whose TTL is tied to the interval. The claim is a `FOR UPDATE SKIP LOCKED` followed by a conditional `UPDATE` in the same transaction, with an owner token; a claim nobody settled is **reclaimed** after its lease, never left immortal. Before it is served, a moment is **revalidated**: a cancelled meeting, a declined one, or a person who has already written — it is dropped.
-
-A moment runs under the **full** eligibility checker and bypasses only the learned rhythm — exactly like a push-driven wake, and for the same reason: an instant does not defer. The question is **asked, never the evaluation**: one open question, at most two facts, no judgement, never two moments stacked nor the same question twice. The in-meeting guard reads the calendar behind a Redis verdict cache and records no consultation on a hit; a failed read declares itself `failed`. Control ships with the capability: one switch per kind, the capability's own switch, a counter per kind and outcome and a "due → notified" latency on the heartbeat dashboard, and `task moments:preflight`, which says what an account would be offered, without writing anything.
-
-The same wake serves the **watches**: a condition routine "mail from this sender" would otherwise wait up to two hours for the executor's pass; the wake, which already holds the Gmail delta, serves it before the pre-filter's verdict — the pre-filter answers "is this worth a wake", a watch answers "is this what I am waiting for". It never runs the routine: it advances its due time, the executor stays the sole judge, and it arms past the published search-cache TTL, because a cache filled before the mail arrived would answer "not met" and that verdict consumes the arming. A finished routine **closes** (`is_enabled = false`, `status = completed`) — its end has one authority, the `SeriesEnd` already stored. And the briefing's "Watch" chip writes that routine, keyed on the sender and never the subject, after reading what the account already holds.
-
----
-
-### A routine has one clock
-
-The studio makes schedule and condition exclusive. A scheduled routine uses the recurrence engine; a condition routine has no recurrence and is checked at a cadence determined by its source. A check without a new matching fact writes no run. Both use the same execution limits, approval rules and visible week history when they actually act. A weather condition always reads Google Weather, the one source the platform guarantees: a single rule, shared with the briefing card, keeps the first hourly slot of a watched phenomenon within the horizon (4 hours by default) whose chance of precipitation is strictly above the published threshold (50%), and the note handed to the run names the hour, the day, the timezone, the chance and the source. A check cadence longer than the horizon is refused at boot, so no window goes unwatched.
-
-### A routine never asks a question nobody will see
-
-A routine runs with nobody in front of the screen. A confirmation, or a sandbox-network question, asked in that context would hang on the thread, and the person's next message would serve as its answer. A turn with nobody to ask therefore refuses and says where to allow the action; a ticket, for its part, knows how to ask. A routine's reservation is held by a token: the recovery never frees a run still alive, a late settle never overwrites another tick's, and a retry after a timeout is refused as soon as the effect register shows an action already done — a routine never repeats what it did. A scheduler leader that loses its lease pauses until it is re-elected, and a server shutdown starts no job any more.
-
-### Discussions LIA opens, on a context you can read
-
-A notification tells; a discussion invites a reply. Proactive discussions therefore have their own policy, cadence and runs, never borrowed from the heartbeat (ADR-358): a person allows them, sets their hours and a daily maximum, and every source and every sensitive topic is a separate permission, read again at each run.
-
-**The context is a derived base, not a hidden memory** (ADR-359). Each permitted source is read through one typed gateway into dated observations, interpreted into episodes and qualified patterns that carry their period, their coverage and their current authority. The person sees every element and can exclude it — its related evidence goes with it —, delete it, purge everything or ask for a rebuild; a rebuild works by epoch and checkpoint, covers every admitted fact pass after pass, and can never undo a human exclusion nor bring back a purged context.
-
-**Spending is reserved before it happens** (ADR-360). A run reserves the smaller of its own ceiling and the day's remaining room — for the account and for the whole instance —, starts only when its first call fits, and stages its model calls, deciding then writing, under published finite limits. An abstention, a cancellation or a discarded draft keeps its known cost on the account's ledger, every run records why it ended, and the prompt ceiling is the configured slot's own window, never an envelope written in code.
-
-**Publishing is one act, delivering another.** The archived message, the logical opening and the outbox intent commit together; native delivery follows, and a person's own turn, an approval or an alert keeps priority. An opening touching a sensitive topic stays private — a masked push, never an external channel —, and every opening is filed in the registers as an act of LIA's own initiative, beside the sources its run read.
-
----
-
-## 17. RAG Spaces and hybrid search
-
-### 17.1. Pipeline
-
-Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNSW → Hybrid search (cosine + BM25 with alpha fusion) → Context injection in the **Response Node**.
-
-Note: RAG injection is done in the response node, not in the planner. The planner however receives personal journal injection via `build_journal_context()`.
-
-A document that could not be indexed **says why**: a closed code is stored on the row (file missing, extraction failed, no text, no chunks, too many chunks, retries exhausted) and translated at display time in six languages, under the document's row. The most frequent case — a scanned PDF whose pages carry images with no text layer — is told apart from a genuinely empty file and shown with its remedy: open the file in Google Docs, which recognises the text, then add it to the space through its Drive source. No character recognition is promised that the code does not provide.
-
-### 17.2. System RAG Spaces (ADR-058)
-
-Built-in FAQ indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). Staleness is judged on a SHA-256 over the source files **and** on the stored corpus itself (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. Auto-indexation runs in every uvicorn worker, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — one writer, the others skip without queueing — and every vector is computed **before** the first destructive statement, so a provider rejection deletes nothing and the previous corpus keeps serving (ADR-162).
-
-### 17.3. Mail sources: what the user designates (ADR-262)
-
-A space can follow a **Gmail label**. Only the threads carrying it are
-rendered — one thread, one Markdown document: subject as the title, messages
-in order, attachment *names* only — and indexed like any other document.
-Removing the label in Gmail removes the document at the next pass, so the
-deletion gesture is the one the user already knows.
-
-Indexing the whole mailbox is ruled out: it duplicates a personal
-archive into a second store, spends embeddings on a corpus that is mostly
-notifications and lists, and dilutes retrieval with text nobody chose to keep.
-A label is a designation the user maintains, in a tool they use daily. The
-full sync anchors Gmail's history **before** it lists the threads, so a
-message arriving mid-listing is replayed by the next incremental pass instead
-of falling in the gap; that pass rides the push wake of section 16 and answers
-to no notification gate — indexing is not deciding.
-
-### 17.4. A Drive folder is a tree, and the count is exact (ADR-297)
-
-Google Drive lists one level per call, so a linked folder is walked breadth-first, bounded twice — files and folders — with the cut stated: a shortcut is neither listed nor followed, a folder reached twice is walked once, an unreadable sub-folder is counted and skipped, and only the root being unreadable is an error. The walked folder set travels with the source, so the push path routes a change on the whole tree and lets the set follow the feed — a folder created under the tree joins it before the files created inside it arrive in the same feed. A folder inside an already linked tree, or above one, is refused: two sources deduplicating by file id would steal each other's documents at every synchronisation.
-
-The count shown before a large synchronisation is computed by the code that indexes: the same walk, the same predicates for « supported » and « unchanged », the space's own document cap. It classifies every file — new, modified, unchanged, unsupported, beyond capacity — and the button asks the person only past a threshold the instance sets; a walk cut by a bound says « at least ». Every synchronisation, manual or background, files one consultation for the act — and a read outside any run publishes its own, because the register keeps only what a collector gathers.
-
-### 17.5. A document of a space joins a message as a copy (ADR-295)
-
-The chat's retrieval reads the active spaces alone, so a document indexed in a paused space would be unreachable from a question without re-activating the whole space. The composer's « + » therefore lists the ready documents of every space the person owns, a paused one badged rather than hidden, with a page and an exact total, and the chosen document is COPIED through the attachments' own mechanism: the stored file under a fresh name, the text through the knowledge spaces' extraction — fifteen formats, not the upload's image-and-PDF allowlist — the row an upload, so a conversation reset removes the copy and the space, its index and its file are never touched. Only a ready document is offered, both capability switches must be on, and the model is told when the text sits at the cap: a cut is stated, never applied in silence.
-
----
-
-## 18. Browser Control and Web Fetch
-
-### 18.1. Web Fetch
-
-URL → SSRF validation (DNS + IP blocklist) → connection pinned to the checked address (name in `Host` and the SNI, no second DNS lookup) → redirects followed by hand, each hop revalidated before any contact → readability extraction (fallback full page) → HTML cleaning → Markdown → `<external_content>` wrapping (prompt injection prevention). Redis cache 10 min.
-
-### 18.2. Browser Control (ADR-059)
-
-Autonomous ReAct agent (Playwright driving the distribution's own Chromium, updated with it; a failed launch is counted). Redis-backed session pool with cross-worker recovery. CDP accessibility tree for element-based interaction. Anti-detection (Chrome UA, webdriver flag removal, dynamic locale/timezone). Cookie banner auto-dismiss (20+ multilingual selectors). Separate read/write rate limiting (40 each per session).
-
----
-
-## 19. Security: defence in depth
-
-### 19.1. BFF Authentication (ADR-002)
-
-**Why BFF instead of JWT?** JWT in localStorage = XSS vulnerable, 90% size overhead, revocation impossible. The BFF pattern with HTTP-only cookies + Redis sessions eliminates all three problems. v0.3.0 migration: memory -90% (1.2 MB → 120 KB), session lookup P95 < 5 ms, OWASP score B+ → A.
-
-**Strong authentication (ADR-143/144).** Beyond password and Google OAuth, the account can be protected by **WebAuthn passkeys** (discoverable credentials, conditional UI on the email field, single-use Redis challenges, clone detection via signature counters, zero enumeration on the anonymous path) and a **TOTP second factor** (two-step login via an ephemeral pending token, explicit matched-timestep anti-replay, 10 single-use hashed backup codes). Sensitive actions — credential management, export, device revocation, password disabling — go through a **step-up re-authentication**: a 5-minute window opened by any full sign-in (sudo semantics), with a **typed 403** contract (`step_up_required`, never a plain 401 that would redirect to /login). **My devices** lists every BFF session under an opaque `display_id` with deliberately bounded metadata (UA/OS families, /24-truncated IP), revokes one device or all others, and cuts a revoked session's SSE stream within one keepalive tick; a push notification flags any sign-in from a device not attested by a valid FCM token.
-
-**A federated identity grants no right.** Linking a Google identity never changes an account's status: a registration awaiting approval stays pending, a blocked account stays blocked. The announced address is believed only when Google vouches for it; when it had never been proven, the link proves it, revokes the registrant's password and sessions and notifies the administrators as an email verification would; a deleted account is never revived, and a refusal carries a bounded reason. “Who is calling?” has one answer, `resolve_client_ip`, which the administration audits, the session address and the rate limits all read — an AST guard refuses any other reading of the header the visitor writes, and the web server forwards the address Cloudflare vouches for. Finally, the logging configuration is the application's first import, and a tool binds its logger when it logs: a logger bound earlier would keep structlog's defaults, with no level filter and no personal-data filter.
-
-### 19.2. Usage Limits: 5-layer defence in depth
-
-| Layer | Interception point | Why this layer |
-|-------|-------------------|----------------|
-| Layer 0 | Chat router (HTTP 429) | Block before even starting the SSE stream |
-| Layer 1 | Agent service (SSE error) | Cover scheduled actions that bypass the router |
-| Layer 2 | `invoke_with_instrumentation()` | Centralized guard covering all background services |
-| Layer 3 | Proactive runner | Skip for blocked users |
-| Layer 4 | Direct `.ainvoke()` migration | Coverage for non-centralized calls |
-
-**Fail-open** design: infrastructure failures do not block users.
-
-### 19.3. Attack prevention
-
-| Vector | Protection |
-|--------|------------|
-| XSS (LLM rendering) | `rehype-sanitize` boundary on the chat markdown pipeline (`rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`, audited schema — `script`/`iframe`/`form`/handlers dropped), HTTP-only cookies, backend CSP; MCP/Skill Apps never go through markdown (sentinel → sandboxed iframe widget) |
-| CSRF | SameSite=Lax |
-| SQL Injection | SQLAlchemy ORM (parameterized queries) |
-| SSRF | DNS resolution + IP blocklist (Web Fetch, MCP, Browser); skill install-from-URL reuses the same validator with stricter terms: https only, redirects refused, streamed size cap, TOTAL transfer deadline, per-user rate limit The browser goes further: **every request a page makes** — redirect, sub-resource, iframe, XHR — resolves its own destination behind a bounded verdict cache, and a failure aborts instead of forwarding. A validated URL leaves through `pinned_stream` alone: the connection targets the address the check resolved (no *DNS rebinding*), never a client that follows redirects (ADR-326). |
-| Decompression bomb | A compressed body is decoded by LIA itself under the read ceiling (gzip, deflate, zstd); a coding it cannot bound and a truncated stream are refused (ADR-326) |
-| Prompt Injection | Provenance carried by the data: 24 classified types (fail-closed, boot-time assert), marking on the three surfaces that reach the LLM, 7 pattern families detected across 6 languages without ever rewriting the content (ADR-167); `<external_content>` markers kept on the tool side |
-| Rate Limiting / IP spoofing | Distributed Redis sliding window (atomic Lua); trusted proxy chain — API ports loopback-bound (cloudflared = single entry), uvicorn `--proxy-headers`, `request.client.host` validated as the single IP source (no shared global bucket, raw XFF never read) A global ceiling sits in front of every route as real ASGI middleware on that same shared limiter, so one client cannot consume the whole API; probes stay exempt so supervision is never throttled. |
-| Scanners and credential stuffing | Pure-ASGI admission ahead of routing: distinct unknown-route 404s and rejected login or MFA credentials are counted per canonical client IP in atomic rolling Redis windows; past the threshold, a fixed temporary ban shared by every API worker. Ordinary resource and session errors never count; internal callers, exact health probes and `OPTIONS` stay admissible; a Redis failure lets traffic through, visible in the metrics, the degradation alert and the diagnostics (ADR-353). Every 429 is logged once at WARNING with the canonical client IP, method, query-free path, status and duration — a log field, never a metric label (ADR-354) |
-| Hostile text (ReDoS) | The Markdown/HTML flatteners — push, voice, ticket comments, radio, e-mail cards — run on the event loop: every paired span is bounded (`MARKDOWN_SPAN_MAX_CHARS`) and no character belongs to two neighbouring classes; growth (n then 4n) and exhaustive-equivalence tests, API and browser side, hold the linearity (ADR-326) |
-| Password-reset abuse | One decision, applied when a link is asked for and when it is used: nothing for an administrator or a deleted account, a notice — never a link — for an account that signs in with Google without a password; an e-mail budget per account whatever IP asks; a link bound to its account and to a fingerprint of its password, retired by any change; alerted (ADR-363) |
-| Bots on the password doors | An optional Cloudflare Turnstile check on sign-up, sign-in and the reset request, after the per-IP limiter, valid only for that door on that instance; when Cloudflare cannot answer, only the sign-in proceeds (ADR-364) |
-| Supply Chain | Every build input pinned by digest (GitHub Actions, images, languages, tools); a weekly watch of the advisories each dependency publishes and of end-of-life dates, every finding fixed or accepted in writing; refresh under a cooling-off period that never moves backwards, a security fix becoming a floor (ADR-331); secret scan before every push; a CycloneDX SBOM with every release |
-
-### 19.4. Data durability: automated backups (ADR-109)
-
-**A backup is only real once a restore has been proven.** A `postgres-backup` sidecar snapshots the full database on a cron schedule with three-tier rotation (daily / weekly / monthly); every parameter — schedule, retention, target directory, pg_dump options — is `.env`-driven. Dumps carry `--clean --if-exists`, so a restore is a single command into the live database or a throwaway container. The drill itself is versioned: `task backup:verify` restores the latest dump into an ephemeral pgvector container and compares the Alembic schema revision and reference row counts against the live source. RPO: ≤ 24 h (tunable). The accepted limits (off-site copy, attachments volume) are tracked in ADR-109 rather than left implicit.
-
-### 19.5. Isolating what executes
-
-Three surfaces execute something on the user's behalf, and each is treated as hostile by construction.
-
-**Skill scripts run in a throwaway container.** No Docker socket, no network (a script the assistant writes for a computation and a skill's command that declares its hosts are the exceptions, and they leave through a single door — the egress proxy of §34), a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
-
-**Infrastructure tasks are confirmed, never assumed.** A remote server task is prepared, not run: the confirmation shows the target server, the full task text and the instructions the model itself wrote into the remote prompt — the field an injection would use is exactly the one that must not be hidden. The privilege is verified again at execution, because rights granted when a request was phrased may no longer hold when it is approved.
-
-**Request bodies are bounded before they are read.** The ceiling is enforced ahead of the handler, on the declared length when there is one and on the counted bytes when there is not, so peak memory is set by us rather than by the caller — on webhooks that happens before authentication. Its consistency with the per-endpoint upload limits is asserted at startup: a contradiction refuses to boot instead of surfacing as a remote-only rejection that no log explains.
-
-### 19.6. Content provenance is carried by the data (ADR-167)
-
-**A text LIA reads is not a text LIA runs.** An email body, an invitation description authored by its organiser, a web page, a place's editorial summary, an MCP server's result: they all land in the prompt, and anyone can drop an instruction inside them.
-
-Per-tool marking does not hold, for two reasons. **It forgets**: a hand-kept list of tools to mark lets whole families through — web search, MCP servers, even a mail tool whose own docstring announces that it returns *"FULL email content (body, headers, attachments)"*. **And it is not the right surface**: content reaches the model through two paths, neither of which is a tool, one of them `generate_data_for_filtering`, which builds the response prompt's `{data_for_filtering}` block on **every** turn that produces data, in **both** execution modes.
-
-Provenance is therefore a property of the **data**: every registry type is classified once, an unknown or null type resolves to *external* (fail-closed), and a boot-time completeness assert refuses to start on an unclassified type — the same doctrine as ADR-085. Most types are third-party authored.
-
-**Detect, never sanitise.** Seven pattern families are recognised across the six languages — role override, instruction hijack, persona switch, exfiltration, a LIA tool named inside third-party text, invisible Unicode, a directive hidden in an HTML comment — and the content reaches the model **unchanged**, with a note naming the family. Sanitising would rewrite an email the user may want to read as-is, in exchange for a guarantee the next bypass would deny. Detection is bounded to the first 20,000 characters and **never logs the text**: it is attacker-controlled by construction and routinely holds the user's own data.
-
-**And a marking that does not survive summarisation is a marking that expires.** Compaction reads the conversation and re-emits it as a `SystemMessage` — the highest-authority channel, retained on every later turn because it *is* the conversation's compressed memory. A summariser told to preserve identifiers, decisions and outcomes, and told nothing about provenance, faithfully promotes a sender's demand into an established fact. So the taint travels: a summary built from third-party-carrying messages inherits a provenance banner, computed at write time rather than re-derived from whatever the model chose to echo, and the summarising prompt reports third-party claims in a dedicated section, attributed to their source. The banner sits after the marker that four readers use to recognise this message — a prefix change would have made the conversation's compressed memory vanish in silence. The deterministic fallback follows the same rule: identifiers harvested from inside a marked span are listed as untrusted rather than as key identifiers of the conversation, and an unclosed marker taints the whole message.
-
-### 19.7. A log line carries facts, never words (ADR-317)
-
-Above debug level, a log line carries **facts** — counts, lengths, identifiers, codes, a URL's host — and never the text a person wrote or a model wrote about them: queries, interests, the names of files, labels or spaces, pages browsed. The rule is guarded **by the value**, not by the field name: a test reads every logging call in the code and refuses a preview (`x[:n]` of anything but an identifier) or a value derived from content, whatever it is called, each exception carrying its written reason. What an error text **quotes** is withheld by the filter — PostgreSQL's `DETAIL` and `CONTEXT`, SQLAlchemy's parameters, Pydantic's `input_value`, tracebacks included —, a database error is described by its facts (SQLSTATE, constraint, table), and provider keys are masked in every logged URL, at every level. Two limits are stated as they are: an external service's error message in an unknown format can still quote a value, and the debug level — off in production — keeps more. Metrics and traces follow the same rule: a metric label and a trace name carry the route template, never the concrete address — a name in `/relations/{name}` becomes neither a Prometheus series nor an attribute exported to Tempo.
-
----
-
-### Generated files have an explicit lifetime
-
-A generated file's deadline is nullable: a person may keep it within published per-account count and size limits. Cleanup deletes only rows whose deadlines have passed in one conditional statement, then removes their disk files; keeping wins if it commits first. Releasing a kept file gives it a fresh deadline, and chat cards read the current state. For e-mail delivery, one outgoing attachment contract serves the mailbox providers; the connected mailbox may reach selected recipients, while LIA's relay is restricted to the account's verified address. Each route exposes its file-size ceiling before the send.
-
-### What goes into a provider, and what comes out
-
-Third-party content travels in an envelope the model knows not to obey; its tag is neutralised in every spelling — case, full width, invisible characters, NFKC normalisation — and the injection scan reads the text as a model would. The other way round, a provider's refusal — connectors, Places, Routes, geocoding, telephony, voice engines — travels by its facts, status and code, never by its prose, which can quote a private field. The log filter also masks provider keys and bearer tokens quoted in an error, and a sandbox network script can no longer bring out the key a remote service echoes back. Mail servers — the instance's SMTP relay, iCloud's IMAP and SMTP — present a verified certificate before any authentication.
-
----
-
-## 20. Observability and monitoring
-
-### 20.1. Stack
-
-| Technology | Role |
-|------------|------|
-| Prometheus | 640 custom metrics (RED pattern) |
-| Grafana | 32 production-ready dashboards |
-| Loki | Aggregated structured JSON logs, collected by Grafana Alloy (the same redaction at collection) |
-| Tempo | Cross-service distributed traces (OTLP gRPC), named by the route template |
-| Langfuse | LLM-specific tracing (prompt versions, token usage) |
-| Alertmanager | Vital alert core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
-| structlog | Structured logging with PII filtering |
-
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 640 defined; the ones that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. Without that guard, a heartbeat source failing open can drop part of the health signals for days with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
-
-### 20.2. Embedded Debug Panel
-
-The debug panel in the chat interface provides real-time per-conversation introspection: intent analysis, execution pipeline, LLM pipeline (chronological reconciliation of all LLM + embedding calls), context/memory, intelligence (cache hits, pattern learning), journals (injection + background extraction), lifecycle timing.
-
-Debug metrics persist in `sessionStorage` (50 entries max).
-
-**Why a debug panel in the UI?** In an ecosystem where AI agents are notoriously difficult to debug (non-deterministic behavior, opaque call chains), making metrics accessible directly in the interface eliminates the friction of having to open Grafana or read logs. The operator immediately sees why a request was expensive or why the router chose a particular domain.
-
----
-
-### 20.3. DevOps Claude CLI (admin only)
-
-Administrators can interact with Claude Code CLI directly from the LIA conversation to diagnose server issues in natural language: *"Check the logs to see if everything is working"*, *"Check disk space"*, *"Which container uses the most RAM?"*. Claude CLI is installed inside the API Docker container and executed locally via subprocess, with Docker socket access to inspect all containers. Permissions are configurable per environment (`--allowedTools`/`--disallowedTools`) and access is restricted to superusers via a direct DB check. Sessions are persistent for multi-turn investigations. Every run starts on the model and effort the administrator sets (`DEVOPS_CLAUDE_MODEL`, `DEVOPS_CLAUDE_EFFORT`), through a single construction of the arguments locally and over SSH, and the CLI signs in with its own long-lived token (`CLAUDE_CODE_OAUTH_TOKEN`) — never with a copy of a developer's session, which a refresh on the other machine would invalidate.
-
-### 20.4. A label is a stream multiplier, not a search field
-
-An aggregation pipeline naturally invites promoting to an indexed label anything
-one might filter on: the event name, the emitting module, the trace id. The
-intuition is wrong, and expensive. In Loki a **stream** is a unique combination
-of label values, and the set of streams held in memory is the **cartesian
-product** of those values. Promoting a field with an open value set — a free-form
-event name, worse still a per-request identifier — makes nothing more searchable;
-it schedules an out-of-memory.
-
-The rule is therefore positional rather than functional: **only a field whose
-value set is small and closed becomes a label** (severity, four values).
-Everything else is filtered at read time, where the cost is paid per query
-instead of being permanent and shared:
-
-```
-{container="lia-api-prod"} |= "chat_run_started" | json | event="chat_run_started"
-```
-
-The line filter deliberately precedes the JSON parsing: it lets the engine skip
-whole blocks without decoding them.
-
-Two guards accompany the rule, because it is broken silently. The first forbids
-an open-cardinality field from becoming a label again. The second **derives** the
-forbidden set from the pipeline configuration and checks that no dashboard
-selects a stream on one of them — a selector naming a non-label does not fail, it
-simply matches no stream, and the panel stays empty while looking perfectly
-healthy.
-
-The same principle governs transport: a pipeline does not rewrite the payload it
-carries. Replacing the line with the content of a single field would
-deprive analysis of the structured JSON the application
-emits.
-
-### 20.5. Signals that answer each other, a pipeline that watches itself
-
-A metric, a log line and a trace tell the story of the same request — provided you can move from one to the other (ADR-333). Every link was measured in production before it was repaired: the log → trace derived field looked for `trace_id=` in JSON lines (not one line in 200 matched), the trace → metrics link had lost its labels in provisioning, and Prometheus received 19,045 exemplars a day without keeping a single one. Now a line opens its trace, a trace its logs and metrics, a latency point its example, and the `job` label names the service instead of reading `api` on every container. The pipeline itself — Loki, Alloy, Tempo, Grafana — is scraped on a closed list of about twenty series rather than nine thousand, an alert warns when lines go missing, and a guard holds every series a panel reads to its list. Every dashboard opens on seven days (logs and traces on four hours) with a shared menu: a convention held by a test, not by memory.
-
-**An alert measures what it names** (ADR-119). The time-to-first-token histogram observes only the turns a person waits for: a routine, a ticket or a call relay streams through the same code, but nobody waits for it, and fed to the SLI it would page on a wait nobody had. One door decides (`streaming/latency_sli.py`, guarded by an AST test), and the rule evaluates only once ten minutes hold a minimum number of turns: below 1 / (1 − 0.95) observations, a histogram's 95th percentile is just its slowest observation. The host's daily report holds the same standard: it opens on what the supervision recorded — alerts fired, the chain's health, open incidents, restarts and memory peaks — and names every source it could not read instead of taking it for silence.
-
----
-
-## 21. Performance: optimizations and metrics
-
-### 21.1. Key metrics (P95)
-
-| Metric | Value | SLO |
-|--------|-------|-----|
-| API Latency | 450 ms | < 500 ms |
-| First SSE event (request acknowledged) | 380 ms | < 500 ms |
-| Router Latency | 800 ms | < 2 s |
-| Planner Latency | 2.5 s | < 5 s |
-| Semantic Embedding | ~100 ms | < 200 ms |
-| Redis session lookup | < 5 ms | P95 |
-
-> These latencies measure the infrastructure. The full perceived response time depends on the LLM call cascade (from a few seconds to several dozen depending on request complexity and hardware) — that is the main optimization lever, measured in production.
-
-### 21.2. Implemented optimizations
-
-| Optimization | Measured gain | Trade-off |
-|-------------|---------------|-----------|
-| Message Windowing | -50% latency, -77% cost | Loss of old context (compensated by Data Registry) |
-| Smart Catalogue | 96% token reduction | Panic mode needed if filtering too aggressive |
-| Pattern Learning | 89% LLM savings | Bootstrapping required (golden patterns) |
-| Prompt Caching | 90% discount | Depends on provider support |
-| Semantic Embeddings | High precision multilingual routing | Depends on API provider availability |
-| Parallel Execution | Latency = max(steps) | Dependency management complexity |
-| Context Compaction | ~60% per compaction | Information loss (mitigated by ID preservation) |
-
-### A public page does no work per request
-
-The public pages are prerendered and host-neutral: nothing deployment-specific enters the image. The blog's illustrations are therefore **pre-generated** — four WebP widths and a social image per article, served as they are: a static file is cached at the network edge by its extension, whereas an image-optimizer response never is, and an on-demand resize cost up to several seconds on the Raspberry Pi. The landing video, for its part, is **declared by the operator at run time** (`LANDING_MEDIA_BASE_URL`, a manifest read behind a timeout and a cache): without it, the section does not exist. A single `<video>` element lives for the whole visit, mounted by the layout and only framed, docked or hidden depending on the page; its titles beat on a beat map computed offline — calibrated onsets, bar downbeats voted locally — read from the presented frame's clock, never a microphone. The motion falls silent under `prefers-reduced-motion` (ADR-330).
-
----
-
-## 22. CI/CD and quality
-
-### 22.1. Pipeline
-
-```
-Pre-commit (local)                GitHub Actions CI
-========================          =========================
-.bak files check                  Lint Backend (Ruff + Black + MyPy strict)
-Secrets grep                      Lint Frontend (ESLint + ratchets + tsc)
-Infra/personal info denylist      Code Hygiene (i18n, docs, cycles, CI parity)
-Ruff + Black + MyPy               Secret scan (Gitleaks)
-Fast unit tests                   Unit + agents tests, coverage floor
-Critical pattern detection        Integration tests (PostgreSQL + Redis)
-i18n key sync                     Migration replay (from scratch)
-Alembic migration conflicts       Frontend tests + coverage thresholds
-.env.example completeness         E2E + a11y (Playwright + axe)
-ESLint + TypeScript check         Docker build · installer floor
-Pre-push: secret scan             ─────────────────────────
-                                  Security workflow (push, PR, weekly)
-                                    CodeQL (Python + JS)
-                                    pip-audit + npm audit
-                                    Trivy filesystem scan
-                                    SBOM generation
-                                  Dependency watch (weekly, ADR-331)
-                                  E2E + a11y matrix: Chromium · Firefox · WebKit (weekly)
-```
-
-### 22.2. Standards
-
-| Aspect | Tool | Configuration |
-|--------|------|---------------|
-| Python formatting | Black | line-length=100 |
-| Python linting | Ruff | E, W, F, I, B, C4, UP, ASYNC2 |
-| Type checking | MyPy | strict mode |
-| Commits | Conventional Commits | `feat(scope):`, `fix(scope):` |
-| Tests | pytest | `asyncio_mode = "auto"` |
-| Coverage | Locked floor (ratchet: raised after every gain, never lowered) | Enforced in CI |
-
-### 22.3. Reproducible dependency builds
-
-Backend dependencies are locked end to end. The requirements files are intent
-manifests; what every environment actually installs — production image, dev
-container, CI, local venv — are committed universal lockfiles compiled by
-`uv pip compile --universal`: a single file covering linux/amd64, linux/arm64 and
-Windows, pinning the ~200 packages actually shipped with SHA256 hashes for every
-published file. Vanilla pip installs them with `--require-hashes`, so the same
-commit always builds the same image, byte-for-byte verifiable. A CI guard fails
-any manifest edit that skips lock regeneration, and `pip-audit` plus the release
-SBOM read the lockfile — the full transitive tree is audited and inventoried,
-not just the declared packages.
-
-The lock states what is installed; what remains is deciding **when a version may come in** (ADR-331). No CI gate sees everything: the security advisories a project publishes in its own repository do not always reach the public databases — the review found twenty — and an end of life fails no test. A weekly watch reads them, together with the registries and the browser engine, against a list of dated, reasoned acceptances: a finding is fixed or accepted in writing, never in silence. The refresh waits out a cooling-off period counted from the version in place — a few days for a patch, two weeks for a minor, two months for a major — and refuses any downgrade; a transitive security fix becomes a manifest floor. Every other production build input — base images, Python, Node, global tools, the transcription model — is pinned by version and digest, and a network-free guard checks that an image has one reference across every compose file and every workflow.
-
----
-
-### 22.4. The audit is public — and reproducible
-
-The quality bar described in this guide is not self-declared: a complete 360° technical audit — **7.9/10 across 24 normalized areas** on the ISO/IEC 25010 grid, open findings included — is published in the repository ([full report](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/README.md)), together with the [audit protocol](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/audit/AUDIT_PROTOCOL.md) that makes every cycle reproducible: pinned commit, per-area evidence requirements, anchored scoring, and a committed script measuring size in logical SLOC. The report ends with the exact commands to reproduce the measurements yourself. Every finding the reports name lives in a machine-readable register, checked on every documentation build: a closure or a remediation carries its proof, and a release is refused while a priority finding is past its deadline.
-
-### 22.5. A guard is only worth what it measures
-
-`html { overflow-x: hidden }` clips a horizontal overflow instead of producing a
-scroll. Any guard built on `scrollWidth - clientWidth` is therefore
-**structurally blind** to a control pushed off-screen: it would
-report zero at every width even with a logout button hundreds of pixels past
-the right edge. The guard therefore compares each interactive control's box
-against the viewport, width by width **and locale by locale** — German and
-Italian carry the longest labels and break first.
-
-The same reasoning applies to height: `100vh` is the *large* viewport, the one
-you would have with the browser's address bar retracted — which is not the state
-a page loads in on a phone. A test forbids any height constraint expressed in
-`vh` alone, with a written exemption list and a self-test proving the detector
-still detects.
-
-Finally, what the mobile layout is allowed to drop is written in a table rather
-than left to judgement: every width-gated surface declares whether it is
-blocking, substituted or desktop-only, with its reason. Tests hold that table
-against the code — the location must exist, carry the Tailwind variant of its
-declared threshold, and a surface that fetches or ticks must be **conditionally
-mounted**, not merely hidden: `display:none` still mounts the component, which
-keeps spending network and battery on something nobody will see.
-
-### 22.6. A deployment does not disturb the stack that is serving
-
-Rebuilding the deployment directory **in place** looks harmless: delete, copy,
-recreate the containers. That reasoning ignores how a bind mount works. Docker
-resolves a bind mount to an **inode** when the container is created, not to a
-path re-evaluated on every read. Deleting the directory's contents therefore does
-not replace what a running container sees — it destroys the inodes underneath it.
-For the whole duration of the build, some ten minutes, the application still
-answering users sees its mounted directories as **empty**.
-
-The design moves the problem rather than shortening it. The bundle is staged in a
-separate directory that no container mounts, and the build happens entirely
-there. The final switch is a **rename**, and that is where it all turns: a rename
-preserves the inode, so containers still alive keep reading exactly what they
-mounted, until they are deliberately recreated seconds later. The shell running
-the deployment script keeps its open descriptor for the same reason.
-
-Two previous generations stay on disk, which turns a rollback into a matter of
-seconds rather than a rebuild. The corollary is written into the script:
-**database backups live outside the deployed tree**. A dump a deployment can
-reach is not a dump, and the only reliable guarantee is positional — not a
-promise to leave it alone.
-
-## 23. Cross-cutting engineering patterns
-
-### 23.1. Tool System: 5-layer architecture
-
-The tool system is built in five composable layers, reducing per-tool boilerplate from ~150 lines to ~8 lines (94% reduction):
-
-| Layer | Component | Role |
-|-------|-----------|------|
-| 1 | `ConnectorTool[ClientType]` | Generic base: OAuth auto-refresh, client caching, dependency injection |
-| 2 | `@connector_tool` | Meta-decorator composing `@tool` + metrics + rate limiting + context save |
-| 3 | Formatters | `ContactFormatter`, `EmailFormatter`... — normalize results per domain |
-| 4 | `ToolManifest` + Builder | Declarative declaration: params, outputs, cost, permissions, semantic keywords |
-| 5 | Catalogue Loader | Dynamic introspection, manifest generation, domain grouping |
-
-Rate limits are category-based: Read (20/min), Write (5/min), Expensive (2/5 min). Tools can produce either a string (legacy) or a structured `UnifiedToolOutput` (Data Registry mode).
-
-### 23.2. Data Registry
-
-The Data Registry (`InMemoryStore`) decouples tool results from message history. Results are stored per-request via `@auto_save_context` and survive message windowing — this is what makes aggressive per-node windowing (5/10/20 turns) viable without losing tool output context. Cross-step references (`$steps.X.field`) resolve against the registry, not messages.
-
-### 23.3. Error Architecture
-
-All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `ToolErrorCode` enum (18+ types: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) and a `recoverability` flag. On the API side, centralized exception raisers (`raise_user_not_found`, `raise_permission_denied`...) replace raw HTTPException everywhere — zero raw `raise HTTPException` in the codebase, held by a CI guard and a contract-test net proving byte-identical responses — ensuring consistent error contracts, logged and measured (Prometheus) on every error path.
-
-### 23.4. Prompt System
-
-Versioned `.txt` files in `src/domains/agents/prompts/v1/` (one per prompt, the `PromptName` literal kept in sync by a test), loaded via `load_prompt()` with an LRU cache sized above the whole corpus. Versions configurable via environment variables.
-
-**A prompt states what the code enforces, and nothing else** (ADR-284). Every `{placeholder}` of a file has a producer in the module that loads it, and a file that contains `{{` is rendered by `.format()` — an AST guard reads both per file. One instruction per context lives in the file and is emitted only when the content exists (`response_context_sections.txt`), so a bare turn carries no empty wrapper and no instruction about an absent document. The bound a prompt publishes is the bound the tool enforces, from one constant; a number comes from a setting and a fact from the code that applies it; a capability is promised only when the turn can run it. Prose never lives in a `.py` and neither does a fallback: one-line scaffolds sit in `key|template` line files read by a single parser (`parse_prompt_sections`), and a missing file is a broken deployment that fails loudly rather than a quiet second wording.
-
-### 23.5. Centralized Component Activation (ADR-061)
-
-Filtering enabled and disabled components has one implementation, in three layers, instead of being copied into every consumer:
-
-| Layer | Mechanism |
-|-------|-----------|
-| Layer 1 | Domain gate-keeper: validates LLM-output domains against `available_domains` |
-| Layer 2 | `request_tool_manifests_ctx`: ContextVar built once per request |
-| Layer 3 | API guard 403 on MCP proxy endpoints |
-
-### 23.6. Feature Flags
-
-Every optional subsystem is controlled by a `{FEATURE}_ENABLED` flag, checked at startup (scheduler registration), route wiring, and node entry (instant short-circuit). This allows deploying the full codebase while activating subsystems incrementally.
-
-### 23.7. Rich skill outputs: HTML frames and images
-
-Skills (agentskills.io standard) can return, in addition to text, **interactive HTML frames** and **images** through a typed JSON contract `SkillScriptOutput`. The Python script writes on stdout:
-
-```json
-{ "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
-```
-
-The three channels are independent and combinable (text alone, text+frame, text+image, or all three). The full pipeline reuses the existing Data Registry infrastructure:
-
-```
-run_skill_script → parse_skill_stdout() → SkillScriptOutput
-                 → build_skill_app_output() → RegistryItem(type=SKILL_APP)
-                 → ReactToolWrapper._accumulated_registry
-                 → response_node → SkillAppSentinel.render() → <div class="lia-skill-app">
-                 → SSE registry_update + sentinel HTML
-                 → MarkdownContent.tsx → SkillAppWidget (sandboxed iframe + image card)
-```
-
-**Defence in depth**: iframe sandbox `allow-scripts allow-popups` (never `allow-same-origin`), strict CSP auto-injected into `frame.html` for user-imported skills (`connect-src 'none'`, `frame-src 'none'`), `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB` limit, minimal `postMessage` bridge without `tools/call` or `resources/read`.
-
-**Gallery previews.** A skill's detail panel serves `assets/preview.png` and falls back to an icon when the file is missing — a fallback indistinguishable from a merely empty thumbnail. System-skill previews are therefore **generated**: a versioned script holds one drawing per skill, in pure geometry with no font dependency, which makes the output identical across machines. A guard fails when a skill has no drawing, or when the shipped image no longer matches what its generator produces.
-
-**Runtime conventions**: `_lang` and `_tz` auto-injected into `parameters` (POSIX locales aren't installed in the container, so scripts rely on inline translation tables rather than `strftime`+`setlocale`). Theme and locale synced live via `postMessage` + `MutationObserver` on `<html class>` and `<html lang>`. Iframe auto-resize via `getBoundingClientRect().bottom` (iframe-resizer pattern). Client-side interactivity uses `addEventListener` only (no inline `onclick` under CSP) and `crypto.getRandomValues` for randomness.
-
-**Primacy effect**: `skills_context` is injected as a dedicated 2nd system message prefixed with `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, ensuring an active skill's `references/*.md` dominate over the generic `<ResponseGuidelines>`.
-
-**Conditional rendering**: `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — these widgets are injected as HTML regardless of `user_display_mode` (Rich HTML / Markdown / Cards), while other RegistryItems remain conditional on Cards mode.
-
-A library of built-in skills demonstrates the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — each illustrating a different combination of the three channels.
-
-**Skill lifecycle**: every skill enters through a single hardened import pipeline (`SkillImportService`) — strict agentskills.io name validation before any filesystem write (path-traversal guard), zip expansion caps, staging + swap with automatic restore of the previous version on failure, and names unique per account: every lookup names its scope, and a personal skill shadows a system skill of the same name for its owner alone. The built-in skill-generator uses the same pipeline through the `import_user_skill` tool: a skill created in chat is validated and proposed as a card under the answer, which the person reads and installs in one click — no manual upload, and nothing written by the model enters their skills without that click. Skills whose workflow spans several turns declare `dialogue: true` in their frontmatter, which the QueryAnalyzer's chat override respects (their detection survives conversational follow-up answers) while the skill ReAct runner receives the windowed conversation history to resume the dialogue instead of restarting it.
-
-The skills surface is a **gallery**: cards open a detail sheet with the localized description, the declared **output channels** (the loader reads the `outputs:` frontmatter field the generator validates — parity is CI-pinned), a bundled `assets/preview.png` served by a dedicated endpoint (name-pattern traversal guard, size cap, undifferentiated 404 for admin-disabled skills), and a provenance warning on every non-system skill. Installation accepts a second source besides file upload: an https URL, hardened as described in §19.3, feeding the exact same import pipeline (`skill_url_imports_total{outcome}` counts every path).
-
-**Editing a skill.** Re-importing one's own skill is an atomic upsert (ADR-118), and editing from the chat rests on three conditions: the manifest stays readable although activation strips the frontmatter, so an adjustment keeps the fields it does not touch; a replacement keeps the thumbnail the chat cannot carry; and on a name conflict the generator's prompt asks for the existing skill to be updated rather than copied under a new name. A modification is therefore a **full regeneration** under the same name, preceded by reading the current package. The tool **proposes**, only the person installs: the proposal passes every check of the import without writing anything, it is kept in Redis under a per-account cap, its card shows what a replacement adds, changes and removes, and the install — claimed with a token, idempotent — refuses when the replaced skill changed since the card described it (ADR-327).
-
-**Skills written elsewhere.** A skill carries its provenance — system, written by the person, fetched from an address, brought by a plugin or installed from the library — and the last three are **third-party**, decided once per request by a single module (`skills/trust.py`); in doubt, a skill is third-party. A third-party skill is marked in the catalogues, its priority ignored, it never runs a plan, and its instructions run only in the isolated runner, which binds its own scripts and resources and nothing else — no connector. Its answer is drawn without remote images or HTML, and nothing it writes is invisible to the person. The **library** searches skills.sh, reads the GitHub repository the portal names and pins the branch to a commit at preview time: what installs is what was read, every file checked against its git blob SHA, the published audits read under every name the skill may carry, and an update is a folder whose git tree moved. Finally a skill can **run its own commands** (`run_skill_command`) in a copy of its folder inside the throwaway container: the folder and the turn's files go in as one archive on standard input, what it writes under `out/` comes back the same way, and a file keeps its type only when its name and first bytes agree. Every such run starts from a dedicated image — Python, Node, the command-line tools and the promised libraries, no Docker client and no application code — whose every command is executed by a test before it is promised to the model; a command's network goes through the door of §34.
-
-### 23.8. Conversation history, search and rich chat rendering
-
-Six cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
-
-- **Reading invariant & input maturity** — a streaming answer never yanks a reader who scrolled up: the follow decision measures live geometry at decision time (growth-compensated), an explicit own-send tick stands in for data-diff heuristics, which false-fire against the real engine, and a floating button with an off-screen-responses badge brings the reader back. The input carries a per-user persistent draft (debounced, purged at logout), an ↑/↓ walk over the last 10 sends, `/` slash commands (WAI-ARIA combobox on the native textarea, diacritic-insensitive localized filtering) and an in-flow action row under every answer (copy, keep, share, download, feedback, execution trace — share opens the system sheet and then the connections, where a pick prefills the composer instead of sending; download writes a dated Markdown file).
-- **Conversation history search** — `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contract locked by test). The frontend uses a `useMemo` over `messages` to filter loaded messages instantly; the backend endpoint remains a latent capability for a future deep-search UI.
-- **Scroll-up pagination** — same endpoint, `?before=<created_at>` keyset cursor returning `has_more` and `next_cursor`. The chat UI binds an `IntersectionObserver` on a 1-px sentinel above the first message; older pages prepend with id-based dedup, and a shared `wasPrependRef` makes the auto-scroll-to-bottom `useEffect` skip itself for that cycle so the viewport stays anchored exactly where the reader was. The existing composite index `(conversation_id, created_at DESC)` makes each page an index-only seek regardless of conversation length. Page bounds (default 50, hard cap 200) are env-tunable via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
-- **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeRestoreDollars → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface. A referenced dollar (`&#36;`, how a card draws a value's `$`) is a literal one: a string step marks it before the math steps and `rehypeRestoreDollars` writes it back after them.
-- **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
-
-- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit layout rule — every answer that carries data is a composed page (a lead sentence, one section per facet in its component, a closing callout), and the shape follows the answer's own data, never the shape of earlier answers. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy and share flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; a file gets Markdown instead: the `.md` export (download, e-mail, bookmark) rewrites only the HTML regions, as CommonMark reads them, into GFM — callouts as GFM alerts, tiles as tables, cards as a heading and bullets — leaving the model's own Markdown untouched; icon ligatures are excluded from search highlighting.
-
-### 23.9. Proactive feedback persistence
-
-User feedback on proactive notifications (👍/👎/🚫 on interests, heartbeat) is persisted directly into `conversation_messages.message_metadata` JSONB via `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. The update is **scoped by `user_id`** via a subquery on `conversations.user_id` to prevent cross-tenant leaks.
-
-The frontend reads initial state from `message.metadata?.feedback_submitted` (buttons stay hidden on reload for already-voted messages) and applies feedback **optimistically** (buttons hidden + proactive toast before the network mutation). Metadata keys are centralised in `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
-
-### 23.10. i18n-ready tools: thread-safe pattern
-
-Tool i18n relies on a clear contract between async invocation (`execute_api_call`) and sync result formatting (`format_registry_response`). Since tool instances are **concurrent singletons** shared across all requests, language state cannot live on the instance.
-
-`ConnectorTool` therefore exposes two helpers: `_fetch_language()` (async, reads the user's locale from context) and `_language_from_result(result)` (sync, reads the language from the result itself), tied together by a `_LANGUAGE_RESULT_KEY = "_language"` constant that acts as an internal contract. No instance mutation, no ContextVar required for this flow, and every result carries the language used to format it. `.po`/`.mo` files are compiled into the Docker image.
-
-The full application to weather (`gettext.gettext(text, language)` propagated explicitly on all 6 call-sites) and to the 6 Hue tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) guarantees that outputs render in the user's language, never the service default.
-
-### 23.11. Observability architecture
-
-Observability rests on three pillars: **defensive emission** on the critical path, pre-wired **Grafana dashboards** (33 dashboards / 861 panels covering app, infra and every business sub-system), and **DB-backed gauges** maintained by a periodic updater.
-
-A 26th dashboard turns this telemetry into a product cockpit (ADR-178): outcomes are validated E1 (explicit user confirmation) or E2 (an action left uncorrected through a full behavioral window), the exact deduplicated counting lives in PostgreSQL — mutable states can never be derived from Prometheus counters — and Grafana reads it through a read-only role restricted to aggregate views with a pinned statement timeout.
-
-Prometheus instrumentation is systematically wrapped in `try/except Exception: pass` with lazy imports (`from ... import foo` inside the try) so no metric issue ever propagates onto the execution path. Three dedicated Postgres indexes (`ix_conversations_updated_at` for DAU/WAU, `ix_conversations_created_at` for the conversations histogram, `ix_connectors_status` for the activation rate) bring the updater queries from ~500 ms to <50 ms on a populated DB.
-
-On validation, a FastAPI `RequestValidationError` handler counts 422s by `field` + `error_type` on `validation_errors_total`, with a 10-errors-per-request cap and 40-char truncation to bound cardinality. The 422 contract (FastAPI standard response with `detail`) is strictly preserved.
-
-To measure true connector activation duration without intruding on service code, **SQLAlchemy event listeners** `before_insert` / `after_insert` on `Connector` capture the SQL flush → completion interval. Dual metric: `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
-
-**DB-backed gauges** refreshed every 30 s: DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
-
-To prevent the **Prometheus cardinality bomb** on `connector_api_*{operation}`, API paths are sanitised segment-by-segment before emission: UUID/id/hex_id/token are replaced with placeholders `{uuid}`, `{id}`, `{hex_id}`, `{token}`. Without this protection, every Google/Apple/Microsoft API request carrying a resource ID would spawn a new Prometheus series.
-
-### 23.12. External event ingestion via scoped tokens
-
-LIA accepts external event ingestions (iPhone Apple Health samples, third-party payloads, future IoT channels) through a unified pattern: REST endpoints authenticated by a **scoped Bearer token**, independent of the session cookie system. This is the mechanism powering the [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) domain (heart rate + steps pushed by an iOS Shortcuts automation), and it serves as the template for any future inbound connector.
-
-**Why a token rather than the user ID**: a user identifier naturally leaks (URLs, JWT payloads, logs, screenshots, exports). A token is a **rotatable, revocable secret** scoped to a single endpoint. The prefix (`hm_` for health metrics) types the scope.
-
-**Persistence**: the token table stores **only the SHA-256 digest** of the raw value. The plaintext value (prefix + ~32 chars `secrets.token_urlsafe`) is revealed exactly once at creation. An 8-char display prefix remains visible for identification. Multiple active tokens may coexist, with individual revocation.
-
-**Idempotent batch upsert**: each request carries a list of self-timestamped samples (`date_start` / `date_end` ISO 8601 with offset). The server UTC-normalizes and second-truncates, then applies a PostgreSQL UPSERT `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE ... RETURNING (xmax = 0)` to split insert vs update counts in a single round-trip. Practical consequence: the iOS client can re-push the whole day at every unlock without risk of duplicates — existing rows are simply overwritten.
-
-**Flexible parser**: iOS Shortcuts emits payloads in four shapes depending on the author (canonical JSON array, NDJSON, `{"data":[…]}` envelope, or "Dictionnaire" wrapping `{"<ndjson_blob>":{}}` where the NDJSON is encoded as the sole key of an outer dict with an empty value). A parser upstream of the service flattens all four shapes to a standard `list[dict]` before validation — no constraint on how the Shortcut is authored.
-
-**Intra-batch dedupe with per-kind arbitrage**: PostgreSQL refuses to let an `ON CONFLICT DO UPDATE` touch the same target row twice (`CardinalityViolationError`). Yet iOS legitimately emits overlapping samples (Apple Watch + iPhone reporting the same interval). A helper merges duplicates **before** the UPSERT with a per-kind strategy: **MAX** for steps (Watch and iPhone count complementary subsets of movement — MAX approximates ground truth better than SUM double-count or AVG under-count), **AVG** (rounded) for heart rate (fusion of two sensors aimed at the same signal). Collapsed duplicates are reported as `updated` in the response and tracked via `health_samples_batch_duplicates_total{kind}`.
-
-**Mixed per-sample validation**: each sample is individually accepted or rejected with its 0-based index and a bounded reason (`out_of_range | malformed | missing_field | invalid_date`). Valid siblings in the same batch persist — a transient sensor glitch does not kill the day. Logging keeps only counters per reason, without raw values; this privacy measure does not establish GDPR compliance for every deployment.
-
-**Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. Account erasure is handled by the account-deletion service, which explicitly purges every health table (the soft-deleted account model keeps the `users` row, so the FK cascade never fires); a deleted owner's device can no longer ingest.
-
-**Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
-
-**Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. Deleting raw measurements targets the `health_samples` table; derived memories and other records have their own deletion controls.
-
-**The same boundary carries SMS** (ADR-357). An iPhone Shortcuts automation posts each message with a write-only phone token (`pi_`); a stable event UUID makes a retry a duplicate and different content under the same identifier a conflict, item by item in a batch. The receipt, the encrypted message, its search index and a per-destination outbox commit in one transaction, and a leased worker delivers a content-free push. Recognised access secrets are excluded before storage, the assistant reads the archive only under a consent of its own, and every reader — chat, relationships, proactivity, Radio, a phone call — receives bounded external evidence after a fresh owner, consent and source check. The personal export streams the readable messages, and an erasure invalidates hosted exports.
-
-### 23.13. Installable application (PWA)
-
-Six localized manifests (`/manifest-{lng}.json` — localized `lang`, `start_url`, three shortcuts, separate `any`/`maskable` icon entries; structural parity across the 6 files is test-pinned) are linked per page via `generateMetadata`, with real PNG icons and an `apple-touch-icon` (iOS silently ignores SVG touch icons). The OS **share target** (`GET /{lng}/share`) composes shared title/text/url into a clamped chat draft riding the existing `?draft=` rail — never auto-sent. A discreet install hint appears from the third visit (never in standalone display-mode, dismissible forever); Chromium gets a real install prompt via `beforeinstallprompt`, iOS the Share → Add to Home Screen instruction.
-
-**Position survives the mobile lifecycle** (ADR-219). A PWA frozen by the OS never remounts its state: left alone, the position would silently expire and every request would fall back to the home address. Every position resolution therefore goes through a single cascade — live browser position, else the last remembered position (opt-in, encrypted, fresh under 24 h), else home — which scheduled actions, having no browser, inherit with no dedicated code. Two honesty rules bound it: a remembered position travels with its age and the model states it ("based on your last known position at 9:30"), never as the current one; and "at home" is never resolved from a position captured on the road. On return to foreground the permission is re-checked: still granted, the position refreshes silently; dropped — iOS does this after inactivity — a banner supplies, right on chat open, the user gesture the native permission sheet requires.
-
-### 23.14. Navigation index: one table, two guards facing opposite ways
-
-The settings page stacks some thirty collapsed sections across several tabs. Reaching them calls for a table mapping a URL token to a tab and an accordion value. A table of that kind never rots loudly: one day it simply stops describing the page.
-
-Two guards hold it, and they look in opposite directions. The first runs from the table to the code: every entry must name a file that exists, declare there the value it claims, and live in the tab it announces — the tab being read from the page rather than declared a second time. The second runs from the code to the table: **every** component rendered inside a tab panel must be indexed, structural, or explicitly set aside with a written reason. There is no fourth outcome, so a section added tomorrow forces a decision at the moment it is added instead of vanishing quietly.
-
-The search index built on top is exhaustive **by type**: its metadata is a `Record` keyed by the union of tokens, so adding a destination without saying what it is called does not compile. Matching relies on the normalizer every search surface of the product shares — case, diacritics, typographic apostrophes and no-break spaces are folded to the form a keyboard produces. That folding obeys a hard constraint: one code point for one code point, otherwise the highlighters that map offsets back to the original text drift by exactly as much.
-
-A destination may still legitimately not exist: several sections only render when the feature is active or the data is there, and the inactive tab panel is not mounted — nothing can observe it ahead of time. The choice is to keep those destinations in the index and state the observation on arrival, rather than trade a visible dead end for an invisible false negative.
-
----
-
-### 23.15. Bounded provenance: a reference, never a copy
-
-A conclusion the system forms — a memory, a journal entry, an interest — must be able to answer the one question that makes it correctable: where did it come from? Two naive answers are available and both are wrong. Copying the source message into the conclusion turns it into a permanent archive: deleting the conversation no longer deletes anything, since its content survives elsewhere. Regenerating the explanation with the model produces a plausible reconstruction, which is to say an invention.
-
-The `provenance_references` table stores only a **pointer and a timestamp**: the subject id, the conversation and message ids, and an `outcome` among `origin`, `evidence`, `contradiction`. The asymmetry of the foreign keys carries the whole doctrine:
-
-| Link | Policy | Reason |
-|------|--------|--------|
-| to the subject (memory, journal, interest) | `CASCADE` | a reference to a deleted conclusion has no subject left |
-| to the conversation and the message | `SET NULL` | deleting a conversation **empties the reference and leaves the row**, dated: that is the tombstone |
-
-`CASCADE` on the source side would have erased even the mention that a source existed — which reads exactly like "the system made this up". The trail is capped at five references per subject, pruned on write, and that cap is **published** in the response: what the system enforces, it states. A `CHECK` constraint enforces exactly one subject per row, because a polymorphic `(kind, id)` pair cannot be a foreign key — and without a foreign key, the tombstone would be guaranteed by nothing at all.
-
-The write is **best-effort and isolated in a savepoint**. Best-effort alone is not enough: a failing `flush` leaves the session in an error state, so swallowing the exception merely moves the caller's death to its next statement. The savepoint is what makes the swallow honest — provenance explains a conclusion, it never gates one.
-
-### 23.16. Capability map: one pass, three states, no score
-
-What the assistant can do for an account is not probed client-side, one hook per subsystem — that would mean a dozen requests at mount and as many chances for two answers to disagree about the same fact. Resolution happens in **one server-side pass**, an `asyncio.gather` of independent probes, **each on its own session** — an `AsyncSession` is not safe for concurrent use. A probe that fails degrades to "not ready": a map that refuses to draw because one table was unreachable is worse than a map with one dim node.
-
-Three states, and the distinction between the last two carries the meaning: **unavailable** (the instance disabled the subsystem — the node is *absent*, never greyed out: a control the product cannot honour is worse than an absent one), **dormant** (available, nothing set up — it carries the next step), **live** (genuinely usable, with the count that proves it).
-
-Nothing published is a level, a percentage of completion or a comparison, and a test states that as a schema constraint. The rendering follows the same rule: the drawing is decorative and hidden from assistive technology, while everything reachable is a named link — a `<circle>` carrying an `onClick` would look identical and be unusable without a mouse. The figure joins the live capabilities in **angular order**, the one ordering that cannot self-intersect around an interior point.
-
-### 23.17. A status names a tone, it does not write its own colours
-
-Rendering a status label — a priority, a direction, a role — looks trivial, which is exactly why every screen ends up writing its own classes. Components that each keep their own lookup table for the same job pay for it in three ways.
-
-**The promised distinction may not exist.** Two levels rendered at 10 % opacity over tokens 23° apart in OKLCH hue are, on screen, the same level. No code review catches it: the two lines read differently in the source and identically on the display.
-
-**Hand-written classes bypass the contrast guard.** The design system's guard checks every pair the components actually produce, across five themes in light, dark and absolute black. What is written elsewhere is not in it.
-
-**An unknown status falls through to whatever the map's default happens to be**, which can render in red a value nobody ever called urgent.
-
-A single module therefore exposes functions that return a **component variant**, never a class. Two rules follow:
-
-| Rule | Reason |
-|------|--------|
-| Hierarchy is carried by **density**, not hue alone | A solid ground against a tint stays legible for a reader who confuses the two colours, and in greyscale |
-| An unknown value is **neutral** | Rendering an unrecognised level as urgent is a claim nobody made |
-
-A corollary about shape: a label is made for a **word**. The component pins its height, so a three-line sentence spills out of it and reads as struck through. What is long is emphasised by typographic weight, which assumes nothing about length.
-
-### The design system as a verified contract
-
-Visual consistency is a tooled contract rather than a review-time discipline (ADR-206 through ADR-208). A status does not pick its colour: it **names a tone** and a single table decides (`status-tone.ts`), covered by the contrast guard across five themes in light, dark and absolute black. An action does not pick its shape: its **altitude** does — solid to create, solid red for mass destruction, red at rest for a row delete, outline for a true secondary. And a list row exposes its actions **one way**, backed by a shared component.
-
-Absolute black (ADR-243) extends that contract rather than widening it. Making it a third theme would have been the natural move; it would also have removed the `dark` class from the page, and with it flipped nine internal checks to their light branch — light syntax highlighting on a black page, white diagrams — then sent the whole public site back to its light variant. Absolute black is therefore a **refinement** of dark, carried by a distinct attribute whose selector outranks the five accents whatever the file order. Six neutral surfaces move and no accent colour does: borders even keep their dark value, which reads better against black than against the original grey. Surfaces are calibrated against the shipped dark mode rather than against zero, so nothing separates less than in dark mode.
-
-Text size follows the same refinement logic (a per-account setting, from 14 to 20 px). Enlarging the root size would have enlarged everything — spacing, panels, icons — and squeezed the chat and the debug panel; it is therefore a **text scale**, `--lia-text-scale`, that multiplies the Tailwind type scale, the text tokens, the `body` and a `text-px-N` utility replacing every hand-written pixel size. Layout dimensions stay in fixed `rem`. Two traps are held by tests: `tailwind-merge` must learn that `text-px-N` is a size, or it takes it for a colour and drops the neighbouring colour; and an end-to-end test compares the panels' boxes at 14, 16 and 20 px, from 320 to 1,440 px wide.
-
-The settings surface itself follows the same doctrine of structure over discipline (ADR-227). The page renders as a master-detail shell — a permanent rail of sections beside a pane that mounts exactly one of them, an overview of descriptive cards when nothing is selected — and hand-lists nothing: rail order, grouping and the mounted component all derive from the deep-link table plus two compiler-complete registries, each proven against the section sources by tests. The consequence is architectural rather than cosmetic: a section exists on the page if and only if the tables declare it, no layout is duplicated from one section to the next, and only the selected section fetches — the others fire no request on a tab load. Absence stays honest: a section that legitimately renders nothing (an instance without MFA, no call ever placed) yields an explicit inline empty state that keeps polling, so data answering late replaces the message.
-
-The same doctrine answers a subtler failure: a surface that quietly stops describing the product (ADR-229). The capability map — the page that answers “what can my assistant do for me?” — is the one screen whose entire job is to be current, and a fixed list of nodes would fall behind with every capability shipped; a written convention is not enough there, so the answer is structural. Two declared tables partition the platform-capability enum between “draws a node” and “deliberately off the map, for this written reason”, and an assert runs at IMPORT, so a capability added without deciding its fate fails the boot rather than shipping invisible. A companion guard reads the three client surfaces the assert cannot see — the chart's slots, the “next step” links, the six locales — because a guard watching only Python would miss the half of the drift that lives in TypeScript. The same aggregate then feeds the settings overview: one request states what each section currently holds, in the very words the capability list uses, and says nothing at all while the answer is in flight, when it failed, or for a section it knows nothing about.
-
-One CSS rule governs the design system's spacing: vertical margins on an `inline` element are **computed but never rendered**. A `<label>` is inline by browser default, so the label primitive is declared `block` — without it, every `space-y-*` above a control produces the same three-pixel gap whatever its value, and a recalibration changes the code without moving a pixel. The reflex follows: when a visual setting has no effect, measure the element's `display` and its DOM geometry in a real browser before suspecting the delivery chain. A guard pins it.
-
-### A depth you can read, a button that stays itself
-
-Two interface rules became component contracts rather than habits. The first is about depth: a panel declares its surface — primary or nested —, surfaces alternate light, darker, light in every theme, absolute black included, and a field takes the opposite tone of the panel holding it, through a single CSS variable; a browser test measures the computed colours rather than the classes. The second is about waiting: a busy button keeps its label, its size and the focus, declares itself `aria-busy`, ignores a second press without disabling itself, and pagination and row actions follow the same rule. Chronological lists — meetings, calls — line up by local day and part of day, with a start and an end never guessed from a duration, and a loading error keeps the rows already shown instead of passing for an empty list. On a phone, LIA's companion computes a free spot away from fields, buttons and headings, shrinks to a dot when it finds none, and never rewrites the position the person chose.
-
-## 24. Architecture Decision Records (ADR)
-
-363 ADRs in MADR format document the major architectural decisions. Some representative examples:
-
-| ADR | Decision | Problem solved | Measured impact |
-|-----|----------|----------------|-----------------|
-| 001 | LangGraph for orchestration | Need for state persistence + HITL interrupts | HITL resumption on persisted state |
-| 002 | BFF Pattern (JWT → Redis) | JWT XSS vulnerable, revocation impossible | Memory -90%, OWASP A |
-| 003 | Dynamic filtering by domain | 10x prompt size = 10x cost | 73-83% catalogue reduction |
-| 005 | Filtering BEFORE asyncio.gather | Plan + fallback executed in parallel = 2x cost | -50% fallback plan cost |
-| 007 | Per-node Message Windowing | Long conversations = 100k+ tokens | -50% latency, -77% cost |
-| 048 | Semantic Tool Router | Imprecise LLM routing on multi-domain | +48% accuracy |
-| 049 | Semantic Embeddings | Inaccurate LLM-only routing | +48% precision via semantic embeddings |
-| 057 | Personal Journals | No continuity of reflection between sessions | Planner + response injection |
-| 061 | Centralized Component Activation | 7+ duplicated filtering sites | Single source, 3 layers |
-
----
-
-## 25. Evolution potential and extensibility
-
-### 25.1. Extension points
-
-| Extension | Interface | Documentation |
-|-----------|-----------|---------------|
-| New connector | `OAuthProvider` Protocol + Client Protocol | `GUIDE_CONNECTOR_IMPLEMENTATION.md` + checklist |
-| New agent | `register_agent()` + ToolManifest | `GUIDE_AGENT_CREATION.md` |
-| New tool | `@tool` + ToolResponse/ToolErrorModel | `GUIDE_TOOL_CREATION.md` |
-| New channel | `BaseChannelSender` + `BaseChannelWebhookHandler` | `NEW_CHANNEL_CHECKLIST.md` |
-| New LLM provider | Adapter + model profiles | Extensible Factory |
-| New proactive task | `ProactiveTask` Protocol | `NEW_PROACTIVE_TASK_CHECKLIST.md` |
-
-### 25.2. Scalability
-
-| Dimension | Current strategy | Possible evolution |
-|-----------|-----------------|-------------------|
-| Horizontal | 4 uvicorn workers + Redis leader election | Kubernetes + HPA |
-| Data | PostgreSQL + pgvector | Sharding, read replicas |
-| Cache | Redis single instance | Redis Cluster |
-| Observability | Full embedded stack | Managed Grafana Cloud |
-
----
-
-## 26. Psyche Engine: Dynamic Emotional Intelligence
-
-### 26.1. 5-Layer Architecture
-
-The Psyche Engine gives the assistant a dynamic psychological state that evolves with every interaction, inspired by the ALMA model (A Layered Model of Affect, Gebhard 2005) and Mehrabian's PAD space.
-
-| Layer | Timescale | Content |
-|-------|-----------|---------|
-| 1 — Personality | Permanent | Big Five (O/C/E/A/N) inherited from the chosen personality. Modulate emotional reactivity, empathy, recovery speed. |
-| 2 — Mood | Hours | Position in PAD space (Pleasure/Arousal/Dominance) → 14 distinct moods. Decays toward personality baseline. |
-| 3 — Emotions | Minutes | 22 discrete emotions (max 4 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
-| 4 — Relationship | Weeks | 4 stages (Orientation → Exploratory → Affective → Stable). One-way progression. Depth, warmth, trust. |
-| 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Experience per domain learned from evidence (see below). |
-
-### 26.2. Core Principle: "Show, Don't Tell"
-
-The assistant never says "I'm happy" — instead, its vocabulary warms up, sentences lengthen, suggestions become bolder. The user perceives a living personality without explicit emotional statements.
-
-### 26.3. Directive Injection
-
-Each message generates a `<PsycheDirectives>` block (~100-120 tokens) with:
-- **MOOD**: label + intensity + a concrete behavioral directive (e.g. "Respond with calm assurance. Use measured, flowing sentences.")
-- **EMOTIONS**: top 3 emotions with their directives (e.g. "empathy (72%): Mirror the user's emotional tone.")
-- **RELATIONSHIP**: stage + relational directive
-- **DRIVES**: curiosity/engagement with their trigger thresholds
-- **EVOLUTION**: mood/emotion shift since the last message
-
-A 540-word incarnation guide (`psyche_usage_directive.txt`) teaches the LLM how to translate each state into concrete behavior — mood by mood, intensities, transitions, social distance per relationship stage.
-
-### 26.4. Zero-Cost Self-Evaluation
-
-After each response, the LLM self-evaluates via a hidden `<psyche_eval/>` XML tag: user valence, triggered emotion, intensity, exchange quality. The tag is stripped before sending to the user. No additional LLM call — the evaluation is part of generating the response. This self-assessment feeds the mood, the emotions and the relationship — never a competence.
-
-### 26.5. Global Injection
-
-Psyche context is injected into **all** user-facing generation points: main response (rich format), proactive notifications, reminders, emails, voice, sub-agents, initiative, fallback (compact format with mood-specific directives).
-
-### 26.6. Frontend
-
-- **Emotional avatar**: mood emoji with colored ring on each message, persisted per-message in metadata.
-- **4-chart dashboard**: Mood (PAD), Emotions (dynamic per-emotion), Relationship, Drives — recharts with 24h to 90d time selector.
-- **Interactive education guide**: 7 sections ordered Layer 1→5 with descriptive tables for 14 moods and 22 emotions.
-- **Settings**: expressiveness, stability, mood refresh, full reset with explicit descriptions of what is preserved/reset.
-
-### 26.7. The resting frame, recentred on measurement
-
-The Mehrabian mapping rests **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349), and damping, being a homothety, cannot fix that: with no other knob, the five mood centroids requiring negative dominance would stay unreachable at rest. Two knobs answer it — a translation applied after damping, and a gate on the sustained-quality joy pulse — and their defaults come from a measurement over real snapshots rather than from an intuition.
-
-At 0.20 the catalogue straddles zero — 7 of the 14 rest below it, their ordering exactly preserved, P and A untouched — and the reported appraisal owns the emotion channel, instead of a pulse crowning joy whatever the appraisal. The limit is recorded too: arousal stays locked, not by resting-point geometry but by an appraisal stream that never reports low-arousal emotions — this knob does not fix it, and must not be read as if it did.
-
-### An experience learned from evidence, never from its own grade (ADR-348)
-
-Seven cognitive domains — planning, information, emotional support, creativity, technical, social, organization — each keep a private experience on two axes that are never merged: the **verified result**, meaning what the final coverage of the requested outcomes established (never an HTTP status nor a generic success flag), and the **expressed usefulness**, the 👍/👎 given to the final answer. A turn is an episode; the query analyzer that already runs assigns it at most two domains, with no extra model call. A pending confirmation, a refusal, a quota or a missing connector are excluded: they are not cognitive failures. An index exists only from five observations of its own axis within 90 days, within a limit of 500 episodes: a single exchange no longer makes a strength or a weakness.
-
-A pure function derives at most one adjustment from it: check a point the turn leaves open if an authorised read exists within budget, name the limit otherwise, or ask a single question about the current ambiguity when the domain's usefulness is weak. The planner, every ReAct call and the synthesis read that same versioned block; it changes no model, tool, permission, budget or confirmation, and the turn's facts always prevail over the history. The evidence is private, exported with the account, erased by a full reset or a purge; the Psyche screen shows it as “no index yet”, “learning” or “observed”, never as an accuracy percentage. It is a pilot: no gain is claimed before a comparison on a held-out corpus.
-
-The fourteen personalities carry their traits in the reference dataset, checked at installation, and an account that never chose follows the default personality's profile.
-
----
-
-## 27. Deterministic habit learning
-
-LIA learns the user's activity rhythm (2-4h windows per weekday/weekend class) and recurring requests ("every Monday morning, the emails") without any trained model. Three reasons, each sufficient: production runs on a Raspberry Pi 5 (no training budget), the interests doctrine demands a formula that can be published to the user, and at per-user volumes a model would learn noise where calibrated statistical tests control false positives precisely.
-
-The statistical unit is the **day**, never the message — per-message counting is corrupted by within-day bursts (a measured 83-100% false-positive factory in simulation). A window is claimed only when day-level presence, a Wilson 99% lower bound, split-half consistency, recency and a selectivity gate all hold, with entry/exit hysteresis against flapping. Calibration comes from a simulation harness: 0-0.3% false positives on patternless usage, 98-100% detection within 21-28 days, unlearning in ~9 days.
-
-The hardest problem is not the detector but the **data**: conversations are ephemeral by design (resettable at will), so activity aggregates over four durable sources merged by per-hour maximum — live messages, per-run summaries, the reset audit trail (a human gesture by construction), and a daily activity bank. Every source passes a **human-session whitelist**, or a daily scheduled action's 07:00 message — the scheduler's own timetable — would pass for a user habit. The whitelist fails toward slower learning (visible), never toward a fabricated habit (invisible).
-
-Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day, muted after two ignored ones until the routine re-occurs, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
-
-The second half — **recurring requests** — reads the router's decision, in a closed vocabulary: the very value the product dashboard derives from, so a turn counted as an action is a turn the ledger records. The signature stays the primary domain alone. Four shapes are named: daily, workdays, weekly and **intermittent** — "several times a week around 9 am" — decided by the density of distinct days over the eligible span, never by the lock: a 3×/week is never promised "every day". The thresholds are measured on a durable harness (`task habits:calibration:measure`, 300 trials per cell, dense and moderate populations each with a scattered control at equal volume): a daily rhythm is recognised at D+14, a 3×/week between D+21 and D+35, a weekly ritual kept 90 % of the time at D+42 — over five slots, so a missed week does not kill the lock — with 0-0.3 % false locks on structureless usage; the relaxations the harness refused stay in its tables. And silence is an alert: `RecurrenceLedgerSilent` compares actionable human turns with landed writes — a ledger that writes nothing while it is being spoken to is not a discreet ledger, it is a broken one.
-
-**What is learned is consumed through ONE predicate, and audited by execution.** The habits panel edits mirror rows — a window can be paused or blocked — and the profile's three consumers (the heartbeat block, the tick scoring, the ambient block) read them through one door, or a blocked window would keep steering ticks: `habits/consumption.py::load_consumable_profile` keeps only the windows whose row is active, and the window key has one producer. A learned habit has a lifecycle owned by the nightly job (`recurrence_sync`: promote, refresh, keep, demote — active rows only, never on doubt, and for a silent account too, which is precisely the demotion case), never by the chat suggestion. The learning gate (`learning_gate.read_learning_gate`, fail-closed) closes every door — the ledger write, the initiative detector, the seed — and follows `HABITS_ENABLED` plus the `habits` capability switch read at the act: `habits` and `heartbeat` belong to the service-enforced family rather than ADR-280's router-guarded one, because the routes are the archive. The decision **declares** its offer (`HeartbeatDecision.habit_offered`, rule 24) instead of the offer budget hanging on a source label the model picked, and the offer has an object: the analyzer's `immediate_intent` is a bounded histogram inside the ledger payload — never part of the key, which would fragment every ledger — so `usual_intent` reaches the row, the prompt (« usually asks for a 'search' on 'email' ») and the panel through the closed `IMMEDIATE_INTENTS` vocabulary. The tick scoring lives in `habits/tick_scoring.py` with one `TickSurface` per sweep pinned to its eligibility checker, and the interest sweep applies both gates — the meeting guard and the learned rhythm; a wake bypasses the rhythm but stands aside for a meeting, the agenda verdict carrying `next_start` so the rhythm never hides an appointment. Presence is on by default and last-seen counts a presence ping. And the consultation register is fed around the whole run, eligibility included: the aggregator reads as early as `select_target`, and a collector opened later, in `generate_content`, would record none of its reads.
-
-## 28. Governing an instance: spend, capabilities, installation
-
-Governing an instance means answering three questions: how much it may spend, what an operator may switch off without redeploying, and how somebody else installs and runs the project. Per-account usage limits answer a different question — "how much does this account consume" — and N accounts × their quota is still unbounded spend: the instance ceiling is therefore a bound in its own right, not a sum of quotas.
-
-The instance ceiling is a **daily UTC ledger** whose authority is PostgreSQL. Each run's cost enters through one `INSERT ... ON CONFLICT DO UPDATE` with column arithmetic, inside the transaction that already persists the token summary — both land together or neither does, so the check never sees a partial view. The insert goes through a SAVEPOINT: swallowing a failed statement without one poisons the transaction and takes the caller's commit down with it, losing the very accounting it came to write. Recording is **not** conditioned on a ceiling existing; conditioning it would leave a window where an administrator sets a ceiling while the counter is mute, so the ceiling would never fire — the inert-setting trap (ADR-183). The check itself is composed inside `check_user_allowed`, the single gate already crossed by the chat router, the SSE barrier, the voice WebSocket and every scheduled job: coverage is obtained by construction rather than by copying the control into each caller and forgetting the next one. Two properties follow, both tested: the instance verdict is computed **before and outside** the per-user cache (a cached "allowed" would keep spending for the whole TTL after exhaustion), and it is independent of the per-user limits flag (coupling them would silently disarm one of the two). Finally, the failure doctrine is deliberately inverted: a per-user limit fails **open** — at worst one message too many; an unknown instance spend fails **closed** — at worst, the entire budget.
-
-The ceiling holds only if the ledger is complete, and the rule is not the model's alone: **every euro the platform pays for a person is traced, displayed, attributed and counted for that person, whatever the modality or the path** (ADR-272, amendment). A Google Maps lookup with no model call at all — a route during a phone call or a direct live session — therefore counts as spend in its own right: the tracker's two persistence doors read one predicate, `pending_families()`, and a guard refuses a record bucket it does not read. The Google call counter never fails open: with no ambient tracker, the call is counted in `google_api_calls_unaccounted_total`, held at zero by an alert. Every out-of-turn surface — heartbeat, briefing, meetings, image proxies — opens its own accounting around the whole act through one door, the road each module takes is declared in a registry the sibling of `LLM_SPEND_ROADS` and checked over the import graph, a billed image is counted where Google bills it — at the proxy, on the 200, joined to its turn by a run id signed over (run id, account) — and one column, `billed_cost_eur`, carries what a run cost.
-
-Administrable capabilities follow the same two-composed-bounds model — what the deployment allows and what the operator chooses inside it, the smaller winning — but their difficulty lies elsewhere: **where** a capability is actually enforced. Three modes are declared explicitly, because the wrong choice produces a switch that cuts nothing. `agents` removes the capability's tools from the turn's catalogue, built once (`services/turn_catalogue.build_turn_catalogue`) and read by everything that offers a tool — the planner, the ReAct loop, the router's ranking, the initiative, a delegated sub-agent, a skill's ready-made plan: one filter, not one per mode. `route_enforced` makes a router dependency refuse with a stable code and the capability name, never a sentence: the frontend says which feature is off, in the reader's language. `service_enforced` cuts at an internal chokepoint: speech synthesis has **no route at all** — it is produced inside the chat stream, and a router dependency would have enforced nothing there. Two boot guards recalculate the declaration against reality — do the named agents exist in the live catalogue, is the declared route still mounted — by walking the router objects rather than the text of the files, so that moving a route is followed rather than missed.
-
-The installer applies the same rule to the artifact chain: never trust a label. The default is a **local build** from the checked-out source; prebuilt mode accepts only `repository@sha256:...` references from a manifest whose qualification is explicitly `passed`, and promoting a version rebuilds nothing — it creates the semantic tag from digests that were already qualified. Secrets enter through stdin as one JSON document that creates the administrator through the existing password authority and encrypts the provider keys in the same transaction; nothing passes through `argv`, and nothing lands in the resume state, which stores only non-secret facts plus SHA-256 fingerprints and stops before any Compose mutation on a mismatch. Reference data applies in a single transaction, one `psql`, `ON_ERROR_STOP=1`, followed by a blocking verification file and a marker written in that same transaction. And `/ready` is necessary without ever being sufficient: a secret-free verifier checks the single Alembic head, the exact marker, the reference-data postconditions, an active administrator, decryptable provider rows, and provider coverage **on the post-seed effective configuration** — the one the first message will use, rather than the code defaults the seed precisely overrode. A running installation changes without being reinstalled: `--reconfigure` asks the routing and capability questions again showing the answers in force, lists every configuration value the new answers would rewrite and changes nothing until the operator confirms, replaces each validated file in one atomic step after a private backup, recreates the containers without rebuilding the images, and puts the previous files and stack back if the new one does not come back ready.
-
-The common thread is a property of the tests themselves. A test that pins what the code does on the day it ships stays green while the system drifts: a hand-written list does not describe a system; it describes what its author knew about the system. These guards therefore **recalculate** the protection from the source of truth — the cost families the run summary really publishes, read by AST; the routes the application really mounts, confronted with the edge's evaluation order; the connector router walked in both directions, so that unclassified and classified-but-unmounted are equally red. Each one is deliberately broken, to verify that it goes red.
-
-The public demonstrator applies these bounds to itself, and makes them readable. Every capability of the registry is decided in writing in its environment template — on or off, with the reason — and two guards refuse a ceiling left to the code's default or a disagreement between the development and production templates; the census of reachable routes mounts the routers under those same ceilings, so a switched-off family does not appear and a switched-on one is written route by route. Finally, every instance publishes in its public configuration the effective state of all its capabilities — ceiling and switch composed — and the instance that advertises a demonstrator reads that configuration server-side and shows it beside the link: the list of what a visitor will find, and will not, follows the demonstration's environment file, and nobody keeps it by hand.
-
-**An announcement says who it was addressed to** (ADR-312). The audience of an administrator's announcement is resolved before its row is written, and its recipients are stored with it: a targeted announcement is served to them alone — at their next sign-in too —, and a selection that targets no active account is refused rather than going to nobody, or to everybody. The history serves a page and its exact total, a bounded sample of the recipients with their exact count, the expiry instant and the chosen delay, in four queries whatever the page size.
-
-## 29. Administering by file: the workbook is the form
-
-The LLM model catalogue holds more than a hundred entries; each carries some twenty characteristics and a four-dimensional tariff. One dialog per model is fine for correcting a single price, absurd for taking in the whole grid a provider revises two or three times a year. The answer is not one more screen but a **declarative foundation**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` describe a workbook, and both directions are derived from it — the writer produces the file, the reader reads it back. The foundation imports no domain; the domain supplies only a column declaration and an applier that goes through its own service. Declining the mechanism to another administration screen means writing a declaration, not format code.
-
-### 29.1. Three properties that separate an export from an administration
-
-**Columns are resolved by technical key, never by position.** The workbook's first row carries the invariant keys and stays hidden; the second carries the translated labels, coloured by block, and the data starts on the third. Reordering a column, hiding one, adding one, or exporting in one language to re-import in another: no effect on the read.
-
-**Nothing is deleted implicitly.** A row missing from the file never deletes anything — a filter left active in Excel cannot empty a catalogue. Removal goes through an explicit state column, and setting it back to true reactivates, so a deactivation always has its inverse.
-
-**The preview commits.** The import happens in two steps: the first writes nothing and returns the plan field by field; the second **re-derives** that plan and refuses if it differs from the one that was read. An optimistic lock **per row** — a fingerprint carried in a hidden column — refuses only the rows that moved in between: a colleague touching an unrelated model does not get the whole file rejected. And what did not change is not written: without that rule, re-importing the whole catalogue would leave as many useless tariff versions behind as it has rows.
-
-### 29.2. The file states what is, not what one assumes
-
-Three derived, read-only columns exist because the raw data misleads. A model with no active tariff is billed zero in silence: the file says so in words. A time-windowed tariff — a provider's off-peak hours — would read as a flat tariff if its windows lived only on a sheet nobody has a reason to open: it therefore appears on the row that carries the price. And the exported mode is always the real state, never the "inherit" instruction, which is a write directive rather than a state.
-
-Completeness, for its part, is **guarded** rather than remembered. A fidelity test comparing an extraction to itself would never see a forgotten column: the oracle is therefore the database schema — every business column is exported, or excluded with a written reason — and a column added tomorrow reds continuous integration. That is the doctrine of registry completeness asserts (ADR-085), applied to a file format.
-
-### 29.3. A tariff has one answer, and a migration invents nothing
-
-Exporting a catalogue presupposes answering a simple question: what is a model's tariff? It has one answer by construction: a unique index admits a single active tariff per model, every read path selects in a deterministic order — two reads cannot return two prices for the same model at the same instant — and the pricing cache reads a dated model's exact name first, the normalized name being only a fallback, so a dated model with a tariff of its own is never billed at its base model's price. Without that uniqueness the export would have no object: it would not know which row to show.
-
-A rule follows that outlives this domain: **a migration never invents business data.** The intuitive rule — keep the most recent row — can be wrong: the correct row can be the older one, and the billing *unit* itself can differ from one row to the next. So a clean-up migration merges only strictly identical duplicates and stops, **naming** the divergent ones. The arbitration stays human.
-
-### 29.4. The format is not a detail
-
-An `.xlsx` is an archive: the zip-bomb guard is the plugin importer's, shared rather than rewritten, and the read is bounded in chunks — a file outside the template is refused before being held in memory in full. The rest comes down to an OOXML quirk that bites back: the sheet-protection booleans mean "blocked" when true, so protecting the sheet to lock five computed columns **would forbid adding a model**; and the attribute that looks like it enables a dropdown actually hides it. Both behaviours are pinned by assertions on the emitted XML, because a good-faith fix on either would silently remove half of the file's ergonomics.
-
-## 30. Visible work, governed learning
-
-The Activity page is a **pure read model**: parallel fetchers (one session per source, since `AsyncSession` is not concurrent) aggregate the existing audit tables, totals are exact `COUNT(*)` over the whole window, caps are declared, and a source that is down is listed rather than silently completed — honest counting (ADR-185) applied end to end. Memory follows a **supersession trail**: an automatic correction creates a successor and archives the old fact (`superseded_by_id`), every read filters the active set through one central predicate, and the trail is purged after retention; manual editing keeps its overwrite authority. Learned rules are a **memory category in their own right**, injected at the head of the prompt under the same protections (pinning, retention, GDPR). Voice prosody is a **bounded modulation** (dead band, hard bounds, flag) of the administered settings — never a replacement. And autonomy stays capped: the ReAct iteration budget adapts to the domain span of the request without ever exceeding the configured ceiling, and an unknown complexity gets the whole ceiling — the saving applies only to the proven-simple.
-
-## 31. Expressive eyes: a character driven by signals
-
-The chat's eyes widget (ADR-240) is built on a single principle: **no new signal, no new cost**. A pure engine — decision tables with injected RNG and clocks — derives one of twenty expressions from a priority chain (error > HITL question > voice > interaction > per-turn reaction > notification > typing > inactivity > mood × hour) fed entirely by machinery the app already had: the chat state machine, the SSE execution steps (thinking vs tool search), the HITL card, the voice state machine and the psyche engine. The per-answer reaction reads the emotional self-report the model already attaches to its own turn, with a strictly language-neutral heuristic fallback (punctuation, emoji, structure — fullwidth Chinese included). Rendering is declarative — an expression attribute, CSS custom properties, and an animation sheet where eyelids are **pure geometric morphs** (anchored vertical compression, per-eye rotation, radius shaping): no clipping anywhere, so every intermediate state stays a smooth curve. The life between events — blinks, gaze saccades, mood-weighted gestures, day-dream micro-scenes, rare slapstick — lives in owned-timer schedulers that pause when the tab is hidden or the widget minimized, and freeze under `prefers-reduced-motion`. The selectable classic looks share this one skeleton: a generic registry where adding a gaze costs one id, one scoped CSS sheet and six locale entries — completeness is a test, not a convention.
-
-The face lives between two answers, and that life is a rig, not a stylesheet (ADR-252, ADR-264). A TypeScript runtime computes every channel each frame — analytic springs, additive loops, tapes of keys — and publishes the result as `--rig-*` custom properties the sheet only reads: a stylesheet never declares one and never puts a transition on a value that changes sixty times a second. The brow has an arch and stays faintly present at rest; one breath carries the mass, the brows and the mouth width on the same period; the gaze lifts the brows and a blink dips them, coupled in the rig as **absolute contributions rather than increments**, because the idle fast path only rewrites the channels a loop rides — an increment there would drift for the whole session, which a test pins by comparing twenty thousand small steps against one. Speech has phrases (an envelope through the closure, an opening bounded in the unit interval) and brows that punctuate on an irregular pattern. The mouth has a life of its own — relative mimics at a random cadence, scheduled by the rig — and ten short sketches on a resting face, dropped by any expression change with the face exactly where it was, checked against a twin rig. The randomness comes from a separate seeded stream, never `Math.random`, so the widget tests stay deterministic; the moving hold is a pixel budget in the tests — visible at rest, under two pixels, exactly zero on a focused face. The same widget greets visitors on the public home page: no account, one position per surface, BIP masculine presented there independently of the chat's saved style — and the style picker's previews switch that life off, because a preview compares silhouettes.
-
-Every channel of the rig is tuned against a measurement of what the page actually renders (ADR-294). The brow sits on the eye and weighs: it has mass, knits, and **leads** each expression instead of following it. Speech is not a loop but a generated phrase — syllables, pauses, stresses — that nothing repeats; the beats of the expressions are warped on every draw, so two blinks, two smiles, two glances are never identical. The sketches wait for real resting time on a clock the page keeps across navigations, because a clock reset at every mount would never let the scene arrive. All of it reads in the channels the rig publishes, measured frame by frame.
-
----
-
-## 32. Native apps: one shell, your server
-
-The Android and iOS apps (ADR-246) are **WebView shells** published once per store, clients for any self-hosted server: the WebView loads the server's **remote origin**, whose URL the user types at first launch. The UI is never duplicated — the httpOnly-cookie session contract that keeps the PWA safe is exactly what makes the shells possible — and every platform claim is **measured, not assumed** (`scripts/mobile-probe/`).
-
-**Sign-in follows the only path Google permits**: the OAuth flow leaves for the system browser and returns through a `lia://auth-callback` link, redeemed for the session via a single-use code bound to a verifier only the WebView holds — an intercepted link is worthless, which is what makes a custom scheme acceptable (App Links pin domains at build time, impossible when one app serves every server). Wiring this path closed a pre-existing TOTP bypass on federated sign-in.
-
-**Push is native and deliberately asymmetric.** Android initialises Firebase **at runtime** with options the server publishes: a self-hoster's notifications never leave their own project. iOS cannot — APNs answers only to the Apple team owning the bundle id — so the published app is woken through a **stateless relay**: the handle *is* the sealed device token (Fernet, dedicated key), the notification is one fixed sentence in six languages, and the relay never learns who was woken or why. Doubt never deletes a device: only "handle unreadable" and "device gone" may drop a token.
-
-**All twelve OAuth departures come home to the app** — the "leave for the system browser" decision is made once, at the chokepoint every flow shares, and the return reads the originating surface from the OAuth state, written by the single function in the codebase that builds one. A **dedicated bench** drives the real debug app on an emulator over the WebView devtools socket — ten scenes with no server at all, navigation failure toward an `.invalid` origin serving as the oracle.
-
-## 33. Self-diagnostics: an assistant that reads its own telemetry
-
-Emitting all that observability and reading none of it is being instrumented everywhere and blind to oneself. The self-diagnostics subsystem (ADR-247) closes the loop with one design rule per pillar.
-
-**Reading never raises.** The Prometheus/Loki/Alertmanager clients (`infrastructure/telemetry/`) collapse every failure mode — timeout, 5xx, malformed JSON, open circuit breaker, disabled source — into a typed `unavailable` result. An install without the observability stack runs unchanged: an empty URL disables the source.
-
-**No free-form query language ever leaves an LLM.** A named-query catalogue (boot-time completeness assert) is the only producer of PromQL; a constrained builder is the only producer of LogQL — closed service enum, strict event pattern, range and volume caps as constants. Injection cannot be spelled, and Loki (an OOM history on the Pi) is protected by construction.
-
-**The self-check works even blind.** The leader loop evaluates golden signals through Prometheus *and* in-process probes (PostgreSQL, Redis, circuit breakers, its own liveness): with Prometheus down the affected checks turn `unknown` but the loop keeps running — and `unknown` caps the overall verdict at `degraded`, because blind is not healthy and blindness is not an outage.
-
-**One outage, one incident.** The Alertmanager webhook (Bearer, committed fragments, matrix replayed in CI) and critical verdicts converge into a single incident per correlation key — partial unique index, atomic upsert under webhook-versus-leader concurrency. The LLM diagnosis is grounded on the alert's runbook, capped by an atomic daily budget, and its recommendations stay proposals: nothing executes from model text.
-
-**Knowledge of the outage shapes the answer.** A zero-cost-when-healthy advisor injects degraded capabilities into planning ("Brave down → Perplexity"), and synthesis receives the run's failures in typed form — code and message head, never a raw log — with an honesty directive: say what succeeded, what failed and why, and never invent a diagnosis.
-
-**The diagnostician reads its evidence at the moment it diagnoses.** A value and its threshold are a verdict, not a diagnosis: given only those, the model would answer « insufficient evidence » while the breakdown sits in Prometheus and the failing path in Loki. Each incident therefore declares a *recipe* — the catalogue queries and the log events worth reading for its correlation key, asserted complete at boot — and the diagnosis pump collects the pack once per incident, after the budget gate: breakdown series, a bounded log excerpt filtered through a closed allowlist and the personal-data sanitizer, the running build and its uptime. Every source degrades on its own: an unreachable log store costs the diagnosis its excerpt, never the diagnosis, and is named as unavailable rather than read as silence. What the model saw is stored with what it wrote and drawn under the verdict for the administrator.
-
-**A lost resolution does not keep an incident open.** An incident born of an alert closes on the resolution notice Alertmanager sends; when that notice got lost, nothing else closed it. Every self-check tick therefore reads the alerts Alertmanager holds as active, outside any transaction, and closes the incident of an alert that is absent and has stayed silent for the window `DIAGNOSTICS_INCIDENT_SILENCE_CLOSE_SECONDS` sets, with an entry in its history. A silenced or inhibited alert counts as active, an unreachable Alertmanager closes nothing, and a failed reconciliation pass costs only itself, never the tick.
-
-**A probe names the step that failed.** The platform-egress check resolves, then connects, in two named phases, and confirms a loss over paced attempts before calling the platform cut off (ADR-361): a probe that recovered, or answered slower than its threshold, is degraded — visible on the health page, never paged. A single lost DNS datagram no longer reads as an outage.
-
-## 34. Computing instead of guessing: an ephemeral script in the skills sandbox
-
-Ask a language model how long a series of layovers adds up to, which names appear in both of two lists, or what a column of figures comes to once timezones are taken into account, and it answers — plausibly, fluently, and with nothing in the answer to show you it is wrong. This is not a prompt defect: predicting the next token is not arithmetic. Five lines of Python are.
-
-**Everyday calculations do not wait for a script: they are tools** (ADR-318). In both modes, a calculation is parsed into a tree and evaluated in exact decimal — never executed —, the infinities the decimal library returns without raising (`0 ** -1`, `ln(0)`) are refused, and a result that had to be rounded says so. A duration is counted between two absolute instants, because two datetimes in one zone subtract on their wall clocks and would give 24 hours for the 25 of a clock change. A conversion reads the ECB reference rate and gives its date. Every enforced bound is a setting stated in the wording both the planner's manifest and the ReAct schema read. The ephemeral script below remains for what no tool covers.
-
-**No second sandbox.** The script runs in the skills sandbox (SEC-001), already hardened: a throwaway container, no Docker socket, `--network none`, read-only root filesystem, uid 65534, every capability dropped. `execute_source` merely hands it a source string instead of a file path, and both paths share one execution core — one set of isolation flags, so hardening one can never leave the other behind.
-
-**The cost is measured, not assumed.** On a Raspberry Pi a cold start takes around 300 ms, under half a second with numpy — less than 2 % of the execution budget — and adding pandas to the API image costs about 1.5 % of its size, its hard dependencies being there already. The intuition that "pandas would weigh everything down" is wrong by an order of magnitude.
-
-**The autonomous mode only, and enforced twice.** The tool's manifest declares `execution_modes={"react"}` and *every* reader of the catalogue applies the filter, so the deterministic planner never sees the tool at all: a planner that saw it would schedule a step execution then refuses, which is a dead end invented for the user. The tool then re-checks the mode from the typed runtime context at call time. One enforcement would have been a trap; two is a contract.
-
-**Everything enforced is published.** The manifest states what a run may reach — nothing unless it declares its hosts —, the absence of database and of any writable filesystem beyond `/tmp`, the exact library list, the size and time budgets — and says explicitly when *not* to reach for the tool. Without that last sentence a capable tool becomes a hammer; without the first, the model burns an iteration discovering a limit by hitting it.
-
-**The data travels on stdin, and the budget lives in the graph state.** Copying the turn's rows into the source would pay for those tokens twice and truncate exactly the large cases that justify the feature. And the per-turn budget deliberately does not live in a context variable: a value set inside one asyncio task is invisible to a sibling task, and a graph executor is free to run each node in its own — the state is the only place a budget survives an iteration.
-
-**The output is untrusted, the code is auditable.** Anything a script prints is model-written code running over third-party data, so it is marked as untrusted content exactly like the body of an email. The code itself, with its stated purpose and its output, is visible to administrators in the debug panel: hiding it would buy no security — the model wrote it, it is already in the context — and would cost all of the verifiability.
-
-**The web through one door, and the door is the topology.** A script may reach the web — only a script that declares its hosts, and only through a dedicated egress proxy. A network run joins an internal Docker network whose single routed member is that proxy: a raw socket has nowhere to go, which is exactly the bypass an environment-variable proxy leaves open (`HTTPS_PROXY` is a suggestion; a network with one exit is a fact). The proxy terminates TLS under an authority it mints at start, allows only the hosts the API rendered for the runs currently alive, refuses private ranges, the server itself and cloud metadata at connection time, and bounds the body it forwards. Its state lives in tmpfs volumes written by its own entrypoint — an init container would not do, since Docker releases the tmpfs at its exit.
-
-**A key travels as a token, and the token is worth nothing outside its run.** Every host carries one of four statuses — derived from the person's own API-key connectors, allowed by the operator, granted by the person, or unknown. For a connector host the script reads `os.environ["LIA_KEY_<CONNECTOR>"]`, a per-run token the proxy swaps for the person's real key on that host alone: the key never enters the container, and OAuth tokens and the instance's own keys are never offered at all. The statuses are derived from the client classes — base URL, header, prefix — never typed into a second table, so the proxy's rule and the client's real call cannot disagree.
-
-**An unknown host is asked, with three answers, inside the loop.** The card names the hosts and the model's stated purpose with a count of the turn's data — never the data — and the person allows with the data, without it (stdin then carries nothing) or refuses; the answer is remembered as a grant under a published cap. Where the question is settled matters as much as what it asks: the node raises the interrupt itself, like a mutation tool's confirmation, and on resume re-invokes the same call under the answer, so the rest of the request goes on. Handing the card to the draft dispatch would have executed it as an action and answered from its result, dropping every later step — a permission is not an action.
-
-**A skill's command takes the same door.** A command a skill runs declares its hosts the same way and meets the same four statuses, with two differences that follow from where it comes from and where it runs. A skill written elsewhere never receives a connector's token: its commands reach only what the operator or the person allowed. And the card is raised only where its answer can resume the call — the ReAct loop; anywhere else, a turn in Pipeline mode or a routine, nobody could answer it, so the host is refused with the name of the setting where the person allows it by hand. npm, git and curl sit in the image, each pointed at the proxy's authority.
-
-**The prompt is measured before it is trusted.** Told to put `LIA_KEY_X` in the header, a model sends the variable's name as the value; the line therefore spells the read. The libraries the prompt promises live in one table pinned directly and are imported inside the built image on every CI run, and the four roles — compute, diagnose, fill a gap, transform — are stated with the bounds the code enforces, read from settings rather than written in prose.
-
-## 35. Measuring a colour before shipping it: the settings palette
-
-The settings page lists more than fifty sections. The same icon, in the same colour, on the same chip would leave the eye nothing but a repeated shape to find its way by.
-
-**Colour does not repair a repeated shape.** Two plugs remain two plugs, even in two colours: shape and colour are two distinct answers — a drawing of its own per section, then a tone per **group**. Per group and never per item: twelve colours are a map the eye learns, one per section would be noise it deciphers.
-
-**Tokens, not utility classes.** The palette is fixed, outside the accent the user picked — the product's second such deviation, after the cyan skill badge. Written as literal classes it would have fallen outside the contrast guard, which reads token pairs; written as `--color-settings-*` it falls inside by construction. A constraint you enforce must be legible to whatever verifies it.
-
-**The sRGB gamut is not a cylinder.** Twelve evenly spaced hues with one chroma and one lightness per mode do not hold: at 55 % lightness a violet holds 0.25 of chroma where a teal tops out at 0.09, and a tone outside the gamut is silently clamped by the browser, which then renders neither the hue nor the chroma written. Each hue therefore carries its own maximum, less a margin.
-
-**Even spacing is not perceived spacing.** Once chroma follows the gamut, evenly spaced hues can fall below the distinctness floor the guard itself imposes. The twelve angles are therefore **searched**, and on the worse of the two modes: the two lightnesses cut different slices of the gamut, and a set optimised on the light theme alone can still leave a pair too close in dark. The closest pair thus stays well above the floor.
-
-**Colour never states a state.** The open section stands out by its background, its weight and the accent colour — not by becoming a thirteenth hue — and whether a capability is active is still shown by a filled or hollow dot. That is WCAG 1.4.1 taken seriously: whoever does not perceive these twelve tones loses no information. The glyph being a non-text graphical object, its floor is 3:1, measured on the two grounds it actually occupies — the card chip and the bare rail, hover included.
-
-**One rule for both lists.** The overview card and the rail row read the same function: they cannot diverge on a section, and a caller outside the table falls back to the accent rather than to nothing.
-
-## 36. A trait is not a reaction: the register the answer declares
-
-The companion's face does not take its end-of-turn expression from the psyche's dominant emotion: from one turn to the next, that emotion almost always stays the same, give or take a few hundredths.
-
-**That is not a flaw in the psyche, it is its definition.** A psyche models an inner life: it is a **trait**, it moves slowly, and that is exactly what it is asked to do. The flaw would be making it answer for a **single event** — an argmax over a near-constant vector is a constant.
-
-**The only one who knows the register of an answer is the model that wrote it.** Every other source reads its surface. So the answer declares its own register, in a vocabulary that belongs to the animation and to nothing else: twelve registers, chosen under one constraint — *two registers the face would play identically are one register with two names.* That is why the list is not longer.
-
-**In band, because two requirements cross.** The signal has to come from the model that wrote the answer, **and** land at the instant the answer lands — the face reacts on completion, and a background pass runs after that instant. A marker placed at the end of the generation satisfies both: no extra model call, and it arrives with the last token. The pattern is not invented for the occasion — it is the psyche's self-report mechanism, proven in production. Fragments are filtered out of the stream so nothing flashes on screen, and the complete marker is removed from the stored text.
-
-**Intensity is stage direction, not confidence.** The renderer **overplays** it rather than reproducing it: a cartoon that plays a 0.8 at 0.8 looks like a video call. And it is the **register that caps** what intensity can buy — a factual answer declared at maximum is still a plain face delivered with conviction, never a celebration. Intensity says how strongly the register came through; it never says which register it was.
-
-**What is enforced must be published.** A register the instruction offers but the code refuses produces a turn with no face, silently; a register the code accepts but the instruction never mentions is a face that can never happen. A test holds the two lists together, and the browser-side copy is held to the server-side one.
-
-**The marker does not arrive on every turn, and the fallback accounts for it.** Whether a response model emits its markers is a property of that model, not of the feature — some place one only every few turns. A face that reacted one turn in eight would be a broken face, so the fallback never returns empty: it reads the **shape** of the answer — length, code fences, punctuation density, emoji, never words, so all six locales behave identically — and speaks the **same vocabulary** as the marker. One register table, one amplitude curve, one path.
-
-**And the psyche keeps what it is good at**: the idle mood family — breathing pace, blink cadence, the weight of idle gestures. A trait should colour a resting behaviour, never a reaction.
-
-## 37. Three mechanisms for one convergence: shaping a burst a ceiling cannot see
-
-**An interval trigger counts from scheduler start, so periods that share a divisor align forever.** That is arithmetic, not load: jobs of 5, 15, 30 and 60 minutes end up firing inside the same second and stay there for the life of the process. When each runs an agent and each agent embeds, that one-second burst can fail at the provider where a steady rhythm of the same volume passes without a single error.
-
-**Three mechanisms, three roles, and telling them apart is the design.** **Jitter** treats the cause: 15 % of the period, a 5-second floor, always strictly under the period so two runs can neither overlap nor invert. The **shaper** would change nothing about such a burst — a handful of calls cross no per-minute ceiling — it is the insurance as usage grows, hence a deliberately **short** window: a per-minute ceiling cannot see a burst. The **retry** mops up the residue.
-
-**None of the three is a gate.** The shaper composes the existing rate limiter rather than adding a second one — one sliding window, one Lua script, one set of metrics — and it expires **open**: the wait is bounded, and a caller that waited its share proceeds anyway. Our own throttle must never be the reason an answer loses its memory. With Redis unreachable the answer is "no slot", immediately, and the call goes out.
-
-**A retry needs a factory, not an awaitable.** A coroutine is awaitable exactly once: a seam holding `client.aembed_query(...)` cannot re-run it — the second await raises instead of calling. And classification is **structural** — the status code read by walking the cause chain, never the message text, which a vendor rewording would silently invalidate. Corollary: a layer that exhausts its retry must **chain its cause**, or the layer above reads a mute wrapper and calls permanent what was not.
-
-**And what is not measured cannot be seen.** The provider-call counter becomes the wrong denominator the moment you retry: a recovered failure inflates the error rate while nothing was lost. Platform Health therefore counts **outcomes** — one row per logical operation, retries collapsed — and a second counter says what the shaper did with each attempt, because "budget too small" and "Redis down" call for opposite actions.
-
-## 38. Meeting minutes: the row is the job, the template is the contract
-
-**A meeting is hours of audio produced on a device that may sleep, lose its network or be closed by mistake — so capture is designed for the failure, not the nominal case.** The browser records in short segments and uploads each one as a raw-body request the moment it exists; a segment is a file on the server, written to a temporary name and renamed atomically, so four API workers can receive out of order without ever interleaving bytes, a duplicate upload is a harmless overwrite, and detecting a gap is a directory listing. Two sources sit behind one interface: Opus through `MediaRecorder` where the engine is trustworthy, raw 16 kHz PCM through the AudioWorklet the voice input already uses everywhere else — the only path on Apple devices, whose recorder produces a container the backend refuses and misbehaves in home-screen apps. The format is a pure function of the environment, decided once before the first byte. Uploads leave in order, retry with a backoff that never gives up while the recording lasts, and wait — not fail — while the browser is offline; a stop declares the uploader's own count, and sequences the server never received are refused by name.
-
-**The meeting row is the durable job.** Its status carries the whole lifecycle — recording, interrupted, stopped, processing, ready or failed — and every transition is one conditional `UPDATE`. The processing claim takes a lease, heartbeats renew it while publishing the stage the page shows (normalizing, transcribing, synthesizing, indexing), a lost heartbeat aborts every later effect, and reapers re-drive stopped orphans and expired leases within a bounded attempt budget. Refusals that are not pipeline failures — a usage limit, no engine available — release the job without consuming an attempt. And since a bulk update leaves SQLAlchemy's identity map stale, every read that follows one expires the session first — otherwise a stop could still answer `status: recording`.
-
-**Engines form a chain, and the chain is walked twice.** Once before the first second, from the provider-key cache only: the administrator's speech slot, then ElevenLabs Scribe, OpenAI `gpt-4o-transcribe-diarize` or Fish Audio `transcribe-1-pro` — whole file, speakers separated, a recording longer than Fish Audio takes in one request skipped before the upload — then the local Whisper engine. The local path never stops at a single thirty-second window, which would silently return only the first thirty seconds of anything longer — a defect a voice command never meets and a meeting always would: long audio is cut by Silero VAD into speech windows of at most twenty seconds, each decoded on its own, with fixed windows when the model is absent — never truncation. The chain is walked again at processing time: a permanent fault of one provider (a refused key, a file it cannot take) hands over to the next engine within the user's preference; only silence, which says something about the audio, or a transient fault, which belongs to the retry budget, stops the walk. Without that second walk, a misconfigured key at the head of the chain would fail every meeting while a valid key waits one step down.
-
-**The template is the contract, and the model is not trusted to honour it byte for byte.** The user's sections — key, label, instruction, kind — are rendered into one structured-output call; when the transcript overflows the model's window it is condensed part by part first, so a 128k model still produces faithful minutes for a three-hour meeting. The model answers a permissive shape, and a repair step folds it into the strict report: sections it skipped come back empty, sections it invented are dropped, a payload in the wrong shape for its kind is converted, participants are restricted to speaker labels that actually spoke. The generated report is immutable; what the user edits is a copy, « restore » copies back, « rebuild » re-runs the synthesis on the stored transcript with the current template. One serializer produces the Markdown the « Meetings » knowledge space indexes (found by role, one document per meeting rewritten in place and deleted with it), the sectioned content the PDF renderer turns into a file, and the HTML the email carries — so the three can never disagree.
-
-**Every paid unit is accounted, and shown.** A meeting spends audio at the transcription engine and tokens at the synthesis model, condense passes and rebuilds included; both reach the platform's books the way every exchange does — the audio through the remote-speech statistics, the tokens under a `run_id` the archived chat message carries, so history joins the token log exactly as for any proactive notification. The row keeps the minutes' own spend so the page states the exact total with its breakdown, the card states the two units and their sum, and a model without an administered price yields `null`: an unknown price is not a free one. The same honesty runs through the minutes themselves — a gap is stated, never bridged; an unnamed speaker stays S2; a proposal left open is not a decision.
-
-**The minutes format became a library, and the choice has one place.** Thirty built-in templates live in the code, their words in an i18n data module, and a boot-time assertion refuses to start if a name is missing in one of the six languages: what a validator can reject, the catalogue cannot ship. A template is named by a reference — `builtin:<key>` or `user:<uuid>` — that meetings, preferences and requests exchange instead of a row, so a built-in needs no database row and a deleted template leaves a reference whose readers know to fall back on the stored snapshot. The choice follows **one precedence**: the reference carried by the meeting, then the preference's default, then the language model reading a transcript excerpt and choosing above a confidence floor, then the built-in default; every outcome is counted and written on the row with the reason stated, so the page shows a fact rather than a reconstruction. A fifth section kind hands back the transcript itself: it does not fit in one answer — the synthesis slot outputs at most eight thousand tokens — so it is rewritten part by part, each bounded by the effective output window, a missing index splitting the part once and a suspiciously short answer retried once. Rewriting minutes already written borrows the durable regeneration when it replaces, and creates a derived row pointing at its source when it produces new minutes — never a copy: the transcript is the same, the minutes are not. The same concern for order governs knowledge-space documents: since `rag_chunks.space_id` is denormalized and read by retrieval, a move writes the row and its chunks, commits, **then** moves the file; a rename that fails reverts both and reports it for that document alone, and a batch never stops for one item — every id comes back done or skipped with its code.
-
-**A recording someone already holds enters by the same door.** A WAV, MP3 or M4A file becomes a meeting on the same durable row: `uploading`, one per account — a partial index says so, not a convention —, its chunks sent under bounds the server publishes before the first byte, every chunk number bounded so that a forged one cannot make the completion enumerate a billion holes. The file is untrusted input: its first bytes must be the format it claims, ffmpeg reads it through that format's demuxer alone, over local files only and never following a QuickTime reference, and its length is measured — and refused past the cap — before any engine is paid.
-
-## 39. Three registers, and the one nobody had asked for
-
-**An assistant that acts must be able to say what it did, what it read, and on which turn.** Three registers answer that, and are never conflated: the first takes one row per **action**, claimed before it happens and closed from an explicit result; the second one row per **consultation**, named as the capability and never as what was searched for; the third one row per **turn**, the spine the other two hang off. Their totals do not add up, and that is deliberate: a turn can consult five sources and change nothing at all.
-
-**The guarantee is structural, but the door is single.** Recording is installed on the capability at the moment it is declared — so a new tool cannot forget it — except that a capability reached through its *client* rather than through the tool gate would stay invisible: the registers follow the graph, and the briefing, the sweeps or the heartbeat call the model and the connectors directly. With nothing else, the list of what the assistant undertakes on her own would read empty whatever she did — the sharpest possible version of the gap, since a proactive notification is the one act of her own initiative a person actually experiences.
-
-**The answer is not one more detector, it is a declaration.** Every surface that reads without going through a tool — the briefing, the relationship debrief, the periodic sweep, the interests, the knowledge spaces — declares its vocabulary in one table, and the boot assert checks the capabilities so declared alongside the tools. The modules that import a connector client are enumerated one by one: recorder, not-a-reader with the reason written down, or debt — an empty debt table that can only shrink. The register is **offered** rather than fetched: the agents domain already imports the relations one, so an import back would close a cycle that a local import would merely hide.
-
-**Where a euro goes is declared, never inferred.** Accounting here is ambient — a node spends through a context an ancestor published — so answering "is this counted?" by reading files leads to wrong conclusions, in both directions. One table therefore names every call site and the ledger it reaches, and a guard reading calls by AST checks that each module does what its row declares. Counting is only half a ceiling, though: the other half is **asking first**, and every site must reach a ceiling that can refuse. Three shapes would leave a site unbounded — a registry naming a wrapper instead of the door, a guard returning before it asks, one refusal rendered two different ways — and each is closed by construction. A refusal follows its transport and never its verdict: a request raises, a background task gives up and logs itself **skipped**, never *failed*.
-
-**Two endpoints serving one screen make one act of reading.** The dashboard fetches its cards and its synthesis in parallel; if each built the section bundle on its own, every connector would be opened twice and two batches of consultation rows filed for one act of reading. The question that decides a rebuild is "has this bundle been built?", never "does it hold anything interesting?" — the latter cannot tell a cold cache from a quiet day. Whoever asks first builds it and the others are handed the same object — in-process, and across the four workers of a production instance, through a claim released by its owner alone.
-
-**An extraction is complete, or it is not an extraction.** Capping the rows of the downloadable records to fit a Raspberry Pi's memory would apply the constraint to the wrong variable: **what is scarce is memory; what would be bounded is the truth**, and a header announcing "truncated" does not give the person back the record that is missing. A server-side cursor therefore bounds the buffer, never the rows; the count is exact — an aggregate over the same statement the body streams — and published before the first row, so an extraction with no upper bound is given one: the instant of its generation, named in the header rather than pinned in silence.
-
-**The assistant reads its own registers** (ADR-318). To « what did you do for me this week? », a read tool answers from the two registers, with exact totals and the same authorship filter as the tabs — what the person asked for, what LIA undertook on its own — rather than from the memory of a conversation. A register thus serves two readers without two implementations: the screen that draws it and the answer that sums it up.
-
-## 40. A debrief per relationship: what ten sections do not say
-
-**A card stacks ten sections, and nobody reads ten sections.** What a reader wants first — where I stand with this person, and what to raise — is a synthesis no aggregate produces. It is therefore written by the model at the top of the card: what is still open, what to do next, what is worth remembering. Its production is **lazy**: it is born when the card is opened, at most once per the reader's local day, never by a scheduler — the number of relationships is unbounded — and never during a chat turn. Exactly three rebuilds are legitimate: the language, the requested scope, and an explicit ask.
-
-**Two assemblies would create two authorities on who someone is.** The evidence assembly therefore lives in its own module, shared by the tool that answers in chat and by the debrief. Such sharing is not verified by reading: a golden file pins the output — eighteen scope cases, payload and message compared byte for byte. The provider half is read only for the sections the scope asks for — reading it whole only to drop it would bill external calls against a selection the reader has already made — and that narrowing needs a third status: "I did not look, on purpose" is neither "found nothing" nor "could not look".
-
-**Nothing is invented, and a failure destroys nothing.** No evidence settles it *empty* without calling the model, and a failed refresh **keeps the previous text** under a line saying so: replacing a usable synthesis with an empty panel turns "I could not refresh this" into "there is nothing". The claim is one SQL statement, and each settle writes only its own columns — ready, empty, failed — because a single settle would overwrite the body on the first failure. What the writing cost is stored with it and shown underneath; a zero cost being a claim, a silent row renders nothing rather than "€0.00".
-
-**In the chat, the debrief joins the peer block — with the opposite directive.** The peer block states exact facts because it reads them in the turn itself; the same sentence over a dated synthesis would be a false-claim machine. The template therefore says it is dated, carries its **age** and not only its date, and sends every figure, count and status to the tools. An ambiguous name match injects **nothing**: the directory holds every relationship ever opened, company names and phone numbers included, and a false positive would hand one person's file to a question about another.
-
-**A name is resolved, never guessed.** People say « Marie », rarely the whole name. One rule decides what a spoken name designates in any directory — the folded full name first, then every word said as a whole word of the name, never a fragment or an edit distance —, and several identities at the deciding tier are a question to ask, never a choice made by order. A peer tool reads only the accepted connections; the relationship list only subtracts, turning a partial match into a question when someone else answers to it too.
-
-**One thread, five sources, one cursor.** The card's timeline merges commitments, calls, memories, relayed messages and text messages, newest first. Each source is asked for one page strictly after the last record served — a keyset on (instant, kind, identifier), never an offset — so a record landing between two pages neither repeats nor drops one, and a page costs five reads whatever its depth.
-
-## 41. The workboard: one row, two sides, and an assistant that asks
-
-**A unit of work needs a lifecycle, a holder and a result** — and no other surface has all three. A provider's task list has no lifecycle; a reminder is a push at an instant, and nothing survives the ring; a routine is a repeated instruction that never finishes. A ticket carries a title, a description, a priority, dates, sub-tickets, comments and a history across seven columns, and its holder can be the owner, a connected peer, or the assistant itself.
-
-**One row, read from both sides.** A board is "I own it OR I hold it", written once as a repository predicate that every read reuses — two queries would be two authorities on what a shared ticket says. A ticket the caller cannot see answers exactly like one that does not exist, so no identifier can be probed. The page and its per-column counts come out of the same filtered statement: a header announcing seven above a column showing three would be worse than no header at all.
-
-**What the database can carry, and what it cannot.** The holder column is `SET NULL`, because four paths hard-delete a user row and only one of them runs the account purge — a cascade would destroy the owner's ticket when their peer leaves. The invariant "a peer may only hold a ticket under an accepted connection" is deliberately NOT a constraint: a `CHECK` spanning two columns a foreign-key action can touch is violable whichever way the cascades fire, no order is guaranteed, and PostgreSQL has no deferrable `CHECK`. It lives in the service, which re-verifies the connection at every write — which is also the right rule, since a share is re-checked at execution and never read from a stored row.
-
-**A sweep claims one ticket, and settles from a result.** Every minute, a jittered job first releases the claims a dead worker still holds, then claims a single ticket under `FOR UPDATE SKIP LOCKED` with a conditional update committed before any work starts — a worker that had taken five would abandon five. It settles from an explicit outcome, never from the absence of an exception, and it names what it did: three refusals can stop a claimed ticket and none is a failure. An inactive account is permanent; a quota ceiling and a busy conversation return the claim, give the run back to the ticket's budget and log *skipped*.
-
-**Out of turn, it asks instead of refusing.** Outside a conversation the execution gate refuses both a confirmation and a draft, because there is nobody to ask. A ticket run does have somebody: the gate lets an origin that can carry a draft build the very card the chat would have shown, the ticket lands in "to confirm" holding it, and the owner's next comment classifies the answer with no model call at all — a folded lexicon in six languages, where a bare yes approves, a bare no closes, and anything else becomes an instruction. The replay then runs inside the graph under a digest lock: the run publishes the identity of what it displayed, and the tool's rebuilt draft passes on that exact identity and nothing wider.
-
-**What a run writes, and where.** A run archives its brief and its question as rows of the run — kept out of the chat, pointed at by the decision register, removed by retention after the ticket closes — while the notification the person is meant to read is an ordinary message. The distinction is a derived column rather than a stamp in the metadata, computed at the one place that builds the row; and every archived turn's metadata is built by a named builder, guarded against a dictionary written at the call site, because that is exactly how a deletion preview would reach the chat.
-
-**Nothing is told before it is true.** An assignment notice is collected during the ticket's transaction and leaves through one door once it has committed — guarded, so that no notice can wait on a row its own transaction still holds.
-
-## 42. The anatomy of a process: what it loads is declared, measured and bounded
-
-An API server is several processes: a supervisor that serves no request, and workers that serve everything. Each holds memory for different reasons, and "the container uses five gigabytes" says nothing useful until you know which process holds what. LIA applies one rule here: **what a process loads is declared, measured per process, and bounded where it multiplies**. Every item is measured on the target host, in a throwaway process, before being touched: a first reading is often wrong, which is exactly why one measures.
-
-The supervisor does not load the application. uvicorn's command line imports the application in the parent process to produce an early import error, then discards it — a parent that only watches its workers would thus hold several hundred megabytes for the life of the container. `python -m src.serve` drives the same `Config → Server → Multiprocess` chain with the same flags, without that import; an AST guard refuses the module any import from `src`, and the early error is rendered by the health check the deployment already reads. In the same spirit, a heavy library — PDF rendering, tabular computation, audio engines — is imported where it is used and never at boot: a list declares each one's measured cost, and a guard refuses any module-level import under `src/`, including one hidden in a module-level `try`.
-
-What a singleton loads is multiplied by the worker count. Keeping one resident transcription model per language ever asked for, in a singleton per process, would grow every worker with each new language; the cache is therefore bounded (`VOICE_STT_MAX_RECOGNIZERS`, one by default), least-recently-used out, nothing loaded at construction, an eviction returns memory to the system — measured — and a decode in flight keeps its own reference. And every worker publishes what it holds: `lia_worker_memory_bytes{kind}` is read by each worker from its own `/proc/self/status`, one series per live worker that disappears with it, drawn on two panels and watched by the `ApiWorkerMemoryHigh` alert, which names the process. It answers a structural limit: cAdvisor sees the container, and prometheus_client's multiprocess mode exports no process metric.
-
-The connection budget has a floor, not only a ceiling. Bounding the burst — what the pools may open — is not enough: every persistent connection is also an idle Postgres backend holding seven megabytes, beside `shared_buffers`. `ConnectionBudget.persistent_total` names that floor, and a guard reads the compose file (memory limit, `shared_buffers`) together with the two shipped `.env` profiles — the full one and the self-hoster's minimal one, absent keys resolving to the code's defaults as at boot: the floor must stay under half the limit, so the database keeps the other half for its cache. Shipped profile: five persistent connections and fifteen overflow per worker, a two-gibibyte limit. Two questions stay open, and are written down: the multi-day growth of a worker without transcription, which the per-worker series make measurable, and the retention of LangGraph checkpoints.
-
-What a worker holds for its whole life takes its **compact form, once**. The tool selector's vectors are `float32` arrays — a 1,536-dimension vector drops from about 49 KB as a list of Python floats to 6 KB —, a person's MCP server vectors are decoded once per catalogue and worker rather than on every turn, an MCP argument class is built once per schema, a BM25 index is replaced when its corpus changes instead of piling up, and the heap the boot built is frozen last in the lifespan: what will live until the process exits leaves the cyclic collector, which then scans only what turns allocate. Each of these items was pointed out by a census of types and sizes, injected into a live worker, before it was touched.
-
-## 43. The live mode: two intelligences, one seam — and one policy per mode
-
-A speech-to-speech session runs on a live model the person connects with **their own key** — a connector category of its own, `live`, additive: several keys may be active, the sessions open on the one chosen, and choosing a model *is* choosing its provider. The provider bills your personal key; the platform ledger does not record that spend. The browser shows the available usage and cost separately. The API mints a single-use credential and renders the setup; the browser replays it verbatim and opens the connection itself, so **without the avatar, Live audio uses the direct provider connection**. Four behaviours of the provider, checked on its real API, each set a rule: a credential's constraint does not lock the system instruction; a used single-use credential cannot reconnect (every reconnection mints a fresh one for the same record); the provider silently accepts an unknown voice name (the voice is validated against a vendored, dated list); a raw browser WebSocket is accepted by one method only.
-
-The design is **one seam between two intelligences** (ADR-299). The voice model owns the conversation — listening, speaking, interrupting, filling a wait — and delegates every request for data or action to the chat engine through one declared `NON_BLOCKING` function, `send_to_lia`. The browser turns that call into an ordinary `POST /chat/stream` under the person's own cookie: the delegated turn runs in the graph (HITL, registers, quotas, archive, learning), draws itself in the thread stamped with the session, and the bridge hands the voice a bounded, flattened answer — or LIA's pending question, which *is* the answer. The voice never holds a tool, a credential or a row of its own. A session is one decision row; each delegated turn is its own run; the closing card sums the runs' own summary rows. A second provider joined without a line of the bridge moving (ADR-300): a provider **declares its wire** — `connection` (`token`: the browser opens the socket with the provider's credential; `offer`: the API mints its own nonce and exchanges the browser's SDP on the person's key) and `delegation_wire` (`tool`; or `native`, where the provider emits an id and an offset, no text, and the request is composed in the browser from the transcript) — and the seam never branches on its name. The third, ElevenLabs Agents, put the person's *agent* where a model stands: everything but the prompt and LIA's tools stays on its portal, its tools are attached to the agent by fingerprint before the mint, and its billing is declared `vendor` — the platform prices nothing, the meter shows the clock alone, and the vendor's own bill is read once at the end, after the close handshake it settles on.
-
-A **direct session** is the phone's line in the browser: the voice holds LIA's read-only tools itself — the phone's derived set minus the person's own switches — behind one tool door under a per-session budget, and never delegates. That choice has a known price: the tool declarations weigh most of the setup and the first turn bills far more than the delegated one — a direct session buys latency, never economy. The provider's usage reports are folded in the browser and priced by the tariff the start publishes, drawn under the last caption; a cost needing an undeclared rate is unavailable, never partial; a live model is offered only when the tariff table declares it. Two measured traps live in the player: Gemini's affective dialog closes the socket at the first thing the model must answer, and Chrome 152 repeats the first render block of a scheduled chunk — the PCM player is one AudioWorklet reading a queue, never one source node per chunk.
-
-The same two modes hold for the phone (ADR-301): relaying the conversation at its *end* on one line while delegating every request *during* it on the other would make two truths for one word. A voice session therefore has a **mode** and a **carrier**, and the policy follows the mode alone: `delegated` (« Live »), every request a chat turn of the person as it is said; `direct` (« Live direct »), the voice reads, acts on nothing, and the words are relayed at the end as the person's own turn. **One closing** serves both lines, called by the browser's end route and the phone's post-call webhook; what the lines share lives outside both, in `domains/voice_sessions/`, and the phone's Live mode is the browser's delegation server-side — an asynchronous vendor tool with the browser's own name and schema, a bridge that mirrors the TypeScript one rule for rule (the newest request wins through a Redis marker the running bridge polls; a question LIA asked is the result and the next request resumes the run that asked). On the vendor's engine the voice announces the call and keeps talking, and a late answer past its bound is lost: the bridge therefore answers before it. The effective mode is derived and published — Live exists only where the callback host is public — and a runner holds no database session across the turn, so no connection sits `idle in transaction` while it talks to the model.
-
-**A session sleeps, it does not die** (ADR-329). The model's silence, a hidden page or the person's button put the session to sleep: the browser closes the connection to the provider — nothing runs or bills — then says so; the record stays claimed, lives to a long standby bound instead of its cap, and moves from the instance's active sessions to its standby set. Only the person ends a session. A wake opens a **new** connection: the API refuses in order (awake already, cap, mint rate, instance cap), **re-renders the setup** at the instant of the wake through the start's own function — the spoken clock, the inner state, the current switches —, mints the credential, and only then writes the record awake: a refusal leaves the session asleep exactly as it was. The memory is the application's, never the provider's; the cap is shifted by the length of the sleep, so every figure — card, decision row, histogram, meter — counts time awake, and a direct session relays its words at each standby. In the browser, a policy (`LiveStandby`) borrows the controller's wire, listens for "Dis LIA" on a capture of its own while the page is visible, and checks after every wait that the session is still the one the store holds.
-
-## 44. Cards that show what was received, and actions that belong to their message
-
-An answer that carries data is rendered by the server as HTML cards, archived with the message, then read back by the chat through a strict sanitiser. Rendering stays **deterministic and server-side** (ADR-332): one renderer, independent of the model and of the execution mode. Typed adapters per family turn providers' aliases, units and optional values into shared primitives — title, full text, facts, native disclosures — and the browser only adds what HTML cannot do: gallery, viewer, time-slot selection, composition. An archived answer opened again goes through the same path; without JavaScript it stays readable.
-
-**A received fact is shown whole, and never invented.** Missing, zero and false are three distinct states: a card does not fabricate a default time, erase a zero cost or use a technical identifier as a name. The source's clock goes through one parser — an explicit offset is authoritative, an unknown zone is never read as UTC, an all-day date stays a civil date — and Microsoft's native recurrence stays a native fact rather than an invented rule. This is a policy for what was **received**: no list requests more fields, and opening a detail calls no provider, no model, no tool.
-
-**The model reads a view, never the card.** The assistant message carries a versioned semantic view of what the person saw; the history, compaction and every later call read it in place of the HTML. A probe had shown it: an e-mail body withheld by the "metadata" mode came back on the next turn through its card's HTML. The "display only" boundary is now guaranteed by construction, and a presentation change buys no extra call and no heavier prompt.
-
-**An action belongs to the message that showed its source.** Replying, forwarding or adjusting a reminder from a card prepares a request, never a send: at the click, the server re-reads the answer — the account's, in the current conversation, from its run — the canonical source and the account's grant; approval, modification and resumption re-check the same binding, and a source with no structural binding to an account offers no action. An HTML class or an attribute written by external text never authorises anything.
-
-**A map in the browser is a counted expense.** A route can open as an interactive Google map on the provider's exact geometry; picking an alternative recomputes nothing. Activation is explicit and announces its estimated cost; the key is released only after authenticated admission, under the account and instance ceilings, bound by a short-lived signed grant, and every construction is recorded in the existing registers under one durable run — with no new table. What LIA counts is the construction the browser observed, not Google's invoice: the key still has to be restricted and capped at the provider.
-
-Overlays — dialogs, menus, lists, tooltips, viewers, notifications — share one glass built on the theme tokens; a preference for reduced transparency or forced colours makes a surface opaque, reduced motion removes decorative transitions, and a dialog returns focus to the control that opened it. Every renderer is tested from its real producer through registry serialisation, with explicit zeros, falses, absences and hostile inputs.
-
-A selection is claimed only when evidence establishes which items and dates it covers; an uncertain temporal filter keeps the canonical results. MCP cards name the server, its public origin and the called method across structured, list and text outputs; a declared cooldown is shared across workers. Weather symbols follow the supplied conditions. Deleting an e-mail from its card verifies the exact connected mailbox and still requires confirmation.
-
-**A place gives its details and one route, counted once** (ADR-355, ADR-356). The Position card numbers every place — the same number in the list and on its pin. Selecting one shows the facts the answer already acquired, with no new search, and computes one route through a single authenticated endpoint that owns the origin: the browser position when it is already granted, else the dated last known one, else home; walking up to 2 km inclusive, otherwise driving, corrected once when the actual walk is longer. Each paid call is filed exactly once under the existing pricing and quotas, refusals and cancellations included, and desktop popups and phone dialogs share the same facts and one scrolling region.
-
----
-
-## 45. Application commands: an intention, current authority
-
-Chat can read preferences and prepare operations on LIA resources, according to the catalogue actually offered. A declared operation defines its inputs, results, UI sections, required rights and confirmation policy. Offered values reuse native choices and labels; the model cannot invent a new form option.
-
-### A command bound to its content
-
-Approval names precise content and its digest. A command retains its identity, phase, expiry and account/origin/device context; sensitive content is encrypted. At writing time, the executor reads authority and the resource version again. A version comparison (CAS) rejects writing prepared against a stale state. A fenced claim bounds duplicate application execution without promising exactly-once transactions across all external providers.
-
-### Private input stays in its interface
-
-A continuation hands the operation to the authenticated browser for OAuth, a key, a file or device consent. Origin and session are checked; private values do not become model arguments. Events can ask the interface to reread affected resources without exposing their new values or private administrator content. Payload encryption never replaces access checks.
-
-### The answer follows evidence, not intention
-
-A prepared request, an awaited confirmation and a recorded change are different states. LIA reports observed results and distinguishes partial results, waiting, conflicts, expiry and failure. If the resource changed after preparation, the command may be refused and need a new request. Delegation to a tool does not by itself prove all its internal effects.
-
-### Fresh reads and identified tools
-
-Independent reads explicitly eligible for parallel execution can run in checkpointed segments with bounded concurrency. Mutations do not gain that permission merely by appearing nearby in a plan. A stop before checkpoint can still cause a source to be read again; local reuse therefore promises neither one global read nor permanently fresh state.
-
-In ReAct, an exact, complete and still fresh read may be reused within the same request. A change invalidates affected observations; a different request may need a new read. References retain their type and source: a city is not a contact. Dates follow the request context and time zone; weather declares its units rather than guessing a conversion for an unknown value.
-
-LIA uses the schemas and result contracts actually discovered, with their identity, age and fingerprint. A readable name or alias does not replace the offered server and tool identity. Personal and administrator servers remain separate. Structured results can be used where their contract permits; arbitrary schemas or external data do not become internal truth. Missing or uncertain contracts stay declared as such, with applicable confirmation protections.
-
-### Visual choices and explicit limits
-
-Native companions use artwork prepared offline and a shared rig. Their volume is approximate, with facial elements and accessories attached to head motion; it does not reconstruct all hidden anatomy. Motion has a single owner, resources have a lifecycle and reduced or static display remains available. The presentation film uses UI replicas and demonstration data; it proves neither device performance nor television broadcast certification.
-
-JEV decisions are configured under Administration › JEV integrations, with a general switch and independent usages. They are optional and off by default, and require valid configuration and prices. The model helps classify a value or choose within a declared scope, while compatibility rules, permissions and execution stay in code. Uncertain, unavailable or disabled judgments fall back to deterministic protections. Diagnostics are opt-in and bounded; parameter_kind is off by default. A paid failed call and its fallback both count. Test-corpus results do not promise the same benefit on all your requests.
-
-The oMLX, llama.cpp and LM Studio studies are qualification or design work, not new shipped integrations. Use the providers actually offered by your instance. The Simli video avatar remains experimental, opt-in and dependent on an external service; it is separate from native companions.
-
----
-
-## 46. LIA World
-
-The world offers another interface to the existing assistant: an authored isometric house and garden drawn in the browser with **Canvas 2D**, with React controls and private native panels. Cached drawing, viewport culling, graphics quality tiers and reduced motion bound the client work. Walking, LIA’s patrol and decorative atmosphere call no model; atmosphere reuses fresh cached weather without a new provider request.
-
-**Shared presence has a server authority.** A native authenticated session obtains a short-lived, single-use ticket; WebSocket authentication uses the first frame, never URL credentials. Redis coordinates admission, collisions, connection leases and control of a tab. Account policy, capabilities and block relationships filter every view. If authority becomes unavailable, movement suspends rather than inventing an independent local world.
-
-**Public appearance is a choice; private work stays private.** Admission requires consent to publish the selected name and avatar in the world; accepted connections also receive coarse presence and home status. Shared movement does not carry home contents, documents or assistant context. Home colour preferences and avatar changes retain owner and revision checks, export and account-deletion handling. Rooms derive their functions from the native inventories and open the existing workspace or panels; they do not grant extra rights, send a draft or bypass HITL.
-
-**Human text has its own lifetime.** Temporary private Redis bodies and content-free SQL attempt fences separate direct messages from assistant history and learning. The dedicated `world_message_translator` slot follows native model resolution, spend controls and private usage receipts. Only an explicit choice starts a paid translation; the original is preserved, and a failed or uncertain attempt is never retried automatically. The server validates strict versioned messages and bounded sizes. Browser tests and automated accessibility checks support the WCAG AA target; they do not certify physical-device performance or a supplier’s linguistic fidelity. Peer voice and federation remain outside this implementation.
-
-**Games have an authority too.** Each cabinet binds one deterministic rule engine — tic-tac-toe, four-in-a-row or Reversi — and the Redis authority that arbitrates movement also owns consent, moves, results, deadlines and rematches. A joining player is admitted only by the host’s explicit acceptance. Every command carries its round, revision, controller and operation identity, so an uncertain acknowledgement is retried exactly and never replays a move on a new board. The computer is a bounded local search with a legal fallback, prepared before any lock is taken; it calls no model. Only current participants receive the board, and account erasure removes memberships, requests and receipts.
-
-**A photo is a projection, not a screenshot.** Copying the live Canvas would capture visitors and overlays, so an allowlisted still — the owner’s appearance and pose, LIA, the camera and public scenery — is drawn by an independent renderer and exported as a bounded JPEG with a fixed signature. The mobile shells advertise a native share capability, validate the bytes and keep them in a private expiring cache; nothing is uploaded.
-
-**Gestures and signals stay finite.** Six gestures are confirmed by the server and rate-limited. Objects show bounded counts of the owner’s own reminders, messages, tickets and generated files, read through the native endpoints. Seasons, decor reactions and LIA’s expression are local presentation: they persist nothing and call no provider.
-
-The **Everyone channel** freezes eligible live recipients when a message is accepted, excluding blocked accounts and private homes. Late arrivals do not receive old broadcasts. Translation batches the required languages through the same dedicated slot, with sender-paid accounting and no automatic paid replay. Public and private threads retain separate drafts, consent and read positions.
-
-**Optional local sound** uses static original room and garden assets with a separate account-scoped volume. Playback starts by choice, makes no provider call and yields to microphone, assistant voice, Live and Radio. Leaving, backgrounding or losing authority suspends the sound lifecycle.
-
----
-
-## 47. Conclusion
-
-LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
-
-The 363 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The 69,000+ automated tests, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
-
-The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
-
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (800+ documents), 363 ADRs, and the changelog (v1.0 to v4.1.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+The code is under AGPL-3.0, on [GitHub](https://github.com/jgouviergmail/LIA-Assistant).

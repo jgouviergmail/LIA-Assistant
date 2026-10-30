@@ -319,3 +319,42 @@ class ChatStreamChunk(BaseModel):
         default=None,
         description="Optional metadata (routing info, token count, tool approvals, etc.)",
     )
+
+
+#: The notices a turn streams while it waits for the person's servers (spec 2026-10-21 §5.6).
+#: ``mcp_preparation`` is a progress step (``execution.steps.*``, drawn by the step
+#: accumulator like every other step); the four others are per-server notices.
+MCPPreparationKey = Literal[
+    "mcp_preparation",
+    "chat.mcp_preparation.slow",
+    "chat.mcp_preparation.deferred",
+    "chat.mcp_preparation.ready",
+    "chat.mcp_preparation.failed",
+]
+
+
+class MCPPreparationNotice(BaseModel):
+    """The metadata of one ``execution_step`` chunk about a personal server's preparation.
+
+    Structured data and a label key only: the browser words it in the person's
+    language. Never part of the state, the archive or the answer's timing.
+    """
+
+    step_type: Literal["mcp_preparation"] = Field(
+        default="mcp_preparation", description="Routes the chunk to the preparation notices."
+    )
+    i18n_key: MCPPreparationKey = Field(description="The label key the browser translates.")
+    emoji: str | None = Field(
+        default=None, description="The progress step's glyph; None on a per-server notice."
+    )
+    server_key: str | None = Field(
+        default=None,
+        description="The server's id — stable across one turn's notices; None for the generic step.",
+    )
+    server_name: str | None = Field(
+        default=None, description="The server's name as the person wrote it, shown as text."
+    )
+    phase: Literal["discovering", "slow", "ready", "failed", "timed_out", "deferred"] = Field(
+        description="The preparation phase the notice reports."
+    )
+    elapsed_ms: int = Field(ge=0, description="Milliseconds since the turn started preparing.")

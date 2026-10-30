@@ -37,6 +37,7 @@ from src.infrastructure.llm.providers.responses_adapter import (
     create_responses_llm,
     is_responses_api_eligible,
 )
+from src.infrastructure.llm.providers.retry_policy import apply_relaunch_policy
 from src.infrastructure.llm.reasoning.profiles import is_deepseek_thinking_model
 from src.infrastructure.llm.reasoning.translate import kwargs_for as reasoning_kwargs_for
 from src.infrastructure.observability.logging import get_logger
@@ -322,7 +323,7 @@ class ProviderAdapter:
             kwargs=kwargs,
         )
         if dedicated is not None:
-            return dedicated
+            return apply_relaunch_policy(dedicated)
 
         # Prepare provider-specific configuration
         # Phase 6: Pass streaming flag for stream_options injection (OpenAI)
@@ -391,7 +392,8 @@ class ProviderAdapter:
                 llm_type=llm_type,
             )
 
-            return llm
+            # Spec 2026-10-21 E2: one relaunch policy for every family (retry_policy.py).
+            return apply_relaunch_policy(llm)
 
         except Exception as e:
             logger.error(

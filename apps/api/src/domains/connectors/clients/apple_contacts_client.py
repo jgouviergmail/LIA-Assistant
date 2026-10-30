@@ -323,7 +323,11 @@ class AppleContactsClient(BaseAppleClient):
         organization: str | None = None,
         notes: str | None = None,
     ) -> dict[str, Any]:
-        """Create a new contact."""
+        """Create a new contact.
+
+        Its uid — the last segment of its URL — is drawn BEFORE the retry loop, so a
+        resend after a lost answer writes the same contact again, never a second one (S1).
+        """
         return await self._execute_with_retry(
             "create_contact",
             self._create_contact_impl,
@@ -332,6 +336,7 @@ class AppleContactsClient(BaseAppleClient):
             phone,
             organization,
             notes,
+            contact_uid=str(uuid.uuid4()),
         )
 
     async def update_contact(
@@ -586,14 +591,15 @@ class AppleContactsClient(BaseAppleClient):
         phone: str | None,
         organization: str | None,
         notes: str | None,
+        *,
+        contact_uid: str,
     ) -> dict[str, Any]:
-        """Create a new contact via CardDAV PUT."""
+        """Create a new contact via CardDAV PUT, at the uid its caller drew."""
         addressbook_url = await self._discover_addressbook()
         client = await self._get_http_client()
 
         # Build vCard
         vcard_str = build_vcard(name, email, phone, organization, notes)
-        contact_uid = str(uuid.uuid4())
         contact_url = f"{addressbook_url.rstrip('/')}/{contact_uid}.vcf"
 
         resp = await client.put(

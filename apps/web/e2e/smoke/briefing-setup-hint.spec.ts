@@ -36,7 +36,7 @@ const empty = {
 /** The shape of a brand-new account: nothing connected yet. */
 const FRESH_ACCOUNT: MockRoute[] = [
   {
-    url: '**/api/v1/briefing/cards',
+    url: '**/api/v1/briefing/cards/initial',
     json: {
       windows: briefingWindowsMock,
       cards: {
@@ -51,11 +51,23 @@ const FRESH_ACCOUNT: MockRoute[] = [
         for_you: empty,
         workboard: empty,
       },
+      pending: [],
+      act: 'e2e-act',
+      act_expires_at: '2099-01-01T00:00:00Z',
+      section_concurrency: 4,
     },
   },
   {
-    url: '**/api/v1/briefing/synthesis',
-    json: { greeting: 'Bonjour', synthesis: null, generated_at: GENERATED_AT, llm_usage: null },
+    url: '**/api/v1/briefing/text',
+    method: 'POST',
+    json: {
+      greeting: 'Bonjour',
+      synthesis: null,
+      generated_at: GENERATED_AT,
+      llm_usage: null,
+      reused: false,
+      state: 'ready',
+    },
   },
   { url: '**/api/v1/usage/**', json: {} },
 ];
@@ -122,7 +134,7 @@ test.describe('an unconfigured dashboard says so', () => {
     await authenticate({ language: 'fr' });
     await mockApi([
       {
-        url: '**/api/v1/briefing/cards',
+        url: '**/api/v1/briefing/cards/initial',
         json: {
           windows: briefingWindowsMock,
           cards: {
@@ -137,6 +149,10 @@ test.describe('an unconfigured dashboard says so', () => {
             for_you: ok,
             workboard: empty,
           },
+          pending: [],
+          act: 'e2e-act',
+          act_expires_at: '2099-01-01T00:00:00Z',
+          section_concurrency: 4,
         },
       },
       ...FRESH_ACCOUNT.slice(1),

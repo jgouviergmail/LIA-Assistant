@@ -186,6 +186,8 @@ async def test_both_mcp_adapters_keep_wire_aliases_converted_values_and_extras(
         tool_name: str,
         arguments: dict[str, object],
         timeout_seconds: int,
+        built_from: str | None = None,
+        declaration: object = None,
     ) -> str:
         received.append(arguments)
         return '{"answer": "found"}'

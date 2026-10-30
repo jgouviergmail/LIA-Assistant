@@ -166,9 +166,14 @@ async def init_user_mcp_pool() -> None:
             )
         )
         try:
+            from src.infrastructure.mcp.catalogue_revalidation import (
+                schedule_catalogue_revalidation,
+            )
             from src.infrastructure.mcp.user_pool import initialize_user_mcp_pool
 
-            await initialize_user_mcp_pool()
+            pool = await initialize_user_mcp_pool()
+            # A catalogue proved stale at use is refreshed in the background (§5.5).
+            pool.on_stale_catalogue = schedule_catalogue_revalidation
             logger.info("user_mcp_pool_initialized")
         except Exception as exc:
             logger.error("user_mcp_pool_initialization_failed", error=str(exc), exc_info=True)

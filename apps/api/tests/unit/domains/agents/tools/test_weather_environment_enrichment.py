@@ -85,6 +85,8 @@ def _client() -> MagicMock:
     client = MagicMock()
     client.get_air_quality = AsyncMock(return_value=dict(_AQ_PAYLOAD))
     client.get_pollen_forecast = AsyncMock(return_value=dict(_POLLEN_PAYLOAD))
+    # The real client owns a pooled HTTP client the enrichment closes.
+    client.close = AsyncMock()
     return client
 
 
@@ -124,6 +126,7 @@ class TestEnvironmentExtras:
         assert extras["aqi_category"] == "Dégradé"
         # Only the in-season type with a real index survives.
         assert extras["pollen"] == [{"name": "Graminées", "category": "Élevé", "index": 4}]
+        client.close.assert_awaited_once()
 
     async def test_local_index_without_a_number_keeps_its_category(self) -> None:
         # MEASURED in prod (2026-08-21): the French national index `fra_atmo`
@@ -260,3 +263,20 @@ class TestEnvironmentExtras:
         assert extras == {"aqi": 2, "aqi_category": "Bon", "pollen": []}
         client.get_air_quality.assert_not_awaited()
         client.get_pollen_forecast.assert_not_awaited()
+
+
+class TestExtrasWhenActive:
+    """The switch is read by the caller; the extras run beside its own provider calls."""
+
+    async def test_a_switch_read_off_reads_nothing(self) -> None:
+        fetch = AsyncMock(return_value={"aqi": 2})
+        with patch.object(enrichment, "fetch_environment_extras", new=fetch):
+            assert await enrichment.extras_when_active(False, uuid4(), 1.0, 2.0, "en") is None
+        fetch.assert_not_awaited()
+
+    async def test_a_switch_read_on_returns_the_extras(self) -> None:
+        user_id = uuid4()
+        fetch = AsyncMock(return_value={"aqi": 2})
+        with patch.object(enrichment, "fetch_environment_extras", new=fetch):
+            assert await enrichment.extras_when_active(True, user_id, 1.0, 2.0, "en") == {"aqi": 2}
+        fetch.assert_awaited_once_with(user_id, 1.0, 2.0, "en")

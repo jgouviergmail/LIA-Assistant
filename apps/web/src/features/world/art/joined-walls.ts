@@ -49,12 +49,35 @@ function decorate(p: Painter, o: WorldProp): void {
   panel(0.07, bottom - 0.06, 0.86, 0.06, '#e4cfa8');
 }
 
+function joinedProfile(mask: number, thickness: number): Point[] {
+  const contour = wallProfile(mask, thickness);
+  // A straight side is one polygon: subdividing it at each profile grid point
+  // introduced transparent vertical seams inside a single cached wall sprite.
+  const outline = contour.filter((point, i) => {
+    const previous = contour[(i + contour.length - 1) % contour.length],
+      next = contour[(i + 1) % contour.length];
+    return !(
+      (previous.x === point.x && next.x === point.x) ||
+      (previous.y === point.y && next.y === point.y)
+    );
+  });
+  // Adjacent anti-aliased edges leave hairlines when two cached tiles merely
+  // touch. Overlap only connected ends, keeping real openings and ends intact.
+  for (const point of outline) {
+    if (point.x === 0 && mask & 4) point.x -= 0.08;
+    if (point.x === 1 && mask & 1) point.x += 0.08;
+    if (point.y === 0 && mask & 8) point.y -= 0.08;
+    if (point.y === 1 && mask & 2) point.y += 0.08;
+  }
+  return outline;
+}
+
 /** Every L/T/cross junction has one continuous body and one continuous coping. */
 export function paintJoinedWall(p: Painter, o: WorldProp): void {
   const mask = o.wallConnections ?? 0,
     palette = wallPalette(o);
-  const body = wallProfile(mask, WALL_BODY_THICKNESS),
-    cap = wallProfile(mask, 0.34);
+  const body = joinedProfile(mask, WALL_BODY_THICKNESS),
+    cap = joinedProfile(mask, 0.34);
   const tall = o.height > 2;
   extrude(p, body, 0, o.height - 0.12, tall ? palette.body : '#344957');
   if (tall) decorate(p, o);

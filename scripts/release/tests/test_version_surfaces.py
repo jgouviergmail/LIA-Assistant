@@ -82,20 +82,6 @@ def _fake_repo(tmp_path: Path, version: str = "1.31.2") -> Path:
     # The six localized label/separator shapes actually used by the guides.
     _write(guides / "how.en.md", "# How\n\n**Application**: LIA v%s\n" % version)
     _write(guides / "how.fr.md", "# How\n\n**Application** : LIA v%s\n" % version)
-    # The `how` guides close on a provenance note naming the changelog range
-    # they were written against. It is a version surface, and it stopped at
-    # v1.33.0 for four releases while their own sections described v1.37.0.
-    for locale, separator in (
-        ("en", "to"),
-        ("fr", "à"),
-        ("de", "bis"),
-        ("es", "a"),
-        ("it", "a"),
-        ("zh", "至"),
-    ):
-        note = guides / f"how.{locale}.md"
-        head = note.read_text(encoding="utf-8") if note.exists() else "# How\n"
-        _write(note, head + "\n*Written from the changelog (v1.0 %s v%s).*\n" % (separator, version))
     _write(guides / "why.de.md", "# Why\n\n**Anwendung**: LIA v%s\n" % version)
     _write(guides / "why.es.md", "# Why\n\n**Aplicación**: LIA v%s\n" % version)
     _write(guides / "story.it.md", "# Story\n\n**Applicazione**: LIA v%s\n" % version)
@@ -143,8 +129,8 @@ def _write_metric_source(root: Path, metrics: int) -> None:
 def _write_faq_source(root: Path, questions: int) -> None:
     """Give the English locale a FAQ of ``questions`` questions in two sections.
 
-    Merged into whatever the locale already holds (the blog articles the
-    metric surfaces quote), so neither source overwrites the other.
+    Merged into whatever the locale already holds (the story meta description
+    the ADR surfaces quote), so neither source overwrites the other.
     """
     first = questions // 2
     sections = {
@@ -157,17 +143,6 @@ def _write_faq_source(root: Path, questions: int) -> None:
     data = json.loads(locale.read_text(encoding="utf-8")) if locale.exists() else {}
     data["faq"] = {"sections": sections}
     _write(locale, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-
-
-#: How each `why` guide quotes the FAQ's size (the shape its language uses).
-_WHY_FAQ_LINES = {
-    "en": "every feature has its section \u2014 %d questions, in six languages \u2014, and",
-    "fr": "chaque fonction y a sa section \u2014 %d questions, en six langues \u2014, et",
-    "de": "jede Funktion hat ihren Abschnitt \u2014 %d Fragen in sechs Sprachen \u2014, und",
-    "es": "cada funci\u00f3n tiene su secci\u00f3n \u2014%d preguntas, en seis idiomas\u2014, y",
-    "it": "ogni funzione ha la sua sezione \u2014 %d domande, in sei lingue \u2014, e",
-    "zh": "\u516d\u79cd\u8bed\u8a00\uff0c\u5171 %d \u4e2a\u95ee\u9898",
-}
 
 
 #: The fixture dashboards: (dashboards, numbered dashboards, panels with rows excluded).
@@ -263,79 +238,6 @@ def _fake_counts(
         existing = path.read_text(encoding="utf-8") if path.exists() else "# Guide\n"
         _write(path, existing + text)
 
-    # The six `why` guides quote the FAQ's size once each (v3.2.0).
-    for locale, line in _WHY_FAQ_LINES.items():
-        _append(f"why.{locale}.md", "\n" + line % faq_questions + "\n")
-
-    # The `how` guides quote the ADR count FOUR times each: the codebase-metrics
-    # table, the reliability row, and two prose sentences. Only the label is
-    # translated. The prose pair joined the fixture at v1.37.0: the declared
-    # surface matched the table shape only, so those two occurrences drifted to
-    # 245 against a real 248 in five locales while the guard stayed green.
-    for locale, metrics_label in (
-        ("en", "ADRs (Architecture Decision Records)"),
-        ("fr", "ADRs (Architecture Decision Records)"),
-        ("de", "ADRs (Architecture Decision Records)"),
-        ("es", "ADRs (Architecture Decision Records)"),
-        ("it", "ADR (Architecture Decision Record)"),
-    ):
-        _append(
-            f"how.{locale}.md",
-            f"\n| {metrics_label} | {adr_files} |\n\n{adr_files} ADRs, ~20,000 tests.\n\n"
-            f"{adr_files} ADRs in MADR format document the decisions.\n\n"
-            f"The {adr_files} ADRs document the rejected alternatives too.\n\n"
-            f"*Written from the source code and {adr_files} ADRs.*\n",
-        )
-
-    # The metric count appears TWICE per `how` guide — the transparency row and
-    # the stack table — in six translated shapes. The pattern is anchored on the
-    # table cell because the same guides legitimately say "23 Prometheus metrics
-    # files" and "11 Prometheus metrics in metrics_journals.py" about something
-    # else entirely; the fixture carries one of those decoys so the anchoring is
-    # actually exercised.
-    for locale, transparency, stack in (
-        ("en", "%d Prometheus metrics, embedded debug panel", "%d custom metrics (RED pattern)"),
-        ("fr", "%d métriques Prometheus, debug panel embarqué", "%d métriques custom (RED pattern)"),
-        ("de", "%d Prometheus-Metriken, eingebettetes Panel",
-         "%d benutzerdefinierte Metriken (RED Pattern)"),
-        ("es", "%d métricas Prometheus, debug panel integrado", "%d métricas custom (RED pattern)"),
-        ("it", "%d metriche Prometheus, debug panel integrato", "%d metriche custom (RED pattern)"),
-        ("zh", "%d Prometheus 指标、内嵌调试面板", "%d 自定义指标（RED 模式）"),
-    ):
-        _append(
-            f"how.{locale}.md",
-            f"\n| Transparency | {transparency % metrics} |\n"
-            f"| Prometheus | {stack % metrics} |\n\n"
-            "The tree holds 23 Prometheus metrics files, and journals define "
-            "11 Prometheus metrics in one module — neither follows the total.\n",
-        )
-
-    # The same guides restate the total once more, in PROSE — the sentence that
-    # drifted for four releases (490 against a real 492) while every guarded
-    # table cell above stayed green. A guard that watches a table is blind to a
-    # paragraph, so the sentence has its own surface and its own fixture line.
-    for locale, sentence in (
-        ("en", "%d defined; the 57 that reach nothing are listed explicitly."),
-        ("fr", "%d définies ; les 57 qui n'atteignent rien sont listées."),
-        ("de", "%d definiert; die 57, die nichts erreichen, stehen ausdrücklich."),
-        ("es", "%d definidas; las 57 que no llegan a nada figuran explícitamente."),
-        ("it", "%d definite; le 57 che non raggiungono nulla sono elencate."),
-        ("zh", "%d 项；其中 57 项没有到达任何面板。"),
-    ):
-        _append(f"how.{locale}.md", f"\n{sentence % metrics}\n")
-
-    # And a THIRD time, in the codebase-metrics table: the row that still said
-    # 589 against a real 593 because no surface declared it (2026-09-26).
-    for locale, row in (
-        ("en", "| Prometheus metrics | %d definitions |"),
-        ("fr", "| Métriques Prometheus | %d définitions |"),
-        ("de", "| Prometheus-Metriken | %d Definitionen |"),
-        ("es", "| Métricas Prometheus | %d definiciones |"),
-        ("it", "| Metriche Prometheus | %d definizioni |"),
-        ("zh", "| Prometheus 指标 | %d 定义 |"),
-    ):
-        _append(f"how.{locale}.md", f"\n{row % metrics}\n")
-
     # GETTING_STARTED and the observability guide quote it too — undeclared
     # until 2026-10-14, when they read 606 and 419 against a real 621. The
     # GETTING_STARTED row is APPENDED: the file already carries a version stamp.
@@ -365,22 +267,6 @@ def _fake_counts(
         root / "docs" / "technical" / "OBSERVABILITY_AGENTS.md",
         f"- `infrastructure/observability/grafana/dashboards/` - {dashboards} dashboards Grafana\n",
     )
-    for locale, pillar in (
-        ("en", "(%d dashboards / %d panels covering app, infra)"),
-        ("fr", "(%d dashboards / %d panels couvrant app, infra)"),
-        ("de", "(%d Dashboards / %d Panels, die App abdecken)"),
-        ("es", "(%d dashboards / %d paneles que cubren app)"),
-        ("it", "(%d dashboard / %d pannelli che coprono app)"),
-        ("zh", "（%d 个仪表盘 / %d 面板，覆盖应用）"),
-    ):
-        _append(f"how.{locale}.md", "\nPillars: " + pillar % (dashboards, panels) + "\n")
-    for locale, row in (
-        ("fr", "| Grafana | %d dashboards production-ready |"),
-        ("es", "| Grafana | %d dashboards production-ready |"),
-        ("it", "| Grafana | %d dashboard production-ready |"),
-        ("zh", "| Grafana | %d 个生产就绪仪表板 |"),
-    ):
-        _append(f"how.{locale}.md", "\n" + row % dashboards + "\n")
     _write(
         root / "docs" / "guides" / "GUIDE_OBSERVABILITY.md",
         "# Observability\n\n"
@@ -389,11 +275,6 @@ def _fake_counts(
         "*As of 2026-07-17: all 419 code-defined metrics were referenced.*\n",
     )
 
-    # And the blog article, in the six locales, THREE times each: the title, the
-    # body and the excerpt (the excerpt joined on 2026-09-26, found at 589
-    # against a real 593). Anchored on what FOLLOWS the number, because the
-    # bare phrase also matches an unrelated "5 métriques Prometheus" elsewhere
-    # in the same bundle — the decoy below exercises exactly that.
     # The Story page's meta description quotes the ADR count once per locale
     # (v3.6.0: it still said 360 while every guarded surface had moved on).
     story_descriptions = {
@@ -404,81 +285,21 @@ def _fake_counts(
         "it": "67.000+ test, %d ADR, un audit tecnico da 7,8/10.",
         "zh": "67,000+ 个测试，%d 份架构决策记录，一次 7.8/10 的技术审计。",
     }
-    blog_dashboards = {
-        "en": "%d Grafana Dashboards, and Langfuse Tracing",
-        "fr": "%d dashboards Grafana et tracing Langfuse",
-        "de": "%d Grafana-Dashboards und Langfuse-Tracing",
-        "es": "%d dashboards Grafana y tracing Langfuse",
-        "it": "%d dashboard Grafana e tracing Langfuse",
-        "zh": "%d个Grafana仪表板和Langfuse追踪",
-    }
-    blog_paragraphs = {
-        "en": "<h2>%(d)d Grafana dashboards</h2><p>LIA provides %(d)d Grafana dashboards, "
-        "%(n)d of them numbered 01 to %(n)d: alpha, beta.</p>",
-        "fr": "<h2>%(d)d dashboards Grafana</h2><p>LIA fournit %(d)d tableaux de bord Grafana, "
-        "dont %(n)d numérotés de 01 à %(n)d : alpha, beta.</p>",
-        "de": "<h2>%(d)d Grafana-Dashboards</h2><p>LIA liefert %(d)d Grafana-Dashboards, "
-        "davon %(n)d nummeriert von 01 bis %(n)d: alpha, beta.</p>",
-        "es": "<h2>%(d)d dashboards Grafana</h2><p>LIA proporciona %(d)d paneles de control "
-        "Grafana, %(n)d de ellos numerados del 01 al %(n)d: alpha, beta.</p>",
-        "it": "<h2>%(d)d dashboard Grafana</h2><p>LIA fornisce %(d)d dashboard Grafana, "
-        "di cui %(n)d numerati da 01 a %(n)d: alpha, beta.</p>",
-        "zh": "<h2>%(d)d个Grafana仪表板</h2><p>LIA提供%(d)d个Grafana仪表板，"
-        "其中%(n)d个编号为01至%(n)d：alpha、beta。</p>",
-    }
-    for locale, title, body_text, excerpt in (
-        ("en", "%d Prometheus Metrics, ",
-         "%d Prometheus metrics covering HTTP, agents, tokens",
-         "LIA offers enterprise-grade observability with %d metrics, dedicated dashboards."),
-        ("fr", "%d métriques Prometheus, ",
-         "%d métriques Prometheus couvrant HTTP, agents, tokens",
-         "LIA offre une observabilité de niveau entreprise avec %d métriques, des dashboards."),
-        ("de", "%d Prometheus-Metriken, ",
-         "%d Prometheus-Metriken für HTTP, Agenten, Token",
-         "LIA bietet Enterprise-Observability mit %d Metriken, dedizierten Grafana-Dashboards."),
-        ("es", "%d métricas Prometheus, ",
-         "%d métricas Prometheus que cubren HTTP, agentes, tokens",
-         "LIA ofrece observabilidad empresarial con %d métricas, dashboards Grafana."),
-        ("it", "%d metriche Prometheus, ",
-         "%d metriche Prometheus che coprono HTTP, agenti, token",
-         "LIA offre osservabilità enterprise con %d metriche, dashboard Grafana."),
-        ("zh", "%d个Prometheus指标、",
-         "%d个Prometheus指标，覆盖HTTP、智能体、Token",
-         "LIA提供企业级可观测性：%d个指标、专用Grafana仪表板。"),
-    ):
-        paragraph = blog_paragraphs[locale] % {"d": dashboards, "n": numbered}
+    for locale, description in story_descriptions.items():
         _write(
             root / "apps" / "web" / "locales" / locale / "translation.json",
-            '{\n  "blog": {\n    "articles": {\n      "observability": {\n'
-            f'        "title": "{title % metrics}{blog_dashboards[locale] % dashboards}",\n'
-            f'        "body": "<p>{body_text % metrics}</p>{paragraph}",\n'
-            f'        "excerpt": "{excerpt % metrics}",\n'
-            '        "decoy": "5 métriques Prometheus ailleurs, sans rapport"\n'
-            "      }\n    }\n  },\n"
-            f'  "story": {{\n    "meta": {{\n'
-            f'      "description": "{story_descriptions[locale] % adr_files}"\n'
+            f'{{\n  "story": {{\n    "meta": {{\n'
+            f'      "description": "{description % adr_files}"\n'
             "    }\n  }\n}\n",
         )
 
-    # The summary written for language models quotes the landing's three counts.
+    # The summary written for language models quotes the landing's three counts
+    # and the dashboard count.
     _write(
         root / "apps" / "web" / "public" / "llms.txt",
         "# LIA\n\n"
-        f"- Observability: {metrics} Prometheus metrics, 26 Grafana dashboards.\n"
+        f"- Observability: {metrics} Prometheus metrics, {dashboards} Grafana dashboards.\n"
         f"- Engineering: {adr_files} Architecture Decision Records, {releases} releases.\n",
-    )
-
-    # zh writes those two counters in its own shapes, plus a third sentence
-    # saying "篇 MADR" — one word away from the "篇 ADR" pattern, which is
-    # exactly how that digit drifted while its five siblings were corrected.
-    zh = guides / "how.zh.md"
-    existing = zh.read_text(encoding="utf-8") if zh.exists() else "# How\n"
-    _write(
-        zh,
-        existing + f"\n可靠性：{adr_files} 篇 ADR。\n\n结论：{adr_files} 篇 ADR。\n\n"
-        f"*页脚：{adr_files} 篇 ADR*\n\n"
-        f"| ADR（架构决策记录） | {adr_files} 篇 |\n\n"
-        f"{adr_files} 篇 MADR 格式的 ADR。\n",
     )
 
     # The `story` guides quote three counters each: two key-figure rows and the
@@ -677,33 +498,22 @@ class TestDerivedCounts:
 
         assert any(item.source == "adr_files" for item in by_path["CLAUDE.md"])
         assert any(item.source == "adr_latest" for item in by_path["CLAUDE.md"])
-        zh = by_path["apps/web/src/data/guides/how.zh.md"]
-        # Three surfaces read the ADR count in this one file: the repeated
-        # "N 篇 ADR" phrasing (three occurrences, hence its expected count), the
-        # codebase-metrics table, and the "N 篇 MADR" sentence that sat one word
-        # outside the first pattern and drifted alone while its five siblings
-        # were fixed. Three more read the metric count: the two table cells, the
-        # coverage sentence, and the codebase-metrics row that drifted to 589
-        # while no surface declared it.
+        zh = by_path["apps/web/src/data/guides/story.zh.md"]
+        # One guide quotes two sources: the ADR count twice (the key-figures row
+        # and the structural-decisions sentence, prose a table guard cannot see)
+        # and the release count once.
         by_label: dict[str, int] = {}
         for item in zh:
             by_label[item.label] = by_label.get(item.label, 0) + 1
         assert by_label == {
-            "how.zh.md ADR count (the zh guide quotes an exact number, "
-            "the 5 others say '100+')": 3,
-            "how.zh.md codebase-metrics table (ADR count)": 1,
-            "how.zh.md MADR sentence (ADR count)": 1,
-            "how.zh.md metric count (transparency row + Prometheus row)": 2,
-            "how.zh.md metric count (coverage sentence)": 1,
-            "how.zh.md codebase-metrics row (metric count)": 1,
-            "how.zh.md observability pillars (grafana_dashboards)": 1,
-            "how.zh.md observability pillars (grafana_panels)": 1,
-            "how.zh.md stack table (dashboard count)": 1,
+            "story.zh.md key figures (ADR count)": 1,
+            "story.zh.md key figures (release count)": 1,
+            "story.zh.md structural-decisions sentence (ADR count)": 1,
         }
         # Two sources read the same file, so the ADR assertion has to name the
         # source it means — otherwise adding a surface would silently weaken it.
         assert all(item.value == 241 for item in zh if item.source == "adr_files")
-        assert all(item.value == 3 for item in zh if item.source == "prometheus_metrics")
+        assert all(item.value == 223 for item in zh if item.source == "changelog_releases")
 
     def test_a_stale_quoted_count_is_visible(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -881,19 +691,7 @@ class TestSyncDerivedCounts:
         }
         assert all(item.value == counts[item.source] for item in count_occurrences(root))
         assert "CLAUDE.md" in changed
-        assert f"{GUIDES_DIR}/how.zh.md" in changed
-
-    def test_all_three_chinese_occurrences_are_updated(self, tmp_path: Path) -> None:
-        """The zh guide quotes the exact count three times — a partial sweep lies."""
-        root = _fake_repo(tmp_path)
-        _fake_counts(root, adr_files=10, adr_latest=11, releases=4)
-        _write(root / "docs" / "architecture" / "ADR-012-new.md", "# ADR 12\n")
-
-        sync_derived_counts(root)
-
-        zh = (root / GUIDES_DIR / "how.zh.md").read_text(encoding="utf-8")
-        assert zh.count("11 篇 ADR") == 3
-        assert "10 篇 ADR" not in zh
+        assert f"{GUIDES_DIR}/story.zh.md" in changed
 
     def test_measurement_comment_is_left_alone(self, tmp_path: Path) -> None:
         root = _fake_repo(tmp_path)
@@ -920,11 +718,11 @@ class TestSyncDerivedCounts:
         root = _fake_repo(tmp_path)
         _fake_counts(root, adr_files=241, adr_latest=242, releases=223)
         _write(root / "docs" / "architecture" / "ADR-243-new.md", "# ADR 243\n")
-        zh_path = root / GUIDES_DIR / "how.zh.md"
-        _write(zh_path, "# How\n\n**应用**：LIA v1.31.2\n\n仅有一次：241 篇 ADR。\n")
+        zh_path = root / GUIDES_DIR / "story.zh.md"
+        _write(zh_path, "# Story\n\n**应用**：LIA v1.31.2\n")
         before = (root / "CLAUDE.md").read_bytes()
 
-        with pytest.raises(SurfaceError, match="expected 3 occurrence"):
+        with pytest.raises(SurfaceError, match="expected 1 occurrence"):
             sync_derived_counts(root)
 
         assert (root / "CLAUDE.md").read_bytes() == before, "no partial write"

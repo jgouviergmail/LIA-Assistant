@@ -4,9 +4,9 @@
  * return-to-bottom button, the per-bubble action row, share/export, an image
  * shared with a connection, the
  * one-draft-at-a-time review, the network question a script asks before going
- * out, the four reactions under a discussion LIA opened, and the
- * execution-trace backstage. Timer-driven micro-demos; last phase = resting
- * frame.
+ * out, the four reactions under a discussion LIA opened, the
+ * execution-trace backstage, and the notice that names a slow MCP server.
+ * Timer-driven micro-demos; last phase = resting frame.
  */
 
 'use client';
@@ -25,6 +25,7 @@ import {
   FileText,
   Globe,
   Handshake,
+  Hourglass,
   Image as ImageIcon,
   Languages,
   Mail,
@@ -743,6 +744,52 @@ function StepCountsScene({ active, labels }: SceneProps) {
   );
 }
 
+type NamedWaitPhase = 'asked' | 'slow' | 'skipped' | 'answered';
+const NAMED_WAIT_STEPS: readonly TimelineStep<NamedWaitPhase>[] = [
+  { at: 0, state: 'asked' },
+  { at: 700, state: 'slow' },
+  { at: 1900, state: 'skipped' },
+  { at: 2700, state: 'answered' },
+];
+
+/**
+ * A personal server slow to get ready is named in a notice; left out of this
+ * message, the notice says so, and the answer still arrives.
+ */
+function NamedWaitScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(NAMED_WAIT_STEPS, { active });
+  const skipped = phase === 'skipped' || phase === 'answered';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble side="user" className="w-1/2">
+        <SkeletonLine w="w-full" />
+      </MiniBubble>
+      <MiniToast
+        icon={skipped ? CirclePause : Hourglass}
+        tone={skipped ? 'info' : 'warning'}
+        className={cn(
+          'max-w-full self-center transition-opacity duration-300 motion-reduce:transition-none',
+          phase === 'asked' ? 'opacity-0' : 'opacity-100'
+        )}
+      >
+        <span className="min-w-0">
+          <span className="font-semibold">{labels.server}</span>{' '}
+          <span className="font-normal">{skipped ? labels.skipped : labels.slow}</span>
+        </span>
+      </MiniToast>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'w-2/3 transition-opacity duration-300 motion-reduce:transition-none',
+          phase === 'answered' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <SkeletonLine w="w-full" />
+      </MiniBubble>
+    </div>
+  );
+}
+
 type SelectPhase = 'bubble' | 'selected' | 'bar' | 'picked';
 const SELECT_STEPS: readonly TimelineStep<SelectPhase>[] = [
   { at: 0, state: 'bubble' },
@@ -1412,4 +1459,5 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
   step_counts: StepCountsScene,
+  named_wait: NamedWaitScene,
 };

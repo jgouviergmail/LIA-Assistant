@@ -35,7 +35,7 @@ export function screenModel(variant: ScreenVariant): Model {
   return m;
 }
 export function paintScreenContent(p: Painter, prop: WorldProp): void {
-  if (!p.decor.screen || !hasDecorScreen(prop)) return;
+  if (!p.decor.screen || !hasDecorScreen(prop) || (prop.facing ?? 1) >= 2) return;
   const { w, d } = canonicalSize(prop),
     desk = prop.kind === 'desk';
   const x = desk ? (w - 1.2) / 2 + 0.19 : 0.1;

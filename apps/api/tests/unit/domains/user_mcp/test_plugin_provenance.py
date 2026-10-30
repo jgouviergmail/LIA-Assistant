@@ -22,6 +22,7 @@ from src.core.exceptions import ValidationError
 from src.domains.user_mcp.models import UserMCPAuthType
 from src.domains.user_mcp.schemas import UserMCPServerCreate
 from src.domains.user_mcp.service import UserMCPServerService
+from src.infrastructure.mcp.user_pool import DiscoveredCatalogue
 
 pytestmark = pytest.mark.unit
 
@@ -158,7 +159,7 @@ class TestPoolExtraHeaders:
         from src.infrastructure.mcp.user_pool import UserMCPClientPool
 
         pool = UserMCPClientPool()
-        pool._discover_tools = AsyncMock(return_value=([], None))
+        pool._discover_tools = AsyncMock(return_value=DiscoveredCatalogue(tools=[]))
 
         entry = await pool.get_or_connect(
             user_id=uuid4(),

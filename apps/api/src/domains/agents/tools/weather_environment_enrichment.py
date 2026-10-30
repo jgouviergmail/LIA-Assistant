@@ -168,10 +168,13 @@ async def fetch_environment_extras(
         # together rather than back to back (no shared DB session involved,
         # so this is safe; the client paces itself internally).
         client = GoogleEnvironmentClient(user_id)
-        air_quality, pollen = await asyncio.gather(
-            client.get_air_quality(lat=lat, lon=lon, language=language),
-            client.get_pollen_forecast(lat=lat, lon=lon, days=1, language=language),
-        )
+        try:
+            air_quality, pollen = await asyncio.gather(
+                client.get_air_quality(lat=lat, lon=lon, language=language),
+                client.get_pollen_forecast(lat=lat, lon=lon, days=1, language=language),
+            )
+        finally:
+            await client.close()
 
         aqi, category, label = _pick_aqi(air_quality.get("indexes", []))
         extras = {
@@ -201,6 +204,29 @@ async def fetch_environment_extras(
         # Best-effort by contract: the weather answer never breaks on this.
         logger.warning("environment_enrichment_failed", error=str(exc))
         return None
+
+
+async def extras_when_active(
+    active: bool, user_id: UUID, lat: float, lon: float, language: str
+) -> dict[str, Any] | None:
+    """The extras when the switch was read on (fail-quiet), else nothing.
+
+    For a caller that read the switch in a session it already closed (ADR-304)
+    and runs the extras BESIDE its own provider calls rather than before them.
+
+    Args:
+        active: The switch, as the caller read it.
+        user_id: Owner of the connectors (billing attribution).
+        lat: Latitude of the weather query point.
+        lon: Longitude of the weather query point.
+        language: User language.
+
+    Returns:
+        The extras, or None when the switch is off or the read failed.
+    """
+    if not active:
+        return None
+    return await fetch_environment_extras(user_id, lat, lon, language)
 
 
 async def attach_environment_extras(

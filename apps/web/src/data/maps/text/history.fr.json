@@ -1534,6 +1534,10 @@
     "365": {
       "title": "LIA privé dans un monde isométrique partagé",
       "summary": "Le navigateur dessine le monde tandis que Redis en arbitre l'accès et les mouvements ; les actions gardent leurs interfaces et approbations natives. Le nom du compte et l'apparence sont partagés avec accord, les activités et la maison restent privées, et les pairs ne voient qu'un statut de connexion grossier. Les messages restent entre leurs destinataires et les traductions consenties sont bornées et comptées."
+    },
+    "366": {
+      "title": "Le catalogue d'un serveur MCP personnel, servi sans attendre",
+      "summary": "Ce qu'un serveur MCP personnel propose est gardé sur le compte et resservi d'un message à l'autre, sur n'importe quel processus, pendant qu'un seul le revérifie en arrière-plan. Les serveurs se préparent en parallèle ; un serveur trop lent est laissé de côté pour ce message, nommé dans une notification, et prêt pour le suivant. Quand la copie gardée a dépassé sa fraîcheur, LIA vérifie avant l'appel que l'outil est toujours offert sous la même forme, et refuse sinon de l'envoyer."
     }
   }
 }

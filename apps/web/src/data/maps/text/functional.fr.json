@@ -175,7 +175,7 @@
     },
     "f.mcp": {
       "name": "Serveurs MCP",
-      "role": "Brancher des outils tiers MCP, OAuth compris ; les cartes de résultat nomment leur serveur et leur méthode. Une pause déclarée par le serveur suspend les appels entre workers.",
+      "role": "Brancher des outils tiers MCP, OAuth compris, gardés d'un message à l'autre ; les cartes de résultat nomment leur serveur et leur méthode. Une pause déclarée par le serveur suspend les appels entre workers.",
       "goal": "Étendre LIA sans attendre une intégration native."
     },
     "f.skills": {
@@ -225,7 +225,7 @@
     },
     "f.briefing": {
       "name": "Briefing du jour",
-      "role": "La page d'accueil : agenda, e-mails, météo, rappels et une synthèse, lus une seule fois par chargement.",
+      "role": "La page d'accueil : agenda, e-mails, météo, rappels et une synthèse, lus une seule fois par chargement, chaque carte affichée dès qu'elle est prête.",
       "goal": "Savoir où tu en es en un coup d'œil."
     },
     "f.routines": {

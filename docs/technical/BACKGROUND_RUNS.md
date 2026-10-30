@@ -226,6 +226,15 @@ Delivered 2026-07-09 (same ADR, same flag).
   billed tokens stay billed (E2E-proven: 1348/748 tokens persisted for a
   cancelled run). **Cancellation is not a rollback** — tools that already
   ran have acted; it stops what remains.
+- **The stream is closed in the producer's own task, wherever the stop
+  lands** (2026-10-29). A stop that lands on `publish_chunk` finds the
+  generators at a `yield` nobody resumes; left to the event loop's
+  finalizer, they were closed later in another task, where every
+  `ContextVar` reset is refused and the turn's clients were never released.
+  `aclosing` at both links (the producer, `stream_chat_response`) runs the
+  turn's cancellation exit in place: journey `cancelled`, request scopes
+  handed back once (`reset_scopes`), voice and connector clients released
+  each on its own (`release_each`).
 - **Frontend**: the send button morphs into a stop button while streaming
   (`isGenerating` + `onStopGeneration` on ChatInput). Flag ON, the server
   cancels the detached run; with no detached run (flag OFF), the client

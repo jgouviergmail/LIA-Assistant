@@ -927,21 +927,16 @@ async def compute_tool_embeddings(
     text_metadata: list[tuple[str, str]] = []  # (tool_name, "description"|"keyword")
     keyword_map: dict[str, list[str]] = {}
 
+    from src.domains.agents.services.tool_embeddings_envelope import tool_embedding_texts
+
     for tool in tool_metadata:
         name = tool.get("name", "")
-        desc = tool.get("description", "")
-
-        # Description embedding (first line, cleaned — same as _extract_semantic_description)
-        if desc:
-            first_line = desc.split("\n")[0].strip()
-            clean_line = re.sub(r"\*\*([^*]+)\*\*", r"\1", first_line)
-            if clean_line:
-                all_texts.append(clean_line)
-                text_metadata.append((name, "description"))
-
-        # Keyword embeddings — same pattern as initialize() semantic_keywords
-        desc_words = [w.strip(".,;:!?") for w in desc.split() if len(w.strip(".,;:!?")) > 3]
-        keywords = [server_name, name, *desc_words[:10]]
+        # The texts are composed ONCE (the envelope module), so a vector's
+        # stored identity always names the texts it was computed from (M6).
+        description_line, keywords = tool_embedding_texts(tool, server_name=server_name)
+        if description_line:
+            all_texts.append(description_line)
+            text_metadata.append((name, "description"))
         keyword_map[name] = keywords
         for kw in keywords:
             all_texts.append(kw)

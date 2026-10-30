@@ -44,6 +44,8 @@ class GoogleEnvironmentClient:
         self.user_id = user_id
         self._rate_limit_interval = 1.0 / rate_limit_per_second
         self._last_request_time = 0.0
+        self._http: httpx.AsyncClient | None = None
+        self._closed = False
 
     @property
     def api_key(self) -> str:
@@ -57,12 +59,16 @@ class GoogleEnvironmentClient:
         return settings.google_api_key
 
     async def close(self) -> None:
-        """Nothing to release: every request opens and closes its own transport.
+        """Release the HTTP client; idempotent, and the instance serves nothing after it.
 
-        Present because every registered client can be closed by the shared
-        door (``connectors.active_client``, ADR-304) without asking which kind
-        it holds.
+        Every registered client can be closed by the shared door
+        (``connectors.active_client``, ADR-304) without asking which kind it
+        holds; the weather enrichment closes its own in a ``finally``.
         """
+        self._closed = True
+        http, self._http = self._http, None
+        if http is not None:
+            await http.aclose()
 
     async def _pace(self) -> None:
         elapsed = time.time() - self._last_request_time
@@ -81,21 +87,33 @@ class GoogleEnvironmentClient:
         """Call one Environment API endpoint with the platform key."""
         await self._pace()
         query = {**(params or {}), "key": self.api_key}
-        async with httpx.AsyncClient(
-            timeout=settings.http_timeout_external_api,
-            limits=httpx.Limits(
-                max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
-                max_connections=HTTP_MAX_CONNECTIONS,
-            ),
-        ) as client:
-            response = await client.request(method, url, params=query, json=json_data)
-            if response.status_code >= 400:
-                raise ConnectorAPIError(
-                    connector_type=self.connector_type.value,
-                    status_code=response.status_code,
-                    detail="Google Environment API error",
-                )
-            return dict(response.json())
+        response = await self._transport().request(method, url, params=query, json=json_data)
+        if response.status_code >= 400:
+            raise ConnectorAPIError(
+                connector_type=self.connector_type.value,
+                status_code=response.status_code,
+                detail="Google Environment API error",
+            )
+        return dict(response.json())
+
+    def _transport(self) -> httpx.AsyncClient:
+        """The instance's one HTTP client, opened at its first request (one TLS setup).
+
+        Raises:
+            RuntimeError: The instance was closed; a late request must not open
+                a client nobody would close.
+        """
+        if self._closed:
+            raise RuntimeError("GoogleEnvironmentClient used after close()")
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                timeout=settings.http_timeout_external_api,
+                limits=httpx.Limits(
+                    max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
+                    max_connections=HTTP_MAX_CONNECTIONS,
+                ),
+            )
+        return self._http
 
     async def get_air_quality(
         self, lat: float, lon: float, language: str | None = None

@@ -19,6 +19,7 @@ Created: 2026-02-28
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable, Coroutine, Generator
@@ -92,13 +93,20 @@ class MCPStaticTokenAuth(httpx2.Auth):
         yield request
 
 
+def _fingerprint(secret: str) -> str:
+    """A secret's identity for comparison, never the secret itself."""
+    return hashlib.sha256(secret.encode()).hexdigest()
+
+
 class MCPOAuth2Auth(httpx2.Auth):
     """
     OAuth 2.1 Bearer authentication with auto-refresh on 401.
 
     On first request, injects the stored access token.
     On 401 response, attempts to refresh using the refresh token.
-    If refresh fails, marks the server as requiring re-authentication.
+    If refresh fails, marks the server as requiring re-authentication — and
+    never replays that refused refresh token: the SDK's dual-era handshake
+    sends a second request, which used to post the dead grant again.
 
     Callbacks use their own DB sessions (not request-scoped) since
     token refresh can happen at any time during pool usage.
@@ -129,6 +137,8 @@ class MCPOAuth2Auth(httpx2.Auth):
         self._resource = resource
         self._catalogue_scope = catalogue_scope
         self._guarded_persistence = guarded_persistence
+        # A fingerprint of the refresh token the provider refused (never the secret).
+        self._refused_refresh: str | None = None
 
     @property
     def catalogue_identity(self) -> str:
@@ -156,6 +166,10 @@ class MCPOAuth2Auth(httpx2.Auth):
         response = yield request
 
         if response.status_code == 401 and creds.get("refresh_token"):
+            refresh = _fingerprint(creds["refresh_token"])
+            if refresh == self._refused_refresh:
+                await self._mark_required(creds)  # still said; the dead grant is not sent
+                return
             logger.info(
                 "mcp_oauth_token_expired_refreshing",
                 server_id=str(self.server_id),
@@ -168,6 +182,7 @@ class MCPOAuth2Auth(httpx2.Auth):
                 request.headers["Authorization"] = f"Bearer {new_creds['access_token']}"
                 yield request
             else:
+                self._refused_refresh = refresh
                 await self._mark_required(creds)
                 logger.warning(
                     "mcp_oauth_refresh_failed",

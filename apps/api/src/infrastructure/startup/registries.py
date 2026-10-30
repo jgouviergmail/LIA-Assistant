@@ -673,13 +673,29 @@ def _validate_telegram_keyboard() -> None:
         raise RuntimeError(f"Telegram HITL keyboard incomplete: {exc}") from exc
 
 
+def _validate_drive_drain() -> None:
+    """Refuse a Drive changes drain that can outlive its wake (Drive push lot 1).
+
+    Raises:
+        RuntimeError: Naming the worst drain and the wake's ceiling.
+    """
+    try:
+        from src.domains.rag_spaces.drive_changes import assert_drain_fits_a_wake
+
+        assert_drain_fits_a_wake()
+    except AssertionError as exc:
+        logger.error("drive_drain_outlives_its_wake", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Drive changes drain exceeds its wake: {exc}") from exc
+
+
 def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
     Validates, in order: LLM configuration completeness, the provider
     usage-accounting registry (ADR-220), the paid-tool call ceilings, the
     embedding configuration (ADR-242), the image families against their
-    provider clients (ADR-305), ToolErrorCode enum completeness, then the
+    provider clients (ADR-305), the Drive changes drain against its wake,
+    ToolErrorCode enum completeness, then the
     ADR-085 completeness registries — draft display, draft preview, draft
     summary, the Telegram HITL keyboard, the evidence-driven expansion
     entity types, the HITL classifier few-shot coverage, the semantic-issue
@@ -732,6 +748,7 @@ def run_failfast_validations() -> None:
         raise
 
     _validate_image_clients()
+    _validate_drive_drain()
 
     # Validate ToolErrorCode enum completeness (fail-fast if codes are missing)
     try:

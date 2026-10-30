@@ -106,6 +106,14 @@ function rock(m: Model, o: WorldProp, w: number, d: number): void {
     { x: 0.94 * w, y: 0.68 * d, z: h - 0.02 },
     { x: 0.25 * w, y: 0.95 * d, z: h - 0.04 },
   ];
+  m.face(
+    [top[0], top[1], { x: 0.94 * w, y: 0, z: 0 }, { x: 0.06 * w, y: 0.08 * d, z: 0 }],
+    '#938f7b'
+  );
+  m.face(
+    [top[3], top[0], { x: 0.06 * w, y: 0.08 * d, z: 0 }, { x: 0.12 * w, y: d, z: 0 }],
+    '#888571'
+  );
   m.face([top[2], top[3], { x: 0.12 * w, y: d, z: 0 }, { x: w, y: 0.8 * d, z: 0 }], '#827e6d');
   m.face([top[1], top[2], { x: w, y: 0.8 * d, z: 0 }, { x: 0.94 * w, y: 0, z: 0 }], '#9b9784');
   m.face(top, '#b8b49b');

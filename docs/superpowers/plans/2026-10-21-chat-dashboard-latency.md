@@ -30,6 +30,22 @@ Next.js 16 / React 19 hooks (`useApplicationAccountQuery`), Sonner, vitest, Play
     the discovery finishes in the background.
   - Every other lot can start.
 - **`read_me`** is fetched only at real use (owner decision, 2026-10-22; spec A15).
+- **Re-verified on 2026-10-28** against HEAD `5e76b633c` (spec §0bis). Three coordination rules
+  follow:
+  - the frontend half of D1 and all of D3 start only once the staged « LIA World » lot, which
+    rewrites `apps/web/src/hooks/useBriefing.ts`, is committed;
+  - S1 is written together with the pending Drive push lot (a per-call read budget in the same
+    `BaseOAuthClient._make_request`), never beside it;
+  - every production figure is re-measured (P0) before a gain is claimed, because the 20/10 figures
+    were taken during a documented Internet outage.
+- **Measured on 2026-10-28** (spec §0ter). Production was measured read-only over 7 days; the rest
+  was simulated with the real code or proven at runtime. Every « before » figure below comes from
+  there, and every lot's gain is checked against it. The measurements added three findings:
+  - E11, embeddings recomputed on the critical path: new lot M6;
+  - E12, the shared-flight waiter only accepts a complete bundle: lot D1;
+  - E13, SMS read three times per page: lot D1.
+
+  They also turned E2 into lot S2, gated by Q3.
 - **Mechanisms, not models.** Reason by mechanism and slot; no setting, test or branch names a model
   or a provider (owner rule).
 - **New settings and their defaults:**
@@ -45,6 +61,8 @@ Next.js 16 / React 19 hooks (`useApplicationAccountQuery`), Sonner, vitest, Play
   | `BRIEFING_SECTION_ATTEMPT_MARKER_SECONDS` | 120 |
   | `BRIEFING_TEXT_CACHE_TTL_SECONDS` | 300 |
   | `BRIEFING_ACT_TOKEN_TTL_SECONDS` | 600 |
+  | `BRIEFING_SECTION_CONCURRENCY` | 4 (D2, client side; published by the initial response) |
+  | `MCP_USER_EMBEDDING_INLINE_MAX_TOOLS` | 8 (M6) |
 
 - **Settings surfaces.** Every setting has:
   - its default in `apps/api/src/core/constants.py`;
@@ -53,7 +71,7 @@ Next.js 16 / React 19 hooks (`useApplicationAccountQuery`), Sonner, vitest, Play
     `.env.demo-instance.prod.example`, `.env.demo-instance` and `.env.demo-instance.prod`.
   - `.env.min.prod` is not touched.
 - **Ratchets are shrink-only:** file size (`apps/api/tests/unit/file_size_baseline.json`, cap 600),
-  backend CC (`apps/api/.cc-baseline.json`: `over` 263, `max` 77), and the front-end a11y,
+  backend CC (`apps/api/.cc-baseline.json`: `over` 260, `max` 77 on 2026-10-28), and the front-end a11y,
   react-hooks and complexity ratchets.
   - Every addition to a file within 15 lines of its cap starts with an extraction in the same lot.
   - No new function at CC ≥ 15; no hotspot grows.
@@ -77,7 +95,13 @@ Next.js 16 / React 19 hooks (`useApplicationAccountQuery`), Sonner, vitest, Play
 - **Tests and proofs.**
   - Unit tests on the host with `apps/api/.venv/Scripts/pytest … --no-cov`.
   - Integration tests on the host with testcontainers and `-m integration --no-cov`, never inside
-    `lia-api-dev`.
+    `lia-api-dev`. The whole integration suite runs through `task test:backend:integration`, with a
+    disposable `TEST_REDIS_URL` on base 15.
+  - Coverage gates: `task test:backend:coverage`, then `task test:backend:diff-coverage` (every
+    changed line of `apps/api/src` covered at the floor).
+  - New settings pass the env-template parity guard (`test_env_template_parity_guard.py`): a
+    template states the code's default, omits the key, or says why it differs.
+  - New async code passes Ruff `ASYNC2` (no blocking call on the loop).
   - Runtime proofs in Docker dev, on the proof account, never the owner's.
   - After any change to `apps/api/src/domains/agents/api/service.py` or a symbol it calls: grep the
     patches in `apps/api/tests/agents/` and run `task test:backend:agents`.
@@ -95,30 +119,41 @@ Sizes:
 - **M**: 5–10 files or 200–500 lines.
 - **L**: > 10 files, > 500 lines, or the chat or dashboard critical path.
 
-Durations are focused inline work including tests, ratchets, the runtime proof and the exhaustive
-review. They exclude waiting for an authorization or an owner answer.
+Durations are my own continuous inline work in this repository: the code is the short part, and
+most of the time goes to the gates (30–45 min a pass, often two passes), the runtime proof and the
+exhaustive review. They exclude what lengthens the calendar without being my time: the owner's
+validation between lots, an authorization, and the commit of the staged « LIA World » lot.
 
-| Order | Lot | Size | Estimate | Depends on |
-|---|---|---|---|---|
-| 1 | P0 baseline and harness | S | 1–2 h | — |
-| 2 | O1 journey metrics (backend) | S | 2–3 h | P0 |
-| 3 | D1 dashboard stops re-collecting | M | 5–7 h | P0 |
-| 4 | W1 weather and environment clients | S | 2–3 h | P0 |
-| 5 | S1 safe retries (optional) | S | 1–2 h | — |
-| 6 | C1 pre-graph commit and archive-first | M (critical path) | 5–7 h | O1 |
-| 7 | M1 catalogue snapshot | M | 4–6 h | — |
-| 8 | M1b `read_me` at real use | M | 4–5 h | M1 |
-| 9 | M2 parallel preparation and revalidation | L | 10–14 h | C1, M1, M1b |
-| 10 | M3 verification at use | S–M | 3–4 h | M2 |
-| 11 | M4 notices (backend) | M | 4–5 h | C1, M2 |
-| 12 | M5 notices (frontend) | M | 4–6 h | M4 |
-| 13 | D2 progressive dashboard (backend) | L | 10–14 h | D1 |
-| 14 | D3 progressive dashboard (frontend) | L | 8–12 h | D2 |
-| 15 | O2 client timings and panels | S–M | 3–4 h | O1, D3 |
-| 16 | N1 network diagnosis | S (no code) | 2–3 h | owner authorization |
-| 17 | Q docs, FAQ, ADRs, final qualification | M | 6–10 h | all |
+The last column is the « before » measured on 2026-10-28 (spec §0ter), then the expected effect.
+An expected effect is a target to prove at the lot's runtime proof, never a claim.
 
-Total: about 75–110 h.
+| Order | Lot | Size | Estimate | Depends on | Measured before → expected |
+|---|---|---|---|---|---|
+| 1 | P0 harness and dev baseline (production measured on 2026-10-28) | S | 0.5–1 h | — | — |
+| 2 | C1 pre-graph commit and archive-first (closes R18) | M, critical path | 2.5–3.5 h | P0 | 1 connection idle in transaction for the whole preparation (p95 19 s) → 0 |
+| 3 | O1 journey metrics (backend) | S | 1–1.5 h | P0 | The SLI misses the preparation; 2.9 % of turns unobserved → both observed |
+| 4 | W1 weather and environment clients | S | 1–1.5 h | P0 | Weather p50 5.0 s (8 requests, sequential fresh connections at 672 ms) → about 1.2–1.6 s |
+| 5 | D1 dashboard stops re-collecting — backend half (with re-claim, lease fence and one SMS read) | M | 3.5–4.5 h | P0 | A missing section costs every waiter 10 s, then N reads; SMS read 3× per page; a push during a read can cache a stale section → 0 extra wait, 1 read, never stale |
+| 6 | M6 tool embeddings off the critical path (E11) | S–M | 2–3 h | — | 31 recomputes, 131 s in 7 days, up to 16.4 s per turn → 0 s on the turn |
+| 7 | M1 catalogue snapshot (canonical order, server TTL and scope, cursor pagination E7, generation fence) | M | 2.5–4 h | — | 48 % of turns cold, 32 % of quick follow-ups → cold only on a server's first use |
+| 8 | M1b `read_me` and server `instructions` at real use | M | 2.5–3.5 h | M1 | No latency effect measured (0 of 314); fixes E9, E10; adds the protocol's own guidance channel |
+| 9 | M2 parallel preparation and revalidation | L | 4–6 h | C1, M1, M1b, M6 | Cold p95 19.2 s, 37 turns > 10 s a week → p95 about 8.5 s, about 4 (before M1 and M6) |
+| 10 | M3 verification at use | S–M | 1.5–2 h | M2 | — |
+| 11 | M4 notices (backend) | M | 2–2.5 h | C1, M2 | — |
+| 12 | M5 notices (frontend) | M | 2–3 h | M4 | — |
+| 13 | D2 progressive dashboard (backend) | L | 4–6 h | D1 | Fast card waits p95 4.4 s for the slowest → 0 |
+| 14 | D1 frontend half: synthesis after the cards | S | 0.5–1 h | LIA World committed | 92 % of `/synthesis` find an incomplete bundle → about 0 |
+| 15 | D3 progressive dashboard (frontend) | L | 3–5 h | D2, LIA World committed | — |
+| 16 | S1 safe retries on Google, Microsoft and Apple, with provider idempotency and the Drive per-call budget (optional) | M | 2.5–3.5 h | — | Proven by simulation: 1 POST → 3 events (Google); same mechanism in Microsoft and Apple; 0 on a write in 7 days → 1 event |
+| 17 | S2 LLM client retries after an unknown outcome (E2) | S–M | 2–3 h | Q3 answered | Timeout → 3 requests (Gemini: 6 on 429 or 5xx, 34 s) → per Q3 |
+| 18 | O2 client timings and panels | S–M | 1.5–2 h | O1, D3 | — |
+| 19 | Q docs, FAQ, ADRs, final qualification | M | 3–4 h | all | — |
+
+Total: about 42–61 h of my work, plus W1b (optional, 1.5–2 h, decided after W1's measurement) and
+Q4 (an owner trade-off, no lot unless chosen). N1 (network re-measurement) is done: 968 DNS
+timeouts in 7 days, 17 % of the slow MCP connections (spec §0ter H9). Its two levers stay with the
+owner. The 2026-10-28 state-of-the-art review (spec §0quater) changed M1, M1b, M2, M6, D1, D2, S1
+and S2; it confirmed A1, A3, C1 and W1.
 
 ## Review Focus
 
@@ -161,6 +196,9 @@ or message content.
   - For the dashboard: `briefing_cards_built` count and `duration_ms` per load (cold, warm, one
     failing section).
   - Write medians with sample sizes to `baseline.md`.
+- [x] **Step 4b: Production re-measurement, read-only — done on 2026-10-28** (spec §0ter; scripts
+  and hashed outputs in `.tmp/latency-20261028/`). Re-run the same scripts after deployment to
+  measure each gain in production with the same instruments.
 - [ ] **Step 5: Measure CC and SLOC of every function and file in spec §6.5** and keep them as the
   « before » of each lot.
 
@@ -217,8 +255,19 @@ or message content.
   - `cache_state.py` — classify by provenance.
   - `constants.py`, `apps/api/src/core/config/briefing.py`, `apps/api/src/core/constants.py` — the
     two `BRIEFING_*` settings of this lot.
-  - `apps/api/src/infrastructure/utils/shared_flight.py` — opt-in owner liveness and polling
-    backoff.
+  - `apps/api/src/infrastructure/utils/shared_flight.py` — opt-in owner liveness, polling
+    backoff, and one re-claim when the owner releases without a published result (E12).
+  - `apps/api/src/domains/briefing/llm.py` and `sms_context.py` — the text build reads SMS once,
+    with messages, and serves both prompts from that read (E13). The SMS signal check
+    (`sms_signal_current`) stays per prompt.
+  - The lease fence (E5; Facebook memcache leases, spec §0quater):
+    - `apps/api/src/domains/push_channels/cache_invalidation.py` bumps a per-section generation
+      key next to its delete;
+    - `section_outcomes.py` reads the generation before the live fetch and writes the section only
+      if it is unchanged, in one Redis script;
+    - a push that lands during a read therefore leaves the section missing, never stale.
+    - The generation key joins the `briefing:v2` family. A Redis failure falls back to today's
+      write, which is the floor.
   - `apps/web/src/hooks/useBriefing.ts` — the text read is enabled once the cards settle, and
     `refetchAll` reads the cards then the text.
   - The six `.env*` files.
@@ -261,7 +310,31 @@ or message content.
   - `test_poll_interval_backs_off_to_cap`: the observed sleeps grow from 0.02 to 0.25 and stay
     there.
   - `test_default_mode_unchanged`: the existing `test_shared_flight.py` stays green, unmodified.
-- [ ] **Step 3: Write the failing frontend tests.**
+  - `test_release_without_result_is_reclaimed_by_one_waiter` (E12, spec D11).
+    - Three waiters; the owner releases while one section is missing.
+    - Exactly one waiter claims again and builds; the two others receive its result.
+    - `build` is called twice in total, not four times.
+- [ ] **Step 2a: Write the failing fence tests** (E5).
+  - `test_push_during_read_drops_the_write`: generation bumped between read and write gives no
+    cache write; the section stays missing; the next read is live.
+  - `test_write_without_push_commits`.
+  - `test_redis_down_writes_as_today`.
+- [ ] **Step 2b: Write the failing SMS test** (E13, spec D12).
+  - `test_text_build_reads_sms_once`: one live SMS read for the greeting and the synthesis
+    together.
+  - `test_sms_revoked_between_prompts_drops_text`: the D10 consent behaviour is kept.
+- [ ] **Step 2c: Port the 2026-10-28 simulation into the integration test.**
+  - Source: `.tmp/latency-20261028/sim_shared_flight.py`, with four processes, the real service and
+    real Redis base 15.
+  - Its three scenarios become the assertions of
+    `test_shared_flight_two_processes.py`:
+    - nominal: the waiters finish within 0.5 s of the owner;
+    - one failed section: one read of it in total, no 10 s wait;
+    - mails invalidated by a push at the owner's end: one extra mail read, no 10 s wait.
+- [ ] **Step 3: Write the failing frontend tests — frontend half, executed only once the staged
+  « LIA World » lot is committed** (it rewrites this hook: `useBriefing(enabled)`, `autoFetch: false`
+  on the text query, `textUnavailable`). The initial text read at `useBriefing.ts:114-127` becomes
+  « after the cards settle ».
   - `synthesis read starts only after the cards read resolves`: request order with fake
     `apiClient`.
   - `synthesis read still runs after a cards error`.
@@ -283,6 +356,7 @@ or message content.
 - [ ] **Step 7: Runtime proof in Docker dev.**
   - One cold load gives exactly one `briefing_cards_built` and one live read per section.
   - With an induced failure on one section, `/synthesis` triggers no second read.
+  - One page load records one `briefing:sms` read for the text build instead of two.
   - Record the lot's files and run the exhaustive review.
 
 ### Task W1: Weather and environment clients — one connection setup per host per card
@@ -316,6 +390,31 @@ or message content.
   passes, with no `ResourceWarning` and no unclosed transport in the output.
 - [ ] **Step 4: Runtime proof.** On a cold load in Docker dev, the weather `duration_ms` before and
   after, with sample sizes. Record the lot's files and run the exhaustive review.
+
+### Task W1b (optional, after W1's measurement): daily forecast in one call
+
+**Facts.**
+- Google Weather caps `forecast.hours.lookup` at 24 records per page. The card asks for 120 h, so
+  it pays 5 sequential billed pages.
+- `forecast.days.lookup` returns up to 10 days in one page (official reference, spec §0quater).
+- The card shows 5 daily summaries (min, max, precipitation) and a 24 h alert horizon
+  (`briefing/formatters.py:85-106`).
+
+**Proposal.**
+- Read the 5 daily summaries from 1 daily call, plus 1 hourly page for the 24 h alert.
+- This takes 8 → 5 billed requests per live read (−37 %). The forecast becomes 2 parallel requests
+  instead of 5 sequential ones.
+
+**What it costs.**
+- The weather clients are deliberately OpenWeatherMap-shaped (`fetchers.py`: both providers are
+  normalised to one shape).
+- A provider-native daily path is a second shape, so the OpenWeatherMap path must keep producing the
+  same card, guarded by a parity test.
+- The daily minimum and maximum would come from the provider instead of LIA's aggregation of
+  3-hour slots, so the displayed values can differ.
+
+Decided after W1 has been measured: if W1 already brings the card near 1.2 s, the gain left is the
+billing (3 requests per read).
 
 ### Task C1: Chat turn — commit and archive before the MCP preparation
 
@@ -356,11 +455,72 @@ or message content.
     `.venv/Scripts/pytest tests/unit/domains/agents/api -q --no-cov` must pass.
 - [ ] **Step 4: Run the ratchets.** The CC of `_stream_with_new_services` must be strictly lower
   than 66, the `service.py` SLOC strictly lower than 978, and `measure_cc.py --check-ratchet` green.
-- [ ] **Step 5: Runtime proof in Docker dev (test X1).**
+- [ ] **Step 5: Runtime proof in Docker dev (tests X1 and R18).**
   - With the stub MCP server sleeping 20 s, query `pg_stat_activity` (`state`, `xact_start`) during
     the wait: no backend of the turn may be `idle in transaction`.
+  - R18:
+    - set `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS=5000` on dev for the proof only, with the stub
+      sleeping 10 s;
+    - before the change, the turn fails on its first statement after the preparation, and
+      `db_bound_reached_total{bound="idle_in_transaction_timeout"}` increments;
+    - after it, the turn answers and the counter stays still;
+    - restore the dev value afterwards.
   - The person's message appears in another tab before the reply starts.
   - Record the lot's files and run the exhaustive review.
+
+### Task M6: Tool embeddings off the critical path (E11, with E8)
+
+**Measured (spec §0ter H5).**
+- 31 recomputes in 7 days, 131 s on the turn's critical path, 1.4–16.4 s each, always
+  `catalogue_changed`.
+- One 6-tool server whose tool count never changed recomputed on 21 of its 46 discoveries.
+- Cause: the envelope's fingerprint is `canonical_fingerprint(tools)` over the **ordered** list, so
+  any reordering or any one changed tool invalidates every vector.
+- Telling order from content apart would mean contacting the person's server. The fix covers both.
+
+**Files:**
+- Modify:
+  - `apps/api/src/domains/agents/services/tool_embeddings_envelope.py`:
+    - per-tool identity `tool_identity(tool) -> str`, the hash of the **exact text LIA embeds** for
+      the tool, under the embedding model key. This is LangChain `CacheBackedEmbeddings`' keying
+      (spec §0quater): a change in how LIA composes that text invalidates the vector too;
+    - an order-insensitive catalogue fingerprint;
+    - `reusable_vectors(envelope, tools) -> (kept, missing)`.
+  - `apps/api/src/infrastructure/mcp/user_context.py` (`_usable_tool_embeddings`, `:110-145`).
+    - It embeds only the missing tools, under the existing gates (E8: `spend_blocked` and the
+      account ceiling, as the out-of-turn paths do).
+    - It writes a new envelope (a new dict).
+    - Past `MCP_USER_EMBEDDING_INLINE_MAX_TOOLS` missing tools, it serves the turn with the kept
+      vectors and finishes in the background, under a claim. A tool without a vector stays offered
+      exactly as on today's failure path (`return {}`), so nothing is withdrawn from the model.
+  - `apps/api/src/domains/agents/services/tool_vectors.py` (`ServerVectorCache`, `:160`) — the
+    process key uses the order-insensitive fingerprint.
+  - Settings surfaces for `MCP_USER_EMBEDDING_INLINE_MAX_TOOLS` (default 8). Every surface of the
+    Global Constraints applies.
+- Test:
+  - `apps/api/tests/unit/domains/agents/services/test_tool_embeddings_envelope.py` (extend);
+  - `apps/api/tests/unit/infrastructure/mcp/test_usable_tool_embeddings.py`.
+
+- [ ] **Step 0: Check that a tool without a vector stays offered.** Read how the ReAct selector
+  (ADR-293) and the planner catalogue treat it. If a missing vector can drop a tool, the background
+  path is not taken: the lot keeps the incremental on-path computation only, and says so.
+- [ ] **Step 1: Write the failing tests** (spec M12).
+  - `test_reordered_catalogue_reuses_every_vector`: zero embedding calls.
+  - `test_one_changed_tool_embeds_one`: one call, carrying one text.
+  - `test_new_tools_beyond_inline_cap_served_without_waiting`: the turn returns at once, and one
+    background job embeds the rest.
+  - `test_spend_blocked_keeps_previous_vectors`: zero calls, and the previous vectors are served
+    (E8).
+  - `test_envelope_written_as_new_dict`.
+  - `test_legacy_envelope_recomputed_once`: the first read after deployment recomputes once, then
+    hits.
+- [ ] **Step 2: Implement, then run the tests.**
+  `.venv/Scripts/pytest tests/unit/domains/agents/services tests/unit/infrastructure/mcp -q --no-cov`
+  passes, and the CC and file-size checks are green.
+- [ ] **Step 3: Runtime proof in Docker dev.** On the proof account, a stub server returns its tools
+  in a random order: zero recomputes over 10 cold discoveries. Then one tool description changes:
+  one embedding text.
+- [ ] **Step 4: Record the lot's files and run the exhaustive review.**
 
 ### Task M1: Personal MCP catalogue snapshot
 
@@ -385,7 +545,21 @@ or message content.
 - Produces:
   - `CatalogueSnapshot`, frozen: `version: Literal[2]`, `discovered_at: datetime` (UTC),
     `configuration_fingerprint: str`, `catalogue_fingerprint: str`,
-    `tools: tuple[Mapping[str, JsonValue], ...]`, `reference_content: str | None` (≤ 50 000 chars).
+    `tools: tuple[Mapping[str, JsonValue], ...]`, `reference_content: str | None` (≤ 50 000 chars),
+    `generation: int` (monotonic, reserved before the discovery starts),
+    `server_ttl_ms: int | None` and `cache_scope: Literal["public", "private"] | None` (MCP
+    2026-07-28 caching hints, `None` from a legacy server), and
+    `server_instructions: str | None` (from the handshake, bounded like the reference).
+  - **State of the art applied (spec §0quater):**
+    - `tools` are stored in canonical order (sorted by name). The MCP spec asks servers for a
+      deterministic order because clients cache the list and LLM prompt caches depend on it.
+    - The revalidation horizon is `server_ttl_ms` when the server gives one, and
+      `MCP_USER_CATALOGUE_REVALIDATE_AFTER_SECONDS` otherwise.
+    - A `private` list is keyed by its authorization context. The spec says such a cache *« MUST NOT
+      be shared across authorization contexts »*, so a changed grant or account is a miss.
+    - Discovery follows `nextCursor` (MCP: *« clients MUST NOT assume a fixed page size »*). Like the
+      OpenAI Agents SDK and langchain-mcp-adapters, it guards against a repeated cursor and caps the
+      pages; it stops at `mcp_max_tools_per_server` and logs the truncation. This fixes E7.
   - `parse_catalogue_snapshot(raw: object) -> CatalogueSnapshotRead`, where
     `CatalogueSnapshotRead = ValidSnapshot | LegacySnapshot | InvalidSnapshot` and the first two
     expose `.tools`.
@@ -414,6 +588,14 @@ or message content.
   - `test_projection_reads_legacy_and_v2`.
   - `test_snapshot_source_and_wording`: `describe_user_server` on a snapshot returns a `snapshot`
     source and « Declared capabilities: ».
+  - `test_tools_stored_in_canonical_order`: two discoveries returning the same tools in different
+    orders give the same `catalogue_fingerprint`.
+  - `test_older_generation_never_overwrites_newer` (integration): a discovery reserved first and
+    published last is refused (LibreChat's monotonic ticket, the MCP SDK's generation bump).
+  - `test_server_ttl_drives_revalidation_horizon`, `test_legacy_server_uses_setting`.
+  - `test_private_scope_keyed_by_authorization_context`.
+  - `test_discovery_follows_cursor_with_guards`: three pages, a repeated cursor, the page cap, and
+    the per-server cap, each with its own outcome.
 - [ ] **Step 2: Implement the parser, the writer and the readers.** Run the existing
   `tests/unit/infrastructure/mcp` and `tests/unit/domains/user_mcp` suites green.
 - [ ] **Step 3: Run the tests.**
@@ -439,6 +621,12 @@ or message content.
   - The planner call site of `build_mcp_reference` — awaits the collector before building.
   - `apps/api/src/infrastructure/observability/metrics_mcp.py` —
     `mcp_user_reference_fetches_total{outcome}`, with its panel in the MCP Grafana dashboard.
+  - The server's `instructions` from the MCP handshake (the protocol's own channel for guidance;
+    VS Code caches it too) follow the same path as the reference.
+    - They are captured at discovery, which costs no extra round trip, unlike `read_me`.
+    - They are stored in the snapshot (M1) and injected only for a selected server's domain.
+    - Step 0 checks that the installed `mcp` 2.2.0 `Client` exposes them after its dual-era
+      handshake. If it does not, this item is dropped and the reason recorded.
 - Test:
   - `apps/api/tests/unit/infrastructure/mcp/test_reference_content.py`
   - `apps/api/tests/unit/domains/agents/services/planner/test_mcp_reference_exact_domains.py`
@@ -481,8 +669,7 @@ or message content.
 - Modify:
   - `apps/api/src/infrastructure/mcp/user_context.py`:
     - `setup_user_mcp_tools` delegates to `prepare_user_servers` and assembles in the parent;
-    - `_usable_tool_embeddings`'s recompute goes through `spend_blocked`, `enforce_usage_limit` and
-      the embedding attribution context, with unchanged inputs.
+    - `_usable_tool_embeddings` is reused as M6 left it (incremental, gated, off the critical path).
   - `apps/api/src/infrastructure/mcp/user_pool.py`:
     - `hydrate`;
     - a semaphore attribute;
@@ -537,10 +724,16 @@ or message content.
     discovery.
   - `test_child_never_sets_contextvar`: after preparation, `user_mcp_tools_ctx` is set only by the
     parent.
-  - `test_recompute_skipped_when_spend_blocked`: zero embedding calls and tools still registered.
+  - The embedding gate tests live in M6 (`test_spend_blocked_keeps_previous_vectors`).
   - `test_revalidation_single_flight_across_workers` (integration, Redis): two schedulers give one
     discovery.
   - `test_revalidation_refused_after_edit` (integration, PostgreSQL).
+  - `test_late_older_revalidation_never_overwrites_newer` (integration).
+    - Two revalidations reserve generations 7 and 8.
+    - Generation 7 finishes last and is refused.
+    - This is the stale-publication fence of LibreChat and of the MCP SDK cache (spec §0quater).
+  - `test_failures_isolated_not_gathered`: a raising server does not cancel its siblings.
+    langchain-mcp-adapters' bare `gather` is the counter-example.
   - `test_evicted_entry_rehydrated` (M9).
   - Review Focus 1–3.
 - [ ] **Step 2: Implement** the semaphore, the children, the parent assembly in server-name order,
@@ -685,6 +878,12 @@ or message content.
     - `POST /briefing/text`
     - `POST /briefing/sections/{name}/refresh`
   - `text_fingerprint(projected: str, statuses: Mapping[str, str], windows: BriefingWindows, slot_config_digest: str, prompt_version: str, sms_witness: str | None) -> str`.
+- **Request budget** (spec §0quater, on Grafana's per-panel model and its concurrency limit):
+  - the initial response carries every cached or local section;
+  - only the slow external sources get their own `GET /briefing/sections/{name}`;
+  - the client opens at most `BRIEFING_SECTION_CONCURRENCY` (default 4) at a time, so a browser on
+    HTTP/1.1 (6 connections per host, one held by the SSE stream) never queues the page.
+  - P0 records the protocol the production browser actually uses behind Cloudflare.
 
 - [ ] **Step 1: Write the failing tests** (D4–D8, D10, X2, X3).
   - `test_act_roundtrip_and_tamper`: valid, foreign account, expired, changed context, flipped
@@ -721,6 +920,10 @@ or message content.
 
 ### Task D3: Progressive dashboard (frontend)
 
+Starts only once the staged « LIA World » lot is committed: it rewrites `useBriefing.ts`, and this
+task delegates from that hook API (`useBriefing(enabled)`, `textUnavailable`), not from the
+2026-10-21 one.
+
 **Files:**
 - Create:
   - `apps/web/src/hooks/useBriefingProgressive.ts` — initial read, pending section reads and the
@@ -754,25 +957,137 @@ or message content.
 - [ ] **Step 4: Visual check in Docker dev** — mobile, desktop, zoom, themes, reduced motion. Record
   the lot's files and run the exhaustive review.
 
-### Task S1 (optional): Safe retries for non-idempotent connector requests
+### Task S1 (optional): Safe retries for non-idempotent connector requests — three providers
+
+Written together with the pending Drive push lot of 2026-10-26: `list_changes` gets the existing
+« bulk read » budget through a per-call `timeout` in the same `_make_request`. One change to that
+method, one review, one test file; the file is at 550/600 logical lines and `_make_request` at CC 29.
+
+**Scope widened on 2026-10-28** (provider parity, spec §0quater). The resend exists in three
+places, not one:
+- `BaseOAuthClient._make_request`, used by Google (`:862`);
+- `BaseMicrosoftClient`'s own `_make_request` (`base_microsoft_client.py:248`, three attempts on
+  any `httpx.RequestError`, any method);
+- Apple's `_execute_with_retry` (`base_apple_client.py:161`), which retries any exception. The
+  installed `caldav` 3.3.1 mints a **new** UID on every `save_event` call, so a resent Apple create
+  is a second event with another UID.
+
+The policy follows the libraries and the providers (spec §0quater):
+- **Never blindly resend after the request may have been sent.** `httpcore` retries only
+  `ConnectError` and `ConnectTimeout`, and `urllib3` excludes `POST` by default.
+- **Use the provider's own idempotency where it exists**, with keys derived from the effect
+  register's `idempotency_key` (ADR-263), so a resend is the same act:
+  - Microsoft Graph: `transactionId` on the event, which the provider documents for exactly this
+    case;
+  - Apple CalDAV: a `uid` fixed before the retry loop, so a resend targets the same object;
+  - Google Calendar: a client-chosen `id` (base32hex). Google states that collisions are not
+    guaranteed to be detected at creation, so after a read timeout the client **reconciles by
+    `GET`** instead of resending.
+- Gmail and Outlook mail send have no idempotency, and are never resent after sending.
 
 **Files:**
 - Create: `apps/api/src/domains/connectors/clients/retry_policy.py`.
-- Modify: `apps/api/src/domains/connectors/clients/base_oauth_client.py` — the `RequestError` branch
-  asks the policy; the CC of `_make_request` must not grow (29).
-- Test: `apps/api/tests/unit/domains/connectors/clients/test_retry_policy.py`.
+- Modify:
+  - `apps/api/src/domains/connectors/clients/base_oauth_client.py` — the `RequestError` branch
+    (`:862`) asks the policy, and a per-call `timeout` parameter is added. The CC of
+    `_make_request` must not grow (29).
+  - `base_microsoft_client.py` (`:248`) asks the same policy.
+  - `base_apple_client.py`: `_execute_with_retry` takes the operation's idempotency class.
+  - The three calendar clients' `create_event` take an optional `idempotency_key: str | None`; the
+    calendar tool passes the effect's key.
+- Test:
+  - `apps/api/tests/unit/domains/connectors/clients/test_retry_policy.py`;
+  - one parity test file over the three providers.
 
 **Interfaces:**
-- Produces: `may_resend(method: str, error: httpx.RequestError) -> bool`. True for idempotent
-  methods; for POST, true only for `ConnectError`, `ConnectTimeout` and `PoolTimeout`.
+- Produces:
+  - `may_resend(method: str, error: httpx.RequestError) -> bool`. True for idempotent methods; for
+    POST, true only for `ConnectError`, `ConnectTimeout` and `PoolTimeout`.
+  - `provider_idempotency_id(idempotency_key: str, provider: Literal["google", "microsoft", "apple"]) -> str`,
+    in each provider's alphabet; base32hex for Google.
 
+- [ ] **Step 0: Check what each `create_event` call site can pass.**
+  - Whether the effect register's `idempotency_key` reaches the calendar tool at call time
+    (ADR-263 claim).
+  - Whether Apple's `save_event` accepts a caller `uid`.
+
+  If either is missing, the lot keeps « no resend after send » for that provider and says so.
 - [ ] **Step 1: Write the failing tests** (S1).
   - `test_post_connect_timeout_resent`.
   - `test_post_read_timeout_not_resent`: one attempt, typed failure.
   - `test_get_read_timeout_resent_as_today`.
+  - `test_google_create_read_timeout_reconciled_by_get`: one event, success reported.
+  - `test_graph_create_carries_transaction_id`.
+  - `test_apple_create_resend_keeps_uid`.
+  - Parity: the same scenario on the three providers yields at most one event and the same
+    outcome.
 - [ ] **Step 2: Implement, then run the tests** —
   `.venv/Scripts/pytest tests/unit/domains/connectors -q --no-cov` passes, and the CC check is
   green. Record the lot's files and run the exhaustive review.
+
+**Measured (spec §0ter E4).**
+- Simulation with the real `GoogleCalendarClient.create_event` against a server that creates the
+  event and then answers after the read timeout: **3 events created**, and the caller sees
+  `ExternalServiceError` after 6.2 s.
+- Production over 7 days: 37 transport retries, all on reads (none within 60 s of an effect).
+- The step-1 tests reuse that simulation as their oracle.
+
+### Task S2: LLM client retries after an unknown outcome (E2; starts once Q3 is answered)
+
+**Measured (spec §0ter E2).** The clients built by `ProviderAdapter.create_llm`, per family:
+
+| Family | `max_retries` | Requests after a timeout | After a 500 or a 429 |
+|---|---|---|---|
+| OpenAI-wire (OpenAI, DeepSeek, Perplexity, Qwen) | 2 | 3 | 3 |
+| Anthropic | 2 | 3 | 3 |
+| Gemini | 6 | 1 | 6 (34 s) |
+| Ollama | none | 1 | 1 |
+
+Production: 2 timeouts in 30 days. The owner's rule says that a generation whose outcome is unknown
+is never relaunched automatically.
+
+**Files** (for the recommended option, Q3 (a)):
+- Create: `apps/api/src/infrastructure/llm/providers/retry_policy.py` — one declared policy:
+  - never relaunch after a timeout;
+  - at most `LLM_TRANSIENT_RETRY_MAX` (default 2) relaunches after a 429, a 5xx, or a connection
+    failure before the request was sent;
+  - a stream is never relaunched once its first byte has arrived.
+- Modify: `apps/api/src/infrastructure/llm/providers/adapter.py` — every family receives the
+  policy, through the one seam each SDK offers (Step 0). A guard test holds every `ProviderType`
+  member to it, like `test_reasoning_seam_guard.py`.
+- Test: `apps/api/tests/unit/infrastructure/llm/providers/test_retry_policy.py`, which reuses the
+  local-server simulation of 2026-10-28 (`.tmp/latency-20261028/sdk_retry_sim*.py`) with its DNS
+  guard.
+
+**State of the art (spec §0quater).**
+- The installed OpenAI and Anthropic SDKs send **no idempotency key**
+  (`_idempotency_header = None`), so no provider can de-duplicate their retries.
+- Both SDKs obey a server's `x-should-retry` and refuse a `Retry-After` above their cap. The policy
+  keeps both.
+- Gemini's `max_retries` is `HttpRetryOptions.attempts`, *« including the original request »*, with
+  configurable `http_status_codes`. The policy states **relaunches**, and each family translates
+  them into its own unit.
+- AWS Builders' Library: retry at one layer only. A connector or middleware layer above the client
+  never relaunches a model call.
+
+- [ ] **Step 0: For each SDK, find where it decides to retry, and record it in the test module's
+  docstring.**
+  - For the OpenAI-wire and Anthropic SDKs, the timeout branch is separate from `_should_retry`:
+    either `max_retries=0` plus the policy around the client, or a client subclass.
+  - For Gemini: `HttpRetryOptions(attempts=1 + relaunches, http_status_codes=…)`.
+  - Ollama has nothing to change.
+  - Choose the smallest seam that every family can share.
+- [ ] **Step 1: Write the failing tests** (spec S2). For every family, with the local server:
+  - a timeout gives 1 request;
+  - a 429 or a 500 gives at most 3 requests;
+  - a connection refused gives at most 3 requests;
+  - a stream cut after its first chunk gives 1 request.
+- [ ] **Step 2: Implement, then run the tests, `task test:backend:agents` and the LLM provider
+  suites.** Each failure keeps its typed error, so `failure_kind` stays the same in
+  `token_usage_logs`.
+- [ ] **Step 3: Document the decision in an ADR-221 amendment.** It covers the per-attempt timeout,
+  which no longer multiplies, and the relaunch policy. Record the lot's files and run the exhaustive
+  review.
 
 ### Task O2: Client timings and observability wiring
 
@@ -796,26 +1111,20 @@ or message content.
   runs in parallel, and `SSELatencyP95High` migrates only after two weeks of observation. Record
   the lot's files and run the exhaustive review.
 
-### Task N1: Network diagnosis and remediation proposal (no code; production needs authorization)
+### Task N1: Network re-measurement — done on 2026-10-28
 
-- [ ] **Step 1: Ask the owner for the read-only production window** (SSH through
-  `scripts/deploy/deploy.local.ps1`; never print the host).
-- [ ] **Step 2: Run the protocol of spec §5.12.**
-  - 200 `getaddrinfo` per host, `AF_UNSPEC` and `AF_INET`, in the container and on the host.
-  - `dig` against the gateway, 1.1.1.1 and 8.8.8.8.
-  - Ten-minute loss series.
-  - Wi-Fi link statistics.
-  - `docker version`.
-  - Write `network-diagnosis.md`, with the distributions, not the means only.
-- [ ] **Step 3: Propose one remediation with its rollback** (caching resolver, upstreams, resolver
-  options or wired link) and test it on dev first. Apply nothing in production without explicit
-  approval.
+Spec §0ter H9:
+- 968 `[resolver]` timeouts in 7 days (41–239 a day), all towards Google's public resolvers;
+- present in 4 of the 24 MCP connections above 4 s, and in none of the 290 faster ones.
+
+The two levers stay with the owner: Ethernet, and the deferred host DNS cache. Nothing is applied in
+production.
 
 ### Task Q: Documentation, settings surfaces and final qualification
 
 - [ ] **Step 1: ADRs.**
-  - Write the new ADR (catalogue snapshot, served while revalidated, verified at use; amends
-    ADR-338 §2/§7 if Q1 is accepted).
+  - Write the new ADR (catalogue snapshot, served while revalidated, verified at use). It amends
+    ADR-338 §2/§7 for personal MCP servers' turn preparation only (Q1, confirmed 2026-10-22).
   - Add amendments to ADR-271 (attempt markers; one act across requests), ADR-304 (pre-graph
     commit) and ADR-119 (journey SLI).
   - Update `docs/architecture/ADR_INDEX.md`.
@@ -830,7 +1139,9 @@ or message content.
   every new setting (spec §6.4), then run `task lint:hygiene`.
 - [ ] **Step 4: Gates.**
   - `task lint` (it includes the ratchets, docs, i18n and CI parity), `task test:markers`,
-    `task test:backend:unit:coverage`, `task test:frontend:coverage`, `task test:e2e`.
+    `task test:backend:unit:coverage`, `task test:backend:integration` (disposable
+    `TEST_REDIS_URL` on base 15), `task test:backend:coverage` then
+    `task test:backend:diff-coverage`, `task test:frontend:coverage`, `task test:e2e`.
   - Then `task ci:fast`.
   - Then `task lint:docs:preview` while nothing is staged.
 - [ ] **Step 5: Final runtime proof in Docker dev** (X4).
@@ -850,11 +1161,14 @@ or message content.
 | A4, A5 | M2 |
 | A6 | C1 |
 | A7 | M4, M5 |
-| A8 | D1 |
+| A8, E5, E12, E13 | D1 |
 | A9, A10 | D2, D3 |
-| A11 | W1 |
+| A11 | W1, W1b (optional) |
+| E7, catalogue order, `ttlMs` and `cacheScope` (§0quater) | M1 |
+| Q4 (open) | — (a lot only if (b) is chosen) |
 | A12 | O1, O2 |
-| A13 | N1 |
+| A13 | N1 (done) |
+| E2 (Q3) | S2 |
 | E4 | S1 |
-| E8 | M2 |
+| E8, E11 | M6 |
 | A15, E9, E10 | M1b |

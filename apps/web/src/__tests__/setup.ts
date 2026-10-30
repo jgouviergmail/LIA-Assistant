@@ -52,7 +52,9 @@ vi.mock('next/navigation', () => ({
 const { i18nStub } = vi.hoisted(() => ({
   i18nStub: {
     t: (key: string) => key,
-    i18n: { language: 'fr', changeLanguage: vi.fn() },
+    // `getResourceBundle`: a route-scoped `TranslationScope` reads the
+    // catalogue it inherits; the stub holds none.
+    i18n: { language: 'fr', changeLanguage: vi.fn(), getResourceBundle: () => ({}) },
   },
 }));
 
@@ -60,6 +62,9 @@ const { i18nStub } = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => i18nStub,
   Trans: ({ children }: { children: React.ReactNode }) => children,
+  // A provider changes which instance `useTranslation` reads; under the stub
+  // every component reads the stub, so a provider only renders its children.
+  I18nextProvider: ({ children }: { children: React.ReactNode }) => children,
   // Same echoing `t` as the hook, injected as props — `FeatureErrorBoundary`
   // is a class component and consumes the HOC form.
   withTranslation:

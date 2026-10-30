@@ -22,6 +22,7 @@ from langchain_core.tools import StructuredTool
 
 from src.core.config import settings
 from src.core.constants import (
+    EXECUTION_MODES_ALL,
     MCP_DISPLAY_EMOJI,
 )
 from src.domains.agents.constants import AGENT_MCP
@@ -507,6 +508,7 @@ def build_mcp_tool_manifest(
     *,
     mcp_origin: Literal["admin", "user"] | None = None,
     mcp_server_key: str | None = None,
+    execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP tool (shared by admin and user MCP).
 
@@ -524,6 +526,7 @@ def build_mcp_tool_manifest(
             mutation and never a declared read-only claim.
         mcp_origin: Owning configuration scope, when explicitly known.
         mcp_server_key: Exact configured admin key or user-server UUID.
+        execution_modes: The modes that may run the tool (ADR-249).
 
     Returns:
         ToolManifest instance
@@ -580,6 +583,7 @@ def build_mcp_tool_manifest(
         mutation_policy_reason=derive_mcp_mutation_policy_reason(_derived_policy),
         mcp_origin=mcp_origin,
         mcp_server_key=mcp_server_key,
+        execution_modes=execution_modes,
     )
 
 

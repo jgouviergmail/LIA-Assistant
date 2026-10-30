@@ -43,7 +43,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'Repeat',
     date: '2026-04-08',
-    readTime: 8,
+    readTime: 4,
     tags: ['react', 'pipeline', 'execution-mode', 'langgraph', 'iteration', 'agent-loop'],
   },
   {
@@ -51,7 +51,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'Network',
     date: '2026-03-15',
-    readTime: 6,
+    readTime: 4,
     tags: ['langgraph', 'multi-agent', 'orchestration', 'routing', 'ai-architecture'],
   },
   {
@@ -59,7 +59,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'ListChecks',
     date: '2026-03-12',
-    readTime: 5,
+    readTime: 4,
     tags: ['planner', 'execution-plan', 'task-orchestration', 'parallel-execution'],
   },
   {
@@ -67,7 +67,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'ShieldCheck',
     date: '2026-03-10',
-    readTime: 5,
+    readTime: 4,
     tags: ['hitl', 'approval', 'human-validation', 'safety', 'trust'],
   },
   {
@@ -85,7 +85,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Bot',
     date: '2026-04-05',
-    readTime: 5,
+    readTime: 3,
     tags: ['mcp', 'react-agent', 'iterative', 'sub-agent', 'tool-server', 'extensibility'],
   },
   {
@@ -93,7 +93,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Mail',
     date: '2026-03-14',
-    readTime: 5,
+    readTime: 4,
     tags: ['google', 'gmail', 'calendar', 'drive', 'contacts', 'oauth'],
   },
   {
@@ -109,7 +109,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Puzzle',
     date: '2026-03-06',
-    readTime: 5,
+    readTime: 4,
     tags: ['mcp', 'model-context-protocol', 'extensibility', 'tools', 'api'],
   },
   {
@@ -117,7 +117,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Wand2',
     date: '2026-03-04',
-    readTime: 6,
+    readTime: 4,
     tags: ['skills', 'skill-generator', 'skill-library', 'customization', 'agentskills'],
   },
 
@@ -127,7 +127,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'Heart',
     date: '2026-04-07',
-    readTime: 5,
+    readTime: 4,
     tags: ['psyche', 'emotions', 'personality', 'emotional-intelligence', 'pad-model', 'big-five'],
   },
   {
@@ -135,7 +135,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'ListOrdered',
     date: '2026-04-10',
-    readTime: 4,
+    readTime: 3,
     tags: ['execution-steps', 'real-time', 'progressive-display', 'sse', 'ux', 'transparency'],
   },
   {
@@ -143,7 +143,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'Mic',
     date: '2026-03-13',
-    readTime: 5,
+    readTime: 4,
     tags: ['voice', 'speech-to-text', 'tts', 'wake-word', 'hands-free'],
   },
   {
@@ -151,7 +151,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'BookOpen',
     date: '2026-03-09',
-    readTime: 6,
+    readTime: 4,
     tags: ['rag', 'documents', 'hybrid-search', 'embeddings', 'knowledge-base'],
   },
   {
@@ -159,7 +159,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'NotebookPen',
     date: '2026-03-18',
-    readTime: 6,
+    readTime: 4,
     tags: ['journals', 'introspection', 'personality', 'memory', 'carnets-de-bord'],
   },
   {
@@ -183,7 +183,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'Users',
     date: '2026-03-01',
-    readTime: 4,
+    readTime: 3,
     tags: ['sub-agents', 'delegation', 'parallel', 'specialists'],
   },
 
@@ -193,7 +193,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'UserCog',
     date: '2026-04-03',
-    readTime: 5,
+    readTime: 4,
     tags: ['account', 'lifecycle', 'gdpr', 'soft-delete', 'erasure', 'data-retention'],
   },
   {
@@ -201,7 +201,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'ShieldAlert',
     date: '2026-04-06',
-    readTime: 6,
+    readTime: 4,
     tags: ['hallucination', 'defense', 'parameter-stripping', 'hitl', 'robustness', 'planner'],
   },
   {
@@ -209,7 +209,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'Lock',
     date: '2026-03-16',
-    readTime: 9,
+    readTime: 4,
     tags: ['security', 'defense-in-depth', 'rate-limiting', 'encryption'],
   },
   {
@@ -217,7 +217,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'security',
     icon: 'Eye',
     date: '2026-03-05',
-    readTime: 5,
+    readTime: 4,
     tags: ['privacy', 'gdpr', 'data-protection', 'pii', 'encryption'],
   },
 
@@ -227,7 +227,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'FileSpreadsheet',
     date: '2026-08-19',
-    readTime: 6,
+    readTime: 3,
     tags: ['excel', 'import-export', 'admin', 'pricing', 'openpyxl', 'bulk-edit'],
   },
   {
@@ -235,7 +235,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'SlidersHorizontal',
     date: '2026-04-04',
-    readTime: 5,
+    readTime: 4,
     tags: ['embeddings', 'similarity', 'calibration', 'gemini', 'thresholds', 'f1-score'],
   },
   {
@@ -243,7 +243,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'Settings',
     date: '2026-04-09',
-    readTime: 5,
+    readTime: 4,
     tags: ['llm-config', 'admin-ui', 'governance', 'db-overrides', 'multi-provider', 'defaults'],
   },
   {
@@ -251,7 +251,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'Activity',
     date: '2026-03-17',
-    readTime: 5,
+    readTime: 4,
     tags: ['prometheus', 'grafana', 'langfuse', 'metrics', 'observability', 'devops', 'claude-cli'],
   },
   {
@@ -267,7 +267,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'technical',
     icon: 'Zap',
     date: '2026-02-28',
-    readTime: 4,
+    readTime: 3,
     tags: ['optimization', 'caching', 'pattern-learning', 'token-reduction'],
   },
   {

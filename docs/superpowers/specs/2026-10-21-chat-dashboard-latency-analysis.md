@@ -7,6 +7,208 @@ This revision keeps the diagnosis of the
 [2026-10-20 study](./2026-10-20-dashboard-mcp-latency-systemic-analysis.md) (a historical document,
 left as written) and replaces several of its decisions. §3 lists every change and its reason.
 
+## 0ter. Measured evidence of 2026-10-28
+
+Every hypothesis the decisions rest on was measured in production (read-only, 7 days from
+2026-10-21, outside the 20/10 outage), simulated with the real code, or proven at runtime in Docker
+dev on the proof account. Counts and durations only; identifiers hashed; no content read.
+
+**Method.**
+- **Production:**
+  - Loki over 7 days: chat timeline, MCP, dashboard and push events, grouped per `run_id` and
+    `request_id`;
+  - Prometheus over 7 days: `mcp_catalogue_cache_total`, HTTP and build histograms;
+  - PostgreSQL under `default_transaction_read_only=on`: `agent_treatments`, `token_usage_logs`,
+    `message_token_summary`, `agent_effects`;
+  - Redis: validity of the cached briefing sections;
+  - the host's `journalctl -u docker`;
+  - one keyless (403, unbilled) HTTPS timing to the weather host.
+- **Simulations (no paid call; DNS guard: only local hosts resolve):**
+  - four uvicorn-like processes running the real `BriefingService` and `shared_flight` on a real
+    Redis (base 15), with fake sources timed like the production medians;
+  - the real LLM clients built by `ProviderAdapter.create_llm`, against a local server that is slow,
+    answers 500, or answers 429;
+  - the real `GoogleCalendarClient.create_event` against a server that creates the event and then
+    answers late.
+- **Runtime proof:** `stream_chat_response` on the proof account, with the MCP preparation replaced
+  by a 6 s wait while `pg_stat_activity` is sampled, then stopped before the graph (0 tokens, 0 €).
+- **Artefacts:** `.tmp/latency-20261028/` (gitignored) holds the scripts and hashed outputs.
+
+**Chat and personal MCP.**
+
+| # | Hypothesis | Measured | Verdict |
+|---|---|---|---|
+| H1 | MCP preparation dominates the pre-graph delay | 241 turns. Turns with ≥1 discovery (115, **48 %**): p50 3.9 s, p95 19.2 s, max 32.8 s. Turns with none (126): p95 0.74 s, max 1.0 s. All turns: p50 0.68 s, p95 14.8 s | Confirmed. The 125 s of 20/10 was the outage: magnitude about 4× lower outside it |
+| H2 | The per-worker cache explains repeated cold turns | 43 of the 136 follow-ups within 15 min were cold (**32 %**). Prometheus over 7 days: hit 173, miss 257, age 47, configuration 0. The pool's idle eviction uses the same 900 s | Confirmed. Supports A1, a catalogue shared across workers |
+| H3 | Cold discovery needs a 15 s bound | 314 discoveries on 6 servers: p50 1.68 s, p95 4.79 s, p99 5.67 s, max 7.89 s; **none above 10 s** | Confirmed. 15 s cuts nothing in normal conditions; 120 s only matters during an outage |
+| H4 | Parallel preparation shortens the tail | Replay of the measured per-server durations on the 115 cold turns: p50 3.9 → 2.3 s, p95 19.2 → 8.5 s, max 32.8 → 20.8 s. Turns above 10 s per week: **37 → 4** | Confirmed (simulated from measured durations) |
+| H5 | (U3, new defect **E11**) Tool embeddings are recomputed on the turn's critical path | 31 recomputes in 7 days, **131 s** in total, **1.4–16.4 s** each, always `catalogue_changed`. One server with a constant 6 tools recomputed on 21 of its 46 discoveries. The fingerprint covers the whole ordered tool list (`tool_embeddings_envelope.read_server_cache`) and every vector is recomputed | Confirmed. This is the tail left after H4 |
+| H6 | (U1, R18) A transaction stays open during the preparation | Runtime: one backend `idle in transaction` for the whole simulated preparation, its age following the wait (1.0 → 6.1 s). The 300 s bound is deployed in production (v4.0.0) and was not reached in 7 days (max preparation 32.8 s) | Confirmed at runtime. The bound is reached only with ≥3 servers at the 120 s discovery bound |
+| H7 | `read_me` at discovery costs latency | Called only when the server offers it (`user_pool.py:595`). 0 of 314 discoveries carried reference content | Refuted for the current servers. A15 stays for correctness (E9, E10), not for latency |
+| H8 | Nothing measures the wait before the graph | The log's `ttft` equals `first_useful_ms` on all 144 HTTP turns: it starts at the request (`api/service.py:498`) and includes the preparation. The Prometheus SLI starts after it (`streaming/service.py:366`). 7 of 241 turns (2.9 %) end without `chat_delivery_completed` | Partly refuted. The log measures it; the SLI and the alerts do not. O1 stands |
+| H9 | DNS failover explains the slow connections | Host: **968** DNS timeouts in 7 days (41–239 a day), all towards Google's public resolvers. Present in 4 of the 24 MCP connections above 4 s (17 %) and in 0 of the 290 faster ones | Minor contributor. Infrastructure, outside this programme |
+
+**Dashboard.**
+
+| # | Hypothesis | Measured | Verdict |
+|---|---|---|---|
+| D-H1 | The cards and the synthesis are slow | Over 7 days: `/cards` p50 3.26 s, p95 7.5 s (222 calls); `/synthesis` p50 6.0 s, p95 ≥ 10 s (top bucket, 224 calls) | Confirmed |
+| D-H2 | Fast cards wait for the slowest source | 349 builds with ≥2 live reads. Slowest read p50 0.39 s, p95 5.4 s, max 16.2 s. Time a fast card waits (max − median) p50 0.14 s, p95 4.4 s. Slowest source: SMS 206, weather 61, agenda 43, mails 31 | Confirmed for the tail; the median is short because most sections come from the cache |
+| D-H3 | `/synthesis` rebuilds the bundle | 207 of 224 (**92 %**) find it incomplete, because the page starts the synthesis with the cards. They join the build or rebuild it (20 rebuilds) | Confirmed. Supports « synthesis after the cards » (D1 front) |
+| D-H4 | A waiter repeats the reads after its 10 s wait | Simulation, 4 processes. Nominal case: the waiters finish 0.13 s after the owner. One failed section: **every** waiter waits the full 10 s, then reads that source again (4 reads, 15 s instead of 5 s). Gmail push invalidation at the end of the owner's build: every waiter waits 10 s, then reads the mails again (4 reads, 11.5–12.4 s). Production shows the same signature: 9 episodes of duplicate mail reads 8.3–9.4 s apart, two waiters at 0.0 s from each other | Confirmed, with a sharper cause: the waiter's predicate is « complete bundle » (`cached_cards.published_cards_bundle`), so **any** section missing at publication costs the full budget, then N uncoordinated rebuilds |
+| D-H4b | What removes a section mid-build | 13 of the owner's 98 builds receive a Gmail push during the build, against 1.6 expected (the same windows shifted by 1–15 min). In 8 of the 13, a Google sign-in had just completed | Confirmed correlation. Google's own sign-in security e-mail is the likely trigger (inferred; no mail was read) |
+| D-H5 | `cache_state` labels are reliable | « warm » builds: p50 3.4 s, p95 9.2 s; « partial »: 0.4 s / 1.9 s; 0 « cold » in 7 days. A live read longer than 1.5 s counts as cached (`cache_state.py:21`) | Refuted. Supports classifying by provenance (A8) |
+| D-H6 | (new) SMS is read several times per page | Never cached. Read **3 times** per page load (cards, then greeting and synthesis prompts): 280 reads for 140 text builds. p50 118 ms, p95 1.66 s, max 7.6 s | Confirmed. The text build can read it once |
+| D-H7 | The weather card pays one connection per request | 8 billed requests (2 environment, 1 current, **5 forecast pages** of 24 h for the 120 h asked) in 49 of 63 live reads; 6 without the environment. Timeline (p50 from build start): extras 1.5 s → current 2.2 s → forecast 5.0 s. From production, a fresh HTTPS connection costs 672 ms, a reused one 117 ms. 0.0142 € per read | Confirmed. Estimated after W1: about 1.2–1.6 s (from measured unit costs, not simulated end to end) |
+| D-H8 | Duplicate external reads are frequent | Same section, same account, two runs within 30 s, over 7 days (SMS, reminders and workboard excluded, being always live): mails 17, weather 2, documents 2, agenda 1 | Rare. The latency cost (D-H4) matters more than the quota cost |
+
+**Retries.**
+
+| # | Hypothesis | Measured | Verdict |
+|---|---|---|---|
+| E2 | SDK retries relaunch a generation whose outcome is unknown | Clients as LIA builds them (`max_retries`: 2 for OpenAI-wire, i.e. OpenAI, DeepSeek, Perplexity and Qwen, and for Anthropic; **6 for Gemini**; none for Ollama). Per-attempt timeout of 1 s: OpenAI-wire and Anthropic send **3 requests** on a timeout (4.3 s), and 3 on 500 or 429. Gemini sends 1 on a timeout but **6 on 500 or 429 (34 s)**. Ollama sends 1. Production: 2 timeout failures in 30 days, all calls together | Confirmed by construction, and contrary to the owner's rule. Rare in practice. New lot S2 |
+| E3 | Domain-agent middlewares stack retries | The classic domain-agent nodes ran 0 times in 30 days. Only `browser_agent` carries the stack (251 calls, 0 failures) | Exposure limited to the browser agent |
+| E4 | The OAuth client resends a POST after a read timeout | Simulation: one `create_event` whose answer comes late → **3 events created**, and LIA reports `ExternalServiceError` after 6.2 s. Production over 7 days: 37 transport retries (Drive 31, Calendar 5, Contacts 1), none within 60 s of an effect: all were reads | Confirmed by construction; not observed on a write. S1 stays justified |
+
+**Still unverified:**
+- U5: whether a provider bills a request that the SDK retried after a client-side timeout. Measuring
+  it needs paid calls, and the event is rare (2 in 30 days).
+- Whether the 6-tool server's catalogue changes in order or in content: telling them apart would mean
+  contacting the person's server. The fix of E11 covers both.
+
+**Consequences for the plan:**
+- **A1 and M2** are justified by H2 and H4.
+- **New lot M6 (E11):** order-insensitive, per-tool incremental embeddings, kept off the critical
+  path.
+- **D1 gains two steps:**
+  - after the owner releases its claim without a complete bundle, **one** waiter claims again and
+    rebuilds the missing sections;
+  - the text build reads SMS once.
+- **W1** is quantified by D-H7.
+- **New lot S2 (E2)** has its question in §4 (Q3).
+- **N1 is done** by H9.
+- **C1 stays first**: it is proven (H6), and it also releases the pooled connection that each cold
+  turn holds for its preparation (p95 19 s).
+
+## 0quater. State of the art — how others solve the same problems (2026-10-28)
+
+**What was read:**
+- primary sources: the code of the projects, and the SDKs installed in LIA (`apps/api/.venv`);
+- official specifications and API references;
+- recognised engineering articles.
+
+Blog posts and forums are labelled as such and never decide alone. Every reference was read inline.
+
+| Decision | What others do | Verdict | Change to the plan |
+|---|---|---|---|
+| **A1** persisted catalogue, served while revalidated | **VS Code** persists each server's tool list in storage (`McpServerMetadataCache`, key `mcpToolCache`) *« so we can show what's available before it's started »*. It keys the list by a `cacheNonce` derived from the server definition (*« changing the nonce will indicate that tools need to be refreshed »*), exposes `Unknown / Cached / Outdated / RefreshingFromCached / Live`, refreshes on `onDidChangeToolList`, and also caches `serverInstructions`. The **OpenAI Agents SDK** cache is in memory, opt-in (`cache_tools_list`, *« if you know the list is stable »*) and invalidated by hand. **MCP 2026-07-28** (SEP-2549, implemented by the `mcp` 2.2.0 SDK installed in LIA) gives list results a server hint, `ttlMs` (*« a freshness hint, not a guarantee »*; *« MAY serve stale responses if errors occur during re-fetching »*; *« SHOULD NOT treat TTL as a polling interval »*), and a `cacheScope` whose `private` value *« MUST NOT be shared across authorization contexts »* | **Confirmed** — VS Code ships the same model | M1: the revalidation horizon is the server's `ttlMs` when it gives one, and 900 s only for a legacy server. A `private` list is keyed by its authorization context. The snapshot records `ttlMs`, `cacheScope` and the server instructions. The cache state is exposed, as in VS Code |
+| **E7** first page of `tools/list` only | **MCP spec**: *« Page size is determined by the server, and clients MUST NOT assume a fixed page size »*. **OpenAI Agents SDK** and **langchain-mcp-adapters** loop on `nextCursor` with a guard against a repeated cursor and a page cap (1 000) | **Challenged.** « Kept identical » was a spec deviation | M1: bounded cursor loop (repeated-cursor guard, page cap), still truncated at `mcp_max_tools_per_server`, and a truncation stated in the log |
+| (new) catalogue order | **MCP 2026-07-28**: servers *« SHOULD return tools in a deterministic order… enables clients to reliably cache the tool list and improves LLM prompt cache hit rates »*. Measured: one server's catalogue changes on 21 of 46 discoveries (§0ter H5) | **Added** | M1 and M6: LIA orders each server's tools canonically (by name) at the catalogue boundary. That steadies the snapshot fingerprint, the embeddings, and the ReAct prompt prefix that ADR-308 and ADR-309 cache across turns |
+| **M2** parallel preparation | **langchain-mcp-adapters** gathers every server with `asyncio.gather`, but without a per-server timeout or failure isolation: one server down fails them all. **LibreChat** overlaps the bulk loads and *« settle[s] every started load before cleanup »*; optional-tool failures stay soft | **Confirmed**, with a counter-example to avoid | M2 keeps per-server isolation (one failure keeps the others) and the per-server bound |
+| **M2 and M7** background revalidation | **LibreChat** addresses each catalogue by its effective configuration **and** its capabilities. It fences stale cross-replica publications with a connection-bound token and *« a monotonic ticket assigned before an app-level tools/list request begins »*, and single-flights concurrent publications. The **MCP SDK** cache bumps a generation *« first so an in-flight fetch cannot write the evicted entry back »* | **Refined** | M7 adds a case: a revalidation started earlier and finishing later never overwrites a newer snapshot. The conditional write compares a monotonic generation, not only the configuration fingerprint |
+| **A3** verification at use | The **OpenAI Agents SDK** validates required parameters against the cached schema before every call (`_validate_required_parameters`) | **Confirmed** (same idea, local) | — |
+| **A15** `read_me` at use | **MCP**: `InitializeResult.instructions` is the standard channel for server guidance; `read_me` is one server family's convention. VS Code caches the instructions. LIA reads neither the instructions nor, at discovery, a `read_me` from any current server (0 of 314) | **Refined** | M1b also carries the server's `instructions` from the handshake into the snapshot, served at real use like the reference |
+| **M6** embeddings | **LangChain `CacheBackedEmbeddings`**: one key per text (model namespace plus a hash of the text), and only the missing texts are embedded, in batches | **Confirmed** | M6 keys each vector by the hash of the **exact embedded text**, so a change in how LIA composes that text also invalidates it |
+| **D1** dashboard waiters (E12), and push invalidation (E5) | **Facebook memcache leases** (Nishtala et al., NSDI 2013; MIT 6.824 FAQ): one token per key on a miss; others retry shortly or take a stale value. **A delete invalidates the outstanding lease, so a slow builder cannot write a stale value.** RFC 5861 `stale-while-revalidate` and XFetch (Vattani et al., VLDB 2015) refresh before expiry without making anyone wait | **Confirmed** (re-claim) and **extended** | D1 adds the lease fence: a push invalidation bumps the section's generation, and a section write commits only if the generation it read before the fetch is unchanged (one Redis script). That closes E5 on the measured path. SWR for the slow sections becomes Q4 (a product trade-off) |
+| **D2** progressive dashboard | **Grafana** issues one request per panel by default, under a front-end concurrency limit (batches of 5–6 reported). Browsers allow 6 connections per host over HTTP/1.1 (dev), and the open SSE stream takes one | **Confirmed**, one constraint | D2 groups sections by latency class: the initial response carries every cached or local section, and only the slow external sources get their own request (≤ 5 at a time) |
+| **W1** connection reuse | `httpx`: the pool belongs to the client's transport, so a client per request means a new TCP and TLS setup each time (measured 672 ms against 117 ms, §0ter D-H7). Google Weather reference: `forecast.hours.lookup` caps `pageSize` at **24**, while `forecast.days.lookup` returns **up to 10 days in one page** | **Confirmed**, plus an option | New optional W1b: 5 daily summaries from 1 daily call, plus 1 hourly page for the 24 h alert. That is 8 → 5 billed requests per read, at the cost of the provider-neutral shape (§5.9) |
+| **S1** safe resend | **urllib3** excludes `POST` from its default retry methods. **httpcore**, under `httpx`, retries only `ConnectError` and `ConnectTimeout`, i.e. before sending. **AWS Builders' Library**: a timeout does not mean no side effect; make the operation idempotent before retrying. **Microsoft Graph** `event.transactionId`: *« for the server to avoid redundant POST operations in case of client retries »*. **Google Calendar** accepts a client-chosen `id` but *« cannot guarantee that ID collisions will be detected at event creation time »* | **Confirmed**, and made better than « never resend » | S1 per provider: Outlook sends `transactionId` derived from the effect register's `idempotency_key`; Google sets a client-chosen `id` from the same key and, after a read timeout, reconciles by `GET` instead of resending; Gmail send is never resent; Apple is checked in Step 0 |
+| **S2** LLM retries (Q3) | The installed **OpenAI 2.54 and Anthropic 0.122 SDKs send no idempotency key** (`_idempotency_header = None`; only an informative `x-stainless-retry-count`), so the provider cannot de-duplicate a retry. Both SDKs obey a server's `x-should-retry` and cap `Retry-After`. **Gemini**'s `max_retries` maps to `HttpRetryOptions.attempts`, *« including the original request »*, with configurable status codes. **AWS**: retry at one layer only (three layers of three attempts make 27). OpenAI community threads report timed-out requests billed anyway (anecdotal, not official) | **Confirmed**: Q3 (a) stands | S2 translates one policy into each SDK's semantics (relaunches against attempts), keeps the server's `x-should-retry` veto and the `Retry-After` cap, and never stacks a layer |
+| **C1** transaction across a network wait | General engineering guidance (vendor and blog articles) and the PostgreSQL docs agree: read, call the network with no transaction open, then write in a short one; `idle_in_transaction_session_timeout` is only a backstop. That is ADR-304's own rule | **Confirmed** | — |
+
+**Sources:**
+- VS Code `src/vs/workbench/contrib/mcp/common/mcpServer.ts`, `mcpTypes.ts` (github.com/microsoft/vscode)
+- openai-agents-python `src/agents/mcp/server.py` and `util.py`
+- langchain-mcp-adapters `client.py`, `tools.py`
+- LibreChat `packages/api/src/mcp/{loading,toolsChanged,cache}.ts`
+- [MCP 2025-11-25 tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) and [pagination](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/pagination)
+- [MCP 2026-07-28 tools](https://modelcontextprotocol.io/specification/2026-07-28/server/tools) and [caching](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching)
+- `mcp/client/caching.py` (installed SDK 2.2.0)
+- LangChain `CacheBackedEmbeddings`
+- [MIT 6.824 memcache FAQ](https://pdos.csail.mit.edu/6.824/papers/memcache-faq.txt) (Nishtala et al., NSDI 2013)
+- [RFC 5861](https://www.rfc-editor.org/rfc/rfc5861)
+- [Optimal Probabilistic Cache Stampede Prevention](https://mail.vldb.org/pvldb/volumes/8/paper/Optimal%20Probabilistic%20Cache%20Stampede%20Prevention) (VLDB 2015)
+- [AWS: making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/) and [timeouts, retries and backoff with jitter](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter)
+- [Microsoft Graph event resource](https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0)
+- [Google Calendar events resource](https://developers.google.com/workspace/calendar/api/v3/reference/events)
+- [Google Weather `forecast.hours.lookup`](https://developers.google.com/maps/documentation/weather/reference/rest/v1/forecast.hours/lookup) and [`forecast.days.lookup`](https://developers.google.com/maps/documentation/weather/reference/rest/v1/forecast.days/lookup)
+- installed `openai`, `anthropic`, `google-genai`, `langchain_google_genai`, `urllib3`, `httpcore`
+- [Grafana: sharing query results between panels](https://grafana.com/blog/learn-grafana-share-query-results-between-panels-to-reduce-load-time)
+- [OpenAI community: timed-out requests billed](https://community.openai.com/t/gpt-4-api-gateway-timeout-for-long-requests-but-billed-anyway/177214) (anecdotal)
+
+## 0bis. Re-verification of 2026-10-28
+
+The whole analysis was re-checked inline against HEAD `5e76b633c` (v3.4.0 → v4.0.0 preparation, 31
+commits after `89d10bc97`) plus the staged « LIA World » reconciliation.
+
+**Unchanged — every finding of §2 still holds, most at the same lines:**
+- sequential MCP preparation before routing (`domains/agents/api/service.py:682`, archive-first `:767`,
+  commit `:848`; `infrastructure/mcp/user_context.py:210-213`);
+- absolute 900 s catalogue age (`user_pool.py:309`), the 120 s tool-call timeout bounding discovery
+  (`core/constants.py:3423`), `read_me` called by every discovery of a server that offers it
+  (`user_pool.py:590-605`; none of the current servers did in 7 days, §0ter H7);
+- the name/slug mismatch of the reference injection (`planner/mcp_reference.py:62`) and the
+  `read_me` tool dropped from standard registration (`user_context.py:309`);
+- the effect gate still resolves only the global registry (`effects/runtime.py:115`, E1). The MCP
+  change of the period only fixed wire-name argument handling (`mcp/gated_tool.py`);
+- the dashboard's 10 s wait-then-build, 20 ms polling, 30 s claim TTL, the synthesis rebuild on a
+  missing section, the two slot calls per `/synthesis`, `generated_at` stamped before the fetch;
+- the weather client's per-request `httpx.AsyncClient`, the extras awaited before the weather, the
+  OAuth client resending any `RequestError` whatever the method (`base_oauth_client.py:862`),
+  Calendar creation unprotected;
+- the TTFT histogram starting after the MCP preparation (`streaming/service.py:366`), no
+  `max_retries` in the LLM factory, three streamed slots only.
+
+**Changed facts that affect the plan:**
+1. **A new failure mode: the server now bounds an idle transaction at 300 s**
+   (`DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS_DEFAULT = 300_000`, `core/constants.py:1253`;
+   `infrastructure/database/server_bounds.py`, ADR-304 amendment of 2026-10-23).
+   - The turn's setup transaction is still open across the sequential MCP preparation.
+   - A personal server may take 120 s to fail, and an account may hold 20 of them by default
+     (`MCP_USER_MAX_SERVERS_PER_USER_DEFAULT`).
+   - Three dead servers therefore make PostgreSQL end the turn's connection mid-preparation, and the
+     turn fails at its next statement.
+   - Derived from the code, not observed. It raises lot C1 (commit before the preparation) to the
+     first place of the chat lots.
+2. **A new account sees only the weather card** (`NEW_ACCOUNT_VISIBLE_SECTIONS`,
+   `domains/briefing/constants.py`, v3.5.0). For such an account the slowest source is the whole
+   dashboard: lot W1 (weather connections) matters more than progressive rendering for it.
+3. **`GET /briefing/cached-weather`** reads the cached forecast without fetching (v3.5.0). It is one
+   more reader of the weather cache to keep unchanged.
+4. **The staged « LIA World » lot rewrites the dashboard hook** (`apps/web/src/hooks/useBriefing.ts`).
+   - It adds `useBriefing(enabled)`, `autoFetch: false` on the text query and a text that, once
+     failed, is only regenerated by an explicit retry (`textUnavailable`).
+   - The text read is still issued at mount, in parallel with the cards (`useBriefing.ts:114-127`).
+   - The frontend half of D1 and all of D3 must be written on top of that lot, once it is committed.
+5. **Network diagnosis done since** (ADR-361, v3.4.0).
+   - Resolver failover is proven on the host (`journalctl -u docker`, `[resolver]` timeouts at
+     T+4.00 s).
+   - The 20/10 episode was the home Internet access, confirmed by `blackbox-public`; three other
+     incidents were Wi-Fi drop-outs of the Pi.
+   - The owner decided: Ethernet when possible, no palliative in production, host DNS cache
+     deferred. Lot N1 shrinks to a re-measurement.
+6. **The production figures of §2 were taken inside that episode** (20/10, 13:38–14:00 UTC). The
+   structural defects stand; the magnitudes (125 s before the graph, 17 s weather median) are
+   probably inflated and must be re-measured (plan P0) before any gain is claimed.
+7. **`BaseOAuthClient._make_request` has a second pending change**.
+   - The Drive push analysis of 2026-10-26 proposes a per-call read budget there.
+   - Lot S1 (no resend of a non-idempotent request after send) must be written together with it,
+     not beside it.
+8. **Ratchets moved**:
+   - `base_oauth_client.py` is at 550/600 logical lines;
+   - the streaming service is at 1 220 against a cap lowered to 1 245;
+   - `fetchers.py` is at 591/600;
+   - the backend CC ratchet stands at `over` 260, `max` 77.
+
+   §6.5 is updated.
+9. **New gates**:
+   - `task test:backend:integration` with a disposable `TEST_REDIS_URL` on base 15;
+   - `task test:backend:coverage` followed by `task test:backend:diff-coverage` (changed lines
+     covered at the floor);
+   - the env-template parity guard (`test_env_template_parity_guard.py`: a template states the
+     code's default, omits the key, or says why it differs);
+   - Ruff `ASYNC2` on `src`.
+
 ## 0. Method and evidence status
 
 - Every statement about current behaviour cites `file:line` in the working tree of 2026-10-21
@@ -22,6 +224,8 @@ left as written) and replaces several of its decisions. §3 lists every change a
 - Reasoning is by **mechanism and slot**, never by model or provider: every LLM slot is
   configurable and the models are interchangeable (owner rule). No decision below depends on which
   model a slot runs.
+- **Status on 2026-10-28 (§0ter):** U1 is proven at runtime (H6); U3 is explained (H5, defect
+  E11); U4 is measured (H3); U2 is superseded by the host measurement of H9. Only U5 remains open.
 - **Unverified** items are named and never used as the sole basis of a decision:
   - U1 — whether the turn and dashboard sessions are really idle in transaction during the network
     waits. The code shows the transaction scope; ADR-304 requires measuring it with
@@ -340,16 +544,19 @@ None of these is fixed by this programme unless a lot says so; none is made wors
 | # | Defect | Evidence | Treatment |
 |---|---|---|---|
 | E1 | Effect gate blind to personal MCP tools outside ReAct | `agents/effects/runtime.py:87-117`; memory 2026-10-16 | Separate design already pending; this programme adds no new path around it |
-| E2 | The factory leaves each SDK's retry policy at its default. In the two SDK families inspected, the default retries client-side timeouts twice (unknown outcome, U5) | No `max_retries` in `infrastructure/llm/factory.py`; `anthropic/_base_client.py:877-900`, `DEFAULT_MAX_RETRIES = 2` (anthropic and openai) | Mechanism-level, every slot: separate analysis recommended, owner's rule « issue inconnue jamais relancée » |
+| E2 | The factory leaves each SDK's retry policy at its default. In the two SDK families inspected, the default retries client-side timeouts twice (unknown outcome, U5) | No `max_retries` in `infrastructure/llm/factory.py`; `anthropic/_base_client.py:877-900`, `DEFAULT_MAX_RETRIES = 2` (anthropic and openai) | Measured 2026-10-28 (§0ter E2); lot S2, gated by Q3 |
 | E2 (detail) | The slot timeout is a **per-attempt** bound (ADR-221, `factory.py:420-423`, `providers/adapter.py:109-117`). ADR-221 accepted the longer wait, not the bill | A non-streamed call longer than its slot timeout is sent up to three times. Only the attempt whose answer arrives carries usage, so earlier attempts — possibly billed by the provider — reach no ledger and no ceiling | Same separate analysis |
-| E3 | Model-retry (3, on any exception) and tool-retry (3, on any exception) middlewares on the domain agents, stacked on the SDK and connector retries | `infrastructure/llm/middleware_config.py:218-228, 392-455, 645-680`; `core/constants.py:2940, 2960`; agents reachable through the orchestrator's legacy routing (`graph.py:703-716`), actual use to measure | Same separate analysis |
+| E3 | Model-retry (3, on any exception) and tool-retry (3, on any exception) middlewares on the domain agents, stacked on the SDK and connector retries | `infrastructure/llm/middleware_config.py:218-228, 392-455, 645-680`; `core/constants.py:2940, 2960`; agents reachable through the orchestrator's legacy routing (`graph.py:703-716`). Measured 2026-10-28: only `browser_agent` runs (251 calls in 30 days, 0 failures) | Exposure limited; covered by the S2 policy for its model calls |
 | E9 | MCP reference injection matches raw names against slugs | §2.2 | Fixed by A15 (exact domain mapping) |
 | E10 | ReAct never receives a standard server's `read_me` | §2.2 | Fixed by A15 (`read_me` offered to ReAct as a tool) |
 | E4 | OAuth client resends non-idempotent requests after send-phase errors | §2.4 | Optional lot S1 (reprise sûre) |
 | E5 | Push invalidation has no fence against a writer in flight; cache keys omit timezone and location | §2.3 | Not on the latency path; recommended later |
 | E6 | Synthesis omits failed sections without saying so | §2.3 | Optional prompt change, versioned (plan D2, step 5) |
 | E7 | `list_tools` reads the first page only | `user_pool.py:568` | Kept identical, so the catalogue does not change |
-| E8 | The in-turn embedding recompute skips the quota gates | §2.2 | Fixed in M2 (reuse of the existing gates) |
+| E8 | The in-turn embedding recompute skips the quota gates | §2.2 | Fixed in M6 (same function; reuse of the existing gates) |
+| E11 | The tool-embedding cache of a personal server is invalidated by any change to its ordered tool list, and then every vector is recomputed on the turn's critical path | `tool_embeddings_envelope.read_server_cache` (whole-list fingerprint); `mcp/user_context.py:110-145`; §0ter H5: 31 recomputes, 131 s in 7 days, up to 16.4 s | Lot M6 (order-insensitive, per-tool, off the critical path) |
+| E12 | A shared-flight waiter only accepts a complete bundle: a section missing at publication (failed or invalidated) costs every waiter the full budget, then one uncoordinated rebuild each | `briefing/cached_cards.py:published_cards_bundle`; `utils/shared_flight.py:_wait_for`; §0ter D-H4 (simulated, matches production) | D1 (owner liveness plus one re-claim) |
+| E13 | SMS is read live three times per page load (cards, greeting, synthesis) | `briefing/llm.py:111,154`; §0ter D-H6 | D1 (one read per text build) |
 
 ## 3. Decisions
 
@@ -415,6 +622,43 @@ two options:
 
 Either option is safe. They trade one turn's latency against one turn's capability, which is a
 product choice.
+
+**Q3 — open, 2026-10-28: SDK retries after an unknown outcome (lot S2, measured in §0ter E2).**
+
+**The rule.** The framing says that a generation whose outcome is unknown is never relaunched
+automatically.
+
+**What the SDKs do today:**
+- The OpenAI-wire and Anthropic clients relaunch a request twice after a client-side timeout.
+- Gemini does not relaunch after a timeout, but it relaunches 5 times after a 429 or a 500 (34 s
+  before the failure is reported).
+
+**Production frequency:** 2 timeouts in 30 days, all calls together.
+
+**Options:**
+- (a) **Recommended.**
+  - Never relaunch after a timeout: the outcome is unknown.
+  - Keep at most 2 relaunches after a 429, a 5xx or a connection failure that never reached the
+    provider, as in today's OpenAI-wire behaviour.
+  - Give Gemini the same bound, instead of its 5 relaunches.
+  - One declared policy for every provider, implemented once in the adapter.
+- (b) Keep the SDK defaults: the rule stays broken, but only rarely.
+- (c) Never relaunch anything. A provider's 429 then fails the turn at once (ADR-108 amendment:
+  backpressure is answered, not failed).
+
+**Q4 — open, 2026-10-28, non-blocking: serve slow sections while revalidated (§0quater, RFC 5861).**
+
+The weather card costs 5.0 s live (median) for a 1 h TTL (§0ter D-H7).
+
+**Options:**
+- (a) **Recommended.** Keep today's freshness rule: a section past its TTL is read live, and D2 shows
+  its skeleton meanwhile. W1 brings it to about 1.2–1.6 s.
+- (b) Past its TTL, and within a bounded stale window (for instance 2× TTL), the slow external
+  sections (weather, environment) are served from the cache with their age badge, and refreshed in
+  the background under the existing claim.
+
+This is a product trade-off between the age of a figure and the wait for it. The same reasoning as
+A1 applies, but the card has no « verify at use » to correct a stale value.
 
 Non-blocking choices taken by default, all reversible:
 - the dashboard shows a skeleton, not the last-good copy, while a section is read (§5.8);
@@ -805,14 +1049,15 @@ through one parser:
 |---|---|---|
 | `domains/briefing/service.py` | 598 / 600 | `_section` 14 |
 | `domains/user_mcp/service.py` | 596 / 600 | `test_connection` 10 |
-| `domains/briefing/fetchers.py` | 589 / 600 | `fetch_weather` 5 |
-| `domains/connectors/clients/base_oauth_client.py` | 585 / 600 | `_make_request` 29 (hotspot) |
+| `domains/briefing/fetchers.py` | 591 / 600 | `fetch_weather` 5 |
+| `domains/connectors/clients/base_oauth_client.py` | 550 / 600 | `_make_request` 29 (hotspot) |
 | `domains/agents/api/service.py` | 978 / 992 | `_stream_with_new_services` 66 (hotspot) |
-| `domains/agents/services/streaming/service.py` | 1 293 / 1 303 | `stream_sse_chunks` 50 (hotspot) |
+| `domains/agents/services/streaming/service.py` | 1 220 / 1 245 | `stream_sse_chunks` 50 (hotspot) |
 | `infrastructure/mcp/user_pool.py` | 496 / 600 | `_discover_tools` 17 (hotspot) |
 | `infrastructure/mcp/user_context.py` | 489 / 600 | `setup_user_mcp_tools` 11 |
 
-Backend CC ratchet: `over` 263, `max` 77, shrink-only (`apps/api/.cc-baseline.json`). Every
+Backend CC ratchet: `over` 260, `max` 77, shrink-only (`apps/api/.cc-baseline.json`; measured
+2026-10-28). Every
 addition to the first six files comes with an extraction in the same lot. No baseline is raised;
 caps are lowered after a measured decrease (`task ratchet:update`).
 
@@ -853,6 +1098,8 @@ caps are lowered after a measured decrease (`task ratchet:update`).
 | R15 | Fan-out on HTTP/1.1 deployments | Low | Local and cached sections in the initial response; only cache-miss external sections are requested | D6 |
 | R16 | SMS bodies or proofs stored outside the SMS domain | Critical | SMS always live; text key holds the witness, never bodies; restitution re-checks | D10 |
 | R17 | Concurrent uncommitted work overwritten | High | Edit only the lot's lines, re-read files before editing, no global formatter | process |
+| R18 | Turn connection ended by the 300 s idle-in-transaction bound during a long MCP preparation (exists today, §0bis) | High | C1 commits before the preparation; M2's ceiling bounds the preparation far below the bound | C1, X1 |
+| R19 | Dashboard frontend edits collide with the staged « LIA World » rewrite of `useBriefing.ts` | Medium | D1 (front half) and D3 start only once that lot is committed; rebase the tests on its hook API | process |
 
 ## 8. Master test plan
 
@@ -894,6 +1141,10 @@ nothing.
 | W1 | Weather: extras slow or failing, main call failing, pagination | TU | Main data kept; extras optional; same output shape |
 | W2 | Per-instance client reused across nine requests and closed on every path | TU | One client per instance, `aclose` called, no unclosed transport |
 | S1 | OAuth: POST with `ConnectTimeout` retried; with `ReadTimeout` not; GET unchanged | TU | Attempt counts |
+| S2 | LLM clients built by the adapter, every provider family: timeout → one request; 429, 5xx, connection failure → at most 3 requests; no stream relaunched after its first byte (Q3) | TU (local server, DNS guard) | Requests received per scenario, per family |
+| M12 | Tool embeddings: reordered catalogue → no recompute; one changed tool → one vector; quota blocked → previous vectors kept; the turn never waits for a recompute | TU + RUN | Embedding calls counted; turn timings |
+| D11 | Owner releases without a complete bundle (failed section, push invalidation): exactly one waiter claims again and rebuilds the missing sections; the others take its result | INT (four processes, real Redis) | One read per missing section; no 10 s wait |
+| D12 | Text build: SMS read once and both prompts served from it; consent revoked between the two prompts | TU | One live read; text dropped on revocation (D10 kept) |
 | O1 | Journey metric observed on answer, cancel, error, HITL; not on routines | TU | Observation per outcome |
 | O2 | New metrics wired to panels | Guard (`test_metric_coverage_ratchet_guard.py`) | Green without baseline growth |
 | X1 | No transaction open across MCP preparation, a section read or the text call | INT + RUN (`pg_stat_activity`) | No `idle in transaction` during the barrier |

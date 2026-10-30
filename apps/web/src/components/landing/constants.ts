@@ -107,7 +107,10 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
- *   Measured for v4.1.0: backend 54,033 collected in 3,636 files (Windows, 2026-10-28)
+ *   Measured for v4.2.0: backend 54,537 collected in 3,679 files (Windows, 2026-10-30)
+ *   (pytest tests --collect-only -q --no-cov); frontend 15,357 tests in 1,327
+ *   files (vitest list, 2026-10-30). Combined inventory: 69,894 -> 69000.
+ *   Re-measured 2026-10-28 (v4.1.0): backend 54,033 collected in 3,636 files
  *   (pytest tests --collect-only -q --no-cov); frontend 15,161 tests in 1,317
  *   files (vitest list, 2026-10-28). Combined inventory: 69,194 -> 69000.
  *   Re-measured 2026-10-27 (v4.0.0): backend 53,682 collected in 3,605 files
@@ -437,11 +440,11 @@ export const LANDING_STATS = {
   tools: 327,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 640,
+  metrics: 652,
   uiLanguages: 6,
   tests: 69000,
-  adrs: 363,
-  releases: 291,
+  adrs: 364,
+  releases: 292,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;

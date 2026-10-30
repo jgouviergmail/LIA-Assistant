@@ -230,6 +230,12 @@ SHOWROOM_EVENT_TYPES: frozenset[ProductEventType] = frozenset(
 WEB_VITAL_SECONDS_METRICS: frozenset[str] = frozenset({"lcp"})
 WEB_VITAL_RATIO_METRICS: frozenset[str] = frozenset({"cls"})
 
+#: Bounded journey timings (spec 2026-10-21 O2): seconds a person waited, measured in
+#: the browser — no content. Their own family: a journey is not a Web Vital.
+CLIENT_TIMING_METRICS: frozenset[str] = frozenset(
+    {"chat_first_token", "dashboard_first_card", "dashboard_all_cards", "dashboard_text"}
+)
+
 #: Bounded search telemetry vocabulary (SEA-*, Phase 4).
 SEARCH_SURFACES: frozenset[str] = frozenset({"settings"})
 SEARCH_OUTCOMES: frozenset[str] = frozenset({"results", "zero_results", "result_used"})

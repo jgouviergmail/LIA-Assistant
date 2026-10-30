@@ -56,6 +56,9 @@ ALLOWED: set[tuple[str, str]] = {
     # lives in the unsampled read since ADR-322's 2026-09-29 amendment;
     # `get_forecast` is its 3-hour sample and requests nothing itself.
     ("google_weather_client.py", "get_hourly_forecast"),
+    # Daily summaries (W1b, 2026-10-29): bounded by GOOGLE_WEATHER_MAX_FORECAST_DAYS
+    # (10, the provider's own horizon, one page) — a forecast's days, not user items.
+    ("google_weather_client.py", "get_daily_summaries"),
     ("google_calendar_client.py", "list_calendars"),
     ("apple_calendar_client.py", "_list_calendars_impl"),
     ("microsoft_calendar_client.py", "list_calendars"),

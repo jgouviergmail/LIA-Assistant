@@ -63,7 +63,7 @@
       "title": "Builds (24h)",
       "type": "stat",
       "datasource": "$datasource",
-      "description": "Today-briefing builds over the last 24h (all cache states).",
+      "description": "Today-briefing builds over the last 24h (all cache states). A page load no longer builds the bundle (progressive dashboard, spec 2026-10-21 §5.8): this covers a refresh-all and the bundle routes' clients; page loads are under « Progressive load ».",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -251,7 +251,7 @@
       "title": "Build duration p95 (by cache_state)",
       "type": "timeseries",
       "datasource": "$datasource",
-      "description": "End-to-end time to build the Today briefing (parallel fetchers + LLM), split by cache state. Cold builds are LLM-bound; warm ones should be near-instant.",
+      "description": "End-to-end time to build the Today briefing (parallel fetchers + LLM), split by cache state. Cold builds are LLM-bound; warm ones should be near-instant. A page load no longer builds the bundle (progressive dashboard, spec 2026-10-21 §5.8): this covers a refresh-all and the bundle routes' clients; page loads are under « Progressive load ».",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -291,7 +291,7 @@
       "title": "Refresh requests (by scope)",
       "type": "timeseries",
       "datasource": "$datasource",
-      "description": "User-initiated briefing refreshes by scope. Empty panel = zero events in the window (healthy).",
+      "description": "User-initiated briefing refreshes by scope. Empty panel = zero events in the window (healthy). « single » counts a card's own refresh route too (POST /briefing/sections/{name}/refresh).",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -515,6 +515,200 @@
         },
         "tooltip": {
           "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "Coalescing",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Attempt markers (written / settled / cleared)",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(briefing_section_attempt_markers_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "A failed section read leaves a short-lived marker (written); the synthesis or a waiting worker then settles on it instead of rebuilding and reopening the failing source (settled); a later success removes it (cleared). Per hour."
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Section writes fenced by a push (E5)",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum by (section) (increase(briefing_section_writes_fenced_total[1h])) or vector(0)",
+          "legendFormat": "{{section}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "A push invalidated the section while a read was in flight: the read's older payload was NOT cached, so the next read is live instead of a stale card for a whole TTL. Per hour."
+    },
+    {
+      "id": 104,
+      "type": "row",
+      "title": "Progressive load",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      }
+    },
+    {
+      "id": 13,
+      "title": "Progressive load: step duration p95 (by step)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Server time of each step of a page load: initial (the first response — cached and local sections), section (one pending section of the act), text (greeting and synthesis), refresh (one card re-read on request).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 41
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (step, le) (rate(briefing_act_step_duration_seconds_bucket[1h])))",
+          "legendFormat": "{{step}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Progressive load: steps (24h)",
+      "type": "bargauge",
+      "datasource": "$datasource",
+      "description": "How many initial responses, section reads, texts and card refreshes ran.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 41
+      },
+      "targets": [
+        {
+          "expr": "sum by (step) (increase(briefing_act_step_duration_seconds_count[24h])) or vector(0)",
+          "legendFormat": "{{step}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     }

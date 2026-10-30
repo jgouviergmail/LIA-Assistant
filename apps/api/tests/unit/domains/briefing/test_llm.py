@@ -25,6 +25,7 @@ from src.domains.briefing.schemas import (
     RemindersData,
     WeatherData,
 )
+from src.domains.briefing.sms_context import NO_PROMPT_SMS
 
 PARIS = ZoneInfo("Europe/Paris")
 
@@ -151,7 +152,9 @@ class TestPromptTodayIsoInjection:
                 new=AsyncMock(return_value=""),
             ),
         ):
-            await generate_synthesis(user=user, user_tz=PARIS, cards=bundle, language="fr")
+            await generate_synthesis(
+                user=user, user_tz=PARIS, cards=bundle, language="fr", prompt_sms=NO_PROMPT_SMS
+            )
 
         rendered = captured.get("rendered", "")
         today_iso = datetime.now(PARIS).date().isoformat()

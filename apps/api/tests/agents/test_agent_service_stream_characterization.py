@@ -48,6 +48,7 @@ from langgraph.errors import GraphInterrupt
 
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.api.service import AgentService
+from src.domains.agents.services.orchestration.approval_decision import HitlDecisionStaleError
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.skills.repository import RequestSkillState
 from src.domains.voice.schemas import VoiceAudioChunk
@@ -153,14 +154,16 @@ class FakeTrackingContext:
 class FakeConversationService:
     """Records archives / patches / TTS updates / stats increments."""
 
-    def __init__(self) -> None:
+    def __init__(self, events: list[str] | None = None) -> None:
         self.archived: list[tuple[str, str, dict]] = []
         self.patched: list[tuple[Any, dict]] = []
         self.tts_updates: list[tuple[Any, dict]] = []
         self.stats_calls: list[tuple[int, int]] = []
+        self.events = events if events is not None else []
 
     async def archive_message(self, conversation_id, role, content, metadata, db, **stt_kwargs):
         self.archived.append((role, content, metadata))
+        self.events.append(f"archive:{role}")
         return Mock(id=uuid.uuid4())
 
     async def patch_message_metadata(self, message_id, metadata_patch, db):
@@ -373,17 +376,27 @@ class Harness:
         tts_usage_script: list[dict | None] | None = None,
         fail_direct_tts: bool = False,
         record_treatments: bool = False,
+        stale_hitl: bool = False,
+        stop_after: int | None = None,
     ) -> None:
         self.script = script
+        # The reader leaves after this many chunks (a closed tab, a stopped run).
+        self.stop_after = stop_after
         self.voice_enabled = voice_enabled
         self.original_run_id = original_run_id
         self.state = state if state is not None else {"messages": [], "metadata": {}}
         self.tts_usage_script = tts_usage_script or []
         self.fail_direct_tts = fail_direct_tts
         self.record_treatments = record_treatments
+        self.stale_hitl = stale_hitl
+        # What the personal-MCP preparation reports while the turn waits (M4).
+        self.mcp_events: list[Any] = []
         self.graph_stream_kwargs: dict[str, Any] = {}
         self.tracker = FakeTracker()
-        self.conv_service = FakeConversationService()
+        # The order of the pre-graph steps, as the fakes saw them: state load,
+        # archives, session commits and the MCP preparation.
+        self.events: list[str] = []
+        self.conv_service = FakeConversationService(self.events)
         self.raised: BaseException | None = None
 
     async def run(self, monkeypatch: pytest.MonkeyPatch) -> list[ChatStreamChunk]:
@@ -439,6 +452,9 @@ class Harness:
 
         class FakeOrchestrationService:
             async def load_or_create_state(self, **kwargs):
+                harness.events.append("state")
+                if harness.stale_hitl:
+                    raise HitlDecisionStaleError("the pending interrupt changed")
                 return harness.state
 
             def execute_graph_stream(self, **kwargs):
@@ -469,7 +485,16 @@ class Harness:
 
         @asynccontextmanager
         async def fake_db_context():
-            yield AsyncMock()
+            session = AsyncMock()
+            session.commit.side_effect = lambda: harness.events.append("db_commit")
+            yield session
+
+        async def fake_prepare_user_mcp_context(user_id, *, on_event=None):
+            harness.events.append("mcp_setup")
+            for event in harness.mcp_events:
+                if on_event is not None:
+                    on_event(event)
+            return None
 
         def fake_fire_and_forget(coro, name=None):
             coro.close()
@@ -545,8 +570,8 @@ class Harness:
                 ),
                 ("src.domains.system_settings.registry._write_many_to_cache", AsyncMock()),
                 (
-                    "src.infrastructure.mcp.user_context.setup_user_mcp_tools",
-                    AsyncMock(return_value=None),
+                    "src.infrastructure.mcp.user_context.prepare_user_mcp_context",
+                    fake_prepare_user_mcp_context,
                 ),
                 ("src.infrastructure.mcp.user_context.cleanup_user_mcp_tools", Mock()),
                 # A registry with no manifest of its own: the capability filter
@@ -574,17 +599,23 @@ class Harness:
                 stack.enter_context(patch(target, replacement))
 
             chunks: list[ChatStreamChunk] = []
+            stream = service.stream_chat_response(
+                user_message=USER_MESSAGE,
+                user_id=USER_ID,
+                session_id=SESSION_ID,
+                user_language="fr",
+                original_run_id=self.original_run_id,
+            )
             try:
-                async for chunk in service.stream_chat_response(
-                    user_message=USER_MESSAGE,
-                    user_id=USER_ID,
-                    session_id=SESSION_ID,
-                    user_language="fr",
-                    original_run_id=self.original_run_id,
-                ):
+                async for chunk in stream:
                     chunks.append(chunk)
+                    if self.stop_after is not None and len(chunks) >= self.stop_after:
+                        break
             except Exception as exc:  # noqa: BLE001 — scenario 10 pins the re-raise
                 self.raised = exc
+            finally:
+                # A no-op on a finished stream; a reader leaving early closes it here.
+                await stream.aclose()
             return chunks
 
 
@@ -1074,7 +1105,20 @@ def _raise_graph_interrupt(svc: FakeStreamingService) -> None:
 
 @pytest.mark.asyncio
 async def test_char_graph_interrupt_fallback_sequence():
-    """GraphInterrupt outside the stream: clean early return, no done, no error."""
+    """GraphInterrupt outside the stream: clean early return, no done, no error — and
+    the turn still owes every release: its scopes handed back, the voice coordinator
+    and the pooled clients closed (fresh review m3: the early return skipped them)."""
+    from src.core.context import active_connector_types_ctx, capability_directive_ctx
+    from src.domains.agents.api import service as service_module
+
+    before = (active_connector_types_ctx.get(), capability_directive_ctx.get())
+    released: list[int] = []
+    real_release = service_module.release_each
+
+    async def recording_release(*closers):  # type: ignore[no-untyped-def]
+        released.append(len(closers))
+        await real_release(*closers)
+
     harness = Harness(
         script=[
             _router("conversation"),  # voice on: chat progressive streamer starts
@@ -1084,7 +1128,11 @@ async def test_char_graph_interrupt_fallback_sequence():
         voice_enabled=True,
     )
     with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(service_module, "release_each", recording_release)
         chunks = await harness.run(mp)
+
+    assert released == [2]  # the voice coordinator and the tool dependencies
+    assert (active_connector_types_ctx.get(), capability_directive_ctx.get()) == before
 
     # Chunks emitted before the interrupt pass through; then the generator
     # returns cleanly — no done, no error chunk, nothing re-raised.
@@ -1114,6 +1162,15 @@ def _raise_runtime_error(svc: FakeStreamingService) -> None:
 @pytest.mark.asyncio
 async def test_char_mid_stream_exception_sequence():
     """A mid-stream exception yields one error chunk, then re-raises."""
+    from src.domains.agents.api import service as service_module
+
+    released: list[int] = []
+    real_release = service_module.release_each
+
+    async def recording_release(*closers):  # type: ignore[no-untyped-def]
+        released.append(len(closers))
+        await real_release(*closers)
+
     harness = Harness(
         script=[
             _router("conversation"),  # voice on: chat progressive streamer starts
@@ -1123,7 +1180,11 @@ async def test_char_mid_stream_exception_sequence():
         voice_enabled=True,
     )
     with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(service_module, "release_each", recording_release)
         chunks = await harness.run(mp)
+
+    # Each release on its own: a failed voice close never skips the pooled clients.
+    assert released == [2]
 
     assert _types(chunks) == ["router_decision", "token", "error"]
     error_chunk = chunks[-1]
@@ -1175,3 +1236,74 @@ async def test_char_voice_synthesis_failure_sequence():
     done = chunks[-1]
     assert "tts_provider" not in done.metadata
     assert harness.conv_service.tts_updates == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario — the reader leaves before the answer (a closed tab, a stopped run)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_char_a_reader_leaving_before_the_answer_closes_the_turn_as_cancelled():
+    """The journey is closed ``cancelled``, the run's own clients released, the turn's
+    scopes handed back to the task that goes on, nothing archived as an answer, and the
+    close propagates instead of being swallowed."""
+    from src.core.context import active_connector_types_ctx, capability_directive_ctx
+    from src.domains.agents.api import service as service_module
+
+    before = (active_connector_types_ctx.get(), capability_directive_ctx.get())
+    unanswered: list[str] = []
+    released: list[int] = []
+    real_release = service_module.release_each
+
+    async def recording_release(*closers):  # type: ignore[no-untyped-def]
+        released.append(len(closers))
+        await real_release(*closers)
+
+    harness = Harness(
+        script=[_router("conversation"), _token("Bonjour"), _token(" tout")],
+        stop_after=1,
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            "src.domains.agents.services.streaming.journey_timing.observe_journey_unanswered",
+            lambda outcome, _seconds: unanswered.append(outcome),
+        )
+        mp.setattr(service_module, "release_each", recording_release)
+        chunks = await harness.run(mp)
+
+    assert _types(chunks) == ["router_decision"]
+    assert harness.raised is None
+    assert unanswered == ["cancelled"]
+    assert released == [2]  # the voice coordinator and the tool dependencies
+    assert [role for role, _, _ in harness.conv_service.archived] == ["user"]
+    # A retry or a sweep may run the next turn in this very task.
+    assert (active_connector_types_ctx.get(), capability_directive_ctx.get()) == before
+
+
+@pytest.mark.asyncio
+async def test_char_a_stop_during_the_final_release_stays_a_cancellation():
+    """Stopped while the answered turn closes its clients: the scopes were already handed
+    back, and a second reset must not turn the stop into an error."""
+    from src.domains.agents.dependencies import ToolDependencies
+
+    releasing = asyncio.Event()
+    closes: list[str] = []
+
+    async def slow_close(self):  # type: ignore[no-untyped-def]
+        closes.append("close")
+        if len(closes) == 1:
+            releasing.set()
+            await asyncio.sleep(3600)  # the stop lands here, after the scopes were reset
+
+    harness = Harness(script=[_router("conversation"), _token("Bonjour")])
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(ToolDependencies, "aclose", slow_close)
+        run = asyncio.create_task(harness.run(mp))
+        await asyncio.wait_for(releasing.wait(), timeout=10)
+        run.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await run
+
+    assert harness.raised is None
+    assert closes == ["close", "close"]  # the stopped close, then the release it still owes

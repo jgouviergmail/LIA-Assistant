@@ -15,7 +15,10 @@ export type { LLMUsage };
 
 // 'hidden' (UXR Lot 5, B4): user-hidden section — the backend emits a pure
 // placeholder (no fetch, no cache IO) and the grid never renders it.
-export type CardStatus = 'ok' | 'empty' | 'error' | 'not_configured' | 'hidden';
+// 'pending' (progressive dashboard, D2/D3): the initial response could not serve the
+// section without its slow source; its own read follows. Drawn as a skeleton, never
+// as a missing source.
+export type CardStatus = 'ok' | 'empty' | 'error' | 'not_configured' | 'hidden' | 'pending';
 
 // =============================================================================
 // Grid preferences (UXR Lot 5, B4)
@@ -387,6 +390,30 @@ export interface CardsBundle {
   tasks: CardSection<TasksData>;
   documents: CardSection<DocumentsData>;
   workboard: CardSection<WorkboardData>;
+}
+
+/** GET /briefing/cards/initial — what shows at once; the slow sections follow (spec §5.8). */
+export interface BriefingInitialResponse {
+  cards: CardsBundle;
+  /** Sections to read next, one GET /briefing/sections/{name}?act= each. */
+  pending: BriefingSection[];
+  windows: BriefingWindows;
+  /** The signed act every section and text request of this load presents. */
+  act: string;
+  /** ISO 8601 (UTC): after it, a request of the act answers 409. */
+  act_expires_at: string;
+  /** How many section requests may be open at once. */
+  section_concurrency: number;
+}
+
+/** POST /briefing/text — the greeting and synthesis of an act's settled sections. */
+export interface BriefingTextResponse {
+  greeting: TextSection;
+  synthesis: TextSection | null;
+  /** True when a text generated for the same inputs served. */
+  reused: boolean;
+  /** uncertain: the generation's outcome is unknown and nothing relaunched it; sms_stale: SMS changed meanwhile. */
+  state: 'ready' | 'uncertain' | 'sms_stale';
 }
 
 export interface BriefingResponse {

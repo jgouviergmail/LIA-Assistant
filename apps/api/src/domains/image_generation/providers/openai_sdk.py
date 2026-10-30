@@ -5,7 +5,9 @@ reach their vendor through an SDK client built here, in one way: the key and the
 base URL resolve exactly as the chat factory's do (``_require_api_key``,
 ``_get_base_url``, so ``{PROVIDER}_BASE_URL`` reaches an image call too) and the
 timeout is the image step's ceiling. The SDK's failures are translated into the
-client contract (:func:`vendor_errors`), so no tool ever reads an SDK exception.
+client contract (:func:`vendor_errors`), so no tool ever reads an SDK exception. An
+image is a billed generation: the client follows the one relaunch policy (never sent
+again after a timeout — ADR-221 amendment 2026-10-28), not the SDK's two retries.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from src.infrastructure.llm.providers.adapter import (
     _get_base_url,
     _require_api_key,
 )
+from src.infrastructure.llm.providers.retry_policy import adopt_relaunch_policy
 
 
 def require_provider_key(provider: str) -> str:
@@ -64,11 +67,13 @@ def openai_sdk_client(
     Returns:
         The SDK client; ``close()`` it on the loop that opened it.
     """
-    return AsyncOpenAI(
-        api_key=api_key,
-        base_url=_get_base_url(provider),
-        timeout=settings.max_image_generation_tool_timeout_seconds,
-        http_client=http_client,
+    return adopt_relaunch_policy(
+        AsyncOpenAI(
+            api_key=api_key,
+            base_url=_get_base_url(provider),
+            timeout=settings.max_image_generation_tool_timeout_seconds,
+            http_client=http_client,
+        )
     )
 
 

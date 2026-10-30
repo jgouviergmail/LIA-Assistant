@@ -20,6 +20,8 @@ per finding:
   truncated wakes in a row it stops replaying: the feed is rebased on its
   current start token and the linked trees are re-synchronised in full — a
   backlog a full synchronisation reconciles is never replayed change by change.
+  A page Google cannot serve after others were read cuts the drain the same way
+  (``interrupted``): the pages read are kept, never thrown away (2026-10-26).
 - **The token moves only when every tree took its window.** A tree already
   syncing (a manual synchronisation, or the previous wake's apply still
   running) refuses it; the wake then HOLDS the token and re-queues itself, and
@@ -50,6 +52,7 @@ from src.core.constants import (
     RAG_DRIVE_PUSH_TRUNCATIONS_TTL_SECONDS,
     REDIS_KEY_DRIVE_PUSH_TRUNCATIONS_PREFIX,
 )
+from src.core.exceptions import ExternalServiceError
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -92,6 +95,39 @@ _REINDEXED = "reindexed"
 _LOCKED = "locked"
 _NO_LINKED_FOLDER = "no_linked_folder"
 _REBASED = "rebased"
+_ERROR = "error"
+
+#: How one drain ended: drained, cut by its bounds, cut by a page Google could not
+#: serve after others were read, held by a tree still syncing, or rebased.
+_DRAINED = "drained"
+_TRUNCATED = "truncated"
+_INTERRUPTED = "interrupted"
+_HELD = "held"
+_CUT_ENDS = frozenset({_TRUNCATED, _INTERRUPTED})
+
+#: The two vocabularies the counters carry — every value exported at zero below.
+WAKE_OUTCOMES = (_REINDEXED, _LOCKED, _NO_LINKED_FOLDER, _REBASED, _ERROR)
+DRAIN_ENDS = (_DRAINED, _TRUNCATED, _INTERRUPTED, _HELD, _REBASED)
+
+
+def _export_at_zero() -> None:
+    """Expose every series from the start, at zero (run at import).
+
+    Measured on 2026-10-26: Prometheus counted 1 failed wake where Loki logged 3 —
+    a series' first increase is invisible to ``increase()``, and a panel reads
+    « No data » for a healthy 0.
+    """
+    for outcome in WAKE_OUTCOMES:
+        rag_drive_push_reindex_total.labels(outcome=outcome)
+    for end in DRAIN_ENDS:
+        rag_drive_push_drains_total.labels(end=end)
+
+
+_export_at_zero()
+
+
+class _FeedUnavailable(Exception):
+    """The feed's FIRST page could not be read for want of the provider (nothing read)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,14 +175,24 @@ async def reindex_from_push(user_id: UUID) -> str:
         drains: the feed was rebased and the linked trees re-synchronised in
         full) | ``error``.
     """
-    outcome = "error"
+    outcome = _ERROR
     try:
         plan = await _load_plan(user_id)
         outcome = _NO_LINKED_FOLDER if plan is None else await _serve(user_id, plan)
         return outcome
+    except _FeedUnavailable as unavailable:
+        # Google did not serve the feed (measured: slow pages on a long feed) — expected,
+        # not a defect: no exception trace for it in the error panel. Any other failure
+        # of the wake, a provider's included, keeps its trace below.
+        failure = unavailable.__cause__
+        logger.warning(
+            "rag_drive_push_feed_unavailable",
+            user_id=str(user_id),
+            cause=type(failure.__cause__).__name__ if failure and failure.__cause__ else None,
+        )
+        return outcome
     except Exception:
         logger.exception("rag_drive_push_reindex_failed", user_id=str(user_id))
-        outcome = "error"
         return outcome
     finally:
         rag_drive_push_reindex_total.labels(outcome=outcome).inc()
@@ -182,7 +228,7 @@ async def _serve(user_id: UUID, plan: _PushPlan) -> str:
         # A Google push can trigger this at four in the morning; before it was
         # recorded, the person had no way to learn their Drive had been opened.
         async with space_read(user_id=user_id, section=SECTION_DRIVE):
-            last = await _drain(client, plan.token, router)
+            last, end = await _drain(user_id, client, plan.token, router)
         rebasing = not last.drained and await _truncation_streak(user_id) >= (
             settings.rag_drive_push_max_consecutive_truncations
         )
@@ -194,22 +240,47 @@ async def _serve(user_id: UUID, plan: _PushPlan) -> str:
         if _LOCKED in handover.outcomes:
             return await _hold(user_id)
         await _advance(plan, handover.token)
-        end = _REBASED if rebasing else ("drained" if last.drained else "truncated")
-        await _close_drain(user_id, end=end)
+        await _close_drain(user_id, end=_REBASED if rebasing else end)
         return _REBASED if rebasing else _aggregate(handover.outcomes)
     finally:
         await client.close()
 
 
-async def _drain(client: GoogleDriveClient, token: str, router: ChangeRouter) -> ChangesPage:
-    """Route every page of one bounded drain; the last page says where it stopped."""
+async def _drain(
+    user_id: UUID, client: GoogleDriveClient, token: str, router: ChangeRouter
+) -> tuple[ChangesPage, str]:
+    """Route every page of one bounded drain; the last page says where it stopped.
+
+    A page Google cannot serve after others were read ends the drain like a cut:
+    measured on 2026-10-26, three wakes threw 9 to 12 s of pages away on one slow page,
+    the token unmoved. With nothing read yet, the failure is the wake's.
+
+    Returns:
+        The last page read, and how the drain ended (``drained``, ``truncated`` or
+        ``interrupted``).
+
+    Raises:
+        _FeedUnavailable: The FIRST page could not be read for want of the provider.
+    """
     last: ChangesPage | None = None
-    async for page in iter_change_pages(client, token, DrainBounds.from_settings()):
-        router.route(page.changes)
-        last = page
+    kept = 0
+    try:
+        async for page in iter_change_pages(client, token, DrainBounds.from_settings()):
+            router.route(page.changes)
+            last, kept = page, kept + 1
+    except ExternalServiceError as exc:
+        if last is None:
+            raise _FeedUnavailable from exc
+        logger.warning(
+            "rag_drive_push_drain_interrupted",
+            user_id=str(user_id),
+            pages_kept=kept,
+            cause=type(exc.__cause__).__name__ if exc.__cause__ else None,
+        )
+        return last, _INTERRUPTED
     if last is None:  # pragma: no cover - DrainBounds.max_pages >= 1 by settings
         raise RuntimeError("a drain read no page")
-    return last
+    return last, _DRAINED if last.drained else _TRUNCATED
 
 
 async def _advance(plan: _PushPlan, token: str) -> None:
@@ -400,7 +471,7 @@ async def _truncation_streak(user_id: UUID) -> int:
 async def _close_drain(user_id: UUID, *, end: str) -> None:
     """A drained or rebased feed ends the streak; a cut one continues next sweep."""
     rag_drive_push_drains_total.labels(end=end).inc()
-    if end == "truncated":
+    if end in _CUT_ENDS:
         await _requeue(user_id)
         return
     await _reset_streak(user_id)
@@ -408,7 +479,7 @@ async def _close_drain(user_id: UUID, *, end: str) -> None:
 
 async def _hold(user_id: UUID) -> str:
     """A tree refused its window: keep the token, replay the window next sweep."""
-    rag_drive_push_drains_total.labels(end="held").inc()
+    rag_drive_push_drains_total.labels(end=_HELD).inc()
     await _requeue(user_id)
     return _LOCKED
 

@@ -12,7 +12,7 @@ function legs(p: Painter, w: number, d: number, z: number): void {
     for (const y of [0.12, d - 0.25]) p.box(x, y, 0, 0.12, 0.12, z, DARK);
 }
 function woodTop(p: Painter, w: number, d: number, z: number, color: string): void {
-  p.surface(0.05, 0.05, z, w - 0.1, d - 0.1, shade(color, 14));
+  p.surface(0.09, 0.09, z, w - 0.18, d - 0.18, shade(color, 14));
   for (let y = 0.22; y < d - 0.1; y += 0.24)
     p.surface(0.12, y, z + 0.001, w - 0.24, 0.012, shade(color, -3));
 }
@@ -68,7 +68,7 @@ export function paintRug(p: Painter, o: WorldProp): void {
 export function paintDesk(p: Painter, o: WorldProp): void {
   const { frame, top } = FURNITURE[o.tone];
   legs(p, o.width, o.depth, 0.75);
-  p.box(0, 0, 0.75, o.width, o.depth, 0.14, frame);
+  p.softBox(0, 0, 0.75, o.width, o.depth, 0.14, frame);
   woodTop(p, o.width, o.depth, 0.895, top);
   if (o.tone === 'sage') {
     p.box(0.25, 0.24, 0.9, 0.84, 0.54, 0.045, '#4d766e');
@@ -99,7 +99,7 @@ export function paintDesk(p: Painter, o: WorldProp): void {
 export function paintTable(p: Painter, o: WorldProp): void {
   const { frame, top } = FURNITURE[o.tone];
   legs(p, o.width, o.depth, 0.6);
-  p.box(0, 0, 0.6, o.width, o.depth, 0.12, frame);
+  p.softBox(0, 0, 0.6, o.width, o.depth, 0.12, frame, 0.025);
   woodTop(p, o.width, o.depth, 0.725, top);
   const variant = propStyleVariant(o);
   if (variant === 0) book(p, 0.25, 0.2, 0.73, 0.35, 0.38, '#476e72');
@@ -129,8 +129,8 @@ export function paintBed(p: Painter, o: WorldProp): void {
     p.surface(x, o.depth - 0.8, 0.724, 0.055, 0.54, '#426f80');
 }
 export function paintFountain(p: Painter, o: WorldProp): void {
-  p.box(0, 0, 0, o.width, o.depth, 0.15, '#446e73');
-  p.box(0.17, 0.17, 0.15, o.width - 0.34, o.depth - 0.34, 0.1, '#3196a0');
+  p.softBox(0, 0, 0, o.width, o.depth, 0.15, '#526e70');
+  p.surface(0.16, 0.16, 0.255, o.width - 0.32, o.depth - 0.32, '#438c91');
   const center = project({ x: o.width / 2, y: o.depth / 2 }, 0.255);
   for (const radius of [15, 24, 32]) {
     p.ctx.beginPath();
@@ -139,15 +139,33 @@ export function paintFountain(p: Painter, o: WorldProp): void {
     p.ctx.ellipse(center.x, center.y, radius, radius / 2, 0, 0, Math.PI * 2);
     p.ctx.stroke();
   }
-  for (const [x, y, w, d] of [
-    [0, 0, o.width, 0.16],
-    [0, o.depth - 0.16, o.width, 0.16],
-    [0, 0, 0.16, o.depth],
-    [o.width - 0.16, 0, 0.16, o.depth],
-  ])
-    p.box(x, y, 0.15, w, d, 0.24, '#dce0cc');
-  p.box(1.27, 1.27, 0.2, 0.46, 0.46, 0.7, '#c2aa77');
-  p.box(1.12, 1.12, 0.86, 0.76, 0.76, 0.1, '#a28652');
+  // One continuous coping: overlapping beams let an end face erase the next top.
+  const w = o.width,
+    d = o.depth,
+    rim = 0.16,
+    top = 0.39;
+  p.panel(0, d, 0.15, w, 0.24, '#cdd2bf');
+  p.panel(w, 0, 0.15, d, 0.24, '#b8c0af', true);
+  p.panel(rim, rim, 0.255, w - 2 * rim, top - 0.255, '#a7b8aa');
+  p.panel(rim, rim, 0.255, d - 2 * rim, top - 0.255, '#c3cdbb', true);
+  const outer = [
+      [0, 0],
+      [w, 0],
+      [w, d],
+      [0, d],
+    ],
+    inner = [
+      [rim, rim],
+      [rim, d - rim],
+      [w - rim, d - rim],
+      [w - rim, rim],
+    ];
+  p.polygon(
+    [...outer, outer[0], ...inner, inner[0], outer[0]].map(([x, y]) => project({ x, y }, top)),
+    '#e5e7d6'
+  );
+  p.softBox(1.27, 1.27, 0.2, 0.46, 0.46, 0.7, '#bba783');
+  p.softBox(1.12, 1.12, 0.86, 0.76, 0.76, 0.1, '#a08c67');
   p.surface(1.17, 1.17, 0.965, 0.66, 0.66, '#bce0d5');
   p.box(1.42, 1.42, 0.96, 0.16, 0.16, 0.08, '#507c79');
 }

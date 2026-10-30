@@ -7,12 +7,12 @@ import { FAQPageJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 import { PublicFAQContent } from '@/components/faq/PublicFAQContent';
+import { ScopedTranslations } from '@/components/ScopedTranslations';
 import { PUBLIC_FAQ_SECTIONS } from '@/components/faq/faq-sections';
 import { CosmicBackdrop } from '@/components/landing/cosmic/CosmicBackdrop';
 import { CosmosDarkFirst } from '@/components/landing/cosmic/CosmosDarkFirst';
 import { CosmosThemeDefault } from '@/components/landing/cosmic/CosmosThemeDefault';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
-
 
 function buildLangUrl(path: string, lng: Language): string {
   return localizedUrl(getSiteOrigin(), path, lng);
@@ -102,7 +102,14 @@ export default async function PublicFAQPage({ params }: FAQPageProps) {
             <p className="text-lg text-muted-foreground">{t('faq.subtitle')}</p>
           </div>
 
-          <PublicFAQContent lng={lng} />
+          {/* The FAQ's text is left out of every other page's payload
+              (`i18n/scoped-translations.ts`); the public sections come back here. */}
+          <ScopedTranslations
+            lng={lng}
+            scopes={[{ root: 'faq.sections', keys: PUBLIC_FAQ_SECTIONS }]}
+          >
+            <PublicFAQContent lng={lng} />
+          </ScopedTranslations>
 
           {/* CTA */}
           <div className="mt-16 text-center rounded-2xl bg-primary/5 border border-primary/20 p-8">

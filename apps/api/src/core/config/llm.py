@@ -21,6 +21,7 @@ from src.core.constants import (
     EMBEDDING_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT,
     EMBEDDING_RETRY_MAX_ATTEMPTS_DEFAULT,
+    LLM_TRANSIENT_RETRY_MAX_DEFAULT,
     OLLAMA_DISCOVERY_RETRY_SECONDS,
     OLLAMA_DISCOVERY_TIMEOUT_SECONDS,
     PRIOR_TURN_THINKING_REPLAY_ENABLED_DEFAULT,
@@ -242,6 +243,18 @@ class LLMSettings(BaseSettings):
         default=EMBEDDING_RETRY_BACKOFF_FACTOR_DEFAULT,
         gt=0,
         description="Wait between embedding attempts is backoff_factor ** attempt seconds.",
+    )
+
+    llm_transient_retry_max: int = Field(
+        default=LLM_TRANSIENT_RETRY_MAX_DEFAULT,
+        ge=0,
+        le=5,
+        description=(
+            "Relaunches a model call may get after a 429, a 5xx or a connection that never "
+            "reached the provider. A timeout, or a connection lost once the request may have "
+            "been sent, is never relaunched: the generation may already have run and been "
+            "billed (spec 2026-10-21 E2). Every provider family applies it."
+        ),
     )
 
     # ========================================================================

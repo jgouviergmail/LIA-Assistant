@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Route } from '@playwright/test';
 import type { BriefingSection, HealthData } from '../../src/types/briefing';
 import { FONT_SIZE_CSS_VAR, fontSizeScale } from '../../src/constants/fonts';
 import { test, expect, waitForHydration, waitForMockGate } from '../fixtures';
@@ -1044,6 +1044,12 @@ for (const sample of [
   });
 }
 
+/** A lone card is re-read on its own route (spec 2026-10-21 §5.8), one section back. */
+const CARD_REFRESH = /\/api\/v1\/briefing\/sections\/[a-z_]+\/refresh$/;
+function refreshedSection(route: Route): BriefingSection {
+  return new URL(route.request().url()).pathname.split('/').at(-2) as BriefingSection;
+}
+
 test('a card refresh preserves its scroll area, keyboard focus and visible data', async ({
   page,
   authenticate,
@@ -1059,13 +1065,12 @@ test('a card refresh preserves its scroll area, keyboard focus and visible data'
   const requests: unknown[] = [];
   await mockApi([
     {
-      url: '**/api/v1/briefing/refresh-cards',
+      url: CARD_REFRESH,
       method: 'POST',
       handler: async (route, signal) => {
-        requests.push(route.request().postDataJSON());
+        requests.push({ sections: [refreshedSection(route)] });
         if (!(await waitForMockGate(gate, signal))) return;
-        const fresh = refreshedAgenda();
-        await route.fulfill({ json: { cards: fresh.cards, windows: fresh.windows } });
+        await route.fulfill({ json: refreshedAgenda().cards[refreshedSection(route)] });
       },
     },
   ]);
@@ -1148,13 +1153,12 @@ test('network error retains its stale page and Retry refreshes cards once withou
   const requests: unknown[] = [];
   await mockApi([
     {
-      url: '**/api/v1/briefing/refresh-cards',
+      url: CARD_REFRESH,
       method: 'POST',
       handler: async (route, signal) => {
-        requests.push(route.request().postDataJSON());
+        requests.push({ sections: [refreshedSection(route)] });
         if (!(await waitForMockGate(gate, signal))) return;
-        const fresh = homeBriefing();
-        await route.fulfill({ json: { cards: fresh.cards, windows: fresh.windows } });
+        await route.fulfill({ json: homeBriefing().cards[refreshedSection(route)] });
       },
     },
   ]);
@@ -1201,20 +1205,19 @@ test('a failed refresh keeps the received page, focus and scroll until a success
   const requests: unknown[] = [];
   const synthesisReads: string[] = [];
   page.on('request', request => {
-    if (new URL(request.url()).pathname.endsWith('/briefing/synthesis'))
+    if (new URL(request.url()).pathname.endsWith('/briefing/text'))
       synthesisReads.push(request.url());
   });
   await mockApi([
     {
-      url: '**/api/v1/briefing/refresh-cards',
+      url: CARD_REFRESH,
       method: 'POST',
       handler: async route => {
-        requests.push(route.request().postDataJSON());
+        requests.push({ sections: [refreshedSection(route)] });
         if (requests.length === 1) {
           await route.fulfill({ status: 503, json: { detail: 'temporary hermetic failure' } });
         } else {
-          const fresh = refreshedAgenda();
-          await route.fulfill({ json: { cards: fresh.cards, windows: fresh.windows } });
+          await route.fulfill({ json: refreshedAgenda().cards[refreshedSection(route)] });
         }
       },
     },
@@ -1447,11 +1450,11 @@ test('health thresholds retain their numbers and units through refresh, includin
   const requests: unknown[] = [];
   await mockApi([
     {
-      url: '**/api/v1/briefing/refresh-cards',
+      url: CARD_REFRESH,
       method: 'POST',
       handler: async route => {
-        requests.push(route.request().postDataJSON());
-        await route.fulfill({ json: { cards: current.cards, windows: current.windows } });
+        requests.push({ sections: [refreshedSection(route)] });
+        await route.fulfill({ json: current.cards[refreshedSection(route)] });
       },
     },
   ]);
