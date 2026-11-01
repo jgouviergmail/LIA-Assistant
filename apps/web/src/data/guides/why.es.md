@@ -3,7 +3,7 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 7.0
-**Fecha**: 2026-10-31
+**Fecha**: 2026-11-01
 **Aplicación**: LIA v4.3.0
 **Licencia**: AGPL-3.0 (Open Source)
 

@@ -3,7 +3,7 @@
 > Wie LIA aufgebaut ist, in groben Zügen. Die Details stehen im Code, in den ADR und in der Dokumentation des Repositorys.
 
 **Version**: 6.0
-**Datum**: 2026-10-31
+**Datum**: 2026-11-01
 **Application**: LIA v4.3.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
