@@ -1474,11 +1474,8 @@ async def execute_plan_parallel(
                 ).inc(filtered_count)
 
         if not next_wave:
-            # No more steps can execute - check if plan complete or deadlocked
-            # Session 22 - Helper #2: Plan completion check extracted
-            is_complete, is_deadlocked = _check_plan_completion(
-                execution_plan, completed_steps, run_id, held=set(held)
-            )
+            # Report completion or deadlock; an empty wave always ends execution.
+            _check_plan_completion(execution_plan, completed_steps, run_id, held=set(held))
             break  # Exit loop regardless of completion status
 
         # Execute wave in parallel (Session 22 - Helper #3)
