@@ -52,7 +52,11 @@ test('world avatar: pending save keeps the focused submit and appearance through
     await expect(hair).toHaveValue('long');
     await submit.focus();
     pending.release();
-    await expect(page.getByRole('alert')).toBeVisible();
+    const error = page
+      .getByRole('region', { name: en.world.title, exact: true })
+      .getByRole('alert');
+    await expect(error).toBeVisible();
+    await expect(error).toHaveText(en.world.avatar.failed);
     await expect(submit).toBeFocused();
     await expect(hair).toHaveValue('long');
   } finally {
