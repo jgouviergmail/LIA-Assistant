@@ -18,8 +18,8 @@ Nearly all of the code was written by an AI. My job was to direct it: a written 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI that was directed, supervised and checked | **≈ 100%** |
-| Source lines (excluding tests), spread across 60 backend domain packages | **1,092,043** |
-| Automated tests inventoried, in suites matched to commits and to releases | **72,136** |
+| Source lines (excluding tests), spread across 60 backend domain packages | **1,092,065** |
+| Automated tests inventoried, in suites matched to commits and to releases | **72,137** |
 | Documented architecture decisions (ADR) | **367** |
 | Versions shipped at a steady pace | **293** |
 | Languages, with parity checked automatically | **6** |

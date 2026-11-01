@@ -1870,8 +1870,8 @@
     },
     "356": {
       "title": "A readable map with matching numbers in the list and on pins",
-      "summary": "The map waits for explicit activation without reserving a large empty space. The same details open in a desktop popup or a phone dialog, each with a single scrolling region. The list and pins share the numbers from the original order; a place without coordinates keeps its number and link without shifting the others.",
-      "src": "a9ca854ccb92"
+      "summary": "The map waits for explicit activation without reserving a large empty space. The same details open in a desktop popup or a phone dialog, each with a single scrolling region. The list and pins share the numbers from the original order; a place without coordinates keeps its number and link without shifting the others. With unchanged content, an activated map stays active during automatic display updates.",
+      "src": "86fdd7895d3b"
     },
     "357": {
       "title": "Generic phone ingestion and personal SMS",

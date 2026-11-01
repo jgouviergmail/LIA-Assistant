@@ -481,7 +481,7 @@ Yes. When a message lands in your conversation from elsewhere — another tab or
 
 ## What do the cards in answers show?
 
-Cards show the data received from the source; missing values stay missing. Full detail unfolds with a click or from the keyboard, without another call or cost. Galleries, document previews, slot-by-slot weather and interactive routes keep their own controls and announced charges.
+Cards show the data received from the source; missing values stay missing. Full detail unfolds with a click or from the keyboard, without another call or cost. Galleries, document previews, slot-by-slot weather and interactive routes keep their own controls and announced charges. With unchanged content, interactive cards and widgets retain their state during automatic display updates.
 
 **Reply, forward or delete an e-mail** from its card: LIA prepares a request tied to that exact message and mailbox, then follows the usual confirmation. Changing the active provider cannot target another mailbox.
 
@@ -506,7 +506,7 @@ Wait for that work to finish, then send your message again. The stop button neve
 
 ## Can I see all returned places on one map?
 
-When a new answer contains selected Google Places, a **Position** card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten.
+When a new answer contains selected Google Places, a **Position** card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten. With unchanged content, an activated map stays active during automatic display updates.
 
 Each place carries a number, the same in the list and on its pin. Selecting a place, in the list or on the map, shows the details already gathered for the answer — address, rating and number of reviews, phone, website and opening hours — with no new search. The selection also calculates one route to the place: walking for a short distance, otherwise driving. It starts from your current location when your location preference and your browser already allow it (no permission prompt appears), otherwise from your last known location, whose age is shown, otherwise from your home. Each route is a billed Google request, counted in your usage and subject to your quotas; without a starting point, the details stay available. On a phone, the details open in a panel at the bottom of the screen. On a wide enough screen, the list of places sits to the right of the map once the map is switched on.
 

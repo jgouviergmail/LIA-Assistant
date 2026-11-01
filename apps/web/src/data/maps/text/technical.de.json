@@ -58,9 +58,9 @@
   "bricks": {
     "t.web": {
       "name": "Webanwendung",
-      "role": "Die Oberfläche: Chat mit Streaming, Einstellungen, Dashboards und serverseitig gerenderte öffentliche Seiten; der gesamte Verkehr zur API läuft über denselben Origin.",
+      "role": "Die Oberfläche: Chat mit Streaming, Einstellungen, Dashboards und serverseitig gerenderte öffentliche Seiten; der gesamte Verkehr zur API läuft über denselben Origin. Stabile Darstellungskomponenten bewahren den Zustand interaktiver Karten und Widgets bei Aktualisierungen der Markdown-Darstellung.",
       "stack": ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4", "Radix / shadcn"],
-      "src": "061f6ff0f8ac"
+      "src": "9fa39ef2134c"
     },
     "t.pwa": {
       "name": "PWA und Offline",

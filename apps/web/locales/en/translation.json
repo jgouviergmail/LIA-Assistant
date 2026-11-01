@@ -6416,7 +6416,7 @@
         },
         "richResponses": {
           "title": "🎨 Rich Answers & Display Modes",
-          "description": "Choose Cards, HTML or Markdown: source facts stay intact, details open without another model call, and every HTML tag crosses the sanitiser. Email actions stay tied to their original message and mailbox. Returned places appear together on a Position card before their details; its interactive map loads after a click with the cost shown."
+          "description": "Choose Cards, HTML or Markdown: source facts stay intact, details open without another model call, and every HTML tag crosses the sanitiser. Email actions stay tied to their original message and mailbox. Returned places appear together on a Position card before their details; its interactive map loads after a click with the cost shown. With unchanged content, interactive cards and widgets retain their state during automatic display updates."
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
@@ -6660,7 +6660,7 @@
         "v4_3_0": {
           "title": "v4.3.0 — 🧰 Your services, in your hands",
           "date": "1 November 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "🧰 <b>Tools</b> — Open your mail, calendar, tasks, contacts, Drive files and Hue lights directly from the header. You act yourself, with no AI token cost.",
             "i2": "✉️ <b>Your mailbox</b> — Read, search, write, reply, forward and keep drafts. The original layout opens in an isolated reader that blocks remote content; Gmail also offers labels, vacation replies and filters. Links in the original layout remain inactive.",
@@ -6671,7 +6671,8 @@
             "i7": "🔄 <b>A task continues after approval</b> — A dedicated MCP agent asks once before its task when one of its tools needs your approval, then carries it through. LIA reports the result it obtained.",
             "i8": "🎯 <b>Which one did you mean?</b> — Designate an item already shown by its sender, title or position. If several fit, LIA asks with numbered choices instead of picking the first; answer by number, words or a click.",
             "i9": "📇 <b>More faithful connected data</b> — Contacts keep their multiple addresses and numbers, all-day dates stay consistent, and Drive full-text searches work across pages. Gmail reads reflect changes made in Tools. Contact lists are ordered by family name, then given name.",
-            "i10": "⚙️ <b>For administrators and routine owners</b> — Tune routine interval and daily-run bounds. Pre-approve selected MCP servers in a routine’s form; other calls needing approval remain refused when nobody can answer. New dashboard panels cover Tools."
+            "i10": "🗺️ <b>Your maps stay active</b> — With unchanged content, active maps and widgets retain their state during automatic display updates, without another activation or map load.",
+            "i11": "⚙️ <b>For administrators and routine owners</b> — Tune routine interval and daily-run bounds. Pre-approve selected MCP servers in a routine’s form; other calls needing approval remain refused when nobody can answer. New dashboard panels cover Tools."
           }
         },
         "v4_2_0": {
@@ -9565,7 +9566,7 @@
           },
           "q2": {
             "question": "How do I start a conversation with LIA?",
-            "answer": "It's simple in 3 steps:<br><br>1. Click on <strong>Chat</strong> in the left menu<br>2. Type your message in the input box at the bottom of the screen<br>3. Press <strong>Enter</strong> to send<br><br><strong>💡 Tip</strong>: Be natural! LIA understands phrases like \"<em>Show me my emails from this week</em>\" or \"<em>What do I have scheduled tomorrow?</em>\""
+            "answer": "It's simple in 3 steps:<br><br>1. After signing in, open <strong>Chat</strong> from the top bar<br>2. Type your message in the input box at the bottom of the screen<br>3. Press <strong>Enter</strong> to send<br><br><strong>💡 Tip</strong>: Be natural! LIA understands phrases like \"<em>Show me my emails from this week</em>\" or \"<em>What do I have scheduled tomorrow?</em>\""
           },
           "q3": {
             "question": "Does LIA support multiple languages?",
@@ -9620,7 +9621,7 @@
         "questions": {
           "q36": {
             "question": "Can I see all returned places on one map?",
-            "answer": "When a new answer contains selected Google Places, a <strong>Position</strong> card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten.<br><br><strong>Details and route:</strong><br>• Each place carries a number, the same in the list and on its pin.<br>• Selecting a place, in the list or on the map, shows the details already gathered: address, rating and number of reviews, phone, website and opening hours — with no new search.<br>• The selection also calculates a route to the place: walking for a short distance, otherwise driving. It starts from your current location when your location preference and your browser already allow it (no permission prompt appears), otherwise from your last known location, whose age is shown, otherwise from your home.<br>• Each route is a billed Google request, counted in your usage and subject to your quotas. Without a starting point, the details stay available.<br>• On a phone, the details open in a panel at the bottom of the screen.<br>• On a wide enough screen, the list of places sits to the right of the map once the map is switched on."
+            "answer": "When a new answer contains selected Google Places, a <strong>Position</strong> card appears before the place cards, in Cards, HTML cards, HTML and Markdown modes. Each usable location has a marker. The card appears automatically; a click activates the interactive map after its cost is shown. If the administrator has not configured Maps, or the map cannot load, the place list stays available. Old answers are not rewritten.<br><br><strong>Details and route:</strong><br>• Each place carries a number, the same in the list and on its pin.<br>• Selecting a place, in the list or on the map, shows the details already gathered: address, rating and number of reviews, phone, website and opening hours — with no new search.<br>• The selection also calculates a route to the place: walking for a short distance, otherwise driving. It starts from your current location when your location preference and your browser already allow it (no permission prompt appears), otherwise from your last known location, whose age is shown, otherwise from your home.<br>• Each route is a billed Google request, counted in your usage and subject to your quotas. Without a starting point, the details stay available.<br>• On a phone, the details open in a panel at the bottom of the screen.<br>• On a wide enough screen, the list of places sits to the right of the map once the map is switched on.<br><br>With unchanged content, an activated map stays active during automatic display updates."
           },
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -16817,7 +16818,7 @@
   "story": {
     "meta": {
       "title": "Story — Directing an AI That Codes | LIA",
-      "description": "How I built LIA: about 100% of the code written by an AI under my direction, 72,136 tests, 367 ADRs, a 7.9/10 technical audit. The complete field report."
+      "description": "How I built LIA: about 100% of the code written by an AI under my direction, 72,137 tests, 367 ADRs, a 7.9/10 technical audit. The complete field report."
     },
     "breadcrumb": "Story",
     "hero": {

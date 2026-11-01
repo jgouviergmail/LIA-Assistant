@@ -6405,7 +6405,7 @@
         },
         "richResponses": {
           "title": "🎨 Risposte Ricche e Modalità di Visualizzazione",
-          "description": "Scelga Schede, HTML o Markdown: i fatti ricevuti restano completi, i dettagli si aprono senza nuove chiamate al modello e ogni tag HTML viene sanificato. Le azioni email restano legate al messaggio e alla casella originali. I luoghi sono riuniti in una scheda Posizione prima dei dettagli; la mappa interattiva si carica al clic, con il costo mostrato."
+          "description": "Scelga Schede, HTML o Markdown: i fatti ricevuti restano completi, i dettagli si aprono senza nuove chiamate al modello e ogni tag HTML viene sanificato. Le azioni email restano legate al messaggio e alla casella originali. I luoghi sono riuniti in una scheda Posizione prima dei dettagli; la mappa interattiva si carica al clic, con il costo mostrato. Se il contenuto non cambia, le schede interattive e i widget conservano il proprio stato durante gli aggiornamenti automatici della visualizzazione."
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
@@ -6653,7 +6653,7 @@
         "v4_3_0": {
           "title": "v4.3.0 — 🧰 I tuoi servizi, nelle tue mani",
           "date": "1 novembre 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "🧰 <b>Strumenti</b> — Apri posta, calendario, attività, contatti, file Drive e luci Hue dal menu. Agisci tu, senza consumare token di IA.",
             "i2": "✉️ <b>La tua posta</b> — Leggi, cerca, scrivi, rispondi, inoltra e conserva bozze. Il layout originale si apre in un lettore isolato che blocca i contenuti remoti; Gmail offre anche etichette, risposte di assenza e filtri. I collegamenti nel layout originale restano inattivi.",
@@ -6664,7 +6664,8 @@
             "i7": "🔄 <b>Il compito continua dopo l’accordo</b> — Un agente MCP dedicato chiede una volta prima del compito se uno dei suoi strumenti richiede approvazione, poi lo porta a termine. LIA restituisce il risultato ottenuto.",
             "i8": "🎯 <b>Quale intendevi?</b> — Indica un elemento già mostrato tramite mittente, titolo o posizione. Se ne corrispondono diversi, LIA presenta opzioni numerate invece di scegliere il primo: rispondi con un numero, parole o un clic.",
             "i9": "📇 <b>Dati più fedeli</b> — I contatti conservano indirizzi e numeri multipli, le date degli eventi giornalieri restano coerenti e la ricerca nel contenuto di Drive percorre le pagine. Gmail riflette le modifiche fatte in Strumenti. Gli elenchi dei contatti sono ordinati per cognome e poi per nome.",
-            "i10": "⚙️ <b>Per amministratori e routine</b> — Regola i limiti d’intervallo ed esecuzioni giornaliere. Preapprova i server MCP scelti nel modulo di una routine; le altre chiamate che richiedono accordo restano rifiutate quando non c’è nessuno. Grafana segue anche Strumenti."
+            "i10": "🗺️ <b>Le tue mappe restano attive</b> — Se il contenuto non cambia, le mappe attivate e i widget conservano il proprio stato durante gli aggiornamenti automatici della visualizzazione, senza una nuova attivazione o un nuovo caricamento della mappa.",
+            "i11": "⚙️ <b>Per amministratori e routine</b> — Regola i limiti d’intervallo ed esecuzioni giornaliere. Preapprova i server MCP scelti nel modulo di una routine; le altre chiamate che richiedono accordo restano rifiutate quando non c’è nessuno. Grafana segue anche Strumenti."
           }
         },
         "v4_2_0": {
@@ -9558,7 +9559,7 @@
           },
           "q2": {
             "question": "Come inizio una conversazione con LIA?",
-            "answer": "È semplice in 3 passaggi:<br><br>1. Clicca su <strong>Chat</strong> nel menu a sinistra<br>2. Digita il tuo messaggio nella casella in basso<br>3. Premi <strong>Invio</strong> per inviare<br><br><strong>💡 Suggerimento</strong>: Sii naturale! LIA capisce frasi come \"<em>Mostrami le mie email di questa settimana</em>\" o \"<em>Cosa ho in programma domani?</em>\""
+            "answer": "È semplice in 3 passaggi:<br><br>1. Dopo l’accesso, apri <strong>Chat</strong> dalla barra superiore<br>2. Digita il tuo messaggio nella casella in basso<br>3. Premi <strong>Invio</strong> per inviare<br><br><strong>💡 Suggerimento</strong>: Sii naturale! LIA capisce frasi come \"<em>Mostrami le mie email di questa settimana</em>\" o \"<em>Cosa ho in programma domani?</em>\""
           },
           "q3": {
             "question": "LIA supporta più lingue?",
@@ -9613,7 +9614,7 @@
         "questions": {
           "q36": {
             "question": "Posso vedere tutti i luoghi trovati sulla stessa mappa?",
-            "answer": "Una nuova risposta con Google Places selezionati mostra <strong>Posizione</strong> prima delle schede dei luoghi, nelle modalità Schede, Schede HTML, HTML e Markdown. Ogni posizione utilizzabile ha un indicatore. La scheda appare automaticamente; un clic attiva la mappa dopo averne mostrato il costo. Se Maps non è configurato o non carica, l’elenco resta disponibile. Le vecchie risposte non vengono riscritte.<br><br><strong>Dettagli e percorso:</strong><br>• Ogni luogo ha un numero, lo stesso nell’elenco e sul suo indicatore.<br>• Selezionando un luogo, nell’elenco o sulla mappa, vedi i dettagli già raccolti: indirizzo, valutazione e numero di recensioni, telefono, sito web e orari, senza una nuova ricerca.<br>• La selezione calcola anche un percorso fino al luogo: a piedi per una breve distanza, altrimenti in auto. Parte dalla tua posizione attuale se la tua preferenza di posizione e il browser lo consentono già (non compare alcuna richiesta di autorizzazione), altrimenti dalla tua ultima posizione nota, di cui viene indicata l’età, altrimenti da casa tua.<br>• Ogni percorso è una richiesta Google a pagamento, conteggiata nei tuoi consumi e soggetta alle tue quote. Senza punto di partenza, i dettagli restano disponibili.<br>• Sullo smartphone, i dettagli si aprono in un pannello nella parte inferiore dello schermo.<br>• Su uno schermo abbastanza largo, l’elenco dei luoghi compare a destra della mappa una volta attivata."
+            "answer": "Una nuova risposta con Google Places selezionati mostra <strong>Posizione</strong> prima delle schede dei luoghi, nelle modalità Schede, Schede HTML, HTML e Markdown. Ogni posizione utilizzabile ha un indicatore. La scheda appare automaticamente; un clic attiva la mappa dopo averne mostrato il costo. Se Maps non è configurato o non carica, l’elenco resta disponibile. Le vecchie risposte non vengono riscritte.<br><br><strong>Dettagli e percorso:</strong><br>• Ogni luogo ha un numero, lo stesso nell’elenco e sul suo indicatore.<br>• Selezionando un luogo, nell’elenco o sulla mappa, vedi i dettagli già raccolti: indirizzo, valutazione e numero di recensioni, telefono, sito web e orari, senza una nuova ricerca.<br>• La selezione calcola anche un percorso fino al luogo: a piedi per una breve distanza, altrimenti in auto. Parte dalla tua posizione attuale se la tua preferenza di posizione e il browser lo consentono già (non compare alcuna richiesta di autorizzazione), altrimenti dalla tua ultima posizione nota, di cui viene indicata l’età, altrimenti da casa tua.<br>• Ogni percorso è una richiesta Google a pagamento, conteggiata nei tuoi consumi e soggetta alle tue quote. Senza punto di partenza, i dettagli restano disponibili.<br>• Sullo smartphone, i dettagli si aprono in un pannello nella parte inferiore dello schermo.<br>• Su uno schermo abbastanza largo, l’elenco dei luoghi compare a destra della mappa una volta attivata.<br><br>Se il contenuto non cambia, una mappa attivata resta attiva durante gli aggiornamenti automatici della visualizzazione."
           },
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
@@ -16818,7 +16819,7 @@
   "story": {
     "meta": {
       "title": "Story — Dirigere un'IA che programma | LIA",
-      "description": "Come ho costruito LIA: circa il 100 % del codice scritto da un'IA da me diretta, 72.136 test, 367 ADR, un audit tecnico a 7,9/10. Il resoconto completo."
+      "description": "Come ho costruito LIA: circa il 100 % del codice scritto da un'IA da me diretta, 72.137 test, 367 ADR, un audit tecnico a 7,9/10. Il resoconto completo."
     },
     "breadcrumb": "Resoconto",
     "hero": {

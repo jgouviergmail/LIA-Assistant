@@ -100,15 +100,17 @@ for (const width of [390, 1280]) {
     const section = page.locator('#settings-section-sms');
     await expect(section.getByText('2 SMS enregistrés')).toBeVisible();
     const assistantHeading = section.locator('summary').filter({ hasText: 'Accès de l’assistant' });
-    for (const title of [
-      'API d’ingestion',
-      'Accès de l’assistant',
-      'Expéditeurs bloqués',
-      'Suppression des SMS',
-    ]) {
+    for (const title of ['API d’ingestion', 'Accès de l’assistant']) {
       const heading = section.locator('summary').filter({ hasText: title });
       await expect(heading).toBeVisible();
       await expect(heading.locator('..')).not.toHaveAttribute('open');
+    }
+    const statistics = section.locator('summary').filter({ hasText: 'Statistiques' });
+    await expect(statistics).toBeVisible();
+    await expect(statistics.locator('..')).toHaveAttribute('open', '');
+    // The SMS page owns sender blocking and erasure; settings only configure access.
+    for (const title of ['Expéditeurs bloqués', 'Suppression des SMS']) {
+      await expect(section.locator('summary').filter({ hasText: title })).toHaveCount(0);
     }
     await page.screenshot({
       path: testInfo.outputPath('sms-settings-default.png'),

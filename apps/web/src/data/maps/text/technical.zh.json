@@ -58,9 +58,9 @@
   "bricks": {
     "t.web": {
       "name": "Web 应用",
-      "role": "界面：流式聊天、设置、仪表盘，以及在服务器端渲染的公开页面；所有发往 API 的流量都走同一个源。",
+      "role": "界面：流式聊天、设置、仪表盘，以及在服务器端渲染的公开页面；所有发往 API 的流量都走同一个源。 稳定的展示组件会在 Markdown 显示内容刷新时保留交互卡片和组件的状态。",
       "stack": ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4", "Radix / shadcn"],
-      "src": "061f6ff0f8ac"
+      "src": "9fa39ef2134c"
     },
     "t.pwa": {
       "name": "PWA 与离线",

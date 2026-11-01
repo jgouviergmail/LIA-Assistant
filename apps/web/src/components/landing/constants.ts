@@ -112,8 +112,8 @@
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
  *   Measured for v4.3.0: backend 56,255 collected (pytest --collect-only,
- *   2026-10-31); frontend coverage: 15,881 passed in 1,386 files.
- *   Combined inventory: 72,136 -> 72000. Collection is distinct from execution.
+ *   2026-10-31); frontend: 15,882 collected (vitest list, 2026-11-01).
+ *   Combined inventory: 72,137 -> 72000. Collection is distinct from execution.
  *   Measured for v4.2.0: backend 54,537 collected in 3,679 files (Windows, 2026-10-30)
  *   (pytest tests --collect-only -q --no-cov); frontend 15,357 tests in 1,327
  *   files (vitest list, 2026-10-30). Combined inventory: 69,894 -> 69000.
@@ -449,7 +449,7 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 658,
   uiLanguages: 6,
-  tests: 72136,
+  tests: 72137,
   adrs: 367,
   releases: 293,
   auditScore: '7.9/10',

@@ -1870,8 +1870,8 @@
     },
     "356": {
       "title": "Un mapa legible con los mismos números en la lista y los marcadores",
-      "summary": "El mapa espera una activación explícita sin reservar un gran espacio vacío. Los mismos detalles se abren en una ventana emergente en ordenador y en un diálogo en teléfono, cada uno con una sola zona de desplazamiento. La lista y los marcadores comparten los números del orden original; un lugar sin coordenadas conserva su número y su enlace sin desplazar a los demás.",
-      "src": "a9ca854ccb92"
+      "summary": "El mapa espera una activación explícita sin reservar un gran espacio vacío. Los mismos detalles se abren en una ventana emergente en ordenador y en un diálogo en teléfono, cada uno con una sola zona de desplazamiento. La lista y los marcadores comparten los números del orden original; un lugar sin coordenadas conserva su número y su enlace sin desplazar a los demás. Si el contenido no cambia, un mapa activado permanece activo durante las actualizaciones automáticas de la presentación.",
+      "src": "86fdd7895d3b"
     },
     "357": {
       "title": "Ingesta genérica del teléfono y SMS personales",

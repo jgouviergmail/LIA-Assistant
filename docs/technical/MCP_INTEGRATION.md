@@ -1170,6 +1170,7 @@ Runtime (tool with UI):
 | UI metadata extraction | `tool_adapter.py` / `user_tool_adapter.py` | Extracts `resourceUri` and `visibility` from `Tool.meta.ui` during discovery |
 | HTML resource fetch | `tool_adapter.py` / `user_tool_adapter.py` | Calls `session.read_resource(resourceUri)` after `call_tool()` |
 | `MCP_APP` RegistryItem | `orchestration/parallel_executor.py` | New `RegistryItemType` for app widgets |
+| `MarkdownDiv` | `apps/web/src/components/chat/markdown-presentation-div.tsx` | Stable native presentation dispatch; surrounding Markdown refreshes retain widget state |
 | `McpAppWidget` | `apps/web/src/components/chat/` | React component rendering sandboxed iframe |
 | Widget airlock shell | `apps/web/public/widget-frame.html` | Same-origin document with its own permissive CSP hosting the widget HTML (ADR-098) |
 | JSON-RPC bridge | `McpAppWidget` | `postMessage` bridge between iframe and host |

@@ -1870,8 +1870,8 @@
     },
     "356": {
       "title": "Una mappa leggibile con gli stessi numeri nell’elenco e sui segnaposto",
-      "summary": "La mappa attende un’attivazione esplicita senza riservare un grande spazio vuoto. Gli stessi dettagli si aprono in un popup sul computer e in una finestra di dialogo sul telefono, ciascuno con una sola area di scorrimento. L’elenco e i segnaposto condividono i numeri dell’ordine originale; un luogo senza coordinate conserva il suo numero e il suo collegamento senza spostare gli altri.",
-      "src": "a9ca854ccb92"
+      "summary": "La mappa attende un’attivazione esplicita senza riservare un grande spazio vuoto. Gli stessi dettagli si aprono in un popup sul computer e in una finestra di dialogo sul telefono, ciascuno con una sola area di scorrimento. L’elenco e i segnaposto condividono i numeri dell’ordine originale; un luogo senza coordinate conserva il suo numero e il suo collegamento senza spostare gli altri. Se il contenuto non cambia, una mappa attivata resta attiva durante gli aggiornamenti automatici della visualizzazione.",
+      "src": "86fdd7895d3b"
     },
     "357": {
       "title": "Acquisizione generica dal telefono e SMS personali",

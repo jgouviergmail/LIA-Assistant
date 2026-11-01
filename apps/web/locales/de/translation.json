@@ -6407,7 +6407,7 @@
         },
         "richResponses": {
           "title": "🎨 Reichhaltige Antworten & Anzeigemodi",
-          "description": "Wählen Sie Karten, HTML oder Markdown: Quellenfakten bleiben vollständig, Details öffnen ohne neuen Modellaufruf und jedes HTML-Tag wird bereinigt. E-Mail-Aktionen bleiben an Nachricht und Postfach gebunden. Orte erscheinen gemeinsam auf einer Positionskarte vor ihren Details; die interaktive Karte lädt nach einem Klick mit angezeigten Kosten."
+          "description": "Wählen Sie Karten, HTML oder Markdown: Quellenfakten bleiben vollständig, Details öffnen ohne neuen Modellaufruf und jedes HTML-Tag wird bereinigt. E-Mail-Aktionen bleiben an Nachricht und Postfach gebunden. Orte erscheinen gemeinsam auf einer Positionskarte vor ihren Details; die interaktive Karte lädt nach einem Klick mit angezeigten Kosten. Solange der Inhalt gleich bleibt, behalten interaktive Karten und Widgets bei automatischen Anzeigeaktualisierungen ihren Zustand."
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
@@ -6651,7 +6651,7 @@
         "v4_3_0": {
           "title": "v4.3.0 — 🧰 Deine Dienste in Deiner Hand",
           "date": "1. November 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "🧰 <b>Werkzeuge</b> — Öffne E-Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Hue-Leuchten direkt im Menü. Du handelst selbst, ohne KI-Token zu verbrauchen.",
             "i2": "✉️ <b>Dein Postfach</b> — Lesen, suchen, schreiben, antworten, weiterleiten und Entwürfe speichern. Das Originallayout öffnet sich isoliert und blockiert entfernte Inhalte; Gmail bietet auch Labels, Abwesenheitsantworten und Filter. Links im Originallayout bleiben inaktiv.",
@@ -6662,7 +6662,8 @@
             "i7": "🔄 <b>Nach Zustimmung geht es weiter</b> — Ein eigener MCP-Agent fragt einmal vor seiner Aufgabe, sobald eines seiner Werkzeuge Zustimmung braucht, und führt die Aufgabe dann zu Ende. LIA gibt das erhaltene Ergebnis wieder.",
             "i8": "🎯 <b>Welches meinst du?</b> — Benenne einen gezeigten Eintrag nach Absender, Titel oder Position. Passen mehrere, bietet LIA nummerierte Optionen an, statt den ersten zu nehmen: Antworte mit Nummer, Worten oder Klick.",
             "i9": "📇 <b>Verlässlichere Daten</b> — Kontakte behalten mehrere Adressen und Nummern, ganztägige Termine konsistente Datumsgrenzen und Drive-Inhaltssuchen ihre Folgeseiten. Gmail berücksichtigt Änderungen aus Werkzeuge. Kontaktlisten sind nach Familiennamen, dann Vornamen sortiert.",
-            "i10": "⚙️ <b>Für Administration und Routinen</b> — Intervall- und Tagesgrenzen lassen sich einstellen. Genehmige ausgewählte MCP-Server im Routinenformular vorab; andere zustimmungspflichtige Aufrufe bleiben ohne anwesende Person verweigert. Neue Grafana-Bereiche zeigen Werkzeuge."
+            "i10": "🗺️ <b>Deine Karten bleiben aktiv</b> — Solange der Inhalt gleich bleibt, behalten aktivierte Karten und Widgets bei automatischen Anzeigeaktualisierungen ihren Zustand, ohne erneute Aktivierung oder erneutes Laden der Karte.",
+            "i11": "⚙️ <b>Für Administration und Routinen</b> — Intervall- und Tagesgrenzen lassen sich einstellen. Genehmige ausgewählte MCP-Server im Routinenformular vorab; andere zustimmungspflichtige Aufrufe bleiben ohne anwesende Person verweigert. Neue Grafana-Bereiche zeigen Werkzeuge."
           }
         },
         "v4_2_0": {
@@ -9556,7 +9557,7 @@
           },
           "q2": {
             "question": "Wie starte ich eine Unterhaltung mit LIA?",
-            "answer": "Es ist einfach in 3 Schritten:<br><br>1. Klicke auf <strong>Chat</strong> im linken Menü<br>2. Gib deine Nachricht in das Eingabefeld am unteren Bildschirmrand ein<br>3. Drücke <strong>Enter</strong> zum Senden<br><br><strong>💡 Tipp</strong>: Sei natürlich! LIA versteht Sätze wie \"<em>Zeig mir meine E-Mails von dieser Woche</em>\" oder \"<em>Was habe ich morgen geplant?</em>\""
+            "answer": "Es ist einfach in 3 Schritten:<br><br>1. Öffne nach der Anmeldung <strong>Chat</strong> über die obere Leiste<br>2. Gib deine Nachricht in das Eingabefeld am unteren Bildschirmrand ein<br>3. Drücke <strong>Enter</strong> zum Senden<br><br><strong>💡 Tipp</strong>: Sei natürlich! LIA versteht Sätze wie \"<em>Zeig mir meine E-Mails von dieser Woche</em>\" oder \"<em>Was habe ich morgen geplant?</em>\""
           },
           "q3": {
             "question": "Unterstützt LIA mehrere Sprachen?",
@@ -9611,7 +9612,7 @@
         "questions": {
           "q36": {
             "question": "Kann ich alle gefundenen Orte auf einer Karte sehen?",
-            "answer": "Eine neue Antwort mit ausgewählten Google Places zeigt <strong>Position</strong> vor den Ortskarten, in Karten, HTML-Karten, HTML und Markdown. Jede nutzbare Position erhält eine Markierung. Die Karte erscheint automatisch; ein Klick aktiviert sie nach Anzeige der Kosten. Ist Maps nicht eingerichtet oder nicht erreichbar, bleibt die Ortsliste verfügbar. Frühere Antworten werden nicht umgeschrieben.<br><br><strong>Details und Route:</strong><br>• Jeder Ort trägt eine Nummer, dieselbe in der Liste und auf seiner Markierung.<br>• Wählst du einen Ort in der Liste oder auf der Karte aus, siehst du seine bereits bekannten Details: Adresse, Sternebewertung und Anzahl der Bewertungen, Telefon, Website und Öffnungszeiten — ohne neue Suche.<br>• Die Auswahl berechnet außerdem eine Route zum Ort: zu Fuß bei kurzer Entfernung, sonst mit dem Auto. Sie beginnt an deinem aktuellen Standort, wenn deine Standorteinstellung und dein Browser das bereits erlauben (es erscheint keine Berechtigungsabfrage), sonst an deinem letzten bekannten Standort, dessen Alter angezeigt wird, sonst an deinem Zuhause.<br>• Jede Route ist eine kostenpflichtige Google-Anfrage, die in deinen Verbrauch einfließt und deinen Kontingenten unterliegt. Ohne Startpunkt bleiben die Details verfügbar.<br>• Auf dem Smartphone öffnen sich die Details in einem Bereich unten am Bildschirm.<br>• Auf einem ausreichend breiten Bildschirm steht die Liste der Orte rechts neben der Karte, sobald diese aktiviert ist."
+            "answer": "Eine neue Antwort mit ausgewählten Google Places zeigt <strong>Position</strong> vor den Ortskarten, in Karten, HTML-Karten, HTML und Markdown. Jede nutzbare Position erhält eine Markierung. Die Karte erscheint automatisch; ein Klick aktiviert sie nach Anzeige der Kosten. Ist Maps nicht eingerichtet oder nicht erreichbar, bleibt die Ortsliste verfügbar. Frühere Antworten werden nicht umgeschrieben.<br><br><strong>Details und Route:</strong><br>• Jeder Ort trägt eine Nummer, dieselbe in der Liste und auf seiner Markierung.<br>• Wählst du einen Ort in der Liste oder auf der Karte aus, siehst du seine bereits bekannten Details: Adresse, Sternebewertung und Anzahl der Bewertungen, Telefon, Website und Öffnungszeiten — ohne neue Suche.<br>• Die Auswahl berechnet außerdem eine Route zum Ort: zu Fuß bei kurzer Entfernung, sonst mit dem Auto. Sie beginnt an deinem aktuellen Standort, wenn deine Standorteinstellung und dein Browser das bereits erlauben (es erscheint keine Berechtigungsabfrage), sonst an deinem letzten bekannten Standort, dessen Alter angezeigt wird, sonst an deinem Zuhause.<br>• Jede Route ist eine kostenpflichtige Google-Anfrage, die in deinen Verbrauch einfließt und deinen Kontingenten unterliegt. Ohne Startpunkt bleiben die Details verfügbar.<br>• Auf dem Smartphone öffnen sich die Details in einem Bereich unten am Bildschirm.<br>• Auf einem ausreichend breiten Bildschirm steht die Liste der Orte rechts neben der Karte, sobald diese aktiviert ist.<br><br>Solange der Inhalt gleich bleibt, bleibt eine aktivierte Karte bei automatischen Anzeigeaktualisierungen aktiv."
           },
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -16816,7 +16817,7 @@
   "story": {
     "meta": {
       "title": "Story — Eine KI führen, die programmiert | LIA",
-      "description": "Wie ich LIA gebaut habe: rund 100 % KI-geschriebener Code unter meiner Führung, 72.136 Tests, 367 ADRs, ein technisches Audit mit 7,9/10. Der ganze Erfahrungsbericht."
+      "description": "Wie ich LIA gebaut habe: rund 100 % KI-geschriebener Code unter meiner Führung, 72.137 Tests, 367 ADRs, ein technisches Audit mit 7,9/10. Der ganze Erfahrungsbericht."
     },
     "breadcrumb": "Erfahrungsbericht",
     "hero": {

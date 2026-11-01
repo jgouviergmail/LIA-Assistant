@@ -53,6 +53,9 @@ before acting when several fit. Interface, help and public presentation cover al
 
 ### Fixed
 
+- 🗺️ **Interactive answer state**: retain active maps, pending admissions and widget
+  state across Markdown display refreshes through stable presentation components.
+  Source and account changes keep their existing cleanup boundaries.
 - 🔐 **Container bootstrap tools**: align pinned pip and npm versions across
   API, development and skill-sandbox images. Refresh pip's own certificate
   trust store independently of the application's certifi dependency, and

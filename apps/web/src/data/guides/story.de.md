@@ -18,8 +18,8 @@ Fast der gesamte Code wurde von einer KI geschrieben. Meine Arbeit bestand darin
 | Indikator | Wert |
 | --- | --- |
 | Code, geschrieben von einer KI, die geführt, in einen Rahmen eingebunden und kontrolliert wurde | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests), verteilt auf 60 Backend-Domänenpakete | **1.092.043** |
-| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **72.136** |
+| Quellcodezeilen (ohne Tests), verteilt auf 60 Backend-Domänenpakete | **1.092.065** |
+| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **72.137** |
 | Dokumentierte Architekturentscheidungen (ADR) | **367** |
 | In regelmäßigem Rhythmus gelieferte Versionen | **293** |
 | Sprachen, mit automatisch geprüfter Parität | **6** |

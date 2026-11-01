@@ -1870,8 +1870,8 @@
     },
     "356": {
       "title": "Eine lesbare Karte mit denselben Nummern in Liste und Markierungen",
-      "summary": "Die Karte wartet auf eine ausdrückliche Aktivierung, ohne eine große leere Fläche vorzuhalten. Dieselben Details öffnen sich am Computer in einem Popup und am Telefon in einem Dialog, jeweils mit nur einem Scrollbereich. Liste und Markierungen teilen die Nummern der ursprünglichen Reihenfolge; ein Ort ohne Koordinaten behält seine Nummer und seinen Link, ohne die anderen zu verschieben.",
-      "src": "a9ca854ccb92"
+      "summary": "Die Karte wartet auf eine ausdrückliche Aktivierung, ohne eine große leere Fläche vorzuhalten. Dieselben Details öffnen sich am Computer in einem Popup und am Telefon in einem Dialog, jeweils mit nur einem Scrollbereich. Liste und Markierungen teilen die Nummern der ursprünglichen Reihenfolge; ein Ort ohne Koordinaten behält seine Nummer und seinen Link, ohne die anderen zu verschieben. Solange der Inhalt gleich bleibt, bleibt eine aktivierte Karte bei automatischen Anzeigeaktualisierungen aktiv.",
+      "src": "86fdd7895d3b"
     },
     "357": {
       "title": "Generischer Telefon-Eingang und persönliche SMS",

@@ -68,7 +68,12 @@ const user: User = {
   response_display_mode: 'cards',
   onboarding_completed: true,
 };
-function viewTree(owner = 'a', content = html, config: AppConfig | null = seed) {
+function viewTree(
+  owner = 'a',
+  content = html,
+  config: AppConfig | null = seed,
+  className?: string
+) {
   const auth = {
     user: { ...user, id: owner },
     isLoading: false,
@@ -83,7 +88,7 @@ function viewTree(owner = 'a', content = html, config: AppConfig | null = seed) 
   return (
     <AuthContext.Provider value={auth}>
       <AppConfigSeedContext.Provider value={config}>
-        <MarkdownContent content={content} />
+        <MarkdownContent content={content} className={className} />
       </AppConfigSeedContext.Provider>
     </AuthContext.Provider>
   );
@@ -128,6 +133,31 @@ beforeEach(() => {
   });
 });
 describe('Position from sanitized archived HTML', () => {
+  it('keeps a pending activation and its mounted map across a Markdown wrapper refresh', async () => {
+    let admit!: (value: { api_key: string; map_id: string; load_token: string }) => void;
+    vi.mocked(apiClient.post).mockReturnValueOnce(
+      new Promise(resolve => {
+        admit = resolve;
+      })
+    );
+    const view = renderWithProviders(viewTree());
+    await view.user.click(
+      await screen.findByRole('button', { name: 'chat.position_map.activate' })
+    );
+    expect(apiClient.post).toHaveBeenCalledOnce();
+    view.rerender(viewTree('a', html, seed, 'refreshed-wrapper'));
+    await act(async () => {
+      admit({ api_key: 'public', map_id: 'configured', load_token: 'grant-one' });
+    });
+    expect(await screen.findByRole('button', { name: 'East' })).toBeVisible();
+    view.rerender(viewTree('a', html, seed, 'ready-wrapper'));
+    expect(screen.getByRole('button', { name: 'East' })).toBeVisible();
+    expect(controller.destroy).not.toHaveBeenCalled();
+    expect(apiClient.post).toHaveBeenCalledOnce();
+    expect(mountPlaceMap).toHaveBeenCalledOnce();
+    expect(reportRouteMapLoad).toHaveBeenCalledExactlyOnceWith('grant-one');
+  });
+
   it('uses a wide phone dialog, returns focus on dismissal and keeps the existing map', async () => {
     viewport.narrow = true;
     vi.mocked(apiClient.post).mockImplementation(async endpoint =>

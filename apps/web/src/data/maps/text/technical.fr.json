@@ -47,7 +47,7 @@
   "bricks": {
     "t.web": {
       "name": "Application web",
-      "role": "L'interface : chat en streaming, réglages, tableaux de bord et pages publiques rendues côté serveur ; tout le trafic vers l'API passe par la même origine.",
+      "role": "L'interface : chat en streaming, réglages, tableaux de bord et pages publiques rendues côté serveur ; tout le trafic vers l'API passe par la même origine. Des composants de présentation stables préservent l’état des fiches interactives et des widgets lors des actualisations de l’affichage Markdown.",
       "stack": [
         "Next.js 16",
         "React 19",

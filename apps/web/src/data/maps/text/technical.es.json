@@ -58,9 +58,9 @@
   "bricks": {
     "t.web": {
       "name": "Aplicación web",
-      "role": "La interfaz: chat en streaming, ajustes, paneles y páginas públicas renderizadas en el servidor; todo el tráfico hacia la API pasa por el mismo origen.",
+      "role": "La interfaz: chat en streaming, ajustes, paneles y páginas públicas renderizadas en el servidor; todo el tráfico hacia la API pasa por el mismo origen. Los componentes de presentación estables conservan el estado de las fichas interactivas y los widgets al actualizarse la presentación Markdown.",
       "stack": ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4", "Radix / shadcn"],
-      "src": "061f6ff0f8ac"
+      "src": "9fa39ef2134c"
     },
     "t.pwa": {
       "name": "PWA y modo sin conexión",

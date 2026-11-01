@@ -165,7 +165,7 @@ It is one choice on each server's form, with three options:
 
 **🤖 Which model:** servers with interactive widgets use a more capable model, the others a faster and cheaper one; the administrator sets both in **LLM Configuration**.
 
-**🩺 Widgets:** an interactive widget is kept with the conversation and reopens after a reload or on another device. A widget that never starts shows a notice with an explanation, a **Retry** button and the technical detail, so a report from any device names the culprit.
+**🩺 Widgets:** an interactive widget is kept with the conversation and reopens after a reload or on another device. A widget that never starts shows a notice with an explanation, a **Retry** button and the technical detail, so a report from any device names the culprit. With unchanged content, interactive cards and widgets retain their state during automatic display updates.
 
 **⚙️ For administrators:** dedicated agents are available unless `MCP_REACT_ENABLED=false`; `REACT_MCP_EXPAND_ITERATIVE_ENABLED` is the default ReAct shape of a server whose owner never chose one, and the rule of the administrator's own iterative servers.
 

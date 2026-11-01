@@ -1097,7 +1097,7 @@ UnifiedToolOutput.data_success(
      │
      ▼  SSE registry_update chunk  +  sentinel HTML in message content
      │
-     ▼  Frontend: MarkdownContent.tsx detects sentinel
+     ▼  Frontend: MarkdownDiv detects the sentinel through a stable component
      │
      ▼  SkillAppWidget (iframe srcDoc/src + optional image card)
 ```
@@ -1172,7 +1172,7 @@ Frontend:
 - `apps/web/src/types/skill-apps.ts` — `SkillAppRegistryPayload`
 - `apps/web/src/components/chat/SkillAppWidget.tsx` — iframe + image card (transparent background)
 - `apps/web/src/hooks/useSkillAppBridge.ts` — minimal postMessage bridge + live theme/locale observers
-- `apps/web/src/components/chat/MarkdownContent.tsx` — sentinel `lia-skill-app` detection
+- `apps/web/src/components/chat/markdown-presentation-div.tsx` — stable sentinel `lia-skill-app` dispatch; surrounding Markdown refreshes retain the widget lifetime
 
 ## Tool output contract for skill scripts (`structured_data`)
 

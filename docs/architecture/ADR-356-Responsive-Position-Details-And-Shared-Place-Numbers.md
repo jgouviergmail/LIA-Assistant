@@ -89,6 +89,21 @@ places at the left edge of a 388 px phone frame. The browser journey below was
 not re-run for this amendment (it builds the application, which the owner's
 rule keeps off the workstation).
 
+## Presentation lifetime — amendment 2026-11-01
+
+Bind native presentation elements through the module-level
+[`MarkdownDiv`](../../apps/web/src/components/chat/markdown-presentation-div.tsx).
+An ordinary Markdown wrapper refresh retains a pending admission, the active map
+and its selected-place state. React receives the same component types on every
+render, including for MCP and skill widgets. Account and archived-source changes
+still use their existing keyed lifetime boundaries and discard late results.
+
+Rendering the same answer again does not authorize another map construction or
+usage report. The Position regression holds admission pending across a wrapper
+refresh, completes it once, then refreshes the active map and verifies that no
+controller was destroyed or constructed again. This tests component lifetime;
+it does not claim live-provider billing verification.
+
 ## Consequences and verification
 
 The same facts and route state feed both presentations. Viewport changes affect

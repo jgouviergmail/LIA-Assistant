@@ -60,7 +60,8 @@
       "paths": [
         "apps/web/src/app",
         "apps/web/src/components",
-        "apps/web/src/hooks"
+        "apps/web/src/hooks",
+        "apps/web/src/components/chat/markdown-presentation-div.tsx"
       ],
       "deps": [
         "t.bff",

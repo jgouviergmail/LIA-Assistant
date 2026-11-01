@@ -15,7 +15,7 @@ LIA understands natural language: talk to it like you would a human assistant!
 ## How do I start a conversation with LIA?
 It's simple in 3 steps:
 
-1. Click on **Chat** in the left menu
+1. After signing in, open **Chat** from the top bar
 2. Type your message in the input box at the bottom of the screen
 3. Press **Enter** to send
 

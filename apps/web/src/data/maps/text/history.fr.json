@@ -1497,7 +1497,7 @@
     },
     "356": {
       "title": "Une carte lisible, avec les mêmes numéros dans la liste et sur les repères",
-      "summary": "La carte attend une activation explicite sans réserver un grand espace vide. Les mêmes détails s’ouvrent dans une popup sur ordinateur et un dialogue sur téléphone, chacun avec un seul défilement. La liste et les repères partagent les numéros de l’ordre initial ; un lieu sans coordonnées garde son numéro et son lien sans décaler les autres."
+      "summary": "La carte attend une activation explicite sans réserver un grand espace vide. Les mêmes détails s’ouvrent dans une popup sur ordinateur et un dialogue sur téléphone, chacun avec un seul défilement. La liste et les repères partagent les numéros de l’ordre initial ; un lieu sans coordonnées garde son numéro et son lien sans décaler les autres. À contenu inchangé, une carte activée reste active pendant les mises à jour automatiques de l’affichage."
     },
     "357": {
       "title": "Ingestion générique et SMS personnels",

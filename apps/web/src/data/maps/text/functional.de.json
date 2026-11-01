@@ -43,9 +43,9 @@
   "bricks": {
     "f.chat": {
       "name": "Unterhaltung",
-      "role": "Der eine Verlauf, in dem du mit LIA sprichst, schriftlich oder per Stimme: Antworten im Streaming, Anhänge, visuelle Karten und die unter jeder Antwort angezeigten Kosten.",
+      "role": "Der eine Verlauf, in dem du mit LIA sprichst, schriftlich oder per Stimme: Antworten im Streaming, Anhänge, visuelle Karten und die unter jeder Antwort angezeigten Kosten. Solange der Inhalt gleich bleibt, behalten interaktive Karten und Widgets bei automatischen Anzeigeaktualisierungen ihren Zustand.",
       "goal": "Richtig und schnell antworten, in einem einzigen Verlauf, und zeigen, was jede Antwort gekostet hat.",
-      "src": "e93f1ad586e4"
+      "src": "27744283b4cf"
     },
     "f.routing": {
       "name": "Verständnis der Anfrage",
