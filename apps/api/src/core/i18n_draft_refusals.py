@@ -125,6 +125,15 @@ _MESSAGES: dict[str, dict[Language, str]] = {
         "it": "Ciò che avevi confermato è cambiato nel frattempo: verifica lo stato attuale prima di richiedere di nuovo l’azione.",
         "zh-CN": "你确认的内容此后已发生变化。请先查看当前状态，再重新发起该操作。",
     },
+    # Spec 2026-10-30 D7: refused before any effect, by the writer's own judge.
+    "CONFIRMATION_LOOSENING": {
+        "fr": "Rien n’a été changé : depuis la conversation, LIA peut seulement demander davantage avant d’utiliser un outil MCP, et ce changement la ferait demander moins. Tu peux le faire dans Réglages › Serveurs MCP, qui liste ce que LIA ne demanderait plus.",
+        "en": "Nothing was changed: from the chat, LIA can only ask more before using an MCP tool, and this change would make it ask less. You can make it in Settings › MCP Servers, which lists what LIA would stop asking about.",
+        "de": "Nichts wurde geändert: Im Chat kann LIA vor einem MCP-Werkzeug nur öfter fragen, und diese Änderung würde sie seltener fragen lassen. Du kannst sie unter Einstellungen › MCP-Server vornehmen, wo steht, wonach LIA nicht mehr fragen würde.",
+        "es": "No se cambió nada: desde la conversación, LIA solo puede preguntar más antes de usar una herramienta MCP, y este cambio haría que preguntara menos. Puedes hacerlo en Ajustes › Servidores MCP, que muestra lo que LIA dejaría de preguntar.",
+        "it": "Non è stato cambiato nulla: dalla conversazione LIA può solo chiedere di più prima di usare uno strumento MCP, e questa modifica la farebbe chiedere di meno. Puoi farla in Impostazioni › Server MCP, che elenca ciò che LIA smetterebbe di chiedere.",
+        "zh-CN": "未做任何更改：在对话中，LIA 只能在使用 MCP 工具前询问得更多，而此更改会让它询问得更少。你可以在“设置 › MCP 服务器”中进行此更改，那里会列出 LIA 将不再询问的内容。",
+    },
     "FORBIDDEN": {
         "fr": "Cette action n’est pas autorisée pour ton compte, ou ne l’est plus.",
         "en": "This action is not allowed for your account, or no longer is.",

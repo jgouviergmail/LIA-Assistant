@@ -364,32 +364,3 @@ def get_domain_from_tool_name(tool_name: str) -> str | None:
         if pattern in tool_name_lower:
             return domain
     return None
-
-
-def is_list_tool(tool_name: str) -> bool:
-    """
-    Check if a tool produces a list (search/list/find operations).
-
-    LIST tools produce results that can be referenced ordinally
-    (e.g., "details of the 2nd one" after "search contacts").
-
-    Args:
-        tool_name: Tool function name (e.g., "search_contacts_tool").
-
-    Returns:
-        True if this is a LIST-type tool, False otherwise.
-
-    Examples:
-        >>> is_list_tool("search_contacts_tool")
-        True
-        >>> is_list_tool("get_contact_details_tool")
-        False
-        >>> is_list_tool("list_events_tool")
-        True
-    """
-    if not tool_name:
-        return False
-
-    list_patterns = ("search_", "list_", "find_", "query_")
-    tool_name_lower = tool_name.lower()
-    return any(tool_name_lower.startswith(pattern) for pattern in list_patterns)

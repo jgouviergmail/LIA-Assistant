@@ -35,7 +35,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "docker-compose.prod.yml"
 ALERTS = ROOT / "infrastructure" / "observability" / "prometheus" / "alerts-core.yml"
-MATRIX = ROOT / "infrastructure" / "observability" / "alertmanager" / "tests" / "routing_matrix.yml"
+MATRIX = (
+    ROOT
+    / "infrastructure"
+    / "observability"
+    / "alertmanager"
+    / "tests"
+    / "routing_matrix.yml"
+)
 RENDERED = "/out/alertmanager.yml"
 #: `check-config` parses the email templates without executing them, and a template
 #: that fails at render time fails the notification: each one the rendered config
@@ -75,9 +82,13 @@ def _notification_fields(rendered: dict[str, Any]) -> list[tuple[str, str, set[s
                     else:
                         value = config.get(name, "")
                     expected = (
-                        {name} if name in {"environment", "host"} else {"environment", "host"}
+                        {name}
+                        if name in {"environment", "host"}
+                        else {"environment", "host"}
                     )
-                    fields.append((f"{receiver['name']}.{kind}.{index}.{name}", value, expected))
+                    fields.append(
+                        (f"{receiver['name']}.{kind}.{index}.{name}", value, expected)
+                    )
     return fields
 
 
@@ -151,25 +162,36 @@ def _check_notification_identity(
                 )
     # Keep the batch in a mounted file: a full notifier matrix exceeds the
     # Windows CreateProcess command-line limit even though the shell accepts it.
-    (out_dir / "notification-identity.sh").write_text("\n".join(lines), encoding="utf-8")
+    (out_dir / "notification-identity.sh").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
+    )
     completed = subprocess.run(
-        [*command, "/out/notification-identity.sh"], capture_output=True, text=True, check=False
+        [*command, "/out/notification-identity.sh"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if completed.returncode != 0:
-        return [f"notification rendering exited {completed.returncode}: {completed.stderr.strip()}"]
+        return [
+            f"notification rendering exited {completed.returncode}: {completed.stderr.strip()}"
+        ]
     problems = []
     for identity, status, name, filename, expected, keys in checks:
         # The exit status decides; a warning on stderr from a render that
         # succeeded is not a failure.
         returned = (out_dir / f"{filename}.rc").read_text(encoding="utf-8").strip()
-        error = (out_dir / f"{filename}.err").read_text(encoding="utf-8", errors="replace")
+        error = (out_dir / f"{filename}.err").read_text(
+            encoding="utf-8", errors="replace"
+        )
         output = (out_dir / filename).read_text(encoding="utf-8", errors="replace")
         if returned != "0":
             problems.append(
                 f"{identity}/{status}/{name} failed to render ({returned}): {error.strip()}"
             )
         elif any(expected[key] not in output for key in keys):
-            problems.append(f"{identity}/{status}/{name} omits source identity {expected}")
+            problems.append(
+                f"{identity}/{status}/{name} omits source identity {expected}"
+            )
     return problems
 
 
@@ -189,14 +211,16 @@ def _check_source_isolation(rendered: dict[str, Any]) -> list[str]:
     check_route(rendered["route"], set())
     for rule in rendered.get("inhibit_rules", []):
         if not {"environment", "host"} <= set(rule.get("equal", [])):
-            problems.append(f"inhibition can silence another environment or host: {rule}")
+            problems.append(
+                f"inhibition can silence another environment or host: {rule}"
+            )
     return problems
 
 
 def _service() -> dict[str, Any]:
-    service: dict[str, Any] = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))["services"][
-        "alertmanager"
-    ]
+    service: dict[str, Any] = yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))[
+        "services"
+    ]["alertmanager"]
     return service
 
 
@@ -241,7 +265,9 @@ def _script(case: dict[str, Any], alerts: dict[str, dict[str, str]]) -> str:
     ]
     for name in case.get("alerts", {}):
         labels = {**_labels(alerts, name), "alertname": name}
-        arguments = " ".join(shlex.quote(f"{key}={value}") for key, value in labels.items())
+        arguments = " ".join(
+            shlex.quote(f"{key}={value}") for key, value in labels.items()
+        )
         lines.append(
             f"printf 'ROUTE %s ' {shlex.quote(name)};"
             f" amtool config routes test --config.file={RENDERED} {arguments}"
@@ -256,7 +282,9 @@ def _receivers(rendered: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def _value(rendered: dict[str, Any], dotted: str) -> Any:
     """``global.x`` or ``receiver.<name>.<key>...`` — list indexes are numbers."""
     head, *path = dotted.split(".")
-    node: Any = _receivers(rendered)[path.pop(0)] if head == "receiver" else rendered[head]
+    node: Any = (
+        _receivers(rendered)[path.pop(0)] if head == "receiver" else rendered[head]
+    )
     for key in path:
         node = node[int(key)] if isinstance(node, list) else node[key]
     return node
@@ -287,7 +315,9 @@ def _check(case: dict[str, Any], output: str, out_dir: Path) -> list[str]:
         for line in output.splitlines()
         if line.startswith("TEMPLATE ") and line.endswith(" failed")
     ]
-    rendered = yaml.safe_load((out_dir / "alertmanager.yml").read_text(encoding="utf-8"))
+    rendered = yaml.safe_load(
+        (out_dir / "alertmanager.yml").read_text(encoding="utf-8")
+    )
     problems += _check_source_isolation(rendered)
     named = set(
         re.findall(
@@ -295,9 +325,13 @@ def _check(case: dict[str, Any], output: str, out_dir: Path) -> list[str]:
             (out_dir / "alertmanager.yml").read_text(encoding="utf-8"),
         )
     )
-    checked = {line.split()[1] for line in output.splitlines() if line.startswith("TEMPLATE ")}
+    checked = {
+        line.split()[1] for line in output.splitlines() if line.startswith("TEMPLATE ")
+    }
     if named != checked:
-        problems.append(f"email templates named but never rendered: {sorted(named - checked)}")
+        problems.append(
+            f"email templates named but never rendered: {sorted(named - checked)}"
+        )
     receivers = _receivers(rendered)
     for name, kinds in case.get("configs", {}).items():
         held = sorted(KINDS[key] for key in receivers.get(name, {}) if key in KINDS)
@@ -324,7 +358,9 @@ def run_case(
         out_dir = Path(out)
         out_dir.chmod(0o777)  # the image runs as nobody
         environment = [
-            arg for key, value in case["env"].items() for arg in ("-e", f"{key}={value}")
+            arg
+            for key, value in case["env"].items()
+            for arg in ("-e", f"{key}={value}")
         ]
         command = [
             "docker", "run", "--rm", "--network", "none", *mounts,
@@ -341,7 +377,9 @@ def run_case(
             return [f"docker exited {completed.returncode}: {completed.stderr.strip()}"]
         problems = _check(case, completed.stdout, out_dir)
         if (out_dir / "alertmanager.yml").exists() and "CHECK_OK" in completed.stdout:
-            rendered = yaml.safe_load((out_dir / "alertmanager.yml").read_text(encoding="utf-8"))
+            rendered = yaml.safe_load(
+                (out_dir / "alertmanager.yml").read_text(encoding="utf-8")
+            )
             problems += _check_notification_identity(case, rendered, out_dir, command)
         return problems
 

@@ -49,6 +49,18 @@ Settings → "*Scheduled Actions*" section → **Add** button
 **💡 Tip:**
 Be specific in the instruction, as if you were talking to LIA directly.
 
+## Can a scheduled action use MCP tools that ask for confirmation?
+
+A scheduled action runs with nobody to answer, so an MCP tool that asks for confirmation — according to your strategy, the choice of its server or of the tool, or because the server announces it as destructive — is refused when the action runs, and the result says which one. With a dedicated agent, its whole task asks: it is refused as a whole. A tool set to “Never ask” runs without confirmation.
+
+**✅ Confirm a server in advance:**
+In the action's form, section **How it runs**, tick the servers whose confirmations this action gives itself: only your own enabled servers and the administrator's servers you have not switched off are listed. Every other server stays refused.
+
+**🛡️ Good to know:**
+• The choice is made per server and per action, so an instruction slipped into what the action reads reaches only what you ticked
+• Only the form can set it: an assistant can neither tick nor widen it. When an assistant offers to change, run or switch on such an action, its confirmation card names the servers it confirms for itself
+• Each action performed this way appears in the **Actions** register, marked as confirmed in advance by the action
+
 ## How do I test a scheduled action?
 You can test an action **immediately** without waiting for the scheduled time:
 

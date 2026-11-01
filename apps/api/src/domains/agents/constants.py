@@ -24,8 +24,10 @@ NODE_CLARIFICATION = "clarification"  # Phase 2 OPTIMPLAN: Clarification HITL no
 NODE_APPROVAL_GATE = "approval_gate"  # Phase 8: Plan-level HITL approval before execution
 # Context Compaction: Summarize old conversation history before routing
 NODE_COMPACTION = "compaction"  # 2026-03: Intelligent context compaction node
-# HITL Dispatch: Generic HITL handler supporting draft_critique, entity_disambiguation, tool_confirmation
+# HITL Dispatch: Generic HITL handler supporting draft_critique, tool_confirmation
 NODE_HITL_DISPATCH = "hitl_dispatch"  # 2025-12-23: Generic HITL dispatch node
+# ADR-367: « which of the items shown did you mean? », asked before planning.
+NODE_REFERENCE_DISAMBIGUATION = "reference_disambiguation"
 NODE_DRAFT_CRITIQUE = NODE_HITL_DISPATCH  # Backward compatibility alias
 
 # ReAct execution mode nodes (ADR-070)
@@ -277,6 +279,9 @@ STATE_KEY_MESSAGES = "messages"
 STATE_KEY_METADATA = "metadata"
 STATE_KEY_ROUTING_HISTORY = "routing_history"
 STATE_KEY_AGENT_RESULTS = "agent_results"
+# Spec 2026-10-29 D7: the drafts a plan's resume executed — read by the response
+# and the performed-actions directive, so it lives below both layers.
+STATE_KEY_EXECUTED_DRAFTS = "executed_drafts"
 STATE_KEY_ORCHESTRATION_PLAN = "orchestration_plan"
 STATE_KEY_CURRENT_TURN_ID = "current_turn_id"
 STATE_KEY_USER_ID = "user_id"
@@ -320,6 +325,9 @@ STATE_KEY_FOR_EACH_CANCELLATION_REASON = (
 # provider data and the edit-loop state travel through this context so a
 # resume never re-fetches providers nor re-runs past LLM item filters.
 STATE_KEY_FOR_EACH_HITL_CTX = "for_each_hitl_ctx"
+# « Which one? » before a plan acts on one of several items a lookup found
+# (ADR-367 amendment, ``nodes/plan_choice.py``)
+STATE_KEY_PLAN_CHOICE = "plan_choice"
 NODE_FOR_EACH_CONFIRM = "for_each_confirm"
 
 # Context resolution state keys
@@ -336,6 +344,8 @@ STATE_KEY_LAST_LIST_DOMAIN = (
 # with no registry updates (see filter_registry_by_current_turn).
 STATE_KEY_TURN_TYPE = "turn_type"
 STATE_KEY_RESOLVED_CONTEXT = "resolved_context"  # Resolved reference context
+# What each answer SHOWED (ADR-367 amendment, ``context/shown_items.py``)
+STATE_KEY_SHOWN_ITEMS = "shown_items"
 STATE_KEY_DETECTED_INTENT = (
     "detected_intent"  # SemanticIntentDetector result (action/detail/search/list)
 )
@@ -645,6 +655,7 @@ __all__ = [
     "NODE_COMPACTION",
     "NODE_DRAFT_CRITIQUE",
     "NODE_HITL_DISPATCH",
+    "NODE_REFERENCE_DISAMBIGUATION",
     "NODE_QUERY_AGENT",
     "NODE_WEATHER_AGENT",
     "NODE_WIKIPEDIA_AGENT",
@@ -850,6 +861,8 @@ __all__ = [
     # Context resolution
     "STATE_KEY_LAST_ACTION_TURN_ID",
     "STATE_KEY_LAST_LIST_TURN_ID",
+    "STATE_KEY_SHOWN_ITEMS",
+    "STATE_KEY_PLAN_CHOICE",
     "STATE_KEY_TURN_TYPE",
     "STATE_KEY_RESOLVED_CONTEXT",
     "STATE_KEY_DETECTED_INTENT",

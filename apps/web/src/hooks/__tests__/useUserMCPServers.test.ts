@@ -1,4 +1,5 @@
-import { userMCPServer as server } from './user-mcp-fixture';
+import { mcpDefaultsFixture } from '@/__tests__/fixtures/mcp-behavior';
+import { userMCPServerFixture as server } from '@/__tests__/fixtures/mcp-servers';
 /**
  * useUserMCPServers — the CRUD layer for the user's own MCP servers, mocked out
  * by the settings-panel tests and therefore only pinned here.
@@ -56,7 +57,7 @@ const setData = setDataSpy<UserMCPServerListResponse>();
 const refetch = vi.fn();
 
 function cache(over: Partial<UserMCPServerListResponse> = {}): UserMCPServerListResponse {
-  return { servers: [server()], total: 1, ...over };
+  return { servers: [server()], total: 1, defaults: mcpDefaultsFixture(), ...over };
 }
 
 function setupWith(data: UserMCPServerListResponse | undefined) {
@@ -115,7 +116,7 @@ describe('useUserMCPServers — reading', () => {
 describe('useUserMCPServers — writing', () => {
   const draft = { name: 'New', url: 'https://x/sse', auth_type: 'none' as const };
 
-  it('appends a created server and counts it', async () => {
+  it('appends a created server and counts it, keeping the defaults the page reads', async () => {
     const created = server({ id: 's2', name: 'New' });
     mutate.create.mockResolvedValue(created);
     const { result } = setup();
@@ -125,7 +126,11 @@ describe('useUserMCPServers — writing', () => {
     });
 
     expect(mutate.create).toHaveBeenCalledWith(ENDPOINT, draft);
-    expect(applyUpdater(cache())).toEqual({ servers: [server(), created], total: 2 });
+    expect(applyUpdater(cache())).toEqual({
+      servers: [server(), created],
+      total: 2,
+      defaults: mcpDefaultsFixture(),
+    });
   });
 
   it('replaces only the updated server', async () => {
@@ -142,7 +147,7 @@ describe('useUserMCPServers — writing', () => {
     expect(next?.servers).toEqual([updated, server({ id: 's2' })]);
   });
 
-  it('removes a deleted server and decrements the count', async () => {
+  it('removes a deleted server and decrements the count, keeping the defaults', async () => {
     const { result } = setup();
 
     await act(async () => {
@@ -153,6 +158,7 @@ describe('useUserMCPServers — writing', () => {
     expect(applyUpdater(cache({ servers: [server(), server({ id: 's2' })], total: 2 }))).toEqual({
       servers: [server({ id: 's2' })],
       total: 1,
+      defaults: mcpDefaultsFixture(),
     });
   });
 

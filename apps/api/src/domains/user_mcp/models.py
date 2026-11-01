@@ -171,7 +171,11 @@ class UserMCPServer(BaseModel):
     hitl_required: Mapped[bool | None] = mapped_column(
         Boolean,
         nullable=True,
-        doc="Per-server HITL override. None = inherit global MCP_HITL_REQUIRED",
+        doc=(
+            "Per-server confirmation: true = always ask, false = follow the server's "
+            "declarations; None = the account's strategy, else MCP_HITL_REQUIRED "
+            "(infrastructure/mcp/confirmation.py)."
+        ),
     )
     iterative_mode: Mapped[bool] = mapped_column(
         Boolean,
@@ -182,6 +186,14 @@ class UserMCPServer(BaseModel):
             "Enable ReAct iterative mode for this server. When true, the planner "
             "delegates to a ReAct sub-agent that interacts with the server's tools "
             "iteratively. Incurs additional LLM costs (multiple tool calls per request)."
+        ),
+    )
+    react_expand_iterative: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment=(
+            "ReAct shape of an iterative server: true = the loop drives its tools, "
+            "false = its dedicated agent; NULL = instance default."
         ),
     )
 

@@ -217,3 +217,28 @@ class TestTheSuccessMessageFillsEachPlaceholderOnce:
         from src.core.i18n_drafts import get_draft_success_message
 
         assert get_draft_success_message("event", "en", summary="") == "created successfully"
+
+
+class TestASingleCancelSaysWhatItCancelled:
+    """Measured 2026-10-30: a bare « Action annulée » beside work that ran was read as
+    THAT work cancelled. A batch's cancelled entries already carry their content."""
+
+    async def test_the_cancel_carries_the_draft_content(self) -> None:
+        from langchain_core.runnables import RunnableConfig
+
+        from src.domains.agents.services.draft_executor import execute_draft_if_confirmed
+
+        content = {"tool_label": "Notes: delete note"}
+        config: RunnableConfig = {}
+        decision = {
+            "action": "cancel",
+            "draft_id": "d1",
+            "draft_type": "tool_call",
+            "draft_content": content,
+        }
+
+        result = await execute_draft_if_confirmed(decision, config, "run-1", "fr")
+
+        assert result is not None
+        assert result.to_agent_result()["status"] == "cancelled"
+        assert result.to_agent_result()["data"] == {"_draft_content": content}

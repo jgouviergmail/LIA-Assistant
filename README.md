@@ -26,6 +26,7 @@ The moment I wanted to improve is simple: **“I'm speaking with Claire. What di
 - **Pick up the relationship.** Open **Relations** for the recent exchanges, debrief and open commitments associated with a person.
 - **Prepare from your own material.** Ask LIA to bring together the project brief, recent emails and previous meeting notes. Inspect the sources and anything that conflicts.
 - **Choose what happens next.** Review the email draft before sending. Edit it, approve it or say no.
+- **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, Drive and Hue controls, with no model call. The connected provider determines the available controls.
 
 Try: *“Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”*
 
@@ -235,7 +236,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 525 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 535 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -276,6 +277,21 @@ Every capability below is documented in an architecture decision record (ADR) or
 <summary><strong>Act, under your control — drafts, calls, documents and project work</strong></summary>
 
 ### Act, under your control
+
+#### Your own workspace
+
+**Tools** opens mail, calendar, tasks, contacts, Drive and Hue through the services
+you connected. Browse and act directly, without a model call or an entry in LIA's
+activity registers. Mail has an isolated original-layout reader; calendars have
+Agenda, Week and Month; contacts retain multiple addresses and numbers. Drive
+supports paged search and document exports, while lights expose each lamp's real
+controls. Screens publish provider limitations, preserve explicit unknown outcomes
+and remember pane widths on this device. See [the workspace reference](docs/technical/WORKBENCH.md)
+and [ADR-369](docs/architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md).
+
+When asking LIA to act instead, designate a shown item by its sender, title or
+position. Several matches produce a numbered choice, then the task continues on
+the item you selected ([ADR-367](docs/architecture/ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md)).
 
 #### Manage LIA through conversation
 
@@ -511,6 +527,7 @@ for projection and performance limits.
 - Conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)).
 - MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)).
 - An iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
+- Choose confirmations for your account, each server and each tool, and inspect **What it will do** before changing them. A dedicated agent asks once before a task when one of its tools needs approval, then completes that task. Only the settings page can reduce confirmations; an explicit “never ask” is suspended when the tool's declaration changes ([ADR-368](docs/architecture/ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md)).
 - A provider's cooldown is shared across workers for that person's server, so another concurrent request cannot restart a wait the service already imposed.
 - What a personal server offers is kept as a snapshot every worker shares and served while it is revalidated, so a message waits for none of your servers; one that must be asked again is prepared in parallel under a ceiling and named when it is slow, and a call checks the declaration it relies on before it is sent ([ADR-366](docs/architecture/ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md)).
 
@@ -968,7 +985,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### Observability
 
-- **Prometheus**: 652 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 658 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 33 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -1272,7 +1289,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-364 ADR files (ADR-001 through ADR-366 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+367 ADR files (ADR-001 through ADR-369 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded
@@ -1296,10 +1313,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                           |                                         |                                                                         |
 | ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **60** backend domain packages | **1,059,000+** source lines (excl. tests) | **69,000+** inventoried automated tests | **364** ADRs                                                            |
-| **292** versions shipped       | **6 languages**, parity enforced in CI    | **652** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
+| **60** backend domain packages | **1,092,046** source lines (excl. tests) | **72,136** inventoried automated tests | **367** ADRs                                                            |
+| **293** versions shipped       | **6 languages**, parity enforced in CI    | **658** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,059,000+ physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-10-30). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,092,046 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-01). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)
@@ -1307,10 +1324,10 @@ Source-line figure: 1,059,000+ physical lines in Python, TypeScript, JavaScript 
 </details>
 
 <details>
-<summary><strong>Latest release — less waiting, plainly said</strong></summary>
+<summary><strong>Latest release — your services, in your hands</strong></summary>
 
 <p align="center">
-  <strong>Version 4.2.0</strong> — <strong>Less waiting, plainly said.</strong> A message no longer waits in silence for your personal MCP servers — what they offer is kept from one message to the next and a slow one is named —, the home page fills in card by card, and a model call or a connector act whose outcome is unknown is never repeated. The public pages were rewritten shorter and plainer in the six languages — 30 October 2026.
+  <strong>Version 4.3.0</strong> — <strong>Your services, in your hands.</strong> Tools opens your connected services for direct use without a model call. Choose MCP confirmations per account, server and tool, inspect their effect, and let an approved task continue to completion. When several items fit your words, LIA asks which one. Interface and help cover all six languages — 1 November 2026.
 </p>
 
 [Full changelog](CHANGELOG.md)

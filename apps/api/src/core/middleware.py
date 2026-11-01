@@ -504,7 +504,10 @@ class SecurityHeadersMiddleware:
                 # browsers — those expire on their own — it stops adding more.
                 if settings.is_production and settings.hsts_max_age > 0:
                     headers["Strict-Transport-Security"] = f"max-age={settings.hsts_max_age}"
-                headers["Content-Security-Policy"] = self._csp
+                # A route's own policy is kept: one sets it only to be STRICTER
+                # (a file served for download is sandboxed, ADR-369).
+                if headers.get("Content-Security-Policy") is None:
+                    headers["Content-Security-Policy"] = self._csp
                 # COOP/COEP for WASM SharedArrayBuffer (Sherpa-onnx KWS multi-threading)
                 headers["Cross-Origin-Embedder-Policy"] = "require-corp"
                 headers["Cross-Origin-Opener-Policy"] = "same-origin"

@@ -81,7 +81,9 @@ ContextTypeRegistry.register(
         item_schema=HueLightItem,
         primary_id_field="light_id",
         display_name_field="name",
-        reference_fields=["name", "is_on", "brightness", "room"],
+        # `room` holds the owner's id, `is_on` and `brightness` are not text:
+        # only the light's name designates it (ADR-367).
+        reference_fields=["name"],
         icon="💡",
     )
 )

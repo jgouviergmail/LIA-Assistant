@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from src.core.config import settings
 from src.core.constants import MCP_TOOL_NAME_PREFIX
 from src.core.text_clip import clip_on_word
+from src.domains.agents.effects.label_targets import item_title
 
 if TYPE_CHECKING:
     from src.domains.agents.registry import AgentRegistry
@@ -59,10 +60,17 @@ def _text(value: Any, fallback: str = "?") -> str:
 
 
 def _first(arguments: dict[str, Any], *names: str, fallback: str = "?") -> str:
-    """The first named argument that carries something."""
+    """The first named argument that carries something.
+
+    An id names nothing a person reads: when the turn published the item it
+    designates, its title is named instead (ADR-367, ``label_targets``).
+    """
     for name in names:
         if arguments.get(name):
-            return _text(arguments[name], fallback)
+            value = arguments[name]
+            if name.endswith("_id") and (title := item_title(value)):
+                value = title
+            return _text(value, fallback)
     return fallback
 
 
@@ -91,22 +99,17 @@ def _count(*names: str) -> LabelValuesBuilder:
     return build
 
 
+def _draft_content(arguments: dict[str, Any]) -> dict[str, Any]:
+    """A draft's content: an executor is called with ``{"draft": {...}}``."""
+    content = arguments.get("draft")
+    content = content if isinstance(content, dict) else {}
+    inner = content.get("content")
+    return {**content, **inner} if isinstance(inner, dict) else content
+
+
 def _draft(*names: str, key: str = "target") -> LabelValuesBuilder:
-    """Builder reading inside a draft's content rather than the arguments.
-
-    A draft executor is called with ``{"draft": {...}}``, so its values live one
-    level down.
-    """
-
-    def build(arguments: dict[str, Any]) -> dict[str, Any]:
-        content = arguments.get("draft")
-        content = content if isinstance(content, dict) else {}
-        inner = content.get("content")
-        if isinstance(inner, dict):
-            content = {**content, **inner}
-        return {key: _first(content, *names)}
-
-    return build
+    """Builder reading inside a draft's content rather than the arguments."""
+    return lambda arguments: {key: _first(_draft_content(arguments), *names)}
 
 
 def _nothing(_arguments: dict[str, Any]) -> dict[str, Any]:
@@ -144,6 +147,8 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "create_mailbox_forward_draft_tool": _target("to"),
     "update_mailbox_draft_tool": _target("subject", "instructions", "to", "body"),
     "delete_mailbox_drafts_tool": _nothing,
+    # ADR-369: read / unread on any provider — the label counts, never names.
+    "set_email_read_state_tool": _count("message_ids"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     # Workboard (ADR-276). `create` names the title it was given; the three
     # others name the ticket as the person referred to it — an id or a
@@ -199,6 +204,68 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "draft:peer_message": _draft("recipient_name", "to", "peer_id", key="recipient"),
     "draft:phone_call": _draft("callee_name", "phone", "to", key="recipient"),
     "draft:devops_task": _draft("server", "target", "command"),
+}
+
+
+#: Builds the values of a ``_named`` wording; None when the item is not known.
+NamedValuesBuilder = Callable[[dict[str, Any]], dict[str, Any] | None]
+
+
+def _shown_item(argument: str, recipient: str | None = None) -> NamedValuesBuilder:
+    """The item an id argument designates, by the words the turn showed it with."""
+
+    def build(arguments: dict[str, Any]) -> dict[str, Any] | None:
+        title = item_title(arguments.get(argument))
+        if title is None:
+            return None
+        values = {"target": _text(title)}
+        return {**values, "recipient": _first(arguments, recipient)} if recipient else values
+
+    return build
+
+
+def _shown_items(argument: str) -> NamedValuesBuilder:
+    """Several items an id list designates — named only when EVERY one is known.
+
+    Naming the known half of a deletion would read as the whole of it.
+    """
+
+    def build(arguments: dict[str, Any]) -> dict[str, Any] | None:
+        identifiers = arguments.get(argument)
+        if not isinstance(identifiers, list) or not identifiers:
+            return None
+        titles = [item_title(identifier) for identifier in identifiers]
+        if any(title is None for title in titles):
+            return None
+        return {"target": _text(titles)}
+
+    return build
+
+
+def _sent_reply(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """A confirmed reply or forward: the message it answered, and whom it reached.
+
+    The draft copied the original's subject when it was built; one that did not
+    is named by the message the turn showed.
+    """
+    content = _draft_content(arguments)
+    title = content.get("original_subject") or item_title(content.get("message_id"))
+    if not isinstance(title, str) or not title.strip():
+        return None
+    return {"target": _text(title), "recipient": _first(content, "to", "recipient")}
+
+
+#: Acts on ONE item (or a list of them) whose call names it by an id: the
+#: ``_named`` variant of their key names it when known (ADR-367) — the reply the
+#: incident of 2026-10-29 drafted said « a reply draft was saved » and never to
+#: WHICH message. Keys follow ``EFFECT_LABEL_BUILDERS``.
+_NAMED_VARIANTS: dict[str, NamedValuesBuilder] = {
+    "create_mailbox_reply_draft_tool": _shown_item("message_id"),
+    "create_mailbox_forward_draft_tool": _shown_item("message_id", recipient="to"),
+    "update_mailbox_draft_tool": _shown_item("mailbox_draft_id"),
+    "delete_mailbox_drafts_tool": _shown_items("mailbox_draft_ids"),
+    "draft:email_reply": _sent_reply,
+    "draft:email_forward": _sent_reply,
 }
 
 
@@ -262,9 +329,11 @@ def build_effect_label(tool_name: str, arguments: dict[str, Any]) -> dict[str, A
         )
         try:
             if tool_name == "draft:application_action":
-                named = _application_label(arguments)
-                if named is not None:
-                    return named
+                if (application := _application_label(arguments)) is not None:
+                    return application
+            elif (variant := _NAMED_VARIANTS.get(tool_name)) is not None:
+                if (named := variant(arguments)) is not None:
+                    return {"i18n_key": f"{key}_named", "values": named}
             return {"i18n_key": key, "values": builder(arguments)}
         except Exception:  # noqa: BLE001 - a wording must never break an effect
             return {"i18n_key": key, "values": {}}

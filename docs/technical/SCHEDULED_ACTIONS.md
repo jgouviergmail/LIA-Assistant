@@ -251,7 +251,7 @@ racontee en six langues.
 
 Une « veille » est une routine `trigger_kind=condition` de type `mail_match` :
 « previens-moi quand Marie repond ». Sa condition n'etait evaluee qu'au tick de
-sa propre recurrence, plafonnee a douze par jour (ADR-268) — donc jusqu'a deux
+sa propre recurrence, plafonnee a douze par jour par defaut (ADR-268) — donc jusqu'a deux
 heures de retard — alors que le balayage des reveils (ADR-261) tient deja le
 delta Gmail **a la minute**. Depuis ADR-322, une veille n'a plus de recurrence :
 le systeme la verifie a sa propre cadence
@@ -358,6 +358,8 @@ Cles `scheduled_actions.*` dans les 6 langues (fr, en, es, de, it, zh).
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | 10 | Seuil recovery stale |
 | `SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` | 5 | Seuil auto-disable |
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | 50 | Limite batch par cycle |
+| `SCHEDULED_ACTIONS_MIN_STEP_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Pas minimal d'une routine « à intervalle régulier » ; chaque exécution est un tour complet de l'agent (ADR-268, amendement 2026-10-30) |
+| `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` | `…_DEFAULT` (`core/constants.py`) | Exécutions au plus par jour d'une routine à heures fixes ou à intervalle ; toutes les 5 minutes toute la journée demande 5 et 288 (ADR-268, amendement 2026-10-30) |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Cadence des routines sur condition : courrier, tâches, agenda, documents (ADR-322) |
 | `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` (`core/constants.py`) | Cadence d'une routine météo (deux appels Google Weather facturés par vérification ; jamais plus longue que l'horizon, refusé au démarrage) |
 | `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` (`core/constants.py`) | Horizon d'une routine météo : un changement dû dans ce nombre d'heures, l'heure en cours comprise (ADR-322, amendement 2026-09-29) |

@@ -48,6 +48,8 @@ async def read_personal_mcp_metadata(
     )
     if server_id is not None and not total:
         raise ResourceNotFoundError("user_mcp_server", str(server_id))
+    # The page's own count of suspended tool choices, read the same way (spec D6).
+    choices = await service.repository.tool_choices([row.id for row in rows])
     return (
         tuple(
             _public_server(
@@ -57,6 +59,7 @@ async def read_personal_mcp_metadata(
                     tools_offset=tools_offset,
                     tools_limit=tools_limit,
                     include_tool_schemas=False,
+                    tool_choices=choices.get(row.id),
                 ),
                 tools_offset,
             )

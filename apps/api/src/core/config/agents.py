@@ -869,11 +869,12 @@ class AgentsSettings(BaseSettings):
     react_mcp_expand_iterative_enabled: bool = Field(
         default=REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
         description=(
-            "In ReAct mode, expand iterative USER MCP servers into their individual "
-            "tools (so the LLM picks them by description) instead of the opaque "
-            "per-server task tool. MCP App servers always keep the task tool. "
-            "Set False to fall back to the task tool (instant rollback). "
-            "Does not affect the pipeline."
+            "Default ReAct shape of iterative MCP servers (spec 2026-10-30 D9): for "
+            "servers that never chose and for the administrator's. true lets the loop "
+            "drive their individual tools, each asked on its own manifest; false keeps "
+            "their dedicated agent. A server's own choice wins; MCP App servers always "
+            "keep their dedicated agent. Does not affect the pipeline. Read by "
+            "infrastructure/mcp/confirmation.py alone, when a task manifest is built."
         ),
     )
     react_tool_result_max_tokens: int = Field(

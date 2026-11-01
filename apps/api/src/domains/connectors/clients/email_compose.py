@@ -15,9 +15,7 @@ original from a reply to all.
 
 from __future__ import annotations
 
-from email.utils import formataddr
-
-from src.infrastructure.email.recipients import read_recipients
+from src.infrastructure.email.recipients import name_addr, read_recipients
 
 #: The line that opens a forwarded message — Gmail's own wording.
 _FORWARD_BANNER = "---------- Forwarded message ---------"
@@ -40,7 +38,7 @@ def _keep_new(pairs: list[tuple[str, str]], seen: set[str]) -> list[tuple[str, s
 
 
 def _header(pairs: list[tuple[str, str]]) -> str:
-    return ", ".join(formataddr(pair) for pair in pairs)
+    return ", ".join(name_addr(name, address) for name, address in pairs)
 
 
 def reply_recipients(
@@ -88,7 +86,7 @@ def reply_recipients(
         answer_header = reply_to or original_from
         _keep_new(_addresses(answer_header), seen)
         others = _keep_new(_addresses(original_to), seen) if reply_all else []
-        to_header = ", ".join([answer_header, *(formataddr(pair) for pair in others)])
+        to_header = ", ".join([answer_header, *(name_addr(name, addr) for name, addr in others)])
     cc_header = _header(_keep_new(_addresses(original_cc), seen)) if reply_all else ""
     return to_header, cc_header
 

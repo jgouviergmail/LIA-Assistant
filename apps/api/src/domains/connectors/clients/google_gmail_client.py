@@ -6,29 +6,24 @@ Inherits from BaseGoogleClient for common functionality.
 Reference: https://developers.google.com/gmail/api/reference/rest
 """
 
-import asyncio
 import base64
-import hashlib
 import json
 import re
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from email.mime.text import MIMEText
 from typing import Any
-from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import (
     GMAIL_FORMAT_FULL,
-    GMAIL_FORMAT_METADATA,
     GMAIL_LABELS_CACHE_TTL,
     GMAIL_SEND_MESSAGE_MAX_BYTES,
     GOOGLE_GMAIL_API_BASE_URL,
     REDIS_KEY_GMAIL_LABELS_PREFIX,
     REDIS_KEY_GMAIL_MESSAGE_PREFIX,
-    REDIS_KEY_GMAIL_SEARCH_PREFIX,
 )
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import (
@@ -36,14 +31,18 @@ from src.domains.connectors.clients.base_google_client import (
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
+from src.domains.connectors.clients.gmail_cache_generation import GmailCacheGenerationMixin
 from src.domains.connectors.clients.gmail_compose import GmailComposeMixin
 from src.domains.connectors.clients.gmail_drafts_mixin import GmailDraftsMixin
+from src.domains.connectors.clients.gmail_html_mixin import GmailHtmlMixin
+from src.domains.connectors.clients.gmail_message_state_mixin import GmailMessageStateMixin
+from src.domains.connectors.clients.gmail_search_mixin import GmailSearchMixin
 from src.domains.connectors.clients.gmail_send_mixin import GmailSendMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.email.outgoing import (
     OutgoingAttachment,
@@ -55,12 +54,21 @@ from src.infrastructure.email.recipients import encode_recipients
 logger = structlog.get_logger(__name__)
 
 
+def _segment(gmail_id: str) -> str:
+    """An id handed in (a message, a label) as ONE segment of a Gmail URL path."""
+    return path_segment(gmail_id, connector_type=ConnectorType.GOOGLE_GMAIL)
+
+
 class GoogleGmailClient(
+    GmailCacheGenerationMixin,
     GmailComposeMixin,
     GmailDraftsMixin,
+    GmailMessageStateMixin,
     GmailAttachmentsMixin,
+    GmailHtmlMixin,
     GmailSendMixin,
     GmailThreadsMixin,
+    GmailSearchMixin,
     BaseGoogleClient,
 ):
     """
@@ -91,28 +99,9 @@ class GoogleGmailClient(
     # Each hit is read at format=full unless headers_only (search_emails).
     SEARCH_HITS_ARE_WHOLE = True
 
-    @property
-    def _cache_account(self) -> str:
-        """A verified grant or legacy connection generation identifies the mailbox."""
-        binding = self.credentials.account_binding
-        return f"{self.user_id}:grant:{binding}" if binding else str(self.user_id)
-
-    def __init__(
-        self,
-        user_id: UUID,
-        credentials: ConnectorCredentials,
-        connector_service: Any,  # ConnectorService
-    ) -> None:
-        """
-        Initialize Google Gmail client.
-
-        Args:
-            user_id: User UUID.
-            credentials: OAuth credentials (access_token, refresh_token).
-            connector_service: ConnectorService instance for token refresh.
-        """
-        # Initialize base class with default rate limiting
-        super().__init__(user_id, credentials, connector_service)
+    async def _mail_cache(self) -> Any:
+        """The search and message caches' client: the generation lives beside them."""
+        return await get_redis_cache()
 
     # ========================================================================
     # MIME PARSING UTILITIES
@@ -395,143 +384,6 @@ class GoogleGmailClient(
             params["pageToken"] = page_token
         return await self._make_request("GET", "/users/me/history", params=params)
 
-    async def search_emails(
-        self,
-        query: str,
-        max_results: int = settings.emails_tool_default_max_results,
-        fields: list[str] | None = None,
-        use_cache: bool = True,
-        page_token: str | None = None,
-        headers_only: bool = False,
-    ) -> dict[str, Any]:
-        """
-        Search emails using Gmail search query syntax.
-
-        Gmail query syntax: https://support.google.com/mail/answer/7190
-        Examples:
-        - "from:john@example.com" - Emails from John
-        - "subject:meeting" - Emails with "meeting" in subject
-        - "is:unread" - Unread emails
-        - "has:attachment" - Emails with attachments
-        - "after:2025/01/01" - Emails after Jan 1, 2025
-
-        Args:
-            query: Gmail search query (supports all Gmail search operators).
-            max_results: Maximum number of results (default 10, max 500).
-            fields: Field projection (default: GOOGLE_GMAIL_SEARCH_FIELDS).
-            use_cache: Use Redis cache (default True).
-            page_token: The ``next_page_token`` of a previous page, to continue
-                the same search (ADR-287).
-            headers_only: Read each hit at ``format=metadata`` (headers, no
-                body, no MIME parts) instead of ``format=full``. Either way one
-                request per hit: the list endpoint returns ids only.
-
-        Returns:
-            Dict with:
-            - messages: List of message objects
-            - resultSizeEstimate: Approximate total matches (an ESTIMATE:
-              Gmail never counts exactly)
-            - next_page_token: Token of the next page, or None
-            - from_cache: Boolean (True if served from cache)
-            - cached_at: Cache timestamp (if from cache)
-
-        Example:
-            >>> results = await client.search_emails(
-            ...     query="from:john@example.com subject:invoice",
-            ...     max_results=20
-            ... )
-        """
-        # Generate cache key — the page and the hit format are part of the
-        # identity: page 2 must not be served from page 1's entry, nor a
-        # headers-only page to a caller expecting bodies.
-        page_part = f":{page_token}" if page_token else ""
-        hit_format = GMAIL_FORMAT_METADATA if headers_only else GMAIL_FORMAT_FULL
-        cache_key = (
-            f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self._cache_account}:"
-            f"{hashlib.md5(query.encode()).hexdigest()}:{max_results}:{hit_format}{page_part}"
-        )
-
-        # Try cache first
-        if use_cache:
-            redis_client = await get_redis_cache()
-            cached_data_raw = await redis_client.get(cache_key)
-            if cached_data_raw:
-                # Deserialize JSON string from Redis
-                cached_data = json.loads(cached_data_raw)
-                logger.debug(
-                    "gmail_search_cache_hit",
-                    user_id=str(self.user_id),
-                    query_preview=query[:50],
-                )
-                return {
-                    **cached_data,
-                    "from_cache": True,
-                    FIELD_CACHED_AT: cached_data.get(FIELD_CACHED_AT),
-                }
-
-        # Apply security limit
-        effective_max_results = apply_max_items_limit(max_results)
-
-        # Search messages (list API with query parameter)
-        params: dict[str, Any] = {
-            "q": query,
-            "maxResults": effective_max_results,
-        }
-        if page_token:
-            params["pageToken"] = page_token
-
-        response = await self._make_request("GET", "/users/me/messages", params=params)
-
-        # Get list of message IDs
-        message_ids = [msg["id"] for msg in response.get("messages", [])]
-
-        # Fetch each hit concurrently (audit wave 3, N-194.8): the list
-        # endpoint returns IDs only, so each result costs one more round-trip.
-        # Concurrency is bounded by a semaphore and every fetch still passes
-        # through the Redis rate limiter in _make_request.
-        # Order of results follows message_ids; failed fetches are skipped.
-        semaphore = asyncio.Semaphore(settings.emails_search_fetch_concurrency)
-
-        async def _fetch_hit(msg_id: str) -> dict[str, Any] | None:
-            async with semaphore:
-                try:
-                    return await self.get_message(msg_id, format=hit_format, use_cache=use_cache)
-                except Exception as e:
-                    logger.warning(
-                        "gmail_search_message_fetch_failed", message_id=msg_id, error=str(e)
-                    )
-                    return None
-
-        fetched = await asyncio.gather(
-            *(_fetch_hit(msg_id) for msg_id in message_ids[:effective_max_results])
-        )
-        messages = [msg for msg in fetched if msg is not None]
-
-        result = {
-            "messages": messages,
-            # Gmail always states its estimate; absent, nothing is stated (ADR-185).
-            "resultSizeEstimate": response.get("resultSizeEstimate"),
-            "next_page_token": response.get("nextPageToken"),
-        }
-
-        # Cache result
-        if use_cache:
-            redis_client = await get_redis_cache()
-            cache_data = {
-                **result,
-                FIELD_CACHED_AT: datetime.now(UTC).isoformat(),
-            }
-            await redis_client.set(
-                cache_key,
-                json.dumps(cache_data),  # Serialize dict to JSON string for Redis
-                ex=settings.emails_cache_search_ttl_seconds,
-            )
-
-        return {
-            **result,
-            "from_cache": False,
-        }
-
     async def get_message(
         self,
         message_id: str,
@@ -564,10 +416,11 @@ class GoogleGmailClient(
             >>> print(message["payload"]["headers"])
         """
         # Generate cache key
-        cache_key = f"{REDIS_KEY_GMAIL_MESSAGE_PREFIX}{self._cache_account}:{message_id}:{format}"
+        scope = await self._mail_cache_scope(use_cache)
+        cache_key = f"{REDIS_KEY_GMAIL_MESSAGE_PREFIX}{scope}:{message_id}:{format}"
 
         # Try cache first
-        if use_cache:
+        if scope is not None:
             redis_client = await get_redis_cache()
             cached_data_raw = await redis_client.get(cache_key)
             if cached_data_raw:
@@ -587,7 +440,7 @@ class GoogleGmailClient(
         # Fetch message
         params = {"format": format}
         response = await self._make_request(
-            "GET", f"/users/me/messages/{message_id}", params=params
+            "GET", f"/users/me/messages/{_segment(message_id)}", params=params
         )
 
         # Normalize: extract common headers to top-level fields.
@@ -596,7 +449,7 @@ class GoogleGmailClient(
         self._normalize_message_fields(response, format)
 
         # Cache result (normalized format so cache hits are also normalized)
-        if use_cache:
+        if scope is not None:
             redis_client = await get_redis_cache()
             cache_data = {
                 **response,
@@ -795,99 +648,6 @@ class GoogleGmailClient(
         response["attachment_names"] = [a.get("filename") for a in attachments_info]
 
         return response
-
-    async def trash_email(
-        self,
-        message_id: str,
-    ) -> dict[str, Any]:
-        """
-        Move an email to trash via Gmail API.
-
-        This is a soft delete - the email can be recovered from trash
-        for 30 days before permanent deletion.
-
-        Args:
-            message_id: Message ID to move to trash.
-
-        Returns:
-            Dict with trashed message details (id, threadId, labelIds).
-
-        Example:
-            >>> result = await client.trash_email(message_id="abc123")
-            >>> print(result["labelIds"])  # Will contain "TRASH"
-        """
-        # Trashing a trashed message changes nothing: a lost answer may be resent (S1).
-        response = await self._make_request(
-            "POST", f"/users/me/messages/{message_id}/trash", idempotent=True
-        )
-
-        logger.info(
-            "gmail_email_trashed",
-            user_id=str(self.user_id),
-            message_id=message_id,
-        )
-
-        return response
-
-    async def untrash_email(
-        self,
-        message_id: str,
-    ) -> dict[str, Any]:
-        """
-        Remove an email from trash via Gmail API.
-
-        Restores the email to its previous location before being trashed.
-
-        Args:
-            message_id: Message ID to restore from trash.
-
-        Returns:
-            Dict with restored message details (id, threadId, labelIds).
-
-        Example:
-            >>> result = await client.untrash_email(message_id="abc123")
-        """
-        response = await self._make_request(
-            "POST", f"/users/me/messages/{message_id}/untrash", idempotent=True
-        )
-
-        logger.info(
-            "gmail_email_untrashed",
-            user_id=str(self.user_id),
-            message_id=message_id,
-        )
-
-        return response
-
-    async def delete_email_permanently(
-        self,
-        message_id: str,
-    ) -> None:
-        """
-        Permanently delete an email via Gmail API.
-
-        WARNING: This action is IRREVERSIBLE. The email cannot be recovered.
-        Use trash_email for soft delete instead.
-
-        Args:
-            message_id: Message ID to permanently delete.
-
-        Raises:
-            Exception: If deletion fails.
-
-        Example:
-            >>> await client.delete_email_permanently(message_id="abc123")
-        """
-        await self._make_request(
-            "DELETE",
-            f"/users/me/messages/{message_id}",
-        )
-
-        logger.info(
-            "gmail_email_deleted_permanently",
-            user_id=str(self.user_id),
-            message_id=message_id,
-        )
 
     # ========================================================================
     # LABELS MANAGEMENT
@@ -1167,7 +927,7 @@ class GoogleGmailClient(
             }
         """
         try:
-            response = await self._make_request("GET", f"/users/me/labels/{label_id}")
+            response = await self._make_request("GET", f"/users/me/labels/{_segment(label_id)}")
             logger.debug(
                 "gmail_label_fetched",
                 user_id=str(self.user_id),
@@ -1353,7 +1113,7 @@ class GoogleGmailClient(
 
         response = await self._make_request(
             "PATCH",
-            f"/users/me/labels/{label_id}",
+            f"/users/me/labels/{_segment(label_id)}",
             json_data=payload,
         )
 
@@ -1389,7 +1149,7 @@ class GoogleGmailClient(
         """
         await self._make_request(
             "DELETE",
-            f"/users/me/labels/{label_id}",
+            f"/users/me/labels/{_segment(label_id)}",
         )
 
         logger.info(
@@ -1434,9 +1194,8 @@ class GoogleGmailClient(
             payload["removeLabelIds"] = remove_label_ids
 
         # The same labels applied twice leave the message as once (S1).
-        response = await self._make_request(
-            "POST", f"/users/me/messages/{message_id}/modify", json_data=payload, idempotent=True
-        )
+        path = f"/users/me/messages/{_segment(message_id)}/modify"
+        response = await self._make_request("POST", path, json_data=payload, idempotent=True)
 
         logger.info(
             "gmail_message_labels_modified",

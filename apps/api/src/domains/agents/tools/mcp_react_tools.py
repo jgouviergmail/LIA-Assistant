@@ -23,8 +23,10 @@ Created: 2026-03-24
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
-from typing import Annotated, Any
+from contextlib import nullcontext, suppress
+from itertools import count
+from operator import itemgetter
+from typing import Annotated, Any, Final
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -32,7 +34,11 @@ from langchain_core.tools import BaseTool, InjectedToolArg, tool
 from pydantic import PrivateAttr
 
 from src.core.config import settings
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_runtime_context
+from src.domains.agents.effects.scope import current_scope, effect_scope, sub_call_scope
+from src.domains.agents.orchestration.step_results import PENDING_DRAFTS_KEY, drafts_of
+from src.domains.agents.tools.mcp_task_record import pending_approval_line, with_record
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import (
     ReactSubAgentRunner,
@@ -58,6 +64,15 @@ logger = structlog.get_logger(__name__)
 
 _AGENT_NAME = "mcp_react"
 
+#: Private keyword carrying the model's call id from ``_to_args_and_kwargs`` to
+#: ``_arun`` inside ONE call (spec D4); popped before the server is reached.
+_SUB_CALL_ID_KWARG: Final[str] = "__lia_sub_call_id__"
+
+#: One clock for every wrapper of the process: each inner call takes its number
+#: when it STARTS, so a task's drafts and acts read back in the model's call
+#: order, across wrappers and for concurrent calls alike.
+_CALL_ORDER = count()
+
 
 # =============================================================================
 # MCP ReAct Wrapper — String output + registry capture for ReAct loop
@@ -75,12 +90,23 @@ class _MCPReActWrapper(BaseTool):
     - Returns ``result.message`` (string) to the ReAct LLM
     - Accumulates all ``registry_updates`` (e.g., MCP App HTML widgets) in a
       PrivateAttr for later propagation to the parent graph
+    - Keeps every confirmation an inner call owes for the END of the task and
+      returns one technical line instead (spec D5), and notes each call that
+      succeeded — the task's code-written record reads both (spec D6). Since the
+      owner's decision of 2026-10-31 a task one of whose tools would ask is asked
+      before it starts, so its approved scope covers every inner call: this is the
+      safety net of a task run unapproved, never a confirmation lost
     - Exposes the original tool's ``args_schema`` for correct tool calling
     - Uses the short MCP tool name (``create_view``, not ``mcp_excalidraw_create_view``)
     """
 
     _inner: MCPToolAdapter | UserMCPToolAdapter = PrivateAttr()
     _accumulated_registry: dict[str, Any] = PrivateAttr(default_factory=dict)
+    # Spec D5/D6: the confirmations this tool's calls queued, and the calls that
+    # succeeded — each stamped with its call's place in the task and named by
+    # this tool's own (sanitised) name, the name the sub-agent called.
+    _pending: list[tuple[int, str, dict[str, Any]]] = PrivateAttr(default_factory=list)
+    _performed: list[tuple[int, str]] = PrivateAttr(default_factory=list)
 
     def __init__(
         self, inner: MCPToolAdapter | UserMCPToolAdapter, *, model_alias: str | None = None
@@ -112,11 +138,21 @@ class _MCPReActWrapper(BaseTool):
     def _to_args_and_kwargs(
         self, tool_input: str | dict[str, Any], tool_call_id: str | None
     ) -> tuple[tuple[str, ...], dict[str, Any]]:
-        """Use the adapter's wire projection, preserving aliases and dynamic keys."""
-        return self._inner._to_args_and_kwargs(tool_input, tool_call_id)
+        """Use the adapter's wire projection, and carry the call's own id along.
+
+        The id rides the call's arguments to ``_arun`` (spec D4). LangChain
+        prepares them BEFORE it copies the context, so a ``ContextVar`` set here
+        would survive the call and hand its id to the next one.
+        """
+        args, kwargs = self._inner._to_args_and_kwargs(tool_input, tool_call_id)
+        return args, {**kwargs, _SUB_CALL_ID_KWARG: tool_call_id}
 
     async def _arun(self, **kwargs: Any) -> str:
         """Execute the inner MCP tool and return string result.
+
+        The inner call runs under its OWN ledger key, derived from the scope in
+        force and the model's call id (``sub_call_scope``): two acts of one
+        task are two effects, never one served to the other.
 
         Captures registry items (MCP App widgets, etc.) in _accumulated_registry
         for later collection by ReactSubAgentRunner.
@@ -125,13 +161,17 @@ class _MCPReActWrapper(BaseTool):
         can reason about them and retry with corrected parameters.
 
         Args:
-            **kwargs: Tool arguments.
+            **kwargs: Tool arguments, plus the private call id the wrapper
+                attached in ``_to_args_and_kwargs`` (never sent to the server).
 
         Returns:
             String representation of the tool result for ReAct LLM context.
         """
+        child = sub_call_scope(current_scope(), kwargs.pop(_SUB_CALL_ID_KWARG, None))
+        order = next(_CALL_ORDER)
         try:
-            result = await self._inner._arun(**kwargs)
+            with effect_scope(child) if child is not None else nullcontext():
+                result = await self._inner._arun(**kwargs)
         except asyncio.CancelledError:
             # A user stop must cancel the whole ReAct loop, never become a
             # tool-error string the agent reasons about.
@@ -139,31 +179,48 @@ class _MCPReActWrapper(BaseTool):
         except BaseException as exc:
             # Return error as string so the ReAct agent can reason and retry
             # instead of crashing the entire sub-agent loop.
-            error_msg = str(exc)
-            # ExceptionGroup nests the real error — extract it
-            if hasattr(exc, "exceptions"):
-                for sub in exc.exceptions:
-                    if hasattr(sub, "exceptions"):
-                        for inner in sub.exceptions:
-                            error_msg = str(inner)
-                    else:
-                        error_msg = str(sub)
-            # The user adapter already recorded this failed operation. Keep
-            # wrapper unwinding available without multiplying retained errors.
-            log_failure = (
-                logger.debug if isinstance(self._inner, UserMCPToolAdapter) else logger.warning
-            )
-            log_failure(
-                "mcp_react_wrapper_tool_error",
-                tool_name=self.name,
-                error=error_msg,
-                error_type=type(exc).__name__,
-            )
-            return f"ERROR: {error_msg}"
+            return self._error_line(exc)
+        return self._settle(result, order)
 
-        # Capture registry items (MCP App HTML, etc.)
+    def _error_line(self, exc: BaseException) -> str:
+        """What the sub-agent reads for a call that raised, and its log line."""
+        error_msg = _innermost_message(exc)
+        # The user adapter already recorded this failed operation. Keep
+        # wrapper unwinding available without multiplying retained errors.
+        log_failure = (
+            logger.debug if isinstance(self._inner, UserMCPToolAdapter) else logger.warning
+        )
+        log_failure(
+            "mcp_react_wrapper_tool_error",
+            tool_name=self.name,
+            error=error_msg,
+            error_type=type(exc).__name__,
+        )
+        return f"ERROR: {error_msg}"
+
+    def _settle(self, result: Any, order: int) -> str:
+        """Keep what the call produced for the task; return what the sub-agent reads.
+
+        Args:
+            result: The inner tool's result.
+            order: The call's place in the task (``_CALL_ORDER``).
+
+        Returns:
+            The text for the sub-agent's context.
+        """
+        # Capture registry items (MCP App HTML, etc.) — a queued draft's card too.
         if hasattr(result, "registry_updates") and result.registry_updates:
             self._accumulated_registry.update(result.registry_updates)
+
+        # Spec D5: a call that owes the person's approval is kept for the end of
+        # the task; the sub-agent reads one technical line, never the person's
+        # preview — told nothing, it announced 11 times in 50 an act not done.
+        drafts = drafts_of(result, self._inner.name, None)
+        if drafts:
+            self._pending.extend((order, self.name, draft) for draft in drafts)
+            return pending_approval_line()
+        if explicit_success(result):
+            self._performed.append((order, self.name))
 
         # Return string for ReAct LLM. The MCP adapters keep `message` to a
         # count summary and put the rows in structured_data/registry for the
@@ -186,6 +243,20 @@ class _MCPReActWrapper(BaseTool):
 # =============================================================================
 # Helpers
 # =============================================================================
+
+
+def _innermost_message(exc: BaseException) -> str:
+    """The message of the error an ExceptionGroup nests, or the error's own."""
+    error_msg = str(exc)
+    # ExceptionGroup nests the real error — extract it
+    if hasattr(exc, "exceptions"):
+        for sub in exc.exceptions:
+            if hasattr(sub, "exceptions"):
+                for inner in sub.exceptions:
+                    error_msg = str(inner)
+            else:
+                error_msg = str(sub)
+    return error_msg
 
 
 def _wrap_server_tools(
@@ -270,6 +341,55 @@ def _has_mcp_app_tools(server_tools: list[_MCPReActWrapper]) -> bool:
         True if at least one tool has an app_resource_uri.
     """
     return any(getattr(tool._inner, "app_resource_uri", None) for tool in server_tools)
+
+
+def _journal(
+    server_tools: list[_MCPReActWrapper],
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """What a task's calls queued for approval and performed, in the model's call order.
+
+    Args:
+        server_tools: The task's own wrappers.
+
+    Returns:
+        The queued drafts, the tool name of each, and the tool name of each call
+        that succeeded — the sub-loop's own names, sanitised by
+        ``allocate_tool_aliases``.
+    """
+    by_order = itemgetter(0)
+    pending = sorted((entry for tool in server_tools for entry in tool._pending), key=by_order)
+    performed = sorted((entry for tool in server_tools for entry in tool._performed), key=by_order)
+    return (
+        [draft for _order, _name, draft in pending],
+        [name for _order, name, _draft in pending],
+        [name for _order, name in performed],
+    )
+
+
+def _task_closing(message: str, server_tools: list[_MCPReActWrapper]) -> tuple[str, dict[str, Any]]:
+    """The task's message with the code's record of its calls, and what it asks to confirm.
+
+    Spec D5/D6: every confirmation the sub-loop queued is handed up (the
+    pipeline queues each draft of a step, ReAct queues all but the first), and
+    the record — written from the calls, never from the model's account — closes
+    the message the next reader trusts over the narrative.
+
+    Args:
+        message: The sub-agent's answer, or the failure the code wrote.
+        server_tools: The task's own wrappers.
+
+    Returns:
+        The message to publish, and the output metadata (empty when nothing awaits).
+    """
+    pending, awaiting, performed = _journal(server_tools)
+    # The record is presented as the system's: it names calls by the sub-loop's
+    # sanitised tool names, never by an RPC name a third-party server chose —
+    # text the record would otherwise vouch for.
+    record = with_record(message, performed, awaiting)
+    metadata: dict[str, Any] = (
+        {"requires_confirmation": True, PENDING_DRAFTS_KEY: pending} if pending else {}
+    )
+    return record, metadata
 
 
 async def _run_mcp_react_task(
@@ -373,24 +493,29 @@ async def _run_mcp_react_task(
 
     if react_result.outcome is not SubAgentOutcome.ANSWERED:
         # A failure still carries what the loop produced before it ended: a
-        # widget it created exists, and hiding it would hide a real effect.
-        message = (
+        # widget it created exists, an act it performed happened, and a call it
+        # queued still awaits the person — hiding them would hide real effects.
+        failure = (
             f"MCP task on '{server_name}' {failure_sentence(react_result)} after "
             f"{react_result.iteration_count} step(s)."
         )
+        message, metadata = _task_closing(failure, server_tools)
         return UnifiedToolOutput(
             success=False,
             message=message,
-            error_message=message,
+            error_message=failure,
             error_code=failure_code_of(react_result),
             registry_updates=react_result.accumulated_registry,
             structured_data=structured_data,
+            metadata=metadata,
         )
 
+    message, metadata = _task_closing(react_result.final_message, server_tools)
     return UnifiedToolOutput.data_success(
-        message=react_result.final_message,
+        message=message,
         registry_updates=react_result.accumulated_registry,
         structured_data={**structured_data, **partial_fields(react_result)},
+        metadata=metadata,
     )
 
 

@@ -14,8 +14,13 @@ wrong ``__dirname`` path, omitted ``zh`` and only checked top-level sections):
 - **All six languages required**: en, fr, de, es, it, zh. A missing locale file
   (the original ``zh`` omission) is a hard error.
 - **Recursive parity**: keys are compared as fully-qualified leaf paths.
+- **No unrendered placeholder**: a value holding ``{NAME}`` — one brace each
+  side — is a variable an edit script never rendered, read as typed by every
+  reader (a ``{NB}`` reached the French FAQ on 2026-10-31). i18next's own
+  interpolation is ``{{name}}`` and passes. ``scripts/audit/doc_maps.py``
+  applies the same rule to the living maps' text.
 - **Deterministic exit codes**: ``0`` in sync, ``1`` on any missing language,
-  invalid JSON, or key drift (missing or extra).
+  invalid JSON, key drift (missing or extra) or an unrendered placeholder.
 
 Usage::
 
@@ -26,7 +31,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +42,25 @@ REFERENCE_LANG = "en"
 # Frontend locale codes (Chinese is ``zh`` here — see CLAUDE.md; the backend
 # tables use the canonical ``zh-CN``).
 REQUIRED_LANGUAGES: tuple[str, ...] = ("en", "fr", "de", "es", "it", "zh")
+# ``{NAME}`` with exactly one brace each side; ``{{name}}`` is i18next's.
+_UNRENDERED_PLACEHOLDER = re.compile(r"(?<!\{)\{[A-Za-z_][A-Za-z0-9_]*\}(?!\})")
+
+
+def unrendered_placeholders(text: str) -> list[str]:
+    """The script variables a text still carries, as written (``{NB}``)."""
+    return _UNRENDERED_PLACEHOLDER.findall(text)
+
+
+def _leaf_values(obj: object, prefix: str = "") -> Iterator[tuple[str, str]]:
+    """Every string leaf of a locale, with its fully-qualified key path."""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            yield from _leaf_values(value, f"{prefix}.{key}" if prefix else key)
+    elif isinstance(obj, list):
+        for index, value in enumerate(obj):
+            yield from _leaf_values(value, f"{prefix}[{index}]")
+    elif isinstance(obj, str):
+        yield prefix, obj
 
 
 def leaf_keys(obj: dict, prefix: str = "") -> set[str]:
@@ -78,9 +104,7 @@ def validate(
             errors.append(f"invalid JSON in {lang}/translation.json: {exc}")
 
     if reference_lang not in parsed:
-        errors.append(
-            f"reference language '{reference_lang}' unavailable; cannot compare parity"
-        )
+        errors.append(f"reference language '{reference_lang}' unavailable; cannot compare parity")
         return errors
 
     ref_keys = leaf_keys(parsed[reference_lang])
@@ -94,6 +118,10 @@ def validate(
             errors.append(f"{lang}: {len(missing)} missing keys (e.g. {missing[:5]})")
         if extra:
             errors.append(f"{lang}: {len(extra)} extra keys (e.g. {extra[:5]})")
+    for lang, locale in parsed.items():
+        for key, value in _leaf_values(locale):
+            for placeholder in unrendered_placeholders(value):
+                errors.append(f"{lang}: {key} carries an unrendered placeholder {placeholder}")
     return errors
 
 

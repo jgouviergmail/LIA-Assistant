@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 3.0
-**Date**: 2026-10-23
-**Application**: LIA v4.2.0
+**Date**: 2026-11-01
+**Application**: LIA v4.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI. My job was to direct it: a written 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI that was directed, supervised and checked | **≈ 100%** |
-| Source lines (excluding tests), spread across 60 backend domain packages | **1,059,000+** |
-| Automated tests inventoried, in suites matched to commits and to releases | **69,000+** |
-| Documented architecture decisions (ADR) | **364** |
-| Versions shipped at a steady pace | **292** |
+| Source lines (excluding tests), spread across 60 backend domain packages | **1,092,046** |
+| Automated tests inventoried, in suites matched to commits and to releases | **72,136** |
+| Documented architecture decisions (ADR) | **367** |
+| Versions shipped at a steady pace | **293** |
 | Languages, with parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -62,7 +62,9 @@ The shared world gives the assistant places: a library for knowledge, a multimed
 
 ## 4. The trade-offs
 
-Here are three structural decisions, among the 364 documented.
+I also wanted using an assistant to leave room for doing things yourself. The Tools workspace uses the same connected services, but a click there calls no model and is not recorded as LIA’s act. Delegation and direct control can share an interface while keeping clear who decided, who acted and what was approved.
+
+Here are three structural decisions, among the 367 documented.
 
 The first is about **sovereignty**: I did not want any irreversible dependency on a vendor. The AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity and local models through Ollama) all go through the same abstraction, so each use can switch provider through configuration alone, with costs compared. On the services side, Google, Apple and Microsoft are interchangeable in each category, whether mail, calendar or contacts. Self-hosting gives control of the server: account data is stored on the instance and connector credentials are encrypted. The remote services the person chooses still receive the data they need for their part of the request.
 
@@ -116,4 +118,4 @@ Here is what this experience changes in the way I lead.
 - Between a blanket ban and blind trust, there is a **governable path**. Graded human control can be specified, tested and audited. It is the approach that regulatory requirements are sketching out, and it works today.
 - A leader who practices **makes better calls**. Build or buy, accept a debt or not, believe a vendor's promise or not: these decisions get sharper when the person making them has handled the material firsthand. This project is my way of keeping in touch with the reality on the ground.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the October 25, 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on October 26, 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the October 25, 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on October 31, 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

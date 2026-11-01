@@ -20,7 +20,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE
+from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE, FIELD_SKIPPED_HITS
 from src.domains.agents.emails.detail_levels import EmailDetail
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.emails_tools import GetEmailsTool
@@ -162,6 +162,31 @@ async def test_a_cancelled_message_read_stays_cancelled(
     client.get_message.side_effect = [asyncio.CancelledError(), _listing_message(2)]
     with pytest.raises(asyncio.CancelledError):
         await tool.execute_api_call(client, uuid4(), message_ids=["m1", "m2"])
+
+
+async def test_hits_the_client_could_not_read_are_said_too(
+    tool: GetEmailsTool, client: AsyncMock
+) -> None:
+    """F11 reaches the assistant (D2): hits the CLIENT listed but could not read
+    make the page partial, and a page of nothing but such hits is no « nothing »."""
+    client.SEARCH_HITS_ARE_WHOLE = True
+    client.list_labels.return_value = {}
+    client.search_emails.return_value = {
+        "messages": [_listing_message(1)],
+        "resultSizeEstimate": 3,
+        FIELD_SKIPPED_HITS: 2,
+    }
+    output = tool.format_registry_response(
+        await tool.execute_api_call(client, uuid4(), query="in:inbox")
+    )
+    assert output.metadata["failed_read_count"] == 2
+    assert "could not be read" in output.message
+
+    client.search_emails.return_value = {"messages": [], FIELD_SKIPPED_HITS: 3}
+    output = tool.format_registry_response(
+        await tool.execute_api_call(client, uuid4(), query="in:inbox")
+    )
+    assert output.metadata["failed_read_count"] == 3
 
 
 async def test_a_genuinely_empty_mailbox_still_returns_a_success_without_reading_messages(

@@ -1,10 +1,12 @@
+import { fixupConfigRules } from '@eslint/compat';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  // Preserve the imported plugin rules on ESLint 10 through its official
+  // compatibility API until every plugin has migrated its rule context.
+  ...fixupConfigRules([...nextVitals, ...nextTs]),
   globalIgnores([
     '.next/**',
     'out/**',

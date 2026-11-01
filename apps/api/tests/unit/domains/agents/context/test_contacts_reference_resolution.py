@@ -81,26 +81,22 @@ class TestNameResolution:
 
         assert item.get(definition.display_name_field) == "Alice Vernier"
 
-    def test_every_declared_reference_field_is_carried_by_the_payload(self) -> None:
-        """A declared field the payload never carries cannot match anything."""
-        definition = ContextTypeRegistry.get_definition("contacts")
-        item = _stored_items(ALICE)[0]
+    # Every declared field is held to what the three providers store by
+    # tests/unit/domains/agents/context/test_reference_fields_carried.py (ADR-367).
 
-        unusable = [
-            field
-            for field in definition.reference_fields
-            if not isinstance(item.get(field), str)
-            and not (
-                isinstance(item.get(field), list)
-                and any(isinstance(value, str) for value in item.get(field) or [])
-            )
-        ]
+    def test_a_contact_is_found_by_its_city(self, resolver: ReferenceResolver) -> None:
+        jean = {
+            "resourceName": "people/c4",
+            "names": [{"displayName": "Jean Martin"}],
+            "addresses": [{"formattedValue": "12 rue de la République, Lyon", "city": "Lyon"}],
+        }
+        other = {"resourceName": "people/c5", "names": [{"displayName": "Jean Petit"}]}
 
-        assert not unusable, (
-            f"reference_fields {unusable} are declared for the contacts domain but the "
-            "stored payload carries nothing the resolver can score (it reads strings and "
-            "lists of strings only)."
-        )
+        result = resolver.resolve("Jean Lyon", _stored_items(jean, other))
+
+        assert result.success is True
+        assert result.item is not None
+        assert result.item["resource_name"] == "people/c4"
 
 
 class TestOrdinalStrategiesStillWork:

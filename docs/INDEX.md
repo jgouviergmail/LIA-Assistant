@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-10-26
+**Dernière mise à jour**: 2026-10-31
 **Statut**: Complète (490+ documents)
 
 ---
@@ -18,8 +18,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 364 ADR files (ADR-366 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
-| Fiches knowledge (RAG système) | 40 |
+| ADRs | 367 ADR files (ADR-369 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
 
@@ -55,10 +55,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs, bornes d’arcade sous autorité serveur, gestes, photos privées, tableau de bord à table ; activation et qualification matérielle séparées ([registre interactions et jeux](./superpowers/qualification/2026-10-27-world-interactions-and-play.md)) |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
+| [WORKBENCH.md](./technical/WORKBENCH.md) | La section « Outils » (ADR-369) : la personne consulte et agit à la main sur son courrier, son agenda, ses tâches, ses contacts, ses fichiers Drive et ses lampes Hue, sans modèle ; une porte, un vocabulaire de refus, un descripteur de ce que chaque fournisseur accepte, la parité qui atteint les outils de l'assistant, aucune ligne de registre ; routes, refus, métriques |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (364 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (367 ADR files) |
 
 ### Pour les Product Managers
 

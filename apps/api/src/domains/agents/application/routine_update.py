@@ -21,6 +21,7 @@ from src.domains.agents.application.routine_update_schemas import (
     RoutineUpdateRequest,
     RoutineUpdateValues,
 )
+from src.domains.scheduled_actions.mcp_preapproval import preapproval_names
 from src.domains.scheduled_actions.models import ScheduledAction
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate, ScheduledActionUpdate
 from src.domains.scheduled_actions.service import ScheduledActionService
@@ -44,7 +45,7 @@ async def prepare_routine_update(
         request.model_dump(mode="json", exclude_unset=True)
     )
     await require_application_tools(db)
-    await load_actor(db, actor_id)
+    actor = await load_actor(db, actor_id)
     source = ScheduledActionService(db)
     row = await source.get_with_ownership_check(validated.routine_id, actor_id)
     changes = ScheduledActionUpdate.model_validate(
@@ -56,6 +57,7 @@ async def prepare_routine_update(
         enabled=row.is_enabled,
         configuration=_configuration(row),
         changes=validated.changes,
+        mcp_preapproval=await preapproval_names(db, actor, row),
     )
     desired = previous.model_copy(
         update={

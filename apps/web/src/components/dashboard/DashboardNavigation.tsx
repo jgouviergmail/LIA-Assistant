@@ -33,27 +33,31 @@ export function DashboardNavigationProvider({
 }
 export const useDashboardNavigation = () => useContext(Navigation);
 
+/** What one dashboard segment opens, read from the rest of its path and its query. */
+type DestinationReader = (parts: string[], params: URLSearchParams) => DashboardDestination | null;
+
+/** The segments the dashboard opens in place, each with its own reader (one per segment). */
+const DESTINATION_READERS: Readonly<Record<string, DestinationReader>> = {
+  settings: (parts, params) => (parts.length === 1 ? settingsDestination(params) : null),
+  chat: (parts, params) => (parts.length === 1 ? draftDestination(params) : null),
+  workboard: (parts, params) => workboardDestination(parts, params),
+  meetings: parts => {
+    const id = parts.length === 2 ? decodeId(parts[1]) : null;
+    return id ? { kind: 'meeting', id } : null;
+  },
+  actions: parts => (parts.length === 1 ? { kind: 'registers' } : null),
+  sms: (parts, params) => {
+    const messageId = parts.length === 1 ? decodeId(params.get('message') ?? undefined) : null;
+    return messageId ? { kind: 'sms', messageId } : null;
+  },
+};
+
 /** Interpret only the native paths the dashboard itself produces, never arbitrary URLs. */
 export function dashboardDestination(href: string): DashboardDestination | null {
   const path = dashboardPath(href);
-  if (!path) return null;
-  const { url, parts } = path;
-  switch (parts[0]) {
-    case 'settings':
-      return parts.length === 1 ? settingsDestination(url.searchParams) : null;
-    case 'chat':
-      return parts.length === 1 ? draftDestination(url.searchParams) : null;
-    case 'workboard':
-      return workboardDestination(parts, url.searchParams);
-    case 'meetings': {
-      const id = parts.length === 2 ? decodeId(parts[1]) : null;
-      return id ? { kind: 'meeting', id } : null;
-    }
-    case 'actions':
-      return parts.length === 1 ? { kind: 'registers' } : null;
-    default:
-      return null;
-  }
+  const segment = path?.parts[0];
+  if (!path || segment === undefined || !Object.hasOwn(DESTINATION_READERS, segment)) return null;
+  return DESTINATION_READERS[segment](path.parts, path.url.searchParams);
 }
 function dashboardPath(href: string): { url: URL; parts: string[] } | null {
   if (!href.startsWith('/') || href.startsWith('//') || href.includes('\\')) return null;

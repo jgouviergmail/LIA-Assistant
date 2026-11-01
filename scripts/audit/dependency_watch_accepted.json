@@ -19,33 +19,33 @@
     "kind": "advisory",
     "subject": "npm:next@16.4.2",
     "ref": "GHSA-39w2-rjm5-chcv",
-    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
+    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
-    "review_by": "2026-10-31"
+    "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
     "subject": "npm:next@16.4.2",
     "ref": "GHSA-4jqv-mc3x-m676",
-    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
+    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
-    "review_by": "2026-10-31"
+    "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
     "subject": "npm:next@16.4.2",
     "ref": "GHSA-f87g-xv8r-7p7x",
-    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
+    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
-    "review_by": "2026-10-31"
+    "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
     "subject": "npm:next@16.4.2",
     "ref": "GHSA-mcj8-r9mp-w47p",
-    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR (no revalidate, no 'use cache'). The advisory still names no patched version (‘16.3.?’); re-read it when it does.",
+    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR configuration (no exported revalidate or 'use cache' directive). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
-    "review_by": "2026-10-31"
+    "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
@@ -62,13 +62,6 @@
     "reason": "Native recursion in cbor2.dumps() on a deeply nested object. LIA never calls cbor2; its only path is py_webauthn re-encoding what parse_cbor (cbor2.loads) just decoded from a client's authenticator data. Measured on 6.1.4 (2026-10-03, Windows, whose thread stack is smaller than Linux's): loads refuses container nesting past 400, the deepest structure it accepts (arrays 400, maps and tags 399) re-encodes fine, and a cycle built with value-sharing tags 28/29 is detected by dumps (CBOREncodeValueError, turned into InvalidCBORData by py_webauthn). No release patches it yet: take the fix when it ships.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
-  },
-  {
-    "kind": "end-of-life",
-    "subject": "eslint 9",
-    "reason": "ESLint 10 is still refused by plugins eslint-config-next depends on (three shrink-only ratchets read them; the workaround of vercel/next.js#89764 was rejected). Lifted when eslint-config-next's plugin chain accepts ESLint 10.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
   },
   {
     "kind": "end-of-life",
@@ -104,13 +97,6 @@
     "subject": "pip:apscheduler@3.11.2",
     "ref": "GHSA-2r6w-vc63-g3hx",
     "reason": "Needs a persistent job store: the advisory is pickle.loads() on a stored job_state, which only the SQLAlchemy, MongoDB, Redis, RethinkDB and ZooKeeper stores read. LIA builds one AsyncIOScheduler() with no jobstores argument (apps/api/src/main.py), so every job lives in the default in-memory store and nothing is ever unpickled; the account export's one-shot entry is in-memory too (domains/account_export/models.py). No release patches the 3.x line yet: take the fix when it ships, and re-read this acceptance before configuring any persistent store.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "npm-deprecated",
-    "subject": "npm:eslint@9.39.5",
-    "reason": "The deprecation is the end of life of ESLint 9: same condition as the end-of-life acceptance of eslint 9.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
@@ -302,17 +288,9 @@
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
     "ref": "GHSA-654x-cwwv-5j9c",
-    "reason": "GPU wake-word toolbox only (scripts/wake-word/requirements-gpu.lock.txt); application/dev/sandbox locks use Pillow 13.0.0. This advisory needs image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads a pinned local VoxCPM model with load_denoiser=False, consumes WAV/NumPy audio, and invokes neither PIL image operations nor image-to-Arrow export. Neither Dockerfile.gpu nor GPU task commands set PILLOW_ALIGNMENT (Pillow default: 1); pyarrow is installed transitively, not used for image export. VoxCPM 2.0.3 requires gradio>=6,<7; all 37 current stable Gradio 6 releases, including 6.30.0, still cap pillow<13. Static reachability review on 2026-10-27, not a new GPU runtime measurement. Reassess before adding image/Arrow export or allocator overrides; remove when a compatible dependency graph permits Pillow>=13.0.0. The toolbox is excluded from application images and both self-host bundle allowlists.",
+    "reason": "GPU wake-word toolbox only; application/dev/sandbox locks already carry the fixed Pillow. This advisory requires image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads the pinned local VoxCPM model with load_denoiser=False and consumes WAV/NumPy audio; its code invokes no PIL image operation or Arrow image export, and neither Dockerfile.gpu nor GPU task commands set the allocator override. Reviewed 2026-11-01 against the publisher advisory, supported code path and PyPI metadata: every current stable Gradio 6 release still constrains Pillow below 13, while the pinned VoxCPM requires Gradio 6. Static reachability review, not a new GPU runtime measurement. Reassess before image/Arrow export or allocator overrides; remove when the compatible graph permits the fixed Pillow. The toolbox remains excluded from application images and both self-host bundle allowlists.",
     "owner": "maintainer",
-    "review_by": "2026-10-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "npm:glob@13.0.6",
-    "ref": "GHSA-3g3m-2fjr-6pw4",
-    "reason": "Reached only through @capacitor/cli 8.5.3 -> rimraf 6.1.3, the mobile shells' build tooling run on a developer machine or a CI runner; no web, API, sandbox image or self-host bundle ships it. The flaw needs a caller that aborts a glob walk with an AbortSignal and keeps acting on its later results; rimraf passes no signal there and the CLI walks the repository's own build output. Lifted when Capacitor's rimraf accepts glob >=14.0.2.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
+    "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",

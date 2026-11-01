@@ -97,6 +97,7 @@ ContextTypeRegistry.register(
         primary_id_field="id",
         display_name_field="name",
         reference_fields=["name", "address", "types"],
+        candidate_fields=["name", "address"],
         icon="📍",
     )
 )

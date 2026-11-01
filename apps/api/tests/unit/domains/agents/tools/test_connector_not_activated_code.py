@@ -148,7 +148,7 @@ class TestTheReactLoopCarriesTheCode:
                 None,
             ),
         )
-        ports = SimpleNamespace(result_budget=1_000, draft=lambda _raw, _name: None)
+        ports = SimpleNamespace(result_budget=1_000, draft=lambda _raw, _name: [])
         return _process(call, raw, wrapper, ports, {}).message
 
     def test_a_declared_failure_carries_its_code(self) -> None:

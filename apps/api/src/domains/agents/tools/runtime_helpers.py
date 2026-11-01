@@ -443,9 +443,21 @@ def handle_tool_exception(
         classify_connector_exception,
         emit_connector_notice_for_exception,
     )
+    from src.domains.agents.tools.common import ToolErrorCode
+    from src.domains.agents.tools.exceptions import ToolValidationError
     from src.domains.agents.tools.output import UnifiedToolOutput
     from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 
+    if isinstance(e, ToolValidationError):
+        # A typed refusal is no unexpected error, and its words are the tool's
+        # own, written for the model to correct its call (ADR-310) — unlike an
+        # arbitrary exception's, which may quote a provider or a mailbox.
+        logger.info(f"{tool_name}_input_refused", field=e.field)
+        return UnifiedToolOutput.failure(
+            message=str(e),
+            error_code=ToolErrorCode.INVALID_INPUT.value,
+            metadata={FIELD_ERROR_TYPE: type(e).__name__},
+        )
     logger.error(
         f"{tool_name}_unexpected_error",
         error_type=type(e).__name__,
@@ -759,53 +771,6 @@ async def get_user_language_safe(
 # =============================================================================
 
 
-async def save_to_context_store(
-    runtime: ToolRuntime[LiaRuntimeContext, Any],
-    domain: str,
-    key: str,
-    value: Any,
-    context_type: str = "context",
-) -> None:
-    """
-    Save result to runtime.store with automatic user/thread scoping.
-
-    Centralizes the context store saving pattern that appears in tools
-    that need to persist results for conversation context.
-
-    IMPORTANT: Uses async store methods (aput) - do not use sync methods.
-
-    Args:
-        runtime: ToolRuntime with store and config
-        domain: Domain identifier (e.g., "gmail", "contacts", "calendar")
-        key: Key for the stored value (e.g., "list", "details")
-        value: Value to store (must be JSON-serializable)
-        context_type: Context type in namespace (default: "context")
-
-    Example:
-        >>> await save_to_context_store(
-        ...     runtime,
-        ...     domain="gmail",
-        ...     key="list",
-        ...     value={"emails": emails_list, "query": query}
-        ... )
-    """
-    if not runtime.store:
-        return
-
-    # Context save is non-critical
-    with suppress(Exception):
-        user_id_raw = tool_user_id_str(runtime)
-        thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-        if user_id_raw and thread_id:
-            user_id = parse_user_id(user_id_raw)
-            await runtime.store.aput(
-                (str(user_id), str(thread_id), context_type, domain),
-                key,
-                value,
-            )
-
-
 # =============================================================================
 # DATA EXTRACTION HELPERS
 # =============================================================================
@@ -901,155 +866,6 @@ def extract_value_by_path(obj: Any, path: str, default: Any = None) -> Any:
 # =============================================================================
 # CONNECTOR PREFERENCES HELPERS
 # =============================================================================
-
-
-async def get_connector_preference(
-    runtime: ToolRuntime[LiaRuntimeContext, Any],
-    connector_type: str,
-    preference_name: str,
-    default: str | None = None,
-) -> str | None:
-    """
-    Get a user's connector preference value (decrypted).
-
-    Centralizes the connector preference lookup pattern for tools that need
-    to read user-configured defaults (e.g., default calendar name, default task list).
-
-    Args:
-        runtime: ToolRuntime containing user_id and dependencies in config
-        connector_type: Connector type string (e.g., "google_calendar", "google_tasks")
-        preference_name: Name of the preference field (e.g., "default_calendar_name")
-        default: Default value if preference not set or lookup fails
-
-    Returns:
-        Preference value or default
-
-    Example:
-        >>> # In a calendar tool
-        >>> default_calendar = await get_connector_preference(
-        ...     runtime,
-        ...     "google_calendar",
-        ...     "default_calendar_name",
-        ...     default=None
-        ... )
-        >>> if default_calendar:
-        ...     # Use user's preferred calendar
-        ...     calendar_id = await resolve_calendar_by_name(client, default_calendar)
-    """
-    try:
-        from src.domains.connectors.models import ConnectorType
-        from src.domains.connectors.preferences import ConnectorPreferencesService
-        from src.domains.connectors.repository import ConnectorRepository
-        from src.infrastructure.database.session import get_db_context
-
-        # Get user_id from runtime config
-        user_id_raw = tool_user_id_str(runtime)
-        if not user_id_raw:
-            return default
-
-        user_id = parse_user_id(user_id_raw)
-
-        # Convert string to ConnectorType enum
-        try:
-            connector_type_enum = ConnectorType(connector_type)
-        except ValueError:
-            logger.warning(
-                "get_connector_preference_invalid_type",
-                connector_type=connector_type,
-            )
-            return default
-
-        # A short session of its own: this read ran on the turn's shared
-        # session, outside the tools' lock, and left its transaction open
-        # while the tool that asked went on to call its provider (ADR-304).
-        async with get_db_context() as db:
-            connector = await ConnectorRepository(db).get_by_user_and_type(
-                user_id, connector_type_enum
-            )
-        if not connector:
-            return default
-
-        # Get preference value using service
-        return ConnectorPreferencesService.get_preference_value(
-            connector_type,
-            connector.preferences_encrypted,
-            preference_name,
-            default,
-        )
-
-    except Exception as e:
-        logger.warning(
-            "get_connector_preference_failed",
-            connector_type=connector_type,
-            preference_name=preference_name,
-            error=str(e),
-        )
-        return default
-
-
-async def resolve_connector_default(
-    runtime: ToolRuntime[LiaRuntimeContext, Any],
-    connector_type: str,
-    preference_name: str,
-    client: Any,
-    resolver_func: Any,
-    fallback_id: str,
-) -> str:
-    """
-    Resolve user's connector preference name to API ID (case-insensitive).
-
-    Combines preference lookup with case-insensitive resolution:
-    1. Gets user's configured preference name (e.g., "Family" for calendar)
-    2. Resolves name to API ID using case-insensitive matching
-    3. Falls back to default ID if name not found
-
-    Args:
-        runtime: ToolRuntime containing user_id and dependencies
-        connector_type: Connector type (e.g., "google_calendar", "google_tasks")
-        preference_name: Preference field name (e.g., "default_calendar_name")
-        client: API client instance (GoogleCalendarClient, GoogleTasksClient)
-        resolver_func: Async resolver function (resolve_calendar_name, resolve_task_list_name)
-        fallback_id: Fallback ID if preference not set or resolution fails
-
-    Returns:
-        Resolved API ID or fallback_id
-
-    Example:
-        >>> from src.domains.connectors.preferences import resolve_calendar_name
-        >>> calendar_id = await resolve_connector_default(
-        ...     runtime,
-        ...     "google_calendar",
-        ...     "default_calendar_name",
-        ...     client,
-        ...     resolve_calendar_name,
-        ...     fallback_id="primary",
-        ... )
-        >>> # User configured "family" -> resolves to ID of "Family" calendar
-    """
-    try:
-        # Get user's configured preference name
-        preference_value = await get_connector_preference(
-            runtime,
-            connector_type,
-            preference_name,
-            default=None,
-        )
-
-        if not preference_value:
-            return fallback_id
-
-        # Resolve name to ID (case-insensitive)
-        resolved_id = await resolver_func(client, preference_value, fallback=fallback_id)
-        return resolved_id
-
-    except Exception as e:
-        logger.warning(
-            "resolve_connector_default_failed",
-            connector_type=connector_type,
-            preference_name=preference_name,
-            error=str(e),
-        )
-        return fallback_id
 
 
 # =============================================================================
@@ -1426,17 +1242,14 @@ __all__ = [
     "extract_coordinates",
     "extract_session_id_from_state",
     "extract_value",
-    "get_connector_preference",
     "get_original_user_message",
     "get_user_language_safe",
     "get_user_preferences",
     "handle_connector_api_error",
     "handle_tool_exception",
     "parse_user_id",
-    "resolve_connector_default",
     "resolve_contact_to_email",
     "resolve_recipients_to_emails",
-    "save_to_context_store",
     "emit_side_channel_chunk",
     "validate_runtime_config",
 ]

@@ -15,10 +15,23 @@ interface Props {
   editingServer: MCPServerFormSource | null;
   t: TFunction;
   descriptionAction?: ReactNode;
+  /**
+   * Who drives the server and when LIA asks — the settings page's own choices
+   * (spec 2026-10-30 D3, D4); `null` while they cannot be offered yet. Omitted, the
+   * iterative switch the assistant's card offers.
+   */
+  behaviorFields?: ReactNode;
 }
 
 /** Original settings fields; credentials remain local to each browser form. */
-export function MCPServerFormFields({ form, setForm, editingServer, t, descriptionAction }: Props) {
+export function MCPServerFormFields({
+  form,
+  setForm,
+  editingServer,
+  t,
+  descriptionAction,
+  behaviorFields,
+}: Props) {
   const id = useId();
   return (
     <div className="space-y-4">
@@ -95,22 +108,26 @@ export function MCPServerFormFields({ form, setForm, editingServer, t, descripti
         />
       </div>
 
-      {/* Iterative Mode (ADR-062) */}
-      <div className="flex items-center justify-between py-2">
-        <div className="space-y-0.5">
-          <Label htmlFor={`${id}-mcp-iterative-mode`} className="text-sm font-medium">
-            {t('settings.mcp.field_iterative_mode')}
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.mcp.field_iterative_mode_help')}
-          </p>
+      {behaviorFields !== undefined ? (
+        behaviorFields
+      ) : (
+        // Iterative Mode (ADR-062)
+        <div className="flex items-center justify-between py-2">
+          <div className="space-y-0.5">
+            <Label htmlFor={`${id}-mcp-iterative-mode`} className="text-sm font-medium">
+              {t('settings.mcp.field_iterative_mode')}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {t('settings.mcp.field_iterative_mode_help')}
+            </p>
+          </div>
+          <Switch
+            id={`${id}-mcp-iterative-mode`}
+            checked={form.iterative_mode}
+            onCheckedChange={checked => setForm(f => ({ ...f, iterative_mode: checked }))}
+          />
         </div>
-        <Switch
-          id={`${id}-mcp-iterative-mode`}
-          checked={form.iterative_mode}
-          onCheckedChange={checked => setForm(f => ({ ...f, iterative_mode: checked }))}
-        />
-      </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,10 @@ from src.core.constants import (
     SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONCURRENCY,
+    SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_CEILING,
+    SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT,
+    SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT,
+    SCHEDULED_ACTIONS_MIN_STEP_MINUTES_FLOOR,
     SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
     SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES,
     SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES_DEFAULT,
@@ -77,6 +81,42 @@ class SchedulerSettings(BaseSettings):
             "are purged at every executor tick. Symptom if too low: the export "
             "of a user's own execution history is short. Symptom if too high: "
             "the table grows with every routine of every account."
+        ),
+    )
+
+    # ------------------------------------------------------------------------
+    # Time routines (ADR-268 amendment 2026-10-30): what a schedule may ask.
+    # Read through scheduled_actions.recurrence_limits alone — the creation
+    # rule, the update schema, the chat tool and its manifest, and the list
+    # the form reads.
+    # ------------------------------------------------------------------------
+
+    scheduled_actions_min_step_minutes: int = Field(
+        default=SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT,
+        ge=SCHEDULED_ACTIONS_MIN_STEP_MINUTES_FLOOR,
+        le=24 * 60,
+        description=(
+            "Shortest step of a routine repeating « at a regular interval », in "
+            "minutes. Every run is a full agent turn billed to its owner. A run "
+            "that outlasts the step is never doubled: the routine is busy, and "
+            "the next run is the next slot after it ends. Symptom if too low: "
+            "the cost of a routine multiplies (every 5 minutes all day is 288 "
+            "turns). Symptom if too high: a routine cannot follow a fast-moving "
+            "source."
+        ),
+    )
+
+    scheduled_actions_max_times_per_day: int = Field(
+        default=SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT,
+        ge=1,
+        le=SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_CEILING,
+        description=(
+            "Most runs one time routine may declare in a day, whether as set "
+            "times or as a step inside a window; every run is a full agent turn. "
+            "Together with SCHEDULED_ACTIONS_MIN_STEP_MINUTES it bounds a day: "
+            "every 5 minutes all day needs 288. Symptom if too low: a dense "
+            "schedule is refused. Symptom if too high: one routine can spend a "
+            "day's budget."
         ),
     )
 

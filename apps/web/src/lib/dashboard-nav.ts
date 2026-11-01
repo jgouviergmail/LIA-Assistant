@@ -21,12 +21,24 @@
 export interface DestinationFeatures {
   world_enabled?: boolean;
   meetings_enabled?: boolean;
+  workbench_enabled?: boolean;
+  sms_enabled?: boolean;
 }
 
 /** A destination of the dashboard shell. */
 export interface DashboardDestination {
   /** Path suffix appended to the localized `/dashboard` root ('' = the root). */
-  segment: '' | 'chat' | 'world' | 'relations' | 'meetings' | 'notifications' | 'settings' | 'faq';
+  segment:
+    | ''
+    | 'chat'
+    | 'tools'
+    | 'world'
+    | 'relations'
+    | 'sms'
+    | 'meetings'
+    | 'notifications'
+    | 'settings'
+    | 'faq';
   /** i18n key of the visible label. */
   labelKey: string;
   /**
@@ -63,12 +75,38 @@ export interface DashboardDestination {
  * header paid for the seventh elsewhere: the language control shows its flag
  * alone at every width (the popup names the languages) and the personality
  * title waits for `2xl`. The label is deliberately SHORT in every locale.
+ *
+ * 2026-10-31 (ADR-369): `tools` joins the row — the « Tools » section where
+ * the person reads and acts on their own services by hand. It is gated like
+ * the world: offered only where the instance offers it NOW
+ * (`workbenchAvailable`, the operator's switch included). NINE labels fit the
+ * `2xl` row in German only with the short « Start » and « Tools » (measured on
+ * dev: « Startseite » + « Werkzeuge » overflowed by 49 px, every other locale
+ * fitting). The row is capped at 1536 px, so a wider breakpoint buys NO room:
+ * a tenth destination must be paid for elsewhere.
+ *
+ * 2026-10-31 (owner): `tools` sits right after `world`, whose label is « 3D »
+ * in every language.
+ *
+ * 2026-10-31 (owner): `sms` joins right after `relations` — the SMS themselves
+ * (consult, block a sender, erase), moved out of Settings › SMS, which keeps
+ * how SMS reach LIA. Gated like the tools: offered where the instance offers SMS
+ * NOW (`smsAvailable`, the operator's switch included).
+ *
+ * 2026-10-31 (owner): the desktop row draws the destinations as ICONS ALONE at
+ * every width — the label is the accessible name and the tooltip, and the menu
+ * the logo opens below `lg` still writes it out. Ten labels no longer fit the
+ * `2xl` row (measured: the last destination ran under the controls in
+ * fr/de/es/it at 1536 px), and the row's width stopped depending on how long a
+ * label is in one language.
  */
 export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
   { segment: 'chat', labelKey: 'navigation.chat' },
   { segment: 'world', labelKey: 'navigation.world', feature: 'world_enabled' },
+  { segment: 'tools', labelKey: 'navigation.tools', feature: 'workbench_enabled' },
   { segment: 'relations', labelKey: 'navigation.relations' },
+  { segment: 'sms', labelKey: 'navigation.sms', feature: 'sms_enabled' },
   {
     segment: 'meetings',
     labelKey: 'navigation.meetings',
@@ -79,6 +117,17 @@ export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: 'settings', labelKey: 'navigation.settings' },
   { segment: 'faq', labelKey: 'navigation.faq' },
 ];
+
+/**
+ * The header row's icon geometry from `lg` (owner, 2026-10-31): every icon —
+ * a destination or a control — takes this 36 px slot, and both groups space
+ * their icons by this gap, so the row stands at ONE pitch on both sides. Below
+ * `lg` the destinations live in the logo's menu and the controls keep their
+ * 44 px touch target (both pinned by the header-reachability spec). Whole
+ * literal classes: Tailwind only generates what it reads written out.
+ */
+export const HEADER_ICON_SLOT = 'lg:h-9 lg:w-9 lg:min-w-9 lg:px-0';
+export const HEADER_ICON_GAP = 'lg:gap-1';
 
 /**
  * The destinations this instance offers.

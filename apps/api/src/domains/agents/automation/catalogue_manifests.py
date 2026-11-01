@@ -8,7 +8,6 @@ agent pipeline via the existing scheduled-action executor.
 from datetime import UTC, datetime
 
 from src.core.config import settings
-from src.core.constants import RECURRENCE_ROUTINE_LIMITS
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     CostProfile,
@@ -20,6 +19,7 @@ from src.domains.agents.registry.catalogue import (
     ToolManifest,
 )
 from src.domains.agents.registry.recurrence_parameters import recurrence_parameters
+from src.domains.scheduled_actions.recurrence_limits import routine_recurrence_limits
 
 # =============================================================================
 # Agent Manifest: automation_agent
@@ -93,10 +93,11 @@ create_scheduled_action_catalogue_manifest = ToolManifest(
                 ParameterConstraint(kind="max_length", value=2000),
             ],
         ),
-        # The spoken recurrence vocabulary, bounded by what a ROUTINE allows
-        # (12 firings a day). Declared once in `recurrence_parameters` and read
-        # by the tool signature too, so the two cannot drift.
-        *recurrence_parameters(RECURRENCE_ROUTINE_LIMITS, repeat_required=True),
+        # The spoken recurrence vocabulary, bounded by what a ROUTINE allows —
+        # the operator's caps, read at boot through the reader the validators
+        # share. Declared once in `recurrence_parameters` and read by the tool
+        # signature too, so the two cannot drift.
+        *recurrence_parameters(routine_recurrence_limits(), repeat_required=True),
     ],
     outputs=[
         OutputFieldSchema(

@@ -43,6 +43,10 @@ def personal_mcp_settings_target(
         "domain_description": server.domain_description,
         "timeout_seconds": server.timeout_seconds,
         "iterative_mode": server.iterative_mode,
+        # The card shows what the chat may tighten (spec 2026-10-30 D7); the tools to
+        # always ask about appear on the « after » side, as the change they are.
+        "react_expand_iterative": server.react_expand_iterative,
+        "hitl_required": server.hitl_required,
     }
     if patch is not None:
         result.update(patch.model_dump(mode="json", exclude_unset=True))

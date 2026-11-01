@@ -69,6 +69,7 @@ async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
                 set_shared_mcp_enabled,
             )
             from src.infrastructure.mcp.client_manager import initialize_mcp_client_manager
+            from src.infrastructure.mcp.confirmation import instance_confirmation
             from src.infrastructure.mcp.preferences_gateway import SharedMCPPreferencesGateway
             from src.infrastructure.mcp.registration import build_mcp_adapters, register_mcp_tools
 
@@ -89,7 +90,9 @@ async def init_mcp(registry: AgentRegistry | None) -> MCPClientManager | None:
                     discovered_tools=mcp_manager.discovered_tools,
                     adapters=adapters,
                     server_configs=mcp_manager.server_configs,
-                    global_hitl_required=getattr(settings, "mcp_hitl_required", True),
+                    # The administrator's servers follow the instance default
+                    # (spec 2026-10-30 D9), read by its one reader.
+                    global_hitl_required=instance_confirmation(),
                     reference_content=mcp_manager.reference_content,
                 )
 
@@ -127,6 +130,10 @@ async def init_user_mcp_pool() -> None:
             fail_personal_mcp_oauth_callback,
             stage_personal_mcp_oauth_callback,
         )
+        from src.domains.user_mcp.assistant_confirmation import (
+            judge_account_strategy,
+            judge_personal_mcp_settings,
+        )
         from src.domains.user_mcp.management_projection import read_personal_mcp_metadata
         from src.domains.user_mcp.personal_configuration import configure_personal_mcp_server
         from src.domains.user_mcp.personal_connection import test_personal_mcp_connection
@@ -156,6 +163,8 @@ async def init_user_mcp_pool() -> None:
                 configure_personal_mcp_server,
                 start_personal_mcp_oauth,
                 save_personal_mcp_oauth,
+                judge_settings=judge_personal_mcp_settings,
+                judge_strategy=judge_account_strategy,
             )
         )
         configure_application_mcp_oauth(

@@ -545,3 +545,36 @@ yearly rule naming it — because three languages juxtapose the day and the mont
 ("le {day} {month}"), so a phrase in the day slot reads "le 15 et le dernier
 jour février". `day_sort_key` is now the package's single ordering rule, read by
 the canonical repair and by the sentence, so the two cannot disagree again.
+
+## Amendment, 2026-10-30 — a routine's two caps are the operator's
+
+The owner wanted a routine every five minutes and met « L'intervalle minimum est
+de 15 minutes. » The 15-minute step and the 12 runs a day were two constants, and
+the form carried a hand-typed copy of them: moving them meant changing code in two
+languages, and the copy could state one minimum while the API enforced another.
+
+- **They are settings now**: `SCHEDULED_ACTIONS_MIN_STEP_MINUTES` (floor 5 — the
+  step a reminder, which only notifies, already stops at) and
+  `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` (ceiling 288 — what a day holds at the
+  floor), their defaults the former constants. Every five minutes all day needs
+  both: 5 and 288. The series length and the reminder's caps stay constants:
+  nobody asked to move them.
+- **ONE reader**, `scheduled_actions/recurrence_limits.routine_recurrence_limits()`,
+  serves every door: the creation rule, the update schema, the chat tool's check
+  and its manifest — so the planner reads the bound the tool applies. A guard
+  refuses any other read of the two settings or their defaults under `src/`.
+- **The list publishes them** (`recurrence_limits`, beside ADR-322's published
+  clock) and the form reads them instead of its copy; until they are published the
+  form offers no schedule rather than a cap nobody stated (ADR-184).
+- **A cap bounds what is WRITTEN, never what is read back.** The cap left
+  `ScheduledActionCreate`: the Studio re-reads every stored routine through that
+  schema to snapshot it, and a lowered cap would have made a denser routine saved
+  under the old one impossible to run, rename or switch off from the chat. A new
+  routine meets the caps in `validate_routine_creation` (REST, Studio, the chat
+  tool's draft); a CHANGED schedule in `ScheduledActionUpdate`; a stored one keeps
+  running as stored.
+- **A run that outlasts its step is never doubled**: the routine is `executing`,
+  no tick picks it, and `rearm_after` re-arms from `max(due, now)` — the slots that
+  fell meanwhile are skipped, never replayed.
+- **Cost, stated where the setting is**: every run is a full agent turn — every
+  five minutes all day is 288 turns a day for one routine.

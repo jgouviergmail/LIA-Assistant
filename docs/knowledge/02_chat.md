@@ -8,7 +8,23 @@ LIA works with **one active conversation**. This design choice allows:
 • A **smooth experience**: no need to juggle between windows
 
 **To start fresh:**
-Click the **🗑️** button in the chat header. It deletes every message **and every attachment** — AI-generated images included — so export anything you want to keep first.
+Click the **🗑️** button in the chat header. It deletes the messages and the files you
+attached yourself. Files LIA generated stay in **My generated files** until their
+own expiry, or longer when you keep them.
+
+## Which item does LIA use when I refer to a sender, a title or a position?
+
+LIA first uses the items its answers actually showed, in the order you saw them.
+If your description fits one, it uses that item and names it in the actions below
+the answer. If several fit, it offers numbered options with the details that tell
+them apart. Reply with a number, a distinguishing word, or a click. “None” starts a
+new lookup; “cancel” stops. An unclear answer is asked about once more; another
+unrelated written answer becomes your new request instead of being discarded.
+
+A Pipeline search that would act on the first of several matches also asks which
+one. Choosing a result resumes that plan on the selected item; declining leaves
+that action and the steps depending on it unexecuted. LIA does not treat a search
+result as your choice merely because it arrived first.
 
 ## How do I reset a conversation?
 To clear history and start over:

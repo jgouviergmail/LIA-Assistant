@@ -46,6 +46,7 @@ import {
   Sparkles,
   Sunrise,
   Users,
+  Wrench,
   Zap,
   ClipboardList,
   SquareKanban,
@@ -58,6 +59,7 @@ export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {
   world: Map,
   settings: Settings,
   connectors: Globe,
+  workbench: Wrench,
   telephony: PhoneCall,
   peers: Handshake,
   relations: Users,
@@ -102,6 +104,7 @@ export const FAQ_SECTIONS = [
   'world',
   'settings',
   'connectors',
+  'workbench',
   'telephony',
   'telegram',
   'peers',
@@ -142,7 +145,7 @@ export const FAQ_SECTIONS = [
  *
  * Selection rationale: the questions a prospect asks BEFORE creating an
  * account — what LIA is (getting_started), its shared world (world), which
- * services it plugs into (connectors), its boldest differentiators (telephony, voice_mode, radio,
+ * services it plugs into (connectors), direct service controls (workbench), its boldest differentiators (telephony, voice_mode, radio,
  * image_generation), the trust base (privacy, registers) and how to run it
  * yourself (self_hosting). App-operation sections (settings, usage limits,
  * journals…) stay behind login where they make sense.
@@ -151,6 +154,7 @@ export const PUBLIC_FAQ_SECTIONS = [
   'getting_started',
   'world',
   'connectors',
+  'workbench',
   'telephony',
   'voice_mode',
   'radio',

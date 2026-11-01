@@ -23,6 +23,7 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import CacheService
@@ -74,16 +75,21 @@ class GoogleTasksClient(BaseGoogleClient):
     # =========================================================================
 
     async def list_task_lists(
-        self, max_results: int = settings.tasks_tool_default_max_results
+        self,
+        max_results: int = settings.tasks_tool_default_max_results,
+        *,
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        List all task lists for the user.
+        List the user's task lists, one page at a time.
 
         Args:
             max_results: Maximum number of results (default: from settings)
+            page_token: The ``next_page_token`` of the previous page (ADR-369)
 
         Returns:
-            Dict with 'items' list containing task list metadata
+            Dict with 'items' list containing task list metadata, and
+            ``next_page_token`` (None on the last page)
 
         Example:
             >>> lists = await client.list_task_lists()
@@ -92,11 +98,11 @@ class GoogleTasksClient(BaseGoogleClient):
         """
         max_results = apply_max_items_limit(max_results)
 
-        response = await self._make_request(
-            "GET",
-            "/users/@me/lists",
-            {"maxResults": max_results},
-        )
+        params: dict[str, Any] = {"maxResults": max_results}
+        if page_token:
+            params["pageToken"] = page_token
+        response = await self._make_request("GET", "/users/@me/lists", params)
+        response["next_page_token"] = response.get("nextPageToken")
 
         logger.info(
             "tasks_list_task_lists_completed",
@@ -116,7 +122,7 @@ class GoogleTasksClient(BaseGoogleClient):
         Returns:
             Task list metadata including id, title, updated timestamp
         """
-        response = await self._make_request("GET", f"/users/@me/lists/{task_list_id}")
+        response = await self._make_request("GET", f"/users/@me/lists/{_segment(task_list_id)}")
 
         logger.info(
             "tasks_get_task_list",
@@ -160,7 +166,7 @@ class GoogleTasksClient(BaseGoogleClient):
         Returns:
             True if successful
         """
-        await self._make_request("DELETE", f"/users/@me/lists/{task_list_id}")
+        await self._make_request("DELETE", f"/users/@me/lists/{_segment(task_list_id)}")
 
         logger.info(
             "tasks_delete_task_list",
@@ -183,9 +189,10 @@ class GoogleTasksClient(BaseGoogleClient):
         due_min: str | None = None,
         due_max: str | None = None,
         completed_min: str | None = None,
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        List tasks in a task list.
+        List tasks in a task list, one page at a time.
 
         Args:
             task_list_id: Task list ID (default: "@default" for primary list)
@@ -196,9 +203,11 @@ class GoogleTasksClient(BaseGoogleClient):
             due_max: Filter tasks due before this RFC 3339 timestamp
             completed_min: Filter tasks completed after this RFC 3339 timestamp
                 (with ``show_completed``; the radio's journal reads a day's)
+            page_token: The ``next_page_token`` of the previous page (ADR-369)
 
         Returns:
-            Dict with 'items' list containing task data
+            Dict with 'items' list containing task data, and ``next_page_token``
+            (None on the last page)
 
         Example:
             >>> tasks = await client.list_tasks()
@@ -219,12 +228,15 @@ class GoogleTasksClient(BaseGoogleClient):
             params["dueMax"] = due_max
         if completed_min:
             params["completedMin"] = completed_min
+        if page_token:
+            params["pageToken"] = page_token
 
         response = await self._make_request(
             "GET",
-            f"/lists/{task_list_id}/tasks",
+            f"{_list_path(task_list_id)}/tasks",
             params,
         )
+        response["next_page_token"] = response.get("nextPageToken")
 
         logger.info(
             "tasks_list_tasks_completed",
@@ -248,7 +260,7 @@ class GoogleTasksClient(BaseGoogleClient):
         """
         response = await self._make_request(
             "GET",
-            f"/lists/{task_list_id}/tasks/{task_id}",
+            _task_path(task_list_id, task_id),
         )
 
         logger.info(
@@ -302,7 +314,7 @@ class GoogleTasksClient(BaseGoogleClient):
 
         response = await self._make_request(
             "POST",
-            f"/lists/{task_list_id}/tasks",
+            f"{_list_path(task_list_id)}/tasks",
             params=params if params else None,
             json_data=task_data,
         )
@@ -324,9 +336,15 @@ class GoogleTasksClient(BaseGoogleClient):
         notes: str | None = None,
         due: str | None = None,
         status: str | None = None,
+        *,
+        clear_due: bool = False,
     ) -> dict[str, Any]:
         """
         Update an existing task.
+
+        The task is read first and written back WHOLE (a PUT): a field left
+        out of the body is a field removed, so what is not changed is
+        carried — the completion date of a completed task included.
 
         Args:
             task_list_id: Task list ID
@@ -335,10 +353,16 @@ class GoogleTasksClient(BaseGoogleClient):
             notes: New notes (optional)
             due: New due date in RFC 3339 format (optional)
             status: New status - "needsAction" or "completed" (optional)
+            clear_due: Remove the due date (ADR-369)
 
         Returns:
             Updated task data
+
+        Raises:
+            ValueError: A due date and its removal together.
         """
+        if clear_due and due is not None:
+            raise ValueError("a due date and its removal cannot be asked together")
         # Get existing task to preserve unchanged fields
         existing = await self.get_task(task_list_id, task_id)
 
@@ -355,7 +379,7 @@ class GoogleTasksClient(BaseGoogleClient):
 
         if due is not None:
             task_data["due"] = due
-        elif "due" in existing:
+        elif "due" in existing and not clear_due:
             task_data["due"] = existing["due"]
 
         if status is not None:
@@ -364,10 +388,12 @@ class GoogleTasksClient(BaseGoogleClient):
                 task_data["completed"] = now_utc().strftime("%Y-%m-%dT%H:%M:%S.000Z")
         elif "status" in existing:
             task_data["status"] = existing["status"]
+            if "completed" in existing:
+                task_data["completed"] = existing["completed"]
 
         response = await self._make_request(
             "PUT",
-            f"/lists/{task_list_id}/tasks/{task_id}",
+            _task_path(task_list_id, task_id),
             json_data=task_data,
         )
 
@@ -405,7 +431,7 @@ class GoogleTasksClient(BaseGoogleClient):
         Returns:
             True if successful
         """
-        await self._make_request("DELETE", f"/lists/{task_list_id}/tasks/{task_id}")
+        await self._make_request("DELETE", _task_path(task_list_id, task_id))
 
         logger.info(
             "tasks_delete_task",
@@ -417,3 +443,16 @@ class GoogleTasksClient(BaseGoogleClient):
         return True
 
     # Note: Uses base class _make_request - no override needed
+
+
+def _segment(value: str) -> str:
+    """One path segment of a Google Tasks URL (``@default`` keeps its name)."""
+    return path_segment(value, connector_type=ConnectorType.GOOGLE_TASKS, safe="@")
+
+
+def _list_path(task_list_id: str) -> str:
+    return f"/lists/{_segment(task_list_id)}"
+
+
+def _task_path(task_list_id: str, task_id: str) -> str:
+    return f"{_list_path(task_list_id)}/tasks/{_segment(task_id)}"

@@ -50,10 +50,12 @@ from src.domains.agents.constants import (
     NODE_REACT_FINALIZE,
     NODE_REACT_RECOVERY,
     NODE_REACT_SETUP,
+    NODE_REFERENCE_DISAMBIGUATION,
     NODE_RESPONSE,
     NODE_ROUTER,
     NODE_SEMANTIC_VALIDATOR,
     NODE_TASK_ORCHESTRATOR,
+    STATE_KEY_PLAN_REJECTION_REASON,
     STATE_KEY_ROUTING_HISTORY,
 )
 from src.domains.agents.context import get_tool_context_store
@@ -78,6 +80,11 @@ from src.domains.agents.nodes import (
 from src.domains.agents.nodes.for_each_confirm_node import for_each_confirm_node
 from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
 from src.domains.agents.nodes.initiative_recurrence import initiative_node
+from src.domains.agents.nodes.plan_choice import pending_choice, plan_choice_of_turn
+from src.domains.agents.nodes.reference_disambiguation_node import (
+    asks_which_item,
+    reference_disambiguation_node,
+)
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
     route_from_clarification,
@@ -116,7 +123,12 @@ def route_from_router(state: MessagesState) -> str:
 
     Routing options (binary):
     - "planner": ALL actionable tasks → planner generates ExecutionPlan
+      (``react_setup`` in the ReAct execution mode)
     - "response": Conversation or very low confidence → direct response
+
+    An actionable turn whose words fit several shown items first asks which
+    one (``reference_disambiguation``, ADR-367); the recorded route stays the
+    planning node.
 
     Legacy compatibility:
     - If old Router prompt returns "task_orchestrator", redirects to "planner"
@@ -125,7 +137,8 @@ def route_from_router(state: MessagesState) -> str:
         state: Current LangGraph state with routing_history.
 
     Returns:
-        Next node name ("planner" or "response").
+        Next node name ("planner", "react_setup", "reference_disambiguation"
+        or "response").
     """
     # NOTE: router_confidence_tier_counter removed (redundant with router_decisions_total)
     # Router confidence is now tracked in router_node.py via router_decisions_total
@@ -205,14 +218,23 @@ def route_from_router(state: MessagesState) -> str:
         next_node = NODE_PLANNER
 
     # ADR-070: ReAct execution mode — route to react_setup instead of planner
-    execution_mode = state.get("execution_mode", "pipeline")
-    if execution_mode == "react" and next_node == NODE_PLANNER and settings.react_agent_enabled:
-        next_node = NODE_REACT_SETUP
-        logger.info(
-            "route_from_router_react_mode",
-            intention=intention,
-            confidence=confidence,
-        )
+    if next_node == NODE_PLANNER:
+        next_node = _planning_node(state)
+        if next_node == NODE_REACT_SETUP:
+            logger.info(
+                "route_from_router_react_mode",
+                intention=intention,
+                confidence=confidence,
+            )
+
+    # ADR-263 lot 6: the ONE chokepoint where the turn's route is decided —
+    # pipeline and ReAct both leave through here. Recording it anywhere else
+    # would be a second reading of the same decision. A question asked first
+    # (ADR-367) is a step on that route, not another one.
+    note_route(next_node)
+    # ADR-367: several shown items fit the person's words — ask which, first.
+    if next_node != NODE_RESPONSE and asks_which_item(state):
+        next_node = NODE_REFERENCE_DISAMBIGUATION
 
     logger.debug(
         "route_from_router",
@@ -234,11 +256,38 @@ def route_from_router(state: MessagesState) -> str:
         to_node=next_node,
     ).inc()
 
-    # ADR-263 lot 6: the ONE chokepoint where the turn's route is decided —
-    # pipeline and ReAct both leave through this return. Recording it anywhere
-    # else would be a second reading of the same decision.
-    note_route(next_node)
+    return next_node
 
+
+def _planning_node(state: MessagesState) -> str:
+    """Where an actionable turn is planned: the ReAct loop or the planner (ADR-070)."""
+    if state.get("execution_mode", "pipeline") == "react" and settings.react_agent_enabled:
+        return NODE_REACT_SETUP
+    return NODE_PLANNER
+
+
+def route_from_reference_disambiguation(state: MessagesState) -> str:
+    """Route after « which of the items shown did you mean? » (ADR-367).
+
+    Args:
+        state: Graph state after the question was answered.
+
+    Returns:
+        The response when the person declined to choose — nothing is done —
+        else the planning node of the turn's execution mode; for a plan's
+        choice, the orchestrator, which resumes the plan — on the chosen item, or
+        without the act nobody chose an item for.
+    """
+    if plan_choice_of_turn(state) is not None:
+        next_node = NODE_TASK_ORCHESTRATOR
+    elif state.get(STATE_KEY_PLAN_REJECTION_REASON):
+        next_node = NODE_RESPONSE
+    else:
+        next_node = _planning_node(state)
+    langgraph_node_transitions_total.labels(
+        from_node=NODE_REFERENCE_DISAMBIGUATION,
+        to_node=next_node,
+    ).inc()
     return next_node
 
 
@@ -268,6 +317,15 @@ def route_from_orchestrator(state: MessagesState) -> str:
     # pre-executed context and expects the dedicated confirmation node to run
     # (one interrupt per node execution). An approved ctx never routes here —
     # the confirm node routes straight back to the orchestrator.
+    # ADR-367 amendment: the plan would act on the first of several items a
+    # lookup found — the person is asked which one before anything acts.
+    if pending_choice(state) is not None:
+        langgraph_node_transitions_total.labels(
+            from_node=NODE_TASK_ORCHESTRATOR,
+            to_node=NODE_REFERENCE_DISAMBIGUATION,
+        ).inc()
+        return NODE_REFERENCE_DISAMBIGUATION
+
     for_each_ctx = state.get("for_each_hitl_ctx")
     if isinstance(for_each_ctx, dict) and not for_each_ctx.get("approved"):
         langgraph_conditional_edges_total.labels(
@@ -283,20 +341,14 @@ def route_from_orchestrator(state: MessagesState) -> str:
     # LOT 6+ HITL Dispatch: Check for ANY pending HITL request
     # Routes to hitl_dispatch_node which handles:
     # - pending_draft_critique (email/event/contact drafts)
-    # - pending_entity_disambiguation (multiple entity matches)
     # - pending_tool_confirmation (tools without drafts needing approval)
     pending_draft = state.get("pending_draft_critique")
-    pending_disambiguation = state.get("pending_entity_disambiguation")
     pending_confirmation = state.get("pending_tool_confirmation")
 
-    if pending_draft or pending_disambiguation or pending_confirmation:
+    if pending_draft or pending_confirmation:
         # Determine which HITL type for logging
-        hitl_type = (
-            "draft_critique"
-            if pending_draft
-            else ("entity_disambiguation" if pending_disambiguation else "tool_confirmation")
-        )
-        hitl_data = pending_draft or pending_disambiguation or pending_confirmation
+        hitl_type = "draft_critique" if pending_draft else "tool_confirmation"
+        hitl_data = pending_draft or pending_confirmation
 
         logger.info(
             "route_from_orchestrator_to_hitl_dispatch",
@@ -496,6 +548,8 @@ async def build_graph(
     graph.add_node(NODE_APPROVAL_GATE, approval_gate_node)  # Phase 8: Plan-level HITL
     graph.add_node(NODE_TASK_ORCHESTRATOR, task_orchestrator_node)
     graph.add_node(NODE_DRAFT_CRITIQUE, hitl_dispatch_node)  # LOT 6+: Generic HITL dispatch
+    # ADR-367: « which of the items shown did you mean? », before planning.
+    graph.add_node(NODE_REFERENCE_DISAMBIGUATION, reference_disambiguation_node)
 
     # ✅ Add agent nodes dynamically from registry
     # Phase 2.1.6 - SubGraph Callback Propagation Fix
@@ -638,6 +692,17 @@ async def build_graph(
             NODE_PLANNER: NODE_PLANNER,
             NODE_REACT_SETUP: NODE_REACT_SETUP,  # ADR-070: ReAct execution mode
             NODE_RESPONSE: NODE_RESPONSE,
+            NODE_REFERENCE_DISAMBIGUATION: NODE_REFERENCE_DISAMBIGUATION,  # ADR-367
+        },
+    )
+    graph.add_conditional_edges(
+        NODE_REFERENCE_DISAMBIGUATION,
+        route_from_reference_disambiguation,
+        {
+            NODE_PLANNER: NODE_PLANNER,
+            NODE_REACT_SETUP: NODE_REACT_SETUP,
+            NODE_RESPONSE: NODE_RESPONSE,
+            NODE_TASK_ORCHESTRATOR: NODE_TASK_ORCHESTRATOR,  # a plan's choice resumes it
         },
     )
 
@@ -711,6 +776,7 @@ async def build_graph(
         {
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # LOT 6: Draft HITL
             NODE_FOR_EACH_CONFIRM: NODE_FOR_EACH_CONFIRM,  # 2026-07: replay-safe bulk HITL
+            NODE_REFERENCE_DISAMBIGUATION: NODE_REFERENCE_DISAMBIGUATION,  # ADR-367 amendment
             # OAuth agents (Google) - v3.2 naming: singular domain names
             AGENT_CONTACT: AGENT_CONTACT,
             AGENT_EMAIL: AGENT_EMAIL,
@@ -743,6 +809,7 @@ async def build_graph(
         route_from_hitl_dispatch,
         {
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Self-loop: draft still pending
+            NODE_TASK_ORCHESTRATOR: NODE_TASK_ORCHESTRATOR,  # Spec D7: waiting steps resume
             NODE_INITIATIVE: NODE_INITIATIVE,  # Done: proceed to initiative
         },
     )

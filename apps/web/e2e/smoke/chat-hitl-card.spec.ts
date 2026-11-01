@@ -406,3 +406,104 @@ test.describe('chat HITL mailbox draft send (ADR-344)', () => {
     });
   }
 });
+
+/** « Which of these? » (ADR-367): several items the person was shown fit
+ * their words — each option is a button, and the click sends its position. */
+const PENDING_CHOICE = {
+  message_id: 'hitl_e2e_choice_1',
+  action_requests: [
+    {
+      type: 'entity_disambiguation',
+      domain: 'email',
+      candidates: [
+        { index: 1, label: 'Marc Dubois <marc@example.com> · Photos du week-end · mardi' },
+        { index: 2, label: 'Marc Dubois <marc@example.com> · Facture du garage · lundi' },
+      ],
+      reask: false,
+      available_actions: [
+        { action: 'none', label: 'none', style: 'secondary' },
+        { action: 'cancel', label: 'cancel', style: 'destructive' },
+      ],
+    },
+  ],
+  interrupt_ts: '2026-10-30T10:00:00+00:00',
+};
+
+const CHOICE_CARD = 'section[aria-label="Lequel voulais-tu dire ?"]';
+
+test.describe('chat HITL choice among shown items (ADR-367)', () => {
+  for (const width of [1280, 390]) {
+    test(`chooses the second e-mail by keyboard at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const decisions: Array<Record<string, unknown>> = [];
+      const routes = baseRoutes(PENDING_CHOICE, sseDone).map(route =>
+        route.url === '**/api/v1/agents/chat/stream'
+          ? {
+              ...route,
+              handler: async (r: Route) => {
+                const body = (r.request().postDataJSON() ?? {}) as {
+                  hitl_decision?: Record<string, unknown>;
+                };
+                decisions.push(body.hitl_decision ?? {});
+                await r.fulfill({ status: 200, contentType: 'text/event-stream', body: sseDone() });
+              },
+            }
+          : route
+      );
+      await authenticate();
+      await mockApi(routes);
+      await page.goto('/fr/dashboard/chat');
+
+      const card = page.locator(CHOICE_CARD);
+      const options = card.getByRole('group', { name: 'Éléments correspondants' });
+      await expect(options.getByRole('button')).toHaveCount(2);
+      await expect(card.getByRole('button', { name: 'Aucun de ceux-là' })).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Annuler' })).toBeVisible();
+      const accessibility = await new AxeBuilder({ page }).include(CHOICE_CARD).analyze();
+      expect(accessibility.violations).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`choice-${width}.png`) });
+
+      const second = options.getByRole('button', { name: /^2\. Marc Dubois/ });
+      await second.focus();
+      await second.press('Enter');
+
+      await expect.poll(() => decisions.length).toBe(1);
+      expect(decisions[0]).toEqual({
+        message_id: PENDING_CHOICE.message_id,
+        action: 'select',
+        selected_index: 2,
+      });
+      await expect(card).toHaveCount(0);
+    });
+  }
+
+  test('« none of these » asks for a new lookup', async ({ page, authenticate, mockApi }) => {
+    const decisions: Array<Record<string, unknown>> = [];
+    const routes = baseRoutes(PENDING_CHOICE, sseDone).map(route =>
+      route.url === '**/api/v1/agents/chat/stream'
+        ? {
+            ...route,
+            handler: async (r: Route) => {
+              const body = (r.request().postDataJSON() ?? {}) as {
+                hitl_decision?: Record<string, unknown>;
+              };
+              decisions.push(body.hitl_decision ?? {});
+              await r.fulfill({ status: 200, contentType: 'text/event-stream', body: sseDone() });
+            },
+          }
+        : route
+    );
+    await authenticate();
+    await mockApi(routes);
+    await page.goto('/fr/dashboard/chat');
+
+    await page.locator(CHOICE_CARD).getByRole('button', { name: 'Aucun de ceux-là' }).click();
+
+    await expect.poll(() => decisions.length).toBe(1);
+    expect(decisions[0]).toEqual({ message_id: PENDING_CHOICE.message_id, action: 'none' });
+  });
+});

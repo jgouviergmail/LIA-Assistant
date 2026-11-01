@@ -65,10 +65,7 @@ def normalize_vevent(event: Any) -> dict[str, Any]:
     if status:
         result["status"] = status.lower()
 
-    # Attendees
-    attendees = _extract_attendees(vevent)
-    if attendees:
-        result["attendees"] = attendees
+    result.update(_people(vevent))
 
     # Created / Updated
     created = _get_prop_value(vevent, "created")
@@ -149,21 +146,40 @@ def _format_datetime_field(value: Any) -> dict[str, Any]:
         return {"dateTime": str(value)}
 
 
+def _party(line: Any) -> dict[str, str]:
+    """One ATTENDEE or ORGANIZER line as Google's ``{email, displayName}``."""
+    value = str(line.value) if hasattr(line, "value") else str(line)
+    party: dict[str, str] = {"email": value.replace("mailto:", "").replace("MAILTO:", "")}
+    # Display name from CN parameter
+    cn = getattr(line, "cn_paramval", None) or getattr(line, "CN_paramval", None)
+    if cn:
+        party["displayName"] = str(cn)
+    return party
+
+
+def _people(vevent: Any) -> dict[str, Any]:
+    """The event's attendees and organiser, in Google's and Outlook's shape.
+
+    The organiser is kept so « the meeting with Marc » finds an event Marc
+    organised whatever the provider (ADR-367). Absent keys stay absent.
+    """
+    people: dict[str, Any] = {}
+    attendees = _extract_attendees(vevent)
+    if attendees:
+        people["attendees"] = attendees
+    organizer = getattr(vevent, "organizer", None)
+    if organizer is not None:
+        people["organizer"] = _party(organizer)
+    return people
+
+
 def _extract_attendees(vevent: Any) -> list[dict[str, str]]:
     """Extract attendees from VEVENT."""
     attendees = []
     attendee_list = getattr(vevent, "attendee_list", [])
 
     for attendee in attendee_list:
-        att_value = str(attendee.value) if hasattr(attendee, "value") else str(attendee)
-        email = att_value.replace("mailto:", "").replace("MAILTO:", "")
-
-        attendee_dict: dict[str, str] = {"email": email}
-
-        # Display name from CN parameter
-        cn = getattr(attendee, "cn_paramval", None) or getattr(attendee, "CN_paramval", None)
-        if cn:
-            attendee_dict["displayName"] = str(cn)
+        attendee_dict = _party(attendee)
 
         # Response status from PARTSTAT parameter
         partstat = getattr(attendee, "partstat_paramval", None) or getattr(

@@ -23,6 +23,7 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+from src.domains.agents.tasks.parameter_descriptions import TASK_CLEAR_DUE_DESCRIPTION
 
 # ============================================================================
 # 1. GET TASKS (Unified - replaces list + details)
@@ -261,7 +262,13 @@ create_task_catalogue_manifest = ToolManifest(
 # ============================================================================
 # 3. COMPLETE TASK
 # ============================================================================
-_complete_desc = "**Tool: complete_task_tool** - Mark task as completed. **REQUIRES HITL**."
+# Reversible, so it runs at once: no draft, no confirmation (ADR-263); its row in
+# the action register names the task (ADR-367). « REQUIRES HITL » was false, and
+# the planner read it.
+_complete_desc = (
+    "**Tool: complete_task_tool** - Mark a task as completed. Runs at once, "
+    "without confirmation: updating the task reopens it."
+)
 
 complete_task_catalogue_manifest = ToolManifest(
     name="complete_task_tool",
@@ -302,8 +309,8 @@ complete_task_catalogue_manifest = ToolManifest(
     cost=CostProfile(est_tokens_in=100, est_tokens_out=80, est_cost_usd=0.003, est_latency_ms=400),
     permissions=PermissionProfile(
         required_scopes=GOOGLE_TASKS_SCOPES,
-        # hitl_required=False: HITL is handled by draft_critique (preview before modification)
-        # Avoids double HITL: approval_gate (plan) + draft_critique (content)
+        # hitl_required=False: completing is reversible (an update reopens the
+        # task), so nothing is confirmed — there is no draft and no preview.
         hitl_required=False,
         data_classification="CONFIDENTIAL",
     ),
@@ -368,6 +375,12 @@ update_task_catalogue_manifest = ToolManifest(
             required=False,
             description="New due date",
             semantic_type="datetime",
+        ),
+        ParameterSchema(
+            name="clear_due",
+            type="boolean",
+            required=False,
+            description=TASK_CLEAR_DUE_DESCRIPTION,
         ),
         ParameterSchema(
             name="status",

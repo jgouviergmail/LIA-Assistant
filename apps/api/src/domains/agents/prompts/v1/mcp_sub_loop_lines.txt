@@ -1,0 +1,18 @@
+# One-line scaffolds of an iterative MCP task, rendered by
+# domains/agents/tools/mcp_task_record.py (spec 2026-10-29 D5, D6).
+# pending_approval: what the sub-agent reads for a call that owes the person's
+#   approval — measured best of three wordings on 50 runs over five model
+#   families (2026-10-29): it stated the pending call 49 times in 50, and never
+#   retried it, confirmed it itself or quoted an internal id.
+# record_heading: introduces the record the CODE writes after the sub-agent's
+#   answer, from the calls themselves.
+# record_performed: the calls that succeeded; {actions} is their readable names.
+# record_awaiting: the calls queued for the person's approval, never performed.
+# record_repeated: one name made several times ({action}, {count} calls).
+# record_settled: the task's acts that ran once the person approved them (spec D7).
+pending_approval|Queued for the person's approval: this call was NOT performed. The person will be asked to approve it right after this task. Do not call it again and do not try another way to achieve it. Continue with the rest of the task, and in your final answer list it as awaiting the person's approval: neither done nor failed.
+record_heading|Record of this task, written by the system from the calls themselves — where the account above differs from it, this record is right:
+record_performed|- Performed: {actions}
+record_awaiting|- Awaiting the person's approval, not performed: {actions}
+record_repeated|{action} (×{count})
+record_settled|- After the person's answers, performed: {actions}

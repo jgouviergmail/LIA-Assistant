@@ -1048,3 +1048,104 @@ the failed commit), the consumers' tests over the REAL dispatcher on scripted ch
 (`tests/helpers/notifications.py`), and on PostgreSQL
 `test_notification_reaper_durability.py` (retried up to the cap, an archive failing in SQL
 still counted) and `test_admin_notification_isolation_pg.py`.
+
+## Amendment 2026-10-30 — a label names the item an id designates ([ADR-367](ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md))
+
+**Amends:** the labels built at claim time (`effects/labels.py`). A call naming its target by a
+provider id produced a label naming nothing (« a reply draft was saved ») or the id itself.
+Whoever runs the tools now publishes the turn's registry for the length of the call
+(`effects/label_targets.py`), and a builder names the item by the words it was shown with —
+still at claim time, so the chain seals the label as built. A reply draft reads
+`create_mailbox_reply_draft_tool_named`; a task completed by its id is named by its title. Proof:
+`tests/unit/domains/agents/effects/test_effect_label_targets.py`.
+
+## Amendment 2026-10-30 (b) — one confirmation rule for every MCP tool, in every mode
+
+**Amends:** how the gate reads an MCP tool's policy, the key of a call inside an
+iterative sub-loop, what a confirmation born in that sub-loop becomes, and how a
+Pipeline plan resumes after the person answered. Spec:
+`docs/superpowers/specs/2026-10-29-mcp-confirmation-homogeneity-design.md`.
+
+The manifests already carried the right rule — `derive_mcp_mutation_policy` derives
+`confirm` from the server's confirmation setting or a destructive declaration — and
+three readers ignored it. Probed on 2026-10-29 through the real gate: a personal
+`confirm` tool reached its server unasked in Pipeline and left no row; an
+administrator's iterative individuals had no manifest at all; two acts inside one
+iterative task shared one idempotency key, so the second lost its claim and never
+ran; a confirmation raised inside that task came back to the model as French text
+addressed to the person; ReAct asked a destructive tool of a standard personal server
+only when the server's confirmation was on.
+
+1. **The gate reads the turn's OFFERED manifest** when the global registry has none
+   (`effects/runtime.resolve_policy` → `_offered_policy`, exact name only, never
+   memoised): a personal server's setting changes between turns, and an 8-hex name
+   prefix is not an account boundary.
+2. **Every MCP callable is gated** — the personal task copy included, before its identity
+   guard — and an iterative server's individuals carry the manifest a standard tool would:
+   the person's on the request, the administrator's in a process store
+   (`registry/reactive_manifests.py`), each admitted only while the turn offers its task.
+3. **A call inside an iterative sub-loop has a key of its own**
+   (`{parent}:sub:{tool_call_id}`, `effects/scope.sub_call_scope`).
+4. **The sub-loop hands its confirmations up**: the task's output carries every
+   draft it queued (`metadata.pending_drafts`, read by `orchestration/step_results.drafts_of`,
+   the one reader of both modes) and a record the CODE writes — performed, awaiting
+   approval — introduced as authoritative over the model's narrative, naming calls by
+   the sub-loop's sanitised aliases, never a name a third-party server chose.
+5. **A Pipeline step that needs a pending act waits** (`orchestration/held_steps`): one
+   that READS the act's result, and one the planner explicitly ORDERED after it
+   (`depends_on`) — measured on Docker dev, « supprime la note n2, puis montre-moi la liste
+   à jour » re-read the notes BEFORE the act and, after « oui », answered with the card
+   alone. A held step is excluded from the waves, never run on a placeholder, never
+   reported failed. Once the sequence settles, the graph returns to the orchestrator
+   (`resume_due`, the same predicate for the router and the node), which executes the
+   decision through the response's own door (`nodes/draft_decision`), gives each approved
+   act's REAL result to its step, and runs what waited (`nodes/plan_resume`). A step
+   reading an act that was refused, failed or still waits is left unrun and said
+   (`response_directive_held_not_run`); a step held by order alone runs whatever the
+   answer was. Work that ran BESIDE the acts (`held_steps.told_after_the_answer`: neither
+   what an act reads nor what it follows) brings the decision back the same way —
+   answered by its card alone, a refused deletion read « OK, c'est annulé » over an
+   archive that had happened. The response then writes the answer from the acts' plain
+   accounts and the reported steps' results, and executes nothing twice.
+6. **ReAct asks on the gate's own predicate** (`registry/confirmation_rule.requires_confirmation`
+   = the server's setting or `confirm`), and an administrator's iterative server is
+   expanded like a personal one, each individual asked on its OWN manifest; an MCP App
+   server keeps its task. A run with nobody to ask is refused in the LOOP, before the
+   gate, so the loop files that refusal as the gate files its own
+   (`effects/runtime.record_loop_refusal`, under the call's scope): measured on Docker
+   dev, a ReAct routine's refusal had left no row where the Pipeline's had one.
+7. **A routine may pre-approve servers** ([ADR-322 amendment 2026-10-30](ADR-322-One-Clock-Per-Routine.md)):
+   the gate turns a `confirm` call of a ticked server into an approved scope filed as
+   `routine_preapproval`, the routine as its reference — at one point
+   (`effects/preapproval.preapproved_scope`), never as the person's confirmation.
+
+Guards: `test_every_mcp_callable_is_gated.py`, `test_gate_reads_offered_mcp_manifest.py`,
+`test_reactive_individuals.py`, `test_mcp_sub_loop_pending_drafts.py` (an injected server
+name cannot write into the record), `test_held_steps.py`, `test_plan_resume.py` (the
+executor raising, the FOR_EACH aggregate rebuilt, two rounds), `test_react_confirmation_rule.py`,
+`test_routine_preapproval_gate.py`, and on PostgreSQL `test_sub_loop_call_keys_db.py` and
+`test_plan_resume_db.py` (a resume replayed twice leaves one row per act).
+
+## Amendment 2026-10-31 — the person's choice for one tool, and a dedicated agent asked before its task ([ADR-368](ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md))
+
+1. **A declaration may be loosened by the PERSON, for one tool, bound to that declaration.**
+   A server's annotations still only tighten (2026-10-30 (b)); the person's explicit « never
+   ask » for one tool sets `approved_in_advance` on its manifest, so
+   `requires_confirmation` answers false and the gate files the approval as
+   `standing_choice`, its reference the server — at the same single point as a routine's
+   pre-approval (`effects/preapproval.preapproved_scope`, the standing choice first). It is
+   bound to the tool's declaration fingerprint: when the server changes what the tool
+   declares or accepts, the choice is suspended and the levels below decide again.
+2. **A dedicated agent's task is asked before it starts whenever one of its tools would ask**
+   (`registry/confirmation_rule.task_requires_confirmation`, the person's servers and the
+   administrator's alike): its approved scope covers every inner call
+   (`effects/scope.sub_call_scope` keeps the parent's authority), so the task runs to
+   completion. §4 of 2026-10-30 (b) — confirmations kept for the end of the task — can no
+   longer be reached through registration and stays as the safety net of a task run
+   unapproved. Unattended, the gate refuses the whole task unless the routine pre-approved
+   the server.
+
+Guards: `test_standing_choice_gate.py`, `test_confirmation_readers_guard.py`,
+`test_reactive_individuals.py`, `test_confirmation_strategy_wiring.py`,
+`test_mcp_sub_loop_pending_drafts.py` (the gated task now asks first; the net still hands its
+confirmations up).

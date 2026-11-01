@@ -289,24 +289,13 @@ class CompactionService:
         """
         Verify no HITL state would be corrupted by compaction.
 
-        Checks 4 safety conditions:
+        Checks 2 safety conditions:
         1. pending_draft_critique → mid-draft review, compaction would lose draft context
-        2. pending_entity_disambiguation → disambiguation in progress
-        3. pending_disambiguations_queue → sequential disambiguations queued
-        4. pending_tool_confirmation → tool approval pending, context needed
+        2. pending_tool_confirmation → tool approval pending, context needed
         """
         if state.get("pending_draft_critique"):
             compaction_skipped_total.labels(reason="hitl_pending_draft").inc()
             return SafetyCheckResult(safe=False, reason="hitl_pending_draft")
-
-        if state.get("pending_entity_disambiguation"):
-            compaction_skipped_total.labels(reason="hitl_pending_disambiguation").inc()
-            return SafetyCheckResult(safe=False, reason="hitl_pending_disambiguation")
-
-        queue = state.get("pending_disambiguations_queue", [])
-        if queue:
-            compaction_skipped_total.labels(reason="hitl_pending_queue").inc()
-            return SafetyCheckResult(safe=False, reason="hitl_pending_queue")
 
         if state.get("pending_tool_confirmation"):
             compaction_skipped_total.labels(reason="hitl_pending_tool_confirmation").inc()

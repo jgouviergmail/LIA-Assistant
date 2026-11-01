@@ -1,0 +1,209 @@
+{
+  "apple_calendar.create_update_timed": [
+    {
+      "dtend": "2026-11-02T11:00:00+00:00",
+      "dtstart": "2026-11-02T10:00:00+00:00",
+      "summary": "Dentist"
+    },
+    {
+      "dtend": "2026-11-02T11:00:00+00:00",
+      "dtstart": "2026-11-02T10:00:00+00:00",
+      "summary": "Dentist"
+    }
+  ],
+  "apple_contacts.update_scalar_fields": [
+    {
+      "body": null,
+      "method": "GET",
+      "params": {},
+      "path": "/ada-1.vcf"
+    },
+    {
+      "body": "BEGIN:VCARD\nVERSION:3.0\nUID:ada-1\nEMAIL;TYPE=HOME:ada@example.com\nEMAIL;TYPE=WORK:ada@work.example.com\nFN:Ada Lovelace\nN:Lovelace;Ada;;;\nNOTE:Met at a talk\nORG:Analytical\nTEL;TYPE=CELL:+15550100\nX-CUSTOM:kept\nEND:VCARD\n",
+      "method": "PUT",
+      "params": {},
+      "path": "/ada-1.vcf"
+    }
+  ],
+  "gmail.batch_modify_labels": [
+    {
+      "body": {
+        "addLabelIds": [
+          "Label_1"
+        ],
+        "ids": [
+          "m1",
+          "m2"
+        ],
+        "removeLabelIds": [
+          "UNREAD"
+        ]
+      },
+      "method": "POST",
+      "params": {},
+      "path": "/gmail/v1/users/me/messages/batchModify"
+    }
+  ],
+  "google_calendar.create_update_timed": [
+    {
+      "body": {
+        "end": {
+          "dateTime": "2026-11-02T11:00:00",
+          "timeZone": "UTC"
+        },
+        "id": "20blhqt7sbfihtegeul4b741i9q7um1mqrrmts35h01hhkqip0o0",
+        "start": {
+          "dateTime": "2026-11-02T10:00:00",
+          "timeZone": "UTC"
+        },
+        "summary": "Dentist"
+      },
+      "method": "POST",
+      "params": {},
+      "path": "/calendar/v3/calendars/primary/events"
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "params": {},
+      "path": "/calendar/v3/calendars/primary/events/evt-1"
+    },
+    {
+      "body": {
+        "end": {
+          "dateTime": "2026-11-02T11:00:00Z",
+          "timeZone": "UTC"
+        },
+        "start": {
+          "dateTime": "2026-11-02T10:00:00Z",
+          "timeZone": "UTC"
+        },
+        "summary": "Dentist"
+      },
+      "method": "PATCH",
+      "params": {},
+      "path": "/calendar/v3/calendars/primary/events/evt-1"
+    }
+  ],
+  "google_contacts.update_scalar_fields": [
+    {
+      "body": null,
+      "method": "GET",
+      "params": {
+        "personFields": "names,nicknames,photos,emailAddresses,phoneNumbers,addresses,biographies,birthdays,organizations,occupations,skills,relations,interests,events,calendarUrls,imClients,metadata,locations"
+      },
+      "path": "/v1/people/c1"
+    },
+    {
+      "body": {
+        "biographies": [
+          {
+            "contentType": "TEXT_PLAIN",
+            "value": "Met at a talk"
+          }
+        ],
+        "etag": "etag-1",
+        "names": [
+          {
+            "givenName": "Ada Lovelace"
+          }
+        ],
+        "organizations": [
+          {
+            "name": "Analytical"
+          }
+        ],
+        "resourceName": "people/c1"
+      },
+      "method": "PATCH",
+      "params": {
+        "updatePersonFields": "names,organizations,biographies"
+      },
+      "path": "/v1/people/c1:updateContact"
+    }
+  ],
+  "google_tasks.first_page": [
+    {
+      "body": null,
+      "method": "GET",
+      "params": {
+        "maxResults": "20",
+        "showCompleted": "false",
+        "showHidden": "false"
+      },
+      "path": "/tasks/v1/lists/@default/tasks"
+    }
+  ],
+  "microsoft_calendar.create_update_timed": [
+    {
+      "body": {
+        "end": {
+          "dateTime": "2026-11-02T11:00:00",
+          "timeZone": "UTC"
+        },
+        "start": {
+          "dateTime": "2026-11-02T10:00:00",
+          "timeZone": "UTC"
+        },
+        "subject": "Dentist",
+        "transactionId": "0f7fc7e3-d9c6-55c5-b2dc-069be067079e"
+      },
+      "method": "POST",
+      "params": {},
+      "path": "/v1.0/me/calendar/events"
+    },
+    {
+      "body": {
+        "end": {
+          "dateTime": "2026-11-02T11:00:00",
+          "timeZone": "UTC"
+        },
+        "start": {
+          "dateTime": "2026-11-02T10:00:00",
+          "timeZone": "UTC"
+        },
+        "subject": "Dentist"
+      },
+      "method": "PATCH",
+      "params": {},
+      "path": "/v1.0/me/events/graph-evt-1"
+    }
+  ],
+  "microsoft_contacts.first_page": [
+    {
+      "body": null,
+      "method": "GET",
+      "params": {
+        "$orderby": "surname,givenName",
+        "$select": "id,displayName,givenName,surname,middleName,emailAddresses,homePhones,businessPhones,mobilePhone,companyName,jobTitle,department,homeAddress,businessAddress,otherAddress,birthday,personalNotes,photo",
+        "$top": "25"
+      },
+      "path": "/v1.0/me/contacts"
+    }
+  ],
+  "microsoft_contacts.update_scalar_fields": [
+    {
+      "body": {
+        "companyName": "Analytical",
+        "displayName": "Ada Lovelace",
+        "givenName": "Ada",
+        "personalNotes": "Met at a talk",
+        "surname": "Lovelace"
+      },
+      "method": "PATCH",
+      "params": {},
+      "path": "/v1.0/me/contacts/graph-contact-1"
+    }
+  ],
+  "microsoft_tasks.first_page": [
+    {
+      "body": null,
+      "method": "GET",
+      "params": {
+        "$filter": "status ne 'completed'",
+        "$top": "20"
+      },
+      "path": "/v1.0/me/todo/lists/list-1/tasks"
+    }
+  ]
+}

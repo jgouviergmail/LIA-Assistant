@@ -190,6 +190,56 @@ class TestTheThreeNormalisersSpeakOneVocabulary:
         assert contract.labelIds == ["INBOX", "UNREAD"]
         _assert_clean_text_body(contract.body)
 
+    def test_graph_keeps_an_accented_sender_readable(self) -> None:
+        # formataddr RFC 2047-encoded every non-ASCII name: the model, the card
+        # and the reference matcher read « =?utf-8?b?…?= » instead of a person.
+        message = _graph_message()
+        message["from"]["emailAddress"]["name"] = "Jérôme Dupont"
+        message["toRecipients"] = [
+            {"emailAddress": {"name": "Dupont, Hélène", "address": "helene@example.com"}}
+        ]
+        out = normalize_graph_message(message)
+
+        assert out["from"] == "Jérôme Dupont <alice@example.com>"
+        assert out["to"] == '"Dupont, Hélène" <helene@example.com>'
+        assert "=?" not in out["from"] + out["to"]
+
+    def test_imap_keeps_the_names_its_headers_carry(self) -> None:
+        from imap_tools.utils import EmailAddress
+
+        message = _imap_message()
+        message.from_values = EmailAddress("Jérôme Dupont", "alice@example.com")
+        message.to_values = (EmailAddress("Bob", "bob@example.com"),)
+        message.cc_values = (EmailAddress("Dupont, Hélène", "helene@example.com"),)
+        message.reply_to_values = (EmailAddress("Help", "help@example.com"),)
+        out = normalize_imap_message(message, "INBOX")
+
+        assert out["from"] == "Jérôme Dupont <alice@example.com>"
+        assert out["to"] == "Bob <bob@example.com>"
+        assert out["cc"] == '"Dupont, Hélène" <helene@example.com>'
+        assert out["reply_to"] == "Help <help@example.com>"
+
+    def test_imap_without_a_from_header_has_no_sender(self) -> None:
+        message = _imap_message()
+        message.from_values = None
+        message.from_ = ""
+        assert normalize_imap_message(message, "INBOX")["from"] == ""
+
+    def test_a_reply_reads_the_named_sender_of_every_provider(self) -> None:
+        from imap_tools.utils import EmailAddress
+
+        from src.domains.connectors.clients.email_compose import reply_recipients
+
+        imap = _imap_message()
+        imap.from_values = EmailAddress("Jérôme Dupont", "alice@example.com")
+        graph = _graph_message()
+        graph["from"]["emailAddress"]["name"] = "Jérôme Dupont"
+        for out in (normalize_imap_message(imap, "INBOX"), normalize_graph_message(graph)):
+            to, _cc = reply_recipients(
+                out["from"], out["to"], out["cc"], own_address="bob@example.com", reply_all=False
+            )
+            assert to == "Jérôme Dupont <alice@example.com>"
+
     def test_a_text_body_is_never_touched(self) -> None:
         msg = _imap_message()
         msg.text = "Plain text with a < b comparison."

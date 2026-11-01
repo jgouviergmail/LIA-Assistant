@@ -1,9 +1,18 @@
+# Bootstrap tool versions are shared with DEV and the skill sandbox, and held
+# equal by test_one_value_one_owner_guard.py. pip's vendored trust store is
+# independent of the application's certifi; upgrading the latter cannot fix it.
+ARG PIP_VERSION=26.2.2
+ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
+ARG NPM_VERSION=12.2.1
+
 # Every stage starts from ONE Python image, pinned by version and digest
 # (dependency programme, lot 7): the skills sandbox runs on the same one
 # (Dockerfile.sandbox, held equal by test_sandbox_toolbox.py) and so does the
 # development image (Dockerfile.dev, test_one_value_one_owner_guard.py), and
 # Dependabot moves all of them in one pull request.
 FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS builder
+ARG PIP_VERSION
+ARG PIP_WHEEL_SHA256
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -14,6 +23,10 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/root/.local/bin:$PATH
 
 WORKDIR /build
+
+RUN printf 'pip==%s --hash=sha256:%s\n' "$PIP_VERSION" "$PIP_WHEEL_SHA256" > /tmp/lia-pip-bootstrap.txt \
+    && pip install --no-cache-dir --require-hashes --only-binary=:all: --upgrade -r /tmp/lia-pip-bootstrap.txt \
+    && rm /tmp/lia-pip-bootstrap.txt
 
 # The slim base excludes manpages required by bash and util-linux alternatives
 # during the upgrade. Seed the real files here as in the runtime stage below.
@@ -161,12 +174,19 @@ RUN set -eu; \
 # Runtime stage
 # =============================================================================
 FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+ARG PIP_VERSION
+ARG PIP_WHEEL_SHA256
+ARG NPM_VERSION
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH=/home/appuser/.local/bin:$PATH \
     BROWSER_CHROMIUM_EXECUTABLE=/usr/bin/chromium
+
+RUN printf 'pip==%s --hash=sha256:%s\n' "$PIP_VERSION" "$PIP_WHEEL_SHA256" > /tmp/lia-pip-bootstrap.txt \
+    && PIP_ROOT_USER_ACTION=ignore pip install --no-cache-dir --require-hashes --only-binary=:all: --upgrade -r /tmp/lia-pip-bootstrap.txt \
+    && rm /tmp/lia-pip-bootstrap.txt
 
 # Build provenance (audit F030) — pass at build time so the artifact carries its
 # own identity:  docker build --build-arg APP_VERSION=1.24.0 \
@@ -359,7 +379,7 @@ RUN mkdir -p /app/data/attachments /app/data/skills/users /app/data/tool_cache /
 # ran (the image built 2026-10-02); the `stable` channel's 2.1.285 would have
 # moved it BACK (ADR-331: a refresh never goes back).
 ARG CLAUDE_CODE_VERSION=2.1.287
-RUN npm install -g npm@12.1.0 \
+RUN npm install -g npm@${NPM_VERSION} \
     && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && rm -rf /root/.npm \
     && mkdir -p /opt/claude-workspace /home/appuser/.claude \

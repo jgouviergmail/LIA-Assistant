@@ -155,8 +155,6 @@ class TestIsSafeToCompact:
         """Safe when no HITL state is pending."""
         state = {
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
         result = service.is_safe_to_compact(state)
         assert result.safe is True
@@ -165,41 +163,15 @@ class TestIsSafeToCompact:
         """Unsafe when draft critique is pending."""
         state = {
             "pending_draft_critique": {"draft_id": "123"},
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
         result = service.is_safe_to_compact(state)
         assert result.safe is False
         assert result.reason == "hitl_pending_draft"
 
-    def test_unsafe_pending_disambiguation(self, service):
-        """Unsafe when entity disambiguation is pending."""
-        state = {
-            "pending_draft_critique": None,
-            "pending_entity_disambiguation": {"entity": "Jean"},
-            "pending_disambiguations_queue": [],
-        }
-        result = service.is_safe_to_compact(state)
-        assert result.safe is False
-        assert result.reason == "hitl_pending_disambiguation"
-
-    def test_unsafe_pending_queue(self, service):
-        """Unsafe when disambiguation queue is non-empty."""
-        state = {
-            "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [{"entity": "Marie"}],
-        }
-        result = service.is_safe_to_compact(state)
-        assert result.safe is False
-        assert result.reason == "hitl_pending_queue"
-
     def test_unsafe_pending_tool_confirmation(self, service):
         """Unsafe when tool confirmation is pending."""
         state = {
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
             "pending_tool_confirmation": {"tool": "delete_contact", "args": {}},
         }
         result = service.is_safe_to_compact(state)

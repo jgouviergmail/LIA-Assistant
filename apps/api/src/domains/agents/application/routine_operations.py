@@ -22,9 +22,11 @@ from src.domains.agents.application.routine_schemas import (
 )
 from src.domains.agents.application.routine_spec import ROUTINE_STATE_OPERATION
 from src.domains.agents.effects.digest import payload_digest
+from src.domains.scheduled_actions.mcp_preapproval import preapproval_names
 from src.domains.scheduled_actions.models import ScheduledAction
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
+from src.domains.shared.mcp_preapproval import stored_server_keys
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 
@@ -48,7 +50,14 @@ def routine_snapshot(row: ScheduledAction) -> RoutineSnapshot:
     configuration = {
         name: _JSON.validate_python(getattr(row, name)) for name in _CONFIGURATION_FIELDS
     }
-    configuration.update(user_timezone=row.user_timezone, created_at=row.created_at.isoformat())
+    configuration.update(
+        user_timezone=row.user_timezone,
+        created_at=row.created_at.isoformat(),
+        # Spec D9: a pre-approval changed after the card makes the command stale.
+        mcp_preapproved_servers=_JSON.validate_python(
+            sorted(stored_server_keys(row.mcp_preapproved_servers))
+        ),
+    )
     return RoutineSnapshot(
         id=row.id,
         title=row.title,
@@ -70,12 +79,16 @@ async def prepare_routine_state(
     row = await ScheduledActionService(db).get_with_ownership_check(validated.routine_id, actor_id)
     snapshot = routine_snapshot(row)
     await require_application_tools(db)
-    await load_actor(db, actor_id)
+    names = await preapproval_names(db, await load_actor(db, actor_id), row)
     before = RoutineStatePatch(
-        routine_state=RoutineStateValues(expected=snapshot, enabled=snapshot.enabled)
+        routine_state=RoutineStateValues(
+            expected=snapshot, enabled=snapshot.enabled, mcp_preapproval=names
+        )
     )
     after = RoutineStatePatch(
-        routine_state=RoutineStateValues(expected=snapshot, enabled=validated.enabled)
+        routine_state=RoutineStateValues(
+            expected=snapshot, enabled=validated.enabled, mcp_preapproval=names
+        )
     )
     return build_action_content(
         actor_id,

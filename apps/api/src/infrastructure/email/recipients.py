@@ -22,13 +22,16 @@ A refusal never quotes the address: an exception text reaches logs above DEBUG
 
 from __future__ import annotations
 
-from email.header import Header
+from email.errors import HeaderParseError
+from email.header import Header, decode_header, make_header
+from email.headerregistry import Address
 from email.utils import formataddr, getaddresses
 
 from src.core.validators import validate_email
 
 __all__ = [
     "encode_recipients",
+    "name_addr",
     "parse_recipients",
     "read_recipients",
     "recipient_segments",
@@ -171,6 +174,53 @@ def same_recipients(left: str | None, right: str | None) -> bool:
 
     named = readable(left)
     return named is not None and named == readable(right)
+
+
+def _one_line(value: str) -> str:
+    """Every run of whitespace, line breaks included, as one space."""
+    return " ".join(value.split())
+
+
+def _decoded(name: str) -> str:
+    """A display name with its RFC 2047 encoded words decoded, else unchanged."""
+    if "=?" not in name:
+        return name
+    try:
+        return str(make_header(decode_header(name)))
+    except HeaderParseError, LookupError, UnicodeDecodeError:
+        return name
+
+
+def name_addr(display_name: str | None, address: str | None) -> str:
+    """One mailbox as a person reads it: ``Name <address>``, quoted when needed.
+
+    The display form every normaliser publishes in the ``EmailMessage``
+    vocabulary and every reply header is rebuilt with (ADR-287). A name is kept
+    as written — encoding it for the wire is :func:`encode_recipients`' job, at
+    the moment a header is written: ``formataddr`` used here RFC 2047-encoded
+    every name outside ASCII, so « Jérôme » reached the model, the cards and the
+    reference matcher as ``=?utf-8?b?…?=``. A name a provider handed encoded is
+    decoded, and a display name is one line.
+
+    Args:
+        display_name: The name the provider gave, possibly encoded or empty.
+        address: The mailbox's address.
+
+    Returns:
+        ``Name <address>``; the address alone when no distinct name exists or
+        when it cannot be written as a mailbox (the provider's value is kept,
+        never dropped); the name alone when there is no address.
+    """
+    name = _one_line(_decoded(display_name or ""))
+    mailbox = _one_line(address or "")
+    if not mailbox:
+        return name
+    if not name or name.casefold() == mailbox.casefold():
+        return mailbox
+    try:
+        return str(Address(display_name=name, addr_spec=mailbox))
+    except ValueError, HeaderParseError:
+        return mailbox
 
 
 def encode_recipients(field: str) -> str:

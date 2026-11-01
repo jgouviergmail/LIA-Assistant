@@ -482,6 +482,11 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.EXCLUDED,
         reason="Rows carry encrypted MCP auth material (tokens, headers).",
     ),
+    "user_mcp_tool_choices": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.EXCLUDED,
+        reason="A tool's always/never-ask choice (D6) cascades from, and is excluded with, its server.",
+    ),
     "health_metric_tokens": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,

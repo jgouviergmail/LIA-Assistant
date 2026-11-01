@@ -10,8 +10,9 @@
  * also keeps every function at the size of what it asks.
  *
  * The component knows nothing about routines or reminders. What a consumer
- * allows travels in `limits`, so one editor serves a routine capped at twelve
- * runs a day and a reminder capped at forty-eight, with no branch of its own.
+ * allows travels in `limits`, so one editor serves a routine capped by its
+ * operator's settings (twelve runs a day by default, published by the API) and
+ * a reminder capped at forty-eight, with no branch of its own.
  *
  * Three rules it obeys, each paid for elsewhere in this codebase:
  *

@@ -20,13 +20,22 @@ import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { Button } from '@/components/ui/button';
 import { usePersonality } from '@/hooks/usePersonality';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
+
+const BOX =
+  'gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2';
+
 /**
  * Personality Selector
  *
  * Displays current personality and allows switching between all active personalities.
  * Updates the user's preference in the database.
+ *
+ * Args:
+ *   className: Added to the trigger's own box (the dashboard header passes its
+ *     icon slot).
  */
-export function PersonalitySelector() {
+export function PersonalitySelector({ className }: { className?: string } = {}) {
   const { t } = useTranslation();
   const { personalities, currentPersonality, loading, refreshing, updating, updatePersonality } =
     usePersonality();
@@ -58,9 +67,10 @@ export function PersonalitySelector() {
       <Button
         variant="ghost"
         size="sm"
-        className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
+        className={cn(BOX, className)}
         disabled
         aria-label={t('common.loading')}
+        title={t('common.loading')}
       >
         <Sparkles className="h-4 w-4 animate-pulse" />
         <span className="hidden xl:inline">...</span>
@@ -78,7 +88,7 @@ export function PersonalitySelector() {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
+          className={cn(BOX, className)}
           disabled={updating}
           // A reload of the catalogue (an administrator saving a style) must
           // announce itself without taking the control away: swapping it for
@@ -87,8 +97,10 @@ export function PersonalitySelector() {
           // The trigger shows the icon alone at EVERY width (owner rule
           // 2026-09-03: the header carries the personality's glyph, its name
           // lives in the menu), and an emoji is not an accessible name — so the
-          // name is carried explicitly and states the current value.
+          // name is carried explicitly and states the current value, and the
+          // tooltip says it on hover like every icon of the header (2026-10-31).
           aria-label={t('personality.selector_label', { name: displayTitle })}
+          title={t('personality.selector_label', { name: displayTitle })}
         >
           <AnimatedEmoji
             glyph={displayEmoji}

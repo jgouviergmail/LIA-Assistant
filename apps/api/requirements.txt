@@ -14,6 +14,7 @@
 fastapi==0.141.1  # 0.137+: an included router is a NODE of routes — the metrics label and tests/_routes.py walk the tree
 starlette>=1.7.0  # direct imports; 1.7 uses anyio.from_thread.BlockingPortal in TestClient, clearing the AnyIO 4.15 deprecation without suppressing it
 uvicorn[standard]==0.48.0
+websockets>=17.4  # GHSA-6m5v-9gmr-5665: bound fragmented-message frame buffering
 
 # Database
 sqlalchemy[asyncio]==2.0.54
@@ -104,7 +105,7 @@ click>=8.4.2  # via uvicorn: PYSEC-2026-2132 (command injection through click.ed
 dnspython>=2.9.0  # via caldav, email-validator: GHSA-45c3-73f7-pv4m (high, CPU exhaustion in dns.name.from_wire_parser)
 grpcio>=1.84.1  # via Google SDKs, grpcio-status and OTLP: GHSA-2xm2-c8xx-p9vh (bundled trust store)
 icalendar>=7.2.2  # via caldav, recurring-ical-events: GHSA-qjcq-q7h7-r74v (CVE-2026-77399)
-langgraph-sdk>=0.4.6  # via langgraph: GHSA-fvww-7h3r-vfhp (high), GHSA-3fx2-cqw9-xr3c (unencoded identifiers in streaming URLs)
+langgraph-sdk>=0.4.9  # prior URL security fixes; first patch accepting security-fixed websockets 17
 mako>=1.4.2  # via alembic, the migration template engine: GHSA-5639-2j2p-m4mx (CVE-2026-102991)
 maxminddb>=3.2.0  # via geoip2: GHSA-hj94-g986-h9r7
 multidict>=6.9.1  # via aiohttp, yarl: GHSA-54p9-h82j-f925
@@ -166,7 +167,7 @@ langsmith>=0.10.15  # Explicit tracing_context(enabled=False) for private human-
 langchain-deepseek==1.1.0  # content-block streaming v2. Still patched locally via _deepseek_patched.py: the #37178 reasoning_content round-trip fix is NOT in 1.1.0 (verified against the tag source, 2026-08-16)
 langchain-anthropic==1.5.6  # reasoning tokens in usage_metadata (ADR-220 accounting); Opus 5/Fable 5 model profiles. Requires anthropic>=0.120
 langchain-google-genai==4.3.4  # reasoning_effort standard param; new Gemini request rules. 4.3.0 removed the default temperature — no effect: LIA always passes it explicitly (adapter.py)
-google-genai>=2.10.0  # imported by src/ (the Gemini Live provider and its model listing); pulled by langchain-google-genai, declared because src/ uses it directly
+google-genai>=2.34.0  # websockets 17 security compatibility and clean Python 3.14 union-type imports
 langchain-ollama==1.1.0  # Native Ollama chat (ADR-267): think bool|level, num_ctx, num_predict, format JSON-schema, reasoning_content, usage on every response. Requires langchain-core>=1.2.21 (pinned 1.5.6 satisfies), ollama>=0.6.1
 ollama==0.6.2  # Ollama SDK, floor >=0.6.1 required by langchain-ollama 1.1.0 (no direct SDK import in src/)
 anthropic==0.122.0  # Anthropic SDK, floor >=0.120 required by langchain-anthropic 1.5.6 (no direct SDK import in src/)

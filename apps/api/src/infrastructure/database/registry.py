@@ -78,6 +78,7 @@ def import_all_models() -> None:
     import src.domains.telephony.models  # noqa: F401
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
+    import src.domains.user_mcp.tool_choices  # noqa: F401
     import src.domains.users.models  # noqa: F401
     import src.domains.voice.fishaudio.models  # noqa: F401
     import src.domains.workboard.models  # noqa: F401

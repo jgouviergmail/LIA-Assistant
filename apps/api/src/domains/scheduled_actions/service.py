@@ -10,7 +10,7 @@ schedule for a time routine, the system's checks for a condition routine
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -23,13 +23,15 @@ from src.core.exceptions import (
     ValidationError,
     raise_scheduled_action_already_executing,
 )
-from src.core.recurrence import RecurrenceSpec
+from src.core.recurrence import RecurrenceError, RecurrenceSpec
 from src.core.time_utils import now_utc
+from src.domains.scheduled_actions.errors import refuse_mcp_preapproval
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
     ScheduledActionStatus,
     TriggerKind,
 )
+from src.domains.scheduled_actions.recurrence_limits import routine_recurrence_limits
 from src.domains.scheduled_actions.repository import ScheduledActionRepository
 from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
 from src.domains.scheduled_actions.schemas import (
@@ -43,6 +45,10 @@ from src.domains.scheduled_actions.trigger import (
     condition_until,
 )
 from src.domains.scheduled_actions.week import ActionWeek, build_week, week_read_lower_bound
+from src.domains.user_mcp.callable_servers import callable_mcp_servers
+
+if TYPE_CHECKING:
+    from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
@@ -66,8 +72,27 @@ def _refuse_a_past_last_day(condition_config: Mapping[str, Any] | None, timezone
 
 
 def validate_routine_creation(data: ScheduledActionCreate, timezone: str) -> None:
-    """The same timezone and watch deadline are validated for UI writes and previews."""
+    """What a NEW routine must meet beyond its shape, for UI writes and previews alike.
+
+    The timezone, the watch deadline, and the schedule caps — the operator's
+    (ADR-268 amendment 2026-10-30), held here rather than in the schema because
+    the schema also re-reads stored routines, which a lowered cap must not make
+    unreadable.
+
+    Args:
+        data: The routine being created.
+        timezone: Its zone.
+
+    Raises:
+        ValidationError: On a schedule beyond the routine caps, or a watch set
+            to end on a day already over.
+    """
     ZoneInfo(timezone)
+    if data.recurrence is not None:
+        try:
+            data.recurrence.validate_against(routine_recurrence_limits())
+        except RecurrenceError as exc:
+            raise ValidationError(str(exc)) from exc
     _refuse_a_past_last_day(
         data.condition_config.stored() if data.condition_config else None, timezone
     )
@@ -432,6 +457,42 @@ class ScheduledActionService:
             is_enabled=enabled,
         )
 
+        return action
+
+    async def set_mcp_preapproval(
+        self, action: ScheduledAction, user: User, servers: list[str] | None
+    ) -> ScheduledAction:
+        """Write the MCP servers a run of this routine may confirm for itself (spec D9).
+
+        Only the routine form's REST route calls this: no schema the agent's
+        routine tools build carries the field.
+
+        Args:
+            action: The routine, already owned by ``user``.
+            user: The account, whose callable servers bound the selection.
+            servers: The ticked keys; None or empty clears the pre-approval.
+
+        Returns:
+            The routine, written.
+
+        Raises:
+            BaseAPIException: 400 ``routine_mcp_server_not_callable`` when a key
+                names a server the account cannot call — nothing is written.
+        """
+        stored: list[str] | None = None
+        if servers:
+            callable_servers = await callable_mcp_servers(self.db, user)
+            refused = [key for key in servers if key not in callable_servers]
+            if refused:
+                refuse_mcp_preapproval(list(dict.fromkeys(refused)))
+            # Once each, in the order the account's servers are listed.
+            stored = [key for key in callable_servers if key in servers]
+        action = await self.repository.update(action, {"mcp_preapproved_servers": stored})
+        logger.info(
+            "scheduled_action_mcp_preapproval_set",
+            action_id=str(action.id),
+            servers_count=len(stored or ()),
+        )
         return action
 
     async def list_for_user(self, user_id: UUID) -> list[ScheduledAction]:

@@ -3,7 +3,10 @@
 from pydantic.json_schema import JsonSchemaValue
 
 from src.core.config import settings
-from src.domains.agents.application.preference_fields import PREFERENCE_FIELDS
+from src.domains.agents.application.preference_fields import (
+    PREFERENCE_FIELDS,
+    PREFERENCE_TIGHTEN_ONLY,
+)
 from src.domains.shared.schemas import VALID_COLOR_THEMES, VALID_FONT_FAMILIES, VALID_THEMES
 from src.domains.users.models import User
 
@@ -21,6 +24,15 @@ _CHOICES = {
 
 def patch_property_schema(name: str, value: JsonSchemaValue) -> JsonSchemaValue:
     result = dict(value)
+    if name in PREFERENCE_TIGHTEN_ONLY:
+        # The bound the write enforces is the bound published (ADR-184).
+        allowed, why = PREFERENCE_TIGHTEN_ONLY[name]
+        return {
+            "title": result.get("title", name),
+            "type": "boolean",
+            "const": allowed,
+            "description": why,
+        }
     if name in NON_NULL_PREFERENCE_FIELDS:
         alternatives = [item for item in result.pop("anyOf", []) if item.get("type") != "null"]
         if len(alternatives) == 1:

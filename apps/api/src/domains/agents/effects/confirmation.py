@@ -29,7 +29,9 @@ from typing import Any
 
 import structlog
 
+from src.core.field_names import FIELD_SUCCESS
 from src.core.i18n_drafts import label_separator
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects.scope import EffectScope, current_scope, effect_scope
 
@@ -136,7 +138,8 @@ async def execute_tool_call_draft(
             dependencies from the run context, as it does on the first attempt.
 
     Returns:
-        The tool's own result, or a failure payload naming what went wrong.
+        The tool's own result in the executors' dict contract, or a failure
+        payload naming what went wrong.
     """
     from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 
@@ -174,5 +177,37 @@ async def execute_tool_call_draft(
     )
     logger.info("confirmed_tool_call_replayed", tool_name=tool_name)
     with effect_scope(scope):
-        result: dict[str, Any] = await coroutine(**tool_args)
-    return result
+        result: object = await coroutine(**tool_args)
+    return _executor_result(result)
+
+
+def _executor_result(result: object) -> dict[str, Any]:
+    """The replayed tool's answer in the draft executors' dict contract.
+
+    Every executor hands back a dict: the result card, the response and the
+    checkpoint read it (``DraftExecutionResult.result_data``). A tool answers in
+    the shape it was written in — an MCP adapter with a ``UnifiedToolOutput``,
+    which the executor read as a dict: the act ran, and the person was told it
+    had failed (measured 2026-10-30). The dump keeps the verdict, the data and
+    the registry items, so the answer can still be projected as a step's result.
+
+    Args:
+        result: What the tool returned.
+
+    Returns:
+        A JSON-safe dict carrying the tool's own verdict.
+    """
+    if isinstance(result, dict):
+        return result
+    dump = getattr(result, "model_dump", None)
+    if callable(dump):
+        try:
+            dumped: dict[str, Any] = dump(mode="json")
+            return dumped
+        except ValueError:
+            # A value no JSON can carry: the verdict and the words still can.
+            logger.warning("confirmed_tool_call_result_unserialisable", type=type(result).__name__)
+    return {
+        FIELD_SUCCESS: explicit_success(result),
+        "message": str(getattr(result, "message", None) or result),
+    }

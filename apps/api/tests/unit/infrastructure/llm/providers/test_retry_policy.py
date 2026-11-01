@@ -41,15 +41,7 @@ from src.infrastructure.llm.providers import adapter as adapter_module
 from src.infrastructure.llm.providers.adapter import ProviderAdapter, ProviderType
 from src.infrastructure.llm.providers.retry_policy import never_reached_the_server
 
-pytestmark = [
-    pytest.mark.unit,
-    # google-genai's own 5xx path over aiohttp leaves `ClientResponse.json()` un-awaited
-    # (google/genai/_api_client.py) — the vendor's coroutine, not LIA's; the Gemini status
-    # test must still run, so only that exact warning is filtered.
-    pytest.mark.filterwarnings(
-        "ignore:coroutine 'ClientResponse.json' was never awaited:RuntimeWarning"
-    ),
-]
+pytestmark = pytest.mark.unit
 
 #: The read timeout every client is built with; the « slow » server answers after it.
 TIMEOUT_S = 0.5

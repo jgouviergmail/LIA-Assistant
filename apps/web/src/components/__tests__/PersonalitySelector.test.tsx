@@ -85,6 +85,15 @@ describe('PersonalitySelector', () => {
     expect(trigger).not.toHaveTextContent('Cynique');
   });
 
+  /** Owner rule (2026-10-31): every icon of the header names itself on hover. */
+  it('names the current personality in the tooltip too', () => {
+    render(<PersonalitySelector />);
+    expect(screen.getByRole('button', { name: 'personality.selector_label' })).toHaveAttribute(
+      'title',
+      'personality.selector_label'
+    );
+  });
+
   it('names the trigger while loading, when no title exists at all', () => {
     mockReturn.loading = true;
     render(<PersonalitySelector />);

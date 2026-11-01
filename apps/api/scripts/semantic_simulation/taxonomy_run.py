@@ -39,6 +39,8 @@ def _prompt(case: TaxonomyRoutingCase, menu: list[dict[str, str]]) -> str:
         connected_peers="None",
         memory_facts="None",
         conversation_history="None",
+        # What production renders when nothing was shown (ADR-367).
+        shown_items="None",
         user_location="Not available",
         window_size=5,
         user_query=case.query,

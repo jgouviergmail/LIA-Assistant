@@ -168,7 +168,7 @@ class UserMCPToolAdapter(EffectGatedMCPTool, BaseTool):
     timeout_seconds: int = 30
     app_resource_uri: str | None = None
     #: Server-declared behaviour hints. UNTRUSTED per the MCP spec: read only
-    #: where they TIGHTEN a decision (see ``declares_destructive_tool``).
+    #: where they TIGHTEN a decision (see ``derive_mcp_mutation_policy``).
     annotations: dict[str, Any] | None = None
 
     @classmethod

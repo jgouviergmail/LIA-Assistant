@@ -27,6 +27,7 @@ def mock_context_definition():
     definition = Mock(spec=ContextTypeDefinition)
     definition.context_type = "contacts"
     definition.reference_fields = ["name", "emails", "phones"]
+    definition.content_reference_fields = []
     definition.display_name_field = "name"
     return definition
 
@@ -314,12 +315,11 @@ class TestResolveArticleRemoval:
         resolver._keyword_map = {}
         resolver.confidence_threshold = 0.7
 
-        # "Jean Dupond" should try fuzzy match (no article removal)
+        # "Jean Dupond" is matched by its words (no article removal)
         result = resolver.resolve("Jean Dupond", sample_items)
 
-        # Should succeed via fuzzy match
         assert result.success is True
-        assert result.match_type == "fuzzy"
+        assert result.match_type == "exact"
 
 
 class TestResolveFuzzyMatch:
@@ -337,8 +337,8 @@ class TestResolveFuzzyMatch:
 
         assert result.success is True
         assert result.item["name"] == "Jean Dupond"
-        assert result.match_type == "fuzzy"
-        assert result.confidence == 1.0  # Exact match
+        assert result.match_type == "exact"  # Every word carried (ADR-367)
+        assert result.confidence == 1.0
 
     def test_resolve_fuzzy_substring_match(self, mock_context_definition, sample_items):
         """Test fuzzy match with substring 'Jean' → 'Jean Dupond'."""
@@ -352,8 +352,8 @@ class TestResolveFuzzyMatch:
 
         assert result.success is True
         assert result.item["name"] == "Jean Dupond"
-        assert result.match_type == "fuzzy"
-        assert result.confidence >= 0.7  # Above threshold, boosted substring match
+        assert result.match_type == "exact"  # « Jean » is a word of the name
+        assert result.confidence >= 0.7
 
     def test_resolve_fuzzy_match_on_email(self, mock_context_definition, sample_items):
         """Test fuzzy match on email field."""
@@ -367,7 +367,7 @@ class TestResolveFuzzyMatch:
 
         assert result.success is True
         assert result.item["name"] == "Marie Martin"
-        assert result.match_type == "fuzzy"
+        assert result.match_type == "exact"
 
     def test_resolve_fuzzy_match_on_phone(self, mock_context_definition, sample_items):
         """Test fuzzy match on phone field (list field)."""
@@ -659,8 +659,8 @@ class TestResolveLogging:
             call_args = mock_logger.debug.call_args[0]
             assert call_args[0] == "reference_resolved_by_keyword"
 
-    def test_resolve_logs_fuzzy_resolution(self, mock_context_definition, sample_items):
-        """Test that resolve logs when resolved by fuzzy match."""
+    def test_resolve_logs_word_resolution(self, mock_context_definition, sample_items):
+        """Test that resolve logs when resolved by the reference's words."""
         resolver = ReferenceResolver(mock_context_definition)
         resolver._ordinal_patterns = []
         resolver._ordinal_map = {}
@@ -672,7 +672,23 @@ class TestResolveLogging:
 
             mock_logger.debug.assert_called_once()
             call_args = mock_logger.debug.call_args[0]
-            assert call_args[0] == "reference_resolved_by_fuzzy"
+            assert call_args[0] == "reference_resolved_by_words"
+
+    def test_a_typo_still_resolves_by_similarity(self, mock_context_definition, sample_items):
+        """A word no item carries falls back to whole-string similarity."""
+        resolver = ReferenceResolver(mock_context_definition)
+        resolver._ordinal_patterns = []
+        resolver._ordinal_map = {}
+        resolver._keyword_map = {}
+        resolver.confidence_threshold = 0.7
+
+        with patch("src.domains.agents.context.resolver.logger") as mock_logger:
+            result = resolver.resolve("Jean Dupon", sample_items)
+
+            assert result.success is True
+            assert result.item["name"] == "Jean Dupond"
+            assert result.match_type == "fuzzy"
+            assert mock_logger.debug.call_args[0][0] == "reference_resolved_by_fuzzy"
 
     def test_resolve_logs_not_found(self, mock_context_definition, sample_items):
         """Test that resolve logs when reference not found."""

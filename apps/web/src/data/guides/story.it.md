@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 3.0
-**Data**: 2026-10-23
-**Applicazione**: LIA v4.2.0
+**Data**: 2026-11-01
+**Applicazione**: LIA v4.3.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA. Il mio lavoro è stato 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA, diretta, inquadrata e controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test), suddivise in 60 pacchetti di dominio backend | **1.059.000+** |
-| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **69.000+** |
-| Decisioni di architettura documentate (ADR) | **364** |
-| Versioni rilasciate a ritmo regolare | **292** |
+| Righe di codice sorgente (esclusi i test), suddivise in 60 pacchetti di dominio backend | **1.092.046** |
+| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **72.136** |
+| Decisioni di architettura documentate (ADR) | **367** |
+| Versioni rilasciate a ritmo regolare | **293** |
 | Lingue, con una parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,9/10** |
 
@@ -62,7 +62,9 @@ Il mondo condiviso dà all'assistente dei luoghi: una biblioteca per le conoscen
 
 ## 4. Gli arbitraggi
 
-Ecco tre decisioni strutturanti, tra le 364 documentate.
+Volevo anche che un assistente lasciasse spazio alle cose fatte in prima persona. Strumenti utilizza gli stessi servizi collegati, ma un clic non chiama modelli e non viene registrato come un atto di LIA. Delega e controllo diretto possono condividere un’interfaccia se resta chiaro chi ha deciso, chi ha agito e che cosa è stato approvato.
+
+Ecco tre decisioni strutturanti, tra le 367 documentate.
 
 La prima riguarda la **sovranità**: non volevo alcuna dipendenza irreversibile da un fornitore. I modelli di IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity e modelli locali con Ollama) passano tutti per una stessa astrazione, così ogni utilizzo può cambiare fornitore con una semplice configurazione, con il confronto dei costi. Quanto ai servizi, Google, Apple e Microsoft sono intercambiabili per ogni categoria, che si tratti di posta, agenda o contatti. L'auto-hosting dà il controllo del server: i dati dell'account sono conservati sull'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che la persona sceglie ricevono comunque i dati utili alla loro parte della richiesta.
 
@@ -116,4 +118,4 @@ Ecco che cosa cambia questa esperienza nel mio modo di dirigere.
 - Tra il divieto generale e la fiducia cieca esiste una **via governabile**. Il controllo umano graduato si specifica, si testa e si sottopone ad audit. È l'approccio che stanno delineando le esigenze normative, ed è operativo fin da ora.
 - Un dirigente che pratica in prima persona **arbitra meglio**. Fare o far fare, accettare un debito o no, credere o no alla promessa di un fornitore: queste decisioni diventano più giuste quando si è toccata la materia con mano. Questo progetto è il mio modo di mantenere questo contatto con il terreno.
 
-*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall'audit del 25 ottobre 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 26 ottobre 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall'audit del 25 ottobre 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 31 ottobre 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

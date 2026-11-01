@@ -20,6 +20,8 @@ from src.domains.connectors.clients.email_attachments import (
     ensure_within_bound,
     select_attachment,
 )
+from src.domains.connectors.clients.path_segments import path_segment
+from src.domains.connectors.models import ConnectorType
 
 
 class _GmailAttachmentReader(Protocol):
@@ -150,9 +152,11 @@ class GmailAttachmentsMixin:
         Returns:
             Raw attachment bytes.
         """
+        message = path_segment(message_id, connector_type=ConnectorType.GOOGLE_GMAIL)
+        attachment = path_segment(attachment_id, connector_type=ConnectorType.GOOGLE_GMAIL)
         response = await self._make_request(
             "GET",
-            f"/users/me/messages/{message_id}/attachments/{attachment_id}",
+            f"/users/me/messages/{message}/attachments/{attachment}",
         )
 
         return decode_gmail_part_body(response)

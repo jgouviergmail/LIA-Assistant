@@ -29,6 +29,11 @@ it('preserves typed workboard filters/tickets, settings, drafts, messages and me
     kind: 'settings',
     token: 'memories',
   });
+  expect(dashboardDestination('/fr/dashboard/sms?message=' + id)).toEqual({
+    kind: 'sms',
+    messageId: id,
+  });
+  // A link written before the « SMS » page still names the message.
   expect(dashboardDestination('/dashboard/settings?section=sms&message=' + id)).toEqual({
     kind: 'sms',
     messageId: id,
@@ -52,6 +57,8 @@ it.each([
   '/en/dashboard/capabilities',
   '/en/dashboard/workboard/%ZZ',
   '/en/dashboard/workboard/%2foutside',
+  '/en/dashboard/sms?message=not-a-message-id',
+  '/en/dashboard/sms/extra?message=10000000-0000-4000-8000-000000000001',
 ])('keeps unsupported or executable native navigation outside the embedded adapter: %s', href => {
   expect(dashboardDestination(href)).toBeNull();
 });

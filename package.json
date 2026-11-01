@@ -1,6 +1,6 @@
 {
   "name": "lia",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "LIA - AI-powered personal assistant monorepo",
@@ -35,6 +35,8 @@
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
       "brace-expansion": "^5.0.12",
+      "rimraf>glob": "^14.0.3",
+      "minimatch@>=9 <11": "^11.0.3",
       "vite": "^8.3.3",
       "protobufjs": "^7.6.3",
       "uuid": "^11.1.1",
@@ -60,8 +62,16 @@
     },
     "auditConfig": {
       "ignoreGhsas": [
-        "GHSA-vfj7-8cjw-p6xm"
+        "GHSA-vfj7-8cjw-p6xm",
+        "GHSA-g3hv-75wg-m249"
       ]
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint-plugin-import@2.32.0>eslint": "^10.0.0",
+        "eslint-plugin-jsx-a11y@6.10.2>eslint": "^10.0.0",
+        "eslint-plugin-react@7.37.5>eslint": "^10.0.0"
+      }
     }
   }
 }

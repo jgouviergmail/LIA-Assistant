@@ -278,3 +278,11 @@ address, was moved to the trash.
 - **Permanent deletion**: every provider offers a recoverable trash.
 - **Drafts through `get_emails_tool`**: a draft is not a received message, and
   its message id must never be answered.
+
+## Amendment 2026-10-30 — a reply draft names the message it answers ([ADR-367](ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md))
+
+A reply draft saved without confirmation was recorded as « a reply draft was saved »: on
+2026-10-29 one answered a message the person had never been shown, and the register could not say
+which. Its label now names the answered message's subject when the turn's registry holds it, and a
+description (« reply to Marc's e-mail ») is resolved against the e-mails the person was shown —
+asked about when several fit — before any draft is saved.

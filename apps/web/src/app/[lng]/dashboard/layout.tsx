@@ -20,7 +20,6 @@ import { OnboardingTutorial } from '@/components/onboarding';
 import { AvatarProvider } from '@/components/avatars/AvatarProvider';
 import { AvatarPreferenceSaveProvider } from '@/components/avatars/AvatarPreferenceSaveProvider';
 import { worldAvailable } from '@/features/world/availability';
-import { capabilityEnabled } from '@/lib/capability-state';
 import { ApplicationEyes } from '@/components/eyes/ApplicationEyes';
 import { usePsycheStore } from '@/stores/psycheStore';
 import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
@@ -38,7 +37,14 @@ import { RadioControl } from '@/components/radio/RadioControl';
 import { AppConfigSeedContext, useAppConfig } from '@/hooks/useAppConfig';
 import { originFromPathname, withOrigin } from '@/lib/back-origin';
 import { radioAvailable } from '@/lib/radio/availability';
-import { destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
+import {
+  destinationPath,
+  HEADER_ICON_GAP,
+  HEADER_ICON_SLOT,
+  visibleDestinations,
+} from '@/lib/dashboard-nav';
+import { workbenchAvailable } from '@/lib/workbench/availability';
+import { smsAvailable } from '@/lib/sms/availability';
 import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
 import {
@@ -47,10 +53,12 @@ import {
   LayoutDashboard,
   Users,
   MessageSquare,
+  MessageSquareText,
   Settings,
   HelpCircle,
   LogOut,
   Map as MapIcon,
+  Wrench,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -63,8 +71,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 const DESTINATION_ICONS: Record<DashboardDestination['segment'], typeof LayoutDashboard> = {
   '': LayoutDashboard,
   chat: MessageSquare,
+  tools: Wrench,
   world: MapIcon,
   relations: Users,
+  sms: MessageSquareText,
   meetings: ClipboardList,
   notifications: Bell,
   settings: Settings,
@@ -108,6 +118,8 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const destinations = visibleDestinations({
     ...appConfig?.features,
     world_enabled: worldAvailable(appConfig),
+    workbench_enabled: workbenchAvailable(appConfig),
+    sms_enabled: smsAvailable(appConfig),
   });
   // ADR-324: the radio is offered — header control, logo-menu entry, bar —
   // only where the instance offers it NOW (the operator's switch included).
@@ -144,9 +156,10 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
   };
 
-  // Nav link classes based on active state (route = 'chat', 'settings', 'faq', or '' for home)
+  // Nav link classes based on active state (route = 'chat', 'settings', 'faq', or '' for home):
+  // an icon alone, in the slot every icon of the row takes.
   const navLinkClass = (route: string) =>
-    `inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all hover:bg-primary/10 hover:text-primary hover:shadow-sm ${
+    `inline-flex shrink-0 items-center justify-center rounded-lg ${HEADER_ICON_SLOT} transition-all hover:bg-primary/10 hover:text-primary hover:shadow-sm ${
       isActiveRoute(route)
         ? 'bg-primary/15 text-primary shadow-sm border border-primary/20'
         : // muted-foreground is the AA-proven de-emphasis token; an alpha of
@@ -274,7 +287,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                       {/* R01: rendered from DASHBOARD_DESTINATIONS — the same table the
                   mobile menu maps, as dashboard-nav.ts always claimed. The
                   hand-maintained copy here was the drift this kills. */}
-                      <nav className="hidden min-w-0 lg:flex items-center gap-1">
+                      <nav className={`hidden min-w-0 lg:flex items-center ${HEADER_ICON_GAP}`}>
                         {destinations.map(destination => {
                           const { segment, labelKey } = destination;
                           const Icon = DESTINATION_ICONS[segment];
@@ -287,19 +300,12 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                               aria-label={t(labelKey)}
                               title={t(labelKey)}
                             >
-                              {/* Below `2xl` the row shows ICONS only. Six labels are
-                          163 px wider than five in German (measured in the
-                          app's font), and five already clipped between 768 and
-                          1024 px — the reason this nav starts at `lg` at all.
-                          The SEVENTH (meetings, ADR-258) was paid for on the
-                          controls side; with the radio's control (ADR-324) the
-                          labels no longer fit at 1280 px in German (measured
-                          2026-09-26 — meetings alone already overlapped), so
-                          they wait for `2xl`, where the row is wider. The label
-                          stays the accessible name, so nothing is lost for
-                          assistive technology or on hover. */}
+                              {/* The ICON alone, at every width (owner, 2026-10-31):
+                          the labels used to appear at `2xl`, and ten of them no
+                          longer fit even there. The label is the accessible name
+                          and the tooltip, and the logo's menu writes it out
+                          below `lg` (dashboard-nav.ts keeps the history). */}
                               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                              <span className="hidden 2xl:inline">{t(labelKey)}</span>
                             </Link>
                           );
                         })}
@@ -313,40 +319,54 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 Pinned by the header-reachability spec. */}
                     <div className="flex shrink-0 items-center flex-1 lg:flex-none">
                       {/* Icons container - evenly spaced while the logo-menu layout is
-                  active (below `lg` since R01), tighter once the nav is back. */}
-                      <div className="flex items-center flex-1 justify-evenly lg:justify-end lg:gap-1 xl:gap-3">
-                        <ExecutionModeToggle lng={lng} />
+                  active (below `lg` since R01); from `lg` every control takes
+                  the destinations' slot and gap, so both sides of the row stand
+                  at one pitch (owner, 2026-10-31). The wrappers are flex boxes:
+                  a block holding an inline button adds a line's descent under
+                  it and lifts the icon off the row's centre. */}
+                      <div
+                        className={`flex items-center flex-1 justify-evenly lg:justify-end ${HEADER_ICON_GAP}`}
+                      >
+                        <ExecutionModeToggle lng={lng} className={HEADER_ICON_SLOT} />
                         {/* ADR-259: record / stop a meeting from any page. Below `lg`
                     the logo menu carries the same command (no width for a
                     seventh control on a phone — measured). */}
-                        <div className="hidden lg:block">
-                          <MeetingRecorderControl lng={lng} />
+                        <div className="hidden lg:flex">
+                          <MeetingRecorderControl lng={lng} className={HEADER_ICON_SLOT} />
                         </div>
                         {/* ADR-324: the radio on and off from any page; below `lg`
                     the logo menu carries it, like the recorder. */}
-                        <div className="hidden lg:block">
-                          <RadioControl lng={lng} enabled={radioEnabled} />
+                        <div className="hidden lg:flex">
+                          <RadioControl
+                            lng={lng}
+                            enabled={radioEnabled}
+                            className={HEADER_ICON_SLOT}
+                          />
                         </div>
-                        <VoiceToggle lng={lng} />
+                        <VoiceToggle lng={lng} className={HEADER_ICON_SLOT} />
                         {/* Token counters are observation, not action: they only earn
                     their width once the row has room to spare. That moved from
                     `xl` to `2xl` when a SIXTH destination joined the nav —
                     measured at 1280 px in German, the last nav link and the
                     first control overlapped, and the counters are the one
                     element in the row nobody navigates with. */}
-                        <div className="hidden 2xl:block">
-                          <TokensDisplayToggle lng={lng} />
+                        <div className="hidden 2xl:flex">
+                          <TokensDisplayToggle lng={lng} className={HEADER_ICON_SLOT} />
                         </div>
-                        <ThemeToggle />
-                        <PersonalitySelector />
-                        <LanguageSelector currentLocale={lng} />
+                        <ThemeToggle className={HEADER_ICON_SLOT} />
+                        <PersonalitySelector className={HEADER_ICON_SLOT} />
+                        <LanguageSelector currentLocale={lng} className={HEADER_ICON_SLOT} />
                       </div>
 
                       {/* Logout button — never compressible: signing out must stay
-                  possible at every width. */}
+                  possible at every width. From `lg` it takes the row's slot;
+                  its margin is wider than the icons' gap because the eye
+                  measures a FILLED box from its edge, not from its glyph — 12 px
+                  sets that edge as far from the flag as one glyph stands from
+                  the next. */}
                       <button
                         onClick={logout}
-                        className="flex shrink-0 items-center justify-center h-11 w-11 max-[380px]:h-9 max-[380px]:w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-2 xl:ml-3 shadow-sm"
+                        className={`flex shrink-0 items-center justify-center h-11 w-11 max-[380px]:h-9 max-[380px]:w-9 ${HEADER_ICON_SLOT} rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/90 ml-2 lg:ml-3 shadow-sm`}
                         title={t('navigation.logout')}
                         aria-label={t('navigation.logout')}
                       >
@@ -385,11 +405,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 <ApplicationEyes
                   hidePresentation={presentation.hideEyes}
                   ownerId={user?.id}
-                  smsEnabled={capabilityEnabled(
-                    appConfig?.capabilities,
-                    'sms',
-                    appConfig?.features.sms_enabled
-                  )}
+                  smsEnabled={smsAvailable(appConfig)}
                 />
                 {/* The pinned settings sections, on every dashboard screen (ADR-277);
             renders nothing until one is pinned. */}

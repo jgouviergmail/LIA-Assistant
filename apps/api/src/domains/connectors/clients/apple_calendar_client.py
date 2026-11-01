@@ -12,7 +12,7 @@ Always use calendar.search() + client-side UID filter.
 Created: 2026-03-10
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -24,6 +24,7 @@ from src.core.config import settings
 from src.core.read_budget import current_read_owner, source_dav_request, source_http_hooks
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
+from src.domains.connectors.clients.normalizers.all_day import all_day_dates
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
     normalize_vevent,
@@ -200,6 +201,7 @@ class AppleCalendarClient(BaseAppleClient):
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
+        all_day: bool = False,
     ) -> dict[str, Any]:
         """Create a new event.
 
@@ -229,6 +231,7 @@ class AppleCalendarClient(BaseAppleClient):
             attendees,
             calendar_id,
             uid=provider_idempotency_id(idempotency_key or uuid4().hex, "apple"),
+            all_day=all_day,
         )
 
     async def update_event(
@@ -242,8 +245,13 @@ class AppleCalendarClient(BaseAppleClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        all_day: bool | None = None,
+        send_updates: str | None = None,
     ) -> dict[str, Any]:
-        """Update an existing event (full PUT, no PATCH on iCloud)."""
+        """Update an existing event (full PUT, no PATCH on iCloud).
+
+        ``send_updates`` is unused: CalDAV leaves scheduling to the server (ADR-369).
+        """
         return await self._execute_with_retry(
             "update_event",
             self._update_event_impl,
@@ -256,6 +264,22 @@ class AppleCalendarClient(BaseAppleClient):
             location,
             attendees,
             calendar_id,
+            all_day=all_day,
+        )
+
+    async def list_events_window(
+        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+    ) -> dict[str, Any]:
+        """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
+
+        One REPORT; the server (or caldav) expands the recurrences, and the
+        answer is cut at ``bound`` in start order, saying so.
+
+        Returns:
+            ``{"events": [...], "truncated": bool}``.
+        """
+        return await self._execute_with_retry(
+            "list_events_window", self._events_window_impl, calendar_id, time_min, time_max, bound
         )
 
     async def delete_event(
@@ -402,6 +426,39 @@ class AppleCalendarClient(BaseAppleClient):
 
         return {"items": items[:max_results]}
 
+    def _bounds(
+        self, start: str, end: str, timezone: str | None, *, all_day: bool
+    ) -> tuple[date | datetime, date | datetime]:
+        """DTSTART/DTEND values: dates (``VALUE=DATE``, end exclusive) or zoned times."""
+        if all_day:
+            return all_day_dates(start, end)
+        # Parse WITHOUT stamping UTC so the requested timezone can apply to
+        # naive inputs; _apply_timezone falls back to UTC when timezone is None.
+        return (
+            self._apply_timezone(_parse_iso_datetime(start, assume_utc=False), timezone),
+            self._apply_timezone(_parse_iso_datetime(end, assume_utc=False), timezone),
+        )
+
+    async def _events_window_impl(
+        self, calendar_id: str, time_min: str, time_max: str, bound: int
+    ) -> dict[str, Any]:
+        """One expanded REPORT over the window, cut at ``bound``."""
+        calendar = await self._get_calendar(calendar_id)
+        found = await calendar.search(
+            start=_parse_iso_datetime(time_min),
+            end=_parse_iso_datetime(time_max),
+            event=True,
+            expand=True,
+        )
+        events: list[dict[str, Any]] = []
+        for event in found or []:
+            try:
+                events.append(normalize_vevent(event))
+            except Exception as error:
+                logger.warning("apple_calendar_event_parse_error", error_type=type(error).__name__)
+        events.sort(key=_start_instant)
+        return {"events": events[:bound], "truncated": len(events) > bound}
+
     async def _get_event_impl(
         self,
         event_id: str,
@@ -429,16 +486,11 @@ class AppleCalendarClient(BaseAppleClient):
         calendar_id: str,
         *,
         uid: str,
+        all_day: bool = False,
     ) -> dict[str, Any]:
         """Create a new event via CalDAV, under the ``uid`` its caller fixed."""
         calendar = await self._get_calendar(calendar_id)
-
-        # Parse WITHOUT stamping UTC so the requested timezone can apply to
-        # naive inputs; _apply_timezone falls back to UTC when timezone is None.
-        dtstart = self._apply_timezone(
-            _parse_iso_datetime(start_datetime, assume_utc=False), timezone
-        )
-        dtend = self._apply_timezone(_parse_iso_datetime(end_datetime, assume_utc=False), timezone)
+        dtstart, dtend = self._bounds(start_datetime, end_datetime, timezone, all_day=all_day)
 
         kwargs: dict[str, Any] = {
             "uid": uid,
@@ -474,6 +526,8 @@ class AppleCalendarClient(BaseAppleClient):
         location: str | None,
         attendees: list[str] | None,
         calendar_id: str,
+        *,
+        all_day: bool | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing event (full PUT, no PATCH on iCloud).
@@ -492,34 +546,24 @@ class AppleCalendarClient(BaseAppleClient):
         if summary is not None:
             vevent.summary.value = summary
 
+        if all_day is not None:
+            # A switch of shape carries both bounds (ADR-369): dates, or zoned times.
+            if start_datetime is None or end_datetime is None:
+                raise ValueError("Turning an event all-day or timed needs its new start and end.")
+            _set_bounds(
+                vevent, *self._bounds(start_datetime, end_datetime, timezone, all_day=all_day)
+            )
+            start_datetime = end_datetime = None
+
         if start_datetime is not None:
             dt = _parse_iso_datetime(start_datetime, assume_utc=False)
             vevent.dtstart.value = self._apply_timezone(dt, timezone)
 
         if end_datetime is not None:
             dt = _parse_iso_datetime(end_datetime, assume_utc=False)
-            vevent.dtend.value = self._apply_timezone(dt, timezone)
+            _write_end(vevent, self._apply_timezone(dt, timezone))
 
-        if description is not None:
-            if hasattr(vevent, "description"):
-                vevent.description.value = description
-            else:
-                vevent.add("description").value = description
-
-        if location is not None:
-            if hasattr(vevent, "location"):
-                vevent.location.value = location
-            else:
-                vevent.add("location").value = location
-
-        if attendees is not None:
-            # Remove existing attendees
-            while hasattr(vevent, "attendee"):
-                vevent.remove(vevent.attendee)
-            # Add new ones
-            for email in attendees:
-                att = vevent.add("attendee")
-                att.value = f"mailto:{email}"
+        _apply_text_fields(vevent, description, location, attendees)
 
         await target_event.save()
         return normalize_vevent(target_event)
@@ -595,3 +639,65 @@ def _parse_iso_datetime(dt_str: str, *, assume_utc: bool = True) -> datetime:
     if dt.tzinfo is None and assume_utc:
         dt = dt.replace(tzinfo=UTC)
     return dt
+
+
+def _set_bounds(vevent: Any, start: date | datetime, end: date | datetime) -> None:
+    """Write DTSTART/DTEND of a new shape: the old shape's VALUE/TZID go with it."""
+    for name, value in (("dtstart", start), ("dtend", end)):
+        line = getattr(vevent, name, None) or vevent.add(name)
+        line.params.pop("VALUE", None)
+        line.params.pop("TZID", None)
+        line.value = value
+    _drop_duration(vevent)
+
+
+def _write_end(vevent: Any, end: datetime) -> None:
+    """Write DTEND, added when the event had none (it may have ended by a DURATION)."""
+    (getattr(vevent, "dtend", None) or vevent.add("dtend")).value = end
+    _drop_duration(vevent)
+
+
+def _drop_duration(vevent: Any) -> None:
+    """An end is now a DTEND: a DURATION beside it is invalid (RFC 5545) — vobject refuses it."""
+    duration = getattr(vevent, "duration", None)
+    if duration is not None:
+        vevent.remove(duration)
+
+
+def _start_instant(event: dict[str, Any]) -> datetime:
+    """When a normalised event starts, as an instant (offsets compared, not spelled).
+
+    An all-day event starts at its day's midnight UTC; an unreadable start sorts last.
+    """
+    start = event.get("start") or {}
+    value = str(start.get("dateTime") or start.get("date") or "")
+    try:
+        moment = (
+            datetime.fromisoformat(value)
+            if "T" in value
+            else datetime.combine(date.fromisoformat(value), datetime.min.time())
+        )
+    except ValueError:
+        return datetime.max.replace(tzinfo=UTC)
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _apply_text_fields(
+    vevent: Any, description: str | None, location: str | None, attendees: list[str] | None
+) -> None:
+    """Write the given text fields into a VEVENT; None keeps a field as it is."""
+    for name, value in (("description", description), ("location", location)):
+        if value is None:
+            continue
+        line = getattr(vevent, name, None)
+        if line is not None:
+            line.value = value
+        else:
+            vevent.add(name).value = value
+    if attendees is None:
+        return
+    # The attendee list given replaces the whole list.
+    while hasattr(vevent, "attendee"):
+        vevent.remove(vevent.attendee)
+    for email in attendees:
+        vevent.add("attendee").value = f"mailto:{email}"

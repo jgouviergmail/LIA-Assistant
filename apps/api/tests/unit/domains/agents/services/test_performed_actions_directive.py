@@ -84,3 +84,16 @@ class TestNothingIsStatedWhenNothingWasDone:
         """The node passes ``run_id_of(config)``, empty when absent — never the
         ``"unknown"`` logging placeholder, under which the register may file rows."""
         assert await build_performed_actions_block(_react_state(), "", "fr") == ""
+
+
+class TestADecisionComposedInThePlan:
+    async def test_a_decision_that_came_back_to_the_plan_reads_the_register(self) -> None:
+        """Measured 2026-10-30: an MCP act's summary is « result received », not its
+        confirmation — beside a refused act, the answer read the archive as cancelled."""
+        read = AsyncMock(return_value=[_effect("succeeded", "un chat")])
+        state = {"executed_drafts": {"d1": {"status": "cancelled"}}}
+        with patch(_PERFORMED, read):
+            block = await build_performed_actions_block(state, "run-1", "fr")
+
+        read.assert_awaited_once_with("run-1")
+        assert "- Image générée\xa0: un chat\n" in block

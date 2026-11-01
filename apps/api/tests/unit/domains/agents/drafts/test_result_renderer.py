@@ -447,6 +447,28 @@ def test_single_cancelled_renders_strike_emoji() -> None:
     assert "Suppression annulée" in rendered
 
 
+def test_a_cancelled_draft_names_what_was_not_done() -> None:
+    """Measured 2026-10-30: beside an archive that ran, a bare « Action annulée » was
+    read by the answer as the ARCHIVE cancelled. The cancelled act names itself."""
+    content = {"tool_label": "Notes: delete note"}
+    cancelled = {
+        "status": "cancelled",
+        "message": "Action annulée",
+        "draft_type": DraftType.TOOL_CALL.value,
+        "action": DraftAction.CANCEL.value,
+        "data": {"_draft_content": content},
+    }
+    succeeded = _single_success(DraftType.TOOL_CALL, draft_content=content)
+
+    rendered = render_execution_result(cancelled)
+
+    assert "🚫" in rendered and "Action annulée" in rendered
+    assert "delete note" in rendered
+    assert (
+        rendered.splitlines()[1:] == render_execution_result(succeeded).splitlines()[1:]
+    ), "the same rows as the act's success would show"
+
+
 def test_single_error_renders_cross_emoji() -> None:
     """Failed single drafts get the ❌ marker."""
     result = {

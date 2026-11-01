@@ -6,13 +6,15 @@
  * A first-class nav destination since 2026-07-30 (it took the header slot
  * `spaces` held — the spaces page keeps its one-click door through the chat
  * indicator, which now always renders). Overview ⇄ detail in one page
- * (selected name in local state; the URL stays `/dashboard/relations`).
+ * (selected name in local state; the URL stays `/dashboard/relations` — a
+ * `?name=` opens on that person, the « See the relationship » of a contact).
  * Reads are aggregations; the ONE write is the favorites star, toggled
  * optimistically through the overview hook — the detail panel receives the
  * star state from here so both surfaces always agree. A failed toggle rolls
  * back and toasts.
  */
 
+import { useSearchParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 import type { Language } from '@/i18n/settings';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,7 +64,8 @@ function AccountRelationsPage({
     debriefEnabled,
     setDebriefEnabled,
   } = useRelationsOverview();
-  const [selected, setSelected] = useState<string | null>(null);
+  const params = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(() => params.get('name'));
   const listRef = useRef<HTMLDivElement>(null);
   const returnRef = useRef<{ element: HTMLElement | null; scroll: number }>({
     element: null,

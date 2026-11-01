@@ -81,6 +81,9 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     PlatformCapability.RADIO: "src.domains.radio.router",
     PlatformCapability.AVATAR: "src.domains.avatars.router",
     PlatformCapability.WORLD: "src.domains.world.router",
+    # ADR-369 — the workbench's routes ARE the ability; the connectors and
+    # what they hold stay untouched when it is off.
+    PlatformCapability.WORKBENCH: "src.domains.workbench.router",
 }
 
 

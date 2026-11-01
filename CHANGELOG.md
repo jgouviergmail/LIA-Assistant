@@ -5,6 +5,99 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-11-01
+
+**Your services, in your hands.**
+The new Tools workspace opens connected services directly, without a model. MCP
+confirmations become an explicit choice, and a conversation asks which item you mean
+before acting when several fit. Interface, help and public presentation cover all six languages.
+
+### Added
+
+- 🧰 **Tools workspace** (ADR-369): mail, calendar, tasks, contacts, Drive files and Hue
+  lights through session-authenticated REST routes, without LangGraph, model calls or
+  assistant-register entries. Availability, provider features and enforced bounds are
+  published to the page; unconnected services have a connection link.
+- ✉️ **Mail by hand**: folders, search, read state, trash, compose/reply/forward, attachments
+  and revision-checked drafts on Google, Microsoft and Apple; Gmail labels, vacation
+  responder and filters. Original HTML is isolated in an opaque sandbox with remote
+  resources blocked; downloads carry a safe attachment disposition and no-store policy.
+- 📅 **The other tools**: Agenda/Week/Month, all-day events and supported occurrence edits;
+  task lists and completion; multi-valued contact editing and a link to Relations; paged
+  My Drive browsing/search and document exports; Hue rooms, scenes and supported lamp controls.
+- 🛡️ **MCP confirmation choices** (ADR-368): tool → server → account → instance resolution,
+  per-mode behavior summaries, a preview of questions a change removes, and a tool's
+  explicit standing choice bound to its schema and annotations. A changed declaration
+  suspends “never ask”; the assistant can tighten confirmation settings only.
+- 🔐 **Routine MCP pre-approval**: a server allowlist set exclusively in the routine's form,
+  recorded with the action and named on its confirmation card. Unattended tools or
+  dedicated-agent tasks needing approval remain refused outside that scope.
+- 🎯 **Item choice in conversation** (ADR-367): match a description against what the answer
+  actually showed, count ordinals in displayed order, and ask with numbered options when
+  several fit. A Pipeline lookup feeding an act on its first result also asks when several
+  results fit; its held plan resumes on the chosen result without repeating completed work.
+
+### Changed
+
+- 🔄 **One approval before a dedicated MCP agent's task** when any of its tools would ask,
+  in both modes. The approved task continues to completion; confirmed tool-call steps
+  return their actual result to the response instead of ending on a generic action card.
+- 🪟 **Workspace ergonomics**: a horizontally scrollable tool rail on phones, device-local
+  pane widths with keyboard-accessible splitters, browser history for opened items,
+  contact suggestions shared by recipients and guests, and alphabetically ordered Hue controls.
+- ⏱️ **Routine scheduling limits** are resolved once from Settings and published to the
+  recurrence editor, schemas and tools; deployment owners can tune interval and daily-run
+  bounds without changing code. The defaults remain unchanged.
+- 📱 **Navigation and SMS**: compact 3D/SMS destinations, SMS archive management separated
+  from ingestion setup, shared blocked-sender controls, and capability-aware inactive-account navigation.
+
+### Fixed
+
+- 🔐 **Container bootstrap tools**: align pinned pip and npm versions across
+  API, development and skill-sandbox images. Refresh pip's own certificate
+  trust store independently of the application's certifi dependency, and
+  update npm's bundled brace-expansion implementation.
+- 📦 **Build dependency security**: update the mobile CLI's glob traversal and
+  minimatch optimizer; bound the separately documented ESLint legacy false
+  positive with a lockfile guard. Keep Linux notification qualification scripts
+  in LF format when generated on Windows.
+- 🔌 **WebSocket resource bounds**: adopt the fragmented-message buffering fix
+  and compatible Google and LangGraph SDK baselines; the Google SDK also removes
+  deprecated union-type imports on Python 3.14. Normal Gemini Live setup and
+  Uvicorn SansIO connections are qualified against local protocol fixtures.
+- ✉️ **Original-mail navigation**: disable sender links even when they supply
+  explicit targets, SVG links or nested template content; remove sender bases
+  and refresh directives while retaining readable layout. A real-browser
+  reproduction exposed the gap in relying on a default base target alone.
+- 📇 **Provider parity**: preserve a contact's multiple addresses and phone numbers;
+  order contact listings by family then given name at the provider's pagination boundary;
+  normalize sender names and all-day calendar boundaries; expose attendee notifications
+  only where supported. Recurring CalDAV edits are refused when an individual occurrence
+  cannot be addressed safely.
+- 🔎 **Drive search and provider identifiers**: escape Drive query values, omit incompatible
+  ordering on full-text searches, follow cursors, and quote identifiers as single URL path
+  segments, rejecting empty and dot segments.
+- 📨 **Mail freshness**: generation-scoped Gmail caches invalidate after writes across
+  workers, including changes made in Tools; attachment handles and message revisions are
+  checked before use.
+- 🧭 **Conversation continuity**: resolved items reach both execution modes; an unrelated
+  answer after repeated disambiguation becomes a fresh request rather than resuming a
+  stale checkpoint. Held steps report what ran, what remains unchosen and what failed.
+- 🔁 **Submission replay protection**: sends and supported creates claim their submission
+  before calling the provider, preserve unknown outcomes through cancellation and refuse
+  replays. Redis failure is counted and permits an unguarded submission; calendar creates
+  additionally retain provider-native idempotency.
+
+### Operations and documentation
+
+- 🗃️ Migrations add routine MCP pre-approval, account/server confirmation settings and
+  per-tool standing choices; no new Compose service, mandatory key or seed is required.
+- 📊 Bounded workbench request, provider-latency and replay metrics feed the connector
+  dashboard; Pipeline choice/resume behavior is covered on the agent dashboard.
+- 📚 ADRs 367–369, architecture and integration references, six-language FAQ/knowledge,
+  public guides, blog explanations, settings search and functional/technical/decision maps
+  document the shipped contracts. Validation evidence is recorded in the release plan.
+
 ## [4.2.0] - 2026-10-30
 
 **Less waiting, plainly said.**

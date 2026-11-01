@@ -189,6 +189,68 @@ class TestTheGateResolvesTheRightIdentity:
         assert seen == ["mcp_era_billing__cancel_subscription"]
 
 
+class TestTheGateReadsTheOfferedDeclaration:
+    """Beside the patched policy above: the REAL resolution, through every door.
+
+    A personal tool's manifest never reaches the global registry; the gate
+    reads the one the turn offered (spec D2, 2026-10-29).
+    """
+
+    @pytest.mark.parametrize("door", ["coroutine", "arun", "react_wrapper"])
+    async def test_a_personal_confirm_tool_is_refused_unattended_on_every_door(
+        self, door: str
+    ) -> None:
+        from src.core.context import (
+            UserMCPToolsContext,
+            request_tool_manifests_ctx,
+            user_mcp_tools_ctx,
+        )
+        from src.domains.agents.tools.mcp_react_tools import _MCPReActWrapper
+        from src.infrastructure.mcp.user_context import _build_user_tool_manifest
+
+        tool = _user_mcp_tool()
+        manifest = _build_user_tool_manifest(
+            adapter_name=tool.name,
+            tool_name=tool.mcp_tool_name,
+            description="Cancel a subscription",
+            input_schema=_SCHEMA,
+            server_name="era",
+            server_domain="mcp_era",
+            hitl_required=True,
+            annotations=None,
+            server_key=str(tool.server_id),
+        )
+        reached: list[dict[str, Any]] = []
+
+        async def _record(self: Any, **kwargs: Any) -> Any:
+            reached.append(kwargs)
+            return await _fake_server_call(self)
+
+        doors = {
+            "coroutine": lambda: tool.coroutine(plan="premium"),
+            "arun": lambda: tool._arun(plan="premium"),
+            "react_wrapper": lambda: _MCPReActWrapper(inner=tool)._arun(plan="premium"),
+        }
+        token = user_mcp_tools_ctx.set(
+            UserMCPToolsContext(tool_manifests=[manifest], tool_instances={tool.name: tool})
+        )
+        offered = request_tool_manifests_ctx.set([manifest])
+        try:
+            with (
+                patch.object(UserMCPToolAdapter, "_call_server", new=_record),
+                patch.object(gate_runtime, "_LEDGER", _SilentLedger()),
+                effect_scope(
+                    EffectScope(run_id="r", idempotency_key="step:s1", source="scheduled")
+                ),
+            ):
+                await doors[door]()
+        finally:
+            request_tool_manifests_ctx.reset(offered)
+            user_mcp_tools_ctx.reset(token)
+
+        assert reached == [], f"the {door} door reached a confirm tool's server unattended"
+
+
 class _SilentLedger:
     async def claim(self, request: Any) -> Any:
         return None

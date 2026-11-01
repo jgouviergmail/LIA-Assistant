@@ -38,11 +38,25 @@ class PreferenceField(str, Enum):
     IMAGE_FORMAT = "image_generation_output_format", "image-generation"
     IMAGE_ENHANCEMENT = "image_generation_prompt_enhancement", "image-generation"
     EXCHANGE_RHYTHM = "exchange_rhythm", "usage-preferences"
+    # Tighten-only: the chat may switch it on, never off (spec 2026-10-30 D7).
+    MCP_CONFIRMATION = "mcp_hitl_required", "mcp-servers"
 
 
 PREFERENCE_FIELDS = MappingProxyType({field.value: field.section for field in PreferenceField})
 PREFERENCE_READ_ONLY_FIELDS = frozenset(
     field.value for field in PreferenceField if not field.writable
+)
+#: The one value the chat may write for a field that only tightens, and why — the schema
+#: publishes it and the preparation and the write refuse any other (spec 2026-10-30 D7).
+PREFERENCE_TIGHTEN_ONLY: MappingProxyType[str, tuple[bool, str]] = MappingProxyType(
+    {
+        PreferenceField.MCP_CONFIRMATION.value: (
+            True,
+            "Only true: LIA asks before every call of the person's MCP tools that have no "
+            "choice of their own. From the chat LIA can only make itself ask more; to ask "
+            "less, the person changes it in Settings > MCP Servers.",
+        )
+    }
 )
 
 

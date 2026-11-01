@@ -108,6 +108,8 @@ class PlatformCapability(str, Enum):
     WORLD = "world"
     # ADR-327 — skills found on a portal, installed and updated from their origin.
     SKILL_LIBRARY = "skill_library"
+    # ADR-369 — the person reads and acts on their connected services by hand.
+    WORKBENCH = "workbench"
 
 
 @dataclass(frozen=True)
@@ -493,6 +495,16 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="reach",
         env_flag="skill_library_enabled",
         setting_key=SystemSettingKey.CAPABILITY_SKILL_LIBRARY_ENABLED,
+        route_enforced=True,
+    ),
+    # ADR-369 — the routes ARE the ability: reading and acting on the person's
+    # own services by hand. The connectors and everything the providers hold
+    # stay untouched while it is off, and the assistant keeps its own tools.
+    PlatformCapability.WORKBENCH: CapabilitySpec(
+        capability=PlatformCapability.WORKBENCH,
+        family="work",
+        env_flag="workbench_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_WORKBENCH_ENABLED,
         route_enforced=True,
     ),
 }

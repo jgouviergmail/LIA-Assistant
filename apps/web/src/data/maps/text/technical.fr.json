@@ -48,22 +48,41 @@
     "t.web": {
       "name": "Application web",
       "role": "L'interface : chat en streaming, réglages, tableaux de bord et pages publiques rendues côté serveur ; tout le trafic vers l'API passe par la même origine.",
-      "stack": ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4", "Radix / shadcn"]
+      "stack": [
+        "Next.js 16",
+        "React 19",
+        "TypeScript",
+        "Tailwind CSS 4",
+        "Radix / shadcn"
+      ]
     },
     "t.pwa": {
       "name": "PWA et hors ligne",
       "role": "Installable, une page hors ligne, les notifications web ; le cache suit la version publiée.",
-      "stack": ["Service Worker", "Web Push", "Manifeste PWA"]
+      "stack": [
+        "Service Worker",
+        "Web Push",
+        "Manifeste PWA"
+      ]
     },
     "t.mobile": {
       "name": "Coques mobiles",
       "role": "Une application par magasin, cliente d'un serveur auto-hébergé : la WebView charge l'origine de ton serveur, le natif n'ajoute que notifications, partage et connexion hors WebView.",
-      "stack": ["Capacitor", "Android", "iOS", "FCM", "Relais de réveil APNs"]
+      "stack": [
+        "Capacitor",
+        "Android",
+        "iOS",
+        "FCM",
+        "Relais de réveil APNs"
+      ]
     },
     "t.channels": {
       "name": "Canaux de messagerie",
       "role": "Parler à LIA depuis Telegram et recevoir ses messages ; le webhook du bot est posé par le seul leader de l'ordonnanceur.",
-      "stack": ["Telegram", "python-telegram-bot"]
+      "stack": [
+        "Telegram",
+        "python-telegram-bot"
+      ]
     },
     "t.edge": {
       "name": "Tunnel, CSP et débit",
@@ -89,87 +108,158 @@
     "t.fastapi": {
       "name": "API FastAPI par domaines",
       "role": "Les domaines métier en DDD — routeurs, services, dépôts —, des exceptions centralisées et un superviseur qui ne charge pas l'application.",
-      "stack": ["Python 3.14", "FastAPI", "Pydantic v2", "uvicorn multi-workers"]
+      "stack": [
+        "Python 3.14",
+        "FastAPI",
+        "Pydantic v2",
+        "uvicorn multi-workers"
+      ]
     },
     "t.sse": {
       "name": "Streaming SSE",
       "role": "La réponse arrive mot à mot ; étapes, brouillons et coût voyagent sur le même flux ; une route qui diffuse ne garde aucune session de base ouverte.",
-      "stack": ["Server-Sent Events", "Keepalive"]
+      "stack": [
+        "Server-Sent Events",
+        "Keepalive"
+      ]
     },
     "t.startup": {
       "name": "Démarrage ordonné",
       "role": "Un module par sous-système et un seul point d'orchestration ; un registre incomplet refuse de démarrer plutôt que de mourir en silence.",
-      "stack": ["Lifespan FastAPI", "Asserts de complétude"]
+      "stack": [
+        "Lifespan FastAPI",
+        "Asserts de complétude"
+      ]
     },
     "t.config": {
       "name": "Configuration et interrupteurs",
       "role": "Des réglages composés par domaine, lus depuis l'environnement ; un interrupteur par capacité, lu au moment de l'acte et appliqué une seule fois au catalogue du tour, que lisent les deux modes d'exécution.",
-      "stack": ["Pydantic Settings", "Variables d'environnement", "Interrupteurs de capacité"]
+      "stack": [
+        "Pydantic Settings",
+        "Variables d'environnement",
+        "Interrupteurs de capacité"
+      ]
     },
     "t.i18n": {
       "name": "Six langues",
       "role": "Anglais, français, allemand, espagnol, italien, chinois — côté interface comme côté serveur, sans chaîne en dur.",
-      "stack": ["react-i18next", "Catalogues backend", "Parité stricte des clés"]
+      "stack": [
+        "react-i18next",
+        "Catalogues backend",
+        "Parité stricte des clés"
+      ]
     },
     "t.langgraph": {
       "name": "Graphe LangGraph",
       "role": "Le moteur d'orchestration : un état typé tronqué par jetons, sauvegardé à chaque étape, qui rend possibles les interruptions de validation et leur reprise.",
-      "stack": ["LangGraph 1.x", "LangChain 1.x", "État typé", "Checkpoints PostgreSQL"]
+      "stack": [
+        "LangGraph 1.x",
+        "LangChain 1.x",
+        "État typé",
+        "Checkpoints PostgreSQL"
+      ]
     },
     "t.router": {
       "name": "Routeur",
       "role": "Classe la demande et, depuis un seul embedding, note les domaines pour le planificateur et classe tous les outils pour ReAct.",
-      "stack": ["Analyse de requête", "Embedding pivot", "Classement d'outils"]
+      "stack": [
+        "Analyse de requête",
+        "Embedding pivot",
+        "Classement d'outils"
+      ]
     },
     "t.planner": {
       "name": "Planificateur et exécuteur",
       "role": "Un plan typé, réparé mécaniquement puis validé, exécuté en parallèle ; un verdict de validation n'est jamais présenté comme un échec.",
-      "stack": ["ExecutionPlan (DSL typé)", "Validateur sémantique", "Exécution parallèle"]
+      "stack": [
+        "ExecutionPlan (DSL typé)",
+        "Validateur sémantique",
+        "Exécution parallèle"
+      ]
     },
     "t.react": {
       "name": "Boucle ReAct",
       "role": "Préparation, appel du modèle, exécution des outils, rattrapage, finalisation ; un seul prédicat d'arrêt ; un tour qui s'arrête referme lui-même ses appels abandonnés.",
-      "stack": ["Cinq nœuds", "Budget adaptatif", "Passe de rattrapage bornée"]
+      "stack": [
+        "Cinq nœuds",
+        "Budget adaptatif",
+        "Passe de rattrapage bornée"
+      ]
     },
     "t.response": {
       "name": "Synthèse de la réponse",
       "role": "Assemble la réponse depuis les résultats et contextes déclarés, dit les échecs et rend des cartes déterministes depuis les faits reçus. Sélections et filtres temporels exigent des preuves ; les actions revérifient la liaison exacte au message et à la source. Elle déclare aussi le registre qui anime le compagnon. Une seule politique accepte les annotations de source pour l’affichage et la synthèse ; Position précède les lieux dans chaque format, avec admission Maps au clic.",
-      "stack": ["Contextes déclarés", "Directives d'honnêteté", "Registre émotionnel"]
+      "stack": [
+        "Contextes déclarés",
+        "Directives d'honnêteté",
+        "Registre émotionnel"
+      ]
     },
     "t.hitl": {
       "name": "Validation et brouillons",
       "role": "Classe chaque action sensible, présente les brouillons un par un, et dessine une même carte en visuel dans le chat ou en texte sur un ticket.",
-      "stack": ["Interruptions LangGraph", "Six niveaux", "Cartes par surface"]
+      "stack": [
+        "Interruptions LangGraph",
+        "Six niveaux",
+        "Cartes par surface"
+      ]
     },
     "t.toolsys": {
       "name": "Outils et manifestes",
       "role": "Chaque outil déclare ses paramètres bornés, ce qu'il doit à la personne et son domaine ; une porte l'inscrit au registre des effets avant qu'il agisse.",
-      "stack": ["LangChain @tool", "Manifestes", "Politique de mutation", "Porte d'autorité"]
+      "stack": [
+        "LangChain @tool",
+        "Manifestes",
+        "Politique de mutation",
+        "Porte d'autorité"
+      ]
     },
     "t.dataregistry": {
       "name": "Registre de données et contexte",
       "role": "Les résultats d'outils deviennent des éléments référençables : « le deuxième » pointe vers un objet réel, pas vers une phrase.",
-      "stack": ["Sorties d'outils normalisées", "Types de contexte"]
+      "stack": [
+        "Sorties d'outils normalisées",
+        "Types de contexte"
+      ]
     },
     "t.promptsys": {
       "name": "Prompts versionnés",
       "role": "Chaque prompt est un fichier versionné ; chaque variable a un producteur ; le stable passe avant le variable pour que le cache serve.",
-      "stack": ["Fichiers versionnés", "Placeholders produits", "Mise en page pour le cache"]
+      "stack": [
+        "Fichiers versionnés",
+        "Placeholders produits",
+        "Mise en page pour le cache"
+      ]
     },
     "t.initiative": {
       "name": "Nœud d'initiative",
       "role": "Après une exécution, décide s'il faut enchaîner une action de suivi, avec un catalogue limité à ce qu'il sait vraiment exécuter.",
-      "stack": ["Catalogue borné", "Éligibilité par capacité"]
+      "stack": [
+        "Catalogue borné",
+        "Éligibilité par capacité"
+      ]
     },
     "t.llmfactory": {
       "name": "Fabrique de modèles",
       "role": "Un client natif par fournisseur ; la même frontière de cache traduite dans le mécanisme de chacun ; une seule couture entre une intention de raisonnement et un paramètre d'API.",
-      "stack": ["OpenAI", "Anthropic", "Google", "DeepSeek", "Qwen", "Perplexity", "Ollama"]
+      "stack": [
+        "OpenAI",
+        "Anthropic",
+        "Google",
+        "DeepSeek",
+        "Qwen",
+        "Perplexity",
+        "Ollama"
+      ]
     },
     "t.reasoning": {
       "name": "Raisonnement",
       "role": "Une seule forme stockée pour « réfléchis plus ou moins », un profil dérivé par modèle, une coercition comptée et journalisée.",
-      "stack": ["ReasoningIntent", "Profils dérivés", "Échelle ordinale"]
+      "stack": [
+        "ReasoningIntent",
+        "Profils dérivés",
+        "Échelle ordinale"
+      ]
     },
     "t.catalogue": {
       "name": "Catalogue de modèles",
@@ -183,12 +273,19 @@
     "t.structured": {
       "name": "Sorties structurées",
       "role": "Obtenir un objet typé d'un modèle ; une réponse coupée par la limite de jetons est un refus, jamais un document plus court annoncé comme réussi.",
-      "stack": ["Schémas stricts", "Détection de troncature"]
+      "stack": [
+        "Schémas stricts",
+        "Détection de troncature"
+      ]
     },
     "t.embeddings": {
       "name": "Embeddings et recherche",
       "role": "Vectoriser, retrouver par le sens et par les mots, fusionner sous un seuil sémantique ; toute entrée envoyée au fournisseur est une chaîne exacte.",
-      "stack": ["pgvector", "BM25", "Fusion hybride"]
+      "stack": [
+        "pgvector",
+        "BM25",
+        "Fusion hybride"
+      ]
     },
     "t.pricing": {
       "name": "Comptabilité et plafonds",
@@ -202,33 +299,59 @@
     },
     "t.connclients": {
       "name": "Clients connecteurs",
-      "role": "Un client par fournisseur, une seule porte vers le client actif d'une catégorie ; jamais de transaction de base ouverte pendant l'appel réseau.",
-      "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipédia"]
+      "role": "Un client par fournisseur, une seule porte vers le client actif d'une catégorie ; jamais de transaction de base ouverte pendant l'appel réseau. L’espace Outils possède ses propres routes REST, en dehors du graphe de conversation. Il réutilise les clients des connecteurs et publie leurs commandes et limites dans l’interface. Les sessions de base se ferment avant les appels aux fournisseurs ; les soumissions sont protégées contre les répétitions et une réponse perdue laisse un résultat déclaré inconnu. Le HTML d’un mail reste dans un cadre isolé qui bloque les contenus distants. Un geste manuel reste ainsi distinct d’une action confiée à LIA.",
+      "stack": [
+        "Google",
+        "Microsoft 365",
+        "Apple iCloud",
+        "Brave",
+        "Perplexity",
+        "Wikipédia"
+      ]
     },
     "t.mcp": {
       "name": "Client MCP",
       "role": "Un pool de clients par personne, les schémas du standard et les mêmes gardes que les outils natifs ; source et méthode accompagnent chaque forme de sortie. Le catalogue d'un serveur personnel est un instantané servi pendant sa revalidation et vérifié à l'appel ; Redis partage les pauses déclarées par les serveurs.",
-      "stack": ["Model Context Protocol", "Deux révisions du protocole", "OAuth par émetteur"]
+      "stack": [
+        "Model Context Protocol",
+        "Deux révisions du protocole",
+        "OAuth par émetteur"
+      ]
     },
     "t.skills": {
       "name": "Compétences et plugins",
       "role": "Les installateurs natifs gèrent compétences et plugins, imports figés de bibliothèque, scripts jetables et copies de pairs installées désactivées. La provenance écrite par le serveur décide l’exception de confiance explicite ; identifiants et autorisations ne sont jamais transférés.",
-      "stack": ["Agent Skills", "Agent Plugins"]
+      "stack": [
+        "Agent Skills",
+        "Agent Plugins"
+      ]
     },
     "t.sandbox": {
       "name": "Bac à sable et proxy de sortie",
       "role": "Exécuter un script écrit par un modèle sans risque : réseau coupé sauf un proxy, clés substituées par le proxy, hôte inconnu soumis à ta décision.",
-      "stack": ["Conteneur isolé", "Réseau interne", "Proxy de sortie", "Jetons par exécution"]
+      "stack": [
+        "Conteneur isolé",
+        "Réseau interne",
+        "Proxy de sortie",
+        "Jetons par exécution"
+      ]
     },
     "t.browser": {
       "name": "Navigateur piloté",
       "role": "Ouvrir une page, la lire, la parcourir pour les sites qui exigent un vrai navigateur ; les captures deviennent des fichiers de la personne.",
-      "stack": ["Playwright", "Chromium sans tête"]
+      "stack": [
+        "Playwright",
+        "Chromium sans tête"
+      ]
     },
     "t.voiceinfra": {
       "name": "Voix : transcription et synthèse",
       "role": "Transcrire et synthétiser la voix, avec un cache de modèles borné par processus et une voix modulée par l'humeur.",
-      "stack": ["Whisper (ONNX)", "Sherpa", "Synthèse vocale multi-fournisseurs"]
+      "stack": [
+        "Whisper (ONNX)",
+        "Sherpa",
+        "Synthèse vocale multi-fournisseurs"
+      ]
     },
     "t.live": {
       "name": "Transports Live",
@@ -245,92 +368,166 @@
     "t.phone": {
       "name": "Téléphonie",
       "role": "Appeler la personne ou un tiers, prêter à la voix des outils en lecture seule, et relayer la conversation au chat par une seule clôture.",
-      "stack": ["Agent vocal ElevenLabs", "Webhooks", "Numéro vérifié"]
+      "stack": [
+        "Agent vocal ElevenLabs",
+        "Webhooks",
+        "Numéro vérifié"
+      ]
     },
     "t.push": {
       "name": "Notifications push",
       "role": "Joindre un navigateur ou un téléphone ; sur iOS, un relais ne transporte qu'un identifiant opaque et une phrase sans contenu.",
-      "stack": ["Firebase Cloud Messaging", "Relais de réveil iOS", "Web Push"]
+      "stack": [
+        "Firebase Cloud Messaging",
+        "Relais de réveil iOS",
+        "Web Push"
+      ]
     },
     "t.scheduler": {
       "name": "Ordonnanceur à leader unique",
       "role": "Un seul processus déclenche les tâches ; chaque tâche périodique porte une gigue pour ne pas partir à la même seconde ; les récurrences passent par un seul moteur.",
-      "stack": ["APScheduler", "Élection de leader", "Gigue", "Moteur de récurrence"]
+      "stack": [
+        "APScheduler",
+        "Élection de leader",
+        "Gigue",
+        "Moteur de récurrence"
+      ]
     },
     "t.proactive": {
       "name": "Moteur proactif",
       "role": "Sélectionne, vérifie, génère et envoie ce que LIA dit d'elle-même ; chaque envoi est revendiqué avant de partir et soldé depuis son résultat.",
-      "stack": ["Éligibilité complète", "Revendication avec jeton", "Notification = action"]
+      "stack": [
+        "Éligibilité complète",
+        "Revendication avec jeton",
+        "Notification = action"
+      ]
     },
     "t.jobs": {
       "name": "Tâches durables",
       "role": "Réunions, relais vocaux, projections : chaque travail long est une ligne revendiquée, reprise après un arrêt, soldée depuis un résultat explicite.",
-      "stack": ["Lignes revendiquées", "FOR UPDATE SKIP LOCKED", "Reprise après arrêt"]
+      "stack": [
+        "Lignes revendiquées",
+        "FOR UPDATE SKIP LOCKED",
+        "Reprise après arrêt"
+      ]
     },
     "t.selfdiag": {
       "name": "Auto-diagnostic",
       "role": "LIA lit sa propre télémétrie, rassemble les preuves d'un incident au moment où il survient et en garde la mémoire ; un incident dont la résolution s'est perdue est rapproché d'Alertmanager et refermé.",
-      "stack": ["Lecture Prometheus / Loki / Alertmanager", "Preuves par recette"]
+      "stack": [
+        "Lecture Prometheus / Loki / Alertmanager",
+        "Preuves par recette"
+      ]
     },
     "t.radio": {
       "name": "Radio : rédaction et antenne",
       "role": "Une rédaction d’instance filtre les flux publics ; une antenne par auditeur écrit et vérifie des segments bornés pendant l’écoute. Le PCM brut/u-law porte ses métadonnées audio déclarées dans un WAV avant mixage local ; l’audio encodé reste inchangé. Une grille déterministe choisit le programme.",
-      "stack": ["feedparser", "readability", "ffmpeg", "Redis", "HTMLAudioElement"]
+      "stack": [
+        "feedparser",
+        "readability",
+        "ffmpeg",
+        "Redis",
+        "HTMLAudioElement"
+      ]
     },
     "t.postgres": {
       "name": "PostgreSQL et pgvector",
       "role": "La source de vérité : comptes, conversations, checkpoints du graphe, vecteurs ; migrations en chaîne unique, sessions qui ne vivent pas plus longtemps que leurs requêtes.",
-      "stack": ["PostgreSQL 16", "pgvector", "SQLAlchemy 2 async", "Alembic"]
+      "stack": [
+        "PostgreSQL 16",
+        "pgvector",
+        "SQLAlchemy 2 async",
+        "Alembic"
+      ]
     },
     "t.redis": {
       "name": "Redis",
       "role": "Caches, sessions, verrous et revendications ; chaque famille de clés déclare sa portée, et une purge ne retire que ce que sa famille déclare.",
-      "stack": ["Redis 7", "Familles de clés déclarées", "Verrous à jeton propriétaire"]
+      "stack": [
+        "Redis 7",
+        "Familles de clés déclarées",
+        "Verrous à jeton propriétaire"
+      ]
     },
     "t.storage": {
       "name": "Fichiers",
       "role": "Pièces jointes et fichiers produits par LIA ; chaque fichier dit qui l'a produit, et une réinitialisation ne retire que ce qu'elle doit.",
-      "stack": ["Stockage local", "Origine déclarée"]
+      "stack": [
+        "Stockage local",
+        "Origine déclarée"
+      ]
     },
     "t.registers": {
       "name": "Registres traçables",
       "role": "Une ligne par action, par consultation et par tour ; l'instance peut les sceller dans une chaîne de hachage par compte ; exportables en entier, jamais réparées.",
-      "stack": ["Effets", "Consultations", "Décisions", "Chaîne de hachage par compte (activable)"]
+      "stack": [
+        "Effets",
+        "Consultations",
+        "Décisions",
+        "Chaîne de hachage par compte (activable)"
+      ]
     },
     "t.metrics": {
       "name": "Métriques",
       "role": "Chaque métrique définie dans le code est lue par un panneau, une règle ou une alerte — une métrique que personne ne voit est interdite ; ses libellés nomment la route, jamais une personne ni une recherche.",
-      "stack": ["Prometheus", "Règles d'enregistrement", "Exporters"]
+      "stack": [
+        "Prometheus",
+        "Règles d'enregistrement",
+        "Exporters"
+      ]
     },
     "t.dashboards": {
       "name": "Tableaux de bord",
       "role": "Des tableaux par sous-système, chaque requête résolue vers un vrai producteur.",
-      "stack": ["Grafana"]
+      "stack": [
+        "Grafana"
+      ]
     },
     "t.alerts": {
       "name": "Alertes",
       "role": "Des alertes qui réveillent pour une raison, chacune avec son runbook, validées comme une matrice de configurations.",
-      "stack": ["Alertmanager", "Seuils par environnement", "Runbooks"]
+      "stack": [
+        "Alertmanager",
+        "Seuils par environnement",
+        "Runbooks"
+      ]
     },
     "t.logs": {
       "name": "Journaux",
       "role": "Des journaux structurés sans donnée personnelle au niveau INFO, des labels à ensemble fermé, relus par Loki.",
-      "stack": ["structlog JSON", "Loki", "Alloy", "Filtre PII"]
+      "stack": [
+        "structlog JSON",
+        "Loki",
+        "Alloy",
+        "Filtre PII"
+      ]
     },
     "t.tracing": {
       "name": "Traces",
       "role": "Suivre une requête à travers les couches, et chaque appel de modèle avec ses jetons ; une trace porte le gabarit de la route, jamais l'adresse concrète.",
-      "stack": ["Tempo", "OpenTelemetry", "Langfuse (option)"]
+      "stack": [
+        "Tempo",
+        "OpenTelemetry",
+        "Langfuse (option)"
+      ]
     },
     "t.docker": {
       "name": "Images et composition",
       "role": "Des images de production épinglées par version et empreinte, construites à partir d'installations figées.",
-      "stack": ["Docker", "Compose", "Images épinglées par empreinte"]
+      "stack": [
+        "Docker",
+        "Compose",
+        "Images épinglées par empreinte"
+      ]
     },
     "t.cicd": {
       "name": "Intégration continue et gardes",
       "role": "La CI orchestre, Taskfile implémente : chaque étape est une commande qu'un développeur peut lancer ; les seuils ne font que monter.",
-      "stack": ["GitHub Actions", "Task", "Ratchets à sens unique"]
+      "stack": [
+        "GitHub Actions",
+        "Task",
+        "Ratchets à sens unique"
+      ]
     },
     "t.release": {
       "name": "Release, déploiement et installateur",
@@ -345,12 +542,21 @@
     "t.demo": {
       "name": "Démonstrateur",
       "role": "Une instance publique de démonstration dont chaque protection est recalculée depuis la source de vérité, et vérifiée à chaque déploiement.",
-      "stack": ["Instance isolée", "Protections recalculées depuis la source"]
+      "stack": [
+        "Instance isolée",
+        "Protections recalculées depuis la source"
+      ]
     },
     "t.avatar": {
       "name": "Avatar : session et restitution",
       "role": "L’API possède la connexion Simli sous bail Redis : ticket à usage unique, jeton chiffré, signalisation et PCM relayés, arrêt vérifié et présence bornée. Le navigateur choisit une sortie audible et conserve le placement préféré malgré le clavier mobile. La qualification du média et des appareils réels reste en attente.",
-      "stack": ["Simli Compose", "WebRTC", "Web Audio", "AudioWorklet", "Redis"]
+      "stack": [
+        "Simli Compose",
+        "WebRTC",
+        "Web Audio",
+        "AudioWorklet",
+        "Redis"
+      ]
     },
     "t.application": {
       "name": "Commandes applicatives durables",
@@ -377,12 +583,22 @@
     "t.phone_ingestion": {
       "name": "Ingestion du téléphone",
       "role": "Autorité par source, reçus de reprise, SMS chiffrés et livraisons revendiquées ; les extraits du modèle restent bornés et vérifiés.",
-      "stack": ["Jetons limités à une source", "Index lexical aveugle", "Notifications privées"]
+      "stack": [
+        "Jetons limités à une source",
+        "Index lexical aveugle",
+        "Notifications privées"
+      ]
     },
     "t.world": {
       "name": "Monde isométrique et autorité native",
       "role": "Le navigateur dessine une scène Canvas bornée ; Redis arbitre admission, file, mouvements, gestes et parties d’arcade, et sa panne suspend les commandes. Les panneaux natifs gardent permissions et approbations. Les textes éphémères restent dans Redis ; PostgreSQL clôt les tentatives facturables sans conserver leur contenu. Une photo est une projection autorisée, jamais une capture d’écran.",
-      "stack": ["Canvas 2D", "WebSocket", "Redis CAS", "PostgreSQL", "LIA"]
+      "stack": [
+        "Canvas 2D",
+        "WebSocket",
+        "Redis CAS",
+        "PostgreSQL",
+        "LIA"
+      ]
     }
   },
   "flows": {

@@ -88,6 +88,7 @@ from src.domains.agents.services.analysis.skill_suppression import (
     _is_dialogue_skill,
     effective_skill_name,
 )
+from src.domains.agents.services.descriptive_reference import render_shown_items
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
     planner_semantic_filter_terms_emitted,
@@ -422,6 +423,7 @@ async def analyze_query(
     window_size: int = 5,
     base_config: RunnableConfig | None = None,
     connected_peers: list[str] | None = None,
+    shown_items: str = "",
 ) -> QueryAnalysisResult:
     """
     Analyze user query using LLM to detect intent and domains.
@@ -524,6 +526,7 @@ async def analyze_query(
             connected_peers=format_peer_directory(connected_peers or []),
             memory_facts=memory_str,
             conversation_history=history_str,
+            shown_items=shown_items or "None",
             user_location=location_str,
             window_size=window_size,
             user_query=query,
@@ -730,6 +733,7 @@ class QueryAnalyzerService:
         window_size: int = 5,
         base_config: RunnableConfig | None = None,
         connected_peers: list[str] | None = None,
+        shown_items: str = "",
     ) -> QueryAnalysisResult:
         """
         Simple LLM analysis (backward compatible).
@@ -745,6 +749,7 @@ class QueryAnalyzerService:
             window_size=window_size,
             base_config=base_config,
             connected_peers=connected_peers,
+            shown_items=shown_items,
         )
 
     async def analyze_full(
@@ -892,6 +897,7 @@ class QueryAnalyzerService:
                 user_location=user_location,
                 base_config=config,
                 connected_peers=connected_peers,
+                shown_items=render_shown_items(state),
             )
 
             # Latency lot R3 (semantic_pivot_enabled=False): no pivot ran — the
@@ -1305,7 +1311,9 @@ class QueryAnalyzerService:
                 domain_calibrated_scores=domain_calibrated,
                 turn_type=turn_type,
                 resolved_context=(
-                    context_result if context_result and context_result.items else None
+                    context_result
+                    if context_result and (context_result.items or context_result.candidates)
+                    else None
                 ),
                 source_turn_id=(context_result.source_turn_id if context_result else None),
                 source_domain=source_domain,

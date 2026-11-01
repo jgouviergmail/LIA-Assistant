@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Date**: 2026-10-23
-**Application**: LIA v4.2.0
+**Date**: 2026-10-31
+**Application**: LIA v4.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -32,6 +32,8 @@ LIA takes a different path. This is a personal assistant you install on your ser
 The mechanics are explained in [the technical guide](/en/how). How the code was written, by an AI directed and checked by a human, is told in the [field report](/en/story).
 
 ## 2. What LIA does for you
+
+Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, Drive files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
 
 You talk to her normally, in writing or by voice. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
 
@@ -122,6 +124,8 @@ The **Psyche Engine** gives her an inner state that evolves with every exchange,
 She keeps her own **journals** in the first person, and from these notebooks comes a portrait of you that goes with her wherever she speaks. You read them, edit them, flag an error or start a consolidation; the portrait itself cannot be edited directly, so that it stays coherent. When a painful memory comes up, she switches to protective mode: no jokes, no minimizing. And if you ask her what she can do, she answers from a knowledge base about her own functions ([memory](/en/how#memory)).
 
 ## 7. She acts, you decide
+
+For **MCP**, you choose confirmations at account, server and tool level. **What it will do** explains the effective rule before you change it. A dedicated agent asks before its task when one of its tools requires approval; that answer covers its calls for the task. A tool’s “never ask” choice is suspended when its declaration changes. The chat may strengthen these protections; only Settings can reduce them. A routine may use the servers you explicitly pre-approved in its form.
 
 Before a sensitive action, LIA submits it to you. What you approve is exactly what will be executed, even after several edits, and the confirmation shows everything that is about to go out. Faced with an action she is not allowed to do alone, she asks you on the ticket; a routine running with nobody in front of the screen refuses the action and says so. A skill's code runs in a disposable container, with no access to your files or your keys, and no network beyond the authorized hosts.
 

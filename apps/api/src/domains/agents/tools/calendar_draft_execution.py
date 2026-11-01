@@ -132,6 +132,7 @@ async def execute_event_draft(
         calendar_id=calendar_id,
         add_conference=draft_content.get("add_conference", False),
         idempotency_key=scope.idempotency_key if scope is not None else None,
+        all_day=bool(draft_content.get("all_day", False)),
     )
 
     # No PII at INFO: the event title is user content (ids and flags only).
@@ -217,6 +218,9 @@ async def execute_event_update_draft(
         location=draft_content.get("location"),
         attendees=draft_content.get("attendees"),
         calendar_id=calendar_id,
+        all_day=draft_content.get("all_day"),
+        # The attendees are told, as a deletion tells them and as Graph always does (D2).
+        send_updates=draft_content.get("send_updates", "all"),
     )
 
     # No PII at INFO: the event title is user content (ids only).

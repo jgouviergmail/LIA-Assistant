@@ -12,12 +12,17 @@ import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface ExecutionModeToggleProps {
   lng?: Language;
+  /** Added to the button's own box (the dashboard header passes its icon slot). */
+  className?: string;
 }
 
-export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
+const BOX = 'w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9';
+
+export function ExecutionModeToggle({ lng = 'fr', className }: ExecutionModeToggleProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
   const mounted = useHydrated();
@@ -54,7 +59,7 @@ export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
+      <Button variant="ghost" size="sm" className={cn(BOX, className)}>
         <Workflow className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('executionMode.toggle.enable_react')}</span>
       </Button>
@@ -67,7 +72,7 @@ export function ExecutionModeToggle({ lng = 'fr' }: ExecutionModeToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
+      className={cn(BOX, className)}
       onClick={handleToggle}
       disabled={isLoading || !user}
       aria-label={

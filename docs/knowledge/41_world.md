@@ -4,7 +4,7 @@
 
 ## What is LIA World, and how do I enter?
 
-LIA World is a shared isometric house and garden where places lead to LIA’s functions. Open **World** in the menu when your instance offers it. Choose your character, review the displayed LIA account name and accept sharing your name, appearance and coarse presence. Change your name in your LIA profile settings. The operator sets capacity; when full, a queue offers a place for you to confirm. Leaving releases your place and keeps you signed in to LIA.
+LIA World is a shared isometric house and garden where places lead to LIA’s functions. Open **3D** in the menu when your instance offers it. Choose your character, review the displayed LIA account name and accept sharing your name, appearance and coarse presence. Change your name in your LIA profile settings. The operator sets capacity; when full, a queue offers a place for you to confirm. Leaving releases your place and keeps you signed in to LIA.
 
 ## How do I move, look around and sit down?
 

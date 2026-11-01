@@ -148,6 +148,14 @@ describe('useScheduledActions — reading the list', () => {
     expect(result.current.actions).toEqual([]);
     expect(result.current.total).toBe(0);
   });
+
+  it('exposes the schedule caps the server publishes, and none it did not', () => {
+    const caps = { max_times_per_day: 288, min_step_minutes: 5, max_series_count: 500 };
+
+    expect(setup(cache({ recurrence_limits: caps })).result.current.recurrenceLimits).toEqual(caps);
+    // A payload from an API that predates the field states no cap at all.
+    expect(setup(cache()).result.current.recurrenceLimits).toBeUndefined();
+  });
 });
 
 describe('useScheduledActions — creating', () => {

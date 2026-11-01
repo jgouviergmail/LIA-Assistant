@@ -112,8 +112,10 @@ for (const width of [390, 1280]) {
       },
     ]);
     await page.goto('/fr/dashboard/sms');
-    await expect(page).toHaveURL(/\/(?:fr\/)?dashboard\/settings\?section=sms$/);
-    // In settings the archive sits in its own disclosure and draws no heading
+    // The « SMS » destination is the page itself, never a redirect.
+    await expect(page).toHaveURL(/\/(?:fr\/)?dashboard\/sms$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Mes SMS' })).toBeVisible();
+    // On its page the archive sits in its own disclosure and draws no heading
     // of its own: the region keeps its name.
     await expect(page.getByRole('region', { name: 'Mes SMS', exact: true })).toBeVisible({
       timeout: 15000,
@@ -124,13 +126,17 @@ for (const width of [390, 1280]) {
     );
     await page.getByRole('button', { name: 'Par jour', exact: true }).click();
     await expect(page.getByText(sms.body, { exact: true })).toBeVisible();
-    const section = page.locator('#settings-section-sms');
+    const section = page.locator('main');
     const archiveHeading = section.locator('summary').filter({ hasText: 'Consulter mes SMS' });
     await expect(archiveHeading.locator('..')).toHaveAttribute('open');
-    const summaries = await section.locator('details > summary').allTextContents();
-    expect(summaries.findIndex(text => text.includes('Consulter mes SMS'))).toBe(
-      summaries.findIndex(text => text.includes('Statistiques')) + 1
+    // The page's three views, in order; the settings' own blocks are not here.
+    const summaries = await section.locator(':scope details > summary').allTextContents();
+    const order = ['Consulter mes SMS', 'Expéditeurs bloqués', 'Suppression des SMS'].map(title =>
+      summaries.findIndex(text => text.includes(title))
     );
+    expect(order.every(index => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(summaries.some(text => text.includes('Statistiques'))).toBe(false);
     await archiveHeading.focus();
     await page.keyboard.press('Space');
     await expect(page.getByText(sms.body, { exact: true })).toHaveCount(0);
@@ -167,7 +173,7 @@ for (const width of [390, 1280]) {
   });
 }
 
-test('an existing notification link focuses its message inside SMS settings', async ({
+test('a notification link opens the SMS page on its message', async ({
   page,
   authenticate,
   mockApi,
@@ -224,13 +230,11 @@ test('an existing notification link focuses its message inside SMS settings', as
     },
   ]);
   await page.goto(`/fr/dashboard/sms?message=${id}`);
-  await expect(page).toHaveURL(
-    new RegExp(`/(?:fr/)?dashboard/settings\\?section=sms&message=${id}$`)
-  );
-  const focused = page.locator('#settings-section-sms div[tabindex="-1"][aria-label="Mes SMS"]');
+  await expect(page).toHaveURL(new RegExp(`/(?:fr/)?dashboard/sms\\?message=${id}$`));
+  const focused = page.locator('main div[tabindex="-1"][aria-label="Mes SMS"]');
   await expect(focused.getByText(sms.body, { exact: true })).toBeVisible();
   await expect(focused).toBeFocused();
-  const section = page.locator('#settings-section-sms');
+  const section = page.locator('main');
   await section.locator('summary').filter({ hasText: 'Suppression des SMS' }).click();
   const erase = section.getByRole('button', { name: 'Supprimer tous mes SMS', exact: true });
   await erase.click();
@@ -338,8 +342,8 @@ for (const width of [390, 1280]) {
           },
         },
       ]);
-      await page.goto('/fr/dashboard/settings?section=sms');
-      const section = page.locator('#settings-section-sms');
+      await page.goto('/fr/dashboard/sms');
+      const section = page.locator('main');
       if (scope === 'day')
         await section.getByRole('button', { name: 'Par jour', exact: true }).click();
       else await section.locator('summary').filter({ hasText: 'Camille' }).click();

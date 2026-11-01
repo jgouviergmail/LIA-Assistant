@@ -289,6 +289,7 @@ _APPLICATION_FIELD_NAMES = (
     "image_generation_output_format",
     "image_generation_prompt_enhancement",
     "exchange_rhythm",
+    "mcp_hitl_required",
 )
 
 APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
@@ -309,6 +310,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Image format",
                 "Image prompt enhancement",
                 "Exchange rhythm",
+                "Always ask before an MCP tool",
             ),
             strict=True,
         )
@@ -330,6 +332,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Format d’image",
                 "Amélioration du prompt d’image",
                 "Rythme des échanges",
+                "Toujours demander avant un outil MCP",
             ),
             strict=True,
         )
@@ -351,6 +354,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Bildformat",
                 "Bildprompt-Verbesserung",
                 "Gesprächsrhythmus",
+                "Vor einem MCP-Werkzeug immer fragen",
             ),
             strict=True,
         )
@@ -372,6 +376,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Formato de imagen",
                 "Mejora del prompt de imagen",
                 "Ritmo de conversación",
+                "Preguntar siempre antes de una herramienta MCP",
             ),
             strict=True,
         )
@@ -393,6 +398,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "Formato dell’immagine",
                 "Miglioramento del prompt",
                 "Ritmo della conversazione",
+                "Chiedere sempre prima di uno strumento MCP",
             ),
             strict=True,
         )
@@ -414,6 +420,7 @@ APPLICATION_FIELD_LABELS: dict[Language, dict[str, str]] = {
                 "图像格式",
                 "图像提示词优化",
                 "交流节奏",
+                "使用 MCP 工具前始终询问",
             ),
             strict=True,
         )
@@ -1059,6 +1066,17 @@ APPLICATION_ROUTINE_UPDATE: dict[Language, str] = {
     "es": "Cambiar estos ajustes tras confirmar, sin ejecución inmediata. Una fecha futura puede reactivar una rutina terminada; se conserva una pausa manual. Las activaciones futuras usan la nueva instrucción, aprobación y modo de ejecución con las cuotas y costes LLM existentes.",
     "it": "Modificare queste impostazioni dopo la conferma, senza avvio immediato. Una scadenza futura può riattivare un’automazione conclusa; una pausa manuale viene conservata. Le attivazioni future usano le nuove istruzioni, approvazione e modalità con le quote e i costi LLM esistenti.",
     "zh-CN": "确认后修改这些设置，不会立即执行。新的未来时间可能重新启用已完成的自动任务，手动暂停将保留。未来触发使用新的指令、审批选择和执行模式，并遵循现有 LLM 配额及费用。",
+}
+
+#: The card row of a routine command whose routine confirms MCP tools for itself
+#: (spec 2026-10-29 D9): the person approves knowing it.
+APPLICATION_ROUTINE_MCP_PREAPPROVAL: dict[Language, str] = {
+    "fr": "Serveurs MCP que cette routine confirme d’elle-même",
+    "en": "MCP servers this routine confirms for itself",
+    "de": "MCP-Server, deren Bestätigungen diese Routine selbst gibt",
+    "es": "Servidores MCP que esta rutina confirma por sí misma",
+    "it": "Server MCP che questa automazione conferma da sola",
+    "zh-CN": "此自动任务自行确认的 MCP 服务器",
 }
 
 APPLICATION_MEMORY_BULK: dict[Language, ApplicationExportCopy] = {

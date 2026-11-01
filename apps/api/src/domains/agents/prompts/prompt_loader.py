@@ -105,6 +105,8 @@ PromptName = Literal[
     # offer, and its one-line scaffolds (hosts, carriers, the unknown-host rule).
     "react_computation_network_prompt",
     "react_computation_lines",
+    # ADR-367: context blocks only the ReAct loop reads (the designated items).
+    "react_context_lines",
     # ADR-335 / ADR-284: the <ApplicationSettings> rules, rendered only when a
     # tool of the settings catalogue is bound for the turn.
     "react_settings_prompt",
@@ -216,6 +218,10 @@ PromptName = Literal[
     "initiative_suggestion_directive",
     "proactive_findings_directive",
     "mcp_react_agent_prompt",
+    # An iterative MCP task's confirmation line and code-written record (spec D5, D6).
+    "mcp_sub_loop_lines",
+    # The plan's steps left unrun because an act they needed did not happen (spec D7).
+    "response_directive_held_not_run",
     # ADR-070: ReAct Execution Mode
     "react_agent_prompt",
     # ADR-083: Sub-Agent Delegation as Parameterized ReAct Loop

@@ -29,6 +29,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.effects.decisions import note_plan, note_stop_reason
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.plan_resume import resume_due
 from src.domains.agents.orchestration.plan_predicates import approval_is_refused
 from src.infrastructure.observability.metrics_langgraph import (
     langgraph_conditional_edges_total,
@@ -692,7 +693,9 @@ def route_from_semantic_validator(
     return "approval_gate"
 
 
-def route_from_hitl_dispatch(state: MessagesState) -> Literal["hitl_dispatch", "initiative"]:
+def route_from_hitl_dispatch(
+    state: MessagesState,
+) -> Literal["hitl_dispatch", "task_orchestrator", "initiative"]:
     """Route after the HITL dispatch node (NODE_DRAFT_CRITIQUE = "hitl_dispatch").
 
     Self-loop while a draft critique is still pending: non-terminal decisions
@@ -709,6 +712,15 @@ def route_from_hitl_dispatch(state: MessagesState) -> Literal["hitl_dispatch", "
     handlers that never set pending_draft_critique, so they always route to
     initiative exactly as before.
 
+    Spec 2026-10-29 D7: when steps of the plan WAIT for these answers, the
+    settled sequence goes back to the orchestrator, which executes the
+    confirmed drafts and runs the waiting steps on their real results — the
+    FOR_EACH confirmation's own way back (``route_from_for_each_confirm``).
+    So does every answer to a question a step of the plan asked — a tool
+    call, a resumed step's draft — so the step reports its act's real result
+    (ADR-368 §10). The orchestrator's own predicate decides (``resume_due``):
+    entered with no decision, it would run the whole plan again.
+
     Args:
         state: Current graph state.
 
@@ -724,6 +736,13 @@ def route_from_hitl_dispatch(state: MessagesState) -> Literal["hitl_dispatch", "
             decision=NODE_DRAFT_CRITIQUE,
         ).inc()
         return NODE_DRAFT_CRITIQUE
+
+    if resume_due(state):
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_hitl_dispatch",
+            decision=NODE_TASK_ORCHESTRATOR,
+        ).inc()
+        return NODE_TASK_ORCHESTRATOR
 
     langgraph_conditional_edges_total.labels(
         edge_name="route_from_hitl_dispatch",

@@ -48,6 +48,11 @@ from src.domains.agents.constants import AGENT_CONTACT, CONTEXT_DOMAIN_CONTACTS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.google_contacts.value_descriptions import (
+    CONTACT_ADDRESS_DESCRIPTION,
+    CONTACT_EMAIL_DESCRIPTION,
+    CONTACT_PHONE_DESCRIPTION,
+)
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
@@ -460,15 +465,16 @@ ContextTypeRegistry.register(
         item_schema=ContactItem,  # Type-safe validation
         primary_id_field=FIELD_RESOURCE_NAME,
         display_name_field="name",
-        # Fuzzy matching reads these keys off the STORED items, which are the
-        # registry payloads: the provider's raw person plus the promotions made
-        # in `build_contacts_output`. `emails`/`phones`/`addresses`/`birthdays`
-        # were never among them — the raw keys are `emailAddresses`,
-        # `phoneNumbers`, … and the resolver only scores strings and lists of
-        # strings, so those four scored 0.0 on every item. Declaring a field the
-        # data does not carry does not widen matching, it only hides that
-        # "Marie" could never resolve at all.
-        reference_fields=["name"],
+        # Matching reads these keys off the STORED items, which are the registry
+        # payloads: the provider's raw person plus the promotions made in
+        # `build_contacts_output` — `emailAddresses`, `organizations` and
+        # `addresses` are lists of objects, which the descriptor matcher reads
+        # whole since ADR-367 (« Jean from Lyon »). Declaring a field the data
+        # does not carry does not widen matching; a guard holds every declared
+        # key to the payloads the three providers produce.
+        reference_fields=["name", "emailAddresses", "organizations", "addresses"],
+        content_reference_fields=["biographies"],
+        candidate_fields=["name", "emailAddresses.value", "addresses.city"],
         icon="📇",  # Optional emoji for UI
     )
 )
@@ -1928,29 +1934,29 @@ _update_contact_draft_tool_instance = UpdateContactDraftTool()
 async def update_contact_tool(
     resource_name: Annotated[str, "Contact resource name (people/c...) - required"],
     name: Annotated[str | None, "New contact name (optional)"] = None,
-    email: Annotated[str | None, "New contact email (optional)"] = None,
-    phone: Annotated[str | None, "New contact phone (optional)"] = None,
+    email: Annotated[str | None, CONTACT_EMAIL_DESCRIPTION] = None,
+    phone: Annotated[str | None, CONTACT_PHONE_DESCRIPTION] = None,
     organization: Annotated[str | None, "New organization name (optional)"] = None,
     notes: Annotated[str | None, "New notes (optional)"] = None,
-    address: Annotated[
-        str | None, "New address (optional, e.g. '15 rue de la Paix, Paris 75001')"
-    ] = None,
+    address: Annotated[str | None, CONTACT_ADDRESS_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
     Update an existing contact in Google Contacts (with user confirmation).
 
     IMPORTANT: This tool creates a DRAFT that requires user confirmation.
-    The contact is NOT updated until the user confirms via HITL.
+    The contact is NOT updated until the user confirms via HITL. An e-mail,
+    phone or address replaces the contact's PRIMARY one and keeps the others
+    (ADR-369 — it used to replace the whole list).
 
     Args:
         resource_name: Contact resource name (people/c...) - required
         name: New contact name (optional)
-        email: New contact email (optional)
-        phone: New contact phone (optional)
+        email: New primary email; the others are kept (optional)
+        phone: New primary phone; the others are kept (optional)
         organization: New organization name (optional)
         notes: New notes (optional)
-        address: New address (optional, e.g. '15 rue de la Paix, Paris 75001')
+        address: New primary address, e.g. '15 rue de la Paix, Paris 75001' (optional)
         runtime: Tool runtime (injected)
 
     Returns:

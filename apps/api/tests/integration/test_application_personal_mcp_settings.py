@@ -15,6 +15,7 @@ from src.domains.agents.application.draft_execution import execute_application_a
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_personal_mcp_tools
+from src.domains.user_mcp.assistant_confirmation import judge_personal_mcp_settings
 from src.domains.user_mcp.models import UserMCPServer
 from src.domains.user_mcp.personal_settings import update_personal_mcp_settings
 from src.domains.user_mcp.personal_state import observe_personal_mcp_state, set_personal_mcp_state
@@ -64,6 +65,7 @@ async def test_confirmed_personal_mcp_settings_are_exact_and_preserve_authentica
             observe_personal_mcp_state,
             set_personal_mcp_state,
             None if scenario == "missing_writer" else update_personal_mcp_settings,
+            judge_settings=judge_personal_mcp_settings,
         )
     )
 
@@ -162,5 +164,120 @@ async def test_confirmed_personal_mcp_settings_are_exact_and_preserve_authentica
             assert len(changes) == int(result.success and scenario != "noop")
             if changes:
                 assert changes[0].metadata["change"]["resources"] == ["user_mcp"]
+    finally:
+        configure_personal_mcp_state(previous)
+
+
+async def test_the_chat_tightens_a_server_and_its_tools_and_never_loosens(
+    async_session, test_user, monkeypatch
+):
+    """Spec 2026-10-30 D7 on real PostgreSQL: « false » is refused before any card;
+    « always » for the server and one of its tools is written in one transaction."""
+    from datetime import UTC, datetime
+
+    from src.domains.user_mcp.tool_choice_repository import UserMCPToolChoiceRepository
+    from src.infrastructure.mcp.catalogue_snapshot import build_snapshot, snapshot_to_jsonb
+    from src.infrastructure.mcp.confirmation import ToolChoice, declaration_fingerprint
+
+    monkeypatch.setattr(settings, "application_tools_enabled", True)
+    monkeypatch.setattr(settings, "mcp_enabled", True)
+    monkeypatch.setattr(settings, "mcp_user_enabled", True)
+    owner = test_user.id
+    read_note = {"name": "read_note", "input_schema": {}, "annotations": {"read_only_hint": True}}
+    delete_note = {
+        "name": "delete_note",
+        "input_schema": {},
+        "annotations": {"destructive_hint": True},
+    }
+    row = UserMCPServer(
+        user_id=owner,
+        name="Notes",
+        url="https://notes.example/mcp",
+        discovered_tools_cache=snapshot_to_jsonb(
+            build_snapshot(
+                tools=[read_note, delete_note],
+                configuration_fingerprint="cfg",
+                discovered_at=datetime.now(UTC),
+                generation=1,
+            )
+        ),
+    )
+    async_session.add(row)
+    await async_session.commit()
+    server_id = row.id
+    monkeypatch.setattr(UserMCPServerService, "_disconnect_from_pool", AsyncMock())
+    previous = configure_personal_mcp_state(
+        PersonalMCPStateGateway(
+            observe_personal_mcp_state,
+            set_personal_mcp_state,
+            update_personal_mcp_settings,
+            judge_settings=judge_personal_mcp_settings,
+        )
+    )
+
+    @asynccontextmanager
+    async def database():
+        try:
+            yield async_session
+            await async_session.commit()
+        except BaseException:
+            await async_session.rollback()
+            raise
+
+    for module in ["command_service", "draft_execution"]:
+        monkeypatch.setattr(f"src.domains.agents.application.{module}.get_db_context", database)
+    monkeypatch.setattr(application_personal_mcp_tools, "get_db_context", database)
+    monkeypatch.setattr("src.infrastructure.database.session.get_db_context", database)
+    events = asyncio.Queue()
+
+    async def propose(values):
+        return await application_personal_mcp_tools.update_lia_personal_mcp_server_settings_tool.coroutine(
+            request={"server_id": str(server_id), "patch": values},
+            runtime=make_tool_runtime(
+                user_id=owner,
+                execution_mode="react",
+                store=InMemoryStore(),
+                side_channel_queue=events,
+            ),
+        )
+
+    try:
+        with installed_runtime_context(
+            user_id=owner, deps=object(), execution_mode="react", side_channel_queue=events
+        ):
+            refused = await propose({"hitl_required": False})
+            assert not refused.success and refused.error_code == "CONFIRMATION_LOOSENING"
+            assert not refused.registry_updates
+
+            proposal = await propose({"hitl_required": True, "always_ask_tools": ["read_note"]})
+            assert proposal.success and proposal.metadata["requires_confirmation"]
+            item = next(iter(proposal.registry_updates.values()))
+            draft = ApplicationActionDraftContent.model_validate(item.payload["content"])
+            with patch.dict(draft_executor.EXECUTOR_REGISTRY):
+                draft_executor.register_executor(
+                    "application_action", execute_application_action_draft
+                )
+                result = await draft_executor._execute_confirmed_draft(
+                    {
+                        "draft_id": item.id,
+                        "draft_type": "application_action",
+                        "draft_content": draft.model_dump(mode="json"),
+                    },
+                    {"configurable": {"thread_id": "personal-mcp-tighten"}},
+                    "personal-mcp-tighten",
+                    "fr",
+                )
+            assert result.success
+            saved = await async_session.scalar(
+                select(UserMCPServer)
+                .where(UserMCPServer.id == server_id)
+                .execution_options(populate_existing=True)
+            )
+            assert saved.hitl_required is True
+            choices = await UserMCPToolChoiceRepository(async_session).choices_for([server_id])
+            stored = choices[server_id]["read_note"]
+            assert stored.choice is ToolChoice.ALWAYS
+            assert stored.fingerprint == declaration_fingerprint(read_note)
+            assert "delete_note" not in choices[server_id]
     finally:
         configure_personal_mcp_state(previous)

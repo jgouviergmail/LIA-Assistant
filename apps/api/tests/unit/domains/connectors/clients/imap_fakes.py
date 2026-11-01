@@ -174,6 +174,17 @@ class FakeImap:
         for uid in uids:
             self.store[self.selected].pop(uid)
 
+    def flag(self, uids: Any, flag_set: Any, value: bool) -> None:
+        """``MailBox.flag``: add (value=True) or remove flags on UIDs of the folder."""
+        folder = self.store[self.selected]
+        wanted = [uids] if isinstance(uids, str) else list(uids)
+        flags = {flag_set} if isinstance(flag_set, str) else set(flag_set)
+        for uid in wanted:
+            if uid in folder:
+                raw, current = folder[uid]
+                updated = (set(current) | flags) if value else (set(current) - flags)
+                folder[uid] = (raw, tuple(sorted(updated)))
+
     def _uid_command(self, command: str, sequence: str, *args: str) -> tuple[str, list[bytes]]:
         uids = sequence.split(",")
         folder = self.store[self.selected]

@@ -139,11 +139,9 @@ class TestTheReadingIsRobust:
 
     def test_the_two_lexicons_never_overlap(self) -> None:
         """A word in both would make the order of the checks the decision."""
-        from src.domains.workboard.answers import _tokens
+        from src.domains.shared.answer_lexicon import lexicon
 
-        approvals = {_tokens(phrase) for phrase in ANSWER_APPROVAL_PHRASES}
-        refusals = {_tokens(phrase) for phrase in ANSWER_REFUSAL_PHRASES}
-        assert not approvals & refusals
+        assert not lexicon(ANSWER_APPROVAL_PHRASES) & lexicon(ANSWER_REFUSAL_PHRASES)
 
     def test_every_language_has_both_families(self) -> None:
         for approval, refusal in (

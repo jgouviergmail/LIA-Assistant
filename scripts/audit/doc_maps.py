@@ -66,16 +66,33 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import subprocess
 import sys
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_unrendered_placeholders() -> Callable[[str], list[str]]:
+    """The locale validator's rule: ONE reading of « a script variable left in text »."""
+    path = ROOT / "scripts" / "i18n" / "validate_translations.py"
+    spec = importlib.util.spec_from_file_location("validate_translations", path)
+    if spec is None or spec.loader is None:  # pragma: no cover - defensive
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    rule: Callable[[str], list[str]] = module.unrendered_placeholders
+    return rule
+
+
+unrendered_placeholders = _load_unrendered_placeholders()
 
 DATA_DIR = "apps/web/src/data/maps"
 DOCS_DIR = "docs/maps"
@@ -632,6 +649,13 @@ def check_unit(
                 problems.append(f"text {lang}: {key} lists {len(value)} {field}, the source {want}")
         elif not isinstance(value, str) or not value.strip():
             problems.append(f"text {lang}: {key} has no {field}")
+        sentences = value if isinstance(value, list) else [value]
+        for placeholder in (
+            p for s in sentences if isinstance(s, str) for p in unrendered_placeholders(s)
+        ):
+            problems.append(
+                f"text {lang}: {key} {field} carries an unrendered placeholder {placeholder}"
+            )
     if lang == SOURCE_LANG or source is None:
         return
     for field in fields:

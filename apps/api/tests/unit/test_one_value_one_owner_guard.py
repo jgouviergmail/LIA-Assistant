@@ -100,12 +100,24 @@ def test_the_dev_api_image_downloads_what_production_downloads() -> None:
     local download script fetches the same revision."""
     prod, dev = _args("apps/api/Dockerfile.prod"), _args("apps/api/Dockerfile.dev")
     shared = prod.keys() & dev.keys()
-    expected = {"HF_BASE_URL", "NODE_VERSION", "DOCKER_GPG_SHA256", "CLAUDE_CODE_VERSION"}
+    expected = {
+        "HF_BASE_URL",
+        "NODE_VERSION",
+        "DOCKER_GPG_SHA256",
+        "CLAUDE_CODE_VERSION",
+        "PIP_VERSION",
+        "PIP_WHEEL_SHA256",
+        "NPM_VERSION",
+    }
     assert expected <= shared, f"a pinned input left one of the two files: {expected - shared}"
     assert {name: dev[name] for name in sorted(shared)} == {
         name: prod[name] for name in sorted(shared)
     }, "apps/api/Dockerfile.dev must download exactly what Dockerfile.prod downloads"
     assert _bases("apps/api/Dockerfile.dev") == _bases("apps/api/Dockerfile.prod")
+    sandbox = _args("apps/api/Dockerfile.sandbox")
+    assert {name: sandbox[name] for name in ("PIP_VERSION", "PIP_WHEEL_SHA256", "NPM_VERSION")} == {
+        name: prod[name] for name in ("PIP_VERSION", "PIP_WHEEL_SHA256", "NPM_VERSION")
+    }, "the sandbox must use the API's qualified package-manager versions"
 
     script = re.search(r'^HF_BASE_URL="([^"]+)"', _read("scripts/download-whisper-model.sh"), re.M)
     assert script, "scripts/download-whisper-model.sh no longer declares HF_BASE_URL"

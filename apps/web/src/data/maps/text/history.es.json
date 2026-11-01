@@ -1750,8 +1750,8 @@
     },
     "331": {
       "title": "Lo que los controles no ven se lee cada semana",
-      "summary": "Los controles de cada cambio leían una sola base de avisos de seguridad: la revisión de septiembre de 2026 encontró veinte avisos publicados por los propios repositorios de las dependencias que ninguna herramienta veía. Una vigilancia semanal lee ahora esos avisos, los fines de soporte, los registros y el motor del navegador, y cada hallazgo se corrige o se acepta por escrito, con una fecha de revisión. Las versiones de Python avanzan con un solo comando, tras un periodo de espera, sin retroceder nunca.",
-      "src": "1fdde3db9932"
+      "summary": "Los controles de cada cambio leían una sola base de avisos de seguridad: la revisión de septiembre de 2026 encontró veinte avisos publicados por los propios repositorios de las dependencias que ninguna herramienta veía. Una vigilancia semanal lee ahora esos avisos, los fines de soporte, los registros y el motor del navegador, y cada hallazgo se corrige o se acepta por escrito, con una fecha de revisión. Las versiones de Python avanzan con un solo comando, tras un periodo de espera, sin retroceder nunca. El paso desde una generación sin mantenimiento puede validarse mediante un adaptador oficial, sin cambiar las reglas ni los umbrales; los metadatos de compatibilidad por sí solos no bastan.",
+      "src": "7241115ba795"
     },
     "332": {
       "title": "Tarjetas que muestran todo lo recibido, y acciones ligadas al mensaje que las muestra",
@@ -1922,6 +1922,21 @@
       "title": "El catálogo de un servidor MCP personal, servido sin esperar",
       "summary": "Lo que ofrece un servidor MCP personal se guarda en la cuenta y se vuelve a servir de un mensaje a otro, en cualquier proceso, mientras uno solo lo revisa en segundo plano. Los servidores se preparan en paralelo; uno demasiado lento queda fuera de ese mensaje, nombrado en un aviso, y listo para el siguiente. Cuando la copia guardada ha dejado de estar fresca, LIA comprueba antes de la llamada que la herramienta se sigue ofreciendo de la misma forma y, si no, se niega a enviarla.",
       "src": "b3d470a00714"
+    },
+    "367": {
+      "title": "«El correo de Marc»: designado por lo que es, preguntado cuando varios encajan",
+      "summary": "Cuando la persona designa un elemento que acaba de ver por lo que es —su remitente, una palabra del asunto—, el análisis de la petición solo dice cómo se designa; es el código el que encuentra, entre los elementos realmente mostrados, los que esas palabras designan. Uno: LIA actúa y lo nombra en el registro de acciones. Varios: LIA pregunta cuál, con una pregunta que ningún modelo escribe, y nunca adivina; ninguno: una nueva búsqueda.",
+      "src": "80fe152b44d4"
+    },
+    "368": {
+      "title": "La persona decide cuándo LIA pregunta antes de una herramienta MCP",
+      "summary": "La persona elige cuándo LIA le pide su aprobación antes de una herramienta MCP: para toda su cuenta, para cada servidor, para cada herramienta — «no preguntar nunca» sigue ligado a lo que la herramienta declara. Antes de cualquier cambio que haría que LIA preguntara menos, la página enumera lo que LIA dejaría de preguntar; nada queda bloqueado. A un agente dedicado se le pregunta una vez antes de cada tarea en cuanto una de sus herramientas lo pediría, y la tarea se ejecuta hasta el final; desde la conversación, LIA solo puede preguntar más.",
+      "src": "66eded8b0533"
+    },
+    "369": {
+      "title": "La persona actúa ella misma sobre sus servicios, sin modelo",
+      "summary": "La sección «Herramientas» abre el correo, la agenda, las tareas, los contactos, los archivos de Drive y las luces de la persona para que los consulte y actúe a mano: ningún modelo, ningún token, la velocidad del proveedor. La pantalla solo ofrece lo que el proveedor acepta, y lo que un cliente gana para ella lo ganan a la vez las herramientas de la asistente; nada de lo que la persona hace a mano llega a un registro, porque no es un acto de LIA.",
+      "src": "07998b0c5d8d"
     }
   }
 }

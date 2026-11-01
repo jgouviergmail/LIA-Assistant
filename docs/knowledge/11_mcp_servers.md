@@ -30,7 +30,8 @@ Settings → "*MCP Servers*" section → **Add** button
 4. **Authentication**: choose the type (none, API key, bearer token, OAuth 2.1)
 5. **Timeout**: maximum call duration (5-120 seconds)
 
-6. **Iterative mode** (optional): enable for multi-step interactions. An agent can consult the offered documentation, call tools and use their results for its next step. The planner sees a single "task" tool instead of individual tools. Iterations, time and output remain bounded; this can consume more tokens and does not guarantee success.
+6. **Who drives it**: LIA uses its tools directly, a dedicated agent in Pipeline with the tools directly in ReAct, or a dedicated agent in both modes (see *Who drives an MCP server*).
+7. **Confirmation**: like your strategy, always ask, or follow the server's declarations (see *How do I decide when LIA asks before using an MCP tool?*).
 
 **🔗 After creation:**
 Click **Test Connection** to verify the server is reachable and discover available tools.
@@ -148,23 +149,25 @@ LIA can **auto-generate** a domain description for your MCP servers:
 • Auto-generation is a good starting point that you can refine afterwards
 • Generation knows whether the server is authenticated with your account: it then describes capabilities over your data, never a "public-only" access
 
-## What is iterative mode, and when should I turn it on?
+## Who drives an MCP server: tools used directly or a dedicated agent?
 
-It is a switch on each server's form, **Iterative mode (ReAct agent)**, off by default.
+It is one choice on each server's form, with three options:
 
-**🔧 Off:** LIA plans with the server's individual tools and fills in their parameters at once — ideal for simple, independent tools such as a search.
+**🔧 LIA uses its tools directly:** LIA plans with the server's individual tools and fills in their parameters at once — ideal for simple, independent tools such as a search.
 
-**🔄 On:** LIA hands the request to a dedicated assistant that works with that server step by step: it reads the documentation the server offers, calls a tool, reads the result, chooses the next one and recovers from an error — within a bounded number of steps and time.
+**🔄 A dedicated agent in Pipeline, the tools directly in ⚡ ReAct:** in Pipeline, LIA hands the request to a dedicated agent that works with that server step by step — it reads the documentation the server offers, calls a tool, reads the result, chooses the next one and recovers from an error, within a bounded number of steps and time; in ReAct, LIA already works step by step and uses the server's tools directly.
 
-**✅ Turn it on when** the tools must be called in sequence, one tool's output feeds the next, or the server asks to read its documentation first (a drawing server, for instance).
+**🤖 A dedicated agent in both modes:** the agent works in ReAct too — useful when the tools must be called in sequence or the server asks to read its documentation first (a drawing server, for instance).
 
-**💡 Good to know:** it makes several model calls per request, so it costs more and does not guarantee success. In ⚡ ReAct mode LIA already works step by step and uses the server's tools directly — except servers that draw interactive widgets, which keep their dedicated assistant. Your administrator can switch iterative mode off for the whole instance.
+**🛡️ Confirmation with a dedicated agent:** LIA asks once before handing it a task, as soon as one of its tools would need your approval; your answer covers the agent's calls for that task, which runs to completion. In ReAct, LIA may give the agent several tasks in a row: one question each.
+
+**💡 Good to know:** a dedicated agent makes several model calls per request, so it costs more and does not guarantee success. Servers that draw interactive widgets keep their agent in ReAct. Your administrator can switch dedicated agents off for the whole instance.
 
 **🤖 Which model:** servers with interactive widgets use a more capable model, the others a faster and cheaper one; the administrator sets both in **LLM Configuration**.
 
 **🩺 Widgets:** an interactive widget is kept with the conversation and reopens after a reload or on another device. A widget that never starts shows a notice with an explanation, a **Retry** button and the technical detail, so a report from any device names the culprit.
 
-**⚙️ For administrators:** iterative mode is available unless `MCP_REACT_ENABLED=false`, and `REACT_MCP_EXPAND_ITERATIVE_ENABLED=false` keeps the dedicated assistant in ReAct mode too.
+**⚙️ For administrators:** dedicated agents are available unless `MCP_REACT_ENABLED=false`; `REACT_MCP_EXPAND_ITERATIVE_ENABLED` is the default ReAct shape of a server whose owner never chose one, and the rule of the administrator's own iterative servers.
 
 ## How do I generate Excalidraw diagrams and schemas?
 LIA can create architecture diagrams, workflows, org charts and more using the Excalidraw MCP server:
@@ -213,12 +216,30 @@ LIA shares one interpretation between the model's tool signature and the planner
 The protocol lets a server publish a **readable name** alongside a tool's technical identifier. When it does, that is what appears in the discovered-tools list — *Financial accounts* rather than `accounts__list_financial_accounts`. The technical identifier stays beside it: that is the one found again in logs and in rules.
 
 **🛡️ The confirmation:**
-A server can also declare that a tool is **destructive**. LIA believes that declaration in one direction only: a server claiming to be harmless never earns a free pass. This is what the specification recommends: a third-party server's annotations may strengthen a protection, never lift one.
+A server can also declare that a tool is **destructive**. LIA believes that declaration in one direction only: a server claiming to be harmless never earns a free pass — a third-party server's annotations may strengthen a protection, never lift one. Only **your** choice can lift a question: “Never ask” for that one tool, bound to what it declares; if the server changes that declaration, your choice is suspended; the server and account rules apply until you choose anew.
 
-Where LIA asks today depends on the server and the mode:
-• **A server your administrator added**: a tool announced as destructive asks for confirmation in both modes, **even if** confirmation is switched off for that server. On a server in iterative mode, LIA asks once before the task when confirmation is on for the server, and its tools do **not** ask on their own yet
-• **Your own server, in ReAct mode**: with confirmation on, LIA asks before each of its tools. With confirmation off, it still asks before a tool announced as destructive, but only on a server in **iterative mode**
-• **Your own server, in Pipeline mode** (a routine run in Pipeline mode included): LIA does **not** ask before its tools yet, whatever the server's setting. For a server whose actions you want to approve one by one, use ReAct mode
+The rule is the same for every server — yours or your administrator's — and in both modes:
+• **A tool asks for confirmation** according to its own choice, then its server's, then your strategy, then the instance's default — and, when it follows the declarations, when the server announces it as modifying or destructive
+• **Tools used directly, in ⚡ ReAct mode**: LIA asks before the tool runs, then carries on
+• **Tools used directly, in Pipeline mode**: the task does everything it can; each action awaiting your approval is prepared, never performed, and shown after the task, one card at a time. A step that comes after such an action waits for your answer: if it needs the action's result, it runs on the real result once you approve — refused, it does not run and LIA says so; otherwise it runs either way, like the updated list you asked for. With the outcome, LIA tells you what else the task did
+• **A dedicated agent, in both modes**: LIA asks once before handing it a task, as soon as one of its tools would need your approval; your answer covers its calls and the task runs to completion
+• **In a scheduled action**: nobody is there to answer, so such a tool — or a dedicated agent's whole task — is refused, unless the action's form confirms that server in advance (see *Scheduled actions*); a tool set to “Never ask” runs. An assistant can never tick that box for you
+• **Afterwards**: every action performed appears in the **Actions** register, named after its server
+
+## How do I decide when LIA asks before using an MCP tool?
+
+In **Settings › MCP Servers**, at three levels, from the most general to the most precise:
+• **🌐 Your strategy**: “Always ask” before every MCP tool, or “Follow its declarations” — LIA then asks only for the tools the server announces as modifying or deleting. An account that never chose follows the instance's default
+• **🖥️ Each server**: like your strategy, always, or according to its declarations
+• **🔧 Each tool**: “Always ask” or “Never ask” — the latter, shown in red, means LIA uses the tool without asking you, as if you had said yes; the act is still recorded in the **Actions** register. You choose it in **What it will do** or in the server's form
+
+The **What it will do** button shows, mode by mode and tool by tool, whether LIA will ask, when (before the call, or before a dedicated agent's task) and why. Before any change that would make LIA ask less, the page lists what LIA would no longer ask about: nothing is locked, you stay responsible for your settings.
+
+## Can I set these confirmations by talking to LIA?
+
+Yes, but only so that LIA asks **more**. “Always ask me before using an MCP tool”, “… before this server” or “… before this tool” work: your strategy changes at once, a server or its tools go through a card you confirm. “Stop asking me” is refused, and LIA points you to **Settings › MCP Servers**, where the page lists what would change.
+
+**🛡️ Why:** an instruction hidden in content LIA reads — an e-mail, a web page, a document — must never be able to switch a confirmation off.
 
 ## How does LIA check what an MCP tool can do?
 

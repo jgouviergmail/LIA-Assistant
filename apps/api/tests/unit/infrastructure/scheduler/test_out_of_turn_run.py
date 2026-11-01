@@ -983,3 +983,28 @@ class TestARetryNeverReplaysAnAction:
         with patch("src.infrastructure.database.session.get_db_context") as opened:
             assert await _run_acted(None) is False
         opened.assert_not_called()
+
+
+class TestARoutinePreapprovalTravelsWithTheTurn:
+    """Spec D9: the routine's ticked servers reach the gate through the stream."""
+
+    async def test_the_run_publishes_its_preapproval_then_clears_it(self) -> None:
+        from src.domains.shared.mcp_preapproval import MCPPreapproval, current_mcp_preapproval
+
+        seen: list[MCPPreapproval | None] = []
+
+        def stream(**_kwargs: Any) -> Any:
+            async def generator() -> Any:
+                seen.append(current_mcp_preapproval())
+                yield _chunk("token", "ok")
+
+            return generator()
+
+        service = MagicMock()
+        service.stream_chat_response = MagicMock(side_effect=stream)
+        preapproval = MCPPreapproval(servers=frozenset({"notes"}), routine_id="r-9")
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request(mcp_preapproval=preapproval))
+
+        assert seen == [preapproval]
+        assert current_mcp_preapproval() is None, "a leak would pre-approve the next turn"

@@ -154,12 +154,14 @@ export interface UseChatReturn {
    * One-click HITL approval (Lot 1 P1-V1): locks the card (submitting),
    * then sends the localized button label as the message with the
    * structured decision attached. Wire action ids pass through verbatim
-   * (the backend canonicalizes aliases).
+   * (the backend canonicalizes aliases). A choice's option (ADR-367) carries
+   * its position.
    */
   submitHitlDecision: (
     wireAction: string,
     labelText: string,
-    modificationInstructions?: string
+    modificationInstructions?: string,
+    selectedIndex?: number
   ) => Promise<void>;
   /** Connector error banners accumulated for the current turn (Lot 3 P3). */
   connectorNotices: ChatState['connectorNotices'];
@@ -1024,7 +1026,12 @@ export const useChat = ({
     ['cancel', 'reject'].includes(wireAction) ? 'cancel' : 'confirm';
 
   const submitHitlDecision = useCallback(
-    async (wireAction: string, labelText: string, modificationInstructions?: string) => {
+    async (
+      wireAction: string,
+      labelText: string,
+      modificationInstructions?: string,
+      selectedIndex?: number
+    ) => {
       const { status, payload } = stateRef.current.hitl;
       if (status !== 'awaiting' || !payload?.messageId) {
         return; // Defensive: no live card, or unidentifiable interrupt
@@ -1038,6 +1045,8 @@ export const useChat = ({
         ...(modificationInstructions
           ? { modification_instructions: modificationInstructions }
           : {}),
+        // ADR-367: the option a « which of these? » button names.
+        ...(selectedIndex !== undefined ? { selected_index: selectedIndex } : {}),
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from src.core.application_device_snapshot import RecordingDeviceSnapshot
 from src.core.card_composition import CardCompositionRequest
-from src.core.constants import CHAT_MESSAGE_MAX_LENGTH
+from src.core.constants import CHAT_MESSAGE_MAX_LENGTH, ENTITY_RESOLUTION_MAX_CANDIDATES_CAP
 from src.domains.agents.capability_directives import DirectiveCapability
 
 
@@ -89,7 +89,10 @@ class HitlDecisionRequest(BaseModel):
     action: str = Field(
         min_length=1,
         max_length=32,
-        description="Selected action id ('confirm', 'cancel', or 'edit').",
+        description=(
+            "Selected action id ('confirm', 'cancel', 'edit'; 'select' or 'none' on a "
+            "« which of these? » card)."
+        ),
     )
     modification_instructions: str | None = Field(
         default=None,
@@ -97,6 +100,15 @@ class HitlDecisionRequest(BaseModel):
         description=(
             "Free-text draft modification instructions. Required when action "
             "is 'edit' on a draft card; ignored otherwise."
+        ),
+    )
+    selected_index: int | None = Field(
+        default=None,
+        ge=1,
+        le=ENTITY_RESOLUTION_MAX_CANDIDATES_CAP,
+        description=(
+            "The 1-based option a « which of these? » card's button names (ADR-367). "
+            "Required when action is 'select'; ignored otherwise."
         ),
     )
 

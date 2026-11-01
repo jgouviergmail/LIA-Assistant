@@ -394,6 +394,7 @@ export const EXTENDED_ROUTINES: ScheduledActionListResponse = {
     min_precipitation_percent: 60,
     source: 'google_weather',
   },
+  recurrence_limits: { max_times_per_day: 12, min_step_minutes: 15, max_series_count: 500 },
 };
 export const EXTENDED_WEEK: ScheduledActionWeekResponse = {
   actions: ROUTINES.map((action, index) => ({

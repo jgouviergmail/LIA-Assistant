@@ -1,16 +1,47 @@
 """
-Contacts normalizer: vCard → dict format Google People API.
+Contacts normalizer: vCard → dict format Google People API, and back.
 
 Converts vCard strings (CardDAV) to the dict structure
 expected by google_contacts_tools.py (same format as GooglePeopleClient).
+
+A value's KIND reads as the other providers name it (``home``, ``work``,
+``mobile``…): ``INTERNET``, ``PREF`` and ``VOICE`` describe a line, not a
+kind, and ``CELL`` is ``mobile``. Writing back (ADR-369, D4), the EMAIL, TEL
+and ADR lines are rewritten list by list — a line the person did not change
+is kept as it was read, its group and parameters included — and every other
+line of the card survives untouched.
 """
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Final
 
 import structlog
 import vobject
 
+from src.domains.connectors.clients.normalizers.contact_values import (
+    TypedAddress,
+    TypedValue,
+    desired_addresses,
+    desired_values,
+    kept_or_built,
+    same_kind,
+)
+
 logger = structlog.get_logger(__name__)
+
+#: TYPE values that describe a line rather than what it is for.
+_NOT_A_KIND: Final = frozenset({"internet", "pref", "voice", "x400"})
+#: vCard's names for a kind the other providers spell differently.
+_KIND_READ: Final = {"cell": "mobile"}
+_KIND_WRITTEN: Final = {"mobile": "CELL"}
+#: An ADR value's parts, under the names the People shape gives them.
+_ADR_PARTS: Final = (
+    ("streetAddress", "street"),
+    ("city", "city"),
+    ("region", "region"),
+    ("postalCode", "code"),
+    ("country", "country"),
+)
 
 
 def normalize_vcard(vcard_str: str, resource_name: str = "") -> dict[str, Any]:
@@ -27,7 +58,10 @@ def normalize_vcard(vcard_str: str, resource_name: str = "") -> dict[str, Any]:
     try:
         vcard = vobject.readOne(vcard_str)
     except Exception as e:
-        logger.warning("vcard_parse_error", error=str(e), resource_name=resource_name)
+        # The parser's text quotes the card's lines: its type alone (ADR-317).
+        logger.warning(
+            "vcard_parse_error", error_type=type(e).__name__, resource_name=resource_name
+        )
         return {
             "resourceName": resource_name,
             "names": [{"displayName": "Unknown"}],
@@ -41,19 +75,13 @@ def normalize_vcard(vcard_str: str, resource_name: str = "") -> dict[str, Any]:
     if names:
         result["names"] = [names]
 
-    # Email addresses
-    emails = _extract_list(vcard, "email")
+    # Email addresses and phone numbers, each with its kind
+    emails = _typed_values(vcard, "email")
     if emails:
-        result["emailAddresses"] = [
-            {"value": e, "type": _get_type_param(vcard, "email", i)} for i, e in enumerate(emails)
-        ]
-
-    # Phone numbers
-    phones = _extract_list(vcard, "tel")
+        result["emailAddresses"] = emails
+    phones = _typed_values(vcard, "tel")
     if phones:
-        result["phoneNumbers"] = [
-            {"value": p, "type": _get_type_param(vcard, "tel", i)} for i, p in enumerate(phones)
-        ]
+        result["phoneNumbers"] = phones
 
     # Organizations
     org = _extract_org(vcard)
@@ -91,6 +119,10 @@ def build_vcard(
     phone: str | None = None,
     organization: str | None = None,
     notes: str | None = None,
+    *,
+    emails: list[TypedValue] | None = None,
+    phones: list[TypedValue] | None = None,
+    addresses: list[TypedAddress] | None = None,
 ) -> str:
     """
     Build a vCard string from individual parameters.
@@ -101,6 +133,9 @@ def build_vcard(
         phone: Phone number.
         organization: Organization name.
         notes: Notes.
+        emails: Every e-mail, typed (not with ``email``).
+        phones: Every phone, typed (not with ``phone``).
+        addresses: Every postal address, typed.
 
     Returns:
         Serialized vCard string (3.0 format for iCloud compatibility).
@@ -118,11 +153,8 @@ def build_vcard(
     else:
         n.value = vobject.vcard.Name(family=parts[0], given="")
 
-    if email:
-        card.add("email").value = email
-
-    if phone:
-        card.add("tel").value = phone
+    _write_values(card, email=email, phone=phone, emails=emails, phones=phones)
+    _rewrite(card, "adr", addresses or None, same=_same_address, build=_address_line(card))
 
     if organization:
         o = card.add("org")
@@ -142,36 +174,42 @@ def merge_vcard_fields(
     organization: str | None = None,
     notes: str | None = None,
     address: str | None = None,
+    *,
+    emails: list[TypedValue] | None = None,
+    phones: list[TypedValue] | None = None,
+    addresses: list[TypedAddress] | None = None,
 ) -> str:
     """
     Merge updated fields into an existing vCard.
 
-    Only non-None fields are updated; existing fields are preserved.
+    Only non-None fields are updated; existing fields are preserved. A single
+    e-mail, phone or address replaces the PRIMARY one (its line's parameters
+    kept) and keeps the others; a list replaces that list.
 
     Args:
         existing_vcard: Raw vCard string to update.
         name: New full name (updates FN and N).
-        email: New email (replaces first email or adds one).
-        phone: New phone (replaces first phone or adds one).
+        email: New primary email.
+        phone: New primary phone.
         organization: New organization.
         notes: New notes.
-        address: New address (free-form string, stored as ADR label).
+        address: New primary address (free-form string, stored as ADR street).
+        emails: Every e-mail, typed.
+        phones: Every phone, typed.
+        addresses: Every postal address, typed.
 
     Returns:
         Updated serialized vCard string.
+
+    Raises:
+        ValueError: The existing card cannot be read — a card rebuilt from the
+            update alone would overwrite every field of the real contact.
     """
     try:
         card = vobject.readOne(existing_vcard)
     except Exception as e:
-        logger.warning("vcard_merge_parse_error", error=str(e))
-        # Fallback: create new card with provided fields
-        return build_vcard(
-            name=name or "Unknown",
-            email=email,
-            phone=phone,
-            organization=organization,
-            notes=notes,
-        )
+        logger.warning("vcard_merge_parse_error", error_type=type(e).__name__)
+        raise ValueError("The contact's card cannot be read; it was not overwritten.") from e
 
     if name is not None:
         # Update FN
@@ -194,11 +232,14 @@ def merge_vcard_fields(
             else:
                 n.value = vobject.vcard.Name(family=parts[0], given="")
 
-    if email is not None:
-        _replace_or_add(card, "email", email)
-
-    if phone is not None:
-        _replace_or_add(card, "tel", phone)
+    _write_values(card, email=email, phone=phone, emails=emails, phones=phones)
+    _rewrite(
+        card,
+        "adr",
+        desired_addresses(address, addresses, _typed_addresses(card)),
+        same=_same_address,
+        build=_address_line(card),
+    )
 
     if organization is not None:
         if hasattr(card, "org"):
@@ -213,17 +254,118 @@ def merge_vcard_fields(
         else:
             card.add("note").value = notes
 
-    if address is not None:
-        # Store as ADR with label
-        if hasattr(card, "adr"):
-            # Remove existing ADR entries
-            while hasattr(card, "adr"):
-                card.remove(card.adr)
-        adr = card.add("adr")
-        # Free-form: put everything in street address
-        adr.value = vobject.vcard.Address(street=address)
-
     return card.serialize()
+
+
+def _write_values(
+    card: Any,
+    *,
+    email: str | None,
+    phone: str | None,
+    emails: list[TypedValue] | None,
+    phones: list[TypedValue] | None,
+) -> None:
+    """Rewrite the EMAIL and TEL lines an update or a new card asks for."""
+    for prop, single, given in (("email", email, emails), ("tel", phone, phones)):
+        _rewrite(
+            card,
+            prop,
+            desired_values(single, given, _typed_values(card, prop)),
+            same=_same_value,
+            build=_value_line(card, prop),
+        )
+
+
+def _rewrite(
+    card: Any,
+    prop: str,
+    wanted: list[Any] | None,
+    *,
+    same: Callable[[Any, Any], bool],
+    build: Callable[[Any, Any], Any],
+) -> None:
+    """Replace one property's lines with ``wanted`` — kept lines untouched; None leaves them."""
+    if wanted is None:
+        return
+    lines = list(card.contents.get(prop, []))
+    written = kept_or_built(lines, wanted, same=same, build=build)
+    if written:
+        card.contents[prop] = written
+    else:
+        card.contents.pop(prop, None)
+
+
+def _kind(line: Any) -> str:
+    """A line's kind, as the other providers name it (``other`` when it says none)."""
+    for value in line.params.get("TYPE", []):
+        kind = str(value).casefold()
+        if kind not in _NOT_A_KIND:
+            return _KIND_READ.get(kind, kind)
+    return "other"
+
+
+def _typed_values(card: Any, prop: str) -> list[TypedValue]:
+    return [
+        {"value": str(line.value), "type": _kind(line)}
+        for line in card.contents.get(prop, [])
+        if line.value
+    ]
+
+
+def _typed_addresses(card: Any) -> list[TypedAddress]:
+    return [
+        {"formatted": _formatted_address(line.value), "type": _kind(line)}
+        for line in card.contents.get("adr", [])
+        if line.value and _formatted_address(line.value)
+    ]
+
+
+def _same_value(line: Any, wanted: TypedValue) -> bool:
+    return str(line.value).casefold() == wanted["value"].casefold() and same_kind(
+        _kind(line), wanted["type"]
+    )
+
+
+def _same_address(line: Any, wanted: TypedAddress) -> bool:
+    return _formatted_address(line.value) == wanted["formatted"] and same_kind(
+        _kind(line), wanted["type"]
+    )
+
+
+def _new_line(card: Any, prop: str, kind: str | None, replaced: Any) -> Any:
+    """A new line, wearing the parameters and group of the one it replaces when same-kind."""
+    line = card.add(prop)
+    if replaced is not None and same_kind(_kind(replaced), kind):
+        line.params = {name: list(values) for name, values in replaced.params.items()}
+        line.group = replaced.group
+    elif kind and not same_kind(kind, None):
+        line.params["TYPE"] = [_KIND_WRITTEN.get(kind.casefold(), kind.upper())]
+    return line
+
+
+def _value_line(card: Any, prop: str) -> Callable[[TypedValue, Any], Any]:
+    def build(wanted: TypedValue, replaced: Any) -> Any:
+        line = _new_line(card, prop, wanted["type"], replaced)
+        line.value = wanted["value"]
+        return line
+
+    return build
+
+
+def _address_line(card: Any) -> Callable[[TypedAddress, Any], Any]:
+    def build(wanted: TypedAddress, replaced: Any) -> Any:
+        line = _new_line(card, "adr", wanted["type"], replaced)
+        # Free-form: the one line goes in the street, never beside a stale city.
+        line.value = vobject.vcard.Address(street=wanted["formatted"])
+        return line
+
+    return build
+
+
+def _formatted_address(value: Any) -> str:
+    """An ADR value on one line, as the read side shows it."""
+    parts = (getattr(value, part, "") for _key, part in _ADR_PARTS)
+    return ", ".join(str(part) for part in parts if part)
 
 
 # =========================================================================
@@ -259,30 +401,6 @@ def _extract_names(vcard: Any) -> dict[str, str]:
     return names
 
 
-def _extract_list(vcard: Any, prop_name: str) -> list[str]:
-    """Extract a list of values from a vCard property (e.g., email_list, tel_list)."""
-    list_attr = f"{prop_name}_list"
-    items = getattr(vcard, list_attr, [])
-    values = []
-    for item in items:
-        val = item.value if hasattr(item, "value") else str(item)
-        if val:
-            values.append(str(val))
-    return values
-
-
-def _get_type_param(vcard: Any, prop_name: str, index: int) -> str:
-    """Get the TYPE parameter for a vCard property at given index."""
-    list_attr = f"{prop_name}_list"
-    items = getattr(vcard, list_attr, [])
-    if index < len(items):
-        item = items[index]
-        type_values = item.params.get("TYPE", [])
-        if type_values:
-            return str(type_values[0]).lower()
-    return "other"
-
-
 def _extract_org(vcard: Any) -> dict[str, str] | None:
     """Extract organization from vCard."""
     org = _get_value(vcard, "org")
@@ -303,49 +421,17 @@ def _extract_org(vcard: Any) -> dict[str, str] | None:
 
 
 def _extract_addresses(vcard: Any) -> list[dict[str, str]]:
-    """Extract addresses from vCard."""
-    addresses = []
-    adr_list = getattr(vcard, "adr_list", [])
-
-    for adr in adr_list:
+    """Extract addresses from vCard, each with its kind and its one-line form."""
+    addresses: list[dict[str, str]] = []
+    for adr in getattr(vcard, "adr_list", []):
         val = adr.value if hasattr(adr, "value") else adr
         if not val:
             continue
-
-        addr: dict[str, str] = {}
-        if hasattr(val, "street") and val.street:
-            addr["streetAddress"] = str(val.street)
-        if hasattr(val, "city") and val.city:
-            addr["city"] = str(val.city)
-        if hasattr(val, "region") and val.region:
-            addr["region"] = str(val.region)
-        if hasattr(val, "code") and val.code:
-            addr["postalCode"] = str(val.code)
-        if hasattr(val, "country") and val.country:
-            addr["country"] = str(val.country)
-
-        # Type parameter
-        type_param = getattr(adr, "type_paramvals", None) or getattr(adr, "TYPE_paramvals", None)
-        if type_param and isinstance(type_param, list | tuple):
-            addr["type"] = str(type_param[0]).lower()
-
+        addr = {key: str(getattr(val, part)) for key, part in _ADR_PARTS if getattr(val, part, "")}
         if addr:
-            # Build formattedValue for display (Google People API compatibility)
-            format_parts = []
-            if addr.get("streetAddress"):
-                format_parts.append(addr["streetAddress"])
-            if addr.get("city"):
-                format_parts.append(addr["city"])
-            if addr.get("region"):
-                format_parts.append(addr["region"])
-            if addr.get("postalCode"):
-                format_parts.append(addr["postalCode"])
-            if addr.get("country"):
-                format_parts.append(addr["country"])
-            if format_parts:
-                addr["formattedValue"] = ", ".join(format_parts)
+            addr["type"] = _kind(adr)
+            addr["formattedValue"] = _formatted_address(val)
             addresses.append(addr)
-
     return addresses
 
 
@@ -401,13 +487,3 @@ def _parse_birthday(bday: Any) -> dict[str, int] | None:
         logger.debug("birthday_parse_error", raw_value=bday_str)
 
     return None
-
-
-def _replace_or_add(card: Any, prop_name: str, value: str) -> None:
-    """Replace the first occurrence of a property or add it."""
-    list_attr = f"{prop_name}_list"
-    items = getattr(card, list_attr, [])
-    if items:
-        items[0].value = value
-    else:
-        card.add(prop_name).value = value

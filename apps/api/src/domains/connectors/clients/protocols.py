@@ -15,6 +15,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 
 from src.domains.connectors.clients.contact_directory import ContactDirectory
 from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
+from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
 from src.infrastructure.email.outgoing import OutgoingAttachment
 
 
@@ -94,6 +95,15 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
 
     async def trash_email(self, message_id: str) -> dict: ...
 
+    async def mark_read(self, message_ids: Sequence[str], read: bool) -> dict:
+        """Mark messages read or unread (ADR-369, D2), each id once.
+
+        Returns ``{"updated": [ids], "failed": [{"id", "status"}]}``, each status
+        one of ``mail_read_state.READ_STATE_FAILURE_STATUSES``: a message gone
+        since it was listed never costs the rest of the selection.
+        """
+        ...
+
     async def get_own_address(self) -> str | None:
         """The connected mailbox's own address, as its provider states it (ADR-314).
 
@@ -110,6 +120,16 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         filename: str | None = None,
         max_bytes: int | None = None,
     ) -> EmailAttachmentContent: ...
+
+    async def get_message_html(self, message_id: str) -> str | None:
+        """The message's HTML body, as its author laid it out (ADR-369, D3).
+
+        Display only: the model reads the clean text, never markup (ADR-287),
+        so no tool reads this. None when the message carries no HTML body — an
+        attached file, even an ``.html`` one, or a message forwarded as an
+        attachment, is never the body. Reading it marks nothing read.
+        """
+        ...
 
     # ------------------------------------------------------------------
     # Mailbox drafts (ADR-344): the person's own unsent messages, stored by
@@ -257,7 +277,10 @@ class CalendarClientProtocol(Protocol):
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
-    ) -> dict: ...
+        all_day: bool = False,
+    ) -> dict:
+        """With ``all_day`` the bounds are dates, the end EXCLUSIVE (``normalizers.all_day``)."""
+        ...
 
     async def update_event(
         self,
@@ -270,7 +293,25 @@ class CalendarClientProtocol(Protocol):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
-    ) -> dict: ...
+        all_day: bool | None = None,
+        send_updates: str | None = None,
+    ) -> dict:
+        """``all_day`` None keeps the event's shape; True/False switches it, both bounds given.
+
+        ``send_updates`` says who is told (Google ``sendUpdates``; None, the
+        provider's own default). Graph tells attendees on its own and CalDAV
+        leaves it to the server: both accept it and ignore it.
+        """
+        ...
+
+    async def list_events_window(
+        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+    ) -> dict:
+        """Every event of a window, occurrences expanded, up to ``bound`` (ADR-369).
+
+        Returns ``{"events": [...], "truncated": bool}``.
+        """
+        ...
 
     async def delete_event(
         self,
@@ -313,8 +354,15 @@ class ContactsClientProtocol(Protocol):
         phone: str | None = None,
         organization: str | None = None,
         notes: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict: ...
 
+    # A list REPLACES that list and ``None`` keeps it; a single ``email`` /
+    # ``phone`` / ``address`` replaces the PRIMARY value and keeps the others
+    # (ADR-369, D4); a list the provider cannot hold raises ContactValuesRefused.
     async def update_contact(
         self,
         resource_name: str,
@@ -324,6 +372,10 @@ class ContactsClientProtocol(Protocol):
         organization: str | None = None,
         notes: str | None = None,
         address: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict: ...
 
     async def delete_contact(self, resource_name: str) -> bool: ...
@@ -336,7 +388,11 @@ class ContactsClientProtocol(Protocol):
 class TasksClientProtocol(Protocol):
     """Protocol for tasks clients (Google Tasks, Microsoft To Do)."""
 
-    async def list_task_lists(self, max_results: int = 20) -> dict: ...
+    async def list_task_lists(
+        self, max_results: int = 20, *, page_token: str | None = None
+    ) -> dict:
+        """One page of lists: ``items`` and ``next_page_token`` (None on the last page)."""
+        ...
 
     async def get_task_list(self, task_list_id: str) -> dict: ...
 
@@ -353,7 +409,10 @@ class TasksClientProtocol(Protocol):
         due_min: str | None = None,
         due_max: str | None = None,
         completed_min: str | None = None,
-    ) -> dict: ...
+        page_token: str | None = None,
+    ) -> dict:
+        """One page of tasks: ``items`` and ``next_page_token`` (None on the last page)."""
+        ...
 
     async def get_task(self, task_list_id: str, task_id: str) -> dict: ...
 
@@ -374,7 +433,11 @@ class TasksClientProtocol(Protocol):
         notes: str | None = None,
         due: str | None = None,
         status: str | None = None,
-    ) -> dict: ...
+        *,
+        clear_due: bool = False,
+    ) -> dict:
+        """``None`` keeps a field; ``clear_due`` removes the due date (never with ``due``)."""
+        ...
 
     async def complete_task(self, task_list_id: str, task_id: str) -> dict: ...
 

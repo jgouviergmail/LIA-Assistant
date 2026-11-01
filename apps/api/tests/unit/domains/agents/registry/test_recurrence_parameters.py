@@ -11,8 +11,10 @@ Two rules, both paid for elsewhere in this codebase:
   repaired without inventing intent stays an error.
 
 The bounds are per CONSUMER. A routine runs an agent pipeline and gets 12
-firings a day; a reminder sends a notification and gets 48. Publishing one
-number for both would make one of them wrong.
+firings a day by default (its operator's settings since 2026-10-30); a reminder
+sends a notification and gets 48. Publishing one number for both would make one
+of them wrong. The routine table below is built from the DEFAULT caps, so these
+tests read no developer's ``.env``.
 """
 
 from __future__ import annotations
@@ -21,19 +23,18 @@ import inspect
 
 import pytest
 
-from src.core.constants import RECURRENCE_REMINDER_LIMITS, RECURRENCE_ROUTINE_LIMITS
+from src.core.constants import RECURRENCE_REMINDER_LIMITS
 from src.core.recurrence import REPEAT_VALUES
 from src.domains.agents.registry.recurrence_parameters import (
     RECURRENCE_DOCS,
     recurrence_parameters,
 )
 from src.domains.agents.services.planner.parameter_bounds import clamp_to_parameter_schema
+from tests.helpers.routine_caps import DEFAULT_ROUTINE_LIMITS
 
 pytestmark = pytest.mark.unit
 
-ROUTINE = {
-    p.name: p for p in recurrence_parameters(RECURRENCE_ROUTINE_LIMITS, repeat_required=True)
-}
+ROUTINE = {p.name: p for p in recurrence_parameters(DEFAULT_ROUTINE_LIMITS, repeat_required=True)}
 REMINDER = {
     p.name: p for p in recurrence_parameters(RECURRENCE_REMINDER_LIMITS, repeat_required=False)
 }
@@ -51,9 +52,9 @@ class TestTheBoundsAreTheConsumersOwn:
 
     def test_the_published_numbers_are_the_enforced_ones(self) -> None:
         """Not an approximation of them: the same object built them."""
-        assert _minimum(ROUTINE["every_minutes"]) == RECURRENCE_ROUTINE_LIMITS.min_step_minutes
-        assert _maximum(ROUTINE["times"]) == RECURRENCE_ROUTINE_LIMITS.max_times_per_day
-        assert _maximum(ROUTINE["max_occurrences"]) == RECURRENCE_ROUTINE_LIMITS.max_series_count
+        assert _minimum(ROUTINE["every_minutes"]) == DEFAULT_ROUTINE_LIMITS.min_step_minutes
+        assert _maximum(ROUTINE["times"]) == DEFAULT_ROUTINE_LIMITS.max_times_per_day
+        assert _maximum(ROUTINE["max_occurrences"]) == DEFAULT_ROUTINE_LIMITS.max_series_count
         assert _minimum(REMINDER["every_minutes"]) == RECURRENCE_REMINDER_LIMITS.min_step_minutes
         assert _maximum(REMINDER["times"]) == RECURRENCE_REMINDER_LIMITS.max_times_per_day
         assert _maximum(REMINDER["max_occurrences"]) == RECURRENCE_REMINDER_LIMITS.max_series_count

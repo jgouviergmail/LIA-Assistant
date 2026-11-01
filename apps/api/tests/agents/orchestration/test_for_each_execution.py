@@ -88,7 +88,6 @@ def create_step_result(step_id: str, success: bool = True, error: str | None = N
         execution_time_ms=100,
         wave_id=0,
         registry_updates=None,
-        draft_info=None,
     )
 
 

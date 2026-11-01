@@ -86,9 +86,11 @@ def test_the_browser_declares_nothing_the_api_stopped_serving(hook_source: str) 
 
 
 def test_the_write_payloads_agree_too(hook_source: str) -> None:
+    # The routes accept the FORM's schemas (spec 2026-10-29 D9): the shared ones
+    # plus the MCP pre-approval only the routine form may write.
     for schema, interface in (
-        ("ScheduledActionCreate", "ScheduledActionCreate"),
-        ("ScheduledActionUpdate", "ScheduledActionUpdate"),
+        ("ScheduledActionFormCreate", "ScheduledActionCreate"),
+        ("ScheduledActionFormUpdate", "ScheduledActionUpdate"),
     ):
         from src.domains.scheduled_actions import schemas as module
 

@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from src.core.exceptions import AuthorizationError
+from src.infrastructure.mcp.confirmation_loosening import AccountStrategyJudge
 from src.infrastructure.mcp.personal_configuration_contract import PersonalMCPConfigurationWriter
 from src.infrastructure.mcp.personal_connection_contract import PersonalMCPConnectionWriter
 from src.infrastructure.mcp.personal_description_contract import PersonalMCPDescriptionWriter
@@ -10,7 +11,10 @@ from src.infrastructure.mcp.personal_oauth_contract import (
     PersonalMCPOAuthStarter,
     PersonalMCPOAuthWriter,
 )
-from src.infrastructure.mcp.personal_settings_contract import PersonalMCPSettingsWriter
+from src.infrastructure.mcp.personal_settings_contract import (
+    PersonalMCPSettingsJudge,
+    PersonalMCPSettingsWriter,
+)
 from src.infrastructure.mcp.personal_state_contract import (
     PersonalMCPDeleteWriter,
     PersonalMCPOAuthDisconnectWriter,
@@ -31,6 +35,9 @@ class PersonalMCPStateGateway:
     configure: PersonalMCPConfigurationWriter | None = None
     oauth_start: PersonalMCPOAuthStarter | None = None
     oauth_save: PersonalMCPOAuthWriter | None = None
+    # The chat makes LIA ask more, never less: the judges a proposal reads (spec 2026-10-30 D7).
+    judge_settings: PersonalMCPSettingsJudge | None = None
+    judge_strategy: AccountStrategyJudge | None = None
 
 
 _gateway: PersonalMCPStateGateway | None = None

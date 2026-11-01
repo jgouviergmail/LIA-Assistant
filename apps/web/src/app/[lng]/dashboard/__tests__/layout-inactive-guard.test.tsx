@@ -33,7 +33,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import type { AppConfig } from '@/hooks/useAppConfig';
 import type { ConnectorHealthResponse, ConnectorHealthSettings } from '@/hooks/useConnectorHealth';
 import type { AvatarConfig } from '@/lib/avatars/types';
@@ -300,6 +300,27 @@ describe('Dashboard shell — active account', () => {
     await renderLayout();
 
     expect(push).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Owner rule (2026-10-31): the header's destinations are icons alone, even on
+   * the widest screen — each named by its label for assistive technology AND in
+   * its tooltip, the only place a sighted reader meets the name.
+   */
+  it('draws every destination as its icon alone, named on hover and for assistive technology', async () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+
+    await renderLayout();
+
+    const nav = within(screen.getByRole('banner')).getByRole('navigation');
+    const links = within(nav).getAllByRole('link');
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      const name = link.getAttribute('aria-label');
+      expect(name).toBeTruthy();
+      expect(link).toHaveAttribute('title', name);
+      expect(link.textContent).toBe('');
+    }
   });
 });
 

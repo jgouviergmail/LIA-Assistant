@@ -32,6 +32,11 @@ _STATUS_FROM_GOOGLE: dict[str, str] = {
 }
 
 
+def graph_task_status(status: str) -> str:
+    """The To Do status a Google Tasks status names (``needsAction`` → ``notStarted``)."""
+    return _STATUS_FROM_GOOGLE.get(status, "notStarted")
+
+
 def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize a Microsoft To Do task to Google Tasks API dict format.
@@ -181,7 +186,7 @@ def build_task_body(
         }
 
     if status is not None:
-        ms_status = _STATUS_FROM_GOOGLE.get(status, "notStarted")
+        ms_status = graph_task_status(status)
         body["status"] = ms_status
         if ms_status == "completed":
             body["completedDateTime"] = {

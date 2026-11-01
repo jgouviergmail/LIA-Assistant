@@ -35,9 +35,12 @@ async def prepare_personal_mcp_settings(
     desired = PersonalMCPSettingsInput.model_validate(request.model_dump(exclude_unset=True))
     await require_personal_mcp_access(db, actor_id)
     gateway = get_personal_mcp_state()
-    if gateway.settings is None:
+    if gateway.settings is None or gateway.judge_settings is None:
         raise AuthorizationError(detail={"error_code": "SERVICE_UNAVAILABLE"})
     expected = await gateway.read(db, actor_id, desired.server_id)
+    # A change that would make LIA ask less is refused here, before any card (spec D7);
+    # the writer judges it again against the state it replaces.
+    await gateway.judge_settings(db, actor_id, desired.server_id, desired.patch)
     await require_personal_mcp_access(db, actor_id)
     if len(expected.model_dump_json().encode("utf-8")) > 64_000:
         raise ValueError("MCP settings preview too large")

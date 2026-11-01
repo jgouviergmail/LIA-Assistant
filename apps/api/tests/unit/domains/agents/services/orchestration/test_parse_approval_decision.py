@@ -14,6 +14,7 @@ Redis (HITLStore) and the LLM classifier are mocked; no network is touched.
 
 from __future__ import annotations
 
+import copy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -501,3 +502,79 @@ class TestClarificationCancel:
         assert "RuntimeError" in result["rejection_reason"]
         assert "kaboom" not in result["rejection_reason"]
         assert "user@example.com" not in result["rejection_reason"]
+
+
+# ============================================================================
+# « Which of the items shown? » (ADR-367)
+# ============================================================================
+
+
+class TestWhichOfTheItemsShown:
+    """The answer is read on the options the person was shown — never by a model."""
+
+    PENDING = {
+        FIELD_INTERRUPT_DATA: {
+            FIELD_ACTION_REQUESTS: [
+                {
+                    FIELD_TYPE: "entity_disambiguation",
+                    "candidates": [
+                        {"index": 1, "label": "Marc · Photos du week-end"},
+                        {"index": 2, "label": "Marc · Facture du garage"},
+                    ],
+                }
+            ]
+        }
+    }
+
+    @staticmethod
+    async def _read(message: str, language: str, *, reask: bool = False) -> dict:
+        from src.domains.agents.services.orchestration.approval_decision import (
+            parse_approval_decision,
+        )
+
+        pending = copy.deepcopy(TestWhichOfTheItemsShown.PENDING)
+        pending[FIELD_INTERRUPT_DATA][FIELD_ACTION_REQUESTS][0]["reask"] = reask
+        store = MagicMock()
+        store.get_interrupt = AsyncMock(return_value=pending)
+        classifier = MagicMock()
+        classifier.classify = AsyncMock(side_effect=AssertionError("no model reads a choice"))
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_cache",
+                new=AsyncMock(return_value=MagicMock()),
+            ),
+            patch("src.domains.agents.utils.HITLStore", return_value=store),
+            patch(CLASSIFIER_PATH, return_value=classifier),
+        ):
+            return await parse_approval_decision(message, uuid4(), "test", language)
+
+    async def test_a_described_option_is_chosen(self) -> None:
+        assert await self._read("celui de la facture", "fr") == {
+            "action": "select",
+            "selected_index": 2,
+        }
+
+    async def test_a_position_in_the_persons_language(self) -> None:
+        assert await self._read("the first one", "en") == {"action": "select", "selected_index": 1}
+
+    async def test_none_and_cancel(self) -> None:
+        assert await self._read("aucun", "fr") == {"action": "none"}
+        assert await self._read("annule", "fr") == {"action": "cancel"}
+
+    async def test_an_answer_naming_no_option_is_unclear(self) -> None:
+        assert await self._read("bof", "fr") == {"action": "unclear"}
+
+    async def test_asked_again_and_still_no_option_it_is_a_new_request(self) -> None:
+        """The person moved on: their words are processed, never cancelled and lost."""
+        result = await self._read("quel temps fera-t-il demain ?", "fr", reask=True)
+
+        assert result["decision"] == "NEW_REQUEST"
+        assert result["abandon_pending"] is True
+        assert result["user_message"] == "quel temps fera-t-il demain ?"
+
+    async def test_asked_again_an_answer_is_still_an_answer(self) -> None:
+        assert await self._read("le deuxième", "fr", reask=True) == {
+            "action": "select",
+            "selected_index": 2,
+        }
+        assert await self._read("annule", "fr", reask=True) == {"action": "cancel"}

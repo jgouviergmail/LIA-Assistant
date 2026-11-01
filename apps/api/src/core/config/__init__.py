@@ -83,6 +83,7 @@ from .skills import SkillsSettings
 from .telephony import TelephonySettings
 from .usage_limits import UsageLimitsSettings
 from .voice import VoiceSettings
+from .workbench import WorkbenchSettings
 from .workboard import WorkboardSettings
 from .world import WorldSettings
 
@@ -157,6 +158,7 @@ class Settings(
     EmailShareSettings,
     RadioSettings,
     SkillLibrarySettings,
+    WorkbenchSettings,
     CalculationSettings,
     MFASettings,
     AccountExportSettings,
@@ -204,6 +206,7 @@ class Settings(
         24d. EmailShareSettings (a file or an answer sent by e-mail, ADR-321)
         24e. RadioSettings (the personal radio: newsroom and antennas, ADR-324)
         24f. SkillLibrarySettings (skills installed from a portal, ADR-327)
+        24g. WorkbenchSettings (the « Tools » section, the person's own door, ADR-369)
         25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
@@ -509,6 +512,7 @@ __all__ = [
     "EmailShareSettings",
     "RadioSettings",
     "SkillLibrarySettings",
+    "WorkbenchSettings",
     "PushRelaySettings",
     "PushSettings",
 ]

@@ -136,14 +136,7 @@ def get_query_intelligence_from_state(
             rc_dict = state.get(STATE_KEY_RESOLVED_CONTEXT)
             if rc_dict and isinstance(rc_dict, dict) and rc_dict.get("items"):
                 intelligence = replace(
-                    intelligence,
-                    resolved_context=ResolvedContext(
-                        items=rc_dict["items"],
-                        confidence=rc_dict.get("confidence", 1.0),
-                        method=rc_dict.get("method", "explicit"),
-                        source_turn_id=rc_dict.get("source_turn_id"),
-                        source_domain=rc_dict.get("source_domain"),
-                    ),
+                    intelligence, resolved_context=ResolvedContext.from_dict(rc_dict)
                 )
 
         return intelligence

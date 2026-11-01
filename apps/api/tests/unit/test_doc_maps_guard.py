@@ -244,6 +244,15 @@ class TestEveryLanguageSaysTheSameThing:
         problems = _findings(maps)
         assert any("history/entries/1 is stale" in p for p in problems)
 
+    def test_a_script_variable_left_in_a_sentence_is_a_finding(self) -> None:
+        """An edit script's ``{NB}`` reached the French entry of ADR-368 (2026-10-31)."""
+        maps = _maps()
+        maps.text["fr"]["history"]["entries"]["1"]["summary"] = "Rien ne bouge{NB}; tout reste."
+        problems = _findings(maps)
+        assert (
+            "text fr: history/entries/1 summary carries an unrendered placeholder {NB}" in problems
+        )
+
     def test_a_translation_never_stamped_is_a_finding(self) -> None:
         maps = _maps(stamped=False)
         assert any("carries no fingerprint" in p for p in _findings(maps))

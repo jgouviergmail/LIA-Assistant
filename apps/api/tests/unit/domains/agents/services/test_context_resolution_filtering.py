@@ -22,19 +22,15 @@ from src.domains.agents.data_registry.models import (
     RegistryItemMeta,
     RegistryItemType,
 )
-from src.domains.agents.services.context_resolution_service import (
-    ContextResolutionService,
+from src.domains.agents.services.reference_fallbacks import (
+    derive_domain_from_type,
+    detect_domain_from_agent_results,
+    extract_items_from_registry,
 )
 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
-
-
-@pytest.fixture
-def context_service():
-    """Create a ContextResolutionService instance for testing."""
-    return ContextResolutionService()
 
 
 @pytest.fixture
@@ -134,10 +130,10 @@ class TestFilterByRegistryUpdates:
     """Tests for filtering by registry_updates from agent_results."""
 
     def test_filters_by_registry_updates_for_turn(
-        self, context_service, state_with_registry, agent_results_with_registry_updates
+        self, state_with_registry, agent_results_with_registry_updates
     ):
         """1.1: Filter by registry_updates when available."""
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state=state_with_registry,
             run_id="test-run-001",
             last_action_turn=2,
@@ -150,10 +146,10 @@ class TestFilterByRegistryUpdates:
             assert item.get("_item_type") == "EMAIL"
 
     def test_returns_contacts_for_turn_1(
-        self, context_service, state_with_registry, agent_results_with_registry_updates
+        self, state_with_registry, agent_results_with_registry_updates
     ):
         """1.2: Filter by registry_updates returns contacts for turn 1."""
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state=state_with_registry,
             run_id="test-run-002",
             last_action_turn=1,
@@ -174,9 +170,7 @@ class TestFilterByRegistryUpdates:
 class TestFilterByTurnIdMeta:
     """Tests for filtering by turn_id in RegistryItem.meta."""
 
-    def test_filters_by_turn_id_meta_when_no_registry_updates(
-        self, context_service, state_with_registry
-    ):
+    def test_filters_by_turn_id_meta_when_no_registry_updates(self, state_with_registry):
         """2.1: Fall back to turn_id meta when registry_updates is empty."""
         # Agent results without registry_updates
         agent_results = {
@@ -186,7 +180,7 @@ class TestFilterByTurnIdMeta:
             }
         }
 
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state=state_with_registry,
             run_id="test-run-003",
             last_action_turn=2,
@@ -207,7 +201,7 @@ class TestFilterByTurnIdMeta:
 class TestFilterByDomain:
     """Tests for filtering by domain when turn_id filtering fails."""
 
-    def test_filters_by_domain_from_tool_name(self, context_service):
+    def test_filters_by_domain_from_tool_name(self):
         """3.1: Detect domain from tool_name in agent_results."""
         # Registry without turn_id in meta
         registry = {
@@ -240,7 +234,7 @@ class TestFilterByDomain:
             }
         }
 
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state={"registry": registry},
             run_id="test-run-004",
             last_action_turn=3,
@@ -251,7 +245,7 @@ class TestFilterByDomain:
         assert len(items) == 1
         assert items[0].get("_item_type") == "EMAIL"
 
-    def test_filters_by_domain_from_data_keys(self, context_service):
+    def test_filters_by_domain_from_data_keys(self):
         """3.2: Detect domain from data keys in agent_results."""
         registry = {
             "contact_no_turn": RegistryItem(
@@ -285,7 +279,7 @@ class TestFilterByDomain:
             }
         }
 
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state={"registry": registry},
             run_id="test-run-005",
             last_action_turn=4,
@@ -305,7 +299,7 @@ class TestFilterByDomain:
 class TestSafeFallback:
     """Tests for safe fallback returning empty list."""
 
-    def test_returns_empty_when_all_filters_fail(self, context_service):
+    def test_returns_empty_when_all_filters_fail(self):
         """4.1: Return empty list when all filtering strategies fail."""
         # Registry without turn_id and with unknown domain
         registry = {
@@ -329,7 +323,7 @@ class TestSafeFallback:
             }
         }
 
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state={"registry": registry},
             run_id="test-run-006",
             last_action_turn=5,
@@ -339,7 +333,7 @@ class TestSafeFallback:
         # Should return empty list (safe fallback)
         assert items == []
 
-    def test_never_returns_all_items(self, context_service, state_with_registry):
+    def test_never_returns_all_items(self, state_with_registry):
         """4.2: CRITICAL - Never return all items to prevent cross-domain contamination."""
         # Agent results for turn 99 (doesn't exist in registry)
         agent_results = {
@@ -348,7 +342,7 @@ class TestSafeFallback:
             }
         }
 
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state=state_with_registry,
             run_id="test-run-007",
             last_action_turn=99,
@@ -369,33 +363,27 @@ class TestSafeFallback:
 class TestDomainDetection:
     """Tests for domain detection helper functions."""
 
-    def test_detect_domain_from_tool_name(self, context_service):
+    def test_detect_domain_from_tool_name(self):
         """Helper: Detect domain from tool_name patterns."""
         agent_results = {"1:plan_executor": {"tool_name": "search_contacts_tool"}}
-        domain = context_service._detect_domain_from_agent_results(
-            agent_results, turn_id=1, run_id="test"
-        )
+        domain = detect_domain_from_agent_results(agent_results, turn_id=1, run_id="test")
         assert domain == "contacts"
 
         agent_results = {"1:plan_executor": {"tool_name": "get_email_details_tool"}}
-        domain = context_service._detect_domain_from_agent_results(
-            agent_results, turn_id=1, run_id="test"
-        )
+        domain = detect_domain_from_agent_results(agent_results, turn_id=1, run_id="test")
         assert domain == "emails"
 
         agent_results = {"1:plan_executor": {"tool_name": "search_places_tool"}}
-        domain = context_service._detect_domain_from_agent_results(
-            agent_results, turn_id=1, run_id="test"
-        )
+        domain = detect_domain_from_agent_results(agent_results, turn_id=1, run_id="test")
         assert domain == "places"
 
-    def test_derive_domain_from_type(self, context_service):
+    def test_derive_domain_from_type(self):
         """Helper: Derive domain from RegistryItemType."""
-        assert context_service._derive_domain_from_type("EMAIL") == "emails"
-        assert context_service._derive_domain_from_type("CONTACT") == "contacts"
-        assert context_service._derive_domain_from_type("EVENT") == "events"
-        assert context_service._derive_domain_from_type("PLACE") == "places"
-        assert context_service._derive_domain_from_type("UNKNOWN") is None
+        assert derive_domain_from_type("EMAIL") == "emails"
+        assert derive_domain_from_type("CONTACT") == "contacts"
+        assert derive_domain_from_type("EVENT") == "events"
+        assert derive_domain_from_type("PLACE") == "places"
+        assert derive_domain_from_type("UNKNOWN") is None
 
 
 # ============================================================================
@@ -406,9 +394,7 @@ class TestDomainDetection:
 class TestCrossdomainScenario:
     """Integration test for the cross-domain bug scenario."""
 
-    def test_le_deuxieme_email_after_contact_search(
-        self, context_service, registry_with_mixed_domains
-    ):
+    def test_le_deuxieme_email_after_contact_search(self, registry_with_mixed_domains):
         """
         INTEGRATION: "le deuxième" after email search should return email, not contact.
 
@@ -444,7 +430,7 @@ class TestCrossdomainScenario:
         }
 
         # User asks "détail du deuxième" - last action was email search (turn 2)
-        items = context_service._extract_items_from_registry(
+        items = extract_items_from_registry(
             state=state,
             run_id="integration-test-001",
             last_action_turn=2,

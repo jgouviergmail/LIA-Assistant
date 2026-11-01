@@ -6,7 +6,9 @@ Inherits from BaseGoogleClient for common functionality.
 """
 
 import hashlib
-from typing import Any
+import re
+from collections.abc import Mapping
+from typing import Any, Final
 from uuid import UUID
 
 import structlog
@@ -18,6 +20,7 @@ from src.core.constants import (
     GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
     GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX,
 )
+from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_CACHED_AT, FIELD_QUERY
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
@@ -28,6 +31,16 @@ from src.domains.connectors.clients.contact_directory import (
     CONTACTS_DIRECTORY_FIELDS,
     ContactDirectory,
     cached_directory,
+)
+from src.domains.connectors.clients.normalizers.contact_values import (
+    TypedAddress,
+    TypedValue,
+    addresses_read,
+    desired_addresses,
+    desired_values,
+    kept_or_built,
+    same_kind,
+    values_read,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -263,6 +276,9 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "resourceName": "people/me",
             "personFields": person_fields,
             "pageSize": effective_page_size,
+            # Family then given name (owner request 2026-10-31): Google pages the
+            # listing, so Google sorts it — its default order is the last change.
+            "sortOrder": "LAST_NAME_ASCENDING",
         }
 
         if page_token:
@@ -424,7 +440,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "personFields": person_fields,
         }
 
-        response = await self._make_request("GET", f"/{resource_name}", params=params)
+        response = await self._make_request("GET", _named_path(resource_name), params=params)
 
         # Add freshness metadata before caching
         response["from_cache"] = False
@@ -459,6 +475,10 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         phone: str | None = None,
         organization: str | None = None,
         notes: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """
         Create a new contact in Google Contacts.
@@ -472,6 +492,9 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             phone: Contact phone number (optional)
             organization: Company/organization name (optional)
             notes: Additional notes (optional)
+            emails: Every e-mail, typed (optional; not with ``email``)
+            phones: Every phone, typed (optional; not with ``phone``)
+            addresses: Every postal address, typed (optional)
 
         Returns:
             Created contact data with resourceName
@@ -490,11 +513,10 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "names": [{"givenName": name}],
         }
 
-        if email:
-            contact_body["emailAddresses"] = [{"value": email}]
-
-        if phone:
-            contact_body["phoneNumbers"] = [{"value": phone}]
+        new_lists = _people_lists({}, email=email, phone=phone, emails=emails, phones=phones)
+        contact_body.update({field: entries for field, entries in new_lists.items() if entries})
+        if addresses:
+            contact_body["addresses"] = [_address_entry(a, None) for a in addresses]
 
         if organization:
             contact_body["organizations"] = [{"name": organization}]
@@ -531,9 +553,18 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         organization: str | None = None,
         notes: str | None = None,
         address: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing contact in Google Contacts.
+
+        A single e-mail, phone or address replaces the contact's PRIMARY one and
+        keeps the others; a list replaces that list. ``updatePersonFields`` names
+        exactly the lists written, each sent whole with what did not change
+        echoed as read, under the etag read just before (ADR-369, D4).
 
         LOT 5.4: Write operation with HITL integration.
         This method is called after user confirms the draft via HITL.
@@ -546,9 +577,15 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             organization: New company/organization name (optional)
             notes: New additional notes (optional)
             address: New formatted address (optional, e.g., "123 Main St, Paris 75001")
+            emails: Every e-mail, typed (optional)
+            phones: Every phone, typed (optional)
+            addresses: Every postal address, typed (optional)
 
         Returns:
             Updated contact data
+
+        Raises:
+            ValueError: A single value and its list given together, or no etag.
 
         Example:
             >>> result = await client.update_contact(
@@ -575,14 +612,6 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             person_body["names"] = [{"givenName": name}]
             update_fields.append("names")
 
-        if email is not None:
-            person_body["emailAddresses"] = [{"value": email}]
-            update_fields.append("emailAddresses")
-
-        if phone is not None:
-            person_body["phoneNumbers"] = [{"value": phone}]
-            update_fields.append("phoneNumbers")
-
         if organization is not None:
             person_body["organizations"] = [{"name": organization}]
             update_fields.append("organizations")
@@ -591,9 +620,21 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             person_body["biographies"] = [{"value": notes, "contentType": "TEXT_PLAIN"}]
             update_fields.append("biographies")
 
-        if address is not None:
-            person_body["addresses"] = [{"formattedValue": address, "type": "home"}]
-            update_fields.append("addresses")
+        lists = _people_lists(
+            current_contact, email=email, phone=phone, emails=emails, phones=phones
+        )
+        wanted_addresses = desired_addresses(
+            address, addresses, addresses_read(current_contact.get("addresses"))
+        )
+        if wanted_addresses is not None:
+            lists["addresses"] = kept_or_built(
+                _entries(current_contact, "addresses"),
+                wanted_addresses,
+                same=_same_address,
+                build=_address_entry,
+            )
+        person_body.update(lists)
+        update_fields.extend(lists)
 
         if not update_fields:
             logger.warning(
@@ -611,7 +652,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
 
         response = await self._make_request(
             "PATCH",
-            f"/{resource_name}:updateContact",
+            f"{_named_path(resource_name)}:updateContact",
             params=params,
             json_data=person_body,
         )
@@ -653,7 +694,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         # DELETE /v1/{resourceName}:deleteContact
         await self._make_request(
             "DELETE",
-            f"/{resource_name}:deleteContact",
+            f"{_named_path(resource_name)}:deleteContact",
         )
 
         logger.info(
@@ -771,7 +812,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         """
         return await self._make_request(
             "GET",
-            f"/{resource_name}",
+            _named_path(resource_name, _GROUP_NAME),
             params={"maxMembers": max_members},
         )
 
@@ -809,3 +850,95 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             8-character hash for metrics labeling.
         """
         return hashlib.sha256(str(connector_id).encode()).hexdigest()[:8]
+
+
+def _entries(person: Mapping[str, Any], field: str) -> list[dict[str, Any]]:
+    """A person's stored entries of one list, as read."""
+    entries = person.get(field)
+    return [e for e in entries if isinstance(e, dict)] if isinstance(entries, list) else []
+
+
+def _people_lists(
+    current: Mapping[str, Any],
+    *,
+    email: str | None,
+    phone: str | None,
+    emails: list[TypedValue] | None,
+    phones: list[TypedValue] | None,
+) -> dict[str, list[dict[str, Any]]]:
+    """The e-mail and phone lists a write sends, each whole (``current`` is ``{}`` when new)."""
+    lists: dict[str, list[dict[str, Any]]] = {}
+    for field, single, given in (
+        ("emailAddresses", email, emails),
+        ("phoneNumbers", phone, phones),
+    ):
+        wanted = desired_values(single, given, values_read(current.get(field)))
+        if wanted is not None:
+            lists[field] = kept_or_built(
+                _entries(current, field), wanted, same=_same_value, build=_value_entry
+            )
+    return lists
+
+
+def _same_value(entry: Mapping[str, Any], wanted: TypedValue) -> bool:
+    value = str(entry.get("value", ""))
+    return value.casefold() == wanted["value"].casefold() and same_kind(
+        entry.get("type"), wanted["type"]
+    )
+
+
+def _same_address(entry: Mapping[str, Any], wanted: TypedAddress) -> bool:
+    return str(entry.get("formattedValue", "")) == wanted["formatted"] and same_kind(
+        entry.get("type"), wanted["type"]
+    )
+
+
+def _kept_metadata(
+    built: dict[str, Any], wanted_kind: str | None, replaced: object
+) -> dict[str, Any]:
+    """The replaced entry's source, so the primary keeps its place (never across kinds)."""
+    if (
+        isinstance(replaced, Mapping)
+        and "metadata" in replaced
+        and same_kind(replaced.get("type"), wanted_kind)
+    ):
+        built["metadata"] = replaced["metadata"]
+    return built
+
+
+def _value_entry(wanted: TypedValue, replaced: dict[str, Any] | None) -> dict[str, Any]:
+    entry: dict[str, Any] = {"value": wanted["value"]}
+    if wanted["type"]:
+        entry["type"] = wanted["type"]
+    return _kept_metadata(entry, wanted["type"], replaced)
+
+
+def _address_entry(wanted: TypedAddress, replaced: dict[str, Any] | None) -> dict[str, Any]:
+    """A changed address on one line — never the structured fields of the one it replaces."""
+    entry: dict[str, Any] = {"formattedValue": wanted["formatted"]}
+    if wanted["type"]:
+        entry["type"] = wanted["type"]
+    return _kept_metadata(entry, wanted["type"], replaced)
+
+
+#: A person's resource name, and a contact group's — the only shapes a path is built from.
+_PERSON_NAME: Final = re.compile(r"people/[A-Za-z0-9_-]+")
+_GROUP_NAME: Final = re.compile(r"contactGroups/[A-Za-z0-9_-]+")
+
+
+def _named_path(resource_name: str, shape: re.Pattern[str] = _PERSON_NAME) -> str:
+    """The path of a resource name of the expected shape — any other names nothing.
+
+    The name comes from a browser or a model: interpolated raw, ``people/c1:batch…``
+    or a ``../`` would aim the person's token at another People API operation.
+
+    Raises:
+        ConnectorAPIError: 404, the name names no such resource (never quoted back).
+    """
+    if not shape.fullmatch(resource_name):
+        raise ConnectorAPIError(
+            connector_type=ConnectorType.GOOGLE_CONTACTS.value,
+            status_code=404,
+            detail="google_contacts API error: no such contact",
+        )
+    return f"/{resource_name}"

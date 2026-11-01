@@ -19,6 +19,9 @@ import type { RecipientSuggestionsResponse } from '@/lib/email-share/share';
 /** The pause after which what is typed is asked about. */
 export const RECIPIENT_SUGGESTIONS_DEBOUNCE_MS = 250;
 
+/** « Send by e-mail »'s door: a live read of the book is filed as its consultation. */
+export const EMAIL_SHARE_RECIPIENTS_PATH = '/email-share/recipients';
+
 export interface RecipientSuggestionsState {
   suggestions: RecipientSuggestionsResponse['suggestions'];
   /** The address book was longer than the instance reads. */
@@ -29,16 +32,19 @@ export interface RecipientSuggestionsState {
  * @param query - The recipient being typed (`activeRecipient(...).query`).
  * @param enabled - The options published suggestions for this account.
  * @param minChars - The published shortest query.
+ * @param path - The door asked: « Send by e-mail »'s, or the Tools composer's
+ *   (`/workbench/mail/recipients`, which files nothing — the person types).
  * @returns The suggestions for exactly this query, or none.
  */
 export function useRecipientSuggestions(
   query: string,
   enabled: boolean,
-  minChars: number
+  minChars: number,
+  path: string = EMAIL_SHARE_RECIPIENTS_PATH
 ): RecipientSuggestionsState {
   const settled = useDebounce(query, RECIPIENT_SUGGESTIONS_DEBOUNCE_MS);
   const ask = enabled && settled === query && settled.length >= minChars;
-  const { data } = useApiQuery<RecipientSuggestionsResponse>('/email-share/recipients', {
+  const { data } = useApiQuery<RecipientSuggestionsResponse>(path, {
     componentName: 'RecipientSuggestions',
     enabled: ask,
     params: { q: settled },

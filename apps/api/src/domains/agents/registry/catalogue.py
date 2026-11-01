@@ -748,6 +748,14 @@ class ToolManifest:
 
     # Delegation returns a loop's report, not proof of its individual reads/writes.
     delegates_execution: bool = False
+    # An MCP task tool's ReAct shape, resolved once by its builder (spec 2026-10-30
+    # D4): True hands the loop the server's individual tools, False keeps the task.
+    react_expand: bool = False
+    # A personal MCP tool the person chose « never ask » for, whose declaration owes
+    # a confirmation (spec 2026-10-30 D6): the policy stays ``confirm`` and this fact
+    # approves it in advance — read by ``requires_confirmation`` and the effect gate
+    # (``effects/preapproval.py``) alone (guarded).
+    approved_in_advance: bool = False
 
     # The adapter supplies identity; a normalized domain never replaces a server key.
     mcp_origin: Literal["admin", "user"] | None = None

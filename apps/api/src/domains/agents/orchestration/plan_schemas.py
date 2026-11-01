@@ -60,10 +60,23 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID, FIELD_TOOL_NAME
+from src.domains.agents.orchestration.for_each_utils import get_for_each_provider_step_id
 
 #: How a FOR_EACH item names its step: ``step_2`` runs as ``step_2_item_0``,
 #: ``step_2_item_1``… (``DependencyGraph.expand_for_each_steps``).
 FOR_EACH_ITEM_INFIX = "_item_"
+
+
+def for_each_parent_id(step_id: object) -> str | None:
+    """The FOR_EACH step an ITEM step belongs to; ``None`` for a plain step.
+
+    The inverse of ``ExecutionStep.item_step_id``: the items' results are
+    aggregated under the parent's id, which is what later steps read. An item's
+    id ends on its INDEX, so a plain step named ``get_item_details`` is no item.
+    """
+    parent, infix, index = str(step_id or "").rpartition(FOR_EACH_ITEM_INFIX)
+    return parent if infix == FOR_EACH_ITEM_INFIX and parent and index.isdigit() else None
+
 
 # ============================================================================
 # Parameter Types (OpenAI Strict Mode Compatible)
@@ -527,6 +540,22 @@ class ExecutionPlan(BaseModel):
                     "or metadata.skill_bypass_noop must be True"
                 )
         return self
+
+    def consumed_step_ids(self) -> frozenset[str]:
+        """The steps another step consumes as a MEANS, not what was shown (ADR-367).
+
+        « Find Marc's e-mail », then reply to it: the lookup is a means. A list a
+        FOR_EACH iterates over is the subject the turn shows instead (« my next
+        three events, and the weather for each »).
+        """
+        iterated = {
+            provider
+            for step in self.steps
+            if step.for_each and (provider := get_for_each_provider_step_id(step.for_each))
+        }
+        return frozenset(
+            dep for step in self.steps for dep in (step.depends_on or []) if dep not in iterated
+        )
 
     model_config = {"frozen": False}  # Allow modification during execution
 

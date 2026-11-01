@@ -88,6 +88,92 @@ def _make_ref(
 # =============================================================================
 
 
+class TestADescribedItemIsResolvedAgainstWhatWasShown:
+    """ADR-367: a descriptive reference never reaches the ordinal resolver."""
+
+    @staticmethod
+    def _state(*senders: str) -> dict:
+        registry = {
+            f"e{i}": {
+                "id": f"e{i}",
+                "type": "EMAIL",
+                "payload": {"id": f"e{i}", "from": sender, "subject": "S", "to": ""},
+                "meta": {"source": "gmail", "domain": "emails", "turn_id": 1},
+            }
+            for i, sender in enumerate(senders, 1)
+        }
+        # The answer of turn 1 showed every one of them.
+        shown = [{"turn_id": 1, "ids": list(registry)}]
+        return {"current_turn_id": 2, "registry": registry, "shown_items": shown}
+
+    @staticmethod
+    def _ref(descriptor: str) -> ContextReferenceOutput:
+        return ContextReferenceOutput(
+            has_reference=True,
+            reference_type="descriptive",
+            descriptor=descriptor,
+            reference_domain="email",
+        )
+
+    @pytest.fixture(autouse=True)
+    def _followed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src.domains.agents.services import descriptive_reference
+        from src.domains.agents.tools import emails_tools  # noqa: F401 — registers "emails"
+
+        monkeypatch.setattr(descriptive_reference, "turn_follows_the_conversation", lambda: True)
+
+    @pytest.mark.asyncio
+    async def test_one_fitting_item_makes_a_reference_turn(
+        self, context_service: ContextResolutionService, mock_config: MagicMock
+    ) -> None:
+        result, turn_type = await context_service.resolve_context(
+            query="reply to Marc's email",
+            state=self._state("Marc <m@example.com>", "Ana <a@example.com>"),
+            config=mock_config,
+            run_id="test_run",
+            context_reference=self._ref("Marc"),
+        )
+
+        assert [item["id"] for item in result.items] == ["e1"]
+        assert turn_type == TURN_TYPE_REFERENCE
+        assert result.method == "descriptive"
+
+    @pytest.mark.asyncio
+    async def test_several_fitting_items_stay_an_action_carrying_candidates(
+        self, context_service: ContextResolutionService, mock_config: MagicMock
+    ) -> None:
+        result, turn_type = await context_service.resolve_context(
+            query="reply to Marc's email",
+            state=self._state("Marc <m@example.com>", "Marc <m@example.com>"),
+            config=mock_config,
+            run_id="test_run",
+            context_reference=self._ref("Marc"),
+        )
+
+        assert result.items == []
+        assert [item["id"] for item in result.candidates] == ["e1", "e2"]
+        assert turn_type == TURN_TYPE_ACTION
+
+    @pytest.mark.asyncio
+    async def test_a_description_the_analyzer_says_designates_nothing_is_not_resolved(
+        self, context_service: ContextResolutionService, mock_config: MagicMock
+    ) -> None:
+        # « find Marc's emails from last week » is a NEW search: a shown email
+        # from Marc must not stand in for it, whatever type the model wrote.
+        reference = self._ref("Marc").model_copy(update={"has_reference": False})
+        result, turn_type = await context_service.resolve_context(
+            query="find Marc's emails from last week",
+            state=self._state("Marc <m@example.com>"),
+            config=mock_config,
+            run_id="test_run",
+            context_reference=reference,
+        )
+
+        assert result.items == [] and result.candidates == []
+        assert result.method == "none"
+        assert turn_type == TURN_TYPE_ACTION
+
+
 class TestResolveContextRouting:
     """Test the top-level routing in resolve_context()."""
 
@@ -803,6 +889,82 @@ class TestEdgeCases:
         assert result.method == "llm_detected"
 
 
+class TestAnOrdinalCountsInWhatWasShown:
+    """ADR-367 amendment: « the second » counts in the list the person SAW.
+
+    « Show Marc's e-mails and reply to the first » — the lookup both showed its
+    list and fed the reply, and the context list kept the lookup. Read there,
+    the next « the second » named an item of a list nobody was shown.
+    """
+
+    @staticmethod
+    def _shown_state() -> dict:
+        registry = {
+            key: {
+                "id": key,
+                "type": "EMAIL",
+                "payload": {"id": key, "subject": key.upper()},
+                "meta": {"source": "gmail", "domain": "emails", "turn_id": 1},
+            }
+            for key in ("m1", "m2", "x")
+        }
+        return {
+            "current_turn_id": 2,
+            "registry": registry,
+            "shown_items": [{"turn_id": 1, "ids": ["m1", "m2"]}],
+            STATE_KEY_LAST_LIST_TURN_ID: 1,
+            STATE_KEY_AGENT_RESULTS: {},
+        }
+
+    @pytest.mark.asyncio
+    async def test_the_shown_list_wins_over_the_context_list(
+        self, context_service: ContextResolutionService, mock_config: MagicMock
+    ) -> None:
+        stale_lookup = [{"id": "x", "index": 1}, {"id": "y", "index": 2}]
+        ref = _make_ref(
+            has_reference=True,
+            reference_type="ordinal",
+            ordinal_positions=[2],
+            reference_domain="email",
+        )
+        with patch.object(
+            context_service,
+            "_get_items_from_tool_context_manager",
+            new_callable=AsyncMock,
+            return_value=stale_lookup,
+        ) as context_list:
+            result = await context_service._resolve_llm_detected_reference(
+                ref, self._shown_state(), mock_config, "test_run"
+            )
+
+        assert [item["id"] for item in result.items] == ["m2"]
+        assert result.source_turn_id == 1
+        context_list.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_list_nobody_showed_lately_is_read_on_the_context_list(
+        self, context_service: ContextResolutionService, mock_config: MagicMock
+    ) -> None:
+        state = {**self._shown_state(), "shown_items": []}
+        ref = _make_ref(
+            has_reference=True,
+            reference_type="ordinal",
+            ordinal_positions=[2],
+            reference_domain="email",
+        )
+        with patch.object(
+            context_service,
+            "_get_items_from_tool_context_manager",
+            new_callable=AsyncMock,
+            return_value=[{"id": "x", "index": 1}, {"id": "y", "index": 2}],
+        ):
+            result = await context_service._resolve_llm_detected_reference(
+                ref, state, mock_config, "test_run"
+            )
+
+        assert [item["id"] for item in result.items] == ["y"]
+
+
 # =============================================================================
 # TEST: ContextReferenceOutput model
 # =============================================================================
@@ -838,3 +1000,25 @@ class TestContextReferenceOutputModel:
         assert "properties" in schema
         assert "has_reference" in schema["properties"]
         assert "ordinal_positions" in schema["properties"]
+        assert {"descriptor", "selection"} <= set(schema["properties"])
+
+    def test_a_description_defaults_to_one_item(self) -> None:
+        ref = ContextReferenceOutput()
+        assert ref.descriptor == ""
+        assert ref.selection == "one"
+
+    @pytest.mark.parametrize(
+        ("raw", "read"),
+        [
+            ("latest", "latest"),
+            ("LATEST", "latest"),
+            ("one", "one"),
+            ("all", "one"),
+            ("", "one"),
+            (None, "one"),
+            ("newest", "one"),
+        ],
+    )
+    def test_a_selection_outside_the_vocabulary_reads_as_one(self, raw: object, read: str) -> None:
+        # Reads are forgiving: an unknown word is never a failed analysis.
+        assert ContextReferenceOutput.model_validate({"selection": raw}).selection == read

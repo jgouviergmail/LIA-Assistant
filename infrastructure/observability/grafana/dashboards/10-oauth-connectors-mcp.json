@@ -2658,6 +2658,156 @@
     }
    },
    "description": "A call built from a personal catalogue past its server's ttlMs is checked in its own session first (spec 2026-10-21 §5.5): identical (the entry becomes verified), compatible (sent, revalidation scheduled), or refused unsent — missing, incompatible (arguments no longer valid), tightened (newly destructive). A refusal reaches the model as CONFLICT."
+  },
+  {
+   "id": 66,
+   "type": "row",
+   "title": "Tools section — the person's own door (ADR-369)",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 183
+   },
+   "panels": []
+  },
+  {
+   "id": 67,
+   "type": "timeseries",
+   "title": "Tools: provider operations (by tool and outcome)",
+   "description": "Every read and act of the « Tools » section, as the provider answered it. 'ok' is a success; any other value is the refusal the person was shown (domains/workbench/errors.py): a rising 'reconnect_required' names an expired authorisation, 'provider_rate_limited' a provider asking to wait, 'provider_unavailable' one that did not answer, 'outcome_unknown' a send whose answer was lost.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 184
+   },
+   "targets": [
+    {
+     "expr": "sum by (tool, outcome) (rate(workbench_requests_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{tool}} · {{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 68,
+   "type": "timeseries",
+   "title": "Tools: provider latency p95 (by tool)",
+   "description": "How long a provider took to answer one operation of the « Tools » section — the wait the person sees on a click.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0",
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 184
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, sum by (tool, le) (rate(workbench_provider_latency_seconds_bucket[$__rate_interval]))) or vector(0)",
+     "legendFormat": "{{tool}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 69,
+   "type": "timeseries",
+   "title": "Tools: submissions replayed (by tool and outcome)",
+   "description": "A send or a create submitted a second time with the same key, answered WITHOUT a provider call. 'unknown' replays mean the first answer was lost and the person was told to check before trying again (ADR-221).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 192
+   },
+   "targets": [
+    {
+     "expr": "sum by (tool, outcome) (rate(workbench_idempotency_replays_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{tool}} · {{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 70,
+   "type": "timeseries",
+   "title": "Tools: submissions sent without the once-only guard",
+   "description": "Sends or creates made while Redis could not be reached: they ran (the guard never blocks a send) but a double click could not be told apart. Expected 0.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 192
+   },
+   "targets": [
+    {
+     "expr": "sum by (tool) (rate(workbench_idempotency_unguarded_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{tool}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

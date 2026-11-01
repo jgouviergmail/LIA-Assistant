@@ -257,17 +257,13 @@ def validate_for_each_patterns(
             # Get all steps using this tool
             repeated_steps = [s for s in plan.steps if s.tool_name == repeated_tool]
 
-            # Check if they all depend on the same parent step
-            parent_dependencies = set()
-            for step in repeated_steps:
-                if step.depends_on:
-                    for dep in step.depends_on:
-                        parent_dependencies.add(dep)
-
-            # If all repeated steps depend on a single common parent, this is
-            # likely a pattern that should use FOR_EACH
-            if len(parent_dependencies) == 1:
-                parent_step_id = list(parent_dependencies)[0]
+            # If every repeated step depends on the same single parent step,
+            # this is likely a pattern that should use FOR_EACH. Compared step
+            # by step: a copy that depends on nothing is a read of its own —
+            # reading again after an act is not an iteration (spec 2026-10-29 D7).
+            feeds = {frozenset(step.depends_on) for step in repeated_steps}
+            if len(feeds) == 1 and len(parent_dependencies := next(iter(feeds))) == 1:
+                parent_step_id = next(iter(parent_dependencies))
 
                 # Find the parent step to get its tool_name
                 parent_step = next((s for s in plan.steps if s.step_id == parent_step_id), None)

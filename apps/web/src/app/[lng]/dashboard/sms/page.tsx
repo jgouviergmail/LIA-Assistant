@@ -1,17 +1,13 @@
-import { redirect } from 'next/navigation';
-import { fallbackLng, isLanguage } from '@/i18n/settings';
+'use client';
 
-/** Keep existing notification, chat-card and bookmark links usable. */
-export default async function SmsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ lng: string }>;
-  searchParams: Promise<{ message?: string | string[] }>;
-}) {
-  const { lng } = await params;
-  const { message } = await searchParams;
-  const query = new URLSearchParams({ section: 'sms' });
-  if (typeof message === 'string') query.set('message', message);
-  redirect(`/${isLanguage(lng) ? lng : fallbackLng}/dashboard/settings?${query}`);
+import { SmsWorkspace } from '@/components/sms/SmsWorkspace';
+import { useLanguageParam } from '@/hooks/useLanguageParam';
+
+/**
+ * The « SMS » destination: consult, block, erase. Every link a notification, a
+ * chat card or a bookmark carries (`?message=`) opens here, on that message.
+ */
+export default function SmsPage({ params }: { params: Promise<{ lng: string }> }) {
+  const lng = useLanguageParam(params);
+  return <SmsWorkspace lng={lng} />;
 }

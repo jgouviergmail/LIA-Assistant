@@ -14,6 +14,8 @@ from src.core.constants import (
     MCP_TOOL_NAME_PREFIX,
 )
 from src.domains.agents.registry.catalogue import AgentManifest, ToolManifest
+from src.domains.agents.registry.confirmation_rule import task_requires_confirmation
+from src.domains.agents.registry.reactive_manifests import register_reactive_manifest
 from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
 from src.infrastructure.mcp.security import resolve_hitl_requirement
 from src.infrastructure.mcp.utils import is_app_only
@@ -42,7 +44,7 @@ class AdminRegistrationPorts:
     """Existing registration boundaries, kept injectable for startup composition."""
 
     standard_manifest: StandardManifestBuilder
-    task_manifest: Callable[[str, str, str, str], ToolManifest]
+    task_manifest: Callable[[str, str, str, str, bool], ToolManifest]
     register_task: Callable[[str, str, str], bool]
     register_adapter: Callable[[MCPToolAdapter], None]
 
@@ -98,15 +100,10 @@ def _register_standard_tool(
     if adapter is None:
         logger.warning("mcp_registration_adapter_missing", adapter_name=name)
         return 0
-    hitl = (
-        resolve_hitl_requirement(server.config, global_hitl_required)
-        if server.config
-        else global_hitl_required
-    )
     manifest = ports.standard_manifest(
         discovered=discovered,
         adapter_name=name,
-        hitl_required=hitl,
+        hitl_required=_server_hitl(server, global_hitl_required),
         agent_name=server.agent_name,
         server_key=server.key,
     )
@@ -149,36 +146,70 @@ def _register_standard_server(
     return registered
 
 
+def _server_hitl(server: AdminServer, global_hitl_required: bool) -> bool:
+    """The server's confirmation setting: its own override, else the instance's."""
+    if server.config is None:
+        return global_hitl_required
+    return resolve_hitl_requirement(server.config, global_hitl_required)
+
+
 def _register_iterative_server(
     registry: AgentRegistry,
     server: AdminServer,
     adapters: Mapping[str, MCPToolAdapter],
     ports: AdminRegistrationPorts,
+    global_hitl_required: bool,
 ) -> int:
-    registered = 0
+    """Register the task the planner sees, and its individuals out of the catalogue.
+
+    Each individual gets the manifest a standard tool would (spec D1): the gate
+    reads its policy and a confirmed draft finds it again, while the planner
+    still sees the task alone. Like a personal server's, the task asks once
+    before it starts when one of its individuals would (spec D3, owner decision
+    2026-10-31): that answer covers its calls and the task runs to completion.
+    """
+    hitl = _server_hitl(server, global_hitl_required)
+    individuals: list[ToolManifest] = []
     for tool in _visible_tools(server, {}):
-        adapter = adapters.get(server.tool_name(tool.tool_name))
+        name = server.tool_name(tool.tool_name)
+        adapter = adapters.get(name)
         if adapter is not None:
             ports.register_adapter(adapter)
-            registered += 1
-    if not registered:
+            individuals.append(
+                ports.standard_manifest(
+                    discovered=tool,
+                    adapter_name=name,
+                    hitl_required=hitl,
+                    agent_name=server.agent_name,
+                    server_key=server.key,
+                )
+            )
+    if not individuals:
         return 0
     name = server.task_alias or f"{MCP_TOOL_NAME_PREFIX}_{server.key}{MCP_ITERATIVE_TASK_SUFFIX}"
     if not ports.register_task(name, server.key, server.description):
         return 0
-    manifest = ports.task_manifest(name, server.agent_name, server.key, server.description)
+    manifest = ports.task_manifest(
+        name,
+        server.agent_name,
+        server.key,
+        server.description,
+        task_requires_confirmation(individuals),
+    )
     registry.register_agent_manifest(
         AgentManifest(name=server.agent_name, description=server.description, tools=[name])
     )
     registry.register_tool_manifest(manifest)
+    for individual in individuals:
+        register_reactive_manifest(individual)
     logger.info(
         "mcp_server_registered_iterative",
         server=server.key,
         domain=server.domain,
         agent=server.agent_name,
-        individual_tools=registered,
+        individual_tools=len(individuals),
     )
-    return registered
+    return len(individuals)
 
 
 def register_admin_server(
@@ -193,7 +224,7 @@ def register_admin_server(
     """Register a server while preserving its exact tool/RPC names and confirmation policy."""
     iterative = bool(server.config and server.config.iterative_mode and iterative_enabled)
     if iterative:
-        return _register_iterative_server(registry, server, adapters, ports)
+        return _register_iterative_server(registry, server, adapters, ports, global_hitl_required)
     return _register_standard_server(
         registry, server, adapters, ports, reference_content, global_hitl_required
     )

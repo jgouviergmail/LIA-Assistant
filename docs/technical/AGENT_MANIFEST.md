@@ -516,8 +516,9 @@ que déclare donc `read` : une affirmation vraie et bon marché, au lieu d'un
 silence hérité.
 
 Un outil MCP tiers ne déclare jamais sa politique : elle est **dérivée** de ce
-que le serveur annonce (`derive_mcp_mutation_policy`), jamais plus permissive
-que la déclaration (ADR-255).
+que le serveur annonce (`derive_mcp_mutation_policy`, `infrastructure/mcp/confirmation.py`),
+jamais plus permissive que la déclaration (ADR-255) — seul le choix explicite de la
+personne pour un outil peut lever une demande, lié à sa déclaration (ADR-368).
 
 **Classification des données** :
 - `PUBLIC` : Données publiques (ex: météo, taux de change)

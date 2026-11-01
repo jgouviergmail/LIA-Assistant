@@ -130,6 +130,10 @@ class UserMCPServerService:
                 "timeout_seconds": data.timeout_seconds,
                 "hitl_required": (data.hitl_required if offline_install is None else None),
                 "iterative_mode": data.iterative_mode,
+                # A received copy follows the recipient's defaults (spec 2026-10-30 D3).
+                "react_expand_iterative": (
+                    data.react_expand_iterative if offline_install is None else None
+                ),
                 "plugin_id": plugin_id,
                 "extra_headers": extra_headers,
                 "required_header_name": (

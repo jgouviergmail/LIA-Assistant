@@ -203,11 +203,14 @@ async def execute_draft_if_confirmed(
             outcome="cancelled",
         ).inc()
 
+        # What was cancelled travels with the cancel, as a batch's entries do:
+        # its account names the act (``describe_execution_result``).
         return DraftExecutionResult(
             success=True,
             draft_id=draft_id,
             draft_type=draft_type,
             action="cancel",
+            result_data={"_draft_content": draft_action_result.get("draft_content") or {}},
             user_language=user_language,
         )
 

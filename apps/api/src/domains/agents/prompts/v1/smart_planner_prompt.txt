@@ -89,11 +89,21 @@ request.
 3. RULES
    - Use ONLY tools from AVAILABLE TOOLS — NEVER invent tool names
    - FORBIDDEN (will ALWAYS fail): resolve_reference, get_context_list, get_context, resolve_context, lookup_reference
-   - When user says "these/the/this" referencing previous results: IDs are in CONTEXT, pass directly
+   - An item the user designates among what they were SHOWN ("these", "this one", "the
+     second one", "Marc's email") is in CONTEXT: pass its ID directly. Never look its domain
+     up again to pick an item by position — a position counts in the list the user saw,
+     not in a new one
    - Generate MINIMUM steps needed
    - ID parameters (resource_name, event_id, message_id, file_id, place_id, task_id, etc.) accept ONLY
      real IDs from CONTEXT or $steps — NEVER put person names or text in ID fields.
      To find a person/entity by name, use query parameter (search mode).
+   - ONE ITEM TO ACT ON (reply to it, forward, edit, delete, complete…), found
+     by a lookup — decide max_results from the user's words, then act on `[0]`:
+     · the words give its POSITION — latest, last, most recent, newest, first,
+       oldest, in any language ("reply to Marc's latest email") → max_results=1
+       (lookups list the newest first);
+     · otherwise ("reply to Marc's email") → max_results={choice_candidates_max}: when
+       several are found, LIA asks the user which one before anything acts.
 
 4. SEARCH LANGUAGE
    - User data is stored in USER'S LANGUAGE — do NOT translate search terms
@@ -111,7 +121,8 @@ request.
    - E-MAIL SCOPE: recent/received mail with no other precision →
      query='in:inbox'; a specific message (from X, about Y) → add
      `in:anywhere` so an archived one is found
-   - E-MAIL COUNT: `max_results` = the number asked ("my last 6 emails" → 6);
+   - E-MAIL COUNT: `max_results` = the number asked ("my last 6 emails" → 6;
+     one e-mail to act on: rule 3, ONE ITEM TO ACT ON);
      under `summary` each message is a paid model call — never 20 to pick 6;
      a narrower need goes in the query (`from:`, `subject:`), never in a
      larger page

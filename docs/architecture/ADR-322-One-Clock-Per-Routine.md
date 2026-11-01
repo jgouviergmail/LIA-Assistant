@@ -305,3 +305,39 @@ strict floor, kinds, the hour under way, the card), `test_fact_identity.py`
 `test_condition_evaluators.py` (the note, the published rule), and
 `tests/integration/domains/scheduled_actions/test_condition_ticks_pg.py` —
 the five condition types through five successive checks on PostgreSQL.
+
+## Amendment 2026-10-30 — a routine may pre-approve MCP servers
+
+**Context.** A routine runs with nobody to ask, so the effect gate refuses its
+`confirm` calls ([ADR-263 amendment 2026-10-13](ADR-263-Execution-Authority-Chain-And-Effect-Register.md)):
+since every MCP tool now follows one confirmation rule
+([ADR-263 amendment 2026-10-30 (b)](ADR-263-Execution-Authority-Chain-And-Effect-Register.md)),
+a routine could no longer use an MCP tool its owner wants it to use.
+
+**Decision.**
+
+- **Per server, ticked in the routine's form**: `scheduled_actions.mcp_preapproved_servers`
+  (JSONB, `none_as_null` — no pre-approval is SQL NULL), never one switch per routine, so an
+  instruction slipped into what a run reads reaches only the servers ticked.
+- **Written by the form alone**: the REST routes accept `ScheduledActionFormCreate/Update`;
+  the shared schemas the agent's routine tools build — the chat's automation tool, the
+  Studio's subclasses — never carry the field. Strict on write: the account's enabled and
+  active servers, and the administrator's servers it has not switched off
+  (`user_mcp/callable_servers.py`); anything else answers 400
+  `routine_mcp_server_not_callable`. Forgiving on read: a stale key is returned as stored
+  and pre-approves nothing.
+- **The run carries it**: `StreamRequest.mcp_preapproval` (the routine's property, the
+  routine as the approval's reference) is published around the stream
+  (`domains/shared/mcp_preapproval.py`); the gate and the ReAct loop read it through one
+  predicate (`effects/preapproval.py`), and the register files such an act as
+  `routine_preapproval`.
+- **The agent may still change, run or switch on such a routine**: the Studio's card then
+  names the servers it confirms for itself, and the routine's snapshot covers the ticked
+  keys, so a pre-approval changed after the card makes the command stale.
+
+**Proven by**: `tests/unit/domains/scheduled_actions/test_mcp_preapproval.py`,
+`test_router_mcp_preapproval.py`, `tests/unit/domains/agents/effects/test_routine_preapproval_gate.py`,
+`tests/unit/domains/agents/tools/test_agent_cannot_preapprove.py`, and on PostgreSQL
+`tests/integration/domains/scheduled_actions/test_mcp_preapproval_db.py`; the form's
+checkboxes in `RoutineMcpPreapprovalField.test.tsx` and the axe journey
+`a routine form names the MCP servers its runs confirm for themselves`.

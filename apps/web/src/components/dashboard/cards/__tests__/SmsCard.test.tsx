@@ -25,7 +25,7 @@ const section: CardSection<SmsData> = {
   last_attempt_at: null,
 };
 describe('SMS home card', () => {
-  it('shows ten literal SMS rows in source order and opens the selected message in settings', async () => {
+  it('shows ten literal SMS rows in source order and opens the selected message on the SMS page', async () => {
     const items = Array.from({ length: 10 }, (_, index) => ({
       id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
       sender: '+33612345678',
@@ -56,7 +56,7 @@ describe('SMS home card', () => {
     act(() => target.focus());
     await user.keyboard('{Enter}');
     expect(push).toHaveBeenCalledWith(
-      '/dashboard/settings?section=sms&message=10000000-0000-4000-8000-000000000001'
+      '/dashboard/sms?message=10000000-0000-4000-8000-000000000001'
     );
   });
   it('accepts an older server bundle with no SMS section', () => {

@@ -71,14 +71,6 @@ Best Practices:
 """
 
 from src.domains.agents.context.decorators import auto_save_context
-from src.domains.agents.context.entity_resolution import (
-    DisambiguationContext,
-    DisambiguationType,
-    EntityResolutionService,
-    ResolutionStatus,
-    ResolvedEntity,
-    get_entity_resolution_service,
-)
 from src.domains.agents.context.manager import ToolContextManager
 from src.domains.agents.context.prompts import get_context_instructions
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
@@ -93,18 +85,12 @@ __all__ = [
     "ContextSaveMode",
     "ContextTypeDefinition",
     "ContextTypeRegistry",
-    "DisambiguationContext",
-    "DisambiguationType",
-    "EntityResolutionService",
-    "ResolvedEntity",
-    "ResolutionStatus",
     "ToolContextCurrentItem",
     "ToolContextList",
     "ToolContextManager",
     "auto_save_context",
     "cleanup_tool_context_store",
     "get_context_instructions",
-    "get_entity_resolution_service",
     "get_tool_context_store",
     # NOTE: Legacy manifest exports removed (Phase 5 cleanup).
     # All manifests now loaded via registry/catalogue_loader.py

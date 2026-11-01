@@ -388,7 +388,7 @@ Iterative mode: Planner → mcp_{server}_task → ReactSubAgentRunner → ReAct 
                                               └→ read_me → understand API → call tools → result
 ```
 
-> **Autonomous (⚡ ReAct) chat mode** — the parent loop is *itself* a ReAct loop, so the per-server `_task` indirection is redundant: `ReactToolSelector` expands an iterative **user** MCP server into its individual tools (resolved from the ContextVar via the shared `tool_resolution.py`) so the model picks them by description — **except MCP App servers**, which keep the `_task` tool and the `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`). The pipeline flow above is unchanged. See ADR-070 (amendment 2026-06-02).
+> **Autonomous (⚡ ReAct) chat mode** — the parent loop is *itself* a ReAct loop, so the per-server `_task` indirection is redundant: `ReactToolSelector` expands an iterative MCP server — the person's or the administrator's — into its individual tools (resolved via the shared `tool_resolution.py`), each asked on its own declaration, so the model picks them by description — **except MCP App servers**, which keep the `_task` tool and the `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`). The pipeline flow above is unchanged. See ADR-070 (amendment 2026-06-02).
 
 ### Admin vs User MCP
 
@@ -430,7 +430,7 @@ Iterative MCP tools get a minimum execution timeout of **120s** (vs. 60s default
 ### Requirements
 
 - `MCP_REACT_ENABLED=true` (global feature flag, default `false`)
-- `iterative_mode=true` on the server config (admin) or user toggle (user)
+- `iterative_mode=true` on the server config (admin) or the person's « who drives it » choice (user, ADR-368)
 - Reference content (`read_me`) is skipped in the planner prompt for iterative servers — the ReAct agent fetches it itself
 
 ---
@@ -732,7 +732,22 @@ async with lock:
 
 ### Resolution HITL
 
-Le HITL (Human-in-the-Loop) suit une hierarchie :
+**Serveurs de la personne** (ADR-368, `infrastructure/mcp/confirmation.py`) : quatre niveaux,
+lus avec indulgence et ecrits strictement.
+
+```
+Choix de l'outil (toujours / jamais, lie a sa declaration)
+  > hitl_required du serveur (null = comme le compte)
+  > strategie du compte (users.mcp_hitl_required, null = jamais choisie)
+  > MCP_HITL_REQUIRED (defaut de l'instance)
+```
+
+Un « jamais » pose `approved_in_advance` sur le manifeste : la porte l'enregistre sous
+`standing_choice`. La tache d'un agent dedie est demandee avant de demarrer des qu'un de ses
+outils le demanderait (`task_requires_confirmation`) ; depuis la conversation, LIA ne peut que
+demander davantage.
+
+**Serveurs de l'administrateur** : la hierarchie reste la suivante :
 
 ```
 Per-server hitl_required (si non-None) > Global MCP_HITL_REQUIRED

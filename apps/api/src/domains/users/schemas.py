@@ -113,6 +113,16 @@ class UserUpdate(
             "next turn's cache) or 'occasional' (tools chosen by relevance)"
         ),
     )
+    # Spec 2026-10-30 D2: strict on write; an explicit null returns to the default.
+    mcp_hitl_required: bool | None = Field(
+        None,
+        strict=True,
+        description=(
+            "MCP confirmation strategy the account's servers inherit: true asks before "
+            "every call, false follows each server's declarations, null follows the "
+            "instance default"
+        ),
+    )
 
     model_config = {"from_attributes": True, "use_enum_values": True}
 

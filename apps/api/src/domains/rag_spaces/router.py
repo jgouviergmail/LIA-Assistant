@@ -9,8 +9,6 @@ Created: 2026-03-14
 """
 
 import os
-import re
-from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, UploadFile, status
@@ -19,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.background import BackgroundTask
 
 from src.core.constants import RAG_SPACES_BULK_MAX
+from src.core.content_disposition import attachment_disposition
 from src.core.dependencies import get_db
 from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import (
@@ -387,31 +386,6 @@ async def upload_document(
     return RAGDocumentResponse.model_validate(document)
 
 
-#: Characters that must never reach a quoted Content-Disposition value:
-#: C0/C1 controls (header injection) and the quoted-string terminators.
-_UNSAFE_HEADER_CHARS = re.compile(r'[\x00-\x1f\x7f-\x9f"\\]')
-
-
-def _attachment(filename: str, fallback: str) -> dict[str, str]:
-    """A Content-Disposition naming the download in ASCII and in UTF-8 (RFC 5987).
-
-    The name is NOT trusted: a document can be a Gmail thread (ADR-262), so
-    its display name is a subject line written by a third party. The quoted
-    ASCII half therefore drops control characters (CR/LF would be a header
-    injection, refused downstream as a 500 at best) and the two characters
-    that can end the quoted string (a double quote and a backslash), and is
-    length-bounded;
-    the UTF-8 half is percent-encoded by ``quote`` and safe by construction.
-    """
-    ascii_name = filename.encode("ascii", "ignore").decode()
-    ascii_name = _UNSAFE_HEADER_CHARS.sub("", ascii_name).strip()[:200] or fallback
-    return {
-        "Content-Disposition": (
-            f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
-        )
-    }
-
-
 def _parse_ids(ids: str) -> list[UUID]:
     """The comma-separated ids of an archive link, validated and capped."""
     parts = [part for part in ids.split(",") if part]
@@ -449,7 +423,7 @@ async def download_documents_archive(
     return FileResponse(
         path,
         media_type="application/zip",
-        headers=_attachment(filename, "documents.zip"),
+        headers={"Content-Disposition": attachment_disposition(filename, "documents.zip")},
         background=BackgroundTask(os.remove, path),
     )
 
@@ -499,7 +473,9 @@ async def download_space_document(
     return FileResponse(
         path,
         media_type=document.content_type,
-        headers=_attachment(document.original_filename, "document"),
+        headers={
+            "Content-Disposition": attachment_disposition(document.original_filename, "document")
+        },
     )
 
 

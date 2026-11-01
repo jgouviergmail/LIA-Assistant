@@ -5,9 +5,10 @@ often, until when — so they ask them with the same words. One declaration
 here, read by both signatures and both manifests, is what stops the two from
 drifting into dialects of each other.
 
-**The bounds travel with the caller** (ADR-184). A routine may fire 12 times a
-day and a reminder 48; the numbers in the manifest are therefore built from the
-consumer's own `RecurrenceLimits`, never from a constant here. A bound the
+**The bounds travel with the caller** (ADR-184). A routine may fire as often as
+its operator's settings allow (12 times a day by default) and a reminder 48; the
+numbers in the manifest are therefore built from the consumer's own
+`RecurrenceLimits`, never from a constant here. A bound the
 planner cannot see is a trap, not a contract — and a bound it sees that the
 validator does not enforce is worse.
 

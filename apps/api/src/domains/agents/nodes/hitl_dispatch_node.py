@@ -7,18 +7,16 @@ Supports multiple HITL interaction types with priority ordering.
 Architecture:
     1. Check pending HITL requests in priority order:
        - Draft Critique (highest priority)
-       - Entity Disambiguation (medium priority)
        - Tool Confirmation (lowest priority)
     2. Dispatch to appropriate handler
     3. Return state updates from handler
 
-Priority Rationale:
-    Draft > Disambiguation > Confirmation because:
-    - Don't confirm an action if we don't know which "Jean" to apply it to
-    - Don't show draft preview if entity selection is still pending
+Which of several shown items the person meant is asked BEFORE planning, by its
+own node (``reference_disambiguation_node``, ADR-367): an action is never
+planned on an item nobody chose.
 
 Flow:
-    TaskOrchestrator → HitlDispatchNode → [DraftCritique | EntityDisambiguation | ToolConfirmation]
+    TaskOrchestrator → HitlDispatchNode → [DraftCritique | ToolConfirmation]
                                         ↓
                                interrupt() → User Decision → Resume
                                         ↓
@@ -26,7 +24,6 @@ Flow:
 
 References:
     - draft_critique_node.py: Original draft critique implementation
-    - EntityDisambiguationInteraction: HITL for multiple matches
     - ToolConfirmationInteraction: HITL for tools without drafts
 
 Created: 2025-12-23
@@ -88,11 +85,6 @@ logger = structlog.get_logger(__name__)
 
 # Draft Critique: the keys live with the sequence rules (ADR-288) and are
 # re-exported here for the node's readers.
-
-# Entity Disambiguation (new)
-STATE_KEY_PENDING_ENTITY_DISAMBIGUATION = "pending_entity_disambiguation"
-STATE_KEY_ENTITY_DISAMBIGUATION_RESULT = "entity_disambiguation_result"
-STATE_KEY_PENDING_DISAMBIGUATIONS_QUEUE = "pending_disambiguations_queue"
 
 # Tool Confirmation (new)
 STATE_KEY_PENDING_TOOL_CONFIRMATION = "pending_tool_confirmation"
@@ -346,100 +338,6 @@ def _process_draft_action(
 
 
 # ============================================================================
-# HELPER FUNCTIONS - ENTITY DISAMBIGUATION
-# ============================================================================
-
-
-def _build_entity_disambiguation_payload(
-    pending_disambiguation: dict[str, Any],
-    user_language: str | None = None,
-) -> dict[str, Any]:
-    """
-    Build interrupt payload for entity disambiguation HITL.
-
-    Args:
-        pending_disambiguation: DisambiguationContext from entity resolution
-        user_language: User's language for question generation
-
-    Returns:
-        Interrupt payload for HITL processing
-    """
-    return {
-        "action_requests": [
-            {
-                "type": "entity_disambiguation",
-                "disambiguation_type": pending_disambiguation.get(
-                    "disambiguation_type", "multiple_entities"
-                ),
-                "candidates": pending_disambiguation.get("candidates", []),
-                "original_query": pending_disambiguation.get("original_query", ""),
-                "domain": pending_disambiguation.get("domain", "contacts"),
-                "target_field": pending_disambiguation.get("target_field"),
-            }
-        ],
-        "generate_question_streaming": True,
-        "user_language": resolve_language(user_language),
-        "hitl_type": HitlInteractionType.ENTITY_DISAMBIGUATION.value,
-    }
-
-
-def _process_entity_disambiguation_decision(
-    decision_data: dict[str, Any],
-    pending_disambiguation: dict[str, Any],
-) -> tuple[str, dict[str, Any] | None, str | None]:
-    """
-    Process user's entity disambiguation decision.
-
-    Args:
-        decision_data: User decision from interrupt resume
-        pending_disambiguation: Original disambiguation context
-
-    Returns:
-        Tuple (action, selected_entity, error_message)
-    """
-    action = decision_data.get("action", "cancel")
-
-    if action == "select":
-        selected_index = decision_data.get("selected_index")
-        selected_value = decision_data.get("selected_value")
-
-        candidates = pending_disambiguation.get("candidates", [])
-
-        if selected_index is not None and 0 <= selected_index < len(candidates):
-            selected_entity = candidates[selected_index]
-            logger.info(
-                "entity_disambiguation_selected",
-                selected_index=selected_index,
-                domain=pending_disambiguation.get("domain"),
-            )
-            return "select", selected_entity, None
-        elif selected_value:
-            logger.info(
-                "entity_disambiguation_value_selected",
-                selected_value_length=len(selected_value) if selected_value else 0,
-            )
-            return "select", {"value": selected_value}, None
-        else:
-            logger.warning(
-                "entity_disambiguation_invalid_selection",
-                selected_index=selected_index,
-                candidates_count=len(candidates),
-            )
-            return "cancel", None, "Invalid selection"
-
-    elif action == "cancel":
-        logger.info("entity_disambiguation_cancelled")
-        return "cancel", None, None
-
-    else:
-        logger.warning(
-            "entity_disambiguation_unknown_action",
-            action=action,
-        )
-        return "cancel", None, f"Unknown action: {action}"
-
-
-# ============================================================================
 # HELPER FUNCTIONS - TOOL CONFIRMATION
 # ============================================================================
 
@@ -534,9 +432,8 @@ async def hitl_dispatch_node(state: MessagesState, config: RunnableConfig) -> di
     HITL Dispatch Node - Routes to appropriate HITL handler.
 
     Checks pending HITL requests in priority order:
-    1. Draft Critique (highest) - don't preview draft if entity unclear
-    2. Entity Disambiguation (medium) - resolve entities before confirmation
-    3. Tool Confirmation (lowest) - only confirm when all context is clear
+    1. Draft Critique (highest)
+    2. Tool Confirmation (lowest) - only confirm when all context is clear
 
     NOTE: Tool approval is always enabled (no kill switch).
 
@@ -561,16 +458,7 @@ async def hitl_dispatch_node(state: MessagesState, config: RunnableConfig) -> di
         )
 
     # =========================================================================
-    # PRIORITY 2: Entity Disambiguation
-    # =========================================================================
-    pending_disambiguation = state.get(STATE_KEY_PENDING_ENTITY_DISAMBIGUATION)
-    if pending_disambiguation:
-        return await _handle_entity_disambiguation(
-            state, pending_disambiguation, user_language, start_time
-        )
-
-    # =========================================================================
-    # PRIORITY 3: Tool Confirmation
+    # PRIORITY 2: Tool Confirmation
     # =========================================================================
     pending_confirmation = state.get(STATE_KEY_PENDING_TOOL_CONFIRMATION)
     if pending_confirmation:
@@ -904,78 +792,6 @@ async def _handle_draft_critique(
         return result
 
 
-async def _handle_entity_disambiguation(
-    state: MessagesState,
-    pending_disambiguation: dict[str, Any],
-    user_language: str,
-    start_time: float,
-) -> dict[str, Any]:
-    """Handle entity disambiguation HITL flow."""
-    logger.info(
-        "hitl_dispatch_entity_disambiguation",
-        domain=pending_disambiguation.get("domain"),
-        candidates_count=len(pending_disambiguation.get("candidates", [])),
-    )
-
-    # Build and send interrupt
-    interrupt_payload = _build_entity_disambiguation_payload(pending_disambiguation, user_language)
-    decision_data = interrupt(interrupt_payload)
-
-    elapsed_time = time.time() - start_time
-    logger.info(
-        "hitl_dispatch_disambiguation_decision_received",
-        action=decision_data.get("action") if decision_data else None,
-        latency_seconds=elapsed_time,
-    )
-
-    # Handle no decision
-    if not decision_data:
-        no_decision_result: dict[str, Any] = {
-            STATE_KEY_ENTITY_DISAMBIGUATION_RESULT: {
-                "action": "cancel",
-                "reason": "No decision received",
-            },
-            STATE_KEY_PENDING_ENTITY_DISAMBIGUATION: None,
-        }
-        track_state_updates(state, no_decision_result, "hitl_dispatch")
-        return no_decision_result
-
-    # Process decision
-    action, selected_entity, error = _process_entity_disambiguation_decision(
-        decision_data, pending_disambiguation
-    )
-
-    result: dict[str, Any] = {STATE_KEY_PENDING_ENTITY_DISAMBIGUATION: None}
-
-    if action == "select":
-        result[STATE_KEY_ENTITY_DISAMBIGUATION_RESULT] = {
-            "action": "select",
-            "selected_entity": selected_entity,
-            "domain": pending_disambiguation.get("domain"),
-        }
-    elif action == "cancel":
-        result[STATE_KEY_ENTITY_DISAMBIGUATION_RESULT] = {
-            "action": "cancel",
-            "reason": error or "User cancelled",
-        }
-
-    # Check disambiguation queue for multi-disambiguation protection
-    queue = state.get(STATE_KEY_PENDING_DISAMBIGUATIONS_QUEUE, [])
-    if queue:
-        # Pop next disambiguation from queue
-        next_disambiguation = queue[0]
-        remaining_queue = queue[1:]
-        result[STATE_KEY_PENDING_ENTITY_DISAMBIGUATION] = next_disambiguation
-        result[STATE_KEY_PENDING_DISAMBIGUATIONS_QUEUE] = remaining_queue
-        logger.info(
-            "hitl_dispatch_disambiguation_queue_pop",
-            remaining_in_queue=len(remaining_queue),
-        )
-
-    track_state_updates(state, result, "hitl_dispatch")
-    return result
-
-
 async def _handle_tool_confirmation(
     state: MessagesState,
     pending_confirmation: dict[str, Any],
@@ -1044,9 +860,6 @@ __all__ = [
     "STATE_KEY_PENDING_DRAFTS_GROUPED",
     "STATE_KEY_CONFIRMED_DRAFTS",
     "STATE_KEY_DRAFT_ACTION_RESULT",
-    "STATE_KEY_PENDING_ENTITY_DISAMBIGUATION",
-    "STATE_KEY_ENTITY_DISAMBIGUATION_RESULT",
-    "STATE_KEY_PENDING_DISAMBIGUATIONS_QUEUE",
     "STATE_KEY_PENDING_TOOL_CONFIRMATION",
     "STATE_KEY_TOOL_CONFIRMATION_RESULT",
 ]

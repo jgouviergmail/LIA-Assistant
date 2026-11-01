@@ -461,6 +461,7 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.mailbox_drafts_tools", "mailbox_drafts_tools"),  # ADR-344
         ("src.domains.agents.tools.mailbox_draft_edit_tools", "mailbox_draft_edit_tools"),
         ("src.domains.agents.tools.mailbox_draft_send_tools", "mailbox_draft_send_tools"),
+        ("src.domains.agents.tools.email_read_state_tools", "email_read_state_tools"),  # ADR-369
         ("src.domains.agents.tools.gmail_settings_tools", "gmail_settings_tools"),
         ("src.domains.agents.tools.google_contacts_tools", "google_contacts_tools"),
         ("src.domains.agents.tools.contact_groups_tools", "contact_groups_tools"),

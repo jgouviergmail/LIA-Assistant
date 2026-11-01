@@ -68,7 +68,8 @@ class HitlInteractionType(str, Enum):
     CLARIFICATION = "clarification"
     EDIT_CONFIRMATION = "edit_confirmation"
     DRAFT_CRITIQUE = "draft_critique"  # Data Registry LOT 4.3: Draft review before execution
-    ENTITY_DISAMBIGUATION = "entity_disambiguation"  # Entity resolution when multiple matches found
+    # Which of several shown items the person meant (ADR-367).
+    ENTITY_DISAMBIGUATION = "entity_disambiguation"
     DESTRUCTIVE_CONFIRM = "destructive_confirm"  # Phase 3: Enhanced confirmation for bulk deletions
     FOR_EACH_CONFIRMATION = (
         "for_each_confirmation"  # Bulk mutation confirmation (send/create/update N items)

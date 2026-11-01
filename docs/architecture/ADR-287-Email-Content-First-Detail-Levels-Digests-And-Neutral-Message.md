@@ -571,3 +571,12 @@ ADR-194.
 **Preuves.** `tests/unit/domains/connectors/clients/normalizers/test_email_message_contract.py`
 (`TestTheSnippetIsPlainTextOnEveryProvider`, le rembourrage, le non-joiner
 persan).
+
+## Amendement 2026-10-30 — le nom de l'expéditeur sur chaque fournisseur ([ADR-367](ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md))
+
+Une description (« réponds au mail de Marc ») se lit sur le `from` et le `to` : Outlook encodait un
+nom accentué en mots RFC 2047, Apple ne gardait que l'adresse. Un seul `name_addr`
+(`infrastructure/email/recipients.py`) rend désormais « Nom <adresse> » pour Graph, IMAP et le
+courrier sortant, nom décodé et conservé ; une garde construit la charge de chaque fournisseur avec
+le vrai normaliseur et le vrai constructeur, et vérifie que chaque champ déclaré porte du texte
+(`tests/unit/domains/agents/context/test_reference_fields_carried.py`).

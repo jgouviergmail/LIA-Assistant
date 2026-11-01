@@ -354,6 +354,11 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "installs are the person's skills, under the skills node (ADR-327). A "
         "second node would count the same skills twice."
     ),
+    PlatformCapability.WORKBENCH: (
+        "A door onto the connectors, whose per-account state the connector "
+        "nodes already draw: the « Tools » section keeps no state of its own "
+        "(ADR-369), so a star for it could only ever be lit."
+    ),
 }
 
 

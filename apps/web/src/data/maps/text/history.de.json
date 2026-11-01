@@ -1750,8 +1750,8 @@
     },
     "331": {
       "title": "Was die Prüfungen nicht sehen, wird jede Woche gelesen",
-      "summary": "Die Prüfungen jeder Änderung lasen eine einzige Datenbank für Sicherheitshinweise: Die Überprüfung vom September 2026 fand zwanzig Hinweise, die die Repositories der Abhängigkeiten selbst veröffentlicht hatten und die kein Werkzeug sah. Eine wöchentliche Überwachung liest nun diese Hinweise, die Support-Enden, die Registries und die Browser-Engine, und jeder Befund wird behoben oder schriftlich akzeptiert, mit einem Datum für die erneute Prüfung. Python-Versionen rücken über einen einzigen Befehl vor, nach einer Wartezeit und nie rückwärts.",
-      "src": "1fdde3db9932"
+      "summary": "Die Prüfungen jeder Änderung lasen eine einzige Datenbank für Sicherheitshinweise: Die Überprüfung vom September 2026 fand zwanzig Hinweise, die die Repositories der Abhängigkeiten selbst veröffentlicht hatten und die kein Werkzeug sah. Eine wöchentliche Überwachung liest nun diese Hinweise, die Support-Enden, die Registries und die Browser-Engine, und jeder Befund wird behoben oder schriftlich akzeptiert, mit einem Datum für die erneute Prüfung. Python-Versionen rücken über einen einzigen Befehl vor, nach einer Wartezeit und nie rückwärts. Der Wechsel von einer nicht mehr gepflegten Generation kann mit einem offiziellen Adapter bei unveränderten Regeln und Schwellenwerten qualifiziert werden; Kompatibilitätsmetadaten allein reichen nicht aus.",
+      "src": "7241115ba795"
     },
     "332": {
       "title": "Karten, die alles Empfangene zeigen, und Aktionen, die an die anzeigende Nachricht gebunden sind",
@@ -1922,6 +1922,21 @@
       "title": "Der Katalog eines persönlichen MCP-Servers, ohne Warten bereitgestellt",
       "summary": "Was ein persönlicher MCP-Server anbietet, wird am Konto aufbewahrt und von einer Nachricht zur nächsten wieder bereitgestellt, in jedem Prozess, während ein einziger es im Hintergrund erneut prüft. Die Server bereiten sich parallel vor; ein zu langsamer wird für diese Nachricht ausgelassen, in einem Hinweis genannt und ist für die nächste bereit. Ist die aufbewahrte Kopie nicht mehr frisch, prüft LIA vor dem Aufruf, ob das Werkzeug noch in derselben Form angeboten wird, und sendet ihn sonst nicht.",
       "src": "b3d470a00714"
+    },
+    "367": {
+      "title": "„Die Mail von Marc“: bezeichnet durch das, was es ist, nachgefragt, wenn mehrere passen",
+      "summary": "Bezeichnet die Person ein gerade gesehenes Element über das, was es ist — den Absender, ein Wort des Betreffs —, sagt die Analyse der Anfrage nur, wie es bezeichnet wird; der Code findet, welche der tatsächlich angezeigten Elemente diese Worte meinen. Eines: LIA handelt und nennt es im Aktionsprotokoll. Mehrere: LIA fragt, welches, mit einer Frage, die kein Modell schreibt, und rät nie; keines: eine neue Suche.",
+      "src": "80fe152b44d4"
+    },
+    "368": {
+      "title": "Wann LIA vor einem MCP-Werkzeug fragt, entscheidet die Person",
+      "summary": "Die Person wählt, wann LIA sie vor einem MCP-Werkzeug um Zustimmung bittet: für das ganze Konto, für jeden Server, für jedes Werkzeug — „Nie fragen“ bleibt an das gebunden, was das Werkzeug angibt. Vor jeder Änderung, durch die LIA seltener fragen würde, listet die Seite auf, wonach LIA nicht mehr fragen würde; nichts ist gesperrt. Ein eigener Agent wird einmal vor jeder Aufgabe gefragt, sobald eines seiner Werkzeuge fragen würde, und die Aufgabe läuft dann bis zum Ende; im Chat kann LIA nur öfter fragen.",
+      "src": "66eded8b0533"
+    },
+    "369": {
+      "title": "Die Person bedient ihre Dienste selbst, ohne Modell",
+      "summary": "Der Bereich „Tools“ öffnet Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Lampen der Person, damit sie sie von Hand ansieht und bedient: kein Modell, kein Token, das Tempo des Anbieters. Der Bildschirm bietet nur, was der Anbieter annimmt, und was ein Client dafür dazugewinnt, gewinnen die Werkzeuge der Assistentin zugleich; nichts, was die Person von Hand tut, landet in einem Register, denn es ist keine Handlung von LIA.",
+      "src": "07998b0c5d8d"
     }
   }
 }

@@ -36,21 +36,18 @@ from src.core.config import settings
 from src.core.run_config import run_id_of
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
-    STATE_KEY_COMPLETED_STEPS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_FOR_EACH_HITL_CTX,
-    STATE_KEY_LAST_ACTION_TURN_ID,
-    STATE_KEY_LAST_LIST_DOMAIN,
-    STATE_KEY_LAST_LIST_TURN_ID,
     STATE_KEY_MESSAGES,
     STATE_KEY_ORCHESTRATION_PLAN,
     STATE_KEY_PLANNER_ERROR,
     STATE_KEY_ROUTING_HISTORY,
 )
+from src.domains.agents.data_registry.state import registry_as_dicts
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.execution_state import state_after_execution
 from src.domains.agents.nodes.for_each_hitl_prep import (
-    is_pre_approved_lot,
     pre_execute_for_each_providers,
     refresh_for_each_scope_claims,
 )
@@ -59,15 +56,10 @@ from src.domains.agents.nodes.for_each_preview_identity import (
     original_selection_after_approval,
     prepare_preview_context,
 )
+from src.domains.agents.nodes.plan_choice import settle_plan_choice
+from src.domains.agents.nodes.plan_resume import held_plan_of, resume_due, resume_held_steps
 from src.domains.agents.orchestration import (
-    build_execution_result,
     create_orchestration_plan,
-    map_execution_result_to_agent_result,
-)
-from src.domains.agents.orchestration.step_failure_metrics import record_pipeline_step_failures
-from src.domains.agents.orchestration.tool_data_projection import (
-    previous_turns_without_tool_data,
-    without_tool_data,
 )
 from src.domains.agents.utils.state_cleanup import (
     cleanup_dict_by_turn_id,
@@ -171,6 +163,11 @@ async def task_orchestrator_node(state: MessagesState, config: RunnableConfig) -
             requires_hitl=requires_hitl,
             condition_result=has_valid_plan,
         )
+
+        if has_valid_plan and resume_due(state):
+            # Spec D7: the person answered; the steps that waited run on the
+            # real results of the acts they approved.
+            return await resume_held_steps(state, config, run_id)
 
         if has_valid_plan:
             logger.info(
@@ -431,20 +428,21 @@ async def _handle_execution_plan(
         # ====================================================================
         # BugFix 2025-11-30: Pass existing registry from state for items[N].field resolution
         # This allows "details of the first one" to resolve items[0].id from previous search results
-        existing_registry = state.get("registry", {})
-
-        # Convert RegistryItem objects to dicts for parallel_executor
         # (parallel_executor expects dict format, not Pydantic models)
-        initial_registry = {}
-        for item_id, item in existing_registry.items():
-            if hasattr(item, "model_dump"):
-                initial_registry[item_id] = item.model_dump()
-            elif isinstance(item, dict):
-                initial_registry[item_id] = item
-            else:
-                initial_registry[item_id] = {"payload": item}
+        initial_registry = registry_as_dicts(state.get("registry"))
 
         current_turn_id = state.get(STATE_KEY_CURRENT_TURN_ID)
+
+        # ADR-367 amendment: an act on the first of several items a lookup found
+        # asks which one first — the lookups run once, the plan resumes on them.
+        choice = await settle_plan_choice(
+            execution_plan, state, config, run_id, initial_registry=initial_registry
+        )
+        if choice.ask is not None:
+            track_state_updates(state, choice.ask, "task_orchestrator", run_id)
+            return choice.ask
+        # The plan bound to the item the person designated (designation_repair).
+        execution_plan = choice.plan_for(execution_plan)
 
         # ====================================================================
         # FOR_EACH HITL WITH PRE-EXECUTION
@@ -461,9 +459,9 @@ async def _handle_execution_plan(
         # 4. Show HITL with accurate count
         # 5. If approved, pass pre-executed steps to execute_plan_parallel (skip re-execution)
         # ====================================================================
-        pre_executed_steps: dict[str, dict[str, Any]] = {}
+        pre_executed_steps: dict[str, dict[str, Any]] = choice.completed
         # BugFix 2026-01-24: Track pre-executed registry for parent item preservation
-        pre_exec_registry: dict[str, Any] = {}
+        pre_exec_registry: dict[str, Any] = choice.registry
 
         # NOTE: FOR_EACH HITL is always enabled
         for_each_steps_requiring_hitl = []
@@ -532,7 +530,7 @@ async def _handle_execution_plan(
                 # ── First pass: pre-execute providers ONCE ──
                 # BugFix 2026-01-24: Also capture pre_exec_registry to preserve
                 # parent items (e.g., events) when child steps (e.g., routes) fail
-                pre_executed_steps, item_counts, pre_exec_registry = (
+                for_each_steps, item_counts, for_each_registry = (
                     await pre_execute_for_each_providers(
                         execution_plan=execution_plan,
                         for_each_steps=for_each_steps_requiring_hitl,
@@ -542,6 +540,9 @@ async def _handle_execution_plan(
                         turn_id=current_turn_id,
                     )
                 )
+                # A lookup narrowed by « which one? » keeps its narrowed result.
+                pre_executed_steps = {**for_each_steps, **pre_executed_steps}
+                pre_exec_registry = {**for_each_registry, **pre_exec_registry}
 
                 # Note: pre_exec_registry is passed to execute_plan_parallel separately
                 # (not merged into initial_registry) so items are added to
@@ -632,240 +633,28 @@ async def _handle_execution_plan(
         # BugFix 2025-12-19: Pass turn_id for RegistryItem.meta injection (context resolution)
         # BugFix 2026-01-19: Pass pre_executed_steps to avoid re-executing provider steps
         # BugFix 2026-01-24: Pass pre_exec_registry to preserve parent items when child steps fail
+        # A step nobody chose an item for never runs (ADR-367 amendment); the
+        # state keeps the WHOLE plan, so what was left unrun is named from it.
         execution_result_obj = await execute_plan_parallel(
-            execution_plan=execution_plan,
+            execution_plan=choice.runnable(execution_plan),
             config=config,
             run_id=run_id,
             initial_registry=initial_registry,
             turn_id=current_turn_id,
-            initial_completed_steps=pre_executed_steps if pre_executed_steps else None,
-            pre_executed_registry=pre_exec_registry if pre_exec_registry else None,
+            # Empty reads as none: the executor tests both for truth.
+            initial_completed_steps=pre_executed_steps,
+            pre_executed_registry=pre_exec_registry,
         )
 
-        # Data Registry LOT 5.2: Extract completed_steps and registry from result
-        completed_steps = execution_result_obj.completed_steps
-        data_registry = execution_result_obj.registry
-
-        logger.info(
-            "parallel_executor_completed",
-            run_id=run_id,
-            plan_id=execution_plan.plan_id,
-            completed_steps=len(completed_steps),
-            total_steps=len(execution_plan.steps),
-            data_registry_items=len(data_registry),
+        return state_after_execution(
+            execution_plan,
+            execution_result_obj,
+            state,
+            run_id,
+            held_plan=held_plan_of(
+                execution_plan, execution_result_obj, previous=choice.held_previous()
+            ),
         )
-        # Each failed step counted under its typed code (ADR-346): the one
-        # Prometheus view of a failure that happens before a tool is called.
-        record_pipeline_step_failures(completed_steps)
-
-        turn_id = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
-        # The plan's steps as the mapper reads them: a FOR_EACH through the
-        # aggregate under its own id (ADR-347).
-        execution_result = build_execution_result(execution_plan.steps, completed_steps)
-        all_steps_success = execution_result.success
-
-        # BugFix 2025-11-26: Pass data_registry for Data Registry mode fallback
-        # When tools run with registry_enabled=True, step_results only contain summary text.
-        # The data_registry contains the full structured data (RegistryItems).
-        agent_results = map_execution_result_to_agent_result(
-            execution_result=execution_result,
-            plan_id=execution_plan.plan_id,
-            turn_id=turn_id,
-            data_registry=data_registry,
-        )
-
-        # Track metrics
-        task_orchestrator_plans_created.labels(
-            intention="execution_plan_phase5.2b_asyncio",
-            agents_count=str(len(execution_plan.steps)),
-        ).inc()
-        orchestration_plan_agents_distribution.observe(len(execution_plan.steps))
-
-        # Cleanup state; a data block serves its own turn's response alone (ADR-347).
-        cleaned_agent_results = cleanup_dict_by_turn_id(
-            {
-                **previous_turns_without_tool_data(state.get(STATE_KEY_AGENT_RESULTS, {}), turn_id),
-                **agent_results,
-            },
-            max_results=settings.max_agent_results,
-            label="agent_results",
-        )
-        cleaned_routing_history = cleanup_list_by_limit(
-            state.get(STATE_KEY_ROUTING_HISTORY, []),
-            max_items=settings.max_routing_history,
-            label="routing_history",
-        )
-
-        result = {
-            STATE_KEY_ORCHESTRATION_PLAN: None,  # No legacy routing
-            STATE_KEY_EXECUTION_PLAN: execution_plan,  # Preserve for observability
-            STATE_KEY_AGENT_RESULTS: cleaned_agent_results,
-            STATE_KEY_ROUTING_HISTORY: cleaned_routing_history,
-            # Read back by the response node to weigh a stale validation
-            # verdict against what the turn actually ran — never its data.
-            STATE_KEY_COMPLETED_STEPS: without_tool_data(completed_steps),
-        }
-
-        # CRITICAL FIX: Update last_action_turn_id for context reference resolution
-        # When a successful action is executed, store the current turn_id so that
-        # subsequent queries like "detail of the first one" can reference these results.
-        # Without this, context_resolution_service.resolve_context() cannot find items.
-        if all_steps_success and turn_id is not None:
-            result[STATE_KEY_LAST_ACTION_TURN_ID] = turn_id
-            logger.info(
-                "last_action_turn_id_updated",
-                run_id=run_id,
-                turn_id=turn_id,
-                reason="successful_execution_enables_reference_resolution",
-            )
-
-            # ================================================================
-            # ORDINAL RESOLUTION: Track last LIST action domain (search/list only)
-            # ================================================================
-            # ONLY updated when a LIST tool (search_*, list_*, find_*) executes.
-            # NOT updated for chat, weather, perplexity, details, etc.
-            #
-            # Example flow:
-            #   Turn 1: "search contacts" → last_list_domain = "contacts"
-            #   Turn 2: "search tasks"    → last_list_domain = "tasks"
-            #   Turn 3: "hi, how are you?" → last_list_domain = "tasks" (unchanged)
-            #   Turn 4: "details of the first one"  → uses "tasks" (from state)
-            #   Turn 5: "details of the 1st contact" → uses "contacts" (explicit override)
-            #
-            # This is CRITICAL because last_action_turn_id gets overwritten by
-            # EVERY action (including details), but ordinal resolution needs
-            # the domain of the LAST SEARCH, not the last action.
-            # ================================================================
-            list_domain = _detect_list_tool_domain(execution_plan.steps, completed_steps)
-            if list_domain:
-                result[STATE_KEY_LAST_LIST_DOMAIN] = list_domain
-                result[STATE_KEY_LAST_LIST_TURN_ID] = turn_id
-                logger.info(
-                    "last_list_domain_updated",
-                    run_id=run_id,
-                    turn_id=turn_id,
-                    domain=list_domain,
-                    reason="list_tool_executed_for_ordinal_resolution",
-                )
-
-        # Data Registry LOT 5.2: Add registry to state if non-empty
-        # The registry field uses merge_registry reducer which handles merging
-        # BugFix 2025-12-31: Also set current_turn_registry for streaming_service
-        # - registry: merged across turns (for context resolution)
-        # - current_turn_registry: current turn only (for display/streaming)
-        if data_registry:
-            result["registry"] = data_registry
-            result["current_turn_registry"] = data_registry  # BugFix: no merge for display
-            logger.info(
-                "data_registry_added_to_state",
-                run_id=run_id,
-                plan_id=execution_plan.plan_id,
-                registry_items_count=len(data_registry),
-                registry_ids=list(data_registry.keys()),
-            )
-
-        # Data Registry LOT 4.3 + HITL Dispatch: Route pending HITL by draft_type
-        # Different draft types route to different pending state keys:
-        # - entity_disambiguation → pending_entity_disambiguation (for multiple matches)
-        # - tool_confirmation → pending_tool_confirmation (for tools without drafts)
-        # - Other types (email, event, contact) → pending_draft_critique (for draft preview)
-        #
-        # Several draft critiques (ADR-288): the first is presented, the rest
-        # queued. They are ONE lot — shown whole, confirmed whole — only when
-        # they are the members of a FOR_EACH the person approved this turn;
-        # otherwise the dispatch node asks for each in turn. Both keys are
-        # ALWAYS written so a previous turn's values can never leak into this one.
-        pending_drafts = execution_result_obj.pending_drafts
-        result["pending_drafts_grouped"] = False
-        result["confirmed_drafts"] = []
-
-        if pending_drafts:
-            # Separate drafts by routing type
-            draft_critiques = []
-            for draft in pending_drafts:
-                draft_type = draft.draft_type
-                draft_data = draft.model_dump()
-
-                if draft_type == "entity_disambiguation":
-                    if "pending_entity_disambiguation" in result or state.get(
-                        "pending_entity_disambiguation"
-                    ):
-                        # A NEW list, never `state.get(...).append(...)`: mutating
-                        # the object held by the state channel makes a replay of
-                        # this node (HITL resume re-enters it) append a second
-                        # time to the list it already grew.
-                        queue = [*state.get("pending_disambiguations_queue", []), draft_data]
-                        result["pending_disambiguations_queue"] = queue
-                        logger.info(
-                            "registry_disambiguation_queued",
-                            run_id=run_id,
-                            draft_id=draft.draft_id,
-                            queue_size=len(queue),
-                        )
-                    else:
-                        result["pending_entity_disambiguation"] = draft_data
-                        logger.info(
-                            "registry_pending_entity_disambiguation_added",
-                            run_id=run_id,
-                            plan_id=execution_plan.plan_id,
-                            draft_id=draft.draft_id,
-                            draft_type=draft_type,
-                        )
-
-                elif draft_type == "tool_confirmation":
-                    result["pending_tool_confirmation"] = draft_data
-                    logger.info(
-                        "registry_pending_tool_confirmation_added",
-                        run_id=run_id,
-                        plan_id=execution_plan.plan_id,
-                        draft_id=draft.draft_id,
-                        tool_name=draft.tool_name,
-                    )
-
-                else:
-                    # Draft critique (email, event, contact, task, file, label)
-                    draft_critiques.append(draft_data)
-
-            # Route draft critiques: single → direct, multiple → batch
-            if len(draft_critiques) == 1:
-                result["pending_draft_critique"] = draft_critiques[0]
-                logger.info(
-                    "registry_pending_draft_added_to_state",
-                    run_id=run_id,
-                    plan_id=execution_plan.plan_id,
-                    draft_id=draft_critiques[0].get("draft_id"),
-                    draft_type=draft_critiques[0].get("draft_type"),
-                )
-            elif len(draft_critiques) > 1:
-                # First presented, the rest queued; grouped only for a
-                # pre-approved FOR_EACH lot (ADR-288).
-                grouped = is_pre_approved_lot(
-                    draft_critiques,
-                    state.get(STATE_KEY_FOR_EACH_HITL_CTX),
-                    plan_id=execution_plan.plan_id,
-                    turn_id=current_turn_id,
-                )
-                result["pending_draft_critique"] = draft_critiques[0]
-                result["pending_drafts_queue"] = draft_critiques[1:]
-                result["pending_drafts_grouped"] = grouped
-                logger.info(
-                    "registry_pending_batch_drafts_added_to_state",
-                    run_id=run_id,
-                    plan_id=execution_plan.plan_id,
-                    batch_size=len(draft_critiques),
-                    grouped=grouped,
-                    draft_types=sorted({str(d.get("draft_type")) for d in draft_critiques}),
-                    draft_ids=[d.get("draft_id") for d in draft_critiques],
-                )
-
-        # Purge the consumed FOR_EACH HITL context: once execution completed it
-        # is functionally inert (plan/turn guards make it unmatchable), but
-        # keeping it would bloat every subsequent checkpoint of the thread.
-        if state.get(STATE_KEY_FOR_EACH_HITL_CTX):
-            result[STATE_KEY_FOR_EACH_HITL_CTX] = None
-
-        track_state_updates(state, result, "task_orchestrator", run_id)
-        return result
 
     except GraphInterrupt:
         # HITL support (Phase 5.3)
@@ -903,64 +692,3 @@ async def _handle_execution_plan(
         }
         track_state_updates(state, result, "task_orchestrator", run_id)
         return result
-
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-
-def _detect_list_tool_domain(
-    steps: list,
-    completed_steps: dict,
-) -> str | None:
-    """
-    Detect domain from successfully executed LIST tools (search_*, list_*, find_*).
-
-    Scans executed steps to find LIST-type tools and extract their domain.
-    Returns the domain of the LAST successfully executed LIST tool.
-
-    This is used for ordinal resolution: "details of the 2nd one" needs to know
-    which domain's list to use when the user doesn't specify.
-
-    Uses centralized utilities from type_domain_mapping.py for consistency.
-
-    Args:
-        steps: List of ExecutionStep from the execution plan.
-        completed_steps: Dict of step_id -> result for completed steps.
-
-    Returns:
-        Domain name (e.g., "contacts", "emails") or None if no LIST tool found.
-
-    Examples:
-        >>> # search_contacts_tool executed successfully
-        >>> _detect_list_tool_domain(steps, completed_steps)
-        "contacts"
-
-        >>> # get_contact_details_tool executed (not a LIST tool)
-        >>> _detect_list_tool_domain(steps, completed_steps)
-        None
-    """
-    from src.domains.agents.utils.type_domain_mapping import (
-        get_domain_from_tool_name,
-        is_list_tool,
-    )
-
-    detected_domain: str | None = None
-
-    for step in steps:
-        # Skip if step wasn't completed successfully
-        if step.step_id not in completed_steps:
-            continue
-
-        tool_name = step.tool_name
-        if not tool_name:
-            continue
-
-        # Check if this is a LIST tool and extract domain
-        if is_list_tool(tool_name):
-            domain = get_domain_from_tool_name(tool_name)
-            if domain:
-                detected_domain = domain
-
-    return detected_domain

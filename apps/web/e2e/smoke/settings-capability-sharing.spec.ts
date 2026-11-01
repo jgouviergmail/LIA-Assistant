@@ -5,6 +5,7 @@ import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 import type { Skill } from '../../src/hooks/useSkills';
 import type { InstalledPlugin } from '../../src/hooks/usePlugins';
 import type { UserMCPServer } from '../../src/hooks/useUserMCPServers';
+import type { MCPServerBehavior, UserMCPDefaults } from '../../src/lib/mcp-behavior';
 import AxeBuilder from '@axe-core/playwright';
 
 const sourceId = '11111111-1111-4111-8111-111111111111';
@@ -58,6 +59,22 @@ const plugin: InstalledPlugin = {
   updated_at: stamp,
   shared_origin: origin,
 };
+const mcpDefaults: UserMCPDefaults = {
+  confirmation_instance: false,
+  confirmation_account: null,
+  confirmation_effective: false,
+  react_direct_tools_default: true,
+  dedicated_agents_available: true,
+};
+// A received copy arrives off: its card shows what it would do (spec 2026-10-30 D3).
+const receivedBehavior: MCPServerBehavior = {
+  confirmation: { always: false, source: 'instance' },
+  pipeline: { driver: 'direct', before_task: false, per_call: 'card_after_task' },
+  react: { driver: 'direct', before_task: false, per_call: 'in_loop' },
+  tools: [],
+  unattended_refused: [],
+  notes: ['tools_unknown'],
+};
 const server: UserMCPServer = {
   id: sourceId,
   name,
@@ -70,6 +87,8 @@ const server: UserMCPServer = {
   timeout_seconds: 30,
   hitl_required: null,
   iterative_mode: false,
+  react_expand_iterative: null,
+  suspended_tool_choices: 0,
   header_name: null,
   has_credentials: false,
   has_oauth_credentials: false,
@@ -125,7 +144,11 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
         },
         { url: '**/api/v1/skills', json: { skills: [skill], total: 1 } },
         { url: '**/api/v1/plugins', json: { plugins: [plugin], total: 1 } },
-        { url: '**/api/v1/mcp/servers', json: { servers: [server], total: 1 } },
+        {
+          url: '**/api/v1/mcp/servers',
+          json: { servers: [server], total: 1, defaults: mcpDefaults },
+        },
+        { url: `**/api/v1/mcp/servers/${sourceId}/behavior`, json: receivedBehavior },
         {
           url: '**/api/v1/peers/connections',
           json: [alice],
@@ -156,8 +179,10 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
       if (kind === 'skill')
         await page.locator('summary').filter({ hasText: 'My imported skills' }).click();
       await expect(page.getByRole('note', { name: /Shared by Camille Example/ })).toBeVisible();
-      if (kind === 'mcp')
+      if (kind === 'mcp') {
         await expect(page.getByRole('switch').filter({ visible: true }).last()).not.toBeChecked();
+        await expect(page.getByRole('region', { name: 'What this server will do' })).toBeVisible();
+      }
       if (width < 640) {
         await page.getByRole('button', { name: `Actions — ${name}` }).click();
         await page.getByRole('menuitem', { name: `Share ${name}` }).click();
@@ -242,7 +267,15 @@ for (const kind of ['skill', 'plugin', 'mcp'] as const) {
         },
         {
           url: '**/api/v1/mcp/servers',
-          json: { servers: [{ ...server, shared_with: sharedWith }], total: 1 },
+          json: {
+            servers: [{ ...server, shared_with: sharedWith }],
+            total: 1,
+            defaults: mcpDefaults,
+          },
+        },
+        {
+          url: `**/api/v1/mcp/servers/${sourceId}/behavior`,
+          json: receivedBehavior,
         },
         { url: '**/api/v1/peers/connections', json: [alice, bob] },
         { url: '**/api/v1/notifications/broadcasts/unread', json: { broadcasts: [] } },

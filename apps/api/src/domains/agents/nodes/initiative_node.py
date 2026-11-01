@@ -533,16 +533,12 @@ async def _initiative_core(
     start_response_context_prefetch(state, config, run_id)
 
     # ── 1b. Skip after HITL resolution (accept/refuse) ──────────────
-    # When the user just approved or refused a draft, disambiguation, or tool
-    # confirmation, running initiative is pointless — the user already made an
-    # explicit decision. The result keys are set by hitl_dispatch_node and
-    # cleared later by response_node, so their presence reliably indicates
-    # "we just came from a HITL interaction".
-    if (
-        state.get("draft_action_result")
-        or state.get("entity_disambiguation_result")
-        or state.get("tool_confirmation_result")
-    ):
+    # When the user just approved or refused a draft or a tool confirmation,
+    # running initiative is pointless — the user already made an explicit
+    # decision. The result keys are set by hitl_dispatch_node and cleared later
+    # by response_node, so their presence reliably indicates "we just came from
+    # a HITL interaction".
+    if state.get("draft_action_result") or state.get("tool_confirmation_result"):
         logger.info("initiative_skipped", reason="hitl_just_resolved", run_id=run_id)
         return {STATE_KEY_INITIATIVE_SKIPPED_REASON: "hitl_just_resolved"}
 

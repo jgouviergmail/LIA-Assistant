@@ -107,6 +107,8 @@ def _executor_env(
     action.condition_config = None
     action.condition_state = None
     action.requires_approval = False
+    # The model's property: None unless the routine's form ticked servers (D9).
+    action.mcp_preapproval = None
     # A real datetime, like the non-nullable column: re-arming compares the
     # pending due time against now to tell a consumed slot from a manual "run
     # now" (which must not drop the upcoming run). A MagicMock here would only
@@ -1164,3 +1166,25 @@ class TestTheReservationHoldsTheRun:
                 )
 
         env.repo.reschedule.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_the_routines_preapproval_reaches_its_run() -> None:
+    """Spec D9: the run carries the servers the routine's form ticked — and only those."""
+    from src.domains.shared.mcp_preapproval import MCPPreapproval
+
+    result = RunResult(outcome=RunOutcome.SUCCESS, attempts=1, text="ok")
+    streamed = AsyncMock(return_value=result)
+    preapproval = MCPPreapproval(servers=frozenset({"notes"}), routine_id="r-1")
+    with (
+        _executor_env(chunks=[]) as env,
+        patch(
+            "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction",
+            streamed,
+        ),
+    ):
+        env.action.mcp_preapproval = preapproval
+        await execute_single_action(env.action_id, env.user_id)
+
+    (request,), _ = streamed.await_args
+    assert request.mcp_preapproval == preapproval

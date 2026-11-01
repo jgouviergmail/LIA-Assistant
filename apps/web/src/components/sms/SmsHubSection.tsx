@@ -7,7 +7,7 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { HUB_PAGE_SIZE } from '@/hooks/usePagedSection';
 import { useSmsArchive } from '@/hooks/useSmsArchive';
-import { capabilityEnabled } from '@/lib/capability-state';
+import { smsAvailable } from '@/lib/sms/availability';
 import { HubSection } from '@/components/notifications/HubSection';
 import { NotificationHistoryItem } from '@/components/settings/NotificationHistoryList';
 import type { Language } from '@/i18n/settings';
@@ -19,7 +19,7 @@ interface Props {
 
 export function SmsHubSection(props: Props) {
   const { config } = useAppConfig();
-  if (!capabilityEnabled(config?.capabilities, 'sms', config?.features.sms_enabled)) return null;
+  if (!smsAvailable(config)) return null;
   return <AccountSmsSection {...props} />;
 }
 

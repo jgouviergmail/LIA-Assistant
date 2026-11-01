@@ -3,8 +3,8 @@
 > Wie LIA aufgebaut ist, in groben Zügen. Die Details stehen im Code, in den ADR und in der Dokumentation des Repositorys.
 
 **Version**: 6.0
-**Datum**: 2026-10-23
-**Application**: LIA v4.2.0
+**Datum**: 2026-10-31
+**Application**: LIA v4.3.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -112,6 +112,8 @@ Die Antwort kommt Token für Token per SSE. Die Generierung ist von der Verbindu
 
 ## 4. Mit Vorsicht handeln
 
+Für **MCP** bestimmst du Bestätigungen auf Konto-, Server- und Werkzeugebene. Die Verhaltensübersicht erklärt die wirksame Regel vor einer Änderung. Ein eigener Agent fragt vor seiner Aufgabe, wenn eines seiner Werkzeuge Zustimmung braucht; die Antwort gilt für seine Aufrufe dieser Aufgabe. „Nie fragen“ wird bei geänderter Deklaration ausgesetzt. Der Chat darf den Schutz verstärken; nur die Einstellungen dürfen ihn lockern. Eine Routine kann die Server nutzen, die du in ihrem Formular ausdrücklich vorab genehmigt hast.
+
 LIA fragt vor dem, was wirklich geschehen wird: vor jedem Entwurf (eine E-Mail, ein Termin, eine Löschung), vor jeder Massenoperation, die mindestens ein Element ändert, vor jedem Werkzeug, das deklariert, dass es eine Bestätigung braucht. Die Bestätigung wird Aktion für Aktion eingeholt, dort, wo die Aktion vorbereitet wird, und nicht für den ganzen Plan. Umgekehrt fragt eine Aktion, die nichts umlenken kann, nach nichts: Eine E-Mail, die du dir selbst schickst, geht direkt hinaus.
 
 ```mermaid
@@ -136,6 +138,8 @@ Auch die Antwort selbst hat einen Rahmen: Das Modell schreibt nur auf Grundlage 
 *Weiterlesen: [die Bestätigungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HITL.md) · [die Autoritätskette und die Register](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) · [die Register aus Nutzersicht](/de/faq#faq-registers) · [die Tickets](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORKBOARD.md) · [die Anwendungsbefehle](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/APPLICATION_COMMANDS.md) · [was eine Delegation beweist](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) · [Werkzeugbeispiele, E-Mail an sich selbst und Entwürfe](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/05_tool_examples.md) · [die Synthese der Antwort](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/RESPONSE.md)*
 
 ## 5. Gedächtnis und Kontext
+
+Wenn du ein Ergebnis nach Absender, Titel oder Position benennst, verwendet LIA zunächst die tatsächlich gezeigten Einträge. Passen mehrere, fragt sie nach. Auch eine geplante Suche, die den ersten von mehreren Treffern bearbeiten würde, wartet auf Deine Auswahl und arbeitet dann mit diesem Eintrag weiter.
 
 Der Zustand eines Gesprächs ist ein `MessagesState`, den LangGraph nach jedem Knoten als Checkpoint in PostgreSQL speichert. Dadurch lässt sich ein Durchlauf nach einer Bestätigung fortsetzen, auch Stunden später. Die Ergebnisse der Werkzeuge liegen nicht im Nachrichtenverlauf, sondern in einer eigenen Daten-Registry, sodass sie erhalten bleiben, wenn der Verlauf gekürzt wird. Ab einer Schwelle werden ältere Austausche zusammengefasst; ein Badge zeigt, wie voll der Kontext ist, und `/resume` löst diese Zusammenfassung auf Wunsch aus. Im ReAct-Modus wird, was eine Schleife bereits gelesen hat, als Checkpoint gespeichert und im Durchlauf wiederverwendet; ein Abbruch vor diesem Checkpoint kann dazu führen, dass eine Quelle erneut gelesen wird.
 
@@ -232,6 +236,8 @@ Eine Klarstellung zur Performance: Die gemessenen Latenzen sind die der Infrastr
 *Weiterlesen: [der Observability-Stack](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-020-Observability-Stack.md) · [das Debug-Panel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL.md) · [seine Architektur](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL_ARCHITECTURE.md) · [die Obergrenze der Instanz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md) · [jede Ausgabe untersteht zwei Obergrenzen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) · [die Verwaltung per Arbeitsmappe](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/TABULAR_ADMIN_IO.md) · [die gezielten Ankündigungen](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md) · [die Demo-Instanz](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEMO_INSTANCE.md) · [die Selbstdiagnose](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DIAGNOSTICS_DOMAIN.md) · [die Alarme und ihre Belastbarkeit](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md) · [Claude CLI aus dem Chat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md) · [die Anatomie eines Workers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-283-Worker-Memory-Anatomy.md) · [die vollständigen Auszüge der Register](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-273-Complete-Register-Extractions.md) · [die Organisation der Hintergrundaufgaben](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-046-Background-Job-Scheduling.md)*
 
 ## 12. Die Oberflächen
+
+Der Bereich **Werkzeuge** besitzt eigene REST-Endpunkte außerhalb des Gesprächsgraphen. Er verwendet dieselben Connector-Clients und veröffentlicht deren Funktionen und Grenzen für die Oberfläche. Datenbanksitzungen schließen vor Anbieteraufrufen; Übermittlungen sind gegen Wiederholungen geschützt, verlorene Antworten erscheinen als unbekannter Ausgang. HTML-Mails bleiben in einem isolierten Rahmen, der entfernte Inhalte blockiert. So bleibt eine manuelle Handlung von einer an LIA delegierten Aktion getrennt.
 
 Die Weboberfläche ist eine Next.js-Anwendung, die sich wie eine App installieren lässt (PWA). Der Chat aktualisiert das Gespräch ohne Neuladen, stellt mathematische Formeln und farbig hervorgehobenen Code dar, behält einen Entwurf pro Konto und lässt sich durchsuchen; die Einstellungen haben ihre eigene Suche, ein tiefschwarzes Design für OLED-Bildschirme und eine einstellbare Textgröße.
 

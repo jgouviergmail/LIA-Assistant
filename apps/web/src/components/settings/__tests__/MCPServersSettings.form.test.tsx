@@ -30,43 +30,42 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => {
 
 const { useUserMCPServers } = vi.hoisted(() => ({ useUserMCPServers: vi.fn() }));
 vi.mock('@/hooks/useUserMCPServers', () => ({ useUserMCPServers }));
+type BehaviorQuery = ReturnType<typeof import('@/hooks/useMCPServerBehavior').useMCPServerBehavior>;
+
+// The page reads each server's synthesis and previews changes (spec 2026-10-30);
+// these tests leave it empty and every preview without a question lost.
+const { useMCPServerBehavior, useMCPBehaviorPreview, useMCPToolChoice } = vi.hoisted(() => {
+  const previews = {
+    previewServer: vi.fn(async () => ({ behavior: undefined, questions_lost: [] })),
+    previewStrategy: vi.fn(async () => ({ questions_lost: [] })),
+  };
+  return {
+    useMCPServerBehavior: vi.fn(
+      (): BehaviorQuery => ({
+        behavior: undefined,
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+    ),
+    useMCPBehaviorPreview: vi.fn(() => previews),
+    useMCPToolChoice: vi.fn(() => ({ setToolChoice: vi.fn() })),
+  };
+});
+vi.mock('@/hooks/useMCPServerBehavior', () => ({
+  useMCPServerBehavior,
+  useMCPBehaviorPreview,
+  useMCPToolChoice,
+}));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 
+import { mcpDefaultsFixture } from '@/__tests__/fixtures/mcp-behavior';
+import { userMCPServerFixture as server } from '@/__tests__/fixtures/mcp-servers';
 import { MCPServersSettings } from '../MCPServersSettings';
-import type {
-  UserMCPServer,
-  useUserMCPServers as useUserMCPServersFn,
-} from '@/hooks/useUserMCPServers';
+import type { useUserMCPServers as useUserMCPServersFn } from '@/hooks/useUserMCPServers';
 
 type McpHook = ReturnType<typeof useUserMCPServersFn>;
-
-function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
-  return {
-    id: 's1',
-    name: 'Weather MCP',
-    url: 'https://mcp.example.com/sse',
-    plugin_id: null,
-    auth_type: 'none',
-    status: 'active',
-    is_enabled: true,
-    domain_description: null,
-    timeout_seconds: 30,
-    hitl_required: null,
-    iterative_mode: false,
-    header_name: null,
-    has_credentials: false,
-    has_oauth_credentials: false,
-    oauth_scopes: null,
-    tool_count: 2,
-    tools: [],
-    last_connected_at: null,
-    last_error: null,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 const createServer = vi.fn();
 const updateServer = vi.fn();
@@ -76,7 +75,9 @@ function hook(over: Partial<McpHook> = {}) {
     ownerId: 'owner',
     servers: [],
     total: 0,
+    defaults: mcpDefaultsFixture(),
     loading: false,
+    refetch: vi.fn(),
     createServer,
     updateServer,
     deleteServer: vi.fn(),

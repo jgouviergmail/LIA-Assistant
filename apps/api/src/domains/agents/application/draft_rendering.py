@@ -68,6 +68,7 @@ from src.domains.agents.application.reminder_rendering import (
     _reminder_creation_preview,
     _reminder_update_preview,
 )
+from src.domains.agents.application.routine_card_rows import preapproval_rows
 from src.domains.agents.application.routine_create_schemas import RoutineCreatePatch
 from src.domains.agents.application.routine_run_schemas import RoutineRunPatch
 from src.domains.agents.application.routine_schemas import RoutineStatePatch
@@ -398,6 +399,7 @@ def _routine_run_preview(
             ),
             key="details",
         ),
+        *preapproval_rows(selected.mcp_preapproval, labels),
         Row(
             label=labels["application_expiry"],
             value=format_dt(draft.expires_at.isoformat()),
@@ -445,6 +447,7 @@ def _routine_update_preview(
             ),
             key="details",
         ),
+        *preapproval_rows(selected.mcp_preapproval, labels),
         Row(
             label=labels["application_expiry"],
             value=format_dt(draft.expires_at.isoformat()),
@@ -480,6 +483,7 @@ def _routine_state_preview(
             value=f"{labels['application_before']}: {before} → {labels['application_after']}: {after}",
             key="details",
         ),
+        *preapproval_rows(selected.mcp_preapproval, labels),
         Row(
             label=labels["application_expiry"],
             value=format_dt(draft.expires_at.isoformat()),

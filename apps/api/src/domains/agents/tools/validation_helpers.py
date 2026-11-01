@@ -45,8 +45,11 @@ Usage Example:
     ...     )
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
+from src.core.date_contract import UnreadableDateError, unreadable_date_message
 from src.core.i18n_api_messages import APIMessages
 from src.core.validators import validate_email
 from src.domains.agents.tools.exceptions import ToolValidationError
@@ -448,7 +451,33 @@ def validate_positive_int_or_default(
     return default
 
 
+@contextmanager
+def refuse_unreadable_input(user_timezone: str) -> Iterator[None]:
+    """Turn a value the model gave and the block cannot use into a typed refusal.
+
+    ADR-310: a tool never replaces a value it cannot read, it refuses it with
+    what it accepts. Wrap only code that reads the MODEL's values: every
+    ``ValueError`` inside becomes a ``ToolValidationError`` in its own words, an
+    unreadable date the date contract's refusal (the format and today's date).
+
+    Args:
+        user_timezone: The person's IANA timezone, which defines « today ».
+
+    Raises:
+        ToolValidationError: For any ``ValueError`` raised in the block.
+    """
+    try:
+        yield
+    except UnreadableDateError as error:
+        raise ToolValidationError(
+            unreadable_date_message(error.reference, user_timezone)
+        ) from error
+    except ValueError as error:
+        raise ToolValidationError(str(error)) from error
+
+
 __all__ = [
+    "refuse_unreadable_input",
     "require_field",
     "validate_fields",
     "validate_email_field",

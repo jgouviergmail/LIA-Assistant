@@ -44,6 +44,7 @@ from src.domains.agents.effects.gate import (
 from src.domains.agents.effects.integrity import IntegrityKind, record_integrity_event
 from src.domains.agents.effects.labels import build_effect_label
 from src.domains.agents.effects.outcome import ToolOutcome, read_outcome, succeeded_only
+from src.domains.agents.effects.preapproval import preapproved_scope
 from src.domains.agents.effects.schemas import ClaimRequest, EffectSourceName
 from src.domains.agents.effects.scope import EffectScope, current_scope
 from src.domains.agents.effects.source import resolve_source
@@ -85,11 +86,18 @@ def reset_policy_cache() -> None:
 
 
 def resolve_policy(tool_name: str) -> str | None:
-    """The tool's declared policy, memoised after the first successful read.
+    """The tool's declared policy.
 
-    The registry takes a lock on every manifest read, and a read-only tool can
-    be called dozens of times in one ReAct turn; the policy of a given tool
-    never changes once the catalogue is loaded, so it is read once.
+    A tool the global registry declares — a native, an administrator's standard
+    MCP tool — keeps its policy once the catalogue is loaded, and the registry
+    takes a lock on every read while a read-only tool can be called dozens of
+    times in one ReAct turn: its policy is read once and memoised.
+
+    Any other name is read from the manifest the turn OFFERED — a personal MCP
+    tool, or an iterative server's individual admitted through its task — and is
+    NEVER memoised: a personal server's setting changes between turns, and an
+    8-hex name prefix is not an account boundary (spec D2, 2026-10-29: the gate
+    read nothing for a personal tool its manifest declared ``confirm``).
 
     A miss is NOT cached: tools register before the catalogue is loaded, so an
     early call must not freeze "unknown" for the life of the process.
@@ -106,32 +114,51 @@ def resolve_policy(tool_name: str) -> str | None:
         return _policy_cache[tool_name]
 
     from src.domains.agents.registry import get_global_registry
-    from src.domains.agents.registry.catalogue import (
-        MUTATION_POLICIES,
-        ToolManifestNotFound,
-    )
+    from src.domains.agents.registry.catalogue import ToolManifestNotFound
 
     try:
         policy = get_global_registry().get_tool_manifest(tool_name).mutation_policy
-    except ToolManifestNotFound, RuntimeError, AttributeError:
+    except ToolManifestNotFound:
+        return _offered_policy(tool_name)
+    except RuntimeError, AttributeError:
         return None
 
-    if policy is not None and policy not in MUTATION_POLICIES:
-        # The declaration is unreadable — a corrupt manifest, or a test that
-        # installed a mock registry. The gate must stay TOTAL: it reads UNKNOWN
-        # and the tool keeps working, because a gate that can take the whole
-        # assistant down when a declaration is odd is worse than the hole it
-        # closes. Loud, never silent: the boot assert refuses such a value, so
-        # reaching this line at runtime is itself the defect.
-        logger.error(
-            "effect_policy_unreadable",
-            tool_name=tool_name,
-            policy_type=type(policy).__name__,
-        )
+    if not _readable_policy(tool_name, policy):
         return None
-
     _policy_cache[tool_name] = policy
     return policy
+
+
+def _offered_policy(tool_name: str) -> str | None:
+    """The policy the turn's offered manifest declares for exactly this tool.
+
+    Only the tool's OWN declaration polices it: a name that resolves solely by
+    a stripped suffix belongs to another tool, so it reads as no manifest.
+    """
+    from src.domains.agents.registry.manifest_resolution import resolve_tool_manifest_named
+
+    manifest, canonical = resolve_tool_manifest_named(tool_name)
+    if manifest is None or canonical != tool_name:
+        return None
+    policy = manifest.mutation_policy
+    return policy if _readable_policy(tool_name, policy) else None
+
+
+def _readable_policy(tool_name: str, policy: object) -> bool:
+    """Whether a declared policy is one the gate knows.
+
+    An unreadable declaration — a corrupt manifest, or a test that installed a
+    mock registry — reads as UNKNOWN and the tool keeps working: a gate that can
+    take the whole assistant down when a declaration is odd is worse than the
+    hole it closes. Loud, never silent: the boot assert refuses such a value, so
+    reaching this at runtime is itself the defect.
+    """
+    from src.domains.agents.registry.catalogue import MUTATION_POLICIES
+
+    if policy is None or policy in MUTATION_POLICIES:
+        return True
+    logger.error("effect_policy_unreadable", tool_name=tool_name, policy_type=type(policy).__name__)
+    return False
 
 
 def resolve_unattended_stand_in(tool_name: str) -> tuple[str, str] | None:
@@ -602,6 +629,31 @@ def note_refusal(
     )
 
 
+async def record_loop_refusal(
+    tool_name: str, arguments: dict[str, Any], *, source: str | None
+) -> None:
+    """File a call the ReAct loop stopped before the gate, as the gate files its own.
+
+    The loop refuses a confirmation nobody can give BEFORE the gate (N10). Since
+    every MCP tool is asked on the gate's own predicate (spec 2026-10-29 D8), an
+    unattended run's refusal happens THERE — and it must leave the register row the
+    gate leaves: measured on Docker dev, a Pipeline routine's refusal had its row
+    and a ReAct routine's none. Called under the call's own scope
+    (``react_call_scope``), so the row joins the turn's other records.
+
+    Args:
+        tool_name: The capability the loop refused.
+        arguments: What it was asked (digested, never stored in clear).
+        source: Who asked for the turn, for the log line.
+    """
+    # The loop asked for it: an act it holds no policy for was treated as one to confirm.
+    policy = resolve_policy(tool_name) or "confirm"
+    request = claim_request_for(tool_name, str(policy), arguments)
+    if request is not None:
+        await _LEDGER.refuse(request, error_code=ERROR_CONFIRMATION_IMPOSSIBLE)
+    note_refusal(tool_name, ERROR_CONFIRMATION_IMPOSSIBLE, source=source)
+
+
 async def _refuse_or_ask(
     tool_name: str,
     decision: GateDecision,
@@ -863,7 +915,8 @@ def gated(
         policy, refusal = await _call_effect_policy(tool_name, signature, args, kwargs)
         if refusal is not None:
             return refusal
-        scope = current_scope()
+        # Spec D9: a routine may have pre-approved this MCP server — read HERE alone.
+        scope = preapproved_scope(tool_name, policy, current_scope())
         decision = decide_effect(policy, scope, carrier=current_origin_carries_drafts())
 
         if decision.action is GateAction.PASS_THROUGH:

@@ -2,8 +2,8 @@
 
 The single import surface for every consumer. Nothing in this package imports
 ``src.domains`` — the caps a consumer enforces are injected
-(:class:`RecurrenceLimits`), so one engine serves a routine capped at 12 runs a
-day and a reminder capped at 48.
+(:class:`RecurrenceLimits`), so one engine serves a routine capped by its
+operator's settings (12 runs a day by default) and a reminder capped at 48.
 """
 
 from src.core.recurrence.dictation import (

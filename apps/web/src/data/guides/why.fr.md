@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version** : 7.0
-**Date** : 2026-10-23
-**Application** : LIA v4.2.0
+**Date** : 2026-10-31
+**Application** : LIA v4.3.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -32,6 +32,8 @@ LIA prend un autre chemin. C'est un assistant personnel que tu installes sur ton
 La mécanique est expliquée dans [le guide technique](/how). La façon dont le code a été écrit, par une IA dirigée et contrôlée par un humain, est racontée dans le [retour d'expérience](/story).
 
 ## 2. Ce que LIA fait pour toi
+
+Ouvre **Outils** lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers Drive et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.
 
 Tu lui parles normalement, à l'écrit ou à la voix. L'interface existe en six langues (français, anglais, allemand, espagnol, italien, chinois) et ta dictée est transcrite dans la langue de ton compte. Une vingtaine d'agents spécialisés se partagent le travail : tes données personnelles, le web, la création, la maison connectée, la navigation sur des sites et l'anticipation.
 
@@ -122,6 +124,8 @@ Le **Psyche Engine** lui donne un état intérieur qui évolue à chaque échang
 Elle tient ses propres **journaux** à la première personne, et de ces carnets naît un portrait de toi qui l'accompagne partout où elle parle. Tu les lis, les édites, signales une erreur ou lances une consolidation ; le portrait lui-même ne s'édite pas directement, pour rester cohérent. Quand un souvenir douloureux remonte, elle passe en mode protecteur : pas de plaisanterie, pas de minimisation. Et si tu lui demandes ce qu'elle sait faire, elle répond depuis une base de connaissances sur ses propres fonctions ([la mémoire](/how#memory)).
 
 ## 7. Elle agit, tu décides
+
+Pour **MCP**, tu choisis les confirmations au niveau du compte, du serveur et de l’outil. **Ce qu’il fera** explique la règle effective avant de la modifier. Un agent dédié demande avant sa tâche si l’un de ses outils exige un accord ; cette réponse couvre ses appels pour cette tâche. Le choix « ne jamais demander » d’un outil est suspendu si sa déclaration change. Le chat peut renforcer ces protections ; seuls les Paramètres peuvent les réduire. Une routine peut utiliser les serveurs que tu as expressément préapprouvés dans son formulaire.
 
 Avant une action sensible, LIA te la soumet. Ce que tu valides est exactement ce qui sera exécuté, même après plusieurs retouches, et la confirmation montre tout ce qui va partir. Devant une action qu'elle n'a pas le droit de faire seule, elle te demande sur le ticket ; une routine qui tourne sans personne devant l'écran refuse l'action et le dit. Le code d'une skill tourne dans un conteneur jetable, sans accès à tes fichiers ni à tes clés, et sans réseau hors des hôtes autorisés.
 

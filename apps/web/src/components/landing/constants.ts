@@ -9,6 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-10-31 (v4.3.0): 323 native manifests from
+ *   initialize_catalogue with every optional native family enabled in an
+ *   isolated test process. Personal/admin server tools vary by instance and
+ *   are excluded from this fixed native-catalogue figure.
  *   Re-measured 2026-10-22 (v3.4.0) on the Docker dev runtime: 327 registered
  *   manifests (`tool_count` of `catalogue_initialized`, 2026-10-22T05:19:15Z):
  *   the eight SMS tools (ADR-357) and the eight proactive-discussion tools
@@ -107,6 +111,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Measured for v4.3.0: backend 56,255 collected (pytest --collect-only,
+ *   2026-10-31); frontend coverage: 15,881 passed in 1,386 files.
+ *   Combined inventory: 72,136 -> 72000. Collection is distinct from execution.
  *   Measured for v4.2.0: backend 54,537 collected in 3,679 files (Windows, 2026-10-30)
  *   (pytest tests --collect-only -q --no-cov); frontend 15,357 tests in 1,327
  *   files (vitest list, 2026-10-30). Combined inventory: 69,894 -> 69000.
@@ -437,14 +444,14 @@
 
 export const LANDING_STATS = {
   agents: 21,
-  tools: 327,
+  tools: 323,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 652,
+  metrics: 658,
   uiLanguages: 6,
-  tests: 69000,
-  adrs: 364,
-  releases: 292,
+  tests: 72136,
+  adrs: 367,
+  releases: 293,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;

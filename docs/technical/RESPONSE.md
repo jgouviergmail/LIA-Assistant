@@ -8,6 +8,20 @@
 
 ---
 
+## Results after a choice or approval
+
+A resumed Pipeline tool-call step contributes its actual returned result to
+the response, including a dedicated MCP agent's task. Its decided draft must
+not be reported again as awaiting confirmation. The held plan records the act
+and resumes pending work without repeating completed calls. Native drafts
+such as an e-mail retain their self-contained result card.
+
+Reference choices distinguish an act left unchosen from a rejected plan: a
+lookup may already have run, so the response reports those reads and the
+dependent steps not executed. Both contracts are documented in
+[ADR-367](../architecture/ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md)
+and [ADR-368](../architecture/ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md).
+
 ## 📋 Table des Matières
 
 1. [Vue d'ensemble](#-vue-densemble)

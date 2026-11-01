@@ -9,7 +9,7 @@ Data Registry LOT 5.4: Draft Execution Integration
 
 Flow:
     draft_critique_node → state["draft_action_result"] = {action: "confirm", ...}
-    → response_node → _execute_draft_if_confirmed()
+    → response_node → execute_decided_draft()
     → execute_*_draft() (email, contact, event)
     → render_execution_result() → the short answer of the draft fast path,
       whose execution result also judges the turn (business metrics)
@@ -41,7 +41,7 @@ from src.core.field_names import (
     FIELD_PLAN_ID,
     FIELD_STATUS,
 )
-from src.core.i18n import _, get_language_name, resolve_language
+from src.core.i18n import get_language_name, resolve_language
 from src.core.i18n_api_messages import (
     NO_EXTERNAL_AGENT_MESSAGES,
     APIMessages,
@@ -85,6 +85,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_user_id_str,
     runtime_voice_enabled,
 )
+from src.domains.agents.context.shown_items import shown_update
 from src.domains.agents.data_registry.card_payload import card_payload
 from src.domains.agents.display.binding_filter import strip_card_bindings
 from src.domains.agents.display.card_actions import with_card_actions
@@ -97,9 +98,7 @@ from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
 from src.domains.agents.display.model_history import with_model_view
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
-from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.models import DraftAction
-from src.domains.agents.drafts.result_renderer import render_execution_result
 from src.domains.agents.expressivity.turn import (
     inject_tone_instruction,
     take_tone_annotation,
@@ -118,6 +117,11 @@ from src.domains.agents.formatters.text_summary import (
 )
 from src.domains.agents.formatters.tool_data import with_tool_data_section
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.draft_decision import execute_decided_draft
+from src.domains.agents.nodes.draft_results_summary import (
+    decision_answered_by_its_card,
+    summary_with_drafts,
+)
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
 )
@@ -448,87 +452,6 @@ def _filter_messages_for_rejection_context(
 # ============================================================================
 # HELPER FUNCTIONS - STATE TRACKING
 # ============================================================================
-
-
-# ============================================================================
-# HELPER FUNCTIONS - DRAFT EXECUTION (LOT 5.4)
-# ============================================================================
-
-
-async def _execute_draft_if_confirmed(
-    state: MessagesState,
-    config: RunnableConfig,
-    run_id: str,
-) -> dict[str, Any] | None:
-    """
-    Execute draft if user confirmed via HITL.
-
-    Data Registry LOT 5.4: After draft_critique_node confirms a draft, this function
-    delegates to draft_executor service for execution.
-
-    Args:
-        state: Current graph state with draft_action_result
-        config: Runnable config (thread plumbing) and metadata; dependencies come from the run context
-        run_id: Run ID for logging
-
-    Returns:
-        Agent result dict for draft execution (or None if no draft to execute)
-
-    Note:
-        - Uses lazy imports to avoid circular dependencies
-        - Graceful degradation: execution failure doesn't crash response_node
-        - Uses central draft_executor service with registry pattern
-    """
-    draft_action_result = state.get(STATE_KEY_DRAFT_ACTION_RESULT)
-
-    if not draft_action_result:
-        return None
-
-    # Extract user_language from state for localized messages
-    user_language = resolve_language(state.get("user_language"))
-
-    try:
-        # Lazy import to avoid circular dependencies
-        from src.domains.agents.services.draft_executor import (
-            execute_draft_if_confirmed,
-        )
-
-        # Delegate to central executor service
-        # Handles confirm/edit/cancel routing and metrics
-        result = await execute_draft_if_confirmed(
-            draft_action_result, config, run_id, user_language
-        )
-
-        if result:
-            logger.info(
-                "draft_execution_completed",
-                run_id=run_id,
-                draft_id=result.draft_id,
-                success=result.success,
-                action=result.action,
-            )
-            return result.to_agent_result()
-
-        return None
-
-    except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
-        logger.error(
-            "draft_execution_failed",
-            run_id=run_id,
-            draft_id=draft_action_result.get("draft_id"),
-            error=str(e),
-            error_type=type(e).__name__,
-            exc_info=True,
-        )
-        # Return error result for response synthesis (graceful degradation)
-        # Never expose raw exception details — they could leak to the user via LLM synthesis
-        return {
-            "status": "error",
-            "message": _("The action could not be completed. Please try again."),
-            "draft_id": draft_action_result.get("draft_id"),
-            "draft_type": draft_action_result.get("draft_type"),
-            "action": DraftAction.CONFIRM.value,
-        }
 
 
 # ============================================================================
@@ -2074,18 +1997,14 @@ async def _resolve_response_context_summary(
     # =====================================================================
     # After draft_critique_node confirms a draft, execute it and include
     # the result in the response synthesis.
-    draft_execution_result = await _execute_draft_if_confirmed(state, config, run_id)
+    # ADR-289: the chat draws the result as a card, a ticket keeps Markdown, and
+    # the card REPLACES the summary — the person already saw the intermediate
+    # results during the HITL flow. After a resume (spec D7) nothing is executed
+    # again: the acts' plain accounts are COMPOSED with the resumed steps' results.
+    agent_results_summary, draft_execution_result = await summary_with_drafts(
+        state, agent_results_summary, lambda: execute_decided_draft(state, config, run_id)
+    )
     if draft_execution_result:
-        # Format draft execution result for response synthesis
-        # ADR-289: the chat draws the result as a card, a ticket keeps Markdown.
-        draft_summary = render_execution_result(draft_execution_result, surface=card_surface())
-        if draft_summary:
-            # After HITL confirmation, REPLACE the entire agent_results_summary
-            # with only the execution result. The user already saw intermediate results
-            # (search results, draft preview) during the HITL critique streaming flow.
-            # Keeping them would produce noise like "[search] N event(s): ..." above
-            # the confirmation message.
-            agent_results_summary = draft_summary.strip()
         logger.info(
             "draft_execution_result_added_to_summary",
             run_id=run_id,
@@ -3253,7 +3172,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # =====================================================================
         # When user confirms or cancels a draft, generate a short response directly
         # without calling the LLM. This avoids verbose "chat" responses.
-        draft_action_result = state.get(STATE_KEY_DRAFT_ACTION_RESULT)
+        # Spec D7: after a resume the answer is WRITTEN — the resumed steps'
+        # results need words, and the summary is the model's input, not a card.
+        draft_action_result = decision_answered_by_its_card(state)
         if draft_action_result:
             draft_action = draft_action_result.get("action")
             if draft_action in (
@@ -3476,6 +3397,16 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # BugFix 2025-12-18: Store filtered registry for SSE streaming
         # The streaming service should send only current turn items, not the full merged registry
         state_update["current_turn_registry"] = current_turn_registry
+        # ADR-367 amendment: what this answer SHOWED is what a later « the
+        # second » or « Marc's email » designates — never what it only fetched.
+        state_update.update(
+            shown_update(
+                state,
+                current_turn_registry,
+                original_content,
+                cards=user_display_mode in RESPONSE_DISPLAY_MODES_WITH_CARDS,
+            )
+        )
         # Knowledge Enrichment (Brave Search): Store result for debug panel
         state_update["knowledge_enrichment_result"] = knowledge_enrichment_result
         # Memory Injection: Store debug details for debug panel (memory tuning)

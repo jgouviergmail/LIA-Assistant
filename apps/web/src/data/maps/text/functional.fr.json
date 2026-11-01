@@ -129,8 +129,8 @@
       "goal": "Collaborer sans quitter l'assistante."
     },
     "f.connectors": {
-      "name": "Connecteurs",
-      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie. Les services sans clé sont activés pour tout le monde par l'administrateur.",
+      "name": "Connecteurs et Outils",
+      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie. Les services sans clé sont activés pour tout le monde par l'administrateur. Ouvre Outils lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers Drive et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.",
       "goal": "Brancher tes vrais comptes une fois, et qu'ils restent branchés."
     },
     "f.mail": {

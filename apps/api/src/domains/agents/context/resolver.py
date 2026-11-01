@@ -23,6 +23,7 @@ from src.core.i18n_patterns import (
     get_ordinal_map,
     get_ordinal_suffix_patterns,
 )
+from src.domains.agents.context.descriptor_match import items_matching, strings_of
 from src.domains.agents.context.registry import ContextTypeDefinition
 from src.domains.agents.context.schemas import ResolutionResult
 from src.infrastructure.observability.logging import get_logger
@@ -239,108 +240,97 @@ class ReferenceResolver:
 
     def _fuzzy_match(self, reference: str, items: list[dict[str, Any]]) -> ResolutionResult | None:
         """
-        Fuzzy match reference against reference_fields.
+        Match a reference by the words naming an item, then by similarity.
 
-        Uses SequenceMatcher (Python stdlib) for string similarity.
+        The reference's words are matched first (:func:`items_matching`,
+        ADR-367): accent- and case-free, every word carried by the item's
+        identity — « Jean Lyon » finds the Jean living in Lyon, « jerome » the
+        sender « Jérôme G ». Only when no item carries them all is the whole
+        reference compared by similarity, the tolerance a typo needs.
 
         Args:
             reference: User reference string.
             items: List of items to search.
 
         Returns:
-            ResolutionResult if match found above threshold, None otherwise.
-
-        Logic:
-            1. For each item, check all reference_fields
-            2. Calculate similarity ratio (0.0-1.0)
-            3. Track best match
-            4. If confidence >= threshold → Success
-            5. If multiple high-confidence matches → Ambiguous
+            ResolutionResult if a match is found (ambiguous when several fit),
+            None otherwise.
         """
-        ref_lower = reference.lower().strip()
-        matches: list[tuple[dict[str, Any], float]] = []  # (item, confidence)
-
-        for item in items:
-            best_score = 0.0
-
-            # Check all reference_fields
-            for field in self.definition.reference_fields:
-                value = item.get(field)
-
-                # String fields
-                if isinstance(value, str):
-                    score = self._string_similarity(ref_lower, value.lower())
-                    best_score = max(best_score, score)
-
-                # List fields (emails, phones, tags)
-                elif isinstance(value, list):
-                    for v in value:
-                        if isinstance(v, str):
-                            score = self._string_similarity(ref_lower, v.lower())
-                            best_score = max(best_score, score)
-
-            # Track if above threshold
-            if best_score >= self.confidence_threshold:
-                matches.append((item, best_score))
-
-        if not matches:
-            return None
-
-        # Sort by confidence (descending)
-        matches.sort(key=lambda x: x[1], reverse=True)
-        best_item, best_confidence = matches[0]
-
-        # Check for ambiguity (multiple high-confidence matches)
-        ambiguous_threshold = settings.hitl_fuzzy_match_ambiguity_threshold
-        ambiguous_matches = [
-            m
-            for m in matches
-            if abs(m[1] - best_confidence) <= ambiguous_threshold and m[0] != best_item
-        ]
-
-        if ambiguous_matches:
-            # Ambiguous - return candidates
-            candidates = [
-                {
-                    "index": best_item.get("index"),
-                    "name": best_item.get(self.definition.display_name_field),
-                    "confidence": best_confidence,
-                }
-            ] + [
-                {
-                    "index": m[0].get("index"),
-                    "name": m[0].get(self.definition.display_name_field),
-                    "confidence": m[1],
-                }
-                for m in ambiguous_matches
-            ]
-
+        matched = items_matching(reference, items, self.definition)
+        if len(matched) == 1:
             logger.debug(
-                "reference_ambiguous",
-                reference=reference,
-                candidates_count=len(candidates),
+                "reference_resolved_by_words",
                 context_type=self.definition.context_type,
             )
-
-            return ResolutionResult.error_result(
-                error="ambiguous",
-                message=APIMessages.reference_ambiguous(
-                    reference, [str(c["name"]) for c in candidates]
-                ),
-                candidates=candidates,
+            return ResolutionResult.success_result(
+                item=matched[0], confidence=1.0, match_type="exact"
             )
+        if matched:
+            return self._ambiguous_result(reference, [(item, 1.0) for item in matched])
+        return self._similarity_match(reference, items)
 
-        # Single best match
+    def _similarity_match(
+        self, reference: str, items: list[dict[str, Any]]
+    ) -> ResolutionResult | None:
+        """Best whole-string similarity on the identity fields, above the threshold."""
+        ref_lower = reference.lower().strip()
+        matches = [
+            (item, score)
+            for item in items
+            if (score := self._best_similarity(ref_lower, item)) >= self.confidence_threshold
+        ]
+        if not matches:
+            return None
+        matches.sort(key=lambda match: match[1], reverse=True)
+        best_item, best_confidence = matches[0]
+        tolerance = settings.hitl_fuzzy_match_ambiguity_threshold
+        close = [match for match in matches[1:] if abs(match[1] - best_confidence) <= tolerance]
+        if close:
+            return self._ambiguous_result(reference, [matches[0], *close])
+
         logger.debug(
             "reference_resolved_by_fuzzy",
-            reference=reference,
-            matched_name=best_item.get(self.definition.display_name_field),
             confidence=best_confidence,
             context_type=self.definition.context_type,
         )
-
         return ResolutionResult.success_result(
             item=best_item, confidence=best_confidence, match_type="fuzzy"
+        )
+
+    def _best_similarity(self, ref_lower: str, item: dict[str, Any]) -> float:
+        """The item's best similarity to the reference over its identity fields."""
+        values = (
+            value
+            for field in self.definition.reference_fields
+            for value in strings_of(item.get(field))
+        )
+        return max(
+            (self._string_similarity(ref_lower, value.lower()) for value in values), default=0.0
+        )
+
+    def _ambiguous_result(
+        self, reference: str, scored: list[tuple[dict[str, Any], float]]
+    ) -> ResolutionResult:
+        """The candidates a reference fits, best first, as an ``ambiguous`` result."""
+        candidates = [
+            {
+                "index": item.get("index"),
+                "name": item.get(self.definition.display_name_field),
+                "confidence": confidence,
+            }
+            for item, confidence in scored
+        ]
+        logger.debug(
+            "reference_ambiguous",
+            candidates_count=len(candidates),
+            context_type=self.definition.context_type,
+        )
+        return ResolutionResult.error_result(
+            error="ambiguous",
+            message=APIMessages.reference_ambiguous(
+                reference, [str(c["name"]) for c in candidates]
+            ),
+            candidates=candidates,
         )
 
     def _string_similarity(self, s1: str, s2: str) -> float:

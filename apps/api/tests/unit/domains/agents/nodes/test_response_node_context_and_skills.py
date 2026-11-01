@@ -44,7 +44,7 @@ async def _resolve(state, **kw):
         "user_viewport": "desktop",
     }
     base.update(kw)
-    with patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=None)):
+    with patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=None)):
         return await _resolve_response_context_summary(state, {"configurable": {}}, "r", **base)
 
 
@@ -115,8 +115,11 @@ async def test_resolve_confirmed_draft_replaces_summary():
     state = {STATE_KEY_TURN_TYPE: TURN_TYPE_ACTION, STATE_KEY_AGENT_RESULTS: {}}
     draft_result = {"status": "success", "draft_id": "d1", "action": "confirm"}
     with (
-        patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=draft_result)),
-        patch(f"{_RESP}.render_execution_result", Mock(return_value="  DRAFT DONE  ")),
+        patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=draft_result)),
+        patch(
+            "src.domains.agents.nodes.draft_results_summary.render_execution_result",
+            Mock(return_value="  DRAFT DONE  "),
+        ),
         patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="SUM")),
     ):
         summary, _rc, _turn, _rej, executed = await _resolve_response_context_summary(

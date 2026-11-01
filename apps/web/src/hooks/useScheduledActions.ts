@@ -124,6 +124,12 @@ export interface ScheduledAction {
   last_checked_at?: string | null;
   /** Condition routines: why that check could not read its source. */
   last_check_error?: ConditionCheckError | null;
+  /**
+   * The MCP servers this routine's runs confirm for themselves (spec D9) — a
+   * personal server's id, an administrator server's key. Optional because a
+   * cached payload predating the field must still parse.
+   */
+  mcp_preapproved_servers?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -140,6 +146,8 @@ export interface ScheduledActionCreate {
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
   execution_mode?: ExecutionMode;
+  /** The MCP servers its runs confirm for themselves (spec D9); omitted = none. */
+  mcp_preapproved_servers?: string[];
 }
 
 /**
@@ -153,6 +161,8 @@ export interface ScheduledActionUpdate {
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
   execution_mode?: ExecutionMode;
+  /** Omitted = unchanged; null clears the pre-approval (spec D9). */
+  mcp_preapproved_servers?: string[] | null;
 }
 
 /** One instant of the current week, carried by the routine itself. */
@@ -232,6 +242,20 @@ export interface ScheduledActionListResponse {
   condition_max_fires_per_day?: number;
   /** When a weather-change routine fires, as the server applies it. */
   weather_condition_rule?: WeatherConditionRule;
+  /** What a time routine's schedule may ask, as every routine door enforces it. */
+  recurrence_limits?: RoutineRecurrenceLimits;
+}
+
+/**
+ * What a time routine's schedule may ask — the operator's settings, published
+ * by the list (ADR-268 amendment 2026-10-30) so the form refuses exactly what
+ * the API refuses. Never a copy typed into the browser: a copy is how the form
+ * once said « 15 minutes minimum » while the operator had chosen otherwise.
+ */
+export interface RoutineRecurrenceLimits {
+  max_times_per_day: number;
+  min_step_minutes: number;
+  max_series_count: number;
 }
 
 /**
@@ -294,6 +318,7 @@ export function useScheduledActions() {
   const conditionCheckMinutes = listData?.condition_check_minutes;
   const conditionMaxFiresPerDay = listData?.condition_max_fires_per_day;
   const weatherConditionRule = listData?.weather_condition_rule;
+  const recurrenceLimits = listData?.recurrence_limits;
   const week = isWeekResponse(weekData) ? weekData : null;
   // The FIRST load only. `useApiQuery` raises `loading` on every refetch too,
   // and swapping the section for a spinner then unmounts every card — the
@@ -460,6 +485,8 @@ export function useScheduledActions() {
     conditionMaxFiresPerDay,
     /** When a weather-change routine fires, as the server applies it. */
     weatherConditionRule,
+    /** What a time routine's schedule may ask; undefined until the server said. */
+    recurrenceLimits,
     loading,
     initialLoading,
     error,

@@ -70,7 +70,33 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
     blocks = [build_truncation_block(state)]
     blocks.append(build_requested_outcomes_block(state))
     blocks.append(await _failures_block(state))
+    blocks.append(held_not_run_block(state))
     return "\n\n".join(block for block in blocks if block)
+
+
+def held_not_run_block(state: dict[str, Any]) -> str:
+    """The plan's steps left unrun because an act they needed did not happen (spec D7).
+
+    A step that waited for the person's approval runs only once every act it
+    reads was confirmed AND succeeded; otherwise it never ran — and an answer
+    silent about it would read as done.
+
+    Args:
+        state: The LangGraph state (``held_plan.not_run`` and the plan are read).
+
+    Returns:
+        The directive, or "" when no step was left unrun.
+    """
+    not_run = (state.get("held_plan") or {}).get("not_run") or {}
+    if not not_run:
+        return ""
+    from src.domains.agents.prompts.prompt_loader import load_prompt
+
+    tools = _tool_names_by_step(state.get("execution_plan"))
+    steps = "\n".join(
+        f"- {tools.get(step_id) or step_id}: {reason}" for step_id, reason in not_run.items()
+    )
+    return str(load_prompt("response_directive_held_not_run")).format(steps=steps)
 
 
 async def _failures_block(state: dict[str, Any]) -> str:

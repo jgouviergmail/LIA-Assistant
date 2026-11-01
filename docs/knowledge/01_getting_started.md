@@ -263,7 +263,7 @@ Like any AI assistant, LIA may sometimes misinterpret a request. Here's how to g
 • For important emails, always review the preview
 
 **🛡️ Built-in security:**
-Thanks to the approval system, no critical action is executed without your explicit validation.
+Actions follow the approval rules that apply to them. For MCP, explicit saved choices can allow execution without another question; review their behavior summaries in Settings.
 
 ## How was LIA built?
 Nearly **100% of LIA's code is written by an AI**, under human direction. Four management mechanisms keep the quality high:
@@ -294,4 +294,4 @@ Before v1.27.14 this wait was invisible: the application loaded and then refused
 
 ## What can I do in LIA World?
 
-Open **LIA World** from the menu when your instance offers it. Explore the shared house and garden, meet other people, exchange private or public text and open your personal LIA conversation and native tools. Choose your character and private home palette. Keyboard, touch, zoom and the minimap help you move around. Lighting follows your account’s local time; available cached weather and optional sounds animate the scene. Movement itself calls no model; activities and translation keep their normal permissions, confirmations, costs and quotas. The **LIA World** section below explains each feature.
+Open **3D** from the menu when your instance offers it. Explore the shared house and garden, meet other people, exchange private or public text and open your personal LIA conversation and native tools. Choose your character and private home palette. Keyboard, touch, zoom and the minimap help you move around. Lighting follows your account’s local time; available cached weather and optional sounds animate the scene. Movement itself calls no model; activities and translation keep their normal permissions, confirmations, costs and quotas. The **LIA World** section below explains each feature.

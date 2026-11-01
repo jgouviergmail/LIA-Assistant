@@ -235,3 +235,48 @@ class TestGetItemTimestamp:
     def test_dict_meta_without_timestamp_falls_back_to_epoch(self):
         item = {"meta": {"source": "gmail"}}
         assert _get_item_timestamp(item) == datetime(1970, 1, 1, tzinfo=UTC)
+
+
+class TestEveryItemCarriesTheTurnThatShowedIt:
+    """ADR-367: a description designates what an ANSWER showed, so every item
+    is dated. The pipeline stamped ``meta.turn_id``; the ReAct loop merged its
+    items without, so nothing could tell which answer showed them."""
+
+    def test_an_object_and_a_dict_are_stamped_without_being_mutated(self):
+        from src.domains.agents.data_registry.state import stamped_with_turn
+
+        obj = _make_item(1, as_dict=False)
+        raw = _make_item(2, as_dict=True)
+        stamped = stamped_with_turn({"a": obj, "b": raw}, 7)
+
+        assert stamped["a"].meta.turn_id == 7
+        assert stamped["b"]["meta"]["turn_id"] == 7
+        assert obj.meta.turn_id is None and raw["meta"].get("turn_id") is None
+
+    def test_an_item_already_dated_keeps_its_turn(self):
+        from src.domains.agents.data_registry.state import stamped_with_turn
+
+        item = _make_item(1, as_dict=True)
+        item["meta"]["turn_id"] = 3
+        assert stamped_with_turn({"a": item}, 7)["a"]["meta"]["turn_id"] == 3
+
+    def test_without_a_turn_nothing_changes(self):
+        from src.domains.agents.data_registry.state import stamped_with_turn
+
+        item = _make_item(1, as_dict=True)
+        assert stamped_with_turn({"a": item}, None) == {"a": item}
+
+
+class TestTheExecutorReadsDicts:
+    """Spec 2026-10-29 D7: the first pass and the resume hand the executor one shape."""
+
+    def test_objects_dicts_and_bare_payloads_all_become_dicts(self):
+        from src.domains.agents.data_registry.state import registry_as_dicts
+
+        obj = _make_item(1, as_dict=False)
+        raw = _make_item(2, as_dict=True)
+
+        items = registry_as_dicts({"a": obj, "b": raw, "c": "bare"})
+
+        assert items == {"a": obj.model_dump(), "b": raw, "c": {"payload": "bare"}}
+        assert registry_as_dicts(None) == {}

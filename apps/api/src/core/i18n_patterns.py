@@ -246,6 +246,189 @@ ORDINAL_SUFFIX_PATTERNS: dict[Language, list[str]] = {
 
 
 # =============================================================================
+# FUNCTION WORDS (descriptive references, ADR-367)
+# =============================================================================
+
+# Articles, prepositions and conjunctions that name nothing: a description such
+# as « the email of Marc » designates its item by « Marc » alone. Chinese has
+# none to separate — a run of characters is matched as a substring.
+FUNCTION_WORDS: dict[Language, frozenset[str]] = {
+    "fr": frozenset("le la les de du des un une au aux et ou en sur pour par avec chez".split()),
+    "en": frozenset("the an of to from by on in at and or for with".split()),
+    "es": frozenset("el la los las de del un una unos unas al en con por para".split()),
+    "de": frozenset(
+        "der die das den dem des ein eine einen einem einer von vom zu zum zur und "
+        "oder im am an auf mit aus bei".split()
+    ),
+    "it": frozenset(
+        "il lo la gli le di del dello della dei degli delle un una uno al alla in "
+        "con da su per".split()
+    ),
+    "zh-CN": frozenset(),
+}
+
+
+# =============================================================================
+# CHOICE ANSWERS (« which one? », ADR-367)
+# =============================================================================
+# Read in the person's own language only: « due » is two in Italian and a date
+# in English, « prima » first in Italian and « before » in a sentence. Written
+# accent-free and lower-cased, the folded form an answer is read in.
+
+# Cardinal numbers naming an option by its number. One is left out on purpose:
+# « un », « one », « uno », « ein » are also articles and pronouns (« the
+# garage one »), and « 一 » opens « 一个 » (« a »).
+CHOICE_NUMBER_WORDS: dict[Language, dict[str, int]] = {
+    "fr": {
+        "deux": 2,
+        "trois": 3,
+        "quatre": 4,
+        "cinq": 5,
+        "six": 6,
+        "sept": 7,
+        "huit": 8,
+        "neuf": 9,
+        "dix": 10,
+    },
+    "en": {
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+    },
+    "es": {
+        "dos": 2,
+        "tres": 3,
+        "cuatro": 4,
+        "cinco": 5,
+        "seis": 6,
+        "siete": 7,
+        "ocho": 8,
+        "nueve": 9,
+        "diez": 10,
+    },
+    "de": {
+        "zwei": 2,
+        "drei": 3,
+        "vier": 4,
+        "funf": 5,
+        "sechs": 6,
+        "sieben": 7,
+        "acht": 8,
+        "neun": 9,
+        "zehn": 10,
+    },
+    "it": {
+        "due": 2,
+        "tre": 3,
+        "quattro": 4,
+        "cinque": 5,
+        "sei": 6,
+        "sette": 7,
+        "otto": 8,
+        "nove": 9,
+        "dieci": 10,
+    },
+    "zh-CN": {
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    },
+}
+
+# The words a REQUEST gives an item's position among the results with (« le
+# dernier mail de Marc », « Marc's latest email »): the act takes that one and
+# nothing is asked (ADR-367 amendment, ``nodes/plan_choice.py``). Folded as
+# ``fold_name`` folds; a Chinese word is looked for inside the request.
+REQUEST_POSITION_WORDS: dict[Language, frozenset[str]] = {
+    "fr": frozenset(
+        {"dernier", "derniere", "recent", "recente", "ancien", "ancienne", "premier", "premiere"}
+    ),
+    "en": frozenset({"last", "latest", "newest", "recent", "oldest", "earliest", "first"}),
+    "es": frozenset({"ultimo", "ultima", "reciente", "antiguo", "antigua", "primero", "primera"}),
+    "de": frozenset(
+        {
+            "letzte",
+            "letzter",
+            "letztes",
+            "letzten",
+            "neueste",
+            "neuester",
+            "neuesten",
+            "aktuellste",
+            "aktuellsten",
+            "alteste",
+            "altesten",
+            "erste",
+            "ersten",
+        }
+    ),
+    "it": frozenset({"ultimo", "ultima", "recente", "vecchio", "vecchia", "primo"}),
+    "zh-CN": frozenset({"最后", "最新", "最近", "最早", "第一"}),
+}
+
+# The words naming the LAST option (« le dernier », « the last one »).
+CHOICE_LAST_WORDS: dict[Language, frozenset[str]] = {
+    "fr": frozenset({"dernier", "derniere"}),
+    "en": frozenset({"last"}),
+    "es": frozenset({"ultimo", "ultima"}),
+    "de": frozenset({"letzte", "letzter", "letztes", "letzten"}),
+    "it": frozenset({"ultimo", "ultima"}),
+    "zh-CN": frozenset({"最后"}),
+}
+
+# Words an answer leans on to name an option without describing it
+# (« numéro 2 », « the second one », « quello »).
+CHOICE_FILLER_WORDS: dict[Language, frozenset[str]] = {
+    "fr": frozenset({"celui", "celle", "lequel", "laquelle", "ci", "numero", "choix", "option"}),
+    "en": frozenset({"one", "number", "no", "nr", "option", "choice"}),
+    "es": frozenset({"ese", "esa", "este", "esta", "numero", "opcion", "eleccion"}),
+    "de": frozenset({"nummer", "nr", "option", "wahl"}),
+    "it": frozenset({"quello", "quella", "questo", "questa", "numero", "opzione", "scelta"}),
+    "zh-CN": frozenset({"个", "号", "选项"}),
+}
+
+# Answers saying the item is none of the options: the request is then looked
+# up anew. Matched on the WHOLE answer (politeness aside), never inside one.
+CHOICE_NONE_PHRASES: dict[Language, frozenset[str]] = {
+    "fr": frozenset(
+        {
+            "aucun",
+            "aucune",
+            "aucun des deux",
+            "aucun d'eux",
+            "aucun de ceux-là",
+            "ni l'un ni l'autre",
+            "un autre",
+        }
+    ),
+    "en": frozenset(
+        {"none", "neither", "none of them", "none of these", "neither of them", "another one"}
+    ),
+    "es": frozenset(
+        {"ninguno", "ninguna", "ninguno de ellos", "ninguno de estos", "ninguno de los dos", "otro"}
+    ),
+    "de": frozenset(
+        {"keiner", "keine", "keines", "keiner davon", "keines davon", "keins", "ein anderer"}
+    ),
+    "it": frozenset({"nessuno", "nessuna", "nessuno dei due", "nessuno di questi", "un altro"}),
+    "zh-CN": frozenset({"都不是", "一个都不是", "都不对", "另一个", "别的"}),
+}
+
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -345,3 +528,17 @@ def get_all_keywords() -> set[str]:
     for lang_map in KEYWORD_MAPS.values():
         words.update(word.lower() for word in lang_map.keys())
     return words
+
+
+def get_all_function_words() -> frozenset[str]:
+    """
+    Get the function words of every supported language.
+
+    A description is matched in whatever language it was written, so the
+    words carrying no identity are those of all six languages at once. They
+    are written accent-free and lower-cased, the folded form a matcher reads.
+
+    Returns:
+        Frozen set of function words.
+    """
+    return frozenset(word for words in FUNCTION_WORDS.values() for word in words)

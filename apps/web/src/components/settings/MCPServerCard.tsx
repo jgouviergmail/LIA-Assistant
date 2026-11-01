@@ -19,7 +19,17 @@
 
 import { ExpandableDescription } from '@/components/ui/expandable-description';
 import type { TFunction } from 'i18next';
-import { AlertTriangle, Pencil, Plug, Server, Trash2, Unplug, Zap, Send } from 'lucide-react';
+import {
+  AlertTriangle,
+  Pencil,
+  Plug,
+  ScanSearch,
+  Server,
+  Trash2,
+  Unplug,
+  Zap,
+  Send,
+} from 'lucide-react';
 import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +41,7 @@ import type { Language } from '@/i18n/settings';
 import type { UserMCPAuthType, UserMCPServer } from '@/hooks/useUserMCPServers';
 import { formatInstant } from '@/lib/format-instant';
 import { lifecycleTone, type BadgeTone } from '@/lib/status-tone';
+import { MCPServerBehaviorView } from './MCPServerBehaviorView';
 
 /**
  * Tone of a server's status pill.
@@ -86,6 +97,8 @@ export interface MCPServerCardProps {
   disconnecting: boolean;
   onToggle: (server: UserMCPServer) => void;
   onTest: (server: UserMCPServer) => void;
+  /** Opens what the server will do (spec 2026-10-30 § 4). */
+  onInspect: (server: UserMCPServer) => void;
   onEdit: (server: UserMCPServer) => void;
   onDelete: (server: UserMCPServer) => void;
   onConnectOAuth: (server: UserMCPServer) => void;
@@ -173,8 +186,17 @@ function ServerFacts({ server, lng, t }: { server: UserMCPServer; lng: Language;
 export function MCPServerCard(props: MCPServerCardProps) {
   const { server, lng, testing, onToggle, onTest, onEdit, onDelete } = props;
   const { t } = useTranslation(lng);
+  // A copy received from a connection arrives off: until it is switched on, its card
+  // shows what it would do, so it is activated knowing that (spec 2026-10-30 D3).
+  const receivedAndOff = Boolean(server.shared_origin) && !server.is_enabled;
 
   const actions: RowAction[] = [
+    {
+      key: 'behavior',
+      label: t('settings.mcp.behavior.action'),
+      icon: ScanSearch,
+      onSelect: () => props.onInspect(server),
+    },
     {
       key: 'test',
       label: t('settings.mcp.test_connection'),
@@ -231,6 +253,17 @@ export function MCPServerCard(props: MCPServerCardProps) {
       {!server.is_enabled && server.status !== 'active' && (
         <p className="text-xs text-foreground/80">{t('settings.capability_share.readiness')}</p>
       )}
+      {server.suspended_tool_choices > 0 && (
+        <p className="flex items-start gap-1.5 text-xs text-warning">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+          <span>
+            {t('settings.mcp.behavior.suspended_on_card', {
+              count: server.suspended_tool_choices,
+            })}
+          </span>
+        </p>
+      )}
+      {receivedAndOff && <MCPServerBehaviorView serverId={server.id} t={t} />}
 
       {/* `mt-auto`: in a grid row the footers line up whatever each card holds. */}
       <div className="mt-auto space-y-3 border-t pt-3">

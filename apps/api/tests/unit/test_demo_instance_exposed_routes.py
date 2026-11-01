@@ -215,15 +215,23 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/mcp/servers",
         "POST /api/v1/mcp/servers",
         "GET /api/v1/mcp/servers/oauth/callback",
+        # Spec 2026-10-30 D5: read-only previews of the visitor's OWN servers
+        # (ownership-checked, nothing written) — reviewed, same exposure as the list.
+        "POST /api/v1/mcp/servers/strategy/preview",
         "DELETE /api/v1/mcp/servers/{server_id}",
         "PATCH /api/v1/mcp/servers/{server_id}",
         "POST /api/v1/mcp/servers/{server_id}/app/call-tool",
         "POST /api/v1/mcp/servers/{server_id}/app/read-resource",
+        "GET /api/v1/mcp/servers/{server_id}/behavior",
+        "POST /api/v1/mcp/servers/{server_id}/behavior/preview",
         "POST /api/v1/mcp/servers/{server_id}/generate-description",
         "POST /api/v1/mcp/servers/{server_id}/oauth/authorize",
         "POST /api/v1/mcp/servers/{server_id}/oauth/disconnect",
         "POST /api/v1/mcp/servers/{server_id}/test",
         "PATCH /api/v1/mcp/servers/{server_id}/toggle",
+        # Spec 2026-10-30 D6: a tool's choice on the visitor's OWN server (ownership-
+        # checked) — reviewed, same exposure as the server's own PATCH above.
+        "PUT /api/v1/mcp/servers/{server_id}/tool-confirmations",
         "DELETE /api/v1/memories",
         "GET /api/v1/memories",
         "POST /api/v1/memories",

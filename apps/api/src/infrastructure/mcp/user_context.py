@@ -20,7 +20,7 @@ Created: 2026-02-28
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from contextvars import Token
 from typing import TYPE_CHECKING
@@ -39,8 +39,18 @@ from src.core.constants import (
     MCP_USER_TOOL_NAME_PREFIX,
 )
 from src.core.context import UserMCPToolsContext, user_mcp_tools_ctx
+from src.domains.agents.effects.runtime import gated
+from src.domains.agents.registry.confirmation_rule import task_requires_confirmation
 from src.domains.agents.registry.domain_taxonomy import deduplicate_mcp_slugs
 from src.infrastructure.mcp.auth import build_auth_for_server
+from src.infrastructure.mcp.confirmation import (
+    NO_TOOL_CHOICES,
+    ServerToolConfirmations,
+    StoredToolChoice,
+    dedicated_agents_available,
+    resolve_server_confirmation,
+)
+from src.infrastructure.mcp.gated_tool import ungated_names
 from src.infrastructure.mcp.rate_limit import MCPServerPausedError
 from src.infrastructure.mcp.reference_content import reference_source
 from src.infrastructure.mcp.registration import (
@@ -64,6 +74,7 @@ if TYPE_CHECKING:
 
     from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.user_mcp.models import UserMCPServer
+    from src.domains.user_mcp.repository import UserMCPServerRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -124,7 +135,9 @@ async def prepare_user_mcp_context(
     from src.infrastructure.database.session import get_db_context
 
     async with get_db_context() as db:
-        servers = await UserMCPServerRepository(db).get_enabled_active_for_user(user_id)
+        repository = UserMCPServerRepository(db)
+        servers = await repository.get_enabled_active_for_user(user_id)
+        account_confirmation, tool_choices = await _read_confirmations(repository, user_id, servers)
 
     if not servers:
         logger.debug(
@@ -158,8 +171,16 @@ async def prepare_user_mcp_context(
     )
     for server, prepared in zip(servers, preparations, strict=True):
         _register_prepared(
-            server, prepared, user_id, ctx, domains[server.name], prefixes[server.id]
+            server,
+            prepared,
+            user_id,
+            ctx,
+            domains[server.name],
+            prefixes[server.id],
+            account_confirmation,
+            tool_choices.get(server.id, NO_TOOL_CHOICES),
         )
+    _refuse_ungated_tools(ctx, user_id)
 
     # A context only if we have at least one tool
     if not ctx.tool_instances:
@@ -181,6 +202,49 @@ async def prepare_user_mcp_context(
     return ctx
 
 
+def _refuse_ungated_tools(ctx: UserMCPToolsContext, user_id: UUID) -> None:
+    """Refuse any instance of the turn that does not go through the effect gate (spec D3).
+
+    The registry's boot assert never sees a per-request tool, so this is its
+    per-request counterpart. Outside production a miss raises, like a swallowed
+    tool-module import; in production the instance and its manifests leave the
+    turn — fail closed — and the miss is logged by count.
+
+    Args:
+        ctx: The context being built, mutated in place.
+        user_id: The account, for the log line.
+
+    Raises:
+        RuntimeError: Outside production, when an instance is ungated.
+    """
+    ungated = ungated_names(ctx.tool_instances)
+    if not ungated:
+        return
+    logger.error("mcp_user_tool_ungated", user_id=str(user_id), count=len(ungated))
+    if not settings.is_production:
+        raise RuntimeError(f"User MCP tool(s) bypass the effect gate: {ungated}")
+    dropped = set(ungated)
+    for name in dropped:
+        ctx.tool_instances.pop(name, None)
+        ctx.reactive_tool_manifests.pop(name, None)
+    ctx.tool_manifests[:] = [m for m in ctx.tool_manifests if m.name not in dropped]
+
+
+async def _read_confirmations(
+    repository: UserMCPServerRepository, user_id: UUID, servers: Sequence[UserMCPServer]
+) -> tuple[bool | None, Mapping[UUID, Mapping[str, StoredToolChoice]]]:
+    """The account's strategy and the tools' own choices, read with its servers.
+
+    Spec 2026-10-30 D1, D6: read once per run, on the run's short session. Forgiving:
+    what cannot be read as choices falls through to the levels below.
+    """
+    if not servers:
+        return None, {}
+    account = await repository.account_confirmation(user_id)
+    choices = await repository.tool_choices([server.id for server in servers])
+    return account, choices if isinstance(choices, dict) else {}
+
+
 def _register_prepared(
     server: UserMCPServer,
     prepared: ServerPreparation,
@@ -188,19 +252,21 @@ def _register_prepared(
     ctx: UserMCPToolsContext,
     domain: str,
     server_prefix: str,
+    account_confirmation: bool | None = None,
+    tool_choices: Mapping[str, StoredToolChoice] = NO_TOOL_CHOICES,
 ) -> None:
-    """Register one prepared server, or say why it is absent from this turn."""
+    """Register one prepared server, or say why it is absent from this turn.
+
+    A tool's confirmation is its own choice, else the server's, else the account's,
+    else the instance default (spec 2026-10-30 D1, D6).
+    """
     if prepared.outcome != "ready" or prepared.entry is None:
         _log_absent(server, prepared, user_id)
         return
-    hitl_required = (
-        server.hitl_required
-        if server.hitl_required is not None
-        else getattr(settings, "mcp_hitl_required", True)
-    )
+    hitl_required = resolve_server_confirmation(server.hitl_required, account_confirmation).always
     register = (
         _register_user_iterative_server
-        if settings.mcp_react_enabled and server.iterative_mode
+        if dedicated_agents_available() and server.iterative_mode
         else _register_user_standard_server
     )
     try:
@@ -213,6 +279,7 @@ def _register_prepared(
             prepared.embeddings,
             domain,
             server_prefix,
+            tool_choices=tool_choices,
         )
     except Exception:
         logger.warning(
@@ -260,8 +327,11 @@ def _register_user_standard_server(
     embeddings_cache: Mapping[str, dict[str, JsonValue]],
     domain: str,
     server_prefix: str | None = None,
+    *,
+    tool_choices: Mapping[str, StoredToolChoice] = NO_TOOL_CHOICES,
 ) -> None:
     """Register usable individuals and describe exactly those current capabilities."""
+    confirmations = ServerToolConfirmations(hitl_required, tool_choices)
     registered: list[Mapping[str, object]] = []
     from src.domains.agents.tools.tool_registry import list_tool_names
 
@@ -292,6 +362,7 @@ def _register_user_standard_server(
                 declaration=tool_data,
                 tool_alias=aliases[str(tool_data["name"])],
             )
+            confirmation = confirmations.for_tool(tool_data)
             manifest = _build_user_tool_manifest(
                 adapter_name=adapter.name,
                 tool_name=tool_data["name"],
@@ -299,7 +370,8 @@ def _register_user_standard_server(
                 input_schema=tool_data.get("input_schema", {}),
                 server_name=server.name,
                 server_domain=domain,
-                hitl_required=hitl_required,
+                hitl_required=confirmation.hitl_required,
+                standing_approval=confirmation.standing_approval,
                 annotations=tool_data.get("annotations"),
                 output_schema=tool_data.get("output_schema"),
                 server_key=str(server.id),
@@ -396,6 +468,8 @@ def _register_user_iterative_server(
     embeddings_cache: Mapping[str, dict[str, JsonValue]],
     domain: str | None = None,
     server_prefix: str | None = None,
+    *,
+    tool_choices: Mapping[str, StoredToolChoice] = NO_TOOL_CHOICES,
 ) -> None:
     """Register a user MCP server in iterative (ReAct) mode.
 
@@ -407,9 +481,12 @@ def _register_user_iterative_server(
         entry: Pool entry with discovered tools.
         user_id: Current user UUID.
         ctx: UserMCPToolsContext being built.
-        hitl_required: Resolved HITL requirement.
+        hitl_required: The server's resolved confirmation, applied to each individual;
+            the task asks when one of them would (owner decision 2026-10-31).
         embeddings_cache: Pre-computed embeddings from DB.
+        tool_choices: The tools' own choices, applied to each individual.
     """
+    confirmations = ServerToolConfirmations(hitl_required, tool_choices)
     from src.domains.agents.tools.mcp_react_tools import (
         account_scope_note,
         iterative_task_tool_description,
@@ -428,6 +505,7 @@ def _register_user_iterative_server(
     account_scoped = server.auth_type != UserMCPAuthType.NONE.value
     # 1. Register individual tools in ctx (ReAct agent needs them)
     registered: list[Mapping[str, object]] = []
+    individuals: list[ToolManifest] = []
     from src.domains.agents.tools.tool_registry import list_tool_names
 
     aliases = user_tool_aliases(
@@ -464,6 +542,7 @@ def _register_user_iterative_server(
                     f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}",
                 ),
             )
+            confirmation = confirmations.for_tool(tool_data)
             manifest = _build_user_tool_manifest(
                 adapter_name=adapter.name,
                 tool_name=tool_data["name"],
@@ -472,13 +551,15 @@ def _register_user_iterative_server(
                 output_schema=tool_data.get("output_schema"),
                 server_name=server.name,
                 server_domain=domain,
-                hitl_required=hitl_required,
+                hitl_required=confirmation.hitl_required,
+                standing_approval=confirmation.standing_approval,
                 annotations=tool_data.get("annotations"),
                 server_key=str(server.id),
             )
             ctx.tool_instances[adapter.name] = adapter
             ctx.reactive_tool_manifests[adapter.name] = manifest
             registered.append(tool_data)
+            individuals.append(manifest)
 
             # Re-key embeddings for individual tools
             raw_tool_name = tool_data["name"]
@@ -509,11 +590,20 @@ def _register_user_iterative_server(
     # staring at "Execute a multi-step task on a user MCP server" for the
     # user's bank (2026-09-02 — ReAct refused what the pipeline could plan).
     task_tool_name = f"{MCP_USER_TOOL_NAME_PREFIX}_{server_id_prefix}{MCP_ITERATIVE_TASK_SUFFIX}"
-    if not isinstance(mcp_user_server_task_tool, StructuredTool):
-        raise TypeError("MCP task delegation requires a StructuredTool")
+    if (
+        not isinstance(mcp_user_server_task_tool, StructuredTool)
+        or mcp_user_server_task_tool.coroutine is None
+    ):
+        raise TypeError("MCP task delegation requires an async StructuredTool")
+    # Gated under its OWN name (spec D3): no registry ever sees this per-request
+    # copy, so nothing else would install the gate — with the server's
+    # confirmation on, its whole sub-loop ran unasked (probe H5, 2026-10-29).
+    # Gated BEFORE the identity binding, which therefore stays outermost: a call
+    # aimed at another server is refused, never turned into a question.
     named_task_tool = mcp_user_server_task_tool.model_copy(
         update={
             "name": task_tool_name,
+            "coroutine": gated(task_tool_name, mcp_user_server_task_tool.coroutine),
             "metadata": {
                 "mcp_origin": "user",
                 "mcp_server_key": str(server.id),
@@ -543,8 +633,9 @@ def _register_user_iterative_server(
         server_name=server.name,
         server_domain=domain,
         description=manifest_description,
-        hitl_required=hitl_required,
+        hitl_required=task_requires_confirmation(individuals),
         server_key=str(server.id),
+        react_expand=server.react_expand_iterative,
     )
     ctx.tool_manifests.append(task_manifest)
     ctx.tool_instances[task_tool_name] = named_task_tool
@@ -569,6 +660,7 @@ def _build_user_iterative_task_manifest(
     description: str,
     hitl_required: bool,
     server_key: str | None = None,
+    react_expand: bool | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for the user MCP ReAct task tool.
 
@@ -581,7 +673,10 @@ def _build_user_iterative_task_manifest(
         server_name: Human-readable server name.
         server_domain: Domain slug for agent routing.
         description: Server description for LLM context.
-        hitl_required: Whether HITL approval is required.
+        hitl_required: Whether the task is asked before it starts (one of its tools
+            would ask — owner decision 2026-10-31).
+        react_expand: The server's stored ReAct shape (None follows the instance
+            default).
 
     Returns:
         ToolManifest for the iterative task tool.
@@ -627,6 +722,7 @@ def _build_user_iterative_task_manifest(
         hitl_required=hitl_required,
         mcp_origin="user",
         mcp_server_key=server_key,
+        react_expand=react_expand,
     )
 
 
@@ -647,6 +743,7 @@ def _build_user_tool_manifest(
     output_schema: dict | None = None,
     server_key: str | None = None,
     execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
+    standing_approval: bool = False,
 ) -> ToolManifest:
     """Build a ToolManifest for a user MCP tool.
 
@@ -658,6 +755,7 @@ def _build_user_tool_manifest(
         annotations: Server-declared behaviour hints, believed only where
             they tighten a decision (see ``declared_tool_category``).
         execution_modes: The modes that may run the tool (ADR-249).
+        standing_approval: The person's « never ask » for this tool (spec 2026-10-30 D6).
     """
     from src.infrastructure.mcp.registration import (
         build_mcp_tool_manifest,
@@ -685,4 +783,5 @@ def _build_user_tool_manifest(
         mcp_origin="user",
         mcp_server_key=server_key,
         execution_modes=execution_modes,
+        standing_approval=standing_approval,
     )

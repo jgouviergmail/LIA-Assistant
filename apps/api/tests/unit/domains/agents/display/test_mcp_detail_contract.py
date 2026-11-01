@@ -12,7 +12,7 @@ from src.domains.agents.data_registry.mcp_metadata import mcp_server_origin, mcp
 from src.domains.agents.data_registry.models import RegistryItem, RegistryItemMeta, RegistryItemType
 from src.domains.agents.display.components.base import RenderContext
 from src.domains.agents.display.components.mcp_result_card import McpResultCard
-from src.domains.agents.services.context_resolution_service import _resolved_payload
+from src.domains.agents.services.reference_fallbacks import resolved_payload
 from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
 pytestmark = pytest.mark.unit
@@ -97,7 +97,7 @@ def test_historical_reference_identity_comes_from_registry_metadata():
         },
         meta=RegistryItemMeta(source="mcp_actual", domain="mcp", tool_name="actual_tool"),
     )
-    resolved = _resolved_payload(item.id, item.payload, item.model_dump())
+    resolved = resolved_payload(item.id, item.payload, item.model_dump())
     projected = restore_display_fields(resolved)
     assert projected["_mcp_source"]["server_name"] == "actual"
     assert "_display_only" not in projected
@@ -331,7 +331,7 @@ async def test_raw_result_identity_and_origin_survive_registry_checkpoint():
     checkpoint = RegistryItem.model_validate_json(item.model_dump_json())
     assert "_mcp_source" not in checkpoint.payload
     assert "SECRET_PATH" not in checkpoint.model_dump_json()
-    resolved = _resolved_payload(checkpoint.id, checkpoint.payload, checkpoint.model_dump())
+    resolved = resolved_payload(checkpoint.id, checkpoint.payload, checkpoint.model_dump())
     payload = restore_display_fields(resolved)
     assert payload["_mcp_source"]["server_url"] == "https://mcp.firecrawl.dev"
     assert payload["_mcp_source"]["tool_name"] == "firecrawl_scrape"

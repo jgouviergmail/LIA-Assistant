@@ -16,6 +16,7 @@ message in state is still the original request. These tests pin that.
 """
 
 from contextlib import ExitStack
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID
 
@@ -39,7 +40,7 @@ def _empty_context_bundle():
     return ResponseContextBundle(user_msg_is_trivial=False)
 
 
-def _patch_collaborators(stack: ExitStack) -> dict[str, Mock]:
+def _patch_collaborators(stack: ExitStack) -> dict[str, Any]:
     """Neutralize the node's heavy collaborators; return the extraction mocks."""
     mock_get_prompt = stack.enter_context(
         patch("src.domains.agents.nodes.response_node.get_response_prompt")
@@ -101,6 +102,7 @@ def _patch_collaborators(stack: ExitStack) -> dict[str, Mock]:
     # Sync mocks on purpose: the extractors are `async def`, and the no-op
     # safe_fire_and_forget never awaits them.
     return {
+        "chain": mock_chain,
         "memory": stack.enter_context(
             patch(
                 "src.domains.agents.nodes.post_response_extractions.extract_memories_background",
@@ -190,6 +192,25 @@ class TestDraftFastPathSchedulesExtractions:
         assert result["draft_action_result"] is None
         assert len(result["messages"]) == 1
         assert isinstance(result["messages"][0], AIMessage)
+
+    @pytest.mark.asyncio
+    async def test_after_a_resume_the_answer_is_written_never_short_circuited(self):
+        """Spec D7: the resumed steps' results need words; the fast path would print raw data."""
+        state = _state("confirm")
+        state["executed_drafts"] = {"draft-0": {"status": "success", "draft_type": "email"}}
+        state["held_plan"] = {"resumed": ["s2"], "held": {}, "not_run": {}}
+        with ExitStack() as stack:
+            mocks = _patch_collaborators(stack)
+            stack.enter_context(
+                patch(
+                    "src.domains.agents.nodes.response_node.execute_decided_draft",
+                    AsyncMock(return_value=None),
+                )
+            )
+            result = await response_node(state, _config())
+
+        mocks["chain"].ainvoke.assert_awaited()
+        assert result["messages"][0].content == "ok", "the model wrote the answer"
 
     @pytest.mark.asyncio
     async def test_journal_receives_the_confirmation_text_as_response(self):

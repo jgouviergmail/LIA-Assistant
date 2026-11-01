@@ -33,6 +33,7 @@ from src.domains.agents.application.routine_run_schemas import (
 )
 from src.domains.agents.application.routine_spec import ROUTINE_RUN_OPERATION
 from src.domains.agents.context.runtime_context import runtime_context_if_running
+from src.domains.scheduled_actions.mcp_preapproval import preapproval_names
 from src.domains.scheduled_actions.models import ScheduledActionStatus
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.service import ScheduledActionService
@@ -48,7 +49,7 @@ async def prepare_routine_launch(
 ) -> ApplicationActionDraftContent:
     validated = RoutineRunRequest.model_validate(request.model_dump())
     await require_application_tools(db)
-    await load_actor(db, actor_id)
+    actor = await load_actor(db, actor_id)
     row = await ScheduledActionService(db).get_with_ownership_check(validated.routine_id, actor_id)
     if row.status == ScheduledActionStatus.EXECUTING.value:
         raise_scheduled_action_already_executing(row.id)
@@ -59,6 +60,7 @@ async def prepare_routine_launch(
             configuration=RoutineCreateRequest.model_validate(
                 {name: getattr(row, name) for name in ScheduledActionCreate.model_fields}
             ),
+            mcp_preapproval=await preapproval_names(db, actor, row),
         )
     )
     await require_application_tools(db)

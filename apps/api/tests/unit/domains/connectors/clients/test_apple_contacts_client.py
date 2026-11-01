@@ -25,14 +25,16 @@ from uuid import uuid4
 import pytest
 
 from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.apple_carddav_xml import (
+    extract_addressbook_home_set,
+    extract_addressbook_url,
+    extract_contact_hrefs,
+    extract_principal_url,
+    parse_multiget_response,
+)
 from src.domains.connectors.clients.apple_contacts_client import (
     AppleContactsClient,
     _contact_matches_query,
-    _extract_addressbook_home_set,
-    _extract_addressbook_url,
-    _extract_contact_hrefs,
-    _extract_principal_url,
-    _parse_multiget_response,
 )
 from src.domains.connectors.clients.base_apple_client import AppleAuthenticationError
 from src.domains.connectors.schemas import AppleCredentials
@@ -110,7 +112,7 @@ VCARD_JANE = (
 
 
 class TestExtractPrincipalUrl:
-    """``_extract_principal_url`` reads DAV:current-user-principal/DAV:href."""
+    """``extract_principal_url`` reads DAV:current-user-principal/DAV:href."""
 
     def test_returns_href_regardless_of_namespace_prefix(self) -> None:
         xml = """<?xml version="1.0"?>
@@ -119,15 +121,13 @@ class TestExtractPrincipalUrl:
             <x:current-user-principal><x:href>/1234/principal/</x:href></x:current-user-principal>
           </x:prop></x:propstat></x:response>
         </x:multistatus>"""
-        assert _extract_principal_url(xml) == "/1234/principal/"
+        assert extract_principal_url(xml) == "/1234/principal/"
 
     def test_missing_element_returns_none(self) -> None:
-        assert (
-            _extract_principal_url('<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"/>') is None
-        )
+        assert extract_principal_url('<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"/>') is None
 
     def test_malformed_xml_returns_none_instead_of_raising(self) -> None:
-        assert _extract_principal_url("<not-xml") is None
+        assert extract_principal_url("<not-xml") is None
 
     def test_external_entity_is_not_resolved(self, tmp_path) -> None:
         """XXE guard: the parser must not read local files referenced by a DTD."""
@@ -139,11 +139,11 @@ class TestExtractPrincipalUrl:
           <d:current-user-principal><d:href>&xxe;</d:href></d:current-user-principal>
         </d:prop></d:propstat></d:response></d:multistatus>"""
 
-        assert _extract_principal_url(xml) != "TOP-SECRET"
+        assert extract_principal_url(xml) != "TOP-SECRET"
 
 
 class TestExtractAddressbookHomeSet:
-    """``_extract_addressbook_home_set`` reads carddav:addressbook-home-set/DAV:href."""
+    """``extract_addressbook_home_set`` reads carddav:addressbook-home-set/DAV:href."""
 
     def test_returns_home_set_href(self) -> None:
         xml = """<?xml version="1.0"?>
@@ -152,7 +152,7 @@ class TestExtractAddressbookHomeSet:
             <card:addressbook-home-set><d:href>/1234/carddavhome/</d:href></card:addressbook-home-set>
           </d:prop></d:propstat></d:response>
         </d:multistatus>"""
-        assert _extract_addressbook_home_set(xml) == "/1234/carddavhome/"
+        assert extract_addressbook_home_set(xml) == "/1234/carddavhome/"
 
     def test_empty_href_text_returns_none(self) -> None:
         """An empty href must degrade to None so the caller applies its fallback."""
@@ -162,11 +162,11 @@ class TestExtractAddressbookHomeSet:
             <card:addressbook-home-set><d:href></d:href></card:addressbook-home-set>
           </d:prop></d:propstat></d:response>
         </d:multistatus>"""
-        assert _extract_addressbook_home_set(xml) is None
+        assert extract_addressbook_home_set(xml) is None
 
 
 class TestExtractAddressbookUrl:
-    """``_extract_addressbook_url`` prefers a real addressbook resourcetype."""
+    """``extract_addressbook_url`` prefers a real addressbook resourcetype."""
 
     HOME_SET = "https://contacts.icloud.com/1234/carddavhome/"
 
@@ -184,7 +184,7 @@ class TestExtractAddressbookUrl:
             </d:resourcetype></d:prop></d:propstat>
           </d:response>
         </d:multistatus>"""
-        result = _extract_addressbook_url(xml, self.HOME_SET)
+        result = extract_addressbook_url(xml, self.HOME_SET)
         assert result is not None
         assert result.endswith("/1234/carddavhome/card/")
         assert result.startswith("http")
@@ -198,7 +198,7 @@ class TestExtractAddressbookUrl:
           </d:response>
         </d:multistatus>"""
         assert (
-            _extract_addressbook_url(xml, self.HOME_SET)
+            extract_addressbook_url(xml, self.HOME_SET)
             == "https://p99-contacts.icloud.com/1234/carddavhome/card/"
         )
 
@@ -209,17 +209,17 @@ class TestExtractAddressbookUrl:
           <d:response><d:href>/1234/carddavhome/</d:href></d:response>
           <d:response><d:href>/1234/carddavhome/card/</d:href></d:response>
         </d:multistatus>"""
-        result = _extract_addressbook_url(xml, self.HOME_SET)
+        result = extract_addressbook_url(xml, self.HOME_SET)
         assert result is not None
         assert result.endswith("/1234/carddavhome/card/")
 
     def test_no_candidate_returns_none(self) -> None:
         xml = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"/>'
-        assert _extract_addressbook_url(xml, self.HOME_SET) is None
+        assert extract_addressbook_url(xml, self.HOME_SET) is None
 
 
 class TestExtractContactHrefs:
-    """``_extract_contact_hrefs`` keeps only ``.vcf`` resources."""
+    """``extract_contact_hrefs`` keeps only ``.vcf`` resources."""
 
     def test_keeps_only_vcf_resources(self) -> None:
         xml = """<?xml version="1.0"?>
@@ -228,17 +228,17 @@ class TestExtractContactHrefs:
           <d:response><d:href>/1234/carddavhome/card/aaa.vcf</d:href></d:response>
           <d:response><d:href>/1234/carddavhome/card/bbb.vcf</d:href></d:response>
         </d:multistatus>"""
-        assert _extract_contact_hrefs(xml) == [
+        assert extract_contact_hrefs(xml) == [
             "/1234/carddavhome/card/aaa.vcf",
             "/1234/carddavhome/card/bbb.vcf",
         ]
 
     def test_malformed_xml_returns_empty_list(self) -> None:
-        assert _extract_contact_hrefs("<broken") == []
+        assert extract_contact_hrefs("<broken") == []
 
 
 class TestParseMultigetResponse:
-    """``_parse_multiget_response`` normalises vCards and attaches the etag."""
+    """``parse_multiget_response`` normalises vCards and attaches the etag."""
 
     def test_normalises_contacts_and_strips_etag_quotes(self) -> None:
         xml = f"""<?xml version="1.0"?>
@@ -251,7 +251,7 @@ class TestParseMultigetResponse:
             </d:prop></d:propstat>
           </d:response>
         </d:multistatus>"""
-        contacts = _parse_multiget_response(xml)
+        contacts = parse_multiget_response(xml)
 
         assert len(contacts) == 1
         contact = contacts[0]
@@ -267,7 +267,7 @@ class TestParseMultigetResponse:
             <d:propstat><d:prop><d:getetag>"x"</d:getetag></d:prop></d:propstat>
           </d:response>
         </d:multistatus>"""
-        assert _parse_multiget_response(xml) == []
+        assert parse_multiget_response(xml) == []
 
     def test_one_broken_vcard_does_not_drop_the_valid_ones(self) -> None:
         """A per-contact parse failure is isolated: siblings still come back."""
@@ -282,7 +282,7 @@ class TestParseMultigetResponse:
             <d:propstat><d:prop><card:address-data>{VCARD_JANE}</card:address-data></d:prop></d:propstat>
           </d:response>
         </d:multistatus>"""
-        contacts = _parse_multiget_response(xml)
+        contacts = parse_multiget_response(xml)
 
         names = [c.get("names", [{}])[0].get("displayName") for c in contacts]
         assert "Jane Doe" in names
@@ -802,3 +802,65 @@ class TestClose:
         )
         await instance.close()
         assert instance._http_client is None
+
+
+class TestResourceNamesStayOnTheService:
+    """Cold review of L2 (OWASP A10, credential exfiltration): a contact's resource
+    name reaches the client from a browser or a MODEL, and the client sends the
+    account's Apple ID and app password with every request. A name must resolve
+    on the CardDAV service — never to another host, by a full URL, a userinfo
+    trick (``@host``) or a host suffix (``.host``) appended to the base."""
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "https://attacker.example/x.vcf",
+            "@attacker.example/x.vcf",
+            ".attacker.example/x.vcf",
+            "https://contacts.icloud.com.attacker.example/x.vcf",
+            "https://user@contacts.icloud.com/x.vcf",
+            "http://contacts.icloud.com/x.vcf",
+            "x.vcf",
+        ],
+    )
+    async def test_a_name_off_the_service_is_refused_before_any_request(
+        self, client: AppleContactsClient, name: str
+    ) -> None:
+        http = AsyncMock()
+        http.get = AsyncMock(return_value=_response(200, "BEGIN:VCARD\nEND:VCARD"))
+        http.put = AsyncMock(return_value=_response(204))
+        http.delete = AsyncMock(return_value=_response(204))
+
+        with patch.object(client, "_get_http_client", AsyncMock(return_value=http)):
+            for act in (
+                lambda: client._get_person_impl(name, None, True),
+                lambda: client._update_contact_impl(name, "N", None, None, None, None, None),
+                lambda: client._delete_contact_impl(name),
+            ):
+                with pytest.raises(ValueError):
+                    await act()
+
+        http.get.assert_not_awaited()
+        http.put.assert_not_awaited()
+        http.delete.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        ("name", "expected_host"),
+        [
+            ("/1234/carddavhome/card/x.vcf", "contacts.icloud.com"),
+            (
+                "https://p42-contacts.icloud.com/1234/carddavhome/card/x.vcf",
+                "p42-contacts.icloud.com",
+            ),
+        ],
+    )
+    async def test_the_services_own_names_are_read(
+        self, client: AppleContactsClient, name: str, expected_host: str
+    ) -> None:
+        http = AsyncMock()
+        http.get = AsyncMock(return_value=_response(200, VCARD_JANE))
+
+        with patch.object(client, "_get_http_client", AsyncMock(return_value=http)):
+            await client._get_person_impl(name, None, True)
+
+        assert http.get.await_args.args[0].startswith(f"https://{expected_host}/")

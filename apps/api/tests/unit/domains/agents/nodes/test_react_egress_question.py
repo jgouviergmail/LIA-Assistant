@@ -467,7 +467,7 @@ class TestTheLoopGoesOn:
         after the refusal came back is a failure, never also « never run » —
         the honesty directive and the outcome would disagree about it."""
         _registered("egress_refused_later_tool", _asks)
-        monkeypatch.setattr(react_nodes, "_extract_draft_info", _processing_fails)
+        monkeypatch.setattr(react_nodes, "_extract_drafts", _processing_fails)
         with (
             patch(f"{mod.__name__}.interrupt", return_value={"action": "cancel"}),
             patch(f"{mod.__name__}.python_sandbox_egress_grants_total"),
@@ -530,7 +530,7 @@ class TestTheCallsBooks:
             return UnifiedToolOutput(success=True, message="found", structured_data={"n": 1})
 
         _registered("processing_fails_tool", _answers)
-        monkeypatch.setattr(react_nodes, "_extract_draft_info", _processing_fails)
+        monkeypatch.setattr(react_nodes, "_extract_drafts", _processing_fails)
         result = await react_nodes.react_execute_tools_node(
             _loop_state(("processing_fails_tool", "c-fails")), {}
         )
@@ -611,7 +611,7 @@ class TestTheCallsBooks:
         """Its answer carried a card, then the loop failed to process it: the
         card belongs to a failed call, never to the turn."""
         _registered("books_finds_then_fails_tool", _finds)
-        monkeypatch.setattr(react_nodes, "_extract_draft_info", _processing_fails)
+        monkeypatch.setattr(react_nodes, "_extract_drafts", _processing_fails)
         result = await react_nodes.react_execute_tools_node(
             _loop_state(("books_finds_then_fails_tool", "c-lost")), {}
         )
@@ -627,12 +627,15 @@ class TestTheCallsBooks:
         """One wrapper serves every call of a tool in an iteration: what the
         failed first call left in it never reaches the second call's books."""
 
-        def _first_processing_fails(raw_result: UnifiedToolOutput, tool_name: str) -> None:
+        def _first_processing_fails(
+            raw_result: UnifiedToolOutput, tool_name: str
+        ) -> list[dict[str, Any]]:
             if "contact_p-c-first" in raw_result.registry_updates:
                 raise RuntimeError("processing failed")
+            return []
 
         _registered("books_twice_tool", _finds)
-        monkeypatch.setattr(react_nodes, "_extract_draft_info", _first_processing_fails)
+        monkeypatch.setattr(react_nodes, "_extract_drafts", _first_processing_fails)
         from tests.unit.domains.agents.nodes.react_execution_harness import execute_all
 
         result = await execute_all(

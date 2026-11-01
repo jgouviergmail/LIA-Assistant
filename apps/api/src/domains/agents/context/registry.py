@@ -60,7 +60,9 @@ class ContextTypeDefinition(BaseModel):
         item_schema: Pydantic model for type-safe items (ContactItem, EmailItem).
         primary_id_field: Field name for unique ID ("resource_name", "message_id").
         display_name_field: Field for human-readable display ("name", "subject").
-        reference_fields: Fields searchable for fuzzy matching (["name", "emails"]).
+        reference_fields: Fields identifying an item (["name", "emails"]).
+        content_reference_fields: Content fields, read when no identity matches.
+        candidate_fields: What tells two items apart in « which one? ».
         icon: Optional emoji/icon for UI display.
 
     Example:
@@ -97,7 +99,24 @@ class ContextTypeDefinition(BaseModel):
         description="Field for human-readable display (e.g., 'name', 'subject')"
     )
     reference_fields: list[str] = Field(
-        description="Fields searchable for fuzzy matching (e.g., ['name', 'emails'])"
+        description=(
+            "Fields that IDENTIFY an item — names, titles, subjects, people, places — "
+            "searched first when a reference names or describes it (e.g., ['name', 'emails'])"
+        )
+    )
+    content_reference_fields: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Fields of the item's CONTENT (a body, notes), searched only when no item "
+            "matches on reference_fields (ADR-367)"
+        ),
+    )
+    candidate_fields: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Dotted paths of what tells two items apart when the person is asked which "
+            "one — sender, subject, date (ADR-367); the reference_fields when empty"
+        ),
     )
     icon: str | None = Field(default=None, description="Optional emoji/icon for UI")
     read_guard: ContextReadGuard | None = Field(default=None, exclude=True)
@@ -217,6 +236,15 @@ class ContextTypeRegistry:
             )
 
         return cls._registry[context_type]
+
+    @classmethod
+    def find(cls, context_type: str) -> ContextTypeDefinition | None:
+        """The registered definition of a context type, or None for an unknown one.
+
+        For readers handed a domain they did not choose (a model's output, a
+        stored item's meta): an unknown domain is an answer, not a failure.
+        """
+        return cls._registry.get(context_type)
 
     @classmethod
     def list_all(cls) -> list[str]:

@@ -18,13 +18,14 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.core.constants import RECURRENCE_REMINDER_LIMITS, RECURRENCE_ROUTINE_LIMITS
+from src.core.constants import RECURRENCE_REMINDER_LIMITS
 from src.core.recurrence import RecurrenceError, RecurrenceSpec
 from src.domains.reminders.models import ReminderStatus
 from src.domains.reminders.router import ReminderDetail, router
 from src.domains.reminders.schemas import ReminderUpdate
 from src.domains.reminders.service import ReminderService
 from tests._routes import served_routes
+from tests.helpers.routine_caps import DEFAULT_ROUTINE_LIMITS
 
 pytestmark = pytest.mark.unit
 
@@ -110,12 +111,15 @@ class TestTheDetailIsRenderedNotStored:
 
 
 class TestTheCapIsInjected:
-    """The first proof that one engine serves two callers with two ceilings."""
+    """The first proof that one engine serves two callers with two ceilings.
+
+    Against a routine's DEFAULT caps: an operator may widen a routine's since
+    2026-10-30, which changes the numbers, never the injection.
+    """
 
     def test_a_reminder_may_ask_more_of_a_day_than_a_routine(self) -> None:
         assert (
-            RECURRENCE_REMINDER_LIMITS.max_times_per_day
-            > RECURRENCE_ROUTINE_LIMITS.max_times_per_day
+            RECURRENCE_REMINDER_LIMITS.max_times_per_day > DEFAULT_ROUTINE_LIMITS.max_times_per_day
         )
 
     def test_a_schedule_a_routine_refuses_is_accepted_for_a_reminder(self) -> None:
@@ -130,7 +134,7 @@ class TestTheCapIsInjected:
         )
 
         with pytest.raises(RecurrenceError):
-            spec.validate_against(RECURRENCE_ROUTINE_LIMITS)
+            spec.validate_against(DEFAULT_ROUTINE_LIMITS)
         spec.validate_against(RECURRENCE_REMINDER_LIMITS)  # must not raise
 
     def test_the_reminder_ceiling_is_still_a_ceiling(self) -> None:

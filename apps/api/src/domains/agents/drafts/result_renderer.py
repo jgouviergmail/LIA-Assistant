@@ -35,6 +35,7 @@ belonging beside the preview it must agree with.
 from __future__ import annotations
 
 from contextlib import suppress
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, DRAFT_RESULT_EXCERPT_MAX_CHARS
@@ -542,6 +543,13 @@ def describe_execution_result(result: dict[str, Any] | None) -> ResultSpec | Non
             (),
             (),
         )
+
+    if status == "cancelled" and isinstance(data.get("_draft_content"), dict):
+        # A refusal names what was not done, with the rows its success would
+        # show: beside work that ran, a bare « Action annulée » was read as that
+        # work cancelled (measured 2026-10-30).
+        described = _describe_single(domain_emoji, config, _drawn(message), data)
+        return replace(described, mark=_STATUS_MARKS[status])
 
     if status in ("cancelled", "error", "waiting"):
         return ResultSpec(domain_emoji, _STATUS_MARKS[status], _drawn(message), "", (), ())

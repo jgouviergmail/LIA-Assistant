@@ -5,7 +5,7 @@ half a feature: between the gate and the card the user answers there are two
 pieces of pre-existing plumbing that know nothing about ADR-263, and both fail
 SILENTLY — no exception, no red test, just a turn where nothing happens.
 
-  1. ``_execute_tool`` only builds a ``draft_info`` when the result is a
+  1. ``_execute_tool`` only builds a draft (``draft_infos``) when the result is a
      ``StandardToolOutput | UnifiedToolOutput`` carrying the four keys it reads
      (``requires_confirmation``, ``draft_id``, ``draft_type`` and the payload
      under ``registry_updates[draft_id].payload["content"]``).
@@ -105,18 +105,20 @@ class TestTheExecutorTurnsTheGatesAnswerIntoADraft:
             )
 
         assert performed == [], "the effect must wait for the user's answer"
-        assert outcome.draft_info is not None, (
+        assert len(outcome.draft_infos) == 1, (
             "the executor did not recognise the gate's answer as a draft — "
             "the confirmation would never reach a card"
         )
-        assert outcome.draft_info["draft_type"] == DraftType.TOOL_CALL.value
-        assert outcome.draft_info["draft_content"] == {
+        (draft,) = outcome.draft_infos
+        assert draft["draft_type"] == DraftType.TOOL_CALL.value
+        assert draft["draft_content"] == {
             "tool_name": "plumbing_probe_cancel_tool",
             "tool_label": "plumbing probe cancel",
             "tool_args": {"plan": "premium"},
         }
         # The id the card answers is the id the replay names.
-        assert outcome.draft_info["draft_id"] in outcome.draft_info["registry_ids"]
+        assert draft["draft_id"] in draft["registry_ids"]
+        assert draft["step_id"] == "s1", "the draft names the step that asked"
 
     async def test_a_read_produces_no_draft(self) -> None:
         """Anti-vacuity: the detection above is not something every call trips."""
@@ -146,7 +148,7 @@ class TestTheExecutorTurnsTheGatesAnswerIntoADraft:
                 step_id="s1",
             )
 
-        assert outcome.draft_info is None
+        assert outcome.draft_infos == []
 
 
 class TestTheDraftIsRoutedToTheCardTheUserAnswers:
@@ -227,9 +229,9 @@ class TestTheDraftIsRoutedToTheCardTheUserAnswers:
 
         assert result["pending_draft_critique"]["draft_type"] == DraftType.EMAIL.value
 
-    async def test_disambiguation_is_still_diverted(self) -> None:
+    async def test_a_tool_confirmation_is_still_diverted(self) -> None:
         """Anti-vacuity: the chain really does route by type."""
-        result = await self._route(self._draft("entity_disambiguation"))
+        result = await self._route(self._draft("tool_confirmation"))
 
-        assert result.get("pending_entity_disambiguation") is not None
+        assert result.get("pending_tool_confirmation") is not None
         assert result.get("pending_draft_critique") is None

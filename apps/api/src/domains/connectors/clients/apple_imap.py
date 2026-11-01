@@ -42,10 +42,21 @@ from src.domains.connectors.clients.normalizers.imap_handles import (
     folder_digest,
     is_uid,
     principal_digest,
+    read_message_handle,
     scope_digest,
 )
 
 logger = structlog.get_logger(__name__)
+
+
+class ImapMessageNotFoundError(LookupError, ValueError):
+    """The message an id names is not where the id says, or the id names none.
+
+    A ``LookupError`` the workbench reads as « gone since it was listed »
+    (ADR-369); still a ``ValueError`` for the readers that caught the bare
+    one before the message had a type of its own.
+    """
+
 
 DRAFTS_ROLE: Final = "\\Drafts"
 TRASH_ROLE: Final = "\\Trash"
@@ -61,6 +72,12 @@ _ROLE_NAMES: Final[dict[str, tuple[str, ...]]] = {
     JUNK_ROLE: ("Junk", "Spam"),
     ARCHIVE_ROLE: ("Archive",),
 }
+
+#: Every folder name a role is found under, the inbox included — what a folder
+#: pane draws as a system place rather than a second time among the person's own.
+ROLE_FOLDER_NAMES: Final[frozenset[str]] = frozenset(
+    {INBOX, *(name for names in _ROLE_NAMES.values() for name in names)}
+)
 
 #: The locations a query names in Gmail's words (``in:trash``, ``label:SENT``),
 #: by what finds them on any server: the INBOX by its name, the rest by role.
@@ -255,6 +272,20 @@ def select_message_folder(
     return folder
 
 
+def located_message(message_id: str) -> MessageLocation:
+    """Where an id says its message is; an id that cannot be one names no message.
+
+    Raises:
+        ImapMessageNotFoundError: The id lacks a valid account/folder/UIDVALIDITY binding.
+    """
+    location = read_message_handle(message_id)
+    if location is None or location.scope_digest is None:
+        raise ImapMessageNotFoundError(
+            "Message not found: list the messages again for a current identifier."
+        )
+    return location
+
+
 def page_offset(page_token: str | None) -> int:
     """Read an IMAP page token (a decimal offset); anything else is page one."""
     if not page_token:
@@ -308,6 +339,7 @@ __all__ = [
     "ARCHIVE_ROLE",
     "DRAFTS_ROLE",
     "JUNK_ROLE",
+    "ROLE_FOLDER_NAMES",
     "SENT_ROLE",
     "TRASH_ROLE",
     "checked_uid",

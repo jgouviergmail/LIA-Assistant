@@ -86,6 +86,12 @@ class ResolvedContext:
     source_domain: str | None = (
         None  # Domain from which items were resolved (e.g., "places", "contacts")
     )
+    # Shown items a description fits when it fits several: the person is asked
+    # which one before anything is planned (ADR-367). Empty otherwise.
+    candidates: list[Any] = field(default_factory=list)
+    # The words the person designated the item with — what the question asks
+    # about (« Several items shown match “Marc” »). Empty otherwise.
+    descriptor: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -95,7 +101,22 @@ class ResolvedContext:
             "method": self.method,
             "source_turn_id": self.source_turn_id,
             "source_domain": self.source_domain,
+            "candidates": self.candidates,
+            "descriptor": self.descriptor,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ResolvedContext:
+        """Rebuild what :meth:`to_dict` wrote — the one reader of the checkpointed form."""
+        return cls(
+            items=list(data.get("items") or []),
+            confidence=float(data.get("confidence", 1.0)),
+            method=str(data.get("method", "explicit")),
+            source_turn_id=data.get("source_turn_id"),
+            source_domain=data.get("source_domain"),
+            candidates=list(data.get("candidates") or []),
+            descriptor=str(data.get("descriptor") or ""),
+        )
 
     def to_llm_context(self) -> str:
         """

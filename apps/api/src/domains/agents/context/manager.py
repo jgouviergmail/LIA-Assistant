@@ -75,6 +75,7 @@ from langgraph.store.base import BaseStore
 from src.core.config import settings
 from src.core.field_names import (
     FIELD_INDEX,
+    FIELD_INTERMEDIATE_STEP,
     FIELD_METADATA,
     FIELD_QUERY,
     FIELD_TIMESTAMP,
@@ -853,6 +854,13 @@ class ToolContextManager:
             result_count=len(items),
             explicit_mode=explicit_mode,
         )
+        if save_mode == ContextSaveMode.LIST and config.get(FIELD_METADATA, {}).get(
+            FIELD_INTERMEDIATE_STEP
+        ):
+            # A lookup another step consumes is a means, not what was shown: it
+            # must not replace the list the person saw (ADR-367) — one found
+            # item becomes current, several leave the shown list untouched.
+            save_mode = ContextSaveMode.CURRENT
 
         logger.info(
             "auto_save_classified",

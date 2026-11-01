@@ -365,3 +365,93 @@ describe('HitlActionCard — draft inline edit (P1-V2)', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 });
+
+describe('HitlActionCard — which of these (ADR-367)', () => {
+  const choice = (status: HitlCardState['status'] = 'awaiting') =>
+    cardState({
+      status,
+      payload: payload({
+        kind: 'entity_disambiguation',
+        toolName: undefined,
+        toolArgs: undefined,
+        actions: [
+          { action: 'none', label: 'none', style: 'secondary' },
+          { action: 'cancel', label: 'cancel', style: 'destructive' },
+        ],
+        options: [
+          { index: 1, label: 'Marc · Photos · mardi' },
+          { index: 2, label: 'Marc · Facture · lundi' },
+        ],
+      }),
+    });
+
+  it('asks its question and lists every option as a button of a named group', () => {
+    render(<HitlActionCard hitl={choice()} onAction={vi.fn()} />);
+
+    expect(
+      screen.getByRole('region', { name: 'chat.hitl.title.entity_disambiguation' })
+    ).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'chat.hitl.choice.options' });
+    expect(group).toContainElement(
+      screen.getByRole('button', { name: '1. Marc · Photos · mardi' })
+    );
+    expect(group).toContainElement(
+      screen.getByRole('button', { name: '2. Marc · Facture · lundi' })
+    );
+  });
+
+  it('an option sends its position — the visible message names it, never quotes the label', async () => {
+    const onAction = vi.fn();
+    render(<HitlActionCard hitl={choice()} onAction={onAction} />);
+
+    await userEvent.click(screen.getByRole('button', { name: '2. Marc · Facture · lundi' }));
+
+    // A label quotes a third party, and the person's bubble renders Markdown.
+    expect(onAction).toHaveBeenCalledWith('select', 'chat.hitl.choice.chosen', undefined, 2);
+  });
+
+  it('none and cancel decline, each by its own answer', async () => {
+    const onAction = vi.fn();
+    render(<HitlActionCard hitl={choice()} onAction={onAction} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.none' }));
+    await userEvent.click(screen.getByRole('button', { name: 'chat.hitl.actions.cancel' }));
+
+    expect(onAction).toHaveBeenNthCalledWith(1, 'none', 'chat.hitl.actions.none');
+    expect(onAction).toHaveBeenNthCalledWith(2, 'cancel', 'chat.hitl.actions.cancel');
+  });
+
+  it('busy, an option keeps its place in the tab order and ignores a second click', async () => {
+    const onAction = vi.fn();
+    render(<HitlActionCard hitl={choice('submitting')} onAction={onAction} />);
+    const option = screen.getByRole('button', { name: '1. Marc · Photos · mardi' });
+
+    expect(option).toHaveAttribute('aria-disabled', 'true');
+    expect(option).not.toBeDisabled();
+    await userEvent.click(option);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it('is answered by keyboard alone', async () => {
+    const onAction = vi.fn();
+    render(<HitlActionCard hitl={choice()} onAction={onAction} />);
+
+    await userEvent.tab();
+    expect(screen.getByRole('button', { name: '1. Marc · Photos · mardi' })).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(onAction).toHaveBeenCalledWith('select', 'chat.hitl.choice.chosen', undefined, 1);
+  });
+
+  it('resolved, the options give way to the outcome', () => {
+    render(
+      <HitlActionCard
+        hitl={{ ...choice('resolved'), resolution: 'confirmed', submittedAction: 'confirm' }}
+        onAction={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('group', { name: 'chat.hitl.choice.options' })).toBeNull();
+    expect(screen.getByText('chat.hitl.resolved.confirmed')).toBeInTheDocument();
+  });
+});

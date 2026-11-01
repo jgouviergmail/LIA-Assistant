@@ -28,7 +28,6 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import Settings, get_settings, settings
-from src.core.field_names import FIELD_DISPLAY_ONLY, FIELD_REGISTRY_ID
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
@@ -39,9 +38,16 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.context.runtime_context import runtime_user_id_str
-from src.domains.agents.data_registry.card_payload import display_fields
-from src.domains.agents.data_registry.mcp_metadata import authoritative_mcp_source
+from src.domains.agents.context.shown_items import ordinal_list
 from src.domains.agents.models import MessagesState
+from src.domains.agents.services.analysis.query_analysis_schemas import REFERENCE_TYPE_DESCRIPTIVE
+from src.domains.agents.services.descriptive_reference import resolve_descriptive_reference
+from src.domains.agents.services.reference_fallbacks import (
+    extract_all_items,
+    extract_items_from_registry,
+    resolved_payload,
+    results_for_turn,
+)
 from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.utils.type_domain_mapping import TOOL_PATTERN_TO_DOMAIN_MAP
 from src.infrastructure.observability.metrics_agents import (
@@ -55,53 +61,6 @@ if TYPE_CHECKING:
     from src.domains.agents.services.query_analyzer_service import ContextReferenceOutput
 
 logger = structlog.get_logger(__name__)
-
-
-# Payload data-key -> canonical result_key of the domain that produced it.
-# Used to detect the domain of a past turn from its result structure when no
-# explicit meta.domain is present. Values MUST be canonical result_keys
-# (plural): the detected value is compared against item.meta.domain /
-# _derive_domain_from_type (both result_keys) in STRATEGY 3, so a singular or
-# legacy token (e.g. "drive", "weather") never matches and domain-based
-# reference resolution silently degrades. Guarded by the domain-vocabulary
-# parity test.
-_DATA_KEY_TO_RESULT_KEY: dict[str, str] = {
-    "emails": "emails",
-    "contacts": "contacts",
-    "events": "events",
-    "files": "files",
-    "tasks": "tasks",
-    "places": "places",
-    "weather": "weathers",
-    "forecasts": "weathers",
-    "articles": "wikipedias",
-    "results": "perplexitys",
-}
-
-
-def _resolved_payload(item_id: str, payload: dict[str, Any], item: object) -> dict[str, Any]:
-    """A registry payload as a resolved reference carries it.
-
-    It keeps its registry id, and the display-only fields the card of a later
-    turn draws, under ``FIELD_DISPLAY_ONLY`` — the model readers of a resolved
-    item skip ``_`` keys (``payload_to_text``, ``ResolvedContext.to_llm_context``;
-    ADR-287 amendment).
-
-    Args:
-        item_id: The registry id.
-        payload: The item's payload (never mutated).
-        item: The registry item (object or JSON dump), for its display fields.
-
-    Returns:
-        A new dict.
-    """
-    resolved = {**payload, FIELD_REGISTRY_ID: item_id}
-    display = display_fields(item)
-    if source := authoritative_mcp_source(item, display):
-        display = {**display, "_mcp_source": source}
-    if display:
-        resolved[FIELD_DISPLAY_ONLY] = display
-    return resolved
 
 
 # =============================================================================
@@ -222,8 +181,15 @@ class ContextResolutionService:
                     TURN_TYPE_ACTION,
                 )
 
-            # LLM-first: use structured context_reference from QueryAnalyzer
-            if context_reference.has_reference:
+            # LLM-first: use structured context_reference from QueryAnalyzer.
+            # A DESCRIBED item is resolved against what was shown (ADR-367) —
+            # only when the analyzer says a shown item is designated at all.
+            described = context_reference.reference_type == REFERENCE_TYPE_DESCRIPTIVE
+            if context_reference.has_reference and described:
+                result = resolve_descriptive_reference(context_reference, state)
+                turn_type = TURN_TYPE_REFERENCE if result.items else TURN_TYPE_ACTION
+                method = result.method
+            elif context_reference.has_reference:
                 result = await self._resolve_llm_detected_reference(
                     context_reference, state, config, run_id
                 )
@@ -334,7 +300,6 @@ class ContextResolutionService:
         )
 
         last_list_turn = cast(int | None, state.get(STATE_KEY_LAST_LIST_TURN_ID))
-        agent_results = cast(dict[str, Any], state.get(STATE_KEY_AGENT_RESULTS, {}))
 
         # === 1. DOMAIN RESOLUTION (always singular) ===
         source_domain: str | None = context_reference.reference_domain or None
@@ -375,23 +340,10 @@ class ContextResolutionService:
             ordinal_positions=context_reference.ordinal_positions,
         )
 
-        # === 2. FETCH ITEMS (3 strategies) ===
-        all_items: list[Any] = []
-
-        # Strategy 1: ToolContextManager (primary)
-        all_items = await self._get_items_from_tool_context_manager(config, context_domain, run_id)
-
-        # Strategy 2: agent_results from last list turn
-        if not all_items and last_list_turn is not None:
-            last_turn_results = self._get_results_for_turn(agent_results, last_list_turn)
-            if last_turn_results:
-                all_items = self._extract_all_items(last_turn_results)
-
-        # Strategy 3: data_registry (final fallback)
-        if not all_items:
-            all_items = self._extract_items_from_registry(
-                state, run_id, last_list_turn, agent_results
-            )
+        # === 2. FETCH ITEMS ===
+        all_items, last_list_turn = await self._list_items(
+            state, config, context_domain, last_list_turn, run_id
+        )
 
         if not all_items:
             logger.info(
@@ -533,6 +485,36 @@ class ContextResolutionService:
             source_domain=source_domain,
         )
 
+    async def _list_items(
+        self,
+        state: MessagesState,
+        config: RunnableConfig,
+        context_domain: str,
+        last_list_turn: int | None,
+        run_id: str,
+    ) -> tuple[list[Any], int | None]:
+        """The list an ordinal counts in, and the turn that listed it.
+
+        What the last answers SHOWED first (ADR-367 amendment): the context list
+        holds what the last LOOKUP returned, a means the answer may never have
+        shown. The older strategies — the context list, the turn's agent
+        results, the registry — serve a list beyond that reach.
+        """
+        shown_turn, shown = ordinal_list(state, context_domain)
+        if shown:
+            logger.info("llm_reference_items_from_shown", run_id=run_id, items=len(shown))
+            items = [resolved_payload(i.item_id, dict(i.payload), i.entry) for i in shown]
+            return items, shown_turn
+        agent_results = cast(dict[str, Any], state.get(STATE_KEY_AGENT_RESULTS, {}))
+        all_items = await self._get_items_from_tool_context_manager(config, context_domain, run_id)
+        if not all_items and last_list_turn is not None:
+            last_turn_results = results_for_turn(agent_results, last_list_turn)
+            if last_turn_results:
+                all_items = extract_all_items(last_turn_results)
+        if not all_items:
+            all_items = extract_items_from_registry(state, run_id, last_list_turn, agent_results)
+        return all_items, last_list_turn
+
     async def _update_current_after_resolution(
         self,
         resolved_items: list[Any],
@@ -616,417 +598,6 @@ class ContextResolutionService:
                 run_id=run_id,
                 domain=context_domain,
             )
-
-    def _get_results_for_turn(
-        self,
-        agent_results: dict[str, Any],
-        turn_id: int,
-    ) -> dict[str, Any]:
-        """
-        Filter agent results for a specific turn.
-
-        Args:
-            agent_results: All agent results (keyed by "turn_id:agent_name").
-            turn_id: Turn ID to filter by.
-
-        Returns:
-            Dict of agent_name → result for the specified turn.
-        """
-        results: dict[str, Any] = {}
-        prefix = f"{turn_id}:"
-
-        for key, value in agent_results.items():
-            if key.startswith(prefix):
-                agent_name = key[len(prefix) :]
-                results[agent_name] = value
-
-        return results
-
-    def _extract_all_items(self, agent_results: dict[str, Any]) -> list[Any]:
-        """
-        Extract all list items from agent results.
-
-        Looks for common list fields in results (emails, contacts, events, etc.)
-        and aggregates them into a single list.
-
-        BugFix 2025-12-19: Also extract from registry_updates for registry-mode tools.
-
-        Args:
-            agent_results: Dict of agent_name → result.
-
-        Returns:
-            Flattened list of all items from all agents.
-        """
-        from src.domains.agents.data_registry.models import RegistryItem
-
-        all_items: list[Any] = []
-
-        # Common list field names across domains
-        # NOTE: Order matters - more specific fields first, generic fields last
-        list_fields = [
-            "emails",
-            "contacts",
-            "events",
-            "files",
-            "tasks",
-            "places",  # Google Places search/nearby results
-            "items",
-            "results",
-            "list",
-        ]
-
-        for _agent_name, result in agent_results.items():
-            if isinstance(result, dict):
-                # BugFix 2025-12-19: Check registry_updates FIRST for registry-mode tools
-                # Registry-mode tools store data in registry_updates, not in traditional fields
-                registry_updates = result.get("registry_updates", {})
-                if registry_updates and isinstance(registry_updates, dict):
-                    for _item_id, reg_item in registry_updates.items():
-                        if isinstance(reg_item, RegistryItem):
-                            # Enrich with metadata for domain detection
-                            payload = _resolved_payload(_item_id, reg_item.payload, reg_item)
-                            payload["_item_type"] = reg_item.type.value
-                            all_items.append(payload)
-                        elif isinstance(reg_item, dict):
-                            raw_payload = reg_item.get("payload", reg_item)
-                            if isinstance(raw_payload, dict):
-                                # Enrich with metadata for domain detection
-                                payload = _resolved_payload(_item_id, raw_payload, reg_item)
-                                # Try to get type from dict if available
-                                if "type" in reg_item:
-                                    payload["_item_type"] = reg_item["type"]
-                                all_items.append(payload)
-                    if all_items:
-                        logger.info(
-                            "extract_all_items_from_registry_updates",
-                            agent_name=_agent_name,
-                            items_added=len(registry_updates),
-                        )
-                        continue  # Skip traditional field extraction
-
-                # Check if result has "data" field (standard agent result structure)
-                # Structure: {"agent_name": ..., "status": ..., "data": {"emails": [...]}}
-                data_container = result.get("data", result)
-                if isinstance(data_container, dict):
-                    # Look for list fields in data container
-                    found_field = None
-                    for field in list_fields:
-                        if field in data_container and isinstance(data_container[field], list):
-                            all_items.extend(data_container[field])
-                            found_field = field
-                            break
-                    if found_field:
-                        logger.debug(
-                            "extract_all_items_found_field",
-                            agent_name=_agent_name,
-                            field=found_field,
-                            items_added=len(data_container[found_field]),
-                        )
-                    else:
-                        # No known list field found - check for any list value
-                        if result.get("status") == "success":
-                            for key, value in data_container.items():
-                                if isinstance(value, list) and key not in [
-                                    "errors",
-                                    "warnings",
-                                ]:
-                                    all_items.extend(value)
-                                    logger.debug(
-                                        "extract_all_items_fallback_list",
-                                        agent_name=_agent_name,
-                                        key=key,
-                                        items_added=len(value),
-                                    )
-                                    break
-                        else:
-                            logger.debug(
-                                "extract_all_items_no_match",
-                                agent_name=_agent_name,
-                                data_keys=list(data_container.keys())[:5],
-                                result_status=result.get("status"),
-                            )
-            elif isinstance(result, list):
-                all_items.extend(result)
-                logger.debug(
-                    "extract_all_items_raw_list",
-                    agent_name=_agent_name,
-                    items_added=len(result),
-                )
-
-        if not all_items:
-            logger.debug(
-                "extract_all_items_empty",
-                agent_count=len(agent_results),
-                agent_names=list(agent_results.keys()),
-            )
-
-        # Sort items by index field to preserve original order for ordinal resolution
-        # (e.g., "the second one" should get the item with index=2)
-        # Items without index field are placed at the end
-        all_items.sort(key=lambda x: x.get("index", float("inf")))
-
-        return all_items
-
-    def _extract_items_from_registry(
-        self,
-        state: MessagesState,
-        run_id: str,
-        last_action_turn: int | None = None,
-        agent_results: dict[str, Any] | None = None,
-    ) -> list[Any]:
-        """
-        Extract items from data_registry for reference resolution.
-
-        CRITICAL FIX 2025-12-19: Multi-level filtering strategy to prevent cross-domain
-        contamination (e.g., returning contacts when user asked for "the second e-mail").
-
-        Filtering Priority (stops at first successful filter):
-        1. registry_updates from agent_results for last_action_turn
-        2. turn_id in RegistryItem.meta (if populated)
-        3. Domain-based filtering using detected domain from last action
-        4. SAFE FALLBACK: Return empty list (never return ALL items)
-
-        Args:
-            state: Current conversation state with registry.
-            run_id: Current run ID for logging.
-            last_action_turn: Turn ID to filter items by.
-            agent_results: Agent results to extract registry_updates from.
-
-        Returns:
-            List of item payloads from the registry, filtered to prevent cross-domain issues.
-        """
-        from src.domains.agents.data_registry.models import RegistryItem
-
-        registry = state.get("registry", {})
-        if not registry:
-            logger.debug("no_registry_in_state", run_id=run_id)
-            return []
-
-        # =========================================================================
-        # STRATEGY 1: Filter by registry_updates from agent_results
-        # =========================================================================
-        target_item_ids: set[str] | None = None
-        filter_method = "none"
-
-        if last_action_turn is not None and agent_results:
-            target_item_ids = set()
-            prefix = f"{last_action_turn}:"
-            for key, result in agent_results.items():
-                if key.startswith(prefix):
-                    updates = {}
-                    if isinstance(result, dict):
-                        updates = result.get("registry_updates", {})
-                    elif hasattr(result, "registry_updates"):
-                        updates = getattr(result, "registry_updates", {})
-                    if updates:
-                        target_item_ids.update(updates.keys())
-
-            if target_item_ids:
-                filter_method = "registry_updates"
-                logger.info(
-                    "registry_extraction_filtered_by_registry_updates",
-                    run_id=run_id,
-                    turn_id=last_action_turn,
-                    total_registry_count=len(registry),
-                    filtered_count=len(target_item_ids),
-                    filtered_ids=list(target_item_ids)[:10],
-                )
-            else:
-                target_item_ids = None
-
-        # =========================================================================
-        # STRATEGY 2: Filter by turn_id in RegistryItem.meta
-        # =========================================================================
-        if target_item_ids is None and last_action_turn is not None:
-            target_item_ids = set()
-            for item_id, item in registry.items():
-                if isinstance(item, RegistryItem):
-                    if item.meta.turn_id == last_action_turn:
-                        target_item_ids.add(item_id)
-
-            if target_item_ids:
-                filter_method = "turn_id_meta"
-                logger.info(
-                    "registry_extraction_filtered_by_turn_id_meta",
-                    run_id=run_id,
-                    turn_id=last_action_turn,
-                    filtered_count=len(target_item_ids),
-                )
-            else:
-                target_item_ids = None
-
-        # =========================================================================
-        # STRATEGY 3: Filter by domain from last action turn
-        # =========================================================================
-        if target_item_ids is None and last_action_turn is not None and agent_results:
-            # Detect domain from agent_results for last action turn
-            detected_domain = self._detect_domain_from_agent_results(
-                agent_results, last_action_turn, run_id
-            )
-
-            if detected_domain:
-                target_item_ids = set()
-                for item_id, item in registry.items():
-                    if isinstance(item, RegistryItem):
-                        # Match by meta.domain or by item type prefix
-                        item_domain = item.meta.domain
-                        if item_domain is None:
-                            # Fallback: derive domain from item type
-                            item_domain = self._derive_domain_from_type(item.type.value)
-
-                        if item_domain == detected_domain:
-                            target_item_ids.add(item_id)
-
-                if target_item_ids:
-                    filter_method = "domain"
-                    logger.info(
-                        "registry_extraction_filtered_by_domain",
-                        run_id=run_id,
-                        detected_domain=detected_domain,
-                        turn_id=last_action_turn,
-                        filtered_count=len(target_item_ids),
-                    )
-                else:
-                    target_item_ids = None
-
-        # =========================================================================
-        # STRATEGY 4: SAFE FALLBACK - Return empty rather than ALL items
-        # =========================================================================
-        if target_item_ids is None:
-            logger.warning(
-                "registry_extraction_no_valid_filter",
-                run_id=run_id,
-                turn_id=last_action_turn,
-                total_registry_count=len(registry),
-                reason="All filtering strategies failed - returning empty to prevent cross-domain contamination",
-            )
-            return []
-
-        # =========================================================================
-        # Extract payloads from filtered RegistryItems
-        # =========================================================================
-        items: list[Any] = []
-        for item_id, item in registry.items():
-            if item_id not in target_item_ids:
-                continue
-
-            if isinstance(item, RegistryItem):
-                payload = _resolved_payload(item_id, item.payload, item)
-                payload["_item_type"] = item.type.value
-                items.append(payload)
-            elif isinstance(item, dict):
-                payload = item.get("payload", item)
-                if isinstance(payload, dict):
-                    payload = _resolved_payload(item_id, payload, item)
-                items.append(payload)
-            else:
-                logger.warning(
-                    "registry_item_unexpected_type",
-                    run_id=run_id,
-                    item_id=item_id,
-                    item_type=type(item).__name__,
-                )
-
-        if items:
-            # Sort items by index field to preserve original order for ordinal resolution
-            # (e.g., "the second one" should get the item with index=2)
-            # Items without index field are placed at the end
-            items.sort(key=lambda x: x.get("index", float("inf")))
-
-            logger.info(
-                "items_extracted_from_registry",
-                run_id=run_id,
-                items_count=len(items),
-                filter_method=filter_method,
-                turn_id=last_action_turn,
-                item_types=[i.get("_item_type", "unknown") for i in items[:5]],
-            )
-
-        return items
-
-    def _detect_domain_from_agent_results(
-        self,
-        agent_results: dict[str, Any],
-        turn_id: int,
-        run_id: str,
-    ) -> str | None:
-        """
-        Detect domain from agent_results for a specific turn.
-
-        Looks at the result structure to determine which domain the last action was for.
-        This is used as a fallback when registry_updates is not available.
-
-        Args:
-            agent_results: All agent results.
-            turn_id: Turn ID to look for.
-            run_id: Run ID for logging.
-
-        Returns:
-            Domain name (e.g., "emails", "contacts") or None if not detected.
-        """
-        prefix = f"{turn_id}:"
-        for key, result in agent_results.items():
-            if not key.startswith(prefix):
-                continue
-
-            if not isinstance(result, dict):
-                continue
-
-            # Check for domain indicators in result structure
-            # Priority: explicit 'domain' field > data keys > tool_name
-            if "domain" in result:
-                return str(result["domain"])
-
-            # Check data keys
-            data = result.get("data", result)
-            if isinstance(data, dict):
-                for key_name, domain in _DATA_KEY_TO_RESULT_KEY.items():
-                    if key_name in data:
-                        logger.debug(
-                            "domain_detected_from_data_keys",
-                            run_id=run_id,
-                            turn_id=turn_id,
-                            detected_key=key_name,
-                            domain=domain,
-                        )
-                        return domain
-
-            # Check tool_name - use centralized mapping from type_domain_mapping.py
-            tool_name = result.get("tool_name", "")
-            if tool_name:
-                from src.domains.agents.utils.type_domain_mapping import (
-                    get_domain_from_tool_name,
-                )
-
-                domain = get_domain_from_tool_name(tool_name)  # type: ignore
-                if domain:
-                    logger.debug(
-                        "domain_detected_from_tool_name",
-                        run_id=run_id,
-                        turn_id=turn_id,
-                        tool_name=tool_name,
-                        domain=domain,
-                    )
-                    return domain
-
-        return None
-
-    def _derive_domain_from_type(self, item_type: str) -> str | None:
-        """
-        Derive result key (pluriel) from RegistryItemType value.
-
-        Uses centralized TYPE_TO_DOMAIN_MAP from type_domain_mapping.py.
-        Returns the pluriel form to match meta.domain convention.
-
-        Args:
-            item_type: Item type string (e.g., "EMAIL", "CONTACT").
-
-        Returns:
-            Result key (e.g., "emails", "contacts") or None.
-        """
-        from src.domains.agents.utils.type_domain_mapping import get_result_key_from_type
-
-        return get_result_key_from_type(item_type)
 
     async def _get_items_from_tool_context_manager(
         self,

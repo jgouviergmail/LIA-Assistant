@@ -18,15 +18,27 @@ import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import httpx
 import structlog
-from lxml import etree
 
 from src.core.config import settings
 from src.core.field_names import FIELD_CACHED_AT
 from src.core.read_budget import source_http_hooks
+from src.domains.connectors.clients.apple_carddav_xml import (
+    PROPFIND_ADDRESSBOOK_HOME,
+    PROPFIND_ADDRESSBOOKS,
+    PROPFIND_CONTACTS_HREFS,
+    PROPFIND_PRINCIPAL,
+    REPORT_MULTIGET_TEMPLATE,
+    extract_addressbook_home_set,
+    extract_addressbook_url,
+    extract_contact_hrefs,
+    extract_principal_url,
+    parse_multiget_response,
+)
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.contact_directory import (
@@ -34,6 +46,8 @@ from src.domains.connectors.clients.contact_directory import (
     cached_directory,
     invalidate_contacts_cache,
 )
+from src.domains.connectors.clients.normalizers.contact_order import contact_order_key
+from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
 from src.domains.connectors.clients.normalizers.contacts_normalizer import (
     build_vcard,
     merge_vcard_fields,
@@ -43,62 +57,7 @@ from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.cache.redis import get_redis_session
 
-# Secure XML parser: disable entity resolution to prevent XXE attacks.
-# CardDAV responses come from external servers (network input).
-_SAFE_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
-
 logger = structlog.get_logger(__name__)
-
-# XML namespace constants
-DAV_NS = "DAV:"
-CARDDAV_NS = "urn:ietf:params:xml:ns:carddav"
-
-# CardDAV XML templates
-_PROPFIND_PRINCIPAL = """<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop><d:current-user-principal/></d:prop>
-</d:propfind>"""
-
-_PROPFIND_ADDRESSBOOK_HOME = """<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
-  <d:prop>
-    <card:addressbook-home-set/>
-  </d:prop>
-</d:propfind>"""
-
-_PROPFIND_ADDRESSBOOKS = """<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
-  <d:prop>
-    <d:resourcetype/>
-    <d:displayname/>
-  </d:prop>
-</d:propfind>"""
-
-_PROPFIND_CONTACTS_HREFS = """<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop><d:getetag/></d:prop>
-</d:propfind>"""
-
-# Bulk fetch WITHOUT photos (photos are up to 224KB/contact in base64)
-_REPORT_MULTIGET_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
-<card:addressbook-multiget xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
-  <d:prop>
-    <d:getetag/>
-    <card:address-data>
-      <card:prop name="FN"/>
-      <card:prop name="N"/>
-      <card:prop name="EMAIL"/>
-      <card:prop name="TEL"/>
-      <card:prop name="ORG"/>
-      <card:prop name="TITLE"/>
-      <card:prop name="BDAY"/>
-      <card:prop name="ADR"/>
-      <card:prop name="NOTE"/>
-      <card:prop name="URL"/>
-    </card:address-data>
-  </d:prop>
-  {hrefs}
-</card:addressbook-multiget>"""
 
 
 class AppleContactsClient(BaseAppleClient):
@@ -153,7 +112,7 @@ class AppleContactsClient(BaseAppleClient):
         resp = await client.request(
             "PROPFIND",
             settings.apple_carddav_url,
-            content=_PROPFIND_PRINCIPAL,
+            content=PROPFIND_PRINCIPAL,
             headers={"Content-Type": "application/xml", "Depth": "0"},
         )
         self._check_http_status(resp.status_code)
@@ -163,7 +122,7 @@ class AppleContactsClient(BaseAppleClient):
             status=resp.status_code,
             body_preview=resp.text[:500],
         )
-        principal_url = _extract_principal_url(resp.text)
+        principal_url = extract_principal_url(resp.text)
         if not principal_url:
             logger.error(
                 "carddav_step1_failed",
@@ -179,7 +138,7 @@ class AppleContactsClient(BaseAppleClient):
         resp = await client.request(
             "PROPFIND",
             principal_url,
-            content=_PROPFIND_ADDRESSBOOK_HOME,
+            content=PROPFIND_ADDRESSBOOK_HOME,
             headers={"Content-Type": "application/xml", "Depth": "0"},
         )
         self._check_http_status(resp.status_code)
@@ -190,7 +149,7 @@ class AppleContactsClient(BaseAppleClient):
             principal_url=principal_url,
             body_preview=resp.text[:500],
         )
-        home_set_url = _extract_addressbook_home_set(resp.text)
+        home_set_url = extract_addressbook_home_set(resp.text)
         if not home_set_url:
             logger.warning(
                 "carddav_step2_no_home_set",
@@ -207,7 +166,7 @@ class AppleContactsClient(BaseAppleClient):
         resp = await client.request(
             "PROPFIND",
             home_set_url,
-            content=_PROPFIND_ADDRESSBOOKS,
+            content=PROPFIND_ADDRESSBOOKS,
             headers={"Content-Type": "application/xml", "Depth": "1"},
         )
         self._check_http_status(resp.status_code)
@@ -218,7 +177,7 @@ class AppleContactsClient(BaseAppleClient):
             home_set_url=home_set_url,
             body_preview=resp.text[:500],
         )
-        addressbook_url = _extract_addressbook_url(resp.text, home_set_url)
+        addressbook_url = extract_addressbook_url(resp.text, home_set_url)
         if not addressbook_url:
             logger.warning(
                 "carddav_step3_no_addressbook",
@@ -322,6 +281,10 @@ class AppleContactsClient(BaseAppleClient):
         phone: str | None = None,
         organization: str | None = None,
         notes: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """Create a new contact.
 
@@ -337,6 +300,9 @@ class AppleContactsClient(BaseAppleClient):
             organization,
             notes,
             contact_uid=str(uuid.uuid4()),
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
         )
 
     async def update_contact(
@@ -348,8 +314,16 @@ class AppleContactsClient(BaseAppleClient):
         organization: str | None = None,
         notes: str | None = None,
         address: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
-        """Update an existing contact (full PUT, no PATCH in CardDAV)."""
+        """Update an existing contact (full PUT, no PATCH in CardDAV).
+
+        A single e-mail, phone or address replaces the PRIMARY one and keeps the
+        others; a list replaces that list; every other line of the card survives.
+        """
         return await self._execute_with_retry(
             "update_contact",
             self._update_contact_impl,
@@ -360,6 +334,9 @@ class AppleContactsClient(BaseAppleClient):
             organization,
             notes,
             address,
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
         )
 
     async def delete_contact(self, resource_name: str) -> bool:
@@ -417,12 +394,12 @@ class AppleContactsClient(BaseAppleClient):
         resp = await client.request(
             "PROPFIND",
             addressbook_url,
-            content=_PROPFIND_CONTACTS_HREFS,
+            content=PROPFIND_CONTACTS_HREFS,
             headers={"Content-Type": "application/xml", "Depth": "1"},
         )
         self._check_http_status(resp.status_code)
 
-        hrefs = _extract_contact_hrefs(resp.text)
+        hrefs = extract_contact_hrefs(resp.text)
         logger.debug(
             "carddav_contacts_hrefs",
             user_id=str(self.user_id),
@@ -435,7 +412,7 @@ class AppleContactsClient(BaseAppleClient):
 
         # Step 2: Batch fetch contact data via REPORT multiget (without photos)
         href_xml = "\n".join(f"  <d:href>{href}</d:href>" for href in hrefs)
-        report_body = _REPORT_MULTIGET_TEMPLATE.replace("{hrefs}", href_xml)
+        report_body = REPORT_MULTIGET_TEMPLATE.replace("{hrefs}", href_xml)
 
         resp = await client.request(
             "REPORT",
@@ -445,7 +422,7 @@ class AppleContactsClient(BaseAppleClient):
         )
         self._check_http_status(resp.status_code)
 
-        contacts = _parse_multiget_response(resp.text)
+        contacts = parse_multiget_response(resp.text)
         logger.debug(
             "carddav_contacts_fetched",
             user_id=str(self.user_id),
@@ -531,8 +508,10 @@ class AppleContactsClient(BaseAppleClient):
         use_cache: bool,
         fields: list[str] | None,
     ) -> dict[str, Any]:
-        """List all contacts."""
-        all_contacts, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
+        """List all contacts, by family then given name (``contact_order_key``)."""
+        book, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
+        # Read whole anyway, so sorted before it pages: a page follows the one before it.
+        all_contacts = sorted(book, key=contact_order_key)
 
         # Simple pagination
         start = 0
@@ -562,10 +541,7 @@ class AppleContactsClient(BaseAppleClient):
         """Get a single contact with full data (including photos)."""
         client = await self._get_http_client()
 
-        # Make resource_name absolute if needed
-        url = resource_name
-        if not url.startswith("http"):
-            url = f"{settings.apple_carddav_url.rstrip('/')}{resource_name}"
+        url = _contact_url(resource_name)
 
         resp = await client.get(
             url,
@@ -593,13 +569,25 @@ class AppleContactsClient(BaseAppleClient):
         notes: str | None,
         *,
         contact_uid: str,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """Create a new contact via CardDAV PUT, at the uid its caller drew."""
         addressbook_url = await self._discover_addressbook()
         client = await self._get_http_client()
 
         # Build vCard
-        vcard_str = build_vcard(name, email, phone, organization, notes)
+        vcard_str = build_vcard(
+            name,
+            email,
+            phone,
+            organization,
+            notes,
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
+        )
         contact_url = f"{addressbook_url.rstrip('/')}/{contact_uid}.vcf"
 
         resp = await client.put(
@@ -627,14 +615,15 @@ class AppleContactsClient(BaseAppleClient):
         organization: str | None,
         notes: str | None,
         address: str | None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """Update a contact (full PUT, no PATCH in CardDAV)."""
         client = await self._get_http_client()
 
-        # Make resource_name absolute if needed
-        url = resource_name
-        if not url.startswith("http"):
-            url = f"{settings.apple_carddav_url.rstrip('/')}{resource_name}"
+        url = _contact_url(resource_name)
 
         # GET existing vCard
         resp = await client.get(url, headers={"Accept": "text/vcard"})
@@ -648,7 +637,16 @@ class AppleContactsClient(BaseAppleClient):
 
         # Merge fields
         updated_vcard = merge_vcard_fields(
-            resp.text, name, email, phone, organization, notes, address
+            resp.text,
+            name,
+            email,
+            phone,
+            organization,
+            notes,
+            address,
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
         )
 
         # PUT back
@@ -667,9 +665,7 @@ class AppleContactsClient(BaseAppleClient):
         """Delete a contact via HTTP DELETE."""
         client = await self._get_http_client()
 
-        url = resource_name
-        if not url.startswith("http"):
-            url = f"{settings.apple_carddav_url.rstrip('/')}{resource_name}"
+        url = _contact_url(resource_name)
 
         resp = await client.delete(url)
         # 404 means "already gone" and stays a False return (idempotent delete);
@@ -689,133 +685,6 @@ class AppleContactsClient(BaseAppleClient):
             await self._http_client.aclose()
             self._http_client = None
         self._addressbook_url = None
-
-
-# =========================================================================
-# XML PARSING HELPERS
-# =========================================================================
-
-
-def _extract_principal_url(xml_text: str) -> str | None:
-    """Extract current-user-principal URL from PROPFIND response."""
-    try:
-        root = etree.fromstring(xml_text.encode("utf-8"), parser=_SAFE_XML_PARSER)
-        # Use Clark notation {namespace}tag — robust regardless of prefix
-        href_elements = root.findall(f".//{{{DAV_NS}}}current-user-principal/{{{DAV_NS}}}href")
-        if href_elements:
-            return href_elements[0].text
-    except Exception as e:
-        logger.warning("carddav_principal_parse_error", error=str(e))
-    return None
-
-
-def _extract_addressbook_home_set(xml_text: str) -> str | None:
-    """Extract addressbook-home-set URL from PROPFIND response on principal."""
-    try:
-        root = etree.fromstring(xml_text.encode("utf-8"), parser=_SAFE_XML_PARSER)
-        href_elements = root.findall(f".//{{{CARDDAV_NS}}}addressbook-home-set/{{{DAV_NS}}}href")
-        if href_elements and href_elements[0].text:
-            return href_elements[0].text
-    except Exception as e:
-        logger.warning("carddav_home_set_parse_error", error=str(e))
-    return None
-
-
-def _extract_addressbook_url(xml_text: str, base_url: str) -> str | None:
-    """Extract addressbook URL from PROPFIND response."""
-    try:
-        root = etree.fromstring(xml_text.encode("utf-8"), parser=_SAFE_XML_PARSER)
-
-        for response in root.findall(f".//{{{DAV_NS}}}response"):
-            href_el = response.find(f"{{{DAV_NS}}}href")
-            href = href_el.text if href_el is not None else None
-            if not href:
-                continue
-
-            # Check if this is an addressbook (has addressbook resourcetype)
-            resourcetype = response.find(
-                f".//{{{DAV_NS}}}propstat/{{{DAV_NS}}}prop/{{{DAV_NS}}}resourcetype"
-            )
-            if resourcetype is not None:
-                is_addressbook = resourcetype.find(f"{{{CARDDAV_NS}}}addressbook") is not None
-                if is_addressbook:
-                    if not href.startswith("http"):
-                        href = f"{settings.apple_carddav_url.rstrip('/')}{href}"
-                    return href
-
-        # Fallback: use first non-self href that looks like a collection
-        for response in root.findall(f".//{{{DAV_NS}}}response"):
-            href_el = response.find(f"{{{DAV_NS}}}href")
-            href = href_el.text if href_el is not None else None
-            if href and href != "/" and href.endswith("/"):
-                parsed_base = base_url.rstrip("/")
-                parsed_href = href.rstrip("/")
-                # Skip the home-set URL itself — we want a child collection
-                if parsed_href != parsed_base and not parsed_base.endswith(parsed_href):
-                    if not href.startswith("http"):
-                        href = f"{settings.apple_carddav_url.rstrip('/')}{href}"
-                    return href
-
-    except Exception as e:
-        logger.warning("carddav_addressbook_parse_error", error=str(e))
-    return None
-
-
-def _extract_contact_hrefs(xml_text: str) -> list[str]:
-    """Extract contact hrefs from PROPFIND Depth:1 response."""
-    hrefs = []
-    try:
-        root = etree.fromstring(xml_text.encode("utf-8"), parser=_SAFE_XML_PARSER)
-
-        for response in root.findall(f".//{{{DAV_NS}}}response"):
-            href_el = response.find(f"{{{DAV_NS}}}href")
-            href = href_el.text if href_el is not None else None
-            if href and href.endswith(".vcf"):
-                hrefs.append(href)
-    except Exception as e:
-        logger.warning("carddav_hrefs_parse_error", error=str(e))
-    return hrefs
-
-
-def _parse_multiget_response(xml_text: str) -> list[dict[str, Any]]:
-    """Parse addressbook-multiget REPORT response into normalized contacts."""
-    contacts = []
-    try:
-        root = etree.fromstring(xml_text.encode("utf-8"), parser=_SAFE_XML_PARSER)
-
-        for response in root.findall(f".//{{{DAV_NS}}}response"):
-            href_el = response.find(f"{{{DAV_NS}}}href")
-            href = href_el.text if href_el is not None else None
-            if not href:
-                continue
-
-            # Get vCard data — search for address-data element
-            address_data_el = response.find(
-                f".//{{{DAV_NS}}}propstat/{{{DAV_NS}}}prop/" f"{{{CARDDAV_NS}}}address-data"
-            )
-            if address_data_el is None or not address_data_el.text:
-                continue
-
-            try:
-                contact = normalize_vcard(address_data_el.text.strip(), href)
-
-                # Extract etag
-                etag_el = response.find(
-                    f".//{{{DAV_NS}}}propstat/{{{DAV_NS}}}prop/{{{DAV_NS}}}getetag"
-                )
-                if etag_el is not None and etag_el.text:
-                    contact["etag"] = etag_el.text.strip('"')
-
-                contacts.append(contact)
-            except Exception as e:
-                logger.debug(
-                    "carddav_contact_parse_error",
-                    href=href,
-                    error=str(e),
-                )
-    except Exception as e:
-        logger.warning("carddav_multiget_parse_error", error=str(e))
-    return contacts
 
 
 def _contact_matches_query(contact: dict[str, Any], query_lower: str) -> bool:
@@ -842,3 +711,43 @@ def _contact_matches_query(contact: dict[str, Any], query_lower: str) -> bool:
             return True
 
     return False
+
+
+def _contact_url(resource_name: str) -> str:
+    """The URL a contact is read at, on the CardDAV service — or refused before any request.
+
+    A resource name comes from the service (an href, a URL it handed out) but also
+    from a browser or a MODEL, and every request carries the account's Apple ID and
+    app password. It must be a path under the service, or an https URL on the
+    service's own domain (iCloud hands out partition hosts, ``p42-contacts.icloud.com``):
+    a foreign host, a userinfo trick (``@host``) or a host suffix (``.host``) appended
+    to the base would send those credentials elsewhere.
+
+    Raises:
+        ValueError: The name points outside the CardDAV service (a final answer, never retried).
+    """
+    base = settings.apple_carddav_url.rstrip("/")
+    service = urlsplit(base)
+    url = resource_name if resource_name.startswith("https://") else f"{base}{resource_name}"
+    parts = urlsplit(url)
+    on_service = (
+        resource_name.startswith(("/", "https://"))
+        and parts.scheme == service.scheme == "https"
+        and parts.username is None
+        and parts.password is None
+        and parts.port == service.port
+        and _same_service_domain(parts.hostname, service.hostname)
+    )
+    if not on_service:
+        raise ValueError("Not a contact of this account's address book.")
+    return url
+
+
+def _same_service_domain(host: str | None, service_host: str | None) -> bool:
+    """The service's host, or a sibling under its parent domain (``*.icloud.com``)."""
+    if not host or not service_host:
+        return False
+    if host == service_host:
+        return True
+    parent = service_host.split(".", 1)[1] if service_host.count(".") >= 2 else None
+    return parent is not None and host.endswith(f".{parent}")

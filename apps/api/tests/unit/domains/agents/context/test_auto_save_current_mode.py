@@ -277,3 +277,77 @@ async def test_auto_save_takes_the_acting_user_from_the_runtime_it_was_handed(
     )
     assert context_list is not None
     assert [item["name"] for item in context_list.items] == ["Zoe"]
+
+
+async def _shown_list(manager, store) -> None:
+    await manager.save_list(
+        user_id=USER_ID,
+        session_id="thread-1",
+        domain="contacts_current_test",
+        items=[
+            {"resource_name": "people/a", "name": "Alice"},
+            {"resource_name": "people/b", "name": "Bob"},
+        ],
+        metadata={"turn_id": 10, "total_count": 2, "timestamp": "2026-04-18T12:00:00Z"},
+        store=store,
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_lookup_another_step_consumes_never_replaces_the_shown_list(manager, store):
+    """ADR-367: « reply to Marc » searched the mailbox for one message, consumed
+    by the reply step — and that search REPLACED the list of five the person had
+    just seen, so a later « the second one » pointed into a list nobody saw."""
+    await _shown_list(manager, store)
+    intermediate = {
+        "configurable": {"thread_id": "thread-1"},
+        "metadata": {"turn_id": 11, "intermediate_step": True},
+    }
+
+    await manager.auto_save(
+        context_type="contacts_current_test",
+        result_data={
+            "success": True,
+            "contacts_current_tests": [{"resource_name": "people/c", "name": "Charlie"}],
+            "tool_name": "search_contacts_tool",
+        },
+        config=intermediate,
+        store=store,
+        explicit_mode=ContextSaveMode.LIST,
+    )
+
+    shown = await manager.get_list(
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
+    )
+    assert shown is not None and [item["name"] for item in shown.items] == ["Alice", "Bob"]
+    # The one item the lookup found is the conversation's current item.
+    current = await manager.get_current_item(
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
+    )
+    assert current is not None and current["name"] == "Charlie"
+
+
+@pytest.mark.asyncio
+async def test_a_shown_search_still_replaces_the_list_dated_by_its_turn(manager, store, config_ok):
+    await _shown_list(manager, store)
+
+    await manager.auto_save(
+        context_type="contacts_current_test",
+        result_data={
+            "success": True,
+            "contacts_current_tests": [
+                {"resource_name": "people/c", "name": "Charlie"},
+                {"resource_name": "people/d", "name": "Dana"},
+            ],
+            "tool_name": "search_contacts_tool",
+        },
+        config=config_ok,
+        store=store,
+        explicit_mode=ContextSaveMode.LIST,
+    )
+
+    shown = await manager.get_list(
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
+    )
+    assert shown is not None and [item["name"] for item in shown.items] == ["Charlie", "Dana"]
+    assert shown.metadata.turn_id == 42

@@ -192,6 +192,8 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | Seuil recovery pour actions bloquees en `executing` ; jamais applique sous le pire cas d'un run |
 | `SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES` | `5` | Seuil avant auto-disable |
 | `SCHEDULED_ACTIONS_BATCH_SIZE` | `50` | Nombre max d'actions traitees par cycle |
+| `SCHEDULED_ACTIONS_MIN_STEP_MINUTES` | `…_DEFAULT` | Pas minimal d'une routine a intervalle regulier (minutes) — ADR-268 amendement 2026-10-30 |
+| `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` | `…_DEFAULT` | Executions au plus par jour d'une routine a heures fixes ou a intervalle — ADR-268 amendement 2026-10-30 |
 | `SCHEDULED_ACTIONS_CONDITION_CHECK_MINUTES` | `…_DEFAULT` | Cadence de verification d'une routine sur condition (courrier, taches, agenda, documents) — ADR-322 |
 | `SCHEDULED_ACTIONS_WEATHER_CHECK_MINUTES` | `…_DEFAULT` | Cadence d'une routine meteo — ADR-322 |
 | `SCHEDULED_ACTIONS_WEATHER_HORIZON_HOURS` | `…_DEFAULT` | Horizon d'une routine meteo (heures, l'heure en cours comprise) — ADR-322 amendement 2026-09-29 |
@@ -330,12 +332,19 @@ Retourne `202 Accepted` avec `{"status": "executing"}`. L'execution s'effectue e
     deux » stable dans le temps, independamment de la date de lecture
   - `byweekday` : jours ISO 1 (Lundi) a 7 (Dimanche), sans doublons
   - `times` : soit des moments explicites (`mode: at`), soit un pas dans une
-    fenetre (`mode: every`, `step_minutes` >= 15 pour une routine)
+    fenetre (`mode: every`, `step_minutes` au moins `SCHEDULED_ACTIONS_MIN_STEP_MINUTES`
+    pour une routine)
   - une date calendaire impossible est refusee (`bymonthday: [31]` avec
     `bymonth: [2]`), mais `bymonth: [2, 3]` + `bymonthday: [31]` passe : il
     suffit qu'un des mois porte ce quantieme
-- Plafonds d'une routine : 12 declenchements par jour, pas minimal de 15
-  minutes, 500 occurrences de serie (`RECURRENCE_ROUTINE_LIMITS`)
+- Plafonds d'une routine : `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` declenchements par
+  jour et un pas minimal de `SCHEDULED_ACTIONS_MIN_STEP_MINUTES` minutes — reglages de
+  l'operateur (defauts dans `core/constants.py`, ADR-268 amendement 2026-10-30) —, et
+  `RECURRENCE_ROUTINE_MAX_SERIES_COUNT` occurrences de serie. Un seul lecteur,
+  `scheduled_actions/recurrence_limits.py`, sert le schema, l'outil du chat, son
+  manifeste et la liste (`recurrence_limits`), que le formulaire lit au lieu d'une copie.
+  Ils bornent ce qui est ECRIT (une creation, un horaire modifie) : une routine stockee
+  reste lisible, executable et modifiable si l'operateur les abaisse
 - Limite : max `SCHEDULED_ACTIONS_MAX_PER_USER` (20) actions par utilisateur
 
 ### Ownership check

@@ -10,23 +10,32 @@
  * per kind.
  *
  * Contract:
- *  - V1 card kinds only (draft / tool / destructive / for_each); anything
- *    else — clarification, plan approval, unknown, garbage — returns null
- *    and the flow stays text-only. Never throws.
+ *  - V1 card kinds only (draft / tool / destructive / for_each) and the
+ *    « which of these? » choice (ADR-367); anything else — clarification,
+ *    plan approval, unknown, garbage — returns null and the flow stays
+ *    text-only. Never throws.
  *  - Wire action ids pass through VERBATIM (e.g. "confirm_delete"): the
  *    backend canonicalizes aliases server-side, single source of truth.
  *  - The structured "edit" action is offered on draft cards only (P1-V2):
  *    it routes the live modification-instructions loop. On any other kind
- *    the server rejects it as stale, so it stays filtered there.
+ *    the server rejects it as stale, so it stays filtered there. Likewise
+ *    "none" (« none of these ») exists on the choice card alone; its options
+ *    are buttons of their own, each sending its position.
  */
 
-import type { HitlActionOption, HitlCardKind, NormalizedHitlPayload } from '@/types/hitl';
+import type {
+  HitlActionOption,
+  HitlCardKind,
+  HitlChoiceOption,
+  NormalizedHitlPayload,
+} from '@/types/hitl';
 
 const CARD_KINDS: readonly HitlCardKind[] = [
   'tool_confirmation',
   'draft_critique',
   'destructive_confirm',
   'for_each_confirmation',
+  'entity_disambiguation',
 ];
 
 const KNOWN_STYLES = new Set(['primary', 'secondary', 'destructive', 'ghost']);
@@ -45,13 +54,27 @@ const SUPPORTED_ACTIONS = new Set([
   'reject',
 ]);
 
-/** Actions supported only on draft cards (P1-V2 inline edit). */
-const DRAFT_ONLY_ACTIONS = new Set(['edit']);
+/** Actions a single card kind adds: the draft's inline edit (P1-V2), the
+ * choice's « none of these » (ADR-367). */
+const KIND_ONLY_ACTIONS: Partial<Record<HitlCardKind, ReadonlySet<string>>> = {
+  draft_critique: new Set(['edit']),
+  entity_disambiguation: new Set(['none']),
+};
 
 const DEFAULT_ACTIONS: HitlActionOption[] = [
   { action: 'confirm', label: 'confirm', style: 'primary' },
   { action: 'cancel', label: 'cancel', style: 'destructive' },
 ];
+
+/** A choice confirms nothing: its options choose, these two decline. */
+const CHOICE_DEFAULT_ACTIONS: HitlActionOption[] = [
+  { action: 'none', label: 'none', style: 'secondary' },
+  { action: 'cancel', label: 'cancel', style: 'destructive' },
+];
+
+function defaultActions(kind: HitlCardKind): HitlActionOption[] {
+  return kind === 'entity_disambiguation' ? CHOICE_DEFAULT_ACTIONS : DEFAULT_ACTIONS;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -67,15 +90,15 @@ function asNumber(value: unknown): number | undefined {
 
 /** Parse wire available_actions defensively; fall back to the canonical pair. */
 function normalizeActions(raw: unknown, kind: HitlCardKind): HitlActionOption[] {
-  if (!Array.isArray(raw)) return DEFAULT_ACTIONS;
+  if (!Array.isArray(raw)) return defaultActions(kind);
 
-  const allowsEdit = kind === 'draft_critique';
+  const kindOnly = KIND_ONLY_ACTIONS[kind];
   const actions: HitlActionOption[] = [];
   for (const entry of raw) {
     if (!isRecord(entry)) continue;
     const action = asString(entry.action);
     if (!action) continue;
-    if (!SUPPORTED_ACTIONS.has(action) && !(allowsEdit && DRAFT_ONLY_ACTIONS.has(action))) continue;
+    if (!SUPPORTED_ACTIONS.has(action) && !kindOnly?.has(action)) continue;
     const style = asString(entry.style);
     actions.push({
       action,
@@ -85,7 +108,7 @@ function normalizeActions(raw: unknown, kind: HitlCardKind): HitlActionOption[] 
       style: style && KNOWN_STYLES.has(style) ? (style as HitlActionOption['style']) : 'secondary',
     });
   }
-  return actions.length > 0 ? actions : DEFAULT_ACTIONS;
+  return actions.length > 0 ? actions : defaultActions(kind);
 }
 
 function normalizeSeverity(raw: unknown): NormalizedHitlPayload['severity'] {
@@ -156,11 +179,34 @@ function normalizeForEachConfirmation(
   };
 }
 
+/** The options of « which of these? » (ADR-367): a position and a label each. */
+function asChoiceOptions(value: unknown): HitlChoiceOption[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(entry => {
+    if (!isRecord(entry)) return [];
+    const index = asNumber(entry.index);
+    const label = asString(entry.label);
+    return index !== undefined && Number.isInteger(index) && index > 0 && label
+      ? [{ index, label }]
+      : [];
+  });
+}
+
+function normalizeEntityDisambiguation(
+  base: NormalizedHitlPayload,
+  request: Wire
+): NormalizedHitlPayload | null {
+  const options = asChoiceOptions(request.candidates);
+  // Nothing to choose among — the typed answer stays the channel.
+  return options.length > 0 ? { ...base, options } : null;
+}
+
 const KIND_NORMALIZERS: Record<HitlCardKind, KindNormalizer> = {
   tool_confirmation: normalizeToolConfirmation,
   draft_critique: normalizeDraftCritique,
   destructive_confirm: normalizeDestructiveConfirm,
   for_each_confirmation: normalizeForEachConfirmation,
+  entity_disambiguation: normalizeEntityDisambiguation,
 };
 
 /**

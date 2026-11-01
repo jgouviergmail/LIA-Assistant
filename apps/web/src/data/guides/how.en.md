@@ -3,8 +3,8 @@
 > How LIA is built, in broad strokes. The details are in the code, the ADRs and the repository's documentation.
 
 **Version**: 6.0
-**Date**: 2026-10-23
-**Application**: LIA v4.2.0
+**Date**: 2026-10-31
+**Application**: LIA v4.3.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -112,6 +112,8 @@ The answer arrives token by token over SSE. Generation is decoupled from the con
 
 ## 4. Acting with care
 
+For **MCP**, you choose confirmations at account, server and tool level. **What it will do** explains the effective rule before you change it. A dedicated agent asks before its task when one of its tools requires approval; that answer covers its calls for the task. A tool’s “never ask” choice is suspended when its declaration changes. The chat may strengthen these protections; only Settings can reduce them. A routine may use the servers you explicitly pre-approved in its form.
+
 LIA asks before what is actually going to happen: each draft (an email, an event, a deletion), each bulk operation that changes at least one item, each tool that declares it owes a confirmation. Confirmation is asked action by action, where the action is prepared, and not on the whole plan. Conversely, an action that nothing can divert asks for nothing: an email you send to yourself goes out directly.
 
 ```mermaid
@@ -136,6 +138,8 @@ The answer itself is framed: the model writes only from the tools' real results.
 *Going further: [confirmations](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HITL.md) · [the authority chain and the registers](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) · [the registers on the user side](/en/faq#faq-registers) · [tickets](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORKBOARD.md) · [application commands](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/APPLICATION_COMMANDS.md) · [what a delegation proves](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) · [tool examples, email to yourself and drafts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/05_tool_examples.md) · [synthesizing the answer](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/RESPONSE.md)*
 
 ## 5. Memory and context
+
+When you refer to a result by its sender, title or position, LIA first uses the items it actually showed. If several fit, it asks which one. A planned lookup that would act on the first of several matches also stops for your choice, then continues with that item.
 
 A conversation's state is a `MessagesState` that LangGraph checkpoints in PostgreSQL after every node. That is what lets a turn resume after a confirmation, even hours later. Tool results do not live in the message history but in a separate data registry, so they survive when the history is truncated. Past a threshold, older exchanges are summarized; a badge shows how full the context is, and `/resume` triggers that summary on demand. In ReAct mode, what a loop has already read is checkpointed and reused within the turn; a stop before that checkpoint can cause a source to be read again.
 
@@ -232,6 +236,8 @@ A note on performance: the measured latencies are the infrastructure's. The resp
 *Going further: [the observability stack](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-020-Observability-Stack.md) · [the debug panel](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL.md) · [its architecture](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL_ARCHITECTURE.md) · [the instance cap](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md) · [every spend answers to two caps](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) · [administration by workbook](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/TABULAR_ADMIN_IO.md) · [targeted broadcasts](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md) · [the demo instance](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEMO_INSTANCE.md) · [self-diagnosis](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DIAGNOSTICS_DOMAIN.md) · [alerts and their resilience](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md) · [Claude CLI from the chat](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md) · [the anatomy of a worker](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-283-Worker-Memory-Anatomy.md) · [complete register extractions](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-273-Complete-Register-Extractions.md) · [how background jobs are organized](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-046-Background-Job-Scheduling.md)*
 
 ## 12. The interfaces
+
+The **Tools** workspace has its own REST endpoints, outside the conversation graph. It reuses the connector clients and publishes their supported controls and limits to the interface. Database sessions close before provider calls; submissions carry replay protection, and a lost answer is shown as an unknown outcome. HTML mail stays inside an isolated frame, with remote content blocked. This keeps a manual gesture separate from an action delegated to LIA.
 
 The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per account, and can be searched; the settings have their own search, a pure black theme for OLED screens and an adjustable text size.
 

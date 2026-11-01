@@ -242,9 +242,7 @@ async def test_char_draft_confirm_fast_path_skips_llm():
     with ExitStack() as stack:
         mocks = _patch_collaborators(stack)
         # Bypass the real draft executor: the fast-path is what we characterize.
-        stack.enter_context(
-            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=None))
-        )
+        stack.enter_context(patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=None)))
         stack.enter_context(language_scope("fr"))  # the assertion reads French
         result = await response_node(state, _base_config())
 
@@ -290,7 +288,7 @@ async def test_char_a_confirmed_draft_judges_its_turn() -> None:
     with ExitStack() as stack:
         mocks = _patch_collaborators(stack)
         stack.enter_context(
-            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=failed_send))
+            patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=failed_send))
         )
         stack.enter_context(
             patch("src.domains.agents.services.business_metrics.current_turn_cost_usd", ledger)
@@ -326,9 +324,7 @@ async def test_char_draft_cancel_fast_path_message():
 
     with ExitStack() as stack:
         mocks = _patch_collaborators(stack)
-        stack.enter_context(
-            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=None))
-        )
+        stack.enter_context(patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=None)))
         stack.enter_context(language_scope("fr"))  # the assertion reads French
         result = await response_node(state, _base_config())
 
@@ -366,7 +362,7 @@ async def test_char_a_cancel_that_could_not_withdraw_is_never_told_cancelled():
     with ExitStack() as stack:
         mocks = _patch_collaborators(stack)
         stack.enter_context(
-            patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=refused_cancel))
+            patch(f"{_RESP}.execute_decided_draft", AsyncMock(return_value=refused_cancel))
         )
         stack.enter_context(language_scope("fr"))
         result = await response_node(state, _base_config())

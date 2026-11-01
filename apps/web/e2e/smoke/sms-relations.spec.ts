@@ -212,16 +212,14 @@ for (const width of [390, 1280]) {
       const link = page
         .getByRole('link')
         .filter({ has: page.getByText(reference.data.body, { exact: true }) });
-      await expect(link).toHaveAttribute(
-        'href',
-        '/fr/dashboard/settings?section=sms&message=' + reference.data.id
-      );
+      // French is the unprefixed default (`buildLocalizedPath`).
+      await expect(link).toHaveAttribute('href', '/dashboard/sms?message=' + reference.data.id);
       await expect(page.getByText('Ouvrir ce SMS', { exact: true })).toHaveCount(0);
       await link.focus();
       await page.keyboard.press('Enter');
-      await expect(page).toHaveURL(new RegExp('section=sms&message=' + reference.data.id));
+      await expect(page).toHaveURL(new RegExp('dashboard/sms\\?message=' + reference.data.id));
       await expect(page.getByText(reference.data.body, { exact: true })).toBeVisible();
-      await expectNoOverflow(page, 'exact SMS in settings');
+      await expectNoOverflow(page, 'exact SMS on the SMS page');
     });
   }
 }

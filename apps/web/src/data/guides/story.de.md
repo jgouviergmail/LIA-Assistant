@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 3.0
-**Datum**: 2026-10-23
-**Anwendung**: LIA v4.2.0
+**Datum**: 2026-11-01
+**Anwendung**: LIA v4.3.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Fast der gesamte Code wurde von einer KI geschrieben. Meine Arbeit bestand darin
 | Indikator | Wert |
 | --- | --- |
 | Code, geschrieben von einer KI, die geführt, in einen Rahmen eingebunden und kontrolliert wurde | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests), verteilt auf 60 Backend-Domänenpakete | **1.059.000+** |
-| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **69.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **364** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **292** |
+| Quellcodezeilen (ohne Tests), verteilt auf 60 Backend-Domänenpakete | **1.092.046** |
+| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **72.136** |
+| Dokumentierte Architekturentscheidungen (ADR) | **367** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **293** |
 | Sprachen, mit automatisch geprüfter Parität | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -62,7 +62,9 @@ Die gemeinsame Welt gibt der Assistentin Orte: eine Bibliothek für das Wissen, 
 
 ## 4. Die Abwägungen
 
-Hier sind drei strukturelle Entscheidungen, unter den 364 dokumentierten.
+Ein Assistent sollte auch Raum lassen, Dinge selbst zu erledigen. Werkzeuge nutzt dieselben verbundenen Dienste, doch ein Klick ruft kein Modell auf und zählt nicht als LIAs Handlung. Delegation und direkte Kontrolle können eine Oberfläche teilen, solange erkennbar bleibt, wer entschieden, wer gehandelt und was genehmigt wurde.
+
+Hier sind drei strukturelle Entscheidungen, unter den 367 dokumentierten.
 
 Die erste betrifft die **Souveränität**: Ich wollte keine irreversible Abhängigkeit von einem Anbieter. Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity und lokale Modelle über Ollama) laufen alle über dieselbe Abstraktion, sodass sich für jeden Einsatzzweck der Anbieter per einfacher Konfiguration wechseln lässt, mit Kostenvergleich. Bei den Diensten sind Google, Apple und Microsoft in jeder Kategorie austauschbar, ob E-Mail, Kalender oder Kontakte. Selbsthosting gibt die Kontrolle über den Server: Die Kontodaten liegen auf der Instanz, und die Zugangsdaten der Konnektoren sind verschlüsselt. Die externen Dienste, die die Person wählt, erhalten trotzdem die Daten, die sie für ihren Teil der Anfrage brauchen.
 
@@ -116,4 +118,4 @@ Hier ist, was diese Erfahrung an meiner Art zu führen ändert.
 - Zwischen generellem Verbot und blindem Vertrauen gibt es einen **steuerbaren Weg**. Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren. Auf diesen Ansatz laufen die regulatorischen Anforderungen zu, und er ist schon jetzt einsatzbereit.
 - Eine Führungskraft, die selbst praktiziert, **entscheidet besser**. Selbst machen oder machen lassen, technische Schulden in Kauf nehmen oder nicht, dem Versprechen eines Anbieters glauben oder nicht: Diese Entscheidungen werden treffsicherer, wenn man die Materie selbst erprobt hat. Dieses Projekt ist meine Art, diesen Kontakt zur Praxis zu halten.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit vom 25. Oktober 2026, Befunde gegengeprüft. Die strukturellen Zahlen folgen dem Repository; die Quellcodezeilen wurden am 26. Oktober 2026 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit vom 25. Oktober 2026, Befunde gegengeprüft. Die strukturellen Zahlen folgen dem Repository; die Quellcodezeilen wurden am 31. Oktober 2026 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

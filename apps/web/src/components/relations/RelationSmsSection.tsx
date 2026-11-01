@@ -1,7 +1,6 @@
 'use client';
 import Link from 'next/link';
 import { useAppConfig } from '@/hooks/useAppConfig';
-import { capabilityEnabled } from '@/lib/capability-state';
 import { MessageSquareText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +10,8 @@ import { isLanguage, fallbackLng } from '@/i18n/settings';
 import { CollapsibleSection, SectionBadge, SectionRow, SectionRows } from './CollapsibleSection';
 import { RelationWhen } from './RelationWhen';
 import { SmsMessageCard } from '@/components/sms/SmsMessageList';
-import { settingsSectionHref } from '@/lib/settings-sections';
+import { smsAvailable } from '@/lib/sms/availability';
+import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { SmsMessage } from '@/types/sms';
 export function RelationSmsSection({
   messages,
@@ -27,7 +27,7 @@ export function RelationSmsSection({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { config } = useAppConfig();
-  if (!capabilityEnabled(config?.capabilities, 'sms', config?.features.sms_enabled)) return null;
+  if (!smsAvailable(config)) return null;
   const language = isLanguage(lng) ? lng : fallbackLng;
   return (
     <CollapsibleSection
@@ -47,7 +47,7 @@ export function RelationSmsSection({
               <SectionRow key={message.id} className="py-1.5">
                 <Link
                   className="-mx-2 block min-w-0 rounded-md transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  href={`${settingsSectionHref(language, 'sms')}&message=${encodeURIComponent(message.id)}`}
+                  href={`${buildLocalizedPath('/dashboard/sms', language)}?message=${encodeURIComponent(message.id)}`}
                 >
                   {/* Titled like every row of the card — when, no icon (owner
                       request 2026-10-21): the section already names the person. */}
@@ -85,11 +85,7 @@ export function RelationSmsSection({
 export function RelationSmsSourceNotice({ available }: { available: boolean | undefined }) {
   const { config } = useAppConfig();
   const { t } = useTranslation();
-  if (
-    available !== false ||
-    !capabilityEnabled(config?.capabilities, 'sms', config?.features.sms_enabled)
-  )
-    return null;
+  if (available !== false || !smsAvailable(config)) return null;
   return (
     <p
       role="status"

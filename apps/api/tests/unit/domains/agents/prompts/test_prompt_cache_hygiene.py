@@ -127,7 +127,11 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # `semantic_broad_batch` is settings-driven and equally invariant: it
     # replaced a hardcoded "20–50" that no tool bound could contradict
     # (production 2026-07-31). One value per deployment fragments nothing.
-    "smart_planner_prompt": frozenset({"result_keys_list", "semantic_broad_batch"}),
+    # `choice_candidates_max` likewise (ADR-367 amendment): the settings' cap
+    # on the options « which one? » offers, the count a lookup asks for.
+    "smart_planner_prompt": frozenset(
+        {"result_keys_list", "semantic_broad_batch", "choice_candidates_max"}
+    ),
     # Settings-driven cap, invariant at runtime for a given deployment.
     "initiative_prompt": frozenset({"max_actions"}),
     # ``max_entry_chars``: the settings cap the output format publishes next to its

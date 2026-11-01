@@ -156,10 +156,10 @@
       "src": "acbb6947019f"
     },
     "f.connectors": {
-      "name": "Konnektoren",
-      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein einziger Einwilligungsablauf pro Anbieter, ein aktiver Anbieter pro Kategorie. Dienste ohne Schlüssel schaltet der Administrator für alle frei.",
+      "name": "Konnektoren und Werkzeuge",
+      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein einziger Einwilligungsablauf pro Anbieter, ein aktiver Anbieter pro Kategorie. Dienste ohne Schlüssel schaltet der Administrator für alle frei. Öffne Werkzeuge, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Hue-Leuchten nutzen Deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.",
       "goal": "Deine echten Konten einmal verbinden, und sie bleiben verbunden.",
-      "src": "5029d2448b8e"
+      "src": "7819084f0780"
     },
     "f.mail": {
       "name": "E-Mails",

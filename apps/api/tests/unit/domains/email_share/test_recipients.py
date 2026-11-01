@@ -178,6 +178,17 @@ async def test_a_live_read_is_one_consultation_of_the_contacts(recorded: list[An
     assert list(recorded[0]["failed"]) == []
 
 
+@pytest.mark.parametrize("book", [_book("Jean"), RuntimeError("401")])
+async def test_a_read_for_the_tools_section_files_nothing(
+    book: ContactDirectory | Exception, recorded: list[Any]
+) -> None:
+    """The person typing in their own composer is not LIA reading (ADR-369, D5)."""
+    with patch.object(recipients, "open_active_client", _door(book)):
+        await recipients.suggest_recipients(uuid4(), "jea", recorded=False)
+
+    assert recorded == []
+
+
 async def test_a_cached_book_files_nothing(recorded: list[Any]) -> None:
     """Redis answered; the address book was never opened (ADR-263)."""
     with patch.object(recipients, "open_active_client", _door(_book("Jean", from_cache=True))):

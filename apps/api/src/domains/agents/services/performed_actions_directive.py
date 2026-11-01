@@ -13,8 +13,13 @@ as lines of the data block — measured on the failing turn's own prompt, a bare
 wrote (a denial the person saw) or as a second image the model then announced
 (3 answers out of 100); the directive: 0 out of 100 for both.
 
-The pipeline needs none of this: each tool's own confirmation (« Image generated
-successfully and will be displayed automatically ») already reaches its summary.
+The pipeline needs none of this — each tool's own confirmation (« Image generated
+successfully and will be displayed automatically ») already reaches its summary —
+except once a decision came back to the plan (``executed_drafts``, spec 2026-10-29
+D7): the answer is then composed from the decided acts' accounts and the other
+steps' summaries, and an MCP tool's summary is « result received », not its
+confirmation. Measured 2026-10-30: beside a refused deletion, the answer told an
+archive that had happened as « annulé ».
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ from typing import Any
 import structlog
 
 from src.core.config import settings
+from src.domains.agents.constants import STATE_KEY_EXECUTED_DRAFTS
 from src.domains.agents.prompts.prompt_loader import load_prompt
 
 logger = structlog.get_logger(__name__)
@@ -32,15 +38,16 @@ logger = structlog.get_logger(__name__)
 async def build_performed_actions_block(state: dict[str, Any], run_id: str, language: str) -> str:
     """The directive stating the turn's succeeded acts, or "" when there is none.
 
-    Only a ReAct turn reads the register — the pipeline's summary already
-    carries each action's confirmation, and a turn with no loop result costs no
-    query. The loop's result is read from the STATE, so a turn that acted
+    Only a ReAct turn, or a Pipeline turn whose decision came back to the plan,
+    reads the register — otherwise the pipeline's summary already carries each
+    action's confirmation, and a turn with neither costs no query. The loop's result is read from the STATE, so a turn that acted
     without answering (a budget exit) still has its acts stated. Never raises:
     ``performed_effects`` swallows a register failure, and a turn whose acts
     cannot be read is answered without them rather than not at all.
 
     Args:
-        state: The LangGraph state (``react_agent_result`` marks a ReAct turn).
+        state: The LangGraph state (``react_agent_result`` marks a ReAct turn,
+            ``executed_drafts`` a decision that came back to the plan).
         run_id: The turn's TRUE run id (``run_id_of``), empty when unknown — then
             nothing is read. Never a logging placeholder: the register files
             rows under a placeholder of its own.
@@ -50,7 +57,7 @@ async def build_performed_actions_block(state: dict[str, Any], run_id: str, lang
         The rendered directive (braces NOT escaped: the chain escapes what it
         injects), or "".
     """
-    if not state.get("react_agent_result"):
+    if not state.get("react_agent_result") and not state.get(STATE_KEY_EXECUTED_DRAFTS):
         return ""
     from src.domains.agents.effects.turn_summary import (
         performed_effects,

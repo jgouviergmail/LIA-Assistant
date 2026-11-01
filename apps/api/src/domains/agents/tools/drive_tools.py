@@ -83,10 +83,9 @@ ContextTypeRegistry.register(
         item_schema=FileItem,
         primary_id_field="id",
         display_name_field="name",
-        reference_fields=[
-            "name",
-            "mime_type",
-        ],
+        # `mime_type` is not a key of the stored Drive payload (`mimeType` is,
+        # and a type names no file): declared, it matched nothing (ADR-367).
+        reference_fields=["name"],
         icon="📁",
     )
 )

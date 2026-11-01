@@ -39,6 +39,65 @@ from src.domains.agents.data_registry.models import RegistryItem
 _EPOCH_DATETIME = datetime(1970, 1, 1, tzinfo=UTC)
 
 
+def _stamped(item: Any, turn_id: int) -> Any:
+    """One item dated by ``turn_id`` unless it already is; never mutated."""
+    if isinstance(item, RegistryItem):
+        if item.meta.turn_id is not None:
+            return item
+        return item.model_copy(update={"meta": item.meta.model_copy(update={"turn_id": turn_id})})
+    if isinstance(item, dict):
+        meta = item.get("meta")
+        if isinstance(meta, dict) and meta.get("turn_id") is None:
+            return {**item, "meta": {**meta, "turn_id": turn_id}}
+    return item
+
+
+def stamped_with_turn(registry: dict[str, Any], turn_id: int | None) -> dict[str, Any]:
+    """The registry items, each carrying the turn whose answer showed it (ADR-367).
+
+    A description (« Marc's email ») designates what an ANSWER showed, so an
+    item must say which turn produced it. The pipeline's executor stamps
+    ``meta.turn_id``; the ReAct loop merged its items without, so nothing
+    could tell which answer showed them. An item already dated keeps its turn
+    (a read served again); the input is never mutated.
+
+    Args:
+        registry: Item id → ``RegistryItem`` or its checkpointed dict.
+        turn_id: The turn producing them; None leaves the items as they are.
+
+    Returns:
+        A new mapping of the dated items.
+    """
+    if turn_id is None:
+        return dict(registry)
+    return {key: _stamped(item, turn_id) for key, item in registry.items()}
+
+
+def registry_as_dicts(registry: dict[str, Any] | None) -> dict[str, Any]:
+    """The state's registry as the plan executor reads it: every item a dict.
+
+    The state holds ``RegistryItem`` objects or their checkpointed dicts
+    depending on the pipeline stage (``merge_registry``); the executor resolves
+    ``items[N].field`` on dicts only. Read by the first pass and by the resume
+    (spec 2026-10-29 D7), so both hand the executor the same registry.
+
+    Args:
+        registry: Item id → ``RegistryItem``, its dict, or a bare payload.
+
+    Returns:
+        A new mapping of dicts; a bare payload is wrapped as ``{"payload": ...}``.
+    """
+    items: dict[str, Any] = {}
+    for item_id, item in (registry or {}).items():
+        if hasattr(item, "model_dump"):
+            items[item_id] = item.model_dump()
+        elif isinstance(item, dict):
+            items[item_id] = item
+        else:
+            items[item_id] = {"payload": item}
+    return items
+
+
 def _get_item_timestamp(item: RegistryItem | dict) -> datetime:
     """Extract timestamp from a RegistryItem or its serialized dict form.
 

@@ -156,10 +156,10 @@
       "src": "acbb6947019f"
     },
     "f.connectors": {
-      "name": "Connettori",
-      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo flusso di consenso per fornitore, un fornitore attivo per categoria. I servizi senza chiave vengono attivati per tutti dall'amministratore.",
+      "name": "Connettori e Strumenti",
+      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo flusso di consenso per fornitore, un fornitore attivo per categoria. I servizi senza chiave vengono attivati per tutti dall'amministratore. Apri Strumenti quando vuoi fare da te: posta, calendario, attività, contatti, file Drive e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.",
       "goal": "Collegare una volta i tuoi veri account, e che restino collegati.",
-      "src": "5029d2448b8e"
+      "src": "7819084f0780"
     },
     "f.mail": {
       "name": "E-mail",

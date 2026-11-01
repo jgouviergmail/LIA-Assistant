@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -363,15 +364,32 @@ async def test_expired_private_metadata_does_not_survive_another_users_activity(
     maintenance.cancel()  # This worker no longer renews its metadata.
     with pytest.raises(asyncio.CancelledError):
         await maintenance
+    client = world.namespace.client
+    key = world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY
+    deadline = json.loads(await client.hget(key, old_user))["expires_ms"]
+    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user) == [deadline]
     monkeypatch.setattr(settings, "browser_session_timeout_seconds", 300)
     await second.acquire_session(current_user)
-    await asyncio.sleep(1.1)
+    # Another user's activity must preserve the original field deadline. An
+    # already-expired field is also valid if context allocation took longer.
+    assert await client.execute_command("HPEXPIRETIME", key, "FIELDS", 1, old_user) in (
+        [deadline],
+        [-2],
+    )
+    # Redis TIME owns the deadline, not the host running pytest (Docker/WSL
+    # may have a different wall clock). Do not let a host sleep stand in for
+    # observing expiry, nor let a missing native TTL hide behind Lua pruning.
+    async with asyncio.timeout(5):
+        while True:
+            seconds, microseconds = await client.time()
+            if seconds * 1000 + microseconds // 1000 > deadline:
+                break
+            await asyncio.sleep(0.05)
 
     if access == "renew":
         assert await second._owns_session(current_user) is True
 
-    key = world.namespace.prefix + REDIS_KEY_BROWSER_POOL_REGISTRY
-    assert await world.namespace.client.hexists(key, old_user) == 0
+    assert await client.hexists(key, old_user) == 0
 
 
 async def test_recovery_round_trips_every_serialized_metadata_field(world: _World) -> None:

@@ -29,6 +29,8 @@ const LISTING = {
     min_precipitation_percent: 65,
     source: 'google_weather',
   },
+  // A time routine's caps, as the operator's settings publish them (ADR-268, 2026-10-30).
+  recurrence_limits: { max_times_per_day: 12, min_step_minutes: 15, max_series_count: 500 },
 };
 
 /** What the API answers to the create: the routine as it now stands. */

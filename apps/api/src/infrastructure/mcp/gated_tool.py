@@ -24,10 +24,36 @@ sees no exception here.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
+
+def ungated_names(instances: Mapping[str, BaseTool]) -> list[str]:
+    """The instances whose callable does not go through the gate under their own name.
+
+    A gate acting under ANOTHER name is no gate for this tool: it would be
+    policed by that tool's declaration and recorded as that tool.
+
+    Args:
+        instances: Tools keyed by the name the turn offers them under.
+
+    Returns:
+        The offending names, sorted; empty when every instance is gated.
+    """
+    from src.domains.agents.effects.runtime import EFFECT_GATED_ATTR, EFFECT_GATED_NAME_ATTR
+
+    def _gated_as(tool: BaseTool, name: str) -> bool:
+        call = getattr(tool, "coroutine", None)
+        return bool(getattr(call, EFFECT_GATED_ATTR, False)) and (
+            getattr(call, EFFECT_GATED_NAME_ATTR, None) == name
+        )
+
+    return sorted(name for name, tool in instances.items() if not _gated_as(tool, name))
 
 
 def parse_mcp_wire_arguments(

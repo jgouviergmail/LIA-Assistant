@@ -156,10 +156,10 @@
       "src": "acbb6947019f"
     },
     "f.connectors": {
-      "name": "Conectores",
-      "role": "Google, Microsoft, Apple y los servicios con clave personal; un único flujo de consentimiento por proveedor, un proveedor activo por categoría. Los servicios sin clave los activa el administrador para todo el mundo.",
+      "name": "Conectores y Herramientas",
+      "role": "Google, Microsoft, Apple y los servicios con clave personal; un único flujo de consentimiento por proveedor, un proveedor activo por categoría. Los servicios sin clave los activa el administrador para todo el mundo. Abre Herramientas cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos Drive y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.",
       "goal": "Conectar tus cuentas reales una vez, y que sigan conectadas.",
-      "src": "5029d2448b8e"
+      "src": "7819084f0780"
     },
     "f.mail": {
       "name": "Correos electrónicos",

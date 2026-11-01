@@ -34,6 +34,8 @@ async def analyze_case(
         connected_peers="None",
         memory_facts="None",
         conversation_history="None",
+        # What production renders when nothing was shown (ADR-367).
+        shown_items="None",
         user_location="Not available",
         window_size=5,
         user_query=scenario.query,

@@ -23,8 +23,6 @@ Migration Note (2025-12-30):
     - Factory methods used: UnifiedToolOutput.data_success(), UnifiedToolOutput.failure()
 """
 
-import json
-import time
 from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -40,7 +38,7 @@ from src.core.constants import (
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
 )
-from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE
+from src.core.field_names import FIELD_SET_ASIDE_ON_PAGE, FIELD_SKIPPED_HITS
 from src.core.i18n import get_locale_for_language, resolve_language
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
 from src.core.validators import validate_email
@@ -48,7 +46,6 @@ from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
-    tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.emails.content_generation import resolve_email_content
@@ -67,10 +64,9 @@ from src.domains.agents.tools.exceptions import (
 )
 from src.domains.agents.tools.mailbox_draft_base import MAIL_SEARCH_REFUSALS, refusal_for
 from src.domains.agents.tools.mixins import ToolOutputMixin
-from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
+from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     get_user_preferences,
-    parse_user_id,
     resolve_recipients_to_emails,
 )
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
@@ -358,8 +354,13 @@ ContextTypeRegistry.register(
         item_schema=EmailItem,  # Type-safe validation
         primary_id_field="id",
         display_name_field="snippet",
-        # Searchable fields for fuzzy matching
-        reference_fields=["snippet", "from_email", "subject", "to"],
+        # The STORED payload's keys (ADR-367): `from` carries the sender's name
+        # AND address (`from_email` is the address alone, or None); the preview
+        # is content, read only when no sender, subject or recipient matches.
+        reference_fields=["from", "subject", "to"],
+        content_reference_fields=["snippet"],
+        # Two e-mails from one sender, in one thread: the date tells them apart.
+        candidate_fields=["from", "subject", "date_formatted"],
         icon="📧",  # Optional emoji for UI
     )
 )
@@ -542,9 +543,9 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         # Determine max_results: the published default (ADR-184: one contract),
         # not the maximum.
-        default_max_results = settings.emails_tool_default_limit
-        if max_results is None or not isinstance(max_results, int) or max_results <= 0:
-            max_results = default_max_results
+        max_results = validate_positive_int_or_default(
+            max_results, settings.emails_tool_default_limit
+        )
 
         # Cap at the domain setting (settings.emails_tool_default_max_results)
         security_cap = settings.emails_tool_default_max_results
@@ -574,6 +575,8 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "next_page_token": search_result.get("next_page_token"),
             FIELD_SET_ASIDE_ON_PAGE: search_result.get(FIELD_SET_ASIDE_ON_PAGE),
         }
+        # F11: hits the client listed but could not read make the page partial.
+        skipped = search_result.get(FIELD_SKIPPED_HITS) or 0
 
         if not messages_metadata:
             logger.info(
@@ -588,6 +591,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 "user_timezone": user_timezone,
                 "locale": locale,
                 "mode": "query",
+                "failed_read_count": skipped,
                 **paging,
             }
 
@@ -615,7 +619,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "user_timezone": user_timezone,
             "locale": locale,
             "mode": "query",
-            "failed_read_count": len(hits) - len(emails_with_details),
+            "failed_read_count": len(hits) - len(emails_with_details) + skipped,
             **paging,
         }
 
@@ -821,39 +825,6 @@ async def get_emails_tool(
         user_timezone=user_timezone,
         locale=locale,
     )
-
-    # Save to context (for $context.emails references)
-    if runtime and runtime.store:
-        try:
-            user_id_raw = tool_user_id_str(runtime)
-            thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-            if user_id_raw and thread_id:
-                user_id = parse_user_id(user_id_raw)
-                thread_id_str = str(thread_id)
-
-                # Extract emails from result
-                emails_to_save = []
-                if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                    for item in result.registry_updates.values():
-                        emails_to_save.append(item.payload)
-                else:
-                    parsed = json.loads(result)
-                    data = parsed.get("data", {})
-                    emails_to_save = data.get("emails", [])
-
-                # Store with proper namespace
-                await runtime.store.aput(
-                    (str(user_id), thread_id_str, "context", "emails"),
-                    "list_current_search",
-                    {
-                        "emails": emails_to_save,
-                        "query": query,
-                        "timestamp": time.time(),
-                    },
-                )
-        except Exception as e:
-            logger.debug("store_context_failed", error=str(e))
 
     # Dynamic save mode: ID params → CURRENT (preserves search list), else → LIST
     if isinstance(result, UnifiedToolOutput):

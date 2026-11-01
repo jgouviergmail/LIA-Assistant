@@ -259,7 +259,7 @@ describe('normalizeHitlPayload — out of V1 scope and defensive', () => {
     expect(
       normalizeHitlPayload({
         message_id: 'x',
-        action_requests: [{ type: 'entity_disambiguation' }],
+        action_requests: [{ type: 'mystery_kind' }],
       })
     ).toBeNull();
   });
@@ -283,5 +283,88 @@ describe('normalizeHitlPayload — out of V1 scope and defensive', () => {
 
     expect(result?.kind).toBe('tool_confirmation');
     expect(result?.interruptTs).toBe('2026-07-18T19:00:00+00:00');
+  });
+});
+
+// --- Code contract: « which of these? » (ADR-367) — entity_disambiguation.py ---
+const CHOICE_METADATA = {
+  message_id: 'hitl_choice_1',
+  conversation_id: 'conv-choice',
+  action_requests: [
+    {
+      type: 'entity_disambiguation',
+      domain: 'email',
+      candidates: [
+        { index: 1, label: 'Marc Dubois <marc@example.com> · Photos · mardi 15 septembre' },
+        { index: 2, label: 'Marc Dubois <marc@example.com> · Facture · lundi 14 septembre' },
+      ],
+      reask: false,
+      available_actions: [
+        { action: 'none', label: 'none', style: 'secondary' },
+        { action: 'cancel', label: 'cancel', style: 'destructive' },
+      ],
+    },
+  ],
+  count: 1,
+  is_plan_approval: false,
+};
+
+describe('normalizeHitlPayload — entity_disambiguation (ADR-367)', () => {
+  it('maps the options in order and the two declining answers', () => {
+    const result = normalizeHitlPayload(CHOICE_METADATA);
+
+    expect(result?.kind).toBe('entity_disambiguation');
+    expect(result?.messageId).toBe('hitl_choice_1');
+    expect(result?.options).toEqual([
+      { index: 1, label: 'Marc Dubois <marc@example.com> · Photos · mardi 15 septembre' },
+      { index: 2, label: 'Marc Dubois <marc@example.com> · Facture · lundi 14 septembre' },
+    ]);
+    expect(result?.actions.map(a => a.action)).toEqual(['none', 'cancel']);
+  });
+
+  it('drops an option without a position or a label', () => {
+    const request = {
+      ...CHOICE_METADATA.action_requests[0],
+      candidates: [
+        { index: 1, label: 'Marc · Photos' },
+        { index: 0, label: 'zero is no position' },
+        { index: 2.5, label: 'not a position' },
+        { index: 3, label: '' },
+        { label: 'no index' },
+        null,
+      ],
+    };
+    const result = normalizeHitlPayload({ ...CHOICE_METADATA, action_requests: [request] });
+
+    expect(result?.options).toEqual([{ index: 1, label: 'Marc · Photos' }]);
+  });
+
+  it('returns null when nothing is left to choose among (the typed answer remains)', () => {
+    const request = { ...CHOICE_METADATA.action_requests[0], candidates: [] };
+    expect(normalizeHitlPayload({ ...CHOICE_METADATA, action_requests: [request] })).toBeNull();
+  });
+
+  it('falls back to none and cancel when the wire carries no actions — never confirm', () => {
+    const { available_actions: _ignored, ...request } = CHOICE_METADATA.action_requests[0];
+    const result = normalizeHitlPayload({ ...CHOICE_METADATA, action_requests: [request] });
+
+    expect(result?.actions.map(a => a.action)).toEqual(['none', 'cancel']);
+  });
+
+  it('« none » stays filtered on every other kind (the server rejects it there)', () => {
+    const result = normalizeHitlPayload({
+      message_id: 'x',
+      action_requests: [
+        {
+          type: 'tool_confirmation',
+          available_actions: [
+            { action: 'none', label: 'none' },
+            { action: 'cancel', label: 'cancel' },
+          ],
+        },
+      ],
+    });
+
+    expect(result?.actions.map(a => a.action)).toEqual(['cancel']);
   });
 });

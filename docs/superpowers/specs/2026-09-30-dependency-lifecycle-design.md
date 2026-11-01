@@ -869,12 +869,18 @@ introduced, and these — each reproduced before it was touched:
 
 ## 6. Deferred, with the condition that reopens each
 
+Amended 2026-10-31: the ESLint 9 acceptance is retired through the official
+compatibility adapter, with exact plugin compatibility entries and unchanged
+rule enforcement. See the dated amendment in ADR-331 and `docs/technical/CI_CD.md`.
+The earlier rejection below remains the record of the partial React version
+auto-detection workaround; the adapter preserves the complete rule API instead.
+
 | Subject | Stays on | Reopened when |
 |---|---|---|
 | openai 3, anthropic 1 | 2.54.0, 0.125.0 (langchain-openai 1.6.6 accepts `>=2.45,<4`) | an advisory on the 2.x line, or the LangChain packages refusing it |
 | LIA's own calls on httpx2 | httpx 0.28.1 behind the bounded reader | httpx 1.0 stable, or the last dependency leaving httpx |
 | SQLAlchemy 2.1, vitest 5, mermaid 12 | 2.0, 4.1, 11 (all maintained) | the major is older than the cooldown |
-| TypeScript 7, ESLint 10 | 6.0.3, 9.39.5 (accepted) | typescript-eslint and `eslint-config-next` accept them |
+| TypeScript 7 | 6.0.3 | typescript-eslint accepts it |
 | pnpm 11 or 12 | 10.34.x (to 2027-04-30) | Dependabot documents the version |
 | Capacitor 9, Tempo 3, Node 26 | 8.5.x, 2.10.x, 24 LTS (to 2028-04-30) | a stable release; for Tempo, no more 2.10 patches |
 | PostgreSQL 18 | 16 (to 2028-11-09) | a planned dump and restore, in 2027 |

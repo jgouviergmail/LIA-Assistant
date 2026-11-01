@@ -118,6 +118,16 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # ADR-304: consecutive truncated Drive push drains — a circuit breaker's
     # state, not a cache (``rag`` is): a reset must not re-arm the breaker.
     "rag:drive_push": KeyScope.USER_RUNTIME,
+    # ADR-369: what became of a send or a create the person submitted from the
+    # « Tools » section. A reset deleting it would let the same submission be
+    # sent a second time — exactly what the key exists to prevent.
+    "workbench:idem": KeyScope.USER_RUNTIME,
+    # ADR-369: the one attachment download an account has in flight — a claim
+    # expiring on its own; a reset deleting it would let two run at once.
+    "workbench:download": KeyScope.USER_RUNTIME,
+    # ADR-369: a mailbox's cache generation — a counter every write moves, not a
+    # cache; the caches it versions (``gmail:*``) are purged by a reset on their own.
+    "mail:generation": KeyScope.USER_RUNTIME,
     # ADR-298: the live network sandbox runs and the ruleset writer's claim —
     # keyed by run id, shared by every worker, never a person's data.
     "sandbox_egress": KeyScope.GLOBAL,

@@ -89,6 +89,7 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
         "update_mailbox_draft_tool",
         "delete_mailbox_drafts_tool",
         "send_mailbox_draft_tool",  # confirmed before it leaves
+        "set_email_read_state_tool",  # read / unread on any provider (ADR-369)
         "reply_email_tool",
         "forward_email_tool",
         "delete_email_tool",

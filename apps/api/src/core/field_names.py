@@ -30,6 +30,8 @@ FIELD_CONVERSATION_ID = "conversation_id"
 FIELD_RUN_ID = "run_id"
 FIELD_TURN_ID = "turn_id"
 FIELD_STEP_ID = "step_id"
+# ADR-367: a step another step of the plan depends on — a means, not what was shown.
+FIELD_INTERMEDIATE_STEP = "intermediate_step"
 FIELD_WAVE_ID = "wave_id"
 FIELD_PLAN_ID = "plan_id"
 #: The tool parameter the executor fills with a ``ToolRuntime``. It is
@@ -170,6 +172,10 @@ FIELD_MESSAGE_COUNT = "message_count"
 # carry set aside (RC3.1): the page holds fewer than asked while more may
 # follow. Written by the client, read by the tools that publish the page.
 FIELD_SET_ASIDE_ON_PAGE = "set_aside_on_page"
+# How many hits of a listing PAGE the provider listed but could not be read
+# (F11): the page is partial, never presented as whole. Written by the client
+# that reads each hit, read by every reader that publishes the page.
+FIELD_SKIPPED_HITS = "skipped_hits"
 
 # Token Aggregation (conversation totals)
 FIELD_TOTAL_TOKENS_IN = "total_tokens_in"
@@ -196,6 +202,8 @@ FIELD_DECISION = "decision"
 FIELD_INTERRUPT_DATA = "interrupt_data"
 FIELD_TYPE = "type"  # Generic type field (HITL action type, etc.)
 FIELD_DRAFT_ID = "draft_id"  # Draft identifier for draft_critique HITL
+# A new request abandoning the question still pending (ADR-367 amendment)
+FIELD_ABANDON_PENDING = "abandon_pending"
 
 # Proactive Messages Metadata (interest/heartbeat notifications archived in
 # conversation_messages.message_metadata JSONB)
@@ -368,6 +376,7 @@ __all__ = [
     "FIELD_HIDDEN",
     "FIELD_TURN_ID",
     "FIELD_STEP_ID",
+    "FIELD_INTERMEDIATE_STEP",
     "FIELD_WAVE_ID",
     "FIELD_PLAN_ID",
     "FIELD_AGENT_NAME",
@@ -399,6 +408,7 @@ __all__ = [
     "FIELD_TOTAL_COUNT",
     "FIELD_MESSAGE_COUNT",
     "FIELD_SET_ASIDE_ON_PAGE",
+    "FIELD_SKIPPED_HITS",
     "FIELD_TOTAL_TOKENS_IN",
     "FIELD_TOTAL_TOKENS_OUT",
     "FIELD_TOTAL_TOKENS_CACHE",
@@ -416,6 +426,7 @@ __all__ = [
     "FIELD_REACT_SYNTHESIS",
     "FIELD_ACTION_REQUESTS",
     "FIELD_DECISION",
+    "FIELD_ABANDON_PENDING",
     "FIELD_INTERRUPT_DATA",
     "FIELD_TYPE",
     "FIELD_DRAFT_ID",

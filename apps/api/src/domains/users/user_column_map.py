@@ -102,6 +102,8 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "health_metrics_agents_enabled": _PREFERENCE,
     "execution_mode": _PREFERENCE,
     "exchange_rhythm": _PREFERENCE,
+    # What the account's MCP servers inherit (spec 2026-10-30 D2).
+    "mcp_hitl_required": _PREFERENCE,
     "voice_enabled": _PREFERENCE,
     "speaking_avatar_enabled": _PREFERENCE,
     "voice_mode_enabled": _PREFERENCE,

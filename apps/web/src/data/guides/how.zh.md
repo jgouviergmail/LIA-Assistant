@@ -3,8 +3,8 @@
 > LIA 是怎样构建的，这里只讲主要脉络。细节在代码、ADR 和仓库的文档里。
 
 **版本**：6.0
-**日期**：2026-10-23
-**应用**：LIA v4.2.0
+**日期**：2026-10-31
+**应用**：LIA v4.3.0
 **许可证**：AGPL-3.0（开源）
 
 ---
@@ -112,6 +112,8 @@ flowchart TD
 
 ## 4. 谨慎行事
 
+对于 **MCP**，你可以按账户、服务器和工具设置确认规则。行为概览会在修改前解释实际生效的规则。只要一个工具需要批准，专用代理便会在任务前询问；这次批准涵盖该任务中的调用。工具声明变化时，“从不询问”会暂停。聊天只能加强这些保护，减少确认只能在设置中操作。例行任务可以使用你在其表单中明确预先批准的服务器。
+
 凡是真正会发生的事，LIA 都会先问你：每一份草稿（一封邮件、一个日程、一次删除），每一项至少会修改一个条目的批量操作，每一个声明需要确认的工具。确认是逐项请求的，在操作准备好的地方提出，而不是针对整个计划。反过来，一个不可能被挪作他用的操作就什么也不问：你发给自己的邮件会直接发出。
 
 ```mermaid
@@ -136,6 +138,8 @@ sequenceDiagram
 *延伸阅读：[确认机制](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/HITL.md) · [授权链与登记簿](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) · [用户视角的登记簿](/zh/faq#faq-registers) · [工单](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/WORKBOARD.md) · [应用命令](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/APPLICATION_COMMANDS.md) · [委托能证明什么](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-336-Requested-Outcomes-Checked-Against-Canonical-Observations.md) · [工具示例、发给自己的邮件与草稿](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/knowledge/05_tool_examples.md) · [回答的合成](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/RESPONSE.md)*
 
 ## 5. 记忆与上下文
+
+按发件人、标题或位置指定结果时，LIA 会先使用实际展示过的项目。多个项目匹配时，它会询问你指哪一个。计划中的搜索若会对多个结果中的第一项采取行动，也会等待你的选择，再对该项目继续操作。
 
 对话的状态是一个 `MessagesState`，LangGraph 在每个节点之后把它作为检查点写入 PostgreSQL。正因如此，确认之后才能接着继续一个回合，哪怕隔了几个小时。工具的结果不存放在消息历史里，而是放在一个单独的数据注册表中，因此即使历史被截断，它们也能保留下来。超过某个阈值后，较早的交流会被总结；一个小徽标显示上下文的占用程度，`/resume` 可以按需触发这种总结。在 ReAct 模式下，一个循环已经读过的内容会写入检查点，并在本回合内复用；如果在这个检查点之前就中止，可能需要重新读取某个来源。
 
@@ -232,6 +236,8 @@ LIA 也会读取她自己的遥测数据来进行自我诊断：每一条关键�
 *延伸阅读：[可观测性技术栈](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-020-Observability-Stack.md) · [调试面板](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL.md) · [调试面板的架构](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEBUG_PANEL_ARCHITECTURE.md) · [实例上限](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md) · [每一笔支出都受两个上限约束](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) · [用工作簿管理](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/TABULAR_ADMIN_IO.md) · [定向公告](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md) · [演示实例](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DEMO_INSTANCE.md) · [自我诊断](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/technical/DIAGNOSTICS_DOMAIN.md) · [告警及其韧性](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md) · [在聊天中使用 Claude CLI](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md) · [一个 worker 的内存剖析](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-283-Worker-Memory-Anatomy.md) · [登记簿的完整导出](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-273-Complete-Register-Extractions.md) · [后台任务的组织](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-046-Background-Job-Scheduling.md)*
 
 ## 12. 界面
+
+**工具**工作区使用独立的 REST 接口，不经过会话图。它复用连接器客户端，并向界面公布支持的操作及限制。数据库会话在调用服务商之前关闭；提交有重放保护，丢失回复时会明确显示结果未知。邮件 HTML 保留在隔离框架中，远程内容被阻止。手动操作与委托 LIA 执行的操作因此保持清晰区分。
 
 网页界面是一个可以像应用一样安装的 Next.js 应用（PWA）。聊天无需刷新就能更新对话，能渲染数学公式和带语法高亮的代码，每个账户保留一份草稿，并且可以搜索；设置有自己的搜索功能、一款为 OLED 屏幕准备的纯黑主题，以及可调的文字大小。
 

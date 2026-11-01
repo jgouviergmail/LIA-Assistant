@@ -546,8 +546,13 @@ async def test_search_emails_cache_hit(gmail_client):
 
     with patch("src.domains.connectors.clients.google_gmail_client.get_redis_cache") as mock_cache:
         mock_redis = AsyncMock()
-        # get_redis_cache returns JSON string, not dict
-        mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
+        # get_redis_cache returns JSON string, not dict. The mailbox's cache
+        # generation is read first (ADR-369): never written, it is absent.
+        mock_redis.get = AsyncMock(
+            side_effect=lambda key: (
+                None if key.startswith("mail:generation:") else json.dumps(cached_data)
+            )
+        )
         mock_cache.return_value = mock_redis
 
         result = await gmail_client.search_emails(query="test", use_cache=True)
@@ -888,6 +893,65 @@ async def test_search_emails_skips_failed_fetches(gmail_client):
             result = await gmail_client.search_emails(query="test", max_results=10)
 
     assert [m["id"] for m in result["messages"]] == ["ok1", "ok2"]
+
+
+@pytest.mark.asyncio
+async def test_a_page_counts_the_hits_it_could_not_read_and_is_not_kept(gmail_client):
+    """F11: a hit Gmail listed but could not read is COUNTED, never dropped in
+    silence — and a page missing hits is not cached: the next read retries them."""
+    from src.core.constants import REDIS_KEY_GMAIL_SEARCH_PREFIX
+    from src.core.field_names import FIELD_SKIPPED_HITS
+
+    async def fake_request(method, endpoint, params=None, **kwargs):
+        if endpoint == "/users/me/messages":
+            return {"messages": [{"id": "ok1"}, {"id": "boom"}, {"id": "ok2"}]}
+        if endpoint.endswith("/boom"):
+            raise RuntimeError("fetch failed")
+        return {"id": endpoint.rsplit("/", 1)[-1], "threadId": "t"}
+
+    with patch.object(gmail_client, "_make_request", side_effect=fake_request):
+        with patch(
+            "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
+        ) as mock_cache:
+            mock_redis = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_redis.set = AsyncMock()
+            mock_cache.return_value = mock_redis
+
+            result = await gmail_client.search_emails(query="test", max_results=10)
+
+    assert result[FIELD_SKIPPED_HITS] == 1
+    written = [call.args[0] for call in mock_redis.set.await_args_list]
+    assert not [key for key in written if key.startswith(REDIS_KEY_GMAIL_SEARCH_PREFIX)]
+
+
+@pytest.mark.asyncio
+async def test_a_search_is_narrowed_to_labels_by_their_ids(gmail_client):
+    """Gmail's documented ``labelIds``: a label of the person's own is read by its
+    id — never by a ``label:`` term — and the cache tells two labels apart."""
+    asked: list[dict[str, object]] = []
+
+    async def fake_request(method, endpoint, params=None, **kwargs):
+        asked.append(params or {})
+        return {"messages": []}
+
+    with patch.object(gmail_client, "_make_request", side_effect=fake_request):
+        with patch(
+            "src.domains.connectors.clients.google_gmail_client.get_redis_cache"
+        ) as mock_cache:
+            mock_redis = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_cache.return_value = mock_redis
+
+            await gmail_client.search_in_labels(["Label_12"], "is:unread")
+            await gmail_client.search_in_labels(["Label_13"])
+
+    assert (asked[0]["q"], asked[0]["labelIds"]) == ("is:unread", ["Label_12"])
+    assert "q" not in asked[1], "an empty query is not sent"
+    from src.core.constants import REDIS_KEY_GMAIL_SEARCH_PREFIX
+
+    read_keys = {call.args[0] for call in mock_redis.get.await_args_list}
+    assert len({key for key in read_keys if key.startswith(REDIS_KEY_GMAIL_SEARCH_PREFIX)}) == 2
 
 
 class TestSearchHitFormat:

@@ -39,6 +39,7 @@ from src.core.constants import (
     HUE_PAIRING_DEVICE_TYPE,
     HUE_REMOTE_API_BASE_URL,
 )
+from src.core.exceptions import ConnectorAPIError, RateLimitError
 from src.domains.connectors.errors import ConnectorRevokedError
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.oauth_refresh import ensure_fresh_credentials
@@ -116,6 +117,26 @@ def resolve_color(color_input: str) -> tuple[float, float] | None:
                 return (x, y)
 
     return None
+
+
+def _bridge_id(value: str) -> str:
+    """A CLIP v2 resource id, canonical — the bridge mints UUIDs (ADR-369).
+
+    An id of any other shape comes from a browser or a model and names nothing:
+    interpolated raw, ``../bridge`` would aim the bridge key (or the remote
+    token) at another endpoint of the person's bridge.
+
+    Raises:
+        ConnectorAPIError: 404 without a request (never quoted back).
+    """
+    try:
+        return str(UUID(value))
+    except TypeError, ValueError:
+        raise ConnectorAPIError(
+            connector_type=ConnectorType.PHILIPS_HUE.value,
+            status_code=404,
+            detail="philips_hue API error: no such resource",
+        ) from None
 
 
 def _extract_grouped_light_id(room_data: dict[str, Any]) -> str:
@@ -215,7 +236,7 @@ class PhilipsHueClient:
         Follows the same pattern as BaseAppleClient._rate_limit().
 
         Raises:
-            RuntimeError: If rate limit exceeded after retries.
+            RateLimitError: Our own window is still full after the retries.
         """
         if not settings.rate_limit_enabled:
             return
@@ -245,8 +266,9 @@ class PhilipsHueClient:
                 )
                 await asyncio.sleep(wait_time)
 
-            raise RuntimeError(f"Hue Bridge rate limit exceeded after {max_retries} retries")
-        except RuntimeError:
+            # A per-second budget over a sliding window: a slot frees within a second.
+            raise RateLimitError(limit=max_calls, window_seconds=window_seconds, retry_after=1)
+        except RateLimitError:
             raise
         except Exception as e:
             logger.warning(
@@ -339,7 +361,7 @@ class PhilipsHueClient:
         Raises:
             httpx.HTTPStatusError: On non-2xx responses.
             CircuitBreakerError: If circuit is open.
-            RuntimeError: If rate limit exceeded.
+            RateLimitError: Our own window is full.
         """
         # 1. Rate limiting
         await self._rate_limit()
@@ -398,7 +420,7 @@ class PhilipsHueClient:
                 user_id=str(self.user_id),
                 method=method,
                 endpoint=endpoint,
-                error=str(e),
+                error_type=type(e).__name__,
                 connection_mode=self._connection_mode.value,
             )
             raise
@@ -440,7 +462,7 @@ class PhilipsHueClient:
         Returns:
             Light resource dict.
         """
-        result = await self._make_request("GET", f"light/{light_id}")
+        result = await self._make_request("GET", f"light/{_bridge_id(light_id)}")
         data = result.get("data", [])
         return dict(data[0]) if data else {}
 
@@ -476,7 +498,7 @@ class PhilipsHueClient:
         if color_temperature_mirek is not None:
             body["color_temperature"] = {"mirek": color_temperature_mirek}
 
-        return await self._make_request("PUT", f"light/{light_id}", json_data=body)
+        return await self._make_request("PUT", f"light/{_bridge_id(light_id)}", json_data=body)
 
     # =========================================================================
     # PUBLIC API: Rooms
@@ -514,7 +536,7 @@ class PhilipsHueClient:
             ValueError: If room has no grouped_light service.
         """
         # Resolve room → grouped_light
-        room_result = await self._make_request("GET", f"room/{room_id}")
+        room_result = await self._make_request("GET", f"room/{_bridge_id(room_id)}")
         room_data = room_result.get("data", [{}])[0]
         grouped_light_id = _extract_grouped_light_id(room_data)
 
@@ -525,7 +547,9 @@ class PhilipsHueClient:
         if brightness is not None:
             body["dimming"] = {"brightness": min(100.0, max(0.0, brightness))}
 
-        return await self._make_request("PUT", f"grouped_light/{grouped_light_id}", json_data=body)
+        return await self._make_request(
+            "PUT", f"grouped_light/{_bridge_id(grouped_light_id)}", json_data=body
+        )
 
     # =========================================================================
     # PUBLIC API: Scenes
@@ -552,7 +576,7 @@ class PhilipsHueClient:
             API response dict.
         """
         return await self._make_request(
-            "PUT", f"scene/{scene_id}", json_data={"recall": {"action": "active"}}
+            "PUT", f"scene/{_bridge_id(scene_id)}", json_data={"recall": {"action": "active"}}
         )
 
     # =========================================================================

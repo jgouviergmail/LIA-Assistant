@@ -151,14 +151,12 @@ class TestAReferenceToAListedMessage:
 
     @staticmethod
     def _resolved(metadata_output: Any) -> tuple[dict[str, Any], dict[str, Any]]:
-        from src.domains.agents.services.context_resolution_service import (
-            ContextResolutionService,
-        )
+        from src.domains.agents.services.reference_fallbacks import extract_items_from_registry
 
         registry = dict(metadata_output.registry_updates)
         state: Any = {"registry": registry}
         agent_results = {"1:plan_executor": {"registry_updates": registry}}
-        items = ContextResolutionService()._extract_items_from_registry(
+        items = extract_items_from_registry(
             state, "run", last_action_turn=1, agent_results=agent_results
         )
         return registry, {"items": items, "source_turn_id": 1, "source_domain": "emails"}

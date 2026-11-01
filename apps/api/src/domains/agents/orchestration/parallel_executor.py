@@ -84,14 +84,12 @@ from pydantic import BaseModel, ConfigDict
 
 from src.core.config import settings
 from src.core.field_names import (
-    FIELD_CORRELATED_TO,
     FIELD_CORRELATION_PARENT_ID,
     FIELD_ERROR_CODE,
+    FIELD_INTERMEDIATE_STEP,
     FIELD_METADATA,
     FIELD_NODE_NAME,
-    FIELD_REGISTRY_ID,
     FIELD_RESULT,
-    FIELD_STEP_ID,
     FIELD_TOOL_NAME,
     FIELD_TURN_ID,
 )
@@ -100,7 +98,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
 )
-from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
+from src.domains.agents.effects.label_targets import publishing_label_items
 from src.domains.agents.effects.scope import effect_scope, scope_from_config, step_effect_key
 from src.domains.agents.orchestration.condition_evaluator import (
     ConditionEvaluator,
@@ -113,16 +111,21 @@ from src.domains.agents.orchestration.for_each_utils import (
 )
 
 # Issue #41: Jinja2 template evaluation for conditional parameters
+from src.domains.agents.orchestration.held_steps import held_now
 from src.domains.agents.orchestration.jinja_evaluator import (
     EmptyResultError,
     JinjaTemplateEvaluator,
 )
 from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep, StepType
+from src.domains.agents.orchestration.step_results import (
+    ToolExecutionResult,
+    draft_ids,
+    project_tool_result,
+)
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 
 # 2026-01: Text compaction for token optimization (post-Jinja evaluation)
 from src.domains.agents.orchestration.text_compaction import compact_text_params
-from src.domains.agents.orchestration.tool_data_projection import tool_data_fields
 from src.domains.agents.semantic.argument_guard import guard_tool_arguments
 from src.domains.agents.semantic.param_guard import (
     person_names_from_config,
@@ -199,6 +202,8 @@ class ParallelExecutionResult(BaseModel):
     registry: dict[str, Any]  # Serialized RegistryItem dicts
     pending_draft: PendingDraftInfo | None = None  # Data Registry LOT 4.3
     pending_drafts: list[PendingDraftInfo] = []  # Batch support for FOR_EACH
+    # Spec D7: each step that reads a draft's result waits, with the drafts it waits for.
+    held_steps: dict[str, list[str]] = {}
 
 
 # Issue #41: Module-level Jinja2 evaluator instance (thread-safe, reusable)
@@ -545,8 +550,8 @@ class StepResult(BaseModel):
     wave_id: int | None = None
     # Data Registry LOT 5.2: Registry updates from StandardToolOutput
     registry_updates: dict[str, Any] | None = None
-    # Data Registry LOT 4.3: Draft info if tool requires confirmation
-    draft_info: dict[str, Any] | None = None
+    # Data Registry LOT 4.3: every draft the step asks the person to confirm
+    draft_infos: list[dict[str, Any]] = []
     # INTELLIPLANNER B+: Structured data for Jinja2 templates
     structured_data: dict[str, Any] | None = None
 
@@ -708,6 +713,7 @@ def _check_plan_completion(
     execution_plan: ExecutionPlan,
     completed_steps: dict[str, dict[str, Any]],
     run_id: str,
+    held: set[str] | None = None,
 ) -> tuple[bool, bool]:
     """
     Check if execution plan is complete or deadlocked.
@@ -716,6 +722,8 @@ def _check_plan_completion(
         execution_plan: The execution plan being executed
         completed_steps: Steps completed so far
         run_id: Run ID for logging
+        held: Steps waiting for the person's answer (spec D7) — not run, not
+            failed, and no deadlock
 
     Returns:
         Tuple of (is_complete, is_deadlocked)
@@ -736,7 +744,7 @@ def _check_plan_completion(
     """
     all_step_ids = {step.step_id for step in execution_plan.steps}
     skipped_steps = _identify_skipped_steps(execution_plan, completed_steps)
-    required_steps = all_step_ids - skipped_steps
+    required_steps = all_step_ids - skipped_steps - (held or set())
 
     # Dashboard 15 LangGraph plan execution metrics
     with suppress(Exception):
@@ -850,6 +858,7 @@ async def _execute_wave_parallel(
     # FIX 2026-02-06: Convert set to sorted list ONCE for consistent ordering
     # This ensures exception handling can correctly map results back to steps
     step_ids_ordered = sorted(next_wave)
+    consumed = execution_plan.consumed_step_ids()
     tasks = [
         _execute_single_step_async(
             step=steps_by_id[step_id],
@@ -860,6 +869,7 @@ async def _execute_wave_parallel(
             context=context,
             accumulated_registry=accumulated_registry,
             turn_id=turn_id,
+            intermediate=step_id in consumed,
         )
         for step_id in step_ids_ordered
     ]
@@ -946,6 +956,7 @@ async def _execute_wave_parallel(
         config=config,
         store=store,
         wave_id=current_wave_id,
+        turn_id=turn_id,
     )
 
     return step_results
@@ -962,6 +973,7 @@ async def _auto_save_wave_contexts(
     config: RunnableConfig,
     store: Any,
     wave_id: int,
+    turn_id: int | None = None,
 ) -> None:
     """
     Auto-save tool contexts after a wave execution completes.
@@ -987,6 +999,8 @@ async def _auto_save_wave_contexts(
         config: RunnableConfig with user_id, thread_id
         store: BaseStore for context persistence
         wave_id: Current wave ID (for logging)
+        turn_id: The turn the saved list belongs to (ADR-367) — never the wave
+            number, which read as a turn and dated every list wrongly.
 
     Example:
         >>> # After wave 0 completes with 2 steps:
@@ -1023,6 +1037,7 @@ async def _auto_save_wave_contexts(
     # Get global registry for manifest lookup
     registry = get_global_registry()
     manager = ToolContextManager()
+    consumed = execution_plan.consumed_step_ids()
 
     # Extract user_id and session_id from config
     user_id = runtime_user_id_str()
@@ -1129,7 +1144,10 @@ async def _auto_save_wave_contexts(
             # Thread plumbing only: the acting user reaches ``auto_save`` through
             # the typed run context, not through a re-projected bag (ADR-231).
             "configurable": {"thread_id": session_id},
-            FIELD_METADATA: {FIELD_TURN_ID: wave_id},
+            FIELD_METADATA: {
+                FIELD_TURN_ID: turn_id or 0,
+                FIELD_INTERMEDIATE_STEP: step_result.step_id in consumed,
+            },
         }
         save_config = RunnableConfig(**config_dict)
 
@@ -1410,12 +1428,14 @@ async def execute_plan_parallel(
         # - $item references are NOT substituted (step not expanded)
         # - Tool execution fails with literal "$item.field" values
         # =====================================================================
+        # Spec D7: a step reading a draft's result waits — never run on a placeholder.
+        held = held_now(execution_plan, accumulated_drafts, completed_steps)
         expansion_result = await _expand_and_execute_for_each_if_ready(
             execution_plan=execution_plan,
             dep_graph=dep_graph,
             steps_by_id=steps_by_id,
             completed_steps=completed_steps,
-            excluded_steps=excluded_steps,
+            excluded_steps=excluded_steps | held.keys(),
             config=config,
             store=store,
             context=context,
@@ -1428,6 +1448,7 @@ async def execute_plan_parallel(
         )
         if expansion_result:
             execution_plan, dep_graph, steps_by_id = expansion_result
+        held = held_now(execution_plan, accumulated_drafts, completed_steps)
 
         # Calculate next wave based on completed steps AND excluded steps
         # This is dynamic to handle CONDITIONAL branching
@@ -1436,7 +1457,7 @@ async def execute_plan_parallel(
             completed=set(completed_steps.keys()), excluded=set()
         )
         next_wave = dep_graph.get_next_wave(
-            completed=set(completed_steps.keys()), excluded=excluded_steps
+            completed=set(completed_steps.keys()), excluded=excluded_steps | held.keys()
         )
 
         # Dashboard 15: wave filtered counter (skipped-branch exclusion)
@@ -1456,7 +1477,7 @@ async def execute_plan_parallel(
             # No more steps can execute - check if plan complete or deadlocked
             # Session 22 - Helper #2: Plan completion check extracted
             is_complete, is_deadlocked = _check_plan_completion(
-                execution_plan, completed_steps, run_id
+                execution_plan, completed_steps, run_id, held=set(held)
             )
             break  # Exit loop regardless of completion status
 
@@ -1491,7 +1512,8 @@ async def execute_plan_parallel(
             dep_graph=dep_graph,
             steps_by_id=steps_by_id,
             completed_steps=completed_steps,
-            excluded_steps=excluded_steps,
+            excluded_steps=excluded_steps
+            | held_now(execution_plan, accumulated_drafts, completed_steps).keys(),
             config=config,
             store=store,
             context=context,
@@ -1612,6 +1634,7 @@ async def execute_plan_parallel(
         registry=current_turn_registry,
         pending_draft=pending_draft,
         pending_drafts=pending_drafts,
+        held_steps=held_now(execution_plan, accumulated_drafts, completed_steps),
     )
 
 
@@ -1636,6 +1659,7 @@ async def _execute_single_step_async(
     accumulated_registry: dict[str, Any] | None = None,
     turn_id: int | None = None,
     data_share: int = 1,
+    intermediate: bool = False,
 ) -> StepResult:
     """
     Execute a single step (TOOL or CONDITIONAL) asynchronously.
@@ -1653,15 +1677,26 @@ async def _execute_single_step_async(
         accumulated_registry: INTELLIA LocalQueryEngine - registry items for local_query_engine_tool
         turn_id: Current turn ID to inject into RegistryItem.meta (for context resolution)
         data_share: How many results share this step's data budget (a FOR_EACH's items)
+        intermediate: Another step consumes this one as a means
+            (``ExecutionPlan.consumed_step_ids``): its results never replace the
+            list the person was shown (ADR-367).
 
     Returns:
         StepResult with execution result
     """
-    # Enrich config with step_id for token tracking
-    enriched_config = config.copy()
-    if FIELD_METADATA not in enriched_config:
-        enriched_config[FIELD_METADATA] = {}
-    enriched_config[FIELD_METADATA][FIELD_NODE_NAME] = f"parallel_executor:{step.step_id}"
+    # The step's OWN metadata (a new dict): a shallow copy shared the turn's
+    # dict with every step of the wave, so the last to start named the token
+    # usage of all of them. The turn travels too — the context list a tool
+    # saves is dated by it (ADR-367).
+    step_metadata: dict[str, Any] = {
+        **(config.get("metadata") or {}),
+        FIELD_NODE_NAME: f"parallel_executor:{step.step_id}",
+    }
+    if turn_id is not None:
+        step_metadata[FIELD_TURN_ID] = turn_id
+    if intermediate:
+        step_metadata[FIELD_INTERMEDIATE_STEP] = True
+    enriched_config: RunnableConfig = {**config, "metadata": step_metadata}
 
     # Per-tool-family timeout policy (sub-agent / browser tunable via Settings).
     # See `step_timeouts.compute_step_timeout` for the full policy.
@@ -2424,13 +2459,6 @@ async def _execute_tool_step(
     # Data Registry LOT 5.2: Extract result and registry_updates from ToolExecutionResult
     tool_result = tool_execution_result.result
     registry_updates = tool_execution_result.registry_updates
-    # Data Registry LOT 4.3: Extract draft_info if tool requires confirmation
-    draft_info = tool_execution_result.draft_info
-
-    # Enrich draft_info with step context
-    if draft_info:
-        draft_info["step_id"] = step.step_id
-
     # 6. Extract result fields
     success = tool_result.get("success", False)
     error = tool_result.get("error")
@@ -2465,72 +2493,9 @@ async def _execute_tool_step(
         wave_id=wave_id,
         # Data Registry LOT 5.2: Propagate registry_updates from registry-enabled tools
         registry_updates=registry_updates,
-        # Data Registry LOT 4.3: Propagate draft_info if requires_confirmation=True
-        draft_info=draft_info,
+        # Data Registry LOT 4.3: every draft it asks to confirm, each naming this step
+        draft_infos=tool_execution_result.draft_infos,
     )
-
-
-class ToolExecutionResult(BaseModel):
-    """
-    Internal result type for tool execution with data registry support.
-
-    Data Registry LOT 5.2: Captures both the tool result and any registry updates
-    from StandardToolOutput returned by registry-enabled tools.
-
-    Data Registry LOT 4.3: Captures draft info when requires_confirmation=True.
-
-    Attributes:
-        result: Tool result dict (ToolResponse format)
-        registry_updates: Optional data registry items from StandardToolOutput
-        draft_info: Draft details if tool returned requires_confirmation=True
-    """
-
-    result: dict[str, Any]
-    registry_updates: dict[str, Any] | None = None
-    draft_info: dict[str, Any] | None = None  # Data Registry LOT 4.3: Draft requiring confirmation
-
-
-def _correlated_item_id(item_id: str, item_dict: dict[str, Any], parent_id: str) -> str:
-    """Derive a registry id unique to the (item, correlation parent) pair.
-
-    Tools build their registry id from the payload alone — the weather tools key
-    on place + day, the route tools on origin + destination. Under FOR_EACH that
-    is not enough: two parents sharing those attributes (two appointments on the
-    same day at the same place) yield the SAME id, and since the accumulator is a
-    plain ``dict.update()`` the second branch overwrites the first. The first
-    parent then has no correlated child at all, so its card renders without the
-    data that was fetched for it.
-
-    Deterministic (SHA-256 over ``"{item_id}@{parent_id}"``), so a replayed run
-    or a resumed checkpoint recomputes the same id. Keeps the ``{type}_{hash}``
-    shape that ``filter_registry_by_relevant_ids`` relies on for suffix matching.
-
-    Args:
-        item_id: Id produced by the tool.
-        item_dict: Serialized registry item (used to recover its type).
-        parent_id: Registry id of the FOR_EACH parent this item belongs to.
-
-    Returns:
-        A per-parent id, or ``item_id`` unchanged when the item IS its parent or
-        when the type is unknown (never break the id shape to fix a collision).
-    """
-    if item_id == parent_id:
-        # Self-enrichment, not derivation: a FOR_EACH over a collection whose
-        # tool re-emits the same entity (update_event / get_*_details) rebuilds
-        # the parent's own id — `generate_registry_id(type, entity_id)` is a pure
-        # hash of the business id. Re-identifying here would turn an UPDATE into
-        # a duplicate, leaving the stale version alive next to the fresh one.
-        return item_id
-    try:
-        item_type = RegistryItemType(item_dict.get("type"))
-    except ValueError:
-        logger.warning(
-            "correlated_item_id_unknown_type",
-            item_id=item_id,
-            item_type=item_dict.get("type"),
-        )
-        return item_id
-    return generate_registry_id(item_type, f"{item_id}@{parent_id}")
 
 
 async def _execute_tool(
@@ -2548,7 +2513,7 @@ async def _execute_tool(
     Execute a LangChain tool with ToolRuntime injection.
 
     Session 22: Refactored with 2 helpers (162 → ~77 lines, -52%).
-    Correlated items are re-identified per parent (see ``_correlated_item_id``).
+    Correlated items are re-identified per parent (``step_results.project_tool_result``).
     Data Registry LOT 5.2: Detects StandardToolOutput and extracts registry updates.
     INTELLIA LocalQueryEngine: Injects accumulated_registry for local_query_engine_tool.
     BugFix 2025-12-19: Injects turn_id into RegistryItem.meta for context resolution.
@@ -2670,7 +2635,8 @@ async def _execute_tool(
         from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 
         # Check if tool has async coroutine (StructuredTool from @tool decorator)
-        if hasattr(tool, "coroutine") and tool.coroutine is not None:
+        direct = hasattr(tool, "coroutine") and tool.coroutine is not None
+        if direct:
             # Strip hallucinated parameters the LLM invented (e.g., "order", "order_by").
             # Without this, tool.coroutine(**args) raises TypeError and the entire
             # plan fails silently. Defense in depth — the planner should not hallucinate
@@ -2692,313 +2658,46 @@ async def _execute_tool(
                     )
                     args = {k: v for k, v in args.items() if k in valid_params}
 
-            # Direct coroutine call - preserves StandardToolOutput!
-            # ADR-263: publish the authority this step runs under. The pipeline
-            # confirms AFTER execution through drafts, so nothing is approved
-            # here — the gate refuses a ``confirm`` tool rather than running it
-            # unconfirmed, which is the defect H2 measured.
-            with effect_scope(
+        # The direct coroutine call preserves StandardToolOutput; ``ainvoke`` is
+        # the fallback for sync tools or non-StructuredTool. ADR-263: publish the
+        # authority this step runs under. The pipeline confirms AFTER execution
+        # through drafts, so nothing is approved here — the gate refuses a
+        # ``confirm`` tool rather than running it unconfirmed, which is the defect
+        # H2 measured. ADR-367: an effect's label names the shown item an id
+        # designates.
+        with (
+            effect_scope(
                 scope_from_config(
                     config, idempotency_key=step_effect_key(config, step_id or tool_name)
                 )
-            ):
-                with plan_mutation_scope(config, tool_name):
-                    result = await tool.coroutine(**args)
+            ),
+            plan_mutation_scope(config, tool_name),
+            publishing_label_items(accumulated_registry),
+        ):
+            if direct:
+                result = await tool.coroutine(**args)
+            else:
+                result = await tool.ainvoke(tool_call, config)
 
-            logger.debug(
-                "tool_direct_coroutine_call",
-                tool_name=tool_name,
-                result_type=type(result).__name__,
-                is_registry_output=isinstance(result, StandardToolOutput | UnifiedToolOutput),
-            )
-        else:
-            # Fallback to ainvoke for sync tools or non-StructuredTool
-            with effect_scope(
-                scope_from_config(
-                    config, idempotency_key=step_effect_key(config, step_id or tool_name)
-                )
-            ):
-                with plan_mutation_scope(config, tool_name):
-                    result = await tool.ainvoke(tool_call, config)
-
-            logger.debug(
-                "tool_ainvoke_fallback",
-                tool_name=tool_name,
-                result_type=type(result).__name__,
-            )
+        logger.debug(
+            "tool_direct_coroutine_call" if direct else "tool_ainvoke_fallback",
+            tool_name=tool_name,
+            result_type=type(result).__name__,
+            is_registry_output=isinstance(result, StandardToolOutput | UnifiedToolOutput),
+        )
 
         # Data Registry LOT 5.2: Check if tool returned StandardToolOutput or UnifiedToolOutput
         # Both have registry_updates that need to be propagated
         # UnifiedToolOutput has compatibility properties (summary_for_llm, tool_metadata)
         if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-            # Registry-enabled tool: Extract registry and use summary_for_llm
-            # BugFix 2025-12-19: Inject turn_id into each item's meta for context resolution
-            # Correlated Display: Inject step_id and correlated_to into each item's meta
-            registry_updates = {}
-            for item_id, item in result.registry_updates.items():
-                item_dict = item.model_dump(mode="json")
-                if isinstance(item_dict.get("meta"), dict):
-                    # Inject turn_id if not already set
-                    if turn_id is not None and item_dict["meta"].get("turn_id") is None:
-                        item_dict["meta"]["turn_id"] = turn_id
-                    # Inject step_id if not already set
-                    if step_id is not None and item_dict["meta"].get(FIELD_STEP_ID) is None:
-                        item_dict["meta"][FIELD_STEP_ID] = step_id
-                    # Inject correlated_to if parent ID available (from FOR_EACH expansion)
-                    if correlation_parent_id and item_dict["meta"].get(FIELD_CORRELATED_TO) is None:
-                        item_dict["meta"][FIELD_CORRELATED_TO] = correlation_parent_id
-                        # A correlated item belongs to ONE parent, so its identity
-                        # must include that parent. Tools derive their id from the
-                        # content alone (weather -> place+day), so two FOR_EACH
-                        # branches over parents that share it produce the SAME id;
-                        # the accumulator is a plain dict.update(), so the second
-                        # branch silently overwrote the first and its parent lost
-                        # its child entirely. Measured in prod (2026-07-23): two
-                        # appointments -> both branches emitted "weather_fee011",
-                        # registry size stayed at 4 instead of 5.
-                        correlated_id = _correlated_item_id(
-                            item_id, item_dict, correlation_parent_id
-                        )
-                        logger.info(
-                            "correlated_to_injected",
-                            item_id=item_id,
-                            correlated_item_id=correlated_id,
-                            correlation_parent_id=correlation_parent_id,
-                            tool_name=tool_name,
-                        )
-                        item_dict["id"] = correlated_id
-                        item_id = correlated_id
-                registry_updates[item_id] = item_dict
-
-            # Data Registry LOT 4.3: Check for draft requiring confirmation
-            draft_info = None
-            if result.tool_metadata.get("requires_confirmation"):
-                draft_id = result.tool_metadata.get("draft_id")
-                draft_type = result.tool_metadata.get("draft_type")
-
-                # Extract draft content from registry
-                draft_content = {}
-                if draft_id and draft_id in result.registry_updates:
-                    draft_item = result.registry_updates[draft_id]
-                    draft_content = draft_item.payload.get("content", {})
-
-                draft_info = {
-                    "draft_id": draft_id,
-                    "draft_type": draft_type,
-                    "draft_content": draft_content,
-                    "draft_summary": result.summary_for_llm,
-                    "registry_ids": list(result.registry_updates.keys()),
-                    "tool_name": tool_name,
-                }
-
-                logger.info(
-                    "registry_draft_detected_requires_confirmation",
-                    tool_name=tool_name,
-                    draft_id=draft_id,
-                    draft_type=draft_type,
-                    registry_items_count=len(registry_updates),
-                )
-            else:
-                logger.info(
-                    "registry_tool_output_detected",
-                    tool_name=tool_name,
-                    registry_items_count=len(registry_updates),
-                    summary_length=len(result.summary_for_llm),
-                )
-
-            # =================================================================
-            # Data Registry LOT 5.3 FIX: Expose structured data for Jinja templates
-            # =================================================================
-            # Problem: completed_steps only contained summary_for_llm (string).
-            # Jinja templates like `{% for c in steps.search.contacts %}` failed
-            # because there was no `.contacts` array - just `.result` string.
-            #
-            # Solution: Extract contacts/emails from registry_updates and expose
-            # them in the result data. This allows Jinja templates to iterate
-            # over structured data while LLM still sees the summary.
-            # =================================================================
-            structured_data: dict[str, Any] = {
-                FIELD_RESULT: result.summary_for_llm,
-            }
-
-            # =================================================================
-            # GENERIC: Extract ALL registry item types for Jinja access
-            # =================================================================
-            # Design: Group items by meta.domain (the canonical result_key).
-            # The meta.domain value comes from CONTEXT_DOMAIN_* constants which
-            # are aligned with DomainConfig.result_key in domain_taxonomy.py.
-            #
-            # This is the SINGLE source of truth for naming - no more conversions!
-            # Examples: meta.domain="contacts" → structured_data["contacts"]
-            #           meta.domain="weathers" → structured_data["weathers"]
-            # =================================================================
-            items_by_domain: dict[str, list[dict[str, Any]]] = {}
-
-            for item_id, item_dict in registry_updates.items():
-                payload = item_dict.get("payload", {})
-                meta = item_dict.get("meta", {})
-                # Use meta.domain as the canonical key (aligned with result_key)
-                # Fallback to item_type.lower() + "s" for legacy items without meta.domain
-                item_type = item_dict.get("type", "")
-                key = meta.get("domain") or (item_type.lower() + "s" if item_type else "unknown")
-
-                if payload:
-                    if key not in items_by_domain:
-                        items_by_domain[key] = []
-
-                    # Add registry_id to payload for Jinja reference
-                    enriched_payload = {**payload, FIELD_REGISTRY_ID: item_id}
-                    items_by_domain[key].append(enriched_payload)
-
-            # Expose all domains in structured_data for Jinja templates
-            for key, items in items_by_domain.items():
-                structured_data[key] = items
-                logger.debug(
-                    "registry_exposed_items_for_jinja",
-                    tool_name=tool_name,
-                    domain_key=key,
-                    count=len(items),
-                )
-
-            # =================================================================
-            # evolution F2.4: Gentle merge of tool-provided structured_data
-            # =================================================================
-            # Tools (notably UserMCPToolAdapter) can set structured_data with
-            # additional keys (e.g. "repositories") that the registry derivation
-            # above does not produce.  We merge them here **without overwriting**
-            # any registry-derived key, preserving the enriched payloads
-            # (which carry _registry_id for parent correlation in for_each).
-            #
-            # Verified safe: no existing native tool has key conflicts with
-            # registry-derived domain keys.
-            # =================================================================
-            if isinstance(result, UnifiedToolOutput) and result.structured_data:
-                for key, value in result.structured_data.items():
-                    if key not in structured_data:
-                        structured_data[key] = value
-
-            # =================================================================
-            # FIX Issue #dupond-15h55: Expose groups for LocalQueryEngine GROUP
-            # =================================================================
-            # Problem: Planner generates Jinja templates like:
-            #   {% for group in steps.group_by_address.query_result %}
-            # But groups were not exposed in structured_data for Jinja access.
-            #
-            # Solution: Extract "groups" from tool_metadata (set by local_query_tool)
-            # and add to structured_data so Jinja templates can access them.
-            #
-            # FIX Issue #dupond-16h57: Add query_result alias
-            # The planner uses "query_result" not "groups" in Jinja templates.
-            # Expose both names for compatibility.
-            # =================================================================
-            if result.tool_metadata:
-                # GROUP operation: expose groups list
-                if "groups" in result.tool_metadata:
-                    groups_data = result.tool_metadata["groups"]
-                    # =================================================================
-                    # FIX: Extract payloads from RegistryItem objects in group.members
-                    # =================================================================
-                    # Problem: groups_data contains groups where "members" are RegistryItem
-                    # objects (or dicts with {id, type, payload, meta}). Jinja templates
-                    # like {{ item.resource_name }} fail because resource_name is inside
-                    # payload, not at top level.
-                    #
-                    # Solution: Transform members to extract payloads, consistent with
-                    # how contacts_list is built above (lines 2229-2232).
-                    # This allows {{ item.resource_name }} to work in Jinja templates.
-                    # =================================================================
-                    transformed_groups = []
-                    for group in groups_data:
-                        transformed_members = []
-                        for item in group.get("members", []):
-                            # Extract payload from RegistryItem (object or dict)
-                            if hasattr(item, "payload"):
-                                # Pydantic RegistryItem object
-                                payload = item.payload
-                                item_id = item.id
-                            elif isinstance(item, dict) and "payload" in item:
-                                # Serialized RegistryItem dict
-                                payload = item["payload"]
-                                item_id = item.get("id", "")
-                            else:
-                                # Already a payload dict (fallback)
-                                payload = item
-                                item_id = item.get(FIELD_REGISTRY_ID, "")
-
-                            if payload:
-                                # Add registry_id for reference (consistent with contacts_list)
-                                enriched_payload = {**payload, FIELD_REGISTRY_ID: item_id}
-                                transformed_members.append(enriched_payload)
-
-                        transformed_groups.append(
-                            {
-                                "key": group.get("key", ""),
-                                "members": transformed_members,
-                                "count": len(transformed_members),
-                            }
-                        )
-
-                    structured_data["groups"] = transformed_groups
-                    # CRITICAL: Planner generates templates with .query_result, not .groups
-                    structured_data["query_result"] = transformed_groups
-                    logger.debug(
-                        "registry_exposed_groups_for_jinja",
-                        tool_name=tool_name,
-                        groups_count=len(transformed_groups),
-                        aliases=["groups", "query_result"],
-                        sample_group_keys=[g["key"] for g in transformed_groups[:3]],
-                    )
-                # AGGREGATE operation: expose distinct_values
-                if "distinct_values" in result.tool_metadata:
-                    structured_data["distinct_values"] = result.tool_metadata["distinct_values"]
-                    logger.debug(
-                        "registry_exposed_distinct_values_for_jinja",
-                        tool_name=tool_name,
-                        distinct_count=len(result.tool_metadata["distinct_values"]),
-                    )
-
-            # ADR-347: what a READ tool's structured_data carries beyond its
-            # registry items, projected for the pipeline's response model.
-            structured_data.update(
-                tool_data_fields(result, manifest=manifest, tool_name=tool_name, share=data_share)
-            )
-
-            # Propagate TCM flag and save mode so _auto_save_wave_contexts can
-            # detect decorator-saved tools and skip the duplicate save path.
-            # getattr: StandardToolOutput has no context_save_mode field.
-            tcm_saved = (
-                result.tool_metadata.get("_tcm_saved", False) if result.tool_metadata else False
-            )
-            save_mode = getattr(result, "context_save_mode", None)
-            save_mode_value = (
-                save_mode.value
-                if save_mode is not None and hasattr(save_mode, "value")
-                else save_mode
-            )
-
-            # UnifiedToolOutput carries an explicit verdict; the legacy
-            # StandardToolOutput has none (implicit success). A typed failure
-            # must keep saying so: hardcoding True here reported a refused
-            # peer relay as delivered (prod 2026-08-17, request 2ecc670c), and
-            # the runtime failures directive — the one channel that tells a
-            # failure of a step that ran (RC1.2) — reads this flag.
-            succeeded = result.success if isinstance(result, UnifiedToolOutput) else True
-            result_payload: dict[str, Any] = {
-                "success": succeeded,
-                "data": structured_data,
-                "message": result.summary_for_llm,
-                "_tcm_saved": tcm_saved,
-                "context_save_mode": save_mode_value,
-            }
-            if not succeeded and isinstance(result, UnifiedToolOutput):
-                result_payload["error"] = result.error_message or result.summary_for_llm
-                if result.error_code:
-                    result_payload[FIELD_ERROR_CODE] = result.error_code
-
-            return ToolExecutionResult(
-                result=result_payload,
-                registry_updates=registry_updates,
-                draft_info=draft_info,
+            return project_tool_result(
+                result,
+                tool_name=tool_name,
+                step_id=step_id,
+                turn_id=turn_id,
+                correlation_parent_id=correlation_parent_id,
+                manifest=manifest,
+                data_share=data_share,
             )
 
         # Legacy tool: Parse tool result (Session 22 - Helper #5)
@@ -3231,13 +2930,12 @@ def _merge_single_step_result(
         )
 
     # Data Registry LOT 4.3: Accumulate draft info if present
-    if accumulated_drafts is not None and step_result.draft_info:
-        accumulated_drafts.append(step_result.draft_info)
+    if accumulated_drafts is not None and step_result.draft_infos:
+        accumulated_drafts.extend(step_result.draft_infos)
         logger.info(
             "registry_draft_accumulated",
             step_id=step_result.step_id,
-            draft_id=step_result.draft_info.get("draft_id"),
-            draft_type=step_result.draft_info.get("draft_type"),
+            draft_ids=draft_ids(step_result.draft_infos),
             total_drafts_count=len(accumulated_drafts),
         )
 

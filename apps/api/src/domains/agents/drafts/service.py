@@ -1248,6 +1248,7 @@ def create_event_draft(
     user_language: str | None = None,
     user_timezone: str | None = None,
     add_conference: bool = False,
+    all_day: bool = False,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an event draft.
@@ -1266,6 +1267,7 @@ def create_event_draft(
         user_language: Language for HITL
         user_timezone: User's IANA timezone for datetime display (defaults to timezone param)
         add_conference: Attach a video-conference link (Meet/Teams) at creation
+        all_day: The bounds are dates, the end exclusive (ADR-369)
 
     Returns:
         UnifiedToolOutput with draft
@@ -1281,6 +1283,7 @@ def create_event_draft(
         timezone=timezone,
         calendar_id=calendar_id,
         add_conference=add_conference,
+        all_day=all_day,
         related_registry_ids=related_registry_ids or [],
         user_language=resolve_language(user_language),
         user_timezone=user_timezone or timezone,
@@ -1341,6 +1344,7 @@ def create_update_event_draft(
     related_registry_ids: list[str] | None = None,
     source_tool: str = "update_event_tool",
     user_language: str | None = None,
+    all_day: bool | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create an event update draft.
@@ -1359,6 +1363,7 @@ def create_update_event_draft(
         related_registry_ids: Related registry items
         source_tool: Source tool name
         user_language: Language for HITL
+        all_day: True/False switches the shape; None keeps it (ADR-369)
 
     Returns:
         UnifiedToolOutput with draft
@@ -1375,6 +1380,7 @@ def create_update_event_draft(
         timezone=timezone,
         calendar_id=calendar_id,
         current_event=current_event or {},
+        all_day=all_day,
         related_registry_ids=related_registry_ids or [],
         user_language=resolve_language(user_language),
     )
@@ -1537,134 +1543,6 @@ def create_contact_delete_draft(
         user_language=resolve_language(user_language),
     )
     return service.create_contact_delete_draft(draft_input, source_tool=source_tool)
-
-
-def create_task_draft(
-    title: str,
-    notes: str | None = None,
-    due: str | None = None,
-    task_list_id: str = "@default",
-    related_registry_ids: list[str] | None = None,
-    source_tool: str = "create_task_tool",
-    user_language: str | None = None,
-) -> UnifiedToolOutput:
-    """
-    Convenience function to create a task draft.
-
-    Args:
-        title: Task title
-        notes: Task notes/description
-        due: Due date (RFC 3339 format)
-        task_list_id: Task list ID
-        related_registry_ids: Related registry items
-        source_tool: Source tool name
-        user_language: Language for HITL
-
-    Returns:
-        UnifiedToolOutput with draft
-    """
-    service = DraftService()
-    draft_input = TaskDraftInput(
-        title=title,
-        notes=notes,
-        due=due,
-        task_list_id=task_list_id,
-        related_registry_ids=related_registry_ids or [],
-        user_language=resolve_language(user_language),
-    )
-    return service.create_task_create_draft(draft_input, source_tool=source_tool)
-
-
-def create_task_update_draft(
-    task_id: str,
-    title: str | None = None,
-    notes: str | None = None,
-    due: str | None = None,
-    status: str | None = None,
-    task_list_id: str = "@default",
-    current_task: dict[str, Any] | None = None,
-    related_registry_ids: list[str] | None = None,
-    source_tool: str = "update_task_tool",
-    user_language: str | None = None,
-) -> UnifiedToolOutput:
-    """
-    Convenience function to create a task update draft.
-
-    Args:
-        task_id: Task ID to update
-        title: New task title (optional)
-        notes: New task notes (optional)
-        due: New due date (RFC 3339 format, optional)
-        status: New status - needsAction or completed (optional)
-        task_list_id: Task list ID
-        current_task: Current task data for comparison
-        related_registry_ids: Related registry items
-        source_tool: Source tool name
-        user_language: Language for HITL
-
-    Returns:
-        UnifiedToolOutput with draft
-    """
-    service = DraftService()
-    draft_input = TaskUpdateDraftInput(
-        task_id=task_id,
-        title=title,
-        notes=notes,
-        due=due,
-        status=status,
-        task_list_id=task_list_id,
-        current_task=current_task or {},
-        related_registry_ids=related_registry_ids or [],
-        user_language=resolve_language(user_language),
-    )
-    return service.create_task_update_draft(draft_input, source_tool=source_tool)
-
-
-def create_task_delete_draft(
-    task_id: str,
-    title: str | None = None,
-    notes: str | None = None,
-    due: str | None = None,
-    status: str | None = None,
-    task_list_id: str = "@default",
-    current_task: dict[str, Any] | None = None,
-    related_registry_ids: list[str] | None = None,
-    source_tool: str = "delete_task_tool",
-    user_language: str | None = None,
-) -> UnifiedToolOutput:
-    """
-    Convenience function to create a task delete draft.
-
-    Homogenized with create_task_update_draft for draft type changes.
-
-    Args:
-        task_id: Task ID to delete.
-        title: Task title.
-        notes: Task notes.
-        due: Due date (RFC 3339).
-        status: Status (needsAction or completed).
-        task_list_id: Task list ID.
-        current_task: Full task object for type change.
-        related_registry_ids: Related registry items.
-        source_tool: Source tool name.
-        user_language: Language for HITL.
-
-    Returns:
-        UnifiedToolOutput with draft.
-    """
-    service = DraftService()
-    draft_input = TaskDeleteDraftInput(
-        task_id=task_id,
-        title=title,
-        notes=notes,
-        due=due,
-        status=status,
-        task_list_id=task_list_id,
-        current_task=current_task or {},
-        related_registry_ids=related_registry_ids or [],
-        user_language=resolve_language(user_language),
-    )
-    return service.create_task_delete_draft(draft_input, source_tool=source_tool)
 
 
 def create_file_delete_draft(

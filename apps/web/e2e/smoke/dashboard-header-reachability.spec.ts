@@ -20,7 +20,9 @@
  *     cover another without ever producing overflow).
  *
  * German and Italian are included on purpose: they carry the longest nav labels
- * ("Einstellungen", "Impostazioni") and are the first to break.
+ * ("Einstellungen", "Impostazioni") and were the first to break while the row
+ * drew them. Since 2026-10-31 the row draws icons alone at every width (owner);
+ * the six locales stay, so a label that comes back is measured where it hurts.
  */
 import type { Page } from '@playwright/test';
 
@@ -29,7 +31,8 @@ import { probeControls, waitForStableControls } from './control-probe';
 
 /** Widths that matter: the reflow floor, a common phone, and the tablet/split
  *  band where the nav and the control labels are shown SIMULTANEOUSLY, and
- *  `2xl` (1536), where the nav labels and the token counters appear. */
+ *  `2xl` (1536), where the token counters appear (and the nav labels did,
+ *  until the row became icons alone). */
 const WIDTHS = [320, 390, 768, 880, 1024, 1280, 1536] as const;
 const LOCALES = ['en', 'fr', 'de', 'es', 'it', 'zh'] as const;
 
@@ -77,9 +80,10 @@ async function assertReachableAtEveryWidth(page: Page, locale: string): Promise<
 
 /**
  * The widest header an instance can serve: the meetings destination and
- * recorder (ADR-258/259) and the radio's control (ADR-324) all offered. The
- * shell's own config offers none of them, so the test above measures a
- * narrower row than production shows.
+ * recorder (ADR-258/259), the radio's control (ADR-324), the world, the
+ * « Tools » destination (ADR-369) and the « SMS » one (ADR-357 amendment
+ * 2026-10-31) all offered — ten destinations. The shell's own config offers
+ * none of them, so the test above measures a narrower row than production shows.
  */
 const EVERY_CONTROL: MockRoute = {
   url: '**/api/v1/config',
@@ -87,8 +91,20 @@ const EVERY_CONTROL: MockRoute = {
     sse: { heartbeat_interval_seconds: 30 },
     rate_limits: { enabled: false, per_minute: 60, burst: 10 },
     i18n: { supported_languages: [...LOCALES], default_language: 'en' },
-    features: { workboard_enabled: true, meetings_enabled: true, radio_enabled: true },
-    capabilities: { radio: { enabled: true, family: 'media' } },
+    features: {
+      workboard_enabled: true,
+      meetings_enabled: true,
+      radio_enabled: true,
+      workbench_enabled: true,
+      world_enabled: true,
+      sms_enabled: true,
+    },
+    capabilities: {
+      radio: { enabled: true, family: 'media' },
+      workbench: { enabled: true, family: 'work' },
+      world: { enabled: true, family: 'social' },
+      sms: { enabled: true, family: 'communication' },
+    },
     api_version: 'v1',
   },
 };
@@ -140,11 +156,76 @@ test.describe('dashboard header reachability', () => {
   }
 
   /**
+   * Owner rule (2026-10-31): from `lg`, the header's icons stand at ONE pitch on
+   * both sides. The destinations are icons alone at every width — no label even
+   * at `2xl` — and the controls take the destinations' slot and gap, where they
+   * kept a 44 px box and a 12 px gap that spread the right side half as wide
+   * again as the left. Every icon names itself on hover (the destinations used
+   * to be the only ones, with five of the controls). The logout is left out of
+   * the pitch: the one destructive act of the row stands a little apart.
+   */
+  test('the header icons stand at one pitch on both sides, each named on hover', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    await mockApi([...ROUTES, EVERY_CONTROL]);
+    await page.goto('/fr/dashboard/chat');
+    await page.locator('header').waitFor({ state: 'visible' });
+
+    for (const width of [1024, 1280, 1536]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.waitForFunction(w => document.documentElement.clientWidth === w, width);
+      await waitForStableControls(page, 'dashboard-header');
+
+      const row = await page.evaluate(() => {
+        const header = document.querySelector('header');
+        if (!header) throw new Error('the dashboard header is not drawn');
+        const drawn = (el: Element): boolean => {
+          const box = el.getBoundingClientRect();
+          return box.width > 0 && box.height > 0;
+        };
+        const links = Array.from(header.querySelectorAll<HTMLElement>('nav a')).filter(drawn);
+        const controls = Array.from(header.querySelectorAll<HTMLElement>('button'))
+          .filter(el => drawn(el) && !el.closest('nav'))
+          .slice(0, -1);
+        const pitches = (icons: HTMLElement[]): number[] =>
+          icons
+            .slice(1)
+            .map((el, i) =>
+              Math.round(el.getBoundingClientRect().left - icons[i].getBoundingClientRect().left)
+            );
+        return {
+          destinations: links.length,
+          labels: links.map(link => link.innerText.trim()).filter(Boolean),
+          untitled: [...links, ...controls]
+            .filter(el => !el.title)
+            .map(el => el.getAttribute('aria-label') ?? el.tagName),
+          left: pitches(links),
+          right: pitches(controls),
+        };
+      });
+
+      expect(row.destinations, `${width}px — destinations drawn`).toBe(10);
+      expect(row.labels, `${width}px — destinations showing a label`).toEqual([]);
+      expect(row.untitled, `${width}px — icons without a tooltip`).toEqual([]);
+      expect(
+        new Set([...row.left, ...row.right]),
+        `${width}px — pitches left ${row.left.join(',')} / right ${row.right.join(',')}`
+      ).toEqual(new Set([row.left[0]]));
+    }
+  });
+
+  /**
    * Space was reclaimed by shrinking the controls — but only in the narrow band
-   * that actually needed it. Above 380 px every header control keeps a 44 px
-   * touch target (WCAG 2.5.5 AAA); below it they drop to 36 px, still well past
-   * the 24 px AA floor of 2.5.8. Without this guard, the next "let's gain a few
-   * pixels" change would silently pay for the room with ergonomics.
+   * that actually needed it. On the touch layout (below `lg`, where the logo's
+   * menu carries the destinations) every header control keeps a 44 px target
+   * above 380 px (WCAG 2.5.5 AAA); below it they drop to 36 px, still well past
+   * the 24 px AA floor of 2.5.8. From `lg` the controls share the destinations'
+   * 36 px slot (owner, 2026-10-31 — the test above). Without this guard, the
+   * next "let's gain a few pixels" change would silently pay for the room with
+   * ergonomics on a phone.
    */
   test('header controls keep a 44 px touch target above 380 px', async ({
     page,

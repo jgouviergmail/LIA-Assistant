@@ -9,14 +9,13 @@ the first provider's wire format.
 """
 
 from datetime import datetime
-from email.utils import formataddr
 from typing import Any
 
 import structlog
 
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
-from src.infrastructure.email.recipients import parse_recipients
+from src.infrastructure.email.recipients import name_addr, parse_recipients
 
 logger = structlog.get_logger(__name__)
 
@@ -31,6 +30,10 @@ _GRAPH_FOLDER_TO_LABEL: dict[str, str] = {
     "junkemail": "SPAM",
     "archive": "ARCHIVE",
 }
+#: The well-known names of the folders a folder pane draws as system places:
+#: Graph serves each under its name in every locale, while their display names
+#: are in the mailbox's language.
+GRAPH_SYSTEM_FOLDERS: tuple[str, ...] = tuple(_GRAPH_FOLDER_TO_LABEL)
 
 
 def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
@@ -45,20 +48,15 @@ def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
         return "0"
 
 
+def _mailbox(entry: dict[str, Any] | None) -> str:
+    """One Graph ``{"emailAddress": {name, address}}`` as a readable mailbox."""
+    email_addr = (entry or {}).get("emailAddress") or {}
+    return name_addr(email_addr.get("name"), email_addr.get("address"))
+
+
 def _extract_recipients(recipients: list[dict[str, Any]] | None) -> str:
-    """Extract comma-separated email addresses from Microsoft Graph recipients."""
-    if not recipients:
-        return ""
-    addresses = []
-    for recipient in recipients:
-        email_addr = recipient.get("emailAddress", {})
-        name = email_addr.get("name", "")
-        address = email_addr.get("address", "")
-        if name and name != address:
-            addresses.append(formataddr((name, address)))
-        else:
-            addresses.append(address)
-    return ", ".join(addresses)
+    """Comma-separated readable mailboxes of Microsoft Graph recipients."""
+    return ", ".join(mailbox for mailbox in map(_mailbox, recipients or []) if mailbox)
 
 
 def build_graph_recipients(addresses: str) -> list[dict[str, Any]]:
@@ -136,11 +134,7 @@ def normalize_graph_message(msg: dict[str, Any], *, keep_quoted: bool = False) -
     thread_id = msg.get("conversationId", msg_id)
     subject = msg.get("subject", "(no subject)")
 
-    # Extract sender
-    from_data = msg.get("from", {}).get("emailAddress", {})
-    from_name = from_data.get("name", "")
-    from_address = from_data.get("address", "")
-    from_str = formataddr((from_name, from_address)) if from_name else from_address
+    from_str = _mailbox(msg.get("from"))
 
     # Extract recipients
     to_str = _extract_recipients(msg.get("toRecipients"))

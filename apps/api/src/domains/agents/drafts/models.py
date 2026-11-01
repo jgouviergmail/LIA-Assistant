@@ -225,7 +225,7 @@ class EventDraftInput(BaseDraftInput):
     """
     Input for creating a calendar event draft.
 
-    Maps to CreateEventInput but deferred for user confirmation.
+    Carries create_event_tool's arguments, deferred for user confirmation.
     """
 
     summary: str = Field(..., description="Event title")
@@ -243,6 +243,10 @@ class EventDraftInput(BaseDraftInput):
         default=False,
         description="Attach a video-conference link (Meet/Teams) at creation",
     )
+    all_day: bool = Field(
+        default=False,
+        description="All-day event: the bounds are dates, the end exclusive (ADR-369)",
+    )
 
     def to_create_event_args(self) -> dict[str, Any]:
         """Convert to args for create_event_tool."""
@@ -256,6 +260,7 @@ class EventDraftInput(BaseDraftInput):
             "timezone": self.timezone,
             "calendar_id": self.calendar_id,
             "add_conference": self.add_conference,
+            "all_day": self.all_day,
         }
 
 
@@ -263,7 +268,7 @@ class EventUpdateDraftInput(BaseDraftInput):
     """
     Input for updating a calendar event draft.
 
-    Maps to UpdateEventInput but deferred for user confirmation.
+    Carries update_event_tool's arguments, deferred for user confirmation.
     """
 
     event_id: str = Field(..., description="Event ID to update")
@@ -282,6 +287,10 @@ class EventUpdateDraftInput(BaseDraftInput):
         default_factory=dict,
         description="Current event data for comparison display",
     )
+    all_day: bool | None = Field(
+        default=None,
+        description="True/False switches the event all-day/timed; None keeps its shape (ADR-369)",
+    )
 
     def to_update_event_args(self) -> dict[str, Any]:
         """Convert to args for update_event execution."""
@@ -295,6 +304,7 @@ class EventUpdateDraftInput(BaseDraftInput):
             "attendees": self.attendees,
             "timezone": self.timezone,
             "calendar_id": self.calendar_id,
+            "all_day": self.all_day,
         }
 
 
@@ -302,7 +312,7 @@ class EventDeleteDraftInput(BaseDraftInput):
     """
     Input for deleting a calendar event draft.
 
-    Maps to DeleteEventInput but deferred for user confirmation.
+    Carries delete_event_tool's arguments, deferred for user confirmation.
     Homogenized with EventUpdateDraftInput to enable draft type changes
     (e.g., user says "no, move it to May 23" on a delete HITL).
     """
@@ -496,6 +506,7 @@ class TaskUpdateDraftInput(BaseDraftInput):
         default_factory=dict,
         description="Current task data for comparison display",
     )
+    clear_due: bool = Field(default=False, description="Remove the due date (never with a new one)")
 
     def to_update_task_args(self) -> dict[str, Any]:
         """Convert to args for update_task execution."""
@@ -506,6 +517,7 @@ class TaskUpdateDraftInput(BaseDraftInput):
             "due": self.due,
             "status": self.status,
             "task_list_id": self.task_list_id,
+            "clear_due": self.clear_due,
         }
 
 

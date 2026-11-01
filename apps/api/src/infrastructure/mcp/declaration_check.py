@@ -29,6 +29,7 @@ from pydantic import ValidationError
 
 from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
 from src.infrastructure.mcp.catalogue_snapshot import catalogue_fingerprint
+from src.infrastructure.mcp.confirmation import declared_tool_category
 from src.infrastructure.mcp.json_schema import properties_of
 from src.infrastructure.mcp.pool_catalogue import (
     PoolEntry,
@@ -37,7 +38,6 @@ from src.infrastructure.mcp.pool_catalogue import (
     normalize_tool,
 )
 from src.infrastructure.mcp.rate_limit import MCPDeclarationChangedError
-from src.infrastructure.mcp.registration import declared_tool_category
 from src.infrastructure.mcp.tool_adapter import build_args_schema
 from src.infrastructure.observability.metrics_mcp import mcp_user_declaration_checks_total
 

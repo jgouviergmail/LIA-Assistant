@@ -651,6 +651,6 @@ An unknown field gets the SMS rejected.
 **✅ The response:**
 A single SMS returns **201** when stored, **200** when it was already received or is set aside (a recognized access secret, a blocked sender), **409** when the same `event_id` arrives with different content and **422** when the format needs fixing. In a batch, each SMS gets its own verdict in `items`.
 
-Your SMS remain in LIA until you delete them. **Assistant access** starts disabled, independently of ingestion and immediate reception push. The **Immediate push for each new SMS** switch sits at the top of this page. Proactive notifications also have their own **My SMS** source and hours. Recognized access secrets are excluded before storage; the heuristic cannot recognize all private text.
+Your SMS remain in LIA until you delete them. You consult them, block a sender and delete them from **SMS** in the menu. **Assistant access** starts disabled, independently of ingestion and immediate reception push. The **Immediate push for each new SMS** switch sits at the top of this page. Proactive notifications also have their own **My SMS** source and hours. Recognized access secrets are excluded before storage; the heuristic cannot recognize all private text.
 
 Personal export includes readable SMS. Erasure invalidates hosted exports but cannot recall downloaded copies, earlier chats or separately retained knowledge. LIA receives only what Shortcuts sends; verify iOS trigger criteria and permissions on the phone. Step-by-step guide: `docs/guides/GUIDE_IPHONE_SHORTCUTS_SMS.md`.

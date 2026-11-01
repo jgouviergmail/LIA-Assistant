@@ -158,6 +158,7 @@ class Fleet:
             discovered_tools_cache=None,
             hitl_required=False,
             iterative_mode=False,
+            react_expand_iterative=None,
             domain_description=None,
             auth_type="none",
         )
@@ -752,6 +753,12 @@ def _wire_setup(
 
         async def get_enabled_active_for_user(self, user_id: UUID) -> list[SimpleNamespace]:
             return list(fleet.servers)
+
+        async def account_confirmation(self, user_id: UUID) -> bool | None:
+            return None
+
+        async def tool_choices(self, server_ids: list[UUID]) -> dict[UUID, dict[str, object]]:
+            return {}
 
     @asynccontextmanager
     async def session() -> Any:

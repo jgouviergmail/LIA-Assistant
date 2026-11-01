@@ -25,7 +25,7 @@ from src.domains.agents.tools.application_personal_mcp_tools import (
     configure_lia_personal_mcp_server_tool,
 )
 from src.domains.user_mcp.personal_configuration import (
-    MCP_FORM_API_ONLY_FIELDS,
+    MCP_FORM_EXCLUDED_FIELDS,
     validate_configuration_fields,
 )
 from src.domains.user_mcp.schemas import UserMCPServerCreate, UserMCPServerUpdate
@@ -51,7 +51,7 @@ def test_original_form_fields_and_api_only_controls_require_explicit_review():
     assert (
         set(UserMCPServerCreate.model_fields)
         == set(UserMCPServerUpdate.model_fields)
-        == fields | MCP_FORM_API_ONLY_FIELDS
+        == fields | MCP_FORM_EXCLUDED_FIELDS
     )
     for creating in [False, True]:
         for field in [

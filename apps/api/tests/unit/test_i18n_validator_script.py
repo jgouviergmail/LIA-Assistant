@@ -96,6 +96,20 @@ def test_real_locales_pass_from_two_cwds(tmp_path, monkeypatch):
     assert validator.validate(validator.DEFAULT_LOCALES_DIR) == []
 
 
+def test_an_unrendered_script_variable_is_reported(tmp_path):
+    """A ``{NB}`` an edit script never rendered would be read as typed (2026-10-31)."""
+    _all_langs(tmp_path, {"faq": {"q1": "Then it carries on; in Pipeline, it waits."}})
+    _write_locale(tmp_path, "fr", {"faq": {"q1": "Puis continue{NB}; en Pipeline, il attend."}})
+    errors = validator.validate(tmp_path)
+    assert errors == ["fr: faq.q1 carries an unrendered placeholder {NB}"], errors
+
+
+def test_i18next_interpolation_is_not_a_placeholder(tmp_path):
+    """``{{count}}`` is i18next's own interpolation, rendered at run time."""
+    _all_langs(tmp_path, {"notes": "{{count}} notes", "json": '{"a": 1}'})
+    assert validator.validate(tmp_path) == []
+
+
 def test_main_exit_codes(tmp_path):
     """main() returns 0 on success and 1 on any parity error."""
     _all_langs(tmp_path, {"a": "x"})

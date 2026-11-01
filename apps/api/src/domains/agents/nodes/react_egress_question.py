@@ -36,8 +36,9 @@ from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.effects.gate import turn_has_nobody_to_ask
+from src.domains.agents.effects.label_targets import publishing_label_items
 from src.domains.agents.effects.scope import approved_scope, current_scope, effect_scope
-from src.domains.agents.nodes.react_drafts import extract_draft_info
+from src.domains.agents.nodes.react_drafts import extract_drafts
 from src.domains.agents.python_sandbox.egress.grants import Decision, record_decision
 from src.domains.agents.python_sandbox.egress.tool_path import (
     approved_for_call,
@@ -164,7 +165,7 @@ async def settle_egress_question(
     """Ask, record, and re-invoke the call under the answer — or refuse.
 
     Args:
-        draft_info: The draft the tool returned (``_extract_draft_info``).
+        draft_info: The draft the tool returned (``extract_drafts``).
         state: The graph state, for the person's language.
         rerun: Re-invokes the very tool call; awaited only on a yes.
 
@@ -287,12 +288,17 @@ async def invoke_with_settlement(
 
     async def _call() -> Any:
         # The one place an egress question is settled: the tool may ASK here,
-        # and refuses an unknown host anywhere else (``tool_path``).
-        with settling_questions() if settleable else nullcontext():
+        # and refuses an unknown host anywhere else (``tool_path``). The
+        # effect's label names the shown item an id designates (ADR-367).
+        with (
+            settling_questions() if settleable else nullcontext(),
+            publishing_label_items(state.get("registry")),
+        ):
             return await asyncio.wait_for(original.coroutine(**validated_args), timeout)
 
     raw_result = await _call()
-    draft_info = extract_draft_info(raw_result, tool_name)
+    drafts = extract_drafts(raw_result, tool_name)
+    draft_info = drafts[0] if drafts else None
     if not is_egress_question(draft_info):
         return raw_result
     assert draft_info is not None  # narrowed by is_egress_question

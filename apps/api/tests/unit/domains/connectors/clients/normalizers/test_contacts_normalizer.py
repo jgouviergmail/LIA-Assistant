@@ -144,14 +144,8 @@ class TestMergeVcardFields:
             a.get("streetAddress") == "42 Avenue des Champs" for a in result.get("addresses", [])
         )
 
-    def test_invalid_existing_vcard_fallback(self) -> None:
-        """When existing vCard is unparseable, a new card is built from params."""
-        updated = merge_vcard_fields(
-            "GARBAGE DATA",
-            name="Fallback Person",
-            email="fallback@example.com",
-        )
-        result = normalize_vcard(updated)
-
-        assert result["names"][0]["displayName"] == "Fallback Person"
-        assert result["emailAddresses"][0]["value"] == "fallback@example.com"
+    def test_an_unreadable_existing_vcard_is_refused(self) -> None:
+        """A card rebuilt from the update alone used to be PUT over the real contact,
+        erasing every field the update did not name (ADR-369)."""
+        with pytest.raises(ValueError, match="not overwritten"):
+            merge_vcard_fields("GARBAGE DATA", name="Fallback Person", email="x@example.com")

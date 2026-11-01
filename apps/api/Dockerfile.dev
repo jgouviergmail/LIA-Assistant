@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1.4
 
+ARG PIP_VERSION=26.2.2
+ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
+ARG NPM_VERSION=12.2.1
+
 # =============================================================================
 # Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
 # =============================================================================
@@ -83,6 +87,9 @@ RUN set -eu; \
 # Development stage
 # =============================================================================
 FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+ARG PIP_VERSION
+ARG PIP_WHEEL_SHA256
+ARG NPM_VERSION
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -92,6 +99,10 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Create app directory
 WORKDIR /app
+
+RUN printf 'pip==%s --hash=sha256:%s\n' "$PIP_VERSION" "$PIP_WHEEL_SHA256" > /tmp/lia-pip-bootstrap.txt \
+    && PIP_ROOT_USER_ACTION=ignore pip install --no-cache-dir --require-hashes --only-binary=:all: --upgrade -r /tmp/lia-pip-bootstrap.txt \
+    && rm /tmp/lia-pip-bootstrap.txt
 
 # Install system dependencies + uv (ultra-fast pip replacement)
 # Includes Docker CLI for container management from within the container
@@ -153,7 +164,8 @@ RUN set -eux; \
 # CLAUDE.md workspace is mounted via docker-compose
 # The version of Dockerfile.prod (see why it is pinned there).
 ARG CLAUDE_CODE_VERSION=2.1.287
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
+RUN npm install -g npm@${NPM_VERSION} \
+    && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && mkdir -p /opt/claude-workspace
 
 # Copy compiled lockfile (requirements-dev.lock.txt is self-contained: it

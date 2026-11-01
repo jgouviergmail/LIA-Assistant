@@ -263,6 +263,11 @@ if getattr(settings, "email_share_enabled", False):
     from src.domains.email_share.router import router as email_share_router
 
     api_router.include_router(email_share_router)
+# The « Tools » section (ADR-369): the person's own door to their services.
+if getattr(settings, "workbench_enabled", False):
+    from src.domains.workbench.router import router as workbench_router
+
+    api_router.include_router(workbench_router)
 # The personal radio (ADR-324): a station per listener, on demand.
 if getattr(settings, "radio_enabled", False):
     from src.domains.radio.router import router as radio_router
@@ -536,6 +541,9 @@ async def get_client_config() -> dict:
             # Skill library (ADR-327): the deployment ceiling of « Find skills »
             # in the skills section (the effective state is in `capabilities`).
             "skill_library_enabled": getattr(settings, "skill_library_enabled", False),
+            # The « Tools » section (ADR-369): the deployment ceiling of the header
+            # destination and its pages (the effective state is in `capabilities`).
+            "workbench_enabled": getattr(settings, "workbench_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

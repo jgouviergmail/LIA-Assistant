@@ -60,6 +60,13 @@ ALLOWED: set[tuple[str, str]] = {
     # (10, the provider's own horizon, one page) — a forecast's days, not user items.
     ("google_weather_client.py", "get_daily_summaries"),
     ("google_calendar_client.py", "list_calendars"),
+    # The « Tools » calendar's window (ADR-369): every event of the window on
+    # screen, occurrences expanded, drained page by page up to the workbench's
+    # OWN published bound (WORKBENCH_CALENDAR_WINDOW_MAX_EVENTS, published as
+    # `calendar_window_max_events`) and stated when it cuts (`truncated`). Never
+    # an agent's read: at the agent ceiling a busy month shows its first days.
+    ("google_calendar_client.py", "list_events_window"),
+    ("microsoft_calendar_client.py", "list_events_window"),
     ("apple_calendar_client.py", "_list_calendars_impl"),
     ("microsoft_calendar_client.py", "list_calendars"),
     ("microsoft_outlook_client.py", "list_labels"),

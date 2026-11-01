@@ -86,6 +86,9 @@ export interface AppConfig {
     // Skill library (ADR-327) — the deployment ceiling of « Find skills »; the
     // effective state is `capabilities.skill_library` (with `capabilities.skills`).
     skill_library_enabled?: boolean;
+    // The « Tools » section (ADR-369) — the deployment ceiling of the header
+    // destination and its pages; the effective state is `capabilities.workbench`.
+    workbench_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

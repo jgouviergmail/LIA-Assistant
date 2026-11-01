@@ -7,6 +7,8 @@ Created: 2025-11-20
 Focus: Linguistic reference extraction and resolution (ordinals, demonstratives, comparatives)
 """
 
+from dataclasses import fields
+
 import pytest
 
 from src.domains.agents.services.reference_resolver import (
@@ -355,7 +357,31 @@ class TestToDict:
             "method": "explicit",
             "source_turn_id": 2,
             "source_domain": "contact",
+            "candidates": [],
+            "descriptor": "",
         }
+
+    def test_every_field_survives_the_checkpoint(self):
+        # The pair to_dict / from_dict is the checkpointed form: a field written
+        # on one side only is lost at every HITL resume (systemic rule).
+        ctx = ResolvedContext(
+            items=[],
+            confidence=1.0,
+            method="descriptive_ambiguous",
+            source_turn_id=3,
+            source_domain="email",
+            candidates=[{"id": "m1"}, {"id": "m3"}],
+            descriptor="Marc",
+        )
+        assert ResolvedContext.from_dict(ctx.to_dict()) == ctx
+        # The pair covers EVERY field: a new one must be added on both sides.
+        assert set(ctx.to_dict()) == {f.name for f in fields(ResolvedContext)}
+
+    def test_a_dict_written_before_candidates_existed_still_reads(self):
+        legacy = {"items": [{"id": 1}], "confidence": 0.9, "method": "explicit"}
+        assert ResolvedContext.from_dict(legacy) == ResolvedContext(
+            items=[{"id": 1}], confidence=0.9, method="explicit", source_turn_id=None
+        )
 
 
 class TestToLlmContext:

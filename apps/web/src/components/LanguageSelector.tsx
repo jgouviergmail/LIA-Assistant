@@ -23,9 +23,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { frontendToBackendLocale } from '@/utils/locale-mapping';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface LanguageSelectorProps {
   currentLocale: Language;
+  /** Added to the trigger's own box (the dashboard header passes its icon slot). */
+  className?: string;
 }
 
 /**
@@ -36,7 +39,7 @@ interface LanguageSelectorProps {
  *
  * @param props - Component props
  */
-export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
+export function LanguageSelector({ currentLocale, className }: LanguageSelectorProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, refreshUser } = useAuth();
@@ -79,6 +82,10 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
     router.push(switchLanguageInPath(pathname, newLang));
   };
 
+  const selectorLabel = t('settings.language.selector_label', {
+    name: languageNames[currentLocale].native,
+  });
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -88,15 +95,18 @@ export function LanguageSelector({ currentLocale }: LanguageSelectorProps) {
           // `min-w-11` because the trigger is a single flag: the height
           // was already 44 px, the WIDTH fell to 39 and the target failed on a
           // phone (measured 2026-08-01 at 390 px).
-          className="gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2"
+          className={cn(
+            'gap-2 h-11 min-w-11 px-3 max-[380px]:gap-1 max-[380px]:h-9 max-[380px]:min-w-9 max-[380px]:px-2',
+            className
+          )}
           // The flag alone renders at EVERY width (owner arbitration 2026-09-03,
           // when a seventh destination joined the nav: the language name was
           // the label the row could spare — the popup names every language),
           // and a decorative flag is not an accessible name — carry it explicitly,
-          // with the current value.
-          aria-label={t('settings.language.selector_label', {
-            name: languageNames[currentLocale].native,
-          })}
+          // with the current value, and say it on hover like every icon of the
+          // header (2026-10-31).
+          aria-label={selectorLabel}
+          title={selectorLabel}
         >
           <LanguageFlag language={currentLocale} />
         </Button>

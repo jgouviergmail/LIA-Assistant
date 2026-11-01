@@ -123,6 +123,25 @@ class TestNormalizeVevent:
         assert result["attendees"][0]["displayName"] == "Bob Smith"
         assert result["attendees"][0]["responseStatus"] == "accepted"
 
+    def test_the_organizer_has_the_shape_google_and_outlook_give_it(self) -> None:
+        """« The meeting with Marc » finds the event Marc organised (ADR-367)."""
+        event = _make_caldav_event()
+        organizer = MagicMock()
+        organizer.value = "MAILTO:marc@example.com"
+        organizer.cn_paramval = "Marc Dubois"
+        organizer.CN_paramval = None
+        original = type(event.vobject_instance.vevent).__getattr__
+        type(event.vobject_instance.vevent).__getattr__ = lambda self, name: (
+            organizer if name == "organizer" else original(self, name)
+        )
+
+        result = normalize_vevent(event)
+
+        assert result["organizer"] == {"email": "marc@example.com", "displayName": "Marc Dubois"}
+
+    def test_an_event_without_an_organizer_states_none(self) -> None:
+        assert "organizer" not in normalize_vevent(_make_caldav_event())
+
 
 @pytest.mark.unit
 class TestNormalizeCalendar:

@@ -365,6 +365,9 @@ def changed_resources(draft: ApplicationActionDraftContent) -> list[ApplicationR
         resources.append("briefing_preferences")
     if "chat_shortcuts" in draft.after:
         resources.append("chat_shortcuts")
+    if "mcp_hitl_required" in draft.after:
+        # The MCP servers page publishes the strategy its choices inherit.
+        resources.append("user_mcp")
     if (
         "home_location" in draft.after
         or "last_known_location" in draft.after

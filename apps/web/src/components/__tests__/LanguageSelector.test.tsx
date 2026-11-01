@@ -67,4 +67,10 @@ describe('LanguageSelector', () => {
       screen.getByRole('button', { name: 'settings.language.selector_label' })
     ).toBeInTheDocument();
   });
+
+  /** Owner rule (2026-10-31): every icon of the header names itself on hover. */
+  it('names the current language in the tooltip too', () => {
+    renderWithProviders(<LanguageSelector currentLocale="de" />);
+    expect(screen.getByRole('button')).toHaveAttribute('title', 'settings.language.selector_label');
+  });
 });

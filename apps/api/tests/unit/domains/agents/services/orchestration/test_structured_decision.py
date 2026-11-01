@@ -344,3 +344,39 @@ class TestChannelsCompatibility:
 
         req = ChatRequest(message="oui", user_id=uuid_mod.uuid4(), session_id="session_x")
         assert req.hitl_decision is None
+
+
+class TestWhichOfTheItemsShown:
+    """ADR-367: an option's button carries its position; « none » and cancel their own."""
+
+    async def test_an_options_button(self) -> None:
+        decision = {"message_id": MESSAGE_ID, "action": "select", "selected_index": 2}
+        assert await _build(decision, _pending("entity_disambiguation")) == {
+            "action": "select",
+            "selected_index": 2,
+        }
+
+    async def test_none_and_cancel_buttons(self) -> None:
+        pending = _pending("entity_disambiguation")
+        assert await _build({"message_id": MESSAGE_ID, "action": "none"}, pending) == {
+            "action": "none"
+        }
+        assert await _build({"message_id": MESSAGE_ID, "action": "cancel"}, pending) == {
+            "action": "cancel"
+        }
+
+    async def test_a_select_without_its_option_is_stale(self) -> None:
+        with pytest.raises(HitlDecisionStaleError):
+            await _build(
+                {"message_id": MESSAGE_ID, "action": "select"}, _pending("entity_disambiguation")
+            )
+
+    async def test_a_confirmation_is_not_a_choice(self) -> None:
+        with pytest.raises(HitlDecisionStaleError):
+            await _build(
+                {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("entity_disambiguation")
+            )
+
+    async def test_an_option_index_never_reaches_another_kind(self) -> None:
+        decision = {"message_id": MESSAGE_ID, "action": "confirm", "selected_index": 2}
+        assert await _build(decision, _pending("tool_confirmation")) == {"action": "confirm"}

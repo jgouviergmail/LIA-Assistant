@@ -343,15 +343,10 @@ def render_summary(
         assert makes that unreachable for a ``DraftType``.
     """
     user_language = resolve_language(user_language)
-    from src.core.time_utils import format_datetime_for_display
+    from src.domains.agents.drafts.dates import draft_datetime_formatter
 
     timezone = user_timezone or draft.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-
-    def format_dt(dt_str: str | None) -> str:
-        """Format an ISO datetime string for display."""
-        if not dt_str:
-            return ""
-        return format_datetime_for_display(dt_str, timezone, user_language, include_time=True)
+    format_dt = draft_datetime_formatter(timezone, user_language)
 
     renderer = _SUMMARY_RENDERERS.get(draft.type)
     if renderer is None:

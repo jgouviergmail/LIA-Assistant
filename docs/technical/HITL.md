@@ -553,6 +553,27 @@ those leave. It used to show the original sender alone and impose it — a reply
 to all lost its other recipients, and on Outlook and iCloud the card named
 nobody.
 
+## 🎯 Which of the items shown? (ADR-367)
+
+« Reply to Marc's e-mail » designates an item the person was SHOWN by what it is. The query
+analyzer only says how (`reference_type="descriptive"`, a `descriptor`, `selection`); code
+decides which shown items those words designate (`context/descriptor_match.py`, over the
+turn-stamped registry). One fit is resolved and named in the action register; several are asked
+about by the `reference_disambiguation` node, between the router and the planner, in both
+execution modes:
+
+- the question is a template in six languages (`EntityDisambiguationInteraction`): the person's
+  words, numbered options told apart by `candidate_fields` (sender, subject, date), how to answer;
+  third parties' words are drawn literally (ADR-316);
+- a typed or spoken answer is read without a model (`context/choice_answer.py`): a position of the
+  person's language, the words that tell ONE option apart, « none of them » (a new lookup), a
+  refusal (cancel); an answer naming no single option is asked about once more, then the turn ends
+  with nothing done (`CHOICE_DECLINED_REASON`);
+- the web card lists the options as buttons; a click sends `select` with `selected_index` and a
+  visible message naming the position — never the option's label, which quotes a third party.
+
+Telegram answers by text (no keyboard: options do not fit two buttons).
+
 ## 🔢 Plusieurs brouillons dans un tour : un à la fois (ADR-288)
 
 Un tour peut préparer plusieurs brouillons — deux e-mails à deux personnes, un
@@ -963,12 +984,14 @@ Le `hitl_dispatch_node` est un dispatcher HITL générique qui combine 3 types d
 @node_with_metrics(node_name="hitl_dispatch")
 async def hitl_dispatch_node(state: MessagesState) -> dict:
     """
-    Generic HITL dispatcher combining 3 interaction types.
+    Generic HITL dispatcher combining 2 interaction types.
 
     Priority Order (highest first):
         1. draft_critique - User reviews generated content before send
-        2. entity_disambiguation - User clarifies which entity (multiple matches)
-        3. tool_confirmation - User confirms sensitive action
+        2. tool_confirmation - User confirms sensitive action
+
+    Which of several shown items the person meant is asked BEFORE planning,
+    by its own node (reference_disambiguation, ADR-367).
 
     This pattern replaces multiple individual HITL nodes with a single
     unified dispatcher that determines which type of HITL is needed.
@@ -980,8 +1003,10 @@ async def hitl_dispatch_node(state: MessagesState) -> dict:
 | Type | Priority | Use Case | Example |
 |------|----------|----------|---------|
 | **draft_critique** | 1 (highest) | Review content before send | "Voici l'email, tu veux que je l'envoie?" |
-| **entity_disambiguation** | 2 | Multiple matches found | "J'ai trouvé 3 Jean, lequel?" |
-| **tool_confirmation** | 3 | Sensitive operation | "Supprimer ce contact?" |
+| **tool_confirmation** | 2 | Sensitive operation | "Supprimer ce contact?" |
+
+`entity_disambiguation` is not dispatched here: the `reference_disambiguation` node asks it
+before planning (ADR-367, section « Which of the items shown? » below).
 
 ### Boucle draft critique replay-safe (v1.21.x)
 
@@ -1010,7 +1035,7 @@ l'utilisateur.** Le nœud `for_each_confirm` applique le même design pour les c
 ```
 services/hitl/interactions/
 ├── draft_critique.py (~900 lines) - Draft review logic
-├── entity_disambiguation.py (~315 lines) - Multiple match resolution
+├── entity_disambiguation.py - « which of the items shown? » template (ADR-367)
 ├── tool_confirmation.py (~260 lines) - Sensitive action confirmation
 ├── plan_approval.py (~305 lines) - Plan-level approval
 ├── clarification.py (~300 lines) - Clarification questions

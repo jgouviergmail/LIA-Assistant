@@ -22,7 +22,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.for_each_utils import parse_for_each_reference
-from src.domains.agents.orchestration.plan_schemas import FOR_EACH_ITEM_INFIX
+from src.domains.agents.orchestration.plan_schemas import for_each_parent_id
 from src.domains.agents.tools.runtime_helpers import extract_value_by_path
 from src.infrastructure.observability.metrics_agents import (
     hitl_for_each_items_counted,
@@ -65,7 +65,7 @@ def is_pre_approved_lot(
         return False
     if len({str(draft.get("draft_type", "")) for draft in drafts}) != 1:
         return False
-    return all(_parent_for_each_step(draft.get("step_id")) in approved_steps for draft in drafts)
+    return all(for_each_parent_id(draft.get("step_id")) in approved_steps for draft in drafts)
 
 
 def _approved_for_each_steps(
@@ -81,12 +81,6 @@ def _approved_for_each_steps(
         for step in for_each_ctx.get("steps") or []
         if isinstance(step, dict) and step.get("step_id")
     }
-
-
-def _parent_for_each_step(step_id: Any) -> str | None:
-    """The FOR_EACH step an ITEM step belongs to; ``None`` for a plain step."""
-    parent, infix, _ = str(step_id or "").rpartition(FOR_EACH_ITEM_INFIX)
-    return parent if infix == FOR_EACH_ITEM_INFIX else None
 
 
 async def pre_execute_for_each_providers(
@@ -129,12 +123,14 @@ async def pre_execute_for_each_providers(
         >>> # completed_steps = {"get_events": {"events": [...], "success": True}}
         >>> # item_counts = {"$steps.get_events.events": 2}
     """
-    from src.core.constants import FOR_EACH_PRE_EXECUTION_METADATA_KEY
     from src.domains.agents.orchestration.for_each_utils import (
         count_items_at_path,
         get_for_each_provider_step_id,
     )
-    from src.domains.agents.orchestration.parallel_executor import execute_plan_parallel
+    from src.domains.agents.orchestration.pre_execution import (
+        execute_steps_first,
+        steps_needed_first,
+    )
 
     pre_exec_start_time = time.time()
 
@@ -165,25 +161,8 @@ async def pre_execute_for_each_providers(
         for_each_sources=for_each_sources,
     )
 
-    # Build a sub-plan with only provider steps and their dependencies
-    from src.domains.agents.orchestration.dependency_graph import DependencyGraph
-    from src.domains.agents.orchestration.plan_schemas import ExecutionPlan as EP
-
-    dep_graph = DependencyGraph(execution_plan)
-    steps_by_id = {step.step_id: step for step in execution_plan.steps}
-
-    # Collect all steps needed (providers + their dependencies)
-    steps_to_execute: set[str] = set()
-    for provider_id in provider_step_ids:
-        steps_to_execute.add(provider_id)
-        deps = dep_graph.get_all_dependencies(provider_id)
-        steps_to_execute.update(deps)
-
-    # Create sub-plan with only needed steps
-    sub_plan_steps = [
-        steps_by_id[step_id] for step_id in steps_to_execute if step_id in steps_by_id
-    ]
-
+    # The providers and every step they need, as a sub-plan of this plan.
+    sub_plan_steps = steps_needed_first(execution_plan, provider_step_ids)
     if not sub_plan_steps:
         logger.warning(
             "for_each_hitl_no_steps_to_execute",
@@ -193,40 +172,25 @@ async def pre_execute_for_each_providers(
         hitl_for_each_pre_execution_total.labels(outcome="failure").inc()
         return {}, {}, {}
 
-    # Create sub-plan with essential metadata from original plan
-    # Preserve: domains, intent, user_goal (needed for proper tool execution context)
-    original_metadata = execution_plan.metadata or {}
-    sub_plan_metadata = {
-        FOR_EACH_PRE_EXECUTION_METADATA_KEY: True,
-        # Propagate essential fields for tool execution context
-        "domains": original_metadata.get("domains"),
-        "intent": original_metadata.get("intent"),
-        "user_goal": original_metadata.get("user_goal"),
-    }
-
-    sub_plan = EP(
-        plan_id=f"{execution_plan.plan_id}_pre_exec",
-        user_id=execution_plan.user_id,
-        steps=sub_plan_steps,
-        metadata=sub_plan_metadata,
-    )
-
     logger.info(
         "for_each_hitl_sub_plan_created",
         run_id=run_id,
-        sub_plan_steps=[s.step_id for s in sub_plan_steps],
+        sub_plan_steps=sub_plan_steps,
         original_plan_steps=len(execution_plan.steps),
     )
 
     # Execute sub-plan
     try:
-        result = await execute_plan_parallel(
-            execution_plan=sub_plan,
-            config=config,
-            run_id=run_id,
+        result = await execute_steps_first(
+            execution_plan,
+            provider_step_ids,
+            config,
+            run_id,
             initial_registry=initial_registry,
             turn_id=turn_id,
         )
+        if result is None:
+            raise RuntimeError("the pre-execution ran no step")
         completed_steps = result.completed_steps
 
         # Record success metric and duration

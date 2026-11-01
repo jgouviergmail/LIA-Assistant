@@ -147,11 +147,17 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        destinations={visibleDestinations({ meetings_enabled: false, world_enabled: true })}
+        destinations={visibleDestinations({
+          meetings_enabled: false,
+          world_enabled: true,
+          workbench_enabled: true,
+          sms_enabled: true,
+        })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     expect(screen.queryByRole('menuitem', { name: 'navigation.meetings' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'navigation.sms' })).toBeInTheDocument();
     expect(await screen.findAllByRole('menuitem')).toHaveLength(DASHBOARD_DESTINATIONS.length - 1);
   });
 
@@ -162,7 +168,11 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
         translate={translate}
         isActiveRoute={() => false}
         triggerLabel="Menu"
-        destinations={visibleDestinations({ meetings_enabled: true, world_enabled: true })}
+        destinations={visibleDestinations({
+          meetings_enabled: true,
+          world_enabled: true,
+          workbench_enabled: true,
+        })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));

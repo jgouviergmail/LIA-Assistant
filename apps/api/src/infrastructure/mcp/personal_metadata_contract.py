@@ -6,12 +6,18 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.mcp.confirmation import ToolChoice
+
 
 class PersonalMCPToolItem(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     tool_name: str
     description: str
     title: str | None
+    # The person's own choice that applies, and a « never » suspended by a new
+    # declaration — what the assistant describes (spec 2026-10-30 D6, D7).
+    choice: ToolChoice | None
+    choice_suspended: bool
 
 
 class PersonalMCPReadItem(BaseModel):
@@ -27,6 +33,8 @@ class PersonalMCPReadItem(BaseModel):
     timeout_seconds: int
     hitl_required: bool | None
     iterative_mode: bool
+    react_expand_iterative: bool | None
+    suspended_tool_choices: int
     header_name: str | None
     has_credentials: bool
     has_oauth_credentials: bool

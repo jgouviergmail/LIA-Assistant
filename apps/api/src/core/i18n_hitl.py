@@ -22,7 +22,6 @@ Created: 2025-12-06
 """
 
 from enum import Enum, StrEnum
-from typing import Any
 
 from src.core.i18n import SUPPORTED_LANGUAGES, resolve_language
 
@@ -138,68 +137,72 @@ _CLARIFICATION_HEADERS: dict[str, str] = {
 }
 
 # =============================================================================
-# DISAMBIGUATION TEMPLATES - Entity resolution messages
+# DISAMBIGUATION TEMPLATES - which shown item a description designates (ADR-367)
 # =============================================================================
 
-# Headers for multiple entities disambiguation
+# Header: several of the items the person was shown fit their words.
 _DISAMBIGUATION_MULTIPLE_ENTITIES: dict[str, str] = {
-    "fr": "J'ai trouvé plusieurs « {query} » :",
-    "en": "I found multiple matches for “{query}”:",
-    "es": "Encontré varias coincidencias para «{query}»:",
-    "de": "Ich habe mehrere Treffer für „{query}“ gefunden:",
-    "it": "Ho trovato più corrispondenze per «{query}»:",
-    "zh-CN": "我找到了多个“{query}”的匹配项：",
+    "fr": "Plusieurs éléments affichés correspondent à « {query} » :",
+    "en": "Several of the items shown match “{query}”:",
+    "es": "Varios de los elementos mostrados coinciden con «{query}»:",
+    "de": "Mehrere der angezeigten Elemente passen zu „{query}“:",
+    "it": "Più elementi mostrati corrispondono a «{query}»:",
+    "zh-CN": "显示的项目中有多个与“{query}”匹配：",
 }
 
-# Header for one entity with several values of a field (e.g. two emails for
-# one contact): a whole sentence per field and language. A label pluralised
-# by appending « s » read « addresss » and « Telefonnummers », and the
-# pronoun agrees with the field (fr « Laquelle » for an address).
-_DISAMBIGUATION_MULTIPLE_FIELDS: dict[str, dict[str, str]] = {
-    "email": {
-        "fr": "{name} a plusieurs adresses email. Laquelle veux-tu utiliser ?",
-        "en": "{name} has several email addresses. Which one would you like to use?",
-        "es": "{name} tiene varias direcciones de correo. ¿Cuál quieres usar?",
-        "de": "{name} hat mehrere E-Mail-Adressen. Welche möchtest du verwenden?",
-        "it": "{name} ha più indirizzi email. Quale vuoi usare?",
-        "zh-CN": "{name}有多个电子邮件地址。你想用哪个？",
-    },
-    "phone": {
-        "fr": "{name} a plusieurs numéros de téléphone. Lequel veux-tu utiliser ?",
-        "en": "{name} has several phone numbers. Which one would you like to use?",
-        "es": "{name} tiene varios números de teléfono. ¿Cuál quieres usar?",
-        "de": "{name} hat mehrere Telefonnummern. Welche möchtest du verwenden?",
-        "it": "{name} ha più numeri di telefono. Quale vuoi usare?",
-        "zh-CN": "{name}有多个电话号码。你想用哪个？",
-    },
-    "address": {
-        "fr": "{name} a plusieurs adresses. Laquelle veux-tu utiliser ?",
-        "en": "{name} has several addresses. Which one would you like to use?",
-        "es": "{name} tiene varias direcciones. ¿Cuál quieres usar?",
-        "de": "{name} hat mehrere Adressen. Welche möchtest du verwenden?",
-        "it": "{name} ha più indirizzi. Quale vuoi usare?",
-        "zh-CN": "{name}有多个地址。你想用哪个？",
-    },
+# Header: a lookup the plan acts on found several items (ADR-367 amendment).
+_DISAMBIGUATION_FOUND_ENTITIES: dict[str, str] = {
+    "fr": "J'ai trouvé plusieurs éléments qui peuvent correspondre :",
+    "en": "I found several items that could be the one you mean:",
+    "es": "Encontré varios elementos que podrían ser el que buscas:",
+    "de": "Ich habe mehrere Elemente gefunden, die gemeint sein könnten:",
+    "it": "Ho trovato più elementi che potrebbero essere quello che intendi:",
+    "zh-CN": "我找到了几个可能符合的项目：",
 }
 
-# The same header for a field no sentence above names: said without its label.
-_DISAMBIGUATION_MULTIPLE_VALUES: dict[str, str] = {
-    "fr": "{name} a plusieurs valeurs possibles. Laquelle veux-tu utiliser ?",
-    "en": "{name} has several possible values. Which one would you like to use?",
-    "es": "{name} tiene varios valores posibles. ¿Cuál quieres usar?",
-    "de": "{name} hat mehrere mögliche Werte. Welchen möchtest du verwenden?",
-    "it": "{name} ha più valori possibili. Quale vuoi usare?",
-    "zh-CN": "{name}有多个可选值。你想用哪个？",
+# Opening the question asked a second time, after an answer naming no option.
+_DISAMBIGUATION_NOT_UNDERSTOOD: dict[str, str] = {
+    "fr": "Je n'ai pas compris lequel tu veux.",
+    "en": "I didn't catch which one you mean.",
+    "es": "No entendí cuál quieres.",
+    "de": "Ich habe nicht verstanden, welches du meinst.",
+    "it": "Non ho capito quale intendi.",
+    "zh-CN": "我没听明白你指的是哪一个。",
 }
 
-# Footer asking for selection
+#: The words the question suggests for « none of them » and « cancel », per
+#: language — each one READ by the answer reader (``context/choice_answer.py``),
+#: a test holds both sides equal: the question never invites an answer the code
+#: cannot read.
+DISAMBIGUATION_ANSWER_WORDS: dict[str, tuple[str, str]] = {
+    "fr": ("aucun", "annule"),
+    "en": ("none", "cancel"),
+    "es": ("ninguno", "cancela"),
+    "de": ("keiner", "abbrechen"),
+    "it": ("nessuno", "annulla"),
+    "zh-CN": ("都不是", "取消"),
+}
+
+# Footer: how to answer — a number, « none of them », or cancel.
 _DISAMBIGUATION_CHOICE_PROMPT: dict[str, str] = {
-    "fr": "\n\nIndique le numéro de ton choix (ex. : 1, 2…) :",
-    "en": "\n\nPlease indicate your choice by number (e.g. 1, 2…):",
-    "es": "\n\nIndica el número de tu elección (p. ej.: 1, 2…):",
-    "de": "\n\nBitte gib die Nummer deiner Wahl an (z. B. 1, 2 …):",
-    "it": "\n\nIndica il numero della tua scelta (ad es. 1, 2…):",
-    "zh-CN": "\n\n请指出你的选择编号（例如：1、2……）：",
+    "fr": (
+        "\n\nLequel ? Indique son numéro (ex. : 1, 2…), « {none} » si ce n'est aucun "
+        "d'eux, ou « {cancel} »."
+    ),
+    "en": "\n\nWhich one? Give its number (e.g. 1, 2…), “{none}” if it is none of them, or “{cancel}”.",
+    "es": (
+        "\n\n¿Cuál? Indica su número (p. ej.: 1, 2…), «{none}» si no es ninguno de ellos, "
+        "o «{cancel}»."
+    ),
+    "de": (
+        "\n\nWelches? Gib seine Nummer an (z. B. 1, 2 …), „{none}“, wenn es keines davon "
+        "ist, oder „{cancel}“."
+    ),
+    "it": (
+        "\n\nQuale? Indica il suo numero (ad es. 1, 2…), «{none}» se non è nessuno di "
+        "questi, oppure «{cancel}»."
+    ),
+    "zh-CN": "\n\n是哪一个？请告诉我它的编号（例如：1、2……），都不对就说“{none}”，或者说“{cancel}”。",
 }
 
 # =============================================================================
@@ -1625,129 +1628,45 @@ class HitlMessages:
 
     @staticmethod
     def format_disambiguation_question(
-        disambiguation_type: str,
-        domain: str,
-        original_query: str,
-        intended_action: str,
-        candidates: list[dict[str, Any]],
-        target_field: str,
-        language: str,
+        query: str, options: list[str], language: str, *, reask: bool = False, found: bool = False
     ) -> str:
-        """
-        Format disambiguation question with numbered choices.
-
-        Creates a user-friendly question with clear numbered options for entity
-        or field disambiguation scenarios.
+        """The question asking which shown item a description designates (ADR-367).
 
         Args:
-            disambiguation_type: "multiple_entities" or "multiple_fields"
-            domain: Entity domain (contacts, emails, events, tasks, files)
-            original_query: User's original search term
-            intended_action: What action the user wants to perform (send_email, etc.)
-            candidates: List of candidate items with display info
-            target_field: For multiple_fields, which field type (email, phone, address)
-            language: Language code (fr, en, es, de, it, zh-CN)
+            query: The words the person designated the item with, ready to draw.
+            options: One line per option, in order, ready to draw (escaped by
+                the caller: they quote third parties).
+            language: Language code (fr, en, es, de, it, zh-CN, or a variant).
+            reask: True when the previous answer named no option.
+            found: True when the options were FOUND by a lookup the plan acts
+                on rather than shown: the header then names no description.
 
         Returns:
-            Formatted question string with numbered choices
+            The header, the numbered options and how to answer.
 
-        Example output (en, multiple_entities):
-            I found multiple matches for “Jean Dupont”:
+        Example output (en):
+            Several of the items shown match “Marc”:
 
-            **1.** Jean Dupont (jean@work.com)
-            **2.** Jean-Pierre Dupont (jp@home.com)
+            **1.** Marc <marc@example.com> · Photos · Tuesday 15 September
+            **2.** Marc <marc@example.com> · Invoice · Monday 14 September
 
-            Please indicate your choice by number (e.g. 1, 2…):
-
-        Example output (en, multiple_fields):
-            Jean Dupont has several email addresses. Which one would you like to use?
-
-            **1.** jean@work.com
-            **2.** jean.dupont@personal.com
-
-            Please indicate your choice by number (e.g. 1, 2…):
+            Which one? Give its number (e.g. 1, 2…), “none” if it is none of
+            them, or “cancel”.
         """
         lang = resolve_language(language)
-
-        if not candidates:
+        if not options:
             return HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, language)
-
-        # Build header based on disambiguation type
-        if disambiguation_type == "multiple_fields":
-            # Multiple fields for one entity (e.g., multiple emails)
-            contact_name = (
-                candidates[0].get("parent_name", original_query) if candidates else original_query
-            )
-            sentences = _DISAMBIGUATION_MULTIPLE_FIELDS.get(
-                target_field, _DISAMBIGUATION_MULTIPLE_VALUES
-            )
-            header = sentences[lang].format(name=contact_name)
-        else:
-            # Multiple entities (default)
-            header_template = _DISAMBIGUATION_MULTIPLE_ENTITIES.get(
-                lang, _DISAMBIGUATION_MULTIPLE_ENTITIES["en"]
-            )
-            header = header_template.format(query=original_query)
-
-        # Build numbered choices
-        choices = []
-        for i, candidate in enumerate(candidates, 1):
-            choice_line = HitlMessages._format_candidate_line(candidate, i, domain)
-            choices.append(choice_line)
-
-        choices_text = "\n".join(choices)
-
-        # Add selection prompt
-        prompt = _DISAMBIGUATION_CHOICE_PROMPT.get(lang, _DISAMBIGUATION_CHOICE_PROMPT["en"])
-
-        return f"{header}\n\n{choices_text}{prompt}"
-
-    @staticmethod
-    def _format_candidate_line(
-        candidate: dict[str, Any],
-        index: int,
-        domain: str,
-    ) -> str:
-        """
-        Format a single candidate line for disambiguation display.
-
-        A candidate carries what ``EntityResolutionService`` puts in it: a name,
-        an id and, for a contact, the e-mail or phone the action needs — the
-        only details a line can show.
-
-        Args:
-            candidate: Candidate item dict with display info
-            index: 1-based index for display
-            domain: Entity domain for formatting
-
-        Returns:
-            Formatted candidate line (e.g., "**1.** Jean Dupont (jean@work.com)")
-        """
-        # Extract display fields based on domain and available data
-        name = candidate.get("name") or candidate.get("display_name") or candidate.get("value", "")
-
-        # Build detail parts (email, phone, etc.)
-        details = []
-
-        # For contacts domain, show email/phone if available
-        if domain == "contacts":
-            email = candidate.get("email") or candidate.get("primary_email", "")
-            if email:
-                details.append(email)
-            phone = candidate.get("phone") or candidate.get("primary_phone", "")
-            if phone and not email:
-                details.append(phone)
-
-        # For field disambiguation (multiple emails/phones), name IS the value
-        if not name and candidate.get("value"):
-            name = candidate.get("value", "")
-
-        # Format the line
-        if details:
-            details_str = ", ".join(details)
-            return f"**{index}.** {name} ({details_str})"
-        else:
-            return f"**{index}.** {name}"
+        header = (
+            _DISAMBIGUATION_FOUND_ENTITIES[lang]
+            if found
+            else _DISAMBIGUATION_MULTIPLE_ENTITIES[lang].format(query=query)
+        )
+        if reask:
+            header = f"{_DISAMBIGUATION_NOT_UNDERSTOOD[lang]}\n\n{header}"
+        choices = "\n".join(f"**{i}.** {line}" for i, line in enumerate(options, 1))
+        none, cancel = DISAMBIGUATION_ANSWER_WORDS[lang]
+        prompt = _DISAMBIGUATION_CHOICE_PROMPT[lang].format(none=none, cancel=cancel)
+        return f"{header}\n\n{choices}{prompt}"
 
     # =========================================================================
     # INSUFFICIENT CONTENT METHODS

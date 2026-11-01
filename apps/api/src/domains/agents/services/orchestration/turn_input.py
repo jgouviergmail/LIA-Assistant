@@ -26,10 +26,16 @@ from typing import Any
 
 import structlog
 from langchain_core.messages import BaseMessage
+from langchain_core.runnables import RunnableConfig
+
+# LangGraph's own key for « this run resumes the checkpoint » (``pregel/_loop.py``),
+# pinned by ``test_new_input_never_resumes.py`` on a real graph.
+from langgraph._internal._constants import CONFIG_KEY_RESUMING
 
 __all__ = [
     "LOADED_SNAPSHOT_KEY",
     "appended_messages",
+    "fresh_run_config",
     "prepare_graph_input",
     "snapshot_loaded_state",
     "snapshot_restored_state",
@@ -171,3 +177,22 @@ def prepare_graph_input(
         message_count=len(graph_input.get("messages") or []),
     )
     return graph_input
+
+
+def fresh_run_config(config: RunnableConfig) -> RunnableConfig:
+    """The config of a run that starts from its input — never a resumption.
+
+    LangGraph resumes the last checkpoint when the run's ``run_id`` equals the
+    checkpoint's (its stream re-entry rule), even for a new input. The chat reuses
+    the run id of the question it answers, so a message the answer reader turned
+    into a NEW request re-ran the interrupted node on a resume value nobody gave
+    (measured on Docker dev 2026-10-31). A normal turn declares itself fresh.
+
+    Args:
+        config: The run's config (never mutated).
+
+    Returns:
+        A copy whose ``configurable`` says the run does not resume.
+    """
+    configurable = {**(config.get("configurable") or {}), CONFIG_KEY_RESUMING: False}
+    return {**config, "configurable": configurable}

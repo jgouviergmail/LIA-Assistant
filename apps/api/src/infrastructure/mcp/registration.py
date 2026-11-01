@@ -26,11 +26,17 @@ from src.core.constants import (
     MCP_DISPLAY_EMOJI,
 )
 from src.domains.agents.constants import AGENT_MCP
-from src.domains.agents.registry.catalogue import POLICIES_REQUIRING_REASON
+from src.domains.agents.registry.reactive_manifests import reset_reactive_manifests
 from src.infrastructure.mcp.admin_registration import (
     AdminRegistrationPorts,
     AdminServer,
     register_admin_server,
+)
+from src.infrastructure.mcp.confirmation import (
+    declared_tool_category,
+    derive_mcp_mutation_policy,
+    derive_mcp_mutation_policy_reason,
+    effective_react_expand,
 )
 from src.infrastructure.mcp.json_schema import (
     DEFAULT_TYPE,
@@ -63,9 +69,7 @@ from src.infrastructure.observability.metrics_mcp import (
 if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
     from src.domains.agents.registry.catalogue import (
-        MutationPolicy,
         ParameterSchema,
-        ToolCategory,
         ToolManifest,
     )
     from src.infrastructure.mcp.schemas import MCPServerConfig
@@ -284,6 +288,7 @@ def register_mcp_tools(
 
     _admin_mcp_domains.clear()
     _admin_mcp_server_domains.clear()
+    reset_reactive_manifests()
     reference_content = reference_content or {}
     if not adapters:
         logger.info("mcp_registration_no_tools")
@@ -372,129 +377,6 @@ def _register_tool_in_central_registry(adapter: MCPToolAdapter) -> None:
 _MCP_DESCRIPTION_MAX_KEYWORDS = 10
 
 
-def declared_tool_category(annotations: Any) -> ToolCategory | None:
-    """Derive a catalogue category from a server behaviour hint — tightening only.
-
-    The MCP specification is normative here:
-
-        "For trust & safety and security, clients MUST consider tool
-         annotations to be untrusted unless they come from trusted servers."
-
-    So the asymmetry below is a requirement, not caution. A declared MUTATION is
-    acted upon: the worst a lying server buys itself is one confirmation too
-    many. A declared ``readOnlyHint: true`` is NOT, because a declared category
-    WINS over the name heuristic in ``_declared_mutation_flag`` — believing it
-    would remove the tool from the invalid-mutation safety net, from HITL scope
-    detection and from the read-only requirement of the initiative phase, on the
-    word of a third party.
-
-    Returning None is therefore the safe answer, not a failure: it leaves
-    ``MUTATION_TOOL_PATTERNS`` in charge exactly as before.
-
-    What this buys, measured on one real server: none of ``cancel_subscription``,
-    ``upgrade``, ``disconnect_institution`` or ``forget`` carries one of the nine
-    mutation verbs, so every one of them is classified read-only by the name
-    heuristic today.
-
-    Args:
-        annotations: Normalised hints from :func:`extract_tool_annotations`, of
-            any shape.
-
-    Returns:
-        ``"delete"`` for a declared destructive tool, ``"update"`` for one
-        declared as performing only additive updates, or None when the
-        declaration says nothing this codebase may safely act on.
-    """
-    if not isinstance(annotations, dict):
-        return None
-    destructive = annotations.get("destructive_hint")
-    read_only = annotations.get("read_only_hint")
-    if destructive is True:
-        return "delete"
-    if read_only is False:
-        # Spec: destructiveHint defaults to TRUE, and "If false, the tool
-        # performs only additive updates" — both are mutations either way.
-        return "update" if destructive is False else "delete"
-    return None
-
-
-def declares_destructive_tool(annotations: Any) -> bool:
-    """Whether a server declares THIS tool destructive.
-
-    Read where a per-tool decision has to be made from a per-SERVER setting. In
-    iterative (ReAct) mode every tool of a server shares one HITL flag, so a
-    user who turned confirmation off for a mostly read-only server would have
-    its few destructive tools run unconfirmed too.
-
-    Only a destructive declaration is acted upon, not a mere "not read-only":
-    an additive update would otherwise put a prompt in front of every ordinary
-    write. Tightening only, as :func:`declared_tool_category` explains.
-
-    Args:
-        annotations: Normalised hints from :func:`extract_tool_annotations`.
-
-    Returns:
-        True when the server declared the tool destructive.
-    """
-    return declared_tool_category(annotations) == "delete"
-
-
-def derive_mcp_mutation_policy(hitl_required: bool, annotations: Any) -> MutationPolicy | None:
-    """Derive the confirmation a third-party MCP tool owes (ADR-263).
-
-    Never more permissive than what is known, and asymmetric for the same
-    reason as :func:`declared_tool_category`: a declared mutation is acted upon,
-    a declared read-only is not believed.
-
-    - the server's HITL setting is the USER's decision and wins outright;
-    - a declared destructive tool, or one declared "not read-only" with nothing
-      said about destruction (the spec defaults ``destructiveHint`` to true),
-      gets ``confirm``;
-    - one explicitly declared "not read-only AND not destructive" — the spec's
-      "performs only additive updates" — gets ``reversible``;
-    - anything else yields None: no policy is derived, and the name heuristic
-      keeps its job exactly as before.
-
-    Args:
-        hitl_required: Resolved per-server HITL requirement (per-server override
-            or the global ``MCP_HITL_REQUIRED``).
-        annotations: Normalised hints from :func:`extract_tool_annotations`, of
-            any shape — a third party is not obliged to be well-formed.
-
-    Returns:
-        The derived policy, or None when nothing may safely be concluded.
-    """
-    if hitl_required:
-        return "confirm"
-    category = declared_tool_category(annotations)
-    if category == "delete":
-        return "confirm"
-    if category == "update":
-        return "reversible"
-    return None
-
-
-def derive_mcp_mutation_policy_reason(policy: MutationPolicy | None) -> str | None:
-    """The written justification a derived exempting policy owes (ADR-263).
-
-    ``reversible`` skips the confirmation, so the completeness doctrine demands
-    a reason. For a third-party tool the reason is not ours to invent: it is
-    what the SERVER declared, quoted as such.
-
-    Args:
-        policy: The derived policy, or None.
-
-    Returns:
-        The reason for a policy that requires one, else None.
-    """
-    if policy in POLICIES_REQUIRING_REASON:
-        return (
-            "The server declares this tool non-destructive and additive-only "
-            "(MCP annotations); LIA never loosens that declaration."
-        )
-    return None
-
-
 def build_mcp_tool_manifest(
     adapter_name: str,
     agent_name: str,
@@ -509,6 +391,7 @@ def build_mcp_tool_manifest(
     mcp_origin: Literal["admin", "user"] | None = None,
     mcp_server_key: str | None = None,
     execution_modes: frozenset[str] = EXECUTION_MODES_ALL,
+    standing_approval: bool = False,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP tool (shared by admin and user MCP).
 
@@ -527,6 +410,8 @@ def build_mcp_tool_manifest(
         mcp_origin: Owning configuration scope, when explicitly known.
         mcp_server_key: Exact configured admin key or user-server UUID.
         execution_modes: The modes that may run the tool (ADR-249).
+        standing_approval: The person's « never ask » for this tool (spec 2026-10-30
+            D6): a confirmation its declaration owes is approved in advance.
 
     Returns:
         ToolManifest instance
@@ -581,6 +466,7 @@ def build_mcp_tool_manifest(
         tool_category=declared_tool_category(annotations),
         mutation_policy=_derived_policy,
         mutation_policy_reason=derive_mcp_mutation_policy_reason(_derived_policy),
+        approved_in_advance=standing_approval and _derived_policy == "confirm",
         mcp_origin=mcp_origin,
         mcp_server_key=mcp_server_key,
         execution_modes=execution_modes,
@@ -598,6 +484,7 @@ def build_mcp_react_task_manifest(
     *,
     mcp_origin: Literal["admin", "user"] | None = None,
     mcp_server_key: str | None = None,
+    react_expand: bool | None = None,
 ) -> ToolManifest:
     """Build a ToolManifest for an MCP iterative (ReAct) task tool.
 
@@ -612,9 +499,15 @@ def build_mcp_react_task_manifest(
         description: Server description for LLM context.
         parameters: List of ParameterSchema for the tool signature.
         semantic_keywords: Keywords for semantic tool scoring.
-        hitl_required: Whether HITL approval is required.
+        hitl_required: Whether the task is asked before it starts — true when one of
+            its tools would ask (``task_requires_confirmation``, owner decision
+            2026-10-31); that answer covers its calls.
         mcp_origin: Owning configuration scope, when explicitly known.
         mcp_server_key: Exact configured admin key or user-server UUID.
+        react_expand: The server's stored ReAct shape — True hands the loop the
+            server's individual tools, False keeps this task tool; None (never
+            chosen, every administrator server) follows the instance default.
+            Resolved HERE, once: the selector reads the manifest, never the flag.
 
     Returns:
         ToolManifest instance for the task delegation tool.
@@ -667,13 +560,14 @@ def build_mcp_react_task_manifest(
         ),
         tool_category=None,
         delegates_execution=True,
+        react_expand=effective_react_expand(react_expand),
         mcp_origin=mcp_origin,
         mcp_server_key=mcp_server_key,
         # ADR-263: the iterative tool opens a whole ReAct loop over the
         # server's toolbox. Its category stays None (the loop is not one
-        # operation), but what it OWES follows the server's HITL setting: with
-        # confirmation on, the loop asks before it starts; without, the tools it
-        # calls carry their own derived policies.
+        # operation), but what it OWES is asked before it starts whenever one
+        # of its tools would ask (owner decision 2026-10-31): the approved task
+        # scope then covers every call of the loop, which runs to completion.
         mutation_policy="confirm" if hitl_required else None,
     )
 
@@ -683,6 +577,7 @@ def _build_mcp_react_manifest(
     agent_name: str,
     server_name: str,
     description: str,
+    hitl_required: bool,
 ) -> ToolManifest:
     """Build a ToolManifest for an admin MCP iterative task tool.
 
@@ -694,6 +589,9 @@ def _build_mcp_react_manifest(
         agent_name: Agent name for domain routing.
         server_name: MCP server name (injected as default parameter value).
         description: Server description for LLM context.
+        hitl_required: Whether the task is asked once before it starts — when one
+            of its individuals would ask, as a personal server's (owner decision
+            2026-10-31).
 
     Returns:
         ToolManifest instance for the task delegation tool.
@@ -724,7 +622,7 @@ def _build_mcp_react_manifest(
             ),
         ],
         semantic_keywords=[server_name, "task", "iterative", "react"],
-        hitl_required=False,
+        hitl_required=hitl_required,
         mcp_origin="admin",
         mcp_server_key=server_name,
     )

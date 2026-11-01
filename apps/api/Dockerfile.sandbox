@@ -17,15 +17,26 @@
 # Debian trixie ships Node 20, past its upstream end of life, whose `fetch`
 # ignores HTTPS_PROXY; the official image brings a supported major with its
 # own npm and npx, so Debian's `npm` (140 MB of node-* packages) is not needed.
+ARG PIP_VERSION=26.2.2
+ARG PIP_WHEEL_SHA256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70
+ARG NPM_VERSION=12.2.1
+
 FROM node:26.10.0-bookworm-slim@sha256:3ffc19ea878019d9e9ae8971732ad4a03cda44f167107173174b60ed7c65bed3 AS node
 
 FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+ARG PIP_VERSION
+ARG PIP_WHEEL_SHA256
+ARG NPM_VERSION
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_ROOT_USER_ACTION=ignore
+
+RUN printf 'pip==%s --hash=sha256:%s\n' "$PIP_VERSION" "$PIP_WHEEL_SHA256" > /tmp/lia-pip-bootstrap.txt \
+    && pip install --no-cache-dir --require-hashes --only-binary=:all: --upgrade -r /tmp/lia-pip-bootstrap.txt \
+    && rm /tmp/lia-pip-bootstrap.txt
 
 # The commands a skill may call (SANDBOX_COMMANDS). bash, tar and coreutils
 # (timeout, truncate) come with the base and run the command bootstrap; pip
@@ -50,7 +61,9 @@ RUN apt-get update \
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npm install -g npm@${NPM_VERSION} \
+    && rm -rf /root/.npm
 
 # The libraries (SANDBOX_LIBRARIES), installed system-wide so uid 65534 reads
 # them without any PYTHONPATH: exact pins, every hash verified.

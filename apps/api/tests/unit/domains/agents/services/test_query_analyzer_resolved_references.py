@@ -55,3 +55,38 @@ async def test_analyze_full_returns_typed_references() -> None:
     }
     assert person_name_values(intelligence.resolved_references) == ()
     assert intelligence.english_enriched_query == analysis.english_query
+
+
+async def test_analyze_full_tells_the_analyzer_what_was_shown() -> None:
+    """ADR-367: the analyzer reads the history cut at 200 characters a turn, so a
+    list's fourth item was invisible to it; the shown items reach it whole."""
+    from src.domains.agents.services import query_analyzer_service
+
+    service = _make_service(
+        MemoryResolution(
+            facts=[],
+            resolved=ResolvedReferences(
+                original_query=QUERY, enriched_query=QUERY, mappings={}, value_kinds={}
+            ),
+            references=[],
+        )
+    )
+    analyze = AsyncMock(return_value=_analysis_result([]))
+    state = {"user_language": "fr", "current_turn_id": 2, "registry": {}}
+    with (
+        patch.object(service, "analyze", analyze),
+        patch.object(
+            service, "_expand_domains_for_semantic_types", AsyncMock(return_value=["email"])
+        ),
+        patch.object(
+            query_analyzer_service, "render_shown_items", lambda s: "- [email] Marc · Photos"
+        ),
+    ):
+        await service.analyze_full(
+            query=QUERY,
+            messages=[HumanMessage(content=QUERY)],
+            state=state,
+            config={"configurable": {}},
+            original_query=QUERY,
+        )
+    assert analyze.await_args.kwargs["shown_items"] == "- [email] Marc · Photos"

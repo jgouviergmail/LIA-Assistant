@@ -35,6 +35,10 @@ graph TD
     B -->|conversation| C[Response Node]
     B -->|pipeline mode| D[Planner Node]
     B -->|react mode| R1[ReAct Setup]
+    B -->|several shown items fit| RD[Reference Disambiguation]
+    RD -->|pipeline mode| D
+    RD -->|react mode| R1
+    RD -->|declined| C
     D -->|empty plan| C
     D --> E[Semantic Validator]
     E -->|ambiguous| CL[Clarification]
@@ -60,7 +64,7 @@ graph TD
     C --> J[SSE Stream]
 ```
 
-- **Entrée** : `compaction` puis `router`, qui choisit la réponse directe, le mode Pipeline ou le mode ReAct.
+- **Entrée** : `compaction` puis `router`, qui choisit la réponse directe, le mode Pipeline ou le mode ReAct. Quand les mots de la personne désignent plusieurs des éléments qui viennent de lui être montrés, `reference_disambiguation` demande lequel avant toute planification (§2.1b).
 - **Pipeline** : `planner` → `semantic_validator` (→ `clarification` si la demande est ambiguë, → `planner` pour re-planifier) → `approval_gate` (pass-through) → `task_orchestrator` → agents de domaine.
 - **ReAct** : `react_setup` → `react_call_model` ↔ `react_execute_tools`, `react_recovery` quand un fait est déclaré manquant, `react_finalize` (détail en §1b).
 - **Validation** : les brouillons des deux modes passent par `hitl_dispatch` ; un lot FOR_EACH par `for_each_confirm`.
@@ -146,6 +150,45 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 │   • Conversational          → response_node                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### 2.1b reference_disambiguation_node (ADR-367)
+
+**Fichier**: `nodes/reference_disambiguation_node.py`
+
+Quand l'analyse désigne un élément montré **par ce qu'il est** (« le mail de Marc »), le
+code le cherche parmi les éléments du tour qui les a montrés
+(`services/descriptive_reference.py`), jamais par une nouvelle recherche. Un seul
+correspond : `resolved_context` le porte et la planification part de lui. Plusieurs :
+`resolved_context.candidates` les porte, et `route_from_router` passe d'abord par ce
+nœud (`asks_which_item`), dans les deux modes — la route enregistrée reste celle de la
+planification.
+
+- **Question** : `interrupt()` de type `entity_disambiguation`, options numérotées avec
+  ce qui distingue chacune (`candidate_fields` du type de contexte).
+- **Réponse lue sans modèle** (`context/choice_answer.py`) : un numéro, un ordinal, un
+  mot qui ne désigne qu'une option, « aucun » ou « annule », dans les six langues ; un
+  clic sur la carte envoie l'index.
+- **Issues** : un choix → `resolved_context.items` = cet élément, planification ;
+  « aucun » → planification sans référence (nouvelle recherche) ; « annule » →
+  `plan_rejection_reason`, réponse sans aucune action. Une première réponse illisible
+  repose la question une fois (deux `interrupt()` successifs, sans modèle entre les
+  deux : rejouable) ; une seconde est la NOUVELLE demande de la personne
+  (`approval_decision._read_disambiguation` → `NEW_REQUEST`, question abandonnée).
+- **Ce qui a été montré** (amendement 2026-10-31) : la réponse enregistre les éléments
+  qu'elle a déclarés présenter (`shown_items`, `context/shown_items.py`) ; la
+  désignation descriptive et l'ordinal lisent cet enregistrement d'abord.
+- **Choix dans un plan** (amendement 2026-10-31) : quand un plan agit sur `[0]` d'une
+  recherche neuve (`orchestration/choice_points.py`), `task_orchestrator` exécute
+  d'abord cette recherche (`orchestration/pre_execution.py`) ; si elle trouve plusieurs
+  éléments, `route_from_orchestrator` passe par ce nœud (`plan_choice`, clé plan + tour),
+  qui pose « J'ai trouvé plusieurs… » puis rend la main à `task_orchestrator`
+  (`route_from_reference_disambiguation`) : la liste réduite à l'élément choisi, rien
+  n'est exécuté deux fois (`nodes/plan_choice.py`). « Aucun » ou un refus exécutent le
+  plan SANS l'action, dite « non choisie » par la directive des étapes non exécutées.
+- **Un nouveau tour repart toujours de zéro** : le chat réutilise l'identifiant de run de
+  la question à laquelle il répond, et LangGraph REPREND le dernier point de contrôle
+  quand les deux coïncident ; un tour normal est déclaré neuf
+  (`turn_input.fresh_run_config`).
 
 ### 2.2 planner_node
 
@@ -329,8 +372,8 @@ See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full docu
 │ OUTPUT                                                          │
 │   • completed_steps: {step_id → StepResult}                     │
 │   • registry: Data Registry items de tous les tools             │
-│   • pending_draft_critique / pending_entity_disambiguation /    │
-│     pending_tool_confirmation : interaction HITL en attente     │
+│   • pending_draft_critique / pending_tool_confirmation :        │
+│     interaction HITL en attente                                 │
 │   • agent_results: "turn_id:agent_name" → result                │
 ├─────────────────────────────────────────────────────────────────┤
 │ ROUTING                                                         │
@@ -404,7 +447,7 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 
 **Protected registry items** (v1.15.1): The intelligent filtering protection in `response_node` now extends beyond initiative items. Items of type `MCP_APP` (interactive widgets like Excalidraw diagrams) and `DRAFT` (HITL confirmation flows) are unconditionally preserved after `filter_registry_by_relevant_ids()`, as they are structural items that should never be filtered by relevance. The protection handles both dict (serialized via `model_dump`) and Pydantic `RegistryItem` object formats.
 
-**Initiative skip after HITL** (v1.14.5): The initiative node now short-circuits (skips execution entirely) when `draft_action_result`, `entity_disambiguation_result`, or `tool_confirmation_result` is present in state. These fields indicate a HITL interaction was just resolved, meaning the current graph re-entry is a continuation rather than a fresh turn — running initiative analysis would be redundant and potentially disruptive.
+**Initiative skip after HITL** (v1.14.5): The initiative node now short-circuits (skips execution entirely) when `draft_action_result` or `tool_confirmation_result` is present in state. These fields indicate a HITL interaction was just resolved, meaning the current graph re-entry is a continuation rather than a fresh turn — running initiative analysis would be redundant and potentially disruptive.
 
 **Cross-domain filtering**: The initiative node only considers tools from domains that were **not** already executed during the current turn. This prevents redundant calls and ensures initiative enrichment is strictly cross-domain. Tool eligibility is determined by the `initiative_eligible` field on `ToolManifest` and the `is_initiative_eligible()` function, replacing the former "read-only tools" heuristic with an explicit opt-in mechanism.
 
@@ -419,7 +462,6 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 ├─────────────────────────────────────────────────────────────────┤
 │ INPUT                                                           │
 │   • pending_draft_critique (prioritaire), sinon                 │
-│     pending_entity_disambiguation, sinon                        │
 │     pending_tool_confirmation                                   │
 │   • user_language                                               │
 ├─────────────────────────────────────────────────────────────────┤
@@ -436,7 +478,7 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 │        dans le state (checkpoint) → self-loop → nouvel interrupt│
 ├─────────────────────────────────────────────────────────────────┤
 │ OUTPUT                                                          │
-│   • draft_action_result / entity_disambiguation_result /        │
+│   • draft_action_result /                                       │
 │     tool_confirmation_result : la décision                      │
 │   • pending_draft_critique (si self-loop edit/replan/clarify)   │
 │   • draft_edit_iteration, draft_clarification_question          │
@@ -766,8 +808,6 @@ class MessagesState(TypedDict):
     # ═══════════════════════════════════════════════════════════
     pending_draft_critique: dict | None         # PendingDraftInfo (parallel_executor)
     draft_action_result: dict | None            # Décision : confirm/edit/cancel
-    pending_entity_disambiguation: dict | None  # Plusieurs correspondances pour un nom
-    entity_disambiguation_result: dict | None   # Le choix de la personne
     pending_tool_confirmation: dict | None      # Appel d'outil en attente d'approbation
     tool_confirmation_result: dict | None       # Décision : confirm/cancel
 

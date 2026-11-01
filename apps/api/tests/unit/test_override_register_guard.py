@@ -93,6 +93,18 @@ def test_every_accepted_advisory_keeps_its_reason() -> None:
         "accepted-advisories register of docs/technical/CI_CD.md (say why it is "
         f"harmless here and when it goes): {sorted(unexplained)}"
     )
+    if "GHSA-g3hv-75wg-m249" in _accepted():
+        # npm's <11.0.1 range also flags ESLint's legacy 3.1.5, which has
+        # neither optimizationLevel nor firstPhasePreProcess. The exception
+        # must never silence a copy that actually has the affected optimizer.
+        lock = (REPO_ROOT / "pnpm-lock.yaml").read_text(encoding="utf-8")
+        versions = set(re.findall(r"^  minimatch@(\d+\.\d+\.\d+):", lock, re.MULTILINE))
+        vulnerable = {
+            version
+            for version in versions
+            if version != "3.1.5" and tuple(map(int, version.split("."))) < (11, 0, 1)
+        }
+        assert not vulnerable, f"minimatch exception would hide affected copies: {vulnerable}"
 
 
 def test_no_accepted_advisory_outlives_its_acceptance() -> None:

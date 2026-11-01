@@ -28,11 +28,27 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import CacheService
 
 logger = structlog.get_logger(__name__)
+
+
+def _file_path(file_id: str, suffix: str = "") -> str:
+    """``/files/<id>``, the id quoted as ONE path segment (a folded one refused)."""
+    return f"/files/{path_segment(file_id, connector_type=ConnectorType.GOOGLE_DRIVE)}{suffix}"
+
+
+def _q_literal(value: str) -> str:
+    r"""``value`` as a string literal of Drive's ``q`` grammar.
+
+    The backslash is escaped BEFORE the quote: escaping only the quote turns
+    ``a\'`` into an escaped backslash followed by a quote that closes the string.
+    """
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
 
 
 def changes_feed_timeout() -> httpx.Timeout:
@@ -101,13 +117,14 @@ class GoogleDriveClient(BaseGoogleClient):
         fields: list[str] | None = None,
         content_type: str | None = "files_only",
         search_mode: str = "name_only",
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
         Search for files in Google Drive.
 
         Args:
             query: Search query text
-            max_results: Maximum number of results to return (default: 10, max: 100)
+            max_results: Maximum number of results per page (default: 10, max: 100)
             mime_type: Filter by MIME type (e.g., "application/pdf")
             folder_id: Search within a specific folder
             fields: List of file fields to return (optional, for optimization).
@@ -119,10 +136,14 @@ class GoogleDriveClient(BaseGoogleClient):
                    - "all" or None: Return both files and folders
             search_mode: Search scope:
                    - "name_only" (default): Search by file name only
-                   - "full_text": Search in file name AND content
+                   - "full_text": Search in file name AND content (relevance
+                     order: Drive refuses a sort beside a fullText term)
+            page_token: The next page's token, from a previous answer.
 
         Returns:
-            Dict with 'files' list containing file metadata
+            Dict with 'files' list containing file metadata, and
+            'nextPageToken' while Drive holds more (a page may be partial
+            before the end — only the token says more).
 
         Example:
             >>> results = await client.search_files("budget 2024", max_results=5)
@@ -136,15 +157,14 @@ class GoogleDriveClient(BaseGoogleClient):
 
         # Search by name or full text depending on mode
         if query:
-            escaped_query = query.replace("'", "\\'")
             if search_mode == "full_text":
-                q_parts.append(f"fullText contains '{escaped_query}'")
+                q_parts.append(f"fullText contains {_q_literal(query)}")
             else:
-                q_parts.append(f"name contains '{escaped_query}'")
+                q_parts.append(f"name contains {_q_literal(query)}")
 
         # Filter by MIME type
         if mime_type:
-            q_parts.append(f"mimeType = '{mime_type}'")
+            q_parts.append(f"mimeType = {_q_literal(mime_type)}")
 
         # Filter by content type (files vs folders)
         if content_type == "files_only":
@@ -155,7 +175,7 @@ class GoogleDriveClient(BaseGoogleClient):
 
         # Filter by folder
         if folder_id:
-            q_parts.append(f"'{folder_id}' in parents")
+            q_parts.append(f"{_q_literal(folder_id)} in parents")
 
         # Only include non-trashed files
         q_parts.append("trashed = false")
@@ -172,9 +192,13 @@ class GoogleDriveClient(BaseGoogleClient):
         params = {
             "q": q,
             "pageSize": max_results,
-            "fields": f"files({fields_str})",
-            "orderBy": "modifiedTime desc",
+            "fields": f"nextPageToken,files({fields_str})",
         }
+        if search_mode != "full_text":
+            # Drive refuses a sort beside a fullText term (relevance order only).
+            params["orderBy"] = "modifiedTime desc"
+        if page_token:
+            params["pageToken"] = page_token
 
         response = await self._make_request("GET", "/files", params)
 
@@ -229,7 +253,7 @@ class GoogleDriveClient(BaseGoogleClient):
         fields_str = ",".join(fields_to_use)
 
         # Build query with content type filter
-        q_parts = [f"'{folder_id}' in parents", "trashed = false"]
+        q_parts = [f"{_q_literal(folder_id)} in parents", "trashed = false"]
         if content_type == "files_only":
             q_parts.append("mimeType != 'application/vnd.google-apps.folder'")
         elif content_type == "folders_only":
@@ -289,7 +313,7 @@ class GoogleDriveClient(BaseGoogleClient):
             "fields": fields_str,
         }
 
-        response = await self._make_request("GET", f"/files/{file_id}", params)
+        response = await self._make_request("GET", _file_path(file_id), params)
 
         logger.info(
             "drive_get_file_metadata",
@@ -304,6 +328,7 @@ class GoogleDriveClient(BaseGoogleClient):
         self,
         file_id: str,
         max_size_bytes: int = 10 * 1024 * 1024,  # 10 MB default limit
+        known_size: int | None = None,
     ) -> bytes | None:
         """
         Download file content.
@@ -314,6 +339,8 @@ class GoogleDriveClient(BaseGoogleClient):
         Args:
             file_id: Google Drive file ID
             max_size_bytes: Maximum file size to download (default: 10 MB)
+            known_size: The size the caller already read from the metadata —
+                then the metadata is not read a second time.
 
         Returns:
             File content as bytes, or None if file is too large
@@ -325,8 +352,11 @@ class GoogleDriveClient(BaseGoogleClient):
             ...         f.write(content)
         """
         # First check file size
-        metadata = await self.get_file_metadata(file_id)
-        file_size = int(metadata.get("size", 0))
+        if known_size is None:
+            metadata = await self.get_file_metadata(file_id)
+            file_size = int(metadata.get("size", 0))
+        else:
+            file_size = known_size
 
         if file_size > max_size_bytes:
             logger.warning(
@@ -341,7 +371,7 @@ class GoogleDriveClient(BaseGoogleClient):
         # Download file content
         response = await self._make_raw_request(
             "GET",
-            f"/files/{file_id}",
+            _file_path(file_id),
             {"alt": "media"},
         )
 
@@ -381,7 +411,7 @@ class GoogleDriveClient(BaseGoogleClient):
         """
         response = await self._make_raw_request(
             "GET",
-            f"/files/{file_id}/export",
+            _file_path(file_id, "/export"),
             {"mimeType": export_mime_type},
         )
 
@@ -418,7 +448,7 @@ class GoogleDriveClient(BaseGoogleClient):
         # Move to trash instead of permanent delete (safer, recoverable)
         await self._make_request(
             "PATCH",
-            f"/files/{file_id}",
+            _file_path(file_id),
             json_data={"trashed": True},
         )
 

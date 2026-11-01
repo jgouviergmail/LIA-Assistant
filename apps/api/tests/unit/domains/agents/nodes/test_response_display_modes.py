@@ -103,6 +103,9 @@ async def test_mode_reaches_prompt_history_selection_rendering_and_sse(
         else set() if selection == "" or data_cards else set(registry)
     )
     assert set(result["current_turn_registry"]) == selected_ids
+    # What the answer SHOWED is recorded for the next turn (ADR-367 amendment).
+    shown = [key for key in registry if key in selected_ids]
+    assert result.get("shown_items") == ([{"turn_id": 1, "ids": shown}] if shown else None)
     content = result["messages"][0].content
     assert prose in content
     assert "<relevant_ids>" not in content

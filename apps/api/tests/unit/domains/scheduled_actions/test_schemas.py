@@ -14,6 +14,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from src.core.exceptions import ValidationError as DomainValidationError
 from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
 from src.domains.scheduled_actions.schemas import (
     ConditionConfig,
@@ -21,6 +22,8 @@ from src.domains.scheduled_actions.schemas import (
     ScheduledActionResponse,
     ScheduledActionUpdate,
 )
+from src.domains.scheduled_actions.service import validate_routine_creation
+from tests.helpers.routine_caps import pin_routine_caps
 
 
 def at(*pairs: tuple[int, int]) -> DailyTimes:
@@ -69,10 +72,14 @@ class TestScheduledActionCreate:
         with pytest.raises(ValidationError):
             ScheduledActionCreate(title="x" * 201, action_prompt="p", recurrence=weekly((8, 0)))
 
-    def test_a_recurrence_beyond_the_routine_cap_is_refused(self) -> None:
+    def test_a_recurrence_beyond_the_routine_cap_is_refused_at_creation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """A routine runs an agent pipeline on every occurrence: its ceiling is
-        lower than a reminder's, and it is INJECTED, never owned by the
-        recurrence model."""
+        lower than a reminder's by default, and it is INJECTED, never owned by
+        the recurrence model — enforced where a routine is CREATED, so a stored
+        one stays readable when the operator lowers the caps."""
+        pin_routine_caps(monkeypatch)
         dense = RecurrenceSpec(
             freq="daily",
             times=DailyTimes(
@@ -83,8 +90,9 @@ class TestScheduledActionCreate:
             ),
             anchor_date=date(2026, 9, 7),
         )
-        with pytest.raises(ValidationError):
-            ScheduledActionCreate(title="t", action_prompt="p", recurrence=dense)
+        new = ScheduledActionCreate(title="t", action_prompt="p", recurrence=dense)
+        with pytest.raises(DomainValidationError):
+            validate_routine_creation(new, "Europe/Paris")
 
 
 class TestScheduledActionUpdate:
@@ -107,7 +115,10 @@ class TestScheduledActionUpdate:
         assert update.recurrence is not None
         assert update.recurrence.times.materialise()[0].hour == 7
 
-    def test_a_new_recurrence_beyond_the_cap_is_refused(self) -> None:
+    def test_a_new_recurrence_beyond_the_cap_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pin_routine_caps(monkeypatch)
         dense = RecurrenceSpec(
             freq="daily",
             times=DailyTimes(

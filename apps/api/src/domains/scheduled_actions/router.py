@@ -16,10 +16,10 @@ from src.domains.scheduled_actions.models import (
     ScheduledAction as ScheduledActionModel,
 )
 from src.domains.scheduled_actions.schemas import (
-    ScheduledActionCreate,
+    ScheduledActionFormCreate,
+    ScheduledActionFormUpdate,
     ScheduledActionListResponse,
     ScheduledActionResponse,
-    ScheduledActionUpdate,
     ScheduledActionWeekResponse,
 )
 from src.domains.scheduled_actions.service import ScheduledActionService
@@ -107,17 +107,19 @@ async def week_scheduled_actions(
     description="Create a new scheduled action for the current user.",
 )
 async def create_scheduled_action(
-    data: ScheduledActionCreate,
+    data: ScheduledActionFormCreate,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ScheduledActionResponse:
-    """Create a new scheduled action."""
+    """Create a new scheduled action, with the MCP servers its form pre-approves (D9)."""
     service = ScheduledActionService(db)
     action = await service.create(
         user_id=user.id,
         data=data,
         user_timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
     )
+    if data.mcp_preapproved_servers:
+        action = await service.set_mcp_preapproval(action, user, data.mcp_preapproved_servers)
     await db.commit()
     await db.refresh(action)
 
@@ -143,13 +145,15 @@ async def create_scheduled_action(
 )
 async def update_scheduled_action(
     action_id: UUID,
-    data: ScheduledActionUpdate,
+    data: ScheduledActionFormUpdate,
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ScheduledActionResponse:
-    """Update an existing scheduled action."""
+    """Update an existing scheduled action; an absent pre-approval is left as it is (D9)."""
     service = ScheduledActionService(db)
-    action = await service.update(action_id, user.id, data)
+    action = await service.update(action_id, user.id, data.routine_changes())
+    if "mcp_preapproved_servers" in data.model_fields_set:
+        action = await service.set_mcp_preapproval(action, user, data.mcp_preapproved_servers)
     await db.commit()
     await db.refresh(action)
 

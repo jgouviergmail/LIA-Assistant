@@ -75,6 +75,7 @@ def build_emails_agent() -> Any:
         resolve_reference,
         set_current_item,
     )
+    from src.domains.agents.tools.email_read_state_tools import set_email_read_state_tool
     from src.domains.agents.tools.email_self_tools import send_email_to_me_tool
     from src.domains.agents.tools.emails_tools import (
         delete_email_tool,
@@ -120,6 +121,7 @@ def build_emails_agent() -> Any:
             update_mailbox_draft_tool,
             delete_mailbox_drafts_tool,
             send_mailbox_draft_tool,  # the one draft act that asks first
+            set_email_read_state_tool,  # Read / unread on any provider (ADR-369)
             reply_email_tool,
             forward_email_tool,
             delete_email_tool,

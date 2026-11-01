@@ -174,24 +174,22 @@ def test_injected_step_floor_is_enforced() -> None:
 
 
 def test_the_two_default_limit_sets_differ_and_are_coherent() -> None:
-    """A routine runs a pipeline, a reminder sends a notification: the caps
-    are not the same, and both are readable from one place."""
-    from src.core.constants import RECURRENCE_REMINDER_LIMITS, RECURRENCE_ROUTINE_LIMITS
+    """A routine runs a pipeline, a reminder sends a notification: by default
+    the caps are not the same (an operator may widen a routine's since
+    2026-10-30), and both default sets are coherent."""
+    from src.core.constants import RECURRENCE_REMINDER_LIMITS
+    from tests.helpers.routine_caps import DEFAULT_ROUTINE_LIMITS
 
-    assert RECURRENCE_ROUTINE_LIMITS.max_times_per_day < (
-        RECURRENCE_REMINDER_LIMITS.max_times_per_day
-    )
-    assert RECURRENCE_ROUTINE_LIMITS.min_step_minutes >= (
-        RECURRENCE_REMINDER_LIMITS.min_step_minutes
-    )
-    for limits in (RECURRENCE_ROUTINE_LIMITS, RECURRENCE_REMINDER_LIMITS):
+    assert DEFAULT_ROUTINE_LIMITS.max_times_per_day < (RECURRENCE_REMINDER_LIMITS.max_times_per_day)
+    assert DEFAULT_ROUTINE_LIMITS.min_step_minutes >= (RECURRENCE_REMINDER_LIMITS.min_step_minutes)
+    for limits in (DEFAULT_ROUTINE_LIMITS, RECURRENCE_REMINDER_LIMITS):
         assert limits.max_times_per_day >= 1
         assert limits.min_step_minutes >= 1
         assert limits.max_series_count >= 1
 
 
 def test_a_routine_shaped_spec_passes_the_routine_limits() -> None:
-    from src.core.constants import RECURRENCE_ROUTINE_LIMITS
+    from tests.helpers.routine_caps import DEFAULT_ROUTINE_LIMITS
 
     spec = RecurrenceSpec(
         freq="weekly",
@@ -199,7 +197,7 @@ def test_a_routine_shaped_spec_passes_the_routine_limits() -> None:
         anchor_date=date(2026, 9, 7),
         byweekday=(1, 2, 3, 4, 5),
     )
-    spec.validate_against(RECURRENCE_ROUTINE_LIMITS)
+    spec.validate_against(DEFAULT_ROUTINE_LIMITS)
 
 
 class TestASelectorIsStoredCanonical:

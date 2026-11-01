@@ -164,9 +164,11 @@ class MCPSettings(BaseSettings):
     mcp_hitl_required: bool = Field(
         default=False,
         description=(
-            "Global HITL requirement for MCP tools. "
-            "Per-server hitl_required overrides this. "
-            "true = all MCP tool calls require user approval."
+            "Default MCP confirmation (spec 2026-10-30 D9): for accounts that never "
+            "chose a strategy and for the administrator's servers. true asks before "
+            "every call, reads included; false follows each server's declarations. "
+            "An account's strategy and a server's own choice override it — nothing "
+            "is locked. Read by infrastructure/mcp/confirmation.py alone."
         ),
     )
 

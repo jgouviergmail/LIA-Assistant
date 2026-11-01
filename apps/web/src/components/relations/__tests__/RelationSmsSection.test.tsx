@@ -7,7 +7,7 @@ vi.mock('@/hooks/useAppConfig', () => ({
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { timezone: 'Europe/Paris' } }) }));
 describe('Relation SMS evidence', () => {
-  it('makes the literal SMS itself a link to its exact settings detail', async () => {
+  it('makes the literal SMS itself a link to that message on the SMS page', async () => {
     const user = userEvent.setup();
     const { container } = renderWithProviders(
       <RelationSmsSection
@@ -37,7 +37,8 @@ describe('Relation SMS evidence', () => {
     expect(container.querySelector('script')).toBeNull();
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
-      '/fr/dashboard/settings?section=sms&message=10000000-0000-4000-8000-000000000001'
+      // French is the unprefixed default (`buildLocalizedPath`).
+      '/dashboard/sms?message=10000000-0000-4000-8000-000000000001'
     );
     expect(screen.getByRole('link')).toContainElement(screen.getByText('<script>bad()</script>'));
     expect(screen.queryByText('relations.sms_open')).not.toBeInTheDocument();

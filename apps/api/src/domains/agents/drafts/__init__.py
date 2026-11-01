@@ -82,10 +82,12 @@ from src.domains.agents.drafts.service import (
     create_file_delete_draft,
     create_label_delete_draft,
     create_reminder_delete_draft,
+    create_update_event_draft,
+)
+from src.domains.agents.drafts.task_factories import (
     create_task_delete_draft,
     create_task_draft,
     create_task_update_draft,
-    create_update_event_draft,
 )
 
 __all__ = [

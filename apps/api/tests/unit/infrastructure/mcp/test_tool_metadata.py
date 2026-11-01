@@ -146,14 +146,14 @@ class TestAgainstTheRealSdkModel:
         assert extract_tool_title(tool) is None
         assert extract_tool_annotations(tool) is None
 
-    def test_the_declared_destructive_predicate_closes_the_loop(self):
-        """Discovery to decision, on the real model."""
+    def test_a_declared_destructive_tool_owes_a_confirmation(self):
+        """Discovery to decision, on the real model: the policy the gate reads."""
         from mcp.types import ToolAnnotations
 
-        from src.infrastructure.mcp.registration import declares_destructive_tool
+        from src.infrastructure.mcp.confirmation import derive_mcp_mutation_policy
 
         destructive = self._sdk_tool(annotations=ToolAnnotations(destructive_hint=True))
         harmless = self._sdk_tool(annotations=ToolAnnotations(read_only_hint=True))
 
-        assert declares_destructive_tool(extract_tool_annotations(destructive)) is True
-        assert declares_destructive_tool(extract_tool_annotations(harmless)) is False
+        assert derive_mcp_mutation_policy(False, extract_tool_annotations(destructive)) == "confirm"
+        assert derive_mcp_mutation_policy(False, extract_tool_annotations(harmless)) is None

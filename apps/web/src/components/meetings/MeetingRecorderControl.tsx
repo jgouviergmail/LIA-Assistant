@@ -73,7 +73,15 @@ export function useMeetingRecorderMenuAction(lng: Language): MeetingRecorderMenu
   };
 }
 
-export function MeetingRecorderControl({ lng }: { lng: Language }) {
+/**
+ * The header's recorder button: record a meeting, or stop the one in progress.
+ *
+ * Args:
+ *   lng: The interface language.
+ *   className: Added to the button's own box (the dashboard header passes its
+ *     icon slot).
+ */
+export function MeetingRecorderControl({ lng, className }: { lng: Language; className?: string }) {
   const { t } = useTranslation(lng);
   const command = useRecorderCommand();
   // A zustand selector: this control re-renders once a second while live,
@@ -87,6 +95,7 @@ export function MeetingRecorderControl({ lng }: { lng: Language }) {
       size="sm"
       className={cn(
         'h-11 w-11 px-0 max-[380px]:h-9 max-[380px]:w-9',
+        className,
         command.live && 'xl:w-auto xl:gap-1 xl:px-2'
       )}
       onClick={command.run}

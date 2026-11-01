@@ -1,8 +1,8 @@
-"""Tests for domain detection from agent results in ContextResolutionService (ADR-102).
+"""Tests for domain detection from agent results (reference_fallbacks, ADR-102).
 
-``_detect_domain_from_agent_results`` inspects a turn's agent results and returns
+``detect_domain_from_agent_results`` inspects a turn's agent results and returns
 the domain that turn acted on. Its value is compared, in STRATEGY 3 of the
-registry extraction, against ``item.meta.domain`` / ``_derive_domain_from_type``
+registry extraction, against ``item.meta.domain`` / ``derive_domain_from_type``
 — both of which are the canonical **result_key** (plural, e.g. ``files``,
 ``weathers``). The detection table therefore MUST also return result_keys.
 
@@ -16,18 +16,15 @@ from __future__ import annotations
 
 import pytest
 
-from src.domains.agents.services.context_resolution_service import (
-    ContextResolutionService,
-)
+from src.domains.agents.services.reference_fallbacks import detect_domain_from_agent_results
 
 pytestmark = [pytest.mark.unit]
 
 
 def _detect(data_key: str) -> str | None:
     """Detect the domain of a turn whose result payload carries ``data_key``."""
-    service = ContextResolutionService()
     agent_results = {"5:some_agent": {"data": {data_key: [{"id": "x"}]}}}
-    return service._detect_domain_from_agent_results(agent_results, 5, "run")
+    return detect_domain_from_agent_results(agent_results, 5, "run")
 
 
 @pytest.mark.parametrize(

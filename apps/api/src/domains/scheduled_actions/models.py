@@ -31,6 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, OUT_OF_TURN_EXECUTION_MODE_DEFAULT
 from src.core.recurrence import RecurrenceSpec
+from src.domains.shared.mcp_preapproval import MCPPreapproval, stored_server_keys
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -198,6 +199,14 @@ class ScheduledAction(BaseModel):
             "nobody is there to steer a plan when it fires."
         ),
     )
+    # Spec 2026-10-29 D9: the MCP servers whose confirmations a run may give
+    # itself, ticked in the routine's form — the only writer (its REST route).
+    # ``none_as_null``: no pre-approval is SQL NULL, never the JSON ``null``.
+    mcp_preapproved_servers: Mapped[list[str] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
+        comment="MCP server keys a run may confirm for itself (routine form only). NULL = none.",
+    )
 
     # Status
     is_enabled: Mapped[bool] = mapped_column(
@@ -279,6 +288,17 @@ class ScheduledAction(BaseModel):
         if self.recurrence is None:
             return None
         return RecurrenceSpec.model_validate(self.recurrence)
+
+    @property
+    def mcp_preapproval(self) -> MCPPreapproval | None:
+        """What a run of this routine may confirm for itself (spec D9), or ``None``.
+
+        Returns:
+            The pre-approved servers with this routine as the approval's
+            reference, or ``None`` when the form ticked none.
+        """
+        servers = frozenset(stored_server_keys(self.mcp_preapproved_servers))
+        return MCPPreapproval(servers=servers, routine_id=str(self.id)) if servers else None
 
     def __repr__(self) -> str:
         return (

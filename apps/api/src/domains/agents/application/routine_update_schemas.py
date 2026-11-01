@@ -51,6 +51,9 @@ class RoutineUpdateValues(BaseModel):
     enabled: StrictBool
     configuration: RoutineCreateRequest
     changes: RoutineUpdateChanges
+    # Spec 2026-10-29 D9: the names of the MCP servers the routine confirms for
+    # itself — display only, for the card; the keys are in the snapshot's digest.
+    mcp_preapproval: tuple[StrictStr, ...]
 
 
 class RoutineUpdatePatch(BaseModel):

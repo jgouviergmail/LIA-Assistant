@@ -14,9 +14,11 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.constants import SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT
 from src.core.recurrence import RecurrenceSpec
 from src.domains.agents.tools.automation_tools import create_scheduled_action_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
+from tests.helpers.routine_caps import pin_routine_caps
 from tests.helpers.runtime_context import make_tool_runtime
 
 pytestmark = pytest.mark.unit
@@ -200,11 +202,19 @@ class TestTheShapesTheCronColumnsCouldNotSay:
 
 
 class TestWhatARoutineMayNotAsk:
-    """The ceiling travels with the caller, and it is REFUSED, not clamped."""
+    """The ceiling travels with the caller, and it is REFUSED, not clamped.
+
+    The caps are the operator's settings (ADR-268 amendment 2026-10-30), so each
+    test states the caps it asserts against rather than reading a developer's
+    own ``.env``.
+    """
 
     @pytest.mark.asyncio
-    async def test_more_firings_a_day_than_a_routine_allows(self, _runtime: MagicMock) -> None:
-        """Every 5 minutes over 8 hours is 97 firings; a routine gets 12."""
+    async def test_more_firings_a_day_than_a_routine_allows(
+        self, _runtime: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Every 5 minutes over 8 hours is 97 firings; a routine gets 12 by default."""
+        pin_routine_caps(monkeypatch)
         result = await _create(
             _runtime,
             repeat="daily",
@@ -225,6 +235,46 @@ class TestWhatARoutineMayNotAsk:
 
         assert result.success is False
         assert "day of month" in result.message
+
+    @pytest.mark.asyncio
+    async def test_a_step_below_the_minimum_names_the_minimum_applied(
+        self, _runtime: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Twelve moments in one hour fit the day: only the step is refused, and said."""
+        pin_routine_caps(monkeypatch)
+        result = await _create(
+            _runtime,
+            repeat="daily",
+            weekdays=None,
+            times=None,
+            every_minutes=5,
+            window_start="08:00",
+            window_end="08:55",
+        )
+
+        assert result.success is False
+        assert result.error_code == "invalid_schedule"
+        assert f"minimum of {SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT} min" in result.message
+
+    @pytest.mark.asyncio
+    async def test_the_operator_s_caps_reach_the_tool(
+        self, _runtime: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An operator allowing every five minutes all day gets it from the chat too."""
+        pin_routine_caps(monkeypatch, min_step_minutes=5, max_times_per_day=288)
+        with _capture_draft() as draft:
+            result = await _create(
+                _runtime,
+                repeat="daily",
+                weekdays=None,
+                times=None,
+                every_minutes=5,
+                window_start="00:00",
+                window_end="23:55",
+            )
+
+        assert result.success is True
+        assert RecurrenceSpec.model_validate(draft["recurrence"]).per_day() == 288
 
 
 class TestARoutineAnswersAnImpossibleScheduleToo:

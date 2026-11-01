@@ -154,6 +154,14 @@ def routing(monkeypatch: pytest.MonkeyPatch) -> RoutingHarness:
             harness.queried_accounts.append(account_id)
             return list(harness.servers)
 
+        async def account_confirmation(self, account_id: UUID) -> bool | None:
+            # Never chosen: the account follows the instance default (spec 2026-10-30 D1).
+            return None
+
+        async def tool_choices(self, server_ids: list[UUID]) -> dict[UUID, dict[str, object]]:
+            # No tool has a choice of its own: each follows its server (spec 2026-10-30 D6).
+            return {}
+
         async def get_by_id(self, server_id: UUID) -> UserMCPServer | None:
             return next((s for s in harness.servers if s.id == server_id), None)
 

@@ -17,18 +17,31 @@ from uuid import UUID, uuid4
 
 import structlog
 
+from src.core.constants import DEFAULT_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.normalizers.all_day import all_day_dates
+from src.domains.connectors.clients.normalizers.graph_paging import (
+    graph_page_params,
+    graph_page_token,
+)
 from src.domains.connectors.clients.normalizers.microsoft_calendar_normalizer import (
     normalize_graph_calendar,
     normalize_graph_event,
 )
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.clients.retry_policy import provider_idempotency_id
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
 logger = structlog.get_logger(__name__)
+
+
+def _segment(provider_id: str) -> str:
+    """A calendar or event id as ONE segment of a Graph URL path (``path_segments``)."""
+    return path_segment(provider_id, connector_type=ConnectorType.MICROSOFT_CALENDAR)
+
 
 # Default fields for event queries (performance optimization)
 _EVENT_SELECT_FIELDS = (
@@ -156,14 +169,14 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             if calendar_id == "primary":
                 endpoint = "/me/calendarView"
             else:
-                endpoint = f"/me/calendars/{calendar_id}/calendarView"
+                endpoint = f"/me/calendars/{_segment(calendar_id)}/calendarView"
             # calendarView doesn't support $orderby, remove it
             params.pop("$orderby", None)
         else:
             if calendar_id == "primary":
                 endpoint = "/me/calendar/events"
             else:
-                endpoint = f"/me/calendars/{calendar_id}/events"
+                endpoint = f"/me/calendars/{_segment(calendar_id)}/events"
 
         response = await self._make_request("GET", endpoint, params)
 
@@ -198,7 +211,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         """
         params: dict[str, Any] = {"$select": _EVENT_SELECT_FIELDS}
 
-        response = await self._make_request("GET", f"/me/events/{event_id}", params)
+        response = await self._make_request("GET", f"/me/events/{_segment(event_id)}", params)
 
         logger.info(
             "microsoft_calendar_event_retrieved",
@@ -224,6 +237,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
+        all_day: bool = False,
     ) -> dict[str, Any]:
         """
         Create a new calendar event.
@@ -244,25 +258,18 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 ``transactionId`` is derived from it, so a create whose answer was
                 lost is sent again and Graph keeps one event (S1). None: a key
                 minted for this call.
+            all_day: The bounds are DATES, the end exclusive (``normalizers.all_day``):
+                Graph stores it as ``isAllDay`` with midnight bounds (ADR-369).
 
         Returns:
             Created event in Google Calendar format.
         """
-        from src.core.constants import DEFAULT_TIMEZONE
-
         effective_timezone = timezone or DEFAULT_TIMEZONE
 
         event_body: dict[str, Any] = {
             "transactionId": provider_idempotency_id(idempotency_key or uuid4().hex, "microsoft"),
             "subject": summary,
-            "start": {
-                "dateTime": start_datetime,
-                "timeZone": effective_timezone,
-            },
-            "end": {
-                "dateTime": end_datetime,
-                "timeZone": effective_timezone,
-            },
+            **_graph_bounds(start_datetime, end_datetime, effective_timezone, all_day=all_day),
         }
 
         if description:
@@ -287,7 +294,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         if calendar_id == "primary":
             endpoint = "/me/calendar/events"
         else:
-            endpoint = f"/me/calendars/{calendar_id}/events"
+            endpoint = f"/me/calendars/{_segment(calendar_id)}/events"
 
         # Graph keeps one event per transactionId, so a lost answer may be resent.
         response = await self._make_request("POST", endpoint, json_data=event_body, idempotent=True)
@@ -311,6 +318,8 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        all_day: bool | None = None,
+        send_updates: str | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing calendar event.
@@ -327,6 +336,8 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             location: New location.
             attendees: New attendee list.
             calendar_id: Calendar ID (unused for updates).
+            send_updates: Unused: Graph tells the attendees of a meeting its
+                organiser changes, and has no way to keep quiet (ADR-369).
 
         Returns:
             Updated event in Google Calendar format.
@@ -335,6 +346,18 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
 
         if summary is not None:
             event_body["subject"] = summary
+        if all_day is not None:
+            # A switch of shape carries both bounds and the flag (ADR-369).
+            if start_datetime is None or end_datetime is None:
+                raise ValueError("Turning an event all-day or timed needs its new start and end.")
+            event_body.update(
+                _graph_bounds(
+                    start_datetime, end_datetime, timezone or DEFAULT_TIMEZONE, all_day=all_day
+                )
+            )
+            # Stated both ways: an all-day event stays all-day unless told otherwise.
+            event_body["isAllDay"] = all_day
+            start_datetime = end_datetime = None
         if start_datetime is not None:
             # Microsoft Graph preserves the existing event timezone if timeZone
             # is not included in the PATCH body. Only set timeZone when the caller
@@ -361,7 +384,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 for email in attendees
             ]
 
-        response = await self._make_request("PATCH", f"/me/events/{event_id}", json_data=event_body)
+        response = await self._make_request(
+            "PATCH", f"/me/events/{_segment(event_id)}", json_data=event_body
+        )
 
         logger.info(
             "microsoft_calendar_event_updated",
@@ -370,6 +395,46 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         )
 
         return normalize_graph_event(response)
+
+    async def list_events_window(
+        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+    ) -> dict[str, Any]:
+        """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
+
+        ``calendarView`` expands recurrences. A next page is asked on the
+        client's OWN host with its own parameters, the link's skip value alone
+        carried over (``graph_paging``): a link is never where the person's
+        token is sent. A link that cannot be continued, or one past
+        ``_WINDOW_MAX_PAGES`` pages, is a cut, and says so.
+
+        Returns:
+            ``{"events": [...], "truncated": bool}``.
+        """
+        endpoint = (
+            "/me/calendarView"
+            if calendar_id == "primary"
+            else f"/me/calendars/{_segment(calendar_id)}/calendarView"
+        )
+        params: dict[str, Any] = {
+            "startDateTime": time_min,
+            "endDateTime": time_max,
+            "$top": min(_WINDOW_PAGE_SIZE, bound + 1),
+            "$select": _EVENT_SELECT_FIELDS,
+        }
+        raw: list[dict[str, Any]] = []
+        token: str | None = None
+        more = False
+        for _ in range(_WINDOW_MAX_PAGES):
+            response = await self._make_request(
+                "GET", endpoint, {**params, **graph_page_params(token)}
+            )
+            raw += response.get("value", [])
+            more = bool(response.get("@odata.nextLink"))
+            token = graph_page_token(response.get("@odata.nextLink"))
+            if not token or len(raw) > bound:
+                break
+        events = [normalize_graph_event(event) for event in raw[:bound]]
+        return {"events": events, "truncated": more or len(raw) > bound}
 
     async def delete_event(
         self,
@@ -388,7 +453,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         Returns:
             Dict with deletion confirmation.
         """
-        await self._make_request("DELETE", f"/me/events/{event_id}")
+        await self._make_request("DELETE", f"/me/events/{_segment(event_id)}")
 
         logger.info(
             "microsoft_calendar_event_deleted",
@@ -401,3 +466,24 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             "event_id": event_id,
             "message": APIMessages.event_deleted_successfully(event_id),
         }
+
+
+#: Events asked per page while a window is drained.
+_WINDOW_PAGE_SIZE = 100
+#: Pages one window read may take.
+_WINDOW_MAX_PAGES = 40
+
+
+def _graph_bounds(start: str, end: str, timezone: str, *, all_day: bool) -> dict[str, Any]:
+    """A Graph event's bounds: ``isAllDay`` with midnight dates, or zoned times."""
+    if not all_day:
+        return {
+            "start": {"dateTime": start, "timeZone": timezone},
+            "end": {"dateTime": end, "timeZone": timezone},
+        }
+    first, after_last = all_day_dates(start, end)
+    return {
+        "isAllDay": True,
+        "start": {"dateTime": f"{first.isoformat()}T00:00:00", "timeZone": timezone},
+        "end": {"dateTime": f"{after_last.isoformat()}T00:00:00", "timeZone": timezone},
+    }

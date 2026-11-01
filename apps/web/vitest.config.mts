@@ -1016,6 +1016,29 @@ export default defineConfig({
           functions: 76,
           lines: 97,
         },
+        // « Tools » (ADR-369), measured 2026-10-31 on the full suite, each axis
+        // locked at floor(measured - 2): the screens' pure model
+        // 95.53 / 86.72 / 97.56 / 96.64, the screens 84.45 / 77.45 / 77.11 / 86.12
+        // (the writes — sending, deleting, filters, drafts, tasks — proven by mutants),
+        // and their data hooks 87.41 / 78.40 / 82.42 / 90.91.
+        'src/lib/workbench/**': {
+          statements: 93,
+          branches: 84,
+          functions: 95,
+          lines: 94,
+        },
+        'src/components/workbench/**': {
+          statements: 82,
+          branches: 75,
+          functions: 75,
+          lines: 84,
+        },
+        'src/hooks/useWorkbench*.ts': {
+          statements: 85,
+          branches: 76,
+          functions: 80,
+          lines: 88,
+        },
       },
     },
   },

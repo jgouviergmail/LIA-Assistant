@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.application_tools import APPLICATION_TOOL_NAMES
+from src.core.config import settings
 from src.domains.agents.application.catalogue_registration import APPLICATION_MANIFESTS
 from src.domains.agents.application.management_editors import MANAGEMENT_EDITORS
 from src.domains.agents.application.management_rendering import MANAGEMENT_CANONICAL
@@ -40,9 +41,17 @@ SECURE_FIELDS = {
 
 
 def test_form_and_api_settings_have_explicit_reviewed_policy_and_original_bounds():
-    ordinary = set(PersonalMCPSettingsValues.model_fields)
-    assert ordinary == {"name", "domain_description", "timeout_seconds", "iterative_mode"}
-    assert set(UserMCPServerUpdate.model_fields) == ordinary | SECURE_FIELDS | {"hitl_required"}
+    ordinary = {"name", "domain_description", "timeout_seconds", "iterative_mode"}
+    # Spec 2026-10-30 D7: the chat writes these only to make LIA ask more — a server's
+    # confirmation (« true » alone) and the tools to always ask about — and who drives
+    # the server is judged by the synthesis at proposal and at the write.
+    tighten_only = {"hitl_required", "always_ask_tools"}
+    shape = {"iterative_mode", "react_expand_iterative"}
+    assert set(PersonalMCPSettingsValues.model_fields) == ordinary | tighten_only | shape
+    assert set(UserMCPServerUpdate.model_fields) == ordinary | SECURE_FIELDS | {
+        "hitl_required",
+        "react_expand_iterative",
+    }
     root = Path(__file__).resolve().parents[7]
     source = (root / "apps/web/src/lib/mcp-server-form.ts").read_text(encoding="utf-8")
     form = re.search(r"interface MCPServerFormState\s*\{([^}]+)\}", source)
@@ -56,7 +65,7 @@ def test_form_and_api_settings_have_explicit_reviewed_policy_and_original_bounds
 
 
 def test_non_secret_patch_refuses_credentials_identity_coercion_and_invalid_clear():
-    for field in SECURE_FIELDS | {"actor_id", "user_id", "hitl_required"}:
+    for field in SECURE_FIELDS | {"actor_id", "user_id", "hitl_required", "react_expand_iterative"}:
         with pytest.raises(ValidationError):
             PersonalMCPSettingsValues.model_validate({field: "private"})
     for payload in [
@@ -73,6 +82,29 @@ def test_non_secret_patch_refuses_credentials_identity_coercion_and_invalid_clea
     assert PersonalMCPSettingsInput(
         server_id=uuid4(), patch=PersonalMCPSettingsValues(domain_description=None)
     ).patch.model_fields_set == {"domain_description"}
+
+
+def test_confirmation_travels_tighten_only_and_is_published_so():
+    """Spec 2026-10-30 D7: what the model may write is what the schema publishes."""
+    limit = settings.mcp_max_tools_per_server
+    for payload in [
+        {"hitl_required": None},
+        {"hitl_required": "true"},
+        {"react_expand_iterative": None},
+        {"always_ask_tools": None},
+        {"always_ask_tools": []},
+        {"always_ask_tools": ["delete_note", "delete_note"]},
+        {"always_ask_tools": [""]},
+        {"always_ask_tools": [f"tool_{i}" for i in range(limit + 1)]},
+    ]:
+        with pytest.raises(ValidationError):
+            PersonalMCPSettingsValues.model_validate(payload)
+    published = PersonalMCPSettingsValues.model_json_schema()["properties"]
+    assert published["hitl_required"]["const"] is True
+    assert "Settings > MCP Servers" in published["hitl_required"]["description"]
+    tools = published["always_ask_tools"]
+    assert tools["uniqueItems"] is True
+    assert tools["anyOf"][0]["maxItems"] == limit
 
 
 def test_settings_draft_and_amendments_use_complete_native_registries():

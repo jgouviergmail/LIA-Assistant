@@ -59,6 +59,7 @@ from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.services.streaming.latency_sli import awaited_by_a_person
+from src.domains.shared.mcp_preapproval import MCPPreapproval, mcp_preapproval_scope
 
 logger = structlog.get_logger(__name__)
 
@@ -214,6 +215,9 @@ class StreamRequest:
             phone delegation, the person on the line. A routine, a ticket and
             the relay of a finished call wait for nobody, so their turns feed
             no chat latency (``streaming/latency_sli``).
+        mcp_preapproval: The MCP servers a ROUTINE's form pre-approved, published
+            to the turn for the effect gate (spec 2026-10-29 D9); None for every
+            other caller — nothing else may confirm on the person's behalf.
     """
 
     user_id: UUID
@@ -237,6 +241,7 @@ class StreamRequest:
     live_session_id: str | None = None
     spoken_text: str | None = None
     person_waiting: bool = False
+    mcp_preapproval: MCPPreapproval | None = None
 
 
 @dataclass(frozen=True)
@@ -256,6 +261,24 @@ class TurnInterrupt:
     kind: str
     question: str
     draft: dict[str, Any] | None = None
+
+
+def interrupt_log_facts(interrupt: TurnInterrupt | None) -> dict[str, str | None]:
+    """What a failure log may say about the question a run stopped on: its kinds.
+
+    Args:
+        interrupt: The question, when the run stopped on one.
+
+    Returns:
+        ``interrupt_kind`` and ``draft_type`` — bounded vocabularies, never words.
+    """
+    if interrupt is None:
+        return {"interrupt_kind": None, "draft_type": None}
+    draft_type = (interrupt.draft or {}).get("draft_type")
+    return {
+        "interrupt_kind": interrupt.kind,
+        "draft_type": draft_type if isinstance(draft_type, str) else None,
+    }
 
 
 @dataclass
@@ -420,7 +443,11 @@ async def stream_instruction(request: StreamRequest) -> RunResult:
     try:
         # Whatever the run writes without an explicit language is written in
         # the person's own (ADR-323): a routine or a ticket has no request.
-        with language_scope(request.language), awaited_by_a_person(request.person_waiting):
+        with (
+            language_scope(request.language),
+            awaited_by_a_person(request.person_waiting),
+            mcp_preapproval_scope(request.mcp_preapproval),
+        ):
             return await _attempt_until_settled(request)
     finally:
         if token is not None:

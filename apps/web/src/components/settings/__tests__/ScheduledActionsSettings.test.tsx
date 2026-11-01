@@ -24,6 +24,10 @@ const { useScheduledActions } = vi.hoisted(() => ({ useScheduledActions: vi.fn()
 vi.mock('@/hooks/useScheduledActions', () => ({ useScheduledActions }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+// The MCP servers a routine may pre-approve (spec D9): one personal server.
+vi.mock('@/hooks/useRoutinePreapprovableServers', () => ({
+  useRoutinePreapprovableServers: () => [{ key: 'p-1', name: 'Notes', family: 'personal' }],
+}));
 
 import { ScheduledActionsSettings } from '../ScheduledActionsSettings';
 import type { useScheduledActions as useScheduledActionsFn } from '@/hooks/useScheduledActions';
@@ -40,10 +44,14 @@ function action(over: Partial<ScheduledAction> = {}): ScheduledAction {
 
 type ScheduledHook = ReturnType<typeof useScheduledActionsFn>;
 
+/** The caps the list publishes when the operator set nothing. */
+const DEFAULT_CAPS = { max_times_per_day: 12, min_step_minutes: 15, max_series_count: 500 };
+
 function hook(over: Partial<ScheduledHook> = {}) {
   return {
     actions: [],
     total: 0,
+    recurrenceLimits: DEFAULT_CAPS,
     loading: false,
     initialLoading: false,
     week: null,
@@ -265,6 +273,44 @@ describe('ScheduledActionsSettings — creation', () => {
     await waitFor(() => expect(screen.queryByLabelText(FIELD_TITLE)).not.toBeInTheDocument());
   });
 
+  it('creates the action with the MCP servers its form ticked (spec D9)', async () => {
+    const createAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    const title = await openCreate(user);
+
+    await user.type(title, 'Brief');
+    await user.type(screen.getByLabelText(FIELD_PROMPT), 'Digest');
+    await user.click(screen.getByRole('checkbox', { name: /Notes/ }));
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(createAction).toHaveBeenCalledWith(
+        expect.objectContaining({ mcp_preapproved_servers: ['p-1'] })
+      )
+    );
+  });
+
+  it('names a refused pre-approval rather than a generic failure', async () => {
+    const refused = {
+      data: { detail: { code: 'routine_mcp_server_not_callable', servers: ['x'] } },
+    };
+    const createAction = vi.fn().mockRejectedValue(refused);
+    useScheduledActions.mockReturnValue(hook({ createAction }));
+    const { user } = render();
+    const title = await openCreate(user);
+
+    await user.type(title, 'Brief');
+    await user.type(screen.getByLabelText(FIELD_PROMPT), 'Digest');
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'scheduled_actions.mcp_preapproval.error_not_callable'
+      )
+    );
+  });
+
   it('keeps the form open and reports the failure when the creation is refused', async () => {
     const createAction = vi.fn().mockRejectedValue(new Error('boom'));
     useScheduledActions.mockReturnValue(hook({ createAction }));
@@ -351,6 +397,23 @@ describe('ScheduledActionsSettings — edition', () => {
     await waitFor(() => expect(screen.queryByLabelText(FIELD_TITLE)).not.toBeInTheDocument());
     expect(updateAction).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('unticks every server as « no pre-approval » (null), and only then sends it', async () => {
+    const updateAction = vi.fn().mockResolvedValue(action());
+    useScheduledActions.mockReturnValue(
+      hook({ actions: [action({ mcp_preapproved_servers: ['p-1'] })], updateAction })
+    );
+    const { user } = render();
+    await openEdit(user);
+
+    expect(screen.getByRole('checkbox', { name: /Notes/ })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: /Notes/ }));
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(updateAction).toHaveBeenCalledWith('a1', { mcp_preapproved_servers: null })
+    );
   });
 
   it('reports a refused update', async () => {
@@ -952,5 +1015,63 @@ describe('ScheduledActionsSettings — one clock per routine (ADR-322)', () => {
 
     await waitFor(() => expect(executeAction).toHaveBeenCalledWith('w1'));
     expect(toast.success).toHaveBeenCalledWith('scheduled_actions.check_now_launched');
+  });
+});
+
+describe('ScheduledActionsSettings — the schedule caps are the server’s (ADR-268 amendment 2026-10-30)', () => {
+  /** Every five minutes over one hour: twelve runs, so only the step can be refused. */
+  const everyFiveMinutes = action({
+    recurrence: {
+      ...makeScheduledAction().recurrence!,
+      freq: 'daily',
+      byweekday: [],
+      times: {
+        mode: 'every',
+        at: [],
+        step_minutes: 5,
+        start: { hour: 8, minute: 0 },
+        end: { hour: 8, minute: 55 },
+      },
+    },
+  });
+
+  async function openEdit(user: User) {
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await screen.findByLabelText(FIELD_TITLE);
+  }
+
+  it('accepts a step the operator allows', async () => {
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [everyFiveMinutes],
+        recurrenceLimits: { max_times_per_day: 288, min_step_minutes: 5, max_series_count: 500 },
+      })
+    );
+    const { user } = render();
+    await openEdit(user);
+
+    expect(screen.getByRole('group', { name: 'recurrence.section_when' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('refuses a step under the minimum the server publishes, before any request', async () => {
+    useScheduledActions.mockReturnValue(hook({ actions: [everyFiveMinutes] }));
+    const { user } = render();
+    await openEdit(user);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('recurrence.error_step_too_small');
+  });
+
+  it('offers no schedule before the server has published its caps', async () => {
+    // A cap nobody published is a trap (ADR-184): the editor waits for the list.
+    useScheduledActions.mockReturnValue(hook({ recurrenceLimits: undefined }));
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: CREATE }));
+    await screen.findByLabelText(FIELD_TITLE);
+
+    expect(
+      screen.queryByRole('group', { name: 'recurrence.section_when' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('common.loading');
   });
 });

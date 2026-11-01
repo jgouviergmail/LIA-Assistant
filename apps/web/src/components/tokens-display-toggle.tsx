@@ -12,12 +12,17 @@ import { logger } from '@/lib/logger';
 import { toast } from 'sonner';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 
 interface TokensDisplayToggleProps {
   lng?: Language;
+  /** Added to the button's own box (the dashboard header passes its icon slot). */
+  className?: string;
 }
 
-export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
+const BOX = 'w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9';
+
+export function TokensDisplayToggle({ lng = 'fr', className }: TokensDisplayToggleProps) {
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation(lng);
   const mounted = useHydrated();
@@ -55,7 +60,7 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
+      <Button variant="ghost" size="sm" className={cn(BOX, className)}>
         <CircleDollarSign className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('tokens_display.toggle.enable')}</span>
       </Button>
@@ -68,7 +73,7 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
+      className={cn(BOX, className)}
       onClick={handleToggle}
       disabled={isLoading || !user}
       aria-label={

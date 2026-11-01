@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 import structlog
 from langchain_core.messages import AIMessage, ToolMessage
@@ -21,11 +21,11 @@ from src.core.i18n import resolve_language
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.data_registry.models import RegistryItem
 from src.domains.agents.effects.gate import (
-    ERROR_CONFIRMATION_IMPOSSIBLE,
     UNATTENDED_REFUSAL_MESSAGE,
     turn_has_nobody_to_ask,
 )
-from src.domains.agents.effects.runtime import note_refusal
+from src.domains.agents.effects.preapproval import is_preapproved
+from src.domains.agents.effects.runtime import record_loop_refusal
 from src.domains.agents.effects.scope import current_turn_source, effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.react_observed_gaps import requested_requirements
@@ -100,7 +100,7 @@ class CallPorts:
     runtime: RuntimeBuilder
     interrupt: Callable[[object], object]
     timeout: Callable[[str, int | None], float]
-    draft: Callable[[object, str], object]
+    draft: Callable[[object, str], list[dict[str, Any]]]
     result_budget: int
     store: object
 
@@ -110,7 +110,7 @@ class Executed:
     message: ToolMessage
     seconds: float = 0.0
     registry: dict[str, object] = field(default_factory=dict)
-    draft: dict[str, object] | None = None
+    drafts: list[dict[str, object]] = field(default_factory=list)
     activated_skill: str | None = None
     productive: bool = False
     evidence: ReadEvidence = field(default_factory=lambda: {"outcome": "failed"})
@@ -179,13 +179,30 @@ def _recovery_guard(call: ToolCall, state: MessagesState) -> ToolMessage | None:
     )
 
 
-def _approve(call: ToolCall, state: MessagesState, ports: CallPorts) -> ToolMessage | None:
-    if not state.get("react_hitl_map", {}).get(call["name"], False):
+def asked_in_the_loop(tool_name: str, state: MessagesState) -> bool:
+    """Whether the loop asks the person before this call (``react_hitl_map``).
+
+    A call the running routine pre-approved is never asked — nobody is there —
+    and never filed as the person's confirmation: it reaches the gate unapproved
+    and the gate files the routine's pre-approval (spec 2026-10-29 D9).
+    """
+    asked = bool(state.get("react_hitl_map", {}).get(tool_name, False))
+    return asked and not is_preapproved(tool_name)
+
+
+async def _approve(
+    call: ToolCall, state: MessagesState, ports: CallPorts, config: RunnableConfig
+) -> ToolMessage | None:
+    if not asked_in_the_loop(call["name"], state):
         return None
     if turn_has_nobody_to_ask():
         # N10: a question nobody can answer would wait on the person's thread
-        # and read their next message as its answer. Refuse as the gate does.
-        note_refusal(call["name"], ERROR_CONFIRMATION_IMPOSSIBLE, source=current_turn_source())
+        # and read their next message as its answer. Refuse as the gate does,
+        # and file it as the gate does, under the call's own scope.
+        with effect_scope(react_call_scope(config, call["id"], approved=False)):
+            await record_loop_refusal(
+                call["name"], dict(call["args"]), source=current_turn_source()
+            )
         return tool_call_not_run(UNATTENDED_REFUSAL_MESSAGE, call["id"], call["name"])
     decision = ports.interrupt(
         {
@@ -239,7 +256,7 @@ def _process(
 ) -> Executed:
     wrapper._accumulated_registry.clear()
     content, block = wrapper._render_result(raw, budget_tokens=ports.result_budget)
-    draft = ports.draft(raw, call["name"])
+    drafts = ports.draft(raw, call["name"])
     status = tool_message_status(raw)
     answer = ToolMessage(
         content=content,
@@ -254,7 +271,7 @@ def _process(
     return Executed(
         answer,
         registry=_mapping(wrapper._accumulated_registry),
-        draft=_mapping(draft) if draft is not None else None,
+        drafts=[_mapping(draft) for draft in drafts],
         activated_skill=activated_skill_of(raw),
         productive=is_productive_result(raw),
         evidence=read_evidence(raw),
@@ -333,7 +350,7 @@ async def _invoke(
         injected = ports.runtime(
             wrapper._original_tool, dict(call["args"]), invocation_config, ports.store
         )
-        approved = state.get("react_hitl_map", {}).get(call["name"], False)
+        approved = asked_in_the_loop(call["name"], state)
         with effect_scope(react_call_scope(invocation_config, call["id"], approved=approved)):
             raw = await ports.invoke(
                 wrapper,
@@ -373,13 +390,20 @@ def _invocation_state(call: ToolCall, state: MessagesState) -> MessagesState:
 
 
 def _draft_update(outcome: Executed, state: MessagesState) -> dict[str, object]:
+    """Present the call's first draft and queue the rest, one at a time (ADR-288).
+
+    One call can hand up several: an iterative MCP task returns every
+    confirmation its sub-loop queued (spec 2026-10-29 D5). They are never a
+    pre-approved lot, so the dispatch asks for each in turn.
+    """
+    drafts = outcome.drafts
     result: dict[str, object] = {
-        "pending_draft_critique": outcome.draft,
-        "pending_drafts_queue": [],
+        "pending_draft_critique": drafts[0] if drafts else None,
+        "pending_drafts_queue": list(drafts[1:]),
         "pending_drafts_grouped": False,
         "confirmed_drafts": [],
     }
-    if outcome.draft is not None:
+    if drafts:
         result["react_agent_result"] = {
             "final_message": "",
             "iteration_count": state.get("react_iteration", 0),
@@ -470,7 +494,7 @@ async def execute_call(
     digests, refused, terminal = _repetition_guard(call, state)
     refused = refused or _recovery_guard(call, state) or await _semantic_guard(call, state, config)
     if refused is None:
-        refused = _approve(call, state, ports)
+        refused = await _approve(call, state, ports, config)
     outcome = (
         Executed(refused) if refused is not None else await _invoke(call, state, config, ports)
     )

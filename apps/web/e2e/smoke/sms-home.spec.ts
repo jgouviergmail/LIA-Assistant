@@ -140,10 +140,8 @@ for (const width of [390, 1280]) {
     expect(paid).toHaveLength(1);
     await rows.first().getByRole('button').focus();
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(
-      new RegExp(`/dashboard/settings\\?section=sms&message=${messages[0].id}$`)
-    );
-    const focused = page.locator('#settings-section-sms div[tabindex="-1"][aria-label="Mes SMS"]');
+    await expect(page).toHaveURL(new RegExp(`/dashboard/sms\\?message=${messages[0].id}$`));
+    const focused = page.locator('main div[tabindex="-1"][aria-label="Mes SMS"]');
     await expect(focused.getByText(messages[0].body, { exact: true })).toBeVisible();
   });
 }

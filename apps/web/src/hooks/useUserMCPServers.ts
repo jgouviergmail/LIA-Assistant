@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
+import type { UserMCPDefaults } from '@/lib/mcp-behavior';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 
 /**
@@ -48,6 +49,10 @@ export interface UserMCPServer {
   timeout_seconds: number;
   hitl_required: boolean | null;
   iterative_mode: boolean;
+  /** ReAct shape of an iterative server; null follows the instance default. */
+  react_expand_iterative: boolean | null;
+  /** Tools whose « never ask » the server's new declaration suspended (spec D6). */
+  suspended_tool_choices: number;
   header_name: string | null;
   has_credentials: boolean;
   has_oauth_credentials: boolean;
@@ -77,6 +82,7 @@ export interface UserMCPServerCreate {
   timeout_seconds?: number;
   hitl_required?: boolean | null;
   iterative_mode?: boolean;
+  react_expand_iterative?: boolean | null;
 }
 
 /**
@@ -96,6 +102,7 @@ export interface UserMCPServerUpdate {
   timeout_seconds?: number;
   hitl_required?: boolean | null;
   iterative_mode?: boolean;
+  react_expand_iterative?: boolean | null;
 }
 
 /**
@@ -130,6 +137,8 @@ export interface OAuthInitiateResponse {
 export interface UserMCPServerListResponse {
   servers: UserMCPServer[];
   total: number;
+  /** What a choice left open inherits (spec 2026-10-30 D2). */
+  defaults: UserMCPDefaults;
 }
 
 const ENDPOINT = '/mcp/servers';
@@ -211,6 +220,7 @@ export function useUserMCPServers() {
         setData(prev => {
           if (!prev) return prev;
           return {
+            ...prev,
             servers: [...prev.servers, result],
             total: prev.total + 1,
           };
@@ -244,6 +254,7 @@ export function useUserMCPServers() {
       setData(prev => {
         if (!prev) return prev;
         return {
+          ...prev,
           servers: prev.servers.filter(s => s.id !== serverId),
           total: prev.total - 1,
         };
@@ -341,6 +352,7 @@ export function useUserMCPServers() {
     // Data
     servers,
     total,
+    defaults: listData?.defaults,
     loading,
     error,
     refetch,

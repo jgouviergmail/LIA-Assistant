@@ -15,13 +15,17 @@ from src.infrastructure.mcp.personal_state_contract import (
     PersonalMCPWriteCheck,
 )
 
-MCP_FORM_API_ONLY_FIELDS = frozenset({"hitl_required"})
+# The private form offers no control for these: the chat carries them tighten-only on
+# its settings card, judged there (spec 2026-10-30 D7). Who drives the server
+# (``iterative_mode``) stays in the form: it changes WHEN LIA asks, never WHETHER
+# (owner decision 2026-10-31), so it has nothing to judge.
+MCP_FORM_EXCLUDED_FIELDS = frozenset({"hitl_required", "react_expand_iterative"})
 
 
 def validate_configuration_fields(values: dict[str, JsonValue], *, creating: bool) -> None:
-    """The private browser reuses original schemas; API-only controls stay excluded."""
+    """The private browser reuses original schemas; confirmation controls stay excluded."""
     model = UserMCPServerCreate if creating else UserMCPServerUpdate
-    if set(values) - (set(model.model_fields) - MCP_FORM_API_ONLY_FIELDS):
+    if set(values) - (set(model.model_fields) - MCP_FORM_EXCLUDED_FIELDS):
         raise ValueError("Unsupported private form fields")
     name = values.get("name")
     if "name" in values and (not isinstance(name, str) or not name.strip()):

@@ -74,6 +74,20 @@ restent deux conditions distinctes. La voix directe entre personnes demeure une
 proposition ; les preuves navigateur ne qualifient ni le matériel physique ni la
 fidélité linguistique du fournisseur.
 
+## La personne agit à la main
+
+La section « Outils » ouvre le courrier, l'agenda, les tâches, les contacts, les
+fichiers Drive et les lampes Hue de la personne sans aucun modèle sur le chemin :
+un contexte borné REST (`domains/workbench/`), une porte qui ouvre le client de
+l'outil sans garder de session pendant que le fournisseur répond, une couture qui
+transforme chaque échec en un refus stable par son type et son statut, et un
+descripteur de ce que chaque fournisseur accepte et borne, seul offert par la
+page. Ce qu'un client gagne pour l'atelier, les outils de l'assistant le gagnent
+dans le même lot ; rien de ce que la personne fait à la main n'entre dans un
+registre. Voir
+[ADR-369](architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md)
+et [l'atelier](technical/WORKBENCH.md).
+
 ## 📋 Table des Matières
 
 - [Vue d'Ensemble](#-vue-densemble)

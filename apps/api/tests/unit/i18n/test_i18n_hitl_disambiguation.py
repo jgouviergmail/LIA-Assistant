@@ -1,216 +1,81 @@
-"""
-Unit tests for HITL disambiguation i18n messages.
+"""The « which of these? » question, in six languages (ADR-367).
 
-Tests the formatting functions for entity disambiguation questions.
+Several items the person was shown fit their words: the question names those
+words, numbers the options and says how to answer — a number, « none of
+them », or cancel.
 """
 
 import pytest
 
 from src.core.config import settings
-from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.i18n import SUPPORTED_LANGUAGES
+from src.core.i18n_hitl import DISAMBIGUATION_ANSWER_WORDS, HitlMessages, HitlMessageType
+
+pytestmark = pytest.mark.unit
+
+OPTIONS = ["Marc <m@example.com> · Photos", "Marc <m@example.com> · Facture"]
 
 
-class TestDisambiguationMessages:
-    """Tests for disambiguation message formatting."""
+class TestTheFallback:
+    def test_each_language_has_its_own(self) -> None:
+        fallbacks = {
+            HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, language)
+            for language in SUPPORTED_LANGUAGES
+        }
+        assert len(fallbacks) == len(SUPPORTED_LANGUAGES)
 
-    # =========================================================================
-    # Test: Fallback messages
-    # =========================================================================
-
-    def test_get_fallback_french(self):
-        """Should return French fallback message."""
-        msg = HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "fr")
-        assert "plusieurs correspondances" in msg.lower()
-
-    def test_get_fallback_english(self):
-        """Should return English fallback message."""
-        msg = HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "en")
-        assert "multiple matches" in msg.lower()
-
-    def test_get_fallback_unknown_language(self):
-        """An unknown language reads the instance's configured default."""
-        msg = HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "xyz")
-        assert msg == HitlMessages.get_fallback(
+    def test_an_unknown_language_reads_the_configured_default(self) -> None:
+        assert HitlMessages.get_fallback(
+            HitlMessageType.ENTITY_DISAMBIGUATION, "xyz"
+        ) == HitlMessages.get_fallback(
             HitlMessageType.ENTITY_DISAMBIGUATION, settings.default_language
         )
 
-    # =========================================================================
-    # Test: Multiple entities disambiguation
-    # =========================================================================
 
-    def test_format_multiple_entities_french(self):
-        """Should format multiple entities question in French."""
-        candidates = [
-            {"index": 1, "name": "Jean Dupont", "email": "jean.d@example.com"},
-            {"index": 2, "name": "Jean-Pierre Dupont", "email": "jp@example.com"},
-        ]
+class TestTheQuestion:
+    def test_it_names_the_words_and_numbers_the_options(self) -> None:
+        question = HitlMessages.format_disambiguation_question("Marc", OPTIONS, "fr")
 
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_entities",
-            domain="contacts",
-            original_query="Jean",
-            intended_action="send_email",
-            candidates=candidates,
-            target_field="email",
-            language="fr",
+        assert question.startswith("Plusieurs éléments affichés correspondent à « Marc » :")
+        assert "**1.** Marc <m@example.com> · Photos\n**2.** Marc <m@example.com> · Facture" in (
+            question
+        )
+        assert question.endswith("« aucun » si ce n'est aucun d'eux, ou « annule ».")
+
+    @pytest.mark.parametrize("language", sorted(SUPPORTED_LANGUAGES))
+    def test_every_language_says_how_to_answer(self, language: str) -> None:
+        question = HitlMessages.format_disambiguation_question("Marc", OPTIONS, language)
+        none, cancel = DISAMBIGUATION_ANSWER_WORDS[language]
+
+        assert "Marc" in question and "**2.**" in question
+        assert none in question and cancel in question
+
+    def test_asked_again_it_says_the_answer_was_not_understood(self) -> None:
+        first = HitlMessages.format_disambiguation_question("Marc", OPTIONS, "en")
+        again = HitlMessages.format_disambiguation_question("Marc", OPTIONS, "en", reask=True)
+
+        assert again == f"I didn't catch which one you mean.\n\n{first}"
+
+    @pytest.mark.parametrize("language", sorted(SUPPORTED_LANGUAGES))
+    def test_items_a_lookup_found_are_never_said_to_have_been_shown(self, language: str) -> None:
+        found = HitlMessages.format_disambiguation_question("", OPTIONS, language, found=True)
+        shown = HitlMessages.format_disambiguation_question("Marc", OPTIONS, language)
+
+        assert found.split("\n\n")[0] != shown.split("\n\n")[0]
+        assert "**2.**" in found
+        assert all(word in found for word in DISAMBIGUATION_ANSWER_WORDS[language])
+
+    def test_the_found_header_names_no_description(self) -> None:
+        found = HitlMessages.format_disambiguation_question("", OPTIONS, "fr", found=True)
+        assert found.startswith("J'ai trouvé plusieurs éléments qui peuvent correspondre :")
+        assert "« »" not in found
+
+    def test_no_option_reads_the_fallback(self) -> None:
+        assert HitlMessages.format_disambiguation_question("Marc", [], "fr") == (
+            HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "fr")
         )
 
-        assert "Jean" in result
-        assert "Jean Dupont" in result
-        assert "Jean-Pierre Dupont" in result
-        assert "1." in result or "**1.**" in result
-        assert "2." in result or "**2.**" in result
-        assert "jean.d@example.com" in result
-
-    def test_format_multiple_entities_english(self):
-        """Should format multiple entities question in English."""
-        candidates = [
-            {"index": 1, "name": "John Smith", "email": "john@example.com"},
-            {"index": 2, "name": "John Doe", "email": "jdoe@example.com"},
-        ]
-
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_entities",
-            domain="contacts",
-            original_query="John",
-            intended_action="send_email",
-            candidates=candidates,
-            target_field="email",
-            language="en",
+    def test_a_language_variant_reads_its_language(self) -> None:
+        assert HitlMessages.format_disambiguation_question("Marc", OPTIONS, "zh") == (
+            HitlMessages.format_disambiguation_question("Marc", OPTIONS, "zh-CN")
         )
-
-        assert "John" in result
-        assert "John Smith" in result
-        assert "John Doe" in result
-        assert "choice" in result.lower() or "indicate" in result.lower()
-
-    # =========================================================================
-    # Test: Multiple fields disambiguation
-    # =========================================================================
-
-    def test_format_multiple_fields_french(self):
-        """Should format multiple fields question in French."""
-        candidates = [
-            {"index": 1, "value": "jean@work.com", "label": "work", "parent_name": "Jean Dupont"},
-            {"index": 2, "value": "jean@home.com", "label": "home", "parent_name": "Jean Dupont"},
-        ]
-
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_fields",
-            domain="contacts",
-            original_query="Jean Dupont",
-            intended_action="send_email",
-            candidates=candidates,
-            target_field="email",
-            language="fr",
-        )
-
-        assert "Jean Dupont" in result
-        assert "jean@work.com" in result
-        assert "jean@home.com" in result
-        assert "email" in result.lower()
-
-    def test_format_multiple_fields_phone(self):
-        """Should format multiple phone numbers question."""
-        candidates = [
-            {"index": 1, "value": "0123456789", "label": "mobile", "parent_name": "Jean Dupont"},
-            {"index": 2, "value": "0987654321", "label": "work", "parent_name": "Jean Dupont"},
-        ]
-
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_fields",
-            domain="contacts",
-            original_query="Jean Dupont",
-            intended_action="call",
-            candidates=candidates,
-            target_field="phone",
-            language="fr",
-        )
-
-        assert "0123456789" in result
-        assert "0987654321" in result
-        assert "téléphone" in result.lower() or "phone" in result.lower()
-
-    @pytest.mark.parametrize(
-        ("field", "language", "sentence"),
-        [
-            ("email", "en", "Jean Dupont has several email addresses."),
-            ("email", "de", "Jean Dupont hat mehrere E-Mail-Adressen."),
-            ("phone", "de", "Jean Dupont hat mehrere Telefonnummern."),
-            ("email", "fr", "Jean Dupont a plusieurs adresses email. Laquelle"),
-            ("phone", "fr", "Jean Dupont a plusieurs numéros de téléphone. Lequel"),
-            ("email", "es", "Jean Dupont tiene varias direcciones de correo."),
-            ("phone", "it", "Jean Dupont ha più numeri di telefono."),
-            ("phoneNumber", "en", "Jean Dupont has several possible values."),
-        ],
-    )
-    def test_the_field_is_named_in_a_whole_sentence(
-        self, field: str, language: str, sentence: str
-    ) -> None:
-        """A label pluralised by appending « s » read « email addresss »,
-        « Telefonnummers », « varios dirección de correos »; a field no sentence
-        names is said without its raw key."""
-        candidates = [
-            {"index": 1, "value": "a", "parent_name": "Jean Dupont"},
-            {"index": 2, "value": "b", "parent_name": "Jean Dupont"},
-        ]
-
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_fields",
-            domain="contacts",
-            original_query="Jean Dupont",
-            intended_action="call",
-            candidates=candidates,
-            target_field=field,
-            language=language,
-        )
-
-        assert result.startswith(sentence)
-
-    # =========================================================================
-    # Test: Empty candidates
-    # =========================================================================
-
-    def test_format_empty_candidates(self):
-        """Should return fallback for empty candidates."""
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_entities",
-            domain="contacts",
-            original_query="Nobody",
-            intended_action="send_email",
-            candidates=[],
-            target_field="email",
-            language="fr",
-        )
-
-        # Should return fallback message
-        assert result == HitlMessages.get_fallback(HitlMessageType.ENTITY_DISAMBIGUATION, "fr")
-
-    # =========================================================================
-    # Test: All supported languages
-    # =========================================================================
-
-    @pytest.mark.parametrize("language", ["fr", "en", "es", "de", "it", "zh-CN"])
-    def test_format_all_languages(self, language):
-        """Should format disambiguation for all supported languages."""
-        candidates = [
-            {"index": 1, "name": "Test User 1", "email": "test1@example.com"},
-            {"index": 2, "name": "Test User 2", "email": "test2@example.com"},
-        ]
-
-        result = HitlMessages.format_disambiguation_question(
-            disambiguation_type="multiple_entities",
-            domain="contacts",
-            original_query="Test",
-            intended_action="send_email",
-            candidates=candidates,
-            target_field="email",
-            language=language,
-        )
-
-        # Should contain candidate names
-        assert "Test User 1" in result
-        assert "Test User 2" in result
-        # Should have numbered options
-        assert "1" in result
-        assert "2" in result

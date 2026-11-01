@@ -73,7 +73,7 @@ def ensure_executors_registered() -> None:
         from src.domains.agents.tools.reminder_tools import execute_reminder_delete_draft
 
         # Task executors
-        from src.domains.agents.tools.tasks_tools import (
+        from src.domains.agents.tools.tasks_draft_executors import (
             execute_task_delete_draft,
             execute_task_draft,
             execute_task_update_draft,

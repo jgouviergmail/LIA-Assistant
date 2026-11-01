@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from src.core.capability_origin import CapabilityOrigin, CapabilityShare
 from src.core.constants import MCP_DEFAULT_TIMEOUT_SECONDS
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
+from src.infrastructure.mcp.confirmation import ToolChoice
 
 
 class UserMCPServerCreate(BaseModel):
@@ -98,7 +99,10 @@ class UserMCPServerCreate(BaseModel):
     )
     hitl_required: bool | None = Field(
         default=None,
-        description="Per-server HITL override. None = inherit global MCP_HITL_REQUIRED",
+        description=(
+            "Per-server confirmation: true always asks, false follows the server's "
+            "declarations, null follows the account's strategy"
+        ),
     )
     iterative_mode: bool = Field(
         default=False,
@@ -106,6 +110,13 @@ class UserMCPServerCreate(BaseModel):
             "Enable ReAct iterative mode. When true, the assistant interacts with "
             "this server's tools iteratively (multiple calls per request) for better "
             "results on complex tasks. Incurs additional LLM costs."
+        ),
+    )
+    react_expand_iterative: bool | None = Field(
+        default=None,
+        description=(
+            "ReAct shape of an iterative server: true lets the loop drive its tools, "
+            "false keeps its dedicated agent, null follows the instance default"
         ),
     )
 
@@ -199,11 +210,21 @@ class UserMCPServerUpdate(BaseModel):
     )
     hitl_required: bool | None = Field(
         default=None,
-        description="Per-server HITL override",
+        description=(
+            "Per-server confirmation: true always asks, false follows the server's "
+            "declarations, null follows the account's strategy"
+        ),
     )
     iterative_mode: bool | None = Field(
         default=None,
         description="Enable/disable ReAct iterative mode",
+    )
+    react_expand_iterative: bool | None = Field(
+        default=None,
+        description=(
+            "ReAct shape of an iterative server: true lets the loop drive its tools, "
+            "false keeps its dedicated agent, null follows the instance default"
+        ),
     )
 
     @model_validator(mode="after")
@@ -237,6 +258,14 @@ class MCPDiscoveredToolResponse(BaseModel):
             "so a client with None here falls back to tool_name."
         ),
     )
+    choice: ToolChoice | None = Field(
+        default=None,
+        description="The person's own choice that applies; null: the levels below decide",
+    )
+    choice_suspended: bool = Field(
+        default=False,
+        description="A « never » made against another declaration: it does not apply",
+    )
 
 
 class UserMCPServerResponse(BaseModel):
@@ -263,6 +292,16 @@ class UserMCPServerResponse(BaseModel):
     timeout_seconds: int
     hitl_required: bool | None
     iterative_mode: bool = False
+    react_expand_iterative: bool | None = None
+    suspended_tool_choices: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Tools whose « never ask » was chosen against a declaration the server has "
+            "since changed: it does not apply until the person chooses again (spec "
+            "2026-10-30 D6)"
+        ),
+    )
     # Non-sensitive credential metadata (extracted from encrypted blob)
     header_name: str | None = Field(
         default=None,
@@ -290,11 +329,39 @@ class UserMCPServerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserMCPDefaults(BaseModel):
+    """What a choice left open inherits — published so the page holds no copy.
+
+    Spec 2026-10-30 D2/D9: the instance values are defaults, the account's strategy
+    sits between them and the servers, and the page says what each « default »
+    currently gives.
+    """
+
+    confirmation_instance: bool = Field(
+        description="MCP_HITL_REQUIRED: true asks before every call by default"
+    )
+    confirmation_account: bool | None = Field(
+        description="The account's strategy; null follows the instance default"
+    )
+    confirmation_effective: bool = Field(
+        description="What a server left on « like my strategy » currently does"
+    )
+    react_direct_tools_default: bool = Field(
+        description="REACT_MCP_EXPAND_ITERATIVE_ENABLED: true lets ReAct drive an iterative server's tools"
+    )
+    dedicated_agents_available: bool = Field(
+        description="MCP_REACT_ENABLED: false means no server gets a dedicated agent"
+    )
+
+
 class UserMCPServerListResponse(BaseModel):
     """Schema for listing user MCP servers."""
 
     servers: list[UserMCPServerResponse]
     total: int
+    defaults: UserMCPDefaults = Field(
+        description="What choices left open inherit (spec 2026-10-30 D2)"
+    )
 
 
 class UserMCPOAuthInitiateResponse(BaseModel):

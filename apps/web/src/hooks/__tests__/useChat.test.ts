@@ -484,7 +484,10 @@ describe('useChat — MCP preparation notices end with the stream (fresh review 
       await result.current.sendMessage('test');
     });
 
-    expect(toast).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ duration: Infinity }));
+    expect(toast).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ duration: Infinity })
+    );
     expect(toast.dismiss).toHaveBeenCalledWith(expect.stringMatching(/^mcp-prep:.*:srv-1$/));
   });
 });
@@ -1240,6 +1243,29 @@ describe('useChat — HITL approval card decisions (Lot 1 P1-V1)', () => {
       message_id: 'hitl_card_1',
       action: 'edit',
       modification_instructions: 'raccourcis le message',
+    });
+  });
+
+  it('submitHitlDecision(select) sends the chosen position (ADR-367)', async () => {
+    scriptStream([ROUTER_CHUNK, CARD_INTERRUPT]);
+    const { result } = renderHook(() => useChat());
+    await act(async () => {
+      await result.current.sendMessage('Réponds au mail de Marc');
+    });
+
+    scriptStream([token('Brouillon prêt'), done()]);
+    await act(async () => {
+      await result.current.submitHitlDecision('select', 'Le numéro 2', undefined, 2);
+    });
+
+    const resumeReq = h.streamChat.mock.calls[1][0] as {
+      message?: string;
+      hitl_decision?: Record<string, unknown>;
+    };
+    expect(resumeReq.hitl_decision).toEqual({
+      message_id: 'hitl_card_1',
+      action: 'select',
+      selected_index: 2,
     });
   });
 

@@ -1413,7 +1413,7 @@
     },
     "331": {
       "title": "Ce que les barrières ne voient pas est lu chaque semaine",
-      "summary": "Les contrôles des modifications ne lisaient qu'une base d'avis de sécurité : la revue de septembre 2026 a trouvé vingt avis publiés par les dépôts des dépendances elles-mêmes, qu'aucun outil ne voyait. Une veille hebdomadaire lit désormais ces avis, les fins de vie, les registres et le moteur du navigateur, et chaque constat est corrigé ou accepté par écrit, avec une date de révision. Les versions Python avancent par une seule commande, après un délai de carence, sans jamais reculer."
+      "summary": "Les contrôles des modifications ne lisaient qu'une base d'avis de sécurité : la revue de septembre 2026 a trouvé vingt avis publiés par les dépôts des dépendances elles-mêmes, qu'aucun outil ne voyait. Une veille hebdomadaire lit désormais ces avis, les fins de vie, les registres et le moteur du navigateur, et chaque constat est corrigé ou accepté par écrit, avec une date de révision. Les versions Python avancent par une seule commande, après un délai de carence, sans jamais reculer. La sortie d'une génération non maintenue peut être qualifiée par un adaptateur officiel, à règles et seuils inchangés ; des métadonnées de compatibilité seules ne suffisent pas."
     },
     "332": {
       "title": "Des cartes qui montrent tout ce qui a été reçu, et des actions liées au message qui les affiche",
@@ -1538,6 +1538,18 @@
     "366": {
       "title": "Le catalogue d'un serveur MCP personnel, servi sans attendre",
       "summary": "Ce qu'un serveur MCP personnel propose est gardé sur le compte et resservi d'un message à l'autre, sur n'importe quel processus, pendant qu'un seul le revérifie en arrière-plan. Les serveurs se préparent en parallèle ; un serveur trop lent est laissé de côté pour ce message, nommé dans une notification, et prêt pour le suivant. Quand la copie gardée a dépassé sa fraîcheur, LIA vérifie avant l'appel que l'outil est toujours offert sous la même forme, et refuse sinon de l'envoyer."
+    },
+    "367": {
+      "title": "« Le mail de Marc » : désigné par ce qu'il est, demandé quand plusieurs conviennent",
+      "summary": "Quand la personne désigne un élément qu'elle vient de voir par ce qu'il est — son expéditeur, un mot du sujet —, l'analyse de la demande dit seulement comment il est désigné ; c'est le code qui trouve, parmi les éléments réellement affichés, ceux que ces mots désignent. Un seul : LIA agit et le nomme dans le journal des actions. Plusieurs : LIA demande lequel, par une question qu'aucun modèle n'écrit, et ne devine jamais ; aucun : une nouvelle recherche."
+    },
+    "368": {
+      "title": "Quand LIA demande avant un outil MCP, c’est la personne qui le décide",
+      "summary": "La personne choisit quand LIA lui demande son accord avant un outil MCP : pour tout son compte, pour chaque serveur, pour chaque outil — « ne jamais demander » restant lié à ce que l’outil déclare. Avant tout changement qui ferait moins demander, la page liste ce que LIA ne demanderait plus ; rien n’est verrouillé. Un agent dédié est interrogé une seule fois avant chaque tâche dès qu’un de ses outils le demanderait, et la tâche va alors jusqu’au bout ; depuis la conversation, LIA peut seulement demander davantage."
+    },
+    "369": {
+      "title": "La personne agit elle-même sur ses services, sans modèle",
+      "summary": "La section « Outils » ouvre le courrier, l’agenda, les tâches, les contacts, les fichiers Drive et les lampes de la personne pour qu’elle les consulte et agisse à la main : aucun modèle, aucun jeton, la vitesse du fournisseur. L’écran n’offre que ce que le fournisseur accepte, et ce qu’un client gagne pour l’atelier, les outils de l’assistant le gagnent dans le même temps ; rien de ce que la personne fait à la main n’entre dans un registre, puisque ce n’est pas un acte de LIA."
     }
   }
 }

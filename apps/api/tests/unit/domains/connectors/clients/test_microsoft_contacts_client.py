@@ -118,49 +118,41 @@ class TestSearchContacts:
 
 
 class TestListConnections:
-    """Listing goes through the OData paginator and stays capped."""
+    """Listing reads ONE OData page and stays capped (ADR-369: the cursor is the caller's)."""
 
     async def test_returns_normalised_connections(self, client: MicrosoftContactsClient) -> None:
-        paginate = AsyncMock(return_value={"value": [{"resourceName": "people/1"}]})
-        client._get_paginated_odata = paginate  # type: ignore[method-assign]
+        _request(client, {"value": [GRAPH_CONTACT]})
 
         result = await client.list_connections(page_size=50)
 
-        assert result["connections"] == [{"resourceName": "people/1"}]
+        assert [c["resourceName"] for c in result["connections"]] == ["people/AAMk-contact-1"]
         assert result["totalItems"] == 1
+        assert result["next_page_token"] is None
 
-    async def test_orders_by_display_name(self, client: MicrosoftContactsClient) -> None:
-        paginate = AsyncMock(return_value={"value": []})
-        client._get_paginated_odata = paginate  # type: ignore[method-assign]
+    async def test_orders_by_family_then_given_name(self, client: MicrosoftContactsClient) -> None:
+        """Graph pages the listing, so Graph sorts it (owner request 2026-10-31)."""
+        request = _request(client, {"value": []})
 
         await client.list_connections()
 
-        assert paginate.await_args.kwargs["params"]["$orderby"] == "displayName"
+        assert request.await_args.args[2]["$orderby"] == "surname,givenName"
 
     async def test_applies_the_global_volumetry_cap(self, client: MicrosoftContactsClient) -> None:
         from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 
-        paginate = AsyncMock(return_value={"value": []})
-        client._get_paginated_odata = paginate  # type: ignore[method-assign]
+        request = _request(client, {"value": []})
 
         await client.list_connections(page_size=10_000)
 
-        assert paginate.await_args.kwargs["max_results"] == apply_max_items_limit(10_000)
+        assert request.await_args.args[2]["$top"] == apply_max_items_limit(10_000)
 
     async def test_transform_normalises_each_item(self, client: MicrosoftContactsClient) -> None:
-        """The transform callback is what turns Graph rows into People API rows."""
-        captured: dict = {}
+        """Every Graph row becomes a People API row."""
+        _request(client, {"value": [GRAPH_CONTACT]})
 
-        async def _capture(**kwargs):
-            captured["transform"] = kwargs["transform_items"]
-            return {"value": []}
+        result = await client.list_connections()
 
-        client._get_paginated_odata = AsyncMock(side_effect=_capture)  # type: ignore[method-assign]
-
-        await client.list_connections()
-
-        normalised = captured["transform"]([GRAPH_CONTACT])
-        assert normalised[0]["resourceName"] == "people/AAMk-contact-1"
+        assert result["connections"][0]["resourceName"] == "people/AAMk-contact-1"
 
 
 # ============================================================================

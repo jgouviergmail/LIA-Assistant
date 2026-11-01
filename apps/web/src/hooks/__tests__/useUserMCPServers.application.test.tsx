@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUserMCPServers } from '../useUserMCPServers';
-import { userMCPServer } from './user-mcp-fixture';
+import { userMCPServerFixture as userMCPServer } from '@/__tests__/fixtures/mcp-servers';
 import { publishApplicationResources } from '@/lib/application-resources';
 
 const mocks = vi.hoisted(() => ({

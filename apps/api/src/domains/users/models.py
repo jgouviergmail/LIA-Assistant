@@ -35,6 +35,7 @@ from src.domains.users.display_preferences_columns import DisplayPreferencesColu
 from src.domains.users.image_generation_columns import ImageGenerationColumns
 from src.domains.users.journal_lifecycle_columns import JournalLifecycleColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
+from src.domains.users.mcp_confirmation_columns import MCPConfirmationColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
 from src.domains.users.turn_preferences_columns import TurnPreferencesColumns
 from src.domains.users.voice_preferences_columns import VoicePreferencesColumns
@@ -59,6 +60,7 @@ class User(
     DisplayPreferencesColumns,
     ImageGenerationColumns,
     LivePreferencesColumns,
+    MCPConfirmationColumns,
     PhoneIdentityColumns,
     TurnPreferencesColumns,
     VoicePreferencesColumns,

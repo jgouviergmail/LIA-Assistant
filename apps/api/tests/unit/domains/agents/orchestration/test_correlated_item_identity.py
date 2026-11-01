@@ -23,7 +23,7 @@ import pytest
 from src.core.field_names import FIELD_CORRELATED_TO
 from src.domains.agents.data_registry.models import RegistryItemType, generate_registry_id
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
-from src.domains.agents.orchestration.parallel_executor import _correlated_item_id
+from src.domains.agents.orchestration.step_results import _correlated_item_id
 
 pytestmark = [pytest.mark.unit]
 

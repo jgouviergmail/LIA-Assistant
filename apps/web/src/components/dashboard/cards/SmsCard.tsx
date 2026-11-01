@@ -64,9 +64,7 @@ function SmsContent({ data }: { data: SmsData }) {
               key={item.id}
               ariaLabel={`${t('sms.open_message')} · ${item.display_name} · ${date}`}
               tooltip={`${excerpt}\n${sender}`}
-              onSelect={() =>
-                navigate(`/dashboard/settings?section=sms&message=${encodeURIComponent(item.id)}`)
-              }
+              onSelect={() => navigate(`/dashboard/sms?message=${encodeURIComponent(item.id)}`)}
               contentClassName="flex flex-col gap-1.5 leading-snug"
             >
               <span className="flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-300 tabular-nums">

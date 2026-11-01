@@ -35,6 +35,7 @@ from src.domains.agents.application.phone_number_schemas import (
     PhoneNumberPatch,
 )
 from src.domains.agents.application.phone_preference_schemas import PhonePreferencePatch
+from src.domains.agents.application.preference_tighten_only import refuse_strategy_loosening
 from src.domains.agents.application.schemas import PreferencePatch
 from src.domains.agents.application.session_revocation_schemas import (
     DeviceSessionRevokePatch,
@@ -346,6 +347,8 @@ async def execute_preference_patch(
         await _execute_saved_service_commands(db, actor_id, patch, before, receipt, approved_until)
         return
     if isinstance(patch, PreferencePatch):
+        # The account's MCP strategy is judged again at the write (spec 2026-10-30 D7).
+        await refuse_strategy_loosening(db, actor_id, patch)
         await UserService(db).update_user(
             actor_id, patch, expected_preferences=before, receipt=receipt
         )

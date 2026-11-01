@@ -108,7 +108,9 @@ async def _active_contacts_provider(user_id: UUID) -> ConnectorType | None:
         return await resolve_active_connector(user_id, _CONTACTS_CATEGORY, connectors)
 
 
-async def suggest_recipients(user_id: UUID, query: str) -> RecipientSuggestions:
+async def suggest_recipients(
+    user_id: UUID, query: str, *, recorded: bool = True
+) -> RecipientSuggestions:
     """The contacts to offer for what is being typed.
 
     Never raises: a book that cannot be read offers nothing, and the field
@@ -118,13 +120,16 @@ async def suggest_recipients(user_id: UUID, query: str) -> RecipientSuggestions:
         user_id: The account.
         query: One recipient being typed (a name, a first name, a number, the
             start of an address).
+        recorded: File a live read of the book as a consultation (ADR-263) —
+            False for the « Tools » section, whose reads are the person's own
+            and are never filed (ADR-369, D5).
 
     Returns:
         The suggestions, possibly empty.
     """
     if not is_searchable(query, EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS):
         return RecipientSuggestions(query=query, suggestions=[], truncated=False)
-    book = await _entries(user_id)
+    book = await _entries(user_id, recorded=recorded)
     if book is None:
         return RecipientSuggestions(query=query, suggestions=[], truncated=False)
     entries, truncated = book
@@ -138,7 +143,7 @@ async def suggest_recipients(user_id: UUID, query: str) -> RecipientSuggestions:
     return RecipientSuggestions(query=query, suggestions=found, truncated=truncated)
 
 
-async def _entries(user_id: UUID) -> tuple[list[RecipientEntry], bool] | None:
+async def _entries(user_id: UUID, *, recorded: bool) -> tuple[list[RecipientEntry], bool] | None:
     """The projected book and its cut — from this worker's memo when it holds its version."""
     try:
         provider = await _active_contacts_provider(user_id)
@@ -162,14 +167,14 @@ async def _entries(user_id: UUID) -> tuple[list[RecipientEntry], bool] | None:
             _PROJECTIONS.move_to_end((str(user_id), stamp.version))
             email_share_recipient_directory_reads_total.labels(outcome="cached").inc()
             return kept, stamp.truncated
-    directory = await _read_directory(user_id)
+    directory = await _read_directory(user_id, recorded=recorded)
     if directory is None:
         return None
     return await _projection(user_id, directory), directory.truncated
 
 
-async def _read_directory(user_id: UUID) -> ContactDirectory | None:
-    """The account's directory, recording the read when a provider was opened."""
+async def _read_directory(user_id: UUID, *, recorded: bool) -> ContactDirectory | None:
+    """The account's directory, recording the read when a provider was opened (and asked)."""
     started = perf_counter()
     try:
         async with asyncio.timeout(EMAIL_SHARE_DIRECTORY_READ_TIMEOUT_SECONDS):
@@ -189,13 +194,15 @@ async def _read_directory(user_id: UUID) -> ContactDirectory | None:
             outcome=outcome,
             error_type=type(error).__name__,
         )
-        await _record(user_id, started, failed=True)
+        if recorded:
+            await _record(user_id, started, failed=True)
         return None
     if directory.from_cache:
         email_share_recipient_directory_reads_total.labels(outcome="cached").inc()
     else:
         email_share_recipient_directory_reads_total.labels(outcome="live").inc()
-        await _record(user_id, started, failed=False)
+        if recorded:
+            await _record(user_id, started, failed=False)
     return directory
 
 

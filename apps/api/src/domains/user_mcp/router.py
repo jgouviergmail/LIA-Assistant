@@ -33,6 +33,16 @@ from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.shared.capability_origins import capability_origins
 from src.domains.shared.capability_shares import capability_shares
 from src.domains.user_mcp.authorization import initiate_personal_mcp_authorization
+from src.domains.user_mcp.behavior_schemas import (
+    BehaviorPreview,
+    BehaviorPreviewRequest,
+    ServerBehavior,
+    StrategyPreview,
+    StrategyPreviewRequest,
+    ToolConfirmationRequest,
+)
+from src.domains.user_mcp.behavior_service import MCPBehaviorService
+from src.domains.user_mcp.defaults import published_defaults
 from src.domains.user_mcp.projection import owned_server_response
 from src.domains.user_mcp.projection import server_to_response as _server_to_response
 from src.domains.user_mcp.schemas import (
@@ -131,6 +141,8 @@ async def list_servers(
     servers = await service.list_servers(user.id)
     origins = await capability_origins(db, user.id, "mcp", (s.id for s in servers))
     shares = await capability_shares(db, user.id, "mcp", (s.id for s in servers))
+    # One query for every server's tool choices: each card says its suspended ones (D6).
+    choices = await service.repository.tool_choices([s.id for s in servers])
 
     logger.debug(
         "user_mcp_servers_listed",
@@ -141,11 +153,16 @@ async def list_servers(
     return UserMCPServerListResponse(
         servers=[
             _server_to_response(
-                s, service, shared_origin=origins.get(s.id), shared_with=shares.get(s.id, ())
+                s,
+                service,
+                shared_origin=origins.get(s.id),
+                shared_with=shares.get(s.id, ()),
+                tool_choices=choices.get(s.id),
             )
             for s in servers
         ],
         total=len(servers),
+        defaults=published_defaults(user.mcp_hitl_required),
     )
 
 
@@ -176,6 +193,87 @@ async def create_server(
     await db.commit()
     await db.refresh(server)
     return await owned_server_response(db, server, service)
+
+
+# =============================================================================
+# What a server will do (spec 2026-10-30 D5) — computed, never written
+# =============================================================================
+
+
+@router.post(
+    "/strategy/preview",
+    response_model=StrategyPreview,
+    summary="Preview a confirmation strategy",
+    description=(
+        "What LIA would stop asking about across the account's servers if its "
+        "confirmation strategy changed. Writes nothing."
+    ),
+)
+async def preview_confirmation_strategy(
+    request: StrategyPreviewRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> StrategyPreview:
+    """The questions a strategy change would remove, server by server."""
+    return await MCPBehaviorService(db).strategy_preview(user, request.mcp_hitl_required)
+
+
+@router.get(
+    "/{server_id}/behavior",
+    response_model=ServerBehavior,
+    summary="What a server will do",
+    description="Who drives the server and when LIA asks, mode by mode and tool by tool.",
+)
+async def get_server_behavior(
+    server_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ServerBehavior:
+    """The synthesis of the server as stored."""
+    return await MCPBehaviorService(db).behavior(server_id, user)
+
+
+@router.post(
+    "/{server_id}/behavior/preview",
+    response_model=BehaviorPreview,
+    summary="Preview a server's behavior",
+    description=(
+        "The synthesis under the form's candidate values, and what LIA would stop "
+        "asking about. Writes nothing."
+    ),
+)
+async def preview_server_behavior(
+    server_id: UUID,
+    request: BehaviorPreviewRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> BehaviorPreview:
+    """The synthesis of the server as the form would leave it."""
+    return await MCPBehaviorService(db).server_preview(server_id, user, request)
+
+
+@router.put(
+    "/{server_id}/tool-confirmations",
+    response_model=ServerBehavior,
+    summary="Choose when LIA asks before one tool",
+    description=(
+        "Always ask, never ask, or null to follow the levels below. A choice is "
+        "bound to the tool's current declaration and refused for a tool the "
+        "server's last catalogue does not list."
+    ),
+)
+async def set_tool_confirmation(
+    server_id: UUID,
+    request: ToolConfirmationRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ServerBehavior:
+    """Record the person's choice for one tool; answer with the server's synthesis."""
+    behavior = await MCPBehaviorService(db).set_tool_choice(
+        server_id, user, request.tool_name, request.choice
+    )
+    await db.commit()
+    return behavior
 
 
 # =============================================================================

@@ -16,6 +16,10 @@ from src.domains.agents.calendar.availability_manifest import (
     find_availability_catalogue_manifest,
 )
 from src.domains.agents.calendar.event_search import QUERY_CONTRACT
+from src.domains.agents.calendar.event_times import (
+    ALL_DAY_DESCRIPTION,
+    ALL_DAY_UPDATE_DESCRIPTION,
+)
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -353,6 +357,12 @@ create_event_catalogue_manifest = ToolManifest(
                 "Unsupported on Apple calendars (event created without a link)."
             ),
         ),
+        ParameterSchema(
+            name="all_day",
+            type="boolean",
+            required=False,
+            description=ALL_DAY_DESCRIPTION,
+        ),
     ],
     outputs=[
         OutputFieldSchema(
@@ -474,6 +484,12 @@ update_event_catalogue_manifest = ToolManifest(
             semantic_type="email_address",  # Cross-domain: can use contacts[].emails[].value
         ),
         _CALENDAR_ID_PARAM,
+        ParameterSchema(
+            name="all_day",
+            type="boolean",
+            required=False,
+            description=ALL_DAY_UPDATE_DESCRIPTION,
+        ),
     ],
     outputs=[
         OutputFieldSchema(

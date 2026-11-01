@@ -220,6 +220,13 @@ class TestConvertImapQuery:
         _, folder = convert_imap_query(query)
         assert folder == expected
 
+    def test_a_folder_whose_name_has_spaces_is_named_between_quotes(self) -> None:
+        """As Graph reads it: ``in:"Old mail"`` names one folder, never a folder
+        « "Old » followed by the words « mail" »."""
+        query = parse_imap_query('in:"Old mail" is:unread')
+        assert query.folder == "Old mail"
+        assert "Old" not in str(query.criteria)
+
     def test_the_star_is_the_flag_never_a_folder(self) -> None:
         criteria, folder = convert_imap_query("label:starred")
         assert folder is None

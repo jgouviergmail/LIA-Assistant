@@ -21,6 +21,8 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.normalizers.all_day import all_day_dates, is_all_day
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.clients.retry_policy import (
     CREATE_SETTLE_READS,
     backoff_seconds,
@@ -30,6 +32,11 @@ from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
 logger = structlog.get_logger(__name__)
+
+
+def _segment(provider_id: str) -> str:
+    """A calendar or event id as ONE segment of a Google URL path (``path_segments``)."""
+    return path_segment(provider_id, connector_type=ConnectorType.GOOGLE_CALENDAR)
 
 
 def _create_may_have_happened(error: ExternalServiceError | ConnectorAPIError) -> bool:
@@ -107,6 +114,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         calendar_id: str = "primary",
         add_conference: bool = False,
         idempotency_key: str | None = None,
+        all_day: bool = False,
     ) -> dict[str, Any]:
         """
         Create a new calendar event in Google Calendar.
@@ -130,6 +138,8 @@ class GoogleCalendarClient(BaseGoogleClient):
             idempotency_key: The effect's key (ADR-263); the event's id is derived
                 from it, so a create whose answer was lost is found again by that id
                 rather than sent twice (S1). None: a key minted for this call.
+            all_day: The bounds are DATES, the end exclusive (``normalizers.all_day``):
+                an all-day event, the way the client reads one back (ADR-369).
 
         Returns:
             Created event data with event ID
@@ -156,14 +166,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         event_body: dict[str, Any] = {
             "id": event_id,
             "summary": summary,
-            "start": {
-                "dateTime": start_datetime,
-                "timeZone": effective_timezone,
-            },
-            "end": {
-                "dateTime": end_datetime,
-                "timeZone": effective_timezone,
-            },
+            **_event_bounds(start_datetime, end_datetime, effective_timezone, all_day=all_day),
         }
 
         if description:
@@ -195,7 +198,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         try:
             response = await self._make_request(
                 "POST",
-                f"/calendars/{calendar_id}/events",
+                f"/calendars/{_segment(calendar_id)}/events",
                 json_data=event_body,
                 params=params,
                 idempotent=True,
@@ -410,7 +413,9 @@ class GoogleCalendarClient(BaseGoogleClient):
             fields=fields,
             updated_min=updated_min,
         )
-        return await self._make_request("GET", f"/calendars/{calendar_id}/events", params=params)
+        return await self._make_request(
+            "GET", f"/calendars/{_segment(calendar_id)}/events", params=params
+        )
 
     async def list_events(
         self,
@@ -457,7 +462,7 @@ class GoogleCalendarClient(BaseGoogleClient):
 
         response = await self._make_request(
             "GET",
-            f"/calendars/{calendar_id}/events",
+            f"/calendars/{_segment(calendar_id)}/events",
             params=params,
         )
 
@@ -502,7 +507,7 @@ class GoogleCalendarClient(BaseGoogleClient):
 
         response = await self._make_request(
             "GET",
-            f"/calendars/{calendar_id}/events/{event_id}",
+            f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}",
             params=params if params else None,
         )
 
@@ -526,6 +531,8 @@ class GoogleCalendarClient(BaseGoogleClient):
         location: str | None = None,
         attendees: list[str] | None = None,
         calendar_id: str = "primary",
+        all_day: bool | None = None,
+        send_updates: str | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing calendar event.
@@ -544,6 +551,8 @@ class GoogleCalendarClient(BaseGoogleClient):
             description: New event description (optional)
             location: New event location (optional)
             attendees: New list of attendee email addresses (optional)
+            send_updates: Who Google tells of the change (``all``, ``externalOnly``,
+                ``none``); None leaves Google's own default, which tells nobody.
             calendar_id: Calendar ID (default: primary)
 
         Returns:
@@ -565,68 +574,33 @@ class GoogleCalendarClient(BaseGoogleClient):
         # First, get the existing event to preserve unchanged fields
         existing_event = await self.get_event(event_id, calendar_id)
 
-        # Build update body, preserving existing values
-        event_body: dict[str, Any] = {}
-
-        # Update summary if provided, else keep existing
-        if summary is not None:
-            event_body["summary"] = summary
-        elif "summary" in existing_event:
-            event_body["summary"] = existing_event["summary"]
-
-        # Update datetime fields
-        # Google Calendar requires start and end to use the same format.
-        # Detect from EXISTING event whether it's all-day or timed,
-        # then force the same format regardless of what the LLM produced.
-        is_all_day = "date" in existing_event.get(
-            "start", {}
-        ) and "dateTime" not in existing_event.get("start", {})
-
-        if start_datetime is not None:
-            if is_all_day:
-                # All-day: strip any time part, keep YYYY-MM-DD only
-                event_body["start"] = {"date": str(start_datetime).split("T")[0]}
-            else:
-                event_body["start"] = {
-                    "dateTime": normalize_to_rfc3339(start_datetime) or start_datetime,
-                    "timeZone": effective_timezone,
-                }
-        elif "start" in existing_event:
-            event_body["start"] = existing_event["start"]
-
-        if end_datetime is not None:
-            if is_all_day:
-                event_body["end"] = {"date": str(end_datetime).split("T")[0]}
-            else:
-                event_body["end"] = {
-                    "dateTime": normalize_to_rfc3339(end_datetime) or end_datetime,
-                    "timeZone": effective_timezone,
-                }
-        elif "end" in existing_event:
-            event_body["end"] = existing_event["end"]
-
-        # Update optional fields
-        if description is not None:
-            event_body["description"] = description
-        elif "description" in existing_event:
-            event_body["description"] = existing_event["description"]
-
-        if location is not None:
-            event_body["location"] = location
-        elif "location" in existing_event:
-            event_body["location"] = existing_event["location"]
-
-        if attendees is not None:
-            event_body["attendees"] = [{"email": email} for email in attendees]
-        elif "attendees" in existing_event:
-            event_body["attendees"] = existing_event["attendees"]
+        # Build the update body: each value given replaces, an absent one is kept.
+        # An explicit ``all_day`` (ADR-369) switches the shape — both bounds given,
+        # the other half of each provider object CLEARED (a PATCH merges objects:
+        # a « date » left beside a new « dateTime » is refused). Otherwise the
+        # EXISTING shape is kept whatever format the caller produced.
+        event_body: dict[str, Any] = {
+            **_kept_fields(
+                existing_event,
+                summary=summary,
+                description=description,
+                location=location,
+                attendees=None if attendees is None else [{"email": e} for e in attendees],
+            ),
+            **(
+                _switched_bounds(start_datetime, end_datetime, effective_timezone, all_day)
+                if all_day is not None
+                else _kept_bounds(existing_event, start_datetime, end_datetime, effective_timezone)
+            ),
+        }
 
         # Make PATCH request to update event
         # Using PATCH for partial update (PUT would replace entirely)
         response = await self._make_request(
             "PATCH",
-            f"/calendars/{calendar_id}/events/{event_id}",
+            f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}",
             json_data=event_body,
+            params=None if send_updates is None else {"sendUpdates": send_updates},
         )
 
         logger.info(
@@ -636,6 +610,39 @@ class GoogleCalendarClient(BaseGoogleClient):
         )
 
         return response
+
+    async def list_events_window(
+        self, calendar_id: str, time_min: str, time_max: str, *, bound: int
+    ) -> dict[str, Any]:
+        """Every event of a window — occurrences expanded — up to ``bound`` (ADR-369).
+
+        Pages are drained (``pageToken``) until the window is read or ``bound``
+        events are; past it — or past ``_WINDOW_MAX_PAGES`` pages, since Google
+        may answer an empty page with a token — the answer says it was cut.
+
+        Returns:
+            ``{"events": [...], "truncated": bool}``.
+        """
+        events: list[dict[str, Any]] = []
+        page_token: str | None = None
+        for _ in range(_WINDOW_MAX_PAGES):
+            params: dict[str, Any] = {
+                "timeMin": time_min,
+                "timeMax": time_max,
+                "singleEvents": True,
+                "orderBy": "startTime",
+                "maxResults": min(_WINDOW_PAGE_SIZE, bound - len(events) + 1),
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            response = await self._make_request(
+                "GET", f"/calendars/{_segment(calendar_id)}/events", params=params
+            )
+            events += response.get("items", [])
+            page_token = response.get("nextPageToken")
+            if not page_token or len(events) > bound:
+                break
+        return {"events": events[:bound], "truncated": bool(page_token) or len(events) > bound}
 
     async def delete_event(
         self,
@@ -671,7 +678,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         # DELETE request returns empty body on success (204)
         await self._make_request(
             "DELETE",
-            f"/calendars/{calendar_id}/events/{event_id}",
+            f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}",
             params=params,
         )
 
@@ -714,7 +721,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         """
         return await self._make_request(
             "POST",
-            f"/calendars/{calendar_id}/events/watch",
+            f"/calendars/{_segment(calendar_id)}/events/watch",
             json_data={
                 "id": channel_id,
                 "type": "web_hook",
@@ -731,3 +738,74 @@ class GoogleCalendarClient(BaseGoogleClient):
             "/channels/stop",
             json_data={"id": channel_id, "resourceId": resource_id},
         )
+
+
+#: Events asked per page while a window is drained (Google allows 2 500).
+_WINDOW_PAGE_SIZE = 250
+#: Pages one window read may take — a page can be empty and still name a next one.
+_WINDOW_MAX_PAGES = 40
+
+
+def _event_bounds(
+    start: str, end: str, timezone: str, *, all_day: bool
+) -> dict[str, dict[str, Any]]:
+    """A new event's ``start``/``end`` objects: dates (end exclusive) or zoned times."""
+    if all_day:
+        first, after_last = all_day_dates(start, end)
+        return {"start": {"date": first.isoformat()}, "end": {"date": after_last.isoformat()}}
+    return {
+        "start": {"dateTime": start, "timeZone": timezone},
+        "end": {"dateTime": end, "timeZone": timezone},
+    }
+
+
+def _kept_fields(existing: dict[str, Any], **given: Any) -> dict[str, Any]:
+    """An update's own fields: each value given replaces, an absent one is kept as read."""
+    return {
+        name: value if value is not None else existing[name]
+        for name, value in given.items()
+        if value is not None or name in existing
+    }
+
+
+def _kept_bounds(
+    existing: dict[str, Any], start: str | None, end: str | None, timezone: str
+) -> dict[str, Any]:
+    """An update's bounds in the EXISTING shape: an all-day event keeps dates."""
+    keeps_dates = is_all_day(existing)
+    bounds: dict[str, Any] = {}
+    for name, value in (("start", start), ("end", end)):
+        if value is None:
+            if name in existing:
+                bounds[name] = existing[name]
+        elif keeps_dates:
+            bounds[name] = {"date": str(value).split("T")[0]}
+        else:
+            bounds[name] = {"dateTime": normalize_to_rfc3339(value) or value, "timeZone": timezone}
+    return bounds
+
+
+def _switched_bounds(
+    start: str | None, end: str | None, timezone: str, all_day: bool
+) -> dict[str, dict[str, Any]]:
+    """The PATCH that turns an event all-day or timed, the other half cleared.
+
+    Raises:
+        ValueError: A bound is missing — a shape cannot change on one side only.
+    """
+    if start is None or end is None:
+        raise ValueError("Turning an event all-day or timed needs its new start and end.")
+    if all_day:
+        first, after_last = all_day_dates(start, end)
+        return {
+            "start": {"date": first.isoformat(), "dateTime": None, "timeZone": None},
+            "end": {"date": after_last.isoformat(), "dateTime": None, "timeZone": None},
+        }
+    return {
+        "start": {
+            "date": None,
+            "dateTime": normalize_to_rfc3339(start) or start,
+            "timeZone": timezone,
+        },
+        "end": {"date": None, "dateTime": normalize_to_rfc3339(end) or end, "timeZone": timezone},
+    }

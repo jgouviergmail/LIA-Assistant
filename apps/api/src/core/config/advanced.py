@@ -32,8 +32,10 @@ from src.core.constants import (
     CURRENCY_CACHE_TTL_HOURS_DEFAULT,
     DEFAULT_LANGUAGE_DEFAULT,
     DEFAULT_USD_EUR_RATE,
-    ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT,
+    ENTITY_RESOLUTION_MAX_CANDIDATES_CAP,
     ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT,
+    ENTITY_RESOLUTION_MAX_TURN_AGE_DEFAULT,
+    ENTITY_RESOLUTION_SHOWN_ITEMS_MAX_DEFAULT,
     EXTERNAL_CONTENT_WRAPPING_ENABLED_DEFAULT,
     FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT,
     HITL_DETECTION_CACHE_TTL_SECONDS_DEFAULT,
@@ -348,23 +350,39 @@ class AdvancedSettings(BaseSettings):
     )
 
     # ========================================================================
-    # Entity Resolution (Auto-disambiguation)
+    # Shown items designated by description (ADR-367)
     # ========================================================================
-    entity_resolution_auto_threshold: float = Field(
-        default=ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Confidence threshold for automatic entity resolution (0.0-1.0)",
-    )
     entity_resolution_max_candidates: int = Field(
         default=ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT,
         gt=0,
-        le=10,
-        description="Maximum number of candidates to show in disambiguation questions",
+        le=ENTITY_RESOLUTION_MAX_CANDIDATES_CAP,
+        description="Most options « which of the items shown did you mean? » offers",
     )
     entity_resolution_enabled: bool = Field(
         default=True,
-        description="Enable automatic entity resolution for name mentions",
+        description=(
+            "Resolve an item the person designates by description (« Marc's email ») "
+            "against the items recently shown to them, asking which one when several "
+            "fit (ADR-367). Off: such a request is planned as a new lookup."
+        ),
+    )
+    entity_resolution_max_turn_age: int = Field(
+        default=ENTITY_RESOLUTION_MAX_TURN_AGE_DEFAULT,
+        ge=1,
+        le=20,
+        description=(
+            "How many turns back a shown item may still be designated by description "
+            "(1 = the previous answer only)"
+        ),
+    )
+    entity_resolution_shown_items_max: int = Field(
+        default=ENTITY_RESOLUTION_SHOWN_ITEMS_MAX_DEFAULT,
+        ge=0,
+        le=50,
+        description=(
+            "How many recently shown items the query analyzer is told about, most recent "
+            "first (0 = none: a description can then only be resolved by chance)"
+        ),
     )
 
     # ========================================================================

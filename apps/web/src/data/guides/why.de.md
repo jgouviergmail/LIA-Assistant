@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Datum**: 2026-10-23
-**Anwendung**: LIA v4.2.0
+**Datum**: 2026-10-31
+**Anwendung**: LIA v4.3.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -32,6 +32,8 @@ LIA geht einen anderen Weg. Das ist ein persönlicher Assistent, den du auf dein
 Wie das funktioniert, erklärt [der technische Leitfaden](/de/how). Wie der Code geschrieben wurde, von einer KI, die ein Mensch gelenkt und kontrolliert hat, erzählt der [Erfahrungsbericht](/de/story).
 
 ## 2. Was LIA für dich tut
+
+Öffne **Werkzeuge**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Hue-Leuchten nutzen Deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
 
 Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
 
@@ -122,6 +124,8 @@ Die **Psyche Engine** gibt ihr einen inneren Zustand, der sich mit jedem Austaus
 Sie führt ihre eigenen **Tagebücher** in der Ich-Form, und aus diesen Aufzeichnungen entsteht ein Porträt von dir, das sie überallhin begleitet, wo sie spricht. Du liest sie, bearbeitest sie, meldest einen Fehler oder startest eine Konsolidierung; das Porträt selbst lässt sich nicht direkt bearbeiten, damit es stimmig bleibt. Wenn eine schmerzhafte Erinnerung hochkommt, wechselt sie in einen schützenden Modus: keine Scherze, kein Herunterspielen. Und wenn du sie fragst, was sie kann, antwortet sie aus einer Wissensbasis über ihre eigenen Funktionen ([das Gedächtnis](/de/how#memory)).
 
 ## 7. Sie handelt, du entscheidest
+
+Für **MCP** bestimmst du Bestätigungen auf Konto-, Server- und Werkzeugebene. Die Verhaltensübersicht erklärt die wirksame Regel vor einer Änderung. Ein eigener Agent fragt vor seiner Aufgabe, wenn eines seiner Werkzeuge Zustimmung braucht; die Antwort gilt für seine Aufrufe dieser Aufgabe. „Nie fragen“ wird bei geänderter Deklaration ausgesetzt. Der Chat darf den Schutz verstärken; nur die Einstellungen dürfen ihn lockern. Eine Routine kann die Server nutzen, die du in ihrem Formular ausdrücklich vorab genehmigt hast.
 
 Vor einer heiklen Aktion legt LIA sie dir vor. Was du freigibst, ist genau das, was ausgeführt wird, auch nach mehreren Überarbeitungen, und die Bestätigung zeigt alles, was hinausgehen wird. Steht sie vor einer Aktion, die sie nicht allein ausführen darf, fragt sie dich im Ticket; eine Routine, die läuft, während niemand vor dem Bildschirm sitzt, lehnt die Aktion ab und sagt es. Der Code eines Skills läuft in einem Wegwerf-Container, ohne Zugriff auf deine Dateien oder deine Schlüssel und ohne Netzwerk außerhalb der erlaubten Hosts.
 

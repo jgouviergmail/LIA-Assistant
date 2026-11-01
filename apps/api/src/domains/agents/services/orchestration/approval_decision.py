@@ -10,6 +10,9 @@ Contract per ``interrupt_type`` (unchanged from the original):
     - ``for_each_confirmation`` / plan approval / generic -> ``{"decision": ...}``
     - ``clarification`` -> ``{"clarification": <message>}`` (info passthrough)
       or ``{"clarification": <message>, "cancelled": True}`` (cancel intent)
+    - ``entity_disambiguation`` -> ``{"action": "select", "selected_index": n}``,
+      ``{"action": "none" | "cancel" | "unclear"}`` — read WITHOUT a model on the
+      options shown (``context/choice_answer.py``, ADR-367)
     - stale/missing context -> ``{"decision": NEW_REQUEST, ...}``
 
 Redis (interrupt context) and the LLM classifier are imported lazily inside the
@@ -25,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from structlog import get_logger
 
 from src.core.field_names import (
+    FIELD_ABANDON_PENDING,
     FIELD_ACTION_REQUESTS,
     FIELD_DECISION,
     FIELD_DRAFT_ID,
@@ -37,6 +41,11 @@ from src.domains.agents.constants import (
     ACTION_TYPE_DRAFT_CRITIQUE,
     HITL_DECISION_NEW_REQUEST,
     INTENTION_UNKNOWN,
+)
+from src.domains.agents.context.choice_answer import CHOICE_UNCLEAR, read_choice_answer
+from src.domains.agents.services.hitl.protocols import HitlInteractionType
+from src.domains.agents.services.orchestration.structured_decision import (
+    structured_resume_payload,
 )
 
 if TYPE_CHECKING:
@@ -656,77 +665,6 @@ class HitlDecisionStaleError(Exception):
     """
 
 
-# Wire action ids emitted by the interactions are not uniform (e.g.
-# destructive_confirm emits "confirm_delete", the for_each STANDARD set
-# defines "confirm_all") — canonicalize them server-side so the frontend
-# passes wire ids through verbatim and there is a single source of truth.
-_STRUCTURED_ACTION_ALIASES: dict[str, str] = {
-    "confirm": "confirm",
-    "approve": "confirm",
-    "confirm_delete": "confirm",
-    "confirm_all": "confirm",
-    # ADR-298: the egress card's second answer — a confirmation that narrows
-    # the run. Canonised so every reader sees a confirmation; the narrowing
-    # travels as its own field (see _structured_resume_payload).
-    "confirm_without_data": "confirm",
-    "cancel": "cancel",
-    "reject": "cancel",
-    # The Telegram FOR_EACH keyboard's pair (hitl_keyboard._HITL_TYPE_BUTTONS):
-    # a press is the chat card's own decision, never words to classify.
-    "continue": "confirm",
-    "stop": "cancel",
-}
-
-#: Wire actions that carry a decision FIELD beside the canonical action.
-_ACTION_FIELDS: dict[str, dict[str, Any]] = {"confirm_without_data": {"share_turn_data": False}}
-
-
-# (interrupt_type, action) -> resume payload builders for one-click approvals.
-# Scope: confirm/cancel (V1) + draft edit with modification instructions
-# (P1-V2 — routes the LIVE draft_modifier loop, same payload the classifier
-# EDIT branch produces). Per-field edit (updated_content) has NO live
-# execution path (dead code on the whole chain) and stays rejected.
-def _structured_resume_payload(
-    interrupt_type: str,
-    action: str,
-    draft_id: str | None,
-    modification_instructions: str | None = None,
-) -> dict[str, Any] | None:
-    """Return the resume payload for a supported (type, action) pair, else None."""
-    fields = _ACTION_FIELDS.get(action, {})
-    action = _STRUCTURED_ACTION_ALIASES.get(action, action)
-    if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE and action == "edit":
-        # Parity with _map_draft_critique_result EDIT: instructions required.
-        instructions = (modification_instructions or "").strip()
-        if not instructions:
-            return None
-        return {
-            "action": "edit",
-            FIELD_DRAFT_ID: draft_id,
-            "modification_instructions": instructions,
-        }
-    if interrupt_type in ("tool_confirmation", "draft_critique"):
-        if action not in ("confirm", "cancel"):
-            return None
-        payload: dict[str, Any] = {"action": action, **fields}
-        if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE:
-            payload[FIELD_DRAFT_ID] = draft_id
-            if action == "cancel":
-                payload["reason"] = "User declined via approval button"
-        return payload
-    if interrupt_type == "clarification":
-        # Buttons on an open question only make sense for cancelling it.
-        if action != "cancel":
-            return None
-        return {"clarification": "", "cancelled": True}
-    # destructive_confirm / for_each_confirmation / plan approval / generic
-    if action == "confirm":
-        return {FIELD_DECISION: "APPROVE"}
-    if action == "cancel":
-        return {FIELD_DECISION: "REJECT", "rejection_reason": "User declined via approval button"}
-    return None
-
-
 async def build_structured_decision(
     hitl_decision: dict[str, Any], conversation_id: uuid.UUID, run_id: str
 ) -> dict[str, Any]:
@@ -769,11 +707,13 @@ async def build_structured_decision(
 
     action = str(hitl_decision.get("action", "")).lower()
     raw_instructions = hitl_decision.get("modification_instructions")
-    payload = _structured_resume_payload(
+    raw_index = hitl_decision.get("selected_index")
+    payload = structured_resume_payload(
         interrupt_type,
         action,
         draft_id,
         modification_instructions=(raw_instructions if isinstance(raw_instructions, str) else None),
+        selected_index=raw_index if isinstance(raw_index, int) else None,
     )
     if payload is None:
         raise HitlDecisionStaleError(
@@ -788,6 +728,28 @@ async def build_structured_decision(
         classifier_bypassed=True,
     )
     return payload
+
+
+def _read_disambiguation(
+    user_message: str, request: dict[str, Any], run_id: str, user_language: str
+) -> dict[str, Any]:
+    """« Which one? » read without a model (ADR-367).
+
+    Asked once more and still naming no option, the message is not an answer:
+    the person moved on, and it is processed as their new request — the
+    question is abandoned, nothing done — rather than cancelled and lost.
+    """
+    labels = [str(c.get("label", "")) for c in request.get("candidates", [])]
+    answer = read_choice_answer(user_message, labels, user_language)
+    if answer.action != CHOICE_UNCLEAR or not request.get("reask"):
+        return answer.resume()
+    logger.info("disambiguation_abandoned_for_a_new_request", run_id=run_id)
+    return {
+        FIELD_DECISION: HITL_DECISION_NEW_REQUEST,
+        "user_message": user_message,
+        "reason": "Second answer named no option: a new request",
+        FIELD_ABANDON_PENDING: True,
+    }
 
 
 async def parse_approval_decision(
@@ -850,6 +812,8 @@ async def parse_approval_decision(
         )
     if interrupt_type == "clarification":
         return await _classify_clarification(user_message, message_lower, action_context, run_id)
+    if interrupt_type == HitlInteractionType.ENTITY_DISAMBIGUATION.value:
+        return _read_disambiguation(user_message, action_context[0], run_id, user_language)
     return await _classify_generic(
         user_message, message_lower, action_context, interrupt_type, run_id, user_language
     )

@@ -26,6 +26,21 @@ declares each shared user-schema field's reviewed surface and writability.
 Adding a user field requires declaring its owner. Private authentication input
 belongs in its secure form, not a widened model-visible preference schema.
 
+## MCP confirmation settings
+
+The conversational write path can strengthen MCP confirmations only: the account
+preference accepts `true`, while the personal-server card may require confirmation
+or mark named tools as “always ask”. Both proposal and execution compare the
+candidate against the current effective behavior; a driver change that removes
+questions is refused too. The behavior computation is shared with the settings
+page, rather than inferred from one stored field.
+
+Reducing confirmations, including a per-tool “never ask”, belongs to **Settings ›
+MCP Servers**, where the person sees which questions the candidate removes. The
+assistant cannot set or widen a routine's pre-approved servers. See
+[ADR-368](../architecture/ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md)
+and [MCP integration](MCP_INTEGRATION.md) for the resolution and suspension rules.
+
 ## Preparation, execution and continuation
 
 ```mermaid

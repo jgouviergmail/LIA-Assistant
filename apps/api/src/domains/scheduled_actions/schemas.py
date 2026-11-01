@@ -6,16 +6,24 @@ Input/output models for the scheduled actions CRUD API.
 
 from datetime import date as calendar_date
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from src.core.config import settings
 from src.core.constants import (
     OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
-    RECURRENCE_ROUTINE_LIMITS,
+    ROUTINE_MCP_PREAPPROVAL_MAX_SERVERS,
+    ROUTINE_MCP_SERVER_KEY_MAX_LENGTH,
     SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
     ExecutionMode,
 )
@@ -34,12 +42,14 @@ from src.domains.scheduled_actions.models import (
     ScheduledRunOutcome,
     TriggerKind,
 )
+from src.domains.scheduled_actions.recurrence_limits import routine_recurrence_limits
 from src.domains.scheduled_actions.trigger import (
     TriggerPlan,
     check_minutes,
     published_check_minutes,
     schedule_sentence,
 )
+from src.domains.shared.mcp_preapproval import stored_server_keys
 
 # Weather-change kinds accepted by the condition (mirror of the briefing
 # ForecastAlertKind values — a wrong kind would silently never fire).
@@ -206,24 +216,11 @@ class ScheduledActionCreate(BaseModel):
         description="How LIA runs it: react (autonomous loop) or pipeline.",
     )
 
-    @model_validator(mode="after")
-    def validate_against_routine_limits(self) -> ScheduledActionCreate:
-        """Refuse a recurrence beyond what a ROUTINE may ask.
-
-        The cap is INJECTED rather than owned by the recurrence model: a
-        routine runs the full agent pipeline on every occurrence while a
-        reminder only sends a notification, and one engine serves both.
-
-        Returns:
-            The validated instance.
-
-        Raises:
-            ValidationError: Pydantic wraps the ``RecurrenceError`` raised when
-                the recurrence exceeds ``RECURRENCE_ROUTINE_LIMITS``.
-        """
-        if self.recurrence is not None:
-            self.recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
-        return self
+    # No schedule cap here: this model is also how a STORED routine is re-read
+    # (the Studio's snapshots), and a cap the operator lowered since must not
+    # make it unreadable. A new routine meets the caps in
+    # `service.validate_routine_creation`; a changed schedule in
+    # `ScheduledActionUpdate` (ADR-268 amendment 2026-10-30).
 
     @model_validator(mode="after")
     def validate_trigger_mode(self) -> ScheduledActionCreate:
@@ -340,6 +337,11 @@ class ScheduledActionUpdate(BaseModel):
     def validate_against_routine_limits(self) -> ScheduledActionUpdate:
         """Refuse a new recurrence beyond what a routine may ask.
 
+        An update carries the schedule only when it CHANGES it, so this holds a
+        changed schedule to the operator's caps as they are now, read at
+        validation time (``routine_recurrence_limits``), and leaves a stored one
+        alone.
+
         Returns:
             The validated instance.
 
@@ -347,8 +349,51 @@ class ScheduledActionUpdate(BaseModel):
             ValidationError: On a recurrence over the routine cap.
         """
         if self.recurrence is not None:
-            self.recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
+            self.recurrence.validate_against(routine_recurrence_limits())
         return self
+
+
+#: One server key of a pre-approval, as the routine form sends it.
+MCPServerKey = Annotated[
+    str, StringConstraints(min_length=1, max_length=ROUTINE_MCP_SERVER_KEY_MAX_LENGTH)
+]
+
+
+class _MCPPreapprovalField(BaseModel):
+    """The pre-approval the routine FORM may write — and nothing else (spec D9).
+
+    Kept out of ``ScheduledActionCreate`` and ``ScheduledActionUpdate`` on
+    purpose: the agent's routine tools build those (the chat's automation tool,
+    the Studio's subclasses), and none of them may name a server.
+    """
+
+    mcp_preapproved_servers: list[MCPServerKey] | None = Field(
+        default=None,
+        max_length=ROUTINE_MCP_PREAPPROVAL_MAX_SERVERS,
+        description=(
+            "MCP server keys whose confirmations this routine's runs give "
+            "themselves: the account's own enabled servers, or administrator "
+            "servers it has not switched off. Null or empty = none."
+        ),
+    )
+
+
+class ScheduledActionFormCreate(ScheduledActionCreate, _MCPPreapprovalField):
+    """What the routine form creates: a routine, and its MCP pre-approval."""
+
+
+class ScheduledActionFormUpdate(ScheduledActionUpdate, _MCPPreapprovalField):
+    """What the routine form edits; an absent pre-approval is left as it is."""
+
+    def routine_changes(self) -> ScheduledActionUpdate:
+        """The routine's own changes, without the pre-approval the service writes apart.
+
+        Returns:
+            The changes as the shared schema states them, the fields set kept set.
+        """
+        return ScheduledActionUpdate.model_validate(
+            self.model_dump(exclude={"mcp_preapproved_servers"}, exclude_unset=True)
+        )
 
 
 class ScheduledActionResponse(BaseModel):
@@ -436,6 +481,17 @@ class ScheduledActionResponse(BaseModel):
     condition_state: dict | None = Field(
         default=None, exclude=True, description="The fact ledger, read here and never served."
     )
+    # Spec 2026-10-29 D9: the MCP servers a run may confirm for itself.
+    mcp_preapproved_servers: list[str] = Field(
+        default_factory=list,
+        description="MCP server keys this routine's runs may confirm for themselves.",
+    )
+
+    @field_validator("mcp_preapproved_servers", mode="before")
+    @classmethod
+    def read_preapproval_forgivingly(cls, value: object) -> list[str]:
+        """A stored pre-approval never fails a read (``stored_server_keys``)."""
+        return stored_server_keys(value)
 
     @model_validator(mode="after")
     def compute_schedule_display(self) -> ScheduledActionResponse:
@@ -516,16 +572,40 @@ def published_weather_rule() -> WeatherConditionRule:
     )
 
 
+class RoutineRecurrenceLimits(BaseModel):
+    """What a time routine's schedule may ask, as every routine door enforces it."""
+
+    max_times_per_day: int = Field(..., description="Most runs one day of the schedule may hold.")
+    min_step_minutes: int = Field(
+        ..., description="Shortest step of a schedule at a regular interval, in minutes."
+    )
+    max_series_count: int = Field(..., description="Most runs a series may count in total.")
+
+
+def published_recurrence_limits() -> RoutineRecurrenceLimits:
+    """The routine's limits as the validators read them — the form's own bounds."""
+    limits = routine_recurrence_limits()
+    return RoutineRecurrenceLimits(
+        max_times_per_day=limits.max_times_per_day,
+        min_step_minutes=limits.min_step_minutes,
+        max_series_count=limits.max_series_count,
+    )
+
+
 class ScheduledActionListResponse(BaseModel):
     """Schema for listing scheduled actions.
 
-    Also publishes the clock of a condition routine NOT YET created (ADR-322):
-    the studio states it before the person saves, and these are the values the
-    executor enforces — never a copy typed into the browser (ADR-184).
+    Also publishes the clock of a routine NOT YET created (ADR-322): the studio
+    states it before the person saves, and these are the values the executor and
+    the validators enforce — never a copy typed into the browser (ADR-184).
     """
 
     scheduled_actions: list[ScheduledActionResponse]
     total: int
+    recurrence_limits: RoutineRecurrenceLimits = Field(
+        default_factory=published_recurrence_limits,
+        description="What a time routine's schedule may ask (the operator's settings).",
+    )
     condition_check_minutes: dict[str, int] = Field(
         default_factory=published_check_minutes,
         description="How often the system checks each condition type, in minutes.",

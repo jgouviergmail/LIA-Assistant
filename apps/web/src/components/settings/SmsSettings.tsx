@@ -6,7 +6,7 @@ import { useSmsSettings } from '@/hooks/useSmsSettings';
 import { useSmsManagement } from '@/hooks/useSmsManagement';
 import { useSmsPreferenceUpdate } from '@/hooks/useSmsPreferenceUpdate';
 import { formatFileSize } from '@/lib/format';
-import { capabilityEnabled } from '@/lib/capability-state';
+import { smsAvailable } from '@/lib/sms/availability';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -15,22 +15,23 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { SmsTokenSettings } from '@/components/sms/SmsTokenSettings';
-import { SmsArchiveManagement } from '@/components/sms/SmsArchiveManagement';
 import { SmsConfirmation } from '@/components/sms/SmsConfirmation';
-import { SmsErasureProvider } from '@/components/sms/SmsErasure';
-import { SmsSettingsArchive } from './SmsSettingsArchive';
 import type { SmsPreferences } from '@/types/sms';
 import { cn } from '@/lib/utils';
 
 export function SmsSettings({ lng }: { lng: Language }) {
   const { config } = useAppConfig();
   const { user } = useAuth();
-  if (!capabilityEnabled(config?.capabilities, 'sms', config?.features.sms_enabled)) return null;
+  if (!smsAvailable(config)) return null;
   return <AccountSmsSettings key={user?.id ?? 'signed-out'} lng={lng} />;
 }
+/**
+ * How SMS reach LIA — the push, the ingestion tokens, the assistant's access, the
+ * statistics. The SMS themselves (consult, block a sender, erase) are the
+ * « SMS » page's (`SmsWorkspace`), behind the header's « SMS ».
+ */
 function AccountSmsSettings({ lng }: { lng: Language }) {
   const { t } = useTranslation(lng, 'translation');
-  const { user } = useAuth();
   const data = useSmsSettings();
   const actions = useSmsManagement();
   const preferenceUpdate = useSmsPreferenceUpdate(data.settings);
@@ -53,7 +54,6 @@ function AccountSmsSettings({ lng }: { lng: Language }) {
       <div className="min-w-0 space-y-2" aria-busy={data.settings.loading || busy}>
         {(data.settings.error ||
           data.tokens.error ||
-          data.blocks.error ||
           actions.error ||
           preferenceUpdate.error) && (
           <p role="alert" className="text-sm text-destructive">
@@ -142,24 +142,6 @@ function AccountSmsSettings({ lng }: { lng: Language }) {
                 </p>
               </div>
             </Disclosure>
-
-            <SmsErasureProvider
-              value={{
-                busy,
-                request: scope => {
-                  if ('message_ids' in scope) void actions.eraseMessage(scope.message_ids[0]);
-                  else void actions.propose('sms_messages.delete', scope);
-                },
-              }}
-            >
-              <SmsSettingsArchive lng={lng} />
-            </SmsErasureProvider>
-
-            <SmsArchiveManagement
-              data={data}
-              actions={actions}
-              timezone={user?.timezone || 'Europe/Paris'}
-            />
           </>
         )}
         <Button

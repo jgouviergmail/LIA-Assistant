@@ -85,6 +85,31 @@ access-secret exclusion before storage. Lock-screen confidentiality belongs to t
 device's own setting (show previews only when unlocked), which covers every
 notification alike.
 
+## Amendment 2026-10-31 — the SMS themselves have their own destination
+
+**Owner request.** The settings pane mixed two things: how SMS reach LIA, and the SMS
+themselves. The three views a person uses on their messages — consult them, block a
+sender, erase — move to a destination of their own, **SMS** in the header right after
+Relations, drawn like the other destinations (no settings panel behind them). Settings ›
+SMS keeps the push switch, the ingestion tokens, the assistant's access and the
+statistics. This supersedes the decision that mounted the archive below the statistics
+and redirected `/dashboard/sms` to the settings: `/dashboard/sms` IS the page now, and
+the links the API already wrote there (the chat card, the reception push) open it on
+their message.
+
+- **One verdict on whether SMS are offered** (`lib/sms/availability.smsAvailable`, the
+  operator's switch included) gates the destination, the page, the settings section, the
+  alerts hub and the relationship section. Switched off, the page says so and reads
+  nothing.
+- **Each surface reads what it shows.** The blocked senders are read by the page alone
+  (`useSmsBlockedSenders`); the settings read their settings and tokens, nothing else.
+  Both re-read in place when an SMS command lands (the source-owned `sms` resource).
+- **Every change stays a reviewed command**, confirmed in the same dialog; nothing about
+  the commands, the erasure scopes or the single-message deletion changes.
+- A link written before the move (`/dashboard/settings?section=sms&message=…`) still
+  names its message for the world's adapter (`dashboardDestination`); the web links
+  (the home card, the relationship section) point at the page.
+
 ## References
 
 - [Technical reference](../technical/SMS_INGESTION.md)

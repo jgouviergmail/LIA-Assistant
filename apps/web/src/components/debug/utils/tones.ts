@@ -215,6 +215,8 @@ const NODE_FAMILY_EXACT: Record<string, NodeFamily> = {
   hitl_dispatch: 'hitl',
   approval_gate: 'hitl',
   for_each_confirm: 'hitl',
+  // ADR-367: « which of the items shown did you mean? », asked before planning.
+  reference_disambiguation: 'hitl',
   task_orchestrator: 'execution',
   parallel_executor: 'execution',
   response: 'response',

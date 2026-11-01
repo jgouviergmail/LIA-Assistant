@@ -1,7 +1,7 @@
 # Guide API REST - LIA
 
 **Version** : 2.1
-**Dernière mise à jour** : 2026-10-12
+**Dernière mise à jour** : 2026-11-01
 **Statut** : ✅ Stable
 
 > **Documentation complète de l'API REST FastAPI v1**
@@ -2176,7 +2176,10 @@ stocke developpe.
 - Les moments sont interpretes dans le timezone de l'utilisateur, en heure
   murale : un changement d'heure deplace l'instant UTC, jamais l'heure affichee
 - Le nombre de declenchements par jour et la longueur de serie sont plafonnes
-  par appelant (12 par jour et 500 occurrences pour une routine)
+  par appelant : pour une routine, `SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY` par jour et
+  un pas d'au moins `SCHEDULED_ACTIONS_MIN_STEP_MINUTES` minutes (reglages de
+  l'operateur, publies dans `recurrence_limits` de `GET /scheduled-actions`), et 500
+  occurrences ; un depassement a la creation repond `400`
 
 **Response :** `201 Created` — `ScheduledActionResponse`
 

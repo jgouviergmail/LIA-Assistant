@@ -12,10 +12,11 @@ Scopes required:
 - Mail.Read, Mail.ReadWrite, Mail.Send
 """
 
+import asyncio
 import base64
 from collections import deque
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -26,6 +27,7 @@ from src.core.constants import (
     MICROSOFT_MAIL_FOLDERS_PAGE_SIZE,
     OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES,
 )
+from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_CACHED_AT, FIELD_SET_ASIDE_ON_PAGE
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
@@ -41,21 +43,41 @@ from src.domains.connectors.clients.mail_folders import (
     MailFolder,
     find_mail_folder,
 )
+from src.domains.connectors.clients.mail_read_state import (
+    READ_STATE_FAILED,
+    READ_STATE_NOT_FOUND,
+    read_state_result,
+    unique_ids,
+)
 from src.domains.connectors.clients.normalizers.graph_mail_query import (
     GraphMailQuery,
     graph_mail_query,
 )
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
+    GRAPH_SYSTEM_FOLDERS,
     build_graph_recipients,
     normalize_graph_folder,
     normalize_graph_message,
 )
 from src.domains.connectors.clients.outlook_drafts_mixin import OutlookDraftsMixin
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.email.outgoing import OutgoingAttachment
 
 logger = structlog.get_logger(__name__)
+
+
+def _segment(graph_id: str) -> str:
+    """An id handed in (a message, an attachment) as ONE segment of a Graph URL path."""
+    return path_segment(graph_id, connector_type=ConnectorType.MICROSOFT_OUTLOOK)
+
+
+#: Messages whose read state is changed at once: Graph has no batch for it, and a
+#: mailbox throttles a burst of PATCHes (it answers 429 with a Retry-After).
+_READ_STATE_CONCURRENCY: Final = 4
+#: Graph answers a body in the format this header asks for (a text body rendered as HTML).
+_PREFER_HTML_BODY: Final = {"Prefer": 'outlook.body-content-type="html"'}
 
 # Default fields to request from Microsoft Graph (performance optimization)
 _MESSAGE_SELECT_FIELDS = (
@@ -294,7 +316,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             "$expand": "attachments($select=id,name,contentType,size)",
         }
 
-        response = await self._make_request("GET", f"/me/messages/{message_id}", params)
+        response = await self._make_request("GET", f"/me/messages/{_segment(message_id)}", params)
 
         logger.info(
             "outlook_get_message",
@@ -307,6 +329,25 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }
+
+    async def get_message_html(self, message_id: str) -> str | None:
+        """The message's HTML body, for display only (ADR-369, D3; ADR-287).
+
+        Only the body is read, asked for as HTML: Graph renders a body stored as
+        text into HTML, so an Outlook message nearly always has one. A body
+        still answered as text, or an empty one, has none to show.
+        """
+        response = await self._make_request(
+            "GET",
+            f"/me/messages/{_segment(message_id)}",
+            {"$select": "body"},
+            extra_headers=_PREFER_HTML_BODY,
+        )
+        body = response.get("body") or {}
+        content = body.get("content")
+        if str(body.get("contentType") or "").lower() != "html" or not isinstance(content, str):
+            return None
+        return content or None
 
     async def download_attachment(
         self,
@@ -337,9 +378,10 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             EmailAttachmentAmbiguousError: The name matches several parts.
             EmailAttachmentTooLargeError: The listed size exceeds the bound.
         """
+        message = _segment(message_id)
         listing = await self._make_request(
             "GET",
-            f"/me/messages/{message_id}/attachments",
+            f"/me/messages/{message}/attachments",
             {"$select": "id,name,contentType,size"},
         )
         listed = [
@@ -354,7 +396,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         chosen = select_attachment(listed, attachment_id=attachment_id, filename=filename)
         ensure_within_bound(chosen, max_bytes=max_bytes)
         part = await self._make_request(
-            "GET", f"/me/messages/{message_id}/attachments/{chosen['attachmentId']}"
+            "GET", f"/me/messages/{message}/attachments/{_segment(chosen['attachmentId'])}"
         )
         encoded = part.get("contentBytes")
         if not encoded:
@@ -482,7 +524,10 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             }
 
         await self._make_request(
-            "POST", f"/me/messages/{message_id}/{action}", json_data=reply_body, max_retries=1
+            "POST",
+            f"/me/messages/{_segment(message_id)}/{action}",
+            json_data=reply_body,
+            max_retries=1,
         )
 
         logger.info(
@@ -530,7 +575,10 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             forward_body["ccRecipients"] = build_graph_recipients(cc)
 
         await self._make_request(
-            "POST", f"/me/messages/{message_id}/forward", json_data=forward_body, max_retries=1
+            "POST",
+            f"/me/messages/{_segment(message_id)}/forward",
+            json_data=forward_body,
+            max_retries=1,
         )
 
         logger.info(
@@ -555,7 +603,9 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         """
         move_body: dict[str, Any] = {"destinationId": "deleteditems"}
 
-        await self._make_request("POST", f"/me/messages/{message_id}/move", json_data=move_body)
+        await self._make_request(
+            "POST", f"/me/messages/{_segment(message_id)}/move", json_data=move_body
+        )
 
         logger.info(
             "outlook_email_trashed",
@@ -564,6 +614,60 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         )
 
         return {"id": message_id, "labelIds": ["TRASH"], "threadId": ""}
+
+    async def mark_read(self, message_ids: Sequence[str], read: bool) -> dict[str, Any]:
+        """Mark messages read or unread, and say which could not be (ADR-369, D2).
+
+        Graph has no batch for ``isRead``: one PATCH per message, a few at a time.
+        A message gone since it was listed is named; an authorisation failure
+        stops the whole selection (the siblings are cancelled with it).
+
+        Args:
+            message_ids: The messages (each counted once).
+            read: True to mark them read, False unread.
+
+        Returns:
+            ``{"updated": [ids], "failed": [{"id", "status"}]}``
+            (``mail_read_state``).
+        """
+        ids = unique_ids(message_ids)
+        gate = asyncio.Semaphore(_READ_STATE_CONCURRENCY)
+
+        async def mark(message_id: str) -> str | None:
+            async with gate:
+                try:
+                    # Setting a state twice leaves it set once: a lost answer may be resent.
+                    await self._make_request(
+                        "PATCH",
+                        f"/me/messages/{_segment(message_id)}",
+                        json_data={"isRead": read},
+                        idempotent=True,
+                    )
+                except ConnectorAPIError as refused:
+                    gone = refused.upstream_status_code in (404, 410)
+                    return READ_STATE_NOT_FOUND if gone else READ_STATE_FAILED
+                return None
+
+        try:
+            async with asyncio.TaskGroup() as group:
+                marked = {message_id: group.create_task(mark(message_id)) for message_id in ids}
+        except* Exception as failures:
+            # A TaskGroup raises a GROUP even for one failure: raised as ITSELF, the
+            # refusal stays classifiable by its type (reconnect, rate limit).
+            raise failures.exceptions[0] from None
+        outcomes = {message_id: task.result() for message_id, task in marked.items()}
+        result = read_state_result(
+            [message_id for message_id, status in outcomes.items() if status is None],
+            [(message_id, status) for message_id, status in outcomes.items() if status],
+        )
+        logger.info(
+            "outlook_read_state_changed",
+            user_id=str(self.user_id),
+            read=read,
+            updated=len(result["updated"]),
+            failed=len(result["failed"]),
+        )
+        return result
 
     # =========================================================================
     # LABELS (FOLDERS)
@@ -593,6 +697,39 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         )
 
         return labels
+
+    async def system_folder_ids(self) -> frozenset[str]:
+        """The ids of the folders a folder pane draws as system places (ADR-369).
+
+        Graph names a well-known folder in the mailbox's own language (« Boîte
+        de réception »), so its display name says nothing of its role; its
+        well-known name holds in every locale. One read per folder, together; a
+        folder the mailbox never created (no archive yet) answers 404 and is not
+        among them — any other failure stops the reading, siblings cancelled.
+
+        Returns:
+            Their Graph ids.
+        """
+
+        async def read(name: str) -> str | None:
+            try:
+                folder = await self._make_request(
+                    "GET", f"/me/mailFolders/{name}", {"$select": "id"}
+                )
+            except ConnectorAPIError as refused:
+                if refused.upstream_status_code == 404:
+                    return None
+                raise
+            folder_id = folder.get("id")
+            return str(folder_id) if folder_id else None
+
+        try:
+            async with asyncio.TaskGroup() as group:
+                reads = [group.create_task(read(name)) for name in GRAPH_SYSTEM_FOLDERS]
+        except* Exception as failures:
+            # Raised as ITSELF, the failure stays classifiable by its type.
+            raise failures.exceptions[0] from None
+        return frozenset(found for task in reads if (found := task.result()))
 
     async def resolve_label_names_in_query(self, query: str, use_cache: bool = True) -> str:
         """

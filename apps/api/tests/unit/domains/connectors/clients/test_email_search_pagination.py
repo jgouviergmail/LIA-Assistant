@@ -92,7 +92,12 @@ class TestGmailPagination:
             await gmail.search_emails("in:inbox", max_results=5)
             await gmail.search_emails("in:inbox", max_results=5, page_token="tok-2")
 
-        keys = [call.args[0] for call in redis.get.await_args_list]
+        # The mailbox's cache generation is read too (ADR-369): only the page keys count.
+        keys = [
+            call.args[0]
+            for call in redis.get.await_args_list
+            if call.args[0].startswith("gmail:search:")
+        ]
         assert len(keys) == 2 and keys[0] != keys[1]
 
 

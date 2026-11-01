@@ -102,6 +102,8 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_WORLD_ENABLED = "capability_world_enabled"
     # ADR-327 — skills found on a portal and installed from their repository.
     CAPABILITY_SKILL_LIBRARY_ENABLED = "capability_skill_library_enabled"
+    # ADR-369 — the person's own door onto their connected services (« Tools »).
+    CAPABILITY_WORKBENCH_ENABLED = "capability_workbench_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

@@ -57,23 +57,24 @@ from src.core.text_clip import clip_data
 from src.domains.agents.application.draft_rendering import render_application_preview
 from src.domains.agents.drafts.card_html import CardSurface, to_html_card
 from src.domains.agents.drafts.card_spec import (
-    Block,
     CardSpec,
-    Note,
     PreviewLine,
-    Row,
     first_block_index,
     to_markdown_lines,
 )
+from src.domains.agents.drafts.dates import draft_datetime_formatter, shown_end
 from src.domains.agents.drafts.models import DraftType
+from src.domains.agents.drafts.preview_rows import FormatDt as _FormatDt
+from src.domains.agents.drafts.preview_rows import block as _block
+from src.domains.agents.drafts.preview_rows import first_item_value as _first_item_value
+from src.domains.agents.drafts.preview_rows import note as _note
+from src.domains.agents.drafts.preview_rows import row as _row
+from src.domains.agents.drafts.preview_rows import updated_datetime_row as _updated_datetime_row
+from src.domains.agents.drafts.preview_rows import updated_row as _updated_row
 from src.domains.shared.markdown_literal import markdown_data_literal
 
 if TYPE_CHECKING:
     from src.domains.agents.drafts.models import Draft
-
-# Formats an ISO datetime string for display, or "" for a falsy input. Bound
-# to the user's language/timezone by render_detailed_preview().
-_FormatDt = Callable[[str | None], str]
 
 # One renderer per DraftType: (content, labels, format_dt) -> the card's lines,
 # DESCRIBED (ADR-289) — the Markdown and the HTML forms are drawn from them.
@@ -86,118 +87,7 @@ _TOOL_CALL_MAX_ARGS = 6
 _TOOL_CALL_MAX_VALUE_CHARS = 80
 
 
-# =============================================================================
-# THE VOCABULARY: what a preview is made of
-# =============================================================================
-
-
-def _row(lbl: dict[str, str], key: str, value: object) -> Row:
-    """One field of a card, described under its localized label.
-
-    The form — a Markdown list item, a ``lia-card`` key/value row — is drawn
-    later by the surface's serializer (ADR-289); the grammar every surface
-    shares lives in :mod:`~src.domains.agents.drafts.markdown_grammar`.
-
-    Args:
-        lbl: The localized labels.
-        key: Which field this row is.
-        value: What to show for it.
-
-    Returns:
-        The described row.
-    """
-    return Row(lbl[key], value, key=key)
-
-
-def _note(text: str) -> Note:
-    """A line with no label: a statement, or one line of data.
-
-    Args:
-        text: The line, already localized or already rendered.
-
-    Returns:
-        The described note.
-    """
-    return Note(text)
-
-
-def _block(lbl: dict[str, str], key: str, text: str) -> Block:
-    """A field whose value is a TEXT carrying its own paragraphs.
-
-    Args:
-        lbl: The localized labels.
-        key: Which field this block is.
-        text: The value, newlines and all.
-
-    Returns:
-        The described block.
-    """
-    return Block(lbl[key], text)
-
-
 _first_block_index = first_block_index
-
-
-# =============================================================================
-# SHARED ROW HELPERS (update-type "modified ✏️ or preserved" pattern)
-# =============================================================================
-
-
-def _updated_row(
-    lbl: dict[str, str], key: str, new_value: str | None, current_value: str
-) -> Row | None:
-    """Render an update-preview row showing the new value or the current one.
-
-    Args:
-        lbl: The localized labels.
-        key: Which field this row is.
-        new_value: Value from the draft content (``None``/empty = unchanged).
-        current_value: Value read from the current resource snapshot.
-
-    Returns:
-        The formatted row (suffixed with `` ✏️`` when the field is modified),
-        or ``None`` when both values are empty and the row must be omitted.
-    """
-    value = new_value or current_value
-    if not value:
-        return None
-    mark = " ✏️" if new_value else ""
-    return _row(lbl, key, f"{value}{mark}")
-
-
-def _updated_datetime_row(
-    lbl: dict[str, str],
-    key: str,
-    new_raw: str | None,
-    current_raw: str,
-    format_dt: _FormatDt,
-) -> Row | None:
-    """Render an update-preview datetime row (new value marked, else current).
-
-    Args:
-        lbl: The localized labels.
-        key: Which field this row is.
-        new_raw: Raw ISO datetime from the draft content, if modified.
-        current_raw: Raw ISO datetime from the current resource snapshot.
-        format_dt: Localized datetime formatter.
-
-    Returns:
-        The formatted row, or ``None`` when neither value is set.
-    """
-    value = format_dt(new_raw) if new_raw else format_dt(current_raw) if current_raw else ""
-    if not value:
-        return None
-    mark = " ✏️" if new_raw else ""
-    return _row(lbl, key, f"{value}{mark}")
-
-
-def _first_item_value(items: list[dict[str, Any]], key: str, default: str = "") -> str:
-    """Return ``items[0][key]`` with a default for empty lists or missing keys.
-
-    Mirrors the Google People API shape (``names``, ``emailAddresses``, ...)
-    where the first entry is the primary value.
-    """
-    return items[0].get(key, default) if items else default
 
 
 # =============================================================================
@@ -309,8 +199,6 @@ def _render_event(
 ) -> list[PreviewLine]:
     """Render an event creation preview (summary, times, place, attendees)."""
     summary = content.get("summary", "")
-    start = format_dt(content.get("start_datetime", ""))
-    end = format_dt(content.get("end_datetime", ""))
     location = content.get("location", "")
     description = content.get("description", "")
     attendees = content.get("attendees", [])
@@ -318,10 +206,7 @@ def _render_event(
     # An event with no times is a draft the model left incomplete; « Début: »
     # over nothing states less than saying nothing at all.
     lines: list[PreviewLine] = [_row(lbl, "event", summary)]
-    if start:
-        lines.append(_row(lbl, "start", start))
-    if end:
-        lines.append(_row(lbl, "end", end))
+    lines += _event_time_rows(content, lbl, format_dt)
     if location:
         lines.append(_row(lbl, "location", location))
     if attendees:
@@ -333,6 +218,46 @@ def _render_event(
     return lines
 
 
+def _event_time_rows(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
+    """A new event's start and end rows — its days, the LAST one shown, when all-day."""
+    all_day = bool(content.get("all_day"))
+    start_raw = content.get("start_datetime") or ""
+    end_raw = shown_end(content.get("end_datetime") or "")
+    rows: list[PreviewLine] = []
+    start = format_dt(start_raw)
+    if start:
+        rows.append(_row(lbl, "start", f"{start} ({lbl['all_day']})" if all_day else start))
+    end = format_dt(end_raw)
+    if end and end_raw != start_raw:
+        rows.append(_row(lbl, "end", end))
+    return rows
+
+
+def _updated_time_rows(
+    content: dict[str, Any],
+    current: dict[str, Any],
+    lbl: dict[str, str],
+    format_dt: _FormatDt,
+) -> list[PreviewLine]:
+    """An update's start and end rows: new values marked, an all-day end as its last day."""
+    current_start = current.get("start", {}).get(
+        "dateTime", current.get("start", {}).get("date", "")
+    )
+    current_end = current.get("end", {}).get("dateTime", current.get("end", {}).get("date", ""))
+    new_end = content.get("end_datetime")
+    rows = [
+        _updated_datetime_row(
+            lbl, "start", content.get("start_datetime"), current_start, format_dt
+        ),
+        _updated_datetime_row(
+            lbl, "end", shown_end(new_end) if new_end else None, shown_end(current_end), format_dt
+        ),
+    ]
+    return [row for row in rows if row]
+
+
 def _render_event_update(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
@@ -341,19 +266,7 @@ def _render_event_update(
     summary = content.get("summary") or current.get("summary", "?")
     lines: list[PreviewLine] = [_row(lbl, "event", summary)]
 
-    current_start = current.get("start", {}).get(
-        "dateTime", current.get("start", {}).get("date", "")
-    )
-    start_row = _updated_datetime_row(
-        lbl, "start", content.get("start_datetime"), current_start, format_dt
-    )
-    if start_row:
-        lines.append(start_row)
-
-    current_end = current.get("end", {}).get("dateTime", current.get("end", {}).get("date", ""))
-    end_row = _updated_datetime_row(lbl, "end", content.get("end_datetime"), current_end, format_dt)
-    if end_row:
-        lines.append(end_row)
+    lines += _updated_time_rows(content, current, lbl, format_dt)
 
     location_row = _updated_row(
         lbl, "location", content.get("location"), current.get("location", "")
@@ -434,6 +347,16 @@ def _render_contact_update(
     if phone_row:
         lines.append(phone_row)
 
+    # The primary address it replaces (ADR-369) — an address change was confirmed unseen.
+    address_row = _updated_row(
+        lbl,
+        "address",
+        content.get("address"),
+        _first_item_value(current.get("addresses", []), "formattedValue"),
+    )
+    if address_row:
+        lines.append(address_row)
+
     organization_row = _updated_row(
         lbl,
         "organization",
@@ -486,8 +409,12 @@ def _render_task_update(
     mark = " ✏️" if new_title else ""
     lines: list[PreviewLine] = [_row(lbl, "task", f"{title_value}{mark}")]
 
-    due_row = _updated_datetime_row(
-        lbl, "due", content.get("due"), current.get("due", ""), format_dt
+    due_row = (
+        _row(lbl, "due", f"{lbl['due_removed']} ✏️")
+        if content.get("clear_due")
+        else _updated_datetime_row(
+            lbl, "due", content.get("due"), current.get("due", ""), format_dt
+        )
     )
     if due_row:
         lines.append(due_row)
@@ -944,15 +871,9 @@ def build_card_spec(
         ``DraftType`` values, which the startup assert keeps complete).
     """
     user_language = resolve_language(user_language)
-    from src.core.time_utils import format_datetime_for_display
     from src.domains.agents.drafts.display import get_draft_emoji
 
-    def format_dt(dt_str: str | None) -> str:
-        """Format an ISO datetime string for display."""
-        if not dt_str:
-            return ""
-        return format_datetime_for_display(dt_str, user_timezone, user_language, include_time=True)
-
+    format_dt = draft_datetime_formatter(user_timezone, user_language)
     lbl = get_draft_preview_labels(user_language)
     renderer = _PREVIEW_RENDERERS.get(draft.type)
     lines = renderer(draft.content, lbl, format_dt) if renderer else []

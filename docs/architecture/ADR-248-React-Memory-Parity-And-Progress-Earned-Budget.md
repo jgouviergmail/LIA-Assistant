@@ -170,3 +170,11 @@ a prefetched bundle with no document is final. And the tool cap no longer
 cuts in registration order: the loop binds by relevance and keeps every
 family reachable through its best-ranked tools (ADR-293), so the
 knowledge-space search is never the tool that falls off.
+
+## Amendment 2026-10-30 — the loop knows which shown item the turn designates ([ADR-367](ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md))
+
+« Reply to the second one », « reply to Marc's e-mail », the option chosen when asked: the router
+resolves them for the planner, and the loop never received them — it searched again. The setup now
+mounts `<DesignatedItems>` (`react_context.build_designated_items_block`): the planner's own
+rendering, quoted as external content, read from the state the SMS policy guarded, and only on a
+turn that designates an item.

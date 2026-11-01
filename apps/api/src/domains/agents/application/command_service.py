@@ -27,6 +27,9 @@ from src.infrastructure.database.session import get_db_context
 class CommandRejected(ValueError):
     """A finite refusal code, never raw payloads or dependency diagnostics."""
 
+    #: What the model reads when this refusal ends a proposal.
+    model_message = "Application proposal refused."
+
     def __init__(self, code: str) -> None:
         self.code = code
         super().__init__(code)

@@ -40,7 +40,9 @@ from src.domains.connectors.clients.apple_compose import (
 from src.domains.connectors.clients.apple_drafts_mixin import AppleDraftsMixin
 from src.domains.connectors.clients.apple_imap import (
     TRASH_ROLE,
+    ImapMessageNotFoundError,
     authenticated_imap_mailbox,
+    located_message,
     mailbox_scope,
     message_cache_key,
     move_messages,
@@ -49,6 +51,8 @@ from src.domains.connectors.clients.apple_imap import (
     select_message_folder,
     special_folder,
 )
+from src.domains.connectors.clients.apple_mail_html import AppleMailHtmlMixin
+from src.domains.connectors.clients.apple_mail_state_mixin import AppleMailStateMixin
 from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
     BaseAppleClient,
@@ -67,10 +71,7 @@ from src.domains.connectors.clients.normalizers.email_normalizer import (
     normalize_imap_message,
     parse_imap_query,
 )
-from src.domains.connectors.clients.normalizers.imap_handles import (
-    MessageLocation,
-    read_message_handle,
-)
+from src.domains.connectors.clients.normalizers.imap_handles import read_message_handle
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import AppleCredentials
 from src.infrastructure.cache.redis import get_redis_session
@@ -80,19 +81,7 @@ from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 logger = structlog.get_logger(__name__)
 
 
-def _located(message_id: str) -> MessageLocation:
-    """Where an id says its message is; an id that cannot be one names no message.
-
-    Raises:
-        ValueError: The id lacks a valid account/folder/UIDVALIDITY binding.
-    """
-    location = read_message_handle(message_id)
-    if location is None or location.scope_digest is None:
-        raise ValueError("Message not found: list the messages again for a current identifier.")
-    return location
-
-
-class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
+class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin, BaseAppleClient):
     """
     Apple iCloud Email client using IMAP/SMTP.
 
@@ -503,7 +492,7 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
         use_cache: bool,
     ) -> dict[str, Any]:
         """Get a single message, checking Redis cache first."""
-        location = _located(message_id)
+        location = located_message(message_id)
         # Check Redis cache (populated by search_emails)
         if use_cache:
             try:
@@ -545,7 +534,7 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
                     if folder is not None:
                         for msg in mailbox.fetch(AND(uid=location.uid), mark_seen=False):
                             return normalize_imap_message(msg, folder, scope=location.scope_digest)
-                    raise ValueError(f"Message {message_id} not found")
+                    raise ImapMessageNotFoundError(f"Message {message_id} not found")
             except ValueError:
                 raise
             except Exception as e:
@@ -683,10 +672,10 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
         """The original message, read in the folder its id names, and its files when asked.
 
         Raises:
-            ValueError: No such message.
+            ImapMessageNotFoundError: No such message.
         """
         files: list[OutgoingAttachment] = []
-        location = _located(message_id)
+        location = located_message(message_id)
 
         def _fetch_with_attachments() -> dict[str, Any]:
             try:
@@ -704,7 +693,7 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
                                     for att in msg.attachments
                                 )
                             return normalize_imap_message(msg, folder, scope=location.scope_digest)
-                    raise ValueError(f"Message {message_id} not found")
+                    raise ImapMessageNotFoundError(f"Message {message_id} not found")
             except ValueError:
                 raise
             except Exception as e:
@@ -719,7 +708,7 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
         A UID names a message within ONE folder (``imap_handles``): the id says
         which, so another folder's message of the same number is never moved.
         """
-        location = _located(message_id)
+        location = located_message(message_id)
 
         def _imap_trash() -> dict[str, Any]:
             try:
@@ -733,7 +722,7 @@ class AppleEmailClient(AppleDraftsMixin, BaseAppleClient):
                         mailbox, location, principal=self.credentials.apple_id
                     )
                     if folder is None or not mailbox.uids(AND(uid=location.uid)):
-                        raise ValueError(f"Message {message_id} not found")
+                        raise ImapMessageNotFoundError(f"Message {message_id} not found")
                     uids = [location.uid]
                     # A failure after COPY may have stored a copy: never replay it.
                     # Shared cleanup targets only these UIDs, never global EXPUNGE.

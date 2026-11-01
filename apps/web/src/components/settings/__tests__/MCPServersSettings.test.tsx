@@ -26,53 +26,58 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => {
 
 const { useUserMCPServers } = vi.hoisted(() => ({ useUserMCPServers: vi.fn() }));
 vi.mock('@/hooks/useUserMCPServers', () => ({ useUserMCPServers }));
+type BehaviorQuery = ReturnType<typeof import('@/hooks/useMCPServerBehavior').useMCPServerBehavior>;
+
+// The page reads each server's synthesis and previews changes (spec 2026-10-30);
+// these tests leave it empty and every preview without a question lost.
+const { useMCPServerBehavior, useMCPBehaviorPreview, useMCPToolChoice } = vi.hoisted(() => {
+  const previews = {
+    previewServer: vi.fn(async () => ({ behavior: undefined, questions_lost: [] })),
+    previewStrategy: vi.fn(async () => ({ questions_lost: [] })),
+  };
+  return {
+    useMCPServerBehavior: vi.fn(
+      (): BehaviorQuery => ({
+        behavior: undefined,
+        loading: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+    ),
+    useMCPBehaviorPreview: vi.fn(() => previews),
+    useMCPToolChoice: vi.fn(() => ({ setToolChoice: vi.fn() })),
+  };
+});
+vi.mock('@/hooks/useMCPServerBehavior', () => ({
+  useMCPServerBehavior,
+  useMCPBehaviorPreview,
+  useMCPToolChoice,
+}));
 const { toast } = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 vi.mock('sonner', () => ({ toast }));
 
+import {
+  mcpBehaviorFixture,
+  mcpDefaultsFixture,
+  mcpToolBehaviorFixture,
+} from '@/__tests__/fixtures/mcp-behavior';
+import { userMCPServerFixture as server } from '@/__tests__/fixtures/mcp-servers';
 import { MCPServersSettings } from '../MCPServersSettings';
-import type {
-  MCPDiscoveredTool,
-  UserMCPServer,
-  useUserMCPServers as useUserMCPServersFn,
-} from '@/hooks/useUserMCPServers';
+import type { MCPToolBehavior } from '@/lib/mcp-behavior';
+import type { useUserMCPServers as useUserMCPServersFn } from '@/hooks/useUserMCPServers';
 
 type McpHook = ReturnType<typeof useUserMCPServersFn>;
-
-function server(over: Partial<UserMCPServer> = {}): UserMCPServer {
-  return {
-    id: 's1',
-    name: 'Weather MCP',
-    url: 'https://mcp.example.com/sse',
-    plugin_id: null,
-    auth_type: 'none',
-    status: 'active',
-    is_enabled: true,
-    domain_description: null,
-    timeout_seconds: 30,
-    hitl_required: null,
-    iterative_mode: false,
-    header_name: null,
-    has_credentials: false,
-    has_oauth_credentials: false,
-    oauth_scopes: null,
-    tool_count: 2,
-    tools: [],
-    last_connected_at: null,
-    last_error: null,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...over,
-  };
-}
 
 function hook(over: Partial<McpHook> = {}) {
   return {
     ownerId: 'owner',
     servers: [],
     total: 0,
+    defaults: mcpDefaultsFixture(),
     loading: false,
+    refetch: vi.fn(),
     createServer: vi.fn(),
     updateServer: vi.fn(),
     deleteServer: vi.fn(),
@@ -223,13 +228,21 @@ describe('MCPServersSettings — plugin-owned server lock (ADR-225 arbitrage F)'
   });
 });
 
-describe('MCPServersSettings — discovered tools', () => {
-  function toolTest(tools: MCPDiscoveredTool[]) {
+describe('MCPServersSettings — the tools of a tested server', () => {
+  // After a test the dialog shows what the server will do: its tools come from the
+  // synthesis, which replaced the bare list (spec 2026-10-30 § 4) and keeps what it
+  // showed — the declared title, the technical name, the description.
+  function toolTest(tools: Partial<MCPToolBehavior>[]) {
     const testConnection = vi
       .fn()
-      .mockResolvedValue({ success: true, tool_count: tools.length, tools });
+      .mockResolvedValue({ success: true, tool_count: tools.length, tools: [] });
+    useMCPServerBehavior.mockReturnValue({
+      behavior: mcpBehaviorFixture({ tools: tools.map(tool => mcpToolBehaviorFixture(tool)) }),
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     useUserMCPServers.mockReturnValue(hook({ servers: [server()], testConnection }));
-    return testConnection;
   }
 
   it('shows the human title the server declares', async () => {
@@ -240,7 +253,6 @@ describe('MCPServersSettings — discovered tools', () => {
       {
         tool_name: 'accounts__list_financial_accounts',
         description: 'List all linked bank accounts',
-        input_schema: {},
         title: 'Financial accounts',
       },
     ]);
@@ -257,7 +269,6 @@ describe('MCPServersSettings — discovered tools', () => {
       {
         tool_name: 'accounts__list_financial_accounts',
         description: 'List all linked bank accounts',
-        input_schema: {},
         title: 'Financial accounts',
       },
     ]);
@@ -268,7 +279,7 @@ describe('MCPServersSettings — discovered tools', () => {
   });
 
   it('falls back to the technical name when the server declares none', async () => {
-    toolTest([{ tool_name: 'search_threads', description: 'Search', input_schema: {} }]);
+    toolTest([{ tool_name: 'search_threads', description: 'Search', title: null }]);
     const { user } = render();
     await user.click(screen.getByRole('button', { name: TEST }));
 
@@ -277,8 +288,8 @@ describe('MCPServersSettings — discovered tools', () => {
 
   it('shows each tool description', async () => {
     toolTest([
-      { tool_name: 'a', description: 'Alpha does things', input_schema: {} },
-      { tool_name: 'b', description: 'Beta does others', input_schema: {} },
+      { tool_name: 'a', description: 'Alpha does things' },
+      { tool_name: 'b', description: 'Beta does others' },
     ]);
     const { user } = render();
     await user.click(screen.getByRole('button', { name: TEST }));
@@ -324,6 +335,9 @@ describe('MCPServersSettings — the server cards', () => {
     render();
 
     const card = screen.getByRole('listitem');
+    expect(
+      within(card).getByRole('button', { name: 'settings.mcp.behavior.action' })
+    ).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: TEST })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'common.edit' })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: DELETE })).toBeInTheDocument();

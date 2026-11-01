@@ -39,7 +39,7 @@ from src.domains.agents.constants import STATE_KEY_CURRENT_TURN_ID
 from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
 from src.domains.agents.nodes.react_call_execution import CallPorts, execute_call
-from src.domains.agents.nodes.react_drafts import extract_draft_info as _extract_draft_info
+from src.domains.agents.nodes.react_drafts import extract_drafts as _extract_drafts
 from src.domains.agents.nodes.react_egress_question import invoke_with_settlement
 from src.domains.agents.nodes.react_execution import (
     execute_checkpointed_batch,
@@ -504,7 +504,7 @@ async def _execute_react_calls(
         runtime=_build_tool_runtime,
         interrupt=interrupt,
         timeout=compute_step_timeout,
-        draft=_extract_draft_info,
+        draft=_extract_drafts,
         result_budget=slot_tool_result_budget("react_agent"),
         store=await get_tool_context_store(),
     )

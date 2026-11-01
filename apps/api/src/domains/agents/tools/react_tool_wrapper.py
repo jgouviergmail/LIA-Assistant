@@ -10,8 +10,8 @@ LLM sees the same interface. The _arun() method delegates to the original tool,
 then extracts registry_updates → _accumulated_registry (for frontend data cards).
 
 Draft detection (mutation tools returning requires_confirmation) is handled at the
-node level in react_execute_tools_node via _extract_draft_info(), which reads the
-executable draft content from the registry payload (the wrapper does not collect
+node level in react_execute_tools_node via _extract_drafts(), which reads every
+draft's executable content from the registry payload (the wrapper does not collect
 drafts — see ADR-070 amendment 2026-05-20).
 
 **The Data block is projected item by item under a token budget (ADR-286).**

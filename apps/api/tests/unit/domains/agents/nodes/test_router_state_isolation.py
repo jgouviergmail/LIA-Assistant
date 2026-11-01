@@ -301,6 +301,8 @@ class TestRouterResetsTheDraftReview:
             "draft_action_result": {"action": "confirm"},
             "draft_edit_iteration": 3,
             "draft_clarification_question": "stale?",
+            "held_plan": {"plan_id": "stale", "held": {"s2": ["stale"]}},
+            "executed_drafts": {"stale": {"status": "success"}},
         }
         assert key in stale, f"{key} needs a stale value in this test"
         state.update(stale)

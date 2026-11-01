@@ -152,10 +152,16 @@ class _PolicyGenaiTransport(genai_transport.BaseApiClient):
             raise _genai_verdict(error) from error
 
     async def _async_request_once(
-        self, http_request: genai_transport.HttpRequest, stream: bool = False
+        self,
+        http_request: genai_transport.HttpRequest,
+        stream: bool = False,
+        *,
+        implicit_retry: bool = True,
     ) -> genai_transport.HttpResponse:
         try:
-            return await super()._async_request_once(http_request, stream)
+            return await super()._async_request_once(
+                http_request, stream, implicit_retry=implicit_retry
+            )
         except httpx.TransportError as error:
             if never_reached_the_server(error):
                 raise

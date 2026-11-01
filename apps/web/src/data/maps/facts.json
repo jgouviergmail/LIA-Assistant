@@ -1,7 +1,7 @@
 {
-  "version": "4.2.0",
-  "releaseDate": "2026-10-30",
-  "releases": 292,
+  "version": "4.3.0",
+  "releaseDate": "2026-11-01",
+  "releases": 293,
   "milestones": [
     {
       "version": "1.0.0",
@@ -266,9 +266,13 @@
     {
       "version": "4.2.0",
       "date": "2026-10-30"
+    },
+    {
+      "version": "4.3.0",
+      "date": "2026-11-01"
     }
   ],
-  "domains": 59,
+  "domains": 60,
   "infra": 55,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -634,6 +638,9 @@
     "363": "ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md",
     "364": "ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md",
     "365": "ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md",
-    "366": "ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md"
+    "366": "ADR-366-Personal-MCP-Catalogue-Snapshot-Served-While-Revalidated-Verified-At-Use.md",
+    "367": "ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md",
+    "368": "ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md",
+    "369": "ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md"
   }
 }

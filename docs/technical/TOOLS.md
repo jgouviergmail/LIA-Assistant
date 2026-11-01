@@ -4,7 +4,15 @@
 
 **Version**: 2.2
 **Date**: 2026-03-02
-**Updated**: 17 domaines natifs + MCP externe, 56+ tools implémentés
+**Updated**: Native tools and external MCP; the runtime catalogue is authoritative.
+
+The [Tools workspace](WORKBENCH.md) is a separate manual REST surface over the
+same connector clients. Its controls do not enter the assistant catalogue or
+its activity registers. Client improvements shared with assistant tools include
+provider-neutral mail read state, all-day calendar events and multi-valued
+contact updates. A scalar contact edit replaces the primary value while keeping
+the others; an explicit list replaces that list. See
+[ADR-369](../architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md).
 
 ## 📋 Table des Matières
 

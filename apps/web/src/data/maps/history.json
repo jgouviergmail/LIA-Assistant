@@ -4574,6 +4574,65 @@
         "t.redis",
         "t.sse"
       ]
+    },
+    {
+      "adr": 367,
+      "date": "2026-10-30",
+      "theme": "orchestration",
+      "functional": [
+        "f.context",
+        "f.hitl",
+        "f.mail",
+        "f.react"
+      ],
+      "technical": [
+        "t.router",
+        "t.hitl",
+        "t.dataregistry",
+        "t.react",
+        "t.registers"
+      ]
+    },
+    {
+      "adr": 368,
+      "date": "2026-10-31",
+      "theme": "trust",
+      "functional": [
+        "f.mcp",
+        "f.hitl",
+        "f.routines",
+        "f.react",
+        "f.planning"
+      ],
+      "technical": [
+        "t.mcp",
+        "t.hitl",
+        "t.registers",
+        "t.postgres",
+        "t.web"
+      ]
+    },
+    {
+      "adr": 369,
+      "date": "2026-10-31",
+      "theme": "connectors",
+      "functional": [
+        "f.connectors",
+        "f.mail",
+        "f.calendar",
+        "f.contacts",
+        "f.tasks",
+        "f.drive",
+        "f.privacy"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.fastapi",
+        "t.web",
+        "t.redis",
+        "t.registers",
+        "t.metrics"
+      ]
     }
   ]
 }

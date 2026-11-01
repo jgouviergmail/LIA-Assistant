@@ -342,8 +342,10 @@ def get_current_datetime_context(
 # ============================
 
 
-def _render_context_sections(values: dict[str, str]) -> str:
-    """Render the dynamic context blocks declared in ``response_context_sections``.
+def _render_context_sections(
+    values: dict[str, str], sections: PromptName = "response_context_sections"
+) -> str:
+    """Render the dynamic context blocks declared in a sections file.
 
     One ``<Tag>`` per section, in the file's order, emitted ONLY when its content
     is non-empty — an empty wrapper under an instruction is noise the model is
@@ -352,12 +354,14 @@ def _render_context_sections(values: dict[str, str]) -> str:
 
     Args:
         values: Section key → content, as produced by ``get_response_prompt``.
+        sections: The sections file: the response's, or the ReAct loop's own
+            (``react_context_lines``, ADR-367).
 
     Returns:
         The blocks joined by a blank line; empty when nothing was provided.
     """
     blocks: list[str] = []
-    for key, tag, description in parse_prompt_sections(load_prompt("response_context_sections"), 3):
+    for key, tag, description in parse_prompt_sections(load_prompt(sections), 3):
         content = values.get(key, "")
         if not content:
             continue
@@ -369,7 +373,9 @@ def _render_context_sections(values: dict[str, str]) -> str:
     return "\n\n".join(blocks)
 
 
-def render_context_section(key: str, content: str) -> str:
+def render_context_section(
+    key: str, content: str, sections: PromptName = "response_context_sections"
+) -> str:
     """Render ONE declared context section with its tag and directive.
 
     The ReAct setup wraps the pipeline's ``rag_context`` with the pipeline's
@@ -377,13 +383,15 @@ def render_context_section(key: str, content: str) -> str:
     context, in the file, never a second wording in a ``.py``.
 
     Args:
-        key: A key of ``response_context_sections.txt``.
+        key: A key of the sections file.
         content: The section's content; empty renders nothing.
+        sections: ``response_context_sections`` (shared with the response) or
+            ``react_context_lines`` (the loop's own, ADR-367).
 
     Returns:
         The wrapped block, or an empty string.
     """
-    return _render_context_sections({key: content})
+    return _render_context_sections({key: content}, sections)
 
 
 def get_response_prompt(
@@ -740,6 +748,9 @@ def get_smart_planner_prompt(
         # the prompt used to carry a hardcoded "20–50" that no tool bound could
         # contradict, since the catalogue published none (production 2026-07-31).
         semantic_broad_batch=_settings.planner_semantic_broad_batch,
+        # ADR-367 amendment: how many items the question « which one? » offers —
+        # a lookup an act reads the first result of asks for that many.
+        choice_candidates_max=_settings.entity_resolution_max_candidates,
     )
 
 

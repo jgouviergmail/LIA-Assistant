@@ -122,6 +122,7 @@ from src.domains.auth.session_commands import SessionRevocationCompletionUnknown
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.live_connector_preferences import LiveConnectorSettingsRefused
+from src.infrastructure.mcp.confirmation_loosening import ConfirmationLooseningRefused
 
 logger = structlog.get_logger(__name__)
 ApplicationExecutor = Callable[
@@ -332,6 +333,9 @@ async def _execute_outcome(
     except AuthorizationError as exc:
         return _failed_outcome(draft, receipt, application_access_error_code(exc))
     except LiveConnectorSettingsRefused as exc:
+        return _failed_outcome(draft, receipt, exc.code)
+    except ConfirmationLooseningRefused as exc:
+        # The writer judged the card again against the state it replaces (spec D7).
         return _failed_outcome(draft, receipt, exc.code)
     except Exception as exc:
         # The receipt distinguishes a failed propagation from a failed write.

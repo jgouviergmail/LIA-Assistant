@@ -20,7 +20,7 @@ from typing import Any
 
 import pytest
 
-from src.infrastructure.mcp.registration import derive_mcp_mutation_policy
+from src.infrastructure.mcp.confirmation import derive_mcp_mutation_policy
 
 pytestmark = [pytest.mark.unit]
 
@@ -61,7 +61,7 @@ class TestTheDeclarationTightensOnly:
 
     def test_a_derived_reversible_carries_a_reason(self) -> None:
         """``reversible`` exempts from a confirmation, so it must say why."""
-        from src.infrastructure.mcp.registration import derive_mcp_mutation_policy_reason
+        from src.infrastructure.mcp.confirmation import derive_mcp_mutation_policy_reason
 
         reason = derive_mcp_mutation_policy_reason("reversible")
         assert reason and reason.strip().endswith(".")

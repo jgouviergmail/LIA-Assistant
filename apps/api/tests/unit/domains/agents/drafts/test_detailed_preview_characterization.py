@@ -15,7 +15,7 @@ written by hand), never substring checks. The table is regenerated ONLY on a
 deliberate, reviewed behavior change, with the old/new tables diffed to prove
 the change is surgical.
 
-Five regenerations so far: the 2026-07-11 fallback fixes (localized
+Seven regenerations so far: the 2026-07-11 fallback fixes (localized
 ``no_subject``, ``None`` body, reminder ``"?"``), ADR-276 lot 13, where
 the vocabulary itself changed from HTML to Markdown — all 85 cases, each
 diffed —, ADR-323, where a tool call's argument value is clipped to its
@@ -28,7 +28,9 @@ fourteenth, where a value never becomes a link the chat's tokenizer could
 cut: 29 cases of 88, each ``@`` drawn as ``&#64;`` and nothing else
 changed (proved case by case) — then one more, the sublabels a label
 deletion leaves out counted after the ellipsis every card uses (« … »,
-never « ... »).
+never « ... ») — and ADR-369, where an all-day event's day is shown as a
+day: two cases of 91, the « at 02:00 » that midnight UTC became in Paris
+removed and an all-day end shown as the event's LAST day.
 A net that pins EVERY case is what makes such a change reviewable rather
 than merely tested: the diff IS the change.
 
@@ -913,7 +915,11 @@ CASES: tuple[PreviewCase, ...] = (
 # Regenerate ONLY on a deliberate, reviewed behavior change, and diff the
 # old/new tables to prove the change touches exactly the intended cases.
 #
-# Last regeneration: 2026-09-27, ADR-323 review 14 — 29 cases of 88, each
+# Last regeneration: 2026-10-31, ADR-369 — 2 cases of 91: an all-day event
+# was drawn as an instant (« Saturday 06 June 2026 at 02:00 », midnight UTC in
+# Paris) and its exclusive end as a day of its own; a date is now a day, the
+# end its last day. Diffed: those two cases and nothing else changed.
+# Before it, 2026-09-27, ADR-323 review 14 — 29 cases of 88, each
 # ``@`` drawn as ``&#64;`` (the chat's tokenizer no longer links a value),
 # and one more, a label deletion's « ... (+2) » now « … (+2) ».
 # Before it, 2026-09-09, ADR-276 lot 13 — the vocabulary became Markdown
@@ -957,12 +963,12 @@ EXPECTED: dict[str, str] = {
     "event_full_zh": "- **事件**：项目会议\n- **开始**：2026年6月1日 星期一 09:00\n- **结束**：2026年6月1日 星期一 10:30\n- **地点**：B会议室",
     "event_update_new_times_fr": "- **Événement**\xa0: Réunion déplacée\n- **Début**\xa0: mardi 02 juin 2026 à 14:00 ✏️\n- **Fin**\xa0: mardi 02 juin 2026 à 15:00 ✏️\n- **Lieu**\xa0: Salle C ✏️\n- **Participants**\xa0: alice&#64;example.com",
     "event_update_preserved_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:00\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice&#64;example.com, Bob",
-    "event_update_allday_fr": "- **Événement**\xa0: Anniversaire\n- **Début**\xa0: mercredi 03 juin 2026 à 02:00\n- **Fin**\xa0: jeudi 04 juin 2026 à 02:00",
+    "event_update_allday_fr": "- **Événement**\xa0: Anniversaire\n- **Début**\xa0: mercredi 03 juin 2026\n- **Fin**\xa0: mercredi 03 juin 2026",
     "event_update_new_attendees_fr": "- **Événement**\xa0: Point équipe\n- **Participants**\xa0: carol&#64;example.com ✏️",
     "event_update_mixed_new_start_only_fr": "- **Événement**\xa0: Réunion projet\n- **Début**\xa0: lundi 01 juin 2026 à 09:30 ✏️\n- **Fin**\xa0: lundi 01 juin 2026 à 10:30\n- **Lieu**\xa0: Salle B\n- **Participants**\xa0: alice&#64;example.com",
     "event_update_empty_fr": "- **Événement**\xa0: ?",
     "event_delete_full_fr": "- **Événement**\xa0: Dentiste\n- **Date**\xa0: vendredi 05 juin 2026 à 11:00",
-    "event_delete_allday_en": "- **Event**: Holiday\n- **Date**: Saturday 06 June 2026 at 02:00",
+    "event_delete_allday_en": "- **Event**: Holiday\n- **Date**: Saturday 06 June 2026",
     "event_delete_empty_fr": "- **Événement**\xa0: ?",
     "contact_full_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie&#64;example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
     "contact_minimal_en": "- **Contact**: John Smith",

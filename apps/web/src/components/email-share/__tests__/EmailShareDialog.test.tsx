@@ -251,6 +251,34 @@ describe('EmailShareDialog — contact suggestions', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
+  /**
+   * Measured 2026-10-31 on an event's guests — the LAST field of its form: the list opened
+   * under the scrolled frame's edge, its second line cut. The frame now scrolls just enough
+   * to show the list, once, when it opens (never while the person types on).
+   */
+  it('brings the list into view once, when it opens', async () => {
+    suggest([JEAN, JEANNE]);
+    const seen: Array<{ target: Element; options: unknown }> = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
+      seen.push({ target: this, options });
+    };
+    try {
+      const { user } = renderWithProviders(
+        <EmailShareDialog open onOpenChange={vi.fn()} source={FILE} defaultSubject="plan.pdf" />
+      );
+      await user.type(field(), 'jea');
+      await user.type(field(), 'n');
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+
+    const listbox = screen.getByRole('listbox', { name: 'email_share.suggestions_label' });
+    const opened = seen.filter(({ target }) => target.contains(listbox));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]?.options).toEqual({ block: 'nearest' });
+  });
+
   it('enter picks nothing the person did not move to', async () => {
     suggest([JEAN]);
     const { user } = renderWithProviders(

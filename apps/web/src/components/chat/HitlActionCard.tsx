@@ -11,7 +11,9 @@
  * functional next to it, and answering by text resolves the card via_text.
  *
  * Kinds rendered: tool_confirmation, draft_critique, destructive_confirm,
- * for_each_confirmation (the normalizer returns null for anything else).
+ * for_each_confirmation, and the « which of these? » choice among shown items
+ * (entity_disambiguation, ADR-367) whose options are buttons of their own
+ * (the normalizer returns null for anything else).
  */
 
 import { useState } from 'react';
@@ -21,6 +23,7 @@ import {
   CircleSlash,
   Clock,
   ListChecks,
+  ListOrdered,
   Mail,
   ShieldAlert,
   Wrench,
@@ -30,7 +33,12 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { HitlActionOption, HitlCardState, NormalizedHitlPayload } from '@/types/hitl';
+import type {
+  HitlActionOption,
+  HitlCardState,
+  HitlChoiceOption,
+  NormalizedHitlPayload,
+} from '@/types/hitl';
 
 export interface HitlActionCardProps {
   hitl: HitlCardState;
@@ -39,8 +47,14 @@ export interface HitlActionCardProps {
    * label (sent as the user-visible message content). For the draft inline
    * edit (P1-V2) the third argument carries the modification instructions —
    * they double as the visible message, mirroring the natural-language path.
+   * A choice's option (ADR-367) sends 'select' with its position as the fourth.
    */
-  onAction: (wireAction: string, labelText: string, modificationInstructions?: string) => void;
+  onAction: (
+    wireAction: string,
+    labelText: string,
+    modificationInstructions?: string,
+    selectedIndex?: number
+  ) => void;
 }
 
 const KIND_ICONS = {
@@ -48,6 +62,7 @@ const KIND_ICONS = {
   draft_critique: Mail,
   destructive_confirm: AlertTriangle,
   for_each_confirmation: ListChecks,
+  entity_disambiguation: ListOrdered,
 } as const;
 
 const BUTTON_VARIANTS: Record<
@@ -254,6 +269,7 @@ function CardBody({ payload }: { payload: NormalizedHitlPayload }) {
   if (payload.kind === 'draft_critique') {
     return <DraftPreview payload={payload} />;
   }
+  if (payload.kind === 'entity_disambiguation') return null; // The options ARE the body.
   return (
     <p className="mt-1 text-xs text-muted-foreground">
       {typeof payload.affectedCount === 'number' &&
@@ -295,6 +311,55 @@ function ActionButtons({
         );
       })}
     </>
+  );
+}
+
+/**
+ * The options of « which of these? » (ADR-367): one button each, its number
+ * and what tells it apart. The visible message a click sends names the
+ * POSITION only (« Le numéro 2 »): a label quotes a third party (a sender, a
+ * subject), and the person's bubble renders Markdown — a subject must never
+ * draw an image there (ADR-316). Busy, an option stays focusable
+ * (`aria-disabled` + guard): `disabled` would blur the control the click
+ * landed on.
+ */
+function ChoiceOptions({
+  options,
+  submitting,
+  onAction,
+}: {
+  options: HitlChoiceOption[];
+  submitting: boolean;
+  onAction: HitlActionCardProps['onAction'];
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="group"
+      aria-label={t('chat.hitl.choice.options')}
+      className="flex w-full flex-col gap-1.5"
+    >
+      {options.map(option => {
+        const text = `${option.index}. ${option.label}`;
+        return (
+          <Button
+            key={option.index}
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-disabled={submitting || undefined}
+            className="h-auto min-h-9 w-full justify-start whitespace-normal py-1.5 text-left"
+            onClick={() => {
+              if (submitting) return;
+              const chosen = t('chat.hitl.choice.chosen', { index: option.index });
+              onAction('select', chosen, undefined, option.index);
+            }}
+          >
+            <span className="min-w-0 break-words">{text}</span>
+          </Button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -391,6 +456,13 @@ export function HitlActionCard({ hitl, onAction }: HitlActionCardProps) {
           <CardBody payload={payload} />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            {showButtons && payload.options && (
+              <ChoiceOptions
+                options={payload.options}
+                submitting={status === 'submitting'}
+                onAction={onAction}
+              />
+            )}
             {showButtons && !showEditForm && (
               <ActionButtons
                 payload={payload}

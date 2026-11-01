@@ -12,6 +12,7 @@ Scopes required:
 - Tasks.Read, Tasks.ReadWrite
 """
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -21,11 +22,17 @@ from src.core.config import settings
 from src.core.exceptions import ResourceNotFoundError
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.normalizers.graph_paging import (
+    graph_page_params,
+    graph_page_token,
+)
 from src.domains.connectors.clients.normalizers.microsoft_tasks_normalizer import (
     build_task_body,
+    graph_task_status,
     normalize_graph_task,
     normalize_graph_task_list,
 )
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -80,20 +87,29 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
     # =========================================================================
 
     async def list_task_lists(
-        self, max_results: int = settings.tasks_tool_default_max_results
+        self,
+        max_results: int = settings.tasks_tool_default_max_results,
+        *,
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        List all task lists for the user.
+        List the user's task lists, one page at a time.
 
         Args:
             max_results: Maximum number of results.
+            page_token: The ``next_page_token`` of the previous page (ADR-369).
 
         Returns:
-            Dict with 'items' list containing task list metadata.
+            Dict with 'items' list containing task list metadata, and
+            ``next_page_token`` (None on the last page).
+
+        Raises:
+            ValueError: ``page_token`` is not one this listing produced.
         """
         max_results = apply_max_items_limit(max_results)
+        params: dict[str, Any] = {"$top": max_results, **graph_page_params(page_token)}
 
-        response = await self._make_request("GET", "/me/todo/lists", {"$top": max_results})
+        response = await self._make_request("GET", "/me/todo/lists", params)
 
         items = [normalize_graph_task_list(tl) for tl in response.get("value", [])]
 
@@ -107,7 +123,10 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             results_count=len(items),
         )
 
-        return {"items": items}
+        return {
+            "items": items,
+            "next_page_token": graph_page_token(response.get("@odata.nextLink")),
+        }
 
     async def get_task_list(self, task_list_id: str) -> dict[str, Any]:
         """
@@ -121,7 +140,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         """
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        response = await self._make_request("GET", f"/me/todo/lists/{resolved_id}")
+        response = await self._make_request("GET", _list_path(resolved_id))
 
         logger.info(
             "microsoft_tasks_get_task_list",
@@ -165,7 +184,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         """
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        await self._make_request("DELETE", f"/me/todo/lists/{resolved_id}")
+        await self._make_request("DELETE", _list_path(resolved_id))
 
         logger.info(
             "microsoft_tasks_delete_task_list",
@@ -188,9 +207,10 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         due_min: str | None = None,
         due_max: str | None = None,
         completed_min: str | None = None,
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        List tasks in a task list.
+        List tasks in a task list, one page at a time.
 
         Args:
             task_list_id: Task list ID (or "@default").
@@ -201,9 +221,14 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             due_max: Filter tasks due before this RFC 3339 timestamp.
             completed_min: Filter tasks completed after this RFC 3339 timestamp
                 (the due filters' own shape; the radio's journal reads a day's).
+            page_token: The ``next_page_token`` of the previous page (ADR-369).
 
         Returns:
-            Dict with 'items' list containing task data.
+            Dict with 'items' list containing task data, and ``next_page_token``
+            (None on the last page).
+
+        Raises:
+            ValueError: ``page_token`` is not one this listing produced.
         """
         max_results = apply_max_items_limit(max_results)
         resolved_id = await self._resolve_list_id(task_list_id)
@@ -223,8 +248,9 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
 
         if filters:
             params["$filter"] = " and ".join(filters)
+        params.update(graph_page_params(page_token))
 
-        response = await self._make_request("GET", f"/me/todo/lists/{resolved_id}/tasks", params)
+        response = await self._make_request("GET", f"{_list_path(resolved_id)}/tasks", params)
 
         items = [normalize_graph_task(t) for t in response.get("value", [])]
 
@@ -235,7 +261,10 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             results_count=len(items),
         )
 
-        return {"items": items}
+        return {
+            "items": items,
+            "next_page_token": graph_page_token(response.get("@odata.nextLink")),
+        }
 
     async def get_task(self, task_list_id: str, task_id: str) -> dict[str, Any]:
         """
@@ -250,7 +279,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         """
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        response = await self._make_request("GET", f"/me/todo/lists/{resolved_id}/tasks/{task_id}")
+        response = await self._make_request("GET", _task_path(resolved_id, task_id))
 
         logger.info(
             "microsoft_tasks_get_task",
@@ -294,7 +323,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         body = build_task_body(title=title, notes=notes, due=due)
 
         response = await self._make_request(
-            "POST", f"/me/todo/lists/{resolved_id}/tasks", json_data=body
+            "POST", f"{_list_path(resolved_id)}/tasks", json_data=body
         )
 
         logger.info(
@@ -314,6 +343,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         notes: str | None = None,
         due: str | None = None,
         status: str | None = None,
+        *,
+        clear_due: bool = False,
     ) -> dict[str, Any]:
         """
         Update an existing task.
@@ -327,10 +358,16 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             notes: New notes.
             due: New due date in RFC 3339 format.
             status: New status ("needsAction" or "completed").
+            clear_due: Remove the due date (ADR-369).
 
         Returns:
             Updated task data.
+
+        Raises:
+            ValueError: A due date and its removal together.
         """
+        if clear_due and due is not None:
+            raise ValueError("a due date and its removal cannot be asked together")
         resolved_id = await self._resolve_list_id(task_list_id)
 
         body: dict[str, Any] = {}
@@ -340,23 +377,19 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             body["body"] = {"content": notes, "contentType": "text"}
         if due is not None:
             body["dueDateTime"] = {"dateTime": due, "timeZone": "UTC"}
+        elif clear_due:
+            body["dueDateTime"] = None
         if status is not None:
-            from src.domains.connectors.clients.normalizers.microsoft_tasks_normalizer import (
-                _STATUS_FROM_GOOGLE,
-            )
-
-            ms_status = _STATUS_FROM_GOOGLE.get(status, "notStarted")
+            ms_status = graph_task_status(status)
             body["status"] = ms_status
             if ms_status == "completed":
-                from datetime import UTC, datetime
-
                 body["completedDateTime"] = {
                     "dateTime": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.0000000"),
                     "timeZone": "UTC",
                 }
 
         response = await self._make_request(
-            "PATCH", f"/me/todo/lists/{resolved_id}/tasks/{task_id}", json_data=body
+            "PATCH", _task_path(resolved_id, task_id), json_data=body
         )
 
         logger.info(
@@ -394,7 +427,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         """
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        await self._make_request("DELETE", f"/me/todo/lists/{resolved_id}/tasks/{task_id}")
+        await self._make_request("DELETE", _task_path(resolved_id, task_id))
 
         logger.info(
             "microsoft_tasks_delete_task",
@@ -440,3 +473,14 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
 
         self._default_list_id = lists[0]["id"]
         return self._default_list_id
+
+
+def _list_path(task_list_id: str) -> str:
+    """A list's path, its id one quoted segment (a browser's or a model's id)."""
+    segment = path_segment(task_list_id, connector_type=ConnectorType.MICROSOFT_TASKS)
+    return f"/me/todo/lists/{segment}"
+
+
+def _task_path(task_list_id: str, task_id: str) -> str:
+    segment = path_segment(task_id, connector_type=ConnectorType.MICROSOFT_TASKS)
+    return f"{_list_path(task_list_id)}/tasks/{segment}"

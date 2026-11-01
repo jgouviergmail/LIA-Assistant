@@ -14,6 +14,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import RunnableConfig
 
+from src.domains.agents.constants import STATE_KEY_CURRENT_TURN_ID
+from src.domains.agents.data_registry.state import stamped_with_turn
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.react_read_reuse import (
     bound_read_cache,
@@ -288,6 +290,9 @@ def _merge(
         result["semantic_value_bindings"] = []
     result.update(_progress_update(request, state, productive))
     if registry:
+        # Dated like the pipeline's items, so a later description can tell
+        # which answer showed them (ADR-367).
+        registry = stamped_with_turn(registry, state.get(STATE_KEY_CURRENT_TURN_ID))
         result["registry"] = registry
         result["current_turn_registry"] = {**(state.get("current_turn_registry") or {}), **registry}
     return result

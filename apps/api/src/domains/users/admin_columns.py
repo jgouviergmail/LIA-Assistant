@@ -61,6 +61,10 @@ ADMIN_USER_NON_SWITCHES: Final[dict[str, str]] = {
     "is_verified": "The address's verification, a fact about the account.",
     "is_superuser": "A role, marked beside the status.",
     "onboarding_completed": "Where the account stands in its onboarding.",
+    "mcp_hitl_required": (
+        "Three states (null follows the instance default): a switch would show "
+        "« never chosen » as off. The MCP servers page states it."
+    ),
 }
 
 #: Columns of ``users`` the listing sorts by directly.

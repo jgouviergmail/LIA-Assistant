@@ -303,7 +303,7 @@ MESSAGE_ID = SemanticType(
     description="Unique identifier for email message",
     related_types=["thread_id", "email_address", "attachment_info"],
     source_domains=["email"],
-    used_in_tools=["get_emails_tool", "reply_email_tool"],
+    used_in_tools=["get_emails_tool", "reply_email_tool", "set_email_read_state_tool"],
 )
 
 THREAD_ID = SemanticType(

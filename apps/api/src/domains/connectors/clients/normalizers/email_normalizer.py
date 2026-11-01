@@ -14,18 +14,21 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Final
 
 import structlog
-from imap_tools.utils import DEFAULT_EMAIL_DATE
+from imap_tools.utils import DEFAULT_EMAIL_DATE, EmailAddress
 
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.imap_handles import message_handle
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
+from src.infrastructure.email.recipients import name_addr
 
 logger = structlog.get_logger(__name__)
 
 # A Gmail query operator → imap_tools criteria, negated by a leading ``-`` —
 # never a hyphen inside a word (``reply-to:`` is text, not a negated ``to:``).
+# A value with spaces is written between quotes (``in:"Old mail"``), as Graph
+# reads it (``graph_mail_query``).
 _GMAIL_OPERATOR_PATTERN = re.compile(
-    r"(?<![\w-])(-?)(from|to|cc|subject|after|before|label|is|has|in):(\S+)"
+    r'(?<![\w-])(-?)(from|to|cc|subject|after|before|label|is|has|in):("(?:[^"\\]|\\.)*"|\S+)'
 )
 #: The imap_tools criterion each people or subject operator states.
 _IMAP_TEXT_CRITERIA: Final[dict[str, str]] = {
@@ -50,6 +53,32 @@ _SNIPPET_MAX_LENGTH = 200
 def _joined(addresses: Any) -> str:
     """imap_tools' address tuple as one header-like string."""
     return ", ".join(addresses) if isinstance(addresses, list | tuple) else str(addresses or "")
+
+
+def _mailboxes(values: Any, addresses: Any) -> str:
+    """A header's mailboxes with the display names it wrote (ADR-287).
+
+    ``from_values``/``to_values``… are imap_tools' parsed addresses, names
+    included; ``from_``/``to`` keep the bare addresses, which is all that is
+    read when no parsed value is there (a message without that header).
+
+    Args:
+        values: One ``EmailAddress`` or a tuple of them.
+        addresses: The bare-address form of the same header.
+
+    Returns:
+        ``Name <address>`` mailboxes joined by ``", "``.
+    """
+    parsed = (values,) if isinstance(values, EmailAddress) else values
+    if (
+        isinstance(parsed, list | tuple)
+        and parsed
+        and all(isinstance(value, EmailAddress) for value in parsed)
+    ):
+        return ", ".join(
+            mailbox for value in parsed if (mailbox := name_addr(value.name, value.email))
+        )
+    return _joined(addresses)
 
 
 #: IMAP flags that speak a label of the vocabulary — present (or, for \\Seen,
@@ -125,9 +154,9 @@ def normalize_imap_message(
     # Headers: top-level fields (the vocabulary), no fabricated Gmail tree
     # =========================================================================
     subject = msg.subject or ""
-    from_value = msg.from_ or ""
-    to_value = _joined(msg.to)
-    cc_value = _joined(msg.cc)
+    from_value = _mailboxes(getattr(msg, "from_values", None), msg.from_)
+    to_value = _mailboxes(getattr(msg, "to_values", None), msg.to)
+    cc_value = _mailboxes(getattr(msg, "cc_values", None), msg.cc)
     date_value = msg.date_str or ""
     # RFC 2822 Message-ID, for In-Reply-To / References on a reply. imap_tools
     # keys its headers in lower case; a test double may carry none.
@@ -160,12 +189,14 @@ def normalize_imap_message(
         "snippet": snippet,
         "subject": subject,
         "from": from_value,
-        "reply_to": _joined(getattr(msg, "reply_to", None)),
+        "reply_to": _mailboxes(
+            getattr(msg, "reply_to_values", None), getattr(msg, "reply_to", None)
+        ),
         "to": to_value,
         "cc": cc_value,
         # Present on what the mailbox stores for the person (a draft, a sent
         # message), as on Graph.
-        "bcc": _joined(msg.bcc),
+        "bcc": _mailboxes(getattr(msg, "bcc_values", None), msg.bcc),
         "date": date_value,
         "rfc_message_id": rfc_message_id,
         "body": body_text,
@@ -258,7 +289,8 @@ def parse_imap_query(gmail_query: str) -> ImapQuery:
     remaining = gmail_query
     for match in _GMAIL_OPERATOR_PATTERN.finditer(gmail_query):
         remaining = remaining.replace(match.group(0), " ", 1)
-        negated, operator, value = match.group(1) == "-", match.group(2).lower(), match.group(3)
+        negated, operator = match.group(1) == "-", match.group(2).lower()
+        value = match.group(3).strip('"')
         if operator not in ("label", "in") or (operator, value.lower()) == ("label", "starred"):
             _imap_criterion(operator, value, negated, criteria, negated_criteria)
         elif negated:

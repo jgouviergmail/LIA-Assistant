@@ -21,3 +21,4 @@ certifi>=2026.10.18  # GHSA-6q48-6c7w-9gw2 (critical, distrusted emSign roots re
 setuptools>=84.1.0  # GHSA-xmj3-9gf7-h52w (low, Windows path escape via namespace_packages.txt), pulled by torch
 brotli>=1.2.1  # GHSA-9v8h-qqgm-4m35 (critical, out-of-bounds write in the decoder), pulled by aiohttp
 hydra-core>=1.3.8  # GHSA-757g-8w3h-hp29 (unsafe PyYAML targets), pulled by VoxCPM -> FunASR
+websockets>=17.4  # GHSA-6m5v-9gmr-5665: bounded fragmented-message frame buffering

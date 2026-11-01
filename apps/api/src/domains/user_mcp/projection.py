@@ -1,6 +1,6 @@
 """One original UI metadata projection for HTTP and native personal management."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,11 @@ from src.domains.user_mcp.schemas import (
     UserMCPServerResponse,
 )
 from src.infrastructure.mcp.catalogue_snapshot import parse_catalogue_snapshot
+from src.infrastructure.mcp.confirmation import (
+    ServerToolConfirmations,
+    StoredToolChoice,
+    suspended_choices,
+)
 
 if TYPE_CHECKING:
     from src.domains.user_mcp.service import UserMCPServerService
@@ -32,6 +37,7 @@ def server_to_response(
     include_tool_schemas: bool = True,
     shared_origin: CapabilityOrigin | None = None,
     shared_with: Sequence[CapabilityShare] = (),
+    tool_choices: Mapping[str, StoredToolChoice] | None = None,
 ) -> UserMCPServerResponse:
     tools: list[MCPDiscoveredToolResponse] = []
     tool_count = 0
@@ -40,15 +46,21 @@ def server_to_response(
     if tool_list:
         tool_count = len(tool_list)
         end = tools_offset + tools_limit if tools_limit is not None else None
-        tools = [
-            MCPDiscoveredToolResponse(
-                tool_name=t.get("name", t.get("tool_name", "")),
-                description=t.get("description", ""),
-                input_schema=t.get("input_schema", {}) if include_tool_schemas else {},
-                title=t.get("title"),
+        confirmations = ServerToolConfirmations(False, tool_choices or {})
+        tools = []
+        for t in tool_list[tools_offset:end]:
+            name = t.get("name", t.get("tool_name", ""))
+            own = confirmations.for_tool({**t, "name": name})
+            tools.append(
+                MCPDiscoveredToolResponse(
+                    tool_name=name,
+                    description=t.get("description", ""),
+                    input_schema=t.get("input_schema", {}) if include_tool_schemas else {},
+                    title=t.get("title"),
+                    choice=own.choice,
+                    choice_suspended=own.suspended,
+                )
             )
-            for t in tool_list[tools_offset:end]
-        ]
     metadata = service.build_response_metadata(server)
     return UserMCPServerResponse(
         shared_origin=shared_origin,
@@ -64,6 +76,8 @@ def server_to_response(
         timeout_seconds=server.timeout_seconds,
         hitl_required=server.hitl_required,
         iterative_mode=server.iterative_mode,
+        react_expand_iterative=server.react_expand_iterative,
+        suspended_tool_choices=suspended_choices(tool_list, tool_choices or {}),
         header_name=metadata["header_name"],
         has_credentials=metadata["has_credentials"],
         has_oauth_credentials=metadata["has_oauth_credentials"],
@@ -82,9 +96,11 @@ async def owned_server_response(
 ) -> UserMCPServerResponse:
     origins = await capability_origins(db, server.user_id, "mcp", [server.id])
     shares = await capability_shares(db, server.user_id, "mcp", [server.id])
+    choices = await service.repository.tool_choices([server.id])
     return server_to_response(
         server,
         service,
         shared_origin=origins.get(server.id),
         shared_with=shares.get(server.id, ()),
+        tool_choices=choices.get(server.id),
     )

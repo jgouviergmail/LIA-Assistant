@@ -27,6 +27,7 @@ from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
+from src.infrastructure.mcp.confirmation_loosening import ConfirmationLooseningRefused
 
 
 async def prepare_native_tool[Request: BaseModel](
@@ -80,10 +81,9 @@ async def prepare_native_tool[Request: BaseModel](
         return UnifiedToolOutput.failure(
             message="Source constraint refused.", error_code="CONSTRAINT_VIOLATION"
         )
-    except CommandRejected as exc:
-        return UnifiedToolOutput.failure(
-            message="Application proposal refused.", error_code=exc.code
-        )
+    except (CommandRejected, ConfirmationLooseningRefused) as exc:
+        # A refusal of spec 2026-10-30 D7 names the settings page for the model to relay.
+        return UnifiedToolOutput.failure(message=exc.model_message, error_code=exc.code)
     except BaseAPIException as exc:
         return UnifiedToolOutput.failure(
             message="Source resource unavailable or constraint refused.",

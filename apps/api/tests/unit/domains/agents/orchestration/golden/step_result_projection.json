@@ -1,0 +1,291 @@
+{
+  "correlated": {
+    "draft_info": null,
+    "registry_updates": {
+      "weather_2d5bb1": {
+        "id": "weather_2d5bb1",
+        "meta": {
+          "correlated_to": "event_parent9",
+          "display": {},
+          "domain": "weathers",
+          "source": "fixture",
+          "step_id": "s1",
+          "timestamp": "2026-10-30T09:00:00Z",
+          "tool_name": null,
+          "ttl_seconds": null,
+          "turn_id": 4
+        },
+        "payload": {
+          "temp": 21
+        },
+        "type": "WEATHER"
+      }
+    },
+    "result": {
+      "_tcm_saved": false,
+      "context_save_mode": null,
+      "data": {
+        "result": "Sunny, 21°C",
+        "weathers": [
+          {
+            "_registry_id": "weather_2d5bb1",
+            "temp": 21
+          }
+        ]
+      },
+      "message": "Sunny, 21°C",
+      "success": true
+    }
+  },
+  "draft": {
+    "draft_info": {
+      "draft_content": {
+        "tool_args": {
+          "note_id": "n2"
+        },
+        "tool_label": "notes · delete note",
+        "tool_name": "mcp_user_abcd1234_delete_note"
+      },
+      "draft_id": "draft_fixed",
+      "draft_summary": "Confirm the deletion of note n2",
+      "draft_type": "tool_call",
+      "registry_ids": [
+        "draft_fixed"
+      ],
+      "tool_name": "fake_tool"
+    },
+    "registry_updates": {
+      "draft_fixed": {
+        "id": "draft_fixed",
+        "meta": {
+          "correlated_to": null,
+          "display": {},
+          "domain": "drafts",
+          "source": "fixture",
+          "step_id": "s1",
+          "timestamp": "2026-10-30T09:00:00Z",
+          "tool_name": null,
+          "ttl_seconds": null,
+          "turn_id": 4
+        },
+        "payload": {
+          "content": {
+            "tool_args": {
+              "note_id": "n2"
+            },
+            "tool_label": "notes · delete note",
+            "tool_name": "mcp_user_abcd1234_delete_note"
+          },
+          "draft_type": "tool_call"
+        },
+        "type": "DRAFT"
+      }
+    },
+    "result": {
+      "_tcm_saved": false,
+      "context_save_mode": null,
+      "data": {
+        "drafts": [
+          {
+            "_registry_id": "draft_fixed",
+            "content": {
+              "tool_args": {
+                "note_id": "n2"
+              },
+              "tool_label": "notes · delete note",
+              "tool_name": "mcp_user_abcd1234_delete_note"
+            },
+            "draft_type": "tool_call"
+          }
+        ],
+        "result": "Confirm the deletion of note n2"
+      },
+      "message": "Confirm the deletion of note n2",
+      "success": true
+    }
+  },
+  "failed": {
+    "draft_info": null,
+    "registry_updates": {},
+    "result": {
+      "_tcm_saved": false,
+      "context_save_mode": null,
+      "data": {
+        "result": "The mailbox refused"
+      },
+      "error": "The mailbox refused",
+      "error_code": "RATE_LIMITED",
+      "message": "The mailbox refused",
+      "success": false
+    }
+  },
+  "grouped": {
+    "draft_info": null,
+    "registry_updates": {
+      "contact_c1": {
+        "id": "contact_c1",
+        "meta": {
+          "correlated_to": null,
+          "display": {},
+          "domain": "contacts",
+          "source": "fixture",
+          "step_id": "s1",
+          "timestamp": "2026-10-30T09:00:00Z",
+          "tool_name": null,
+          "ttl_seconds": null,
+          "turn_id": 4
+        },
+        "payload": {
+          "resource_name": "people/c1"
+        },
+        "type": "CONTACT"
+      }
+    },
+    "result": {
+      "_tcm_saved": false,
+      "context_save_mode": null,
+      "data": {
+        "contacts": [
+          {
+            "_registry_id": "contact_c1",
+            "resource_name": "people/c1"
+          }
+        ],
+        "distinct_values": [
+          "Lyon",
+          "Paris"
+        ],
+        "groups": [
+          {
+            "count": 1,
+            "key": "Paris",
+            "members": [
+              {
+                "_registry_id": "contact_c1",
+                "resource_name": "people/c1"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "key": "Lyon",
+            "members": [
+              {
+                "_registry_id": "contact_c2",
+                "resource_name": "people/c2"
+              },
+              {
+                "_registry_id": "contact_c3",
+                "resource_name": "people/c3"
+              }
+            ]
+          }
+        ],
+        "query_result": [
+          {
+            "count": 1,
+            "key": "Paris",
+            "members": [
+              {
+                "_registry_id": "contact_c1",
+                "resource_name": "people/c1"
+              }
+            ]
+          },
+          {
+            "count": 2,
+            "key": "Lyon",
+            "members": [
+              {
+                "_registry_id": "contact_c2",
+                "resource_name": "people/c2"
+              },
+              {
+                "_registry_id": "contact_c3",
+                "resource_name": "people/c3"
+              }
+            ]
+          }
+        ],
+        "result": "2 groups"
+      },
+      "message": "2 groups",
+      "success": true
+    }
+  },
+  "plain": {
+    "draft_info": null,
+    "registry_updates": {
+      "event_a1": {
+        "id": "event_a1",
+        "meta": {
+          "correlated_to": null,
+          "display": {},
+          "domain": "events",
+          "source": "fixture",
+          "step_id": "s1",
+          "timestamp": "2026-10-30T09:00:00Z",
+          "tool_name": null,
+          "ttl_seconds": null,
+          "turn_id": 4
+        },
+        "payload": {
+          "title": "Standup"
+        },
+        "type": "EVENT"
+      },
+      "event_b2": {
+        "id": "event_b2",
+        "meta": {
+          "correlated_to": null,
+          "display": {},
+          "domain": "events",
+          "source": "fixture",
+          "step_id": "s1",
+          "timestamp": "2026-10-30T09:00:00Z",
+          "tool_name": null,
+          "ttl_seconds": null,
+          "turn_id": 4
+        },
+        "payload": {
+          "title": "Review"
+        },
+        "type": "EVENT"
+      }
+    },
+    "result": {
+      "_tcm_saved": false,
+      "context_save_mode": null,
+      "data": {
+        "events": [
+          {
+            "_registry_id": "event_a1",
+            "title": "Standup"
+          },
+          {
+            "_registry_id": "event_b2",
+            "title": "Review"
+          }
+        ],
+        "result": "2 events found",
+        "total": 2
+      },
+      "message": "2 events found",
+      "success": true
+    }
+  },
+  "saved": {
+    "draft_info": null,
+    "registry_updates": {},
+    "result": {
+      "_tcm_saved": true,
+      "context_save_mode": "current",
+      "data": {
+        "count": 1,
+        "result": "1 contact"
+      },
+      "message": "1 contact",
+      "success": true
+    }
+  }
+}

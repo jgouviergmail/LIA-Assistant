@@ -53,7 +53,7 @@ from src.domains.agents.constants import (
     AgentResultStatus,
     make_agent_result_key,
 )
-from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.drafts.executed import executed_entries
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.react_recovery import declared_unresolved
 from src.domains.agents.utils.message_filters import current_turn_responses, tool_call_ran
@@ -442,24 +442,12 @@ def _react_incomplete(state: MessagesState) -> bool:
     return bool(declared_unresolved(AIMessage(content=final))) if isinstance(final, str) else False
 
 
-def _executed_drafts(draft_result: Mapping[str, Any]) -> list[Any]:
-    """The drafts a decision executed: a batch's entries, the confirmed draft, or none.
-
-    A cancellation executed nothing, nor did an edit (it asks again).
-    """
-    action = draft_result.get("action")
-    if action == DraftAction.CONFIRM_BATCH.value:
-        data = draft_result.get("data")
-        return list(data.get("batch_results") or []) if isinstance(data, Mapping) else []
-    return [draft_result] if action == DraftAction.CONFIRM.value else []
-
-
 def _draft_verdicts(draft_result: Mapping[str, Any] | None) -> list[bool]:
     """The acts the person confirmed, one verdict per draft executed.
 
     An entry of a batch the person cancelled executed nothing: no verdict.
     """
-    entries = _executed_drafts(draft_result) if draft_result else []
+    entries = executed_entries(draft_result) if draft_result else []
     statuses = [entry.get(FIELD_STATUS) for entry in entries if isinstance(entry, Mapping)]
     return [_DRAFT_ENTRY_VERDICTS[status] for status in statuses if status in _DRAFT_ENTRY_VERDICTS]
 
@@ -502,7 +490,7 @@ def infer_conversation_outcome(
         return OUTCOME_FAILURE
     if draft_result and any(
         isinstance(entry, dict) and entry.get("status") == "waiting"
-        for entry in _executed_drafts(draft_result)
+        for entry in executed_entries(draft_result)
     ):
         return OUTCOME_WAITING
     verdicts = [

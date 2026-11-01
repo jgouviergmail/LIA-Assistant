@@ -394,6 +394,14 @@ class MessagesState(TypedDict):
     # because registry (with merge_registry reducer) accumulated all items.
     # This field is overwritten each turn (no reducer = simple overwrite semantics).
     current_turn_registry: dict[str, RegistryItem] | None
+    # What the answers SHOWED, per turn — the registry ids each answer presented, in
+    # the order the person saw them (``context/shown_items.py``, ADR-367 amendment):
+    # the one record an ordinal and a description are read on.
+    shown_items: list[dict[str, Any]]
+    # « Which one? » before a plan acts on one of several items a lookup found
+    # (``nodes/plan_choice.py``): the lookups already run, the question pending,
+    # the answers — keyed by plan and turn, so a stale one never matches.
+    plan_choice: dict[str, Any] | None
 
     # Data Registry LOT 4.3: Draft/Critique HITL support
     # When a registry-enabled tool creates a draft requiring confirmation (requires_confirmation=True),
@@ -407,6 +415,13 @@ class MessagesState(TypedDict):
     pending_drafts_grouped: bool
     confirmed_drafts: list[dict[str, Any]]
     draft_action_result: dict[str, Any] | None  # User decision: confirm/edit/cancel with details
+    # Spec 2026-10-29 D7: the plan's steps that wait for the person's answer
+    # (``nodes/plan_resume.py``) — {plan_id, held, pending, resumed, not_run}
+    held_plan: dict[str, Any] | None
+    # The decisions the resume executed, keyed by draft id (``batch:`` and every
+    # id for a batch), as ``to_agent_result()`` dicts: the response states them
+    # and executes nothing again.
+    executed_drafts: dict[str, dict[str, Any]]
     # Draft EDIT loop state (replay-safe self-loop): one interrupt per node
     # execution — the modified draft is returned as a state update and
     # checkpointed BEFORE the next interrupt, so a resume never re-runs past
@@ -431,22 +446,10 @@ class MessagesState(TypedDict):
     # ==========================================================================
     # HITL Dispatch: Generic Human-in-the-Loop Support
     # ==========================================================================
-    # These fields support multiple HITL interaction types beyond draft_critique:
-    # - Entity Disambiguation: When search returns multiple matches (3 "Jean" contacts)
+    # These fields support HITL interaction types beyond draft_critique:
     # - Tool Confirmation: When tools without drafts need user approval
-    #
-    # Priority order: Draft > Disambiguation > Confirmation
-    # (Don't confirm an action if we don't know which "Jean" to apply it to)
-    #
-    # Multi-disambiguation protection: If 2 tools request disambiguation in parallel,
-    # they are queued in pending_disambiguations_queue and processed sequentially.
-
-    # Entity Disambiguation (post-search): Multiple entities match a query
-    pending_entity_disambiguation: (
-        dict[str, Any] | None
-    )  # DisambiguationContext from entity resolution
-    entity_disambiguation_result: dict[str, Any] | None  # User choice from disambiguation options
-    pending_disambiguations_queue: list[dict[str, Any]]  # Queue for multi-disambiguation protection
+    # Which of several shown items the person meant is asked before planning
+    # (reference_disambiguation_node, ADR-367), from resolved_context's candidates.
 
     # Tool Confirmation (tools without drafts): Explicit user approval for sensitive operations
     pending_tool_confirmation: dict[str, Any] | None  # ToolConfirmationContext from tool executor
@@ -720,21 +723,21 @@ def create_initial_state(
         detected_intent=None,  # Semantic intent from SemanticIntentDetector (action|detail|search|list|full)
         registry={},  # Data Registry: Registry for rich frontend rendering (empty at start)
         current_turn_registry=None,  # Data Registry: Current turn registry items
+        shown_items=[],  # ADR-367 amendment: what the answers showed, per turn
+        plan_choice=None,  # ADR-367 amendment: « which one? » before a plan acts
         # Data Registry LOT 4.3: Draft/Critique HITL support
         pending_draft_critique=None,  # PendingDraftInfo from parallel_executor
         pending_drafts_queue=[],  # The drafts still to be reviewed after this one
         pending_drafts_grouped=False,  # ADR-288: a pre-approved FOR_EACH lot only
         confirmed_drafts=[],  # ADR-288: decisions banked along a sequence
         draft_action_result=None,  # User decision: confirm/edit/cancel with details
+        held_plan=None,  # Spec D7: steps waiting for the person's answer
+        executed_drafts={},  # Spec D7: drafts the resume executed
         draft_edit_iteration=0,  # Replay-safe EDIT loop pass counter
         draft_clarification_question=None,  # Clarify question for the next payload
         for_each_hitl_ctx=None,  # Replay-safe FOR_EACH HITL context
         for_each_cancelled=False,  # FOR_EACH bulk-cancel flag
         cancellation_reason=None,  # FOR_EACH cancellation reason
-        # HITL Dispatch: Entity Disambiguation
-        pending_entity_disambiguation=None,  # DisambiguationContext from entity resolution
-        entity_disambiguation_result=None,  # User choice from disambiguation
-        pending_disambiguations_queue=[],  # Queue for multi-disambiguation protection
         # HITL Dispatch: Tool Confirmation
         pending_tool_confirmation=None,  # ToolConfirmationContext from tool executor
         tool_confirmation_result=None,  # User decision: confirm/cancel

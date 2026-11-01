@@ -474,6 +474,15 @@ export const SHORTCUTS_DOCK_PREFS_KEY = 'lia_shortcuts_dock_prefs';
 export const DEBUG_PANEL_PREFS_KEY = 'lia_debug_panel_prefs';
 
 /**
+ * LocalStorage key persisting the « Tools » panes' widths, as the person dragged
+ * them (owner request 2026-10-31).
+ *
+ * Outside the SEC-035 purge registry for the eyes' reason: a display preference
+ * of the device, holding a few numbers and nothing an account inherits harmfully.
+ */
+export const WORKBENCH_PANES_PREFS_KEY = 'lia_workbench_panes';
+
+/**
  * SessionStorage key holding the debug metrics history (SEC-035).
  *
  * The entries carry the user's own request text plus execution details, and the

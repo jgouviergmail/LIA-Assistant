@@ -37,8 +37,8 @@ from src.domains.agents.display.html_renderer import HtmlRenderer
 from src.domains.agents.orchestration.validator import VALID_CONTEXT_REFERENCE_DOMAINS
 from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
 from src.domains.agents.services.analysis.goal_inferrer import _GOAL_PATTERNS
-from src.domains.agents.services.context_resolution_service import _DATA_KEY_TO_RESULT_KEY
 from src.domains.agents.services.planner.domain_constants import CROSS_DOMAIN_MAPPINGS
+from src.domains.agents.services.reference_fallbacks import DATA_KEY_TO_RESULT_KEY
 from src.domains.agents.utils.type_domain_mapping import TYPE_TO_DOMAIN_MAP
 
 # ---------------------------------------------------------------------------
@@ -146,16 +146,16 @@ def test_valid_context_reference_domains_are_result_keys() -> None:
 def test_context_resolution_data_key_map_values_are_result_keys() -> None:
     """The turn-domain detection map must return canonical result_keys.
 
-    Its value is compared against ``item.meta.domain`` / ``_derive_domain_from_type``
+    Its value is compared against ``item.meta.domain`` / ``derive_domain_from_type``
     (both result_keys) in STRATEGY 3; a singular or legacy value never matches.
     """
     offenders = {
         data_key: value
-        for data_key, value in _DATA_KEY_TO_RESULT_KEY.items()
+        for data_key, value in DATA_KEY_TO_RESULT_KEY.items()
         if value not in CANONICAL_RESULT_KEYS
     }
     assert not offenders, (
-        "_DATA_KEY_TO_RESULT_KEY values must be canonical result_keys. "
+        "DATA_KEY_TO_RESULT_KEY values must be canonical result_keys. "
         f"Off-vocabulary: {offenders}"
     )
 

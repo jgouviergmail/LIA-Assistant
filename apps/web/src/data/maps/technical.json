@@ -504,10 +504,12 @@
       "paths": [
         "apps/api/src/domains/connectors/clients",
         "apps/api/src/domains/connectors/active_client.py",
-        "apps/api/src/domains/connectors/keyless.py"
+        "apps/api/src/domains/connectors/keyless.py",
+        "apps/api/src/domains/workbench"
       ],
       "domains": [
-        "connectors"
+        "connectors",
+        "workbench"
       ],
       "deps": [
         "t.bff",

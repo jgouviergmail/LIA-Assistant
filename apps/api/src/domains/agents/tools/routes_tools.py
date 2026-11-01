@@ -130,13 +130,8 @@ ContextTypeRegistry.register(
         item_schema=RouteItem,
         primary_id_field="destination",
         display_name_field="destination",
-        reference_fields=[
-            "origin",
-            "destination",
-            "travel_mode",
-            "distance_km",
-            "duration_minutes",
-        ],
+        # Distances and durations are numbers: a matcher reads text (ADR-367).
+        reference_fields=["origin", "destination", "travel_mode"],
         icon="🗺️",
     )
 )

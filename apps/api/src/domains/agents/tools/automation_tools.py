@@ -43,7 +43,7 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, RECURRENCE_ROUTINE_LIMITS
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.exceptions import AuthorizationError
 from src.core.i18n import resolve_language
 from src.core.recurrence import (
@@ -69,6 +69,7 @@ from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
+from src.domains.scheduled_actions.recurrence_limits import routine_recurrence_limits
 from src.domains.scheduled_actions.schemas import ScheduledActionCreate
 from src.domains.scheduled_actions.trigger import TriggerPlan, schedule_sentence
 from src.infrastructure.database.session import get_db_context
@@ -186,8 +187,9 @@ async def create_scheduled_action_tool(
             starting_on=starting_on,
         )
         # What a ROUTINE may ask, published in its own manifest and enforced
-        # here: the ceiling travels with the caller, never with the engine.
-        recurrence.validate_against(RECURRENCE_ROUTINE_LIMITS)
+        # here: the ceiling travels with the caller, never with the engine —
+        # the operator's, read through the one reader the form and API share.
+        recurrence.validate_against(routine_recurrence_limits())
         data = ScheduledActionCreate(
             title=title, action_prompt=action_prompt, recurrence=recurrence
         )

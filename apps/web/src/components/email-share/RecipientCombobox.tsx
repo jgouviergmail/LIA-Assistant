@@ -18,7 +18,7 @@
  * is prevented, so the field never loses the focus a phone keyboard needs.
  */
 
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,8 @@ export interface RecipientComboboxProps {
   error?: string;
   /** The published shortest query. */
   minChars: number;
+  /** The suggestions' door (`useRecipientSuggestions`); « Send by e-mail »'s by default. */
+  suggestionsPath?: string;
   /**
    * The recipient being typed while the field has the focus, null once it
    * leaves: a name being typed to search is not yet a wrong address.
@@ -49,10 +51,12 @@ export function RecipientCombobox({
   placeholder,
   error,
   minChars,
+  suggestionsPath,
   onTypingChange,
 }: RecipientComboboxProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const pendingCaret = useRef<number | null>(null);
   const [caret, setCaret] = useState(value.length);
   const [open, setOpen] = useState(false);
@@ -62,7 +66,12 @@ export function RecipientCombobox({
   const listboxId = useId();
 
   const active = activeRecipient(value, caret);
-  const { suggestions, truncated } = useRecipientSuggestions(active.query, true, minChars);
+  const { suggestions, truncated } = useRecipientSuggestions(
+    active.query,
+    true,
+    minChars,
+    suggestionsPath
+  );
   // An address already in the field is not offered again.
   const chosen = new Set(
     parseRecipients(`${value.slice(0, active.start)} ${value.slice(active.end)}`).map(address =>
@@ -85,6 +94,13 @@ export function RecipientCombobox({
     inputRef.current.setSelectionRange(at, at);
     pendingCaret.current = null;
   }, [value]);
+
+  // The list opens below the field: where the field sits low in a scrolled frame (an
+  // event's guests, the last field of its form), the frame scrolls just enough to show
+  // it — once, when it opens, never while the person types on (measured 2026-10-31).
+  useEffect(() => {
+    if (expanded) listRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [expanded]);
 
   const pick = (email: string) => {
     const next = insertRecipient(value, active, email);
@@ -161,7 +177,10 @@ export function RecipientCombobox({
         onKeyDown={onKeyDown}
       />
       {expanded && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-lg">
+        <div
+          ref={listRef}
+          className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+        >
           <ul
             id={listboxId}
             role="listbox"

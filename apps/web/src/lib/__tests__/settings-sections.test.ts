@@ -186,11 +186,13 @@ describe('isSettingsSectionToken — the runtime half of the contract', () => {
 
 describe('the workboard has no header destination (ADR-276, D15)', () => {
   it('is reached from its settings section, never from the header', async () => {
-    // The owner explicitly requested a world entry in the shared navigation.
-    // Workboard still uses its settings door and ticket notifications.
+    // The owner explicitly requested a world entry in the shared navigation,
+    // then the « Tools » section (ADR-369) and the « SMS » page (ADR-357
+    // amendment 2026-10-31). Workboard still uses its settings door and ticket
+    // notifications.
     const { DASHBOARD_DESTINATIONS } = await import('../dashboard-nav');
 
-    expect(DASHBOARD_DESTINATIONS).toHaveLength(8);
+    expect(DASHBOARD_DESTINATIONS).toHaveLength(10);
     expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).toContain('world');
     expect(DASHBOARD_DESTINATIONS.map(destination => destination.segment)).not.toContain(
       'workboard'

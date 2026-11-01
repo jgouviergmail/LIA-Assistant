@@ -13,6 +13,8 @@ from typing import Any, Protocol
 
 from src.core.constants import GMAIL_FORMAT_FULL
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
+from src.domains.connectors.clients.path_segments import path_segment
+from src.domains.connectors.models import ConnectorType
 
 
 class _JsonRequester(Protocol):
@@ -43,8 +45,9 @@ class GmailThreadsMixin:
             The thread resource: ``id``, ``historyId``, ``messages`` (each a
             message resource with ``labelIds``, ``internalDate``, ``payload``).
         """
+        thread = path_segment(thread_id, connector_type=ConnectorType.GOOGLE_GMAIL)
         return await self._make_request(
-            "GET", f"/users/me/threads/{thread_id}", params={"format": format}
+            "GET", f"/users/me/threads/{thread}", params={"format": format}
         )
 
     async def list_threads(

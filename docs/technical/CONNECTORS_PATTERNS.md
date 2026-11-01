@@ -187,6 +187,17 @@ le sont (`SEARCH_HITS_ARE_WHOLE` ; Graph non, sa liste est un aperçu), pour que
 l'outil ne relise jamais un message qu'il a déjà (ADR-287, amendement du
 2026-09-30).
 
+**Un nom se lit partout de la même façon (ADR-367).** `from`, `to`, `cc` et les
+destinataires sortants passent par UN `name_addr`
+(`infrastructure/email/recipients.py`) : « Nom <adresse> », nom décodé — Graph
+encodait un nom accentué en mots RFC 2047 — et conservé — IMAP ne gardait que
+l'adresse. Le CalDAV garde l'organisateur que Google et Outlook gardent. Une
+description (« le mail de Marc ») se lit sur ces champs : une garde construit
+la charge de chaque fournisseur avec le vrai normaliseur et le vrai
+constructeur d'outil, et vérifie que chaque champ déclaré d'un type de contexte
+(`reference_fields`, `content_reference_fields`, `candidate_fields`) porte du
+texte (`tests/unit/domains/agents/context/test_reference_fields_carried.py`).
+
 ### Mailbox drafts: one contract, three providers (ADR-344)
 
 The mailbox draft half of `EmailClientProtocol` — `list_drafts`, `get_draft`,
@@ -220,6 +231,27 @@ What a caller can rely on, whatever the provider:
   `parse_recipients` refuses an unreadable address in what LIA writes,
   `read_recipients` skips one in a header a provider handed back, and
   `encode_recipients` encodes a display name outside ASCII alone.
+
+### Contracts the workbench added, on every provider (ADR-369)
+
+The « Tools » section ([WORKBENCH.md](WORKBENCH.md)) reads and writes through the SAME clients as
+the assistant, so every contract it needed was given to every provider of the category, and reaches
+the assistant's tools in the same change:
+
+- `mark_read(message_ids, read)` on Gmail, Outlook and IMAP; the assistant's
+  `set_email_read_state_tool`.
+- `get_message_html(message_id)` on the three mail clients — every `text/html` part in document
+  order, a part with a file name and anything inside an attached message left out; display only,
+  never handed to a model.
+- `all_day` on `create_event` / `update_event` (an all-day end is exclusive) and
+  `list_events_window(…, bound=)` drained up to a published bound, on Google, Graph and CalDAV;
+  `send_updates` on `update_event` (Google; Graph notifies on its own, CalDAV cannot).
+- Typed multi-valued `emails` / `phones` / `addresses` on `create_contact` / `update_contact` —
+  a list sent replaces that list, `None` keeps it, a list the provider cannot hold raises
+  `ContactValuesRefused` with its bound — on People, Graph and CardDAV.
+- A provider id put in a URL path goes through `path_segments.path_segment` (one quoted segment, a
+  folded `.` / `..` / empty refused before any request); a value put in Drive's `q` grammar goes
+  through `_q_literal` (the backslash escaped before the quote).
 
 ---
 

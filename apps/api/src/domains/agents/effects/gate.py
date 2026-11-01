@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Final
 
-from src.domains.agents.api.run_origin import current_origin_carries_drafts
+from src.domains.agents.api.run_origin import current_origin, current_origin_carries_drafts
 from src.domains.agents.effects.scope import EffectScope, current_turn_source
 
 #: Policies whose effect happens somewhere the ledger cannot follow — or does
@@ -122,6 +122,22 @@ def turn_has_nobody_to_ask() -> bool:
         True inside a routine's run; False in the chat, a spoken turn, a ticket.
     """
     return nobody_can_answer(current_turn_source(), carrier=current_origin_carries_drafts())
+
+
+def turn_follows_the_conversation() -> bool:
+    """Whether the person is in the conversation this turn answers.
+
+    True in the chat and in a spoken delegation: the person saw what the
+    previous answers showed and can be asked about it. False in a routine
+    (nobody watches the thread), a workboard ticket or a relayed call: their
+    instruction was written or spoken elsewhere, so a list the chat showed is
+    nothing they point at (ADR-367). The account's ONE thread carries all of
+    them, which is why the thread alone cannot tell.
+
+    Returns:
+        True when the turn's words may designate what the chat showed.
+    """
+    return current_origin() is None and not turn_has_nobody_to_ask()
 
 
 def unattended_refusal_message(stand_in: str, when: str) -> str:

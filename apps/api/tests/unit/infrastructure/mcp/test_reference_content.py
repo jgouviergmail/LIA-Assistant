@@ -404,6 +404,7 @@ def _server() -> SimpleNamespace:
         hitl_required=False,
         domain_description="My notes",
         iterative_mode=False,
+        react_expand_iterative=None,
         auth_type="none",
         discovered_tools_cache=None,
     )

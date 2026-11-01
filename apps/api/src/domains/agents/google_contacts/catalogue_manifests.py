@@ -16,6 +16,11 @@ from src.domains.agents.google_contacts.group_manifests import (
     get_contact_group_members_catalogue_manifest,
     list_contact_groups_catalogue_manifest,
 )
+from src.domains.agents.google_contacts.value_descriptions import (
+    CONTACT_ADDRESS_DESCRIPTION,
+    CONTACT_EMAIL_DESCRIPTION,
+    CONTACT_PHONE_DESCRIPTION,
+)
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -371,14 +376,14 @@ update_contact_catalogue_manifest = ToolManifest(
             name="email",
             type="string",
             required=False,
-            description="New Email",
+            description=CONTACT_EMAIL_DESCRIPTION,
             semantic_type="email_address",  # Guarded: a person name here is a plan bug
         ),
         ParameterSchema(
             name="phone",
             type="string",
             required=False,
-            description="New Phone",
+            description=CONTACT_PHONE_DESCRIPTION,
             semantic_type="phone_number",
         ),
         ParameterSchema(
@@ -399,7 +404,7 @@ update_contact_catalogue_manifest = ToolManifest(
             name="address",
             type="string",
             required=False,
-            description="New Address (e.g. '15 rue de la Paix, Paris 75001')",
+            description=CONTACT_ADDRESS_DESCRIPTION,
             semantic_type="physical_address",  # Guarded + linkable from places/events outputs
         ),
     ],

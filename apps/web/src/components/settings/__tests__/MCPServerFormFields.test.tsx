@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { MCPServerFormFields } from '../MCPServerFormFields';
 import {
@@ -47,7 +47,29 @@ describe('the shared private MCP form', () => {
     expect(inputs).toHaveLength(2);
     expect(inputs[0].id).not.toBe(inputs[1].id);
     expect(screen.getAllByRole('combobox', { name: 'Authentication type' })).toHaveLength(2);
-    expect(screen.getAllByRole('switch', { name: 'Iterative mode (ReAct agent)' })).toHaveLength(2);
+    expect(screen.getAllByRole('switch', { name: 'Dedicated agent' })).toHaveLength(2);
+  });
+  it('the settings page puts its behaviour choices where the iterative switch was', () => {
+    function WithChoices({ fields }: { fields: ReactNode }) {
+      const [form, setForm] = useState(emptyMCPServerForm());
+      return (
+        <MCPServerFormFields
+          form={form}
+          setForm={setForm}
+          editingServer={null}
+          t={language.t}
+          behaviorFields={fields}
+        />
+      );
+    }
+    const { unmount } = renderWithProviders(<WithChoices fields={<p>who drives it</p>} />);
+    expect(screen.getByText('who drives it')).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    unmount();
+
+    // Not offered yet (the defaults are still read): nothing, never the old switch.
+    renderWithProviders(<WithChoices fields={null} />);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
   it('does not submit credentials left over from a different authentication choice', () => {
     const form = {

@@ -5,6 +5,7 @@ Phase: evolution F2.1 — MCP Per-User
 Created: 2026-02-28
 """
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -15,7 +16,9 @@ from sqlalchemy.orm import aliased, defer
 from src.core.exceptions import ResourceNotFoundError
 from src.core.repository import BaseRepository
 from src.domains.user_mcp.models import UserMCPServer, UserMCPServerStatus
+from src.domains.user_mcp.tool_choice_repository import UserMCPToolChoiceRepository
 from src.domains.users.models import User
+from src.infrastructure.mcp.confirmation import StoredToolChoice
 
 
 class UserMCPServerRepository(BaseRepository[UserMCPServer]):
@@ -94,6 +97,37 @@ class UserMCPServerRepository(BaseRepository[UserMCPServer]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def account_confirmation(self, user_id: UUID) -> bool | None:
+        """The account's MCP confirmation strategy (``users.mcp_hitl_required``).
+
+        Read where the person's MCP manifests are built for a run (spec 2026-10-30
+        D1): a change applies from the next run, on every worker.
+
+        Args:
+            user_id: The account.
+
+        Returns:
+            True (always ask), False (follow the declarations), or None when the
+            account never chose and follows the instance default.
+        """
+        return await self.db.scalar(select(User.mcp_hitl_required).where(User.id == user_id))
+
+    async def tool_choices(
+        self, server_ids: Sequence[UUID]
+    ) -> dict[UUID, dict[str, StoredToolChoice]]:
+        """The per-tool choices of these servers, read with the account's strategy.
+
+        One query for every server of a run (spec 2026-10-30 D6); the reading itself
+        is the choices repository's.
+
+        Args:
+            server_ids: The servers of the run.
+
+        Returns:
+            By server, then by the tool's raw name.
+        """
+        return await UserMCPToolChoiceRepository(self.db).choices_for(server_ids)
 
     async def get_tool_embeddings_cache(self, server_id: UUID) -> dict[str, Any] | None:
         """The persisted vector envelope of one server, read alone.

@@ -4,7 +4,7 @@ The loop binds the AVAILABLE tools (filtered by active connectors) by
 RELEVANCE, from the global order the router computed with the query embedding
 it already paid for: the detected domains' tools, then every other family's
 ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools — plus the delegation
-door of an expanded user MCP server — then the first ``react_tool_semantic_top_k``
+door of an expanded iterative MCP server — then the first ``react_tool_semantic_top_k``
 of the order; the rest is dropped by relevance and ``react_agent_max_tools``
 stays the safety net, trimming by the same tiers. Without a ranking, or with
 K = 0, every available tool is bound in registration order and only the cap
@@ -46,7 +46,9 @@ Filtering chain (same as pipeline):
    (respects active connectors)
 
 Also builds a hitl_map (tool_name → bool) for the execute_tools node to know
-which tools require HITL approval via interrupt().
+which tools require HITL approval via interrupt() — the effect gate's own rule,
+``requires_confirmation`` (spec 2026-10-29 D8), so the loop asks first every
+call the gate would otherwise refuse into a draft that ends the loop.
 """
 
 from __future__ import annotations
@@ -62,16 +64,16 @@ from src.core.config import settings
 from src.core.constants import (
     CATALOGUE_DOMAIN_COVERAGE_TOP_N,
     EXECUTION_MODE_REACT,
-    MCP_ITERATIVE_TASK_SUFFIX,
-    MCP_USER_TOOL_NAME_PREFIX,
 )
 from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 from src.domains.agents.registry.catalogue import manifests_for_mode
+from src.domains.agents.registry.confirmation_rule import requires_confirmation
+from src.domains.agents.registry.reactive_manifests import reactive_manifests_of
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 from src.infrastructure.mcp.catalogue_fingerprint import canonical_fingerprint
+from src.infrastructure.mcp.confirmation import react_drives_tools_directly
 from src.infrastructure.mcp.iterative_identity import iterative_user_instances
-from src.infrastructure.mcp.registration import declares_destructive_tool
 from src.infrastructure.observability.metrics_react import (
     react_cross_turn_cache_fallback_total,
     react_tool_selector_capped_total,
@@ -81,6 +83,8 @@ from src.infrastructure.observability.metrics_react import (
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
+
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 logger = structlog.get_logger(__name__)
 
@@ -94,7 +98,7 @@ class DetectedDomains(Protocol):
 
 class _Resolved(NamedTuple):
     """One tool a manifest binds: its name, instance, HITL flag, and whether it is
-    the delegation door (task tool) of an expanded iterative user MCP server.
+    the delegation door (task tool) of an expanded iterative MCP server.
     """
 
     name: str
@@ -382,10 +386,11 @@ class ReactToolSelector:
         ReAct already IS an iterative loop, so the per-server "task tool"
         indirection (designed for the single-shot pipeline planner) only
         hides the descriptive individual tools from the LLM, which then
-        falls back to generic web search. For iterative USER MCP servers,
-        expose the individual tools directly so the model can recognise and
-        pick them by description — EXCEPT MCP App servers, which keep the
-        task tool (they need the dedicated MCP-app prompt + model).
+        falls back to generic web search. For iterative MCP servers — the
+        person's and the administrator's — expose the individual tools
+        directly so the model can recognise and pick them by description —
+        EXCEPT MCP App servers, which keep the task tool (they need the
+        dedicated MCP-app prompt + model).
 
         The task tool is bound AS WELL, never replaced: it is the only
         delegation affordance for identity- or multi-step asks the
@@ -395,9 +400,10 @@ class ReactToolSelector:
         their username — while the pipeline, which keeps the task tool,
         delegated to the sub-agent and answered).
 
-        HITL is read straight from the in-hand manifest: the agent_registry
-        does not know user MCP tools, so looking it up there would silently
-        disable approval gates on user MCP mutation tools.
+        Whether a call is asked first is the gate's own rule
+        (``requires_confirmation``, spec D8), read from the in-hand manifest:
+        the agent_registry does not know user MCP tools, so looking it up
+        there would silently disable approval gates on user MCP mutation tools.
 
         Args:
             manifest: The candidate tool manifest.
@@ -406,9 +412,8 @@ class ReactToolSelector:
             The tools to bind, or None when no instance resolves (skipped).
         """
         tool_name = manifest.name
-        permissions = getattr(manifest, "permissions", None)
-        manifest_hitl = bool(permissions and permissions.hitl_required)
-        expanded = self._expand_iterative_user_mcp(manifest)
+        manifest_hitl = requires_confirmation(manifest)
+        expanded = self._expand_iterative_mcp(manifest)
         if expanded is not None:
             tools = [_Resolved(name, instance, hitl) for name, instance, hitl in expanded]
             task_instance = resolve_tool_instance(tool_name)
@@ -500,8 +505,8 @@ class ReactToolSelector:
         registration order. Then every OTHER family keeps its
         ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools — registration
         order when no ranking exists — so a family the router did not name
-        stays reachable through its most relevant doors; an expanded user MCP
-        server keeps its delegation door beside them, on no seat of its own and
+        stays reachable through its most relevant doors; an expanded iterative
+        MCP server keeps its delegation door beside them, on no seat of its own and
         ranked as its best tool, because it is the one affordance for what its
         individual tools cannot express. Then, with a ranking, the first
         ``top_k`` of it; what remains
@@ -585,7 +590,7 @@ class ReactToolSelector:
 
         Coverage keeps, per family outside the detected domains, its best-ranked
         seats and, beside them, its delegation door when the family is an
-        expanded user MCP server. A family holding at most one unit keeps the
+        expanded iterative MCP server. A family holding at most one unit keeps the
         rule of 2026-09-20: ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` SEATS, its unit
         one of them whatever its size (one affordance, one door: the skills). A
         family of several units is a catalogue of sections reachable through its
@@ -755,63 +760,78 @@ class ReactToolSelector:
         return agents
 
     @staticmethod
-    def _expand_iterative_user_mcp(
+    def _expand_iterative_mcp(
         manifest: Any,
     ) -> list[tuple[str, BaseTool, bool]] | None:
-        """Expand an iterative user MCP task manifest into its individual tools.
+        """Expand an iterative MCP task manifest into its individual tools (spec D8).
 
-        Iterative user MCP servers expose a single opaque ``mcp_user_{id}_task``
-        manifest to the planner, while their individual tools live in the
-        per-request ``user_mcp_tools_ctx``. In ReAct mode the individual tools are
-        surfaced directly (their descriptions let the LLM pick them), except for
-        MCP App servers, which keep the task tool for the dedicated app workflow.
+        An iterative server — the person's or the administrator's — offers the
+        planner ONE task manifest; its individual tools stay out of the
+        catalogue: the person's on the request (``user_mcp_tools_ctx``), the
+        administrator's in the process store (``reactive_manifests``). In ReAct
+        mode the individual tools are surfaced directly (their descriptions let
+        the LLM pick them), except for MCP App servers, which keep the task tool
+        for the dedicated app workflow (spec D5).
+
+        Each individual is asked on its OWN manifest: the server setting is per
+        SERVER, a destructive tool a per-TOOL fact — read from the server's
+        setting alone, turning confirmation off for a mostly read-only server
+        turned it off for the few tools that delete something.
 
         Args:
             manifest: The candidate tool manifest being processed by ``select``.
 
         Returns:
-            A list of ``(tool_name, instance, hitl_required)`` for the server's
-            individual tools, or ``None`` when expansion is disabled by feature
-            flag, when the manifest is not an iterative user MCP task tool, when
-            the server is an MCP App, or when no individual tools are available
-            (all of which fall back to normal single-manifest resolution).
+            A list of ``(tool_name, instance, asked_first)`` for the server's
+            individual tools, or ``None`` when the manifest is not an iterative
+            MCP task tool, when its server keeps its dedicated agent in ReAct
+            (``react_expand``, resolved once by the manifest's builder — spec
+            2026-10-30 D4), when the server is an MCP App, or when no individual
+            tool resolves (all of which fall back to normal single-manifest
+            resolution).
         """
-        if not settings.react_mcp_expand_iterative_enabled:
+        if not getattr(manifest, "delegates_execution", False):
             return None
-
-        tool_name = getattr(manifest, "name", "")
-        if not (
-            tool_name.startswith(f"{MCP_USER_TOOL_NAME_PREFIX}_")
-            and tool_name.endswith(MCP_ITERATIVE_TASK_SUFFIX)
+        individuals = _iterative_individuals(manifest)
+        # The ONE decision the page's synthesis reads too: return None routes back
+        # to the normal single-manifest resolution (the task tool).
+        if not react_drives_tools_directly(
+            react_expand=getattr(manifest, "react_expand", False) is True,
+            has_individuals=bool(individuals),
+            is_mcp_app=any(
+                getattr(instance, "app_resource_uri", None) for _, instance, _ in individuals
+            ),
         ):
             return None
+        # An individual without a manifest is one the gate cannot police: ask.
+        return [
+            (name, instance, own is None or requires_confirmation(own))
+            for name, instance, own in individuals
+        ]
 
+
+def _iterative_individuals(manifest: Any) -> list[tuple[str, BaseTool, ToolManifest | None]]:
+    """An iterative MCP task's individual tools, each with its own manifest.
+
+    Args:
+        manifest: An iterative task manifest (``delegates_execution``).
+
+    Returns:
+        ``(name, instance, manifest)`` per individual — the person's server's
+        from the request, the administrator's from the process store; empty for
+        any other delegating manifest.
+    """
+    origin = getattr(manifest, "mcp_origin", None)
+    server_key = getattr(manifest, "mcp_server_key", None)
+    if origin == "user":
         user_ctx = user_mcp_tools_ctx.get()
         if user_ctx is None:
-            return None
-
-        individual = iterative_user_instances(
-            tool_name, getattr(manifest, "mcp_server_key", None), user_ctx.tool_instances
-        )
-        is_app_server = any(
-            getattr(instance, "app_resource_uri", None) for _, instance in individual
-        )
-
-        # No hidden individual tools, or an MCP App server → keep the task tool
-        # (return None routes back to the normal single-manifest resolution).
-        if not individual or is_app_server:
-            return None
-
-        permissions = getattr(manifest, "permissions", None)
-        server_hitl = bool(permissions and permissions.hitl_required)
-        # The server setting is per SERVER; a destructive tool is a per TOOL
-        # fact. Without this, turning confirmation off for a mostly read-only
-        # server also turns it off for the few tools that delete something.
-        return [
-            (
-                name,
-                instance,
-                server_hitl or declares_destructive_tool(getattr(instance, "annotations", None)),
-            )
-            for name, instance in individual
+            return []
+        pairs = iterative_user_instances(manifest.name, server_key, user_ctx.tool_instances)
+        return [(name, tool, user_ctx.reactive_tool_manifests.get(name)) for name, tool in pairs]
+    if origin == "admin" and isinstance(server_key, str):
+        found = [
+            (m.name, resolve_tool_instance(m.name), m) for m in reactive_manifests_of(server_key)
         ]
+        return [(name, tool, own) for name, tool, own in found if tool is not None]
+    return []

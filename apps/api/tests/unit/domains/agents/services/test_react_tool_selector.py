@@ -212,6 +212,43 @@ class TestReactIterativeExpansion:
         assert _TASK_TOOL_NAME in names  # app server keeps the task tool
         assert app_tool.name not in names  # individual app tools stay hidden
 
+    def test_the_manifest_s_shape_decides_not_the_flag_at_call_time(self, monkeypatch) -> None:
+        """Spec 2026-10-30 D4: the shape is resolved once, by the manifest's builder.
+
+        A server that chose its dedicated agent keeps it even while the instance
+        default says otherwise — the selector never reads the flag.
+        """
+        ind1 = _make_user_adapter("get_indicator")
+        task_manifest = build_mcp_react_task_manifest(
+            _TASK_TOOL_NAME,
+            "mcp_atars_agent",
+            "atars",
+            "User MCP fixture delegation",
+            [],
+            [],
+            False,
+            mcp_origin="user",
+            mcp_server_key=str(_SERVER_ID),
+            react_expand=False,
+        )
+        monkeypatch.setattr(settings, "react_mcp_expand_iterative_enabled", True)
+        ctx = UserMCPToolsContext()
+        ctx.tool_instances[_TASK_TOOL_NAME] = _task_instance()
+        ctx.tool_instances[ind1.name] = ind1
+        ctx.tool_manifests = [task_manifest]
+
+        man_token = request_tool_manifests_ctx.set([task_manifest])
+        ctx_token = user_mcp_tools_ctx.set(ctx)
+        try:
+            wrapped, _hitl_map = ReactToolSelector().select(intelligence=None)
+        finally:
+            user_mcp_tools_ctx.reset(ctx_token)
+            request_tool_manifests_ctx.reset(man_token)
+
+        names = {t.name for t in wrapped}
+        assert _TASK_TOOL_NAME in names
+        assert ind1.name not in names
+
     def test_expansion_disabled_keeps_task_tool(self, monkeypatch) -> None:
         """With the feature flag off, the iterative task tool is kept (no expansion)."""
         monkeypatch.setattr(settings, "react_mcp_expand_iterative_enabled", False)
@@ -318,17 +355,18 @@ class TestReactToolSelectorCapPriority:
 
 
 class TestDestructiveHintForcesConfirmation:
-    """In iterative mode every tool of a server shares ONE HITL flag.
+    """In iterative mode every tool of a server shares ONE HITL setting.
 
-    ``_expand_iterative_user_mcp`` returns ``server_hitl`` for all of them, so a
-    user who turned confirmation off for a mostly read-only server — a
-    reasonable thing to do for a finance server one mostly queries — would have
-    ``knowledge__forget``, ``billing__cancel_subscription`` and
-    ``connections__disconnect_institution`` execute with no confirmation at all.
+    Read from that setting alone, a user who turned confirmation off for a
+    mostly read-only server — a reasonable thing to do for a finance server one
+    mostly queries — would have ``knowledge__forget``,
+    ``billing__cancel_subscription`` and ``connections__disconnect_institution``
+    execute with no confirmation at all.
 
-    A tool the server itself declares destructive gets one regardless. This is
-    tightening only: the spec requires annotations to be treated as untrusted,
-    and the worst a lying server buys is a confirmation nobody needed.
+    Each individual is asked on its OWN manifest (spec D8), whose policy a
+    declared destructive tool makes ``confirm``. This is tightening only: the
+    spec requires annotations to be treated as untrusted, and the worst a lying
+    server buys is a confirmation nobody needed.
     """
 
     @staticmethod
@@ -349,6 +387,19 @@ class TestDestructiveHintForcesConfirmation:
         ctx.tool_instances[_TASK_TOOL_NAME] = _task_instance(server_name="era")
         for adapter in adapters:
             ctx.tool_instances[adapter.name] = adapter
+            # What user_context builds for every individual (production contract).
+            ctx.reactive_tool_manifests[adapter.name] = build_mcp_tool_manifest(
+                adapter.name,
+                "mcp_era_agent",
+                adapter.name,
+                adapter.description,
+                {"type": "object", "properties": {}},
+                [],
+                server_hitl,
+                annotations=adapter.annotations,
+                mcp_origin="user",
+                mcp_server_key=str(_SERVER_ID),
+            )
         ctx.tool_manifests = [task_manifest]
 
         man_token = request_tool_manifests_ctx.set([task_manifest])

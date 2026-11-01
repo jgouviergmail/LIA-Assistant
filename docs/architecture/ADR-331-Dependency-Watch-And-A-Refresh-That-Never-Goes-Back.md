@@ -189,6 +189,26 @@ product defects: the chat's « back to the bottom » button sat at the end of th
 screen, and the personality selector missed its 44 px touch target in WebKit by 0.03 px. The
 measurements are in the programme's spec (§ 5, lot 9e).
 
+## Amendment 2026-10-31 — retire the ESLint 9 acceptance through a tested adapter
+
+The legacy plugin chain still publishes peer ranges ending at ESLint 9. Staying
+on that end-of-life line produced an installation deprecation. The official
+`@eslint/compat` adapter now wraps every imported Next.js plugin configuration;
+exact-version peer compatibility entries describe this application adaptation,
+not native support claimed on the plugins' behalf. Removing the adapter while
+keeping those entries is invalid.
+
+The selected ESLint minor has cleared the existing cooldown. Its effective
+configured rules and deliberately invalid React, accessibility and TypeScript
+probes must match the previous configuration, and the full lint, three
+shrink-only ratchets and typecheck must pass. No rule, threshold or unused-disable
+check is relaxed. The old end-of-life and deprecation acceptances are removed.
+The earlier workaround bypassed React version auto-detection; it did not adapt
+the complete rule API. The official adapter does, and metadata alone remains
+insufficient. Native plugin support will retire each temporary compatibility
+entry; review the remaining entries by 2026-11-30. The implementation and the
+upstream migration reference live in `docs/technical/CI_CD.md`.
+
 ## Alternatives rejected
 
 - **A `uv.lock` project so that Dependabot can update Python**: ADR-112 weighed
@@ -220,3 +240,19 @@ measurements are in the programme's spec (§ 5, lot 9e).
 - `.github/workflows/dependency-watch.yml`, `.github/dependabot.yml`
 - `apps/api/requirements.txt` (the security floors), `package.json` (`vite`, `sharp`)
 - the release procedure (`lia-release`): the watch is a gate `ci:fast` does not run
+
+## Amendment — 1 November 2026: bootstrap tools have their own dependencies
+
+A package manager is another supply-chain boundary. The application's certifi
+does not replace pip's vendored certificate store; a workspace npm override
+does not replace the global npm executable's bundle. The API, development and
+skill-sandbox Dockerfiles therefore declare matching pinned `PIP_VERSION`,
+`PIP_WHEEL_SHA256` and `NPM_VERSION` inputs, held equal by the existing single-owner
+guard. The bootstrap wheel is hash-verified before installation. A security
+correction follows the original cooldown exemption, while ordinary tool moves
+retain their cooldown. Qualify the rebuilt image and its promised runtime
+commands as well as the application lockfiles. A publisher's latest stable
+tool can still carry unresolved dependencies; its version alone is no security
+verdict. The [image qualification report](../superpowers/qualification/2026-11-01-v4-3-0-container-images.md)
+records the measured v4.3.0 results and the owner's decision to wait for
+upstream corrections.

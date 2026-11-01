@@ -131,6 +131,12 @@ Prepares tools, system prompt, and context for the ReAct loop:
   **knowledge spaces** — the same `<UserDocuments>` block as the response node, read from
   the prefetched bundle without consuming it — and `search_user_documents_tool` survives
   the tool cap whatever the detected domains (`CAP_SURVIVORS` in the selector).
+  Since ADR-367 the loop also reads the **item the turn designates** among those shown (« the
+  second one », « Marc's e-mail », the option chosen when asked): `<DesignatedItems>`, the
+  planner's own rendering (`ResolvedContext.to_llm_context`) under the directive of
+  `react_context_lines.txt`, quoted as external content and read from the SMS-guarded state —
+  only on a turn that designates an item. Before, the loop never received the turn's resolved
+  items and searched again.
 - Injects active skills catalogue (L1, filtered by `active_skills_ctx`)
 - Sets `react_start_time` (kept for observability; the deadline itself runs on compute — see below)
 - Stores tool names and HITL map in state (JSON-serializable)
@@ -463,9 +469,9 @@ then user exact/fuzzy compatibility. See
 [ADR-338](../architecture/ADR-338-Live-MCP-Contracts-And-Exact-Callable-Identity.md)
 and the [MCP integration guide](MCP_INTEGRATION.md#offered-contracts-and-callable-identity).
 
-### Iterative user MCP expansion
+### Iterative MCP expansion
 
-A user MCP server configured `iterative_mode=true` exposes a single opaque `mcp_user_{id}_task` manifest to the planner (it delegates to a ReAct sub-agent — ADR-062). Since the ReAct loop is *itself* iterative, that indirection only hides the descriptive individual tools, so the LLM falls back to generic web search. `ReactToolSelector._expand_iterative_user_mcp` therefore replaces the task manifest with the server's individual tools (read from the ContextVar), letting the model pick them by description. **Exception:** MCP App servers (a tool with `app_resource_uri`) keep the task tool, because they need the dedicated MCP-app prompt and the more capable `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`); when `false`, the task tool is kept (instant rollback) and still resolves correctly via the shared resolver. The pipeline keeps the task-tool path unchanged.
+An MCP server configured `iterative_mode=true` — the person's or the administrator's — exposes a single opaque task manifest to the planner (it delegates to a ReAct sub-agent — ADR-062). Since the ReAct loop is *itself* iterative, that indirection only hides the descriptive individual tools, so the LLM falls back to generic web search. `ReactToolSelector._expand_iterative_mcp` therefore binds the server's individual tools — the person's from the request (`UserMCPToolsContext.reactive_tool_manifests`), the administrator's from the process store (`registry/reactive_manifests.py`) — beside the task tool, letting the model pick them by description. Each individual is asked on its OWN manifest through the gate's predicate (`registry/confirmation_rule.requires_confirmation`), so a destructive tool is asked even when the server's confirmation is off (ADR-263 amendment 2026-10-30 (b)). **Exception:** MCP App servers (a tool with `app_resource_uri`) keep the task tool, because they need the dedicated MCP-app prompt and the more capable `mcp_app_react_agent` model. Gated by `REACT_MCP_EXPAND_ITERATIVE_ENABLED` (default `true`); when `false`, the task tool is kept (instant rollback) and still resolves correctly via the shared resolver. The pipeline keeps the task-tool path: its sub-loop hands every confirmation it queued up to the turn, with a record the code writes.
 
 > Optional MCP parameters left unset are materialised as `None` by the args schema; both MCP adapters drop `None`-valued arguments (`drop_none_values`) before the server call, so strictly-typed (e.g. Go-based) servers don't reject them as `null`.
 
@@ -636,7 +642,7 @@ REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION=0.5  # For frequent exchanges, the ReAct
 PROMPT_CACHE_EXTENDED_TTL_ENABLED=true  # For a frequent turn a person waits for, the cross-turn cache read points live the provider's extended lifetime (Claude: one hour) — ADR-362
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
 REACT_RECOVERY_PASSES_MAX=1           # Recovery passes a declared gap buys per turn (0-3, 0 = off) — ADR-310
-REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative USER MCP servers into individual tools (false = keep task tool; MCP App servers always keep it)
+REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative MCP servers (personal and administrator) into individual tools (false = keep task tool; MCP App servers always keep it)
 INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
 
 # Progress-earned budget (ADR-248)

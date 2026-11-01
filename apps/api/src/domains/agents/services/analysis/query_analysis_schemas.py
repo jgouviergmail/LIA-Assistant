@@ -12,6 +12,8 @@ rather than the cap moving up.
 
 from __future__ import annotations
 
+from typing import Final
+
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic import Field as PydanticField
 
@@ -24,11 +26,23 @@ from src.domains.agents.analysis.resolved_references import (
 from src.domains.agents.services.analysis.skill_suppression import normalize_skill_name
 
 __all__ = [
+    "DESCRIPTIVE_SELECTIONS",
+    "DESCRIPTIVE_SELECTION_LATEST",
+    "DESCRIPTIVE_SELECTION_ONE",
+    "REFERENCE_TYPE_DESCRIPTIVE",
     "ConstraintHints",
     "ContextReferenceOutput",
     "QueryAnalysisOutput",
     "ResolvedReference",
 ]
+
+#: A shown item designated by WHAT it is or WHO it involves (ADR-367).
+REFERENCE_TYPE_DESCRIPTIVE: Final = "descriptive"
+#: The one item a description designates — asked about when several fit.
+DESCRIPTIVE_SELECTION_ONE: Final = "one"
+#: The most recent item a description fits, when the person asks for it.
+DESCRIPTIVE_SELECTION_LATEST: Final = "latest"
+DESCRIPTIVE_SELECTIONS: Final = frozenset({DESCRIPTIVE_SELECTION_ONE, DESCRIPTIVE_SELECTION_LATEST})
 
 
 class ResolvedReference(BaseModel):
@@ -66,41 +80,59 @@ class ConstraintHints(BaseModel):
 
 
 class ContextReferenceOutput(BaseModel):
-    """LLM-detected reference to items from previous conversation results.
+    """LLM-detected reference to an item already shown to the person.
 
     Populated by the QueryAnalyzer LLM to indicate whether the user's query
-    references specific items from a previous assistant response (ordinal,
-    demonstrative, or pronoun references). Used by ContextResolutionService
-    to resolve references to actual items via ToolContextManager.
+    designates a specific item a previous result showed — by position, by
+    pointing at it, by a pronoun, or by DESCRIBING it (ADR-367). Used by
+    ContextResolutionService to resolve the reference to the shown item: the
+    model only reads the request; which items a description designates is
+    decided by code (``context/descriptor_match.py``).
 
     Examples of has_reference=True:
         - "details of the first one" → ordinal, ordinal_positions=[1]
         - "delete this email" → demonstrative, reference_domain="email"
         - "reply to it" → pronoun, reference_domain="email"
+        - "reply to Marc's email" → descriptive, descriptor="Marc"
 
     Examples of has_reference=False:
         - "this photo is nice" → attachment, not a previous result
         - "this morning" → temporal expression
         - "search for restaurants" → new query
+        - "send an email to Alice" → something new is created
     """
 
     has_reference: bool = PydanticField(
         default=False,
         description=(
-            "True ONLY when user refers to a specific item from a previous assistant response "
-            "in the conversation (ordinal like 'the 2nd one', demonstrative like 'this email', "
-            "or pronoun like 'reply to it'). "
-            "False for attachments ('this photo'), temporal expressions ('this morning'), "
-            "new queries, or general conversation."
+            "True when the user designates a specific item already shown to them — by "
+            "position, by pointing at it, by a pronoun, or by describing it. False for "
+            "attachments, temporal expressions, new searches, operations on a whole set, "
+            "something newly created, or general conversation."
         ),
     )
     reference_type: str = PydanticField(
         default="none",
         description=(
-            "'ordinal' (the first, the 2nd, the last, the 1st and 3rd), "
-            "'demonstrative' (this email, that contact), "
-            "'pronoun' (it, them, reply to him), "
-            "or 'none'"
+            "'ordinal' (by position), 'demonstrative' (this/that item), 'pronoun' (it, "
+            "them), 'descriptive' (by its sender, a recipient, a person or place it "
+            "involves, a word of its subject, title or name), or 'none'"
+        ),
+    )
+    descriptor: str = PydanticField(
+        default="",
+        description=(
+            "Descriptive references only: the words that single the item out (names, "
+            "subject or title words) as the user wrote them, in their base form, "
+            "without articles, prepositions, the action or the kind of item. Empty "
+            "otherwise."
+        ),
+    )
+    selection: str = PydanticField(
+        default=DESCRIPTIVE_SELECTION_ONE,
+        description=(
+            "Descriptive references only: 'one' (default), or 'latest' only when the "
+            "user explicitly asks for the most recent matching item."
         ),
     )
     ordinal_positions: list[int] = PydanticField(
@@ -120,6 +152,13 @@ class ContextReferenceOutput(BaseModel):
             "Empty string if domain should be inferred from last search context."
         ),
     )
+
+    @field_validator("selection", mode="before")
+    @classmethod
+    def _read_selection(cls, raw: object) -> str:
+        """A selection outside the vocabulary is ``one`` — never a failed analysis."""
+        value = str(raw or "").strip().lower()
+        return value if value in DESCRIPTIVE_SELECTIONS else DESCRIPTIVE_SELECTION_ONE
 
 
 class QueryAnalysisOutput(BaseModel):

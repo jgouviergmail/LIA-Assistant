@@ -15,6 +15,20 @@ from src.infrastructure.mcp.user_context import (
 )
 
 
+def _adapter_double(name: str) -> MagicMock:
+    """An adapter double that honours the production contract a turn checks:
+    its call goes through the effect gate, under its own name (spec D3)."""
+    from src.domains.agents.effects.runtime import gated
+
+    async def _call(**_: object) -> None:
+        return None
+
+    double = MagicMock()
+    double.name = name
+    double.coroutine = gated(name, _call)
+    return double
+
+
 @pytest.fixture(autouse=True)
 def _fresh_vector_cache() -> Iterator[None]:
     """A test never reads vectors another test cached per worker (ADR-283 amendment)."""
@@ -293,9 +307,8 @@ class TestSetupUserMCPTools:
         mock_build_auth.return_value = MagicMock()
 
         # The adapter's name will be the prefixed version
-        adapter_mock = MagicMock()
         adapter_name = f"mcp_user_{str(server.id)[:8]}_hub_search"
-        adapter_mock.name = adapter_name
+        adapter_mock = _adapter_double(adapter_name)
         mock_manifest.return_value = MagicMock()
 
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
@@ -380,9 +393,8 @@ class TestSetupUserMCPTools:
         mock_compute.return_value = fresh
         # The envelope is written on a fresh read of the row (ADR-304).
         mock_repo.get_by_id = AsyncMock(return_value=server)
-        adapter_mock = MagicMock()
         adapter_name = f"mcp_user_{str(server.id)[:8]}_hub_search"
-        adapter_mock.name = adapter_name
+        adapter_mock = _adapter_double(adapter_name)
         mock_manifest.return_value = MagicMock()
 
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
@@ -445,8 +457,7 @@ class TestSetupUserMCPTools:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
         mock_compute.side_effect = RuntimeError("429 RESOURCE_EXHAUSTED")
-        adapter_mock = MagicMock()
-        adapter_mock.name = f"mcp_user_{str(server.id)[:8]}_hub_search"
+        adapter_mock = _adapter_double(f"mcp_user_{str(server.id)[:8]}_hub_search")
         mock_manifest.return_value = MagicMock()
 
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
@@ -607,6 +618,8 @@ class TestSetupUserMCPTools:
     @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
     @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
     @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
+    # Read by its one reader (spec 2026-10-30 D9), not by user_context.
+    @patch("src.core.config.settings.mcp_react_enabled", False)
     async def test_iterative_mode_disabled_when_react_disabled(
         self, mock_manifest, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
     ) -> None:

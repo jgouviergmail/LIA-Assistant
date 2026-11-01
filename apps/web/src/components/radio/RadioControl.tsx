@@ -69,7 +69,24 @@ export function useRadioMenuAction(lng: Language, enabled: boolean): MobileNavAc
   };
 }
 
-export function RadioControl({ lng, enabled }: { lng: Language; enabled: boolean }) {
+/**
+ * The header's radio button: start the station, or stop it on air.
+ *
+ * Args:
+ *   lng: The interface language.
+ *   enabled: Whether the instance offers the radio now (`radioAvailable`).
+ *   className: Added to the button's own box (the dashboard header passes its
+ *     icon slot).
+ */
+export function RadioControl({
+  lng,
+  enabled,
+  className,
+}: {
+  lng: Language;
+  enabled: boolean;
+  className?: string;
+}) {
   const { t } = useTranslation(lng);
   const command = useRadioCommand(enabled);
   if (command === null) return null;
@@ -78,7 +95,7 @@ export function RadioControl({ lng, enabled }: { lng: Language; enabled: boolean
     <Button
       variant="ghost"
       size="sm"
-      className="h-11 w-11 px-0 max-[380px]:h-9 max-[380px]:w-9"
+      className={cn('h-11 w-11 px-0 max-[380px]:h-9 max-[380px]:w-9', className)}
       onClick={command.run}
       aria-pressed={command.onAir}
       aria-disabled={command.busy}

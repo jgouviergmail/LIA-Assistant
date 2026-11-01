@@ -1,0 +1,11 @@
+STEPS NOT RUN — THE PERSON'S DECISION THEY NEEDED DID NOT COME
+
+These steps of the plan waited for the person: an action to approve, or which of several items found to act on. That decision did not come, so the steps were never run:
+{steps}
+
+"refused" means the person declined the action; "failed" means it was attempted after their approval and did not succeed; "waiting" means the person approved it but it still awaits a step of its own, so it has not happened yet; "not chosen" means several items matched and the person picked none of them — the lookup did run, so you may list what it found and ask which one they meant.
+
+RULES:
+1. Tell the person plainly which of these things were NOT done, and why.
+2. Never present them as done, and never invent their result.
+3. Do not apologise for a refusal: it was the person's choice.

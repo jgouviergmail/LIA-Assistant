@@ -18,6 +18,9 @@ class RoutineRunValues(BaseModel):
     expected: RoutineSnapshot
     configuration: RoutineCreateRequest
     user_timezone: StrictStr
+    # Spec 2026-10-29 D9: the names of the MCP servers the routine confirms for
+    # itself — display only, for the card; the keys are in the snapshot's digest.
+    mcp_preapproval: tuple[StrictStr, ...]
 
 
 class RoutineRunPatch(BaseModel):

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef } from 'react';
+import type { TFunction } from 'i18next';
 import {
   CalendarClock,
   CalendarRange,
@@ -22,6 +23,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ExecutionModeField } from '@/components/workboard/ExecutionModeField';
+import { RoutineMcpPreapprovalField } from '@/components/settings/RoutineMcpPreapprovalField';
+import { useRoutinePreapprovableServers } from '@/hooks/useRoutinePreapprovableServers';
+import { getApiErrorCode } from '@/lib/api-error';
 import type { ExecutionMode } from '@/types/workboard';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -66,10 +70,14 @@ import {
   type ScheduledActionCreate,
   type ScheduledActionUpdate,
   type RecurrenceSpec,
+  type RoutineRecurrenceLimits,
   type TriggerKind,
   type WeatherConditionRule,
 } from '@/hooks/useScheduledActions';
-import { RecurrenceEditor, type RecurrenceLimits } from '@/components/recurrence/RecurrenceEditor';
+import {
+  RecurrenceEditor,
+  type RecurrenceEditorProps,
+} from '@/components/recurrence/RecurrenceEditor';
 import { formatLocalDateInput } from '@/lib/date-format';
 import { renderOccurrences } from '@/lib/occurrences';
 import { emptyRecurrence, recurrenceIsComplete } from '@/lib/recurrence';
@@ -90,19 +98,41 @@ interface ScheduledActionsSettingsProps {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/**
- * What a ROUTINE may ask of the recurrence engine.
- *
- * Mirrors `RECURRENCE_ROUTINE_LIMITS` in `core/constants.py`: a routine runs
- * the full agent pipeline on every occurrence, so its ceiling is lower than a
- * reminder's. The server enforces it; stating it here is what lets the form
- * refuse before a request fails.
- */
-const ROUTINE_LIMITS: RecurrenceLimits = {
-  maxTimesPerDay: 12,
-  minStepMinutes: 15,
-  maxSeriesCount: 500,
+type RoutineScheduleEditorProps = Omit<RecurrenceEditorProps, 'limits'> & {
+  /** The caps the server published, or undefined while it has not. */
+  limits: RoutineRecurrenceLimits | undefined;
+  t: Translate;
 };
+
+/**
+ * A routine's schedule, under the caps the SERVER publishes.
+ *
+ * They are the operator's settings (ADR-268 amendment 2026-10-30), enforced by
+ * the API and published by the list, so the form refuses exactly what a save
+ * would — before the request. They were a copy typed here, which is how the
+ * form kept saying « 15 minutes minimum » to an operator who had chosen five.
+ * Until the list has published them no schedule is offered: stating a cap
+ * nobody published is the trap ADR-184 names.
+ */
+function RoutineScheduleEditor({ limits, t, ...editor }: RoutineScheduleEditorProps) {
+  const editorLimits = useMemo(
+    () =>
+      limits && {
+        maxTimesPerDay: limits.max_times_per_day,
+        minStepMinutes: limits.min_step_minutes,
+        maxSeriesCount: limits.max_series_count,
+      },
+    [limits]
+  );
+  if (!editorLimits) {
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t('common.loading')}
+      </p>
+    );
+  }
+  return <RecurrenceEditor {...editor} limits={editorLimits} />;
+}
 
 /** The reader's own zone, for a routine that does not exist yet. */
 function browserTimezone(): string {
@@ -139,6 +169,8 @@ interface FormState {
   condition_until: string;
   requires_approval: boolean;
   execution_mode: ExecutionMode;
+  /** The MCP servers its runs confirm for themselves (spec D9). */
+  mcp_preapproved_servers: string[];
 }
 
 const EMPTY_FORM: FormState = {
@@ -151,6 +183,7 @@ const EMPTY_FORM: FormState = {
   condition_until: '',
   requires_approval: false,
   execution_mode: 'react',
+  mcp_preapproved_servers: [],
 };
 
 /** N-07 condition types offered by the studio (mirror of the backend). */
@@ -209,7 +242,27 @@ function formStateFromAction(action: ScheduledAction): FormState {
     condition_until: action.condition_config?.until ?? '',
     requires_approval: action.requires_approval ?? false,
     execution_mode: (action.execution_mode ?? 'react') as ExecutionMode,
+    mcp_preapproved_servers: action.mcp_preapproved_servers ?? [],
   };
+}
+
+/**
+ * The pre-approval half of an edit (spec D9): sent only when the ticks changed,
+ * an empty selection as null — « no pre-approval », the API's own word for it.
+ */
+function preapprovalUpdate(form: FormState, editing: ScheduledAction): ScheduledActionUpdate {
+  const before = [...(editing.mcp_preapproved_servers ?? [])].sort();
+  const after = [...form.mcp_preapproved_servers].sort();
+  if (JSON.stringify(before) === JSON.stringify(after)) return {};
+  return { mcp_preapproved_servers: after.length ? form.mcp_preapproved_servers : null };
+}
+
+/** What a failed save says: a refused pre-approval names itself, anything else stays generic. */
+function saveErrorMessage(error: unknown, editing: boolean, t: TFunction): string {
+  if (getApiErrorCode(error) === 'routine_mcp_server_not_callable') {
+    return t('scheduled_actions.mcp_preapproval.error_not_callable');
+  }
+  return editing ? t('scheduled_actions.error_update') : t('scheduled_actions.error_create');
 }
 
 /**
@@ -242,7 +295,10 @@ function buildUpdatePayload(
   editing: ScheduledAction,
   conditionConfig: ConditionConfig | null
 ): ScheduledActionUpdate {
-  const update: ScheduledActionUpdate = clockUpdate(form, editing, conditionConfig);
+  const update: ScheduledActionUpdate = {
+    ...clockUpdate(form, editing, conditionConfig),
+    ...preapprovalUpdate(form, editing),
+  };
   if (form.title !== editing.title) update.title = form.title;
   if (form.action_prompt !== editing.action_prompt) update.action_prompt = form.action_prompt;
   if (form.requires_approval !== (editing.requires_approval ?? false))
@@ -263,6 +319,9 @@ function buildCreatePayload(
     trigger_kind: form.trigger_kind,
     requires_approval: form.requires_approval,
     execution_mode: form.execution_mode,
+    ...(form.mcp_preapproved_servers.length
+      ? { mcp_preapproved_servers: form.mcp_preapproved_servers }
+      : {}),
   };
   return form.trigger_kind === 'condition'
     ? { ...base, condition_config: conditionConfig }
@@ -725,6 +784,7 @@ function statusLabel(action: ScheduledAction, t: Translate): string {
 
 export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps) {
   const { t } = useTranslation(lng);
+  const preapprovable = useRoutinePreapprovableServers();
   const intlLocale = getIntlLocale(lng);
 
   const {
@@ -733,6 +793,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     conditionCheckMinutes,
     conditionMaxFiresPerDay,
     weatherConditionRule,
+    recurrenceLimits,
     loading,
     initialLoading,
     week,
@@ -833,10 +894,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
         toast.success(t('scheduled_actions.create_success'));
         setShowCreateDialog(false);
       }
-    } catch {
-      toast.error(
-        editingAction ? t('scheduled_actions.error_update') : t('scheduled_actions.error_create')
-      );
+    } catch (error) {
+      toast.error(saveErrorMessage(error, Boolean(editingAction), t));
     }
   };
 
@@ -945,12 +1004,14 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             />
           ) : (
             // When it runs — the generic editor, mounted with the ROUTINE's
-            // caps. A reminder mounts the same component with its own, which
-            // is what makes the component generic rather than a routines widget.
-            <RecurrenceEditor
+            // caps as the server publishes them. A reminder mounts the same
+            // component with its own, which is what makes it generic rather
+            // than a routines widget.
+            <RoutineScheduleEditor
+              limits={recurrenceLimits}
+              t={t}
               value={form.recurrence}
               onChange={recurrence => setForm(f => ({ ...f, recurrence }))}
-              limits={ROUTINE_LIMITS}
               timezone={editingAction?.user_timezone ?? browserTimezone()}
               idPrefix="sa"
               // The server's sentence and runs describe the STORED schedule —
@@ -984,6 +1045,12 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
               id="sa-mode"
               value={form.execution_mode}
               onChange={mode => setForm(f => ({ ...f, execution_mode: mode }))}
+            />
+            <RoutineMcpPreapprovalField
+              id="sa-mcp"
+              value={form.mcp_preapproved_servers}
+              servers={preapprovable}
+              onChange={next => setForm(f => ({ ...f, mcp_preapproved_servers: next }))}
             />
           </FormSection>
         </div>

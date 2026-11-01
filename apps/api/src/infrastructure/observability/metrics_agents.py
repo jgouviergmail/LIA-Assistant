@@ -675,6 +675,20 @@ context_resolution_turn_type_distribution_total = Counter(
     ["turn_type"],  # action/reference/conversational
 )
 
+# ADR-367: what a description of a shown item (« Marc's email ») came to —
+# outcome: resolved | latest | ambiguous | no_match | nothing_shown | not_followed | disabled.
+# Instrumented in: domains/agents/services/descriptive_reference.py
+context_descriptive_reference_total = Counter(
+    "context_descriptive_reference_total", "Descriptive references by outcome", ["outcome"]
+)
+
+# ADR-367: what the person answered when asked which of the items shown they meant —
+# outcome: select | none | cancel, each « _after_reask » when asked twice; unclear (gave up).
+# Instrumented in: domains/agents/nodes/reference_disambiguation_node.py
+context_disambiguation_answers_total = Counter(
+    "context_disambiguation_answers_total", "Answers to « which one? » by outcome", ["outcome"]
+)
+
 
 # ADR-062: Initiative Phase metrics
 initiative_evaluations_total = Counter(

@@ -792,6 +792,8 @@ from the file: rows missing, pins stale).
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `eslint-config-next>typescript-eslint`            | A floor for TypeScript 6: typescript-eslint accepts it from 8.58 on (its `typescript` peer range), while eslint-config-next still declares a range that admits older releases — the lockfile held 8.52.0 until v2.0.0. Remove when eslint-config-next's own range starts at 8.58 | `79a07125`, dependency lot 8 (2026-10-02) |
 | `flatted`                                         | Pinned with `picomatch` (four Dependabot alerts)                                                                                                                                                                                                                                 | `d6612921`                                |
+| `rimraf>glob` | GHSA-3g3m-2fjr-6pw4: aborting a walk must stop traversal. The patched major also replaces the affected minimatch optimizer reached through the mobile CLI. Named glob APIs used by rimraf stay compatible; native generator and CLI preparation checks qualify this override. | release v4.3.0 |
+| `minimatch@>=9 <11` | GHSA-g3hv-75wg-m249: replace affected optimizer generations, including the TypeScript ESLint parser's copy, with the patched named-export API. Leave the different CommonJS function API used by legacy ESLint callers intact. Full lint and TypeScript checks qualify the parser path. | release v4.3.0 |
 | `picomatch`                                       | ReDoS through extglob                                                                                                                                                                                                                                                            | `d6612921`                                |
 | `brace-expansion`                                 | Three Dependabot alerts; the patched copy is declared in `patchedDependencies` (ADR-157)                                                                                                                                                                                         | `ad61235b`                                |
 | `vite`                                            | One vite for the workspace and vitest. A floor since dependency lot 4, moved with the workspace's own declaration: the exact pin collided with every Dependabot bump of the workspace (#195, #210)                                                                               | `7d1c7cf4`, dependency lot 4 (2026-10-02) |
@@ -832,14 +834,60 @@ as the Python locks. The portable `check_uv_version.py` precondition invokes the
 selected binary through an argument vector, enforces its exact version and a
 bounded timeout, and requires no `grep` or custom CA workaround.
 
-**Accepted advisories** — when an advisory has NO published fix, no override can remove it:
-it is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
+**Accepted advisories** — an advisory with no published fix, or a demonstrably
+unaffected dependency caught by an overbroad version range, is recorded with evidence.
+It is accepted by its GHSA in `pnpm.auditConfig.ignoreGhsas` (root `package.json`), never by
 a softer `--audit-level`. `pnpm audit` still prints it (« 1 ignored »), and this register says
 why it is harmless here and when it goes; `test_override_register_guard.py` holds it, like the
 overrides register, to exactly what `package.json` declares.
 
+The minimatch exception below additionally constrains every resolved copy: the
+guard refuses affected optimizer generations even if npm would otherwise mute
+their advisory. The affected mobile chain is upgraded rather than exempted.
+
+ESLint 10 compatibility: the web configuration wraps the imported Next.js
+plugin configurations with the official `@eslint/compat` adapter, as described
+in [ESLint's migration guide](https://eslint.org/docs/latest/use/migrate-to-10.0.0).
+The root `pnpm.peerDependencyRules.allowedVersions` declares application-adapted
+ESLint 10 compatibility for the exact legacy React, JSX accessibility and import
+plugin versions wrapped by that adapter. Other peer checks stay enforced. This is conditional on keeping that adapter: none of their rules is
+disabled to upgrade. The release comparison checks the configured rules and
+diagnostics against ESLint 9, followed by the full lint and ratchets. Remove a
+compatibility entry when its publisher declares native support; remove the adapter after
+all imported plugins support the current rule API. Review by 2026-11-30.
+
+The release WebSocket security floor closes
+[GHSA-6m5v-9gmr-5665](https://github.com/python-websockets/websockets/security/advisories/GHSA-6m5v-9gmr-5665),
+which permits unlimited buffering of empty message fragments. The Google and
+LangGraph SDK floors in `apps/api/requirements.txt` are required to accept the
+fixed protocol library; the Google baseline also removes Python 3.14 deprecated
+union-type imports, so the exact import-warning exemption in pytest is retired.
+The adopted Gemini transport forwards the SDK's per-request retry control while
+retaining LIA's single relaunch budget and refusal to resend an unknown outcome.
+The SDK's obsolete unawaited-response warning exemption is also retired.
+The GPU voice toolbox carries the same security floor in
+its own manifest. The canonical locks retain unrelated pins. Qualification
+checks rejection of excessive fragments, Gemini Live setup/receive over trusted
+local TLS, and the actual Uvicorn SansIO handshake, message and close. No service
+or mandatory deployment setting is added.
+
+The API, development and skill-sandbox Dockerfiles declare matching
+`PIP_VERSION`, `PIP_WHEEL_SHA256` and `NPM_VERSION` inputs, checked by the existing
+single-owner guard. pip's bootstrap wheel is hash-verified too. These tools carry
+their own vendored libraries: updating the application's
+`certifi` cannot repair pip's certificate bundle, and a workspace override cannot
+replace npm's bundled dependencies. Qualify the built images as well as the
+application locks. A passing lockfile audit is not a clean container-image scan;
+unresolved image findings must remain visible and be assessed separately from
+application readiness. The owner may carry documented upstream findings when
+there is no technical or functional regression; required CI, Security and
+disposable-installer gates remain blocking. No scan threshold is changed.
+The [v4.3.0 image qualification](../superpowers/qualification/2026-11-01-v4-3-0-container-images.md)
+records the measured fixes, remaining upstream findings and release exit conditions.
+
 | GHSA                                         | Package and path                                                                                                                                                                             | Why it is accepted                                                                                                                                                                                                                                                        | Remove when                                                                                            | Introduced by               |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
+| `GHSA-g3hv-75wg-m249` (moderate, CVE-2026-118764) | Legacy lint plugins' `minimatch` 3.1.5 only; the mobile CLI and TypeScript parser use the patched generation | npm flags `<11.0.1`, but the [publisher identifies 10.2.6](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249). The [3.1.5 implementation](https://github.com/isaacs/minimatch/blob/v3.1.5/minimatch.js) has neither `optimizationLevel` nor `firstPhasePreProcess`, where amplification occurs. Forcing its CommonJS function callers onto the newer export shape would break their lint rules. The lockfile guard permits this exact legacy copy and patched copies only. | Corrected advisory range or the legacy lint plugins leave 3.1.5; review by 2026-11-14 | release v4.3.0 |
 | `GHSA-vfj7-8cjw-p6xm` (high, CVE-2026-93687) | `braces` ≤ 3.0.3: `eslint-config-next` → `@next/eslint-plugin-next` (pins `fast-glob` 3.3.1) → `micromatch` → `braces`, declared as a development dependency | A stack overflow on deeply nested brace patterns. The identified caller is ESLint's Next.js plugin, globbing the repository's own page directories with patterns the repository writes; no server caller was identified, and no patched `braces` version was available at the 2026-10-15 review. The Web Dockerfile now copies the traced standalone tree only; it previously copied the complete build dependency store as well. Validate the resulting image separately from this dependency exception. | A `braces` release fixes it, or `@next/eslint-plugin-next` leaves `fast-glob` 3 — review by 2026-11-30 | release v2.4.0 (2026-10-03) |
 
 Vérification du 6 octobre 2026 : `braces` 3.0.3 reste la dernière version

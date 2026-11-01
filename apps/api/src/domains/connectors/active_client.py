@@ -30,6 +30,7 @@ from typing import Any
 from uuid import UUID
 
 from src.domains.connectors.clients.registry import ClientRegistry
+from src.domains.connectors.errors import ConnectorRevokedError
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.oauth_refresh_targets import StoredCredentials
 from src.domains.connectors.preferences.owner_defaults import (
@@ -38,7 +39,7 @@ from src.domains.connectors.preferences.owner_defaults import (
 )
 from src.domains.connectors.provider_authority import resolve_active_connector_fresh
 from src.domains.connectors.provider_resolver import resolve_active_connector
-from src.domains.connectors.schemas import AppleCredentials
+from src.domains.connectors.schemas import AppleCredentials, HueBridgeCredentials
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
 
@@ -71,8 +72,9 @@ class ActiveClient:
 @dataclass(frozen=True, slots=True)
 class _Opening:
     connector_type: ConnectorType
-    #: Apple's are static; an OAuth token is freshened once the session is closed.
-    credentials: AppleCredentials | StoredCredentials
+    #: Apple's and the bridge's are static (a remote bridge token is freshened by
+    #: its client); an OAuth token is freshened once the session is closed.
+    credentials: AppleCredentials | HueBridgeCredentials | StoredCredentials
     preferred_name: str | None
 
 
@@ -98,6 +100,44 @@ async def open_active_client(
             if fresh
             else _read_opening(service, category, user_id, container)
         )
+    async with _built(opening, user_id, connectors) as opened:
+        yield opened
+
+
+@asynccontextmanager
+async def open_client_by_type(
+    connector_type: ConnectorType, user_id: UUID
+) -> AsyncIterator[ActiveClient | ClientUnavailable]:
+    """Open the account's client of ONE connector type, and always close it.
+
+    For a service that belongs to no functional category (Google Drive, the Hue
+    bridge): there is no provider to resolve, only the connector's own row. Same
+    contract as :func:`open_active_client` — one short session, closed before an
+    OAuth token is freshened and before the caller touches the client.
+
+    Args:
+        connector_type: The connector to open.
+        user_id: Whose connector.
+
+    Yields:
+        The open client, or ``NO_CONNECTOR`` when the connector is absent,
+        inactive or revoked (a deliberate disconnection), ``NO_CLIENT`` when no
+        client class is registered for it.
+    """
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        opening = await _read_type_opening(service, connector_type, user_id)
+    async with _built(opening, user_id, connectors) as opened:
+        yield opened
+
+
+@asynccontextmanager
+async def _built(
+    opening: _Opening | ClientUnavailable,
+    user_id: UUID,
+    connectors: DetachedConnectorService,
+) -> AsyncIterator[ActiveClient | ClientUnavailable]:
+    """Build the client an opening names — after its reading session closed."""
     if isinstance(opening, ClientUnavailable):
         yield opening
         return
@@ -152,3 +192,25 @@ async def _read_opening(
         else None
     )
     return _Opening(connector_type, credentials, preferred_name)
+
+
+async def _read_type_opening(
+    service: ConnectorService, connector_type: ConnectorType, user_id: UUID
+) -> _Opening | ClientUnavailable:
+    """What the type door reads, in the one session it holds."""
+    try:
+        credentials: AppleCredentials | HueBridgeCredentials | StoredCredentials | None = (
+            await service.get_hue_credentials(user_id)
+            if connector_type.is_hue
+            else (
+                await service.get_apple_credentials(user_id, connector_type)
+                if connector_type.is_apple
+                else await service.read_connector_credentials(user_id, connector_type)
+            )
+        )
+    except ConnectorRevokedError:
+        # A deliberate disconnection: « not connected », never a failure.
+        return ClientUnavailable.NO_CONNECTOR
+    if not credentials:
+        return ClientUnavailable.NO_CONNECTOR
+    return _Opening(connector_type, credentials, None)

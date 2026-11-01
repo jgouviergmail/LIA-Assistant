@@ -9,7 +9,7 @@
 > [GUIDE_DEPLOYMENT.md](./GUIDE_DEPLOYMENT.md) remains fully supported and is
 > the reference for anything this guide does not cover.
 
-**Last Updated**: 2026-10-27
+**Last Updated**: 2026-11-01
 
 ---
 
@@ -905,6 +905,22 @@ anything: it renders every combination of exposure, mode, observability and
 sandbox, then asks Docker to validate the merged model.
 
 ---
+
+## Connected services and the Tools workspace
+
+The **Tools** workspace reuses the person's existing connectors. It needs no new
+Compose service, provider key, reference seed or installer question. Its default
+availability is declared in `apps/api/src/core/config/workbench.py`; an instance
+can withhold it through the capability controls. Per-provider features remain
+conditional on the connected account and its permissions. See
+[the workspace reference](../technical/WORKBENCH.md).
+
+MCP confirmation preferences and per-tool choices are created by Alembic during
+the normal migration phase. Existing accounts and servers inherit the instance
+defaults until the person makes a choice; no “never ask” choice is seeded or
+copied from a plugin. Routine interval and daily-run limits are optional settings
+whose defaults remain unchanged. The wizard therefore keeps its existing boot,
+seed, readiness and verification sequence.
 
 ## Current status, stated plainly
 

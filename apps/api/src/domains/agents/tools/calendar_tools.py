@@ -55,6 +55,13 @@ from src.domains.agents.calendar.event_search import (
     describe_search,
     filter_events,
 )
+from src.domains.agents.calendar.event_times import (
+    ALL_DAY_DESCRIPTION,
+    ALL_DAY_UPDATE_DESCRIPTION,
+    all_day_bounds,
+    timed_bounds,
+    updated_bounds,
+)
 from src.domains.agents.constants import (
     AGENT_EVENT,
     CONTEXT_DOMAIN_CALENDARS,
@@ -90,6 +97,7 @@ from src.domains.agents.tools.runtime_helpers import (
     validate_runtime_config,
 )
 from src.domains.agents.tools.validation_helpers import (
+    refuse_unreadable_input,
     require_field,
     validate_positive_int_or_default,
 )
@@ -128,66 +136,16 @@ ContextTypeRegistry.register(
         item_schema=EventItem,
         primary_id_field="id",
         display_name_field="summary",
-        reference_fields=[
-            "summary",
-            "location",
-            "start_datetime",
-        ],
+        # The stored payload's keys (ADR-367): « the meeting with Marc » is found
+        # by its people as much as by its title. `start_datetime` was never one
+        # of them (the payload carries `start.dateTime`, and a date names no
+        # event the way a word does).
+        reference_fields=["summary", "location", "attendees", "organizer"],
+        content_reference_fields=["description"],
+        candidate_fields=["summary", "start.formatted", "location"],
         icon="📅",
     )
 )
-
-
-# ============================================================================
-# INPUT SCHEMAS
-# ============================================================================
-
-
-class SearchEventsInput(BaseModel):
-    """Input schema for search_events_tool."""
-
-    query: str | None = None
-    time_min: str | None = None
-    time_max: str | None = None
-    max_results: int = 10
-
-
-class GetEventDetailsInput(BaseModel):
-    """Input schema for get_event_details_tool."""
-
-    event_id: str
-
-
-class CreateEventInput(BaseModel):
-    """Input schema for create_event_tool."""
-
-    summary: str
-    start_datetime: str
-    end_datetime: str
-    timezone: str | None = None  # If None, uses user's configured timezone
-    description: str | None = None
-    location: str | None = None
-    attendees: list[str] | None = None
-
-
-class UpdateEventInput(BaseModel):
-    """Input schema for update_event_tool."""
-
-    event_id: str
-    summary: str | None = None
-    start_datetime: str | None = None
-    end_datetime: str | None = None
-    timezone: str | None = None  # If None, uses user's configured timezone
-    description: str | None = None
-    location: str | None = None
-    attendees: list[str] | None = None
-
-
-class DeleteEventInput(BaseModel):
-    """Input schema for delete_event_tool."""
-
-    event_id: str
-    send_updates: str = "all"
 
 
 # ============================================================================
@@ -528,35 +486,6 @@ async def search_events_tool(
         calendar_id=calendar_id,
         fields=fields,
     )
-
-    # Save to context for reference resolution
-    if runtime and runtime.store:
-        # Context save is non-critical
-        with suppress(RuntimeError, ValueError, OSError):
-            user_id_raw = tool_user_id_str(runtime)
-            thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-            if user_id_raw and thread_id:
-                user_id = parse_user_id(user_id_raw)
-                thread_id_str = str(thread_id)
-
-                # Extract events from registry
-                events = []
-                if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                    for item in result.registry_updates.values():
-                        events.append(item.payload)
-
-                await runtime.store.aput(
-                    (str(user_id), thread_id_str, "context", "events"),
-                    "list_current_search",
-                    {
-                        "events": events,
-                        "query": query,
-                        "time_min": time_min,
-                        "time_max": time_max,
-                        "timestamp": time.time(),
-                    },
-                )
 
     return result
 
@@ -986,7 +915,6 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         The actual creation happens after user confirms via HITL.
         This method only validates and prepares the data.
         """
-        from src.core.time_utils import normalize_user_datetime
 
         summary: str = require_field(kwargs, "summary")
         start_datetime: str = require_field(kwargs, "start_datetime")
@@ -997,12 +925,7 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         location: str | None = kwargs.get("location")
         attendees_raw: list[str] | None = kwargs.get("attendees")
         add_conference: bool = bool(kwargs.get("add_conference", False))
-
-        # Resolve attendee names to email addresses via centralized helper
-        # "Jane Smith" → "jane.smith@example.com" via Google People API
-        attendees = await resolve_recipients_to_emails(self.runtime, attendees_raw, "attendees")
-        # Ensure we have a list (helper returns list for list input, or None if empty)
-        attendees = attendees if isinstance(attendees, list) else []
+        all_day: bool = bool(kwargs.get("all_day", False))
 
         # If no timezone specified, use user's configured timezone
         if not timezone:
@@ -1012,10 +935,20 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             except ValueError, KeyError, AttributeError:
                 timezone = "UTC"
 
-        # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone.
-        # The LLM may send +01:00 for a date in CEST (+02:00) — this corrects it.
-        start_datetime = normalize_user_datetime(start_datetime, timezone) or start_datetime
-        end_datetime = normalize_user_datetime(end_datetime, timezone) or end_datetime
+        # Days for an all-day event (last day → exclusive end, ADR-369); otherwise
+        # strip a wrong LLM offset and re-localize to the user's timezone.
+        with refuse_unreadable_input(timezone):
+            start_datetime, end_datetime = (
+                all_day_bounds(start_datetime, end_datetime)
+                if all_day
+                else timed_bounds(start_datetime, end_datetime, timezone)
+            )
+
+        # Resolve attendee names to email addresses via centralized helper
+        # "Jane Smith" → "jane.smith@example.com" via Google People API
+        attendees = await resolve_recipients_to_emails(self.runtime, attendees_raw, "attendees")
+        # Ensure we have a list (helper returns list for list input, or None if empty)
+        attendees = attendees if isinstance(attendees, list) else []
 
         logger.info(
             "create_event_draft_prepared",
@@ -1036,6 +969,7 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             "location": location,
             "attendees": attendees or [],
             "add_conference": add_conference,
+            "all_day": all_day,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1052,6 +986,7 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             location=result.get("location"),
             attendees=result.get("attendees", []),
             add_conference=result.get("add_conference", False),
+            all_day=bool(result.get("all_day", False)),
             source_tool="create_event_tool",
             user_language=self.get_user_language(),
         )
@@ -1096,6 +1031,7 @@ async def create_event_tool(
         "call, visio, or online meeting. Not supported on Apple calendars "
         "(the event is then created without a link).",
     ] = False,
+    all_day: Annotated[bool, ALL_DAY_DESCRIPTION] = False,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1113,11 +1049,12 @@ async def create_event_tool(
         summary: Event title/summary (required)
         start_datetime: Start datetime in ISO format (required)
         end_datetime: End datetime in ISO format (required)
-        timezone: Timezone (default: Europe/Paris)
+        timezone: Timezone (default: the user's configured timezone)
         calendar_id: Calendar ID. If None or 'primary', uses user's default calendar preference.
         description: Event description (optional)
         location: Event location (optional)
         attendees: List of attendee email addresses (optional)
+        all_day: An all-day event from its first to its last day (ADR-369)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1138,6 +1075,7 @@ async def create_event_tool(
         location=location,
         attendees=attendees,
         add_conference=add_conference,
+        all_day=all_day,
     )
 
 
@@ -1253,14 +1191,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         description: str | None = kwargs.get("description")
         location: str | None = kwargs.get("location")
         attendees_raw: list[str] | None = kwargs.get("attendees")
-
-        # Resolve attendee names to email addresses via centralized helper
-        # "Jane Smith" → "jane.smith@example.com" via Google People API
-        attendees = (
-            await resolve_recipients_to_emails(self.runtime, attendees_raw, "attendees")
-            if attendees_raw
-            else None
-        )
+        all_day: bool | None = kwargs.get("all_day")
 
         # If no timezone specified, use user's configured timezone
         if not timezone:
@@ -1269,14 +1200,6 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 timezone = user_timezone
             except ValueError, KeyError, AttributeError:
                 timezone = "UTC"
-
-        # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone
-        from src.core.time_utils import normalize_user_datetime
-
-        if start_datetime:
-            start_datetime = normalize_user_datetime(start_datetime, timezone) or start_datetime
-        if end_datetime:
-            end_datetime = normalize_user_datetime(end_datetime, timezone) or end_datetime
 
         # If no calendar_id provided, try to look it up from context store
         # This handles cases where the planner forgets to pass calendar_id
@@ -1289,6 +1212,21 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         current_event = await client.get_event(
             event_id=event_id,
             calendar_id=calendar_id or "primary",
+        )
+
+        # Its shape decides how the model's days are read: an all-day event stays
+        # all-day, its LAST day named as on creation (ADR-369).
+        with refuse_unreadable_input(timezone):
+            start_datetime, end_datetime, all_day = updated_bounds(
+                start_datetime, end_datetime, timezone, all_day, current_event
+            )
+
+        # Resolve attendee names to email addresses via centralized helper
+        # "Jane Smith" → "jane.smith@example.com" via Google People API
+        attendees = (
+            await resolve_recipients_to_emails(self.runtime, attendees_raw, "attendees")
+            if attendees_raw
+            else None
         )
 
         logger.info(
@@ -1341,6 +1279,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 or None
             ),
             "current_event": current_event,
+            "all_day": all_day,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1358,6 +1297,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             location=result.get("location"),
             attendees=result.get("attendees"),
             current_event=result.get("current_event", {}),
+            all_day=result.get("all_day"),
             source_tool="update_event_tool",
             user_language=self.get_user_language(),
         )
@@ -1394,6 +1334,7 @@ async def update_event_tool(
     description: Annotated[str | None, "New event description (optional)"] = None,
     location: Annotated[str | None, "New event location (optional)"] = None,
     attendees: Annotated[list[str] | None, "New list of attendee emails (optional)"] = None,
+    all_day: Annotated[bool | None, ALL_DAY_UPDATE_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1414,11 +1355,12 @@ async def update_event_tool(
         summary: New event title/summary (optional)
         start_datetime: New start datetime in ISO format (optional)
         end_datetime: New end datetime in ISO format (optional)
-        timezone: Timezone for datetime fields (default: Europe/Paris)
+        timezone: Timezone for datetime fields (default: the user's configured timezone)
         calendar_id: Calendar ID. If None or 'primary', uses user's default calendar preference.
         description: New event description (optional)
         location: New event location (optional)
         attendees: New list of attendee email addresses (optional)
+        all_day: True/False switches the event all-day/timed; None keeps it (ADR-369)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1435,6 +1377,7 @@ async def update_event_tool(
         description=description,
         location=location,
         attendees=attendees,
+        all_day=all_day,
     )
 
 

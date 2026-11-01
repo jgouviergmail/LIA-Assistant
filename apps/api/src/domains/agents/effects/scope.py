@@ -14,6 +14,7 @@ published one, so nobody can have confirmed anything — the gate refuses a
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -190,6 +191,32 @@ def react_call_scope(config: object, tool_call_id: str, *, approved: bool) -> Ef
         approved=approved,
         approval_kind="tool_confirmation" if approved else None,
     )
+
+
+def sub_call_scope(parent: EffectScope | None, tool_call_id: str | None) -> EffectScope | None:
+    """Scope of one call made INSIDE a call that already holds a scope.
+
+    An iterative MCP task runs a sub-agent within one pipeline step, one ReAct
+    call or one confirmed replay. Its inner calls are separate acts: inheriting
+    the parent's key whole, the second recorded one lost its claim on the unique
+    ``(thread_id, idempotency_key)`` and was served the first one's record
+    instead of being performed (measured 2026-10-29). The key is DERIVED from the
+    parent's, so it stays scoped to the run; the authority is the parent's,
+    unchanged — an approved task approves what it does, an unapproved one
+    approves nothing.
+
+    Args:
+        parent: The scope in force around the inner call, if any.
+        tool_call_id: The model's id for the inner call. Absent outside a tool
+            loop, a fresh id stands in, so no call ever reuses another's key.
+
+    Returns:
+        The child scope, or None when no parent published one.
+    """
+    if parent is None:
+        return None
+    suffix = tool_call_id or uuid.uuid4().hex
+    return replace(parent, idempotency_key=f"{parent.idempotency_key}:sub:{suffix}")
 
 
 def step_effect_key(config: object, step_id: str) -> str:

@@ -102,6 +102,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "application_tools",
         # Shared presence has its own server-enforced admission/operator ceiling.
         "world",
+        # ADR-369 — the person's own door onto their connected services (the
+        # « Tools » section): a new way to write to every mailbox, calendar,
+        # address book and bridge, so an operator must be able to close it.
+        "workbench",
     }
 )
 

@@ -5,6 +5,7 @@ import { revealWorldControls } from '../fixtures/world-admission';
 import { scanPage } from '../a11y/scan';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { enableWorld, installInertWorldAdmission } from '../fixtures/world-session';
+import en from '../../locales/en/translation.json';
 import fr from '../../locales/fr/translation.json';
 
 async function actorPosition(page: Page) {
@@ -257,14 +258,16 @@ test('world: accessible controls, context recovery and repeated ownership change
     await enterInertWorld(page);
     await expect(canvas).toBeVisible();
     const old = await canvas.elementHandle();
-    await page.getByRole('link', { name: 'Help', exact: true }).first().click();
+    await page.getByRole('link', { name: en.navigation.faq, exact: true }).first().click();
     await expect(page).toHaveURL(/dashboard\/faq$/, { timeout: 30_000 });
     await expect
       .poll(() =>
         old?.evaluate(element => (element instanceof HTMLCanvasElement ? element.width : null))
       )
       .toBe(1);
-    await page.getByRole('link', { name: 'LIA World', exact: true }).first().click();
+    // The header's own word for the world (« 3D » since 2026-10-31), read from
+    // the catalogue so a rename cannot leave this journey clicking nothing.
+    await page.getByRole('link', { name: en.navigation.world, exact: true }).first().click();
   }
   await enterInertWorld(page);
   await expect(canvas).toBeVisible();

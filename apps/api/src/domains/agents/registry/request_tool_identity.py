@@ -6,6 +6,7 @@ from uuid import UUID
 
 from src.core.context import strip_hallucinated_mcp_suffix
 from src.domains.agents.registry.catalogue import ToolManifest
+from src.domains.agents.registry.reactive_manifests import reactive_manifest
 
 if TYPE_CHECKING:
     from src.core.context import UserMCPToolsContext
@@ -14,17 +15,23 @@ if TYPE_CHECKING:
 def _reactive_manifest(
     name: str, manifests: Sequence[ToolManifest], ctx: UserMCPToolsContext | None
 ) -> ToolManifest | None:
-    candidate = ctx.reactive_tool_manifests.get(name) if ctx is not None else None
-    if candidate is None:
-        return None
-    enabled = any(
-        task.delegates_execution
-        and task.mcp_origin == candidate.mcp_origin == "user"
-        and task.mcp_server_key == candidate.mcp_server_key
-        and candidate.mcp_server_key is not None
-        for task in manifests
-    )
-    return candidate if enabled else None
+    """An iterative server's individual, admitted only while the turn offers its task.
+
+    A personal individual lives on the request, an administrator's in the
+    process-wide store; each is admitted by a task of its OWN origin and server.
+    """
+    personal = ctx.reactive_tool_manifests.get(name) if ctx is not None else None
+    for candidate, origin in ((personal, "user"), (reactive_manifest(name), "admin")):
+        if candidate is None or candidate.mcp_origin != origin or candidate.mcp_server_key is None:
+            continue
+        if any(
+            task.delegates_execution
+            and task.mcp_origin == origin
+            and task.mcp_server_key == candidate.mcp_server_key
+            for task in manifests
+        ):
+            return candidate
+    return None
 
 
 def offered_manifest_named(

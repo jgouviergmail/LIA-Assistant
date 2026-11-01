@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versione**: 7.0
-**Data**: 2026-10-23
-**Applicazione**: LIA v4.2.0
+**Data**: 2026-10-31
+**Applicazione**: LIA v4.3.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -32,6 +32,8 @@ LIA prende un'altra strada. È un assistente personale che installi sul tuo serv
 Il meccanismo è spiegato nella [guida tecnica](/it/how). Il modo in cui il codice è stato scritto, da un'IA diretta e controllata da un essere umano, è raccontato nel [resoconto di esperienza](/it/story).
 
 ## 2. Cosa fa LIA per te
+
+Apri **Strumenti** quando vuoi fare da te: posta, calendario, attività, contatti, file Drive e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.
 
 Le parli normalmente, per iscritto o a voce. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
 
@@ -122,6 +124,8 @@ Il **Psyche Engine** le dà uno stato interiore che evolve a ogni scambio, laddo
 Tiene i propri **diari** in prima persona, e da questi taccuini nasce un tuo ritratto che l'accompagna ovunque parli. Li leggi, li modifichi, segnali un errore o avvii un consolidamento; il ritratto in sé non si modifica direttamente, per restare coerente. Quando riaffiora un ricordo doloroso, passa in modalità protettiva: niente battute, niente minimizzazioni. E se le chiedi cosa sa fare, risponde attingendo a una base di conoscenza sulle proprie funzioni ([la memoria](/it/how#memory)).
 
 ## 7. Agisce lei, decidi tu
+
+Per **MCP**, scegli le conferme a livello di account, server e strumento. La sintesi del comportamento spiega la regola effettiva prima di modificarla. Un agente dedicato chiede prima del compito se uno dei suoi strumenti richiede approvazione; la risposta copre le chiamate di quel compito. «Non chiedere mai» viene sospeso se cambia la dichiarazione. La chat può rafforzare le protezioni; solo Impostazioni può ridurle. Una routine può usare i server che hai espressamente preapprovato nel suo modulo.
 
 Prima di un'azione sensibile, LIA te la sottopone. Ciò che approvi è esattamente ciò che verrà eseguito, anche dopo diversi ritocchi, e la conferma mostra tutto ciò che sta per partire. Davanti a un'azione che non ha il diritto di fare da sola, ti chiede sul ticket; una routine che gira senza nessuno davanti allo schermo rifiuta l'azione e lo dice. Il codice di una skill gira in un container usa e getta, senza accesso ai tuoi file né alle tue chiavi, e senza rete al di fuori degli host autorizzati.
 

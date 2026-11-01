@@ -1466,6 +1466,16 @@
               "expr": "sum by (turn_type) (rate(context_resolution_attempts_total[$__rate_interval]))",
               "legendFormat": "{{turn_type}}",
               "refId": "A"
+            },
+            {
+              "expr": "sum by (outcome) (rate(context_descriptive_reference_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "described item: {{outcome}}",
+              "refId": "B"
+            },
+            {
+              "expr": "sum by (outcome) (rate(context_disambiguation_answers_total[$__rate_interval])) or vector(0)",
+              "legendFormat": "which one? answered: {{outcome}}",
+              "refId": "C"
             }
           ],
           "fieldConfig": {
@@ -1479,7 +1489,8 @@
                     "value": null
                   }
                 ]
-              }
+              },
+              "noValue": "0"
             },
             "overrides": []
           },
@@ -1492,7 +1503,7 @@
               "placement": "bottom"
             }
           },
-          "description": "Total context resolution attempts by turn type."
+          "description": "Total context resolution attempts by turn type, and what a DESCRIBED shown item (« Marc's email ») came to (ADR-367): resolved, latest, ambiguous (the person is asked), no_match / nothing_shown (planned as a new lookup), not_followed (a routine, a ticket or a relayed call), disabled. Then what the person answered when asked which one: select, none (a new lookup), cancel, each _after_reask when asked twice, or unclear (asked twice, nothing done)."
         },
         {
           "id": 4207,

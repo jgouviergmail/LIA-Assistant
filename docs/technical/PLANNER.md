@@ -7,6 +7,22 @@
 
 ---
 
+## Reference choices before execution
+
+The analyzer describes how the person designates an item; code resolves it
+against the items the conversation actually showed. Ordinals use displayed
+order. Multiple matching items produce a numbered question before planning,
+in both execution modes. An unrelated written answer after the bounded second
+question starts a fresh request rather than resuming the old checkpoint.
+
+For Pipeline plans, `orchestration/choice_points.py` also identifies a lookup
+whose first result feeds an act. `pre_execution.py` runs the lookup once and
+widens a one-result cap within the published bound when no position was
+requested. Several results produce a choice; `nodes/plan_choice.py` resumes
+the held plan on the chosen item. Declining leaves that act and dependent
+steps unexecuted, while completed reads remain reported as reads. See
+[ADR-367](../architecture/ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md).
+
 ## 📋 Table des Matières
 
 1. [Vue d'ensemble](#-vue-densemble)

@@ -159,6 +159,81 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Closes the shared geocoding client at teardown. Opening nothing is "
         "the whole point of this module."
     ),
+    # ADR-369, owner decision D5 (2026-10-30): the « Tools » section is the
+    # PERSON acting by hand on their own services, with no model in the path.
+    # The registers answer « which capability did LIA use »; a person clicking
+    # in their own mailbox used none, so nothing of the workbench is recorded.
+    "domains/workbench/calendar_service.py": (
+        "The person's own calendars and events, read and changed BY HAND in the Tools "
+        "section (ADR-369, D5): an act of the person, not of LIA. It imports the "
+        "calendar client PROTOCOL to type the client its door opened."
+    ),
+    "domains/workbench/contacts_service.py": (
+        "The person's own contacts, read and changed BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the contacts "
+        "client PROTOCOL and the typed-values contract to type what it hands the "
+        "client its door opened."
+    ),
+    "domains/workbench/files_service.py": (
+        "The person's own Drive files, browsed, downloaded and trashed BY HAND in "
+        "the Tools section (ADR-369, D5): an act of the person, not of LIA. It "
+        "imports the Drive client class to type the client its door opened."
+    ),
+    "domains/workbench/clients.py": (
+        "Opens the person's own provider through the door so that THEY read or act "
+        "by hand in the Tools section (ADR-369, D5): an act of the person, not of "
+        "LIA — the registers record what LIA used, and LIA used nothing here."
+    ),
+    "domains/workbench/errors.py": (
+        "Imports the clients' exception TYPES to classify a failure into a refusal "
+        "code: it opens no connection and reads nothing."
+    ),
+    "domains/workbench/mail_acts.py": (
+        "The person's own messages marked read or moved to the trash BY HAND in the Tools "
+        "section (ADR-369, D5): an act of the person, not of LIA. It imports the mail "
+        "client PROTOCOL to type the client its door opened, and the read-state vocabulary."
+    ),
+    "domains/workbench/mail_attachments.py": (
+        "The person's own mail attachment downloaded BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the mail client "
+        "PROTOCOL to type the client its door opened, and the attachment's shape."
+    ),
+    "domains/workbench/mail_compose.py": (
+        "The person's own messages written and sent BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA — « Send » is their "
+        "confirmation. It imports the mail client PROTOCOL to type the client its door opened."
+    ),
+    "domains/workbench/mail_drafts.py": (
+        "The person's own drafts saved, sent and trashed BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the mail client "
+        "PROTOCOL to type the client its door opened, and the drafts' revision check."
+    ),
+    "domains/workbench/mail_folders.py": (
+        "The person's own mail folders and Gmail labels, read and changed BY HAND in the "
+        "Tools section (ADR-369, D5): an act of the person, not of LIA. It imports the "
+        "mail clients to type the client its door opened, and iCloud's role folder names."
+    ),
+    "domains/workbench/mail_projection.py": (
+        "Imports Gmail's part SCAN, a pure function over a message already read, and "
+        "its system label set, to list a message's attachments and the person's own "
+        "labels for the Tools section (ADR-369, D5): it opens no connection and reads "
+        "nothing."
+    ),
+    "domains/workbench/mail_settings.py": (
+        "The person's own Gmail vacation responder and filters read and set BY HAND in "
+        "the Tools section (ADR-369, D5): an act of the person, not of LIA. It builds "
+        "Gmail's settings client on the token the door opened."
+    ),
+    "domains/workbench/mail_reading.py": (
+        "The person's own mailbox listed and read BY HAND in the Tools section (ADR-369, "
+        "D5): an act of the person, not of LIA. It imports the mail clients to type the "
+        "client its door opened."
+    ),
+    "domains/workbench/tasks_service.py": (
+        "The person's own task lists and tasks, read and changed BY HAND in the Tools "
+        "section (ADR-369, D5): an act of the person, not of LIA. It imports the "
+        "tasks client PROTOCOL to type the client its door opened."
+    ),
 }
 
 #: Reads the person's data and does NOT record it yet. Measured 2026-09-07.

@@ -1750,8 +1750,8 @@
     },
     "331": {
       "title": "What the gates cannot see is read every week",
-      "summary": "The checks on every change read a single advisory database: the September 2026 review found twenty advisories published by the dependencies' own repositories that no tool saw. A weekly watch now reads those advisories, end-of-life dates, the registries and the browser engine, and every finding is fixed or accepted in writing, with a review date. Python versions move through a single command, after a cooldown, never backwards.",
-      "src": "1fdde3db9932"
+      "summary": "The checks on every change read a single advisory database: the September 2026 review found twenty advisories published by the dependencies' own repositories that no tool saw. A weekly watch now reads those advisories, end-of-life dates, the registries and the browser engine, and every finding is fixed or accepted in writing, with a review date. Python versions move through a single command, after a cooldown, never backwards. Moving off an unmaintained generation can be qualified through an official adapter with unchanged rules and thresholds; compatibility metadata alone is insufficient.",
+      "src": "7241115ba795"
     },
     "332": {
       "title": "Cards that show everything received, and actions tied to the message that displays them",
@@ -1922,6 +1922,21 @@
       "title": "A personal MCP server's catalogue, served without waiting",
       "summary": "What a personal MCP server offers is kept on the account and served again from one message to the next, on any process, while a single one re-checks it in the background. Servers get ready in parallel; one that is too slow is left out of that message, named in a notice, and ready for the next. When the kept copy has outlived its freshness, LIA checks before the call that the tool is still offered in the same form, and otherwise refuses to send it.",
       "src": "b3d470a00714"
+    },
+    "367": {
+      "title": "“Marc's email”: designated by what it is, asked about when several fit",
+      "summary": "When the person designates an item they have just seen by what it is — its sender, a word of its subject — the analysis of the request only says how it is designated; code finds which of the items actually shown those words designate. One: LIA acts and names it in the action journal. Several: LIA asks which one, with a question no model writes, and never guesses; none: a new search.",
+      "src": "80fe152b44d4"
+    },
+    "368": {
+      "title": "The person decides when LIA asks before an MCP tool",
+      "summary": "The person chooses when LIA asks for their approval before an MCP tool: for their whole account, for each server, for each tool — “never ask” staying bound to what the tool declares. Before any change that would make LIA ask less, the page lists what LIA would no longer ask about; nothing is locked. A dedicated agent is asked once before each task whenever one of its tools would ask, and the task then runs to completion; from the chat, LIA can only ask more.",
+      "src": "66eded8b0533"
+    },
+    "369": {
+      "title": "The person acts on their own services, with no model",
+      "summary": "The “Tools” section opens the person’s mail, calendar, tasks, contacts, Drive files and lights so they consult them and act by hand: no model, no token, the provider’s own speed. The screen offers only what the provider accepts, and whatever a client gains for it, the assistant’s tools gain at the same time; nothing the person does by hand reaches a register, since it is not an act of LIA’s.",
+      "src": "07998b0c5d8d"
     }
   }
 }

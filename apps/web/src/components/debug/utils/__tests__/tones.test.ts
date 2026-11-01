@@ -132,6 +132,7 @@ describe('node identity families', () => {
     expect(nodeFamily('hitl_dispatch')).toBe('hitl');
     expect(nodeFamily('approval_gate')).toBe('hitl');
     expect(nodeFamily('for_each_confirm')).toBe('hitl');
+    expect(nodeFamily('reference_disambiguation')).toBe('hitl');
     expect(nodeFamily('task_orchestrator')).toBe('execution');
     expect(nodeFamily('parallel_executor')).toBe('execution');
     expect(nodeFamily('response')).toBe('response');

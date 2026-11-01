@@ -25,6 +25,7 @@ from typing import Any
 
 import structlog
 
+from src.domains.agents.constants import STATE_KEY_EXECUTED_DRAFTS
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
@@ -41,6 +42,9 @@ STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
 # one interrupt per node execution.
 STATE_KEY_DRAFT_EDIT_ITERATION = "draft_edit_iteration"
 STATE_KEY_DRAFT_CLARIFICATION_QUESTION = "draft_clarification_question"
+# Spec 2026-10-29 D7: the plan waiting for the answers (the drafts its resume executed:
+# ``STATE_KEY_EXECUTED_DRAFTS``, in ``agents.constants``).
+STATE_KEY_HELD_PLAN = "held_plan"
 
 __all__ = [
     "draft_turn_reset",
@@ -48,6 +52,8 @@ __all__ = [
     "STATE_KEY_DRAFT_ACTION_RESULT",
     "STATE_KEY_DRAFT_CLARIFICATION_QUESTION",
     "STATE_KEY_DRAFT_EDIT_ITERATION",
+    "STATE_KEY_EXECUTED_DRAFTS",
+    "STATE_KEY_HELD_PLAN",
     "STATE_KEY_PENDING_DRAFTS_GROUPED",
     "STATE_KEY_PENDING_DRAFTS_QUEUE",
     "STATE_KEY_PENDING_DRAFT_CRITIQUE",
@@ -81,6 +87,8 @@ def draft_turn_reset() -> dict[str, Any]:
         STATE_KEY_DRAFT_ACTION_RESULT: None,
         STATE_KEY_DRAFT_EDIT_ITERATION: 0,
         STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
+        STATE_KEY_HELD_PLAN: None,
+        STATE_KEY_EXECUTED_DRAFTS: {},
     }
 
 

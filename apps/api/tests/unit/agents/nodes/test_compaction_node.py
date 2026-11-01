@@ -162,8 +162,6 @@ class TestCompactionNode:
             "user_language": "en",
             "compaction_count": 0,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         result = await compaction_node(state, config={})
@@ -252,8 +250,6 @@ class TestCompactionNode:
             "user_language": "fr",
             "compaction_count": 0,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         result = await compaction_node(state, config={})
@@ -333,8 +329,6 @@ class TestCompactionNode:
             "user_language": "fr",
             "compaction_count": 2,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         result = await compaction_node(state, config={})
@@ -390,8 +384,6 @@ class TestCompactionNode:
             "user_language": "fr",
             "compaction_count": 1,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         result = await compaction_node(state, config={})
@@ -445,8 +437,6 @@ class TestCompactionNode:
             "user_language": "fr",
             "compaction_count": 0,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         await compaction_node(state, config={})
@@ -507,8 +497,6 @@ class TestCompactionNode:
             "user_language": "fr",
             "compaction_count": 0,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
         await compaction_node(state, config={})
@@ -561,8 +549,6 @@ class TestProvenanceBanner:
             "user_language": "fr",
             "compaction_count": 0,
             "pending_draft_critique": None,
-            "pending_entity_disambiguation": None,
-            "pending_disambiguations_queue": [],
         }
 
     @pytest.mark.asyncio

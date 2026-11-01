@@ -369,6 +369,8 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
             },
           ],
           total: 3,
+          // What the form reads instead of a copy of its own (ADR-268, 2026-10-30).
+          recurrence_limits: { max_times_per_day: 12, min_step_minutes: 15, max_series_count: 500 },
         },
       },
       // Registered AFTER the list glob on purpose: Playwright consults routes
@@ -520,6 +522,129 @@ test.describe('accessibility journeys (axe, hermetic)', () => {
     expect(
       blocking,
       `axe violations on the routines list:
+${summary}`
+    ).toHaveLength(0);
+  });
+
+  test('a routine form names the MCP servers its runs confirm for themselves', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // Spec 2026-10-29 D9: a routine runs with nobody to ask, so its form may
+    // tick the MCP servers whose confirmations its runs give themselves — one
+    // native checkbox per server those runs can call, the stored tick checked.
+    await authenticate({ language: 'en' });
+    await mockApi([
+      {
+        url: '**/api/v1/scheduled-actions**',
+        json: {
+          scheduled_actions: [
+            {
+              id: '00000000-0000-4000-8000-00000000ad01',
+              user_id: '00000000-0000-4000-8000-000000000001',
+              title: 'Tidy my notes',
+              action_prompt: 'Archive the notes older than a month',
+              recurrence: {
+                freq: 'daily',
+                interval: 1,
+                anchor_date: '2026-10-19',
+                byweekday: [],
+                bymonthday: [],
+                nth_weekday: null,
+                bymonth: [],
+                times: {
+                  mode: 'at',
+                  at: [{ hour: 8, minute: 0 }],
+                  step_minutes: null,
+                  start: null,
+                  end: null,
+                },
+                end: { kind: 'never', on_date: null, after_count: null },
+              },
+              times_of_day: ['08:00'],
+              runs_per_day: 1,
+              week_slots: [],
+              user_timezone: 'Europe/Paris',
+              trigger_kind: 'time',
+              condition_config: null,
+              requires_approval: false,
+              execution_mode: 'react',
+              mcp_preapproved_servers: ['00000000-0000-4000-8000-00000000bb01'],
+              next_trigger_at: '2026-10-24T06:00:00Z',
+              is_enabled: true,
+              status: 'active',
+              last_executed_at: null,
+              execution_count: 0,
+              consecutive_failures: 0,
+              last_error: null,
+              created_at: '2026-10-01T10:00:00Z',
+              updated_at: '2026-10-01T10:00:00Z',
+              schedule_display: 'Every day at 08:00',
+              next_occurrences: ['2026-10-24T06:00:00Z'],
+            },
+          ],
+          total: 1,
+          recurrence_limits: { max_times_per_day: 12, min_step_minutes: 15, max_series_count: 500 },
+        },
+      },
+      {
+        url: '**/api/v1/scheduled-actions/week**',
+        json: { actions: [], generated_at: '2026-10-23T10:00:00Z' },
+      },
+      {
+        url: '**/api/v1/mcp/servers**',
+        json: {
+          servers: [
+            {
+              id: '00000000-0000-4000-8000-00000000bb01',
+              name: 'Notes',
+              url: 'https://notes.example.com/mcp',
+              plugin_id: null,
+              auth_type: 'none',
+              status: 'active',
+              is_enabled: true,
+              domain_description: null,
+              timeout_seconds: 30,
+              hitl_required: null,
+              iterative_mode: false,
+            },
+          ],
+          total: 1,
+        },
+      },
+      {
+        url: '**/api/v1/mcp/admin-servers**',
+        json: [
+          {
+            server_key: 'excalidraw',
+            name: 'Excalidraw',
+            description: null,
+            tools_count: 1,
+            tools: [],
+            enabled_for_user: true,
+          },
+        ],
+      },
+    ]);
+    await page.goto('/en/dashboard/settings?section=scheduled-actions');
+    const card = page.locator('[data-routine-card]').filter({ hasText: 'Tidy my notes' });
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await card.getByRole('button', { name: 'Edit', exact: true }).click();
+
+    const group = page.getByRole('group', { name: 'MCP servers confirmed in advance' });
+    await expect(group).toBeVisible();
+    await expect(group.getByRole('checkbox', { name: /Notes/ })).toBeChecked();
+    await expect(group.getByRole('checkbox', { name: /Excalidraw/ })).not.toBeChecked();
+
+    const { blocking, summary } = await scanPage(
+      page,
+      testInfo,
+      '/dashboard/settings#routine-form'
+    );
+    expect(
+      blocking,
+      `axe violations on the routine form:
 ${summary}`
     ).toHaveLength(0);
   });

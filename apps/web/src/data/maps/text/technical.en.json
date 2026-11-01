@@ -236,9 +236,9 @@
     },
     "t.connclients": {
       "name": "Connector clients",
-      "role": "One client per provider, a single door to a category's active client; never an open database transaction during the network call.",
+      "role": "One client per provider, a single door to a category's active client; never an open database transaction during the network call. The Tools workspace has its own REST endpoints, outside the conversation graph. It reuses the connector clients and publishes their supported controls and limits to the interface. Database sessions close before provider calls; submissions carry replay protection, and a lost answer is shown as an unknown outcome. HTML mail stays inside an isolated frame, with remote content blocked. This keeps a manual gesture separate from an action delegated to LIA.",
       "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipedia"],
-      "src": "0be4cc18553b"
+      "src": "1186b3b6ffa5"
     },
     "t.mcp": {
       "name": "MCP client",

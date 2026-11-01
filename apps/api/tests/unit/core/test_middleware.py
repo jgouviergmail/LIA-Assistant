@@ -140,6 +140,24 @@ class TestSecurityHeadersMiddleware:
         assert "object-src 'none'" in csp
         assert "frame-ancestors 'none'" in csp
 
+    def test_a_route_s_own_stricter_csp_is_kept(self):
+        """A file served for download sets ``sandbox`` (ADR-369): overwritten by the
+        page policy, the person's attachment would be served under weaker rules."""
+        from fastapi.responses import Response
+
+        app = _make_app(SecurityHeadersMiddleware)
+
+        @app.get("/download")
+        async def download() -> Response:
+            return Response(
+                b"x", headers={"Content-Security-Policy": "default-src 'none'; sandbox"}
+            )
+
+        response = TestClient(app).get("/download")
+
+        assert response.headers["Content-Security-Policy"] == "default-src 'none'; sandbox"
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+
     def test_hsts_only_in_production(self):
         with patch("src.core.middleware.settings") as mock_settings:
             mock_settings.is_production = False

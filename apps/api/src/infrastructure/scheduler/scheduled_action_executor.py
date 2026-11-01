@@ -75,9 +75,9 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     RunOutcome,
     RunResult,
     StreamRequest,
-    TurnInterrupt,
     clear_question_of_run,
     conversation_has_pending_hitl,
+    interrupt_log_facts,
     stream_instruction,
     worst_case_run_seconds,
 )
@@ -658,6 +658,8 @@ async def _run_pipeline(
             # — the header toggle speaks for the chat alone.
             execution_mode=action.execution_mode,
             run_id=run_id,
+            # Spec D9: the servers its form ticked — the only pre-approval there is.
+            mcp_preapproval=action.mcp_preapproval,
         )
     )
     # A routine has nobody to ask, so a question it cannot ask is a failure —
@@ -740,7 +742,7 @@ async def _mark_routine(
         action_id=str(action.id),
         error_type=result.error_code or result.outcome.value,
         total_attempts=result.attempts,
-        **_interrupt_facts(result.interrupt),
+        **interrupt_log_facts(result.interrupt),
     )
 
 
@@ -787,24 +789,6 @@ async def _settle_superseded(
         "scheduled_action_settle_superseded", action_id=str(action.id), attempts=attempts
     )
     return True
-
-
-def _interrupt_facts(interrupt: TurnInterrupt | None) -> dict[str, str | None]:
-    """What a failure log may say about the question a run stopped on: its kinds.
-
-    Args:
-        interrupt: The question, when the run stopped on one.
-
-    Returns:
-        ``interrupt_kind`` and ``draft_type`` — bounded vocabularies, never words.
-    """
-    if interrupt is None:
-        return {"interrupt_kind": None, "draft_type": None}
-    draft_type = (interrupt.draft or {}).get("draft_type")
-    return {
-        "interrupt_kind": interrupt.kind,
-        "draft_type": draft_type if isinstance(draft_type, str) else None,
-    }
 
 
 async def _purge_run_history() -> int:

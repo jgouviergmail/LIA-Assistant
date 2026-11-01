@@ -8,8 +8,10 @@
  * NOT from the backend's aspirational unified schema.
  *
  * V1 scope: cards for draft_critique / destructive_confirm /
- * for_each_confirmation / tool_confirmation. Clarification and plan approval
- * stay text-only (chips are P1-V3) — the normalizer returns null for them.
+ * for_each_confirmation / tool_confirmation, and the « which of these? »
+ * choice among shown items (entity_disambiguation, ADR-367). Clarification
+ * and plan approval stay text-only (chips are P1-V3) — the normalizer
+ * returns null for them.
  */
 
 /** Interrupt kinds that render a card in V1. */
@@ -17,7 +19,16 @@ export type HitlCardKind =
   | 'tool_confirmation'
   | 'draft_critique'
   | 'destructive_confirm'
-  | 'for_each_confirmation';
+  | 'for_each_confirmation'
+  | 'entity_disambiguation';
+
+/** One option of « which of these? » (ADR-367): its position and how it reads. */
+export interface HitlChoiceOption {
+  /** 1-based position — sent back as `selected_index`. */
+  index: number;
+  /** What tells it apart (sender, subject, date) — data, rendered as text. */
+  label: string;
+}
 
 /** Backend-driven button descriptor (action_requests[].available_actions). */
 export interface HitlActionOption {
@@ -41,6 +52,8 @@ export interface HitlDecisionWire {
   message_id: string;
   action: string;
   modification_instructions?: string;
+  /** entity_disambiguation: the option a button names (ADR-367). */
+  selected_index?: number;
 }
 
 /** Normalized interrupt payload — single shape for all card kinds. */
@@ -64,6 +77,8 @@ export interface NormalizedHitlPayload {
   /** for_each_confirmation: iteration scale display. */
   iterationCount?: number;
   previewItems?: unknown[];
+  /** entity_disambiguation: the options, in the order the question numbers them. */
+  options?: HitlChoiceOption[];
   /** Hydration only (GET /agents/hitl/pending): interrupt timestamp. */
   interruptTs?: string | null;
 }

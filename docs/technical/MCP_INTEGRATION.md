@@ -110,7 +110,7 @@ will keep it unchanged. See
 | `MCP_TOOL_TIMEOUT_SECONDS` | Source: `MCPSettings.mcp_tool_timeout_seconds` | Timeout per tool call |
 | `MCP_MAX_SERVERS` | Source: `MCPSettings.mcp_max_servers` | Maximum configured administrator servers |
 | `MCP_MAX_TOOLS_PER_SERVER` | Source: `MCPSettings.mcp_max_tools_per_server` | Maximum tools per server |
-| `MCP_HITL_REQUIRED` | Source: `MCPSettings.mcp_hitl_required` | Global HITL requirement; a server may override it |
+| `MCP_HITL_REQUIRED` | Source: `MCPSettings.mcp_hitl_required` | The instance's DEFAULT (ADR-368): the confirmation of every account that never chose a strategy, and the rule of the administrator's servers |
 | `MCP_RATE_LIMIT_CALLS` | Source: `MCPSettings.mcp_rate_limit_calls` | Max calls per server per window |
 | `MCP_RATE_LIMIT_WINDOW` | Source: `MCPSettings.mcp_rate_limit_window` | Rate limit window (seconds) |
 | `MCP_HEALTH_CHECK_INTERVAL_SECONDS` | Source: `MCPSettings.mcp_health_check_interval_seconds` | Health check interval |
@@ -240,13 +240,24 @@ Set `"enabled": false` in the server config:
 
 ### HITL (Human-in-the-Loop)
 
-Confirmation follows the resolved server setting and the tool's mutation policy.
-`MCPSettings.mcp_hitl_required` currently defaults to `False`; setting it to `true`
-requires confirmation for every tool of servers that do not override it. Independently,
+Confirmation follows the resolved setting and the tool's mutation policy. Independently,
 a destructive declaration tightens the confirmation requirement. A read-only declaration
 does not remove other protections. There is no blanket approval prompt before every MCP call.
 
-**Resolution hierarchy**: per-server `hitl_required` > global `MCP_HITL_REQUIRED`
+**Resolution hierarchy, the person's servers** (ADR-368, `infrastructure/mcp/confirmation.py`,
+read forgivingly, written strictly): the TOOL's own choice (`user_mcp_tool_choices`: always /
+never — a *never* is bound to the tool's declaration fingerprint and suspended when it changes)
+> the SERVER's `hitl_required` (true / false / null = like the account) > the ACCOUNT's
+strategy (`users.mcp_hitl_required`, null = never chose) > the instance's `MCP_HITL_REQUIRED`.
+A *never* sets `approved_in_advance` on the manifest: `requires_confirmation` answers false and
+the gate files the approval as `standing_choice`. A dedicated agent's task is asked before it
+starts whenever one of its tools would ask (`registry/confirmation_rule.task_requires_confirmation`).
+What each server will do is computed by `domains/user_mcp/behavior.py` from the run's own
+builder and predicates; from the chat, LIA can only make itself ask more
+(`domains/user_mcp/assistant_confirmation.py`).
+
+**Resolution hierarchy, the administrator's servers**: per-server `hitl_required` > global
+`MCP_HITL_REQUIRED`
 
 ```json
 {
@@ -273,16 +284,19 @@ detection, and from the read-only requirement of the initiative phase.
 
 Two decisions follow from that single rule:
 
-- `declared_tool_category` (`infrastructure/mcp/registration.py`) maps a
+- `declared_tool_category` (`infrastructure/mcp/confirmation.py`, with
+  `derive_mcp_mutation_policy`) maps a
   declared mutation onto the catalogue's own vocabulary — `delete` when
   destructive, `update` when the server says the updates are only additive — and
   returns `None` for everything else, which leaves `MUTATION_TOOL_PATTERNS` in
   charge exactly as before.
-- `declares_destructive_tool` forces HITL on an individual tool in **iterative
-  (ReAct) mode**, where `_expand_iterative_user_mcp` otherwise hands every tool
-  of a server the one per-server flag. Without it, a user who turned
-  confirmation off for a mostly read-only server had its few destructive tools
-  run unconfirmed too.
+- Every MCP tool is asked on ONE predicate in both modes
+  (`registry/confirmation_rule.requires_confirmation`: the server's confirmation
+  setting, or the derived `confirm` policy) — the gate's own refusal case. In
+  **iterative (ReAct) mode** `_expand_iterative_mcp` asks each individual on its
+  OWN manifest, the person's server's and the administrator's alike, so a user
+  who turned confirmation off for a mostly read-only server still confirms its
+  few destructive tools (ADR-263 amendment 2026-10-30 (b)).
 
 The name heuristic alone misses a great deal: on one real finance server, none of
 `cancel_subscription`, `upgrade`, `disconnect_institution` or `forget` carries
@@ -1339,6 +1353,8 @@ MCP servers following the `read_me` convention expose a tool that returns format
 ## Iterative Mode / ReAct Sub-Agent (Feature 2.7)
 
 When `iterative_mode=true` on an MCP server (admin or user), the planner sees a single task delegation tool instead of individual server tools. This tool launches a **ReAct sub-agent** that interacts iteratively with the server.
+
+**Its question comes before the task** (ADR-368): the task manifest requires confirmation whenever one of the server's own tools would (`registry/confirmation_rule.task_requires_confirmation`, read by `user_context._register_user_iterative_server`, `admin_registration._register_iterative_server` and the synthesis). The approved task scope reaches every inner call (`effects/scope.sub_call_scope`), so the task runs to completion; in ReAct the loop may give the agent several tasks, one question each. The sub-loop's « confirmations kept for the end of the task » (ADR-263, 2026-10-30 (b) §4) remains the safety net of a task run unapproved. The person chooses who drives a personal server in ONE choice — tools directly; a dedicated agent in Pipeline and the tools directly in ReAct (`react_expand_iterative = true`); a dedicated agent in both modes (`false`) — `NULL` following `REACT_MCP_EXPAND_ITERATIVE_ENABLED`, resolved once by `build_mcp_react_task_manifest`.
 
 ### Admin MCP Iterative Mode
 

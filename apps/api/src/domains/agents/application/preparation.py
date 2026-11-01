@@ -34,6 +34,7 @@ from src.domains.agents.application.phone_number_schemas import PhoneNumberPatch
 from src.domains.agents.application.phone_preference_schemas import PhonePreferencePatch
 from src.domains.agents.application.preference_dispatch import PreferenceIntent
 from src.domains.agents.application.preference_fields import PreferenceField
+from src.domains.agents.application.preference_tighten_only import refuse_strategy_loosening
 from src.domains.agents.application.queries import read_preferences
 from src.domains.agents.application.registry import APPLICATION_OPERATIONS
 from src.domains.agents.application.schemas import (
@@ -108,6 +109,7 @@ async def prepare_preference_content(
 ) -> ApplicationActionDraftContent:
     # Revalidation also closes model_copy / checkpoint paths, which bypass validators.
     validated = PreferencePatch.model_validate(patch.model_dump(exclude_unset=True))
+    await refuse_strategy_loosening(db, actor_id, validated)
     request = PreferenceRead(
         fields=[field for field in PreferenceField if field.value in validated.model_fields_set]
     )

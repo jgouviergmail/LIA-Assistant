@@ -156,10 +156,10 @@
       "src": "acbb6947019f"
     },
     "f.connectors": {
-      "name": "Connectors",
-      "role": "Google, Microsoft, Apple and the services that run on your own key; a single consent flow per provider, one active provider per category. Keyless services are enabled for everyone by the administrator.",
+      "name": "Connectors and Tools",
+      "role": "Google, Microsoft, Apple and the services that run on your own key; a single consent flow per provider, one active provider per category. Keyless services are enabled for everyone by the administrator. Open Tools when you want to do something yourself: mail, calendar, tasks, contacts, Drive files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.",
       "goal": "Connect your real accounts once, and have them stay connected.",
-      "src": "5029d2448b8e"
+      "src": "7819084f0780"
     },
     "f.mail": {
       "name": "Emails",

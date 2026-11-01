@@ -12,9 +12,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.domains.shared.relation_sms import PersonalSms, RelationSmsProof
+from src.domains.shared.text_normalization import fold_name
 
 
 class IdentityConfidence(str, Enum):
@@ -130,6 +131,15 @@ class RelationSummary(BaseModel):
     is_favorite: bool = False
     # Also a connected LIA user (peers program D2 bridge, read-only).
     is_peer: bool = False
+    # The name folded ONCE (`fold_name`): what another surface matches exactly.
+    name_key: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_the_name(cls, data: object) -> object:
+        if isinstance(data, dict) and "display_name" in data:
+            return {**data, "name_key": fold_name(str(data["display_name"]))}
+        return data
 
 
 class RelationsOverview(BaseModel):

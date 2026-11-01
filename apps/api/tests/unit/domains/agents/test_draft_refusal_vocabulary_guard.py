@@ -65,6 +65,11 @@ _RUNTIME_CODES = {
         "tools/common.connector_not_activated_refusal; refusal_message names the "
         "connector itself rather than reading the vocabulary"
     ),
+    "CONFIRMATION_LOOSENING": (
+        "infrastructure/mcp/confirmation_loosening.ConfirmationLooseningRefused.code, raised "
+        "by the personal MCP writers' judge and mapped by draft_execution and the private "
+        "form's continuation (spec 2026-10-30 D7)"
+    ),
 }
 
 

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useThemeMode } from '@/hooks/useThemeMode';
 import { nextInCycle } from '@/lib/theme-mode';
+import { cn } from '@/lib/utils';
 
 /**
  * The circular display-mode control: light → dark → OLED → light.
@@ -26,7 +27,16 @@ const STEPS = {
   light: { Icon: Sun, key: 'theme.to_light' },
 } as const;
 
-export function ThemeToggle() {
+const BOX = 'w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9';
+
+/**
+ * The control itself (see `STEPS` for the cycle it walks).
+ *
+ * Args:
+ *   className: Added to the button's own box (the dashboard header passes its
+ *     icon slot; the public pages draw the button as it is).
+ */
+export function ThemeToggle({ className }: { className?: string } = {}) {
   const { t } = useTranslation();
   const { mounted, resolved, oled, apply } = useThemeMode();
 
@@ -39,7 +49,7 @@ export function ThemeToggle() {
   // render the shell without a state-dependent icon rather than guess and flip.
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9">
+      <Button variant="ghost" size="sm" className={cn(BOX, className)}>
         <Sun className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">{t('theme.to_dark')}</span>
       </Button>
@@ -51,7 +61,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="sm"
-      className="w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9"
+      className={cn(BOX, className)}
       onClick={event => {
         // The reveal opens from the button's centre, so the wipe visibly
         // starts where the user pressed rather than from an arbitrary point.

@@ -516,6 +516,10 @@ GOOGLE_OTHER_CONTACTS_FIELDS = [
 # 30 being Google's recommended maximum for interactive search).
 GOOGLE_OTHER_CONTACTS_SEARCH_MAX = 30
 
+# people.searchContacts answers at most 30 results whatever pageSize asks
+# (People API reference: "Values greater than 30 will be capped to 30").
+GOOGLE_CONTACTS_SEARCH_PAGE_MAX = 30
+
 # Max members fetched when expanding a contact group for targeting.
 GOOGLE_CONTACT_GROUP_MAX_MEMBERS = 200
 
@@ -844,6 +848,10 @@ PRODUCT_ROLLUP_INITIAL_DELAY_MINUTES = 2
 # Scheduled Actions Configuration
 SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS = 60
 SCHEDULED_ACTIONS_MAX_PER_USER = 20
+# Spec 2026-10-29 D9: MCP servers a routine may pre-approve — a bound on the
+# form's payload before each key is checked against the account's servers.
+ROUTINE_MCP_PREAPPROVAL_MAX_SERVERS = 64
+ROUTINE_MCP_SERVER_KEY_MAX_LENGTH = 255
 SCHEDULED_ACTIONS_SESSION_PREFIX = "scheduled_action_"  # Session ID prefix for automated sources
 
 # =============================================================================
@@ -851,14 +859,23 @@ SCHEDULED_ACTIONS_SESSION_PREFIX = "scheduled_action_"  # Session ID prefix for 
 # =============================================================================
 # The component itself owns no ceiling: a cap travels with the caller, which is
 # what lets ONE engine serve a routine that runs an agent pipeline and a
-# reminder that only sends a notification. The assembled `RecurrenceLimits`
-# live at the end of this module, next to the helper that builds them.
+# reminder that only sends a notification. The reminder's assembled
+# `RecurrenceLimits` lives at the end of this module; a routine's is assembled
+# from the operator's settings by `scheduled_actions.recurrence_limits`.
 
 #: A routine runs the full agent pipeline on every occurrence: twelve a day is
-#: twelve LLM runs, and the form states that cost before saving.
-RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY = 12
-RECURRENCE_ROUTINE_MIN_STEP_MINUTES = 15
+#: twelve LLM runs, and the form states that cost before saving. These two are
+#: the DEFAULTS of the operator's settings (`SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY`,
+#: `SCHEDULED_ACTIONS_MIN_STEP_MINUTES`, ADR-268 amendment 2026-10-30), read
+#: through `scheduled_actions.recurrence_limits` alone.
+SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT = 12
+SCHEDULED_ACTIONS_MIN_STEP_MINUTES_DEFAULT = 15
 RECURRENCE_ROUTINE_MAX_SERIES_COUNT = 500
+#: The shortest step an operator may allow a routine: the one a reminder,
+#: which only notifies, already stops at.
+SCHEDULED_ACTIONS_MIN_STEP_MINUTES_FLOOR = 5
+#: The most moments a day holds at that step: a per-day cap above it says nothing.
+SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_CEILING = 24 * 60 // SCHEDULED_ACTIONS_MIN_STEP_MINUTES_FLOOR
 
 #: A reminder sends a notification: its ceiling is about noise, not cost.
 RECURRENCE_REMINDER_MAX_TIMES_PER_DAY = 48
@@ -944,7 +961,7 @@ SCHEDULED_ACTIONS_WEATHER_MIN_PRECIPITATION_PERCENT_DEFAULT = 50
 #: Most runs a condition routine may start in one local day. The checks are
 #: free; a run is a full agent pipeline and a notification, so a source that
 #: flaps must not turn into a stream of them. Twelve, like the most moments a
-#: timed routine may declare a day (``RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY``).
+#: timed routine may declare a day by default (``SCHEDULED_ACTIONS_MAX_TIMES_PER_DAY_DEFAULT``).
 SCHEDULED_ACTIONS_CONDITION_MAX_FIRES_PER_DAY_DEFAULT = 12
 
 # ============================================================================
@@ -2087,6 +2104,12 @@ SYSTEM_SETTING_CACHE_TTL_SECONDS = 300  # 5 minutes
 REDIS_KEY_GMAIL_SEARCH_PREFIX = "gmail:search:"
 REDIS_KEY_GMAIL_MESSAGE_PREFIX = "gmail:message:"
 REDIS_KEY_GMAIL_LABELS_PREFIX = "gmail:labels:"
+# A mailbox's cache generation (ADR-369): every write to the mailbox moves it,
+# and every cached read is keyed by it, so no read after a write is stale.
+REDIS_KEY_MAIL_GENERATION_PREFIX: Final = "mail:generation:"
+#: Longer than every mail cache's TTL: its expiry (a reset to 0) can never
+#: resurrect an entry that is still alive.
+MAIL_GENERATION_TTL_SECONDS: Final = 86_400
 
 # Interest analysis cache keys
 REDIS_KEY_INTEREST_ANALYSIS_PREFIX = "interest_analysis:"
@@ -3250,6 +3273,9 @@ EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
 # Mailbox drafts one call may move to the trash (ADR-344): « delete all my
 # drafts » is served up to this bound and the remainder is stated, never dropped.
 EMAIL_DRAFTS_BULK_MAX_DEFAULT = 20
+# Messages one call of set_email_read_state_tool marks read or unread (ADR-369):
+# a longer selection is served up to it and the remainder is stated.
+EMAIL_READ_STATE_MAX_MESSAGES: Final = 50
 # Concurrent per-message metadata fetches during Gmail search (the list
 # endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
 # 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
@@ -3295,8 +3321,13 @@ LLM_CACHE_TTL_SECONDS_DEFAULT = 60  # Aligned from .env.prod (was 300)
 CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.dev/v1"
 CURRENCY_API_TIMEOUT_SECONDS_DEFAULT = 5.0
 DEFAULT_LANGUAGE_DEFAULT: Final = "fr"
-ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT = 0.9
 ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT = 5
+# The most options « which of these? » may offer: its number words go to ten.
+ENTITY_RESOLUTION_MAX_CANDIDATES_CAP = 10
+# ADR-367: a description may designate what the last three answers showed, and
+# the analyzer is shown at most fifteen of those items (≈25 tokens each).
+ENTITY_RESOLUTION_MAX_TURN_AGE_DEFAULT = 3
+ENTITY_RESOLUTION_SHOWN_ITEMS_MAX_DEFAULT = 15
 FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT = 70  # Aligned from .env.prod (was 55)
 REDIS_SCAN_COUNT_DEFAULT = 100
 CURRENCY_CACHE_TTL_HOURS_DEFAULT = 24
@@ -3426,6 +3457,8 @@ MCP_DEFAULT_RATE_LIMIT_CALLS = 60
 MCP_DEFAULT_RATE_LIMIT_WINDOW = 60
 MCP_MAX_SERVERS_DEFAULT = 20
 MCP_MAX_TOOLS_PER_SERVER_DEFAULT = 40
+# The longest raw tool name a person's per-tool confirmation choice is stored for.
+MCP_TOOL_CHOICE_NAME_MAX_LENGTH = 255
 MCP_HEALTH_CHECK_INTERVAL_DEFAULT = 300
 MCP_CONNECTION_RETRY_MAX_DEFAULT = 3
 MCP_MAX_STRUCTURED_ITEMS_PER_CALL = 25  # Cap structured items parsed from a single MCP call
@@ -4910,6 +4943,101 @@ EMAIL_SHARE_RECIPIENT_PROJECTION_MEMO_MAX_ENTRIES: Final = 20_000
 # Per-account window on the suggestion route: one request per pause in typing.
 EMAIL_SHARE_SUGGEST_RATE_LIMIT_CALLS_DEFAULT = 120
 EMAIL_SHARE_SUGGEST_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+
+# ============================================================================
+# WORKBENCH (the « Tools » section: the person's own door to their services, ADR-369)
+# ============================================================================
+# Per-account sliding windows, one per kind of act. A person clicks; a script
+# replaying a session would otherwise spend the instance's OAuth quotas.
+WORKBENCH_READ_RATE_LIMIT_CALLS_DEFAULT = 120
+WORKBENCH_READ_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+WORKBENCH_WRITE_RATE_LIMIT_CALLS_DEFAULT = 30
+WORKBENCH_WRITE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+WORKBENCH_SEND_RATE_LIMIT_CALLS_DEFAULT = 10
+WORKBENCH_SEND_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+WORKBENCH_BULK_RATE_LIMIT_CALLS_DEFAULT = 6
+WORKBENCH_BULK_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+WORKBENCH_DOWNLOAD_RATE_LIMIT_CALLS_DEFAULT = 10
+WORKBENCH_DOWNLOAD_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+#: One page of a listing; published as min(this, ``api_max_items_per_request``),
+#: the ceiling every provider client applies (measured 2026-10-31: 25 Gmail
+#: metadata hits in 0.40 s cold).
+WORKBENCH_PAGE_SIZE_DEFAULT = 25
+#: The largest selection one bulk act (trash, read state) carries.
+WORKBENCH_BULK_MAX_ITEMS_DEFAULT = 50
+#: Events read for one calendar and one visible window, provider pages drained.
+WORKBENCH_CALENDAR_WINDOW_MAX_EVENTS_DEFAULT = 500
+#: The largest attachment or Drive file served (Drive exports stop at 10 MB anyway).
+WORKBENCH_DOWNLOAD_MAX_BYTES_DEFAULT = 25 * 1024 * 1024
+#: The largest HTML body the reader is served; past it the HTML is cut and the cut said.
+WORKBENCH_MAIL_HTML_MAX_BYTES_DEFAULT = 2 * 1024 * 1024
+#: How long a submitted send or create remembers its outcome (one day).
+WORKBENCH_IDEMPOTENCY_TTL_SECONDS_DEFAULT = 86_400
+REDIS_KEY_WORKBENCH_IDEMPOTENCY_PREFIX: Final = "workbench:idem:"
+#: A task's or a task list's title, and a task's notes, as long as Google Tasks
+#: documents them (its Task and TaskList resources); published to the page.
+WORKBENCH_TASK_TITLE_MAX_CHARS: Final = 1024
+WORKBENCH_TASK_NOTES_MAX_CHARS: Final = 8192
+#: The words of a mail search, as long as a search box takes (published to the
+#: page); the composed query also carries the chips and the folder.
+WORKBENCH_MAIL_QUERY_MAX_CHARS: Final = 500
+#: One attachment download at a time per account: the claim's key, the life it
+#: keeps if its holder dies (longer than a ceiling-sized read), and the wait
+#: told to a second download.
+REDIS_KEY_WORKBENCH_DOWNLOAD_PREFIX: Final = "workbench:download:"
+WORKBENCH_DOWNLOAD_CLAIM_TTL_SECONDS: Final = 120
+WORKBENCH_DOWNLOAD_RETRY_AFTER_SECONDS: Final = 5
+#: A message written in the « Tools » section (published to the page): the
+#: recipients of one field, one recipient as typed (an address is at most 254
+#: characters, a display name beside it), a subject (RFC 5322's line), a body.
+WORKBENCH_MAIL_RECIPIENTS_MAX: Final = 100
+WORKBENCH_MAIL_RECIPIENT_MAX_CHARS: Final = 320
+WORKBENCH_MAIL_SUBJECT_MAX_CHARS: Final = 998
+WORKBENCH_MAIL_BODY_MAX_CHARS: Final = 100_000
+#: The person's own files one new message may carry (their bytes are bounded by
+#: the provider's own ceiling, ``OUTGOING_FILE_MAX_BYTES``).
+WORKBENCH_MAIL_ATTACHMENTS_MAX: Final = 10
+#: A calendar window (published to the page): its days — six weeks, the month
+#: grid —, the calendars read at once, and an event's parts as written there
+#: (a title and a place as long as a task's title, a description as its notes).
+WORKBENCH_CALENDAR_WINDOW_MAX_DAYS: Final = 42
+WORKBENCH_CALENDAR_IDS_MAX: Final = 25
+WORKBENCH_EVENT_SUMMARY_MAX_CHARS: Final = 1024
+WORKBENCH_EVENT_LOCATION_MAX_CHARS: Final = 1024
+WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS: Final = 8192
+WORKBENCH_EVENT_ATTENDEES_MAX: Final = 100
+#: A contact as written in the « Tools » section (published to the page): a name
+#: and an organization, notes, one value (an address is at most 254 characters, a
+#: number far less), and the values of one list (a provider may hold fewer —
+#: Graph's slots — and refuses past them with its own bound).
+WORKBENCH_CONTACT_NAME_MAX_CHARS: Final = 512
+WORKBENCH_CONTACT_NOTES_MAX_CHARS: Final = 8192
+WORKBENCH_CONTACT_VALUE_MAX_CHARS: Final = 320
+WORKBENCH_CONTACT_VALUES_MAX: Final = 20
+#: A postal address as written: Google keeps its own lines (street, postcode and
+#: city, country), so an address is bounded apart from a one-line value.
+WORKBENCH_CONTACT_ADDRESS_MAX_CHARS: Final = 1024
+#: How many folders a Drive breadcrumb walks up (one provider call each) before
+#: it stops and says so — Drive sets no depth limit, a person's tree rarely
+#: passes a dozen.
+WORKBENCH_DRIVE_BREADCRUMB_MAX_DEPTH: Final = 16
+#: What a Drive listing and a detail read of each file.
+WORKBENCH_DRIVE_FIELDS: Final = (
+    "id",
+    "name",
+    "mimeType",
+    "modifiedTime",
+    "size",
+    "webViewLink",
+    "shortcutDetails",
+)
+WORKBENCH_DRIVE_DETAIL_FIELDS: Final = (
+    *WORKBENCH_DRIVE_FIELDS,
+    "parents",
+    "owners",
+    "description",
+    "createdTime",
+)
 
 # ============================================================================
 # RAG SPACES (Knowledge Spaces with Document Upload)
@@ -6875,36 +7003,30 @@ LEDGER_NOTARY_INITIAL_DELAY_SECONDS = 45
 LEDGER_CHAIN_VERIFY_PAGE_DEFAULT = 1_000
 
 
-def _recurrence_limits() -> tuple[RecurrenceLimits, RecurrenceLimits]:
-    """Assemble the two default limit sets from the values declared above.
+def _reminder_recurrence_limits() -> RecurrenceLimits:
+    """Assemble the reminder's limit set from the values declared above.
 
     The import is local rather than module-level: this module is imported very
     early and by nearly everything, and ``core.recurrence`` has no business
     being pulled in by a caller that only wants a timeout. It stays a leaf.
 
     Returns:
-        The routine limits, then the reminder limits.
+        The reminder limits.
     """
     from src.core.recurrence.spec import RecurrenceLimits as _Limits
 
-    return (
-        _Limits(
-            max_times_per_day=RECURRENCE_ROUTINE_MAX_TIMES_PER_DAY,
-            min_step_minutes=RECURRENCE_ROUTINE_MIN_STEP_MINUTES,
-            max_series_count=RECURRENCE_ROUTINE_MAX_SERIES_COUNT,
-        ),
-        _Limits(
-            max_times_per_day=RECURRENCE_REMINDER_MAX_TIMES_PER_DAY,
-            min_step_minutes=RECURRENCE_REMINDER_MIN_STEP_MINUTES,
-            max_series_count=RECURRENCE_REMINDER_MAX_SERIES_COUNT,
-        ),
+    return _Limits(
+        max_times_per_day=RECURRENCE_REMINDER_MAX_TIMES_PER_DAY,
+        min_step_minutes=RECURRENCE_REMINDER_MIN_STEP_MINUTES,
+        max_series_count=RECURRENCE_REMINDER_MAX_SERIES_COUNT,
     )
 
 
-#: What a routine may ask of the recurrence engine, and what a reminder may.
-#: Two consumers, two ceilings, one engine — the difference is a value, never a
-#: branch.
-RECURRENCE_ROUTINE_LIMITS, RECURRENCE_REMINDER_LIMITS = _recurrence_limits()
+#: What a reminder may ask of the recurrence engine. A routine's limits are the
+#: operator's settings, assembled at call time by
+#: `scheduled_actions.recurrence_limits.routine_recurrence_limits`: two
+#: consumers, two ceilings, one engine — the difference is a value, never a branch.
+RECURRENCE_REMINDER_LIMITS = _reminder_recurrence_limits()
 
 # =============================================================================
 # Message bookmarks (ADR-282)

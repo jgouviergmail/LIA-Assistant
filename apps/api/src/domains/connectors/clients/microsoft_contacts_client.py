@@ -27,11 +27,17 @@ from src.domains.connectors.clients.contact_directory import (
     cached_directory,
     invalidate_contacts_cache,
 )
+from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
+from src.domains.connectors.clients.normalizers.graph_paging import (
+    graph_page_params,
+    graph_page_token,
+)
 from src.domains.connectors.clients.normalizers.microsoft_contacts_normalizer import (
     build_contact_body,
     build_contact_update_body,
     normalize_graph_contact,
 )
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -145,24 +151,29 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
 
         Args:
             page_size: Number of contacts per page.
-            page_token: Pagination token (unused, Graph uses @odata.nextLink).
+            page_token: The ``next_page_token`` of the previous page (ADR-369): the
+                skip value of Graph's ``@odata.nextLink``, never the link itself.
             use_cache: Whether to use cache (unused, kept for interface compatibility).
             fields: Field projection (unused, kept for interface compatibility).
 
         Returns:
-            Dict with 'connections' list in Google People API format.
+            Dict with 'connections' list in Google People API format, and
+            ``next_page_token`` (None on the last page).
+
+        Raises:
+            ValueError: ``page_token`` is not one this listing produced.
         """
         page_size = apply_max_items_limit(page_size)
-
-        result = await self._get_paginated_odata(
-            endpoint="/me/contacts",
-            items_key="value",
-            max_results=page_size,
-            params={"$select": _CONTACT_SELECT_FIELDS, "$orderby": "displayName"},
-            transform_items=lambda items: [normalize_graph_contact(c) for c in items],
-        )
-
-        connections = result.get("value", [])
+        params = {
+            "$select": _CONTACT_SELECT_FIELDS,
+            # Family then given name (owner request 2026-10-31): Graph pages the
+            # listing, so Graph sorts it.
+            "$orderby": "surname,givenName",
+            "$top": page_size,
+            **graph_page_params(page_token),
+        }
+        response = await self._make_request("GET", "/me/contacts", params)
+        connections = [normalize_graph_contact(c) for c in response.get("value", [])]
 
         logger.info(
             "microsoft_contacts_listed",
@@ -173,6 +184,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         return {
             "connections": connections,
             "totalItems": len(connections),
+            "next_page_token": graph_page_token(response.get("@odata.nextLink")),
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }
@@ -240,11 +252,11 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             Dict in Google People API person format.
         """
         # Extract contact ID from resource_name format "people/{id}"
-        contact_id = resource_name.replace("people/", "")
+        contact_id = resource_name.removeprefix("people/")
 
         params: dict[str, Any] = {"$select": _CONTACT_SELECT_FIELDS}
 
-        response = await self._make_request("GET", f"/me/contacts/{contact_id}", params)
+        response = await self._make_request("GET", _contact_path(contact_id), params)
 
         logger.info(
             "microsoft_contact_retrieved",
@@ -269,6 +281,10 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         phone: str | None = None,
         organization: str | None = None,
         notes: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """
         Create a new contact.
@@ -279,11 +295,26 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             phone: Phone number.
             organization: Company name.
             notes: Personal notes.
+            emails: Every e-mail (not with ``email``).
+            phones: Every phone (not with ``phone``).
+            addresses: Every address.
 
         Returns:
             Created contact in Google People API format.
+
+        Raises:
+            ContactValuesRefused: A list Exchange cannot hold (nothing is written).
         """
-        body = build_contact_body(name, email, phone, organization, notes)
+        body = build_contact_body(
+            name,
+            email,
+            phone,
+            organization,
+            notes,
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
+        )
 
         response = await self._make_request("POST", "/me/contacts", json_data=body)
         # The directory the recipient suggestions read is cached (Google parity).
@@ -306,26 +337,55 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         organization: str | None = None,
         notes: str | None = None,
         address: str | None = None,
+        *,
+        emails: list[TypedValue] | None = None,
+        phones: list[TypedValue] | None = None,
+        addresses: list[TypedAddress] | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing contact.
 
+        A single e-mail, phone or address replaces the PRIMARY one and keeps the
+        others; a list replaces that list. Either needs the stored contact, read
+        first — Graph replaces a whole array it is sent.
+
         Args:
             resource_name: Resource name in format "people/{contact_id}".
             name: New display name.
-            email: New email address.
-            phone: New phone number.
+            email: New primary email address.
+            phone: New primary phone number.
             organization: New company name.
             notes: New personal notes.
-            address: New address.
+            address: New primary address.
+            emails: Every e-mail.
+            phones: Every phone.
+            addresses: Every address.
 
         Returns:
             Updated contact in Google People API format.
-        """
-        contact_id = resource_name.replace("people/", "")
-        body = build_contact_update_body(name, email, phone, organization, notes, address)
 
-        response = await self._make_request("PATCH", f"/me/contacts/{contact_id}", json_data=body)
+        Raises:
+            ContactValuesRefused: A list Exchange cannot hold (nothing is written).
+        """
+        contact_id = resource_name.removeprefix("people/")
+        asks_values = any(
+            value is not None for value in (email, phone, address, emails, phones, addresses)
+        )
+        current = await self._make_request("GET", _contact_path(contact_id)) if asks_values else {}
+        body = build_contact_update_body(
+            name,
+            email,
+            phone,
+            organization,
+            notes,
+            address,
+            current=current,
+            emails=emails,
+            phones=phones,
+            addresses=addresses,
+        )
+
+        response = await self._make_request("PATCH", _contact_path(contact_id), json_data=body)
         await invalidate_contacts_cache(self.user_id)
 
         logger.info(
@@ -346,9 +406,9 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         Returns:
             True if successful.
         """
-        contact_id = resource_name.replace("people/", "")
+        contact_id = resource_name.removeprefix("people/")
 
-        await self._make_request("DELETE", f"/me/contacts/{contact_id}")
+        await self._make_request("DELETE", _contact_path(contact_id))
         await invalidate_contacts_cache(self.user_id)
 
         logger.info(
@@ -358,3 +418,9 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         )
 
         return True
+
+
+def _contact_path(contact_id: str) -> str:
+    """A contact's path, its id quoted: an id from a browser or a model never shapes a path."""
+    segment = path_segment(contact_id, connector_type=ConnectorType.MICROSOFT_CONTACTS)
+    return f"/me/contacts/{segment}"

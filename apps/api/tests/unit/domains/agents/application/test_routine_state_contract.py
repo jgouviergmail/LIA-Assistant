@@ -47,8 +47,12 @@ def test_routine_preview_and_editor_hide_the_configuration_digest(language: str)
     expected = RoutineSnapshot(
         id=uuid4(), title="Routine", enabled=True, configuration_digest="a" * 64
     )
-    previous = RoutineStatePatch(routine_state=RoutineStateValues(expected=expected, enabled=True))
-    desired = RoutineStatePatch(routine_state=RoutineStateValues(expected=expected, enabled=False))
+    previous = RoutineStatePatch(
+        routine_state=RoutineStateValues(expected=expected, enabled=True, mcp_preapproval=())
+    )
+    desired = RoutineStatePatch(
+        routine_state=RoutineStateValues(expected=expected, enabled=False, mcp_preapproval=())
+    )
     draft = build_action_content(
         uuid4(),
         ROUTINE_STATE_OPERATION,

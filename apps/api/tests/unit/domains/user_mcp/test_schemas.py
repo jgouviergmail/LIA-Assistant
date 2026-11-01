@@ -307,6 +307,8 @@ class TestUserMCPServerListResponse:
 
     def test_empty_list(self) -> None:
         """Should accept empty server list."""
-        resp = UserMCPServerListResponse(servers=[], total=0)
+        from src.domains.user_mcp.defaults import published_defaults
+
+        resp = UserMCPServerListResponse(servers=[], total=0, defaults=published_defaults(None))
         assert resp.total == 0
         assert resp.servers == []

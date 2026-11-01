@@ -25,6 +25,7 @@ from structlog import get_logger
 from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.field_names import (
+    FIELD_ABANDON_PENDING,
     FIELD_CONVERSATION_ID,
     FIELD_DECISION,
     FIELD_RUN_ID,
@@ -58,6 +59,41 @@ from src.infrastructure.observability.metrics_langgraph import (
 )
 
 logger = get_logger(__name__)
+
+
+async def drop_replaced_question(
+    conversation_id: uuid.UUID, decision_data: dict[str, Any], run_id: str
+) -> None:
+    """Clear the pending question a new request replaces.
+
+    A stale record (no action requests) is cleared whatever happens; a valid one
+    only when the person abandoned it for a new request (ADR-367 amendment) —
+    left in place, their next message would be read as its answer again.
+
+    Args:
+        conversation_id: The conversation whose question is pending.
+        decision_data: The parsed decision (``FIELD_ABANDON_PENDING`` when abandoned).
+        run_id: The run, for logging.
+    """
+    from src.domains.agents.utils import HITLStore
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    try:
+        redis = await get_redis_cache()
+        hitl_store = HITLStore(
+            redis_client=redis, ttl_seconds=settings.hitl_pending_data_ttl_seconds
+        )
+        if decision_data.get(FIELD_ABANDON_PENDING):
+            await hitl_store.clear_interrupt(str(conversation_id))
+        else:
+            await hitl_store.clear_if_invalid(str(conversation_id))
+    except (ConnectionError, TimeoutError, RuntimeError, OSError) as cleanup_err:
+        logger.error(
+            "stale_hitl_cleanup_failed",
+            run_id=run_id,
+            error=str(cleanup_err),
+            error_type=type(cleanup_err).__name__,
+        )
 
 
 class GraphChunk:
@@ -588,24 +624,7 @@ class OrchestrationService:
                     reason=decision_data.get("reason"),
                 )
 
-                # Clean up stale pending_hitl from Redis using HITLStore
-                try:
-                    from src.domains.agents.utils import HITLStore
-                    from src.infrastructure.cache.redis import get_redis_cache
-
-                    redis = await get_redis_cache()
-                    hitl_store = HITLStore(
-                        redis_client=redis,
-                        ttl_seconds=settings.hitl_pending_data_ttl_seconds,
-                    )
-                    await hitl_store.clear_if_invalid(str(conversation_id))
-                except (ConnectionError, TimeoutError, RuntimeError, OSError) as cleanup_err:
-                    logger.error(
-                        "stale_hitl_cleanup_failed",
-                        run_id=run_id,
-                        error=str(cleanup_err),
-                        error_type=type(cleanup_err).__name__,
-                    )
+                await drop_replaced_question(conversation_id, decision_data, run_id)
 
                 # Reset is_interrupted flag to treat as new message
                 is_interrupted = False
@@ -892,10 +911,12 @@ class OrchestrationService:
                 ):
                     yield (mode, chunk)
             else:
-                # Normal execution with the turn's changes
+                # Normal execution with the turn's changes — declared fresh: a
+                # new request under the run id of the question it replaces must
+                # never resume that question (turn_input.fresh_run_config).
                 async for mode, chunk in graph.astream(
                     graph_input,
-                    runnable_config,
+                    turn_input.fresh_run_config(runnable_config),
                     stream_mode=["values", "messages", "updates", "custom"],
                     context=runtime_context,
                     durability="async",  # explicit intent — see resume branch above

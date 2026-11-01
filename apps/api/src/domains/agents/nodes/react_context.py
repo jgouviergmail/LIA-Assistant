@@ -22,9 +22,11 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
+from src.core.external_content import wrap_external_content
 from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import turn_references
 from src.domains.agents.analysis.resolved_references import render_reference_lines
+from src.domains.agents.constants import STATE_KEY_RESOLVED_CONTEXT
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
@@ -32,10 +34,12 @@ from src.domains.agents.context.runtime_context import (
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.agents.models import MessagesState
 from src.domains.agents.prompts import render_context_section
+from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.services.response_context import (
     fetch_user_rag_context,
     peek_response_context,
 )
+from src.domains.agents.sms.state_policy import guard_sms_state
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.user_message_embedding import (
     get_or_compute_embedding,
@@ -221,6 +225,41 @@ def build_reference_resolution_block(state: MessagesState) -> str | None:
     """
     lines = render_reference_lines(turn_references(state))
     return render_context_section("resolved_references", lines) or None
+
+
+def _designates(context: object) -> bool:
+    """Whether a resolved context carries the item(s) the turn designates."""
+    return isinstance(context, dict) and bool(context.get("items"))
+
+
+async def build_designated_items_block(state: MessagesState) -> str | None:
+    """The shown item(s) this turn designates — what the planner reads (ADR-367).
+
+    « Reply to the second one », « reply to Marc's email », the option the
+    person chose when asked: the router resolves them into the turn's
+    ``resolved_context``, which the pipeline's planner reads as « context from
+    previous results ». The loop never received it and searched again — the
+    defect of 2026-10-29 in the other execution mode (invariant 3: the loop
+    knows what the pipeline knows). Same renderer as the planner
+    (``ResolvedContext.to_llm_context``), read from the state the SMS policy
+    guarded (the planner's own guard), and wrapped as external content: a
+    subject or a sender is a third party's text.
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        The block, or None when the turn designates no shown item.
+    """
+    if not _designates(state.get(STATE_KEY_RESOLVED_CONTEXT)):
+        return None
+    # The SMS policy may read the database: guarded only when there is an item to show.
+    context = (await guard_sms_state(state)).get(STATE_KEY_RESOLVED_CONTEXT)
+    if not isinstance(context, dict) or not _designates(context):
+        return None
+    text = ResolvedContext.from_dict(context).to_llm_context()
+    wrapped = wrap_external_content(text, "conversation", "designated_items")
+    return render_context_section("designated_items", wrapped, "react_context_lines") or None
 
 
 async def build_user_model_block() -> str | None:
@@ -425,6 +464,7 @@ async def build_setup_blocks(state: MessagesState, config: RunnableConfig) -> Se
         build_card_composition_block(),
         memory_block,
         build_reference_resolution_block(state),
+        await build_designated_items_block(state),
         await build_user_model_block(),
         await build_journal_directives_block(state, config),
         knowledge_block,

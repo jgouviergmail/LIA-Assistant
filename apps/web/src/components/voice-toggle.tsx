@@ -49,12 +49,14 @@ import { liveProviderLabel } from '@/lib/live/providers';
 import { isSessionOpen } from '@/lib/live/session-machine';
 import type { LiveSessionMode } from '@/lib/live/types';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 import { useLiveStore } from '@/stores/liveStore';
 import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
 
 interface VoiceToggleProps {
   lng?: Language;
   disabled?: boolean;
+  /** Added to the trigger's own box (the dashboard header passes its icon slot). */
   className?: string;
   /** An embedded chat can own Live without navigating away from its host. */
   onOpenLiveWorkspace?(): boolean;
@@ -192,7 +194,7 @@ function LiveMenu({
         <Button
           variant="ghost"
           size="sm"
-          className={className ?? TRIGGER}
+          className={cn(TRIGGER, className)}
           disabled={disabled || !state.user}
           aria-label={t('voice.toggle.menu')}
           title={triggerTitle(t, liveOpen, state.isEnabled)}
@@ -255,7 +257,7 @@ export function VoiceToggle({
   // Show placeholder during SSR
   if (!mounted) {
     return (
-      <Button variant="ghost" size="sm" className={className ?? TRIGGER} disabled={disabled}>
+      <Button variant="ghost" size="sm" className={cn(TRIGGER, className)} disabled={disabled}>
         <Volume2 className={ICON} />
         <span className="sr-only">{t('voice.toggle.enable')}</span>
       </Button>
@@ -281,7 +283,7 @@ export function VoiceToggle({
     <Button
       variant="ghost"
       size="sm"
-      className={className ?? TRIGGER}
+      className={cn(TRIGGER, className)}
       onClick={() => void state.toggle()}
       disabled={disabled || state.isLoading || !state.user}
       aria-label={label}
