@@ -14,6 +14,8 @@ export interface BlogArticle {
   icon: string;
   /** ISO date string (publication date) */
   date: string;
+  /** ISO date of the latest editorial revision, when later than publication. */
+  updated?: string;
   /** Estimated reading time in minutes */
   readTime: number;
   /** SEO keywords / tags */
@@ -59,6 +61,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'ListChecks',
     date: '2026-03-12',
+    updated: '2026-11-01',
     readTime: 4,
     tags: ['planner', 'execution-plan', 'task-orchestration', 'parallel-execution'],
   },
@@ -67,6 +70,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'ShieldCheck',
     date: '2026-03-10',
+    updated: '2026-11-01',
     readTime: 4,
     tags: ['hitl', 'approval', 'human-validation', 'safety', 'trust'],
   },
@@ -85,6 +89,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Bot',
     date: '2026-04-05',
+    updated: '2026-11-01',
     readTime: 3,
     tags: ['mcp', 'react-agent', 'iterative', 'sub-agent', 'tool-server', 'extensibility'],
   },
@@ -93,6 +98,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Mail',
     date: '2026-03-14',
+    updated: '2026-11-01',
     readTime: 4,
     tags: ['google', 'gmail', 'calendar', 'drive', 'contacts', 'oauth'],
   },
@@ -101,6 +107,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Cloud',
     date: '2026-03-11',
+    updated: '2026-11-01',
     readTime: 4,
     tags: ['apple', 'icloud', 'microsoft', 'outlook', 'office-365'],
   },
@@ -109,6 +116,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'integrations',
     icon: 'Puzzle',
     date: '2026-03-06',
+    updated: '2026-11-01',
     readTime: 4,
     tags: ['mcp', 'model-context-protocol', 'extensibility', 'tools', 'api'],
   },

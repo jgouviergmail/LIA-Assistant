@@ -1313,10 +1313,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                           |                                         |                                                                         |
 | ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **60** backend domain packages | **1,092,065** source lines (excl. tests) | **72,137** inventoried automated tests | **367** ADRs                                                            |
+| **60** backend domain packages | **1,092,074** source lines (excl. tests) | **72,137** inventoried automated tests | **367** ADRs                                                            |
 | **293** versions shipped       | **6 languages**, parity enforced in CI    | **658** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,092,065 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-01). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,092,074 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-01). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)

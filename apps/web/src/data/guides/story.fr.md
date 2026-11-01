@@ -18,7 +18,7 @@ La quasi-totalité du code a été écrite par une IA. Mon travail a été de la
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA, dirigée, encadrée et contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests), réparties en 60 paquets de domaines backend | **1 092 065** |
+| Lignes de source (hors tests), réparties en 60 paquets de domaines backend | **1 092 074** |
 | Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **72 137** |
 | Décisions d'architecture documentées (ADR) | **367** |
 | Versions livrées à rythme régulier | **293** |

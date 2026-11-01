@@ -71,6 +71,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
       publishedTime: article.date,
+      modifiedTime: article.updated ?? article.date,
       section: article.category,
       tags: article.tags,
       images: imageUrl
@@ -122,7 +123,7 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
         description: t(`blog.articles.${slug}.excerpt`),
         image: `${origin}${articleSocialImageSrc(slug)}`,
         datePublished: article.date,
-        dateModified: article.date,
+        dateModified: article.updated ?? article.date,
         author: {
           '@type': 'Organization',
           name: 'LIA',
