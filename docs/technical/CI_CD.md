@@ -116,6 +116,7 @@ Le hook ne s'execute que sur les fichiers stages et s'adapte au type de fichier 
 | 5   | `.env.example` completeness                                               | `.py` stages               | Oui      |
 | 6.1 | ESLint                                                                    | `.ts/.tsx` stages          | Oui      |
 | 6.2 | TypeScript check                                                          | `.ts/.tsx` stages          | Oui      |
+| 7   | Miroir `AGENTS.md`, jugé sur l'index du commit (`agents_mirror.py --staged`) | `CLAUDE.md`/`AGENTS.md` stages | Oui      |
 
 ### Pre-push Hook
 

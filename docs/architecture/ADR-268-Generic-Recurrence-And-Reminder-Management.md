@@ -307,6 +307,8 @@ It was reachable from the chat. "Every weekday at 8" is very plausibly transcrib
   the model refuses anything else. That is the invariant, and it holds for every writer
   including the REST API. It cost nothing to adopt: both migrations write clean shapes,
   and no row in any database violated it (verified before the change, not after).
+- In the form, `withFreq` (`lib/recurrence`) clears what the new frequency cannot read.
+  The Python and TypeScript tables cannot import each other, so a test parses both.
 - `core/recurrence/dictation.py` **repairs what is mechanically repairable** and refuses
   only what would need an intention — the doctrine `parameter_bounds` already applies to
   out-of-bounds numbers. At `repeat_every=1`, a daily rule restricted to named days IS

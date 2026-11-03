@@ -87,7 +87,10 @@ never on a provider id. The third provider proved it: ElevenLabs is one
 `LiveProvider` (`providers/elevenlabs_live.py`), one transport, one row in
 `lib/live/providers.ts`, one CSP host (`wss://api.elevenlabs.io`) and NO
 tariff row — no line of the bridge, the banner, the registers or the card
-moved. Three seams grew for it, all provider-neutral: **`LiveProvider.billing`**
+moved. On the agent, at most ONE client-tool set per kind survives a
+fingerprint change (`elevenlabs_live_tool_kinds` on the connector's metadata):
+the old set is taken off the agent, then deleted, the phone's own rule on
+drift. Three seams grew for it, all provider-neutral: **`LiveProvider.billing`**
 (`tariff`: the platform's table prices the model and the start publishes
 `LiveRates`; `vendor`: the session runs on the person's own key under the
 vendor's own grid, the platform prices NOTHING of it — `rates` null, the

@@ -61,6 +61,8 @@ Two facts shaped the design:
 
 ## Consequences
 
+- `FakeDriveClient` (`apps/api/tests/unit/domains/rag_spaces/drive_fakes.py`)
+  honours one level per call, the filter and the paging: the real API's contract.
 - Measured on dev 2026-09-17 against a real Drive: the walk descended six
   folders from the root under a six-folder bound and reported the cut.
 - The push path's per-source routing set is a persisted list rebuilt at every

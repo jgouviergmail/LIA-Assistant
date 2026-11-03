@@ -1,0 +1,12 @@
+{
+  "_doc": "Budget of CLAUDE.md, read by scripts/audit/claude_md_budget.py (task lint:docs). --update only tightens; --raise and --allow lift a limit and keep the written reason here.",
+  "block_max_chars": 600,
+  "default_window": {
+    "bytes": 32768,
+    "heading": "### Concurrency & async"
+  },
+  "headroom_bytes": 4096,
+  "max_bytes": 133952,
+  "raises": [],
+  "long_blocks": []
+}

@@ -16,7 +16,7 @@ Decision record: [ADR-282](../architecture/ADR-282-Message-Bookmarks.md).
 | `message_id` | The archived assistant message, while it exists (`SET NULL`). With `user_id`, the toggle's identity — partial unique index. |
 | `conversation_id` | The conversation, while it exists (`SET NULL`). |
 | `content` | The answer, verbatim: markdown or a `lia-response` HTML document. |
-| `request_content` | The person's last VISIBLE user message before the answer; `NULL` for a message LIA sent on its own initiative (`message_metadata.type` starts with `proactive_`). |
+| `request_content` | The person's last VISIBLE user message before the answer; `NULL` for a message LIA sent on its own initiative (`message_metadata.type` starts with `proactive_`, the prefix declared once as `PROACTIVE_MESSAGE_TYPE_PREFIX` and read by its writers): no request rather than a wrong one. |
 | `answered_at` | When the answer was written — the tab sorts on it. |
 | `rag_document_id` | The document of the « Kept answers » knowledge space this answer is projected into, while it exists (`SET NULL`) — ADR-291. |
 | `index_state` | Why there is no projection yet (`pending`, `indexed`, `error`, `deferred`, `disabled`); `NULL` = never attempted. The document row is the authority while it exists. |

@@ -2967,7 +2967,7 @@ async def test_planner_node_e2e_with_real_llm():
    ```
 
 2. **Ajouter exemples simples en premier** dans prompt:
-   ```txt
+   ````txt
    **SIMPLE QUERY EXAMPLE** (most common - single tool call):
    ```json
    {
@@ -2979,7 +2979,7 @@ async def test_planner_node_e2e_with_real_llm():
 
    **COMPLEX QUERY EXAMPLE** (rare - multi-step):
    ...
-   ```
+   ````
 
 3. **Valider domain filtering actif**: Moins de tools → plans plus simples
 

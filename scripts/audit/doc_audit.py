@@ -236,6 +236,54 @@ def _is_adr_doc_link(target: str) -> bool:
     return bool(_ADR_DOC_LINK_RE.search(path_part))
 
 
+#: The opening of a fenced block as CommonMark reads it: three or more backticks or tildes
+#: starting a line, after any indentation, quote mark or list marker, a backtick fence's
+#: info string holding no backtick.
+_FENCE_OPENING = re.compile(r"^([ \t>]*(?:(?:[-*+]|\d+[.)])[ \t]+)?)(`{3,}(?=[^`]*$)|~{3,})")
+
+
+def _blanked(match: re.Match[str]) -> str:
+    return re.sub(r"[^\n]", " ", match.group(0))
+
+
+def _closing_fence(prefix: str, fence: str) -> re.Pattern[str]:
+    """The line closing a fence: at least as long, indented at most 3 past its content."""
+    width = len(prefix) + 3
+    return re.compile(rf"^[ \t>]{{0,{width}}}{re.escape(fence)}{re.escape(fence[0])}*[ \t\r]*$")
+
+
+def blank_fenced_blocks(text: str) -> str:
+    """Replace fenced code blocks with spaces, preserving line numbers.
+
+    Three backticks inside a sentence open nothing, and neither does inline code that
+    merely starts a line: matched anywhere, one such sentence paired with the next real
+    fence and hid ``CLAUDE.md`` lines 519-1111 from every instrument (measured
+    2026-11-03). An unclosed fence stays visible: an instrument that reads too much
+    reports, one that reads too little stays silent.
+
+    Args:
+        text: Raw markdown.
+
+    Returns:
+        The same text, same length and line numbering, with fenced blocks blanked.
+    """
+    lines = text.split("\n")
+    index = 0
+    while index < len(lines):
+        opening = _FENCE_OPENING.match(lines[index])
+        end = None
+        if opening:
+            closing = _closing_fence(opening[1], opening[2])
+            end = next((i for i in range(index + 1, len(lines)) if closing.match(lines[i])), None)
+        if end is None:
+            index += 1
+            continue
+        for line in range(index, end + 1):
+            lines[line] = " " * len(lines[line])
+        index = end + 1
+    return "\n".join(lines)
+
+
 def blank_code_regions(text: str) -> str:
     """Replace fenced code blocks and inline code with spaces, preserving line numbers.
 
@@ -248,12 +296,7 @@ def blank_code_regions(text: str) -> str:
     Returns:
         The same text, same length and line numbering, with code regions blanked.
     """
-
-    def _blank(match: re.Match[str]) -> str:
-        return re.sub(r"[^\n]", " ", match.group(0))
-
-    text = re.sub(r"```.*?```", _blank, text, flags=re.DOTALL)
-    return re.sub(r"`[^`\n]+`", _blank, text)
+    return re.sub(r"`[^`\n]+`", _blanked, blank_fenced_blocks(text))
 
 
 def _with_pending_changes(root: Path, tracked: set[str]) -> set[str]:
@@ -281,7 +324,7 @@ def _with_pending_changes(root: Path, tracked: set[str]) -> set[str]:
             encoding="utf-8",
             check=True,
         )
-    except (OSError, subprocess.CalledProcessError):  # pragma: no cover - defensive
+    except OSError, subprocess.CalledProcessError:  # pragma: no cover - defensive
         return tracked
 
     previewed = set(tracked)
@@ -337,7 +380,7 @@ def tracked_paths(
             encoding="utf-8",
             check=True,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return None
     paths = {path for path in proc.stdout.split("\0") if path}
     if include_unstaged:

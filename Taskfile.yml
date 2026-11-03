@@ -1146,6 +1146,13 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_language.py
         platforms: [linux, darwin]
+      # CLAUDE.md is read whole at every session: its size and the length of a
+      # block are a stated budget. A justified addition lifts them with one
+      # sentence (`task docs:budget`); what stops here is the unstated one.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/claude_md_budget.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/claude_md_budget.py
+        platforms: [linux, darwin]
 
   lint:docs:preview:
     desc: "Same audit, but as CI will see it AFTER `git add` (moved/new files included)"
@@ -1190,6 +1197,17 @@ tasks:
       - cmd: apps/api/.venv/Scripts/python scripts/audit/agents_mirror.py --fix
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/agents_mirror.py --fix
+        platforms: [linux, darwin]
+
+  docs:budget:
+    # `-- --update` tightens and never loosens. `-- --raise "<why>"` and
+    # `-- --allow "<start of the block>" "<why>"` lift a limit for a justified
+    # addition; the sentence stays in scripts/audit/claude_md_budget.json.
+    desc: Tighten the CLAUDE.md budget, or lift it with a written reason
+    cmds:
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/claude_md_budget.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/claude_md_budget.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
   docs:fix-facts:
