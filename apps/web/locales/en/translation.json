@@ -13794,7 +13794,7 @@
       "how_it_works": "How it works",
       "technology": "Technology",
       "security": "Security",
-      "get_started": "Join the BETA",
+      "get_started": "Sign up",
       "login": "Sign in",
       "blog": "Blog",
       "philosophy": "Philosophy",
@@ -13806,7 +13806,6 @@
       "maps": "Maps"
     },
     "hero": {
-      "badge_beta": "BETA",
       "badge": "Personal AI assistant",
       "title_line1": "Your day.",
       "title_line2_before": "",
@@ -13817,7 +13816,7 @@
       "subtitle_line1": "Prepare for conversations. Listen to your day. Coordinate with the people around you.",
       "subtitle_line2": "Your sources, memory and commitments come together to help you move forward.",
       "subtitle_line3": "In one web app, with approval for sensitive actions.",
-      "cta_primary": "Join the BETA",
+      "cta_primary": "Create my account",
       "scroll_hint": "Scroll to explore",
       "trust_agents": "AI agents",
       "trust_providers": "LLM providers",
@@ -13832,7 +13831,7 @@
       "proof_accounts": "One server, separate accounts",
       "proof_control": "Approve sensitive actions",
       "home_cta_primary": "Create my account",
-      "home_access_note": "Limited BETA sign-up by email: you confirm your address, then the administrator activates your account (automatically on a demo instance).",
+      "home_access_note": "Sign-up by email: you confirm your address, then the administrator activates your account (automatically on a demo instance).",
       "home_value": "Accessible, open, transparent, complete, proactive, useful, relevant.",
       "home_code_link": "The code and setup guide",
       "home_cta_demo": "See LIA in action",
@@ -14561,7 +14560,7 @@
       "title": "LIA is ready. And slightly impatient.",
       "subtitle": "An assistant that acts, knows you and anticipates, while you stay in control of it.",
       "button": "Create my account",
-      "note_beta": "Free beta, running in production 24/7.",
+      "note_beta": "Running in production 24/7.",
       "philosophy_link": "Or read our philosophy first"
     },
     "blog_preview": {
@@ -14786,7 +14785,7 @@
       "p4_t": "Design decisions explained",
       "p4_d": "The architecture, the technical decisions, the guides and the field report are all available, so you can understand how LIA is built and run.",
       "p4_link": "Read the story",
-      "honest": "LIA is in beta. The software is open source; hosting and your chosen services may incur costs.",
+      "honest": "The software is open source; hosting and your chosen services may incur costs.",
       "cta": "Try it, knowing everything"
     },
     "day": {
@@ -15574,7 +15573,7 @@
       "title": "Start with what would truly help you.",
       "subtitle": "A project to prepare, a day to organize, an assistant to host: explore LIA and choose the workflow that suits you.",
       "button": "Create my account",
-      "note_beta": "Limited BETA sign-up by email: you confirm your address, then the administrator activates your account (automatically on a demo instance). Optional services depend on your configuration.",
+      "note_beta": "Sign-up by email: you confirm your address, then the administrator activates your account (automatically on a demo instance). Optional services depend on your configuration.",
       "philosophy_link": "Or read our philosophy first",
       "install_link": "Or install my own LIA"
     },

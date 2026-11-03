@@ -2,8 +2,8 @@
 
 /**
  * End-of-mission actions, ADR-207 altitudes — owner-arbitrated order
- * (2026-08-06): no beta CTA here (the demo funnels to self-hosting, not to
- * the hosted beta), the install guide is THE solid primary, then the
+ * (2026-08-06): no sign-up CTA here (the demo funnels to self-hosting, not to
+ * the hosted instance), the install guide is THE solid primary, then the
  * outline secondaries at the SAME geometry (releases, source, proof
  * drawer), then the ghost utilities on their own row (replay, back to the
  * mission list).

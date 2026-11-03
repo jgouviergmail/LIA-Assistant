@@ -13714,7 +13714,7 @@
       "how_it_works": "Cómo funciona",
       "technology": "Tecnología",
       "security": "Seguridad",
-      "get_started": "Únete a la BETA",
+      "get_started": "Registrarse",
       "login": "Iniciar sesión",
       "blog": "Blog",
       "philosophy": "Filosofía",
@@ -13726,7 +13726,6 @@
       "maps": "Mapas"
     },
     "hero": {
-      "badge_beta": "BETA",
       "badge": "Asistente IA personal",
       "title_line1": "Tu día a día.",
       "title_line2_before": "",
@@ -13737,7 +13736,7 @@
       "subtitle_line1": "Prepara tus conversaciones. Escucha tu día. Organízate con tus personas cercanas.",
       "subtitle_line2": "Tus fuentes, tu memoria y tus compromisos se conectan para ayudarte a avanzar.",
       "subtitle_line3": "En una aplicación web, con aprobación para las acciones sensibles.",
-      "cta_primary": "Únete a la BETA",
+      "cta_primary": "Crear mi cuenta",
       "scroll_hint": "Desplázate para explorar",
       "trust_agents": "agentes IA",
       "trust_providers": "proveedores LLM",
@@ -13752,7 +13751,7 @@
       "proof_accounts": "Un servidor, cuentas independientes",
       "proof_control": "Tú apruebas las acciones sensibles",
       "home_cta_primary": "Crear mi cuenta",
-      "home_access_note": "Registro BETA limitado, por correo electrónico: confirmas tu dirección y luego el administrador activa tu cuenta (automáticamente en una instancia de demostración).",
+      "home_access_note": "Registro por correo electrónico: confirmas tu dirección y luego el administrador activa tu cuenta (automáticamente en una instancia de demostración).",
       "home_value": "Accesible, abierto, transparente, completo, proactivo, útil, pertinente.",
       "home_code_link": "El código y la guía de instalación",
       "home_cta_demo": "Ver LIA en acción",
@@ -14481,7 +14480,7 @@
       "title": "LIA está lista. Y algo impaciente.",
       "subtitle": "Un asistente que actúa, te conoce y se anticipa, y del que mantienes el control.",
       "button": "Crear mi cuenta",
-      "note_beta": "Beta gratuita, en producción 24/7.",
+      "note_beta": "En producción 24/7.",
       "philosophy_link": "O descubre antes nuestra filosofía"
     },
     "blog_preview": {
@@ -14706,7 +14705,7 @@
       "p4_t": "Decisiones de diseño explicadas",
       "p4_d": "La arquitectura, las decisiones técnicas, las guías y el informe de experiencia están accesibles, para entender cómo se construye y se opera LIA.",
       "p4_link": "Leer la experiencia",
-      "honest": "LIA está en beta. El software es libre; el alojamiento y los servicios que elijas pueden tener un coste.",
+      "honest": "El software es libre; el alojamiento y los servicios que elijas pueden tener un coste.",
       "cta": "Probarla, sabiéndolo todo"
     },
     "day": {
@@ -15494,7 +15493,7 @@
       "title": "Empieza por lo que de verdad te sería útil.",
       "subtitle": "Un proyecto que preparar, un día que organizar, un asistente que alojar: explora LIA y elige el recorrido que te encaje.",
       "button": "Crear mi cuenta",
-      "note_beta": "Registro BETA limitado, por correo electrónico: confirmas tu dirección y luego el administrador activa tu cuenta (automáticamente en una instancia de demostración). Los servicios opcionales dependen de tu configuración.",
+      "note_beta": "Registro por correo electrónico: confirmas tu dirección y luego el administrador activa tu cuenta (automáticamente en una instancia de demostración). Los servicios opcionales dependen de tu configuración.",
       "philosophy_link": "O descubre antes nuestra filosofía",
       "install_link": "O instalar mi propio LIA"
     },

@@ -166,7 +166,7 @@ export function LandingHeader({ lng, home = false }: LandingHeaderProps) {
               2.5): each added link costs the widest locale row (fr) more than
               it costs the others, because French labels are the longest —
               measured 2026-08-23 at the 880px breakpoint where the login and
-              BETA buttons first appear, the fr row ran 4px past the viewport
+              sign-up buttons first appear, the fr row ran 4px past the viewport
               while es, the next widest, still had 24px to spare. Each step down
               buys ~4px per link across the row. */}
           <div className="hidden lg:flex items-center gap-0.5">

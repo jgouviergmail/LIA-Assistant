@@ -2,8 +2,8 @@
 
 > **Dein Leben. Deine KI. Deine Regeln.**
 
-**Version**: 1.0
-**Datum**: 2026-03-29
+**Version**: 1.1
+**Datum**: 2026-11-03
 **Anwendung**: LIA v1.14.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
@@ -68,7 +68,7 @@ LIA ist ein dialogorientierter Mehragenten-KI-Assistent mit folgenden Funktionen
 
 Der Dienst nutzt sieben Anbieter großer Sprachmodelle (LLM) zur Erzeugung von Antworten. Von der KI erzeugte Antworten dienen ausschließlich der Information und stellen in keinem Fall eine fachliche Beratung dar (rechtlich, medizinisch, finanziell oder anderweitig).
 
-**Beta-Phase**: Der Dienst befindet sich derzeit in der Beta-Phase und wird daher kostenlos bereitgestellt. Der Betreiber behält sich vor, künftig kostenpflichtige Tarife einzuführen; bestehende Nutzer werden vorab informiert. Funktionen können während der Beta-Phase ohne Vorankündigung weiterentwickelt, geändert oder entfernt werden.
+**Preise**: Der Dienst wird derzeit kostenlos bereitgestellt. Der Betreiber behält sich vor, künftig kostenpflichtige Tarife einzuführen; bestehende Nutzer werden vorab informiert. Funktionen können ohne Vorankündigung weiterentwickelt, geändert oder entfernt werden.
 
 **HITL-Mechanismus (Human-in-the-Loop)**: Bei sensiblen Aktionen (Versand einer E-Mail, Änderung eines Termins, Löschen von Daten) holt der Dienst vor der Ausführung die ausdrückliche Zustimmung des Nutzers ein. Der Nutzer behält die vollständige Kontrolle über die in seinem Namen ausgeführten Aktionen.
 
@@ -140,7 +140,7 @@ Der Dienst wird „wie besehen" und „wie verfügbar" bereitgestellt, ohne jegl
 
 **Haftungsbeschränkung**: Soweit gesetzlich zulässig, beschränkt sich die Haftung des Betreibers auf unmittelbare und vorhersehbare Schäden. Der Betreiber haftet keinesfalls für mittelbare Schäden, Folgeschäden, besondere oder beiläufige Schäden, einschließlich Datenverlust, entgangenen Gewinns, Betriebsunterbrechung oder sonstiger immaterieller Nachteile, selbst wenn er auf die Möglichkeit solcher Schäden hingewiesen wurde.
 
-Da der Dienst während der Beta-Phase kostenlos ist, beschränkt sich die Haftung des Betreibers strikt auf Fälle grober Fahrlässigkeit oder Vorsatzes.
+Da der Dienst derzeit kostenlos ist, beschränkt sich die Haftung des Betreibers strikt auf Fälle grober Fahrlässigkeit oder Vorsatzes.
 
 ## 10. Kündigung und Sperrung
 
@@ -195,6 +195,6 @@ Dieser Abschnitt gilt AUSSCHLIESSLICH für die öffentliche Demo-Instanz, solang
 
 ---
 
-**Letzte Aktualisierung**: 29. März 2026
+**Letzte Aktualisierung**: 3. November 2026
 
 **Kontakt**: liamyassistant@gmail.com

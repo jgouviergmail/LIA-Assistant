@@ -2,8 +2,8 @@
 
 > **Tu vida. Tu IA. Tus reglas.**
 
-**Versión**: 1.0
-**Fecha**: 2026-03-29
+**Versión**: 1.1
+**Fecha**: 2026-11-03
 **Aplicación**: LIA v1.14.2
 **Licencia**: AGPL-3.0 (Código abierto)
 
@@ -68,7 +68,7 @@ LIA es un asistente conversacional de IA multiagente que ofrece las siguientes c
 
 El Servicio utiliza siete proveedores de grandes modelos de lenguaje (LLM) para generar las respuestas. Las respuestas generadas por la IA se facilitan a título informativo y no constituyen en ningún caso un asesoramiento profesional (jurídico, médico, financiero o de otra índole).
 
-**Fase beta**: el Servicio se encuentra actualmente en fase beta y, como tal, se presta de forma gratuita. El Operador se reserva el derecho de introducir planes de pago en el futuro, previa notificación a los usuarios existentes. Durante la fase beta, las funcionalidades pueden evolucionar, modificarse o suprimirse sin previo aviso.
+**Precio**: el Servicio se presta actualmente de forma gratuita. El Operador se reserva el derecho de introducir planes de pago en el futuro, previa notificación a los usuarios existentes. Las funcionalidades pueden evolucionar, modificarse o suprimirse sin previo aviso.
 
 **Mecanismo HITL (Human-in-the-Loop)**: para las acciones sensibles (enviar un correo, modificar un evento del calendario, eliminar datos), el Servicio solicita la aprobación explícita del Usuario antes de ejecutarlas. El Usuario conserva el control total de las acciones realizadas en su nombre.
 
@@ -140,7 +140,7 @@ El Servicio se presta «tal cual» y «según disponibilidad», sin garantía de
 
 **Limitación de responsabilidad**: en la máxima medida permitida por la legislación aplicable, la responsabilidad del Operador se limita a los daños directos y previsibles. En ningún caso responderá el Operador de daños indirectos, consecuentes, especiales o incidentales, incluidas la pérdida de datos, el lucro cesante, la interrupción de la actividad o cualquier otro perjuicio inmaterial, aun cuando se le hubiera advertido de la posibilidad de tales daños.
 
-Dado que el Servicio es gratuito durante la fase beta, la responsabilidad del Operador se limita estrictamente a los casos de negligencia grave o dolo.
+Dado que el Servicio es actualmente gratuito, la responsabilidad del Operador se limita estrictamente a los casos de negligencia grave o dolo.
 
 ## 10. Resolución y suspensión
 
@@ -195,6 +195,6 @@ Esta sección se aplica EXCLUSIVAMENTE a la instancia pública de demostración,
 
 ---
 
-**Última actualización**: 29 de marzo de 2026
+**Última actualización**: 3 de noviembre de 2026
 
 **Contacto**: liamyassistant@gmail.com

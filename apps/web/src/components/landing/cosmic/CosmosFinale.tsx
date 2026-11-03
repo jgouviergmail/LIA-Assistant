@@ -8,7 +8,6 @@
 
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlayCircle } from 'lucide-react';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
@@ -30,7 +29,6 @@ export function CosmosFinale({ lng }: { lng: string }) {
     >
       <GhostWord wordKey="landing.cosmos.ghost.cta" direction={1} className="cosmos-ghost-high" />
       <div className="relative z-10 max-w-3xl mx-auto px-4">
-        <Badge className="mb-6">{t('landing.hero.badge_beta')}</Badge>
         {/* Signature device carried to the very end: LIA gets the last word */}
         <div className="mb-6 flex items-start justify-center gap-2.5" aria-hidden="true">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-base leading-none">

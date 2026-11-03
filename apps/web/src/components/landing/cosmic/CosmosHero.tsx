@@ -86,18 +86,6 @@ export async function CosmosHero({ lng }: CosmosHeroProps) {
               {...rise(RISE_DELAYS.badges)}
               className="cosmos-rise flex flex-wrap items-center gap-3 justify-center mb-3 sm:mb-6"
             >
-              {/* dark:text-red-300: the badge base variant paints an OPAQUE
-                  dark:bg-red-900 pill — red-400 on it is 3.48:1 (fails AA),
-                  red-300 measures ≈5.3:1. Light: red-800, because the pill is
-                  only a 10 % tint over the nebula's glow — red-700 measured
-                  4.18:1 there (2026-10-03), red-800 computes to ≈5.2:1. */}
-              <Badge
-                pulse
-                variant="destructive"
-                className="bg-red-500/10 text-red-800 dark:text-red-300 border-red-500/30"
-              >
-                {t('landing.hero.badge_beta')}
-              </Badge>
               <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
                 <Badge
                   variant="outline"

@@ -2,8 +2,8 @@
 
 > Your data. Your assistant. Your rules.
 
-**Version**: 1.2
-**Date**: 2026-10-24
+**Version**: 1.3
+**Date**: 2026-11-03
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -27,7 +27,7 @@
 
 This privacy policy describes how LIA, an open-source personal AI assistant, collects, uses, and protects your personal data. LIA is developed and operated by an independent developer as an open-source project under the AGPL-3.0 license.
 
-LIA is currently in beta phase and is offered free of charge during this period. The application is accessible at [https://lia.jeyswork.com](https://lia.jeyswork.com). The complete source code is publicly available, allowing you to audit how your data is processed at any time.
+LIA is currently offered free of charge. The application is accessible at [https://lia.jeyswork.com](https://lia.jeyswork.com). The complete source code is publicly available, allowing you to audit how your data is processed at any time.
 
 This policy applies to the hosted instance of LIA. If you deploy your own instance (self-hosting), you control its operation and must assess the data-protection duties applicable to your use; this policy does not directly apply. We nevertheless encourage you to use it as a starting point for that assessment.
 

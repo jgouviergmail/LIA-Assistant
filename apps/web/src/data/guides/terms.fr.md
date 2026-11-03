@@ -2,8 +2,8 @@
 
 > **Votre vie. Votre IA. Vos regles.**
 
-**Version** : 1.0
-**Date** : 2026-03-29
+**Version** : 1.1
+**Date** : 2026-11-03
 **Application** : LIA v1.14.2
 **Licence** : AGPL-3.0 (Open Source)
 
@@ -68,7 +68,7 @@ LIA est un assistant IA conversationnel multi-agents qui offre les fonctionnalit
 
 Le Service utilise sept fournisseurs de modeles de langage (LLM) pour fournir ses reponses. Les reponses generees par l'IA sont fournies a titre indicatif et ne constituent en aucun cas un conseil professionnel (juridique, medical, financier ou autre).
 
-**Phase beta** : Le Service est actuellement en phase beta. A ce titre, il est fourni gratuitement. L'Editeur se reserve le droit d'introduire des offres payantes a l'avenir, avec notification prealable aux utilisateurs existants. Les fonctionnalites peuvent evoluer, etre modifiees ou supprimees sans preavis pendant la phase beta.
+**Tarification** : Le Service est actuellement fourni gratuitement. L'Editeur se reserve le droit d'introduire des offres payantes a l'avenir, avec notification prealable aux utilisateurs existants. Les fonctionnalites peuvent evoluer, etre modifiees ou supprimees sans preavis.
 
 **Mecanisme HITL (Human-in-the-Loop)** : pour les actions sensibles (envoi d'email, modification de calendrier, suppression de donnees), le Service sollicite une approbation explicite de l'Utilisateur avant execution. L'Utilisateur reste maitre des actions effectuees en son nom.
 
@@ -140,7 +140,7 @@ Le Service est fourni "en l'etat" ("as is") et "selon disponibilite" ("as availa
 
 **Limitation de responsabilite** : dans la mesure maximale autorisee par la loi applicable, la responsabilite de l'Editeur est limitee aux dommages directs et previsibles. L'Editeur ne saurait en aucun cas etre tenu responsable des dommages indirects, consecutifs, speciaux ou accessoires, y compris la perte de donnees, la perte de profits, l'interruption d'activite ou tout autre prejudice immateriel, meme s'il a ete informe de la possibilite de tels dommages.
 
-Le Service etant gratuit pendant la phase beta, la responsabilite de l'Editeur est strictement limitee aux cas de faute lourde ou de dol.
+Le Service etant actuellement fourni gratuitement, la responsabilite de l'Editeur est strictement limitee aux cas de faute lourde ou de dol.
 
 ## 10. Resiliation et suspension
 
@@ -196,6 +196,6 @@ Cette section s'applique EXCLUSIVEMENT a l'instance publique de demonstration, l
 
 ---
 
-**Derniere mise a jour** : 29 mars 2026
+**Derniere mise a jour** : 3 novembre 2026
 
 **Contact** : liamyassistant@gmail.com

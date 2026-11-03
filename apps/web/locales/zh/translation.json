@@ -13709,7 +13709,7 @@
       "how_it_works": "工作原理",
       "technology": "技术",
       "security": "安全",
-      "get_started": "加入BETA",
+      "get_started": "注册",
       "login": "登录",
       "blog": "博客",
       "philosophy": "理念",
@@ -13721,7 +13721,6 @@
       "maps": "地图"
     },
     "hero": {
-      "badge_beta": "BETA",
       "badge": "个人AI助手",
       "title_line1": "你的日常。",
       "title_line2_before": "",
@@ -13732,7 +13731,7 @@
       "subtitle_line1": "准备交流，收听一天的安排，与亲友协调时间。",
       "subtitle_line2": "信息来源、记忆与承诺相互衔接，帮助你推进事情。",
       "subtitle_line3": "在一个网页应用中完成，敏感操作由你批准。",
-      "cta_primary": "加入BETA",
+      "cta_primary": "创建我的账户",
       "scroll_hint": "向下滚动探索",
       "trust_agents": "AI代理",
       "trust_providers": "LLM提供商",
@@ -13747,7 +13746,7 @@
       "proof_accounts": "一个服务器，多个独立账户",
       "proof_control": "敏感操作由你批准",
       "home_cta_primary": "创建我的账户",
-      "home_access_note": "BETA 注册名额有限，通过邮箱注册：你先确认邮箱地址，再由管理员激活你的账户（在演示实例上会自动激活）。",
+      "home_access_note": "通过邮箱注册：你先确认邮箱地址，再由管理员激活你的账户（在演示实例上会自动激活）。",
       "home_value": "易于使用、开放、透明、全面、主动、实用、贴合需求。",
       "home_code_link": "源代码与安装指南",
       "home_cta_demo": "看看 LIA 如何帮你",
@@ -14476,7 +14475,7 @@
       "title": "LIA 准备好了。还有点等不及。",
       "subtitle": "一个会行动、了解你、能预见的助手，掌控权始终在你手中。",
       "button": "创建我的账户",
-      "note_beta": "免费公测，7×24 小时生产运行。",
+      "note_beta": "7×24 小时生产运行。",
       "philosophy_link": "或者先了解我们的理念"
     },
     "blog_preview": {
@@ -14701,7 +14700,7 @@
       "p4_t": "设计决定，有据可查",
       "p4_d": "架构、技术决策、指南和经验复盘都可以查阅，帮你了解 LIA 如何构建和运营。",
       "p4_link": "阅读实践分享",
-      "honest": "LIA 目前处于测试阶段。软件开源；托管及你选择的服务可能产生费用。",
+      "honest": "软件开源；托管及你选择的服务可能产生费用。",
       "cta": "知情地试用"
     },
     "day": {
@@ -15489,7 +15488,7 @@
       "title": "从真正对你有用的事情开始。",
       "subtitle": "准备项目、安排一天，或自行托管助手：了解 LIA，选择适合自己的使用方式。",
       "button": "创建我的账户",
-      "note_beta": "BETA 注册名额有限，通过邮箱注册：你先确认邮箱地址，再由管理员激活你的账户（在演示实例上会自动激活）。可选服务取决于你的配置。",
+      "note_beta": "通过邮箱注册：你先确认邮箱地址，再由管理员激活你的账户（在演示实例上会自动激活）。可选服务取决于你的配置。",
       "philosophy_link": "或者先了解我们的理念",
       "install_link": "或安装自己的 LIA"
     },

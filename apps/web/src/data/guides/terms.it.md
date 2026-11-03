@@ -2,8 +2,8 @@
 
 > **La tua vita. La tua IA. Le tue regole.**
 
-**Versione**: 1.0
-**Data**: 2026-03-29
+**Versione**: 1.1
+**Data**: 2026-11-03
 **Applicazione**: LIA v1.14.2
 **Licenza**: AGPL-3.0 (Open Source)
 
@@ -68,7 +68,7 @@ LIA è un assistente conversazionale di IA multi-agente che offre le seguenti fu
 
 Il Servizio utilizza sette fornitori di modelli linguistici di grandi dimensioni (LLM) per generare le risposte. Le risposte generate dall'IA sono fornite a scopo informativo e non costituiscono in alcun caso una consulenza professionale (legale, medica, finanziaria o di altro tipo).
 
-**Fase beta**: il Servizio è attualmente in fase beta e, in quanto tale, è fornito gratuitamente. Il Gestore si riserva il diritto di introdurre in futuro piani a pagamento, con preavviso agli utenti esistenti. Durante la fase beta le funzionalità possono evolvere, essere modificate o rimosse senza preavviso.
+**Prezzi**: il Servizio è attualmente fornito gratuitamente. Il Gestore si riserva il diritto di introdurre in futuro piani a pagamento, con preavviso agli utenti esistenti. Le funzionalità possono evolvere, essere modificate o rimosse senza preavviso.
 
 **Meccanismo HITL (Human-in-the-Loop)**: per le azioni sensibili (invio di un'email, modifica di un evento del calendario, eliminazione di dati), il Servizio richiede l'approvazione esplicita dell'Utente prima dell'esecuzione. L'Utente mantiene il pieno controllo sulle azioni compiute per suo conto.
 
@@ -140,7 +140,7 @@ Il Servizio è fornito «così com'è» e «secondo disponibilità», senza gara
 
 **Limitazione di responsabilità**: nella massima misura consentita dalla legge applicabile, la responsabilità del Gestore è limitata ai danni diretti e prevedibili. In nessun caso il Gestore risponderà di danni indiretti, consequenziali, speciali o incidentali, inclusi la perdita di dati, il mancato guadagno, l'interruzione dell'attività o qualsiasi altro pregiudizio immateriale, anche se avvisato della possibilità di tali danni.
 
-Poiché il Servizio è gratuito durante la fase beta, la responsabilità del Gestore è strettamente limitata ai casi di colpa grave o dolo.
+Poiché il Servizio è attualmente gratuito, la responsabilità del Gestore è strettamente limitata ai casi di colpa grave o dolo.
 
 ## 10. Risoluzione e sospensione
 
@@ -195,6 +195,6 @@ La presente sezione si applica ESCLUSIVAMENTE all'istanza pubblica di dimostrazi
 
 ---
 
-**Ultimo aggiornamento**: 29 marzo 2026
+**Ultimo aggiornamento**: 3 novembre 2026
 
 **Contatto**: liamyassistant@gmail.com
