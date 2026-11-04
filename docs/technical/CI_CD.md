@@ -625,7 +625,7 @@ contrôles sont requis sur `main`. Ils lancent donc `task security:trivy:install
 l'archive sur la release GitHub et la tient à `TRIVY_SHA256`, puis l'action avec
 `skip-setup-trivy` (`test_trivy_install_guard.py`). `TRIVY_VERSION` et sa somme bougent ensemble
 et à la main, car Dependabot ne lit pas le Taskfile, et une montée change le moteur d'un scan
-bloquant.
+bloquant. L'image de `security:scan:docker` lit la même version : le dépôt n'a qu'un Trivy.
 
 ### Perimetre analyse par CodeQL
 

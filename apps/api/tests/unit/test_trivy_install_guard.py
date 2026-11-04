@@ -8,6 +8,9 @@ run that missed the binary cache failed on curl's exit 6. ``Generate SBOM`` miss
 every run, because ``cache: "false"`` also switches that cache off, and ``Trivy Scan``
 stayed green only on an entry already evicted once. Both are required checks, and a cache
 hides the dependency until the day it empties, so the shape is held here.
+
+The image of ``security:scan:docker`` reads the same ``TRIVY_VERSION``. It used to pin its
+own tag, so the repository ran two versions of its scanner (0.70.0 and 0.74.0).
 """
 
 from __future__ import annotations
@@ -30,6 +33,12 @@ SCAN_ACTION = "aquasecurity/trivy-action"
 SETUP_ACTION = "aquasecurity/setup-trivy"
 #: Anti-vacuity floor: the scan and the frontend SBOM of security.yml (2026-11-04).
 MIN_EXPECTED_STEPS = 2
+#: The Trivy image in any form: a tag, a digest, or neither. ``trivy-db`` is its database.
+IMAGE_REFERENCE = re.compile(r"aquasec/trivy(?![\w-])[^\s\"']*")
+#: The one form it may take, reading the version the workflows' binary reads.
+PINNED_IMAGE = "aquasec/trivy:{{.TRIVY_VERSION}}"
+#: Anti-vacuity floor: two images on two platform families in security:scan:docker (2026-11-04).
+MIN_EXPECTED_IMAGE_RUNS = 4
 
 #: The functional form, because ``with`` is a keyword.
 Step = TypedDict(
@@ -111,6 +120,22 @@ def _taskfile() -> Taskfile:
 def _install_commands() -> str:
     """What the install task runs."""
     return "\n".join(_taskfile()["tasks"]["security:trivy:install"]["cmds"])
+
+
+def _image_references(text: str) -> list[str]:
+    """Every reference to the Trivy image in ``text``."""
+    return IMAGE_REFERENCE.findall(text)
+
+
+def _stray_images(text: str) -> list[str]:
+    """Every reference to the Trivy image in ``text`` that does not read the pinned version."""
+    return [image for image in _image_references(text) if image != PINNED_IMAGE]
+
+
+def _files_that_could_pin() -> dict[str, str]:
+    """The Taskfile and every workflow, where a second pin would sit, by file name."""
+    paths = [REPO_ROOT / "Taskfile.yml", *sorted(WORKFLOWS.glob("*.yml"))]
+    return {path.name: path.read_text(encoding="utf-8") for path in paths}
 
 
 def _action(uses: str = SCAN_ACTION, skip: str | None = None) -> Step:
@@ -195,3 +220,38 @@ class TestTheInstallTask:
 
         assert "{{.TRIVY_SHA256}}" in commands
         assert "sha256sum --check --strict" in commands
+
+
+class TestOneTrivy:
+    """The image of the local scan reads the version the workflows' binary reads."""
+
+    def test_the_scan_sees_the_image(self) -> None:
+        references = sum(len(_image_references(text)) for text in _files_that_could_pin().values())
+
+        assert references >= MIN_EXPECTED_IMAGE_RUNS
+
+    def test_no_file_pins_an_image_of_its_own(self) -> None:
+        found = {name: _stray_images(text) for name, text in _files_that_could_pin().items()}
+
+        assert not {name: images for name, images in found.items() if images}
+
+    @pytest.mark.parametrize(
+        "image",
+        [
+            "aquasec/trivy:0.74.0",
+            "aquasec/trivy:latest",
+            "aquasec/trivy",
+            "aquasec/trivy@sha256:abc",
+        ],
+    )
+    def test_any_other_form_of_the_image_is_named(self, image: str) -> None:
+        assert _stray_images(f'docker run "{image}" image lia-api') == [image]
+
+    def test_the_pinned_image_passes(self) -> None:
+        assert _stray_images(f"docker run {PINNED_IMAGE} image lia-api") == []
+
+    def test_the_release_address_is_not_the_image(self) -> None:
+        assert _image_references("github.com/aquasecurity/trivy/releases/download") == []
+
+    def test_the_vulnerability_database_is_not_the_image(self) -> None:
+        assert _image_references("TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db:2") == []
