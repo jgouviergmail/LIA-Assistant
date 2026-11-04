@@ -617,6 +617,16 @@ advisories et le job passait quand meme. C'est ainsi qu'une advisory **critique*
 Le flag a ete retire — corriger l'advisory ou epingler un override (voir plus bas), jamais
 restaurer le flag.
 
+**Trivy ne s'installe pas par `trivy-action`.** Le script de l'action prend l'archive sur
+`get.trivy.dev`, hors de GitHub. Ce nom a quitté le DNS le 2026-11-03 : tout run sans le binaire
+en cache sortait sur le code 6 de `curl`. Le job SBOM y passait à chaque run, car `cache: "false"`
+coupe aussi ce cache, et le job Trivy ne tenait que par une entrée déjà évincée une fois. Ces deux
+contrôles sont requis sur `main`. Ils lancent donc `task security:trivy:install`, qui prend
+l'archive sur la release GitHub et la tient à `TRIVY_SHA256`, puis l'action avec
+`skip-setup-trivy` (`test_trivy_install_guard.py`). `TRIVY_VERSION` et sa somme bougent ensemble
+et à la main, car Dependabot ne lit pas le Taskfile, et une montée change le moteur d'un scan
+bloquant.
+
 ### Perimetre analyse par CodeQL
 
 `paths` restreint l'analyse a `apps/api/src/**` et `apps/web/src/**` ; `paths-ignore` en

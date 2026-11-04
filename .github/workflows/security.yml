@@ -114,6 +114,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The Taskfile installs Trivy from its GitHub release: trivy-action's own
+      # install goes through a host outside GitHub, which left the DNS on 2026-11-03.
+      # Every trivy-action step sets `skip-setup-trivy`, held by
+      # apps/api/tests/unit/test_trivy_install_guard.py.
+      - name: Install Trivy
+        run: task security:trivy:install
+
       # Blocking, like pip-audit and pnpm audit above (SEC-021). It reported
       # into the Security tab and passed unconditionally, which makes a scanner
       # a dashboard rather than a gate — the same shape that let a CRITICAL
@@ -138,6 +151,7 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: "1"
+          skip-setup-trivy: "true"
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
@@ -184,6 +198,9 @@ jobs:
           path: ./apps/api/sbom-backend.json
           retention-days: 90
 
+      - name: Install Trivy
+        run: task security:trivy:install
+
       # SEC-021 — the frontend half, missing until now: half an inventory
       # answers "are we affected?" with "for Python, yes". Generated with Trivy
       # rather than a new toolchain because the scan job already runs it and it
@@ -201,6 +218,7 @@ jobs:
           # Inventory-only CycloneDX does not create a vulnerability DB to cache.
           cache: "false"
           output: sbom-frontend.json
+          skip-setup-trivy: "true"
 
       - name: Upload frontend SBOM
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -19,6 +19,12 @@ vars:
   # Pinned here and only here (dependency programme, lot 3).
   PIP_AUDIT_VERSION: 2.10.1
   CYCLONEDX_BOM_VERSION: 7.4.0  # 7.5.0 is younger than the 14-day minor cooldown (D4)
+  # The Trivy of the Security workflow and the digest of its Linux x86-64 archive
+  # (security:trivy:install). They move together and by hand: Dependabot reads no
+  # Taskfile, and a bump changes the engine of a blocking scan.
+  # security:scan:docker pins its own image.
+  TRIVY_VERSION: 0.70.0
+  TRIVY_SHA256: 8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9
   # Memory cap of one wake-word toolbox run (ADR-329): the Docker VM is shared
   # with the dev stack. Raise it with `task wake:train WAKE_MEMORY=24g -- fr`.
   WAKE_MEMORY: 14g
@@ -2049,6 +2055,30 @@ tasks:
       - >-
         {{.UV}} tool run --from cyclonedx-bom=={{.CYCLONEDX_BOM_VERSION}} cyclonedx-py
         requirements requirements.lock.txt -o sbom-backend.json --output-format JSON
+
+  # trivy-action installs through setup-trivy, whose script fetches the archive from
+  # get.trivy.dev, outside GitHub. That name left the DNS on 2026-11-03: every run
+  # missing the binary cache failed on curl's exit 6. The binary comes from the GitHub
+  # release instead, held to the digest pinned above, and each trivy-action step sets
+  # `skip-setup-trivy` (test_trivy_install_guard.py).
+  security:trivy:install:
+    desc: Install the pinned Trivy on a Linux x86-64 CI runner (GitHub release, digest checked)
+    preconditions:
+      - sh: '[ "{{OS}}/{{ARCH}}" = "linux/amd64" ]'
+        msg: "The pinned archive is the Linux x86-64 one: this task provisions a CI runner."
+    cmds:
+      - |
+        set -eu
+        bin_dir="$HOME/.local/bin/trivy-bin"
+        archive="$(mktemp)"
+        curl --fail --silent --show-error --location --retry 3 --retry-all-errors --output "$archive" \
+          "https://github.com/aquasecurity/trivy/releases/download/v{{.TRIVY_VERSION}}/trivy_{{.TRIVY_VERSION}}_Linux-64bit.tar.gz"
+        echo "{{.TRIVY_SHA256}}  $archive" | sha256sum --check --strict
+        mkdir -p "$bin_dir"
+        tar -xzf "$archive" -C "$bin_dir" trivy
+        rm "$archive"
+        "$bin_dir/trivy" --version
+        echo "$bin_dir" >> "${GITHUB_PATH:-/dev/null}"
 
   security:scan:docker:
     desc: Scan Docker images with Trivy (using Docker)
