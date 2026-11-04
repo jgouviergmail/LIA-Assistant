@@ -279,7 +279,9 @@ function RoomDetail({
         scenes={scenes.filter(scene => scene.room_id === selection.openRoom?.id)}
         onRecall={onRecall}
       />
-      <div className="grid gap-3 xl:grid-cols-2">
+      {/* As many columns as hold a card (`auto-fill`, never `auto-fit`, which
+          would stretch a lamp alone across the window). */}
+      <div className="grid gap-3 xl:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
         {selection.openLights.map(light => (
           <LightControls
             key={light.id}

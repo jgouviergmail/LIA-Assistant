@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Editorial refresh of the public site in all six languages: landing copy, sign-up
   labels, the terms of use (v1.1) and the privacy policy (v1.3).
+- On a computer the Tools section uses the whole window instead of the centred 1280 px
+  column, and the lamps take as many columns as the width holds. Every other page keeps
+  its width.
 
 ## [4.3.0] - 2026-11-01
 

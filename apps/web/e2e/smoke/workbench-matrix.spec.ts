@@ -5,12 +5,13 @@
  * screen is proven at 320 px (the phone), at 200 % zoom (1280 px read as 640
  * CSS pixels) and in the five accents: no horizontal scroll, axe clean on the
  * screen; on the phone the row of tools scrolls itself to the open one, and
- * the section opens on its first tool. With `E2E_SHOT_DIR` set, each accent's
- * screen is kept as evidence.
+ * the section opens on its first tool. On a computer each screen runs the whole
+ * window while the other pages keep their rail. With `E2E_SHOT_DIR` set, each
+ * accent's screen and each screen at 1920 px are kept as evidence.
  * Run with `E2E_ALL_BROWSERS=1` for the Firefox and WebKit smoke.
  */
 import AxeBuilder from '@axe-core/playwright';
-import type { Page, Route } from '@playwright/test';
+import type { Locator, Page, Route } from '@playwright/test';
 
 import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
@@ -234,6 +235,18 @@ async function expectAxeClean(page: Page): Promise<void> {
   expect(scan.violations).toEqual([]);
 }
 
+/** What a tool works in: whatever follows its heading row, panes or cards. */
+function toolArea(page: Page): Locator {
+  return page.locator('main div:has(> h1) + *');
+}
+
+/** Where a box starts and ends across the window, in whole pixels. */
+async function span(box: Locator): Promise<{ left: number; right: number }> {
+  const drawn = await box.boundingBox();
+  if (!drawn) throw new Error('the box is not drawn');
+  return { left: Math.round(drawn.x), right: Math.round(drawn.x + drawn.width) };
+}
+
 for (const screen of SCREENS) {
   test(`${screen.tool} at 320 px and at 200 % zoom`, async ({ page, authenticate, mockApi }) => {
     await authenticate({ timezone: 'Europe/Paris' });
@@ -306,6 +319,113 @@ test('a pane sized by hand keeps its width on this device, and a double-click gi
 
   await separator.dblclick();
   await expect.poll(width).toBe(drawn);
+});
+
+/**
+ * Owner request (2026-11-04): on a computer the tools use the whole window, less
+ * a 16 px gutter — on any screen they had the rail's 1216 px — and every other
+ * page keeps the rail, 1280 px in the middle of a 1920 px window.
+ */
+test('on a computer each tool runs the whole window, and another page keeps its rail', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+
+  for (const screen of SCREENS) {
+    await openScreen(page, screen.tool, screen.shows);
+    await expect
+      .poll(() => span(toolArea(page)), { message: screen.tool })
+      .toEqual({ left: 16, right: 1904 });
+    await expectNoOverflow(page, `${screen.tool} 1920px`);
+    const dir = process.env.E2E_SHOT_DIR;
+    if (dir) await page.screenshot({ path: `${dir}/wide_${screen.tool}.png` });
+  }
+
+  await page.goto('/en/dashboard/faq');
+  await waitForHydration(page, 'main');
+  await expect.poll(() => span(page.locator('main'))).toEqual({ left: 320, right: 1600 });
+});
+
+test('a tool leaves the frame of the other pages where a computer starts, not before', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+
+  await page.setViewportSize({ width: 1023, height: 800 });
+  await openScreen(page, 'contacts', 'Ana Lima');
+  await expect.poll(() => span(toolArea(page))).toEqual({ left: 24, right: 999 });
+
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1008 });
+});
+
+test('the whole window holds in the default language, whose addresses carry no prefix', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await authenticate({ timezone: 'Europe/Paris', language: 'fr' });
+  await playTheWorkbench(mockApi);
+
+  await page.goto('/fr/dashboard/tools/mail');
+  await waitForHydration(page, 'main');
+  await expect(page.getByText('Committee agenda for Thursday').first()).toBeVisible();
+
+  expect(new URL(page.url()).pathname).toBe('/dashboard/tools/mail');
+  await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1904 });
+});
+
+test('the notice of a broken connector stands as wide as the page under it', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+  await mockApi([
+    {
+      url: '**/api/v1/connectors/health',
+      json: {
+        connectors: [
+          {
+            id: 'conn-google-gmail',
+            connector_type: 'google_gmail',
+            display_name: 'Gmail',
+            health_status: 'error',
+            severity: 'critical',
+            expires_in_minutes: null,
+            authorize_url: '/connectors/google_gmail/authorize',
+          },
+        ],
+        has_issues: true,
+        critical_count: 1,
+        warning_count: 0,
+        checked_at: '2026-11-04T10:00:00Z',
+      },
+    },
+  ]);
+  const notice = page.getByRole('status', { name: 'Connector status' }).locator('> div');
+
+  await openScreen(page, 'mail', 'Committee agenda for Thursday');
+  await page.getByRole('button', { name: 'Later' }).click();
+  await expect(notice).toBeVisible();
+  await expect.poll(() => span(notice)).toEqual({ left: 16, right: 1904 });
+  await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1904 });
+
+  await page.goto('/en/dashboard/faq');
+  await waitForHydration(page, 'main');
+  await expect(notice).toBeVisible();
+  await expect.poll(() => span(notice)).toEqual({ left: 352, right: 1568 });
 });
 
 for (const accent of ['default', 'ocean', 'forest', 'sunset', 'slate'] as const) {

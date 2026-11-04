@@ -130,6 +130,16 @@ export const HEADER_ICON_SLOT = 'lg:h-9 lg:w-9 lg:min-w-9 lg:px-0';
 export const HEADER_ICON_GAP = 'lg:gap-1';
 
 /**
+ * The horizontal frame of a dashboard page, which the notice above it takes too.
+ * The rail is every page's. The window is the « Tools » section's (owner,
+ * 2026-11-04: on any screen a tool had the rail's 1216 px): from `lg` the whole
+ * window behind a 16 px gutter, and below `lg` the same frame as the rail. Whole
+ * literal classes, as above.
+ */
+export const PAGE_FRAME_RAIL = 'w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8';
+export const PAGE_FRAME_WINDOW = 'w-full px-4 sm:px-6 lg:px-4';
+
+/**
  * The destinations this instance offers.
  *
  * Args:

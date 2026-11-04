@@ -70,7 +70,7 @@ describe('ConnectorHealthAlert — grouped reconnection', () => {
       item(),
       item({ id: 'mail', connector_type: 'google_gmail', display_name: 'Gmail' }),
     ];
-    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" />);
+    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" pageFrame="frame" />);
 
     await user.click(screen.getByRole('button', { name: GOOGLE_ACTION }));
 
@@ -99,7 +99,7 @@ describe('ConnectorHealthAlert — grouped reconnection', () => {
         oauth_account_email: 'other@example.org',
       }),
     ];
-    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" />);
+    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" pageFrame="frame" />);
 
     await user.click(screen.getByRole('button', { name: GOOGLE_ACTION }));
 
@@ -120,7 +120,7 @@ describe('ConnectorHealthAlert — grouped reconnection', () => {
         oauth_grant_id: 'grant-m',
       }),
     ];
-    renderWithProviders(<ConnectorHealthAlert lng="en" />);
+    renderWithProviders(<ConnectorHealthAlert lng="en" pageFrame="frame" />);
 
     expect(screen.queryByRole('button', { name: /bulk_reconnect/ })).not.toBeInTheDocument();
     expect(
@@ -134,7 +134,7 @@ describe('ConnectorHealthAlert — grouped reconnection', () => {
       item({ id: 'mail', connector_type: 'google_gmail', oauth_grant_id: null }),
     ];
     health.critical = broken;
-    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" />);
+    const { user } = renderWithProviders(<ConnectorHealthAlert lng="en" pageFrame="frame" />);
     // The health hook calls `onCritical` when it detects the set: open the modal.
     await waitFor(() => expect(health.onCritical).toBeDefined());
     const onCritical = health.onCritical;

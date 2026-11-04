@@ -41,6 +41,8 @@ import {
   destinationPath,
   HEADER_ICON_GAP,
   HEADER_ICON_SLOT,
+  PAGE_FRAME_RAIL,
+  PAGE_FRAME_WINDOW,
   visibleDestinations,
 } from '@/lib/dashboard-nav';
 import { workbenchAvailable } from '@/lib/workbench/availability';
@@ -85,22 +87,28 @@ interface DashboardLayoutProps {
   params: Promise<{ lng: string }>;
 }
 
-/** A scene owns its animation budget while the shared application providers stay mounted. */
-function dashboardPresentation(pathname: string | null) {
+/**
+ * How a page stands in the shell. A scene owns its animation budget while the
+ * shared application providers stay mounted; the « Tools » section runs the whole
+ * window on a computer, every other page the rail. `frame` is what the notice
+ * above the page takes, so that it never stands narrower than a tool.
+ */
+function dashboardPresentation(pathname: string | null, toolsOpen: boolean) {
   if (pathname?.endsWith('/dashboard/world')) {
-    return { background: null, mainClass: 'w-full px-2 pb-2 pt-2 sm:px-4', hideEyes: true };
+    return {
+      background: null,
+      frame: PAGE_FRAME_RAIL,
+      mainClass: 'w-full px-2 pb-2 pt-2 sm:px-4',
+      hideEyes: true,
+    };
   }
-  return {
-    background: <AppCosmos />,
-    mainClass: 'w-full max-w-7xl mx-auto pt-4 pb-0 px-4 sm:px-6 lg:px-8',
-    hideEyes: false,
-  };
+  const frame = toolsOpen ? PAGE_FRAME_WINDOW : PAGE_FRAME_RAIL;
+  return { background: <AppCosmos />, frame, mainClass: `${frame} pt-4 pb-0`, hideEyes: false };
 }
 
 export default function DashboardLayout({ children, params }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const presentation = dashboardPresentation(pathname);
   const { user, isLoading, logout } = useAuth();
   useEffect(() => {
     // The companion also lives on pages that never fetch psyche. An account
@@ -155,6 +163,8 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
     const targetPath = `${basePath}/${route}`;
     return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
   };
+
+  const presentation = dashboardPresentation(pathname, isActiveRoute('tools'));
 
   // Nav link classes based on active state (route = 'chat', 'settings', 'faq', or '' for home):
   // an icon alone, in the slot every icon of the row takes.
@@ -379,7 +389,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 {/* OAuth connector health: the persistent banner renders HERE, under
             the sticky header and above the page, while the modal it ships
             with is portalled and unaffected by this position. */}
-                <ConnectorHealthAlert lng={lng} />
+                <ConnectorHealthAlert lng={lng} pageFrame={presentation.frame} />
 
                 {/* Main Content - Reduced top spacing, no bottom padding for full-page apps */}
                 <main className={presentation.mainClass}>

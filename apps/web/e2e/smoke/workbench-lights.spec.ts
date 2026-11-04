@@ -6,7 +6,8 @@
  * at 1280 and 390 px, in light, dark and OLED: no horizontal scroll, axe clean
  * on the screen; a slider is sent on release only; a refused change shows the
  * previous value again with the refusal's own sentence; the keyboard opens a
- * room below lg and gets its card back when it closes.
+ * room below lg and gets its card back when it closes; the lamps take the
+ * columns the window holds, and a lamp alone stays a card.
  */
 import AxeBuilder from '@axe-core/playwright';
 
@@ -160,6 +161,56 @@ test('rooms and lamps come in alphabetical order, the tone folded until opened',
   await floor.getByText('Temperature and colour').click();
   await expect(floor.getByRole('slider', { name: 'Temperature' })).toBeVisible();
   await expect(floor.getByLabel('Colour')).toHaveValue('#ffd59a');
+});
+
+/**
+ * Owner request (2026-11-04): the lamps use the width the tools were given — as many
+ * columns as hold a 24 rem card, where a fixed two drew 766 px cards at 1920 px.
+ */
+for (const sample of [
+  { width: 1100, columns: 1 },
+  { width: 1280, columns: 2 },
+  { width: 1920, columns: 3 },
+  { width: 2560, columns: 4 },
+] as const) {
+  test(`four lamps stand in ${sample.columns} column(s) at ${sample.width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: sample.width, height: 900 });
+    await authenticate();
+    await playTheApi(mockApi, []);
+
+    await page.goto('/en/dashboard/tools/lights?room=r1');
+    await waitForHydration(page, 'button[role="switch"]');
+    await expect(page.getByRole('group', { name: 'Floor lamp' })).toBeVisible();
+
+    const columns = new Set<number>();
+    for (const name of ['Ceiling', 'Floor lamp', 'Garland', 'Plug']) {
+      const card = await page.getByRole('group', { name, exact: true }).boundingBox();
+      if (!card) throw new Error(`${name} is not drawn`);
+      columns.add(Math.round(card.x));
+    }
+    expect(columns.size).toBe(sample.columns);
+  });
+}
+
+test('a lamp alone in its room stays a card on the widest window', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 2560, height: 900 });
+  await authenticate();
+  await playTheApi(mockApi, []);
+
+  await page.goto('/en/dashboard/tools/lights?room=r2');
+  await waitForHydration(page, 'button[role="switch"]');
+  const card = await page.getByRole('group', { name: 'Pendant' }).boundingBox();
+  if (!card) throw new Error('the lamp is not drawn');
+
+  expect(card.width).toBeLessThan(600);
 });
 
 test('a slider is sent on release, and a refused one shows its previous value', async ({

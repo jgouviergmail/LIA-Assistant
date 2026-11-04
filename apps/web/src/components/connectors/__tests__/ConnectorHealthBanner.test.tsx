@@ -40,6 +40,7 @@ function renderBanner(over: Partial<React.ComponentProps<typeof ConnectorHealthB
   const props: React.ComponentProps<typeof ConnectorHealthBanner> = {
     connectors: [item()],
     lng: 'fr',
+    pageFrame: 'frame-of-the-page',
     t,
     reconnecting: false,
     onReconnect: vi.fn(),
@@ -96,6 +97,16 @@ describe('ConnectorHealthBanner', () => {
       name: 'settings.connectors.health.banner_label',
     });
     expect(region).toBeInTheDocument();
+  });
+
+  it('stands in the frame of the page under it', () => {
+    // A frame of its own is how a notice ends up narrower than the page it
+    // sits on: the Tools section runs the whole window, every other page a rail.
+    renderBanner();
+
+    expect(
+      screen.getByRole('status', { name: 'settings.connectors.health.banner_label' })
+    ).toHaveClass('frame-of-the-page');
   });
 
   it('reconnects the single broken connector on activation', async () => {

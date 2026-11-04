@@ -190,6 +190,17 @@ DEVICE (`workbenchPanesStore`, outside the purge registry like the dock's). A pa
 its layout's own responsive widths; a kept width the row cannot hold is drawn clamped and comes back
 on a wider window.
 
+On a computer the section runs the whole window — owner decision 2026-11-04: every page stood on the
+centred 1280 px rail, so a tool had 1216 px on any screen. From `lg` the page's frame is
+`PAGE_FRAME_WINDOW` (`lib/dashboard-nav.ts`: no ceiling, a 16 px gutter); below `lg` it is the rail's,
+and every other page keeps the rail. The dashboard layout decides it from the address the header's
+active state already reads (`isActiveRoute`), so a new tool inherits it. The notice of a broken
+connector takes the frame of the page under it. The header keeps its own width, as it does over the
+world: following the page, its icons would move on every way in and out of the section. The panes'
+responsive widths do not change, the free pane of each row takes what the window adds, and from `xl`
+the lamps take as many columns as hold a 24 rem card (`auto-fill`, so that a lamp alone stays a card).
+A 1280 px window gains its gutters alone, 32 px: the ceiling never applied there.
+
 ## What is NOT recorded, and why
 
 Nothing the person does in the workbench reaches the consultation register, the effect register,

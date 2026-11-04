@@ -38,7 +38,9 @@ On the web side, the frame is `WorkbenchShell` (the availability read once, the 
 above the open one) and every vertical pane a person sizes by hand on a large screen is declared
 once in `lib/workbench/panes.ts` (its bounds and the share of its row it may take), drawn through
 `useWorkbenchPane` and moved by the shared window splitter `components/ui/pane-separator.tsx`; the
-widths are a preference of the device (`stores/workbenchPanesStore.ts`).
+widths are a preference of the device (`stores/workbenchPanesStore.ts`). On a computer the section
+runs the whole window: the dashboard layout gives it `PAGE_FRAME_WINDOW` (`lib/dashboard-nav.ts`)
+from `lg`, and every other page keeps the rail.
 
 ## Routes
 

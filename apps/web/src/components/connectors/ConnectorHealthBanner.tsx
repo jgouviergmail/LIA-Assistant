@@ -53,6 +53,8 @@ interface ConnectorHealthBannerProps {
   connectors: ConnectorHealthItem[];
   /** Active locale — every route in this app is localized. */
   lng: Language;
+  /** The horizontal frame of the page under the banner (`PAGE_FRAME_*`). */
+  pageFrame: string;
   /** Translator from the owning container, so there is one i18n instance. */
   t: (key: string, options?: Record<string, unknown>) => string;
   /** True while an OAuth redirect is in flight. */
@@ -69,6 +71,7 @@ interface ConnectorHealthBannerProps {
 export function ConnectorHealthBanner({
   connectors,
   lng,
+  pageFrame,
   t,
   reconnecting,
   onReconnect,
@@ -114,7 +117,7 @@ export function ConnectorHealthBanner({
       ref={bannerRef}
       role="status"
       aria-label={t('settings.connectors.health.banner_label')}
-      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3"
+      className={`${pageFrame} pt-3`}
     >
       <div className="flex flex-col gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="flex items-start gap-2 text-sm text-foreground sm:items-center">

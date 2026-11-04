@@ -45,10 +45,13 @@ import { usePsycheStore } from '@/stores/psycheStore';
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, address } = vi.hoisted(() => ({
+  push: vi.fn(),
+  address: { pathname: '/fr/dashboard' },
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => '/fr/dashboard',
+  usePathname: () => address.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -190,6 +193,7 @@ async function renderLayout() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  address.pathname = '/fr/dashboard';
   usePersonalityStore.getState().reset();
   usePsycheStore.getState().reset();
   FakeEventSource.instances = [];
@@ -321,6 +325,56 @@ describe('Dashboard shell — active account', () => {
       expect(link).toHaveAttribute('title', name);
       expect(link.textContent).toBe('');
     }
+  });
+});
+
+/**
+ * Owner request (2026-11-04): on a computer the « Tools » section runs the whole
+ * window, every other page keeps the centred rail. This is WHICH address gets
+ * which frame; what the frames measure is proven in a browser
+ * (`e2e/smoke/workbench-matrix.spec.ts`). A default-language address carries no
+ * prefix.
+ */
+describe('Dashboard shell — the frame of a page', () => {
+  it.each([
+    '/dashboard/tools',
+    '/dashboard/tools/mail',
+    '/en/dashboard/tools',
+    '/en/dashboard/tools/calendar',
+    '/en/dashboard/tools/lights/',
+  ])('runs the whole window on %s', async pathname => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    address.pathname = pathname;
+
+    await renderLayout();
+
+    expect(screen.getByRole('main')).not.toHaveClass('max-w-7xl');
+    expect(screen.getByRole('main')).toHaveClass('lg:px-4');
+  });
+
+  it.each([
+    '/dashboard',
+    '/dashboard/chat',
+    '/dashboard/toolshed',
+    '/en/dashboard/sms',
+    '/en/dashboard/settings',
+  ])('keeps the rail on %s', async pathname => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    address.pathname = pathname;
+
+    await renderLayout();
+
+    expect(screen.getByRole('main')).toHaveClass('max-w-7xl', 'mx-auto', 'lg:px-8');
+  });
+
+  it('leaves the world its own scene', async () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    address.pathname = '/en/dashboard/world';
+
+    await renderLayout();
+
+    expect(screen.getByRole('main')).toHaveClass('px-2', 'sm:px-4');
+    expect(screen.getByRole('main')).not.toHaveClass('max-w-7xl');
   });
 });
 

@@ -41,6 +41,8 @@ const emailOf = (item: ConnectorHealthItem) => item.oauth_account_email;
 
 interface ConnectorHealthAlertProps {
   lng: Language;
+  /** The horizontal frame of the page under the banner (`PAGE_FRAME_*`). */
+  pageFrame: string;
 }
 
 /**
@@ -49,7 +51,7 @@ interface ConnectorHealthAlertProps {
  * Only shows modal for connectors with status=ERROR (refresh failed).
  * Normal token expiration is handled silently by proactive refresh.
  */
-export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
+export function ConnectorHealthAlert({ lng, pageFrame }: ConnectorHealthAlertProps) {
   const { t } = useTranslation(lng);
   const { user, isLoading: authLoading } = useAuth();
   const [showModal, setShowModal] = useState(false);
@@ -114,6 +116,7 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
       <ConnectorHealthBanner
         connectors={criticalConnectors}
         lng={lng}
+        pageFrame={pageFrame}
         t={t}
         reconnecting={reconnecting !== null}
         onReconnect={handleReconnect}
