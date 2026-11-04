@@ -99,6 +99,9 @@ export interface DashboardDestination {
  * `2xl` row (measured: the last destination ran under the controls in
  * fr/de/es/it at 1536 px), and the row's width stopped depending on how long a
  * label is in one language.
+ *
+ * 2026-11-04 (owner): the row stands on the pages' rail, so a wider window gives
+ * it room up to the rail's ceiling, where it was capped at 1536 px.
  */
 export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
@@ -131,12 +134,14 @@ export const HEADER_ICON_GAP = 'lg:gap-1';
 
 /**
  * The horizontal frame of a dashboard page, which the notice above it takes too.
- * The rail is every page's. The window is the « Tools » section's (owner,
- * 2026-11-04: on any screen a tool had the rail's 1216 px): from `lg` the whole
- * window behind a 16 px gutter, and below `lg` the same frame as the rail. Whole
- * literal classes, as above.
+ * The rail is every page's and the header's, centred under the theme's
+ * `--container-page` (owner, 2026-11-04: half as wide again as the 1280 px it was,
+ * so that the interface breathes when the screen allows it). The window is the
+ * « Tools » section's (owner, 2026-11-04: on any screen a tool had the rail's
+ * 1216 px): from `lg` the whole window behind a 16 px gutter, and below `lg` the
+ * same frame as the rail. Whole literal classes, as above.
  */
-export const PAGE_FRAME_RAIL = 'w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8';
+export const PAGE_FRAME_RAIL = 'w-full max-w-page mx-auto px-4 sm:px-6 lg:px-8';
 export const PAGE_FRAME_WINDOW = 'w-full px-4 sm:px-6 lg:px-4';
 
 /**

@@ -437,7 +437,7 @@ export function HitlActionCard({ hitl, onAction }: HitlActionCardProps) {
       aria-label={t(`chat.hitl.title.${payload.kind}`)}
       data-application-action-priority={showButtons}
       className={cn(
-        'mx-auto mb-3 w-full max-w-4xl rounded-xl border px-4 py-3 shadow-sm backdrop-blur-sm',
+        'mx-auto mb-3 w-full max-w-4xl lg:max-w-chat-composer rounded-xl border px-4 py-3 shadow-sm backdrop-blur-sm',
         tone.section
       )}
     >

@@ -834,7 +834,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     // to the END of the thread, off-screen for a reader who scrolled up
     // (measured in all three engines). The page's wrapper is the scroller.
     <div ref={containerRef} className="flex-1 px-2 pt-8 pb-6 mobile:px-6 scroll-smooth">
-      <div className="mobile:max-w-5xl mobile:mx-auto [&>*:first-child]:mt-2">
+      <div className="mobile:max-w-5xl lg:max-w-chat-thread mobile:mx-auto [&>*:first-child]:mt-2">
         <OlderHistoryEdge
           hasMoreOlder={hasMoreOlder}
           isLoadingOlder={isLoadingOlder}

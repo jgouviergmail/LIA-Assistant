@@ -258,11 +258,10 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
                 {/* Navbar — opaque: the cosmos paints the page ground, never the header. */}
                 <header className="lia-dashboard-header sticky top-0 z-50 w-full border-b border-border bg-background shadow-sm">
-                  {/* `2xl` widens the row it adds items to: the page is capped at
-              `max-w-7xl`, so without this the widest screens had LESS room
-              than 1280 px (measured 2026-09-26: labels + token counters
-              overlapped the controls in de/es/fr/it at 1536 px). */}
-                  <div className="w-full max-w-7xl 2xl:max-w-[96rem] mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+                  {/* The row stands on the rail on every page: its icons never move
+              from one page to the next, and its two ends line up with the page
+              under it (owner, 2026-11-04). */}
+                  <div className={`${PAGE_FRAME_RAIL} flex h-16 items-center justify-between`}>
                     {/* Logo & Navigation. `min-w-0` makes THIS group the one that
                 yields when the row is tight, so the trailing controls — the
                 logout button in particular — are never pushed off-screen. */}

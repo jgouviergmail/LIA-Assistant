@@ -858,7 +858,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         </div>
       )}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl lg:max-w-chat-composer mx-auto">
         {compositionContext}
         {/* Attachment preview strip */}
         {attachmentsEnabled && (

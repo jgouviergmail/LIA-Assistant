@@ -324,7 +324,7 @@ test('a pane sized by hand keeps its width on this device, and a double-click gi
 /**
  * Owner request (2026-11-04): on a computer the tools use the whole window, less
  * a 16 px gutter — on any screen they had the rail's 1216 px — and every other
- * page keeps the rail, 1280 px in the middle of a 1920 px window.
+ * page keeps the rail, 1920 px in the middle of a 2560 px window.
  */
 test('on a computer each tool runs the whole window, and another page keeps its rail', async ({
   page,
@@ -346,9 +346,12 @@ test('on a computer each tool runs the whole window, and another page keeps its 
     if (dir) await page.screenshot({ path: `${dir}/wide_${screen.tool}.png` });
   }
 
+  await page.setViewportSize({ width: 2560, height: 1080 });
+  await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 2544 });
+
   await page.goto('/en/dashboard/faq');
   await waitForHydration(page, 'main');
-  await expect.poll(() => span(page.locator('main'))).toEqual({ left: 320, right: 1600 });
+  await expect.poll(() => span(page.locator('main'))).toEqual({ left: 320, right: 2240 });
 });
 
 test('a tool leaves the frame of the other pages where a computer starts, not before', async ({
@@ -425,7 +428,7 @@ test('the notice of a broken connector stands as wide as the page under it', asy
   await page.goto('/en/dashboard/faq');
   await waitForHydration(page, 'main');
   await expect(notice).toBeVisible();
-  await expect.poll(() => span(notice)).toEqual({ left: 352, right: 1568 });
+  await expect.poll(() => span(notice)).toEqual({ left: 32, right: 1888 });
 });
 
 for (const accent of ['default', 'ocean', 'forest', 'sunset', 'slate'] as const) {

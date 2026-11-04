@@ -42,11 +42,11 @@ export function FaqAnswer({ lng, html, onExampleClick }: FaqAnswerProps) {
   // Without a handler the page keeps its previous, purely readable rendering —
   // no dangling buttons that would do nothing when pressed.
   if (!onExampleClick) {
-    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="max-w-reading" dangerouslySetInnerHTML={{ __html: html }} />;
   }
 
   return (
-    <div>
+    <div className="max-w-reading">
       {segments.map((segment, index) =>
         segment.kind === 'html' ? (
           <span key={index} dangerouslySetInnerHTML={{ __html: segment.html }} />

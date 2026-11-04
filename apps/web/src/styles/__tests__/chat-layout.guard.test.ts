@@ -13,6 +13,9 @@
  *    list longer than the map out at the top too, beyond the reach of its
  *    scroll.
  * 3. On a phone the place list starts at the left edge.
+ * 4. A large screen opens the chat (owner, 2026-11-04): from `lg` a code block
+ *    takes the composer's ceiling, a theme token, and the words of an answer keep
+ *    a reading width that its tables, code and cards do not have.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -78,6 +81,7 @@ const globals = rules(readFileSync(resolve(STYLES, 'globals.css'), 'utf8'));
 const cards = rules(readFileSync(resolve(STYLES, 'lia-cards.css'), 'utf8'));
 
 const besideAvatar = (rule: Rule) => rule.conditions.some(c => /min-width:\s*880px/.test(c));
+const fromLg = (rule: Rule) => rule.conditions.some(c => /min-width:\s*64rem/.test(c));
 const onPhone = (rule: Rule) => rule.conditions.some(c => /max-width:\s*639px/.test(c));
 const inWideCard = (rule: Rule) =>
   rule.conditions.some(c => /^@container card \(min-width:\s*45rem\)$/.test(c));
@@ -112,6 +116,26 @@ describe('chat bubbles on a phone', () => {
       );
       expect(find(bubbles, selector, besideAvatar)?.declarations.get('width')).toBe('95%');
     }
+  });
+});
+
+describe('what a large screen opens', () => {
+  const READING_TEXT = '.markdown-content :is(p, li, blockquote):not(.lia-card *)';
+
+  it('keeps the code block of a tablet, and gives it the composer from `lg`', () => {
+    const code = '.message-bubble:has(pre)';
+    expect(find(globals, code, besideAvatar)?.declarations.get('max-width')).toBe(
+      'min(95%, 56rem)'
+    );
+    expect(find(globals, code, fromLg)?.declarations.get('max-width')).toBe(
+      'min(95%, var(--container-chat-composer))'
+    );
+  });
+
+  it('holds the words of a rendered text at the reading width, its cards aside', () => {
+    expect(find(globals, READING_TEXT, () => true)?.declarations.get('max-width')).toBe(
+      'var(--container-reading)'
+    );
   });
 });
 

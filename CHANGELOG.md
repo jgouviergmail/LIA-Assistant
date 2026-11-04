@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Editorial refresh of the public site in all six languages: landing copy, sign-up
   labels, the terms of use (v1.1) and the privacy policy (v1.3).
 - On a computer the Tools section uses the whole window instead of the centred 1280 px
-  column, and the lamps take as many columns as the width holds. Every other page keeps
-  its width.
+  column, and the lamps take as many columns as the width holds.
+- On a large screen every other page and the header grow to 1920 px, and the chat's thread
+  and composer widen by half, while the words of an answer, a document or a FAQ entry keep
+  a 1024 px reading width. Phones and tablets are unchanged.
 
 ## [4.3.0] - 2026-11-01
 

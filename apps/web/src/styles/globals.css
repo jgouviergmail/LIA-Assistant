@@ -46,6 +46,17 @@
   /* Custom breakpoints - Mobile ends at 880px */
   --breakpoint-mobile: 880px;
 
+  /* What a large screen opens (owner, 2026-11-04: the interface breathes when the
+     screen allows it). Each ceiling is declared here alone, read by its `max-w-*`
+     class and by the stylesheets: the rail of every page and of the header, then
+     the chat's thread and composer, all half as wide again as the 1280, 1024 and
+     896 px they were, and the width the words of a long text keep. The root rem
+     never scales, so none of them can act below `lg`. */
+  --container-page: 120rem;
+  --container-chat-thread: 96rem;
+  --container-chat-composer: 84rem;
+  --container-reading: 64rem;
+
   /* Text scale (Settings › Personalization › Font size): Tailwind's own
      sizes times the reader's factor. Only text follows it — the root rem, so
      panels, spacing and icons, keeps the browser's size. Line heights are
@@ -959,6 +970,13 @@
     .message-bubble:has(pre) {
       max-width: min(95%, 56rem);
     }
+
+    /* From `lg` the thread opens, and a code block with it. */
+    @media (min-width: 64rem) {
+      .message-bubble:has(pre) {
+        max-width: min(95%, var(--container-chat-composer));
+      }
+    }
   }
 
   /* ============================================
@@ -1008,6 +1026,15 @@
   }
   .markdown-content li > p:last-child {
     margin-bottom: 0;
+  }
+
+  /* The words of a rendered text keep a reading width when the column opens
+     (owner, 2026-11-04): a long answer measured 136 characters a line at
+     1024 px, 217 across the wider thread. Tables and code keep the whole column,
+     and so do cards, named here because their paragraphs are paragraphs too. A
+     column narrower than the limit never meets it: no phone, no tablet. */
+  .markdown-content :is(p, li, blockquote):not(.lia-card *) {
+    max-width: var(--container-reading);
   }
 
   .markdown-content table {

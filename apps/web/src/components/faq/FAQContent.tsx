@@ -436,7 +436,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
-                        <ChangelogItems version={versionKey} t={t} />
+                        <ChangelogItems version={versionKey} t={t} className="max-w-reading" />
                       </AccordionContent>
                     </AccordionItem>
                   ))}

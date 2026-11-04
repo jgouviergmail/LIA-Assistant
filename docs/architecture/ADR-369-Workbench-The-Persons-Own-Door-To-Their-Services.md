@@ -195,11 +195,23 @@ centred 1280 px rail, so a tool had 1216 px on any screen. From `lg` the page's 
 `PAGE_FRAME_WINDOW` (`lib/dashboard-nav.ts`: no ceiling, a 16 px gutter); below `lg` it is the rail's,
 and every other page keeps the rail. The dashboard layout decides it from the address the header's
 active state already reads (`isActiveRoute`), so a new tool inherits it. The notice of a broken
-connector takes the frame of the page under it. The header keeps its own width, as it does over the
+connector takes the frame of the page under it. The header stays on the rail, as it does over the
 world: following the page, its icons would move on every way in and out of the section. The panes'
 responsive widths do not change, the free pane of each row takes what the window adds, and from `xl`
 the lamps take as many columns as hold a 24 rem card (`auto-fill`, so that a lamp alone stays a card).
 A 1280 px window gains its gutters alone, 32 px: the ceiling never applied there.
+
+Amendment 2026-11-04 (owner): the rail itself opens, so that the interface breathes when the screen
+allows it. Seen across the whole window, every screen looked stretched but the world and the tools,
+which keep it; the other pages looked cramped on the rail. Its ceiling becomes half as wide again,
+1920 px, and the header stands on that same rail on every page, where it had a width of its own: its
+icons still never move, and its two ends line up with the page. The chat's thread and composer gain the
+same half from `lg` (1536 and 1344 px), and the words of a rendered text keep a 1024 px reading width
+that its tables, code and cards do not have, because the wider thread drew a long answer at 217
+characters a line against 136. FAQ answers and plain-text documents take that width too. Each ceiling
+is one theme token (`--container-*`, `styles/globals.css`), read by its `max-w-*` class and by the
+stylesheets. None can act below `lg`, since the root rem never scales; a window of 1920 px or less is
+filled by the rail, behind its 32 px gutter.
 
 ## What is NOT recorded, and why
 

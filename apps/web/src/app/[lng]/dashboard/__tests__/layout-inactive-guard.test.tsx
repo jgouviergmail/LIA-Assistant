@@ -329,11 +329,12 @@ describe('Dashboard shell — active account', () => {
 });
 
 /**
- * Owner request (2026-11-04): on a computer the « Tools » section runs the whole
- * window, every other page keeps the centred rail. This is WHICH address gets
- * which frame; what the frames measure is proven in a browser
- * (`e2e/smoke/workbench-matrix.spec.ts`). A default-language address carries no
- * prefix.
+ * Owner requests (2026-11-04): on a computer the « Tools » section runs the whole
+ * window, every other page stands on the centred rail, and the header stands on
+ * that rail on every page, so that its icons never move from one to the next. This
+ * is WHICH address gets which frame; what the frames measure is proven in a browser
+ * (`e2e/smoke/desktop-widths.spec.ts`, `e2e/smoke/workbench-matrix.spec.ts`). A
+ * default-language address carries no prefix.
  */
 describe('Dashboard shell — the frame of a page', () => {
   it.each([
@@ -348,7 +349,7 @@ describe('Dashboard shell — the frame of a page', () => {
 
     await renderLayout();
 
-    expect(screen.getByRole('main')).not.toHaveClass('max-w-7xl');
+    expect(screen.getByRole('main')).not.toHaveClass('max-w-page');
     expect(screen.getByRole('main')).toHaveClass('lg:px-4');
   });
 
@@ -364,7 +365,7 @@ describe('Dashboard shell — the frame of a page', () => {
 
     await renderLayout();
 
-    expect(screen.getByRole('main')).toHaveClass('max-w-7xl', 'mx-auto', 'lg:px-8');
+    expect(screen.getByRole('main')).toHaveClass('max-w-page', 'mx-auto', 'lg:px-8');
   });
 
   it('leaves the world its own scene', async () => {
@@ -374,8 +375,24 @@ describe('Dashboard shell — the frame of a page', () => {
     await renderLayout();
 
     expect(screen.getByRole('main')).toHaveClass('px-2', 'sm:px-4');
-    expect(screen.getByRole('main')).not.toHaveClass('max-w-7xl');
+    expect(screen.getByRole('main')).not.toHaveClass('max-w-page');
   });
+
+  it.each(['/dashboard', '/dashboard/tools/mail', '/en/dashboard/world'])(
+    'stands the header on the rail on %s',
+    async pathname => {
+      useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+      address.pathname = pathname;
+
+      await renderLayout();
+
+      expect(screen.getByRole('banner').firstElementChild).toHaveClass(
+        'max-w-page',
+        'mx-auto',
+        'lg:px-8'
+      );
+    }
+  );
 });
 
 describe('Dashboard shell — signed out', () => {

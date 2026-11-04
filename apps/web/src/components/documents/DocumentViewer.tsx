@@ -147,7 +147,7 @@ export function DocumentViewer({ attachmentId, filename, docType }: DocumentView
           </div>
         ) : (
           <pre className="overflow-x-auto rounded-lg border p-4 text-sm whitespace-pre-wrap">
-            {state.text}
+            <span className="block max-w-reading">{state.text}</span>
           </pre>
         ))}
 
