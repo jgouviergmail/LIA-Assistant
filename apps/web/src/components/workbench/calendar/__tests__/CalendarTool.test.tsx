@@ -8,7 +8,7 @@
  * guests » offered only where the provider lets the page choose.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import type { AppConfig } from '@/hooks/useAppConfig';
@@ -347,7 +347,12 @@ describe('CalendarTool — the focus, where the event takes the view’s place',
 });
 
 describe('CalendarTool — a new event', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('leaves as wall times and the account’s zone, with one key per form', async () => {
+    // Another day than today, whatever the real date: today a new event starts at
+    // the next hour, so on the real clock this failed on the very day it names.
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
     nav.search = 'day=2026-11-04&view=week';
     const { user } = screenOf();
     await screen.findByRole('link', { name: /Budget review/ });
