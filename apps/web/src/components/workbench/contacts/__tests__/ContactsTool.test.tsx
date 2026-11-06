@@ -231,6 +231,15 @@ describe('ContactsTool — groups', () => {
   const FAMILY = { id: 'contactGroups/f', name: 'Family', count: 7, own: true };
   const STARRED = { id: 'contactGroups/s', name: 'Starred', count: 1, own: false };
 
+  /** The filter once a group is offered: it is drawn before the groups arrive. */
+  async function filterOffering(group: { name: string; count: number }) {
+    const filter = await screen.findByRole('combobox', {
+      name: 'workbench.contacts.filter_label',
+    });
+    await within(filter).findByRole('option', { name: `${group.name} (${group.count})` });
+    return filter;
+  }
+
   function answering(memberOf: unknown[] = [FAMILY]) {
     const answers = api.get.getMockImplementation();
     api.get.mockImplementation((path: string, options: unknown) => {
@@ -292,10 +301,7 @@ describe('ContactsTool — groups', () => {
     answering();
     api.patch.mockResolvedValue(undefined);
     const { user } = screenOf();
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'workbench.contacts.filter_label' }),
-      FAMILY.id
-    );
+    await user.selectOptions(await filterOffering(FAMILY), FAMILY.id);
 
     await user.click(screen.getByRole('button', { name: 'workbench.contacts.groups.rename' }));
     const name = await screen.findByLabelText('workbench.contacts.groups.name');
@@ -312,9 +318,7 @@ describe('ContactsTool — groups', () => {
     answering();
     api.delete.mockResolvedValue(undefined);
     const { user } = screenOf();
-    const filter = await screen.findByRole('combobox', {
-      name: 'workbench.contacts.filter_label',
-    });
+    const filter = await filterOffering(FAMILY);
     await user.selectOptions(filter, FAMILY.id);
 
     await user.click(screen.getByRole('button', { name: 'workbench.contacts.groups.delete' }));
@@ -328,10 +332,7 @@ describe('ContactsTool — groups', () => {
   it('changes nothing of a group Google keeps for itself', async () => {
     answering();
     const { user } = screenOf();
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'workbench.contacts.filter_label' }),
-      STARRED.id
-    );
+    await user.selectOptions(await filterOffering(STARRED), STARRED.id);
 
     expect(screen.queryByRole('button', { name: 'workbench.contacts.groups.rename' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'workbench.contacts.groups.delete' })).toBeNull();
