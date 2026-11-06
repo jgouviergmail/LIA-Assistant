@@ -21,7 +21,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import en from '../../locales/en/translation.json';
 import { scanPage } from '../a11y/scan';
@@ -203,6 +203,21 @@ async function widgetTop(page: Page): Promise<number> {
   return (await page.locator('.lia-page-app-widget').boundingBox())?.y ?? 0;
 }
 
+/**
+ * A pointer's first click on a page that has just started. The page runs in a process of
+ * its own: until the browser routes input to it, a click falls on the frame and never
+ * reaches it, though Playwright reports it done (the CI clicked 300 ms before the first
+ * paint, 2026-11-06, and a frame already drawn lost 1 click in 16 on one CPU). Nothing
+ * in the page says when routing starts, so the click repeats until it is heard, and
+ * never once it was: the count stays exact.
+ */
+async function firstClick(count: Locator): Promise<void> {
+  await expect(async () => {
+    if ((await count.textContent()) === '0') await count.click();
+    await expect(count).toHaveText('1', { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+}
+
 test.describe('an interactive page in the chat (ADR-370)', () => {
   test('runs at once in its turn, is never reloaded, and waits once read back', async ({
     page,
@@ -320,8 +335,7 @@ test.describe('an interactive page in the chat (ADR-370)', () => {
     await page.getByRole('button', { name: en.page_apps.start }).click();
     await expect.poll(() => widgetTop(page)).toBeGreaterThanOrEqual(90);
     const count = page.frameLocator(FRAME).locator('#count');
-    await count.click();
-    await expect(count).toHaveText('1');
+    await firstClick(count);
 
     await page.getByRole('button', { name: en.page_apps.show_code }).click();
     await expect(page.locator(FRAME)).toBeHidden();
