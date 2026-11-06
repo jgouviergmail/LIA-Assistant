@@ -7,7 +7,8 @@
  * One page at a time with its EXACT total (ADR-185), a search by name, and the
  * two bounds the send refuses beyond — how many files, how many bytes in all
  * (`attachments_max`, `attachments_max_bytes`, ADR-184): a file that would
- * pass one is said so, never silently dropped. Nothing is uploaded here.
+ * pass one is said so, never silently dropped, what a draft already holds counting
+ * too. Nothing is uploaded here.
  */
 import { Check, Paperclip, Search } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
@@ -35,6 +36,8 @@ export interface AttachablePickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chosen: readonly AttachableFile[];
+  /** What the message carries besides: it takes room, and is not offered here. */
+  carried?: readonly { size: number }[];
   maxFiles: number;
   maxBytes: number;
   onToggle: (file: AttachableFile) => void;
@@ -45,6 +48,7 @@ export function AttachablePicker({
   open,
   onOpenChange,
   chosen,
+  carried = [],
   maxFiles,
   maxBytes,
   onToggle,
@@ -60,7 +64,8 @@ export function AttachablePicker({
     offset,
   });
   const chosenIds = new Set(chosen.map(file => file.id));
-  const chosenBytes = chosen.reduce((sum, file) => sum + file.size, 0);
+  const taken = [...chosen, ...carried];
+  const takenBytes = taken.reduce((sum, file) => sum + file.size, 0);
 
   const search = (event: FormEvent) => {
     event.preventDefault();
@@ -68,8 +73,8 @@ export function AttachablePicker({
   };
   const refusal = (file: AttachableFile): string | null => {
     if (chosenIds.has(file.id)) return null;
-    if (chosen.length >= maxFiles) return t('workbench.mail.files.max_files', { count: maxFiles });
-    if (chosenBytes + file.size > maxBytes) {
+    if (taken.length >= maxFiles) return t('workbench.mail.files.max_files', { count: maxFiles });
+    if (takenBytes + file.size > maxBytes) {
       return t('workbench.mail.files.max_bytes', { max: fileSize(maxBytes, lng) });
     }
     return null;

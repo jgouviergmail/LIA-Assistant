@@ -15,6 +15,8 @@ original from a reply to all.
 
 from __future__ import annotations
 
+from html import escape
+
 from src.infrastructure.email.recipients import name_addr, read_recipients
 
 #: The line that opens a forwarded message — Gmail's own wording.
@@ -49,6 +51,7 @@ def reply_recipients(
     own_address: str | None,
     reply_all: bool,
     override_to: str | None = None,
+    override_cc: str | None = None,
     reply_to: str | None = None,
 ) -> tuple[str, str]:
     """The ``(To, Cc)`` of a reply, addressed the way mail clients address it.
@@ -59,7 +62,8 @@ def reply_recipients(
     ``replyAll`` do. The person's own address is never a recipient, and a
     reply to the person's OWN message answers the people it was sent to. A
     chosen recipient replaces the answered ones and keeps the copies — Graph's
-    ``replyAll`` with an overriding ``toRecipients``.
+    ``replyAll`` with an overriding ``toRecipients``. Copies the person chose
+    replace the computed ones, an empty choice copying nobody.
 
     Args:
         original_from: The original's ``From`` header.
@@ -68,6 +72,7 @@ def reply_recipients(
         own_address: The mailbox's address, when known.
         reply_all: Answer every recipient of the original.
         override_to: A recipient the person chose instead.
+        override_cc: The copies the person chose instead; empty for none.
         reply_to: The original's ``Reply-To`` header, when present.
 
     Returns:
@@ -87,6 +92,8 @@ def reply_recipients(
         _keep_new(_addresses(answer_header), seen)
         others = _keep_new(_addresses(original_to), seen) if reply_all else []
         to_header = ", ".join([answer_header, *(name_addr(name, addr) for name, addr in others)])
+    if override_cc is not None:
+        return to_header, override_cc
     cc_header = _header(_keep_new(_addresses(original_cc), seen)) if reply_all else ""
     return to_header, cc_header
 
@@ -104,22 +111,38 @@ def forward_subject(subject: str) -> str:
 def quoted_reply(body: str, original_body: str, *, date: str, sender: str, is_html: bool) -> str:
     """The reply's words above the original, quoted the way mail clients quote.
 
-    An HTML reply, or an original with no text, quotes nothing.
+    An original with no text quotes nothing. Under HTML words the original stays words:
+    what it holds is escaped, never run as a page.
     """
-    if not original_body or is_html:
+    if not original_body:
         return body
+    if is_html:
+        intro = escape(f"On {date}, {sender} wrote:")
+        return f"{body}<br><br>{intro}<blockquote>{_as_lines(original_body)}</blockquote>"
     quoted = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
     return f"{body}\n\nOn {date}, {sender} wrote:\n{quoted}"
 
 
+def _as_lines(text: str) -> str:
+    """Text as HTML: its marks escaped, its lines kept."""
+    return "<br>".join(escape(line) for line in text.strip().splitlines())
+
+
 def forwarded_body(
-    body: str | None, original_body: str, *, sender: str, date: str, subject: str, to: str
+    body: str | None,
+    original_body: str,
+    *,
+    sender: str,
+    date: str,
+    subject: str,
+    to: str,
+    is_html: bool = False,
 ) -> str:
     """The forward's words above the original message and its headers."""
-    return (
-        f"{body or ''}\n\n{_FORWARD_BANNER}\n"
-        f"From: {sender}\nDate: {date}\nSubject: {subject}\nTo: {to}\n\n{original_body}"
-    )
+    banner = f"{_FORWARD_BANNER}\nFrom: {sender}\nDate: {date}\nSubject: {subject}\nTo: {to}"
+    if is_html:
+        return f"{body or ''}<br><br>{_as_lines(banner)}<br><br>{_as_lines(original_body)}"
+    return f"{body or ''}\n\n{banner}\n\n{original_body}"
 
 
 __all__ = [

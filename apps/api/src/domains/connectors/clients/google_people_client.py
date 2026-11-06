@@ -5,8 +5,8 @@ Handles authentication, rate limiting, caching, and pagination.
 Inherits from BaseGoogleClient for common functionality.
 """
 
+import base64
 import hashlib
-import re
 from collections.abc import Mapping
 from typing import Any, Final
 from uuid import UUID
@@ -20,18 +20,21 @@ from src.core.constants import (
     GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
     GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX,
 )
-from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_CACHED_AT, FIELD_QUERY
+from src.domains.connectors.clients import contact_photos
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.cache_mixin import CacheableMixin
+from src.domains.connectors.clients.contact_details import NO_YEAR, ContactDetails
 from src.domains.connectors.clients.contact_directory import (
     CONTACTS_DIRECTORY_FIELDS,
     ContactDirectory,
     cached_directory,
 )
+from src.domains.connectors.clients.contact_photos import ContactPhoto
+from src.domains.connectors.clients.google_contact_groups_mixin import GoogleContactGroupsMixin
 from src.domains.connectors.clients.normalizers.contact_values import (
     TypedAddress,
     TypedValue,
@@ -42,6 +45,11 @@ from src.domains.connectors.clients.normalizers.contact_values import (
     same_kind,
     values_read,
 )
+from src.domains.connectors.clients.people_names import (
+    GROUP_NAME,
+    OTHER_CONTACT_NAME,
+    named_path,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache import ContactsCache
@@ -49,7 +57,7 @@ from src.infrastructure.cache import ContactsCache
 logger = structlog.get_logger(__name__)
 
 
-class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
+class GooglePeopleClient(GoogleContactGroupsMixin, CacheableMixin[ContactsCache], BaseGoogleClient):
     """
     Google People API client with OAuth, rate limiting, caching, and error handling.
 
@@ -440,7 +448,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "personFields": person_fields,
         }
 
-        response = await self._make_request("GET", _named_path(resource_name), params=params)
+        response = await self._make_request("GET", named_path(resource_name), params=params)
 
         # Add freshness metadata before caching
         response["from_cache"] = False
@@ -479,6 +487,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """
         Create a new contact in Google Contacts.
@@ -495,6 +504,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             emails: Every e-mail, typed (optional; not with ``email``)
             phones: Every phone, typed (optional; not with ``phone``)
             addresses: Every postal address, typed (optional)
+            details: Its name's parts, job title, website and birthday (optional)
 
         Returns:
             Created contact data with resourceName
@@ -510,7 +520,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         # Build contact body per Google People API spec
         # https://developers.google.com/people/api/rest/v1/people/createContact
         contact_body: dict[str, Any] = {
-            "names": [{"givenName": name}],
+            "names": [_name_entry({}, name, details)],
         }
 
         new_lists = _people_lists({}, email=email, phone=phone, emails=emails, phones=phones)
@@ -520,6 +530,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
 
         if organization:
             contact_body["organizations"] = [{"name": organization}]
+        contact_body.update(_detail_fields({**contact_body}, details))
 
         if notes:
             contact_body["biographies"] = [{"value": notes, "contentType": "TEXT_PLAIN"}]
@@ -557,6 +568,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing contact in Google Contacts.
@@ -580,6 +592,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             emails: Every e-mail, typed (optional)
             phones: Every phone, typed (optional)
             addresses: Every postal address, typed (optional)
+            details: What changes of its name's parts, job, website and birthday (optional)
 
         Returns:
             Updated contact data
@@ -608,13 +621,20 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "resourceName": resource_name,
         }
 
-        if name is not None:
-            person_body["names"] = [{"givenName": name}]
+        if name is not None or (details is not None and _named_parts(details)):
+            first = (_entries(current_contact, "names") or [{}])[0]
+            person_body["names"] = [_name_entry(first, name, details)]
             update_fields.append("names")
 
         if organization is not None:
-            person_body["organizations"] = [{"name": organization}]
+            # One entry holds the company and the job: writing one keeps the other.
+            first, *others = _entries(current_contact, "organizations") or [{}]
+            person_body["organizations"] = [{**first, "name": organization}, *others]
             update_fields.append("organizations")
+
+        changed = _detail_fields({**current_contact, **person_body}, details)
+        person_body.update(changed)
+        update_fields.extend(field for field in changed if field not in update_fields)
 
         if notes is not None:
             person_body["biographies"] = [{"value": notes, "contentType": "TEXT_PLAIN"}]
@@ -652,7 +672,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
 
         response = await self._make_request(
             "PATCH",
-            f"{_named_path(resource_name)}:updateContact",
+            f"{named_path(resource_name)}:updateContact",
             params=params,
             json_data=person_body,
         )
@@ -694,7 +714,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         # DELETE /v1/{resourceName}:deleteContact
         await self._make_request(
             "DELETE",
-            f"{_named_path(resource_name)}:deleteContact",
+            f"{named_path(resource_name)}:deleteContact",
         )
 
         logger.info(
@@ -712,6 +732,51 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
     # =========================================================================
     # OTHER CONTACTS & CONTACT GROUPS (lot C, 2026-08)
     # =========================================================================
+
+    async def get_contact_photo(self, resource_name: str) -> ContactPhoto | None:
+        """The photo Google holds of a contact; its own silhouette is none (ADR-369, lot 9)."""
+        person = await self.get_person(resource_name, fields=["photos"], use_cache=False)
+        for entry in _entries(person, "photos"):
+            if entry.get("url") and not entry.get("default"):
+                return await contact_photos.fetch_photo(str(entry["url"]))
+        return None
+
+    async def set_contact_photo(self, resource_name: str, photo: ContactPhoto) -> None:
+        """Replace a contact's photo."""
+        await self._make_request(
+            "PATCH",
+            f"{named_path(resource_name)}:updateContactPhoto",
+            json_data={"photoBytes": base64.b64encode(photo.data).decode("ascii")},
+        )
+        await self._forget_people()
+
+    async def remove_contact_photo(self, resource_name: str) -> None:
+        """Take a contact's photo off."""
+        await self._make_request("DELETE", f"{named_path(resource_name)}:deleteContactPhoto")
+        await self._forget_people()
+
+    async def _forget_people(self) -> None:
+        cache = await self._get_cache()
+        await cache.invalidate_user(self.user_id)
+
+    async def save_other_contact(self, resource_name: str) -> dict[str, Any]:
+        """Copy a contact met in mail into the person's contacts (ADR-369, lot 9).
+
+        Args:
+            resource_name: Its name, ``otherContacts/...``.
+
+        Returns:
+            The saved contact, under a ``people/...`` name of its own.
+        """
+        path = named_path(resource_name, OTHER_CONTACT_NAME)
+        response = await self._make_request(
+            "POST",
+            f"{path}:copyOtherContactToMyContactsGroup",
+            json_data={"copyMask": ",".join(GOOGLE_OTHER_CONTACTS_FIELDS)},
+        )
+        await self._forget_people()
+        logger.info("other_contact_saved", user_id=str(self.user_id))
+        return response
 
     async def search_other_contacts(
         self,
@@ -812,7 +877,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         """
         return await self._make_request(
             "GET",
-            _named_path(resource_name, _GROUP_NAME),
+            named_path(resource_name, GROUP_NAME),
             params={"maxMembers": max_members},
         )
 
@@ -850,6 +915,59 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             8-character hash for metrics labeling.
         """
         return hashlib.sha256(str(connector_id).encode()).hexdigest()[:8]
+
+
+#: What a person's name is made of on Google; everything else in its entry is derived.
+_NAME_PARTS: Final = (
+    "honorificPrefix",
+    "givenName",
+    "middleName",
+    "familyName",
+    "honorificSuffix",
+)
+
+
+def _name_entry(
+    first: Mapping[str, Any], name: str | None, details: ContactDetails | None
+) -> dict[str, Any]:
+    """The name to write: its parts when the person named one, else the whole name.
+
+    What Google derives from the parts (the display forms, the free-form name) never goes back:
+    a stale free-form name beside a changed part is a contradiction left to Google to settle.
+    Parts emptied beside a whole name leave the whole name, so the contact keeps one.
+    """
+    asked = {} if details is None else _named_parts(details)
+    written = {key: first[key] for key in _NAME_PARTS if key in first} | asked
+    holds_a_name = written.get("givenName") or written.get("familyName")
+    return written if asked and (holds_a_name or name is None) else {"givenName": name}
+
+
+def _named_parts(details: ContactDetails) -> dict[str, str]:
+    """The parts of a name ``details`` names; an empty one empties that part."""
+    parts = {"givenName": details.given_name, "familyName": details.family_name}
+    return {key: value for key, value in parts.items() if value is not None}
+
+
+def _detail_fields(person: Mapping[str, Any], details: ContactDetails | None) -> dict[str, Any]:
+    """The People fields ``details`` changes on ``person``; none for what it leaves out."""
+    if details is None:
+        return {}
+    fields: dict[str, Any] = {}
+    if details.job_title is not None:
+        first, *others = _entries(person, "organizations") or [{}]
+        fields["organizations"] = [{**first, "title": details.job_title}, *others]
+    if details.website is not None:
+        first, *others = _entries(person, "urls") or [{}]
+        fields["urls"] = (
+            [{**first, "value": details.website}, *others] if details.website else others
+        )
+    if details.birthday is not None:
+        day = details.birthday
+        year = {} if day.year == NO_YEAR else {"year": day.year}
+        fields["birthdays"] = [{"date": {**year, "month": day.month, "day": day.day}}]
+    elif details.clear_birthday:
+        fields["birthdays"] = []
+    return fields
 
 
 def _entries(person: Mapping[str, Any], field: str) -> list[dict[str, Any]]:
@@ -919,26 +1037,3 @@ def _address_entry(wanted: TypedAddress, replaced: dict[str, Any] | None) -> dic
     if wanted["type"]:
         entry["type"] = wanted["type"]
     return _kept_metadata(entry, wanted["type"], replaced)
-
-
-#: A person's resource name, and a contact group's — the only shapes a path is built from.
-_PERSON_NAME: Final = re.compile(r"people/[A-Za-z0-9_-]+")
-_GROUP_NAME: Final = re.compile(r"contactGroups/[A-Za-z0-9_-]+")
-
-
-def _named_path(resource_name: str, shape: re.Pattern[str] = _PERSON_NAME) -> str:
-    """The path of a resource name of the expected shape — any other names nothing.
-
-    The name comes from a browser or a model: interpolated raw, ``people/c1:batch…``
-    or a ``../`` would aim the person's token at another People API operation.
-
-    Raises:
-        ConnectorAPIError: 404, the name names no such resource (never quoted back).
-    """
-    if not shape.fullmatch(resource_name):
-        raise ConnectorAPIError(
-            connector_type=ConnectorType.GOOGLE_CONTACTS.value,
-            status_code=404,
-            detail="google_contacts API error: no such contact",
-        )
-    return f"/{resource_name}"

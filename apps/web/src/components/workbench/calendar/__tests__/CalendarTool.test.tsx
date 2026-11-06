@@ -10,12 +10,21 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
+import {
+  answerConfirmDialog,
+  fireEvent,
+  renderWithProviders,
+  screen,
+  waitFor,
+  within,
+} from '@/__tests__/test-utils';
 import type { AppConfig } from '@/hooks/useAppConfig';
+import { ApiError } from '@/lib/api-client';
 import type {
   CalendarEvent,
   CalendarEventDetail,
   CalendarEventsWindow,
+  DueTasks,
   WorkbenchAvailability,
   WorkbenchCalendar,
   WorkbenchFeature,
@@ -27,8 +36,8 @@ const { api, nav, toast, media } = vi.hoisted(() => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
   nav: { search: '', push: vi.fn(), replace: vi.fn() },
   toast: { error: vi.fn(), success: vi.fn() },
-  /** Whether the event opens beside the view (from xl) or in its place. */
-  media: { wide: true },
+  /** Whether the event opens beside the view (from xl) or in its place, and a phone's width. */
+  media: { wide: true, phone: false },
 }));
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'owner', timezone: 'Europe/Paris' } }),
@@ -47,7 +56,10 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(nav.search),
 }));
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useMediaQuery: (query: string) => (query === '(min-width: 1280px)' ? media.wide : true),
+  useMediaQuery: (query: string) => {
+    if (query === '(min-width: 1280px)') return media.wide;
+    return query === '(min-width: 640px)' ? !media.phone : true;
+  },
 }));
 vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useAppConfig')>()),
@@ -58,11 +70,27 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
+import { handOff } from '@/lib/workbench/handoff';
+
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { CalendarTool } from '../CalendarTool';
 
-const GOOGLE: WorkbenchFeature[] = ['all_day', 'conference', 'notify_attendees', 'occurrence_edit'];
-const GRAPH: WorkbenchFeature[] = ['all_day', 'conference', 'occurrence_edit'];
+const GOOGLE: WorkbenchFeature[] = [
+  'all_day',
+  'conference',
+  'notify_attendees',
+  'occurrence_edit',
+  'event_move',
+  'event_move_with_guests',
+  'calendar_management',
+];
+const GRAPH: WorkbenchFeature[] = [
+  'all_day',
+  'conference',
+  'occurrence_edit',
+  'event_move',
+  'calendar_management',
+];
 
 function rail(features: WorkbenchFeature[]): WorkbenchAvailability {
   return {
@@ -86,14 +114,34 @@ function rail(features: WorkbenchFeature[]): WorkbenchAvailability {
       page_size: 25,
       bulk_max_items: 50,
       download_max_bytes: 26214400,
+      upload_max_bytes: 26214400,
       calendar_window_max_events: 500,
+      send_undo_seconds: 0,
+      draft_autosave_seconds: 0,
+      search_max_chars: 500,
     },
   };
 }
 
 const CALENDARS: WorkbenchCalendar[] = [
-  { id: 'primary', name: 'Work', color: '#7c3aed', primary: true, writable: true },
-  { id: 'family', name: 'Family', color: '#16a34a', primary: false, writable: true },
+  {
+    id: 'primary',
+    name: 'Work',
+    color: '#7c3aed',
+    primary: true,
+    default: false,
+    writable: true,
+    manageable: false,
+  },
+  {
+    id: 'family',
+    name: 'Family',
+    color: '#16a34a',
+    primary: false,
+    default: false,
+    writable: true,
+    manageable: true,
+  },
 ];
 
 function event(id: string, overrides: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -112,14 +160,19 @@ function event(id: string, overrides: Partial<CalendarEvent> = {}): CalendarEven
 }
 
 const DETAIL: CalendarEventDetail = {
-  ...event('e1', { summary: 'Budget review', location: 'Atlas room' }),
-  description: 'Numbers first.',
+  ...event('e1', { summary: 'Budget review', location: 'https://meet.example.org/atlas' }),
+  description: 'Numbers first, on https://docs.example.org/budget.',
   attendees: [
     { email: 'ana@example.org', name: 'Ana', response: 'accepted' },
     { email: 'theo@example.org', name: 'Théo', response: 'declined' },
   ],
   organizer: 'ana@example.org',
   link: null,
+  reminder_minutes: null,
+  busy: true,
+  private: false,
+  zone: null,
+  my_response: null,
 };
 
 let features: WorkbenchFeature[];
@@ -129,6 +182,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   media.wide = true;
+  media.phone = false;
   nav.search = 'day=2026-11-04&view=week';
   features = GOOGLE;
   windowAnswer = {
@@ -200,6 +254,22 @@ describe('CalendarTool — the week', () => {
     expect(screen.getByText('workbench.calendar.zone_note')).toBeInTheDocument();
   });
 
+  it('re-reads what it shows when the person asks', async () => {
+    const { user } = screenOf();
+    await screen.findByRole('button', { name: 'workbench.states.refresh' });
+    await screen.findByRole('grid');
+    api.get.mockClear();
+
+    await user.click(screen.getByRole('button', { name: 'workbench.states.refresh' }));
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/workbench/calendar/calendars', expect.anything())
+    );
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/workbench/calendar/events', expect.anything())
+    );
+  });
+
   it('draws an all-day event in the all-day row, in its calendar’s colour', async () => {
     screenOf();
 
@@ -262,6 +332,48 @@ describe('CalendarTool — the week', () => {
   });
 });
 
+describe('CalendarTool — where a new event goes', () => {
+  async function chosenCalendar(calendars: WorkbenchCalendar[]): Promise<string> {
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/calendars'
+        ? Promise.resolve({ calendars })
+        : read?.(path, options)
+    );
+    const { user } = screenOf();
+
+    const [newEvent] = await screen.findAllByRole('button', {
+      name: 'workbench.calendar.new_event',
+    });
+    await user.click(newEvent!);
+
+    const field = await screen.findByRole('combobox', {
+      name: 'workbench.calendar.editor.calendar',
+    });
+    return (field as HTMLSelectElement).value;
+  }
+
+  it('is the calendar the settings chose', async () => {
+    const chosen = [CALENDARS[0]!, { ...CALENDARS[1]!, default: true }];
+
+    expect(await chosenCalendar(chosen)).toBe('family');
+  });
+
+  it('is the account’s own when the one chosen cannot be written', async () => {
+    const chosen = [
+      { ...CALENDARS[1]!, id: 'team' },
+      CALENDARS[0]!,
+      { ...CALENDARS[1]!, default: true, writable: false },
+    ];
+
+    expect(await chosenCalendar(chosen)).toBe('primary');
+  });
+
+  it('is the account’s own when none was chosen', async () => {
+    expect(await chosenCalendar(CALENDARS)).toBe('primary');
+  });
+});
+
 describe('CalendarTool — the month', () => {
   it('draws six weeks and steps a month at a time', async () => {
     nav.search = 'day=2026-11-04&view=month';
@@ -303,7 +415,12 @@ describe('CalendarTool — the open event', () => {
     const detail = await screen.findByRole('article', { name: 'Budget review' });
     expect(within(detail).getByText('workbench.calendar.organizer')).toBeInTheDocument();
     expect(within(detail).getByText('workbench.calendar.responses.declined')).toBeInTheDocument();
-    expect(within(detail).getByText('Atlas room')).toBeInTheDocument();
+    expect(
+      within(detail).getByRole('link', { name: 'https://meet.example.org/atlas' })
+    ).toHaveAttribute('href', 'https://meet.example.org/atlas');
+    expect(
+      within(detail).getByRole('link', { name: 'https://docs.example.org/budget' })
+    ).toHaveAttribute('href', 'https://docs.example.org/budget');
     expect(api.get).toHaveBeenCalledWith('/workbench/calendar/event', {
       params: { calendar_id: 'primary', event_id: 'e1' },
       signal: expect.any(AbortSignal),
@@ -325,6 +442,394 @@ describe('CalendarTool — the open event', () => {
     expect(
       screen.queryByRole('checkbox', { name: 'workbench.calendar.editor.notify' })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — moving an event', () => {
+  function opened(change: Partial<CalendarEventDetail> = {}) {
+    nav.search = 'day=2026-11-04&view=week&cal=primary&event=e1';
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/event'
+        ? Promise.resolve({ ...DETAIL, ...change })
+        : read?.(path, options)
+    );
+    return screenOf();
+  }
+
+  const menu = () => screen.findByRole('button', { name: 'workbench.calendar.move_to' });
+  const edited = () => screen.findByRole('button', { name: 'workbench.calendar.edit' });
+
+  it('sends the event to the calendar picked, closes it and says where it went', async () => {
+    api.post.mockResolvedValue(DETAIL);
+    const { user } = opened();
+
+    await user.click(await menu());
+    await user.click(await screen.findByRole('menuitem', { name: 'Family' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const [path, body] = api.post.mock.calls[0]!;
+    expect(path).toBe('/workbench/calendar/events/move');
+    expect(body).toEqual({ calendar_id: 'primary', event_id: 'e1', destination_id: 'family' });
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('workbench.calendar.moved_to'));
+    expect(String(nav.replace.mock.calls.at(-1)?.[0])).not.toContain('event=');
+  });
+
+  it('says an event left in both calendars, and reads the view again', async () => {
+    api.post.mockRejectedValue(
+      new ApiError('refused', 409, { detail: { code: 'event_left_behind' } })
+    );
+    const { user } = opened();
+
+    await user.click(await menu());
+    await user.click(await screen.findByRole('menuitem', { name: 'Family' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('workbench.errors.event_left_behind')
+    );
+    await waitFor(() => expect(windowCalls().length).toBeGreaterThan(1));
+  });
+
+  it('offers a whole series beside the occurrence, and opens on it', async () => {
+    const { user } = opened({ recurring: true });
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.calendar.edit_series' }));
+
+    expect(await screen.findByText('workbench.calendar.editor.title_series')).toBeInTheDocument();
+    expect(screen.getByText('workbench.calendar.editor.repeat')).toBeInTheDocument();
+  });
+
+  it('offers the whole series alone where one occurrence cannot change', async () => {
+    features = ['all_day', 'event_move', 'calendar_management'];
+    opened({ recurring: true });
+
+    await screen.findByRole('button', { name: 'workbench.calendar.edit_series' });
+    expect(screen.queryByRole('button', { name: 'workbench.calendar.edit' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'workbench.calendar.delete' })).toBeInTheDocument();
+  });
+
+  it('sends the deletion of a whole series as one', async () => {
+    api.delete.mockResolvedValue(undefined);
+    const { user } = opened({ recurring: true });
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.calendar.delete' }));
+    await user.click(await screen.findByRole('radio', { name: 'workbench.calendar.delete_whole' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'workbench.calendar.delete' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalled());
+    expect(api.delete.mock.calls[0][1].params).toMatchObject({ scope: 'series' });
+  });
+
+  it('offers no series on an event that is none', async () => {
+    opened({ recurring: false });
+
+    await edited();
+
+    expect(screen.queryByRole('button', { name: 'workbench.calendar.edit_series' })).toBeNull();
+  });
+
+  it('offers no move of a series', async () => {
+    opened({ recurring: true });
+
+    await edited();
+
+    expect(
+      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no move of an invitation: the event is the organiser’s', async () => {
+    opened({ my_response: 'accepted' });
+
+    await edited();
+
+    expect(
+      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('moves an event with guests only where the provider moves rather than copies', async () => {
+    const guests = [{ email: 'ana@example.org', name: null, response: 'accepted' as const }];
+    const { unmount } = opened({ attendees: guests });
+    expect(await menu()).toBeInTheDocument();
+    unmount();
+
+    features = GRAPH;
+    opened({ attendees: guests });
+
+    await edited();
+    expect(
+      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no move where nothing else can be written', async () => {
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/calendars'
+        ? Promise.resolve({
+            calendars: [CALENDARS[0], { ...CALENDARS[1], writable: false }],
+          })
+        : read?.(path, options)
+    );
+    opened();
+
+    await edited();
+
+    expect(
+      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — managing calendars', () => {
+  const manage = () => screen.findByRole('button', { name: 'workbench.calendar.manage_calendars' });
+
+  it('lists the person’s own calendars and nothing the provider keeps', async () => {
+    const { user } = screenOf();
+
+    await user.click(await manage());
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Family')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Work')).not.toBeInTheDocument();
+  });
+
+  it('creates a calendar once and reads the calendars again', async () => {
+    api.post.mockResolvedValue(CALENDARS[1]);
+    const { user } = screenOf();
+    await user.click(await manage());
+    const before = api.get.mock.calls.filter(
+      ([path]) => path === '/workbench/calendar/calendars'
+    ).length;
+
+    await user.type(await screen.findByLabelText('workbench.calendar.manager.new'), '  Trips  ');
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.manager.create' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const [path, body] = api.post.mock.calls[0]!;
+    expect(path).toBe('/workbench/calendar/calendars');
+    expect(body).toMatchObject({ name: 'Trips', idempotency_key: expect.any(String) });
+    await waitFor(() =>
+      expect(
+        api.get.mock.calls.filter(([read]) => read === '/workbench/calendar/calendars').length
+      ).toBeGreaterThan(before)
+    );
+  });
+
+  it('deletes a calendar once confirmed, its name in the request', async () => {
+    api.delete.mockResolvedValue(undefined);
+    const { user } = screenOf();
+    await user.click(await manage());
+
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.calendar.manager.delete' })
+    );
+    await answerConfirmDialog(user);
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalled());
+    const [path, options] = api.delete.mock.calls[0]!;
+    expect(path).toBe('/workbench/calendar/calendars');
+    expect(options).toMatchObject({ params: { calendar_id: 'family' } });
+  });
+
+  it('says a refusal and keeps what was typed', async () => {
+    api.post.mockRejectedValue(new ApiError('refused', 409, { detail: { code: 'name_taken' } }));
+    const { user } = screenOf();
+    await user.click(await manage());
+
+    const field = await screen.findByLabelText('workbench.calendar.manager.new');
+    await user.type(field, 'Family');
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.manager.create' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('workbench.errors.name_taken'));
+    expect(field).toHaveValue('Family');
+  });
+
+  it('offers nothing where the provider does not', async () => {
+    features = ['all_day'];
+    screenOf();
+
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    expect(
+      screen.queryByRole('button', { name: 'workbench.calendar.manage_calendars' })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — the dated tasks', () => {
+  const DUE: DueTasks = {
+    tasks: [{ id: 't1', list_id: 'home', title: 'Pay rent', due: '2026-11-04' }],
+    truncated: false,
+    failed: [],
+  };
+
+  function withTasks(due: DueTasks | Error = DUE) {
+    const answer = rail(features);
+    answer.tools.push({
+      tool: 'tasks',
+      state: 'ready',
+      provider: 'google_tasks',
+      features: [],
+      bounds: {},
+    });
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) => {
+      if (path === '/workbench') return Promise.resolve(answer);
+      if (path === '/workbench/tasks/due') {
+        return due instanceof Error ? Promise.reject(due) : Promise.resolve(due);
+      }
+      return read?.(path, options);
+    });
+    return screenOf();
+  }
+
+  const dueCalls = () => api.get.mock.calls.filter(([path]) => path === '/workbench/tasks/due');
+
+  it('draws a task on its day, a link into the tasks', async () => {
+    withTasks();
+
+    const task = await screen.findByRole('link', { name: /workbench.calendar.due_task/ });
+
+    expect(task).toHaveAttribute('href', '/en/dashboard/tools/tasks?list=home&task=t1');
+    const asked = dueCalls().at(-1)?.[1] as { params: Record<string, unknown> };
+    expect(asked.params).toEqual({ start: '2026-11-01', end: '2026-11-07' });
+  });
+
+  it('asks nothing where the account has no tasks to draw', async () => {
+    screenOf();
+
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    expect(dueCalls()).toHaveLength(0);
+    expect(screen.queryByText('workbench.calendar.due_tasks_layer')).not.toBeInTheDocument();
+  });
+
+  it('hides the tasks on this device, and reads them no more', async () => {
+    const { user } = withTasks();
+    await screen.findByRole('link', { name: /workbench.calendar.due_task/ });
+
+    await user.click(screen.getByRole('checkbox', { name: /due_tasks_layer/ }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('link', { name: /workbench.calendar.due_task/ })
+      ).not.toBeInTheDocument()
+    );
+    expect(window.localStorage.length).toBeGreaterThan(0);
+  });
+
+  it('says tasks could not be read, the events still drawn', async () => {
+    withTasks(new Error('down'));
+
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    expect(await screen.findByText('workbench.calendar.due_tasks_failed')).toBeInTheDocument();
+  });
+
+  it('says a list could not be read, and a cut', async () => {
+    withTasks({ ...DUE, failed: ['home'], truncated: true });
+
+    await screen.findByRole('link', { name: /workbench.calendar.due_task/ });
+
+    expect(await screen.findByText('workbench.calendar.due_tasks_failed')).toBeInTheDocument();
+    expect(screen.getByText('workbench.calendar.due_tasks_truncated')).toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — an event’s own zone', () => {
+  function setIn(zone: string | null) {
+    nav.search = 'day=2026-11-04&view=week&cal=primary&event=e1';
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/event'
+        ? Promise.resolve({ ...DETAIL, zone })
+        : read?.(path, options)
+    );
+    return screenOf();
+  }
+
+  it('says its time where it was set', async () => {
+    setIn('America/New_York');
+
+    expect(await screen.findByText('workbench.calendar.in_its_zone')).toBeInTheDocument();
+  });
+
+  it('says nothing of a zone this browser does not know, and still opens', async () => {
+    setIn('Mars/Olympus_Mons');
+
+    await screen.findByRole('button', { name: 'workbench.calendar.edit' });
+
+    expect(screen.queryByText('workbench.calendar.in_its_zone')).not.toBeInTheDocument();
+  });
+
+  it('says nothing of a zone that is the account’s, or of none', async () => {
+    const { unmount } = setIn('Europe/Paris');
+    await screen.findByRole('button', { name: 'workbench.calendar.edit' });
+    expect(screen.queryByText('workbench.calendar.in_its_zone')).not.toBeInTheDocument();
+    unmount();
+
+    setIn(null);
+    await screen.findByRole('button', { name: 'workbench.calendar.edit' });
+    expect(screen.queryByText('workbench.calendar.in_its_zone')).not.toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — an invitation', () => {
+  function invited(answer: CalendarEventDetail['my_response']) {
+    nav.search = 'day=2026-11-04&view=week&cal=primary&event=e1';
+    const read = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/event'
+        ? Promise.resolve({ ...DETAIL, my_response: answer })
+        : read?.(path, options)
+    );
+    return screenOf();
+  }
+
+  it('asks for the person’s answer, the current one stated', async () => {
+    invited('tentative');
+
+    const maybe = await screen.findByRole('button', {
+      name: 'workbench.calendar.answer_tentative',
+    });
+
+    expect(maybe).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', { name: 'workbench.calendar.answer_accept' })
+    ).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('sends the answer, and asks nothing of an event with nothing to answer', async () => {
+    api.post.mockResolvedValue(undefined);
+    const { user, unmount } = invited('needsAction');
+
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.calendar.answer_accept' })
+    );
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const [path, body] = api.post.mock.calls[0]!;
+    expect(path).toBe('/workbench/calendar/events/answer');
+    expect(body).toEqual({ calendar_id: 'primary', event_id: 'e1', response: 'accepted' });
+    unmount();
+
+    invited(null);
+    await screen.findByRole('article');
+
+    expect(screen.queryByRole('button', { name: 'workbench.calendar.answer_accept' })).toBeNull();
+  });
+
+  it('sends no answer the person already gave', async () => {
+    const { user } = invited('accepted');
+
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.calendar.answer_accept' })
+    );
+
+    expect(api.post).not.toHaveBeenCalled();
   });
 });
 
@@ -373,6 +878,315 @@ describe('CalendarTool — a new event', () => {
       timezone: 'Europe/Paris',
     });
     expect(body.idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe('CalendarTool — a click on a slot', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** A slot of the grid: a pointer's shortcut to « New event », which stays the keyboard's way. */
+  function slot(container: HTMLElement, name: string): HTMLElement {
+    const found = container.querySelector<HTMLElement>(`[data-slot="${name}"]`);
+    if (!found) throw new Error(`no slot ${name}`);
+    return found;
+  }
+
+  it('opens a new event at that hour on that day', async () => {
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    const cell = slot(container, '2026-11-03T14');
+    cell.getBoundingClientRect = () => ({ top: 100, height: 48 }) as DOMRect;
+    fireEvent.click(cell, { clientY: 110, detail: 1 });
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.start_time')).toHaveValue(
+      '14:00'
+    );
+    expect(screen.getByLabelText('workbench.calendar.editor.end_time')).toHaveValue('15:00');
+    expect(screen.getByLabelText('workbench.calendar.editor.start')).toHaveValue('2026-11-03');
+  });
+
+  it('reads the lower half of the hour as half past', async () => {
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+    const cell = slot(container, '2026-11-03T14');
+    cell.getBoundingClientRect = () => ({ top: 100, height: 48 }) as DOMRect;
+
+    fireEvent.click(cell, { clientY: 130, detail: 1 });
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.start_time')).toHaveValue(
+      '14:30'
+    );
+  });
+
+  it('opens an all-day event from the all-day row', async () => {
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    fireEvent.click(slot(container, '2026-11-05'));
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.first_day')).toHaveValue(
+      '2026-11-05'
+    );
+    expect(screen.getByLabelText('workbench.calendar.editor.last_day')).toHaveValue('2026-11-05');
+  });
+
+  it('opens a new event from an empty part of a month day', async () => {
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
+    nav.search = 'day=2026-11-04&view=month';
+    const { container } = screenOf();
+    await screen.findByRole('grid', { name: 'workbench.calendar.views.month' });
+
+    fireEvent.click(slot(container, '2026-11-20'));
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.start')).toHaveValue(
+      '2026-11-20'
+    );
+    expect(screen.getByLabelText('workbench.calendar.editor.start_time')).toHaveValue('09:00');
+  });
+
+  it('offers no slot where no calendar can be written', async () => {
+    api.get.mockImplementation((path: string) => {
+      if (path === '/workbench') return Promise.resolve(rail(features));
+      if (path === '/workbench/calendar/calendars') {
+        return Promise.resolve({
+          calendars: CALENDARS.map(calendar => ({ ...calendar, writable: false })),
+        });
+      }
+      if (path === '/workbench/calendar/events') return Promise.resolve(windowAnswer);
+      return Promise.resolve({});
+    });
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    expect(container.querySelector('[data-slot]')).toBeNull();
+  });
+});
+
+describe('CalendarTool — the day', () => {
+  it('reads one day and steps a day at a time', async () => {
+    nav.search = 'day=2026-11-02&view=day';
+    const { user } = screenOf();
+
+    expect(await screen.findByRole('link', { name: /Budget review/ })).toBeInTheDocument();
+    expect(windowCalls().at(-1)).toMatchObject({ start: '2026-11-02', end: '2026-11-02' });
+
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.next_day' }));
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=day&day=2026-11-03',
+      { scroll: false }
+    );
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.previous_day' }));
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=day&day=2026-11-01',
+      { scroll: false }
+    );
+  });
+
+  it('is offered with the other views', async () => {
+    screenOf();
+
+    expect(
+      await screen.findByRole('button', { name: 'workbench.calendar.views.day' })
+    ).toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — the now line', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('marks the time on today’s column, at the account’s wall', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-04T09:30:00Z'));
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    const line = container.querySelector<HTMLElement>('[data-now-line]');
+    // 10:30 in Paris: ten and a half hours of 48 px.
+    expect(line?.style.top).toBe('504px');
+    expect(container.querySelectorAll('[data-now-line]')).toHaveLength(1);
+  });
+
+  it('draws none on a week that does not hold today', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-20T09:30:00Z'));
+    const { container } = screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    expect(container.querySelector('[data-now-line]')).toBeNull();
+  });
+});
+
+describe('CalendarTool — the agenda', () => {
+  it('reads thirty days from the day shown, and steps by as much', async () => {
+    nav.search = 'day=2026-11-02&view=agenda';
+    const { user } = screenOf();
+
+    expect(await screen.findByRole('link', { name: /Budget review/ })).toBeInTheDocument();
+    expect(windowCalls().at(-1)).toMatchObject({ start: '2026-11-02', end: '2026-12-01' });
+
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.later_days' }));
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=agenda&day=2026-12-02',
+      { scroll: false }
+    );
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.earlier_days' }));
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=agenda&day=2026-10-03',
+      { scroll: false }
+    );
+  });
+});
+
+describe('CalendarTool — what a chip says', () => {
+  const inPrimary = (...events: CalendarEvent[]): CalendarEventsWindow => ({
+    calendars: [{ calendar_id: 'primary', events, truncated: false, skipped: 0, error: null }],
+  });
+
+  it('joins the call from the chip, in a tab of its own', async () => {
+    windowAnswer = inPrimary(
+      event('c1', { summary: 'Standup', conference_url: 'https://meet.google.com/abc-defg-hij' })
+    );
+    screenOf();
+
+    const join = await screen.findByRole('link', { name: /workbench.calendar.join_call/ });
+    expect(join).toHaveAttribute('href', 'https://meet.google.com/abc-defg-hij');
+    expect(join).toHaveAttribute('target', '_blank');
+    expect(join).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('offers no call an address it would not follow', async () => {
+    windowAnswer = inPrimary(
+      event('c2', { summary: 'Trap', conference_url: 'javascript:alert(1)' })
+    );
+    screenOf();
+    await screen.findByRole('link', { name: /Trap/ });
+
+    expect(screen.queryByRole('link', { name: /workbench.calendar.join_call/ })).toBeNull();
+  });
+
+  it('says an occurrence belongs to a series', async () => {
+    windowAnswer = inPrimary(event('s1', { summary: 'Weekly', recurring: true }));
+    screenOf();
+
+    const chip = await screen.findByRole('link', { name: /Weekly/ });
+    expect(within(chip).getByText('workbench.calendar.series')).toBeInTheDocument();
+  });
+});
+
+describe('CalendarTool — duplicating an event', () => {
+  it('opens a new event holding what the event says, under a key of its own', async () => {
+    nav.search = 'day=2026-11-02&view=week&cal=primary&event=e1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.calendar.duplicate' }));
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.summary')).toHaveValue(
+      'Budget review'
+    );
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.editor.create' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    const [, body] = api.post.mock.calls[0];
+    expect(body).toMatchObject({
+      calendar_id: 'primary',
+      summary: 'Budget review',
+      attendees: ['ana@example.org', 'theo@example.org'],
+    });
+  });
+
+  it('is offered on a calendar that cannot be written, into one that can', async () => {
+    api.get.mockImplementation((path: string) => {
+      if (path === '/workbench') return Promise.resolve(rail(features));
+      if (path === '/workbench/calendar/calendars') {
+        return Promise.resolve({
+          calendars: [{ ...CALENDARS[0], writable: false }, CALENDARS[1]],
+        });
+      }
+      if (path === '/workbench/calendar/events') return Promise.resolve(windowAnswer);
+      if (path === '/workbench/calendar/event') return Promise.resolve(DETAIL);
+      return Promise.resolve({});
+    });
+    nav.search = 'day=2026-11-02&view=week&cal=primary&event=e1';
+    const { user } = screenOf();
+
+    expect(await screen.findByText('Budget review', { selector: 'h2' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'workbench.calendar.edit' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.duplicate' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.calendar.editor.create' })
+    );
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1]).toMatchObject({ calendar_id: 'family' });
+  });
+});
+
+describe('CalendarTool — the month on a phone', () => {
+  it('shows the days in reach of a thumb and the picked day’s events below', async () => {
+    media.phone = true;
+    media.wide = false;
+    nav.search = 'day=2026-11-02&view=month';
+    const { user } = screenOf();
+
+    // The name says what the day holds; the small month, hidden on a phone, only its date.
+    const day = await screen.findByRole('button', { name: /^Monday, November 2, / });
+    expect(day).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByRole('link', { name: /Budget review/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Tuesday, November 10, / }));
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=month&day=2026-11-10',
+      { scroll: false }
+    );
+  });
+});
+
+describe('CalendarTool — its keys', () => {
+  const press = (key: string) => fireEvent.keyDown(window, { key });
+
+  it('opens a new event on « n »', async () => {
+    screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    press('n');
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.summary')).toBeInTheDocument();
+  });
+
+  it('changes the view on its first letter', async () => {
+    screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    press('m');
+
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=month&day=2026-11-04',
+      { scroll: false }
+    );
+  });
+
+  it('moves as far as the view reaches', async () => {
+    screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
+
+    press('j');
+
+    expect(nav.replace).toHaveBeenLastCalledWith(
+      '/en/dashboard/tools/calendar?view=week&day=2026-11-11',
+      { scroll: false }
+    );
+  });
+});
+
+describe('CalendarTool — what another tool hands it', () => {
+  it('opens a new event holding what it was given', async () => {
+    handOff({ kind: 'event', summary: 'Budget', description: 'From a message' });
+    screenOf();
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.summary')).toHaveValue('Budget');
+    expect(screen.getByLabelText('workbench.calendar.editor.description')).toHaveValue(
+      'From a message'
+    );
   });
 });
 

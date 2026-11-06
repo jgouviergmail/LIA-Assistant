@@ -22,9 +22,15 @@ from httpx import ASGITransport, AsyncClient
 
 from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import get_current_active_session_for_stream
-from src.domains.workbench import calendar_service
+from src.domains.workbench import calendar_management, calendar_service
 from src.domains.workbench import router as router_module
-from src.domains.workbench.schemas.calendar import CalendarList, EventDetail, EventsWindow
+from src.domains.workbench.schemas.calendar import (
+    CalendarInfo,
+    CalendarList,
+    EventDetail,
+    EventSearch,
+    EventsWindow,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -43,14 +49,36 @@ _DETAIL = EventDetail(
     attendees=[],
     organizer=None,
     link=None,
+    reminder_minutes=None,
+    busy=True,
+    private=False,
+    zone=None,
+    my_response=None,
 )
 _SERVICES: dict[str, Any] = {
     "list_calendars": CalendarList(calendars=[]),
     "read_window": EventsWindow(calendars=[]),
     "read_event": _DETAIL,
+    "answer_event": None,
+    "search_events": EventSearch(events=[], truncated=False, failed=[]),
     "create_event": _DETAIL,
     "update_event": _DETAIL,
     "delete_event": None,
+}
+_CALENDAR = CalendarInfo(
+    id="c1",
+    name="Trips",
+    color=None,
+    primary=False,
+    default=False,
+    writable=True,
+    manageable=True,
+)
+_ACTS: dict[str, Any] = {
+    "move_event": _DETAIL,
+    "create_calendar": _CALENDAR,
+    "rename_calendar": _CALENDAR,
+    "delete_calendar": None,
 }
 
 
@@ -73,9 +101,13 @@ async def http(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[AsyncClie
     user = SimpleNamespace(id=uuid4(), timezone="Europe/Paris")
     app.dependency_overrides[get_current_active_session_for_stream] = lambda: user
     services = {name: AsyncMock(return_value=value) for name, value in _SERVICES.items()}
-    with patch.multiple(calendar_service, **services):
+    acts = {name: AsyncMock(return_value=value) for name, value in _ACTS.items()}
+    with (
+        patch.multiple(calendar_service, **services),
+        patch.multiple(calendar_management, **acts),
+    ):
         async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
-            yield client, SimpleNamespace(limiter=limiter, user=user, **services)
+            yield client, SimpleNamespace(limiter=limiter, user=user, **services, **acts)
 
 
 _NEW_ALL_DAY = {
@@ -88,6 +120,38 @@ _NEW_ALL_DAY = {
 }
 _ROUTES = [
     ("GET", "/workbench/calendar/calendars", None, "list_calendars", 200, "workbench_read"),
+    (
+        "POST",
+        "/workbench/calendar/events/move",
+        {"calendar_id": "a", "event_id": "e1", "destination_id": "b"},
+        "move_event",
+        200,
+        "workbench_write",
+    ),
+    (
+        "POST",
+        "/workbench/calendar/calendars",
+        {"name": "Trips", "idempotency_key": _KEY},
+        "create_calendar",
+        201,
+        "workbench_write",
+    ),
+    (
+        "PATCH",
+        "/workbench/calendar/calendars",
+        {"calendar_id": "c1", "name": "Sport"},
+        "rename_calendar",
+        200,
+        "workbench_write",
+    ),
+    (
+        "DELETE",
+        "/workbench/calendar/calendars?calendar_id=c1",
+        None,
+        "delete_calendar",
+        204,
+        "workbench_write",
+    ),
     (
         "GET",
         "/workbench/calendar/events?calendar_ids=primary&calendar_ids=c2&start=2026-11-02&end=2026-11-08",
@@ -104,7 +168,23 @@ _ROUTES = [
         200,
         "workbench_read",
     ),
+    (
+        "GET",
+        "/workbench/calendar/search?q=budget&calendar_ids=primary",
+        None,
+        "search_events",
+        200,
+        "workbench_read",
+    ),
     ("POST", "/workbench/calendar/events", _NEW_ALL_DAY, "create_event", 201, "workbench_write"),
+    (
+        "POST",
+        "/workbench/calendar/events/answer",
+        {"calendar_id": "c1", "event_id": "e1", "response": "accepted"},
+        "answer_event",
+        204,
+        "workbench_write",
+    ),
     (
         "PATCH",
         "/workbench/calendar/events",
@@ -144,6 +224,28 @@ async def test_each_route_reaches_its_service_under_its_window(
     assert called.await_args.args[0] == seams.user.id
     keys = [call.kwargs["key"] for call in seams.limiter.acquire.await_args_list]
     assert [key.split(":")[1] for key in keys] == [window]
+
+
+async def test_a_calendar_is_created_in_the_account_s_zone(http: Any) -> None:
+    client, seams = http
+
+    await client.post(
+        "/workbench/calendar/calendars", json={"name": "Trips", "idempotency_key": _KEY}
+    )
+
+    assert seams.create_calendar.await_args.args[1] == ZoneInfo("Europe/Paris")
+
+
+async def test_an_event_does_not_move_onto_its_own_calendar(http: Any) -> None:
+    client, seams = http
+
+    response = await client.post(
+        "/workbench/calendar/events/move",
+        json={"calendar_id": "a", "event_id": "e1", "destination_id": "a"},
+    )
+
+    assert response.status_code == 422
+    seams.move_event.assert_not_awaited()
 
 
 async def test_a_window_is_read_in_the_account_s_zone_for_every_calendar(http: Any) -> None:
@@ -186,6 +288,7 @@ async def test_a_deletion_carries_the_attendees_choice(http: Any) -> None:
         "calendar_id": "primary",
         "event_id": "e1",
         "notify": False,
+        "scope": "occurrence",
     }
 
 

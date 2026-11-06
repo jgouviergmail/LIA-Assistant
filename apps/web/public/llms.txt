@@ -8,18 +8,19 @@
 
 ## Key Features
 
-- **21+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 327 integrated tools
+- **21+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, health metrics, browser automation, smart home (Philips Hue), and more — 338 integrated tools
 - **7 LLM providers**: OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama (local models) — per-node model selection, cost comparison, no vendor lock-in
 - **Two execution modes**: a deterministic Pipeline (plan → validate → approve → parallel execution, 4–8× fewer tokens) and an autonomous ReAct loop — user-switchable per conversation
-- **Human-in-the-Loop (HITL)**: 6 approval levels ensuring no sensitive action happens without user consent; pending approvals survive restarts
+- **Human-in-the-Loop (HITL)**: approval flows ensuring no sensitive action happens without user consent; pending approvals survive restarts
 - **Today briefing**: personalized home dashboard — synthesis, weather, agenda, birthdays, reminders, health, unread emails
 - **Psyche Engine**: dynamic emotional state — 14 moods, 22 emotions, Big Five personality traits, a relationship that deepens over time ("show, don't tell")
 - **Personal journals**: stratified introspection (observations → directives → patterns → portrait) with deferred self-evaluation and a compiled user-model portrait
-- **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, Drive) — one active provider per category, interchangeable
+- **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, files on Google Drive or OneDrive) — one active provider per category, interchangeable
+- **Tools workspace**: mail, calendar, tasks, contacts, files and Hue lights used directly on every provider, with no model call and no assistant-register entry
 - **Voice mode**: the wake word is detected 100% locally in the browser (a trained ONNX model per interface language) and speech is transcribed on your own server (sherpa-onnx offline Whisper, 99+ languages); TTS via Edge (free), OpenAI, ElevenLabs, Gemini or Fish Audio; live voice sessions on your own provider key
-- **Knowledge Spaces (RAG)**: upload documents in 15+ formats or sync Google Drive folders — hybrid semantic + keyword search with per-query cost transparency
+- **Knowledge Spaces (RAG)**: upload documents in 15+ formats or sync Google Drive or OneDrive folders — hybrid semantic + keyword search with per-query cost transparency
 - **AI image generation & editing**: text-to-image and photo editing with cost tracking
-- **Interactive outputs**: MCP Apps widgets, Excalidraw diagram generation, rich skills rendering maps/dashboards/mini-apps in chat, LaTeX math rendering
+- **Interactive outputs**: MCP Apps widgets, Excalidraw diagram generation, rich skills rendering maps/dashboards/mini-apps in chat, games, quizzes and calculators LIA writes and runs in a sandboxed frame, LaTeX math rendering
 - **Browser automation**: autonomous web navigation via Playwright with progressive screenshot streaming
 - **Extensible via MCP**: per-user MCP servers (OAuth 2.1, SSRF protection) with an iterative ReAct mode for complex APIs
 - **Skills system (agentskills.io)**: create custom expert skills in natural language, import from the marketplace, rich HTML/image outputs
@@ -35,13 +36,13 @@
 
 ## Architecture
 
-- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (58 bounded contexts)
+- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (61 bounded contexts)
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
 - **Observability**: 658 Prometheus metrics, 33 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 69,000+ automated tests, 367 Architecture Decision Records, 293 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
+- **Engineering**: 76,000+ automated tests, 368 Architecture Decision Records, 294 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works

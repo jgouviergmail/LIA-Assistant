@@ -47,6 +47,7 @@ from src.domains.journals.consolidation_lifecycle import (
     ConsolidationAttempt,
     ConsolidationSnapshot,
     claim_consolidation,
+    consolidation_bound_seconds,
     current_snapshot,
     finish_attempt,
 )
@@ -780,7 +781,7 @@ async def consolidate_journals_for_user(
 ) -> int:
     """Run bounded maintenance behind the same account lease for every caller."""
     try:
-        async with asyncio.timeout(settings.journal_consolidation_timeout_seconds):
+        async with asyncio.timeout(consolidation_bound_seconds()):
             return await _run_consolidation(
                 user_id,
                 personality_instruction,

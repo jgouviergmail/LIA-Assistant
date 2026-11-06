@@ -226,3 +226,9 @@ def test_avatar_socket_credentials_are_masked_at_the_api_and_collector(parameter
     )
     assert value not in collected
     assert collected == sanitize_url_query(line)
+
+
+def test_the_name_of_a_mail_attachment_never_leaves_in_a_url() -> None:
+    line = "GET /api/v1/workbench/mail/attachment/preview?message_id=m1&filename=bilan-sante.pdf"
+
+    assert "bilan-sante" not in sanitize_url_query(line, redact_content=True)

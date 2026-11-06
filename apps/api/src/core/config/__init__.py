@@ -405,6 +405,7 @@ class Settings(
             largest_upload_mb * 1024 * 1024,
             FISHAUDIO_CLONE_TOTAL_MAX_BYTES,
             self.meetings_import_chunk_max_bytes,
+            self.workbench_upload_max_bytes,
         )
         required = largest_upload + MULTIPART_ENVELOPE_OVERHEAD_BYTES
         if self.max_request_body_bytes < required:

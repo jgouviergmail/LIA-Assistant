@@ -88,7 +88,7 @@ async def test_native_drive_completion_agrees_with_persisted_document_results(
     monkeypatch.setattr(
         drive_sync, "DetachedConnectorService", lambda: FakeDetachedConnectors(connector)
     )
-    monkeypatch.setattr(drive_sync, "GoogleDriveClient", lambda *args: client)
+    monkeypatch.setattr(drive_sync, "drive_client_of", lambda *args: client)
     monkeypatch.setattr(
         drive_sync,
         "walk_drive_tree",

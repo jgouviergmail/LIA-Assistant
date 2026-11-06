@@ -11,6 +11,7 @@ explanation derives from these typed classifications only (ADR-182/184).
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Mapping
 from typing import Any
 
@@ -185,11 +186,42 @@ def count_failed_steps(completed_steps: dict[str, Any] | None) -> int:
     return len(failed_step_codes(completed_steps))
 
 
+def _recovered_failures(messages: list[BaseMessage]) -> set[int]:
+    """The failed calls a later call of the same tool answered, by object id.
+
+    The response model never reads a tool's result, so a failure listed here is
+    all it knows of that tool: measured 2026-11-05, it wrote « no page was
+    produced » beside the page the retry had just shown. Each success answers ONE
+    failure, the nearest before it: two failures and one success stay one failure.
+
+    Args:
+        messages: The conversation messages of the run.
+
+    Returns:
+        ``id()`` of every recovered failure.
+    """
+    answers: Counter[str] = Counter()
+    recovered: set[int] = set()
+    for message in reversed(messages):
+        name = str(getattr(message, "name", "") or "")
+        if not isinstance(message, ToolMessage) or not name:
+            continue
+        if _tool_message_failure(message) is None:
+            answers[name] += 1
+        elif answers[name] > 0:
+            answers[name] -= 1
+            recovered.add(id(message))
+    return recovered
+
+
 def extract_failures_from_tool_messages(
     messages: list[BaseMessage],
     limit: int | None = MAX_FAILURES,
 ) -> list[dict[str, str]]:
     """Typed failures from the ReAct loop's ToolMessages.
+
+    A turn is judged on its result (ADR-310): a call that failed and worked on
+    retry is left out, see :func:`_recovered_failures`.
 
     Args:
         messages: The conversation messages of the run.
@@ -198,10 +230,11 @@ def extract_failures_from_tool_messages(
         At most MAX_FAILURES entries: {source, tool, error_code, message}.
     """
     failures: list[dict[str, str]] = []
+    recovered = _recovered_failures(messages)
     for message in messages:
         if limit is not None and len(failures) >= limit:
             break
-        if not isinstance(message, ToolMessage):
+        if not isinstance(message, ToolMessage) or id(message) in recovered:
             continue
         verdict = _tool_message_failure(message)
         if verdict is None:

@@ -74,6 +74,7 @@ AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
 # NOTE: AGENT_DOCUMENT below (ADR-141) is the RAG-spaces reader agent — the
 # document GENERATOR (ADR-226) deliberately carries the full suffix.
 AGENT_DOCUMENT_GENERATION = "document_generation_agent"  # AI document generation (ADR-226)
+AGENT_INTERACTIVE_PAGE = "interactive_page_agent"  # Interactive pages (ADR-370)
 AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
 AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140)
 AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)
@@ -229,6 +230,7 @@ CONTEXT_DOMAIN_WEB_FETCH = "web_fetchs"  # domain + "s" pattern (evolution F1)
 CONTEXT_DOMAIN_MCP = "mcps"  # domain + "s" pattern (evolution F2)
 CONTEXT_DOMAIN_MCP_APPS = "mcp_apps"  # MCP Apps interactive widgets (evolution F2.5)
 CONTEXT_DOMAIN_SKILL_APPS = "skill_apps"  # Skill rich outputs (frame/image widgets)
+CONTEXT_DOMAIN_PAGE_APPS = "page_apps"  # Interactive pages the model wrote (ADR-370)
 CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
 CONTEXT_DOMAIN_REMINDERS = "reminders"  # Personal push notification reminders
@@ -751,6 +753,7 @@ __all__ = [
     "CONTEXT_DOMAIN_MCP",
     "CONTEXT_DOMAIN_MCP_APPS",
     "CONTEXT_DOMAIN_SKILL_APPS",
+    "CONTEXT_DOMAIN_PAGE_APPS",
     "CONTEXT_DOMAIN_BROWSERS",
     "CONTEXT_DOMAIN_HUE",
     "WEB_SEARCH_SOURCE_PERPLEXITY",

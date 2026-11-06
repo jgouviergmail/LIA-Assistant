@@ -154,6 +154,16 @@ def _summarize_event_delete(content: dict[str, Any], format_dt: _FormatDt) -> _S
     return "event_delete", {"summary": (content.get("event") or {}).get("summary", _UNKNOWN)}
 
 
+def _summarize_event_answer(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """An invitation about to be answered."""
+    return "event_answer", {"summary": _text(content, "summary")}
+
+
+def _summarize_file_share(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A file about to be shared."""
+    return "file_share", {"name": _text(content, "name"), "email": _text(content, "email")}
+
+
 def _summarize_contact(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
     """A contact about to be created."""
     return "contact_create", {"name": _text(content, "name")}
@@ -240,15 +250,21 @@ def _summarize_vacation_responder(content: dict[str, Any], format_dt: _FormatDt)
     return "vacation_responder_on", {"subject": _text(content, "subject")}
 
 
-def _summarize_email_filter(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
-    """A Gmail filter about to be created.
-
-    Named by what it MATCHES: a filter's identity for its author is the mail it
-    catches, and the criteria are the one field it always carries.
-    """
+def _filter_matched(content: dict[str, Any]) -> str:
+    """What names a filter: the mail it catches, the one field it always carries."""
     criteria = content.get("criteria") or {}
-    matched = criteria.get("from") or criteria.get("subject") or criteria.get("query") or _UNKNOWN
-    return "email_filter", {"criteria": str(matched)}
+    named = (criteria.get(key) for key in ("from", "to", "subject", "query"))
+    return str(next((value for value in named if value), _UNKNOWN))
+
+
+def _summarize_email_filter(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A Gmail filter about to be created."""
+    return "email_filter", {"criteria": _filter_matched(content)}
+
+
+def _summarize_email_filter_delete(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A Gmail filter about to be deleted."""
+    return "email_filter_delete", {"criteria": _filter_matched(content)}
 
 
 def _summarize_tool_call(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
@@ -281,6 +297,11 @@ def _summarize_document_append(content: dict[str, Any], format_dt: _FormatDt) ->
     return "document_append", {"file": _text(content, "document_title")}
 
 
+def _summarize_document_replace(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A text file about to be rewritten whole."""
+    return "document_replace", {"file": _text(content, "document_title")}
+
+
 def _summarize_ticket_delete(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
     """A workboard ticket about to be deleted."""
     return "ticket_delete", {"title": _text(content, "title")}
@@ -300,6 +321,8 @@ _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
     DraftType.EVENT: _summarize_event,
     DraftType.EVENT_UPDATE: _summarize_event_update,
     DraftType.EVENT_DELETE: _summarize_event_delete,
+    DraftType.EVENT_ANSWER: _summarize_event_answer,
+    DraftType.FILE_SHARE: _summarize_file_share,
     DraftType.CONTACT: _summarize_contact,
     DraftType.CONTACT_UPDATE: _summarize_contact_update,
     DraftType.CONTACT_DELETE: _summarize_contact_delete,
@@ -315,10 +338,12 @@ _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
     DraftType.PEER_MESSAGE: _summarize_peer_message,
     DraftType.VACATION_RESPONDER: _summarize_vacation_responder,
     DraftType.EMAIL_FILTER: _summarize_email_filter,
+    DraftType.EMAIL_FILTER_DELETE: _summarize_email_filter_delete,
     DraftType.TOOL_CALL: _summarize_tool_call,
     DraftType.SANDBOX_EGRESS: _summarize_sandbox_egress,
     DraftType.SPREADSHEET_WRITE: _summarize_spreadsheet_write,
     DraftType.DOCUMENT_APPEND: _summarize_document_append,
+    DraftType.DOCUMENT_REPLACE: _summarize_document_replace,
     DraftType.TICKET_DELETE: _summarize_ticket_delete,
 }
 

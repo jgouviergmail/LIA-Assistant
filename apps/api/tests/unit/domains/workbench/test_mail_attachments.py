@@ -10,6 +10,7 @@ travels with it; a name two parts share is a stale handle.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from typing import Any
@@ -22,6 +23,7 @@ from pydantic import ValidationError
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_WORKBENCH_DOWNLOAD_PREFIX
 from src.core.exceptions import BaseAPIException
+from src.domains.attachments.preview import DocumentPreview
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.clients.email_attachments import (
     EmailAttachmentAmbiguousError,
@@ -30,6 +32,12 @@ from src.domains.connectors.clients.email_attachments import (
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import downloads, mail_attachments
+from src.domains.workbench.errors import (
+    NOT_SUPPORTED_BY_PROVIDER,
+    PROVIDER_RATE_LIMITED,
+    TOO_LARGE,
+)
+from src.domains.workbench.mail_projection import attachments_of
 from src.domains.workbench.schemas.mail import AttachmentRequest
 from tests.unit.domains.workbench.fakes import FakeRedis
 
@@ -57,6 +65,13 @@ def _cache(redis: FakeRedis | Exception) -> Any:
         else AsyncMock(return_value=redis)
     )
     return patch.object(downloads, "get_redis_cache", cache)
+
+
+def _impatient(seconds: float) -> Any:
+    """A wait short enough for a test, its polling shorter still."""
+    return patch.multiple(
+        downloads, WORKBENCH_PREVIEW_WAIT_SECONDS=seconds, WORKBENCH_TRANSFER_POLL_SECONDS=0.01
+    )
 
 
 def _request() -> AttachmentRequest:
@@ -116,6 +131,170 @@ class TestTheDownload:
             await mail_attachments.download_attachment(USER, _request())
 
         assert refused.value.detail == {"code": "stale_handle"}
+
+
+class TestThePreview:
+    WORD = EmailAttachmentContent(
+        filename="note.txt", mime_type="application/octet-stream", data=b"Hello"
+    )
+
+    def _client(self, content: EmailAttachmentContent) -> MagicMock:
+        return MagicMock(download_attachment=AsyncMock(return_value=content))
+
+    async def test_it_reads_under_the_published_ceiling(self) -> None:
+        client = self._client(self.WORD)
+        request = AttachmentRequest(message_id="m1", attachment_id="a1", filename="note.txt")
+
+        with _door(client), _cache(FakeRedis()):
+            await mail_attachments.preview_attachment(USER, request)
+
+        client.download_attachment.assert_awaited_once_with(
+            "m1",
+            attachment_id="a1",
+            filename="note.txt",
+            max_bytes=settings.workbench_download_max_bytes,
+        )
+
+    async def test_what_it_is_comes_from_its_name_when_its_type_says_nothing(self) -> None:
+        request = AttachmentRequest(message_id="m1", filename="note.txt")
+
+        with _door(self._client(self.WORD)), _cache(FakeRedis()):
+            shown = await mail_attachments.preview_attachment(USER, request)
+
+        assert shown == DocumentPreview(b"Hello", "text/plain", False)
+
+    async def test_the_name_the_client_gives_wins_over_the_one_asked(self) -> None:
+        content = EmailAttachmentContent(
+            filename="real.txt", mime_type="application/octet-stream", data=b"Hello"
+        )
+        request = AttachmentRequest(message_id="m1", filename="asked.bin")
+
+        with _door(self._client(content)), _cache(FakeRedis()):
+            shown = await mail_attachments.preview_attachment(USER, request)
+
+        assert shown.content == b"Hello"
+
+    async def test_what_nothing_can_show_is_refused(self) -> None:
+        content = EmailAttachmentContent(
+            filename="setup.exe", mime_type="application/octet-stream", data=b"MZ"
+        )
+        request = AttachmentRequest(message_id="m1", filename="setup.exe")
+
+        with (
+            _door(self._client(content)),
+            _cache(FakeRedis()),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_attachments.preview_attachment(USER, request)
+
+        assert refused.value.detail["code"] == NOT_SUPPORTED_BY_PROVIDER
+
+    async def test_a_part_past_the_ceiling_is_said_too_large(self) -> None:
+        client = MagicMock(
+            download_attachment=AsyncMock(
+                side_effect=EmailAttachmentTooLargeError(size=2, max_bytes=1)
+            )
+        )
+        request = AttachmentRequest(message_id="m1", filename="note.txt")
+
+        with _door(client), _cache(FakeRedis()), pytest.raises(BaseAPIException) as refused:
+            await mail_attachments.preview_attachment(USER, request)
+
+        assert refused.value.detail["code"] == TOO_LARGE
+
+    async def test_it_waits_for_the_transfer_under_way_rather_than_failing(self) -> None:
+        """A read the page dropped runs on server side: the one after it must not be refused."""
+        redis = FakeRedis()
+        await redis.set(KEY, "someone-else")
+        client = self._client(self.WORD)
+        request = AttachmentRequest(message_id="m1", filename="note.txt")
+
+        async def finished() -> None:
+            await asyncio.sleep(0.05)
+            del redis.store[KEY]
+
+        with _door(client), _cache(redis), _impatient(1.0):
+            shown, _ = await asyncio.gather(
+                mail_attachments.preview_attachment(USER, request), finished()
+            )
+
+        assert shown.content == b"Hello"
+        assert KEY not in redis.store
+
+    async def test_its_wait_has_an_end(self) -> None:
+        redis = FakeRedis()
+        await redis.set(KEY, "someone-else")
+        client = self._client(self.WORD)
+        request = AttachmentRequest(message_id="m1", filename="note.txt")
+
+        with (
+            _door(client),
+            _cache(redis),
+            _impatient(0.05),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_attachments.preview_attachment(USER, request)
+
+        assert refused.value.detail["code"] == PROVIDER_RATE_LIMITED
+        client.download_attachment.assert_not_awaited()
+        assert redis.store[KEY] == "someone-else"
+
+
+class TestWhatThePageIsTold:
+    @pytest.mark.parametrize(
+        ("name", "mime_type", "offered"),
+        [
+            ("note.md", "application/octet-stream", True),
+            ("budget.xlsx", "application/vnd.ms-excel", True),
+            ("photo.png", "image/png", True),
+            ("logo.svg", "image/svg+xml", False),
+            ("setup.exe", "application/octet-stream", False),
+        ],
+    )
+    def test_each_part_says_whether_it_can_be_read(
+        self, name: str, mime_type: str, offered: bool
+    ) -> None:
+        raw = {"attachments": [{"attachmentId": "a1", "filename": name, "mimeType": mime_type}]}
+
+        listed = attachments_of(raw, ConnectorType.MICROSOFT_OUTLOOK)
+
+        assert listed[0].previewable is offered
+
+    def test_a_gmail_part_goes_by_its_place_in_the_message(self) -> None:
+        """Gmail's attachment ids change at each read; a part's place in the message never does."""
+        raw = {
+            "payload": {
+                "parts": [
+                    {"partId": "0", "mimeType": "text/plain"},
+                    {
+                        "filename": "image.png",
+                        "mimeType": "image/png",
+                        "body": {"attachmentId": "changes-at-each-read", "size": 3},
+                    },
+                ]
+            }
+        }
+
+        listed = attachments_of(raw, ConnectorType.GOOGLE_GMAIL)
+
+        assert listed[0].id == "1"
+
+    def test_a_gmail_part_says_it_too(self) -> None:
+        raw = {
+            "payload": {
+                "parts": [
+                    {
+                        "filename": "note.md",
+                        "mimeType": "application/octet-stream",
+                        "body": {"attachmentId": "a1", "size": 3},
+                    }
+                ]
+            }
+        }
+
+        listed = attachments_of(raw, ConnectorType.GOOGLE_GMAIL)
+
+        assert listed[0].previewable is True
 
 
 class TestTheRequest:

@@ -18,15 +18,16 @@ from src.infrastructure.database.models import BaseModel
 
 
 class PushChannelProvider(str, Enum):
-    """Which Google surface a channel watches."""
+    """Which surface a channel watches."""
 
     GOOGLE_CALENDAR = "google_calendar"  # events.watch on the primary calendar
     GOOGLE_DRIVE = "google_drive"  # changes.watch on the whole Drive
     GOOGLE_GMAIL = "google_gmail"  # users.watch via Pub/Sub (phase 2)
+    MICROSOFT_ONEDRIVE = "microsoft_onedrive"  # a Graph subscription on the whole drive
 
 
 class WebhookChannel(BaseModel):
-    """A live Google push channel (or Gmail watch) owned by one user."""
+    """A live push channel (a Google channel, a Gmail watch, a Graph subscription) of one user."""
 
     __tablename__ = "webhook_channels"
     __table_args__ = (
@@ -41,7 +42,7 @@ class WebhookChannel(BaseModel):
     provider: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
-        comment="google_calendar | google_drive | google_gmail",
+        comment="google_calendar | google_drive | google_gmail | microsoft_onedrive",
     )
     watch_target: Mapped[str] = mapped_column(
         String(255),
@@ -58,12 +59,12 @@ class WebhookChannel(BaseModel):
     resource_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-        comment="Google's opaque resource id (needed to stop the channel)",
+        comment="The provider's id of the watch: Google's resource, Graph's subscription",
     )
     token: Mapped[str] = mapped_column(
         String(128),
         nullable=False,
-        comment="Opaque secret echoed by Google in X-Goog-Channel-Token",
+        comment="Opaque secret echoed in X-Goog-Channel-Token, or Graph's clientState",
     )
     expiration: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -72,9 +73,9 @@ class WebhookChannel(BaseModel):
         comment="Channel expiry (UTC) — renewal recreates before this instant",
     )
     page_token: Mapped[str | None] = mapped_column(
-        String(64),
+        String(2048),
         nullable=True,
-        comment="Drive only: the changes baseline pageToken of the watch",
+        comment="Drives only: the changes baseline of the watch (Graph's are long)",
     )
     last_history_id: Mapped[int | None] = mapped_column(
         BigInteger,

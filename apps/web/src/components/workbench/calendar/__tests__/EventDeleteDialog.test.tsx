@@ -26,9 +26,18 @@ const EVENT: CalendarEventDetail = {
   attendees: [{ email: 'ana@example.org', name: 'Ana', response: 'accepted' }],
   organizer: null,
   link: null,
+  reminder_minutes: null,
+  busy: true,
+  private: false,
+  zone: null,
+  my_response: null,
 };
 
-function dialog(overrides: Partial<CalendarEventDetail> = {}, notifyOffered = true) {
+function dialog(
+  overrides: Partial<CalendarEventDetail> = {},
+  notifyOffered = true,
+  occurrenceEdit = true
+) {
   const onDelete = vi.fn().mockResolvedValue(undefined);
   const onClose = vi.fn();
   const rendered = renderWithProviders(
@@ -36,6 +45,7 @@ function dialog(overrides: Partial<CalendarEventDetail> = {}, notifyOffered = tr
       lng="en"
       event={{ ...EVENT, ...overrides }}
       notifyOffered={notifyOffered}
+      occurrenceEdit={occurrenceEdit}
       onDelete={onDelete}
       onClose={onClose}
     />
@@ -43,15 +53,46 @@ function dialog(overrides: Partial<CalendarEventDetail> = {}, notifyOffered = tr
   return { ...rendered, onDelete, onClose };
 }
 
+describe('EventDeleteDialog — a series', () => {
+  it('asks which, this occurrence by default', async () => {
+    const { user, onDelete } = dialog();
+
+    expect(screen.getByRole('radio', { name: 'workbench.calendar.delete_this' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'workbench.calendar.delete_whole' }));
+    expect(screen.getByText('workbench.calendar.delete_series')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.delete' }));
+
+    expect(onDelete).toHaveBeenCalledWith(true, true);
+  });
+
+  it('asks nothing of an event that is no series', () => {
+    dialog({ recurring: false });
+
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
+
+  it('offers the whole series alone where one occurrence cannot go', async () => {
+    const { user, onDelete } = dialog({}, true, false);
+
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText('workbench.calendar.delete_series')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.delete' }));
+
+    expect(onDelete).toHaveBeenCalledWith(true, true);
+  });
+});
+
 describe('EventDeleteDialog', () => {
   it('says an occurrence leaves alone, and tells the guests by default', async () => {
     const { user, onDelete } = dialog();
 
     expect(screen.getByText('workbench.calendar.delete_occurrence')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'workbench.calendar.editor.notify' })).toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'workbench.calendar.editor.notify' })
+    ).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'workbench.calendar.delete' }));
 
-    expect(onDelete).toHaveBeenCalledWith(true);
+    expect(onDelete).toHaveBeenCalledWith(true, false);
   });
 
   it('keeps the guests uninformed when the person unticks it', async () => {
@@ -61,14 +102,14 @@ describe('EventDeleteDialog', () => {
     await user.click(screen.getByRole('checkbox', { name: 'workbench.calendar.editor.notify' }));
     await user.click(screen.getByRole('button', { name: 'workbench.calendar.delete' }));
 
-    expect(onDelete).toHaveBeenCalledWith(false);
+    expect(onDelete).toHaveBeenCalledWith(false, false);
   });
 
   it('offers no choice the provider does not give, nor one with nobody to tell', async () => {
     const elsewhere = dialog({}, false);
     expect(screen.queryByRole('checkbox')).toBeNull();
     await elsewhere.user.click(screen.getByRole('button', { name: 'workbench.calendar.delete' }));
-    expect(elsewhere.onDelete).toHaveBeenCalledWith(undefined);
+    expect(elsewhere.onDelete).toHaveBeenCalledWith(undefined, false);
     elsewhere.unmount();
 
     dialog({ attendees: [] });

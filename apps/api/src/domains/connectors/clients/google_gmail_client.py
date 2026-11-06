@@ -540,6 +540,8 @@ class GoogleGmailClient(
         reply_all: bool = False,
         is_html: bool = False,
         to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Reply to an email via Gmail API.
@@ -552,6 +554,8 @@ class GoogleGmailClient(
             reply_all: If True, reply to all recipients (default False).
             is_html: True if body is HTML, False for plain text (default False).
             to: Override recipient address. If None, replies to original sender.
+            cc: The copies chosen instead of the computed ones; empty for none.
+            attachments: The files it carries.
 
         Returns:
             Dict with sent message details (id, threadId, labelIds).
@@ -563,17 +567,19 @@ class GoogleGmailClient(
             ... )
         """
         composed = await self._compose_reply(
-            message_id, body, reply_all=reply_all, is_html=is_html, to=to
+            message_id,
+            body,
+            reply_all=reply_all,
+            is_html=is_html,
+            to=to,
+            cc=cc,
+            attachments=attachments,
         )
         thread_id = composed.thread_id
 
         # Send via Gmail API with threadId to maintain thread
-        json_data = {
-            "raw": self._encode_base64url(composed.message.as_string()),
-            "threadId": thread_id,
-        }
-        response = await self._make_request(
-            "POST", "/users/me/messages/send", json_data=json_data, max_retries=1
+        response = await self._send_message(
+            composed.message, with_files=bool(attachments), thread_id=thread_id
         )
 
         logger.info(
@@ -595,6 +601,7 @@ class GoogleGmailClient(
         cc: str | None = None,
         is_html: bool = False,
         include_attachments: bool = True,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Forward an email via Gmail API.
@@ -609,6 +616,7 @@ class GoogleGmailClient(
             cc: CC recipients (optional, comma-separated).
             is_html: True if body is HTML, False for plain text (default False).
             include_attachments: Include original attachments (default True).
+            attachments: The person's own files, after the original's.
 
         Returns:
             Dict with sent message details (id, threadId, labelIds, attachments_count).
@@ -627,11 +635,14 @@ class GoogleGmailClient(
             cc=cc,
             is_html=is_html,
             include_attachments=include_attachments,
+            attachments=attachments,
         )
         attachments_info = composed.listed_files
 
         # A new thread; with files it takes the upload URI (ADR-321).
-        response = await self._send_message(composed.message, with_files=bool(attachments_info))
+        response = await self._send_message(
+            composed.message, with_files=bool(attachments_info or attachments)
+        )
 
         logger.info(
             "gmail_email_forwarded",

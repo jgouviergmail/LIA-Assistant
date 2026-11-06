@@ -19,10 +19,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.constants import WORKBENCH_MAIL_QUERY_MAX_CHARS
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
 from src.domains.workbench import availability
 from src.domains.workbench.availability import read_availability
-from src.domains.workbench.features import WorkbenchFeature, WorkbenchTool
+from src.domains.workbench.features import PROVIDER_BOUNDS, WorkbenchFeature, WorkbenchTool
+from src.domains.workbench.schemas.files import NewFolder
 
 pytestmark = pytest.mark.unit
 
@@ -103,6 +105,15 @@ async def test_outlook_contacts_publish_the_slots_their_client_enforces() -> Non
     contact_value_fields({}, emails=emails)  # the published bound itself passes
     with pytest.raises(ContactValuesRefused):
         contact_value_fields({}, emails=[*emails, {"value": "one@more.org", "type": None}])
+
+
+@pytest.mark.parametrize("kind", [ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE])
+def test_file_providers_publish_the_name_bound_the_routes_enforce(kind: ConnectorType) -> None:
+    bound = PROVIDER_BOUNDS[kind]["file_name_max_chars"]
+
+    NewFolder(name="n" * bound, idempotency_key=uuid.uuid4())
+    with pytest.raises(ValueError):
+        NewFolder(name="n" * (bound + 1), idempotency_key=uuid.uuid4())
 
 
 @pytest.mark.parametrize("provider", [ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS])
@@ -258,13 +269,13 @@ async def test_a_revoked_provider_is_simply_not_connected() -> None:
     assert tools[WorkbenchTool.TASKS].features == []
 
 
-async def test_drive_and_hue_are_read_from_their_own_rows() -> None:
+async def test_the_files_answer_as_a_category_and_the_bridge_from_its_own_row() -> None:
     tools = await _read(
         {
             ConnectorType.GOOGLE_DRIVE: ConnectorStatus.ACTIVE,
             ConnectorType.PHILIPS_HUE: ConnectorStatus.ERROR,
         },
-        active={},
+        active={"files": ConnectorType.GOOGLE_DRIVE},
     )
     assert (tools[WorkbenchTool.FILES].state, tools[WorkbenchTool.FILES].provider) == (
         "ready",
@@ -273,8 +284,20 @@ async def test_drive_and_hue_are_read_from_their_own_rows() -> None:
     assert tools[WorkbenchTool.LIGHTS].state == "reconnect_required"
 
 
+async def test_onedrive_serves_the_files_with_what_it_accepts() -> None:
+    tools = await _read(
+        {ConnectorType.MICROSOFT_ONEDRIVE: ConnectorStatus.ACTIVE},
+        active={"files": ConnectorType.MICROSOFT_ONEDRIVE},
+    )
+    files = tools[WorkbenchTool.FILES]
+    assert (files.state, files.provider) == ("ready", "microsoft_onedrive")
+    assert "export" not in files.features
+
+
 async def test_a_tool_the_instance_withholds_entirely_is_unavailable() -> None:
-    tools = await _read({}, active={}, disabled={ConnectorType.GOOGLE_DRIVE})
+    tools = await _read(
+        {}, active={}, disabled={ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE}
+    )
     assert tools[WorkbenchTool.FILES].state == "unavailable"
 
 
@@ -307,3 +330,4 @@ async def test_the_published_page_never_exceeds_the_provider_ceiling(
     ):
         answer = await read_availability(USER)
     assert answer.limits.page_size == 25
+    assert answer.limits.search_max_chars == WORKBENCH_MAIL_QUERY_MAX_CHARS

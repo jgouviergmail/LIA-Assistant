@@ -22,13 +22,23 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config import settings
-from src.core.constants import WORKBENCH_DRIVE_DETAIL_FIELDS, WORKBENCH_DRIVE_FIELDS
+from src.core.constants import (
+    DRIVE_TEXT_MAX_BYTES,
+    WORKBENCH_DRIVE_DETAIL_FIELDS,
+    WORKBENCH_DRIVE_FIELDS,
+)
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import files_service
 from src.domains.workbench.availability import listing_page_size
-from src.domains.workbench.schemas.files import DownloadQuery, FileSelection, FilesQuery
+from src.domains.workbench.errors import NOT_SUPPORTED_BY_PROVIDER
+from src.domains.workbench.schemas.files import (
+    DownloadQuery,
+    FileSelection,
+    FilesOrder,
+    FilesQuery,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -44,12 +54,18 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 
-def _door(client: Any) -> Any:
+def _free_transfer() -> Any:
+    @contextlib.asynccontextmanager
+    async def claim(user_id: Any) -> AsyncIterator[None]:
+        yield
+
+    return patch.object(files_service, "one_transfer", claim)
+
+
+def _door(client: Any, kind: ConnectorType = ConnectorType.GOOGLE_DRIVE) -> Any:
     @contextlib.asynccontextmanager
     async def opened(tool: Any, user_id: Any) -> AsyncIterator[ActiveClient]:
-        yield ActiveClient(
-            client=client, connector_type=ConnectorType.GOOGLE_DRIVE, preferred_name=None
-        )
+        yield ActiveClient(client=client, connector_type=kind, preferred_name=None)
 
     return patch.object(files_service, "open_tool_client", opened)
 
@@ -91,6 +107,7 @@ class TestTheListing:
             page_token="n1",
             fields=list(WORKBENCH_DRIVE_FIELDS),
             content_type="all",
+            order_by="folder,name",
         )
         shown = {item.id: item for item in page.items}
         assert [(item.id, item.kind) for item in page.items] == [
@@ -105,6 +122,28 @@ class TestTheListing:
         assert (shown["s1"].target_id, shown["s1"].target_kind) == ("d9", "folder")
         assert (shown["x1"].downloadable, shown["d1"].downloadable) == (False, False)
         assert page.next_page_token == "n2"
+
+    @pytest.mark.parametrize(
+        ("order", "drive_order"),
+        [
+            ("name", "folder,name"),
+            ("modified", "folder,modifiedTime desc"),
+            ("size", "folder,quotaBytesUsed desc"),
+        ],
+    )
+    async def test_a_folder_is_listed_in_the_order_asked(
+        self, order: FilesOrder, drive_order: str
+    ) -> None:
+        client = MagicMock(list_files=AsyncMock(return_value={"files": []}))
+        with _door(client):
+            await files_service.list_files(USER, FilesQuery(order=order))
+
+        assert client.list_files.await_args.kwargs["order_by"] == drive_order
+
+    def test_a_search_takes_no_order(self) -> None:
+        """Drive refuses ``orderBy`` on a full-text search: the page never asks it."""
+        with pytest.raises(ValidationError):
+            FilesQuery(q="budget", order="modified")
 
     async def test_my_drive_is_listed_when_no_folder_is_named(self) -> None:
         client = MagicMock(list_files=AsyncMock(return_value={"files": []}))
@@ -318,10 +357,99 @@ class TestTheDownload:
             get_file_metadata=AsyncMock(return_value=_file("p1", "application/pdf", size="1")),
             get_file_content=AsyncMock(return_value=b"x"),
         )
-        with _door(client), patch.object(files_service, "one_download", claim):
+        with _door(client), patch.object(files_service, "one_transfer", claim):
             await files_service.download_file(USER, DownloadQuery(id="p1"))
 
         assert held == [USER]
+
+
+class TestAView:
+    async def test_it_reads_what_the_drive_holds_under_it(self) -> None:
+        client = MagicMock(
+            list_view=AsyncMock(return_value={"files": [_file("p1", "application/pdf")]})
+        )
+        with _door(client):
+            page = await files_service.list_files(USER, FilesQuery(view="starred", page_token="n"))
+
+        assert [item.id for item in page.items] == ["p1"]
+        assert client.list_view.await_args.args == ("starred",)
+        assert client.list_view.await_args.kwargs["page_token"] == "n"
+
+    async def test_a_drive_with_no_views_asks_nothing(self) -> None:
+        client = MagicMock(list_view=AsyncMock())
+        with _door(client, ConnectorType.MICROSOFT_ONEDRIVE):
+            with pytest.raises(BaseAPIException) as caught:
+                await files_service.list_files(USER, FilesQuery(view="recent"))
+
+        assert caught.value.detail["code"] == NOT_SUPPORTED_BY_PROVIDER
+        client.list_view.assert_not_awaited()
+
+    @pytest.mark.parametrize("other", [{"folder_id": "d1"}, {"q": "budget"}, {"order": "modified"}])
+    def test_a_view_stands_alone(self, other: dict[str, str]) -> None:
+        with pytest.raises(ValueError):
+            FilesQuery(view="recent", **other)
+
+    def test_the_star_reaches_the_list(self) -> None:
+        assert files_service.drive_item({"id": "f1", "starred": True}).starred is True
+        assert files_service.drive_item({"id": "f1"}).starred is False
+
+
+class TestWhatThePageMayOffer:
+    @pytest.mark.parametrize(
+        ("raw", "offered"),
+        [
+            ({"mimeType": "image/png", "name": "a.png"}, True),
+            ({"mimeType": "application/pdf", "name": "a.pdf"}, True),
+            ({"mimeType": "application/octet-stream", "name": "notes.md"}, True),
+            ({"mimeType": "application/vnd.google-apps.document", "name": "a"}, True),
+            ({"mimeType": "application/vnd.google-apps.form", "name": "a.md"}, False),
+            ({"mimeType": "application/msword", "name": "a.doc", "pdfConvertible": True}, True),
+            ({"mimeType": "application/msword", "name": "a.doc"}, False),
+            ({"mimeType": "application/octet-stream", "name": "a.exe"}, False),
+            ({"mimeType": "application/vnd.google-apps.folder", "name": "a.md"}, False),
+        ],
+    )
+    def test_a_preview_where_something_can_be_shown(
+        self, raw: dict[str, str], offered: bool
+    ) -> None:
+        assert files_service.drive_item({"id": "f1", **raw}).previewable is offered
+
+    @pytest.mark.parametrize(
+        ("raw", "offered"),
+        [
+            ({"mimeType": "text/plain", "name": "a.txt", "size": "10"}, True),
+            ({"mimeType": "application/octet-stream", "name": "a.md", "size": 10}, True),
+            ({"mimeType": "application/json", "name": "a.json", "size": "10"}, True),
+            ({"mimeType": "text/plain", "name": "a.txt"}, False),
+            ({"mimeType": "application/pdf", "name": "a.txt", "size": "10"}, False),
+            ({"mimeType": DOCX, "name": "a.docx", "size": "10"}, False),
+            ({"mimeType": "application/vnd.google-apps.document", "name": "a.md"}, False),
+        ],
+    )
+    def test_an_edit_where_it_is_words_held_whole(
+        self, raw: dict[str, object], offered: bool
+    ) -> None:
+        assert files_service.drive_item({"id": "f1", **raw}).editable is offered
+
+    def test_a_text_past_the_bound_is_read_never_edited(self) -> None:
+        raw = {"mimeType": "text/plain", "name": "a.txt", "size": DRIVE_TEXT_MAX_BYTES + 1}
+
+        assert files_service.drive_item({"id": "f1", **raw}).editable is False
+
+    def test_a_text_of_exactly_the_bound_is_edited(self) -> None:
+        raw = {"mimeType": "text/plain", "name": "a.txt", "size": DRIVE_TEXT_MAX_BYTES}
+
+        assert files_service.drive_item({"id": "f1", **raw}).editable is True
+
+
+class TestTheQuota:
+    @pytest.mark.parametrize("kind", [ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE])
+    async def test_it_says_what_the_drive_says(self, kind: ConnectorType) -> None:
+        client = MagicMock(storage_quota=AsyncMock(return_value={"used": 3, "total": 10}))
+        with _door(client, kind):
+            quota = await files_service.read_quota(USER)
+
+        assert (quota.used, quota.total) == (3, 10)
 
 
 class TestTheTrash:

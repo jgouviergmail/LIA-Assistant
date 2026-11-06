@@ -24,7 +24,17 @@ from src.domains.connectors.schemas import ConnectorCredentials
 
 pytestmark = pytest.mark.unit
 
-_WELL_KNOWN = ("inbox", "sentitems", "drafts", "deleteditems", "junkemail", "archive")
+_WELL_KNOWN = (
+    "inbox",
+    "sentitems",
+    "drafts",
+    "deleteditems",
+    "junkemail",
+    "archive",
+    # Measured on a real mailbox: Graph lists them, and neither is the person's own.
+    "outbox",
+    "conversationhistory",
+)
 
 
 def _outlook() -> MicrosoftOutlookClient:

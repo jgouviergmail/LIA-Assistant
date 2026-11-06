@@ -910,7 +910,7 @@ All `agent_name` values (from `domains/agents/constants.py`):
 
 | agent_name | tool_name | Key parameters | Notes |
 |------------|-----------|----------------|-------|
-| `file_agent` | `get_files_tool` | `query`, `mime_type`, `folder_id` | Unified v2 (Google Drive) |
+| `file_agent` | `get_files_tool` | `query`, `mime_type`, `folder_id` | Unified v2 (Google Drive or OneDrive) |
 | `file_agent` | `search_files_tool` | `query` | Legacy search |
 | `file_agent` | `delete_file_tool` | `file_id` | |
 
@@ -1135,7 +1135,7 @@ Rules:
 | Layer | Behavior |
 |---|---|
 | iframe sandbox | `allow-scripts allow-popups` — NEVER `allow-same-origin` |
-| CSP (user skills) | Strict `<meta>` tag auto-injected into `frame.html` blocking `connect-src` (no outbound fetch/XHR) and `frame-src` (no nested iframes) |
+| CSP (user skills) | Strict `<meta>` tag opening `frame.html` (`frame_policy.with_leading_policy`, ADR-370) blocking `connect-src` (no outbound fetch/XHR) and `frame-src` (no nested iframes) |
 | CSP (system skills) | No injection — admin-curated, trusted |
 | External `frame.url` | HTTPS only; remote site controls its own headers |
 | Image `url` | Only `data:` and `https://` schemes accepted |

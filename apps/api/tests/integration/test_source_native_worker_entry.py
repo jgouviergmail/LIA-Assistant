@@ -90,7 +90,7 @@ async def test_native_worker_entry_keeps_exact_owner_and_never_starts_after_refu
     walk = AsyncMock(return_value=DriveTree(files=[], folder_ids=["root"]))
     client.get_profile.return_value = {"historyId": "1"}
     client.list_threads.return_value = {"threads": []}
-    monkeypatch.setattr(drive_sync, "GoogleDriveClient", lambda *args: client)
+    monkeypatch.setattr(drive_sync, "drive_client_of", lambda *args: client)
     connector = AsyncMock()
     connector.get_connector_credentials.return_value = {"token": "controlled"}
     monkeypatch.setattr(

@@ -39,12 +39,19 @@ from src.domains.connectors.clients.apple_carddav_xml import (
     extract_principal_url,
     parse_multiget_response,
 )
+from src.domains.connectors.clients.apple_contact_groups_mixin import AppleContactGroupsMixin
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
+from src.domains.connectors.clients.contact_details import ContactDetails
 from src.domains.connectors.clients.contact_directory import (
     ContactDirectory,
     cached_directory,
     invalidate_contacts_cache,
+)
+from src.domains.connectors.clients.contact_photos import (
+    ContactPhoto,
+    card_photo,
+    card_with_photo,
 )
 from src.domains.connectors.clients.normalizers.contact_order import contact_order_key
 from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
@@ -60,7 +67,7 @@ from src.infrastructure.cache.redis import get_redis_session
 logger = structlog.get_logger(__name__)
 
 
-class AppleContactsClient(BaseAppleClient):
+class AppleContactsClient(AppleContactGroupsMixin, BaseAppleClient):
     """
     Apple iCloud Contacts client using CardDAV.
 
@@ -285,6 +292,7 @@ class AppleContactsClient(BaseAppleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """Create a new contact.
 
@@ -303,6 +311,7 @@ class AppleContactsClient(BaseAppleClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
         )
 
     async def update_contact(
@@ -318,6 +327,7 @@ class AppleContactsClient(BaseAppleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """Update an existing contact (full PUT, no PATCH in CardDAV).
 
@@ -337,6 +347,25 @@ class AppleContactsClient(BaseAppleClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
+        )
+
+    async def get_contact_photo(self, resource_name: str) -> ContactPhoto | None:
+        """The photo a contact's card holds; what it points at is never followed."""
+        return await self._execute_with_retry(
+            "get_contact_photo", self._get_contact_photo_impl, resource_name
+        )
+
+    async def set_contact_photo(self, resource_name: str, photo: ContactPhoto) -> None:
+        """Replace a contact's photo, every other line of the card kept."""
+        await self._execute_with_retry(
+            "set_contact_photo", self._rewrite_photo_impl, resource_name, photo
+        )
+
+    async def remove_contact_photo(self, resource_name: str) -> None:
+        """Take a contact's photo off, every other line of the card kept."""
+        await self._execute_with_retry(
+            "remove_contact_photo", self._rewrite_photo_impl, resource_name, None
         )
 
     async def delete_contact(self, resource_name: str) -> bool:
@@ -464,7 +493,8 @@ class AppleContactsClient(BaseAppleClient):
         # Enforce the global per-request volumetry ceiling (centralized cap).
         max_results = apply_max_items_limit(max_results)
 
-        all_contacts, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
+        book, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
+        all_contacts = _people_of(book)
 
         # Local case-insensitive filtering
         query_lower = query.lower()
@@ -498,7 +528,8 @@ class AppleContactsClient(BaseAppleClient):
         self, max_contacts: int, *, use_cache: bool = True
     ) -> tuple[list[dict[str, Any]], bool]:
         """Cut the (cached) iCloud address book at the caller's cap."""
-        all_contacts, _from_cache, _cached_at = await self._get_all_contacts_cached(use_cache)
+        book, _from_cache, _cached_at = await self._get_all_contacts_cached(use_cache)
+        all_contacts = _people_of(book)
         return all_contacts[:max_contacts], len(all_contacts) > max_contacts
 
     async def _list_connections_impl(
@@ -511,7 +542,7 @@ class AppleContactsClient(BaseAppleClient):
         """List all contacts, by family then given name (``contact_order_key``)."""
         book, from_cache, cached_at = await self._get_all_contacts_cached(use_cache)
         # Read whole anyway, so sorted before it pages: a page follows the one before it.
-        all_contacts = sorted(book, key=contact_order_key)
+        all_contacts = sorted(_people_of(book), key=contact_order_key)
 
         # Simple pagination
         start = 0
@@ -572,6 +603,7 @@ class AppleContactsClient(BaseAppleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """Create a new contact via CardDAV PUT, at the uid its caller drew."""
         addressbook_url = await self._discover_addressbook()
@@ -587,6 +619,7 @@ class AppleContactsClient(BaseAppleClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
         )
         contact_url = f"{addressbook_url.rstrip('/')}/{contact_uid}.vcf"
 
@@ -606,6 +639,41 @@ class AppleContactsClient(BaseAppleClient):
         result["resourceName"] = contact_url
         return result
 
+    async def _card_text(self, resource_name: str) -> str:
+        """A contact's whole card: a failed read never reaches a rewrite (see below)."""
+        client = await self._get_http_client()
+        resp = await client.get(_contact_url(resource_name), headers={"Accept": "text/vcard"})
+        self._check_http_status(resp.status_code, allow=(404,))
+        if resp.status_code == 404:
+            raise ValueError(f"Contact '{resource_name}' not found")
+        return str(resp.text)
+
+    async def _get_contact_photo_impl(self, resource_name: str) -> ContactPhoto | None:
+        return card_photo(await self._card_text(resource_name))
+
+    async def _rewrite_photo_impl(self, resource_name: str, photo: ContactPhoto | None) -> None:
+        """The card put back whole, under its one change (no PATCH in CardDAV)."""
+        written = card_with_photo(await self._card_text(resource_name), photo)
+        await self._put_card(resource_name, written)
+
+    async def _delete_card(self, resource_name: str) -> None:
+        """A card gone; one already gone is done."""
+        client = await self._get_http_client()
+        resp = await client.delete(_contact_url(resource_name))
+        self._check_http_status(resp.status_code, allow=(404,))
+        await self._invalidate_contacts_cache()
+
+    async def _put_card(self, resource_name: str, written: str) -> None:
+        """A card put back whole, the book read again from here on."""
+        client = await self._get_http_client()
+        resp = await client.put(
+            _contact_url(resource_name),
+            content=written,
+            headers={"Content-Type": "text/vcard; charset=utf-8"},
+        )
+        self._check_http_status(resp.status_code)
+        await self._invalidate_contacts_cache()
+
     async def _update_contact_impl(
         self,
         resource_name: str,
@@ -619,6 +687,7 @@ class AppleContactsClient(BaseAppleClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """Update a contact (full PUT, no PATCH in CardDAV)."""
         client = await self._get_http_client()
@@ -647,6 +716,7 @@ class AppleContactsClient(BaseAppleClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
         )
 
         # PUT back
@@ -711,6 +781,11 @@ def _contact_matches_query(contact: dict[str, Any], query_lower: str) -> bool:
             return True
 
     return False
+
+
+def _people_of(book: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The book's contacts: a group's card is none (``apple_contact_groups_mixin``)."""
+    return [card for card in book if not card.get("isGroup")]
 
 
 def _contact_url(resource_name: str) -> str:

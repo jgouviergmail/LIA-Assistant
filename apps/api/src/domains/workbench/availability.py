@@ -20,6 +20,7 @@ from typing import Protocol
 from uuid import UUID
 
 from src.core.config import settings
+from src.core.constants import WORKBENCH_MAIL_QUERY_MAX_CHARS
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
 from src.domains.connectors.provider_resolver import (
     LEGACY_CONNECTOR_ALIASES,
@@ -76,7 +77,11 @@ async def read_availability(user_id: UUID) -> WorkbenchAvailability:
             page_size=listing_page_size(),
             bulk_max_items=settings.workbench_bulk_max_items,
             download_max_bytes=settings.workbench_download_max_bytes,
+            upload_max_bytes=settings.workbench_upload_max_bytes,
             calendar_window_max_events=settings.workbench_calendar_window_max_events,
+            send_undo_seconds=settings.workbench_send_undo_seconds,
+            draft_autosave_seconds=settings.workbench_draft_autosave_seconds,
+            search_max_chars=WORKBENCH_MAIL_QUERY_MAX_CHARS,
         ),
     )
 

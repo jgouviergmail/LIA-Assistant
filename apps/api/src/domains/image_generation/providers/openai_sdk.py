@@ -4,7 +4,7 @@ OpenAI's Images API and Qwen's compatible mode speak one wire, so both clients
 reach their vendor through an SDK client built here, in one way: the key and the
 base URL resolve exactly as the chat factory's do (``_require_api_key``,
 ``_get_base_url``, so ``{PROVIDER}_BASE_URL`` reaches an image call too) and the
-timeout is the image step's ceiling. The SDK's failures are translated into the
+timeout is the image slot's. The SDK's failures are translated into the
 client contract (:func:`vendor_errors`), so no tool ever reads an SDK exception. An
 image is a billed generation: the client follows the one relaunch policy (never sent
 again after a timeout — ADR-221 amendment 2026-10-28), not the SDK's two retries.
@@ -18,7 +18,7 @@ from contextlib import contextmanager
 import httpx
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
 
-from src.core.config import settings
+from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.domains.image_generation.providers.base import (
     ImageGenerationError,
     ImageProviderNotConfiguredError,
@@ -71,7 +71,7 @@ def openai_sdk_client(
         AsyncOpenAI(
             api_key=api_key,
             base_url=_get_base_url(provider),
-            timeout=settings.max_image_generation_tool_timeout_seconds,
+            timeout=llm_call_timeout_seconds("image_generation"),
             http_client=http_client,
         )
     )

@@ -17,70 +17,57 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.2",
+    "subject": "npm:next@16.4.5",
     "ref": "GHSA-39w2-rjm5-chcv",
-    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
+    "reason": "The MCP endpoint of `next dev` only; production deployments do not serve it. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-06, on 16.4.5, against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.2",
+    "subject": "npm:next@16.4.5",
     "ref": "GHSA-4jqv-mc3x-m676",
-    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
+    "reason": "Needs the Pages Router; apps/web is App Router only (no src/pages). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-06, on 16.4.5, against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.2",
+    "subject": "npm:next@16.4.5",
     "ref": "GHSA-f87g-xv8r-7p7x",
-    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
+    "reason": "Needs metadata image routes (opengraph-image, twitter-image); apps/web has none. The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-06, on 16.4.5, against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.2",
+    "subject": "npm:next@16.4.5",
     "ref": "GHSA-mcj8-r9mp-w47p",
-    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR configuration (no exported revalidate or 'use cache' directive). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-01 against the unchanged publisher advisory and current production entrypoint and route inventory.",
+    "reason": "Needs a root-level catch-all page; apps/web has no catch-all route and no ISR configuration (no exported revalidate or 'use cache' directive). The advisory still names no patched version (‘16.3.?’); re-read it when it does. Reviewed 2026-11-06, on 16.4.5, against the unchanged publisher advisory and current production entrypoint and route inventory.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
   {
     "kind": "advisory",
-    "subject": "pip:fsspec@2025.3.0",
-    "ref": "GHSA-27vj-qcqg-25rc",
-    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): VoxCPM 2.0.3 requires datasets >=3,<4; the compatible lock selects datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:cbor2@6.1.4",
-    "ref": "GHSA-r668-x5f9-3qp8",
-    "reason": "Native recursion in cbor2.dumps() on a deeply nested object. LIA never calls cbor2; its only path is py_webauthn re-encoding what parse_cbor (cbor2.loads) just decoded from a client's authenticator data. Measured on 6.1.4 (2026-10-03, Windows, whose thread stack is smaller than Linux's): loads refuses container nesting past 400, the deepest structure it accepts (arrays 400, maps and tags 399) re-encodes fine, and a cycle built with value-sharing tags 28/29 is detected by dumps (CBOREncodeValueError, turned into InvalidCBORData by py_webauthn). No release patches it yet: take the fix when it ships.",
+    "subject": "npm:next@16.4.5",
+    "ref": "GHSA-mfr8-8qww-v76h",
+    "reason": "Needs a 'use cache' function called through unstable_cache; apps/web uses neither. The advisory names no patched version; re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
   {
-    "kind": "end-of-life",
-    "subject": "python 3.10",
-    "reason": "The self-host installer's floor (ADR-215): it runs on a bare host's own Python, and Ubuntu 22.04 ships 3.10 with standard support until 2027-06-01. The application itself runs 3.14.",
+    "kind": "advisory",
+    "subject": "npm:next@16.4.5",
+    "ref": "GHSA-pc58-hwjq-p385",
+    "reason": "Needs a route handler or the fetch cache returning a crafted upstream response unchanged, behind an HTTP/1.1 proxy that queues pipelined responses. apps/web's four route handlers answer JSON they build or relay the deployment's own API, no third party is an upstream, and the reference deployment sits behind Cloudflare's tunnel. The advisory names no patched version; re-read it when it does.",
     "owner": "maintainer",
-    "review_by": "2027-06-01"
+    "review_by": "2026-11-30"
   },
   {
-    "kind": "end-of-life",
-    "subject": "squid 6",
-    "reason": "Upstream line past support; the demonstrator's egress proxy runs Ubuntu 24.04's package instead (ubuntu/squid:6.6-24.04_edge, squid 6.14-0ubuntu0.24.04.2), which Canonical maintains in main until 2029. The image lags two updates (.3 and .4: CVE-2026-47729, FTP gateway; CVE-2026-50012, cache digests), both unreachable through infrastructure/demo-instance/squid.conf: only CONNECT to five provider hosts on 443 passes, with no cache and no peer. Re-read when Canonical rebuilds the image.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "image-missing",
-    "subject": "minio/minio:latest",
-    "reason": "The object store of the development Langfuse profile (docker-compose.dev.yml), outside the dependency programme by decision D2 (Langfuse is stopped; its repair is the first step the day it resumes); the image left Docker Hub.",
+    "kind": "advisory",
+    "subject": "npm:next@16.4.5",
+    "ref": "GHSA-vvgp-ww4w-46vf",
+    "reason": "Needs Cache Components; next.config.ts does not enable them and no fallback shell exists. The advisory names no patched version; re-read it when it does.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
@@ -110,16 +97,24 @@
   },
   {
     "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-v9pv-5gc8-w2m6",
-    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): the application, dev and sandbox locks carry Pillow 13.0.0 under a security floor in apps/api/requirements.txt, but voxcpm 2.0.3 requires gradio>=6 and every gradio 6 release caps pillow<13 (uv: 'gradio>=6.0.1 depends on pillow>=8.0,<13.0'). The toolbox runs on the developer's machine, never in production; its own code imports neither PIL, gradio nor matplotlib, and it synthesises and reads audio only — no image is ever decoded. Lifted when gradio accepts Pillow 13 (then: pillow>=13.0.0 in requirements-gpu.in).",
+    "subject": "pip:fsspec@2025.3.0",
+    "ref": "GHSA-27vj-qcqg-25rc",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): VoxCPM 2.0.3 requires datasets >=3,<4; the compatible lock selects datasets 3.6.0, which caps fsspec at 2025.3.0. It runs on the developer's machine, reads local audio and Hugging Face files, and never opens a ReferenceFileSystem; never in production. Lifted when voxcpm accepts a datasets that allows fsspec >= 2026.6.0.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:opentelemetry-api@1.45.1",
+    "ref": "GHSA-mf5v-w3w3-f6cg",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the operator's own machine, on audio it generates; the application, dev and sandbox locks hold the fixed version.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-g842-9rc4-69pw",
+    "ref": "GHSA-24rc-8hj2-v98c",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
@@ -127,7 +122,7 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-8g5g-8vmr-9782",
+    "ref": "GHSA-27h8-gf7j-v5hc",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
@@ -143,7 +138,7 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-9v9v-9qvf-h2hj",
+    "ref": "GHSA-3j72-p6qg-6xp7",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
@@ -151,7 +146,71 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-xvh5-g6gv-559v",
+    "ref": "GHSA-4558-3h8r-v8xp",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-4rm8-3hmm-39fg",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-58r4-6rv3-gfh8",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-5x8w-8jj5-q52h",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there (FlashPix included) and it never reaches production, where Pillow 13.0.0 already carries the fix.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-654x-cwwv-5j9c",
+    "reason": "GPU wake-word toolbox only; application/dev/sandbox locks already carry the fixed Pillow. This advisory requires image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads the pinned local VoxCPM model with load_denoiser=False and consumes WAV/NumPy audio; its code invokes no PIL image operation or Arrow image export, and neither Dockerfile.gpu nor GPU task commands set the allocator override. Reviewed 2026-11-01 against the publisher advisory, supported code path and PyPI metadata: every current stable Gradio 6 release still constrains Pillow below 13, while the pinned VoxCPM requires Gradio 6. Static reachability review, not a new GPU runtime measurement. Reassess before image/Arrow export or allocator overrides; remove when the compatible graph permits the fixed Pillow. The toolbox remains excluded from application images and both self-host bundle allowlists.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-65qm-jvmh-6pqg",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-7mwm-ghpf-9vrm",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-8g5g-8vmr-9782",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-9v9v-9qvf-h2hj",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
@@ -167,7 +226,31 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-g842-9rc4-69pw",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-jg86-v3jv-hrpm",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
     "ref": "GHSA-mrfp-p49p-3hf2",
+    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pillow@12.3.0",
+    "ref": "GHSA-p8hx-v2p6-rp84",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
@@ -191,64 +274,24 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-65qm-jvmh-6pqg",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "ref": "GHSA-v9pv-5gc8-w2m6",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): the application, dev and sandbox locks carry Pillow 13.0.0 under a security floor in apps/api/requirements.txt, but voxcpm 2.0.3 requires gradio>=6 and every gradio 6 release caps pillow<13 (uv: 'gradio>=6.0.1 depends on pillow>=8.0,<13.0'). The toolbox runs on the developer's machine, never in production; its own code imports neither PIL, gradio nor matplotlib, and it synthesises and reads audio only — no image is ever decoded. Lifted when gradio accepts Pillow 13 (then: pillow>=13.0.0 in requirements-gpu.in).",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-58r4-6rv3-gfh8",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "ref": "GHSA-wqgw-9xfh-qf2g",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the operator's own machine, on audio it generates; the application, dev and sandbox locks hold the fixed version.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-24rc-8hj2-v98c",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-p8hx-v2p6-rp84",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-7mwm-ghpf-9vrm",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-27h8-gf7j-v5hc",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-4558-3h8r-v8xp",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-jg86-v3jv-hrpm",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "ref": "GHSA-xcvg-w56q-r89m",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the operator's own machine, on audio it generates; the application, dev and sandbox locks hold the fixed version.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
@@ -263,32 +306,112 @@
   {
     "kind": "advisory",
     "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-4rm8-3hmm-39fg",
+    "ref": "GHSA-xvh5-g6gv-559v",
     "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-3j72-p6qg-6xp7",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there and it never reaches production.",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-2gh9-8m4r-2xwh",
+    "reason": "Development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-5x8w-8jj5-q52h",
-    "reason": "Same path and same condition as GHSA-v9pv-5gc8-w2m6: Pillow 12.3.0 in the wake-word GPU toolbox only, held by gradio's pillow<13 cap; no image is decoded there (FlashPix included) and it never reaches production, where Pillow 13.0.0 already carries the fix.",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-5pjc-393q-rwmf",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
-    "subject": "pip:pillow@12.3.0",
-    "ref": "GHSA-654x-cwwv-5j9c",
-    "reason": "GPU wake-word toolbox only; application/dev/sandbox locks already carry the fixed Pillow. This advisory requires image-to-Arrow export with PILLOW_ALIGNMENT>1. The supported toolbox path loads the pinned local VoxCPM model with load_denoiser=False and consumes WAV/NumPy audio; its code invokes no PIL image operation or Arrow image export, and neither Dockerfile.gpu nor GPU task commands set the allocator override. Reviewed 2026-11-01 against the publisher advisory, supported code path and PyPI metadata: every current stable Gradio 6 release still constrains Pillow below 13, while the pinned VoxCPM requires Gradio 6. Static reachability review, not a new GPU runtime measurement. Reassess before image/Arrow export or allocator overrides; remove when the compatible graph permits the fixed Pillow. The toolbox remains excluded from application images and both self-host bundle allowlists.",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-9w45-w2cj-r5hx",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-jmm4-8x35-q6fq",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-mmf6-974m-4f43",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.11.10",
+    "ref": "GHSA-rjcv-6975-fwqp",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-2gh9-8m4r-2xwh",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-5pjc-393q-rwmf",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-9w45-w2cj-r5hx",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-jmm4-8x35-q6fq",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-mmf6-974m-4f43",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:platformdirs@4.12.2",
+    "ref": "GHSA-rjcv-6975-fwqp",
+    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
+    "owner": "maintainer",
+    "review_by": "2026-12-31"
+  },
+  {
+    "kind": "advisory",
+    "subject": "pip:pydantic@2.13.4",
+    "ref": "GHSA-3r8g-cqwr-jr29",
+    "reason": "Needs a TypedDict or a dataclass validated with aliased fields AND extra data allowed; BaseModel is not affected. The API's `extra='allow'` models are BaseModels, and its TypeAdapters target BaseModel unions, builtins and one stdlib dataclass (SenderIdentity) with neither alias nor extra (checked 2026-10-30). 2.14.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
     "owner": "maintainer",
     "review_by": "2026-11-30"
   },
@@ -310,11 +433,11 @@
   },
   {
     "kind": "advisory",
-    "subject": "pip:pydantic@2.13.4",
+    "subject": "pip:pydantic@2.13.5",
     "ref": "GHSA-3r8g-cqwr-jr29",
-    "reason": "Needs a TypedDict or a dataclass validated with aliased fields AND extra data allowed; BaseModel is not affected. The API's `extra='allow'` models are BaseModels, and its TypeAdapters target BaseModel unions, builtins and one stdlib dataclass (SenderIdentity) with neither alias nor extra (checked 2026-10-30). 2.14.2 lands at the next Python refresh, after its cooldown, rather than as a release-day lock change.",
+    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the developer's machine, never in production, and validates no untrusted input. The application's own pydantic (2.13.4) is accepted under the same advisory with its reachability check. Lifted with the toolbox's next lock refresh.",
     "owner": "maintainer",
-    "review_by": "2026-11-30"
+    "review_by": "2026-12-31"
   },
   {
     "kind": "advisory",
@@ -333,107 +456,32 @@
     "review_by": "2026-12-31"
   },
   {
-    "kind": "advisory",
-    "subject": "pip:pydantic@2.13.5",
-    "ref": "GHSA-3r8g-cqwr-jr29",
-    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt): it runs on the developer's machine, never in production, and validates no untrusted input. The application's own pydantic (2.13.4) is accepted under the same advisory with its reachability check. Lifted with the toolbox's next lock refresh.",
+    "kind": "end-of-life",
+    "subject": "prometheus 3.15",
+    "ref": "",
+    "reason": "The 3.15 line ended the day of this review, with no advisory against it; 3.16.0 was published the day before. Prometheus is reached on the internal network only. Move it at the next refresh, after its cooldown.",
+    "owner": "maintainer",
+    "review_by": "2026-11-30"
+  },
+  {
+    "kind": "end-of-life",
+    "subject": "python 3.10",
+    "reason": "The self-host installer's floor (ADR-215): it runs on a bare host's own Python, and Ubuntu 22.04 ships 3.10 with standard support until 2027-06-01. The application itself runs 3.14.",
+    "owner": "maintainer",
+    "review_by": "2027-06-01"
+  },
+  {
+    "kind": "end-of-life",
+    "subject": "squid 6",
+    "reason": "Upstream line past support; the demonstrator's egress proxy runs Ubuntu 24.04's package instead (ubuntu/squid:6.6-24.04_edge, squid 6.14-0ubuntu0.24.04.2), which Canonical maintains in main until 2029. The image lags two updates (.3 and .4: CVE-2026-47729, FTP gateway; CVE-2026-50012, cache digests), both unreachable through infrastructure/demo-instance/squid.conf: only CONNECT to five provider hosts on 443 passes, with no cache and no peer. Re-read when Canonical rebuilds the image.",
     "owner": "maintainer",
     "review_by": "2026-12-31"
   },
   {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-2gh9-8m4r-2xwh",
-    "reason": "Development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
+    "kind": "image-missing",
+    "subject": "minio/minio:latest",
+    "reason": "The object store of the development Langfuse profile (docker-compose.dev.yml), outside the dependency programme by decision D2 (Langfuse is stopped; its repair is the first step the day it resumes); the image left Docker Hub.",
     "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-9w45-w2cj-r5hx",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-jmm4-8x35-q6fq",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-rjcv-6975-fwqp",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-mmf6-974m-4f43",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.11.10",
-    "ref": "GHSA-5pjc-393q-rwmf",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: development tooling only (apps/api/requirements-dev.lock.txt, via black), never in an application image. The advisory needs another local user of the same machine planting a runtime or cache directory, and the development and CI hosts are single-user. 4.14.0 lands at the next Python refresh, after its cooldown.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-2gh9-8m4r-2xwh",
-    "reason": "The wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-9w45-w2cj-r5hx",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-jmm4-8x35-q6fq",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-rjcv-6975-fwqp",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-mmf6-974m-4f43",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
-  },
-  {
-    "kind": "advisory",
-    "subject": "pip:platformdirs@4.12.2",
-    "ref": "GHSA-5pjc-393q-rwmf",
-    "reason": "Same path and same condition as GHSA-2gh9-8m4r-2xwh: the wake-word GPU synthesis toolbox only (scripts/wake-word/requirements-gpu.lock.txt, via pooch and librosa), on the developer's machine, never in production; the advisory needs another local user of that machine. Lifted with the toolbox's next lock refresh.",
-    "owner": "maintainer",
-    "review_by": "2026-12-31"
+    "review_by": "2026-11-30"
   }
 ]

@@ -11,9 +11,9 @@ name: Mobile Shell
 # that has nothing to do with the shells; a pull request that touches them pays
 # for what it changes.
 #
-# Compilation IS the verification here: this repository has no Swift or Java
-# test harness, and saying otherwise would be pretending. What a WebView can and
-# cannot do is measured separately, by `mobile-webview-probe.yml`.
+# Compilation is most of the verification here: this repository has no Swift test
+# harness, and its few Java unit tests run with the Android build. What a WebView
+# can and cannot do is measured separately, by `mobile-webview-probe.yml`.
 
 on:
   pull_request:

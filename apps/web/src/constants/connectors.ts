@@ -50,6 +50,7 @@ export const CONNECTOR_TYPES = [
   'microsoft_calendar',
   'microsoft_contacts',
   'microsoft_tasks',
+  'microsoft_onedrive',
   // External API Key connectors
   'openweathermap',
   'wikipedia',
@@ -102,6 +103,7 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   microsoft_calendar: 'Microsoft Calendar',
   microsoft_contacts: 'Microsoft Contacts',
   microsoft_tasks: 'Microsoft To Do',
+  microsoft_onedrive: 'OneDrive',
   // Google API Key connectors
   google_routes: 'Google Routes',
   google_weather: 'Google Weather',
@@ -151,7 +153,13 @@ export const CONNECTOR_CATEGORIES = {
     'google_environment',
   ],
   apple: ['apple_email', 'apple_calendar', 'apple_contacts'],
-  microsoft: ['microsoft_outlook', 'microsoft_calendar', 'microsoft_contacts', 'microsoft_tasks'],
+  microsoft: [
+    'microsoft_outlook',
+    'microsoft_calendar',
+    'microsoft_contacts',
+    'microsoft_tasks',
+    'microsoft_onedrive',
+  ],
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],

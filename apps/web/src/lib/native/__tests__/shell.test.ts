@@ -15,6 +15,7 @@ import {
   isAndroidShell,
   isNativeShell,
   openInSystemBrowser,
+  shellCapability,
   takeNativeVerifier,
 } from '../shell';
 
@@ -22,8 +23,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+/** The bridge Capacitor installs on `window`, which no application type declares. */
+const host = window as unknown as { Capacitor?: unknown };
+
 function installShell(plugin?: { openExternal: ReturnType<typeof vi.fn> }) {
-  (window as unknown as { Capacitor?: unknown }).Capacitor = {
+  host.Capacitor = {
     isNativePlatform: () => true,
     Plugins: plugin ? { LiaShell: plugin } : {},
   };
@@ -35,7 +39,44 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete (window as unknown as { Capacitor?: unknown }).Capacitor;
+  delete host.Capacitor;
+});
+
+describe('shellCapability', () => {
+  const answering = (get: () => Promise<unknown>) => {
+    host.Capacitor = {
+      isNativePlatform: () => true,
+      Plugins: { LiaShell: { get } },
+    };
+  };
+
+  it('is what the installed shell says of itself', async () => {
+    answering(() => Promise.resolve({ capabilities: { frameLinks: 1 } }));
+
+    await expect(shellCapability('frameLinks')).resolves.toBe(true);
+  });
+
+  it('is false for what an older shell does not name', async () => {
+    answering(() => Promise.resolve({ capabilities: { shareImage: 1 } }));
+
+    await expect(shellCapability('frameLinks')).resolves.toBe(false);
+  });
+
+  it('is false for a shell that names nothing', async () => {
+    answering(() => Promise.resolve({ url: null }));
+
+    await expect(shellCapability('frameLinks')).resolves.toBe(false);
+  });
+
+  it('is false when the shell does not answer', async () => {
+    answering(() => Promise.reject(new Error('gone')));
+
+    await expect(shellCapability('frameLinks')).resolves.toBe(false);
+  });
+
+  it('is false in a browser', async () => {
+    await expect(shellCapability('frameLinks')).resolves.toBe(false);
+  });
 });
 
 describe('isNativeShell', () => {
@@ -50,7 +91,7 @@ describe('isNativeShell', () => {
   });
 
   it('is false when Capacitor exists but says it is not native', () => {
-    (window as unknown as { Capacitor?: unknown }).Capacitor = {
+    host.Capacitor = {
       isNativePlatform: () => false,
     };
 
@@ -64,7 +105,7 @@ describe('isAndroidShell', () => {
   });
 
   it('is true only in the Android shell', () => {
-    (window as unknown as { Capacitor?: unknown }).Capacitor = {
+    host.Capacitor = {
       isNativePlatform: () => true,
       getPlatform: () => 'android',
     };
@@ -73,7 +114,7 @@ describe('isAndroidShell', () => {
   });
 
   it('is false in the iOS shell, which offers the camera on its own', () => {
-    (window as unknown as { Capacitor?: unknown }).Capacitor = {
+    host.Capacitor = {
       isNativePlatform: () => true,
       getPlatform: () => 'ios',
     };

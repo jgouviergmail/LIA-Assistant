@@ -133,6 +133,54 @@ describe('useWorkbenchItem', () => {
     expect(result.current.error).toBeInstanceOf(Error);
   });
 
+  describe('a re-read nobody asked for', () => {
+    const PATH = '/workbench/mail/message';
+
+    it('replaces the item in place', async () => {
+      const { result } = renderHook(() => useWorkbenchItem<Item>(PATH, { id: 'm1' }));
+      await waitFor(() => expect(result.current.item?.id).toBe('m1'));
+      get.mockResolvedValueOnce(item('m1', 'edited'));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(result.current.item?.subject).toBe('edited');
+    });
+
+    it('keeps what is on screen when it fails: nobody asked', async () => {
+      const { result } = renderHook(() => useWorkbenchItem<Item>(PATH, { id: 'm1' }));
+      await waitFor(() => expect(result.current.item?.id).toBe('m1'));
+      get.mockRejectedValueOnce(new Error('offline'));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(result.current.item?.id).toBe('m1');
+      expect(result.current.error).toBeNull();
+    });
+
+    it('waits for a first read still on its way', async () => {
+      const first = deferred();
+      get.mockReturnValueOnce(first.promise);
+      const { result } = renderHook(() => useWorkbenchItem<Item>(PATH, { id: 'm1' }));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(get).toHaveBeenCalledTimes(1);
+      await act(async () => first.answer(item('m1')));
+      expect(result.current.item?.id).toBe('m1');
+    });
+
+    it('leaves a failed read to its own retry', async () => {
+      get.mockRejectedValueOnce(new Error('down'));
+      const { result } = renderHook(() => useWorkbenchItem<Item>(PATH, { id: 'm1' }));
+      await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+      get.mockClear();
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(get).not.toHaveBeenCalled();
+    });
+  });
+
   it('applies a change to the item without a read', async () => {
     const { result } = renderHook(() =>
       useWorkbenchItem<Item>('/workbench/mail/message', { id: 'm1' })

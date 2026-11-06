@@ -26,7 +26,7 @@ The moment I wanted to improve is simple: **“I'm speaking with Claire. What di
 - **Pick up the relationship.** Open **Relations** for the recent exchanges, debrief and open commitments associated with a person.
 - **Prepare from your own material.** Ask LIA to bring together the project brief, recent emails and previous meeting notes. Inspect the sources and anything that conflicts.
 - **Choose what happens next.** Review the email draft before sending. Edit it, approve it or say no.
-- **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, Drive and Hue controls, with no model call. The connected provider determines the available controls.
+- **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, files and Hue controls, with no model call. The connected provider determines the available controls.
 
 Try: *“Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”*
 
@@ -236,7 +236,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 535 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 544 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -280,14 +280,27 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Your own workspace
 
-**Tools** opens mail, calendar, tasks, contacts, Drive and Hue through the services
+**Tools** opens mail, calendar, tasks, contacts, files and Hue through the services
 you connected. Browse and act directly, without a model call or an entry in LIA's
-activity registers. Mail has an isolated original-layout reader; calendars have
-Agenda, Week and Month; contacts retain multiple addresses and numbers. Drive
-supports paged search and document exports, while lights expose each lamp's real
-controls. Screens publish provider limitations, preserve explicit unknown outcomes
-and remember pane widths on this device. See [the workspace reference](docs/technical/WORKBENCH.md)
-and [ADR-369](docs/architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md).
+activity registers, as in the provider's own application and on every provider:
+
+- **Mail** sorts (archive, move, star, spam, restore, Undo), composes with files, formatting,
+  a signature and a moment to take a message back, follows a conversation, and reads a
+  message in an isolated original layout. Outlook's automatic replies and rules stand beside
+  Gmail's vacation and filters.
+- **Calendars** answer invitations, repeat events and change a whole series (RFC 5545 rules
+  on Google and iCloud, Graph patterns on Microsoft), in Day, Week, Month and Agenda views.
+- **Tasks** gather every list under Today, Overdue and Coming up; **contacts** hold photos,
+  groups, vCard export and import, and your latest exchanges.
+- **Files** work on Google Drive and OneDrive, and documents read in the page: PDF, Word,
+  Markdown, spreadsheets. **Ctrl+K** searches every tool at once.
+
+What a provider's client gains reaches the assistant's tools in the same release, deleting for
+good excepted, so the same gesture can be asked in words, with a confirmation card when it
+reaches someone else. Screens publish provider limitations and preserve explicit unknown
+outcomes. See
+[the workspace reference](docs/technical/WORKBENCH.md) and
+[ADR-369](docs/architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md).
 
 When asking LIA to act instead, designate a shown item by its sender, title or
 position. Several matches produce a numbered choice, then the task continues on
@@ -338,6 +351,7 @@ the supported surfaces and secure continuation contract.
 - Format-specific renderers manage layout, and truncated structured model output is rejected instead of silently producing an incomplete file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)).
 - Image generation and natural-language editing on OpenAI GPT Image or Qwen Image 3.0 — a model family declares its offer, so nothing the configured model cannot serve is priced, offered or selected, the person's preference is resolved to that offer and every image arrives in the chosen format ([ADR-305](docs/architecture/ADR-305-Image-Model-Declares-Its-Offer.md), [IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)).
 - On request, a new image's description is rewritten following the provider's own advice — a quoted text kept word for word, the original sent whenever in doubt, an edit never rewritten ([ADR-315](docs/architecture/ADR-315-Image-Prompt-Enhancement.md)).
+- A game, a quiz or a calculator asked in words runs in the conversation, in a sandboxed frame that reaches neither your account nor any site of its choosing, with its `.html` file below it; asking for the code still answers with the code ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)).
 
 #### Keep and send what LIA made
 
@@ -492,7 +506,7 @@ for projection and performance limits.
 #### Mail, calendar, contacts, tasks
 
 - Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants).
-- One active provider per category; activating one deactivates its competitor.
+- One active provider per category, files included (Google Drive or OneDrive); activating one deactivates its competitor.
 - Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account, and the connection alert offers it as soon as two services of one provider have expired. Each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
 - Access is renewed through one door: one exchange per token whoever asks and on whichever worker, no transaction held while the provider answers, a write conditioned on the token it started from, and a service marked disconnected only after the provider's refusal is confirmed ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)).
 - The SMS your phone receives, relayed by an iPhone Shortcuts automation into an encrypted personal archive — search, sender names from your contacts, erasure and export — with replay-safe receipts and recognised access codes kept out; the assistant reads them only under a separate consent ([ADR-357](docs/architecture/ADR-357-Phone-Ingestion-And-Personal-SMS-Archive.md), [SMS_INGESTION](docs/technical/SMS_INGESTION.md), [GUIDE_IPHONE_SHORTCUTS_SMS](docs/guides/GUIDE_IPHONE_SHORTCUTS_SMS.md)).
@@ -511,14 +525,14 @@ for projection and performance limits.
 
 #### Documents, places and weather
 
-- Google Drive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)).
+- Google Drive and OneDrive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)).
 - Google Maps places, routes and geocoding. A Position card precedes place cards in Cards, HTML and Markdown; interactive Maps starts on a priced click, with an address-list fallback ([ADR-352](docs/architecture/ADR-352-Position-Before-Places-In-Every-Display-Mode.md)). Each place carries one number in the list and on its pin; selecting it shows the details the answer already gathered and one priced route — walking up to 2 km, otherwise driving — from your position, your last known one or home ([ADR-355](docs/architecture/ADR-355-Acquired-Place-Details-And-Accounted-Selected-Routes.md), [ADR-356](docs/architecture/ADR-356-Responsive-Position-Details-And-Shared-Place-Numbers.md)).
 - Weather with change detection.
 - A last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
 
 #### Home and body
 
-- Philips Hue lighting by voice (rooms, scenes, local bridge or cloud).
+- Philips Hue lighting by voice (rooms, zones, scenes in motion, local bridge or cloud).
 - Daily steps and heart-rate batches pushed from an iPhone Shortcut, idempotently, with baselines, variation detection and charts ([ADR-076](docs/architecture/ADR-076-Health-Metrics-Ingestion.md), [ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md), [GUIDE_IPHONE_SHORTCUTS_HEALTH](docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md)).
 
 #### Your own tools (MCP)
@@ -1130,7 +1144,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | Backend       | Python 3.14 · FastAPI 0.141.1 · Pydantic 2.13.4 · SQLAlchemy 2.0.54 · Alembic                                         | REST API, SSE streaming, validation, async ORM, migrations        |
 | Orchestration | LangGraph 1.2.14 · LangChain 1.3.15 · `mcp` SDK (Streamable HTTP)                                                     | Multi-agent graph, LLM abstraction, Model Context Protocol        |
 | Data          | PostgreSQL 16 + pgvector · Redis 7.4                                                                                  | Data, checkpoints, vector search · cache, sessions, locks         |
-| Frontend      | Node.js 24 LTS · Next.js 16.4.2 · React 19.3.1 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
+| Frontend      | Node.js 24 LTS · Next.js 16.4.5 · React 19.3.1 · TypeScript · TailwindCSS · Radix UI · TanStack Query · react-i18next | App Router UI, accessible primitives, server state, six languages |
 | Voice         | ONNX Runtime Web (wake word) · sherpa-onnx (offline Whisper) · Edge TTS · OpenAI · ElevenLabs · Gemini · Fish Audio   | In-browser detection, server transcription, speech synthesis      |
 | Observability | Prometheus · Grafana · Loki · Tempo · Langfuse · structlog                                                            | Metrics, dashboards, logs, traces, LLM tracing                    |
 | Delivery      | Docker (multi-arch amd64/arm64) · GitHub Actions · Task                                                               | Images, CI/CD, one build tool for every command                   |
@@ -1182,8 +1196,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 54,033 collected over `tests/`, across 3,636 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-10-28)    |
-| Frontend tests (vitest) | 15,161 across 1,317 files (`vitest list`, 2026-10-28), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Backend tests           | 59,214 collected over `tests/`, across 3,872 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-06)    |
+| Frontend tests (vitest) | 17,167 across 1,421 files (`vitest list`, 2026-11-06), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
 | Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
 | Technical audit         | Method, evidence and open findings — [full public report & protocol](docs/audit/README.md)                                |
 
@@ -1238,7 +1252,7 @@ Pre-push: secret scan           Security workflow (weekly)
 | OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                |
 | [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                                       |
 | Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                                 |
-| Untrusted code                                                                         | Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md))             |
+| Untrusted code                                                                         | A page the model writes runs in a sandboxed frame with an opaque origin, under a policy that names no host ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md))             |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public technical audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
@@ -1289,7 +1303,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-367 ADR files (ADR-001 through ADR-369 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+368 ADR files (ADR-001 through ADR-370 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded
@@ -1313,10 +1327,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                           |                                         |                                                                         |
 | ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **60** backend domain packages | **1,092,074** source lines (excl. tests) | **72,137** inventoried automated tests | **367** ADRs                                                            |
-| **293** versions shipped       | **6 languages**, parity enforced in CI    | **658** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
+| **61** backend domain packages | **1,130,379** source lines (excl. tests) | **76,381** inventoried automated tests | **368** ADRs                                                            |
+| **294** versions shipped       | **6 languages**, parity enforced in CI    | **658** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,092,074 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-01). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,130,379 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-06). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)
@@ -1324,10 +1338,10 @@ Source-line figure: 1,092,074 physical lines in Python, TypeScript, JavaScript a
 </details>
 
 <details>
-<summary><strong>Latest release — your services, in your hands</strong></summary>
+<summary><strong>Latest release — all your work, by hand or by asking</strong></summary>
 
 <p align="center">
-  <strong>Version 4.3.0</strong> — <strong>Your services, in your hands.</strong> Tools opens your connected services for direct use without a model call. Choose MCP confirmations per account, server and tool, inspect their effect, and let an approved task continue to completion. When several items fit your words, LIA asks which one. Interface and help cover all six languages — 1 November 2026.
+  <strong>Version 4.4.0</strong> — <strong>All your work, by hand or by asking.</strong> Tools becomes a place to work on every provider: mail that sorts, invitations, repeating events, contacts and files, and the assistant gains each gesture. OneDrive joins Google Drive everywhere, documents read in the page, and a game or a calculator asked of LIA runs in the conversation — 6 November 2026.
 </p>
 
 [Full changelog](CHANGELOG.md)

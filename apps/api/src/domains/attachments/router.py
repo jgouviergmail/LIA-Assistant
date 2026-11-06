@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.core.content_disposition import SVG_MEDIA_TYPE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.attachments.knowledge_copy import copy_knowledge_document
@@ -198,10 +199,11 @@ async def get_attachment(
     # long-press "Save Image" menu on mobile (iOS Safari, Android Chrome) and
     # PDFs open in the browser viewer — generated reports (ADR-226) and the
     # user's own uploaded PDFs alike (ownership is checked above either way).
-    # Every other type keeps "attachment" to trigger a download prompt.
-    is_inline = attachment.mime_type.startswith("image/") or (
-        attachment.mime_type == "application/pdf"
-    )
+    # Every other type keeps "attachment" to trigger a download prompt, an SVG
+    # first of all: it is a page that runs scripts, and this is the API's origin.
+    is_inline = (
+        attachment.mime_type.startswith("image/") and attachment.mime_type != SVG_MEDIA_TYPE
+    ) or attachment.mime_type == "application/pdf"
 
     return FileResponse(
         path=str(file_path),

@@ -248,3 +248,11 @@ test that triggers it. And a FOR_EACH with failed items is a SUCCESS carrying
 them (`FIELD_FOR_EACH_FAILED_ITEMS`): the mapper lists one failed step per item
 and counts plan steps for the status — the field states the partial, never the
 status, for a loop too.
+
+## Amendment 2026-11-05: a retry that worked is no failure of the turn
+
+The response model reads no tool result, so the failures directive is all it knows of a tool. A
+loop that relaunched a call and succeeded still listed the first attempt, and the answer said
+« no page was produced » beside the page. `failure_context._recovered_failures` leaves out a failed
+call a later call of the same tool answered, one success for one failure. See
+[ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md).

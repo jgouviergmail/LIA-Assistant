@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 3.0
-**Date**: 2026-11-01
-**Application**: LIA v4.3.0
+**Date**: 2026-11-06
+**Application**: LIA v4.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI. My job was to direct it: a written 
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI that was directed, supervised and checked | **≈ 100%** |
-| Source lines (excluding tests), spread across 60 backend domain packages | **1,092,074** |
-| Automated tests inventoried, in suites matched to commits and to releases | **72,137** |
-| Documented architecture decisions (ADR) | **367** |
-| Versions shipped at a steady pace | **293** |
+| Source lines (excluding tests), spread across 61 backend domain packages | **1,130,379** |
+| Automated tests inventoried, in suites matched to commits and to releases | **76,381** |
+| Documented architecture decisions (ADR) | **368** |
+| Versions shipped at a steady pace | **294** |
 | Languages, with parity checked automatically | **6** |
 | Technical audit across 24 areas | **7.9/10** |
 
@@ -37,7 +37,7 @@ LIA can also open a personal discussion on her own, but only at the hours, from 
 
 Generative AI changes what teams produce, and also how they produce it. On both questions, I did not want to form an opinion from what the market was saying. I chose to face, myself, the full reality of an AI system in production, with its costs, its risks, its operations and its debt, and the reality of AI-assisted development, taking both all the way.
 
-My training ground is LIA, a self-hosted, multilingual, multi-agent conversational AI assistant. She handles email, calendar, contacts and files across Google, Apple and Microsoft. She offers a real-time voice interface, long-term memory and document search, and an animated character embodies her.
+My training ground is LIA, a self-hosted, multilingual, multi-agent conversational AI assistant. She handles email, calendar and contacts across Google, Apple and Microsoft, and files on Google Drive and OneDrive. She offers a real-time voice interface, long-term memory and document search, and an animated character embodies her.
 
 I set myself constraints: work alone, outside my working hours, on a minimal hardware budget, and hand all of the development to the AI. So this project does not measure how fast one person can produce. It measures what demanding direction gets out of a properly supervised AI.
 
@@ -64,7 +64,7 @@ The shared world gives the assistant places: a library for knowledge, a multimed
 
 I also wanted using an assistant to leave room for doing things yourself. The Tools workspace uses the same connected services, but a click there calls no model and is not recorded as LIA’s act. Delegation and direct control can share an interface while keeping clear who decided, who acted and what was approved.
 
-Here are three structural decisions, among the 367 documented.
+Here are three structural decisions, among the 368 documented.
 
 The first is about **sovereignty**: I did not want any irreversible dependency on a vendor. The AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity and local models through Ollama) all go through the same abstraction, so each use can switch provider through configuration alone, with costs compared. On the services side, Google, Apple and Microsoft are interchangeable in each category, whether mail, calendar or contacts. Self-hosting gives control of the server: account data is stored on the instance and connector credentials are encrypted. The remote services the person chooses still receive the data they need for their part of the request.
 
@@ -76,7 +76,7 @@ The third is about **risk control**: no irreversible action without human approv
 
 On the phone, the confirmation card is there to protect a third party. When LIA calls the person themselves, on a number they declared and verified with a code read aloud, the person plays the role of the card. For their calls, as for a live voice session in the browser opened on their own Gemini, OpenAI or ElevenLabs key, they choose the mode: either the voice hands each request to the chat as it is spoken, with its confirmations, or it reads on its own and acts on nothing. What runs on their personal key is billed by the provider and shown once, but it is not counted here. What the platform pays for on their behalf, on the other hand, is recorded on their account, whatever the path: a map looked up during a call, the briefing's weather, a photo shown.
 
-What a stranger sends, an email or its attachment, remains data to read and never an instruction to follow. A script written by the assistant reaches the web only through a single door, and the person's keys are swapped in there, out of the script's reach; for a site nobody has allowed, LIA asks the person first, and they have three possible answers: with the data, without it, or not at all. When the autonomous agent cannot get what it was asked for, it says so, along with what it tried, instead of filling the gap. What must be exact, such as an amount, a duration or a conversion, is computed by a tool, never estimated by the model. What leaves without confirmation is addressed only to the person themselves, an email to oneself or a call to one's verified number: the recipient is not a parameter there, so nothing can redirect it. A skill written elsewhere, taken from a public library or a plugin, runs in isolation: it never accesses the person's connectors and reaches only permitted hosts. And a skill the AI writes enters the person's space only when they click.
+What a stranger sends, an email or its attachment, remains data to read and never an instruction to follow. A script written by the assistant reaches the web only through a single door, and the person's keys are swapped in there, out of the script's reach; for a site nobody has allowed, LIA asks the person first, and they have three possible answers: with the data, without it, or not at all. A page she writes runs in a frame that reaches neither the person's account nor any site of its choosing. When the autonomous agent cannot get what it was asked for, it says so, along with what it tried, instead of filling the gap. What must be exact, such as an amount, a duration or a conversion, is computed by a tool, never estimated by the model. What leaves without confirmation is addressed only to the person themselves, an email to oneself or a call to one's verified number: the recipient is not a parameter there, so nothing can redirect it. A skill written elsewhere, taken from a public library or a plugin, runs in isolation: it never accesses the person's connectors and reaches only permitted hosts. And a skill the AI writes enters the person's space only when they click.
 
 ## 5. Operations
 
@@ -118,4 +118,4 @@ Here is what this experience changes in the way I lead.
 - Between a blanket ban and blind trust, there is a **governable path**. Graded human control can be specified, tested and audited. It is the approach that regulatory requirements are sketching out, and it works today.
 - A leader who practices **makes better calls**. Build or buy, accept a debt or not, believe a vendor's promise or not: these decisions get sharper when the person making them has handled the material firsthand. This project is my way of keeping in touch with the reality on the ground.
 
-*Personal project, carried out outside any professional activity. Technical assessment from the October 25, 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on October 31, 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Personal project, carried out outside any professional activity. Technical assessment from the October 25, 2026 audit, with findings cross-checked. Structural counts follow the repository; source lines were measured again on November 6, 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

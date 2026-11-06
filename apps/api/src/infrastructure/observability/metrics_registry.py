@@ -86,7 +86,7 @@ skill_detection_suppressed_total = Counter(
         "primary domain is an MCP domain). A rising rate flags analyzer-LLM "
         "incoherence; each suppression is also logged with the pair."
     ),
-    ["reason"],  # mcp_domain | sentinel_name | unknown_skill
+    ["reason"],  # mcp_domain | page_domain | sentinel_name | unknown_skill
 )
 
 skill_detection_retained_total = Counter(

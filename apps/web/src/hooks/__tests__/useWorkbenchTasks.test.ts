@@ -37,6 +37,10 @@ function task(id: string, overrides: Partial<WorkbenchTask> = {}): WorkbenchTask
     due: null,
     parent: null,
     position: null,
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
     ...overrides,
   };
 }
@@ -289,7 +293,7 @@ describe('useWorkbenchTasks — the lists', () => {
 
   it('takes a removed list away — one already gone too — and keeps one whose removal was refused', async () => {
     const { result } = await rendered();
-    const home = { id: 'l1', title: 'Home' };
+    const home = { id: 'l1', title: 'Home', default: false };
     api.delete
       .mockRejectedValueOnce(REFUSED)
       .mockRejectedValueOnce(new ApiError('gone', 404, { detail: { code: 'item_gone' } }));

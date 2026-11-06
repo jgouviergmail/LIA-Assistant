@@ -14,7 +14,11 @@ from typing import Any, Final
 READ_STATE_NOT_FOUND: Final = "not_found"
 #: The provider refused or failed for this message alone.
 READ_STATE_FAILED: Final = "failed"
-READ_STATE_FAILURE_STATUSES: Final = frozenset({READ_STATE_NOT_FOUND, READ_STATE_FAILED})
+#: The provider stopped mid-way, after other messages of the selection were done.
+READ_STATE_UNANSWERED: Final = "unavailable"
+READ_STATE_FAILURE_STATUSES: Final = frozenset(
+    {READ_STATE_NOT_FOUND, READ_STATE_FAILED, READ_STATE_UNANSWERED}
+)
 
 #: The system label Gmail marks an unread message with.
 GMAIL_UNREAD_LABEL: Final = "UNREAD"
@@ -38,6 +42,7 @@ __all__ = [
     "READ_STATE_FAILED",
     "READ_STATE_FAILURE_STATUSES",
     "READ_STATE_NOT_FOUND",
+    "READ_STATE_UNANSWERED",
     "read_state_result",
     "unique_ids",
 ]

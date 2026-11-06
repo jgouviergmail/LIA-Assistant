@@ -11,6 +11,7 @@ Security:
     - All string values are sanitized before encryption
     - Dangerous characters removed: newlines, quotes, backslashes, braces
     - Maximum length enforced (100 chars)
+    - A field a schema declares free text reaches no prompt: control characters alone go
     - Encrypted using Fernet symmetric encryption
 """
 
@@ -36,6 +37,10 @@ DANGEROUS_CHARS_PATTERN = re.compile(r'[\n\r\t"\'`\\{}]')
 
 # Maximum length for preference string values
 MAX_PREFERENCE_LENGTH = 100
+
+# What free text never holds: a carriage return is a line's end, the others nothing a mail shows.
+_CARRIAGE_RETURN = re.compile(r"\r\n?")
+_UNREADABLE_CHARS_PATTERN = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 
 class ConnectorPreferencesService:
@@ -189,7 +194,10 @@ class ConnectorPreferencesService:
         sanitized_data: dict[str, Any] = {}
 
         for field_name, value in prefs.model_dump().items():
-            if isinstance(value, str):
+            if isinstance(value, str) and field_name in prefs.free_text_fields:
+                lines = _CARRIAGE_RETURN.sub("\n", value)
+                sanitized_data[field_name] = _UNREADABLE_CHARS_PATTERN.sub("", lines).strip()
+            elif isinstance(value, str):
                 # Remove dangerous characters for prompt injection
                 clean = DANGEROUS_CHARS_PATTERN.sub("", value)
 

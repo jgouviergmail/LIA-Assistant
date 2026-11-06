@@ -32,6 +32,13 @@ from src.core.constants import EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT, HTML_TEXT_L
 logger = structlog.get_logger(__name__)
 
 _HTML_TAG_RE = re.compile(r"<[^<>]+>")
+_LINK_OPENER = rf"\[{re.escape(HTML_TEXT_LINK_LABEL)}\]\("
+#: A link already written is matched whole, so nothing inside it is written again. Its
+#: address stops at the next opener: a text of openers then fails each one there, in
+#: linear time (ADR-326), where « anything but a closing parenthesis » rescans.
+_WRITTEN_LINK_OR_BARE_URL = re.compile(
+    rf"{_LINK_OPENER}(?:(?!{_LINK_OPENER})[^\s)])*\)|https?://[^\s<>\"'\)]+"
+)
 _BLOCK_TAGS = frozenset({"p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"})
 _IGNORED_TAGS = frozenset({"style", "script"})
 _INLINE_PUNCTUATION = ".,;:!?'\")]}—"
@@ -129,13 +136,11 @@ class HTMLToTextConverter(HTMLParser):
 
         def replace_long_url(match: re.Match[str]) -> str:
             url = match.group(0)
-            if url.endswith(")"):  # already inside a [label](url)
+            if url.startswith("[") or len(url) <= threshold:
                 return url
-            if len(url) > threshold:
-                return f"[{HTML_TEXT_LINK_LABEL}]({url})"
-            return url
+            return f"[{HTML_TEXT_LINK_LABEL}]({url})"
 
-        text = re.sub(r"https?://[^\s<>\"'\)]+", replace_long_url, text)
+        text = _WRITTEN_LINK_OR_BARE_URL.sub(replace_long_url, text)
         text = re.sub(r"\n{3,}", "\n\n", text)
         lines = [line.strip() for line in text.split("\n")]
         while lines and not lines[0]:

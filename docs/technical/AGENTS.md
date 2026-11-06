@@ -89,7 +89,7 @@ graph TB
 | `contacts_agent` | Google Contacts | search_contacts, list_contacts, get_contact_details + context tools | ✅ Production |
 | `emails_agent` | Gmail | search_emails, get_email_details, send_email, send_reply, trash_email | ✅ Production |
 | `calendar_agent` | Google Calendar | search_events, get_event_details, create_event, update_event | ✅ Production |
-| `drive_agent` | Google Drive | search_files, get_file_details, list_files, list_folder_contents | ✅ Production |
+| `file_agent` | Google Drive or OneDrive | get_files, manage_files, share_file, read_spreadsheet, read_document, write_spreadsheet, append_document_text, replace_document_text | ✅ Production |
 | `tasks_agent` | Google Tasks | search_tasks, list_task_lists, get_task_details, create_task, complete_task | ✅ Production |
 | `places_agent` | Google Places API (New) | search_places, get_place_details | ✅ Production |
 | `weather_agent` | OpenWeatherMap | get_weather | ✅ Production |

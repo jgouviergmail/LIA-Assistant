@@ -9,9 +9,10 @@
  * bounded by the very length the listing refuses beyond (`search_max_chars`,
  * ADR-184). The chips narrow what is listed: unread, with an attachment (only
  * where the provider can filter on it — the descriptor says), and a period of
- * the account's days (the last one included).
+ * the account's days (the last one included). Below `lg` they wait behind
+ * « Filters », saying how many apply: on a phone the first message comes first.
  */
-import { CalendarRange, ChevronDown, Paperclip, Search, X } from 'lucide-react';
+import { CalendarRange, ChevronDown, ListFilter, Paperclip, Search, X } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -65,7 +66,12 @@ export function MailSearchBar({
   const { t } = useTranslation(lng);
   const [words, setWords] = useState(search.q);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const fieldId = useId();
+  const chipsId = useId();
+  const active = [search.unread, search.attachments, search.period !== 'any'].filter(
+    Boolean
+  ).length;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -84,7 +90,7 @@ export function MailSearchBar({
       : t(`workbench.mail.period.${search.period}`);
 
   return (
-    <div className="space-y-2.5 border-b px-4 py-3">
+    <div className="space-y-2 border-b px-3 py-2 lg:space-y-2.5 lg:px-4 lg:py-3">
       <form role="search" onSubmit={submit} className="flex items-center gap-2">
         <Label htmlFor={fieldId} className="sr-only">
           {t('workbench.mail.search_label')}
@@ -119,8 +125,32 @@ export function MailSearchBar({
         <Button type="submit" variant="outline" size="icon" aria-label={t('workbench.mail.search')}>
           <Search className="h-4 w-4" aria-hidden="true" />
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-expanded={filtersOpen}
+          aria-controls={chipsId}
+          aria-label={
+            active > 0
+              ? t('workbench.mail.filters', { count: active })
+              : t('workbench.mail.filters_none')
+          }
+          onClick={() => setFiltersOpen(open => !open)}
+          className="relative lg:hidden"
+        >
+          <ListFilter className="h-4 w-4" aria-hidden="true" />
+          {active > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+              {active}
+            </span>
+          )}
+        </Button>
       </form>
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        id={chipsId}
+        className={cn('flex-wrap items-center gap-2 lg:flex', filtersOpen ? 'flex' : 'hidden')}
+      >
         <Button
           type="button"
           variant="outline"

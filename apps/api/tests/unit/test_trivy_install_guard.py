@@ -1,4 +1,4 @@
-"""Guard: the workflows' Trivy never comes through the vendor's installer.
+"""Guard: where the repository's Trivy comes from, and what its scan blocks on.
 
 Why
 ---
@@ -11,6 +11,11 @@ hides the dependency until the day it empties, so the shape is held here.
 
 The image of ``security:scan:docker`` reads the same ``TRIVY_VERSION``. It used to pin its
 own tag, so the repository ran two versions of its scanner (0.70.0 and 0.74.0).
+
+The scan blocks on every finding. For a SARIF report the action drops ``severity`` unless
+``limit-severities-for-sarif`` is true, so ``severity: CRITICAL,HIGH`` announced a threshold
+nothing applied: three MEDIUM advisories failed the job all the same. That strictness is the
+decision, so the declaration left, and what would narrow the gate is refused here.
 """
 
 from __future__ import annotations
@@ -39,6 +44,10 @@ IMAGE_REFERENCE = re.compile(r"aquasec/trivy(?![\w-])[^\s\"']*")
 PINNED_IMAGE = "aquasec/trivy:{{.TRIVY_VERSION}}"
 #: Anti-vacuity floor: two images on two platform families in security:scan:docker (2026-11-04).
 MIN_EXPECTED_IMAGE_RUNS = 4
+#: What would bound the findings the gate blocks on, or read as if it did.
+NARROWING_INPUTS = ("severity", "limit-severities-for-sarif", "ignore-unfixed")
+#: Anti-vacuity floor: the filesystem scan of security.yml (2026-11-04).
+MIN_EXPECTED_GATES = 1
 
 #: The functional form, because ``with`` is a keyword.
 Step = TypedDict(
@@ -138,6 +147,28 @@ def _files_that_could_pin() -> dict[str, str]:
     return {path.name: path.read_text(encoding="utf-8") for path in paths}
 
 
+def _gates(workflow: Workflow) -> list[tuple[str, dict[str, str]]]:
+    """The label and the inputs of every step of ``workflow`` scanning into a SARIF report."""
+    return [
+        (f"{job_name} / {step.get('name', step['uses'])}", step.get("with", {}))
+        for job_name, job in workflow["jobs"].items()
+        for step in job.get("steps", [])
+        if step.get("uses", "").startswith(SCAN_ACTION)
+        and step.get("with", {}).get("format") == "sarif"
+    ]
+
+
+def _loose_gates(workflow: Workflow) -> list[str]:
+    """Name every SARIF scan of ``workflow`` that would not block on every finding."""
+    found: list[str] = []
+    for label, inputs in _gates(workflow):
+        # GitHub reads an unquoted YAML `1` as the input "1".
+        if str(inputs.get("exit-code")) != "1":
+            found.append(f"{label}: does not set exit-code 1")
+        found.extend(f"{label}: sets {name}" for name in NARROWING_INPUTS if name in inputs)
+    return found
+
+
 def _action(uses: str = SCAN_ACTION, skip: str | None = None) -> Step:
     """A pinned ``uses:`` step, with ``skip-setup-trivy`` set to ``skip`` when given."""
     return {
@@ -152,7 +183,24 @@ def _workflow(*steps: Step) -> Workflow:
     return {"jobs": {"scan": {"steps": list(steps)}}}
 
 
+def _scan(inputs: dict[str, str]) -> Step:
+    """A step running the action with ``inputs``."""
+    return {"name": "Scan", "uses": f"{SCAN_ACTION}@abc", "with": inputs}
+
+
 INSTALL_STEP: Step = {"name": "Install Trivy", "run": INSTALL_COMMAND}
+#: What a gate is: a SARIF report, and a job that fails on what the report holds.
+GATE: dict[str, str] = {"format": "sarif", "exit-code": "1"}
+#: The same gate as a workflow spells it with no quotes.
+UNQUOTED_GATE = f"""
+jobs:
+  scan:
+    steps:
+      - uses: {SCAN_ACTION}@abc
+        with:
+          format: sarif
+          exit-code: 1
+"""
 
 
 class TestTheRepository:
@@ -255,3 +303,59 @@ class TestOneTrivy:
 
     def test_the_vulnerability_database_is_not_the_image(self) -> None:
         assert _image_references("TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db:2") == []
+
+
+class TestTheGate:
+    """The scan blocks on every finding, and no input reads as a bound on it."""
+
+    def test_the_scan_sees_a_gate(self) -> None:
+        gates = sum(len(_gates(workflow)) for workflow in _workflows().values())
+
+        assert gates >= MIN_EXPECTED_GATES
+
+    def test_no_workflow_narrows_the_gate(self) -> None:
+        found = {name: _loose_gates(workflow) for name, workflow in _workflows().items()}
+
+        assert not {name: lines for name, lines in found.items() if lines}
+
+    @pytest.mark.parametrize(
+        "name",
+        ["severity", "limit-severities-for-sarif", "ignore-unfixed"],
+    )
+    def test_an_input_that_would_narrow_it_is_named(self, name: str) -> None:
+        workflow = _workflow(_scan({**GATE, name: "true"}))
+
+        assert _loose_gates(workflow) == [f"scan / Scan: sets {name}"]
+
+    def test_a_threshold_that_would_apply_is_named_twice(self) -> None:
+        inputs = {**GATE, "severity": "CRITICAL,HIGH", "limit-severities-for-sarif": "true"}
+
+        assert _loose_gates(_workflow(_scan(inputs))) == [
+            "scan / Scan: sets severity",
+            "scan / Scan: sets limit-severities-for-sarif",
+        ]
+
+    @pytest.mark.parametrize("inputs", [{"format": "sarif"}, {**GATE, "exit-code": "0"}])
+    def test_a_scan_that_would_not_fail_the_job_is_named(self, inputs: dict[str, str]) -> None:
+        workflow = _workflow(_scan(inputs))
+
+        assert _loose_gates(workflow) == ["scan / Scan: does not set exit-code 1"]
+
+    def test_the_expected_shape_passes(self) -> None:
+        assert _loose_gates(_workflow(_scan(GATE))) == []
+
+    def test_an_unquoted_exit_code_passes(self) -> None:
+        workflow: Workflow = yaml.safe_load(UNQUOTED_GATE)
+
+        assert len(_gates(workflow)) == 1
+        assert _loose_gates(workflow) == []
+
+    def test_a_step_writing_another_report_is_no_gate(self) -> None:
+        workflow = _workflow(_scan({"format": "cyclonedx", "severity": "CRITICAL,HIGH"}))
+
+        assert _gates(workflow) == []
+
+    def test_a_step_of_another_action_is_no_gate(self) -> None:
+        step: Step = {"uses": "vendor/scanner@abc", "with": GATE}
+
+        assert _gates(_workflow(step)) == []

@@ -104,6 +104,12 @@ TAXONOMY_CASES: tuple[TaxonomyRoutingCase, ...] = (
         mutation=True,
     ),
     _single(
+        "native_interactive_page",
+        "Fais-moi un quiz interactif sur les capitales européennes, en HTML, avec un score.",
+        "interactive_page",
+        mutation=True,
+    ),
+    _single(
         "native_inbox_read",
         "Retrouve dans ma boîte e-mail le dernier message dont l'objet est Budget Atlas.",
         "email",

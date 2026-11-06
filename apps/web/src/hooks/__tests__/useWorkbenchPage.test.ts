@@ -210,6 +210,88 @@ describe('useWorkbenchPage', () => {
     expect(result.current.skipped).toBe(0);
   });
 
+  describe('a re-read nobody asked for', () => {
+    const PATH = '/workbench/mail/messages';
+
+    it('replaces the first page in place', async () => {
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+      await waitFor(() => expect(ids(result.current.items)).toEqual(['m1', 'm2']));
+      get.mockResolvedValueOnce(page(['m0', 'm1', 'm2']));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(ids(result.current.items)).toEqual(['m0', 'm1', 'm2']);
+    });
+
+    it('keeps what is on screen when it fails: nobody asked', async () => {
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+      await waitFor(() => expect(ids(result.current.items)).toEqual(['m1', 'm2']));
+      get.mockRejectedValueOnce(new Error('offline'));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(ids(result.current.items)).toEqual(['m1', 'm2']);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('never takes back the pages the person went through', async () => {
+      get.mockResolvedValueOnce(page(['m1'], 't2')).mockResolvedValueOnce(page(['m2']));
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+      await waitFor(() => expect(result.current.nextToken).toBe('t2'));
+      await act(() => result.current.loadMore());
+      get.mockClear();
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(get).not.toHaveBeenCalled();
+      expect(ids(result.current.items)).toEqual(['m1', 'm2']);
+    });
+
+    it('waits for a first page still on its way', async () => {
+      const first = deferred();
+      get.mockReturnValueOnce(first.promise);
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(get).toHaveBeenCalledTimes(1);
+      await act(async () => first.answer(page(['m1'])));
+      expect(ids(result.current.items)).toEqual(['m1']);
+    });
+
+    it('never drops a next page on its way', async () => {
+      get.mockResolvedValueOnce(page(['m1'], 't2'));
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+      await waitFor(() => expect(result.current.nextToken).toBe('t2'));
+      const next = deferred();
+      get.mockReturnValueOnce(next.promise);
+      let more: Promise<void> = Promise.resolve();
+      act(() => {
+        more = result.current.loadMore();
+      });
+
+      await act(() => result.current.refresh({ unasked: true }));
+      await act(async () => {
+        next.answer(page(['m2']));
+        await more;
+      });
+
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(ids(result.current.items)).toEqual(['m1', 'm2']);
+    });
+
+    it('leaves a failed listing to its own retry', async () => {
+      get.mockRejectedValueOnce(new Error('down'));
+      const { result } = renderHook(() => useWorkbenchPage<Row>(PATH, {}));
+      await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+      get.mockClear();
+
+      await act(() => result.current.refresh({ unasked: true }));
+
+      expect(get).not.toHaveBeenCalled();
+    });
+  });
+
   it('reads nothing without a path', async () => {
     const { result } = renderHook(() => useWorkbenchPage<Row>(null, {}));
 

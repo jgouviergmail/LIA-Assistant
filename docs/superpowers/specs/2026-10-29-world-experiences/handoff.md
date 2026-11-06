@@ -25,7 +25,9 @@ feature.
 
 Use this dossier as the entry point for the four chats. Existing code and accepted
 ADRs retain authority over current behavior; the dossier describes desired changes
-and explicitly pending choices. If they disagree, record the discrepancy and
+and the decisions accepted on 2026-11-03. Detailed design proposals and runtime
+qualification remain distinct from that acceptance. If sources disagree, record
+the discrepancy and
 refresh the fact rather than silently changing an accepted contract.
 
 Keep stable identifiers:
@@ -48,8 +50,9 @@ number then.
    Work inline unless the owner changes that instruction.
 2. Inventory branch/HEAD, index and working-tree changes. Preserve other work;
    do not reset, stage or overwrite it as preparation.
-3. Read this dossier and the feature brief. Check which D decisions are actually
-   accepted; a recommendation is not an owner instruction.
+3. Read this dossier and the feature brief. D01–D11 were accepted on 2026-11-03:
+   apply them without asking for repeat approval. Distinguish this acceptance from
+   any newly proposed details or later explicitly recorded revisions.
 4. Re-read the code for affected F contracts, especially anything changed since
    this snapshot. Resolve code/ADR/document differences visibly.
 5. Produce a bounded design and implementation plan mapping changed components
@@ -59,8 +62,9 @@ number then.
    to analyze or edit these documents does not include commit, push or deployment.
 
 The [four launch prompts](README.md#mandate-and-reading-order) request detailed
-analysis and planning first. This is intentional: the shared product arbitrations
-remain open in this delivery.
+analysis and planning first. This remains the owner's authorized scope after
+accepting D01–D11 on 2026-11-03. Do not interpret acceptance as permission to
+write business code, commit, push or deploy.
 
 ## End-of-chat handoff
 
@@ -79,7 +83,7 @@ to passed merely because the plan is complete.
 
 | Workstream | Current status | Consumes | Must leave for the next consumer |
 |---|---|---|---|
-| Shared framing | Documents prepared; owner arbitrations open | Current native contracts | Accepted choices and refreshed evidence |
+| Shared framing | D01–D11 accepted on 2026-11-03; detailed focus framing is next | Native contracts with a source refresh per feature | Accepted choices, detailed design and evidence boundaries |
 | Focus | Not implemented by this dossier | G0, native World and accounting | Proven session/recovery conventions and optional ticket link |
 | Theatre | Not implemented by this dossier | G0; focus conventions where useful | Isolated training lifecycle, Live matrix, feedback and attempt fixtures |
 | Language | Not implemented by this dossier | Qualified shared training contracts | Pedagogical extension, supported language evidence, saved-progress lifecycle |
@@ -159,3 +163,23 @@ apart from the intentional index-document addition. This is a scoped preservatio
 check, not a claim that the whole working tree was frozen.
 
 No business feature is marked qualified by this document.
+
+## Acceptance update — 2026-11-03
+
+The owner accepted all D01–D11 recommendations and requested a complete prompt
+for detailed focus framing, inline and without business code. The master plan,
+decisions, four briefs, contract-evidence date caveat and four launch prompts now
+reflect that acceptance. The documentation index points to the accepted status.
+
+This update started on `main` at
+`a221721d6f95c6b035dd7f1d27f83009d789bb05`. The tracked working tree was clean;
+an existing untracked `LIA/` entry was left untouched. The 2026-10-29
+preservation and qualification record above remains historical evidence, not
+a claim about this newer checkout.
+
+**Qualification:** `task lint:docs:preview` passed, as did `git diff --check`;
+all local dossier link targets resolved. Historical/roadmap path findings remain
+informational and are not reported as repaired. The diff contains only the twelve
+dossier documents and their documentation-index entry. HEAD and the Git index
+byte hash match the starting snapshot; the pre-existing untracked entry remains.
+No runtime/source re-audit or feature implementation is claimed.

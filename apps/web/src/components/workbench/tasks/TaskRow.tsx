@@ -9,7 +9,8 @@
  * « Today » and an overdue day are drawn in the warning tone, and an overdue
  * day also SAYS so — colour is never the only carrier. A checkbox whose last
  * change is still on its way takes no second one (`aria-disabled`, guarded in
- * the hook): disabling it would blur it under the keyboard.
+ * the hook): disabling it would blur it under the keyboard. While the person
+ * selects, the tick selects: two checkboxes on a line would read as one.
  */
 import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
@@ -36,6 +37,14 @@ export interface TaskRowProps {
   onToggle: (task: WorkbenchTask, completed: boolean) => void;
   /** Hands each task's link to the screen, which gives it the focus back. */
   linkRef: (taskId: string, link: HTMLAnchorElement | null) => void;
+  /** What is ticked, while the person selects. */
+  selection?: RowSelection;
+}
+
+/** The tasks ticked, and how a task gets ticked. */
+export interface RowSelection {
+  selected: ReadonlySet<string>;
+  onToggle: (task: WorkbenchTask) => void;
 }
 
 export function TaskRow({
@@ -47,6 +56,7 @@ export function TaskRow({
   hrefOf,
   onToggle,
   linkRef,
+  selection,
 }: TaskRowProps) {
   return (
     <li>
@@ -59,6 +69,7 @@ export function TaskRow({
         href={hrefOf(node.task)}
         onToggle={onToggle}
         linkRef={linkRef}
+        selection={selection}
       />
       {node.children.length > 0 && (
         <ul className="pl-8">
@@ -73,6 +84,7 @@ export function TaskRow({
                 href={hrefOf(child)}
                 onToggle={onToggle}
                 linkRef={linkRef}
+                selection={selection}
               />
             </li>
           ))}
@@ -91,25 +103,45 @@ interface TaskLineProps {
   href: string;
   onToggle: (task: WorkbenchTask, completed: boolean) => void;
   linkRef: (taskId: string, link: HTMLAnchorElement | null) => void;
+  selection?: RowSelection;
 }
 
-function TaskLine({ lng, task, today, open, busy, href, onToggle, linkRef }: TaskLineProps) {
+function TaskLine({
+  lng,
+  task,
+  today,
+  open,
+  busy,
+  href,
+  onToggle,
+  linkRef,
+  selection,
+}: TaskLineProps) {
   const { t } = useTranslation(lng);
   const title = task.title || t('workbench.tasks.untitled');
   const notes = task.notes?.split('\n', 1)[0];
   return (
     <div className={cn('flex items-start gap-3 border-b px-4 py-2.5', open && 'bg-primary/10')}>
-      <Checkbox
-        className="mt-0.5"
-        checked={task.completed}
-        aria-disabled={busy || undefined}
-        aria-label={t(task.completed ? 'workbench.tasks.reopen' : 'workbench.tasks.complete', {
-          title,
-        })}
-        onChange={event => {
-          if (!busy) onToggle(task, event.currentTarget.checked);
-        }}
-      />
+      {selection ? (
+        <Checkbox
+          className="mt-0.5"
+          checked={selection.selected.has(task.id)}
+          aria-label={t('workbench.tasks.select_task', { title })}
+          onChange={() => selection.onToggle(task)}
+        />
+      ) : (
+        <Checkbox
+          className="mt-0.5"
+          checked={task.completed}
+          aria-disabled={busy || undefined}
+          aria-label={t(task.completed ? 'workbench.tasks.reopen' : 'workbench.tasks.complete', {
+            title,
+          })}
+          onChange={event => {
+            if (!busy) onToggle(task, event.currentTarget.checked);
+          }}
+        />
+      )}
       <Link
         ref={link => linkRef(task.id, link)}
         href={href}

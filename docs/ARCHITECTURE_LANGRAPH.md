@@ -1188,7 +1188,6 @@ Le modèle d'un nœud n'est pas un réglage : chaque nœud lit son poste LLM (`L
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `planner_timeout_seconds` | 30 | Timeout génération |
 | `planner_max_retries` | 2 | Retries validation échec |
 | `planner_max_cost_usd` | 5.0 | Budget exécution |
 | `planner_max_steps` | 20 | Max steps dans plan |
@@ -1512,14 +1511,16 @@ User Request → APIKeyConnectorTool.execute()
 | `update_event_tool` | Modification event | WRITE | Draft |
 | `delete_event_tool` | Suppression event | WRITE | Draft |
 
-##### Drive Agent
-**Fichier**: `tools/drive_tools.py`
+##### File Agent (Google Drive ou OneDrive)
+**Fichiers**: `tools/drive_tools.py`, `tools/file_organize_tools.py`, `tools/file_share_tools.py`
 
 | Tool | Description | Catégorie |
 |------|-------------|-----------|
-| `search_files_tool` | Recherche fichiers Drive (query) | READ |
-| `list_files_tool` | Liste fichiers d'un dossier | READ |
-| `get_file_content_tool` | Contenu/métadonnées fichier | READ |
+| `get_files_tool` | Recherche, liste et détail des fichiers | READ |
+| `read_spreadsheet_tool`, `read_document_tool` | Contenu d'un tableur ou d'un document | READ |
+| `manage_files_tool` | Dossiers, renommer, déplacer, copier, restaurer | WRITE |
+| `share_file_tool` | Partage d'un fichier | WRITE | Draft |
+| `write_spreadsheet_tool`, `append_document_text_tool`, `replace_document_text_tool` | Écriture dans un tableur ou un document | WRITE | Draft |
 
 ##### Tasks Agent
 **Fichier**: `tools/tasks_tools.py`

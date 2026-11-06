@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 13:50+0000\n"
-"PO-Revision-Date: 2026-10-26 13:50+0000\n"
+"POT-Creation-Date: 2026-11-05 17:02+0000\n"
+"PO-Revision-Date: 2026-11-05 17:02+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: Simplified Chinese\n"
 "Language: zh-CN\n"
@@ -82,11 +82,17 @@ msgstr "列表已截断为 {limit} 项（共有 {available} 项可用）"
 msgid "{count} items retrieved for '{domain}'"
 msgstr "已为“{domain}”检索到 {count} 项"
 
+msgid "Color '{color}' not recognized. Available: {available}"
+msgstr "无法识别颜色“{color}”。可用：{available}"
+
 msgid "{count} light(s) found"
 msgstr "找到 {count} 盏灯"
 
 msgid "{count} currently on"
 msgstr "目前 {count} 盏亮着"
+
+msgid "not answering: {names}"
+msgstr "无响应：{names}"
 
 msgid "Light '{name}' not found. Available: {available}"
 msgstr "找不到灯“{name}”。可用：{available}"

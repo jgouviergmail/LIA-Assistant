@@ -125,6 +125,28 @@ class TestWhatIsOffered:
 
 
 class TestASelection:
+    async def test_a_name_finds_its_exact_file_whatever_the_case_and_nobody_else_s(
+        self, async_session: AsyncSession
+    ) -> None:
+        owner = await _user(async_session)
+        stranger = await _user(async_session)
+        wanted = await _file(async_session, owner, "Rapport.PDF")
+        await _file(async_session, owner, "Rapport.PDF.bak")
+        await _file(async_session, stranger, "Rapport.PDF")
+        await _file(async_session, owner, "rapport.pdf", expires_at=_NOW - timedelta(hours=1))
+
+        assert await _ids(async_session, owner, names=["rapport.pdf"]) == [wanted]
+
+    async def test_a_title_finds_its_file_too(self, async_session: AsyncSession) -> None:
+        owner = await _user(async_session)
+        wanted = await _file(async_session, owner, "a1b2.pdf")
+        row = await async_session.get(Attachment, wanted)
+        assert row is not None
+        row.title = "Rapport de mai"
+        await async_session.flush()
+
+        assert await _ids(async_session, owner, names=["rapport de MAI"]) == [wanted]
+
     async def test_it_holds_only_the_account_s_live_rows_it_names(
         self, async_session: AsyncSession
     ) -> None:

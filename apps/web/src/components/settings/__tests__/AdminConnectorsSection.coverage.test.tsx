@@ -35,6 +35,7 @@ const BACKEND_ADMINISTRABLE = [
   'microsoft_calendar',
   'microsoft_contacts',
   'microsoft_tasks',
+  'microsoft_onedrive',
   'openweathermap',
   'wikipedia',
   'perplexity',

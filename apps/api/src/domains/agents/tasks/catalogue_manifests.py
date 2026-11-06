@@ -23,7 +23,28 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
-from src.domains.agents.tasks.parameter_descriptions import TASK_CLEAR_DUE_DESCRIPTION
+from src.domains.agents.tasks.parameter_descriptions import (
+    TASK_CLEAR_DUE_DESCRIPTION,
+    TASK_CLEAR_REMINDER_DESCRIPTION,
+    TASK_CLEAR_REPEAT_DESCRIPTION,
+    TASK_IMPORTANCE_DESCRIPTION,
+    TASK_REMINDER_DESCRIPTION,
+    TASK_REPEAT_DESCRIPTION,
+    TASK_STEPS_DESCRIPTION,
+)
+
+#: What To Do keeps beyond a title, notes and a day, on a new task and on a change.
+_DETAIL_PARAMETERS = [
+    ParameterSchema(
+        name="importance", type="string", required=False, description=TASK_IMPORTANCE_DESCRIPTION
+    ),
+    ParameterSchema(
+        name="reminder", type="string", required=False, description=TASK_REMINDER_DESCRIPTION
+    ),
+    ParameterSchema(
+        name="repeat", type="string", required=False, description=TASK_REPEAT_DESCRIPTION
+    ),
+]
 
 # ============================================================================
 # 1. GET TASKS (Unified - replaces list + details)
@@ -221,6 +242,10 @@ create_task_catalogue_manifest = ToolManifest(
             description="Description",
             semantic_type="Text",
         ),
+        *_DETAIL_PARAMETERS,
+        ParameterSchema(
+            name="steps", type="array", required=False, description=TASK_STEPS_DESCRIPTION
+        ),
         ParameterSchema(
             name="task_list_id",
             type="string",
@@ -388,6 +413,19 @@ update_task_catalogue_manifest = ToolManifest(
             required=False,
             description="'needsAction' or 'completed'",
             semantic_type="task_status",
+        ),
+        *_DETAIL_PARAMETERS,
+        ParameterSchema(
+            name="clear_reminder",
+            type="boolean",
+            required=False,
+            description=TASK_CLEAR_REMINDER_DESCRIPTION,
+        ),
+        ParameterSchema(
+            name="clear_repeat",
+            type="boolean",
+            required=False,
+            description=TASK_CLEAR_REPEAT_DESCRIPTION,
         ),
         ParameterSchema(
             name="task_list_id",

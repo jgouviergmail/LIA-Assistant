@@ -51,10 +51,10 @@ describe('buildAppCsp (strict app policy)', () => {
     expect(prod.get('script-src')).not.toContain("'unsafe-eval'");
   });
 
-  it('declares frame-src with self + www.google.com (interactive-map embed) + the Turnstile challenge frame (ADR-364)', () => {
+  it('declares frame-src with self + the maps embed path (interactive-map) + the Turnstile challenge frame (ADR-364)', () => {
     expect(prod.get('frame-src')).toEqual([
       "'self'",
-      'https://www.google.com',
+      'https://www.google.com/maps/embed',
       'https://challenges.cloudflare.com',
     ]);
   });

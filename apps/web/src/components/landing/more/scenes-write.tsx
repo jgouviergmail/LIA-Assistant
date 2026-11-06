@@ -21,11 +21,12 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Undo2,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-import { KeyCap, MiniComposer, MiniSettingRow, SkeletonLine, STAGE } from './primitives';
+import { Cursor, KeyCap, MiniComposer, MiniSettingRow, SkeletonLine, STAGE } from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -313,6 +314,51 @@ function BringBackScene({ active, labels }: SceneProps) {
   );
 }
 
+type SendUndoPhase = 'written' | 'holding' | 'pointing';
+const SEND_UNDO_STEPS: readonly TimelineStep<SendUndoPhase>[] = [
+  { at: 0, state: 'written' },
+  { at: 800, state: 'holding' },
+  { at: 1900, state: 'pointing' },
+];
+
+/**
+ * « Send » holds the message on the page for a moment: the resting frame is the
+ * notice that can still take it back.
+ */
+function SendUndoScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SEND_UNDO_STEPS, { active });
+  const held = phase !== 'written';
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div
+        className={cn(
+          'w-full max-w-[220px] transition-opacity duration-300 motion-reduce:transition-none',
+          held && 'opacity-25'
+        )}
+      >
+        <MiniComposer trailing={<ArrowUp className="h-3 w-3 text-primary" />}>
+          <SkeletonLine w="w-2/3" />
+        </MiniComposer>
+      </div>
+      <div
+        className={cn(
+          'flex w-full max-w-[220px] items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-px-10 shadow-sm transition-opacity duration-300 motion-reduce:transition-none',
+          held ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate text-muted-foreground">{labels.sending}</span>
+        <span className="flex shrink-0 items-center gap-0.5 font-semibold text-primary">
+          <Undo2 className="h-3 w-3" aria-hidden="true" />
+          {labels.undo}
+        </span>
+      </div>
+      <Cursor
+        className={cn('left-[68%] top-[66%]', phase === 'pointing' ? 'opacity-100' : 'opacity-0')}
+      />
+    </div>
+  );
+}
+
 export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   draft_survives: DraftSurvivesScene,
   slash_commands: SlashCommandsScene,
@@ -320,4 +366,5 @@ export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   drop_zone: DropZoneScene,
   knowledge_pick: KnowledgePickScene,
   bring_back: BringBackScene,
+  send_undo: SendUndoScene,
 };

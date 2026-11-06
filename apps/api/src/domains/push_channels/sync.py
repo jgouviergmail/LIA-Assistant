@@ -1,7 +1,7 @@
 """Leader-elected push channel sync job (lot H, 2026-08).
 
-Runs on the scheduler leader: for every user with an active Google connector,
-ensures a live watch channel (creating or renewing as needed). Each user gets
+Runs on the scheduler leader: for every user with an active connector that can
+push, ensures a live watch channel (creating or renewing as needed). Each user gets
 its own DB session (AsyncSession is not concurrency-safe; the sweep is
 sequential on purpose — it is a background job, not a latency path), and one
 user's failure never stops the sweep: push is an optimization, the fallback
@@ -42,12 +42,12 @@ async def _list_user_ids(connector_type: ConnectorType) -> list[UUID]:
 
 
 @asynccontextmanager
-async def _google_client(
+async def _connector_client(
     user_id: UUID, connector_type: ConnectorType, client_class: type[Any]
 ) -> AsyncIterator[Any | None]:
-    """A Google client on a detached service, closed on every path (ADR-304).
+    """A connector's client on a detached service, closed on every path (ADR-304).
 
-    The credentials are read in a session of their own, closed before Google
+    The credentials are read in a session of their own, closed before the provider
     is called; a token refresh writes through the detached service. None when
     the account holds no usable credentials.
     """
@@ -68,7 +68,7 @@ async def _ensure_user_calendar(user_id: UUID) -> None:
     """Ensure the user's calendar events.watch channel."""
     from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
 
-    async with _google_client(user_id, ConnectorType.GOOGLE_CALENDAR, GoogleCalendarClient) as c:
+    async with _connector_client(user_id, ConnectorType.GOOGLE_CALENDAR, GoogleCalendarClient) as c:
         if c is not None:
             async with get_db_context() as db:
                 await PushChannelService(db).ensure_calendar_watch(user_id, c)
@@ -78,10 +78,22 @@ async def _ensure_user_drive(user_id: UUID) -> None:
     """Ensure the user's Drive changes.watch channel."""
     from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 
-    async with _google_client(user_id, ConnectorType.GOOGLE_DRIVE, GoogleDriveClient) as client:
+    async with _connector_client(user_id, ConnectorType.GOOGLE_DRIVE, GoogleDriveClient) as client:
         if client is not None:
             async with get_db_context() as db:
                 await PushChannelService(db).ensure_drive_watch(user_id, client)
+
+
+async def _ensure_user_onedrive(user_id: UUID) -> None:
+    """Ensure the user's Graph subscription on their OneDrive."""
+    from src.domains.connectors.clients.microsoft_onedrive_client import MicrosoftOneDriveClient
+
+    async with _connector_client(
+        user_id, ConnectorType.MICROSOFT_ONEDRIVE, MicrosoftOneDriveClient
+    ) as client:
+        if client is not None:
+            async with get_db_context() as db:
+                await PushChannelService(db).ensure_onedrive_watch(user_id, client)
 
 
 async def _ensure_user_gmail(user_id: UUID) -> None:
@@ -92,14 +104,14 @@ async def _ensure_user_gmail(user_id: UUID) -> None:
     )
 
     # The mailbox address keys the Pub/Sub event → channel resolution.
-    async with _google_client(user_id, ConnectorType.GOOGLE_GMAIL, GoogleGmailClient) as mail:
+    async with _connector_client(user_id, ConnectorType.GOOGLE_GMAIL, GoogleGmailClient) as mail:
         if mail is None:
             return
         profile = await mail.get_profile()
     email_address = profile.get("emailAddress", "")
     if not email_address:
         return
-    async with _google_client(
+    async with _connector_client(
         user_id, ConnectorType.GOOGLE_GMAIL, GoogleGmailSettingsClient
     ) as client:
         if client is not None:
@@ -152,6 +164,11 @@ async def sync_push_channels() -> dict[str, int]:
             _ensure_user_calendar,
         ),
         (ConnectorType.GOOGLE_DRIVE, PushChannelProvider.GOOGLE_DRIVE.value, _ensure_user_drive),
+        (
+            ConnectorType.MICROSOFT_ONEDRIVE,
+            PushChannelProvider.MICROSOFT_ONEDRIVE.value,
+            _ensure_user_onedrive,
+        ),
     ]
     if settings.gmail_push_enabled:
         sweeps.append(

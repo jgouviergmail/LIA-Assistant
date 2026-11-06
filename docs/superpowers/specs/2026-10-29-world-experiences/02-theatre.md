@@ -3,8 +3,9 @@
 [Master plan](README.md) · [Contracts](contracts.md) ·
 [Decisions](decisions.md) · [Launch prompt](prompts/02-theatre.md)
 
-**Status:** proposed; written and Live are both required outcomes.
-**Blocking choices:** D01, D03–D07, D09–D10.
+**Status:** first-release direction accepted on 2026-11-03; detailed design only.
+Business implementation is not authorized by this framing request.
+**Accepted decisions:** D01, D03–D07, D09–D11.
 
 ## Job and useful result
 
@@ -16,7 +17,7 @@ objective and difficulty, rehearses an opening, receives concrete feedback,
 then retries the same difficult moment. The output is a usable formulation and
 a better-practised response, not a claim to predict the real counterpart.
 
-## Proposed first-release scope
+## Accepted first-release scope
 
 - Curated templates such as giving feedback, asking for help, negotiating a
   boundary and addressing a disagreement, with bounded customization.

@@ -135,6 +135,7 @@ class TestBuildIotDeviceContext:
         mock_client = MagicMock()
         mock_client.list_lights = AsyncMock(side_effect=_lights)
         mock_client.list_rooms = AsyncMock(return_value=rooms)
+        mock_client.list_zones = AsyncMock(return_value=[_make_room("Coin lecture")])
         mock_client.close = AsyncMock()
 
         with (
@@ -151,6 +152,7 @@ class TestBuildIotDeviceContext:
         assert '"Bureau"' in result
         assert '"Salon"' in result
         assert '"Chambre"' in result
+        assert '"Coin lecture"' in result
         assert "AVAILABLE HUE LIGHTS" in result
         assert "AVAILABLE HUE ROOMS" in result
         assert "EXACT name" in result
@@ -172,6 +174,7 @@ class TestBuildIotDeviceContext:
         mock_client = MagicMock()
         mock_client.list_lights = AsyncMock(return_value=[])
         mock_client.list_rooms = AsyncMock(return_value=[])
+        mock_client.list_zones = AsyncMock(return_value=[])
         mock_client.close = AsyncMock()
 
         mock_service = MagicMock()

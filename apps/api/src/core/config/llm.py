@@ -391,12 +391,6 @@ class LLMSettings(BaseSettings):
     # - Semantic type expansion
     # Performance Target: P95 < 800ms (fast model recommended)
 
-    query_analyzer_llm_timeout_seconds: float = Field(
-        default=30.0,
-        gt=0,
-        description="Timeout in seconds for query analyzer LLM call. Default: 30s.",
-    )
-
     # ========================================================================
     # Ollama Provider — Discovery
     # ========================================================================

@@ -235,7 +235,7 @@ class TestAnMcpCallKeepsItsOwnBound:
     def test_a_native_tool_is_unaffected(self) -> None:
         from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 
-        assert compute_step_timeout("get_emails_tool", None) == pytest.approx(
+        assert compute_step_timeout("get_events_tool", None) == pytest.approx(
             float(settings.default_tool_timeout_seconds)
         )
 

@@ -114,6 +114,15 @@ supprimée par migration `5d6e7f8a9b0c`, garde d'outil et surface Réglages
 retirées — le flag de déploiement et la capacité admin restent les deux seuls
 niveaux de contrôle.
 
+## Amendement 2026-11-05
+
+Le créneau `document_generation` écrit aussi les pages interactives
+([ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)) : un seul réglage de modèle pour ce qui s'écrit long et d'un seul tenant.
+Le stockage et la carte du chat sont extraits dans `store_document`, la seule porte par laquelle
+un document et une page rejoignent les pièces jointes. Un fichier `.html` sort en `attachment`,
+sa carte ouvre le panneau de téléchargement de la visionneuse et l'aperçu le refuse : rien ne
+l'exécute sur l'origine de l'application.
+
 ## Alternatives rejetées
 
 1. **Contenu fourni en paramètre par le planner/ReAct seul** : le planner est

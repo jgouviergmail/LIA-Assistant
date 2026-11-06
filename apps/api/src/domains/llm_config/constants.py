@@ -581,6 +581,18 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["structured_output"],
         power_tier=POWER_TIER_HIGH,
     ),
+    # Interactive pages (ADR-370): writes one whole page in one structured-output
+    # call, several times a document's length: a row of its own, so tuning one
+    # never moves the other.
+    "interactive_page": LLMTypeMetadata(
+        llm_type="interactive_page",
+        display_name="Interactive Page",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.interactive_page",
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
+    ),
     "meeting_template_selection": LLMTypeMetadata(
         llm_type="meeting_template_selection",
         display_name="Meeting template selection (Jev)",
@@ -1264,7 +1276,9 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=50000,
-        timeout_seconds=120.0,
+        # What the client waited before the slot reached it: a high-quality
+        # render measured 138.3 s (ADR-221 amendment 2026-11-05).
+        timeout_seconds=300.0,
     ),
     # Document Generation (ADR-226) — writes whole documents in one
     # structured-output call. gpt-4.1: active pricing rows in the llm_pricing
@@ -1277,7 +1291,21 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=16000,
-        timeout_seconds=120.0,
+        # The transport's bound: a whole document outlasts the generic 120 s, and
+        # the client must not cut what its step still waits for (ADR-226).
+        timeout_seconds=300.0,
+    ),
+    # Interactive pages (ADR-370): a document's default, so that a page runs as it
+    # did on that slot until someone tunes this one.
+    "interactive_page": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
+        timeout_seconds=300.0,
     ),
     # Image prompt enhancement (ADR-315): one short schema-bound rewrite per
     # generated image. No reasoning is declared here; `short_answer_config`

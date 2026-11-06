@@ -13,10 +13,12 @@
  * keeps drafts. Escape closes the reader; whichever way it closes, the
  * message's row gets the focus back. « New message » sits in the tool's
  * header below `lg` — a floating button would compete with the companion the
- * person places themselves.
+ * person places themselves. A message can become a task, an event or a contact,
+ * and go to LIA (`useToolBridges`), unsent, the words outside any address.
  */
-import { CheckSquare, PenSquare, Rows3, Rows4 } from 'lucide-react';
+import { CheckSquare, MessagesSquare, PenSquare, Rows3, Rows4 } from 'lucide-react';
 import {
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -36,28 +38,40 @@ import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchI
 import { useWorkbenchMail, type WorkbenchMailState } from '@/hooks/useWorkbenchMail';
 import { useWorkbenchMailDrafts } from '@/hooks/useWorkbenchMailDrafts';
 import { useWorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
+import { useWorkbenchMailSignature } from '@/hooks/useWorkbenchMailSignature';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { pageSelectionState } from '@/lib/selection';
 import { cn } from '@/lib/utils';
 import {
+  addressLabel,
   EMPTY_MAIL_SEARCH,
   MAIL_DRAFTS,
   MAIL_INBOX,
+  MAIL_TRASH,
   listingParams,
+  lineMembers,
   readMailDensity,
   receivedLabel,
+  selectedMembers,
   subscribeMailDensity,
   writeMailDensity,
+  writeMailGrouping,
   type MailDensity,
+  type MailGrouping,
+  type MailLine,
   type MailSearch,
 } from '@/lib/workbench/mail';
+import { copyText } from '@/lib/workbench/copy';
+import type { ComposeFailure, ComposerFields } from '@/lib/workbench/mail-compose';
 import { dayIn } from '@/lib/workbench/tasks';
 import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
 import type {
   MailFolder,
+  MailSenders,
   MailHtml,
   MailMessage,
+  MailSummary,
   WorkbenchFeature,
   WorkbenchLimits,
   WorkbenchToolAvailability,
@@ -66,27 +80,44 @@ import type {
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
+import { isAndroidShell } from '@/lib/native/shell';
+import { printText } from '@/lib/workbench/print-text';
+
+import { useListSelection, type ListSelection } from '../useListSelection';
+import { useHandoff, useToolBridges, type ToolBridges } from '../useToolBridges';
+import type { ToolShortcut } from '../useToolShortcuts';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { Composer } from './Composer';
+import { ConversationBand } from './ConversationBand';
 import { DraftsView } from './DraftsView';
 import { FolderColumn, FolderSelect, useFolderName, type FolderPaneProps } from './FolderPane';
 import { LabelsManager } from './LabelsManager';
 import { MailboxSettingsPanel } from './MailboxSettingsPanel';
+import { MailDrag } from './MailDrag';
 import { MailSearchBar } from './MailSearchBar';
 import { MailSelectionBar } from './MailSelectionBar';
 import { MessageList } from './MessageList';
-import { MessageReader } from './MessageReader';
+import { MessageReader, type MessageBridges } from './MessageReader';
+import { MoveDialog } from './MoveDialog';
+import { useLeaving } from './useLeaving';
 import { useMailActs, type MailActs } from './useMailActs';
+import { useMailSending, type MailSending } from './useMailSending';
 import {
   useComposerSlot,
+  useConversation,
   useDraftActs,
+  useFreshListing,
+  useMailLines,
+  useInlineImages,
   useMailAddress,
-  useMailSelection,
   useReadAfterLook,
   type ComposerSlot,
+  type ConversationState,
   type MailAddress,
-  type MailSelection,
 } from './useMailScreen';
+
+/** A mouse, or what moves like one: a finger scrolls a list. */
+const FINE_POINTER = '(pointer: fine)';
 
 /** Before hydration the server renders the comfortable list. */
 const comfortable = (): MailDensity => 'comfortable';
@@ -115,19 +146,33 @@ export function MailTool({ lng }: { lng: Language }) {
       </>
     );
   }
-  return <ReadyMail lng={lng} tool={tool} limits={availability.limits} />;
+  const driveTool = availability.tools.find(
+    item => item.tool === 'files' && item.state === 'ready'
+  );
+  return (
+    <ReadyMail
+      lng={lng}
+      tool={tool}
+      limits={availability.limits}
+      drive={driveTool ? { provider: driveTool.provider } : undefined}
+    />
+  );
 }
 
 interface ReadyMailProps {
   lng: Language;
   tool: WorkbenchToolAvailability;
   limits: WorkbenchLimits;
+  /** The drive an attachment can be kept on, when one is ready. */
+  drive?: { provider: string | null };
 }
 
-function ReadyMail({ lng, tool, limits }: ReadyMailProps) {
+function ReadyMail({ lng, tool, limits, drive }: ReadyMailProps) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
+  const { mailCounts } = useWorkbench();
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
+  const dragsRows = useMediaQuery(`${WORKBENCH_DESKTOP} and ${FINE_POINTER}`);
   const density = useSyncExternalStore(subscribeMailDensity, readMailDensity, comfortable);
   const address = useMailAddress(lng);
   const [search, setSearch] = useState<MailSearch>(EMPTY_MAIL_SEARCH);
@@ -157,24 +202,60 @@ function ReadyMail({ lng, tool, limits }: ReadyMailProps) {
     reading ? '/workbench/mail/message/html' : null,
     byId
   );
-  const acts = useMailActs(lng, mail, open);
-  const selection = useMailSelection(JSON.stringify(listing));
+  const conversation = useConversation(reading, open.item);
+  const { lines, grouping } = useMailLines(mail.messages.items);
+  const { adjust: adjustCount, reread: rereadCounts } = mailCounts;
+  const unreadMoved = useCallback(
+    (delta: number) => adjustCount(address.folder, delta),
+    [address.folder, adjustCount]
+  );
+  const acts = useMailActs(lng, mail, open, address.folder, unreadMoved, rereadCounts);
+  // A selection ticks lines: another way of drawing them lets go of it.
+  const selection = useListSelection(JSON.stringify([listing, grouping]));
+  const sending = useMailSending({
+    lng,
+    acts,
+    address,
+    rows: mail.messages.items,
+    selection,
+    folders: mail.folders,
+    permanentDelete: can.forever,
+    desktop,
+  });
+  useFreshListing(address.folder, mailCounts.counts, () => {
+    void mail.messages.refresh({ unasked: true });
+  });
   const slot = useComposerSlot();
   const draftActs = useDraftActs(lng, drafts, slot.compose, acts.tell);
   const labels = can.labels ? ownFolders(mail.folders) : undefined;
   useReadAfterLook(open, () => acts.setOpenRead(true, true));
   // Whichever way the reader closed, its message's row gets the focus back.
   const linkRef = useDrillDownFocus(address.openId, { fallback: searchBox });
+  const toolBridges = useToolBridges(lng);
+  const shortcuts = useMailShortcuts({
+    address,
+    lines,
+    open: open.item,
+    slot,
+    acts,
+    sending,
+    searchBox,
+  });
+  useHandoff('compose', true, handed =>
+    slot.compose({ kind: 'new', to: handed.to, files: handed.file ? [handed.file] : undefined })
+  );
 
   const folderPane: FolderPaneProps = {
     lng,
     folders: mail.folders,
+    truncated: mail.foldersTruncated,
     openId: address.folder,
     labels: can.labels,
     hrefOf: address.folderHref,
     onPick: address.pickFolder,
     onCompose: () => slot.compose({ kind: 'new' }),
-    ...paneDoors(can.labels, can.settings, setDialog),
+    unread: mailCounts.counts,
+    ...paneDoors(can, setDialog),
   };
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape' || !address.openId || event.defaultPrevented) return;
@@ -187,94 +268,138 @@ function ReadyMail({ lng, tool, limits }: ReadyMailProps) {
 
   return (
     <>
-      <WorkbenchToolHeader lng={lng} tool="mail">
+      <WorkbenchToolHeader
+        lng={lng}
+        tool="mail"
+        shortcuts={shortcuts}
+        onRefresh={async options => {
+          await Promise.all([
+            mail.reread(options),
+            drafts.drafts.refresh(options),
+            open.refresh(options),
+            conversation.refresh(options),
+          ]);
+        }}
+      >
         <MailHeaderActions
           lng={lng}
           density={density}
+          grouping={grouping}
           selecting={selecting}
           canSelect={!draftsView}
           onSelecting={() => setSelecting(on => !on)}
           onCompose={() => slot.compose({ kind: 'new' })}
         />
       </WorkbenchToolHeader>
-      <section
-        aria-label={t('workbench.tools.mail.label')}
-        onKeyDown={onKeyDown}
-        className={cn(
-          'flex min-h-[28rem] overflow-hidden rounded-lg border bg-card',
-          WORKBENCH_PANE_HEIGHT
-        )}
+      <MailDrag
+        lng={lng}
+        selected={selection.selected}
+        membersOf={id => lineMembers(lines, id)}
+        onDrop={sending.drop}
       >
-        <FolderColumn {...folderPane} readerOpen={address.openId !== null} pane={foldersPane} />
-        <PaneSeparator
-          {...foldersPane.separator}
+        <section
+          aria-label={t('workbench.tools.mail.label')}
+          onKeyDown={onKeyDown}
           className={cn(
-            PANE_SEPARATOR_CLASS,
-            address.openId !== null ? 'hidden xl:flex' : 'hidden lg:flex'
-          )}
-        />
-        <div
-          {...listPane.pane}
-          className={cn(
-            'min-h-0 min-w-0 flex-1 flex-col',
-            reading
-              ? cn('hidden lg:flex', paneWidth(listPane, 'xl:w-80 xl:flex-none 2xl:w-96'))
-              : 'flex'
+            'flex min-h-[28rem] overflow-hidden rounded-lg border bg-card',
+            WORKBENCH_PANE_HEIGHT
           )}
         >
-          <FolderSelect {...folderPane} />
-          {draftsView ? (
-            <DraftsView
-              lng={lng}
-              drafts={drafts.drafts}
-              opening={draftActs.opening}
-              trashing={draftActs.trashing}
-              whenOf={whenOf}
-              onOpen={draft => void draftActs.openDraft(draft.id)}
-              onTrash={draft => void draftActs.trashDraft(draft.id)}
-            />
-          ) : (
-            <MessagesColumn
-              lng={lng}
-              tool={tool}
-              limits={limits}
-              mail={mail}
-              acts={acts}
-              address={address}
-              selection={selection}
-              search={search}
-              onSearch={setSearch}
-              selectable={desktop || selecting}
-              density={density}
-              labels={labels}
-              searchBox={searchBox}
-              whenOf={whenOf}
-              linkRef={linkRef}
+          <FolderColumn
+            {...folderPane}
+            readerOpen={address.openId !== null}
+            pane={foldersPane}
+            takesRows={dragsRows}
+          />
+          <PaneSeparator
+            {...foldersPane.separator}
+            className={cn(
+              PANE_SEPARATOR_CLASS,
+              address.openId !== null ? 'hidden xl:flex' : 'hidden lg:flex'
+            )}
+          />
+          <div
+            {...listPane.pane}
+            className={cn(
+              'min-h-0 min-w-0 flex-1 flex-col',
+              reading
+                ? cn('hidden lg:flex', paneWidth(listPane, 'xl:w-80 xl:flex-none 2xl:w-96'))
+                : 'flex'
+            )}
+          >
+            <FolderSelect {...folderPane} />
+            {draftsView ? (
+              <DraftsView
+                lng={lng}
+                drafts={drafts.drafts}
+                opening={draftActs.opening}
+                trashing={draftActs.trashing}
+                whenOf={whenOf}
+                onOpen={draft => void draftActs.openDraft(draft.id)}
+                onTrash={draft => void draftActs.trashDraft(draft.id)}
+              />
+            ) : (
+              <MessagesColumn
+                lng={lng}
+                tool={tool}
+                limits={limits}
+                mail={mail}
+                lines={lines}
+                acts={acts}
+                sending={sending}
+                permanentDelete={can.forever}
+                draggable={dragsRows}
+                address={address}
+                selection={selection}
+                search={search}
+                onSearch={setSearch}
+                selectable={desktop || selecting}
+                density={density}
+                labels={labels}
+                searchBox={searchBox}
+                whenOf={whenOf}
+                linkRef={linkRef}
+              />
+            )}
+          </div>
+          {reading && (
+            <PaneSeparator
+              {...listPane.separator}
+              className={cn(PANE_SEPARATOR_CLASS, 'hidden lg:flex')}
             />
           )}
-        </div>
-        {reading && (
-          <PaneSeparator
-            {...listPane.separator}
-            className={cn(PANE_SEPARATOR_CLASS, 'hidden lg:flex')}
+          <ReaderPane
+            lng={lng}
+            reading={reading}
+            showPlaceholder={!draftsView}
+            open={open}
+            original={original}
+            conversation={conversation}
+            whenOf={whenOf}
+            acts={acts}
+            sending={sending}
+            address={address}
+            folders={mail.folders}
+            labels={labels}
+            zone={zone}
+            downloadMax={limits.download_max_bytes}
+            drive={drive}
+            focusOnOpen={!desktop}
+            bridges={messageBridges(toolBridges, t, address.messageHref)}
+            compose={slot.compose}
           />
-        )}
-        <ReaderPane
-          lng={lng}
-          reading={reading}
-          showPlaceholder={!draftsView}
-          open={open}
-          original={original}
-          acts={acts}
-          address={address}
-          folders={mail.folders}
-          labels={labels}
-          zone={zone}
-          downloadMax={limits.download_max_bytes}
-          focusOnOpen={!desktop}
-          compose={slot.compose}
-        />
-      </section>
+        </section>
+      </MailDrag>
+      <MoveDialog
+        lng={lng}
+        moving={sending.moving}
+        folders={mail.folders}
+        listed={address.folder}
+        labels={can.labels}
+        onPick={sending.pickFolder}
+        onClose={sending.stopMove}
+      />
+      {sending.confirmDialog}
       <MailDialogs
         lng={lng}
         tool={tool}
@@ -286,39 +411,187 @@ function ReadyMail({ lng, tool, limits }: ReadyMailProps) {
         acts={acts}
         address={address}
         labels={labels}
+        folders={can.folders}
+        holdMs={limits.send_undo_seconds * 1000}
+        uploadMaxBytes={limits.upload_max_bytes}
+        autosaveMs={limits.draft_autosave_seconds * 1000}
         draftsShown={draftsView}
         onDraftsChanged={() => void drafts.drafts.refresh()}
+        onMailSent={() => void conversation.refresh({ unasked: true })}
       />
     </>
   );
 }
 
+/**
+ * What was held could not leave and the composer is gone with the screen: the
+ * words are nowhere else, so the toast stays and carries them.
+ */
+function toastLost(
+  t: (key: string) => string,
+  words: ComposerFields,
+  failure: ComposeFailure
+): void {
+  const key =
+    failure.kind === 'unknown' ? 'workbench.mail.compose.unknown' : 'workbench.mail.compose.lost';
+  toast.error(t(key), {
+    duration: Infinity,
+    action: {
+      label: t('workbench.mail.compose.copy_words'),
+      onClick: () => void copyText(words.body),
+    },
+  });
+}
+
+interface MailShortcutsOptions {
+  address: MailAddress;
+  lines: readonly MailLine[];
+  open: MailMessage | undefined;
+  slot: ComposerSlot;
+  acts: MailActs;
+  sending: MailSending;
+  searchBox: RefObject<HTMLDivElement | null>;
+}
+
+/** The keys of the mail: writing, moving through the list, and acting on what is open. */
+function useMailShortcuts({
+  address,
+  lines,
+  open,
+  slot,
+  acts,
+  sending,
+  searchBox,
+}: MailShortcutsOptions): ToolShortcut[] {
+  const step = (by: number) => () => {
+    const at = lines.findIndex(line => line.members.some(row => row.id === address.openId));
+    const next = lines[at + by]?.message;
+    if (!next) return;
+    // Walking from one message to the next keeps one « back »; the first one opens it.
+    if (address.openId) address.replaceMessage(next);
+    else address.openMessage(next);
+  };
+  const keys: ToolShortcut[] = [
+    {
+      key: 'c',
+      labelKey: 'workbench.shortcuts.new_message',
+      run: () => slot.compose({ kind: 'new' }),
+    },
+    {
+      key: '/',
+      labelKey: 'workbench.shortcuts.search',
+      run: () => searchBox.current?.querySelector('input')?.focus(),
+    },
+    { key: 'j', labelKey: 'workbench.shortcuts.next_message', run: step(1) },
+    { key: 'k', labelKey: 'workbench.shortcuts.previous_message', run: step(-1) },
+  ];
+  if (!open) return keys;
+  return [
+    ...keys,
+    {
+      key: 'r',
+      labelKey: 'workbench.shortcuts.reply',
+      run: () => slot.compose({ kind: 'reply', message: open, all: false }),
+    },
+    {
+      key: 'a',
+      labelKey: 'workbench.shortcuts.reply_all',
+      run: () => slot.compose({ kind: 'reply', message: open, all: true }),
+    },
+    {
+      key: 'f',
+      labelKey: 'workbench.shortcuts.forward',
+      run: () => slot.compose({ kind: 'forward', message: open }),
+    },
+    {
+      key: 'u',
+      labelKey: 'workbench.shortcuts.toggle_read',
+      run: () => void acts.setOpenRead(!open.is_read),
+    },
+    {
+      key: 's',
+      labelKey: 'workbench.shortcuts.toggle_star',
+      run: () => void acts.setOpenStarred(!open.is_starred),
+    },
+    ...(sending.moves.archive
+      ? [
+          {
+            key: 'e',
+            labelKey: 'workbench.shortcuts.archive',
+            run: () => void sending.send([open.id], 'archive'),
+          },
+        ]
+      : []),
+    ...(sending.moves.move
+      ? [
+          {
+            key: 'v',
+            labelKey: 'workbench.shortcuts.move',
+            run: () => sending.startMove([open.id]),
+          },
+        ]
+      : []),
+  ];
+}
+
+/** Where an open message can go: another tool holding a way back to it, or LIA. */
+function messageBridges(
+  bridges: ToolBridges,
+  t: (key: string, values?: Record<string, string>) => string,
+  hrefOf: (message: MailSummary) => string
+): MessageBridges {
+  const linkTo = (message: MailMessage) =>
+    `${window.location.origin}${hrefOf({ ...message, snippet: '' })}`;
+  return {
+    toTask: bridges.offers('task')
+      ? message => bridges.go({ kind: 'task', title: message.subject, notes: linkTo(message) })
+      : undefined,
+    toEvent: bridges.offers('event')
+      ? message =>
+          bridges.go({ kind: 'event', summary: message.subject, description: linkTo(message) })
+      : undefined,
+    toContact: bridges.offers('contact')
+      ? ({ sender }) =>
+          sender && bridges.go({ kind: 'contact', name: sender.name, email: sender.address })
+      : undefined,
+    ask: message =>
+      bridges.ask(
+        t('workbench.ask.mail', {
+          subject: message.subject,
+          sender: message.sender ? addressLabel(message.sender) : '',
+        })
+      ),
+  };
+}
+
 /** The gestures the mail provider accepts that change what the screen offers. */
 interface MailFeatures {
   labels: boolean;
+  /** Outlook's and iCloud's folders of the person's own. */
+  folders: boolean;
+  /** Deleting for good (Gmail's needs a scope LIA does not hold). */
+  forever: boolean;
   drafts: boolean;
-  /** Gmail's vacation responder or filters: the mailbox settings door. */
-  settings: boolean;
 }
 
 function mailFeatures(tool: WorkbenchToolAvailability): MailFeatures {
   const offers = (feature: WorkbenchFeature) => tool.features.includes(feature);
   return {
     labels: offers('labels'),
+    folders: offers('folder_management'),
+    forever: offers('permanent_delete'),
     drafts: offers('drafts'),
-    settings: offers('vacation') || offers('filters'),
   };
 }
 
-/** The pane's doors to the label manager and the mailbox settings, where offered. */
+/** The pane's doors to the label manager, where offered, and the mailbox settings. */
 function paneDoors(
-  labels: boolean,
-  settings: boolean,
+  can: MailFeatures,
   open: (dialog: 'labels' | 'settings') => void
 ): Pick<FolderPaneProps, 'onManageLabels' | 'onSettings'> {
   return {
-    onManageLabels: labels ? () => open('labels') : undefined,
-    onSettings: settings ? () => open('settings') : undefined,
+    onManageLabels: can.labels || can.folders ? () => open('labels') : undefined,
+    onSettings: () => open('settings'),
   };
 }
 
@@ -330,16 +603,22 @@ function ownFolders(folders: readonly MailFolder[] | undefined): MailFolder[] {
 interface MailHeaderActionsProps {
   lng: Language;
   density: MailDensity;
+  /** This device's grouping. */
+  grouping: MailGrouping;
   selecting: boolean;
   canSelect: boolean;
   onSelecting: () => void;
   onCompose: () => void;
 }
 
-/** The density toggle, and below `lg` the selection mode and « New message ». */
+/** What a toggle looks like while it is on: `aria-pressed` alone says it to a reader only. */
+const TOGGLE_ON = 'aria-pressed:bg-primary/10 aria-pressed:text-primary';
+
+/** The list's two toggles, and below `lg` the selection mode and « New message ». */
 function MailHeaderActions({
   lng,
   density,
+  grouping,
   selecting,
   canSelect,
   onSelecting,
@@ -349,13 +628,25 @@ function MailHeaderActions({
   const compact = density === 'compact';
   return (
     <>
+      {canSelect && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => writeMailGrouping(grouping === 'grouped' ? 'flat' : 'grouped')}
+          aria-pressed={grouping === 'grouped'}
+          aria-label={t('workbench.mail.group_conversations')}
+          className={TOGGLE_ON}
+        >
+          <MessagesSquare className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => writeMailDensity(compact ? 'comfortable' : 'compact')}
         aria-pressed={compact}
         aria-label={t('workbench.mail.compact_list')}
-        className="hidden sm:inline-flex"
+        className={cn(TOGGLE_ON, 'hidden sm:inline-flex')}
       >
         {compact ? (
           <Rows4 className="h-4 w-4" aria-hidden="true" />
@@ -369,15 +660,15 @@ function MailHeaderActions({
           size="sm"
           onClick={onSelecting}
           aria-pressed={selecting}
-          className="gap-1.5 lg:hidden"
+          className={cn(TOGGLE_ON, 'gap-1.5 lg:hidden')}
         >
           <CheckSquare className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.mail.select')}
+          <span className="sr-only sm:not-sr-only">{t('workbench.mail.select')}</span>
         </Button>
       )}
       <Button size="sm" onClick={onCompose} className="gap-1.5 lg:hidden">
         <PenSquare className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.mail.new_message')}
+        <span className="sr-only sm:not-sr-only">{t('workbench.mail.new_message')}</span>
       </Button>
     </>
   );
@@ -388,9 +679,14 @@ interface MessagesColumnProps {
   tool: WorkbenchToolAvailability;
   limits: WorkbenchLimits;
   mail: WorkbenchMailState;
+  /** What is loaded, as the list draws it. */
+  lines: readonly MailLine[];
   acts: MailActs;
+  sending: MailSending;
+  permanentDelete: boolean;
+  draggable: boolean;
   address: MailAddress;
-  selection: MailSelection;
+  selection: ListSelection;
   search: MailSearch;
   onSearch: (next: MailSearch) => void;
   selectable: boolean;
@@ -407,7 +703,11 @@ function MessagesColumn({
   tool,
   limits,
   mail,
+  lines,
   acts,
+  sending,
+  permanentDelete,
+  draggable,
   address,
   selection,
   search,
@@ -420,13 +720,14 @@ function MessagesColumn({
   linkRef,
 }: MessagesColumnProps) {
   const { selected, select, toggle } = selection;
-  const rows = mail.messages.items;
-  const selectedRows = rows.filter(row => selected.has(row.id));
-  const trash = async () => {
-    const done = await acts.trashSelection([...selected]);
-    select(new Set([...selected].filter(id => !done.includes(id))));
-    if (address.openId && done.includes(address.openId)) address.closeMessage();
-  };
+  // A selection ticks lines; every act below takes the messages they stand for.
+  const lineIds = lines.map(line => line.message.id);
+  const selectedRows = selectedMembers(lines, selected);
+  const selectedIds = selectedRows.map(row => row.id);
+  const membersOf = (message: MailSummary) =>
+    lines.find(line => line.message.id === message.id)?.members ?? [message];
+  const idsOf = (message: MailSummary) => lineMembers(lines, message.id);
+  const { moves } = sending;
   return (
     <>
       <div ref={searchBox} tabIndex={-1} className="focus:outline-none">
@@ -438,27 +739,38 @@ function MessagesColumn({
           maxChars={tool.bounds.search_max_chars}
         />
       </div>
-      {selected.size > 0 && (
+      {selectedRows.length > 0 && (
         <MailSelectionBar
           lng={lng}
           selected={selectedRows}
-          pageState={pageSelectionState(
-            rows.map(row => row.id),
-            selected
-          )}
+          pageState={pageSelectionState(lineIds, selected)}
           bulkMax={limits.bulk_max_items}
           labels={labels}
           busy={acts.bulkBusy}
-          onSelectAll={() => select(new Set(rows.map(row => row.id)))}
+          moves={moves}
+          onSelectAll={() => select(new Set(lineIds))}
           onClear={() => select(new Set())}
           onRead={read => void acts.readSelection(selectedRows, read)}
+          onStar={starred => void acts.starSelection(selectedRows, starred)}
           onLabels={(add, remove) => void acts.labelSelection(selectedRows, add, remove)}
-          onTrash={() => void trash()}
+          onSend={act => void sending.send(selectedIds, act)}
+          onMove={() => sending.startMove(selectedIds)}
+          onForever={() => void sending.forever(selectedIds)}
+        />
+      )}
+      {address.folder === MAIL_TRASH && (
+        <TrashNote
+          lng={lng}
+          canEmpty={permanentDelete}
+          holds={lines.length > 0}
+          busy={acts.bulkBusy === 'empty'}
+          onEmpty={() => void sending.empty()}
         />
       )}
       <MessageList
         lng={lng}
         messages={mail.messages}
+        lines={lines}
         openId={address.openId}
         selected={selected}
         selectable={selectable}
@@ -468,11 +780,62 @@ function MessagesColumn({
         labelName={id => labels?.find(label => label.id === id)?.name ?? undefined}
         hrefOf={address.messageHref}
         onOpen={address.openMessage}
-        onToggle={message => toggle(message.id)}
+        onToggle={(message, range) => toggle(message.id, range ? lineIds : undefined)}
+        onRead={(message, read) => void acts.readSelection(membersOf(message), read)}
+        moves={moves}
+        onStar={(message, starred) =>
+          // A conversation is starred on its newest message; every star comes off it.
+          void acts.starSelection(
+            starred ? membersOf(message).slice(0, 1) : membersOf(message),
+            starred
+          )
+        }
+        onSend={(message, act) => void sending.send(idsOf(message), act)}
+        onMove={message => sending.startMove(idsOf(message))}
+        onForever={message => void sending.forever(idsOf(message))}
+        draggable={draggable}
         onClearSearch={() => onSearch(EMPTY_MAIL_SEARCH)}
         linkRef={linkRef}
       />
     </>
+  );
+}
+
+/** The trash's own line: emptied by hand where the provider can, else what becomes of it. */
+function TrashNote({
+  lng,
+  canEmpty,
+  holds,
+  busy,
+  onEmpty,
+}: {
+  lng: Language;
+  canEmpty: boolean;
+  holds: boolean;
+  busy: boolean;
+  onEmpty: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  if (!canEmpty) {
+    return (
+      <p className="border-b px-4 py-2 text-sm text-muted-foreground">
+        {t('workbench.mail.trash_auto_note')}
+      </p>
+    );
+  }
+  if (!holds) return null;
+  return (
+    <div className="flex justify-end border-b px-4 py-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="text-destructive"
+        isLoading={busy}
+        onClick={onEmpty}
+      >
+        {t('workbench.mail.empty_trash')}
+      </Button>
+    </div>
   );
 }
 
@@ -483,13 +846,19 @@ interface ReaderPaneProps {
   showPlaceholder: boolean;
   open: WorkbenchItemState<MailMessage>;
   original: WorkbenchItemState<MailHtml>;
+  conversation: ConversationState;
+  whenOf: (message: { received_at: string | null }) => string | null;
   acts: MailActs;
+  sending: MailSending;
   address: MailAddress;
   folders: readonly MailFolder[] | undefined;
   labels: readonly MailFolder[] | undefined;
   zone: string | undefined;
   downloadMax: number;
+  /** The drive an attachment can be kept on, when one is ready. */
+  drive?: { provider: string | null };
   focusOnOpen: boolean;
+  bridges: MessageBridges;
   compose: ComposerSlot['compose'];
 }
 
@@ -500,17 +869,25 @@ function ReaderPane({
   showPlaceholder,
   open,
   original,
+  conversation,
+  whenOf,
   acts,
+  sending,
   address,
   folders,
   labels,
   zone,
   downloadMax,
+  drive,
   focusOnOpen,
+  bridges,
   compose,
 }: ReaderPaneProps) {
   const { t } = useTranslation(lng);
   const folderName = useFolderName(lng);
+  const shownId = reading ? address.openId : null;
+  const leaving = useLeaving(lng, shownId, compose);
+  const inline = useInlineImages(shownId, original.item?.html ?? null);
   if (!reading) {
     return showPlaceholder ? (
       <div className="hidden min-w-0 flex-1 items-center justify-center border-l xl:flex">
@@ -520,6 +897,7 @@ function ReaderPane({
   }
   const openFolder = folders?.find(item => item.id === address.folder);
   const message = open.item;
+  const openIds = message ? [message.id] : [];
   return (
     <div className="flex min-h-0 min-w-0 flex-1 border-l">
       <MessageReader
@@ -533,21 +911,52 @@ function ReaderPane({
         backLabel={openFolder ? folderName(openFolder) : t(`workbench.mail.folders.inbox`)}
         labels={labels}
         downloadMax={downloadMax}
-        busy={acts.readerBusy}
+        drive={drive}
+        busy={acts.readerBusy ?? acts.bulkBusy}
         focusOnOpen={focusOnOpen}
         onClose={address.closeMessage}
         onRetry={() => void open.refresh()}
         onReply={all => message && compose({ kind: 'reply', message, all })}
         onForward={() => message && compose({ kind: 'forward', message })}
         onToggleRead={read => void acts.setOpenRead(read)}
-        onTrash={() =>
-          void acts.trashOpen().then(trashed => {
-            if (trashed) address.closeMessage();
-          })
-        }
+        onToggleStar={starred => void acts.setOpenStarred(starred)}
+        moves={sending.moves}
+        onSend={act => void sending.send(openIds, act)}
+        onMove={() => sending.startMove(openIds)}
+        onForever={() => void sending.forever(openIds)}
         onLabels={(add, remove) => void acts.labelOpen(add, remove)}
+        bridges={bridges}
+        inline={inline}
+        leaving={leaving.ways}
+        onUnsubscribe={() => void leaving.unsubscribe()}
+        onPrint={isAndroidShell() || !message ? undefined : () => printMessage(message, t)}
+        conversation={
+          <ConversationBand
+            lng={lng}
+            conversation={conversation}
+            openId={address.openId}
+            whenOf={whenOf}
+            hrefOf={address.messageHref}
+            onOpen={address.replaceMessage}
+          />
+        }
       />
+      {leaving.confirmDialog}
     </div>
+  );
+}
+
+/** Its text on paper: who wrote it, to whom, and the words. */
+function printMessage(
+  message: MailMessage,
+  t: (key: string, values?: Record<string, string>) => string
+): void {
+  const sender = message.sender ? addressLabel(message.sender) : '';
+  const recipients = message.to.map(addressLabel).join(', ');
+  printText(
+    message.subject,
+    [sender, t('workbench.mail.to_line', { names: recipients })],
+    message.body
   );
 }
 
@@ -562,9 +971,18 @@ interface MailDialogsProps {
   acts: MailActs;
   address: MailAddress;
   labels: readonly MailFolder[] | undefined;
+  /** The manager speaks of a mailbox's own folders, not of Gmail's labels. */
+  folders: boolean;
+  /** How long « Send » waits before the message leaves. */
+  holdMs: number;
+  uploadMaxBytes: number;
+  /** How long a quiet composer waits before it saves a draft. */
+  autosaveMs: number;
   /** The drafts are on screen: a draft saved or sent re-reads them. */
   draftsShown: boolean;
   onDraftsChanged: () => void;
+  /** A message left: the open conversation may hold it. */
+  onMailSent: () => void;
 }
 
 /** The composer, the label manager and the mailbox settings. */
@@ -579,8 +997,13 @@ function MailDialogs({
   acts,
   address,
   labels,
+  folders,
+  holdMs,
+  uploadMaxBytes,
+  autosaveMs,
   draftsShown,
   onDraftsChanged,
+  onMailSent,
 }: MailDialogsProps) {
   const { t } = useTranslation(lng);
   const said = <T,>(run: () => Promise<T>) =>
@@ -588,21 +1011,33 @@ function MailDialogs({
       acts.tell(error);
       throw error;
     });
-  const offersSettings = tool.features.includes('vacation') || tool.features.includes('filters');
+  const signature = useWorkbenchMailSignature();
+  const senders = useWorkbenchItem<MailSenders>(
+    tool.features.includes('send_as') ? '/workbench/mail/send-as' : null,
+    {}
+  );
+  const managed = folders ? ownFolders(mail.folders) : labels;
   return (
     <>
-      {slot.composer && (
+      {slot.composer && signature.settled && (
         <Composer
           key={slot.composer.id}
           lng={lng}
           target={slot.composer.target}
           tool={tool}
           writing={writing}
+          uploadMaxBytes={uploadMaxBytes}
+          holdMs={holdMs}
+          autosaveMs={autosaveMs}
+          signatureBlock={signature.block}
+          senders={senders.item?.items}
+          onLost={(words, failure) => toastLost(t, words, failure)}
           onClose={slot.close}
           onSent={alreadySent => {
             slot.close();
             toast.success(t(alreadySent ? 'workbench.mail.already_sent' : 'workbench.mail.sent'));
             if (draftsShown) onDraftsChanged();
+            onMailSent();
           }}
           onDraftSaved={() => {
             toast.success(t('workbench.mail.draft_saved'));
@@ -610,14 +1045,22 @@ function MailDialogs({
           }}
         />
       )}
-      {labels && (
+      {managed && (
         <LabelsManager
           lng={lng}
           open={dialog === 'labels'}
           onOpenChange={open => onDialog(open ? 'labels' : null)}
-          labels={labels}
+          labels={managed}
+          kind={folders ? 'folders' : 'labels'}
           onCreate={name => said(() => mail.createLabel(name)).then(() => undefined)}
-          onRename={(id, name) => said(() => mail.renameLabel(id, name))}
+          onRename={(id, name) =>
+            said(() => mail.renameLabel(id, name)).then(renamed => {
+              // A folder is named by its path: the listing follows it.
+              if (renamed && address.folder === id && renamed.id !== id) {
+                address.pickFolder(renamed.id);
+              }
+            })
+          }
           onDelete={id =>
             said(() => mail.deleteLabel(id)).then(() => {
               if (address.folder === id) address.pickFolder(MAIL_INBOX);
@@ -625,17 +1068,17 @@ function MailDialogs({
           }
         />
       )}
-      {offersSettings && (
-        <MailboxSettingsPanel
-          lng={lng}
-          open={dialog === 'settings'}
-          onOpenChange={open => onDialog(open ? 'settings' : null)}
-          tool={tool}
-          labels={labels ?? []}
-          onRefused={acts.tell}
-          onSaved={key => toast.success(t(key))}
-        />
-      )}
+      <MailboxSettingsPanel
+        lng={lng}
+        open={dialog === 'settings'}
+        onOpenChange={open => onDialog(open ? 'settings' : null)}
+        tool={tool}
+        labels={labels ?? managed ?? []}
+        signature={signature.text}
+        onSaveSignature={signature.save}
+        onRefused={acts.tell}
+        onSaved={key => toast.success(t(key))}
+      />
     </>
   );
 }

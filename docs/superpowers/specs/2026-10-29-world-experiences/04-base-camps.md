@@ -3,10 +3,11 @@
 [Master plan](README.md) · [Contracts](contracts.md) ·
 [Decisions](decisions.md) · [Launch prompt](prompts/04-base-camps.md)
 
-**Status:** proposed.
+**Status:** first-release direction accepted on 2026-11-03; detailed design only.
+Business implementation is not authorized by this framing request.
 **Dependencies:** native Workboard authority; focus only for its launch/result
 integration. Theatre and language links are optional.
-**Blocking choices:** D01, D07–D11, especially D08.
+**Accepted decisions:** D01, D07–D11, especially D08 (owner-private first release).
 
 ## Job and useful result
 
@@ -18,7 +19,7 @@ references, displays the real Workboard tickets, starts a focus interval on the
 next step, and brings back its explicit recap. Completion depends on the
 presentation/result and the native ticket state, not on time spent in World.
 
-## Proposed first-release scope
+## Accepted first-release scope
 
 - An owner-private durable camp with a clear outcome and completion criteria.
 - References to native tickets, selected documents/results and optional

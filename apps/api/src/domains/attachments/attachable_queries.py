@@ -5,8 +5,8 @@ they are alive: a file past its deadline, or one the cleanup marked expired, is
 neither offered nor attached (a kept file has no deadline, ADR-319). The
 listing and its exact total come from the SAME ``WHERE`` (ADR-185), the needle
 is data (``escape_like``), and the order is total (the id breaks every tie).
-A selection by ids reads through the same filter, so a foreign, expired or
-unknown id simply finds no row.
+A selection by ids or by names reads through the same filter, so a foreign,
+expired or unknown one simply finds no row.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ def build_attachable_statement(
     now: datetime,
     query: str | None = None,
     ids: Sequence[uuid.UUID] | None = None,
+    names: Sequence[str] | None = None,
     count: bool = False,
     limit: int | None = None,
     offset: int = 0,
@@ -43,6 +44,7 @@ def build_attachable_statement(
         now: The instant a deadline is compared with.
         query: A needle matched against the title and the original name.
         ids: Only these files (a selection to attach).
+        names: Only the files of these exact names, title or original name, whatever the case.
         count: True for the total over the WHOLE filtered set.
         limit: Page size (none: every row).
         offset: Page start.
@@ -59,6 +61,14 @@ def build_attachable_statement(
     )
     if ids is not None:
         statement = statement.where(Attachment.id.in_(list(ids)))
+    if names is not None:
+        lowered = [name.lower() for name in names]
+        statement = statement.where(
+            or_(
+                func.lower(Attachment.title).in_(lowered),
+                func.lower(Attachment.original_filename).in_(lowered),
+            )
+        )
     needle = (query or "").strip()
     if needle:
         pattern = f"%{escape_like(needle.lower())}%"

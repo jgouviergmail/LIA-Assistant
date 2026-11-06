@@ -20,8 +20,26 @@ CONTACT_ADDRESS_DESCRIPTION: Final = (
     "primary address; its other addresses are kept."
 )
 
+CONTACT_GIVEN_NAME_DESCRIPTION: Final = "Their given name; an empty text empties it."
+CONTACT_FAMILY_NAME_DESCRIPTION: Final = "Their family name; an empty text empties it."
+CONTACT_JOB_TITLE_DESCRIPTION: Final = "What they do at work; an empty text empties it."
+CONTACT_WEBSITE_DESCRIPTION: Final = "Their website; an empty text removes it."
+CONTACT_BIRTHDAY_DESCRIPTION: Final = (
+    "Their birthday, an ISO date (YYYY-MM-DD), year included. Resolve a relative expression "
+    "yourself from the current date before passing it."
+)
+CONTACT_CLEAR_BIRTHDAY_DESCRIPTION: Final = (
+    "true to REMOVE the contact's birthday. Never together with 'birthday'."
+)
+
 __all__ = [
     "CONTACT_ADDRESS_DESCRIPTION",
+    "CONTACT_BIRTHDAY_DESCRIPTION",
+    "CONTACT_CLEAR_BIRTHDAY_DESCRIPTION",
     "CONTACT_EMAIL_DESCRIPTION",
+    "CONTACT_FAMILY_NAME_DESCRIPTION",
+    "CONTACT_GIVEN_NAME_DESCRIPTION",
+    "CONTACT_JOB_TITLE_DESCRIPTION",
     "CONTACT_PHONE_DESCRIPTION",
+    "CONTACT_WEBSITE_DESCRIPTION",
 ]

@@ -14,14 +14,18 @@
  * A refresh re-reads page one IN PLACE: what is on screen stays until its
  * answer lands, and a failed refresh withdraws it (owner rule 2026-10-21). A
  * page asked for during a refresh is not appended to the listing that is about
- * to replace it. `replaceItem` applies an optimistic or confirmed change to one
- * row — `null` removes it — without a read.
+ * to replace it. A re-read nobody asked for (`unasked`) takes nothing away: it
+ * leaves alone a listing of several pages, a page still on its way and a failed
+ * listing, and it keeps what is on screen when it fails. `replaceItem` applies
+ * an optimistic or confirmed change to one row — `null` removes it — without a
+ * read.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 import apiClient, { type QueryParamValue } from '@/lib/api-client';
 import { paramsOf, serialiseParams } from '@/lib/workbench/params';
+import type { RereadOptions } from '@/lib/workbench/types';
 
 /** What a workbench listing answers. */
 export interface WorkbenchPage<T> {
@@ -48,13 +52,15 @@ export interface WorkbenchPageState<T> {
   /** Why the last read failed (`workbenchRefusal` tells it), else null. */
   error: unknown;
   loadMore: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: (options?: RereadOptions) => Promise<void>;
   replaceItem: (id: string, next: T | null) => void;
 }
 
 interface Listing<T> {
   key: string;
   items: T[];
+  /** The pages read, a failed first read none. */
+  pages: number;
   nextToken: string | null;
   skipped: number;
   truncated: boolean;
@@ -66,6 +72,7 @@ function firstPage<T>(key: string, answer: WorkbenchPage<T>): Listing<T> {
   return {
     key,
     items: answer.items,
+    pages: 1,
     nextToken: answer.next_page_token,
     skipped: answer.skipped ?? 0,
     truncated: answer.truncated ?? false,
@@ -75,7 +82,7 @@ function firstPage<T>(key: string, answer: WorkbenchPage<T>): Listing<T> {
 
 /** A listing whose first read failed: nothing shown, the reason kept. */
 function failed<T>(key: string, error: unknown): Listing<T> {
-  return { key, items: [], nextToken: null, skipped: 0, truncated: false, error };
+  return { key, items: [], pages: 0, nextToken: null, skipped: 0, truncated: false, error };
 }
 
 /**
@@ -119,22 +126,27 @@ export function useWorkbenchPage<T extends { id: string }>(
     return () => transport.abort();
   }, [key, path, queryKey]);
 
-  const refresh = useCallback(async () => {
-    if (key === null || path === null) return;
-    const listingId = ++generation.current;
-    refreshing.current = true;
-    try {
-      const answer = await apiClient.get<WorkbenchPage<T>>(path, { params: paramsOf(queryKey) });
-      if (listingId === generation.current) setListing(firstPage(key, answer));
-    } catch (error: unknown) {
-      if (listingId === generation.current) setListing(failed(key, error));
-    } finally {
-      if (listingId === generation.current) refreshing.current = false;
-    }
-  }, [key, path, queryKey]);
-
   const current = listing !== null && listing.key === key;
   const nextToken = current ? listing.nextToken : null;
+  const onePageShown = current && listing.pages === 1 && listing.error === null;
+
+  const refresh = useCallback(
+    async ({ unasked = false }: RereadOptions = {}) => {
+      if (key === null || path === null) return;
+      if (unasked && (!onePageShown || moreInFlight.current === key)) return;
+      const listingId = ++generation.current;
+      refreshing.current = true;
+      try {
+        const answer = await apiClient.get<WorkbenchPage<T>>(path, { params: paramsOf(queryKey) });
+        if (listingId === generation.current) setListing(firstPage(key, answer));
+      } catch (error: unknown) {
+        if (listingId === generation.current && !unasked) setListing(failed(key, error));
+      } finally {
+        if (listingId === generation.current) refreshing.current = false;
+      }
+    },
+    [key, path, queryKey, onePageShown]
+  );
 
   const loadMore = useCallback(async () => {
     if (key === null || path === null || !nextToken || refreshing.current) return;
@@ -152,6 +164,7 @@ export function useWorkbenchPage<T extends { id: string }>(
           ? {
               key,
               items: [...previous.items, ...answer.items],
+              pages: previous.pages + 1,
               nextToken: answer.next_page_token,
               skipped: previous.skipped + (answer.skipped ?? 0),
               truncated: previous.truncated || (answer.truncated ?? false),

@@ -33,6 +33,11 @@ vi.mock('@/components/chat/McpAppWidget', () => ({
     <div data-testid="mcp-widget">{registryId}</div>
   ),
 }));
+vi.mock('@/components/chat/PageAppWidget', () => ({
+  PageAppWidget: ({ registryId }: { registryId: string }) => (
+    <div data-testid="page-widget">{registryId}</div>
+  ),
+}));
 vi.mock('@/components/chat/SkillAppWidget', () => ({
   SkillAppWidget: ({ registryId }: { registryId: string }) => (
     <div data-testid="skill-widget">{registryId}</div>
@@ -76,9 +81,17 @@ describe('MarkdownContent — sentinel dispatch', () => {
     expect(await screen.findByTestId('skill-widget')).toHaveTextContent('skill-7');
   });
 
+  it('mounts the page widget for its registry id, after the words of the answer', async () => {
+    render('Voici le jeu.\n\n<div class="lia-page-app" data-registry-id="page-9"></div>');
+
+    expect(await screen.findByTestId('page-widget')).toHaveTextContent('page-9');
+    expect(screen.getByText('Voici le jeu.')).toBeInTheDocument();
+  });
+
   it.each([
     ['lia-mcp-app', 'mcp-widget'],
     ['lia-skill-app', 'skill-widget'],
+    ['lia-page-app', 'page-widget'],
   ])('renders %s without its registry id as a plain container', async (className, testId) => {
     const { container } = render(`<div class="${className}">contenu de repli</div>`);
 

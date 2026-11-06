@@ -5,7 +5,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { WORKBENCH_TOOLS, landingTool, railGroups, toolOfPathname, toolPath } from '../tools';
+import {
+  WORKBENCH_TOOLS,
+  landingTool,
+  providerVendor,
+  railGroups,
+  toolOfPathname,
+  toolPath,
+} from '../tools';
 import type { WorkbenchAvailability, WorkbenchToolId, WorkbenchToolState } from '../types';
 
 function availability(
@@ -23,10 +30,25 @@ function availability(
       page_size: 25,
       bulk_max_items: 50,
       download_max_bytes: 26_214_400,
+      upload_max_bytes: 26_214_400,
       calendar_window_max_events: 500,
+      send_undo_seconds: 0,
+      draft_autosave_seconds: 0,
+      search_max_chars: 500,
     },
   };
 }
+
+describe('providerVendor', () => {
+  it('reads the vendor from the connector, and says nothing of one it does not know', () => {
+    expect(providerVendor('google_gmail')).toBe('Google');
+    expect(providerVendor('microsoft_outlook')).toBe('Microsoft');
+    expect(providerVendor('apple_calendar')).toBe('Apple');
+    expect(providerVendor('philips_hue')).toBe('Philips Hue');
+    expect(providerVendor('someone_else')).toBeNull();
+    expect(providerVendor(null)).toBeNull();
+  });
+});
 
 describe('WORKBENCH_TOOLS', () => {
   it('lists the six tools in rail order', () => {

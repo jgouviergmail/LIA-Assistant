@@ -14,6 +14,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from src.core.exceptions import ConnectorAPIError, RateLimitError
@@ -67,6 +68,102 @@ class TestAnIdIsTheBridgesOwn:
             }
         await _ACTS[act](client, _LIGHT.upper())
         assert all(_LIGHT in call.args[1] for call in spy.await_args_list)
+
+
+def _answered(status: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("GET", "https://bridge")
+    return httpx.HTTPStatusError(
+        "refused", request=request, response=httpx.Response(status, request=request)
+    )
+
+
+def _room_client() -> tuple[PhilipsHueClient, AsyncMock]:
+    client, spy = _client()
+    spy.return_value = {
+        "data": [{"id": _LIGHT, "services": [{"rtype": "grouped_light", "rid": _LIGHT}]}]
+    }
+    return client, spy
+
+
+class TestWhatTheBridgeHolds:
+    async def test_its_zones_and_who_it_reaches_are_two_reads(self) -> None:
+        client, spy = _client()
+
+        assert await client.list_zones() == [{"id": _LIGHT, "services": []}]
+        assert await client.list_connectivity() == [{"id": _LIGHT, "services": []}]
+
+        assert [call.args for call in spy.await_args_list] == [
+            ("GET", "zone"),
+            ("GET", "zigbee_connectivity"),
+        ]
+
+    @pytest.mark.parametrize("read", ["list_zones", "list_connectivity"])
+    async def test_a_bridge_that_holds_no_such_resource_reads_as_none(self, read: str) -> None:
+        client, spy = _client()
+        spy.side_effect = _answered(404)
+
+        assert await getattr(client, read)() == []
+
+    @pytest.mark.parametrize("read", ["list_zones", "list_connectivity"])
+    @pytest.mark.parametrize("status", [401, 429, 503])
+    async def test_any_other_refusal_stays_a_failure(self, read: str, status: int) -> None:
+        client, spy = _client()
+        spy.side_effect = _answered(status)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await getattr(client, read)()
+
+
+class TestAGroup:
+    async def test_a_zone_is_read_as_a_zone(self) -> None:
+        client, spy = _room_client()
+
+        await client.control_room(_LIGHT, on=True, group="zone")
+
+        assert spy.await_args_list[0].args == ("GET", f"zone/{_LIGHT}")
+
+    async def test_a_room_takes_a_colour_or_a_temperature_as_a_lamp_does(self) -> None:
+        client, spy = _room_client()
+
+        await client.control_room(_LIGHT, color_xy=(0.1, 0.2), color_temperature_mirek=300)
+
+        assert spy.await_args.args == ("PUT", f"grouped_light/{_LIGHT}")
+        assert spy.await_args.kwargs["json_data"] == {
+            "color": {"xy": {"x": 0.1, "y": 0.2}},
+            "color_temperature": {"mirek": 300},
+        }
+
+    async def test_a_lamp_and_a_room_are_sent_the_same_body(self) -> None:
+        client, spy = _room_client()
+        state = {
+            "on": True,
+            "brightness": 140.0,
+            "color_xy": (0.1, 0.2),
+            "color_temperature_mirek": 300,
+        }
+
+        await client.control_room(_LIGHT, **state)
+        room = spy.await_args.kwargs["json_data"]
+        await client.update_light(_LIGHT, **state)
+
+        assert spy.await_args.kwargs["json_data"] == room
+        assert room["dimming"] == {"brightness": 100.0}
+
+
+class TestAScene:
+    async def test_a_recall_says_the_person_s_action(self) -> None:
+        client, spy = _client()
+
+        await client.activate_scene(_LIGHT, action="dynamic_palette")
+
+        assert spy.await_args.kwargs["json_data"] == {"recall": {"action": "dynamic_palette"}}
+
+    async def test_a_recall_names_the_scene_as_it_stands_by_default(self) -> None:
+        client, spy = _client()
+
+        await client.activate_scene(_LIGHT)
+
+        assert spy.await_args.kwargs["json_data"] == {"recall": {"action": "active"}}
 
 
 class TestOurOwnWindow:

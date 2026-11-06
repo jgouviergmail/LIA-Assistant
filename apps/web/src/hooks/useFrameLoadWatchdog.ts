@@ -32,8 +32,8 @@ export type FrameLoadStatus = 'pending' | 'loaded' | 'timeout';
 interface FrameLoadWatchdogOptions {
   /** Identifies the widget in the failure log (skill or MCP tool name). */
   label: string;
-  /** Widget family, so the log distinguishes skill frames from MCP apps. */
-  kind: 'skill' | 'mcp';
+  /** Widget family, so the log distinguishes skill frames, MCP apps and pages. */
+  kind: 'skill' | 'mcp' | 'page';
   /**
    * What counts as "alive".
    *

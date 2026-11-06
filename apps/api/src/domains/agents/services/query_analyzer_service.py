@@ -50,6 +50,7 @@ from src.core.constants import (
     INTENT_PATTERNS_UPDATE,
 )
 from src.core.i18n import resolve_language
+from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.core.prompt_layout import single_call_messages
 from src.domains.agents.analysis.efficacy_context import EfficacyAnalysis
 from src.domains.agents.analysis.query_intelligence import (
@@ -553,7 +554,7 @@ async def analyze_query(
                 node_name="query_analyzer",
                 config=base_config,
             ),
-            timeout=settings.query_analyzer_llm_timeout_seconds,
+            timeout=llm_call_timeout_seconds("query_analyzer"),
         )
 
         logger.info(

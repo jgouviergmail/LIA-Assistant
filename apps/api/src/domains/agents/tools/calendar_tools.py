@@ -49,11 +49,22 @@ from src.core.config import get_settings, settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_locale_for_language
 from src.core.time_utils import normalize_to_rfc3339, now_utc
+from src.domains.agents.calendar.event_options import (
+    ADD_CONFERENCE_UPDATE_DESCRIPTION,
+    BUSY_DESCRIPTION,
+    PRIVATE_DESCRIPTION,
+    REMINDER_MINUTES_DESCRIPTION,
+    readable_options,
+)
 from src.domains.agents.calendar.event_search import (
     QUERY_CONTRACT,
     SEARCHED_FIELDS,
     describe_search,
     filter_events,
+)
+from src.domains.agents.calendar.event_series import (
+    EVENT_SCOPE_DESCRIPTION,
+    readable_series,
 )
 from src.domains.agents.calendar.event_times import (
     ALL_DAY_DESCRIPTION,
@@ -64,33 +75,33 @@ from src.domains.agents.calendar.event_times import (
 )
 from src.domains.agents.constants import (
     AGENT_EVENT,
-    CONTEXT_DOMAIN_CALENDARS,
     CONTEXT_DOMAIN_EVENTS,
 )
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.manager import ToolContextManager
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
     tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
-from src.domains.agents.data_registry.card_payload import take_display_fields
-from src.domains.agents.display.components.calendar_details import calendar_display_fields
+from src.domains.agents.registry.recurrence_parameters import RECURRENCE_DOCS
 from src.domains.agents.tools.base import ConnectorTool
 
 # Draft execution callbacks live in calendar_draft_execution (extracted
 # 2026-08, file-size ratchet); re-exported here because the draft-executor
 # registry and __all__ import them from this module.
+from src.domains.agents.tools.calendar_context import resolve_calendar_id_from_context
 from src.domains.agents.tools.calendar_draft_execution import (
     execute_event_delete_draft,
     execute_event_draft,
     execute_event_update_draft,
+    extract_conference_link,
 )
+from src.domains.agents.tools.calendar_list_tools import ListCalendarsTool, list_calendars_tool
+from src.domains.agents.tools.calendar_series import read_recurrence
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
-    ValidatedRuntimeConfig,
     get_user_preferences,
     parse_user_id,
     resolve_recipients_to_emails,
@@ -944,6 +955,12 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 else timed_bounds(start_datetime, end_datetime, timezone)
             )
 
+        recurrence, recurrence_text, refused = read_recurrence(
+            kwargs, start_datetime, timezone, self.get_user_language()
+        )
+        if refused:
+            return refused
+
         # Resolve attendee names to email addresses via centralized helper
         # "Jane Smith" → "jane.smith@example.com" via Google People API
         attendees = await resolve_recipients_to_emails(self.runtime, attendees_raw, "attendees")
@@ -970,6 +987,9 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             "attendees": attendees or [],
             "add_conference": add_conference,
             "all_day": all_day,
+            "recurrence": recurrence,
+            "recurrence_text": recurrence_text,
+            **readable_options(kwargs),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -989,6 +1009,8 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             all_day=bool(result.get("all_day", False)),
             source_tool="create_event_tool",
             user_language=self.get_user_language(),
+            **readable_options(result),
+            **readable_series(result),
         )
 
 
@@ -1032,6 +1054,17 @@ async def create_event_tool(
         "(the event is then created without a link).",
     ] = False,
     all_day: Annotated[bool, ALL_DAY_DESCRIPTION] = False,
+    reminder_minutes: Annotated[int | None, REMINDER_MINUTES_DESCRIPTION] = None,
+    busy: Annotated[bool | None, BUSY_DESCRIPTION] = None,
+    private: Annotated[bool | None, PRIVATE_DESCRIPTION] = None,
+    repeat: Annotated[str | None, RECURRENCE_DOCS["repeat"]] = None,
+    repeat_every: Annotated[int, RECURRENCE_DOCS["repeat_every"]] = 1,
+    weekdays: Annotated[list[int] | None, RECURRENCE_DOCS["weekdays"]] = None,
+    month_days: Annotated[list[int] | None, RECURRENCE_DOCS["month_days"]] = None,
+    months: Annotated[list[int] | None, RECURRENCE_DOCS["months"]] = None,
+    nth_weekday: Annotated[str | None, RECURRENCE_DOCS["nth_weekday"]] = None,
+    until_date: Annotated[str | None, RECURRENCE_DOCS["until_date"]] = None,
+    max_occurrences: Annotated[int | None, RECURRENCE_DOCS["max_occurrences"]] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1055,6 +1088,9 @@ async def create_event_tool(
         location: Event location (optional)
         attendees: List of attendee email addresses (optional)
         all_day: An all-day event from its first to its last day (ADR-369)
+        reminder_minutes: Its reminder, as the parameter's description says
+        busy: False shows the time as free
+        private: True keeps its details back
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1076,72 +1112,18 @@ async def create_event_tool(
         attendees=attendees,
         add_conference=add_conference,
         all_day=all_day,
+        reminder_minutes=reminder_minutes,
+        busy=busy,
+        private=private,
+        repeat=repeat,
+        repeat_every=repeat_every,
+        weekdays=weekdays,
+        month_days=month_days,
+        months=months,
+        nth_weekday=nth_weekday,
+        until_date=until_date,
+        max_occurrences=max_occurrences,
     )
-
-
-# ============================================================================
-# HELPER: Resolve calendar_id from context store (LIST then DETAILS fallback)
-# ============================================================================
-
-
-async def _resolve_calendar_id_from_context(
-    config: ValidatedRuntimeConfig,
-    event_id: str,
-) -> str | None:
-    """Resolve calendar_id from context store (LIST then DETAILS fallback).
-
-    Searches both LIST and DETAILS store keys for the event, because the
-    auto-save classification may route to either key depending on the code path
-    (parallel_executor saves to LIST, decorator may save to DETAILS for legacy
-    get_* tool names).
-
-    Args:
-        config: Validated runtime config with user_id, session_id, store.
-        event_id: Event ID to look up.
-
-    Returns:
-        calendar_id if found, None otherwise.
-    """
-    manager = ToolContextManager()
-
-    # Single source: LIST (last search/list results).
-    # current_item (single focused item) is also checked as secondary source
-    # for the case where a direct-fetch set current without populating LIST.
-    context_list = await manager.get_list(
-        user_id=config.user_id,
-        session_id=config.session_id,
-        domain=CONTEXT_DOMAIN_EVENTS,
-        store=config.store,
-    )
-    context_items: list[dict[str, Any]] = list(context_list.items) if context_list else []
-
-    current_item = await manager.get_current_item(
-        user_id=config.user_id,
-        session_id=config.session_id,
-        domain=CONTEXT_DOMAIN_EVENTS,
-        store=config.store,
-    )
-    if current_item:
-        context_items.append(current_item)
-
-    for item in context_items:
-        item_id = item.get("id") or item.get("event_id")
-        if item_id == event_id:
-            calendar_id = item.get("calendar_id")
-            logger.info(
-                "calendar_id_resolved_from_context",
-                event_id=event_id,
-                calendar_id=calendar_id,
-            )
-            return calendar_id
-
-    logger.warning(
-        "calendar_id_context_resolution_failed",
-        event_id=event_id,
-        context_source="none" if not context_items else "not_found",
-        fallback="primary",
-    )
-    return None
 
 
 # ============================================================================
@@ -1206,7 +1188,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         if not calendar_id and self.runtime:
             config = validate_runtime_config(self.runtime, "update_event_tool")
             if not isinstance(config, UnifiedToolOutput):
-                calendar_id = await _resolve_calendar_id_from_context(config, event_id)
+                calendar_id = await resolve_calendar_id_from_context(config, event_id)
 
         # Fetch current event for comparison (use resolved calendar_id or default to "primary")
         current_event = await client.get_event(
@@ -1280,6 +1262,12 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             ),
             "current_event": current_event,
             "all_day": all_day,
+            # A second call would replace the link the guests already hold.
+            "add_conference": bool(kwargs.get("add_conference"))
+            and not extract_conference_link(current_event),
+            "moves_series": bool(kwargs.get("start_datetime")),
+            **readable_options(kwargs),
+            **readable_series(kwargs),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1300,6 +1288,9 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             all_day=result.get("all_day"),
             source_tool="update_event_tool",
             user_language=self.get_user_language(),
+            add_conference=bool(result.get("add_conference")),
+            **readable_options(result),
+            **readable_series(result),
         )
 
 
@@ -1335,6 +1326,11 @@ async def update_event_tool(
     location: Annotated[str | None, "New event location (optional)"] = None,
     attendees: Annotated[list[str] | None, "New list of attendee emails (optional)"] = None,
     all_day: Annotated[bool | None, ALL_DAY_UPDATE_DESCRIPTION] = None,
+    reminder_minutes: Annotated[int | None, REMINDER_MINUTES_DESCRIPTION] = None,
+    busy: Annotated[bool | None, BUSY_DESCRIPTION] = None,
+    private: Annotated[bool | None, PRIVATE_DESCRIPTION] = None,
+    add_conference: Annotated[bool, ADD_CONFERENCE_UPDATE_DESCRIPTION] = False,
+    scope: Annotated[str | None, EVENT_SCOPE_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1361,6 +1357,10 @@ async def update_event_tool(
         location: New event location (optional)
         attendees: New list of attendee email addresses (optional)
         all_day: True/False switches the event all-day/timed; None keeps it (ADR-369)
+        reminder_minutes: Its reminder, as the parameter's description says
+        busy: False shows the time as free
+        private: True keeps its details back
+        add_conference: Adds a video-call link
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1378,6 +1378,11 @@ async def update_event_tool(
         location=location,
         attendees=attendees,
         all_day=all_day,
+        reminder_minutes=reminder_minutes,
+        busy=busy,
+        private=private,
+        add_conference=add_conference,
+        scope=scope,
     )
 
 
@@ -1428,7 +1433,7 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         if not calendar_id and self.runtime:
             config = validate_runtime_config(self.runtime, "delete_event_tool")
             if not isinstance(config, UnifiedToolOutput):
-                calendar_id = await _resolve_calendar_id_from_context(config, event_id)
+                calendar_id = await resolve_calendar_id_from_context(config, event_id)
 
         # Fetch event details for confirmation display (use resolved calendar_id or default to "primary")
         event = await client.get_event(
@@ -1464,6 +1469,7 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             "event": event,
             "send_updates": send_updates,
             "calendar_id": calendar_id,
+            **readable_series(kwargs),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1491,6 +1497,7 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             calendar_id=result.get("calendar_id"),
             source_tool="delete_event_tool",
             user_language=self.get_user_language(),
+            **readable_series(result),
         )
 
 
@@ -1514,6 +1521,7 @@ async def delete_event_tool(
         str | None,
         "Calendar where the event is located. If None or 'primary', uses user's default calendar preference.",
     ] = None,
+    scope: Annotated[str | None, EVENT_SCOPE_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1546,204 +1554,7 @@ async def delete_event_tool(
         event_id=event_id,
         send_updates=send_updates,
         calendar_id=calendar_id,
-    )
-
-
-# ============================================================================
-# TOOL 6: LIST CALENDARS (Read Operation - Data Registry LOT 9)
-# ============================================================================
-
-
-class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
-    """
-    List user's available calendars tool with Data Registry support.
-
-    LOT 9: Read operation returning calendar list for frontend rendering.
-
-    Benefits:
-    - Shows all calendars available to the user
-    - Helps user select which calendar to use
-    - Returns calendar ID, name, color, access role
-    """
-
-    connector_type = ConnectorType.GOOGLE_CALENDAR
-    client_class = GoogleCalendarClient
-    functional_category = "calendar"
-
-    # Data Registry mode enabled
-    registry_enabled = True
-
-    def __init__(self) -> None:
-        """Initialize list calendars tool with Data Registry support."""
-        super().__init__(tool_name="list_calendars_tool", operation="list")
-
-    async def execute_api_call(
-        self,
-        client: GoogleCalendarClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute list calendars API call."""
-        show_hidden: bool = kwargs.get("show_hidden", False)
-        max_results: int = kwargs.get("max_results", 100)
-
-        result = await client.list_calendars(
-            max_results=max_results,
-            show_hidden=show_hidden,
-        )
-
-        calendars = result.get("items", [])
-
-        logger.info(
-            "list_calendars_success",
-            user_id=str(user_id),
-            total_calendars=len(calendars),
-            show_hidden=show_hidden,
-        )
-
-        # Get user preferences for locale, falling back to the declared language's
-        try:
-            _, _, locale = await get_user_preferences(self.runtime)
-        except ValueError, KeyError, AttributeError:
-            locale = get_locale_for_language(None)
-
-        return {
-            "calendars": calendars,
-            "total": len(calendars),
-            "show_hidden": show_hidden,
-            "locale": locale,
-        }
-
-    def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
-        """Format as Data Registry UnifiedToolOutput with calendar registry items."""
-        from src.domains.agents.data_registry.models import (
-            RegistryItem,
-            RegistryItemMeta,
-            RegistryItemType,
-            generate_registry_id,
-        )
-
-        calendars = result.get("calendars", [])
-        total = result.get("total", 0)
-
-        # Build registry items for each calendar
-        registry_updates: dict[str, RegistryItem] = {}
-        summary_parts = []
-
-        for cal in calendars:
-            cal_id = cal.get("id", "")
-            summary = cal.get("summaryOverride") or cal.get("summary", "")
-            access_role = cal.get("accessRole", "reader")
-            primary = cal.get("primary", False)
-            background_color = cal.get("backgroundColor", "#4285f4")
-
-            # Generate deterministic ID for registry
-            registry_id = generate_registry_id(RegistryItemType.CALENDAR, cal_id)
-
-            # Create registry item
-            registry_updates[registry_id] = RegistryItem(
-                id=registry_id,
-                type=RegistryItemType.CALENDAR,
-                payload={
-                    "id": cal_id,
-                    "summary": summary,
-                    "access_role": access_role,
-                    "primary": primary,
-                    "background_color": background_color,
-                    "description": cal.get("description", ""),
-                    "time_zone": cal.get("timeZone", ""),
-                },
-                meta=RegistryItemMeta(
-                    source="google_calendar",
-                    domain=CONTEXT_DOMAIN_CALENDARS,
-                    tool_name="list_calendars_tool",
-                    display={**take_display_fields(cal), **calendar_display_fields(cal)},
-                ),
-            )
-
-            # Build summary line
-            primary_marker = " (primary)" if primary else ""
-            summary_parts.append(f"- {summary or 'Unnamed'}{primary_marker} [{registry_id}]")
-
-        # Build LLM message
-        if calendars:
-            message = f"[calendars] {total} calendar(s) available:\n" + "\n".join(
-                summary_parts[:10]
-            )
-            if total > 10:
-                message += f"\n... and {total - 10} more"
-        else:
-            message = "[calendars] No calendar found"
-
-        return UnifiedToolOutput.data_success(
-            message=message,
-            registry_updates=registry_updates,
-            metadata={
-                "tool_name": "list_calendars_tool",
-                "total": total,
-                "show_hidden": result.get("show_hidden", False),
-            },
-        )
-
-
-# Create tool instance (singleton)
-_list_calendars_tool_instance = ListCalendarsTool()
-
-
-@connector_tool(
-    name="list_calendars",
-    agent_name=AGENT_EVENT,
-    context_domain=CONTEXT_DOMAIN_EVENTS,
-    category="read",
-)
-async def list_calendars_tool(
-    show_hidden: Annotated[
-        bool,
-        "Include hidden calendars in the list (default: False)",
-    ] = False,
-    max_results: Annotated[
-        int,
-        "Maximum number of calendars to return (default: 100, max: 250)",
-    ] = 100,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> UnifiedToolOutput:
-    """
-    List all calendars available to the user.
-
-    Returns a list of all calendars the user has access to, including:
-    - Primary calendar
-    - Secondary calendars (created by user)
-    - Shared calendars (shared by others)
-    - Subscribed calendars (public calendars)
-
-    **Use Cases:**
-    - User asks "what calendars do I have?"
-    - User wants to know available calendars before creating/searching events
-    - User needs calendar ID for specific calendar operations
-
-    **Output includes for each calendar:**
-    - id: Calendar ID (use this for calendar_id parameter in other tools)
-    - summary: Calendar name/title
-    - access_role: User's access level (owner, writer, reader)
-    - primary: Whether this is the user's primary calendar
-    - background_color: Calendar color in UI
-
-    Args:
-        show_hidden: Include hidden calendars (default: False)
-        max_results: Maximum calendars to return (default: 100, max: 250)
-        runtime: Tool runtime (injected)
-
-    Returns:
-        UnifiedToolOutput with CALENDAR registry items for frontend rendering
-
-    Example:
-        User: "Which calendars can I use?"
-        -> Returns list of all calendars with their IDs and properties
-    """
-    return await _list_calendars_tool_instance.execute(
-        runtime=runtime,
-        show_hidden=show_hidden,
-        max_results=max_results,
+        scope=scope,
     )
 
 

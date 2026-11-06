@@ -42,6 +42,7 @@ const SPACE_DETAIL = {
   drive_sources: [
     {
       id: SOURCE_ID,
+      provider: 'google_drive',
       folder_id: 'folder-abc',
       folder_name: 'Rapports',
       sync_status: 'idle',
@@ -53,6 +54,7 @@ const SPACE_DETAIL = {
     },
   ],
   mail_sources: [],
+  active_drive: 'google_drive',
 };
 
 function preflight(over: Record<string, unknown>) {
@@ -75,7 +77,11 @@ function preflight(over: Record<string, unknown>) {
   };
 }
 
-function routes(report: Record<string, unknown>, syncs: string[]): MockRoute[] {
+function routes(
+  report: Record<string, unknown>,
+  syncs: string[],
+  detail: Record<string, unknown> = SPACE_DETAIL
+): MockRoute[] {
   return [
     { url: '**/api/v1/config', json: APP_CONFIG },
     {
@@ -102,7 +108,7 @@ function routes(report: Record<string, unknown>, syncs: string[]): MockRoute[] {
         });
       },
     },
-    { url: `**/api/v1/rag-spaces/${SPACE_ID}`, json: SPACE_DETAIL },
+    { url: `**/api/v1/rag-spaces/${SPACE_ID}`, json: detail },
     { url: '**/api/v1/rag-spaces', json: { spaces: [SPACE_DETAIL], total: 1 } },
     { url: '**/api/v1/rag-spaces?*', json: { spaces: [SPACE_DETAIL], total: 1 } },
   ];
@@ -172,6 +178,23 @@ test.describe('Drive sync confirmation', () => {
     await clickSync(page);
     await expect.poll(() => syncs.length).toBe(1);
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  test('a folder of the other drive waits: it says so and offers no sync', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ language: 'fr' });
+    const syncs: string[] = [];
+    await mockApi(
+      routes(preflight({}), syncs, { ...SPACE_DETAIL, active_drive: 'microsoft_onedrive' })
+    );
+    await openSpace(page);
+
+    await expect(page.getByText(/Synchronisation en pause.*Google Drive/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Synchroniser' })).toBeDisabled();
+    expect(syncs).toHaveLength(0);
   });
 
   test('a cut walk says « au moins » — 390 px', async ({ page, authenticate, mockApi }) => {

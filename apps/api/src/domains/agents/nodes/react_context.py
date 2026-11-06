@@ -15,6 +15,7 @@ implementation would drift, and drift is how the two modes came to disagree.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import structlog
@@ -22,9 +23,13 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
+from src.core.constants import INTERACTIVE_PAGE_TOOL_NAME
 from src.core.external_content import wrap_external_content
 from src.core.run_config import run_id_of
-from src.domains.agents.analysis.query_intelligence_helpers import turn_references
+from src.domains.agents.analysis.query_intelligence_helpers import (
+    get_qi_attr,
+    turn_references,
+)
 from src.domains.agents.analysis.resolved_references import render_reference_lines
 from src.domains.agents.constants import STATE_KEY_RESOLVED_CONTEXT
 from src.domains.agents.context.runtime_context import (
@@ -34,6 +39,7 @@ from src.domains.agents.context.runtime_context import (
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.agents.models import MessagesState
 from src.domains.agents.prompts import render_context_section
+from src.domains.agents.services.analysis.skill_suppression import makes_a_page
 from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.services.response_context import (
     fetch_user_rag_context,
@@ -364,6 +370,33 @@ def build_skills_catalog_block() -> str | None:
     return f"<AvailableSkills>\n{catalog}\n</AvailableSkills>"
 
 
+def _turn_makes_a_page(state: MessagesState) -> bool:
+    """Whether the analyzer settled this turn on making a page (ADR-370)."""
+    return makes_a_page(get_qi_attr(state, "domains", default=[]) or [])
+
+
+def build_page_request_block(state: MessagesState, tool_names: Sequence[str]) -> str | None:
+    """Say where the loop decides that this turn makes a page (ADR-370).
+
+    The analyzer's verdict never reaches the loop by itself: among every tool, it
+    played the game in text on two real turns out of six, and said the conversation
+    could not run one. It names a tool only when that tool is bound.
+
+    Args:
+        state: Current graph state.
+        tool_names: The tools bound for this turn.
+
+    Returns:
+        The block, or None.
+    """
+    if not _turn_makes_a_page(state) or INTERACTIVE_PAGE_TOOL_NAME not in tool_names:
+        return None
+    return (
+        render_context_section("make_page", INTERACTIVE_PAGE_TOOL_NAME, "react_context_lines")
+        or None
+    )
+
+
 async def build_degradations_block() -> str | None:
     """Currently degraded capabilities (ADR-247, pillar 7).
 
@@ -457,7 +490,9 @@ async def build_setup_blocks(state: MessagesState, config: RunnableConfig) -> Se
     # Knowledge parity (2026-09-17): the person's documents and kept answers,
     # read from the bundle the router prefetched — where the search is decided.
     knowledge_block = await build_knowledge_block(state, config)
-    skills_catalog = build_skills_catalog_block() or ""
+    # Making is not playing (ADR-370): shown the catalogue, the loop ran the skill
+    # of a neighbouring game on a turn the analyzer had routed to the page.
+    skills_catalog = "" if _turn_makes_a_page(state) else build_skills_catalog_block() or ""
     from src.domains.agents.services.card_composition_prompt import build_card_composition_block
 
     ordered = [

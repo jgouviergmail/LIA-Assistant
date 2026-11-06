@@ -8,7 +8,8 @@ one included, each calendar answered on its own — its events, whether they wer
 cut at the published bound, how many could not be read, or the refusal that
 kept it unread — so one calendar that fails never empties the others (ADR-185).
 An event of a series is an OCCURRENCE: changing or deleting it reaches that
-occurrence alone, never the series (recurrence authoring is phase 2).
+occurrence alone, unless the person asks for the whole series (``scope``). A rule is
+the one every recurrence of LIA is (``core/recurrence``).
 """
 
 from __future__ import annotations
@@ -22,12 +23,18 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, 
 
 from src.core.constants import (
     WORKBENCH_CALENDAR_IDS_MAX,
+    WORKBENCH_CALENDAR_NAME_MAX_CHARS,
     WORKBENCH_CALENDAR_WINDOW_MAX_DAYS,
     WORKBENCH_EVENT_ATTENDEES_MAX,
     WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS,
     WORKBENCH_EVENT_LOCATION_MAX_CHARS,
+    WORKBENCH_EVENT_REMINDER_MAX_MINUTES,
     WORKBENCH_EVENT_SUMMARY_MAX_CHARS,
+    WORKBENCH_MAIL_QUERY_MAX_CHARS,
 )
+from src.core.recurrence import RecurrenceSpec
+from src.domains.connectors.clients.calendar_answers import EventAnswer
+from src.domains.connectors.clients.calendar_options import NO_REMINDER
 from src.domains.shared.schemas import TimezoneValidatorMixin
 from src.domains.workbench.calendar_times import ends_after
 from src.domains.workbench.ids import ProviderId
@@ -50,6 +57,15 @@ OptionalLocation = Annotated[
 OptionalDescription = Annotated[
     str | None, StringConstraints(max_length=WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS)
 ]
+_SearchWords = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=WORKBENCH_MAIL_QUERY_MAX_CHARS,
+        pattern=r"^[^\x00-\x1f\x7f]+$",
+    ),
+]
 #: One bound as the page sends it: a day (all-day) or a wall time ``YYYY-MM-DDTHH:MM``.
 _BOUND = StringConstraints(min_length=10, max_length=19)
 Bound = Annotated[str, _BOUND]
@@ -59,6 +75,12 @@ OptionalAttendees = Annotated[
     list[EmailStr] | None, Field(max_length=WORKBENCH_EVENT_ATTENDEES_MAX)
 ]
 Response = Literal["accepted", "declined", "tentative", "needsAction"]
+CalendarName = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=WORKBENCH_CALENDAR_NAME_MAX_CHARS
+    ),
+]
 
 
 class CalendarInfo(BaseModel):
@@ -70,7 +92,9 @@ class CalendarInfo(BaseModel):
     name: str = Field(description="Its name.")
     color: str | None = Field(description="Its colour as the provider keeps it (#rrggbb).")
     primary: bool = Field(description="Whether it is the account's own calendar.")
+    default: bool = Field(description="Whether it is the default chosen in the settings.")
     writable: bool = Field(description="Whether events can be created and changed in it.")
+    manageable: bool = Field(description="Whether the person may rename and delete it.")
 
 
 class CalendarList(BaseModel):
@@ -79,14 +103,11 @@ class CalendarList(BaseModel):
     calendars: list[CalendarInfo] = Field(description="Its calendars, as the provider lists them.")
 
 
-class EventWindowQuery(BaseModel):
-    """The calendars and the days a view shows."""
+class DayWindow(BaseModel):
+    """The days a view shows."""
 
     model_config = ConfigDict(extra="forbid")
 
-    calendar_ids: list[ProviderId] = Field(
-        min_length=1, max_length=WORKBENCH_CALENDAR_IDS_MAX, description="The calendars shown."
-    )
     start: date = Field(description="The first day shown, in the account's calendar.")
     end: date = Field(description="The LAST day shown (included).")
 
@@ -96,6 +117,14 @@ class EventWindowQuery(BaseModel):
         if days < 1 or days > WORKBENCH_CALENDAR_WINDOW_MAX_DAYS:
             raise ValueError(f"a window is 1 to {WORKBENCH_CALENDAR_WINDOW_MAX_DAYS} days")
         return self
+
+
+class EventWindowQuery(DayWindow):
+    """The calendars and the days a view shows."""
+
+    calendar_ids: list[ProviderId] = Field(
+        min_length=1, max_length=WORKBENCH_CALENDAR_IDS_MAX, description="The calendars shown."
+    )
 
 
 class Attendee(BaseModel):
@@ -131,6 +160,82 @@ class EventDetail(CalendarEvent):
     attendees: list[Attendee] = Field(description="Who is invited, and what they answered.")
     organizer: str | None = Field(description="Who organises it (an address).")
     link: str | None = Field(description="The event at its provider, when it has a page.")
+    reminder_minutes: int | None = Field(
+        description="Its own reminder, in minutes before; None when it has none of its own."
+    )
+    busy: bool = Field(description="Whether its time shows as taken.")
+    private: bool = Field(description="Whether its details stay private.")
+    zone: str | None = Field(
+        description="The zone it was set in (IANA); None when the provider says none, or UTC."
+    )
+    my_response: Response | None = Field(
+        description="What the person answered; None for an event with nothing for them to answer."
+    )
+
+
+class EventInvitationAnswer(BaseModel):
+    """The person's answer to an invitation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calendar_id: ProviderId = Field(description="The event's calendar.")
+    event_id: ProviderId = Field(description="The event, an occurrence's own id within a series.")
+    response: EventAnswer = Field(description="The answer: the organiser is told.")
+
+
+class EventMove(BaseModel):
+    """An event going to another calendar."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calendar_id: ProviderId = Field(description="The calendar it is in.")
+    event_id: ProviderId = Field(description="The event.")
+    destination_id: ProviderId = Field(description="The calendar it goes to.")
+
+    @model_validator(mode="after")
+    def _goes_somewhere_else(self) -> Self:
+        if self.destination_id == self.calendar_id:
+            raise ValueError("an event moves to another calendar")
+        return self
+
+
+class NewCalendar(BaseModel):
+    """A calendar to create, once per submission."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: CalendarName = Field(description="Its name.")
+    idempotency_key: UUID = Field(description="One key per submission (a replay creates nothing).")
+
+
+class CalendarRename(BaseModel):
+    """A calendar's new name."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calendar_id: ProviderId = Field(description="The calendar.")
+    name: CalendarName = Field(description="Its new name.")
+
+
+class EventSearchQuery(BaseModel):
+    """Words looked for in the calendars shown."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    q: _SearchWords = Field(description="The person's words.")
+    calendar_ids: list[ProviderId] = Field(
+        min_length=1,
+        max_length=WORKBENCH_CALENDAR_IDS_MAX,
+        description="The calendars asked.",
+    )
+
+
+class EventSearch(BaseModel):
+    """What a search found, in time order."""
+
+    events: list[CalendarEvent] = Field(description="The events found, the earliest first.")
+    truncated: bool = Field(description="True when more were found than are shown.")
+    failed: list[str] = Field(description="The calendars that could not be read.")
 
 
 class CalendarWindow(BaseModel):
@@ -149,6 +254,16 @@ class EventsWindow(BaseModel):
     """Every calendar of a view over its window."""
 
     calendars: list[CalendarWindow] = Field(description="One entry per calendar asked.")
+
+
+#: Minutes before the event; ``NO_REMINDER`` takes the reminder off.
+OptionalReminder = Annotated[
+    int | None, Field(ge=NO_REMINDER, le=WORKBENCH_EVENT_REMINDER_MAX_MINUTES)
+]
+
+
+#: How far a change reaches: an occurrence alone, or the whole series.
+EventScope = Literal["occurrence", "series"]
 
 
 class _Timed(TimezoneValidatorMixin, BaseModel):
@@ -193,6 +308,14 @@ class NewEvent(_Timed):
     conference: bool = Field(
         default=False, description="Attach a video call (where the provider can)."
     )
+    reminder_minutes: OptionalReminder = Field(
+        default=None, description="A reminder this long before; left out, the calendar's own."
+    )
+    busy: bool | None = Field(default=None, description="Whether its time shows as taken.")
+    private: bool | None = Field(default=None, description="Whether its details stay private.")
+    recurrence: RecurrenceSpec | None = Field(
+        default=None, description="When it happens again, from its own first day."
+    )
     idempotency_key: UUID = Field(description="One key per form: the provider creates it once.")
 
     @model_validator(mode="after")
@@ -215,15 +338,40 @@ class EventChange(_Timed):
     location: OptionalLocation = Field(default=None, description="A new place ('' clears it).")
     description: OptionalDescription = Field(default=None, description="New notes ('' clears).")
     attendees: OptionalAttendees = Field(default=None, description="The new list of invitees.")
+    reminder_minutes: OptionalReminder = Field(
+        default=None, description="A new reminder; -1 takes it off, left out it is kept."
+    )
+    busy: bool | None = Field(default=None, description="Whether its time shows as taken.")
+    private: bool | None = Field(default=None, description="Whether its details stay private.")
+    conference: bool = Field(
+        default=False, description="Adds a video call, where the provider has one."
+    )
     notify: bool | None = Field(
         default=None,
         description="Tell the attendees (where the provider lets the page choose; else refused).",
+    )
+    scope: EventScope = Field(default="occurrence", description="This occurrence, or its series.")
+    recurrence: RecurrenceSpec | None = Field(
+        default=None, description="A new rule for the whole series."
     )
 
     @model_validator(mode="after")
     def _a_change(self) -> Self:
         self._check_bounds(required=False)
-        named = (self.summary, self.start, self.location, self.description, self.attendees)
+        if self.recurrence is not None and (self.scope != "series" or self.timezone is None):
+            raise ValueError("a rule belongs to a whole series, read in a zone")
+        named = (
+            self.summary,
+            self.start,
+            self.location,
+            self.description,
+            self.attendees,
+            self.reminder_minutes,
+            self.busy,
+            self.private,
+            True if self.conference else None,
+            self.recurrence,
+        )
         if all(value is None for value in named):
             raise ValueError("a change names at least one field")
         return self

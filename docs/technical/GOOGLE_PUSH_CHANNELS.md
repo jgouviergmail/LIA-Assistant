@@ -16,7 +16,7 @@ one — staleness bounded by cache TTLs.
   platform push token, constant-time) — an unknown or forged notification is
   silently ignored, never revealed.
 - **Sync job**: `push_channel_sync` (leader-elected, every
-  `PUSH_SYNC_INTERVAL_MINUTES`) ensures a channel per active Google connector
+  `PUSH_SYNC_INTERVAL_MINUTES`) ensures a channel per active Google or OneDrive connector
   and renews channels expiring within `PUSH_RENEWAL_MARGIN_SECONDS`.
 - **Invalidation** (`cache_invalidation.py`): calendar → briefing `agenda`
   section; drive → briefing `documents`; gmail → briefing `mails` + per-user
@@ -74,6 +74,28 @@ Then set both variables plus `GMAIL_PUSH_ENABLED=true`. Gmail watches expire
 after 7 days regardless of the requested TTL — the sync job re-issues them.
 The heartbeat's `history.list` delta (lot G) stays the actual reader; push
 only makes the caches fresh sooner.
+
+## OneDrive — a Graph subscription (ADR-369, lot 11)
+
+OneDrive rides the same switch (`PUSH_CHANNELS_ENABLED`), the same sweep and the same drain: one
+`webhook_channels` row per account, `provider = microsoft_onedrive`, `resource_id` holding Graph's
+subscription. What differs:
+
+- **The endpoint** is `POST /api/v1/webhooks/microsoft`, beside the Google one: its address is
+  derived from `PUSH_WEBHOOK_URL`, so an instance states its public address once. Graph calls it
+  before it answers a subscription and expects its `validationToken` back as plain text; a delivery
+  is JSON, each entry carrying `subscriptionId` and the `clientState` compared in constant time.
+- **A subscription is renewed in place** (`PATCH`): Graph holds one per resource and refuses a
+  second with a 409. A new one is opened only for one Graph has lost, and one that outlived its row
+  is removed first. The feed's token stays with the row through all of it.
+- **The feed is Graph's delta**, read in Drive's words (`onedrive_changes.py`) so that
+  `reindex_from_push` serves both. Its token is longer than Drive's (`page_token` is 2048 wide), and
+  a token Graph forgot answers 410: the feed is rebased and the linked trees re-synchronised.
+- **The scope**: a subscription on a personal drive takes `Files.Read` alone, so OneDrive asks for
+  it beside the two `.All` scopes.
+
+The feed is measured on a real personal drive; the subscription and its handshake are not, for want
+of a public address on a development instance.
 
 ## Consumers of a notification (ADR-261)
 

@@ -9,7 +9,7 @@ A **connector** is a secure gateway between LIA and your external services:
 • 📧 **Gmail**: read, send, reply to emails
 • 📅 **Calendar**: manage your events
 • 👥 **Contacts**: search and create contacts
-• 📁 **Drive**: explore your files, read and write Sheets/Docs content
+• 📁 **Drive**: explore and organise your files, read and write Sheets/Docs content
 • ✅ **Tasks**: manage your tasks
 • 👥 **Contact groups**: target a whole label ("email the family group")
 • 📆 **Free slots**: find real availability without reading meeting content
@@ -22,8 +22,10 @@ A **connector** is a secure gateway between LIA and your external services:
 
 **Microsoft 365 services (OAuth):**
 • 📧 **Outlook**: read, send, reply to emails
+• ✉️ **Outlook settings**: automatic replies and rules (both confirmed; a connection made before them asks to be reconnected once)
 • 📅 **Microsoft Calendar**: manage your events
 • 👥 **Microsoft Contacts**: search and manage contacts
+• 📁 **OneDrive**: explore and organise your files
 • ✅ **Microsoft To Do**: manage tasks and lists
 
 **Always active, nothing to configure (provided by your instance):**
@@ -50,7 +52,7 @@ A **connector** is a secure gateway between LIA and your external services:
 Each connector has limited permissions. LIA only accesses necessary data.
 
 **⚡ Mutual exclusivity:**
-For email, calendar, and contacts, only one provider can be active at a time (Google OR Apple OR Microsoft, not both simultaneously). Tasks are available via Google Tasks or Microsoft To Do (one at a time).
+For email, calendar, and contacts, only one provider can be active at a time (Google OR Apple OR Microsoft, not both simultaneously). Tasks are available via Google Tasks or Microsoft To Do (one at a time). Files are available via Google Drive or OneDrive (one at a time).
 
 ## What Apple iCloud services can I connect?
 LIA integrates with **3 Apple iCloud services**:
@@ -80,7 +82,7 @@ LIA integrates with **3 Apple iCloud services**:
 Commands are identical whether you use Google or Apple. Just say "*my emails*", "*my calendar*", or "*my contacts*" — LIA automatically uses the active provider.
 
 ## What is connector mutual exclusivity?
-For email, calendar, contacts, and tasks services, LIA applies a **mutual exclusivity** rule:
+For email, calendar, contacts, tasks and files services, LIA applies a **mutual exclusivity** rule:
 
 **⚡ Principle:**
 Only one provider can be active per category:
@@ -88,6 +90,7 @@ Only one provider can be active per category:
 • **Calendar**: Google Calendar OR Apple Calendar OR Microsoft Calendar (not multiple)
 • **Contacts**: Google Contacts OR Apple Contacts OR Microsoft Contacts (not multiple)
 • **Tasks**: Google Tasks OR Microsoft To Do (not both)
+• **Files**: Google Drive OR OneDrive (not both)
 
 **🔄 Switching providers:**
 If you activate a new provider while another is active for the same category:
@@ -97,13 +100,13 @@ If you activate a new provider while another is active for the same category:
 4. You can switch back at any time
 
 **✅ Unaffected services:**
-Google Drive, Places, Routes, and Philips Hue have no equivalent in other providers and remain always available.
+Places, Routes, and Philips Hue have no equivalent in other providers and remain always available.
 
 **💡 Tip:**
 You don't need to choose the same provider for everything. For example, you can use Outlook for emails, Google Calendar for your calendar, and Microsoft To Do for tasks.
 
 ## How do I connect Microsoft 365 services?
-Microsoft 365 services use **OAuth 2.0** (secure connection via Microsoft Identity Platform):
+Microsoft 365 services use **OAuth 2.1** (secure connection via Microsoft Identity Platform):
 
 **Steps:**
 1. Go to **Settings > Connectors**
@@ -119,7 +122,7 @@ uses the separate reconnection action. Services already connected to other accou
 remain on those accounts. You can still disconnect one service at a time.
 
 **🔐 Permissions:**
-LIA only requests necessary permissions via the Microsoft Graph API. For example, for Outlook: reading and sending emails, but not permanent deletion.
+LIA only requests necessary permissions via the Microsoft Graph API. For example, for Outlook: reading, sorting and sending emails, and your automatic replies and rules. Deleting for good is yours alone, in Tools, after a question.
 
 **⚠️ Mutual exclusivity:**
 Activating a Microsoft service automatically deactivates its Google or Apple equivalent for the same category (and vice versa).
@@ -129,13 +132,14 @@ You can remove a service from LIA settings. To revoke the app's provider-wide
 authorization, use your Microsoft account security settings.
 
 ## What Microsoft 365 services can I connect?
-LIA integrates with **4 Microsoft 365 services**:
+LIA integrates with **5 Microsoft 365 services**:
 
 **📧 Outlook (Microsoft Graph)**
 • Search your emails
 • Read message content
 • Send, reply, forward
 • View attachments
+• Automatic replies and rules
 
 **📅 Microsoft Calendar**
 • View your schedule
@@ -148,6 +152,11 @@ LIA integrates with **4 Microsoft 365 services**:
 • Create new contacts
 • Update information
 
+**📁 OneDrive** (Word and Excel files read, text added to a Word file, folders kept in sync with your knowledge spaces)
+• Search and browse your files
+• Read document content
+• Organise them: folders, rename, move, copy, share
+
 **✅ Microsoft To Do**
 • List your tasks
 • Create new tasks
@@ -158,7 +167,7 @@ LIA integrates with **4 Microsoft 365 services**:
 Commands are identical regardless of provider. Just say "*my emails*", "*my calendar*", "*my contacts*", or "*my tasks*" — LIA automatically uses the active provider.
 
 ## How do I connect Google services?
-Google services use **OAuth 2.0** (secure connection):
+Google services use **OAuth 2.1** (secure connection):
 
 **Steps:**
 1. Go to **Settings > Connectors**
@@ -225,6 +234,7 @@ Philips Hue uses a **hybrid authentication** (local press-link or remote OAuth2)
 • "Turn on the living room lights"
 • "Dim the bedroom to 30%"
 • "Set the kitchen light to blue"
+• "Set the Downstairs zone to blue"
 • "Activate the movie scene"
 • "What lights are currently on?"
 • "Turn off everything"
@@ -311,7 +321,7 @@ background refreshes do not remove that provider policy; publishing the OAuth
 application is required for durable authorization.
 
 ## Can I configure preferences per connector?
-Yes! Some connectors have **customizable preferences**:
+Yes! Some connectors have **customizable preferences**. A mailbox keeps your **signature**, set in Tools › Mail › Mailbox settings, on Gmail, Outlook and iCloud Mail alike:
 
 **📅 Google Calendar:**
 • **Default calendar**: where to create new events
@@ -373,6 +383,7 @@ LIA integrates with **7 Google services**:
 • Search your files
 • Read document content
 • Browse folders
+• Organise them: folders, rename, move, copy, share
 
 **✅ Google Tasks**
 • List your tasks
@@ -396,7 +407,7 @@ Weather and Google Environment.
 ## Are connectors secure?
 Security is our top priority:
 
-**🔐 Google services — OAuth 2.0:**
+**🔐 Google services — OAuth 2.1:**
 • LIA never sees your Google passwords
 • You connect directly with Google
 • Tokens revocable at any time
@@ -407,7 +418,7 @@ Security is our top priority:
 • Revocable from appleid.apple.com
 • Apple two-factor authentication is required
 
-**🪟 Microsoft 365 — OAuth 2.0:**
+**🪟 Microsoft 365 — OAuth 2.1:**
 • LIA never sees your Microsoft passwords
 • You connect directly with Microsoft
 • Tokens revocable at any time from your Microsoft account

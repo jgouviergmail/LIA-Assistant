@@ -6,8 +6,9 @@ Business behaviors pinned here:
   to the user is a claim: exact or absent — CLAUDE.md);
 - group targeting resolves a spoken name ("famille") case-insensitively and
   returns the members' emails so the email tools can address them;
-- these are Google-only capabilities: any other resolved contacts provider
-  gets a localized graceful refusal, never an AttributeError.
+- groups answer in one vocabulary on the three providers (ADR-369, lot 9); other
+  contacts are Google's alone: any other resolved contacts provider gets a
+  localized graceful refusal, never an AttributeError.
 """
 
 from __future__ import annotations
@@ -88,16 +89,22 @@ class TestListContactGroups:
         assert famille["resource_name"] == "contactGroups/fam123"
         assert result["total"] == 2
 
-    async def test_non_google_provider_gets_localized_refusal(self) -> None:
+    async def test_every_provider_answers_in_the_one_vocabulary(self) -> None:
         tool = _tool_with_runtime(ListContactGroupsTool())
-        client = MagicMock()  # not a GooglePeopleClient
+        group = {
+            "resourceName": "category:Rm",
+            "formattedName": "Family",
+            "groupType": "USER_CONTACT_GROUP",
+            "memberCount": None,
+        }
+        client = MagicMock(list_contact_groups=AsyncMock(return_value={"contactGroups": [group]}))
 
-        with _patch_language():
-            result = await tool.execute_api_call(client, uuid4())
+        result = await tool.execute_api_call(client, uuid4())
 
-        assert result["success"] is False
-        assert result["error"] == "provider_not_supported"
-        assert result["message"]
+        assert result["success"] is True
+        assert result["groups"] == [
+            {"resource_name": "category:Rm", "name": "Family", "member_count": None}
+        ]
 
 
 class TestGetContactGroupMembers:
@@ -105,30 +112,23 @@ class TestGetContactGroupMembers:
         tool = _tool_with_runtime(GetContactGroupMembersTool())
         client = _google_client(
             list_contact_groups=_GROUPS_RESPONSE,
-            get_contact_group={
-                "resourceName": "contactGroups/fam123",
-                "memberResourceNames": ["people/1", "people/2"],
-            },
-            get_people_batch={
-                "responses": [
+            group_people={
+                "people": [
                     {
-                        "person": {
-                            "resourceName": "people/1",
-                            "names": [{"displayName": "Marc Dupont"}],
-                            "emailAddresses": [{"value": "marc@example.com"}],
-                        }
+                        "resourceName": "people/1",
+                        "names": [{"displayName": "Marc Dupont"}],
+                        "emailAddresses": [{"value": "marc@example.com"}],
                     },
                     {
-                        "person": {
-                            "resourceName": "people/2",
-                            "names": [{"displayName": "Léa Dupont"}],
-                            "emailAddresses": [
-                                {"value": "lea@example.com"},
-                                {"value": "lea.pro@example.com"},
-                            ],
-                        }
+                        "resourceName": "people/2",
+                        "names": [{"displayName": "Léa Dupont"}],
+                        "emailAddresses": [
+                            {"value": "lea@example.com"},
+                            {"value": "lea.pro@example.com"},
+                        ],
                     },
-                ]
+                ],
+                "cut": False,
             },
         )
 

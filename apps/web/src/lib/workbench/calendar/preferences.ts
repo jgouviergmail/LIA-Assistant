@@ -11,9 +11,9 @@
  */
 
 /** The views of the screen. */
-export type CalendarView = 'agenda' | 'week' | 'month';
+export type CalendarView = 'agenda' | 'day' | 'week' | 'month';
 
-export const CALENDAR_VIEWS: readonly CalendarView[] = ['agenda', 'week', 'month'];
+export const CALENDAR_VIEWS: readonly CalendarView[] = ['agenda', 'day', 'week', 'month'];
 export const CALENDAR_VIEW_KEY = 'lia_workbench_calendar_view';
 const HIDDEN_KEY = 'lia_workbench_calendar_hidden';
 /** Dispatched on `window` after every change, for `useSyncExternalStore`. */

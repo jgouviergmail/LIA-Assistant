@@ -1,6 +1,6 @@
 """The Drive tree under a linked folder, walked once and bounded.
 
-Google Drive lists ONE level per call (``'{id}' in parents``), so a source
+A drive lists ONE level per call (``'{id}' in parents`` on Google's), so a source
 that read its root folder alone never saw a sub-folder's files. The walk is a
 breadth-first traversal over the folders, bounded by a file cap and a folder
 cap, and it is the ONE reading the synchronisation and the preflight share:
@@ -21,7 +21,11 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME, GOOGLE_DRIVE_SHORTCUT_MIME
+from src.core.constants import (
+    GOOGLE_DRIVE_FOLDER_MIME,
+    GOOGLE_DRIVE_SHORTCUT_MIME,
+    RAG_DRIVE_MAX_ANCESTOR_DEPTH,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -98,6 +102,26 @@ def _child_folders(folders: list[dict[str, Any]]) -> list[str]:
         for folder in folders
         if folder.get("mimeType") == GOOGLE_DRIVE_FOLDER_MIME and folder.get("id")
     ]
+
+
+async def ancestor_ids(client: Any, folder_id: str) -> list[str]:
+    """The parent chain of a folder, nearest first, bounded in depth.
+
+    A file has ONE parent today (legacy multi-parent Drive items keep the first);
+    the chain ends at the root, which has none.
+    """
+    chain: list[str] = []
+    current = folder_id
+    seen: set[str] = {folder_id}
+    while len(chain) < RAG_DRIVE_MAX_ANCESTOR_DEPTH:
+        metadata = await client.get_file_metadata(current, fields=["id", "parents"])
+        parents = [str(p) for p in metadata.get("parents") or []]
+        if not parents or parents[0] in seen:
+            break
+        current = parents[0]
+        seen.add(current)
+        chain.append(current)
+    return chain
 
 
 async def walk_drive_tree(

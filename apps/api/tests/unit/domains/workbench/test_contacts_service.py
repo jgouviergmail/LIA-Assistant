@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncIterator
+from datetime import date
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -21,14 +22,22 @@ from pydantic import ValidationError
 from src.core.constants import (
     GOOGLE_CONTACTS_SEARCH_PAGE_MAX,
     WORKBENCH_CONTACT_ADDRESS_MAX_CHARS,
+    WORKBENCH_CONTACT_NAME_MAX_CHARS,
 )
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.contact_details import ContactDetails
 from src.domains.connectors.clients.normalizers.contact_values import ContactValuesRefused
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import availability, contacts_service
 from src.domains.workbench.availability import listing_page_size
-from src.domains.workbench.schemas.contacts import ContactChange, ContactsQuery, NewContact
+from src.domains.workbench.errors import NOT_SUPPORTED_BY_PROVIDER, refusal_code_of
+from src.domains.workbench.schemas.contacts import (
+    ContactChange,
+    ContactsQuery,
+    NewContact,
+    OtherContactSave,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -141,20 +150,13 @@ class TestTheList:
             _person(name, names=[{"givenName": "Ana", "familyName": f"Z{29 - index:02d}"}])
             for index, name in enumerate(members)
         ]
-        client = MagicMock(
-            get_contact_group=AsyncMock(
-                return_value={"memberResourceNames": members, "memberCount": 40}
-            ),
-            get_people_batch=AsyncMock(
-                return_value={"responses": [{"person": person} for person in people]}
-            ),
-        )
+        client = MagicMock(group_people=AsyncMock(return_value={"people": people, "cut": True}))
         with _door(client, GOOGLE):
             page = await contacts_service.list_contacts(
                 USER, ContactsQuery(group="contactGroups/friends", page_token="25")
             )
 
-        assert client.get_people_batch.await_args.args[0] == members
+        assert client.group_people.await_args.args[0] == "contactGroups/friends"
         assert [row.family_name for row in page.items] == ["Z25", "Z26", "Z27", "Z28", "Z29"]
         assert (len(page.items), page.next_page_token, page.truncated) == (5, None, True)
 
@@ -189,15 +191,24 @@ class TestTheList:
             ("Zoé", "Martin"),
         ]
 
-    async def test_a_group_or_other_contacts_where_the_provider_has_none(self) -> None:
+    async def test_other_contacts_where_the_provider_has_none(self) -> None:
         client = MagicMock()
         with _door(client, GRAPH), pytest.raises(BaseAPIException) as caught:
-            await contacts_service.list_contacts(USER, ContactsQuery(group="contactGroups/x"))
-        assert caught.value.detail["code"] == "not_supported_by_provider"
-        with _door(client, CARDDAV), pytest.raises(BaseAPIException):
-            await contacts_service.list_groups(USER)
-        with _door(client, GRAPH), pytest.raises(BaseAPIException):
             await contacts_service.search_other(USER, "ana")
+        assert caught.value.detail["code"] == "not_supported_by_provider"
+
+    @pytest.mark.parametrize("kind", [GOOGLE, GRAPH, CARDDAV])
+    async def test_a_group_is_listed_on_every_provider(self, kind: ConnectorType) -> None:
+        client = MagicMock(
+            group_people=AsyncMock(return_value={"people": [_person()], "cut": False}),
+            list_contact_groups=AsyncMock(return_value={"contactGroups": []}),
+        )
+        with _door(client, kind):
+            page = await contacts_service.list_contacts(USER, ContactsQuery(group="group-1"))
+            groups = await contacts_service.list_groups(USER)
+
+        assert len(page.items) == 1
+        assert groups.groups == []
 
     def test_a_search_inside_a_group_is_refused(self) -> None:
         with pytest.raises(ValidationError):
@@ -336,6 +347,117 @@ class TestOneContact:
             ContactChange.model_validate({"id": "c1"})
 
 
+class TestItsDetails:
+    @pytest.mark.parametrize(
+        ("raw", "read"),
+        [
+            ({"year": 1990, "month": 5, "day": 15}, "1990-05-15"),
+            ({"year": 0, "month": 5, "day": 15}, "--05-15"),
+            ({"month": 2, "day": 29}, "--02-29"),
+        ],
+    )
+    async def test_a_birthday_reads_with_its_year_or_says_it_has_none(
+        self, raw: dict[str, int], read: str
+    ) -> None:
+        client = MagicMock(get_person=AsyncMock(return_value=_person(birthdays=[{"date": raw}])))
+        with _door(client, GOOGLE):
+            contact = await contacts_service.read_contact(USER, "people/c1")
+
+        assert contact.birthday == read
+
+    @pytest.mark.parametrize(
+        "kept",
+        [[], [{"text": "in May"}], [{"date": {"year": 1990}}], [{"date": {"month": 5}}], "x"],
+    )
+    async def test_a_birthday_nobody_can_read_is_none(self, kept: Any) -> None:
+        client = MagicMock(get_person=AsyncMock(return_value=_person(birthdays=kept)))
+        with _door(client, GOOGLE):
+            contact = await contacts_service.read_contact(USER, "people/c1")
+
+        assert contact.birthday is None
+
+    async def test_a_job_and_a_website_are_read(self) -> None:
+        person = _person(
+            organizations=[{"name": "Atlas", "title": "Engineer"}],
+            urls=[{"value": "https://ana.example.org"}, {"value": "https://b.example.org"}],
+        )
+        client = MagicMock(get_person=AsyncMock(return_value=person))
+        with _door(client, GOOGLE):
+            contact = await contacts_service.read_contact(USER, "people/c1")
+
+        assert contact.job_title == "Engineer"
+        assert contact.website == "https://ana.example.org"
+
+    async def test_a_new_contact_carries_them_to_its_client(self) -> None:
+        client = MagicMock(create_contact=AsyncMock(return_value=_person()))
+        request = NewContact.model_validate(
+            {
+                "name": "Ana Lima",
+                "given_name": "Ana",
+                "family_name": "Lima",
+                "job_title": "Engineer",
+                "website": "https://ana.example.org",
+                "birthday": "1990-05-15",
+                "idempotency_key": KEY,
+            }
+        )
+
+        async def once(user_id: Any, key: Any, operation: Any, **kwargs: Any) -> Any:
+            return await operation()
+
+        with _door(client, GOOGLE), patch.object(contacts_service, "run_once", once):
+            await contacts_service.create_contact(USER, request)
+
+        assert client.create_contact.await_args.kwargs["details"] == ContactDetails(
+            given_name="Ana",
+            family_name="Lima",
+            job_title="Engineer",
+            website="https://ana.example.org",
+            birthday=date(1990, 5, 15),
+        )
+
+    async def test_a_change_carries_only_what_it_names(self) -> None:
+        client = MagicMock(update_contact=AsyncMock(return_value=_person()))
+        change = ContactChange.model_validate({"id": "people/c1", "website": ""})
+        with _door(client, GOOGLE):
+            await contacts_service.update_contact(USER, change)
+
+        assert client.update_contact.await_args.kwargs["details"] == ContactDetails(website="")
+
+    async def test_a_birthday_is_taken_off_by_its_flag(self) -> None:
+        client = MagicMock(update_contact=AsyncMock(return_value=_person()))
+        change = ContactChange.model_validate({"id": "people/c1", "clear_birthday": True})
+        with _door(client, GOOGLE):
+            await contacts_service.update_contact(USER, change)
+
+        assert client.update_contact.await_args.kwargs["details"] == ContactDetails(
+            clear_birthday=True
+        )
+
+    def test_a_birthday_cannot_be_written_and_taken_off_at_once(self) -> None:
+        with pytest.raises(ValidationError):
+            ContactChange.model_validate(
+                {"id": "people/c1", "birthday": "1990-05-15", "clear_birthday": True}
+            )
+
+    @pytest.mark.parametrize(
+        "field", ["given_name", "family_name", "job_title", "website", "birthday"]
+    )
+    def test_a_change_naming_one_of_them_changes_something(self, field: str) -> None:
+        value = "1990-05-15" if field == "birthday" else "x"
+        assert ContactChange.model_validate({"id": "people/c1", field: value})
+
+    @pytest.mark.parametrize("field", ["given_name", "family_name", "job_title", "website"])
+    def test_a_detail_stays_on_one_line_and_within_its_bound(self, field: str) -> None:
+        for broken in ("two\nlines", "x" * (WORKBENCH_CONTACT_NAME_MAX_CHARS + 1)):
+            with pytest.raises(ValidationError):
+                ContactChange.model_validate({"id": "people/c1", field: broken})
+
+    def test_a_birthday_is_a_real_day(self) -> None:
+        with pytest.raises(ValidationError):
+            ContactChange.model_validate({"id": "people/c1", "birthday": "1990-02-30"})
+
+
 class TestGoogleOnly:
     async def test_the_person_s_groups_come_first(self) -> None:
         client = MagicMock(
@@ -376,3 +498,74 @@ class TestGoogleOnly:
             "ana", max_results=listing_page_size(), use_cache=False
         )
         assert page.items[0].email == "ana@example.org"
+
+
+class TestSavingAnOtherContact:
+    async def test_it_becomes_a_contact_once_per_submission(self) -> None:
+        client = MagicMock(save_other_contact=AsyncMock(return_value=_person("people/c7")))
+        request = OtherContactSave.model_validate(
+            {"id": "otherContacts/c9", "idempotency_key": KEY}
+        )
+        keys: list[Any] = []
+
+        async def once(user_id: Any, key: Any, operation: Any, **kwargs: Any) -> Any:
+            keys.append(key)
+            return await operation()
+
+        with _door(client, GOOGLE), patch.object(contacts_service, "run_once", once):
+            saved = await contacts_service.save_other_contact(USER, request)
+
+        assert saved.id == "people/c7"
+        assert keys == [request.idempotency_key]
+        client.save_other_contact.assert_awaited_once_with("otherContacts/c9")
+
+    @pytest.mark.parametrize("kind", [GRAPH, CARDDAV])
+    async def test_nothing_is_sent_where_the_provider_has_none(self, kind: ConnectorType) -> None:
+        client = MagicMock(save_other_contact=AsyncMock())
+        request = OtherContactSave.model_validate(
+            {"id": "otherContacts/c9", "idempotency_key": KEY}
+        )
+
+        async def once(user_id: Any, key: Any, operation: Any, **kwargs: Any) -> Any:
+            return await operation()
+
+        with (
+            _door(client, kind),
+            patch.object(contacts_service, "run_once", once),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await contacts_service.save_other_contact(USER, request)
+
+        assert refusal_code_of(refused.value) == NOT_SUPPORTED_BY_PROVIDER
+        client.save_other_contact.assert_not_awaited()
+
+
+class TestAnOtherContact:
+    """Google lists and searches « other contacts », it reads none of them by its id."""
+
+    OTHER = "otherContacts/c7"
+
+    async def test_reading_one_is_refused_before_anything_is_sent(self) -> None:
+        client = MagicMock(get_person=AsyncMock())
+        with _door(client, GOOGLE), pytest.raises(BaseAPIException) as refused:
+            await contacts_service.read_contact(USER, self.OTHER)
+
+        assert refusal_code_of(refused.value) == NOT_SUPPORTED_BY_PROVIDER
+        client.get_person.assert_not_awaited()
+
+    async def test_changing_one_is_refused_before_anything_is_sent(self) -> None:
+        client = MagicMock(update_contact=AsyncMock())
+        request = ContactChange(id=self.OTHER, name="Ana")
+        with _door(client, GOOGLE), pytest.raises(BaseAPIException) as refused:
+            await contacts_service.update_contact(USER, request)
+
+        assert refusal_code_of(refused.value) == NOT_SUPPORTED_BY_PROVIDER
+        client.update_contact.assert_not_awaited()
+
+    async def test_deleting_one_is_refused_before_anything_is_sent(self) -> None:
+        client = MagicMock(delete_contact=AsyncMock())
+        with _door(client, GOOGLE), pytest.raises(BaseAPIException) as refused:
+            await contacts_service.delete_contact(USER, self.OTHER)
+
+        assert refusal_code_of(refused.value) == NOT_SUPPORTED_BY_PROVIDER
+        client.delete_contact.assert_not_awaited()

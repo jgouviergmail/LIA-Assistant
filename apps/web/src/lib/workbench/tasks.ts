@@ -9,7 +9,8 @@
  */
 import { getIntlLocale, type Language } from '@/i18n/settings';
 
-import type { WorkbenchTask } from './types';
+import { instantToWall, wallTimeToInstant } from './calendar/zoned';
+import type { WorkbenchTask, WorkbenchTaskView } from './types';
 
 /** A top-level task and the subtasks under it. */
 export interface TaskNode {
@@ -19,6 +20,51 @@ export interface TaskNode {
 
 /** How a due day reads against today. */
 export type DueTone = 'overdue' | 'today' | 'later';
+
+/** The views across the lists, in the pane's order. */
+export const TASK_VIEWS: readonly WorkbenchTaskView[] = ['today', 'overdue', 'upcoming'];
+
+/** What the address names, when it is a view. */
+export function taskView(raw: string | null): WorkbenchTaskView | null {
+  return TASK_VIEWS.find(view => view === raw) ?? null;
+}
+
+/** The tasks a task sits among: its parent's, or the top level. */
+export function siblingsOf(items: readonly WorkbenchTask[], task: WorkbenchTask): WorkbenchTask[] {
+  return items.filter(item => (item.parent ?? null) === (task.parent ?? null));
+}
+
+/**
+ * @param siblings - The tasks it sits among, in their order.
+ * @param id - The task.
+ * @param by - One place up (-1) or down (1).
+ * @returns The sibling it would follow (null: first), or null when it has nowhere to go.
+ */
+export function placementOf(
+  siblings: readonly WorkbenchTask[],
+  id: string,
+  by: -1 | 1
+): { after: string | null } | null {
+  const at = siblings.findIndex(item => item.id === id);
+  const target = at + by;
+  if (at < 0 || target < 0 || target >= siblings.length) return null;
+  const follows = by < 0 ? siblings[at - 2] : siblings[at + 1];
+  return { after: follows?.id ?? null };
+}
+
+/** A reminder as a `datetime-local` field holds it, on the account's clock. */
+export function reminderInput(reminder: string | null, zone: string): string {
+  if (!reminder) return '';
+  const wall = instantToWall(new Date(reminder), zone);
+  return `${wall.date}T${wall.time}`;
+}
+
+/** What a `datetime-local` field names on the account's clock, as an instant. */
+export function reminderInstant(field: string, zone: string): string | null {
+  if (!field) return null;
+  const [date, time] = field.split('T');
+  return wallTimeToInstant(date, time, zone).toISOString();
+}
 
 function bySiblingOrder(left: WorkbenchTask, right: WorkbenchTask): number {
   return (left.position ?? '').localeCompare(right.position ?? '');

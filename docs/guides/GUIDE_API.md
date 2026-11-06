@@ -593,6 +593,7 @@ GET /api/v1/connectors/types
   "google_drive",
   "google_calendar",
   "google_contacts",
+  "microsoft_onedrive",
   "slack",
   "notion",
   "github"

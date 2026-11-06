@@ -238,6 +238,27 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="event",
         verb_past_key="deleted",
     ),
+    DraftType.EVENT_ANSWER: DraftDisplayConfig(
+        emoji="\U0001f4e8",  # 📨
+        item_label_fields=("summary",),
+        item_secondary_datetime_key="start_datetime",
+        detail_fields=(
+            DraftDisplayField("summary", "\U0001f4c5", "event"),
+            DraftDisplayField("start_datetime", "\U0001f550", "start", is_datetime=True),
+        ),
+        noun_key="event_answer",
+        verb_past_key="sent",
+        item_recipient_field="organizer",
+    ),
+    DraftType.FILE_SHARE: DraftDisplayConfig(
+        emoji="\U0001f517",  # 🔗
+        item_label_fields=("name",),
+        item_secondary_datetime_key=None,
+        detail_fields=(DraftDisplayField("name", "\U0001f4c4", "file"),),
+        noun_key="file_share",
+        verb_past_key="sent",
+        item_recipient_field="email",
+    ),
     # ---------------------------------------------------------------- Contact
     DraftType.CONTACT: DraftDisplayConfig(
         emoji="\U0001f464",  # 👤
@@ -461,6 +482,14 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="filter",
         verb_past_key="created",
     ),
+    DraftType.EMAIL_FILTER_DELETE: DraftDisplayConfig(
+        emoji="\U0001f5d1️\U0001f4e5",  # 🗑️📥
+        item_label_fields=("filter_summary",),
+        item_secondary_datetime_key=None,
+        detail_fields=(DraftDisplayField("filter_summary", "\U0001f4e5", "type"),),
+        noun_key="filter",
+        verb_past_key="deleted",
+    ),
     # Workspace writes (lot F phase write): the draft IS the confirmation —
     # nothing touches the user's file until they approve.
     DraftType.SPREADSHEET_WRITE: DraftDisplayConfig(
@@ -475,6 +504,17 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         verb_past_key="updated",
     ),
     DraftType.DOCUMENT_APPEND: DraftDisplayConfig(
+        emoji="📝",  # 📝
+        item_label_fields=("document_title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("document_title", "📄", "file"),
+            DraftDisplayField("text", "💬", "text"),
+        ),
+        noun_key="document",
+        verb_past_key="updated",
+    ),
+    DraftType.DOCUMENT_REPLACE: DraftDisplayConfig(
         emoji="📝",  # 📝
         item_label_fields=("document_title",),
         item_secondary_datetime_key=None,

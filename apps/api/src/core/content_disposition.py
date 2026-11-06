@@ -21,6 +21,8 @@ _ASCII_NAME_MAX_CHARS: Final = 200
 _MEDIA_TYPE: Final = re.compile(r"[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+")
 #: What a download is served as when its declared type is not one.
 OPAQUE_MEDIA_TYPE: Final = "application/octet-stream"
+#: A picture that is also a page: it runs scripts where it is opened.
+SVG_MEDIA_TYPE: Final = "image/svg+xml"
 
 
 def served_media_type(declared: str) -> str:

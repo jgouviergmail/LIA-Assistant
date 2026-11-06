@@ -1200,8 +1200,8 @@
     },
     "221": {
       "title": "Das angezeigte Timeout ist das angewendete",
-      "summary": "Das Timeout pro Modell war bearbeitbar, wurde aber nie angewendet. Es wird zur Transportgrenze jedes Aufrufs, abgeglichen mit den echten Latenzen.",
-      "src": "2571bd210852"
+      "summary": "Das Timeout pro Modell war bearbeitbar, wurde aber nie angewendet. Es wird zur Transportgrenze jedes Aufrufs, abgeglichen mit den echten Latenzen, und nichts rund um einen Aufruf schneidet ihn früher ab.",
+      "src": "4e954a5f7c9a"
     },
     "222": {
       "title": "Eine nie angeschlossene HITL-Schicht entfernt",
@@ -1935,8 +1935,13 @@
     },
     "369": {
       "title": "Die Person bedient ihre Dienste selbst, ohne Modell",
-      "summary": "Der Bereich „Tools“ öffnet Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Lampen der Person, damit sie sie von Hand ansieht und bedient: kein Modell, kein Token, das Tempo des Anbieters. Der Bildschirm bietet nur, was der Anbieter annimmt, und was ein Client dafür dazugewinnt, gewinnen die Werkzeuge der Assistentin zugleich; nichts, was die Person von Hand tut, landet in einem Register, denn es ist keine Handlung von LIA.",
-      "src": "07998b0c5d8d"
+      "summary": "Der Bereich „Tools“ öffnet Mails, Kalender, Aufgaben, Kontakte, Dateien, auf Google Drive oder OneDrive, und Lampen der Person, damit sie sie von Hand ansieht und bedient: kein Modell, kein Token, das Tempo des Anbieters. Der Bildschirm bietet nur, was der Anbieter annimmt, und was ein Client dafür dazugewinnt, gewinnen die Werkzeuge der Assistentin zugleich; nichts, was die Person von Hand tut, landet in einem Register, denn es ist keine Handlung von LIA.",
+      "src": "3c8fbff549a4"
+    },
+    "370": {
+      "title": "Eine vom Modell geschriebene Seite läuft im Chat, im strengsten Rahmen",
+      "summary": "Wer ein Spiel oder ein kleines Werkzeug verlangt, bekommt eine Seite, die in der Unterhaltung läuft, samt ihrer Datei; wer den Code verlangt, bekommt den Code, und was eine Person tippt, bleibt Text. Die Seite läuft isoliert, ohne Zugriff auf das Konto oder auf eine selbst gewählte Website, unter einer Richtlinie, die keinen Host nennt. Aus dem Verlauf geladen wartet sie auf einen Klick, denn eine Endlosschleife würde den Tab einfrieren, und das Modell liest von ihr nur den Titel.",
+      "src": "ab92ef5e6f98"
     }
   }
 }

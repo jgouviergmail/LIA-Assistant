@@ -223,6 +223,9 @@ class ClientRegistry:
             from src.domains.connectors.clients.microsoft_contacts_client import (
                 MicrosoftContactsClient,
             )
+            from src.domains.connectors.clients.microsoft_onedrive_client import (
+                MicrosoftOneDriveClient,
+            )
             from src.domains.connectors.clients.microsoft_outlook_client import (
                 MicrosoftOutlookClient,
             )
@@ -234,6 +237,7 @@ class ClientRegistry:
             cls.register_client(ConnectorType.MICROSOFT_CALENDAR, MicrosoftCalendarClient)
             cls.register_client(ConnectorType.MICROSOFT_CONTACTS, MicrosoftContactsClient)
             cls.register_client(ConnectorType.MICROSOFT_TASKS, MicrosoftTasksClient)
+            cls.register_client(ConnectorType.MICROSOFT_ONEDRIVE, MicrosoftOneDriveClient)
 
             # Register Philips Hue client (Smart Home)
             from src.domains.connectors.clients.philips_hue_client import (

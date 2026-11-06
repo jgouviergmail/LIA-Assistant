@@ -70,7 +70,13 @@ def service() -> Iterator[RAGDriveSyncService]:
     svc.space_repo = AsyncMock()
     svc.doc_repo = AsyncMock()
     svc.source_repo = AsyncMock()
-    with treatment_collector(run_id="drive-preflight-proof") as consultations:
+    with (
+        patch(
+            "src.domains.rag_spaces.drive_sync.active_drive_provider",
+            AsyncMock(return_value="google_drive"),
+        ),
+        treatment_collector(run_id="drive-preflight-proof") as consultations,
+    ):
         yield svc
     assert len(consultations) == 1
     assert consultations[0].tool_name == "space:drive"
@@ -80,7 +86,7 @@ def service() -> Iterator[RAGDriveSyncService]:
 
 
 def _source(space_id: uuid.UUID) -> MagicMock:
-    source = MagicMock()
+    source = MagicMock(provider="google_drive")
     source.id = uuid.uuid4()
     source.space_id = space_id
     source.folder_id = "root"

@@ -222,7 +222,7 @@ class TestEachRunCarriesItsReservation:
         await executor_module.process_scheduled_actions()
 
         worst = worst_case_run_seconds(
-            settings.scheduled_actions_execution_timeout_seconds,
+            executor_module._attempt_bound_seconds(),
             SCHEDULED_ACTIONS_MAX_RETRIES + 1,
             SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
         )

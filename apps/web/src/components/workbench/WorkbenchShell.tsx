@@ -8,13 +8,14 @@
  * gestures and bounds from it, never a second request. The rail is a row
  * ABOVE the open tool at every width (owner, 2026-10-31): beside it, a
  * vertical rail took a quarter of a laptop's width from tools that need it,
- * and a phone had to go back to a list screen to change tool. A re-read (a
- * connector changed elsewhere) keeps what is on screen and says it is busy;
- * only the FIRST load draws a placeholder.
+ * and a phone had to go back to a list screen to change tool. The open tool's
+ * actions end that row, so a tool starts right under it. A re-read (a connector
+ * changed elsewhere) keeps what is on screen and says it is busy; only the
+ * FIRST load draws a placeholder.
  */
 import { Wrench } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 import { HeadingRule } from '@/components/ui/heading-rule';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
@@ -26,16 +27,22 @@ import {
 } from '@/hooks/useWorkbenchAvailability';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { useMailCounts, type MailCountsState } from '@/hooks/useMailCounts';
 import { workbenchAvailable } from '@/lib/workbench/availability';
+import { MAIL_INBOX } from '@/lib/workbench/mail';
 import { toolOfPathname } from '@/lib/workbench/tools';
 import type { WorkbenchAvailability } from '@/lib/workbench/types';
 
 import { WorkbenchRail } from './WorkbenchRail';
+import { WorkbenchSearch } from './WorkbenchSearch';
+import { WorkbenchActionsSlot } from './WorkbenchToolHeader';
 import { WorkbenchUnavailable } from './WorkbenchUnavailable';
 
 /** What every page of the section reads: the rail, once read. */
 export interface WorkbenchContextValue extends WorkbenchAvailabilityState {
   availability: WorkbenchAvailability;
+  /** What the mailbox leaves unread: the rail draws it on every tool's page. */
+  mailCounts: MailCountsState;
 }
 
 const WorkbenchContext = createContext<WorkbenchContextValue | null>(null);
@@ -62,6 +69,11 @@ export function WorkbenchShell({ lng, children }: WorkbenchShellProps) {
   const offered = workbenchAvailable(config);
   const state = useWorkbenchAvailability(offered);
   const activeTool = toolOfPathname(usePathname());
+  const [actions, setActions] = useState<HTMLElement | null>(null);
+  const mailReady = state.availability?.tools.some(
+    item => item.tool === 'mail' && item.state === 'ready'
+  );
+  const mailCounts = useMailCounts(mailReady ?? false);
 
   if (config && !offered) return <WorkbenchUnavailable lng={lng} kind="section_off" />;
   const { availability } = state;
@@ -79,7 +91,7 @@ export function WorkbenchShell({ lng, children }: WorkbenchShellProps) {
   }
 
   return (
-    <WorkbenchContext.Provider value={{ ...state, availability }}>
+    <WorkbenchContext.Provider value={{ ...state, availability, mailCounts }}>
       {activeTool === null && (
         <div className="mb-4 flex items-center gap-3">
           <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
@@ -90,10 +102,23 @@ export function WorkbenchShell({ lng, children }: WorkbenchShellProps) {
         </div>
       )}
       <div aria-busy={state.loading || undefined}>
-        <WorkbenchRail lng={lng} availability={availability} activeTool={activeTool} />
+        <div className="mb-3 flex min-h-11 flex-wrap items-center gap-2">
+          <WorkbenchRail
+            lng={lng}
+            availability={availability}
+            activeTool={activeTool}
+            mailUnread={mailCounts.counts?.[MAIL_INBOX]}
+          />
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+            <WorkbenchSearch lng={lng} availability={availability} />
+            <div ref={setActions} className="flex flex-wrap items-center justify-end gap-1.5" />
+          </div>
+        </div>
         {/* On the root the landing opens the first ready tool, or names the
             exit when none is. */}
-        <div className="min-w-0">{children}</div>
+        <WorkbenchActionsSlot.Provider value={actions}>
+          <div className="min-w-0">{children}</div>
+        </WorkbenchActionsSlot.Provider>
       </div>
     </WorkbenchContext.Provider>
   );

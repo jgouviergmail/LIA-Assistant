@@ -14,13 +14,20 @@ import { ApiError } from '@/lib/api-client';
 
 import {
   composeFailure,
+  DRIVE_ORIGIN,
+  filesToSend,
+  fittingFiles,
   initialFields,
+  keptFiles,
+  linkOf,
   localProblem,
   recipientsOf,
+  textToHtml,
   writes,
   type ComposerTarget,
+  parseMailTo,
 } from '../mail-compose';
-import type { MailDraft, MailMessage } from '../types';
+import type { AttachableFile, MailAttachment, MailDraft, MailMessage } from '../types';
 
 const MESSAGE: MailMessage = {
   id: 'm1',
@@ -33,6 +40,7 @@ const MESSAGE: MailMessage = {
   received_at: null,
   is_read: true,
   is_starred: false,
+  has_attachments: false,
   label_ids: [],
   body: 'Hello',
   attachments: [],
@@ -41,6 +49,7 @@ const MESSAGE: MailMessage = {
 const DRAFT: MailDraft = {
   id: 'd1',
   revision: 'r1',
+  sender: null,
   to: [
     { name: 'Ana', address: 'ana@example.org' },
     { name: '', address: 'bob@example.org' },
@@ -56,6 +65,30 @@ const DRAFT: MailDraft = {
 function refused(status: number, detail: Record<string, unknown>): ApiError {
   return new ApiError('refused', status, { detail });
 }
+
+describe('parseMailTo', () => {
+  it('reads the address and what the sender wants said', () => {
+    expect(parseMailTo('leave@example.org?subject=stop%20it&body=Remove%20me')).toEqual({
+      to: 'leave@example.org',
+      subject: 'stop it',
+      body: 'Remove me',
+    });
+  });
+
+  it('takes an address alone', () => {
+    expect(parseMailTo('leave@example.org')).toEqual({
+      to: 'leave@example.org',
+      subject: '',
+      body: '',
+    });
+  });
+
+  it('carries nothing else a stranger may have written', () => {
+    expect(parseMailTo('leave@example.org?cc=boss@example.org&bcc=x@example.org').to).toBe(
+      'leave@example.org'
+    );
+  });
+});
 
 describe('composeFailure', () => {
   it('reads a lost answer as an outcome nobody knows', () => {
@@ -115,6 +148,27 @@ describe('recipientsOf', () => {
   });
 });
 
+describe('a drive file', () => {
+  const FILE = {
+    id: 'f1',
+    filename: 'Report.pdf',
+    mime_type: 'application/pdf',
+    size: 3,
+    origin: DRIVE_ORIGIN,
+    expires_at: null,
+  };
+
+  it('starts a new message with what was handed to it', () => {
+    expect(initialFields({ kind: 'new', files: [FILE] }).files).toEqual([FILE]);
+  });
+
+  it('is sent apart from the person’s own files', () => {
+    const own = { ...FILE, id: 'a1', origin: 'upload' };
+
+    expect(filesToSend([own, FILE])).toEqual({ attachment_ids: ['a1'], drive_file_ids: ['f1'] });
+  });
+});
+
 describe('the composer’s targets', () => {
   it('opens a draft on what it holds, every other target empty', () => {
     expect(initialFields({ kind: 'draft', draft: DRAFT })).toEqual({
@@ -124,6 +178,9 @@ describe('the composer’s targets', () => {
       subject: 'Plan',
       body: 'Draft text',
       files: [],
+      removedFiles: [],
+      sendAs: '',
+      html: null,
     });
     expect(initialFields({ kind: 'reply', message: MESSAGE, all: false }).body).toBe('');
   });
@@ -139,19 +196,145 @@ describe('the composer’s targets', () => {
       recipients: true,
       bcc: true,
       subject: true,
-      files: false,
+      files: true,
     });
     expect(writes({ kind: 'forward', message: MESSAGE })).toEqual({
       recipients: true,
       bcc: false,
       subject: false,
-      files: false,
+      files: true,
     });
     expect(writes({ kind: 'reply', message: MESSAGE, all: true })).toEqual({
       recipients: false,
       bcc: false,
       subject: false,
-      files: false,
+      files: true,
+    });
+  });
+
+  it('writes the recipients of a reply once it knows who it reaches', () => {
+    const reply: ComposerTarget = { kind: 'reply', message: MESSAGE, all: true };
+
+    expect(writes(reply, true).recipients).toBe(true);
+    expect(writes(reply, true).bcc).toBe(false);
+  });
+});
+
+describe('textToHtml', () => {
+  it('keeps the words as words, and the lines', () => {
+    expect(textToHtml('a <b> & c\nd')).toBe('a &lt;b&gt; &amp; c<br>d');
+  });
+
+  it('leaves nothing as nothing', () => {
+    expect(textToHtml('')).toBe('');
+  });
+});
+
+describe('linkOf', () => {
+  it.each([
+    ['https://example.org/a', 'https://example.org/a'],
+    ['HTTP://example.org', 'HTTP://example.org'],
+    ['mailto:ana@example.org', 'mailto:ana@example.org'],
+    ['example.org/a', 'https://example.org/a'],
+    ['  example.org  ', 'https://example.org'],
+    ['ana@example.org', 'mailto:ana@example.org'],
+  ])('reads %s as an address people can follow', (typed, address) => {
+    expect(linkOf(typed)).toBe(address);
+  });
+
+  it.each(['', '   ', 'javascript:alert(1)', 'data:text/html,x', 'vbscript:x', 'file:///etc'])(
+    'refuses %j',
+    typed => {
+      expect(linkOf(typed)).toBeNull();
+    }
+  );
+});
+
+describe('initialFields — a signature', () => {
+  const BLOCK = '\n\n-- \nAna';
+
+  it('closes a new message, the words to write above it', () => {
+    expect(initialFields({ kind: 'new' }, BLOCK).body).toBe(BLOCK);
+  });
+
+  it('follows the words a message opens on', () => {
+    expect(initialFields({ kind: 'new', body: 'Hello' }, BLOCK).body).toBe(`Hello${BLOCK}`);
+  });
+
+  it('closes an answer too', () => {
+    expect(initialFields({ kind: 'reply', message: MESSAGE, all: false }, BLOCK).body).toBe(BLOCK);
+    expect(initialFields({ kind: 'forward', message: MESSAGE }, BLOCK).body).toBe(BLOCK);
+  });
+
+  it('leaves a draft as it was written', () => {
+    expect(initialFields({ kind: 'draft', draft: DRAFT }, BLOCK).body).toBe('Draft text');
+  });
+});
+
+describe('keptFiles', () => {
+  const file = (filename: string): MailAttachment => ({
+    id: null,
+    filename,
+    mime_type: 'text/plain',
+    size: 1,
+  });
+
+  it('takes one file per name, the first bearing it', () => {
+    expect(keptFiles([file('a'), file('a'), file('b')], ['a']).map(item => item.filename)).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+
+  it('leaves everything to a name no file bears', () => {
+    expect(keptFiles([file('a'), file('b')], ['gone']).map(item => item.filename)).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+});
+
+describe('fittingFiles', () => {
+  const bounds = { maxFiles: 3, maxBytes: 100, eachMaxBytes: 60 };
+  const held = (size: number): AttachableFile => ({
+    id: `f${size}`,
+    filename: 'kept.pdf',
+    mime_type: 'application/pdf',
+    size,
+    origin: 'upload',
+    expires_at: null,
+  });
+  const device = (name: string, size: number) => new File(['x'.repeat(size)], name);
+
+  it('takes what fits, in the order it came', () => {
+    const { fitting, over } = fittingFiles([device('a', 10), device('b', 20)], [], bounds);
+
+    expect(fitting.map(file => file.name)).toEqual(['a', 'b']);
+    expect(over).toBeNull();
+  });
+
+  it('counts what the message already carries', () => {
+    const { fitting, over } = fittingFiles([device('a', 10)], [held(1), held(2), held(3)], bounds);
+
+    expect(fitting).toEqual([]);
+    expect(over).toEqual({ kind: 'count', name: 'a' });
+  });
+
+  it('adds up the bytes, and leaves out only what passes them', () => {
+    const { fitting, over } = fittingFiles(
+      [device('a', 50), device('b', 50), device('c', 10)],
+      [held(30)],
+      bounds
+    );
+
+    expect(fitting.map(file => file.name)).toEqual(['a', 'c']);
+    expect(over).toEqual({ kind: 'bytes', name: 'b' });
+  });
+
+  it('says a file past what one upload takes by its name', () => {
+    expect(fittingFiles([device('big', 61)], [], bounds).over).toEqual({
+      kind: 'each',
+      name: 'big',
     });
   });
 });
@@ -184,7 +367,17 @@ describe('localProblem', () => {
     ).toEqual({ field: 'to', key: 'workbench.mail.compose.no_recipient' });
   });
 
-  it('asks nothing of a reply: its recipients are the message’s', () => {
+  it('asks nothing of a reply nobody has read the recipients of: the provider computes them', () => {
     expect(localProblem(empty, { kind: 'reply', message: MESSAGE, all: false }, 100)).toBeNull();
+  });
+
+  it('asks a reply for someone in To once the person can see who it reaches', () => {
+    const reply: ComposerTarget = { kind: 'reply', message: MESSAGE, all: false };
+
+    expect(localProblem({ ...empty, cc: 'a@example.org' }, reply, 100, true)).toEqual({
+      field: 'to',
+      key: 'workbench.mail.compose.no_recipient',
+    });
+    expect(localProblem({ ...empty, to: 'a@example.org' }, reply, 100, true)).toBeNull();
   });
 });

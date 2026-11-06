@@ -15,7 +15,7 @@ import { useCallback } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
-import type { WorkbenchLights } from '@/lib/workbench/types';
+import type { WorkbenchLights, WorkbenchRoom } from '@/lib/workbench/types';
 
 /** What changes on one lamp (`schemas/lights.LightChange`, without its id). */
 export interface LightChangeBody {
@@ -27,8 +27,11 @@ export interface LightChangeBody {
 
 /** What changes on every light of one room. */
 export interface RoomChangeBody {
+  kind?: WorkbenchRoom['kind'];
   on?: boolean;
   brightness?: number;
+  color_hex?: string;
+  mirek?: number;
 }
 
 export interface WorkbenchLightsState {
@@ -39,7 +42,14 @@ export interface WorkbenchLightsState {
   refresh: () => Promise<void>;
   setLight: (lightId: string, change: LightChangeBody) => Promise<void>;
   setRoom: (roomId: string, change: RoomChangeBody) => Promise<void>;
-  recallScene: (sceneId: string) => Promise<void>;
+  /** `play` starts its motion or holds it still; left out, it is shown as it stands. */
+  recallScene: (sceneId: string, play?: boolean) => Promise<void>;
+  /** @returns How many stayed on. */
+  switchAll: (
+    on: boolean,
+    roomIds: readonly string[],
+    lightIds: readonly string[]
+  ) => Promise<number>;
 }
 
 /**
@@ -78,8 +88,31 @@ export function useWorkbenchLights(enabled: boolean): WorkbenchLightsState {
     [send]
   );
   const recallScene = useCallback(
-    (sceneId: string) => send('/workbench/lights/scene', { scene_id: sceneId }),
+    (sceneId: string, play?: boolean) =>
+      send('/workbench/lights/scene', {
+        scene_id: sceneId,
+        ...(play === undefined ? {} : { play }),
+      }),
     [send]
+  );
+
+  const switchAll = useCallback(
+    async (on: boolean, roomIds: readonly string[], lightIds: readonly string[]) => {
+      const acts = [
+        ...roomIds.map(id => ['/workbench/lights/room', { room_id: id, on }] as const),
+        ...lightIds.map(id => ['/workbench/lights/light', { light_id: id, on }] as const),
+      ];
+      let failed = 0;
+      // One after the other: a bridge takes about one room command a second.
+      for (const [path, body] of acts) {
+        await post(path, body).catch(() => {
+          failed += 1;
+        });
+      }
+      await refetch().catch(() => undefined);
+      return failed;
+    },
+    [post, refetch]
   );
 
   return {
@@ -90,5 +123,6 @@ export function useWorkbenchLights(enabled: boolean): WorkbenchLightsState {
     setLight,
     setRoom,
     recallScene,
+    switchAll,
   };
 }

@@ -16,7 +16,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.agents.tools.emails_tools import ReplyEmailDraftTool, execute_email_reply_draft
+from src.domains.agents.tools.email_draft_execution import execute_email_reply_draft
+from src.domains.agents.tools.emails_tools import ReplyEmailDraftTool
 
 pytestmark = [pytest.mark.unit]
 

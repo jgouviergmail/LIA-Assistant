@@ -173,7 +173,15 @@ class TestDraftModifier:
         )
         assert service._build_context_info(
             {"summary": "Dentist", "start_datetime": "2026-09-15"}, "event"
-        ) == ("Event: Dentist" + LF + "Date: 2026-09-15")
+        ) == (
+            "Event: Dentist"
+            + LF
+            + "Date: 2026-09-15"
+            + LF
+            + "Options, each left out or null unless asked for: reminder_minutes (minutes before "
+            "it starts, 0 when it starts, -1 for none), busy (false shows it as free), private "
+            "(true keeps its details back)."
+        )
         assert service._build_context_info({"name": "Jean"}, "contact") == "Contact: Jean"
         assert service._build_context_info({"title": "Buy milk"}, "task") == "Task: Buy milk"
         assert service._build_context_info({}, "note") == "Generic draft"

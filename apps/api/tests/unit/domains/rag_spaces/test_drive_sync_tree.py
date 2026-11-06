@@ -60,7 +60,7 @@ async def _run_sync(
     async def fake_update(_source, payload):
         updates.append(payload)
 
-    source = MagicMock()
+    source = MagicMock(provider="google_drive")
     source.folder_id = "root"
     source.folder_ids = ["root", "previously-known"]
     source_repo = AsyncMock()
@@ -97,7 +97,7 @@ async def _run_sync(
             "DetachedConnectorService",
             return_value=FakeDetachedConnectors(connector_service),
         ),
-        patch.object(drive_sync, "GoogleDriveClient", return_value=client),
+        patch.object(drive_sync, "drive_client_of", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "remove_drive_document", remove or AsyncMock()),
         patch.object(drive_sync, "settings", settings_mock),
@@ -159,7 +159,7 @@ async def test_sync_prunes_a_document_whose_file_left_the_tree(tmp_path) -> None
         removed.append(kwargs["file_id"])
         return True
 
-    source = MagicMock()
+    source = MagicMock(provider="google_drive")
     source.folder_id = "root"
     source_repo = AsyncMock()
     source_repo.get_by_id = AsyncMock(return_value=source)
@@ -192,7 +192,7 @@ async def test_sync_prunes_a_document_whose_file_left_the_tree(tmp_path) -> None
             "DetachedConnectorService",
             return_value=FakeDetachedConnectors(connector_service),
         ),
-        patch.object(drive_sync, "GoogleDriveClient", return_value=client),
+        patch.object(drive_sync, "drive_client_of", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),

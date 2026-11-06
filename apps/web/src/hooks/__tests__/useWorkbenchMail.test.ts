@@ -37,6 +37,7 @@ function row(id: string, overrides: Partial<MailSummary> = {}): MailSummary {
     received_at: null,
     is_read: false,
     is_starred: false,
+    has_attachments: false,
     label_ids: [],
     ...overrides,
   };
@@ -120,20 +121,88 @@ describe('useWorkbenchMail', () => {
     expect(readStates(result.current.messages.items)).toEqual([false, false, false]);
   });
 
-  it('removes exactly the messages the trash took', async () => {
-    api.post.mockResolvedValueOnce({
+  it('removes exactly the messages a move took out of the place', async () => {
+    const answer = {
       done: ['m1', 'm3'],
       failed: [{ id: 'm2', status: 'failed' }],
-    });
+      moved: [
+        { id: 'm1', new_id: 'n1' },
+        { id: 'm3', new_id: 'n3' },
+      ],
+    };
+    api.post.mockResolvedValueOnce(answer);
     const { result } = await rendered();
 
     let outcome: unknown;
     await act(async () => {
-      outcome = await result.current.trash(['m1', 'm2', 'm3']);
+      outcome = await result.current.move(['m1', 'm2', 'm3'], 'system:trash');
     });
 
     expect(result.current.messages.items.map(item => item.id)).toEqual(['m2']);
-    expect(outcome).toEqual({ done: ['m1', 'm3'], failed: [{ id: 'm2', status: 'failed' }] });
+    expect(outcome).toEqual(answer);
+    expect(posted('/workbench/mail/move')).toEqual({
+      message_ids: ['m1', 'm2', 'm3'],
+      to: 'system:trash',
+      origin: 'system:inbox',
+    });
+  });
+
+  it('names where messages come from on a way back', async () => {
+    api.post.mockResolvedValueOnce({ done: ['n1'], failed: [], moved: [] });
+    const { result } = await rendered();
+
+    await act(() => result.current.move(['n1'], 'system:inbox', 'system:trash'));
+
+    expect(posted('/workbench/mail/move')).toEqual({
+      message_ids: ['n1'],
+      to: 'system:inbox',
+      origin: 'system:trash',
+    });
+  });
+
+  it('takes no second act on a message whose act is on its way', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    api.post.mockReturnValueOnce(new Promise(resolve => (answer = resolve)));
+    const { result } = await rendered();
+
+    let first: Promise<unknown> = Promise.resolve();
+    act(() => {
+      first = result.current.move(['m1'], 'system:trash');
+    });
+    await act(async () => {
+      await expect(result.current.move(['m1'], 'system:spam')).resolves.toEqual({
+        done: [],
+        failed: [],
+        moved: [],
+      });
+    });
+    await act(async () => {
+      answer({ done: ['m1'], failed: [], moved: [] });
+      await first;
+    });
+
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a star at once, and rolls back what the provider refused', async () => {
+    api.post.mockResolvedValueOnce({ done: [], failed: [{ id: 'm1', status: 'failed' }] });
+    const { result } = await rendered();
+    const [first] = result.current.messages.items;
+
+    await act(() => result.current.setStarred([first], true));
+
+    expect(result.current.messages.items[0].is_starred).toBe(false);
+    expect(posted('/workbench/mail/star')).toEqual({ message_ids: ['m1'], starred: true });
+  });
+
+  it('removes what was deleted for good', async () => {
+    api.post.mockResolvedValueOnce({ done: ['m1'], failed: [] });
+    const { result } = await rendered();
+
+    await act(() => result.current.deleteForever(['m1']));
+
+    expect(result.current.messages.items.map(item => item.id)).not.toContain('m1');
+    expect(posted('/workbench/mail/delete-forever')).toEqual({ message_ids: ['m1'] });
   });
 
   it('draws a label applied on its rows', async () => {

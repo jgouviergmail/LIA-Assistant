@@ -53,7 +53,10 @@ function page(overrides: Partial<WorkbenchPageState<MailDraftSummary>> = {}) {
 
 function view(
   drafts: WorkbenchPageState<MailDraftSummary>,
-  { opening = null, trashing = new Set<string>() }: { opening?: string | null; trashing?: Set<string> } = {}
+  {
+    opening = null,
+    trashing = new Set<string>(),
+  }: { opening?: string | null; trashing?: Set<string> } = {}
 ) {
   const onOpen = vi.fn();
   const onTrash = vi.fn();

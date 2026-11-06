@@ -45,6 +45,12 @@ async function wakeFiles() {
       path: join(dist, 'ort-wasm-simd-threaded.wasm'),
       type: 'application/wasm',
     },
+    // With `wasmPaths` set the loader fetches its glue from there too, as the app's
+    // `copy-ort-runtime.mjs` knows: a binary alone answers « no available backend ».
+    '/wake/ort-wasm-simd-threaded.mjs': {
+      path: join(dist, 'ort-wasm-simd-threaded.mjs'),
+      type: 'application/javascript',
+    },
   };
   try {
     const manifest = JSON.parse(

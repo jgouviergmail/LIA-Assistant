@@ -331,7 +331,6 @@ class TestPlanSemanticValidator:
         """Test that plans with ≤1 step are instantly validated (short-circuit)."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 1.0
             mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
@@ -353,11 +352,10 @@ class TestPlanSemanticValidator:
         """Test that timeout triggers optimistic fallback."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 0.1  # Very short timeout
             mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
-                validator = PlanSemanticValidator()
+                validator = PlanSemanticValidator(timeout_seconds=0.1)
 
                 # Mock _validate_with_llm to take too long
                 async def slow_validation(*args, **kwargs):
@@ -393,7 +391,6 @@ class TestPlanSemanticValidator:
         """Test that errors trigger optimistic fallback."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -421,7 +418,6 @@ class TestPlanSemanticValidator:
         """Test successful LLM validation."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -468,7 +464,6 @@ class TestPlanSemanticValidator:
         """Test validation that requires clarification."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -520,7 +515,6 @@ class TestPlanSemanticValidator:
         """Test prompt building for validation."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -558,7 +552,6 @@ class TestPlanSemanticValidator:
         """Test _create_valid_result helper method."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -602,7 +595,6 @@ class TestSemanticValidatorIntegration:
         """Test validation of empty plan."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -631,7 +623,6 @@ class TestSemanticValidatorIntegration:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 2.0
 
             validator = PlanSemanticValidator(
                 llm=mock_llm,
@@ -683,7 +674,6 @@ class TestFormatPlanForValidation:
         """Test that numeric parameters are clearly marked for cardinality detection."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -707,7 +697,6 @@ class TestFormatPlanForValidation:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -730,7 +719,6 @@ class TestFormatPlanForValidation:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -753,7 +741,6 @@ class TestFormatPlanForValidation:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -776,7 +763,6 @@ class TestFormatPlanForValidation:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -797,7 +783,6 @@ class TestFormatPlanForValidation:
         """Test that step ID and index are included for issue reporting."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5
@@ -841,7 +826,6 @@ class TestFormatPlanForValidation:
 
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
-            mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.insufficient_content_min_chars_threshold = 30
             # Fallback confidence is settings-driven (parameterizable via .env)
             mock_settings.semantic_validation_fallback_confidence = 0.5

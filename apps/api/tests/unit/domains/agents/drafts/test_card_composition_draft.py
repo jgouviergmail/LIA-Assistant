@@ -16,7 +16,7 @@ from src.core.card_composition import (
     card_composition_ctx,
 )
 from src.domains.agents.drafts.models import Draft, DraftType
-from src.domains.agents.tools.emails_tools import execute_email_reply_draft
+from src.domains.agents.tools.email_draft_execution import execute_email_reply_draft
 
 pytestmark = pytest.mark.unit
 USER = UUID(int=1)

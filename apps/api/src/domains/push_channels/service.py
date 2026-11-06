@@ -23,13 +23,19 @@ from typing import Any
 from uuid import UUID
 
 import structlog
+from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import REDIS_KEY_PUSH_DEBOUNCE_PREFIX
+from src.core.constants import GRAPH_DRIVE_SUBSCRIPTION_MAX_SECONDS, REDIS_KEY_PUSH_DEBOUNCE_PREFIX
+from src.core.exceptions import ConnectorAPIError
 from src.domains.push_channels.cache_invalidation import invalidate_for_provider
 from src.domains.push_channels.models import PushChannelProvider, WebhookChannel
-from src.domains.push_channels.notifications import ChannelNotification, GmailPushEvent
+from src.domains.push_channels.notifications import (
+    ChannelNotification,
+    GmailPushEvent,
+    GraphNotification,
+)
 from src.domains.push_channels.repository import PushChannelRepository
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_push_channels import (
@@ -40,6 +46,18 @@ logger = structlog.get_logger(__name__)
 
 # Drive watches target the whole changes feed — one logical target.
 DRIVE_WATCH_TARGET = "changes"
+#: Where a Graph subscription reports, beside the Google endpoint.
+_GRAPH_ENDPOINT = "microsoft"
+
+
+def graph_webhook_url() -> str | None:
+    """The public address of Graph's endpoint: the instance's one address, read once.
+
+    Returns:
+        The address, or None while the instance has no public webhook.
+    """
+    address = settings.push_webhook_url
+    return f"{address.rstrip('/').rsplit('/', 1)[0]}/{_GRAPH_ENDPOINT}" if address else None
 
 
 class NotificationOutcome(str, Enum):
@@ -90,7 +108,29 @@ class PushChannelService:
             return self._observed(channel.provider, NotificationOutcome.IGNORED_BAD_TOKEN)
         if notif.resource_state == "sync":
             return self._observed(channel.provider, NotificationOutcome.SYNC_ACK)
-        if not await self._try_acquire_debounce(notif.channel_id):
+        return await self._accepted(channel)
+
+    async def handle_graph_notification(self, notif: GraphNotification) -> NotificationOutcome:
+        """Authenticate and process one entry of a Graph delivery.
+
+        Args:
+            notif: The parsed entry.
+
+        Returns:
+            The processing outcome (the router answers 202 regardless).
+        """
+        provider = PushChannelProvider.MICROSOFT_ONEDRIVE.value
+        channel = await self.repo.get_by_resource(provider, notif.subscription_id)
+        if channel is None:
+            return self._observed(provider, NotificationOutcome.IGNORED_UNKNOWN)
+        if not hmac.compare_digest(channel.token, notif.client_state):
+            logger.warning("push_notification_bad_token", channel_id=channel.channel_id)
+            return self._observed(provider, NotificationOutcome.IGNORED_BAD_TOKEN)
+        return await self._accepted(channel)
+
+    async def _accepted(self, channel: WebhookChannel) -> NotificationOutcome:
+        """What every authenticated notification owes: one wake per debounce window."""
+        if not await self._try_acquire_debounce(channel.channel_id):
             return self._observed(channel.provider, NotificationOutcome.DEBOUNCED)
 
         channel.last_notification_at = datetime.now(UTC)
@@ -100,8 +140,7 @@ class PushChannelService:
         logger.info(
             "push_notification_processed",
             provider=channel.provider,
-            channel_id=notif.channel_id,
-            resource_state=notif.resource_state,
+            channel_id=channel.channel_id,
         )
         return self._observed(channel.provider, NotificationOutcome.PROCESSED)
 
@@ -253,6 +292,87 @@ class PushChannelService:
             stopper=client.stop_channel,
         )
 
+    async def ensure_onedrive_watch(self, user_id: UUID, client: Any) -> WebhookChannel | None:
+        """Ensure a live Graph subscription on the user's OneDrive.
+
+        Graph holds one per resource: a running one has its end moved, and a new one is only for
+        one Graph has lost. The feed's token stays with the row through both, or the changes in
+        between would be lost.
+
+        Args:
+            user_id: Channel owner.
+            client: A MicrosoftOneDriveClient bound to the user.
+
+        Returns:
+            The live channel, or None while the instance has no public webhook.
+        """
+        address = graph_webhook_url()
+        provider = PushChannelProvider.MICROSOFT_ONEDRIVE.value
+        if not address:
+            logger.warning("push_webhook_url_not_configured", provider=provider)
+            return None
+
+        existing = await self.repo.get_for_user(user_id, provider, DRIVE_WATCH_TARGET)
+        if existing is not None and not self._needs_renewal(existing):
+            return existing
+        # The read ends before Graph is asked (ADR-304); the row is written below.
+        await self.db.commit()
+
+        lifetime = min(settings.push_watch_ttl_seconds, GRAPH_DRIVE_SUBSCRIPTION_MAX_SECONDS)
+        expires_at = datetime.now(UTC) + timedelta(seconds=lifetime)
+        if existing is not None and existing.resource_id:
+            renewed = await self._renewed(client, existing.resource_id, expires_at)
+            if renewed is not None:
+                existing.expiration = self._parse_instant(renewed.get("expirationDateTime"))
+                await self.db.commit()
+                return existing
+
+        # Read first: whatever changes while Graph subscribes stays in the feed from here.
+        page_token = (existing.page_token if existing is not None else None) or (
+            await client.get_changes_start_page_token()
+        )
+        token = secrets.token_urlsafe(32)
+        subscription = await client.create_subscription(address, token, expires_at)
+        expiration = self._parse_instant(subscription.get("expirationDateTime"))
+        if existing is None:
+            existing = WebhookChannel(
+                user_id=user_id,
+                provider=provider,
+                watch_target=DRIVE_WATCH_TARGET,
+                channel_id=uuid.uuid4().hex,
+                token=token,
+                resource_id=subscription.get("id"),
+                expiration=expiration,
+                page_token=page_token,
+            )
+            self.db.add(existing)
+        else:
+            existing.token = token
+            existing.resource_id = subscription.get("id")
+            existing.expiration = expiration
+            existing.page_token = page_token
+        await self.db.commit()
+        logger.info(
+            "push_channel_ensured",
+            provider=provider,
+            user_id=str(user_id),
+            expiration=expiration.isoformat(),
+        )
+        return existing
+
+    @staticmethod
+    async def _renewed(
+        client: Any, subscription_id: str, expires_at: datetime
+    ) -> dict[str, Any] | None:
+        """A subscription with its end moved; None when Graph no longer holds it."""
+        try:
+            renewed: dict[str, Any] = await client.renew_subscription(subscription_id, expires_at)
+        except ConnectorAPIError as error:
+            if error.upstream_status_code != status.HTTP_404_NOT_FOUND:
+                raise
+            return None
+        return renewed
+
     async def ensure_gmail_watch(
         self, user_id: UUID, client: Any, email_address: str
     ) -> WebhookChannel | None:
@@ -385,6 +505,14 @@ class PushChannelService:
             return datetime.fromtimestamp(int(raw) / 1000, tz=UTC)
         except TypeError, ValueError:
             # Defensive: an unparseable expiration means "renew at next sync".
+            return datetime.now(UTC)
+
+    @staticmethod
+    def _parse_instant(raw: Any) -> datetime:
+        """Graph writes an instant; an unreadable one means « renew at next sync »."""
+        try:
+            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except ValueError:
             return datetime.now(UTC)
 
     @staticmethod

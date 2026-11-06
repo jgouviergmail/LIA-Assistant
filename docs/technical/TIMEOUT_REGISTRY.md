@@ -98,11 +98,13 @@ inversions are tracked in section *Known conflicts* below.
 | `MAX_BROWSER_TOOL_TIMEOUT_SECONDS` | `max_browser_tool_timeout_seconds` | 600.0 s | 60.0–1800.0 | `parallel_executor.py:1634` | Hard ceiling for `browser_task_tool` |
 | `BROWSER_DEFAULT_TIMEOUT_MS` | `browser_default_timeout_ms` | 120000 ms | 30000–600000 | `catalogue_loader.py:417` | Catalogue default for browser steps |
 | `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | `image_generation_tool_timeout_seconds` | 180.0 s | 10.0–600.0 | `parallel_executor.py` | Floor for `generate_image` / `edit_image`. Raised 90→180 (ADR-160): measured on gpt-image-2, `medium 1024x1536` = 47.2 s, `high 1024x1536` = 138.3 s. |
-| `MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | `max_image_generation_tool_timeout_seconds` | 300.0 s | 10.0–900.0 | `parallel_executor.py` + `image_generation/providers/` | Hard ceiling for the image family — dedicated because the generic 120 s ceiling sat BELOW the measured 138.3 s, making `quality=high` unreachable at any floor value (ADR-160). Also each image client's HTTP timeout: waiting past the step's own ceiling would be waiting for nobody (ADR-305). |
+| `MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | `max_image_generation_tool_timeout_seconds` | 300.0 s | 10.0–900.0 | `parallel_executor.py` | Hard ceiling for the image family — dedicated because the generic 120 s ceiling sat BELOW the measured 138.3 s, making `quality=high` unreachable at any floor value (ADR-160). |
 | `IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS` | `image_generation_result_download_timeout_seconds` | 60.0 s | 5.0–300.0 | `image_generation/providers/result_download.py` | Total deadline to download an image a vendor returned as a URL (Qwen, valid 24 h). The image is billed before the download starts, hence generous (ADR-305). |
 | `DEVOPS_CLAUDE_TOOL_TIMEOUT_SECONDS` | `devops_claude_tool_timeout_seconds` | 120.0 s | 30.0–900.0 | `parallel_executor.py:1610` | Was inline magic number `120.0` (`claude_server_task_tool`) |
 | `MCP_REACT_STEP_TIMEOUT_SECONDS` | `mcp_react_step_timeout_seconds` | 300 s | 30–900 | `parallel_executor.py` + `smart_planner_service.py` | Floor for MCP iterative `*_task` steps (ReAct sub-agent loop). Raised 120→300 (ADR-100/D1): one diagram-generation LLM call alone ≈ 105 s. |
 | `MCP_REACT_STEP_MAX_TIMEOUT_SECONDS` | `mcp_react_step_max_timeout_seconds` | 600 s | 60–900 | `parallel_executor.py` | Hard ceiling for MCP iterative `*_task` steps — dedicated family so the generic 120 s ceiling no longer kills legitimate multi-iteration work (ADR-100/D1). |
+
+A tool of `TOOL_LLM_SLOTS` and an MCP `*_task` have their floor and ceiling lifted to their slots' calls through `run_bound_seconds`: a ceiling below is the environment's value, never a cut before admin-llm-config says (ADR-221 amendment 2026-11-05).
 
 ## 5. Sub-agent / browser / MCP delegated runs
 
@@ -125,9 +127,7 @@ They are NOT listed here. See section 12.
 | `TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS` | `task_orchestrator_execution_timeout_seconds` | 600.0 s | 30.0–1800.0 | `parallel_executor.py` (wave executor) | Wired in Vague 5. Soft plan-wide budget. Raised 120→600 (ADR-100/D1) so it dominates the longest per-step family ceilings (MCP react / browser / sub-agent up to 600 s). |
 | `HITL_MAX_WAIT_SECONDS` | `hitl_max_wait_seconds` | 900 s | 60–3600 | (orphan — see Vague 5 decision section) | Max HITL response wait |
 | `CONTEXT_RESOLUTION_TIMEOUT_MS` | `context_resolution_timeout_ms` | 500 ms | 50–10000 | `analysis/memory_resolver.py` | |
-| `MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS` | `memory_reference_resolution_timeout_ms` | 5000 ms | 100–30000 | `memory_reference_resolution_service.py` | |
 | `PLAN_PATTERN_SUGGESTION_TIMEOUT_MS` | `plan_pattern_suggestion_timeout_ms` | 100 ms | 10–5000 | `plan_pattern_learner.py` | Redis lookup, fail-open |
-| `SEMANTIC_VALIDATION_TIMEOUT_SECONDS` | `semantic_validation_timeout_seconds` | 20.0 s | 0.5–30.0 | `orchestration/semantic_validator.py` | |
 | `HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS` | `health_metrics_heartbeat_fetch_timeout_seconds` | 2.0 s | 0.5–30.0 | `heartbeat/context_aggregator.py:1029` | Safety wrapper |
 
 ## 7. Database / Cache
@@ -177,7 +177,8 @@ the [World guide](WORLD_PROTOTYPE.md) explains reconnect and expiry behavior.
 
 | Env var | Field | Default | Range | Used in | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `scheduled_actions_execution_timeout_seconds` | 300 s | 30–1800 | `scheduled_action_executor.py:222` | Per-action wall-clock |
+| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `scheduled_actions_execution_timeout_seconds` | 300 s | 30–1800 | `scheduled_action_executor.py` | One attempt of a routine, never below the model calls of one turn (`unattended_turn_seconds`, ADR-221) |
+| `WORKBOARD_RUN_TIMEOUT_SECONDS` | `workboard_run_timeout_seconds` | 600 s | 30–3600 | `workboard_runner.py` | One attempt of a ticket run, never below the model calls of one turn (`unattended_turn_seconds`, ADR-221) |
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `scheduled_actions_stale_timeout_minutes` | 10 min | 1–120 | `scheduled_action_executor.py:402` | Recovery threshold for stuck `executing` rows |
 | `DEVOPS_SSH_TIMEOUT` | `devops_ssh_timeout` | 30 s | 5–300 | `devops_ssh_service.py` | SSH connect timeout |
 | `DEVOPS_COMMAND_TIMEOUT` | `devops_command_timeout` | 300 s | 30–1800 | `devops_ssh_service.py` | Remote command exec timeout |
@@ -213,18 +214,12 @@ analyzer …) requires per-row granularity that env vars cannot offer.
 
 | Constant | Default | Owner |
 | --- | --- | --- |
-| `ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT` | 30.0 s | llm_config row `router` |
-| `RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT` | 60.0 s | llm_config rows `response_*` |
-| `PLANNER_TIMEOUT_SECONDS` | 30 s | llm_config row `planner` |
-| `INITIATIVE_LLM_TIMEOUT_SECONDS` | 30 s | llm_config row `initiative` |
-| `MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS` | 30 s | llm_config row `memory_reference` |
-| `query_analyzer_llm_timeout_seconds` | (Field in llm.py) | llm_config row `query_analyzer` |
-| All `timeout_seconds` rows in `llm_config/constants.py` | 20–180 s | `llm_config` BDD |
+| All `timeout_seconds` rows in `llm_config/constants.py` | per slot | `llm_config` BDD |
 
-The applicative `asyncio.wait_for` wrapper around every node still reads
-from `agents.py` Settings — those values cap the LLM call regardless of the
-SDK timeout. Reconciliation between the two layers is a separate task (audit
-V3 — section 9 recap).
+Every `asyncio.wait_for` around a model call reads the slot through
+`llm_call_timeout_seconds`, and a bound around work that calls a model yields to
+it through `run_bound_seconds` (ADR-221 amendment 2026-11-05, guard
+`test_llm_wall_clock_guard.py`): the value displayed is the value applied.
 
 ## Annex B — Frontend-side timeouts
 
@@ -310,13 +305,6 @@ the global Pydantic Field `mcp_tool_timeout_seconds` AND as the default for
 the per-server DB column `user_mcp.timeout_seconds`. Not a duplicate, but
 the dual usage is documented inline in `constants.py` to avoid future
 confusion.
-
-### G4 — Context resolution vs memory reference (latent)
-
-`context_resolution_timeout_ms` (500 ms) is 10× shorter than
-`memory_reference_resolution_timeout_ms` (5000 ms). If both are in the same
-call chain, the parent will fire first. Documented for awareness; not
-breaking today (the call paths are independent).
 
 ## Wave-by-wave changelog
 

@@ -157,39 +157,39 @@
     },
     "f.connectors": {
       "name": "Connectors and Tools",
-      "role": "Google, Microsoft, Apple and the services that run on your own key; a single consent flow per provider, one active provider per category. Keyless services are enabled for everyone by the administrator. Open Tools when you want to do something yourself: mail, calendar, tasks, contacts, Drive files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.",
+      "role": "Google, Microsoft, Apple and the services with a personal key; one consent journey per provider, one active provider per category, files included: Google Drive or OneDrive. Keyless services are switched on for everyone by the administrator. In Tools you act yourself, with no AI call, on your mail, calendar, tasks, contacts, files and Hue lights: each screen offers what its provider supports, one search reads them all, and your gestures stay out of LIA's registers.",
       "goal": "Connect your real accounts once, and have them stay connected.",
-      "src": "7819084f0780"
+      "src": "2893800457d4"
     },
     "f.mail": {
       "name": "Emails",
-      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply, read attachments and keep your mailbox drafts — sending to someone else always asks for a confirmation; an email to yourself goes straight out. Optional JEV category and priority badges remain advisory and reach the assistant too; uncertainty stays unlabelled.",
+      "role": "Read cleaned e-mails, summarise them once, search, write, reply, sort, read attachments, follow a conversation and keep your mailbox's drafts — sending to others always goes through a confirmation; an e-mail to yourself leaves directly. The optional JEV categories and priorities stay advisory and reach the assistant too; doubt shows no badge.",
       "goal": "Handle your inbox in a few sentences.",
-      "src": "b553d3afc253"
+      "src": "bf27a5568c84"
     },
     "f.calendar": {
       "name": "Calendar",
-      "role": "View, search, create, move and delete events, with guests, reminders and time zones. Optional work/personal assessments are shared by the display and assistant, with abstention on doubt.",
+      "role": "View, search, create, move and delete events, with guests, reminders, time zones and repetitions, and answer an invitation. The optional work/personal qualification is shared by the display and the assistant, abstaining when in doubt.",
       "goal": "Organize your time by talking.",
-      "src": "b8fd0be7b2e3"
+      "src": "d2db069ee962"
     },
     "f.contacts": {
       "name": "Contacts",
-      "role": "Find someone, their contact details and birthdays, create or update a contact card.",
+      "role": "Find someone, their details, groups and birthdays, create or update a contact, with its photo and its vCard.",
       "goal": "Know who you mean when you say “write to Marie”.",
-      "src": "620b9e7a0222"
+      "src": "23beb21905d1"
     },
     "f.tasks": {
       "name": "Tasks",
-      "role": "Your to-do lists with your provider: add, check off, move, find.",
+      "role": "Your task lists at your provider: add, tick, move, find, and see at once what is for today, overdue or coming up.",
       "goal": "Never forget what is left to do.",
-      "src": "622330403b7b"
+      "src": "1a047bacb0bd"
     },
     "f.drive": {
       "name": "Files",
-      "role": "Search and read your online files, and link a whole folder — subfolders included — to a knowledge space.",
+      "role": "Search, read and organise your files on Google Drive or OneDrive, share them after a card, and link a whole folder — subfolders included — to a knowledge space.",
       "goal": "Find a document by what it contains.",
-      "src": "ec74d6fcf071"
+      "src": "05f47c0d9b15"
     },
     "f.places": {
       "name": "Places, routes and weather",
@@ -229,9 +229,9 @@
     },
     "f.documents": {
       "name": "Generated documents",
-      "role": "Word reports, PowerPoint presentations, Excel workbooks and PDFs laid out by the rendering engine, with no overflow; a gallery keeps your files.",
+      "role": "Word reports, PowerPoint presentations, Excel workbooks and PDFs laid out by the rendering engine, with no overflow; a gallery keeps your files. A game, a quiz or a calculator you ask for runs in the chat, in a sealed frame, with its .html file.",
       "goal": "Go from research to a clean deliverable.",
-      "src": "40eb00fb8abe"
+      "src": "f712529a36af"
     },
     "f.images": {
       "name": "Generated images",

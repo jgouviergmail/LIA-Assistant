@@ -175,6 +175,42 @@ class TestReply:
         assert result["error_code"] == "NOT_FOUND"
 
 
+class TestTheSignature:
+    """A draft of the assistant closes as the person's messages do."""
+
+    @pytest.fixture(autouse=True)
+    def signs(self, person_signs_with_nothing: AsyncMock) -> None:
+        person_signs_with_nothing.return_value = "Ana"
+
+    async def test_a_new_draft_carries_it(self) -> None:
+        client = AsyncMock()
+        client.create_draft = AsyncMock(return_value=_saved())
+
+        await CreateMailboxDraftTool().execute_api_call(client, uuid4(), body="Hi")
+
+        assert client.create_draft.await_args.kwargs["body"] == "Hi\n\n-- \nAna"
+
+    async def test_a_reply_draft_carries_it(self) -> None:
+        client = AsyncMock()
+        client.create_reply_draft = AsyncMock(return_value=_saved())
+
+        await CreateMailboxReplyDraftTool().execute_api_call(
+            client, uuid4(), message_id="m1", body="Hi"
+        )
+
+        assert client.create_reply_draft.await_args.args[1] == "Hi\n\n-- \nAna"
+
+    async def test_a_forward_draft_carries_it(self) -> None:
+        client = AsyncMock()
+        client.create_forward_draft = AsyncMock(return_value=_saved())
+
+        await CreateMailboxForwardDraftTool().execute_api_call(
+            client, uuid4(), message_id="m1", to="a@example.org", body="Hi"
+        )
+
+        assert client.create_forward_draft.await_args.kwargs["body"] == "Hi\n\n-- \nAna"
+
+
 class TestForward:
     async def test_a_forward_needs_its_recipient(self, client: AsyncMock) -> None:
         result = await CreateMailboxForwardDraftTool().execute_api_call(

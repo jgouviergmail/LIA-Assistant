@@ -5,6 +5,8 @@
 **Evidence status:** static inspection of the current local working tree on
 2026-10-29. “Verified” means the cited implementation or decision was read;
 it does not mean a runtime, vendor or production behavior was tested here.
+D01–D11 were accepted on 2026-11-03; that documentation-only update did not
+repeat the source audit. Refresh affected facts during detailed feature framing.
 Symbols are preferred over line numbers because this tree contains concurrent
 changes. Existing automated tests are anchors for future work, not tests run by
 this framing exercise.
@@ -118,8 +120,9 @@ Publish effective bounds from server configuration.
 
 **Limit of evidence.** The existing checks do not establish an atomic reservation
 of all future spend across simultaneous runs. Never promise an exact monetary
-ceiling on that basis. [D09](decisions.md#d09--limits-and-concurrent-spend) decides
-whether a shared reservation extension is required.
+ceiling on that basis. [D09](decisions.md#d09--limits-and-concurrent-spend) records
+the accepted bounded-exposure policy; it does not require a shared reservation
+extension for the first release.
 
 ## F06 — Decisions, effects and consultations answer different questions
 

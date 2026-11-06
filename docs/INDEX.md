@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 367 ADR files (ADR-369 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 368 ADR files (ADR-370 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
@@ -55,11 +55,12 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs, bornes d’arcade sous autorité serveur, gestes, photos privées, tableau de bord à table ; activation et qualification matérielle séparées ([registre interactions et jeux](./superpowers/qualification/2026-10-27-world-interactions-and-play.md)) |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
-| [WORKBENCH.md](./technical/WORKBENCH.md) | La section « Outils » (ADR-369) : la personne consulte et agit à la main sur son courrier, son agenda, ses tâches, ses contacts, ses fichiers Drive et ses lampes Hue, sans modèle ; une porte, un vocabulaire de refus, un descripteur de ce que chaque fournisseur accepte, la parité qui atteint les outils de l'assistant, aucune ligne de registre ; routes, refus, métriques |
+| [WORKBENCH.md](./technical/WORKBENCH.md) | La section « Outils » (ADR-369) : la personne consulte et agit à la main sur son courrier, son agenda, ses tâches, ses contacts, ses fichiers (Google Drive ou OneDrive) et ses lampes Hue, sans modèle ; une porte, un vocabulaire de refus, un descripteur de ce que chaque fournisseur accepte, la parité qui atteint les outils de l'assistant, aucune ligne de registre ; routes, refus, métriques |
+| [INTERACTIVE_PAGES.md](./technical/INTERACTIVE_PAGES.md) | Les pages interactives (ADR-370) : un jeu, un quiz ou un petit outil écrit par le modèle et exécuté dans la conversation, dans un cadre isolé, avec son fichier `.html` |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (367 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (368 ADR files) |
 
 ### Pour les Product Managers
 
@@ -118,7 +119,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [LIA world V1 and extensible foundation](./superpowers/specs/2026-10-09-lia-isometric-world-v1-scope.md) | Accepted launch scope, typed evolution contracts, retained social/private/mobile experience and conditional assisted-work planning objectives | Scope accepted; generic design required |
 | [LIA world global architecture and game-quality review](./superpowers/specs/2026-10-09-lia-isometric-world-global-review.md) | Fresh source audit and primary research; strict translation attempts, socket security, movement/camera/input, integration lifetimes, risk oracles and measurable quality gates | Accepted V1 refined; runtime qualification pending |
 | [LIA world: MalinosLand reference and concepts](./superpowers/specs/2026-10-20-lia-world-malinosland-reference.md) | Owner-selected visual base, inspected source/screenshots, reusable game concepts, selective Phaser investigation and LIA/licensing boundaries | Visual reference accepted; implementation and qualification pending |
-| [LIA World experiences: cross-cutting dossier](./superpowers/specs/2026-10-29-world-experiences/README.md) | Four workstreams, verified native contracts, shared arbitrations, acceptance criteria and separate-chat launch prompts | Proposed framing; owner decisions open |
+| [LIA World experiences: cross-cutting dossier](./superpowers/specs/2026-10-29-world-experiences/README.md) | Four workstreams, source-backed contracts, accepted decisions, acceptance criteria and separate-chat launch prompts | D01–D11 accepted 2026-11-03; detailed design only |
 
 ---
 
@@ -161,8 +162,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
 | [GOOGLE_API.md](./technical/GOOGLE_API.md) | APIs Google utilisées — documentation et tarification (refacturation utilisateurs) | ✅ |
-| [GOOGLE_PUSH_CHANNELS.md](./technical/GOOGLE_PUSH_CHANNELS.md) | Notifications push Google (Calendar/Drive watch, Gmail Pub/Sub) — prérequis admin et architecture | ✅ |
-| [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
+| [GOOGLE_PUSH_CHANNELS.md](./technical/GOOGLE_PUSH_CHANNELS.md) | Notifications push Google et OneDrive (Calendar/Drive watch, Gmail Pub/Sub, abonnement Graph) — prérequis admin et architecture | ✅ |
+| [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do, OneDrive) | ✅ |
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS catalogue-driven (Edge / OpenAI / ElevenLabs / Gemini / Fish Audio, ADR-081, ADR-345), one synthesis door billed by the engine that spoke, one allowance per vendor account, expressive cues per engine, the Fish Audio voice library, per-message attribution, progressive sentence streaming (ADR-082) | ✅ |
 | [WAKE_WORD_TRAINING.md](./technical/WAKE_WORD_TRAINING.md) | Comment un mot-clé est entraîné, jugé et livré (ADR-329) : pipeline openWakeWord, voix Piper et VoxCPM2, formes séparée/soudée/avec pause, corpus négatifs, augmentation, recette d'entraînement, banc et grille d'acceptation, export, et ce que chaque mesure a appris | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT (local Sherpa + the `voice_transcription` slot's remote engine — ElevenLabs Scribe, OpenAI or Fish Audio, ADR-345), Wake Word, Push-to-Talk, voice_stt_mode opt-in (v1.20.x) ; le mode Live (parole à parole, ADR-299) est une troisième porte à côté, documentée dans LIVE_MODE.md | ✅ |
@@ -625,7 +626,7 @@ section ne référence.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.4.2 | Framework React |
+| Next.js | 16.4.5 | Framework React |
 | React | 19.3.1 | UI Library |
 | TypeScript | 6.0.3 | Typage |
 | Tailwind CSS | 4.3.3 | Styling |

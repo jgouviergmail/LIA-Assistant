@@ -267,7 +267,6 @@ class TestTheSummaryLanguage:
     async def test_the_model_is_told_the_language_by_its_name(
         self, mock_load_prompt, mock_settings, service
     ):
-        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
         mock_settings.compaction_max_retries = 1
         mock_settings.compaction_retry_backoff_base_seconds = 0.01
         mock_load_prompt.return_value = "Summarize this."
@@ -295,7 +294,6 @@ class TestCompact:
         """Compact with a single chunk produces a summary."""
         mock_settings.compaction_chunk_max_tokens = 100000
         # v2 hardening (Tasks 1.2/1.3): real numeric values for tenacity + wait_for.
-        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
         mock_settings.compaction_global_timeout_seconds = 10.0
         mock_settings.compaction_max_retries = 1
         mock_settings.compaction_retry_backoff_base_seconds = 0.01
@@ -354,7 +352,6 @@ class TestCompact:
         """
         mock_settings.compaction_chunk_max_tokens = 100000
         # v2 hardening: provide numeric values so tenacity + global timeout work.
-        mock_settings.compaction_per_chunk_timeout_seconds = 5.0
         mock_settings.compaction_global_timeout_seconds = 10.0
         mock_settings.compaction_max_retries = 1
         mock_settings.compaction_retry_backoff_base_seconds = 0.01

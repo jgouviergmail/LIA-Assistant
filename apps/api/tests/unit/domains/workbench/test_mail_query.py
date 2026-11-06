@@ -89,6 +89,16 @@ class TestTheFolder:
     def test_a_system_place_is_its_role(self, folder: str, operator: str) -> None:
         assert _query(OUTLOOK, folder=folder) == operator
 
+    def test_gmail_s_all_mail_is_a_listing_with_no_place(self) -> None:
+        search = compose_query(GMAIL, MailListing(folder="system:all", q="invoice"), PARIS)
+
+        assert search == MailSearch("invoice")
+
+    @pytest.mark.parametrize("kind", [OUTLOOK, ICLOUD])
+    def test_all_mail_is_gmail_s_alone(self, kind: ConnectorType) -> None:
+        with pytest.raises(BaseAPIException):
+            compose_query(kind, MailListing(folder="system:all"), PARIS)
+
     def test_a_place_the_provider_does_not_have_is_refused(self) -> None:
         assert _refusal(GMAIL, folder="system:archive") == {"code": "not_supported_by_provider"}
 

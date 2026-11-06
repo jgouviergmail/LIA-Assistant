@@ -102,17 +102,27 @@ async def test_a_category_tool_opens_through_the_category_door() -> None:
     with patch.object(clients, "open_active_client", return_value=_door(client)) as door:
         async with open_tool_client(WorkbenchTool.TASKS, USER) as opened:
             assert opened is client
-    door.assert_called_once_with("tasks", USER)
+    door.assert_called_once_with("tasks", USER, container=None)
 
 
-async def test_drive_opens_through_the_type_door() -> None:
+async def test_the_files_open_through_their_category_whichever_answers() -> None:
     client = ActiveClient(
-        client=object(), connector_type=ConnectorType.GOOGLE_DRIVE, preferred_name=None
+        client=object(), connector_type=ConnectorType.MICROSOFT_ONEDRIVE, preferred_name=None
     )
-    with patch.object(clients, "open_client_by_type", return_value=_door(client)) as door:
+    with patch.object(clients, "open_active_client", return_value=_door(client)) as door:
         async with open_tool_client(WorkbenchTool.FILES, USER) as opened:
             assert opened is client
-    door.assert_called_once_with(ConnectorType.GOOGLE_DRIVE, USER)
+    door.assert_called_once_with("files", USER, container=None)
+
+
+async def test_the_bridge_opens_through_the_type_door() -> None:
+    client = ActiveClient(
+        client=object(), connector_type=ConnectorType.PHILIPS_HUE, preferred_name=None
+    )
+    with patch.object(clients, "open_client_by_type", return_value=_door(client)) as door:
+        async with open_tool_client(WorkbenchTool.LIGHTS, USER) as opened:
+            assert opened is client
+    door.assert_called_once_with(ConnectorType.PHILIPS_HUE, USER)
 
 
 async def test_no_provider_is_refused_as_not_connected() -> None:

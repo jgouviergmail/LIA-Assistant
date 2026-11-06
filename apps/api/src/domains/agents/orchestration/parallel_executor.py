@@ -238,6 +238,8 @@ REQUIRED_PARAMS_BY_TOOL: dict[str, list[str] | dict[str, list[str]]] = {
     "list_task_lists_tool": [],  # Container metadata - all optional
     "create_task_tool": ["title"],
     "complete_task_tool": ["task_id"],
+    "rename_task_list_tool": ["task_list_id", "title"],
+    "move_task_tool": ["task_id", "task_list_id", "destination_list_id"],
     # Weather tools - location is optional (auto-detection via geolocation/home)
     "get_current_weather_tool": [],
     "get_weather_forecast_tool": [],

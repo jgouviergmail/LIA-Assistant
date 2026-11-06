@@ -7,47 +7,51 @@
  * goes up a level); a Drive-wide search, run on Enter, replaces the listing and
  * says so, and ends when the person opens another folder. A file opens in the
  * detail (`?file=`): opening pushes, closing replaces; below `lg` it takes the
- * list's place and the focus follows it there and back. Shared drives are not
- * listed — the root says so.
+ * list's place and the focus follows it there and back. A folder is ordered by
+ * Drive, since a page sorted here would only be a page; a search keeps Drive's
+ * order. A drive that keeps them has its views (`?view=`), across the folders: they
+ * stand nowhere, like a search, and a search takes over from them; in the trash
+ * everything opens as an item, a folder's contents being listed nowhere. Items ticked
+ * go to the trash or to another folder together, each
+ * answered; a folder opens nowhere else, so its rename is the one ticked alone. A
+ * new folder and files sent or dropped go where the list stands, and a search stands
+ * nowhere. Shared drives are not listed — the root says so.
  */
-import { Search, X } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PaneSeparator } from '@/components/ui/pane-separator';
-import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useWorkbenchFiles, type FilesListing } from '@/hooks/useWorkbenchFiles';
-import { useWorkbenchItem } from '@/hooks/useWorkbenchItem';
+import { useWorkbenchFiles } from '@/hooks/useWorkbenchFiles';
+import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import { workbenchRefusal } from '@/lib/workbench/errors';
-import { toolPath, WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
-import type { WorkbenchFileDetail } from '@/lib/workbench/types';
-import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import { copyText } from '@/lib/workbench/copy';
+import { parentOf } from '@/lib/workbench/files';
+import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
+import { DRIVE_ORIGIN } from '@/lib/workbench/mail-compose';
+import type {
+  AttachableFile,
+  WorkbenchActOutcome,
+  WorkbenchFileDetail,
+} from '@/lib/workbench/types';
 
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
-import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
-import { Breadcrumb } from './Breadcrumb';
+import { useListSelection } from '../useListSelection';
+import { useToolBridges } from '../useToolBridges';
+import { PANE_SEPARATOR_CLASS, useWorkbenchPane } from '../useWorkbenchPane';
 import { FileDetail } from './FileDetail';
-import { FileList } from './FileList';
-
-/** A search, and the folder it was started in (opening another one ends it). */
-interface FilesSearch {
-  q: string;
-  fullText: boolean;
-  from: string | null;
-}
+import { FileOrganizer, type FileAct, type FilePlace } from './FileOrganizer';
+import { FilesColumn } from './FilesColumn';
+import { useFileTrash, type FileTrash } from './useFileTrash';
+import { useFilesScreen, type FilesScreen } from './useFilesScreen';
 
 export function FilesTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -60,46 +64,38 @@ export function FilesTool({ lng }: { lng: Language }) {
       </>
     );
   }
-  return <ReadyFiles lng={lng} />;
+  return (
+    <ReadyFiles
+      lng={lng}
+      provider={tool.provider}
+      bounds={tool.bounds}
+      viewsOffered={tool.features.includes('file_views')}
+    />
+  );
 }
 
-function useFilesAddress(lng: Language) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const folder = params.get('folder');
-  const file = params.get('file');
-  const base = buildLocalizedPath(toolPath('files'), lng);
-  const at = (place: { folder: string | null; file?: string }) => {
-    const query = new URLSearchParams();
-    if (place.folder) query.set('folder', place.folder);
-    if (place.file) query.set('file', place.file);
-    const search = query.toString();
-    return search ? `${base}?${search}` : base;
-  };
-  return {
-    folder,
-    file,
-    folderHref: (folderId: string | null) => at({ folder: folderId }),
-    fileHref: (fileId: string) => at({ folder, file: fileId }),
-    closeFile: () => router.replace(at({ folder }), { scroll: false }),
-  };
-}
-
-function ReadyFiles({ lng }: { lng: Language }) {
+function ReadyFiles({
+  lng,
+  provider,
+  bounds,
+  viewsOffered,
+}: {
+  lng: Language;
+  provider: string | null;
+  bounds: Record<string, number>;
+  viewsOffered: boolean;
+}) {
   const { t } = useTranslation(lng);
-  const { user } = useAuth();
-  const { availability } = useWorkbench();
   const { confirm, confirmDialog } = useConfirm();
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
-  const address = useFilesAddress(lng);
+  const screen = useFilesScreen(lng, viewsOffered);
+  const { address } = screen;
   // On a large screen the person sizes the list beside the detail.
   const listPane = useWorkbenchPane(lng, 'files.list');
-  const [search, setSearch] = useState<FilesSearch | null>(null);
-  const searching = search !== null && search.from === address.folder ? search : null;
-  const listing: FilesListing = searching
-    ? { kind: 'search', q: searching.q, fullText: searching.fullText }
-    : { kind: 'folder', folderId: address.folder };
-  const state = useWorkbenchFiles(listing);
+  const [act, setAct] = useState<FileAct | null>(null);
+  const state = useWorkbenchFiles(screen.listing);
+  const selection = useListSelection(JSON.stringify(screen.listing));
+  const { selected, select } = selection;
   const open = useWorkbenchItem<WorkbenchFileDetail>(
     address.file ? '/workbench/files/file' : null,
     { id: address.file ?? undefined }
@@ -111,29 +107,39 @@ function ReadyFiles({ lng }: { lng: Language }) {
     opened: closeRef,
     fallback: searchRef,
   });
-
-  const trash = async (file: WorkbenchFileDetail) => {
-    const confirmed = await confirm({
-      title: t('workbench.files.trash_title', { name: file.name || t('workbench.files.no_name') }),
-      description: t('workbench.files.trash_description'),
-      confirmLabel: t('workbench.files.trash'),
-    });
-    if (!confirmed) return;
-    try {
-      const outcome = await state.trash([file.id]);
-      if (outcome?.done.includes(file.id)) {
-        address.closeFile();
-        toast.success(t('workbench.files.trashed'));
-      } else toast.error(t('workbench.files.failed'));
-    } catch (error: unknown) {
-      const refusal = workbenchRefusal(error);
-      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.files.failed'));
-    }
-  };
+  const trash = useFileTrash({
+    lng,
+    provider,
+    state,
+    confirm,
+    selected,
+    select,
+    openFile: address.file,
+    closeFile: address.closeFile,
+  });
+  const moved = (outcome: WorkbenchActOutcome) =>
+    select(new Set([...selected].filter(id => !outcome.done.includes(id))));
 
   return (
     <>
-      <WorkbenchToolHeader lng={lng} tool="files" />
+      <WorkbenchToolHeader
+        lng={lng}
+        tool="files"
+        shortcuts={[
+          {
+            key: '/',
+            labelKey: 'workbench.shortcuts.search',
+            run: () => searchRef.current?.focus(),
+          },
+        ]}
+        onRefresh={async options => {
+          await Promise.all([
+            state.list.refresh(options),
+            state.folder.refresh(options),
+            open.refresh(options),
+          ]);
+        }}
+      />
       <section
         aria-label={t('workbench.tools.files.label')}
         className={cn(
@@ -141,132 +147,140 @@ function ReadyFiles({ lng }: { lng: Language }) {
           WORKBENCH_PANE_HEIGHT
         )}
       >
-        <div
-          {...listPane.pane}
-          className={cn(
-            'min-w-0 flex-col lg:border-r',
-            paneWidth(listPane, 'lg:w-[26rem] lg:flex-none'),
-            address.file ? 'hidden lg:flex' : 'flex flex-1'
-          )}
-        >
-          <FileFinder
-            lng={lng}
-            searchRef={searchRef}
-            onSearch={(q, fullText) => setSearch(q ? { q, fullText, from: address.folder } : null)}
-          />
-          {searching ? (
-            <SearchNotice lng={lng} q={searching.q} onClear={() => setSearch(null)} />
-          ) : (
-            <Breadcrumb
-              lng={lng}
-              folderId={address.folder}
-              folder={state.folder.item}
-              hrefOf={address.folderHref}
-            />
-          )}
-          <FileList
-            lng={lng}
-            list={state.list}
-            searching={searching !== null}
-            openFile={address.file}
-            zone={user?.timezone}
-            folderHref={address.folderHref}
-            fileHref={address.fileHref}
-            linkRef={linkRef}
-          />
-          {!searching && !address.folder && (
-            <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-              {t('workbench.files.shared_drives')}
-            </p>
-          )}
-        </div>
+        <FilesColumn
+          lng={lng}
+          provider={provider}
+          viewsOffered={viewsOffered}
+          screen={screen}
+          state={state}
+          selection={selection}
+          trash={trash}
+          pane={listPane}
+          searchRef={searchRef}
+          linkRef={linkRef}
+          onAct={setAct}
+        />
         <PaneSeparator
           {...listPane.separator}
           className={cn(PANE_SEPARATOR_CLASS, 'hidden lg:flex')}
         />
-        {address.file ? (
-          <div className="flex min-w-0 flex-1">
-            <FileDetail
-              lng={lng}
-              file={open.item}
-              loading={open.loading}
-              error={open.error}
-              zone={user?.timezone}
-              maxBytes={availability.limits.download_max_bytes}
-              closeRef={closeRef}
-              onClose={address.closeFile}
-              onRetry={() => void open.refresh()}
-              onTrash={() => open.item && void trash(open.item)}
-            />
-          </div>
-        ) : (
-          <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
-            <EmptyState title={t('workbench.files.pick_file')} />
-          </div>
-        )}
+        <FilePane
+          lng={lng}
+          provider={provider}
+          screen={screen}
+          open={open}
+          trash={trash}
+          closeRef={closeRef}
+          onAct={setAct}
+          onEdited={() => {
+            void open.refresh();
+            void state.list.refresh();
+          }}
+        />
       </section>
       {confirmDialog}
+      <FileOrganizer
+        lng={lng}
+        provider={provider}
+        act={act}
+        folderId={address.folder}
+        nameMax={bounds.file_name_max_chars}
+        state={state}
+        onClose={() => setAct(null)}
+        onChanged={() => {
+          if (address.file) void open.refresh();
+        }}
+        onMoved={moved}
+      />
     </>
   );
 }
 
-interface FileFinderProps {
-  lng: Language;
-  searchRef: RefObject<HTMLInputElement | null>;
-  onSearch: (words: string, fullText: boolean) => void;
+/** Where an open file sits: its own ancestors say it, wherever the list stands. */
+function filePlaceOf(file: WorkbenchFileDetail): FilePlace {
+  return { trail: file.ancestors, from: parentOf(file) };
 }
 
-/** The words, searched on Enter across the whole Drive — names, or the content too. */
-function FileFinder({ lng, searchRef, onSearch }: FileFinderProps) {
+/** The file opened, or what the empty side says; below `lg` it takes the list's place. */
+function FilePane({
+  lng,
+  provider,
+  screen,
+  open,
+  trash,
+  closeRef,
+  onAct,
+  onEdited,
+}: {
+  lng: Language;
+  provider: string | null;
+  screen: FilesScreen;
+  open: WorkbenchItemState<WorkbenchFileDetail>;
+  trash: FileTrash;
+  closeRef: RefObject<HTMLButtonElement | null>;
+  onAct: (act: FileAct) => void;
+  onEdited: () => void;
+}) {
   const { t } = useTranslation(lng);
-  const [typed, setTyped] = useState('');
-  const [fullText, setFullText] = useState(false);
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    onSearch(typed.trim(), fullText);
+  const { user } = useAuth();
+  const { availability } = useWorkbench();
+  const { ask, go, offers } = useToolBridges(lng);
+  const { address, inTrash } = screen;
+  if (!address.file) {
+    return (
+      <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
+        <EmptyState title={t('workbench.files.pick_file')} />
+      </div>
+    );
+  }
+  const copyLink = (url: string) => {
+    copyText(url).then(
+      () => toast.success(t('workbench.files.link_copied')),
+      () => toast.error(t('workbench.files.failed'))
+    );
   };
   return (
-    <form role="search" onSubmit={submit} className="space-y-2 border-b p-3">
-      <div className="flex gap-2">
-        <Input
-          ref={searchRef}
-          type="search"
-          aria-label={t('workbench.files.search_label')}
-          placeholder={t('workbench.files.search_placeholder')}
-          value={typed}
-          enterKeyHint="search"
-          onChange={event => setTyped(event.target.value)}
-        />
-        <Button
-          type="submit"
-          variant="outline"
-          size="icon"
-          aria-label={t('workbench.files.search')}
-        >
-          <Search className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={fullText} onChange={event => setFullText(event.target.checked)} />
-        {t('workbench.files.full_text')}
-      </label>
-    </form>
+    <div className="flex min-w-0 flex-1">
+      <FileDetail
+        provider={provider}
+        lng={lng}
+        file={open.item}
+        loading={open.loading}
+        error={open.error}
+        zone={user?.timezone}
+        maxBytes={availability.limits.download_max_bytes}
+        closeRef={closeRef}
+        onClose={address.closeFile}
+        onRetry={() => void open.refresh()}
+        inTrash={inTrash}
+        onTrash={() => open.item && void trash.trashOpen(open.item)}
+        onRestore={file => void trash.restoreOpen(file)}
+        onDeleteForever={file => void trash.deleteOpen(file)}
+        onRename={file => onAct({ kind: 'rename', item: file })}
+        onMove={file => onAct({ kind: 'move', items: [file], place: filePlaceOf(file) })}
+        onCopy={file => onAct({ kind: 'copy', item: file, place: filePlaceOf(file) })}
+        onShare={file => onAct({ kind: 'share', item: file })}
+        onMail={
+          offers('compose')
+            ? file => go({ kind: 'compose', to: '', file: attachableOf(file) })
+            : undefined
+        }
+        onCopyLink={copyLink}
+        onEdited={onEdited}
+        onAsk={file => ask(t('workbench.ask.file', { name: file.name }))}
+      />
+    </div>
   );
 }
 
-/** A search replaces the listing, and says so. */
-function SearchNotice({ lng, q, onClear }: { lng: Language; q: string; onClear: () => void }) {
-  const { t } = useTranslation(lng);
-  return (
-    <div
-      role="status"
-      className="flex items-center justify-between gap-2 border-b px-3 py-2 text-sm"
-    >
-      <span className="min-w-0 truncate">{t('workbench.files.results', { q })}</span>
-      <Button variant="ghost" size="sm" className="shrink-0 gap-1" onClick={onClear}>
-        <X className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.files.clear_search')}
-      </Button>
-    </div>
-  );
+/** A file as a new message carries it: read on the drive when the message leaves. */
+function attachableOf(file: WorkbenchFileDetail): AttachableFile {
+  return {
+    id: file.id,
+    filename: file.name,
+    mime_type: file.mime_type,
+    size: file.size ?? 0,
+    origin: DRIVE_ORIGIN,
+    expires_at: null,
+  };
 }

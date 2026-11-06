@@ -78,6 +78,7 @@ const SCREEN_ONLY = [
   '.lia-action-btn',
   '.lia-skill-app',
   '.lia-mcp-app',
+  '.lia-page-app',
   '.lia-email__status-icons',
   '.lia-indicator-unread',
   '.lia-collapsible__trigger',

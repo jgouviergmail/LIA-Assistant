@@ -3,13 +3,11 @@
 - Tasks: strictly pending/overdue (user arbitration) from the active tasks
   provider (Google Tasks / Microsoft To Do), date-only due semantics in the
   USER's local frame (a task due today is NOT overdue — birthdays doctrine).
-- Documents: latest modified Google Drive files (user arbitration: Drive
-  source), pre-formatted local modification time + external link.
+- Documents: latest modified files of the account's drive (Google Drive or
+  OneDrive), pre-formatted local modification time + external link.
 
-Tasks open through the shared door (``open_active_client``, whose own tests
-hold the no-session and always-closed contract); Documents read Drive's
-credentials in a session of their own and call Drive only once it is closed
-(ADR-304), closing the client on every path.
+Both open through the shared door (``open_active_client``, whose own tests hold
+the no-session and always-closed contract).
 """
 
 from contextlib import ExitStack, asynccontextmanager
@@ -21,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from src.core.exceptions import ConnectorAPIError
 from src.domains.briefing.exceptions import (
     ConnectorAccessError,
     ConnectorNotConfiguredError,
@@ -28,6 +27,8 @@ from src.domains.briefing.exceptions import (
 from src.domains.briefing.fetchers import fetch_documents, fetch_tasks
 from src.domains.briefing.schemas import DocumentsData, TasksData
 from src.domains.connectors.active_client import ActiveClient, ClientUnavailable
+from src.domains.connectors.clients.normalizers.onedrive_normalizer import normalize_drive_item
+from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.owner_defaults import TASK_LIST
 
 TZ = ZoneInfo("Europe/Paris")
@@ -35,22 +36,6 @@ TZ = ZoneInfo("Europe/Paris")
 
 def _user():
     return SimpleNamespace(id=uuid4())
-
-
-class _Units:
-    """A detached connector service counting the sessions it holds open."""
-
-    def __init__(self, service):
-        self.service = service
-        self.open = 0
-
-    @asynccontextmanager
-    async def unit_of_work(self):
-        self.open += 1
-        try:
-            yield self.service
-        finally:
-            self.open -= 1
 
 
 def _task(title: str, due_days_offset: int | None):
@@ -190,35 +175,32 @@ class TestFetchTasks:
                 await fetch_tasks(user=_user(), user_tz=TZ)
 
 
-def _documents_env(files, *, credentials=True):
+def _documents_env(files, *, resolved=True, connector_type=ConnectorType.MICROSOFT_ONEDRIVE):
     client = MagicMock()
-    client.close = AsyncMock()
-    client.search_files = AsyncMock(return_value={"files": files})
+    client.recent_files = AsyncMock(return_value={"files": files})
+    client.folder_path = AsyncMock(return_value="Documents/Factures")
+    asked: list[str] = []
 
-    connector_service = MagicMock()
-    connector_service.get_connector_credentials = AsyncMock(
-        return_value=MagicMock() if credentials else None
-    )
-    units = _Units(connector_service)
+    @asynccontextmanager
+    async def _door(category, user_id):
+        asked.append(category)
+        yield (
+            ActiveClient(client=client, connector_type=connector_type, preferred_name=None)
+            if resolved
+            else ClientUnavailable.NO_CONNECTOR
+        )
 
-    async def _search(**_kwargs):
-        # The property ADR-304 is about: nothing held while Drive answers.
-        assert units.open == 0, "a session was still open while Drive was called"
-        return {"files": files}
-
-    client.search_files = AsyncMock(side_effect=_search)
     patches = [
-        patch("src.domains.briefing.fetchers.DetachedConnectorService", return_value=units),
-        patch("src.domains.briefing.fetchers.GoogleDriveClient", return_value=client),
+        patch("src.domains.connectors.active_client.open_active_client", _door),
         patch("src.domains.briefing.fetchers.settings", _settings()),
     ]
-    return client, patches
+    return SimpleNamespace(client=client, asked=asked), patches
 
 
 @pytest.mark.unit
 class TestFetchDocuments:
-    async def test_not_configured_without_drive_credentials(self):
-        _, patches = _documents_env([], credentials=False)
+    async def test_not_configured_without_a_drive(self):
+        _, patches = _documents_env([], resolved=False)
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -251,17 +233,87 @@ class TestFetchDocuments:
         # Modified today → bare local HH:MM (reminders formatting doctrine)
         assert ":" in doc.modified_local and "?" not in doc.modified_local
 
-    async def test_client_closed_on_http_error_and_mapped(self):
+    async def test_it_reads_the_accounts_own_drive_within_the_cards_bound(self):
+        env, patches = _documents_env([])
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            await fetch_documents(user=_user(), user_tz=TZ, language="fr")
+
+        assert env.asked == ["files"]
+        env.client.recent_files.assert_awaited_once_with(5)
+
+    async def test_a_onedrive_file_reads_as_any_other(self):
+        item = normalize_drive_item(
+            {
+                "id": "f1",
+                "name": "Budget.xlsx",
+                "file": {"mimeType": "application/vnd.ms-excel"},
+                "webUrl": "https://onedrive.live.com/edit?id=f1",
+                "lastModifiedDateTime": "2026-11-02T09:00:00Z",
+            }
+        )
+        _, patches = _documents_env([item])
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            data = await fetch_documents(user=_user(), user_tz=TZ, language="fr")
+
+        doc = data.items[0]
+        assert doc.id == "f1"
+        assert doc.web_view_link == "https://onedrive.live.com/edit?id=f1"
+        assert doc.mime_type == "application/vnd.ms-excel"
+        assert doc.modified_local != "?"
+
+    async def test_each_file_says_where_it_lives_and_on_which_drive(self):
+        env, patches = _documents_env([{"id": "f1", "name": "a"}])
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            data = await fetch_documents(user=_user(), user_tz=TZ, language="fr")
+
+        assert data.provider == "microsoft_onedrive"
+        assert data.items[0].path == "Documents/Factures"
+
+    async def test_a_folder_read_is_shared_by_the_files_of_the_card(self):
+        env, patches = _documents_env([{"id": "f1", "name": "a"}, {"id": "f2", "name": "b"}])
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            await fetch_documents(user=_user(), user_tz=TZ, language="fr")
+
+        first, second = env.client.folder_path.await_args_list
+        assert first.args[1] is second.args[1]
+
+    @pytest.mark.parametrize("failure", ["http", "api"])
+    async def test_a_path_that_cannot_be_read_leaves_the_file_on_the_card(self, failure):
         import httpx
 
-        client, patches = _documents_env([])
-        client.search_files = AsyncMock(side_effect=httpx.ConnectError("boom"))
+        env, patches = _documents_env([{"id": "f1", "name": "a"}])
+        refused = (
+            httpx.ConnectError("boom")
+            if failure == "http"
+            else ConnectorAPIError("microsoft_onedrive", 404, "gone")
+        )
+        env.client.folder_path = AsyncMock(side_effect=refused)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            data = await fetch_documents(user=_user(), user_tz=TZ, language="fr")
+
+        assert data.items[0].name == "a"
+        assert data.items[0].path is None
+
+    async def test_a_failure_of_the_provider_is_a_classified_access_error(self):
+        import httpx
+
+        env, patches = _documents_env([])
+        env.client.recent_files = AsyncMock(side_effect=httpx.ConnectError("boom"))
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
             with pytest.raises(ConnectorAccessError):
                 await fetch_documents(user=_user(), user_tz=TZ, language="fr")
-        client.close.assert_awaited_once()
 
 
 @pytest.mark.unit

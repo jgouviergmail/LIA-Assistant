@@ -64,6 +64,8 @@ class PlatformCapability(str, Enum):
     TTS = "tts"
     IMAGE_GENERATION = "image_generation"
     DOCUMENT_GENERATION = "document_generation"
+    # ADR-370 — a page the model writes, run in a sandboxed frame.
+    INTERACTIVE_PAGES = "interactive_pages"
     ATTACHMENTS = "attachments"
     RAG_SPACES = "rag_spaces"
     WEB_SEARCH = "web_search"
@@ -215,6 +217,16 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         # No route of its own: the gate lives at the generate_document tool
         # entry (this capability's effective state), like TTS's synthesis
         # chokepoint, and its tool leaves every turn's catalogue when it is off.
+        service_enforced=True,
+    ),
+    PlatformCapability.INTERACTIVE_PAGES: CapabilitySpec(
+        capability=PlatformCapability.INTERACTIVE_PAGES,
+        family="media",
+        env_flag="interactive_page_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_INTERACTIVE_PAGES_ENABLED,
+        agents=("interactive_page_agent",),
+        # No route of its own: the gate lives at the tool entry, and its tool
+        # leaves every turn's catalogue when it is off.
         service_enforced=True,
     ),
     PlatformCapability.ATTACHMENTS: CapabilitySpec(

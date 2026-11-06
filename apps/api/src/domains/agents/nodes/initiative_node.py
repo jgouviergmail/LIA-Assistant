@@ -34,7 +34,6 @@ from pydantic import JsonValue
 
 from src.core.config import settings
 from src.core.constants import (
-    INITIATIVE_LLM_TIMEOUT_SECONDS,
     INITIATIVE_MEMORY_LIMIT,
     INITIATIVE_MEMORY_MIN_SCORE,
     NODE_INITIATIVE,
@@ -45,7 +44,7 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
 from src.core.i18n import get_language_name, resolve_language
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_config_helper import get_llm_config_for_agent, llm_call_timeout_seconds
 from src.core.prompt_layout import single_call_messages
 from src.core.run_config import run_id_of
 from src.core.time_utils import get_prompt_datetime_formatted
@@ -676,7 +675,7 @@ async def _initiative_core(
                     config=config,
                     reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
                 ),
-                timeout=INITIATIVE_LLM_TIMEOUT_SECONDS,
+                timeout=llm_call_timeout_seconds(NODE_INITIATIVE),
             )
     except (TimeoutError, Exception) as exc:
         logger.warning("initiative_llm_failed", error=str(exc), run_id=run_id)

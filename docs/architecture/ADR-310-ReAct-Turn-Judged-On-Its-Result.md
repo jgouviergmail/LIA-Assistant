@@ -192,3 +192,10 @@ in a prompt.**
   [ADR-184](ADR-184-Published-Bounds-And-Non-Prescriptive-Verdicts.md),
   [ADR-170](ADR-170-React-Compute-Budget-And-Loop-Guard.md),
   [ADR-308](ADR-308-ReAct-Cross-Turn-Prompt-Cache.md)
+
+## Amendment 2026-11-05: the honesty directive judges the turn too
+
+« The call corrected » is the first rung of the ladder, and the failures directive now agrees: a
+failure answered by a later call of the same tool no longer reaches the response, each success
+answering one failure. What was set out and not obtained stays declared by the loop itself. See
+[ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md).

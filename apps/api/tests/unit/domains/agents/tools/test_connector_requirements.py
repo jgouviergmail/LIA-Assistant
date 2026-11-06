@@ -114,7 +114,10 @@ class TestAToolOfGoogleAlone:
         assert ungranted_scopes(list_labels_catalogue_manifest, [], {OUTLOOK})
 
     def test_a_tool_no_connector_class_names_keeps_its_check(self) -> None:
-        assert ungranted_scopes(set_vacation_responder_catalogue_manifest, [], {OUTLOOK})
+        assert ungranted_scopes(set_vacation_responder_catalogue_manifest, [], {GMAIL})
+
+    def test_it_owes_outlook_no_google_scope(self) -> None:
+        assert not ungranted_scopes(set_vacation_responder_catalogue_manifest, [], {OUTLOOK})
 
 
 @pytest.fixture
@@ -156,14 +159,28 @@ class TestCompleteness:
         )
 
 
-_GMAIL_BOUND = {
-    "get_gmail_settings_tool",
-    "list_labels_tool",
+_GMAIL_BOUND = {"list_labels_tool"}
+#: Gmail's and Outlook's, and nobody else's: iCloud has no such settings.
+_SETTINGS = {
+    "get_mailbox_settings_tool",
     "create_email_filter_tool",
+    "delete_email_filter_tool",
     "set_vacation_responder_tool",
 }
-_DRIVE_BOUND = {"get_files_tool", "read_document_tool"}
-_CATEGORY = {"get_emails_tool", "send_email_tool", "get_events_tool", "get_contacts_tool"}
+_DRIVE_CONTENT = {
+    "read_spreadsheet_tool",
+    "read_document_tool",
+    "write_spreadsheet_tool",
+    "append_document_text_tool",
+}
+_CATEGORY = {
+    "get_emails_tool",
+    "send_email_tool",
+    "get_events_tool",
+    "get_contacts_tool",
+    "get_files_tool",
+    *_DRIVE_CONTENT,
+}
 _INSTANCE = {"get_places_tool", "get_air_quality_tool"}
 
 
@@ -172,11 +189,16 @@ class TestATurnIsOfferedWhatItsConnectorsServe:
     Gmail's settings, the planner chose them for a mail question, and the turn
     failed while the Outlook mailbox had just answered."""
 
-    def test_an_outlook_account_is_offered_no_gmail_nor_drive_tool(self) -> None:
-        assert _GMAIL_BOUND | _DRIVE_BOUND <= unconnected_tool_names(frozenset({OUTLOOK}))
+    def test_an_outlook_account_is_offered_no_gmail_tool(self) -> None:
+        assert _GMAIL_BOUND <= unconnected_tool_names(frozenset({OUTLOOK}))
 
     def test_an_icloud_account_neither(self) -> None:
         assert _GMAIL_BOUND <= unconnected_tool_names(frozenset({APPLE}))
+
+    def test_a_mailbox_s_settings_are_offered_where_they_exist(self) -> None:
+        assert not _SETTINGS & unconnected_tool_names(frozenset({GMAIL}))
+        assert not _SETTINGS & unconnected_tool_names(frozenset({OUTLOOK}))
+        assert _SETTINGS <= unconnected_tool_names(frozenset({APPLE}))
 
     def test_a_category_tool_stays_offered_its_answer_is_the_honest_one(self) -> None:
         """« Connect a provider » is what it says — the right answer of 18:13."""
@@ -186,14 +208,13 @@ class TestATurnIsOfferedWhatItsConnectorsServe:
         """Keyless and platform-key connectors belong to the instance (ADR-307)."""
         assert not _INSTANCE & unconnected_tool_names(frozenset())
 
-    def test_a_gmail_account_is_offered_gmail_s_own_tools_not_drive_s(self) -> None:
-        hidden = unconnected_tool_names(frozenset({GMAIL}))
+    def test_a_gmail_account_is_offered_gmail_s_own_tools(self) -> None:
+        assert not _GMAIL_BOUND & unconnected_tool_names(frozenset({GMAIL}))
 
-        assert not _GMAIL_BOUND & hidden
-        assert _DRIVE_BOUND <= hidden
+    def test_a_drive_s_content_answers_to_whichever_drive_is_connected(self) -> None:
+        categories = connector_categories()
 
-    def test_drive_comes_with_its_own_connector(self) -> None:
-        assert not _DRIVE_BOUND & unconnected_tool_names(frozenset({GMAIL, DRIVE}))
+        assert {categories[name] for name in _DRIVE_CONTENT} == {"files"}
 
     def test_a_legacy_gmail_row_serves_no_gmail_tool(self) -> None:
         """Their credentials are read by EXACT type: such a tool could not run."""

@@ -37,6 +37,7 @@ from src.domains.connectors.clients.apple_compose import (
     new_message,
     reply_message,
 )
+from src.domains.connectors.clients.apple_conversation_mixin import AppleConversationMixin
 from src.domains.connectors.clients.apple_drafts_mixin import AppleDraftsMixin
 from src.domains.connectors.clients.apple_imap import (
     TRASH_ROLE,
@@ -53,6 +54,7 @@ from src.domains.connectors.clients.apple_imap import (
 )
 from src.domains.connectors.clients.apple_mail_html import AppleMailHtmlMixin
 from src.domains.connectors.clients.apple_mail_state_mixin import AppleMailStateMixin
+from src.domains.connectors.clients.apple_mailbox_acts_mixin import AppleMailboxActsMixin
 from src.domains.connectors.clients.base_apple_client import (
     AppleAuthenticationError,
     BaseAppleClient,
@@ -81,7 +83,14 @@ from src.infrastructure.email.smtp_outcome import SMTPPartialAcceptanceError
 logger = structlog.get_logger(__name__)
 
 
-class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin, BaseAppleClient):
+class AppleEmailClient(
+    AppleConversationMixin,
+    AppleDraftsMixin,
+    AppleMailStateMixin,
+    AppleMailboxActsMixin,
+    AppleMailHtmlMixin,
+    BaseAppleClient,
+):
     """
     Apple iCloud Email client using IMAP/SMTP.
 
@@ -188,6 +197,8 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
         reply_all: bool = False,
         is_html: bool = False,
         to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Reply to an email."""
         return await self._execute_with_retry(
@@ -198,6 +209,8 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
             reply_all,
             is_html,
             to,
+            cc,
+            attachments,
             max_retries=0,
         )
 
@@ -283,6 +296,7 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
         cc: str | None = None,
         is_html: bool = False,
         include_attachments: bool = True,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Forward an email with optional attachments."""
         return await self._execute_with_retry(
@@ -294,6 +308,7 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
             cc,
             is_html,
             include_attachments,
+            attachments,
             max_retries=0,
         )
 
@@ -600,6 +615,8 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
         reply_all: bool,
         is_html: bool,
         to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Reply to an email.
 
@@ -609,6 +626,8 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
             reply_all: Whether to reply to all recipients.
             is_html: Whether body is HTML.
             to: Override recipient address. If None, replies to original sender.
+            cc: The copies chosen instead of the computed ones; empty for none.
+            attachments: The files it carries.
 
         Returns:
             Dict with sent message details (id, threadId, labelIds).
@@ -623,6 +642,8 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
             reply_all=reply_all,
             is_html=is_html,
             override_to=to,
+            override_cc=cc,
+            attachments=attachments,
         )
         await self._smtp_send(prepare_for_smtp(message), message)
         new_id = str(uuid.uuid4())
@@ -641,6 +662,7 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
         cc: str | None,
         is_html: bool,
         include_attachments: bool,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Forward an email with optional attachments — the message a draft would hold."""
         original, files = await self._original_with_files(
@@ -648,7 +670,7 @@ class AppleEmailClient(AppleDraftsMixin, AppleMailStateMixin, AppleMailHtmlMixin
         )
         message = forward_message(
             original,
-            files,
+            [*files, *attachments],
             sender=self.credentials.apple_id,
             to=to,
             body=body,

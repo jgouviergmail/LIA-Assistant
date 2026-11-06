@@ -57,8 +57,15 @@ _DEFAULTS = [
         500,
     ),
     ("workbench_download_max_bytes", "WORKBENCH_DOWNLOAD_MAX_BYTES_DEFAULT", 25 * 1024 * 1024),
+    ("workbench_upload_max_bytes", "WORKBENCH_UPLOAD_MAX_BYTES_DEFAULT", 20 * 1024 * 1024),
     ("workbench_idempotency_ttl_seconds", "WORKBENCH_IDEMPOTENCY_TTL_SECONDS_DEFAULT", 86_400),
+    ("workbench_send_undo_seconds", "WORKBENCH_SEND_UNDO_SECONDS_DEFAULT", 5),
+    ("workbench_draft_autosave_seconds", "WORKBENCH_DRAFT_AUTOSAVE_SECONDS_DEFAULT", 15),
 ]
+
+
+#: Settings whose zero is a choice: the moment to take a message back, a draft saved by itself.
+_ZERO_IS_OFF = {"workbench_send_undo_seconds", "workbench_draft_autosave_seconds"}
 
 
 class TestComposition:
@@ -79,10 +86,23 @@ class TestDefaults:
 
 
 class TestBounds:
-    @pytest.mark.parametrize("field", [field for field, _, _ in _DEFAULTS])
+    @pytest.mark.parametrize(
+        "field", [field for field, _, _ in _DEFAULTS if field not in _ZERO_IS_OFF]
+    )
     def test_zero_is_refused(self, field: str) -> None:
         with pytest.raises(ValidationError):
             WorkbenchSettings(**{field: 0})
+
+    def test_a_send_may_leave_at_once_and_waits_half_a_minute_at_most(self) -> None:
+        assert WorkbenchSettings(workbench_send_undo_seconds=0).workbench_send_undo_seconds == 0
+        with pytest.raises(ValidationError):
+            WorkbenchSettings(workbench_send_undo_seconds=31)
+
+    def test_a_draft_may_never_save_itself_and_waits_ten_minutes_at_most(self) -> None:
+        off = WorkbenchSettings(workbench_draft_autosave_seconds=0)
+        assert off.workbench_draft_autosave_seconds == 0
+        with pytest.raises(ValidationError):
+            WorkbenchSettings(workbench_draft_autosave_seconds=601)
 
     def test_page_size_cannot_exceed_the_provider_ceiling_range(self) -> None:
         """The provider clients cap a listing at 50 (``api_max_items_per_request``)."""

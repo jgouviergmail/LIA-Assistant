@@ -106,6 +106,29 @@ class GoogleDocsClient(BaseGoogleClient):
         logger.info("docs_document_read", user_id=str(self.user_id))
         return response
 
+    async def read_text(self, document_id: str) -> dict[str, str]:
+        """A document's title and its text.
+
+        Args:
+            document_id: Drive file id of the document.
+
+        Returns:
+            ``title`` and ``content``.
+        """
+        document = await self.get_document(document_id)
+        return {"title": document.get("title", ""), "content": docs_structure_to_text(document)}
+
+    async def read_title(self, document_id: str) -> str:
+        """A document's title.
+
+        Args:
+            document_id: Drive file id of the document.
+
+        Returns:
+            Its title.
+        """
+        return str((await self.get_document(document_id)).get("title", ""))
+
     async def append_text(self, document_id: str, text: str) -> dict[str, Any]:
         """Append text at the end of the document body (write — behind HITL).
 

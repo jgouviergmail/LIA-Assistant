@@ -9,8 +9,9 @@
  * - csv  → a real table (RFC 4180 parse, horizontal scroll owned by the table);
  * - md   → the sanitized markdown pipeline shared with chat;
  * - txt  → preformatted text;
- * - xlsx / docx / pptx → an honest file panel (these formats open in their
- *   native applications) with a blob download action;
+ * - xlsx / docx / pptx / html → an honest file panel (these formats open in their
+ *   native applications; a page runs in the chat's frame and nowhere on this
+ *   origin, ADR-370) with a blob download action;
  * - pdf never lands here: its card opens the inline attachment URL directly
  *   (the browser's native viewer).
  *

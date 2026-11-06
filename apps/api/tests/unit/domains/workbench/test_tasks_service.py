@@ -25,6 +25,7 @@ from src.core.config import settings
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.preferences.owner_defaults import TASK_LIST
 from src.domains.workbench import idempotency, tasks_service
 from src.domains.workbench.schemas.tasks import NewTask, NewTaskList, TaskChange
 from tests.unit.domains.workbench.fakes import FakeRedis
@@ -44,11 +45,13 @@ def _redis() -> Any:
         yield
 
 
-def _door(client: Any, kind: ConnectorType = GOOGLE) -> Any:
+def _door(client: Any, kind: ConnectorType = GOOGLE, preferred: str | None = None) -> Any:
     @contextlib.asynccontextmanager
-    async def opened(tool: Any, user_id: Any) -> AsyncIterator[ActiveClient]:
+    async def opened(tool: Any, user_id: Any, container: Any = None) -> AsyncIterator[ActiveClient]:
         assert user_id == USER
-        yield ActiveClient(client=client, connector_type=kind, preferred_name=None)
+        # Only the task list's own preference is ever read for the lists.
+        name = preferred if container is TASK_LIST else None
+        yield ActiveClient(client=client, connector_type=kind, preferred_name=name)
 
     return patch.object(tasks_service, "open_tool_client", opened)
 
@@ -238,3 +241,26 @@ class TestOncePerSubmission:
 
 def _key() -> dict[str, Any]:
     return {"idempotency_key": uuid4()}
+
+
+class TestTheDefaultList:
+    """The default the person chose in the settings is the list the page opens on."""
+
+    LISTS = {
+        "items": [{"id": "a", "title": "Mes tâches"}, {"id": "b", "title": "Maison"}],
+        "next_page_token": None,
+    }
+
+    async def test_the_chosen_list_is_named_whatever_its_case(self) -> None:
+        client = MagicMock(list_task_lists=AsyncMock(return_value=self.LISTS))
+        with _door(client, preferred="MAISON"):
+            page = await tasks_service.list_task_lists(USER)
+
+        assert [item.id for item in page.items if item.default] == ["b"]
+
+    async def test_nothing_is_the_default_when_nothing_was_chosen(self) -> None:
+        client = MagicMock(list_task_lists=AsyncMock(return_value=self.LISTS))
+        with _door(client):
+            page = await tasks_service.list_task_lists(USER)
+
+        assert not any(item.default for item in page.items)

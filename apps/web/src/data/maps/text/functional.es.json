@@ -157,39 +157,39 @@
     },
     "f.connectors": {
       "name": "Conectores y Herramientas",
-      "role": "Google, Microsoft, Apple y los servicios con clave personal; un único flujo de consentimiento por proveedor, un proveedor activo por categoría. Los servicios sin clave los activa el administrador para todo el mundo. Abre Herramientas cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos Drive y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.",
+      "role": "Google, Microsoft, Apple y los servicios con clave personal; un solo recorrido de consentimiento por proveedor, un proveedor activo por categoría, archivos incluidos: Google Drive u OneDrive. Los servicios sin clave los activa el administrador para todos. En Herramientas actúas tú, sin llamar a una IA, sobre tu correo, agenda, tareas, contactos, archivos y luces Hue: cada pantalla ofrece lo que sabe hacer su proveedor, una búsqueda las recorre todas y tus gestos quedan fuera de los registros de LIA.",
       "goal": "Conectar tus cuentas reales una vez, y que sigan conectadas.",
-      "src": "7819084f0780"
+      "src": "2893800457d4"
     },
     "f.mail": {
       "name": "Correos electrónicos",
-      "role": "Leer correos depurados, resumirlos una sola vez, buscar, redactar, responder, leer los adjuntos y llevar los borradores de tu buzón — el envío a otra persona pide siempre una confirmación; un correo a tu propia dirección sale directamente. Las categorías y prioridades JEV opcionales siguen siendo orientativas y también llegan a LIA; la duda no muestra etiqueta.",
+      "role": "Leer correos limpios, resumirlos una sola vez, buscar, redactar, responder, ordenar, leer los adjuntos, seguir una conversación y llevar los borradores de tu buzón — el envío a otros pasa siempre por una confirmación; un correo a ti mismo sale directamente. Las categorías y prioridades JEV opcionales son orientativas y llegan también a la asistente; la duda no muestra ninguna insignia.",
       "goal": "Gestionar tu bandeja en unas pocas frases.",
-      "src": "b553d3afc253"
+      "src": "bf27a5568c84"
     },
     "f.calendar": {
       "name": "Calendario",
-      "role": "Consultar, buscar, crear, mover y eliminar eventos, con invitados, recordatorios y zonas horarias. La evaluación profesional/personal opcional es común a la interfaz y a LIA, con abstención ante la duda.",
+      "role": "Consultar, buscar, crear, mover y eliminar eventos, con invitados, recordatorios, zonas horarias y repeticiones, y responder a una invitación. La calificación profesional/personal opcional es común a la pantalla y a la asistente, con abstención en caso de duda.",
       "goal": "Organizar tu tiempo hablando.",
-      "src": "b8fd0be7b2e3"
+      "src": "d2db069ee962"
     },
     "f.contacts": {
       "name": "Contactos",
-      "role": "Encontrar a alguien, sus datos de contacto y sus cumpleaños, crear o actualizar una ficha.",
+      "role": "Encontrar a alguien, sus datos, sus grupos y sus cumpleaños, crear o actualizar una ficha, con su foto y su vCard.",
       "goal": "Saber a quién te refieres cuando dices «escribe a Marie».",
-      "src": "620b9e7a0222"
+      "src": "23beb21905d1"
     },
     "f.tasks": {
       "name": "Tareas",
-      "role": "Tus listas de tareas en tu proveedor: añadir, marcar como hechas, mover, encontrar.",
+      "role": "Tus listas de tareas en tu proveedor: añadir, marcar, mover, encontrar, y ver de un vistazo lo que toca hoy, lo vencido y lo próximo.",
       "goal": "No olvidar nada de lo que queda por hacer.",
-      "src": "622330403b7b"
+      "src": "1a047bacb0bd"
     },
     "f.drive": {
       "name": "Archivos",
-      "role": "Buscar y leer tus archivos en línea, y vincular una carpeta entera — subcarpetas incluidas — a un espacio de conocimiento.",
+      "role": "Buscar, leer y ordenar tus archivos en Google Drive u OneDrive, compartirlos tras una tarjeta y vincular una carpeta entera — subcarpetas incluidas — a un espacio de conocimiento.",
       "goal": "Encontrar un documento por lo que contiene.",
-      "src": "ec74d6fcf071"
+      "src": "05f47c0d9b15"
     },
     "f.places": {
       "name": "Lugares, rutas y meteorología",
@@ -229,9 +229,9 @@
     },
     "f.documents": {
       "name": "Documentos generados",
-      "role": "Informes de Word, presentaciones de PowerPoint, libros de Excel y PDF maquetados por el motor de renderizado, sin desbordamientos; una galería guarda tus archivos.",
+      "role": "Informes Word, presentaciones PowerPoint, libros Excel y PDF maquetados por el motor de renderizado, sin desbordes; una galería guarda tus archivos. Un juego, un cuestionario o una calculadora que pidas funcionan en el chat, en un marco sellado, con su archivo .html.",
       "goal": "Pasar de una búsqueda a un entregable limpio.",
-      "src": "40eb00fb8abe"
+      "src": "f712529a36af"
     },
     "f.images": {
       "name": "Imágenes generadas",

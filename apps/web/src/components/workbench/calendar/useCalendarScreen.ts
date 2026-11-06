@@ -8,8 +8,9 @@
  *   the event rather than leaving the screen;
  * - the DEVICE's choices: the view the screen opens on, and the calendars this
  *   account hides here (`lib/workbench/calendar/preferences`);
- * - the WINDOW: the week holding the day — the six weeks of its month in the
- *   month view —, from the locale's first weekday.
+ * - the WINDOW: the day alone, the week holding it, the six weeks of its month,
+ *   or in the agenda the next `AGENDA_DAYS` from it — a week and a month from the
+ *   locale's first weekday.
  */
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
@@ -39,6 +40,8 @@ import type { CalendarEvent } from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 const WEEK = 7;
+/** The days the agenda lists, from the day it stands on (a window is 42 at most). */
+export const AGENDA_DAYS = 30;
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const NO_STORED = () => null;
 
@@ -57,6 +60,20 @@ export interface CalendarAddress {
   /** Moves the view (its day or its kind), keeping no event open. */
   move: (query: Query) => void;
   close: () => void;
+}
+
+/** @returns The days a view shows, around the day it holds. */
+function daysOf(view: CalendarView, day: string, firstDay: number): string[] {
+  switch (view) {
+    case 'month':
+      return monthGrid(day, firstDay);
+    case 'day':
+      return [day];
+    case 'agenda':
+      return daysFrom(day, AGENDA_DAYS);
+    case 'week':
+      return daysFrom(weekStart(day, firstDay), WEEK);
+  }
 }
 
 /**
@@ -104,7 +121,7 @@ export function useCalendarAddress(
     day,
     open,
     openKey: open ? eventKey({ calendar_id: open.calendarId, id: open.eventId }) : null,
-    days: view === 'month' ? monthGrid(day, firstDay) : daysFrom(weekStart(day, firstDay), WEEK),
+    days: daysOf(view, day, firstDay),
     eventHref,
     agendaHref,
     move,
@@ -112,9 +129,11 @@ export function useCalendarAddress(
   };
 }
 
-/** @returns The day a step moves the view to: a month in the month view, a week elsewhere. */
+/** @returns The day a step moves the view to: as far as the view reaches. */
 export function stepDay(view: CalendarView, day: string, steps: number): string {
-  return view === 'month' ? addMonths(day, steps) : addDays(day, steps * WEEK);
+  if (view === 'month') return addMonths(day, steps);
+  const reach = { day: 1, week: WEEK, agenda: AGENDA_DAYS }[view];
+  return addDays(day, steps * reach);
 }
 
 export interface HiddenCalendars {

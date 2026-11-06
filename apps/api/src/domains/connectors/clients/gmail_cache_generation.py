@@ -9,12 +9,14 @@ door every mixin reaches.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import suppress
 from typing import Any
 
 import httpx
 
 from src.domains.connectors.clients.base_google_client import BaseGoogleClient
+from src.domains.connectors.clients.base_oauth_client import json_answer
 from src.domains.connectors.clients.retry_policy import CONNECTOR_REQUEST_ATTEMPTS
 from src.infrastructure.cache.mail_generation import bump_mail_generation, mail_generation
 
@@ -68,6 +70,7 @@ class GmailCacheGenerationMixin(BaseGoogleClient):
         base_url: str | None = None,
         idempotent: bool | None = None,
         timeout: httpx.Timeout | None = None,
+        answer: Callable[[httpx.Response], dict[str, Any]] = json_answer,
     ) -> dict[str, Any]:
         """Every write to the mailbox moves its cache generation, whatever came of it."""
         try:
@@ -82,6 +85,7 @@ class GmailCacheGenerationMixin(BaseGoogleClient):
                 base_url=base_url,
                 idempotent=idempotent,
                 timeout=timeout,
+                answer=answer,
             )
         finally:
             if method.upper() != "GET" and endpoint.startswith(_MAILBOX_PATHS):

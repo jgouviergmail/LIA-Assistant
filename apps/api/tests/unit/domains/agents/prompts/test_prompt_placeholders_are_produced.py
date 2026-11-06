@@ -63,6 +63,8 @@ LOADED_INDIRECTLY: dict[str, str] = {}
 RENDERED_BY: dict[str, tuple[str, ...]] = {
     # The name is a constant of ``briefing/constants.py``; ``briefing/llm.py`` formats.
     "briefing_greeting_prompt": ("domains/briefing/llm.py",),
+    # The name is a constant of ``interactive_pages/prompts.py``; the service formats.
+    "interactive_page_prompt": ("domains/interactive_pages/service.py",),
     "briefing_synthesis_prompt": ("domains/briefing/llm.py",),
     # ``{language}`` is deliberately left for the per-language batch in
     # ``diagnostics/diagnosis.py`` (one variant per admin language).

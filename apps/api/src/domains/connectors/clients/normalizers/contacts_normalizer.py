@@ -18,6 +18,8 @@ from typing import Any, Final
 import structlog
 import vobject
 
+from src.domains.connectors.clients.contact_details import NO_YEAR, ContactDetails
+from src.domains.connectors.clients.normalizers.contact_group_cards import group_facts
 from src.domains.connectors.clients.normalizers.contact_values import (
     TypedAddress,
     TypedValue,
@@ -28,6 +30,9 @@ from src.domains.connectors.clients.normalizers.contact_values import (
 )
 
 logger = structlog.get_logger(__name__)
+
+#: What tells Apple the year of a birthday is none.
+_OMIT_YEAR: Final = "X-APPLE-OMIT-YEAR"
 
 #: TYPE values that describe a line rather than what it is for.
 _NOT_A_KIND: Final = frozenset({"internet", "pref", "voice", "x400"})
@@ -110,7 +115,18 @@ def normalize_vcard(vcard_str: str, resource_name: str = "") -> dict[str, Any]:
     if note:
         result["biographies"] = [{"value": str(note)}]
 
+    # Websites
+    if urls := _websites(vcard):
+        result["urls"] = urls
+
+    result.update(group_facts(vcard))
+
     return result
+
+
+def _websites(vcard: Any) -> list[dict[str, str]]:
+    """A card's websites, in the vocabulary the three providers share."""
+    return [{"value": str(line.value)} for line in vcard.contents.get("url", []) if line.value]
 
 
 def build_vcard(
@@ -123,6 +139,7 @@ def build_vcard(
     emails: list[TypedValue] | None = None,
     phones: list[TypedValue] | None = None,
     addresses: list[TypedAddress] | None = None,
+    details: ContactDetails | None = None,
 ) -> str:
     """
     Build a vCard string from individual parameters.
@@ -136,10 +153,37 @@ def build_vcard(
         emails: Every e-mail, typed (not with ``email``).
         phones: Every phone, typed (not with ``phone``).
         addresses: Every postal address, typed.
+        details: Its name's parts, job title, website and birthday.
 
     Returns:
         Serialized vCard string (3.0 format for iCloud compatibility).
     """
+    return vcard_component(
+        name,
+        email,
+        phone,
+        organization,
+        notes,
+        emails=emails,
+        phones=phones,
+        addresses=addresses,
+        details=details,
+    ).serialize()
+
+
+def vcard_component(
+    name: str,
+    email: str | None = None,
+    phone: str | None = None,
+    organization: str | None = None,
+    notes: str | None = None,
+    *,
+    emails: list[TypedValue] | None = None,
+    phones: list[TypedValue] | None = None,
+    addresses: list[TypedAddress] | None = None,
+    details: ContactDetails | None = None,
+) -> Any:
+    """The card ``build_vcard`` serializes, for who has more to add to it."""
     card = vobject.vCard()
 
     # FN (formatted name) — required
@@ -163,7 +207,72 @@ def build_vcard(
     if notes:
         card.add("note").value = notes
 
-    return card.serialize()
+    _write_details(card, details)
+    return card
+
+
+def _joined(given: Any, family: Any) -> str:
+    """A name's parts as one name; vobject holds a part as a text or a list of them."""
+    parts = (" ".join(item) if isinstance(item, list) else item for item in (given, family))
+    return " ".join(part for part in parts if part)
+
+
+def _set_line(card: Any, prop: str, value: str) -> None:
+    """Write a property's first line; an empty value takes that line off, the others stay."""
+    lines = card.contents.get(prop) or []
+    if lines and value:
+        lines[0].value = value
+    elif lines:
+        lines.pop(0)
+        if not lines:
+            del card.contents[prop]
+    elif value:
+        card.add(prop).value = value
+
+
+def _write_name_parts(card: Any, details: ContactDetails, *, name_follows: bool) -> None:
+    """A card's name parts, the whole name following when it was made of them."""
+    if not hasattr(card, "n"):
+        card.add("n").value = vobject.vcard.Name()
+    name = card.n.value
+    followed = name_follows and card.fn.value == _joined(name.given, name.family)
+    card.n.value = vobject.vcard.Name(
+        family=name.family if details.family_name is None else details.family_name,
+        given=name.given if details.given_name is None else details.given_name,
+        additional=name.additional,
+        prefix=name.prefix,
+        suffix=name.suffix,
+    )
+    if followed and (whole := _joined(card.n.value.given, card.n.value.family)):
+        card.fn.value = whole
+
+
+def _write_details(
+    card: Any, details: ContactDetails | None, *, name_follows: bool = False
+) -> None:
+    """Write what ``details`` names on a card; every other line stays.
+
+    Args:
+        card: The card.
+        details: What changes.
+        name_follows: A change named no whole name: one made of the parts follows them, as
+            Google's and Graph's do.
+    """
+    if details is None:
+        return
+    if details.given_name is not None or details.family_name is not None:
+        _write_name_parts(card, details, name_follows=name_follows)
+    if details.job_title is not None:
+        _set_line(card, "title", details.job_title)
+    if details.website is not None:
+        _set_line(card, "url", details.website)
+    if details.birthday is not None:
+        _set_line(card, "bday", details.birthday.isoformat())
+        card.bday.params.pop(_OMIT_YEAR, None)
+        if details.birthday.year == NO_YEAR:
+            card.bday.params[_OMIT_YEAR] = [str(NO_YEAR)]
+    elif details.clear_birthday:
+        _set_line(card, "bday", "")
 
 
 def merge_vcard_fields(
@@ -178,6 +287,7 @@ def merge_vcard_fields(
     emails: list[TypedValue] | None = None,
     phones: list[TypedValue] | None = None,
     addresses: list[TypedAddress] | None = None,
+    details: ContactDetails | None = None,
 ) -> str:
     """
     Merge updated fields into an existing vCard.
@@ -197,6 +307,7 @@ def merge_vcard_fields(
         emails: Every e-mail, typed.
         phones: Every phone, typed.
         addresses: Every postal address, typed.
+        details: What changes of its name's parts, job, website and birthday.
 
     Returns:
         Updated serialized vCard string.
@@ -254,6 +365,7 @@ def merge_vcard_fields(
         else:
             card.add("note").value = notes
 
+    _write_details(card, details, name_follows=name is None and hasattr(card, "fn"))
     return card.serialize()
 
 
@@ -443,6 +555,15 @@ def _get_value(vcard: Any, prop_name: str) -> Any:
     return None
 
 
+def _kept_year(day: dict[str, int]) -> dict[str, int]:
+    """A date as read, without the year that says there is none."""
+    return (
+        {key: value for key, value in day.items() if key != "year"}
+        if (day["year"] == NO_YEAR)
+        else day
+    )
+
+
 def _parse_birthday(bday: Any) -> dict[str, int] | None:
     """
     Parse a vCard birthday value into Google People API format.
@@ -453,12 +574,12 @@ def _parse_birthday(bday: Any) -> dict[str, int] | None:
 
     Returns:
         Dict with year/month/day keys matching Google People API format,
-        or None if parsing fails.
+        or None if parsing fails. Apple writes a birthday with no year in 1604.
     """
     from datetime import date as date_type
 
     if isinstance(bday, date_type):
-        return {"year": bday.year, "month": bday.month, "day": bday.day}
+        return _kept_year({"year": bday.year, "month": bday.month, "day": bday.day})
 
     bday_str = str(bday).strip()
     if not bday_str:
@@ -476,13 +597,13 @@ def _parse_birthday(bday: Any) -> dict[str, int] | None:
         if "-" in bday_str:
             parts = bday_str.split("-")
             if len(parts) == 3:
-                return {"year": int(parts[0]), "month": int(parts[1]), "day": int(parts[2])}
+                return _kept_year(
+                    {"year": int(parts[0]), "month": int(parts[1]), "day": int(parts[2])}
+                )
         elif len(bday_str) == 8 and bday_str.isdigit():
-            return {
-                "year": int(bday_str[:4]),
-                "month": int(bday_str[4:6]),
-                "day": int(bday_str[6:8]),
-            }
+            return _kept_year(
+                {"year": int(bday_str[:4]), "month": int(bday_str[4:6]), "day": int(bday_str[6:8])}
+            )
     except ValueError, IndexError:
         logger.debug("birthday_parse_error", raw_value=bday_str)
 

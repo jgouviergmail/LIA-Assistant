@@ -280,7 +280,7 @@ def _formatter_builders() -> dict[str, Any]:
     )
     from src.domains.agents.tools.perplexity_tools import PerplexityAskTool, PerplexitySearchTool
     from src.domains.agents.tools.places_tools import GetCurrentLocationTool
-    from src.domains.agents.tools.tasks_tools import ListTaskListsTool
+    from src.domains.agents.tools.task_organize_tools import ListTaskListsTool
     from src.domains.agents.tools.weather_tools import (
         GetCurrentWeatherTool,
         GetHourlyForecastTool,

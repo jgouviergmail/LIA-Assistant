@@ -23,6 +23,7 @@ from src.domains.proactive_discussions.run_types import AttentionHold, RunClaim,
 from src.domains.reminders.models import Reminder
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database.session import get_db_context
+from src.infrastructure.proactive.discussion_bounds import discussion_lease_seconds
 from src.infrastructure.proactive.discussion_control import load_controls
 from src.infrastructure.streaming.run_stream_broker import get_active_run
 
@@ -214,6 +215,6 @@ class DiscussionAuthority:
             if not await repo.renew_claim(
                 self.claim,
                 now=datetime.now(UTC),
-                lease_seconds=settings.discussion_run_lease_seconds,
+                lease_seconds=discussion_lease_seconds(),
             ):
                 raise InitiativeStopped("stale_claim")

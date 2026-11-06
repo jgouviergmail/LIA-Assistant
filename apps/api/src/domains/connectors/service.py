@@ -1779,6 +1779,12 @@ class ConnectorService:
             user_id, ConnectorType.MICROSOFT_TASKS, "for_tasks"
         )
 
+    async def initiate_microsoft_onedrive_oauth(self, user_id: UUID) -> ConnectorOAuthInitiate:
+        """Initiate OneDrive OAuth flow."""
+        return await self._initiate_microsoft_oauth(
+            user_id, ConnectorType.MICROSOFT_ONEDRIVE, "for_onedrive"
+        )
+
     async def handle_microsoft_outlook_callback_stateless(
         self, code: str, state: str
     ) -> ConnectorResponse:
@@ -1840,6 +1846,22 @@ class ConnectorService:
             connector_type=ConnectorType.MICROSOFT_TASKS,
             provider_factory_method=MicrosoftOAuthProvider.for_tasks,
             default_scopes=MICROSOFT_TASKS_SCOPES,
+            metadata={"created_via": "oauth_flow_stateless"},
+        )
+
+    async def handle_microsoft_onedrive_callback_stateless(
+        self, code: str, state: str
+    ) -> ConnectorResponse:
+        """Handle OneDrive OAuth callback (stateless)."""
+        from src.core.constants import MICROSOFT_ONEDRIVE_SCOPES
+        from src.core.oauth.providers.microsoft import MicrosoftOAuthProvider
+
+        return await self._handle_oauth_connector_callback_stateless(
+            code=code,
+            state=state,
+            connector_type=ConnectorType.MICROSOFT_ONEDRIVE,
+            provider_factory_method=MicrosoftOAuthProvider.for_onedrive,
+            default_scopes=MICROSOFT_ONEDRIVE_SCOPES,
             metadata={"created_via": "oauth_flow_stateless"},
         )
 

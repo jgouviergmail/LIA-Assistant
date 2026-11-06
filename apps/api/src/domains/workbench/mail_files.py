@@ -1,8 +1,11 @@
 """The person's own files, attached to a message they write (ADR-369).
 
 What they uploaded and what LIA produced for them, while alive
-(``attachments.attachable_queries``) — never the device's file system (spec,
-phase 1). A selection is attached WHOLE or refused: an id gone since it was
+(``attachments.attachable_queries``), and a file of their drive, read when the
+message leaves. A file of the device is kept first, as any upload is and under
+the same deadline: the chat's door takes what a model reads, a message carries
+anything, so its type is what its bytes say and only then what its form
+declares. A selection is attached WHOLE or refused: an id gone since it was
 offered (deleted, expired, swept from the disk) refuses the message
 (``item_gone``), and so do files whose total passes what the provider carries
 (``too_large`` with the bound) — a message leaves whole or not at all. The
@@ -14,19 +17,44 @@ event loop.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Sequence
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
-from uuid import UUID
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from pathlib import Path, PurePosixPath
+from typing import Any, Final
+from uuid import UUID, uuid4
 
 from src.core.config import settings
+from src.core.content_disposition import served_media_type
 from src.domains.attachments.attachable_queries import build_attachable_statement
+from src.domains.attachments.models import (
+    Attachment,
+    AttachmentContentType,
+    AttachmentOrigin,
+    AttachmentStatus,
+)
+from src.domains.attachments.repository import AttachmentRepository
+from src.domains.workbench import files_service
 from src.domains.workbench.availability import listing_page_size
-from src.domains.workbench.errors import ITEM_GONE, TOO_LARGE, refuse
+from src.domains.workbench.errors import INVALID_REQUEST, ITEM_GONE, TOO_LARGE, refuse
+from src.domains.workbench.schemas.files import DownloadQuery
 from src.domains.workbench.schemas.mail_compose import AttachableFile, AttachablePage
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.email.outgoing import OutgoingAttachment
+
+#: What a file whose form named nothing is called, as the chat's door calls it.
+UNNAMED_FILE: Final = "unnamed"
+_CONTROL_CHARACTERS: Final = re.compile(r"[\x00-\x1f\x7f]")
+
+
+@dataclass(frozen=True)
+class DeviceFile:
+    """A file of the person's device, as its form brought it: nothing here is vouched for."""
+
+    filename: str
+    declared_type: str
+    data: bytes
 
 
 async def list_attachable(user_id: UUID, *, query: str | None, offset: int) -> AttachablePage:
@@ -78,6 +106,110 @@ async def outgoing_files(
     except FileNotFoundError:
         # The cleanup took it between the check and the read.
         refuse(ITEM_GONE)
+
+
+async def drive_files(
+    user_id: UUID, ids: Sequence[str], *, max_bytes: int
+) -> tuple[OutgoingAttachment, ...]:
+    """Files of the person's drive, read whole, in the selection's order.
+
+    One at a time, under the account's one transfer; a Google document leaves as its first
+    export. Reading stops the moment their total passes what the provider carries.
+
+    Raises:
+        BaseAPIException: ``too_large`` with ``max_bytes``; what the drive refuses otherwise.
+    """
+    read: list[OutgoingAttachment] = []
+    total = 0
+    for file_id in dict.fromkeys(ids):
+        file = await files_service.download_file(user_id, DownloadQuery(id=file_id))
+        total += len(file.data)
+        if total > max_bytes:
+            refuse(TOO_LARGE, max_bytes=max_bytes)
+        read.append(OutgoingAttachment(file.filename, file.mime_type, file.data))
+    return tuple(read)
+
+
+async def carried_files(
+    user_id: UUID, own_ids: Sequence[UUID], drive_ids: Sequence[str], *, max_bytes: int
+) -> tuple[OutgoingAttachment, ...]:
+    """A message's files, the person's own then their drive's, within what the provider carries.
+
+    Raises:
+        BaseAPIException: See :func:`outgoing_files` and :func:`drive_files`.
+    """
+    own = await outgoing_files(user_id, own_ids, max_bytes=max_bytes)
+    if not drive_ids:
+        return own
+    room = max_bytes - sum(len(file.data) for file in own)
+    return own + await drive_files(user_id, drive_ids, max_bytes=room)
+
+
+async def keep_device_file(user_id: UUID, file: DeviceFile) -> AttachableFile:
+    """Keep a file of the device for a message, as the person's upload.
+
+    Its bytes reach the disk first, so a row always names a file; a row that could not
+    be filed leaves nothing behind. No session is open across the write.
+
+    Raises:
+        BaseAPIException: ``invalid_request`` for a name past what can be kept.
+    """
+    name = _kept_name(file.filename)
+    if len(name) > Attachment.original_filename.type.length:
+        refuse(INVALID_REQUEST)
+    mime_type = _type_of(file)
+    stored = f"{uuid4()}.bin"
+    relative = f"{user_id}/{stored}"
+    path = Path(settings.attachments_storage_path) / relative
+    await asyncio.to_thread(_write, path, file.data)
+    try:
+        async with get_db_context() as db:
+            row = await AttachmentRepository(db).create(
+                {
+                    "user_id": user_id,
+                    "original_filename": name,
+                    "stored_filename": stored,
+                    "mime_type": mime_type,
+                    "file_size": len(file.data),
+                    "file_path": relative,
+                    "content_type": _category_of(mime_type),
+                    "status": AttachmentStatus.READY,
+                    "origin": AttachmentOrigin.UPLOAD.value,
+                    "expires_at": datetime.now(UTC)
+                    + timedelta(hours=settings.attachments_ttl_hours),
+                }
+            )
+            return _file(row)
+    except BaseException:
+        await asyncio.to_thread(path.unlink, missing_ok=True)
+        raise
+
+
+def _kept_name(sent: str) -> str:
+    """A file's own name: never a path, and nothing a mail header could be split on."""
+    name = PurePosixPath(sent.replace("\\", "/")).name
+    return _CONTROL_CHARACTERS.sub("", name).strip() or UNNAMED_FILE
+
+
+def _type_of(file: DeviceFile) -> str:
+    """What the bytes say they are, else what the form declares, when well formed."""
+    import filetype  # type: ignore[import-untyped]
+
+    kind = filetype.guess(file.data)
+    return str(kind.mime) if kind else served_media_type(file.declared_type)
+
+
+def _category_of(mime_type: str) -> str:
+    return (
+        AttachmentContentType.IMAGE
+        if mime_type.startswith("image/")
+        else AttachmentContentType.DOCUMENT
+    )
+
+
+def _write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
 
 
 async def _read(row: Any) -> OutgoingAttachment:

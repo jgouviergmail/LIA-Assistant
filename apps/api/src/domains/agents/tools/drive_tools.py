@@ -44,7 +44,6 @@ from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistr
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
-from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.validation_helpers import (
@@ -183,6 +182,7 @@ class SearchFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
 
     connector_type = ConnectorType.GOOGLE_DRIVE
     client_class = GoogleDriveClient
+    functional_category = "files"
     registry_enabled = True
 
     def __init__(self) -> None:
@@ -411,6 +411,7 @@ class ListFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
 
     connector_type = ConnectorType.GOOGLE_DRIVE
     client_class = GoogleDriveClient
+    functional_category = "files"
     registry_enabled = True
 
     def __init__(self) -> None:
@@ -614,6 +615,7 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
 
     connector_type = ConnectorType.GOOGLE_DRIVE
     client_class = GoogleDriveClient
+    functional_category = "files"
     registry_enabled = True
 
     def __init__(self) -> None:
@@ -1078,6 +1080,7 @@ class DeleteFileDraftTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
 
     connector_type = ConnectorType.GOOGLE_DRIVE
     client_class = GoogleDriveClient
+    functional_category = "files"
     registry_enabled = True
 
     def __init__(self) -> None:
@@ -1185,19 +1188,9 @@ async def execute_file_delete_draft(
 
     Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
     """
-    connector_service = await deps.get_connector_service()
-    credentials = await connector_service.get_connector_credentials(
-        user_id, ConnectorType.GOOGLE_DRIVE
-    )
+    from src.domains.connectors.provider_resolver import resolve_client_for_category
 
-    if not credentials:
-        raise ConnectorNotEnabledError(
-            APIMessages.connector_not_enabled("Google Drive"),
-            connector_name="Google Drive",
-        )
-
-    client = GoogleDriveClient(user_id, credentials, connector_service)
-
+    client, _resolved_type = await resolve_client_for_category("files", user_id, deps)
     await client.delete_file(draft_content["file_id"])
 
     file_data = draft_content.get("file", {})

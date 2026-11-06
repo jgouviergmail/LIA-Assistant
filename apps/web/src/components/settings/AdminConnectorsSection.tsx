@@ -47,6 +47,7 @@ export const ADMIN_CONNECTOR_CATEGORIES = {
     'microsoft_calendar',
     'microsoft_contacts',
     'microsoft_tasks',
+    'microsoft_onedrive',
   ],
   // Platform-key Google services (global GOOGLE_API_KEY, no per-user OAuth):
   // the operator switches them on for the whole deployment.

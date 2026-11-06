@@ -1210,9 +1210,8 @@ semantic_validation_total = Counter(
 semantic_validation_duration_seconds = Histogram(
     "semantic_validation_duration_seconds",
     "Duration of semantic validation (includes LLM call)",
-    # Buckets optimized for fast validation, extended to cover the configurable
-    # timeout (SEMANTIC_VALIDATION_TIMEOUT_SECONDS is 20s in dev/prod — the
-    # historical 5s cap hid every slow validation in +Inf).
+    # Buckets optimized for fast validation, extended to cover the slot's
+    # timeout (the historical 5s cap hid every slow validation in +Inf).
     buckets=[0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 30.0],
 )
 

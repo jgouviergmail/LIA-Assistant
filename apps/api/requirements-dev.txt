@@ -19,7 +19,7 @@ httpx==0.28.1
 testcontainers==4.14.2
 # tests/unit/domains/auth/test_webauthn_real_ceremony.py writes attestations with the CBOR
 # library webauthn itself reads; its version is the runtime lock's (webauthn's floor here)
-cbor2>=6.1.2
+cbor2>=6.2.0
 
 # Debugging
 debugpy==1.8.21

@@ -32,6 +32,7 @@ from src.domains.agents.data_registry.models import (
     generate_registry_id,
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.shared.frame_policy import with_leading_policy
 from src.domains.skills.script_output import SkillScriptOutput
 
 # CSP meta tag injected into user-skill frame.html to contain the iframe.
@@ -171,40 +172,15 @@ try{
 
 
 def _inject_csp_meta(html: str) -> str:
-    """Inject the user-skill CSP meta tag into HTML content.
-
-    Strategy:
-        - If ``<head>`` exists: insert meta as first child of ``<head>``
-        - If no ``<head>`` but ``<html>`` exists: insert ``<head>...</head>``
-        - If neither: wrap the whole HTML in a full document structure
-
-    The CSP is placed as early as possible in ``<head>`` to apply before any
-    script executes.
+    """Put the user-skill CSP ahead of every byte of ``frame.html``.
 
     Args:
         html: Raw HTML from the skill's ``frame.html`` output.
 
     Returns:
-        HTML with CSP meta tag injected.
+        HTML under the CSP, whatever it contains (see ``frame_policy``).
     """
-    head_open_match = re.search(r"<head[^>]*>", html, re.IGNORECASE)
-    if head_open_match:
-        insert_pos = head_open_match.end()
-        return html[:insert_pos] + _USER_SKILL_CSP_META + html[insert_pos:]
-
-    html_open_match = re.search(r"<html[^>]*>", html, re.IGNORECASE)
-    if html_open_match:
-        insert_pos = html_open_match.end()
-        return html[:insert_pos] + f"<head>{_USER_SKILL_CSP_META}</head>" + html[insert_pos:]
-
-    # No <html> or <head> — wrap in a full document
-    return (
-        "<!DOCTYPE html><html><head>"
-        + _USER_SKILL_CSP_META
-        + "</head><body>"
-        + html
-        + "</body></html>"
-    )
+    return with_leading_policy(_USER_SKILL_CSP_META, html)
 
 
 def _inject_autoresize_script(html: str) -> str:

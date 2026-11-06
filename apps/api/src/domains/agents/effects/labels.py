@@ -128,6 +128,8 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "apply_labels_tool": _count("label_ids", "labels", "message_ids"),
     "remove_labels_tool": _count("label_ids", "labels", "message_ids"),
     "complete_task_tool": _target("title", "task_title", "task_id"),
+    "rename_task_list_tool": _target("title"),
+    "move_task_tool": _target("title", "task_id"),
     # A reminder created by conversation WRITES; it declared  and was
     # therefore recorded nowhere until 2026-09-06 (ADR-268). The label names
     # what the reader asked to be reminded of, never the whole request.
@@ -149,6 +151,11 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "delete_mailbox_drafts_tool": _nothing,
     # ADR-369: read / unread on any provider — the label counts, never names.
     "set_email_read_state_tool": _count("message_ids"),
+    # ADR-369, lot 4: the sort counts, and a folder is named as the person named it.
+    "organize_emails_tool": _count("message_ids"),
+    "manage_mail_folder_tool": _target("name", "folder"),
+    # ADR-369, lot 6: named as the person named it, else by its id.
+    "manage_files_tool": _target("name", "file_name", "file_id"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     # Workboard (ADR-276). `create` names the title it was given; the three
     # others name the ticket as the person referred to it — an id or a
@@ -165,6 +172,7 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "generate_image": _target("prompt", "description"),
     "edit_image": _target("prompt", "instruction", "image_id"),
     "generate_document": _target("title", "filename", "subject"),
+    "generate_interactive_page": _target("title", "filename"),
     "run_python_tool": _nothing,
     # ADR-298: a NETWORK sandbox run is a distinct act — it reached hosts.
     "python_sandbox_network": _target("hosts"),
@@ -182,8 +190,11 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # A mailbox draft sent (ADR-344): whoever it reached first.
     "draft:mailbox_draft_send": _draft("to", "cc", "bcc", key="recipient"),
     "draft:email_filter": _nothing,
+    "draft:email_filter_delete": _nothing,
     "draft:vacation_responder": _nothing,
     "draft:event": _draft("summary", "title"),
+    "draft:event_answer": _draft("summary"),
+    "draft:file_share": _draft("name", "file_id"),
     "draft:event_update": _draft("summary", "title", "event_id"),
     "draft:event_delete": _draft("summary", "title", "event_id"),
     "draft:contact": _draft("name", "display_name"),
@@ -199,8 +210,9 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "draft:scheduled_action": _draft("name", "title", "instruction"),
     "draft:file_delete": _draft("name", "filename", "file_id"),
     "draft:label_delete": _draft("name", "label_name", "label_id"),
-    "draft:document_append": _draft("title", "document_id"),
-    "draft:spreadsheet_write": _draft("title", "spreadsheet_id"),
+    "draft:document_append": _draft("document_title", "title", "file_id"),
+    "draft:document_replace": _draft("document_title", "title", "file_id"),
+    "draft:spreadsheet_write": _draft("spreadsheet_title", "title", "file_id"),
     "draft:peer_message": _draft("recipient_name", "to", "peer_id", key="recipient"),
     "draft:phone_call": _draft("callee_name", "phone", "to", key="recipient"),
     "draft:devops_task": _draft("server", "target", "command"),

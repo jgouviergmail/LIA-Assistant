@@ -46,6 +46,7 @@ from src.core.i18n_api_messages import (
     NO_EXTERNAL_AGENT_MESSAGES,
     APIMessages,
 )
+from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import (
@@ -1536,7 +1537,7 @@ def _apply_relevant_ids_filtering(
         # - MCP App items (interactive widgets — not search results)
         # - Draft items (HITL confirmation flow)
         # Items may be dicts (model_dump) or RegistryItem Pydantic objects.
-        _UNFILTERABLE_TYPES = {"MCP_APP", "SKILL_APP", "DRAFT"}
+        _UNFILTERABLE_TYPES = {"MCP_APP", "SKILL_APP", "PAGE_APP", "DRAFT"}
         protected_items: dict[str, Any] = {}
         for k, v in (current_turn_registry or {}).items():
             if k in initiative_protected_ids and not require_selection:
@@ -2926,7 +2927,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # =====================================================================
         react_result, _react_passthrough_merged = _apply_react_passthrough(state, run_id)
 
-        llm = get_llm("vision_analysis") if has_vision_content else get_llm("response")
+        response_slot = "vision_analysis" if has_vision_content else "response"
+        llm = get_llm(response_slot)
 
         agent_results_raw = _normalize_agent_results(state, run_id)
 
@@ -3278,13 +3280,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         },
                         config=enriched_config,
                     ),
-                    timeout=settings.response_llm_timeout_seconds,
+                    timeout=llm_call_timeout_seconds(response_slot),
                 )
             except TimeoutError:
                 logger.error(
                     "response_llm_timeout",
                     run_id=run_id,
-                    timeout_seconds=settings.response_llm_timeout_seconds,
+                    timeout_seconds=llm_call_timeout_seconds(response_slot),
                 )
                 # Return graceful timeout error
                 error_message = AIMessage(

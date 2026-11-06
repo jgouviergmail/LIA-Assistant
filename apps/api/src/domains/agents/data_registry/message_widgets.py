@@ -39,6 +39,7 @@ import json
 from typing import Any
 
 from src.domains.agents.data_registry.models import RegistryItemType
+from src.domains.interactive_pages.document import page_frame, source_of
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -49,7 +50,11 @@ MESSAGE_METADATA_WIDGETS_KEY = "widgets"
 #: Registry types persisted alongside the message. Frame-rendering widgets only
 #: — see the module docstring for why ``DRAFT`` is deliberately absent.
 PERSISTED_WIDGET_TYPES: frozenset[str] = frozenset(
-    {RegistryItemType.SKILL_APP.value, RegistryItemType.MCP_APP.value}
+    {
+        RegistryItemType.SKILL_APP.value,
+        RegistryItemType.MCP_APP.value,
+        RegistryItemType.PAGE_APP.value,
+    }
 )
 
 
@@ -163,6 +168,36 @@ def with_rehydrated_widgets(
     return {**(message_metadata or {}), MESSAGE_METADATA_WIDGETS_KEY: rehydrated}
 
 
+def _under_current_policy(item: dict[str, Any]) -> dict[str, Any]:
+    """A page recomposed around its own bytes, under today's policy and runtime.
+
+    Never trusted as stored, like ``is_system_skill`` below: a flaw found in the
+    frame's policy must reach every page already archived, not only the next one.
+
+    Args:
+        item: A stored widget.
+
+    Returns:
+        The item, recomposed when it is a page; a NEW dict, never a mutation.
+    """
+    payload = item.get("payload")
+    if item.get("type") != RegistryItemType.PAGE_APP.value or not isinstance(payload, dict):
+        return item
+    document = payload.get("html_content")
+    offset = payload.get("source_offset")
+    if not isinstance(document, str) or not isinstance(offset, int):
+        return item
+    frame = page_frame(source_of(document, offset))
+    return {
+        **item,
+        "payload": {
+            **payload,
+            "html_content": frame.document,
+            "source_offset": frame.source_offset,
+        },
+    }
+
+
 def rehydrate_message_widgets(
     message_metadata: dict[str, Any] | None,
     *,
@@ -206,5 +241,5 @@ def rehydrate_message_widgets(
                     ),
                 },
             }
-        rehydrated[item_id] = item
+        rehydrated[item_id] = _under_current_policy(item)
     return rehydrated

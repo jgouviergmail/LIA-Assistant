@@ -42,6 +42,16 @@ class PushChannelRepository(BaseRepository[WebhookChannel]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_resource(self, provider: str, resource_id: str) -> WebhookChannel | None:
+        """Resolve a provider's id of a watch: a Graph notification names its subscription."""
+        result = await self.db.execute(
+            select(WebhookChannel).where(
+                WebhookChannel.provider == provider,
+                WebhookChannel.resource_id == resource_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_for_user(
         self, user_id: UUID, provider: str, watch_target: str
     ) -> WebhookChannel | None:

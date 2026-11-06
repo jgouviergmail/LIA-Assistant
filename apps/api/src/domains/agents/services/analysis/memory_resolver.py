@@ -33,8 +33,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.core.config import settings as app_settings
-from src.core.constants import MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_config_helper import get_llm_config_for_agent, llm_call_timeout_seconds
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.analysis.jev_memory_presence import choose_no_memory_references
 from src.domains.agents.services.memory_reference_resolution_service import (
@@ -188,7 +187,7 @@ class MemoryResolver:
                     node_name="memory_reference_extraction",
                     config=enriched_config,
                 ),
-                timeout=MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS,
+                timeout=llm_call_timeout_seconds("memory_reference_extraction"),
             )
 
             references = result.references if result else []

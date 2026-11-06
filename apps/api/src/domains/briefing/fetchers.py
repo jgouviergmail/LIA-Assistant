@@ -87,10 +87,8 @@ from src.domains.briefing.schemas import (
     WorkboardPreviews,
     WorkboardTicketItem,
 )
-from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
-from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.connectors.weather_provider import (
     open_platform_weather_client,
     resolve_weather_client,
@@ -722,47 +720,47 @@ async def fetch_tasks(*, user: User, user_tz: ZoneInfo, whole_page: bool = False
     return TasksData(items=items, overdue_count=sum(1 for t in items if t.overdue))
 
 
+async def _document_path(client: Any, file: dict[str, Any], known: dict[str, Any]) -> str | None:
+    """Where a file lives; a path that cannot be read leaves the file on the card."""
+    try:
+        path: str | None = await client.folder_path(file, known)
+        return path
+    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+        logger.debug("briefing_document_path_unreadable", error_type=type(exc).__name__)
+        return None
+
+
 async def fetch_documents(
     *, user: User, user_tz: ZoneInfo, language: str | None = None
 ) -> DocumentsData:
-    """Fetch the user's most recently modified Google Drive files.
+    """Fetch the most recently modified files of the account's drive.
 
-    Drive-only source (2026-07-22 arbitration) — there is no multi-provider
-    "file" functional category today; same single-provider stance as the
-    birthdays fetch. ``modified_local`` is pre-formatted with the profile
-    timezone + language (reminders doctrine).
+    Google Drive or OneDrive, whichever the account connected: the shared door
+    reads it in a session of its own, closed before the provider is called
+    (ADR-304). ``modified_local`` is pre-formatted with the profile timezone +
+    language (reminders doctrine).
 
     Raises:
-        ConnectorNotConfiguredError: if Google Drive is not connected.
+        ConnectorNotConfiguredError: if no drive is connected.
         ConnectorAccessError: on HTTP/network failure.
     """
     from src.domains.briefing.formatters import _format_trigger_at_local
+    from src.domains.connectors.active_client import ActiveClient, open_active_client
 
-    # Read in a session of its own, closed before Drive is called; the client
-    # refreshes its token through a detached service (ADR-304) — it used to
-    # outlive the session it had borrowed.
-    connectors = DetachedConnectorService()
-    async with connectors.unit_of_work() as service:
-        credentials = await service.get_connector_credentials(user.id, ConnectorType.GOOGLE_DRIVE)
-    if not credentials:
-        raise ConnectorNotConfiguredError("drive")
-    client = GoogleDriveClient(user.id, credentials, connectors)
-
-    try:
-        # Empty query + files_only → all non-trashed files, modifiedTime desc.
-        result = await client.search_files(
-            query="",
-            max_results=settings.briefing_max_documents_items,
-            fields=["id", "name", "mimeType", "modifiedTime", "webViewLink"],
-        )
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
-        cause = getattr(exc, "last_error", None) or exc
-        raise ConnectorAccessError("drive", _classify_http_error(cause), str(exc)) from exc
-    finally:
-        await client.close()
+    async with open_active_client("files", user.id) as opened:
+        if not isinstance(opened, ActiveClient):
+            raise ConnectorNotConfiguredError("drive")
+        try:
+            result = await opened.client.recent_files(settings.briefing_max_documents_items)
+        except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
+            cause = getattr(exc, "last_error", None) or exc
+            raise ConnectorAccessError("drive", _classify_http_error(cause), str(exc)) from exc
+        files = (result.get("files", []) or [])[: settings.briefing_max_documents_items]
+        known: dict[str, Any] = {}
+        paths = [await _document_path(opened.client, file, known) for file in files]
 
     items: list[DocumentItem] = []
-    for f in (result.get("files", []) or [])[: settings.briefing_max_documents_items]:
+    for f, path in zip(files, paths, strict=True):
         modified_local = "?"
         raw_modified = f.get("modifiedTime")
         if raw_modified:
@@ -780,9 +778,10 @@ async def fetch_documents(
                 web_view_link=f.get("webViewLink"),
                 mime_type=f.get("mimeType"),
                 id=str(file_id) if file_id else None,
+                path=path,
             )
         )
-    return DocumentsData(items=items)
+    return DocumentsData(items=items, provider=opened.connector_type.value)
 
 
 def _soonest_upcoming(

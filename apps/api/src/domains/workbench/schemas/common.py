@@ -42,10 +42,18 @@ class WorkbenchLimits(BaseModel):
 
     page_size: int = Field(description="Items in one page of a listing.")
     bulk_max_items: int = Field(description="The largest selection one bulk act carries.")
+    upload_max_bytes: int = Field(description="The largest file sent to a drive (bytes).")
     download_max_bytes: int = Field(description="The largest file served, in bytes.")
     calendar_window_max_events: int = Field(
         description="Events read per calendar and window; past it the view says it is cut."
     )
+    send_undo_seconds: int = Field(
+        description="How long « Send » waits on the page before a message leaves (0: at once)."
+    )
+    draft_autosave_seconds: int = Field(
+        description="How long a composer stays quiet before it saves a draft (0: never by itself)."
+    )
+    search_max_chars: int = Field(description="The longest words one search takes.")
 
 
 class WorkbenchAvailability(BaseModel):

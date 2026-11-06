@@ -8,7 +8,9 @@
  * when the read failed. « Older messages » exactly when the provider has more,
  * and a line saying how many messages the provider listed but could not read
  * (ADR-185: a cut is stated). The arrows move between messages, Home and End
- * to the first and the last; Enter opens the one in focus (it is a link).
+ * to the first and the last; Enter opens the one in focus (it is a link). A line
+ * is a message, or a conversation under its newest one (`mailLines`): it is the
+ * open line whichever of its messages is open, and its link gets the focus back.
  */
 import { Inbox, SearchX } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
@@ -19,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { WorkbenchPageState } from '@/hooks/useWorkbenchPage';
-import type { MailDensity } from '@/lib/workbench/mail';
+import type { MailDensity, MailLine } from '@/lib/workbench/mail';
 import type { MailSummary } from '@/lib/workbench/types';
 
 import { MessageRow, type MessageRowProps } from './MessageRow';
@@ -29,6 +31,8 @@ const ROW_LINK = 'a[data-mail-row]';
 export interface MessageListProps {
   lng: Language;
   messages: WorkbenchPageState<MailSummary>;
+  /** What is loaded, as lines. */
+  lines: readonly MailLine[];
   openId: string | null;
   selected: ReadonlySet<string>;
   selectable: boolean;
@@ -39,7 +43,15 @@ export interface MessageListProps {
   labelName: MessageRowProps['labelName'];
   hrefOf: (message: MailSummary) => string;
   onOpen: (message: MailSummary) => void;
-  onToggle: (message: MailSummary) => void;
+  onToggle: MessageRowProps['onToggle'];
+  onRead: MessageRowProps['onRead'];
+  moves: MessageRowProps['moves'];
+  onStar: MessageRowProps['onStar'];
+  onSend: MessageRowProps['onSend'];
+  onMove: MessageRowProps['onMove'];
+  onForever: MessageRowProps['onForever'];
+  /** From `lg`, with a mouse, a row can be dragged to a folder. */
+  draggable: boolean;
   onClearSearch: () => void;
   linkRef: MessageRowProps['linkRef'];
 }
@@ -64,6 +76,7 @@ function moveFocus(event: KeyboardEvent<HTMLUListElement>): void {
 export function MessageList({
   lng,
   messages,
+  lines,
   openId,
   selected,
   selectable,
@@ -74,6 +87,13 @@ export function MessageList({
   hrefOf,
   onOpen,
   onToggle,
+  onRead,
+  moves,
+  onStar,
+  onSend,
+  onMove,
+  onForever,
+  draggable,
   onClearSearch,
   linkRef,
 }: MessageListProps) {
@@ -109,21 +129,30 @@ export function MessageList({
   return (
     <div aria-busy={messages.loadingMore || undefined} className="min-h-0 flex-1 overflow-y-auto">
       <ul aria-label={t('workbench.mail.messages_title')} onKeyDown={moveFocus}>
-        {messages.items.map(message => (
+        {lines.map(({ message, members }) => (
           <MessageRow
             key={message.id}
             lng={lng}
             message={message}
             when={whenOf(message)}
-            open={message.id === openId}
+            open={members.some(member => member.id === openId)}
             selected={selected.has(message.id)}
             selectable={selectable}
             density={density}
+            narrow={openId !== null}
             labelName={labelName}
             href={hrefOf(message)}
             onOpen={onOpen}
             onToggle={onToggle}
-            linkRef={linkRef}
+            onRead={onRead}
+            moves={moves}
+            onStar={onStar}
+            onSend={onSend}
+            onMove={onMove}
+            onForever={onForever}
+            draggable={draggable}
+            conversation={members.length > 1}
+            linkRef={(_, link) => members.forEach(member => linkRef(member.id, link))}
           />
         ))}
       </ul>

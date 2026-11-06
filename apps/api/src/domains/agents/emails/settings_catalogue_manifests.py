@@ -1,4 +1,4 @@
-"""Catalogue manifests for the Gmail settings tool family (lot I, 2026-08).
+"""Catalogue manifests for the mailbox settings tool family (lot I, 2026-08; ADR-369, lot 12).
 
 Split from ``catalogue_manifests`` (size-frozen by the file-size ratchet):
 one cohesive family — reading mailbox settings and the HITL-drafted vacation
@@ -19,19 +19,19 @@ from src.domains.agents.registry.catalogue import (
 # ============================================================================
 # 1. GET GMAIL SETTINGS
 # ============================================================================
-_get_gmail_settings_desc = (
-    "**Tool: get_gmail_settings_tool** - Read Gmail mailbox settings.\n"
+_get_mailbox_settings_desc = (
+    "**Tool: get_mailbox_settings_tool** - Read the mailbox's settings.\n"
     "\n"
     "Returns the vacation responder state (enabled, subject, body, dates), the "
-    "exact list of filters (criteria and actions) and the send-as aliases.\n"
+    "exact list of filters (id, criteria and actions) and the send-as aliases.\n"
     "Use for 'is my auto-reply on?', 'what filters do I have?', or before "
-    "changing the vacation responder. Gmail only, no parameters."
+    "changing the vacation responder. Gmail and Outlook, no parameters."
 )
 
-get_gmail_settings_catalogue_manifest = ToolManifest(
-    name="get_gmail_settings_tool",
+get_mailbox_settings_catalogue_manifest = ToolManifest(
+    name="get_mailbox_settings_tool",
     agent="email_agent",
-    description=_get_gmail_settings_desc,
+    description=_get_mailbox_settings_desc,
     semantic_keywords=[
         "gmail settings",
         "vacation responder status",
@@ -53,7 +53,8 @@ get_gmail_settings_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="vacation_responder.enabled", type="boolean", description="Auto-reply on/off"
         ),
-        OutputFieldSchema(path="filters", type="array", description="Gmail filters"),
+        OutputFieldSchema(path="filters", type="array", description="Filters or Outlook rules"),
+        OutputFieldSchema(path="filters[].id", type="string", description="Filter id"),
         OutputFieldSchema(path="filter_count", type="integer", description="Exact filter count"),
         OutputFieldSchema(path="send_as", type="array", description="Send-as aliases"),
         OutputFieldSchema(
@@ -80,7 +81,7 @@ get_gmail_settings_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(
-        emoji="⚙️", i18n_key="get_gmail_settings", visible=True, category="tool"
+        emoji="⚙️", i18n_key="get_mailbox_settings", visible=True, category="tool"
     ),
 )
 
@@ -89,7 +90,7 @@ get_gmail_settings_catalogue_manifest = ToolManifest(
 # 2. SET VACATION RESPONDER (HITL draft)
 # ============================================================================
 _set_vacation_desc = (
-    "**Tool: set_vacation_responder_tool** - Set or disable the Gmail auto-reply.\n"
+    "**Tool: set_vacation_responder_tool** - Set or disable the mailbox's auto-reply.\n"
     "\n"
     "**USAGE**:\n"
     "- Enable: enable=true with body (required) and optional subject/dates\n"
@@ -103,7 +104,7 @@ _set_vacation_desc = (
 set_vacation_responder_catalogue_manifest = ToolManifest(
     name="set_vacation_responder_tool",
     mutation_policy="draft",
-    # ADR-256: changes a Gmail setting that auto-replies to every sender.
+    # ADR-256: changes a mailbox setting that auto-replies to every sender.
     tool_category="update",
     agent="email_agent",
     description=_set_vacation_desc,
@@ -180,7 +181,7 @@ set_vacation_responder_catalogue_manifest = ToolManifest(
 # 3. CREATE EMAIL FILTER (HITL draft)
 # ============================================================================
 _create_filter_desc = (
-    "**Tool: create_email_filter_tool** - Create a Gmail filter.\n"
+    "**Tool: create_email_filter_tool** - Create a Gmail filter or an Outlook rule.\n"
     "\n"
     "**USAGE**:\n"
     "- At least ONE criterion: from_sender, subject_contains or query\n"
@@ -220,7 +221,7 @@ create_email_filter_catalogue_manifest = ToolManifest(
             name="query",
             type="string",
             required=False,
-            description="Gmail query criteria (e.g. 'has:attachment larger:5M')",
+            description="Gmail query criteria (e.g. 'has:attachment larger:5M'), Gmail only",
         ),
         ParameterSchema(
             name="label_name",
@@ -265,17 +266,75 @@ create_email_filter_catalogue_manifest = ToolManifest(
 )
 
 
-# Gmail settings family (lot I) — loop-registered by the catalogue loader.
+# ============================================================================
+# 4. DELETE EMAIL FILTER (HITL draft)
+# ============================================================================
+_delete_filter_desc = (
+    "**Tool: delete_email_filter_tool** - Delete a Gmail filter or an Outlook rule.\n"
+    "\n"
+    "**USAGE**:\n"
+    "- filter_id comes from get_mailbox_settings_tool (filters[].id): read it first\n"
+    "- An id the mailbox does not hold is refused\n"
+    "\n"
+    "Returns a confirmation draft stating what the filter matches and does. Mail "
+    "it already sorted stays where it is; only future mail is no longer sorted."
+)
+
+delete_email_filter_catalogue_manifest = ToolManifest(
+    name="delete_email_filter_tool",
+    mutation_policy="draft",
+    agent="email_agent",
+    description=_delete_filter_desc,
+    semantic_keywords=[
+        "delete email filter",
+        "remove gmail filter rule",
+        "stop filtering mail from sender",
+        "stop auto archiving these emails",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="filter_id",
+            type="string",
+            required=True,
+            description="The filter's id, read from get_mailbox_settings_tool",
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="success", type="boolean", description="Success"),
+        OutputFieldSchema(path="filter_id", type="string", description="Deleted filter id"),
+    ],
+    cost=CostProfile(est_tokens_in=120, est_tokens_out=80, est_cost_usd=0.003, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_GMAIL_SCOPES,
+        # Draft-based: HITL is handled by draft_critique (preview before
+        # deleting) — hitl_required MUST stay False (ReAct interrupt only).
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=False,
+    reference_examples=["success", "filter_id"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="🗑️", i18n_key="delete_email_filter", visible=True, category="tool"
+    ),
+)
+
+
+# Mailbox settings family (lot I) — loop-registered by the catalogue loader.
 GMAIL_SETTINGS_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
-    get_gmail_settings_catalogue_manifest,
+    get_mailbox_settings_catalogue_manifest,
     set_vacation_responder_catalogue_manifest,
     create_email_filter_catalogue_manifest,
+    delete_email_filter_catalogue_manifest,
 )
 
 
 __all__ = [
     "GMAIL_SETTINGS_TOOL_MANIFESTS",
-    "get_gmail_settings_catalogue_manifest",
+    "get_mailbox_settings_catalogue_manifest",
     "set_vacation_responder_catalogue_manifest",
     "create_email_filter_catalogue_manifest",
+    "delete_email_filter_catalogue_manifest",
 ]

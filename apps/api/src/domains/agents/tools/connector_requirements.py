@@ -42,6 +42,7 @@ from typing import TYPE_CHECKING, Final
 from uuid import UUID
 
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.connectors.clients.mailbox_settings import MAILBOX_SETTINGS_PROVIDERS
 from src.domains.connectors.models import (
     CONNECTOR_FUNCTIONAL_CATEGORIES,
     ConnectorStatus,
@@ -54,16 +55,20 @@ from src.infrastructure.database.session import get_db_context
 if TYPE_CHECKING:
     from src.domains.agents.registry.catalogue import ToolManifest
 
-#: Tools bound to one provider that no connector CLASS names: a plain tool whose
+#: Tools bound to some providers that no connector CLASS names: a plain tool whose
 #: execution reaches the provider's client directly. Held to the catalogue both
 #: ways by the completeness guard — every scoped manifest is named by a class or
 #: declared here, and nothing declared here is stale.
-PROVIDER_BOUND_WITHOUT_A_CLASS: Final[Mapping[str, ConnectorType]] = MappingProxyType(
+PROVIDER_BOUND_WITHOUT_A_CLASS: Final[Mapping[str, frozenset[ConnectorType]]] = MappingProxyType(
     {
-        # Gmail's own auto-reply, created as a draft and written through the
-        # Gmail client by its executor.
-        "set_vacation_responder_tool": ConnectorType.GOOGLE_GMAIL,
+        # The auto-reply, created as a draft and written by its executor on the
+        # mailbox active then.
+        "set_vacation_responder_tool": MAILBOX_SETTINGS_PROVIDERS,
     }
+)
+#: The category a plain tool of the table above answers to.
+_PLAIN_TOOL_CATEGORIES: Final[Mapping[str, str]] = MappingProxyType(
+    {"set_vacation_responder_tool": "email"}
 )
 
 
@@ -109,23 +114,28 @@ def connector_categories() -> dict[str, str | None]:
     return categories
 
 
-def _provider_bound_tools() -> dict[str, ConnectorType]:
-    """Each tool bound to ONE provider the person must connect → that connector's type.
+def _provider_bound_tools() -> dict[str, frozenset[ConnectorType]]:
+    """Each tool bound to providers the person must connect → those connectors' types.
 
     A class with no category runs on its own ``connector_type``, whose
     credentials are read by that exact type (``get_connector_credentials``). A
-    keyless or platform-key connector is the instance's, never the person's.
+    class of a category may name the providers that hold it (``served_by``): the
+    others of the category have nothing to answer with. A keyless or platform-key
+    connector is the instance's, never the person's.
     """
-    bound: dict[str, ConnectorType] = dict(PROVIDER_BOUND_WITHOUT_A_CLASS)
+    bound: dict[str, frozenset[ConnectorType]] = dict(PROVIDER_BOUND_WITHOUT_A_CLASS)
     for tool_class in _concrete_tool_classes(ConnectorTool):
         connector_type = getattr(tool_class, "connector_type", None)
-        if (
+        served_by = getattr(tool_class, "served_by", None)
+        if isinstance(served_by, frozenset):
+            bound[str(tool_class().tool_name)] = served_by
+        elif (
             getattr(tool_class, "functional_category", None) is None
             and isinstance(connector_type, ConnectorType)
             and not connector_type.is_keyless
             and not getattr(tool_class, "uses_global_api_key", False)
         ):
-            bound[str(tool_class().tool_name)] = connector_type
+            bound[str(tool_class().tool_name)] = frozenset({connector_type})
     return bound
 
 
@@ -143,8 +153,8 @@ def unconnected_tool_names(active_connector_types: Collection[str] | None) -> fr
         return frozenset()
     return frozenset(
         name
-        for name, connector_type in _provider_bound_tools().items()
-        if connector_type.value not in active_connector_types
+        for name, connector_types in _provider_bound_tools().items()
+        if not any(member.value in active_connector_types for member in connector_types)
     )
 
 
@@ -207,7 +217,9 @@ def ungranted_scopes(
     required = frozenset(manifest.permissions.required_scopes)
     if not required or active_connector_types is None:
         return frozenset()
-    category = connector_categories().get(manifest.name)
+    category = connector_categories().get(manifest.name) or _PLAIN_TOOL_CATEGORIES.get(
+        manifest.name
+    )
     active = {
         LEGACY_CONNECTOR_ALIASES.get(member, member)
         for member in ConnectorType

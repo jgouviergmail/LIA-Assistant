@@ -90,7 +90,13 @@ public class MainActivity extends BridgeActivity {
         // on every navigation). A JavascriptInterface is the platform's own
         // mechanism for exactly this, and it survives navigations.
         if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().addJavascriptInterface(new OfflineActions(), "LiaOffline");
+            WebView view = bridge.getWebView();
+            view.addJavascriptInterface(new OfflineActions(), "LiaOffline");
+            // What the WebView leaves to its host: a file the server sends, and a window a
+            // link asks for (ADR-369, lot 13). Both measured dropped without these lines.
+            view.setDownloadListener(new ShellFiles(this));
+            view.getSettings().setSupportMultipleWindows(true);
+            view.setWebChromeClient(new ShellChromeClient(bridge));
         }
 
         // A deep link can also be what STARTED the app: the system browser may

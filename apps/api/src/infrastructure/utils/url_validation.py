@@ -355,6 +355,7 @@ async def pinned_stream(
     verdict: UrlValidationResult,
     *,
     headers: dict[str, str] | None = None,
+    content: bytes | None = None,
     timeout: float | httpx.Timeout | None = None,
 ) -> AsyncIterator[httpx.Response]:
     """Open a streaming request on a verdict, connected to an address it validated.
@@ -382,6 +383,7 @@ async def pinned_stream(
             ``Accept-Encoding`` of theirs, the request offers exactly the
             codings ``read_bounded`` decodes under its ceiling — never the
             client's default, which grows with whatever decoder is installed.
+        content: The request's body, when it carries one.
         timeout: The request timeout, the client's when None.
 
     Yields:
@@ -405,6 +407,7 @@ async def pinned_stream(
             method,
             url,
             headers={**caller_headers, **pin_headers},
+            content=content,
             extensions=extensions,
             **timeout_kwargs,
         )

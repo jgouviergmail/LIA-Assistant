@@ -3,7 +3,9 @@
 A draft is saved — created once per submission (``run_once``), or changed
 against the revision the editor holds: a draft changed elsewhere since is
 refused (``conflict``), never overwritten — and the answer carries the draft's
-id, which iCloud CHANGES on every save (it stores a new message). Sending one
+id, which iCloud CHANGES on every save (it stores a new message). The files a
+save names are read before the provider is called, so one that cannot be read
+saves nothing, and they ride on the draft from then on. Sending one
 re-reads it first (as the assistant's executor does): changed since it was
 shown, it is refused; addressed to nobody, nothing leaves; otherwise it leaves
 once, a lost answer being « may have left » (ADR-221). Trashing answers each
@@ -26,8 +28,15 @@ from src.domains.workbench.clients import open_tool_client
 from src.domains.workbench.errors import INVALID_REQUEST, refuse
 from src.domains.workbench.features import WorkbenchTool
 from src.domains.workbench.idempotency import run_once
-from src.domains.workbench.mail_compose import recipient_field
-from src.domains.workbench.mail_projection import addresses, attachments_of, received_at
+from src.domains.workbench.mail_compose import recipient_field, words_of
+from src.domains.workbench.mail_files import carried_files
+from src.domains.workbench.mail_projection import (
+    addresses,
+    attachments_of,
+    first_address,
+    received_at,
+)
+from src.domains.workbench.mail_settings import apply_send_as
 from src.domains.workbench.schemas.acts import ActFailure, ActOutcome, ActStatus
 from src.domains.workbench.schemas.mail_compose import (
     DraftSave,
@@ -38,6 +47,7 @@ from src.domains.workbench.schemas.mail_compose import (
     MailDraft,
     SentMessage,
 )
+from src.infrastructure.email.outgoing import OutgoingAttachment
 from src.infrastructure.email.recipients import read_recipients
 
 _TOOL = WorkbenchTool.MAIL
@@ -96,22 +106,41 @@ def _draft_recipients(request: DraftSave) -> _Recipients:
     return to, cc, bcc
 
 
+async def _files_of(
+    user_id: UUID, request: DraftSave, client: EmailClientProtocol
+) -> tuple[OutgoingAttachment, ...]:
+    """What a save adds to a draft, within what the mailbox carries."""
+    if not (request.attachment_ids or request.drive_file_ids):
+        return ()
+    return await carried_files(
+        user_id,
+        request.attachment_ids,
+        request.drive_file_ids,
+        max_bytes=client.OUTGOING_FILE_MAX_BYTES,
+    )
+
+
 async def _create_draft(user_id: UUID, request: DraftSave, recipients: _Recipients) -> MailDraft:
     """A new draft, once per the page's key."""
     assert request.idempotency_key is not None  # the schema requires it for a creation
     to, cc, bcc = recipients
+    body, is_html = words_of(request.html, request.body or "")
 
     async def create() -> MailDraft:
         async with open_tool_client(_TOOL, user_id) as opened:
             client: EmailClientProtocol = opened.client
+            if request.send_as:
+                await apply_send_as(opened, user_id, request.send_as)
+            files = await _files_of(user_id, request, client)
             async with provider_call(_TOOL, "create_draft", act=True):
                 raw = await client.create_draft(
                     to or "",
                     request.subject or "",
-                    request.body or "",
+                    body,
                     cc=cc or None,
                     bcc=bcc or None,
-                    is_html=False,
+                    is_html=is_html,
+                    attachments=files,
                 )
             provider = opened.connector_type
         return _draft(raw, provider)
@@ -130,8 +159,12 @@ async def _change_draft(
 ) -> MailDraft:
     """A draft changed against the revision the editor holds (a field left out is kept)."""
     to, cc, bcc = recipients
+    body, is_html = (request.body, False) if request.html is None else words_of(request.html, "")
     async with open_tool_client(_TOOL, user_id) as opened:
         mailbox: EmailClientProtocol = opened.client
+        if request.send_as:
+            await apply_send_as(opened, user_id, request.send_as)
+        files = await _files_of(user_id, request, mailbox)
         async with provider_call(_TOOL, "update_draft", act=True):
             raw = await mailbox.update_draft(
                 draft_id,
@@ -139,8 +172,11 @@ async def _change_draft(
                 cc=cc,
                 bcc=bcc,
                 subject=request.subject,
-                body=request.body,
+                body=body,
                 expected_revision=request.expected_revision,
+                add_files=files,
+                remove_files=request.removed_files,
+                is_html=is_html,
             )
         provider = opened.connector_type
     return _draft(raw, provider)
@@ -206,6 +242,7 @@ def _draft(raw: Mapping[str, Any], provider: ConnectorType) -> MailDraft:
     return MailDraft(
         id=str(raw.get(FIELD_MAILBOX_DRAFT_ID) or ""),
         revision=str(raw.get(FIELD_MAILBOX_DRAFT_REVISION) or ""),
+        sender=first_address(raw.get("from")),
         to=addresses(raw.get("to")),
         cc=addresses(raw.get("cc")),
         bcc=addresses(raw.get("bcc")),

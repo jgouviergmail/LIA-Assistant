@@ -14,7 +14,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator
-from datetime import date
+from datetime import date, datetime
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -24,12 +25,27 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config import settings
-from src.core.constants import WORKBENCH_CALENDAR_IDS_MAX, WORKBENCH_CALENDAR_WINDOW_MAX_DAYS
+from src.core.constants import (
+    WORKBENCH_CALENDAR_IDS_MAX,
+    WORKBENCH_CALENDAR_WINDOW_MAX_DAYS,
+    WORKBENCH_EVENT_REMINDER_MAX_MINUTES,
+    WORKBENCH_EVENT_SEARCH_MAX,
+    WORKBENCH_MAIL_QUERY_MAX_CHARS,
+)
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.calendar_answers import NotInvitedError
+from src.domains.connectors.clients.calendar_options import EventOptions
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.preferences.owner_defaults import CALENDAR
 from src.domains.workbench import calendar_service
-from src.domains.workbench.schemas.calendar import EventChange, EventWindowQuery, NewEvent
+from src.domains.workbench.schemas.calendar import (
+    EventChange,
+    EventInvitationAnswer,
+    EventSearchQuery,
+    EventWindowQuery,
+    NewEvent,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -43,10 +59,12 @@ GOOGLE, GRAPH, CALDAV = (
 KEY = "11111111-1111-4111-8111-111111111111"
 
 
-def _door(client: Any, kind: ConnectorType) -> Any:
+def _door(client: Any, kind: ConnectorType, preferred: str | None = None) -> Any:
     @contextlib.asynccontextmanager
-    async def opened(tool: Any, user_id: Any) -> AsyncIterator[ActiveClient]:
-        yield ActiveClient(client=client, connector_type=kind, preferred_name=None)
+    async def opened(tool: Any, user_id: Any, container: Any = None) -> AsyncIterator[ActiveClient]:
+        # Only the calendar's own preference is ever read for a calendar.
+        name = preferred if container is CALENDAR else None
+        yield ActiveClient(client=client, connector_type=kind, preferred_name=name)
 
     return patch.object(calendar_service, "open_tool_client", opened)
 
@@ -63,6 +81,69 @@ def _timed(event_id: str = "e1", **overrides: Any) -> dict[str, Any]:
 
 def _refused(status: int) -> ConnectorAPIError:
     return ConnectorAPIError(connector_type="google_calendar", status_code=status, detail="x")
+
+
+class TestTheDefaultCalendar:
+    @pytest.mark.parametrize(
+        ("preferred", "expected"),
+        [
+            ("Team", "team@group.calendar.google.com"),
+            (" team ", "team@group.calendar.google.com"),
+            ("team@group.calendar.google.com", "team@group.calendar.google.com"),
+            ("Somewhere else", None),
+            (None, None),
+        ],
+    )
+    async def test_it_is_named_as_the_settings_name_it(
+        self, preferred: str | None, expected: str | None
+    ) -> None:
+        client = SimpleNamespace(
+            list_calendars=AsyncMock(
+                return_value={
+                    "items": [
+                        {"id": "primary", "summary": "Me", "primary": True},
+                        {"id": "team@group.calendar.google.com", "summary": "Team"},
+                    ]
+                }
+            )
+        )
+
+        with _door(client, ConnectorType.GOOGLE_CALENDAR, preferred):
+            listed = await calendar_service.list_calendars(USER)
+
+        assert [item.id for item in listed.calendars if item.default] == (
+            [expected] if expected else []
+        )
+
+
+class TestTheCalendars:
+    """The default the person chose in the settings is the one the page starts from."""
+
+    ITEMS = [
+        {"id": "own", "summary": "me@example.org", "primary": True, "accessRole": "owner"},
+        {"id": "fam", "summary": "Famille", "accessRole": "owner"},
+    ]
+
+    async def test_the_chosen_default_is_named_whatever_its_case(self) -> None:
+        client = MagicMock(list_calendars=AsyncMock(return_value={"items": self.ITEMS}))
+        with _door(client, GOOGLE, preferred="  famille "):
+            listed = await calendar_service.list_calendars(USER)
+
+        assert [item.id for item in listed.calendars if item.default] == ["fam"]
+
+    async def test_nothing_is_the_default_when_nothing_was_chosen(self) -> None:
+        client = MagicMock(list_calendars=AsyncMock(return_value={"items": self.ITEMS}))
+        with _door(client, GOOGLE):
+            listed = await calendar_service.list_calendars(USER)
+
+        assert not any(item.default for item in listed.calendars)
+
+    async def test_a_chosen_name_no_calendar_holds_names_none(self) -> None:
+        client = MagicMock(list_calendars=AsyncMock(return_value={"items": self.ITEMS}))
+        with _door(client, GOOGLE, preferred="Travail"):
+            listed = await calendar_service.list_calendars(USER)
+
+        assert not any(item.default for item in listed.calendars)
 
 
 class TestTheWindow:
@@ -254,6 +335,282 @@ def _new(**overrides: Any) -> NewEvent:
         **overrides,
     }
     return NewEvent.model_validate(body)
+
+
+class TestTheSearch:
+    @staticmethod
+    def _event(event_id: str, day: str) -> dict[str, Any]:
+        return {
+            "id": event_id,
+            "summary": f"Event {event_id}",
+            "start": {"date": day},
+            "end": {"date": day},
+        }
+
+    async def test_every_calendar_is_asked_and_the_answer_reads_in_time_order(self) -> None:
+        answers = {
+            "work": {"items": [self._event("late", "2026-12-01")]},
+            "home": {"items": [self._event("early", "2026-11-01")]},
+        }
+
+        async def list_events(**kwargs: Any) -> dict[str, Any]:
+            return answers[kwargs["calendar_id"]]
+
+        client = MagicMock(list_events=AsyncMock(side_effect=list_events))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            found = await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work", "home"])
+            )
+
+        assert [event.id for event in found.events] == ["early", "late"]
+        assert found.events[0].calendar_id == "home"
+        assert found.failed == []
+        assert client.list_events.await_args.kwargs["query"] == "budget"
+
+    async def test_it_searches_a_year_on_each_side_of_today(self) -> None:
+        client = MagicMock(list_events=AsyncMock(return_value={"items": []}))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work"])
+            )
+
+        asked = client.list_events.await_args.kwargs
+        days = datetime.fromisoformat(asked["time_max"]) - datetime.fromisoformat(asked["time_min"])
+        assert 2 * 365 - 2 <= days.days <= 2 * 366 + 2
+
+    async def test_a_calendar_that_fails_is_named_and_the_others_still_answer(self) -> None:
+        async def list_events(**kwargs: Any) -> dict[str, Any]:
+            if kwargs["calendar_id"] == "work":
+                raise ConnectorAPIError(connector_type="x", status_code=500, detail="x")
+            return {"items": [self._event("e1", "2026-11-01")]}
+
+        client = MagicMock(list_events=AsyncMock(side_effect=list_events))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            found = await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work", "home"])
+            )
+
+        assert [event.id for event in found.events] == ["e1"]
+        assert found.failed == ["work"]
+
+    async def test_a_search_where_every_calendar_fails_is_the_refusal(self) -> None:
+        client = MagicMock(
+            list_events=AsyncMock(
+                side_effect=ConnectorAPIError(connector_type="x", status_code=500, detail="x")
+            )
+        )
+        with _door(client, ConnectorType.GOOGLE_CALENDAR), pytest.raises(BaseAPIException):
+            await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work"])
+            )
+
+    async def test_the_answer_is_cut_at_its_bound_and_says_so(self) -> None:
+        many = [
+            self._event(f"e{n}", f"2026-11-{n + 1:02d}")
+            for n in range(WORKBENCH_EVENT_SEARCH_MAX - 1)
+        ]
+        client = MagicMock(list_events=AsyncMock(return_value={"items": many}))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            found = await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work", "home"])
+            )
+
+        assert len(found.events) == WORKBENCH_EVENT_SEARCH_MAX
+        assert found.truncated is True
+
+    async def test_a_cancelled_event_is_no_answer(self) -> None:
+        cancelled = {**self._event("e1", "2026-11-01"), "status": "cancelled"}
+        client = MagicMock(list_events=AsyncMock(return_value={"items": [cancelled]}))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            found = await calendar_service.search_events(
+                USER, PARIS, EventSearchQuery(q="budget", calendar_ids=["work"])
+            )
+
+        assert found.events == []
+
+    @pytest.mark.parametrize("words", ["", "   ", "x" * (WORKBENCH_MAIL_QUERY_MAX_CHARS + 1)])
+    def test_words_are_read_before_anything_is_sent(self, words: str) -> None:
+        with pytest.raises(ValidationError):
+            EventSearchQuery(q=words, calendar_ids=["work"])
+
+
+class TestTheOptions:
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ({"reminderMinutes": 30}, 30),
+            ({"reminders": {"overrides": [{"method": "popup", "minutes": 10}]}}, 10),
+            ({"reminders": {"overrides": [{"minutes": 10}, {"minutes": 60}]}}, 60),
+            ({"reminders": {"useDefault": True}}, None),
+            ({}, None),
+        ],
+    )
+    async def test_a_reminder_reads_the_same_on_every_provider(
+        self, raw: dict[str, Any], expected: int | None
+    ) -> None:
+        event = {"id": "e1", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}, **raw}
+        client = MagicMock(get_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            detail = await calendar_service.read_event(USER, "primary", "e1")
+
+        assert detail.reminder_minutes == expected
+
+    @pytest.mark.parametrize(
+        ("raw", "busy", "private"),
+        [
+            ({}, True, False),
+            ({"transparency": "transparent"}, False, False),
+            ({"visibility": "private"}, True, True),
+        ],
+    )
+    async def test_busy_and_private_read_in_the_one_vocabulary(
+        self, raw: dict[str, Any], busy: bool, private: bool
+    ) -> None:
+        event = {"id": "e1", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}, **raw}
+        client = MagicMock(get_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            detail = await calendar_service.read_event(USER, "primary", "e1")
+
+        assert (detail.busy, detail.private) == (busy, private)
+
+    async def test_a_change_carries_what_the_form_said(self) -> None:
+        event = {"id": "e1", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}}
+        client = MagicMock(update_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            await calendar_service.update_event(
+                USER,
+                EventChange(
+                    calendar_id="c1",
+                    event_id="e1",
+                    reminder_minutes=15,
+                    busy=False,
+                    conference=True,
+                ),
+            )
+
+        kwargs = client.update_event.await_args.kwargs
+        assert kwargs["options"] == EventOptions(reminder_minutes=15, busy=False)
+        assert kwargs["add_conference"] is True
+
+    async def test_a_call_is_refused_unsent_where_the_provider_has_none(self) -> None:
+        client = MagicMock(update_event=AsyncMock())
+        with (
+            _door(client, ConnectorType.APPLE_CALENDAR),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await calendar_service.update_event(
+                USER, EventChange(calendar_id="c1", event_id="e1", conference=True)
+            )
+
+        assert refused.value.detail["code"] == "not_supported_by_provider"
+        client.update_event.assert_not_awaited()
+
+    @pytest.mark.parametrize("minutes", [-2, WORKBENCH_EVENT_REMINDER_MAX_MINUTES + 1])
+    def test_a_reminder_past_its_bounds_is_refused(self, minutes: int) -> None:
+        with pytest.raises(ValidationError):
+            EventChange(calendar_id="c1", event_id="e1", reminder_minutes=minutes)
+
+
+class TestTheEventsOwnZone:
+    """The zone an event was set in, read on every provider; never a zone nobody chose."""
+
+    _AT = "2026-11-05T09:00:00+00:00"
+
+    @pytest.mark.parametrize(
+        ("zone", "own", "expected"),
+        [
+            # Google and CalDAV say it on the times.
+            ("America/New_York", None, "America/New_York"),
+            # Graph says it beside them, its times being in UTC.
+            ("UTC", "Asia/Tokyo", "Asia/Tokyo"),
+            # UTC is how a provider keeps an instant: nobody chose it.
+            ("UTC", None, None),
+            ("UTC", "Etc/UTC", None),
+            ("GMT", None, None),
+            # What no zone table holds is said by nobody.
+            ("Custom/Somewhere", None, None),
+            ("UTC", "tzone://Microsoft/Custom", None),
+            (None, None, None),
+        ],
+    )
+    async def test_it_is_read_on_every_provider(
+        self, zone: str | None, own: str | None, expected: str | None
+    ) -> None:
+        start = {"dateTime": self._AT, **({"timeZone": zone} if zone else {})}
+        event = {"id": "e1", "start": start, "end": start, **({"ownZone": own} if own else {})}
+        client = MagicMock(get_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            detail = await calendar_service.read_event(USER, "primary", "e1")
+
+        assert detail.zone == expected
+
+    @pytest.mark.parametrize("own", [{}, {"ownZone": "Asia/Tokyo"}])
+    async def test_a_day_has_no_zone(self, own: dict[str, str]) -> None:
+        """Graph keeps ``originalStartTimeZone`` on an all-day event too."""
+        event = {"id": "e1", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}, **own}
+        client = MagicMock(get_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            detail = await calendar_service.read_event(USER, "primary", "e1")
+
+        assert detail.zone is None
+
+
+class TestTheInvitation:
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            # Google marks the person's own attendee.
+            (
+                {"attendees": [{"email": "a@x", "self": True, "responseStatus": "tentative"}]},
+                "tentative",
+            ),
+            ({"attendees": [{"email": "a@x", "self": True}]}, "needsAction"),
+            # Graph says it of the event.
+            ({"myResponse": "declined"}, "declined"),
+            # An event the person organises, or that does not name them, has nothing to answer.
+            (
+                {
+                    "organizer": {"self": True},
+                    "attendees": [{"email": "a@x", "self": True, "responseStatus": "accepted"}],
+                },
+                None,
+            ),
+            ({"attendees": [{"email": "a@x", "responseStatus": "accepted"}]}, None),
+            ({}, None),
+        ],
+    )
+    async def test_what_the_person_answered_is_read_on_every_provider(
+        self, raw: dict[str, Any], expected: str | None
+    ) -> None:
+        event = {"id": "e1", "start": {"date": "2026-11-05"}, "end": {"date": "2026-11-06"}, **raw}
+        client = MagicMock(get_event=AsyncMock(return_value=event))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            detail = await calendar_service.read_event(USER, "primary", "e1")
+
+        assert detail.my_response == expected
+
+    async def test_an_answer_reaches_the_client_as_the_person_gave_it(self) -> None:
+        client = MagicMock(respond_to_event=AsyncMock(return_value={}))
+        with _door(client, ConnectorType.GOOGLE_CALENDAR):
+            await calendar_service.answer_event(
+                USER,
+                EventInvitationAnswer(calendar_id="cal", event_id="e1", response="tentative"),
+            )
+
+        client.respond_to_event.assert_awaited_once_with("e1", "tentative", "cal")
+
+    async def test_nothing_to_answer_is_refused(self) -> None:
+        client = MagicMock(respond_to_event=AsyncMock(side_effect=NotInvitedError()))
+        with (
+            _door(client, ConnectorType.GOOGLE_CALENDAR),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await calendar_service.answer_event(
+                USER,
+                EventInvitationAnswer(calendar_id="cal", event_id="e1", response="accepted"),
+            )
+
+        assert refused.value.detail["code"] == "invalid_request"
 
 
 class TestACreate:

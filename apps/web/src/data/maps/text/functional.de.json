@@ -157,39 +157,39 @@
     },
     "f.connectors": {
       "name": "Konnektoren und Werkzeuge",
-      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein einziger Einwilligungsablauf pro Anbieter, ein aktiver Anbieter pro Kategorie. Dienste ohne Schlüssel schaltet der Administrator für alle frei. Öffne Werkzeuge, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Hue-Leuchten nutzen Deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.",
+      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein Zustimmungsweg je Anbieter, ein aktiver Anbieter je Kategorie, auch für Dateien: Google Drive oder OneDrive. Schlüssellose Dienste schaltet der Administrator für alle frei. In Tools handelst du selbst, ohne KI-Aufruf, bei Mails, Kalender, Aufgaben, Kontakten, Dateien und Hue-Lampen: Jeder Bildschirm bietet, was sein Anbieter kann, eine Suche durchläuft alle, und deine Handgriffe bleiben außerhalb der Register von LIA.",
       "goal": "Deine echten Konten einmal verbinden, und sie bleiben verbunden.",
-      "src": "7819084f0780"
+      "src": "2893800457d4"
     },
     "f.mail": {
       "name": "E-Mails",
-      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten, Anhänge lesen und die Entwürfe deines Postfachs führen — an andere wird immer erst nach einer Bestätigung gesendet; eine E-Mail an dich selbst geht direkt hinaus. Optionale JEV-Kategorien und Prioritäten bleiben Hinweise und erreichen auch LIA; Unsicherheit bleibt ohne Kennzeichen.",
+      "role": "Bereinigte E-Mails lesen, einmal zusammenfassen, suchen, schreiben, antworten, ordnen, Anhänge lesen, einer Unterhaltung folgen und die Entwürfe deines Postfachs führen — der Versand an andere läuft immer über eine Bestätigung; eine E-Mail an dich selbst geht direkt hinaus. Die optionalen JEV-Kategorien und -Prioritäten bleiben beratend und erreichen auch die Assistentin; im Zweifel erscheint kein Abzeichen.",
       "goal": "Dein Postfach in ein paar Sätzen abarbeiten.",
-      "src": "b553d3afc253"
+      "src": "bf27a5568c84"
     },
     "f.calendar": {
       "name": "Kalender",
-      "role": "Termine ansehen, suchen, erstellen, verschieben und löschen, mit Gästen, Erinnerungen und Zeitzonen. Optionale berufliche/private Bewertungen gelten für Anzeige und LIA gleichermaßen, mit Enthaltung bei Unsicherheit.",
+      "role": "Termine ansehen, suchen, erstellen, verschieben und löschen, mit Gästen, Erinnerungen, Zeitzonen und Wiederholungen, und auf eine Einladung antworten. Die optionale Einordnung beruflich/privat teilen sich Anzeige und Assistentin, im Zweifel wird darauf verzichtet.",
       "goal": "Deine Zeit organisieren, indem du einfach sprichst.",
-      "src": "b8fd0be7b2e3"
+      "src": "d2db069ee962"
     },
     "f.contacts": {
       "name": "Kontakte",
-      "role": "Jemanden wiederfinden, mit Kontaktdaten und Geburtstagen, einen Eintrag anlegen oder aktualisieren.",
+      "role": "Jemanden finden, seine Kontaktdaten, Gruppen und Geburtstage, einen Eintrag erstellen oder aktualisieren, mit Foto und vCard.",
       "goal": "Wissen, wen du meinst, wenn du „schreib Marie“ sagst.",
-      "src": "620b9e7a0222"
+      "src": "23beb21905d1"
     },
     "f.tasks": {
       "name": "Aufgaben",
-      "role": "Deine Aufgabenlisten bei deinem Anbieter: hinzufügen, abhaken, verschieben, wiederfinden.",
+      "role": "Deine Aufgabenlisten bei deinem Anbieter: hinzufügen, abhaken, verschieben, wiederfinden, und auf einen Blick sehen, was heute ansteht, überfällig oder demnächst dran ist.",
       "goal": "Nichts vergessen von dem, was noch zu tun ist.",
-      "src": "622330403b7b"
+      "src": "1a047bacb0bd"
     },
     "f.drive": {
       "name": "Dateien",
-      "role": "Deine Online-Dateien durchsuchen und lesen und einen ganzen Ordner — samt Unterordnern — mit einem Wissensraum verknüpfen.",
+      "role": "Deine Dateien auf Google Drive oder OneDrive suchen, lesen und ordnen, sie nach einer Karte teilen und einen ganzen Ordner — Unterordner inklusive — mit einem Wissensraum verknüpfen.",
       "goal": "Ein Dokument über seinen Inhalt wiederfinden.",
-      "src": "ec74d6fcf071"
+      "src": "05f47c0d9b15"
     },
     "f.places": {
       "name": "Orte, Wege und Wetter",
@@ -229,9 +229,9 @@
     },
     "f.documents": {
       "name": "Erzeugte Dokumente",
-      "role": "Word-Berichte, PowerPoint-Präsentationen, Excel-Arbeitsmappen und PDFs, von der Rendering-Engine gesetzt, ohne Überlauf; eine Galerie bewahrt deine Dateien auf.",
+      "role": "Word-Berichte, PowerPoint-Präsentationen, Excel-Arbeitsmappen und PDFs, von der Rendering-Engine ohne Überlauf gesetzt; eine Galerie bewahrt deine Dateien auf. Ein Spiel, ein Quiz oder ein Rechner, um den du bittest, läuft im Chat, in einem versiegelten Rahmen, mit seiner .html-Datei.",
       "goal": "Aus einer Recherche ein sauberes Ergebnis machen.",
-      "src": "40eb00fb8abe"
+      "src": "f712529a36af"
     },
     "f.images": {
       "name": "Erzeugte Bilder",

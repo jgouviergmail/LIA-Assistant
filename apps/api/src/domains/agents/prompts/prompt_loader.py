@@ -314,6 +314,8 @@ PromptName = Literal[
     "voice_expressive_cues_lines",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation_prompt",
+    # Interactive pages (ADR-370), read by path in `interactive_pages/prompts.py`.
+    "interactive_page_prompt",
     "email_digest_prompt",
     # Image prompt enhancement — an optional rewrite before the image model (ADR-315)
     "image_prompt_enhancement_prompt",

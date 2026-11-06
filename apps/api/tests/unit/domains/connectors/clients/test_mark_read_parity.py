@@ -22,7 +22,10 @@ import pytest
 
 from src.domains.connectors.clients.apple_email_client import AppleEmailClient
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
-from src.domains.connectors.clients.mail_read_state import READ_STATE_NOT_FOUND
+from src.domains.connectors.clients.mail_read_state import (
+    READ_STATE_NOT_FOUND,
+    READ_STATE_UNANSWERED,
+)
 from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
 from src.domains.connectors.schemas import AppleCredentials, ConnectorCredentials
 from tests.unit.domains.connectors.clients.imap_fakes import FakeImap
@@ -141,8 +144,22 @@ class TestOutlook:
     async def test_an_authorisation_failure_is_raised_as_itself(
         self, client: MicrosoftOutlookClient
     ) -> None:
-        """A TaskGroup raises an ExceptionGroup even for one failure: unwrapped, the
-        refusal stays classifiable by its type (reconnect), never an opaque group."""
+        """With nothing done, the refusal stays classifiable by its type (reconnect)."""
+        from src.core.exceptions import ConnectorTokenExpiredError
+
+        async def answer(method: str, endpoint: str, **kwargs: Any) -> dict[str, Any]:
+            raise ConnectorTokenExpiredError("reconnect", "microsoft_outlook")
+
+        with (
+            patch.object(client, "_make_request", AsyncMock(side_effect=answer)),
+            pytest.raises(ConnectorTokenExpiredError),
+        ):
+            await client.mark_read(["o1", "o2", "o3"], True)
+
+    async def test_a_failure_after_one_was_marked_hides_nothing(
+        self, client: MicrosoftOutlookClient
+    ) -> None:
+        """A refusal would hide the messages already marked: the rest are unanswered."""
         from src.core.exceptions import ConnectorTokenExpiredError
 
         async def answer(method: str, endpoint: str, **kwargs: Any) -> dict[str, Any]:
@@ -150,11 +167,16 @@ class TestOutlook:
                 raise ConnectorTokenExpiredError("reconnect", "microsoft_outlook")
             return {}
 
-        with (
-            patch.object(client, "_make_request", AsyncMock(side_effect=answer)),
-            pytest.raises(ConnectorTokenExpiredError),
-        ):
-            await client.mark_read(["o1", "o2", "o3"], True)
+        with patch.object(client, "_make_request", AsyncMock(side_effect=answer)):
+            result = await client.mark_read(["o1", "o2", "o3"], True)
+
+        assert result == {
+            "updated": ["o1"],
+            "failed": [
+                {"id": "o2", "status": READ_STATE_UNANSWERED},
+                {"id": "o3", "status": READ_STATE_UNANSWERED},
+            ],
+        }
 
     async def test_an_id_is_quoted_into_the_path(self, client: MicrosoftOutlookClient) -> None:
         recorder = _Recorder(lambda request: httpx.Response(200, json={}))
@@ -260,7 +282,7 @@ class TestGmailIdsNeverShapeAPath:
     """Cold review of L2: trash, restore and delete used the id raw in the URL path —
     an id from a browser or a model must never name another endpoint."""
 
-    @pytest.mark.parametrize("act", ["trash_email", "untrash_email", "delete_email_permanently"])
+    @pytest.mark.parametrize("act", ["trash_email", "untrash_email"])
     async def test_a_malformed_id_names_no_message_and_sends_nothing(self, act: str) -> None:
         from src.core.exceptions import ConnectorAPIError
 

@@ -3,8 +3,8 @@
 > Erfahrungsbericht — ein vollständiges System, vom Entwurf bis zur Produktion.
 
 **Version**: 3.0
-**Datum**: 2026-11-01
-**Anwendung**: LIA v4.3.0
+**Datum**: 2026-11-06
+**Anwendung**: LIA v4.4.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Fast der gesamte Code wurde von einer KI geschrieben. Meine Arbeit bestand darin
 | Indikator | Wert |
 | --- | --- |
 | Code, geschrieben von einer KI, die geführt, in einen Rahmen eingebunden und kontrolliert wurde | **≈ 100 %** |
-| Quellcodezeilen (ohne Tests), verteilt auf 60 Backend-Domänenpakete | **1.092.074** |
-| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **72.137** |
-| Dokumentierte Architekturentscheidungen (ADR) | **367** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **293** |
+| Quellcodezeilen (ohne Tests), verteilt auf 61 Backend-Domänenpakete | **1.130.379** |
+| Inventarisierte automatisierte Tests, in Suiten passend zu Commit und Release | **76.381** |
+| Dokumentierte Architekturentscheidungen (ADR) | **368** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **294** |
 | Sprachen, mit automatisch geprüfter Parität | **6** |
 | Technisches Audit über 24 Bereiche | **7,9/10** |
 
@@ -37,7 +37,7 @@ LIA kann auch von sich aus ein persönliches Gespräch beginnen, aber nur zu den
 
 Generative KI verändert, was Teams produzieren, und auch, wie sie es produzieren. Zu beiden Fragen wollte ich mir keine Meinung aus dem bilden, was der Markt erzählt. Ich habe mich lieber selbst der ganzen Realität eines KI-Systems in Produktion gestellt, mit seinen Kosten, seinen Risiken, seinem Betrieb und seinen technischen Schulden, und ebenso der Realität KI-gestützter Entwicklung, und beides bis zum Ende durchgezogen.
 
-Mein Übungsfeld ist LIA, ein konversationeller Multi-Agenten-KI-Assistent, selbst gehostet und mehrsprachig. Sie verwaltet E-Mails, Kalender, Kontakte und Dateien bei Google, Apple und Microsoft, bietet eine Echtzeit-Sprachschnittstelle, ein Langzeitgedächtnis und die Suche in Dokumenten, und eine animierte Figur verkörpert sie.
+Mein Übungsfeld ist LIA, ein konversationeller Multi-Agenten-KI-Assistent, selbst gehostet und mehrsprachig. Sie verwaltet E-Mails, Kalender und Kontakte bei Google, Apple und Microsoft, Dateien auf Google Drive und OneDrive, bietet eine Echtzeit-Sprachschnittstelle, ein Langzeitgedächtnis und die Suche in Dokumenten, und eine animierte Figur verkörpert sie.
 
 Ich habe mir Einschränkungen auferlegt: allein arbeiten, außerhalb meiner Arbeitszeit, mit minimalem Hardwarebudget, und die gesamte Entwicklung der KI überlassen. Dieses Projekt misst also nicht, wie schnell ein Mensch etwas produzieren kann. Es misst, was eine anspruchsvolle Führung von einer KI bekommt, der man den richtigen Rahmen gesetzt hat.
 
@@ -64,7 +64,7 @@ Die gemeinsame Welt gibt der Assistentin Orte: eine Bibliothek für das Wissen, 
 
 Ein Assistent sollte auch Raum lassen, Dinge selbst zu erledigen. Werkzeuge nutzt dieselben verbundenen Dienste, doch ein Klick ruft kein Modell auf und zählt nicht als LIAs Handlung. Delegation und direkte Kontrolle können eine Oberfläche teilen, solange erkennbar bleibt, wer entschieden, wer gehandelt und was genehmigt wurde.
 
-Hier sind drei strukturelle Entscheidungen, unter den 367 dokumentierten.
+Hier sind drei strukturelle Entscheidungen, unter den 368 dokumentierten.
 
 Die erste betrifft die **Souveränität**: Ich wollte keine irreversible Abhängigkeit von einem Anbieter. Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity und lokale Modelle über Ollama) laufen alle über dieselbe Abstraktion, sodass sich für jeden Einsatzzweck der Anbieter per einfacher Konfiguration wechseln lässt, mit Kostenvergleich. Bei den Diensten sind Google, Apple und Microsoft in jeder Kategorie austauschbar, ob E-Mail, Kalender oder Kontakte. Selbsthosting gibt die Kontrolle über den Server: Die Kontodaten liegen auf der Instanz, und die Zugangsdaten der Konnektoren sind verschlüsselt. Die externen Dienste, die die Person wählt, erhalten trotzdem die Daten, die sie für ihren Teil der Anfrage brauchen.
 
@@ -76,7 +76,7 @@ Die dritte betrifft die **Risikobeherrschung**: keine irreversible Aktion ohne m
 
 Am Telefon dient die Bestätigungskarte dem Schutz eines Dritten. Wenn LIA die Person selbst anruft, auf einer Nummer, die sie angegeben und mit einem vorgelesenen Code bestätigt hat, übernimmt die Person selbst die Rolle der Karte. Für ihre Anrufe, wie für eine Live-Sprachsitzung im Browser mit ihrem eigenen Gemini-, OpenAI- oder ElevenLabs-Schlüssel, wählt sie den Modus: Entweder reicht die Stimme jede Bitte an den Chat weiter, sobald sie ausgesprochen ist, mit dessen Bestätigungen, oder sie schlägt selbst nach und führt keine Aktion aus. Was über ihren persönlichen Schlüssel läuft, rechnet der Anbieter ab, und es wird einmal angezeigt, aber hier nicht gezählt. Was die Plattform für sie bezahlt, wird dagegen auf ihrem Konto verbucht, welchen Weg es auch nimmt: eine Kartenabfrage während eines Anrufs, das Wetter des Briefings, ein gezeigtes Foto.
 
-Was ein Unbekannter schickt, eine E-Mail oder ihr Anhang, wird als Daten gelesen und nie als Anweisung befolgt. Ein Skript, das die Assistentin schreibt, gelangt nur durch eine einzige Tür ins Web, und die Schlüssel der Person werden dort außerhalb der Reichweite des Skripts eingetauscht; bei einer Website, die niemand erlaubt hat, fragt LIA zuerst die Person, die drei mögliche Antworten hat: mit den Daten, ohne sie oder gar nicht. Wenn der autonome Agent nicht bekommt, worum man ihn gebeten hat, sagt er es, mit dem, was er versucht hat, statt die Lücke zu füllen. Was exakt sein muss, etwa ein Betrag, eine Dauer oder eine Umrechnung, wird von einem Werkzeug berechnet, nie vom Modell geschätzt. Was ohne Bestätigung hinausgeht, richtet sich nur an die Person selbst, eine E-Mail an sich selbst oder ein Anruf auf die eigene bestätigte Nummer: Der Empfänger ist dort kein Parameter, also kann ihn nichts umleiten. Ein Skill, der anderswo geschrieben wurde, aus einer öffentlichen Bibliothek oder einem Plugin, arbeitet abgeschirmt: Er greift nie auf die Konnektoren der Person zu und erreicht nur erlaubte Hosts. Und ein Skill, den die KI schreibt, gelangt erst in den Bereich der Person, wenn diese klickt.
+Was ein Unbekannter schickt, eine E-Mail oder ihr Anhang, wird als Daten gelesen und nie als Anweisung befolgt. Ein Skript, das die Assistentin schreibt, gelangt nur durch eine einzige Tür ins Web, und die Schlüssel der Person werden dort außerhalb der Reichweite des Skripts eingetauscht; bei einer Website, die niemand erlaubt hat, fragt LIA zuerst die Person, die drei mögliche Antworten hat: mit den Daten, ohne sie oder gar nicht. Eine Seite, die sie schreibt, läuft in einem Rahmen, der weder das Konto der Person noch eine selbst gewählte Website erreicht. Wenn der autonome Agent nicht bekommt, worum man ihn gebeten hat, sagt er es, mit dem, was er versucht hat, statt die Lücke zu füllen. Was exakt sein muss, etwa ein Betrag, eine Dauer oder eine Umrechnung, wird von einem Werkzeug berechnet, nie vom Modell geschätzt. Was ohne Bestätigung hinausgeht, richtet sich nur an die Person selbst, eine E-Mail an sich selbst oder ein Anruf auf die eigene bestätigte Nummer: Der Empfänger ist dort kein Parameter, also kann ihn nichts umleiten. Ein Skill, der anderswo geschrieben wurde, aus einer öffentlichen Bibliothek oder einem Plugin, arbeitet abgeschirmt: Er greift nie auf die Konnektoren der Person zu und erreicht nur erlaubte Hosts. Und ein Skill, den die KI schreibt, gelangt erst in den Bereich der Person, wenn diese klickt.
 
 ## 5. Der Betrieb
 
@@ -118,4 +118,4 @@ Hier ist, was diese Erfahrung an meiner Art zu führen ändert.
 - Zwischen generellem Verbot und blindem Vertrauen gibt es einen **steuerbaren Weg**. Abgestufte menschliche Kontrolle lässt sich spezifizieren, testen und auditieren. Auf diesen Ansatz laufen die regulatorischen Anforderungen zu, und er ist schon jetzt einsatzbereit.
 - Eine Führungskraft, die selbst praktiziert, **entscheidet besser**. Selbst machen oder machen lassen, technische Schulden in Kauf nehmen oder nicht, dem Versprechen eines Anbieters glauben oder nicht: Diese Entscheidungen werden treffsicherer, wenn man die Materie selbst erprobt hat. Dieses Projekt ist meine Art, diesen Kontakt zur Praxis zu halten.
 
-*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit vom 25. Oktober 2026, Befunde gegengeprüft. Die strukturellen Zahlen folgen dem Repository; die Quellcodezeilen wurden am 31. Oktober 2026 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Persönliches Projekt, außerhalb jeder beruflichen Tätigkeit durchgeführt. Technische Bewertung aus dem Audit vom 25. Oktober 2026, Befunde gegengeprüft. Die strukturellen Zahlen folgen dem Repository; die Quellcodezeilen wurden am 6. November 2026 erneut gemessen. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

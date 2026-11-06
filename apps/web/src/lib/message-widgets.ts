@@ -24,7 +24,8 @@ type PersistedWidgets = Record<string, RegistryItem>;
  * Collect every widget persisted on the given messages.
  *
  * @param messages - Messages currently displayed (history + live).
- * @returns A registry map, empty when no message carries a widget.
+ * @returns A registry map, empty when no message carries a widget. Each item says
+ *   it was `restored`: a page only runs by itself in the turn that made it.
  */
 export function collectHistoryWidgets(messages: readonly Message[]): PersistedWidgets {
   const collected: PersistedWidgets = {};
@@ -32,7 +33,7 @@ export function collectHistoryWidgets(messages: readonly Message[]): PersistedWi
     const widgets = message.metadata?.widgets as PersistedWidgets | undefined;
     if (!widgets || typeof widgets !== 'object') continue;
     for (const [id, item] of Object.entries(widgets)) {
-      if (item && typeof item === 'object') collected[id] = item;
+      if (item && typeof item === 'object') collected[id] = { ...item, restored: true };
     }
   }
   return collected;

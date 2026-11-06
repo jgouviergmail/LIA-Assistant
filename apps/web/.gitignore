@@ -59,3 +59,5 @@ certificates
 /public/models/whisper-small/
 # ONNX Runtime Web's WASM binary, copied from the pinned package (scripts/copy-ort-runtime.mjs)
 /public/ort/
+# PDF.js's worker and data, derived from the lockfile (scripts/copy-pdf-runtime.mjs).
+/public/pdfjs/

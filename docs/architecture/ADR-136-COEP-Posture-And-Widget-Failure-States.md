@@ -126,8 +126,10 @@ charge de 205 ko avec JSON inline et canvas se rend correctement. Un widget
 tiers qui meurt au démarrage laissait pourtant un rectangle opaque — que
 l'événement `load` ne peut pas voir. La poignée de main, si.
 
-Le fond de la frame MCP passe aussi en `transparent` : `--lia-bg` en mode sombre
-donnait un **rectangle noir** plutôt qu'une zone visiblement vide.
+Le fond de la frame MCP passe aussi en `transparent` : en mode sombre elle montrait
+un **rectangle noir** plutôt qu'une zone visiblement vide. (Rectifié le 2026-11-05 :
+ce paragraphe en accusait `--lia-bg`, qui n'a jamais été défini et se résolvait donc à
+`transparent` ; la cause de ce rectangle n'est pas établie.)
 
 **La notice MCP est non destructive**, et c'est délibéré. Pour une frame de skill
 qui n'a jamais chargé, il n'y a rien à préserver : le repli remplace l'iframe.

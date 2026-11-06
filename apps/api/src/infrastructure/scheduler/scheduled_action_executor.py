@@ -79,6 +79,7 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     conversation_has_pending_hitl,
     interrupt_log_facts,
     stream_instruction,
+    unattended_turn_seconds,
     worst_case_run_seconds,
 )
 
@@ -650,7 +651,7 @@ async def _run_pipeline(
             timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
             display_name=resolve_user_display_name(user.full_name, user.email),
             display_mode=getattr(user, "response_display_mode", None) or "cards",
-            timeout_seconds=settings.scheduled_actions_execution_timeout_seconds,
+            timeout_seconds=_attempt_bound_seconds(),
             max_attempts=SCHEDULED_ACTIONS_MAX_RETRIES + 1,
             retry_delay_seconds=SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
             # The ROUTINE's own choice (the loop by default): nobody is there
@@ -850,6 +851,15 @@ async def _close_finished_routines() -> int:
         return 0
 
 
+def _attempt_bound_seconds() -> int:
+    """How long one attempt of a routine may last, read by its run and its recovery.
+
+    Returns:
+        The bound, in seconds.
+    """
+    return unattended_turn_seconds(settings.scheduled_actions_execution_timeout_seconds)
+
+
 def _reservation_lifetime_seconds() -> int:
     """How long a live tick may hold its reservation: the recovery's threshold.
 
@@ -865,7 +875,7 @@ def _reservation_lifetime_seconds() -> int:
     return max(
         settings.scheduled_actions_stale_timeout_minutes * 60,
         worst_case_run_seconds(
-            settings.scheduled_actions_execution_timeout_seconds,
+            _attempt_bound_seconds(),
             SCHEDULED_ACTIONS_MAX_RETRIES + 1,
             SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
         ),

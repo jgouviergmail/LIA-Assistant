@@ -15,10 +15,13 @@ import type { ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { fileWord } from '@/lib/workbench/files-words';
 import type { WorkbenchFileDetail } from '@/lib/workbench/types';
 
 export interface BreadcrumbProps {
   lng: Language;
+  /** The connector serving the tool: the top of the drive is named after it. */
+  provider?: string | null;
   /** The open folder; null at My Drive. */
   folderId: string | null;
   /** Its detail, once read. */
@@ -26,7 +29,7 @@ export interface BreadcrumbProps {
   hrefOf: (folderId: string | null) => string;
 }
 
-export function Breadcrumb({ lng, folderId, folder, hrefOf }: BreadcrumbProps) {
+export function Breadcrumb({ lng, provider, folderId, folder, hrefOf }: BreadcrumbProps) {
   const { t } = useTranslation(lng);
   const crumbs: ReactNode[] = [];
   if (folder && (folder.ancestors_truncated || !folder.in_my_drive)) {
@@ -61,11 +64,11 @@ export function Breadcrumb({ lng, folderId, folder, hrefOf }: BreadcrumbProps) {
         <li className="min-w-0">
           {folderId ? (
             <Link href={hrefOf(null)} className={LINK}>
-              {t('workbench.files.my_drive')}
+              {t(fileWord(provider, 'my_drive'))}
             </Link>
           ) : (
             <span aria-current="page" className="font-medium text-foreground">
-              {t('workbench.files.my_drive')}
+              {t(fileWord(provider, 'my_drive'))}
             </span>
           )}
         </li>

@@ -135,6 +135,13 @@ jobs:
       # Measured before flipping it: 0 findings at every severity on 2026-07-25,
       # so this cannot break the build on existing debt.
       #
+      # It blocks on every finding, not on a threshold: for a SARIF report the
+      # action drops `severity` unless `limit-severities-for-sarif` is true, and
+      # `exit-code` answers to what is left, whatever the severity, with or
+      # without a fix, secrets included (a default scanner of `trivy fs`). A
+      # `severity` here would read as a bound and bound nothing, so the step
+      # states none. Held by apps/api/tests/unit/test_trivy_install_guard.py.
+      #
       # What Trivy actually reads here is `apps/api/requirements.txt` (the
       # intent manifest) and `pnpm-lock.yaml` with dev dependencies excluded —
       # both narrower than what ships. That is deliberate rather than
@@ -149,7 +156,6 @@ jobs:
           scan-ref: "."
           format: sarif
           output: trivy-results.sarif
-          severity: CRITICAL,HIGH
           exit-code: "1"
           skip-setup-trivy: "true"
 

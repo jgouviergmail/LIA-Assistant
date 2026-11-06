@@ -209,12 +209,14 @@ describe('birthday action (QW-24)', () => {
 
 describe('document actions (QW-24)', () => {
   const DOCS_SECTION = section({
+    provider: null,
     items: [
       {
         name: 'Rapport T2.pdf',
         modified_local: 'hier 18:02',
         web_view_link: 'https://drive.example/x',
         mime_type: 'application/pdf',
+        path: null,
       },
     ],
   });
@@ -255,12 +257,14 @@ describe('document actions (QW-24)', () => {
       <DocumentsCard
         {...cardProps}
         section={section({
+          provider: null,
           items: [
             {
               name: 'Local.txt',
               modified_local: 'hier',
               web_view_link: null,
               mime_type: 'text/plain',
+              path: null,
             },
           ],
         })}

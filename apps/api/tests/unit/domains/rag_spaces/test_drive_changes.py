@@ -112,7 +112,11 @@ def test_the_bounds_come_from_the_settings() -> None:
 
 def _route(folder_id: str, folder_ids: tuple[str, ...] = ()) -> SourceRoute:
     return SourceRoute(
-        id=uuid.uuid4(), space_id=uuid.uuid4(), folder_id=folder_id, folder_ids=folder_ids
+        id=uuid.uuid4(),
+        space_id=uuid.uuid4(),
+        provider="google_drive",
+        folder_id=folder_id,
+        folder_ids=folder_ids,
     )
 
 

@@ -13,6 +13,8 @@ reconnected for a live measurement — ADR-344 says so):
 * only a draft's body and recipients can be changed, so every operation on a
   handle first checks that it designates a draft still in the Drafts folder —
   a received message's id must never be edited, trashed or sent as a draft;
+* a file is a resource of its own, joined and removed one call at a time, each
+  moving the draft's ``changeKey``: the answer reads the draft after the last;
 * a query is ONE request Graph accepts (``graph_mail_query``): a search keeps
   its terms and the dates are checked on its page, a filter is led by the last
   save (``InefficientFilter`` otherwise);
@@ -50,8 +52,10 @@ from src.domains.connectors.clients.normalizers.graph_mail_query import (
 )
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
     build_graph_recipients,
+    graph_file_attachment,
     normalize_graph_message,
 )
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 logger = structlog.get_logger(__name__)
 
@@ -158,6 +162,28 @@ def _as_draft(message: dict[str, Any]) -> dict[str, Any]:
     revision = message.get("changeKey")
     draft[FIELD_MAILBOX_DRAFT_REVISION] = revision if isinstance(revision, str) else ""
     return draft
+
+
+async def _move_files(
+    host: _OutlookDraftsHost,
+    draft_id: str,
+    add: Sequence[OutgoingAttachment],
+    remove: Sequence[str],
+) -> None:
+    """Remove then add a draft's files, each write attempted once."""
+    files = f"/me/messages/{draft_id}/attachments"
+    if remove:
+        listed = await host._make_request("GET", files, params={"$select": "id,name"})
+        held = list(listed.get("value") or [])
+        for name in remove:
+            found = next((item for item in held if item.get("name") == name), None)
+            if found is not None:
+                held.remove(found)
+                await host._make_request("DELETE", f"{files}/{found['id']}", max_retries=1)
+    for file in add:
+        await host._make_request(
+            "POST", files, json_data=graph_file_attachment(file), max_retries=1
+        )
 
 
 def _listing_params(
@@ -297,6 +323,7 @@ class OutlookDraftsMixin:
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save a new draft; an empty ``to`` leaves the recipient unset.
 
@@ -310,6 +337,8 @@ class OutlookDraftsMixin:
         for key, value in (("toRecipients", to), ("ccRecipients", cc), ("bccRecipients", bcc)):
             if value:
                 payload[key] = build_graph_recipients(value)
+        if attachments:
+            payload["attachments"] = [graph_file_attachment(file) for file in attachments]
         created = await self._make_request("POST", "/me/messages", json_data=payload, max_retries=1)
         logger.info("outlook_mailbox_draft_created", user_id=str(self.user_id))
         return _as_draft(await self._fetch_message(str(created.get("id", ""))))
@@ -366,11 +395,14 @@ class OutlookDraftsMixin:
         subject: str | None = None,
         body: str | None = None,
         expected_revision: str | None = None,
+        add_files: Sequence[OutgoingAttachment] = (),
+        remove_files: Sequence[str] = (),
+        is_html: bool = False,
     ) -> dict[str, Any]:
         """Change the fields given (None keeps one, "" clears it), keep the rest.
 
-        A new body is plain text: an HTML draft loses its formatting, never its
-        files.
+        A new body is what ``is_html`` says: text takes an HTML draft's formatting with
+        it, never its files. Files leave, then join, after the words.
 
         Raises:
             MailboxDraftNotFoundError: The id names no draft in the Drafts folder.
@@ -387,12 +419,13 @@ class OutlookDraftsMixin:
             if value is not None:
                 changes[key] = build_graph_recipients(value)
         if body is not None:
-            changes["body"] = {"contentType": "Text", "content": body}
+            changes["body"] = {"contentType": "HTML" if is_html else "Text", "content": body}
         if changes:
             await self._make_request(
                 "PATCH", f"/me/messages/{current['id']}", json_data=changes, max_retries=1
             )
             logger.info("outlook_mailbox_draft_updated", user_id=str(self.user_id))
+        await _move_files(self, str(current["id"]), add_files, remove_files)
         return _as_draft(await self._fetch_message(str(current["id"])))
 
     async def trash_drafts(self: _OutlookDraftsHost, draft_ids: Sequence[str]) -> dict[str, Any]:

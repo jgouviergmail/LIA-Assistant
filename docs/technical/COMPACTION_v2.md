@@ -35,12 +35,12 @@ graph entry → compaction_node
   │
   ├─ CompactionService.compact(messages, preserve_recent_n, language, config)
   │     │
-  │     ├─ asyncio.wait_for(compact_impl_llm, timeout=GLOBAL_TIMEOUT=120s)
+  │     ├─ asyncio.wait_for(compact_impl_llm, timeout=run_bound_seconds(COMPACTION_GLOBAL_TIMEOUT_SECONDS, "compaction"))
   │     │     │
   │     │     ├─ collect prior "compaction #N" SystemMessages (consolidation)
   │     │     ├─ split to_compact into chunks (≤ CHUNK_MAX_TOKENS=20k)
   │     │     ├─ for each chunk: _summarize_chunk()
-  │     │     │     ├─ asyncio.wait_for(llm.ainvoke, timeout=PER_CHUNK=35s)
+  │     │     │     ├─ asyncio.wait_for(llm.ainvoke, timeout=llm_call_timeout_seconds("compaction"))
   │     │     │     └─ tenacity retry × MAX_RETRIES=3, only a call that never left (caller_may_relaunch)
   │     │     ├─ if multi-chunk OR prior summaries present: merge step (1 more LLM call)
   │     │     └─ return CompactionResult(strategy=single_chunk|multi_chunk,
@@ -131,8 +131,7 @@ cover production).
 | `COMPACTION_PRESERVE_RECENT_MESSAGES` | `10` | 2–50 | Never-compacted recent messages. |
 | `COMPACTION_CHUNK_MAX_TOKENS` | `20000` | 1k–100k | Max input tokens per LLM chunk. |
 | `COMPACTION_MIN_MESSAGES` | `20` | 5–200 | Fast-path skip below this count. |
-| `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS` | `35` | 5–300 | Per-chunk `asyncio.wait_for`. |
-| `COMPACTION_GLOBAL_TIMEOUT_SECONDS` | `120` | 10–600 | Whole `compact()` budget. |
+| `COMPACTION_GLOBAL_TIMEOUT_SECONDS` | `120` | 10–600 | Whole `compact()` budget; it yields to one whole call of the `compaction` slot, whose own timeout bounds each chunk (ADR-221 amendment 2026-11-05). |
 | `COMPACTION_MAX_RETRIES` | `3` | 1–10 | Tenacity attempts per chunk — a relaunch only for a call that never reached the provider, on a client without a retry loop of its own, within `LLM_TRANSIENT_RETRY_MAX` (ADR-221 amendment 2026-10-28). |
 | `COMPACTION_RETRY_BACKOFF_BASE_SECONDS` | `1.0` | 0.1–10 | Exponential backoff base. |
 | `COMPACTION_INCLUDE_PREVIOUS_SUMMARIES` | `true` | bool | Consolidate prior `"compaction #N"`. |
@@ -163,9 +162,9 @@ errors by type, skipped reasons, tokens saved.
 
 | Scenario | Detection | Response |
 |---|---|---|
-| Single LLM call slow > 35 s | `asyncio.wait_for(per_chunk)` | Never sent again — the summary may be running and billed (Q3 of 2026-10-28); `TimeoutError` → `_truncation_fallback` |
+| Single LLM call past the `compaction` slot's timeout | `asyncio.wait_for(per_chunk)` | Never sent again — the summary may be running and billed (Q3 of 2026-10-28); `TimeoutError` → `_truncation_fallback` |
 | Provider down (retries exhausted) | `tenacity.reraise=True` | Re-raised inside `_compact_impl_llm` → caught by outer `compact()` → `_truncation_fallback` |
-| Compaction global budget > 120 s | `asyncio.wait_for(global)` in `compact()` | `TimeoutError` → `_truncation_fallback` with `reason="global_timeout"` |
+| Compaction global budget exceeded (lifted to one whole `compaction` call) | `asyncio.wait_for(global)` in `compact()` | `TimeoutError` → `_truncation_fallback` with `reason="global_timeout"` |
 | Cloudflare-style idle cut | `iter_with_keepalive` pulses every 15 s | Stream stays open |
 | Unexpected non-LLM exception | `except Exception` in `compact()` | `_truncation_fallback` with `reason="unexpected:<Type>"` |
 | Frontend disconnects mid-compaction | `iter_with_keepalive` cancels pending task | Clean shutdown, no leaked task |
@@ -252,8 +251,8 @@ consumes the `/resume` message (it is not forwarded to the router).
 
 - **"Strategy mix"** showing a red `truncation` line → global timeouts firing.
   Cross-check with **"Global timeouts → truncation"** panel.
-- **"Per-chunk timeouts"** consistently > 0 → tune
-  `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS` or switch LLM provider.
+- **"Per-chunk timeouts"** consistently > 0 → raise the `compaction` slot's
+  timeout in admin-llm-config or switch LLM provider.
 - **"Latency p99"** drifting above 90 s → compaction LLM is the bottleneck;
   consider a faster model or smaller chunks.
 - **"Skipped reasons"** dominated by `hitl_pending_*` → conversations are
@@ -308,8 +307,8 @@ Manual smoke test (Day 5):
    (driven by `status === 'compacting'` → `isTyping`).
 4. The toast morphs into a `toast.success` with token count; real response
    streams in.
-5. Test failure path: set `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS=0.5`,
-   trigger again; the toast morphs into a `toast.warning` carrying the
+5. Test failure path: set the `compaction` slot's timeout to 1 s in
+   admin-llm-config, trigger again; the toast morphs into a `toast.warning` carrying the
    truncated notice, the real response still streams.
 6. Test `/resume`: type `/resume` in a small conversation; toast appears
    briefly, assistant confirms the compaction.

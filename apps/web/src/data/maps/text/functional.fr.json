@@ -130,32 +130,32 @@
     },
     "f.connectors": {
       "name": "Connecteurs et Outils",
-      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie. Les services sans clé sont activés pour tout le monde par l'administrateur. Ouvre Outils lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers Drive et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.",
+      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie, fichiers compris : Google Drive ou OneDrive. Les services sans clé sont activés pour tout le monde par l'administrateur. Dans Outils, tu agis toi-même, sans appel à une IA, sur tes mails, ton agenda, tes tâches, tes contacts, tes fichiers et tes lumières Hue : chaque écran propose ce que sait faire son fournisseur, une recherche les parcourt tous, et tes gestes restent hors des registres de LIA.",
       "goal": "Brancher tes vrais comptes une fois, et qu'ils restent branchés."
     },
     "f.mail": {
       "name": "E-mails",
-      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre, lire les pièces jointes et tenir les brouillons de ta boîte — l'envoi à autrui passe toujours par une confirmation ; un e-mail à soi-même part directement. Les catégories et priorités JEV facultatives restent consultatives et atteignent aussi l’assistante ; le doute n’affiche aucun badge.",
+      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre, ranger, lire les pièces jointes, suivre une conversation et tenir les brouillons de ta boîte — l'envoi à autrui passe toujours par une confirmation ; un e-mail à soi-même part directement. Les catégories et priorités JEV facultatives restent consultatives et atteignent aussi l’assistante ; le doute n’affiche aucun badge.",
       "goal": "Traiter ta boîte en quelques phrases."
     },
     "f.calendar": {
       "name": "Agenda",
-      "role": "Consulter, chercher, créer, déplacer et supprimer des événements, avec invités, rappels et fuseaux horaires. La qualification pro/perso facultative est commune à l’affichage et à l’assistante, avec abstention dans le doute.",
+      "role": "Consulter, chercher, créer, déplacer et supprimer des événements, avec invités, rappels, fuseaux horaires et répétitions, et répondre à une invitation. La qualification pro/perso facultative est commune à l’affichage et à l’assistante, avec abstention dans le doute.",
       "goal": "Organiser ton temps en parlant."
     },
     "f.contacts": {
       "name": "Contacts",
-      "role": "Retrouver quelqu'un, ses coordonnées et ses anniversaires, créer ou mettre à jour une fiche.",
+      "role": "Retrouver quelqu'un, ses coordonnées, ses groupes et ses anniversaires, créer ou mettre à jour une fiche, avec sa photo et son vCard.",
       "goal": "Savoir à qui tu parles quand tu dis « écris à Marie »."
     },
     "f.tasks": {
       "name": "Tâches",
-      "role": "Tes listes de tâches chez ton fournisseur : ajouter, cocher, déplacer, retrouver.",
+      "role": "Tes listes de tâches chez ton fournisseur : ajouter, cocher, déplacer, retrouver, et voir d'un coup ce qui est pour aujourd'hui, en retard ou à venir.",
       "goal": "Ne rien oublier de ce qu'il reste à faire."
     },
     "f.drive": {
       "name": "Fichiers",
-      "role": "Chercher et lire tes fichiers en ligne, et relier un dossier entier — sous-dossiers compris — à un espace de connaissances.",
+      "role": "Chercher, lire et ranger tes fichiers sur Google Drive ou OneDrive, les partager après une carte, et relier un dossier entier — sous-dossiers compris — à un espace de connaissances.",
       "goal": "Retrouver un document par ce qu'il contient."
     },
     "f.places": {
@@ -190,7 +190,7 @@
     },
     "f.documents": {
       "name": "Documents générés",
-      "role": "Rapports Word, présentations PowerPoint, classeurs Excel et PDF mis en page par le moteur de rendu, sans débordement ; une galerie garde tes fichiers.",
+      "role": "Rapports Word, présentations PowerPoint, classeurs Excel et PDF mis en page par le moteur de rendu, sans débordement ; une galerie garde tes fichiers. Un jeu, un quiz ou une calculatrice demandés tournent dans le chat, dans un cadre scellé, avec leur fichier .html.",
       "goal": "Passer d'une recherche à un livrable propre."
     },
     "f.images": {

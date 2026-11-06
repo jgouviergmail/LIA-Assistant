@@ -122,6 +122,7 @@ def test_space_read_schema_and_authorities_are_bound_to_both_modes():
             RAGDriveSourceResponse,
             {
                 "id",
+                "provider",
                 "folder_id",
                 "folder_name",
                 "sync_status",

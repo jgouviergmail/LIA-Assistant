@@ -404,6 +404,12 @@ _FLAG_GATED_TOOL_MODULES: tuple[tuple[str, str, str], ...] = (
         "src.domains.agents.tools.document_generation_tools",
         "document_generation_tools",
     ),
+    # Interactive pages (ADR-370).
+    (
+        "interactive_page_enabled",
+        "src.domains.agents.tools.interactive_page_tools",
+        "interactive_page_tools",
+    ),
     # DevOps: Claude CLI remote server management.
     ("devops_enabled", "src.domains.agents.tools.devops_tools", "devops_tools"),
     # Ephemeral Python: the agent's calculator (ADR-249, ReAct only).
@@ -462,11 +468,16 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.mailbox_draft_edit_tools", "mailbox_draft_edit_tools"),
         ("src.domains.agents.tools.mailbox_draft_send_tools", "mailbox_draft_send_tools"),
         ("src.domains.agents.tools.email_read_state_tools", "email_read_state_tools"),  # ADR-369
-        ("src.domains.agents.tools.gmail_settings_tools", "gmail_settings_tools"),
+        ("src.domains.agents.tools.email_organize_tools", "email_organize_tools"),  # ADR-369
+        ("src.domains.agents.tools.calendar_answer_tools", "calendar_answer_tools"),  # ADR-369
+        ("src.domains.agents.tools.file_organize_tools", "file_organize_tools"),  # ADR-369
+        ("src.domains.agents.tools.file_share_tools", "file_share_tools"),  # ADR-369
+        ("src.domains.agents.tools.mailbox_settings_tools", "mailbox_settings_tools"),
         ("src.domains.agents.tools.google_contacts_tools", "google_contacts_tools"),
         ("src.domains.agents.tools.contact_groups_tools", "contact_groups_tools"),
         ("src.domains.agents.tools.labels_tools", "labels_tools"),
         ("src.domains.agents.tools.tasks_tools", "tasks_tools"),
+        ("src.domains.agents.tools.task_organize_tools", "task_organize_tools"),
         # Google Services (API Key)
         ("src.domains.agents.tools.places_tools", "places_tools"),
         ("src.domains.agents.tools.routes_tools", "routes_tools"),

@@ -23,6 +23,8 @@ export const WORKBENCH_ERROR_CODES = [
   'stale_handle',
   'conflict',
   'name_taken',
+  'name_refused',
+  'folder_not_empty',
   'too_large',
   'invalid_recipient',
   'already_submitted',
@@ -30,6 +32,13 @@ export const WORKBENCH_ERROR_CODES = [
   'not_supported_by_provider',
   'provider_refused',
   'invalid_request',
+  'event_left_behind',
+  'task_left_behind',
+  'event_start_outside_series',
+  'not_a_contacts_file',
+  'not_an_image',
+  'too_many_cards',
+  'file_locked',
 ] as const;
 
 export type WorkbenchErrorCode = (typeof WORKBENCH_ERROR_CODES)[number];
@@ -58,43 +67,49 @@ function count(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
+type RefusalFacts = Readonly<Record<string, unknown>>;
+type Enrichment = (prefix: string, facts: RefusalFacts) => WorkbenchRefusal | null;
+
+const waitFor: Enrichment = (prefix, facts) => {
+  const seconds = count(facts.retry_after);
+  return seconds && seconds > 0 ? { key: `${prefix}_wait`, values: { seconds } } : null;
+};
+
+/** The richer sentence each code's facts allow; a code absent here has its plain one. */
+const ENRICHMENTS: Readonly<Partial<Record<WorkbenchErrorCode, Enrichment>>> = {
+  provider_rate_limited: waitFor,
+  provider_unavailable: waitFor,
+  too_large: (prefix, facts) => {
+    const bytes = count(facts.max_bytes);
+    if (!bytes) return null;
+    return {
+      key: `${prefix}_bounded`,
+      values: { megabytes: Number((bytes / BYTES_PER_MEGABYTE).toFixed(1)) },
+    };
+  },
+  invalid_recipient: (prefix, facts) => {
+    const index = count(facts.index);
+    return index === null ? null : { key: `${prefix}_at`, values: { position: index + 1 } };
+  },
+  already_submitted: (prefix, facts) => {
+    const outcome = facts.outcome;
+    return typeof outcome === 'string' && SUBMISSION_OUTCOMES.has(outcome)
+      ? { key: `${prefix}_${outcome}` }
+      : null;
+  },
+  too_many_cards: (prefix, facts) => {
+    const items = count(facts.max_items);
+    return items ? { key: `${prefix}_bounded`, values: { count: items } } : null;
+  },
+  not_supported_by_provider: (prefix, facts) => {
+    const bound = count(facts.bound);
+    return bound ? { key: `${prefix}_bounded`, values: { bound } } : null;
+  },
+};
+
 /** The richer sentence a code's facts allow, or null for its plain one. */
-function enriched(
-  code: WorkbenchErrorCode,
-  facts: Readonly<Record<string, unknown>>
-): WorkbenchRefusal | null {
-  const prefix = `workbench.errors.${code}`;
-  switch (code) {
-    case 'provider_rate_limited':
-    case 'provider_unavailable': {
-      const seconds = count(facts.retry_after);
-      return seconds && seconds > 0 ? { key: `${prefix}_wait`, values: { seconds } } : null;
-    }
-    case 'too_large': {
-      const bytes = count(facts.max_bytes);
-      if (!bytes) return null;
-      return {
-        key: `${prefix}_bounded`,
-        values: { megabytes: Number((bytes / BYTES_PER_MEGABYTE).toFixed(1)) },
-      };
-    }
-    case 'invalid_recipient': {
-      const index = count(facts.index);
-      return index === null ? null : { key: `${prefix}_at`, values: { position: index + 1 } };
-    }
-    case 'already_submitted': {
-      const outcome = facts.outcome;
-      return typeof outcome === 'string' && SUBMISSION_OUTCOMES.has(outcome)
-        ? { key: `${prefix}_${outcome}` }
-        : null;
-    }
-    case 'not_supported_by_provider': {
-      const bound = count(facts.bound);
-      return bound ? { key: `${prefix}_bounded`, values: { bound } } : null;
-    }
-    default:
-      return null;
-  }
+function enriched(code: WorkbenchErrorCode, facts: RefusalFacts): WorkbenchRefusal | null {
+  return ENRICHMENTS[code]?.(`workbench.errors.${code}`, facts) ?? null;
 }
 
 /**

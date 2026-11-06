@@ -292,7 +292,8 @@ export type RegistryItemType =
   | 'CALENDAR_SLOT'
   | 'ROUTE'
   | 'MCP_APP'
-  | 'SKILL_APP';
+  | 'SKILL_APP'
+  | 'PAGE_APP';
 
 /**
  * RegistryItemMeta - Metadata for registry items
@@ -315,6 +316,7 @@ export interface RegistryItem {
   type: RegistryItemType; // Item type
   payload: Record<string, unknown>; // Actual data (contact details, email content, etc.)
   meta: RegistryItemMeta; // Metadata
+  restored?: boolean; // Read back from history rather than received from the live stream
 }
 
 /**

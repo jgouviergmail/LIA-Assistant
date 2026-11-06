@@ -32,9 +32,33 @@ vi.mock('@/hooks/useRecipientSuggestions', () => ({ useRecipientSuggestions: sug
 const PARIS = 'Europe/Paris';
 
 const CALENDARS: WorkbenchCalendar[] = [
-  { id: 'primary', name: 'Me', color: null, primary: true, writable: true },
-  { id: 'team', name: 'Team', color: null, primary: false, writable: true },
-  { id: 'holidays', name: 'Holidays', color: null, primary: false, writable: false },
+  {
+    id: 'primary',
+    name: 'Me',
+    color: null,
+    primary: true,
+    default: false,
+    writable: true,
+    manageable: false,
+  },
+  {
+    id: 'team',
+    name: 'Team',
+    color: null,
+    primary: false,
+    default: false,
+    writable: true,
+    manageable: true,
+  },
+  {
+    id: 'holidays',
+    name: 'Holidays',
+    color: null,
+    primary: false,
+    default: false,
+    writable: false,
+    manageable: false,
+  },
 ];
 
 const EVENT: CalendarEventDetail = {
@@ -51,6 +75,11 @@ const EVENT: CalendarEventDetail = {
   attendees: [{ email: 'ana@example.org', name: 'Ana', response: 'accepted' }],
   organizer: null,
   link: null,
+  reminder_minutes: null,
+  busy: true,
+  private: false,
+  zone: null,
+  my_response: null,
 };
 
 const NEW: EditorTarget = { kind: 'new', fields: newEventFields('primary', '2026-11-02', '10:00') };
@@ -86,6 +115,48 @@ function editor(
 const title = () => screen.getByLabelText('workbench.calendar.editor.summary');
 const create = () => screen.getByRole('button', { name: 'workbench.calendar.editor.create' });
 const save = () => screen.getByRole('button', { name: 'workbench.calendar.editor.save' });
+
+describe('EventEditor — a repeating event', () => {
+  it('asks when it comes back on a new event, and sends the rule', async () => {
+    const { user, onCreate } = editor();
+
+    expect(await screen.findByText('workbench.calendar.editor.repeat')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('workbench.calendar.editor.summary'), 'Standup');
+    await user.click(screen.getByRole('combobox', { name: 'recurrence.freq_label' }));
+    await user.click(await screen.findByRole('option', { name: 'recurrence.freq.daily' }));
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.editor.create' }));
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalled());
+    expect(onCreate.mock.calls[0][0].recurrence).toMatchObject({
+      freq: 'daily',
+      anchor_date: '2026-11-02',
+    });
+  });
+
+  it('asks nothing of the kind when one occurrence is changed', async () => {
+    editor({ kind: 'edit', event: { ...EVENT, recurring: true } });
+
+    await screen.findByLabelText('workbench.calendar.editor.summary');
+    expect(screen.queryByText('workbench.calendar.editor.repeat')).toBeNull();
+  });
+
+  it('says a whole series is changed, and sends so', async () => {
+    const { user, onUpdate } = editor({
+      kind: 'edit',
+      event: { ...EVENT, recurring: true },
+      series: true,
+    });
+
+    expect(await screen.findByText('workbench.calendar.editor.title_series')).toBeInTheDocument();
+    const summary = screen.getByLabelText('workbench.calendar.editor.summary');
+    await user.clear(summary);
+    await user.type(summary, 'Retro');
+    await user.click(screen.getByRole('button', { name: 'workbench.calendar.editor.save' }));
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
+    expect(onUpdate.mock.calls[0][0]).toMatchObject({ summary: 'Retro', scope: 'series' });
+  });
+});
 
 describe('EventEditor — a new event', () => {
   it('creates it once, in a calendar the person may write, with the video call asked', async () => {
@@ -237,6 +308,54 @@ describe('EventEditor — a change', () => {
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('EventEditor — a zone of its own', () => {
+  const zone = () => screen.getByLabelText('workbench.calendar.editor.time_zone');
+
+  it('sends a new event on the clock the person chose', async () => {
+    const { user, onCreate } = editor();
+
+    await user.type(title(), 'Call');
+    await user.selectOptions(zone(), 'Asia/Tokyo');
+    await user.click(create());
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    expect(onCreate.mock.calls[0]![0]).toMatchObject({
+      timezone: 'Asia/Tokyo',
+      start: '2026-11-02T10:00',
+    });
+  });
+
+  it('offers the account’s clock first, and says so', () => {
+    editor();
+
+    expect(zone().querySelector('option')).toHaveValue(PARIS);
+    expect(screen.getByText('workbench.calendar.editor.zone')).toBeInTheDocument();
+  });
+
+  it('asks a day for no clock', async () => {
+    const { user } = editor();
+
+    await user.click(screen.getByRole('switch'));
+
+    expect(screen.queryByLabelText('workbench.calendar.editor.time_zone')).not.toBeInTheDocument();
+  });
+
+  it('opens an event on the clock it was set on, and says so', () => {
+    editor({
+      kind: 'edit',
+      event: {
+        ...EVENT,
+        zone: 'America/New_York',
+        start: '2026-11-02T14:00:00Z',
+        end: '2026-11-02T15:00:00Z',
+      },
+    });
+
+    expect(zone()).toHaveValue('America/New_York');
+    expect(screen.getByText('workbench.calendar.editor.own_zone')).toBeInTheDocument();
   });
 });
 

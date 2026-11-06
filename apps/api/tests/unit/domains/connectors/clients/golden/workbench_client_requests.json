@@ -90,7 +90,7 @@
       "body": null,
       "method": "GET",
       "params": {
-        "personFields": "names,nicknames,photos,emailAddresses,phoneNumbers,addresses,biographies,birthdays,organizations,occupations,skills,relations,interests,events,calendarUrls,imClients,metadata,locations"
+        "personFields": "names,nicknames,photos,emailAddresses,phoneNumbers,addresses,biographies,birthdays,organizations,occupations,skills,urls,relations,interests,events,calendarUrls,imClients,metadata,locations"
       },
       "path": "/v1/people/c1"
     },
@@ -175,7 +175,7 @@
       "method": "GET",
       "params": {
         "$orderby": "surname,givenName",
-        "$select": "id,displayName,givenName,surname,middleName,emailAddresses,homePhones,businessPhones,mobilePhone,companyName,jobTitle,department,homeAddress,businessAddress,otherAddress,birthday,personalNotes,photo",
+        "$select": "id,displayName,givenName,surname,middleName,emailAddresses,homePhones,businessPhones,mobilePhone,companyName,jobTitle,businessHomePage,department,homeAddress,businessAddress,otherAddress,birthday,personalNotes,photo",
         "$top": "25"
       },
       "path": "/v1.0/me/contacts"
@@ -200,6 +200,7 @@
       "body": null,
       "method": "GET",
       "params": {
+        "$expand": "checklistItems",
         "$filter": "status ne 'completed'",
         "$top": "20"
       },

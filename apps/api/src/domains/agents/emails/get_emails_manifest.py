@@ -8,7 +8,7 @@ page size, the three levels, the paging token, the body parts.
 """
 
 from src.core.config import settings
-from src.core.constants import GOOGLE_GMAIL_SCOPES
+from src.core.constants import EMAILS_TOOL_ID_BATCH_MAX, GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_QUERY
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -20,6 +20,12 @@ from src.domains.agents.registry.catalogue import (
     ToolManifest,
 )
 
+#: One wording for the manifest and the schema, stating the bound the tool enforces.
+WHOLE_CONVERSATION_DESCRIPTION = (
+    "With message_id: read its whole conversation, oldest first, instead of that one message "
+    f"(the newest {EMAILS_TOOL_ID_BATCH_MAX} when it holds more; `conversation_truncated` says so)"
+)
+
 # ============================================================================
 # 1. GET EMAILS (Unified - replaces search + details)
 # ============================================================================
@@ -29,6 +35,8 @@ _get_emails_desc = (
     "**USAGE**:\n"
     "- Search: use `query` parameter\n"
     "- Fetch by ID (from $steps or CONTEXT only): use `message_id` or `message_ids`\n"
+    "- A whole exchange ('the whole thread', 'what was said about this mail'): `message_id` + "
+    "`whole_conversation=true`, one call, never one call per message\n"
     "- List all: omit query\n"
     "\n"
     "**DETAIL** (what each message carries, and what it costs):\n"
@@ -75,7 +83,8 @@ _get_emails_desc = (
     "provider ESTIMATE (never an exact count); `next_page_token` continues the same search; "
     "`set_aside_on_page`, when present, counts messages of this page that a date or read-state "
     "condition set aside after the provider's search — the page holds fewer than asked and "
-    "`next_page_token` may hold more matches."
+    "`next_page_token` may hold more matches; `conversation_truncated`, when present, says the "
+    "conversation holds older messages than those read."
 )
 
 get_emails_catalogue_manifest = ToolManifest(
@@ -132,6 +141,12 @@ get_emails_catalogue_manifest = ToolManifest(
             required=False,
             description="Multiple message IDs for batch fetch (optional).",
             semantic_type="message_id",
+        ),
+        ParameterSchema(
+            name="whole_conversation",
+            type="boolean",
+            required=False,
+            description=WHOLE_CONVERSATION_DESCRIPTION,
         ),
         # Common options
         ParameterSchema(
@@ -313,4 +328,4 @@ get_emails_catalogue_manifest = ToolManifest(
 )
 
 
-__all__ = ["get_emails_catalogue_manifest"]
+__all__ = ["WHOLE_CONVERSATION_DESCRIPTION", "get_emails_catalogue_manifest"]

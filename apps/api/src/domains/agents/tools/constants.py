@@ -86,6 +86,8 @@ ALL_DRIVE_TOOLS = [
 TOOL_NAME_LIST_TASKS = "list_tasks_tool"
 TOOL_NAME_CREATE_TASK = "create_task_tool"
 TOOL_NAME_COMPLETE_TASK = "complete_task_tool"
+TOOL_NAME_RENAME_TASK_LIST = "rename_task_list_tool"
+TOOL_NAME_MOVE_TASK = "move_task_tool"
 TOOL_NAME_LIST_TASK_LISTS = "list_task_lists_tool"
 
 # All Tasks tools

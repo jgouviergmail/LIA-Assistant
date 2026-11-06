@@ -252,10 +252,14 @@ export interface DocumentItem {
   modified_local: string;
   web_view_link: string | null;
   mime_type: string | null;
+  /** Its folders from the top of the drive, empty at the top; null when unknown. */
+  path: string | null;
 }
 
 export interface DocumentsData {
   items: DocumentItem[];
+  /** The drive these files are on: a connector type. */
+  provider: string | null;
 }
 
 /** One ticket waiting on the person, as the workboard card lists it. */

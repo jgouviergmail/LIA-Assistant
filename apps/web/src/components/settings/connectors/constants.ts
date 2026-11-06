@@ -51,6 +51,7 @@ export const MICROSOFT_CONNECTOR_TYPES = [
   'microsoft_calendar',
   'microsoft_contacts',
   'microsoft_tasks',
+  'microsoft_onedrive',
 ] as const;
 
 export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
@@ -82,6 +83,9 @@ export const MUTUAL_EXCLUSIVITY_MAP: Record<string, string[]> = {
   // Tasks (no Apple — only Google and Microsoft)
   google_tasks: ['microsoft_tasks'],
   microsoft_tasks: ['google_tasks'],
+  // Files (no Apple: iCloud Drive has no API)
+  google_drive: ['microsoft_onedrive'],
+  microsoft_onedrive: ['google_drive'],
 };
 
 // Legacy LocalStorage queues cleared by the one-request OAuth flow.
@@ -124,6 +128,7 @@ export const MICROSOFT_AUTH_ENDPOINTS: Record<string, string> = {
   microsoft_calendar: '/connectors/microsoft-calendar/authorize',
   microsoft_contacts: '/connectors/microsoft-contacts/authorize',
   microsoft_tasks: '/connectors/microsoft-tasks/authorize',
+  microsoft_onedrive: '/connectors/microsoft-onedrive/authorize',
 };
 
 export const HUE_AUTH_ENDPOINTS: Record<string, string> = {
@@ -160,6 +165,7 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   microsoft_calendar: { emoji: '📅', color: 'blue' },
   microsoft_contacts: { emoji: '👥', color: 'blue' },
   microsoft_tasks: { emoji: '✅', color: 'blue' },
+  microsoft_onedrive: { emoji: '📁', color: 'blue' },
   // API Key Services
   openweathermap: { icon: Cloud, emoji: '🌤️', color: 'orange' },
   wikipedia: { icon: Book, emoji: '📚', color: 'slate' },
@@ -338,7 +344,7 @@ export interface MicrosoftConnectorMetadata {
   labelKey: string;
   descriptionKey: string;
   /** Functional category for mutual exclusivity display */
-  category: 'email' | 'calendar' | 'contacts' | 'tasks';
+  category: 'email' | 'calendar' | 'contacts' | 'tasks' | 'files';
 }
 
 export const MICROSOFT_CONNECTORS_METADATA: readonly MicrosoftConnectorMetadata[] = [
@@ -365,6 +371,12 @@ export const MICROSOFT_CONNECTORS_METADATA: readonly MicrosoftConnectorMetadata[
     labelKey: 'settings.connectors.microsoft.tasks',
     descriptionKey: 'settings.connectors.microsoft.tasks_description',
     category: 'tasks',
+  },
+  {
+    type: 'microsoft_onedrive',
+    labelKey: 'settings.connectors.microsoft.onedrive',
+    descriptionKey: 'settings.connectors.microsoft.onedrive_description',
+    category: 'files',
   },
 ] as const;
 

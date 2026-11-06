@@ -12,6 +12,7 @@ Scopes required:
 - https://www.googleapis.com/auth/tasks.readonly (read-only access)
 """
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from src.domains.connectors.clients.base_google_client import (
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.path_segments import path_segment
+from src.domains.connectors.clients.task_details import TaskDetails
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import CacheService
@@ -156,6 +158,31 @@ class GoogleTasksClient(BaseGoogleClient):
 
         return response
 
+    async def rename_task_list(self, task_list_id: str, title: str) -> dict[str, Any]:
+        """
+        Rename a task list.
+
+        Args:
+            task_list_id: Task list ID
+            title: Its new title
+
+        Returns:
+            The list as it is now
+        """
+        response = await self._make_request(
+            "PATCH",
+            f"/users/@me/lists/{_segment(task_list_id)}",
+            json_data={"title": title},
+        )
+
+        logger.info(
+            "tasks_rename_task_list",
+            user_id=str(self.user_id),
+            task_list_id=task_list_id,
+        )
+
+        return response
+
     async def delete_task_list(self, task_list_id: str) -> bool:
         """
         Delete a task list and all its tasks.
@@ -279,6 +306,9 @@ class GoogleTasksClient(BaseGoogleClient):
         notes: str | None = None,
         due: str | None = None,
         parent: str | None = None,
+        *,
+        details: TaskDetails | None = None,
+        steps: Sequence[str] = (),
     ) -> dict[str, Any]:
         """
         Create a new task.
@@ -289,9 +319,14 @@ class GoogleTasksClient(BaseGoogleClient):
             notes: Task notes/description (optional)
             due: Due date in RFC 3339 format (e.g., "2025-01-15T00:00:00Z")
             parent: Parent task ID for creating subtasks (optional)
+            details: To Do's alone: refused here, never dropped
+            steps: To Do's alone: refused here, never dropped
 
         Returns:
             Created task data
+
+        Raises:
+            ValueError: What Google Tasks would drop.
 
         Example:
             >>> task = await client.create_task(
@@ -301,6 +336,7 @@ class GoogleTasksClient(BaseGoogleClient):
             ... )
             >>> print(f"Created task: {task['id']}")
         """
+        _refuse_what_to_do_alone_keeps(details, steps)
         task_data: dict[str, Any] = {"title": title}
 
         if notes:
@@ -338,6 +374,7 @@ class GoogleTasksClient(BaseGoogleClient):
         status: str | None = None,
         *,
         clear_due: bool = False,
+        details: TaskDetails | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing task.
@@ -354,15 +391,18 @@ class GoogleTasksClient(BaseGoogleClient):
             due: New due date in RFC 3339 format (optional)
             status: New status - "needsAction" or "completed" (optional)
             clear_due: Remove the due date (ADR-369)
+            details: To Do's alone: refused here, never dropped
 
         Returns:
             Updated task data
 
         Raises:
-            ValueError: A due date and its removal together.
+            ValueError: A due date and its removal together, or what Google Tasks
+                would drop.
         """
         if clear_due and due is not None:
             raise ValueError("a due date and its removal cannot be asked together")
+        _refuse_what_to_do_alone_keeps(details)
         # Get existing task to preserve unchanged fields
         existing = await self.get_task(task_list_id, task_id)
 
@@ -403,6 +443,64 @@ class GoogleTasksClient(BaseGoogleClient):
             task_list_id=task_list_id,
             task_id=task_id,
             status=response.get("status"),
+        )
+
+        return response
+
+    async def move_task(
+        self, task_list_id: str, task_id: str, destination_list_id: str
+    ) -> dict[str, Any]:
+        """
+        Move a task to another list; Google keeps its id.
+
+        Args:
+            task_list_id: Its list
+            task_id: The task
+            destination_list_id: The list it goes to
+
+        Returns:
+            The task where it is now
+        """
+        response = await self._make_request(
+            "POST",
+            f"{_task_path(task_list_id, task_id)}/move",
+            params={"destinationTasklist": destination_list_id},
+        )
+
+        logger.info(
+            "tasks_move_task",
+            user_id=str(self.user_id),
+            task_list_id=task_list_id,
+            task_id=task_id,
+        )
+
+        return response
+
+    async def place_task(
+        self, task_list_id: str, task_id: str, previous_id: str | None
+    ) -> dict[str, Any]:
+        """
+        Put a task after another of its siblings, or first; To Do keeps no order.
+
+        Args:
+            task_list_id: Its list
+            task_id: The task
+            previous_id: The sibling it follows; None puts it first
+
+        Returns:
+            The task where it is now
+        """
+        response = await self._make_request(
+            "POST",
+            f"{_task_path(task_list_id, task_id)}/move",
+            params={"previous": previous_id} if previous_id else None,
+        )
+
+        logger.info(
+            "tasks_place_task",
+            user_id=str(self.user_id),
+            task_list_id=task_list_id,
+            task_id=task_id,
         )
 
         return response
@@ -448,6 +546,12 @@ class GoogleTasksClient(BaseGoogleClient):
 def _segment(value: str) -> str:
     """One path segment of a Google Tasks URL (``@default`` keeps its name)."""
     return path_segment(value, connector_type=ConnectorType.GOOGLE_TASKS, safe="@")
+
+
+def _refuse_what_to_do_alone_keeps(details: TaskDetails | None, steps: Sequence[str] = ()) -> None:
+    """Google Tasks has no such field: dropped in silence, it would read as done."""
+    if details is not None or steps:
+        raise ValueError("Google Tasks keeps no steps, importance, reminder or repetition")
 
 
 def _list_path(task_list_id: str) -> str:

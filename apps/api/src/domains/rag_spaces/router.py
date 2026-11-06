@@ -526,7 +526,7 @@ async def get_document_status(
 @router.get(
     "/{space_id}/drive-browse",
     response_model=dict,
-    summary="Browse Google Drive folder contents",
+    summary="Browse the contents of a folder of the connected drive",
 )
 async def browse_drive_contents(
     space_id: UUID,
@@ -552,7 +552,7 @@ async def link_drive_folder(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> RAGDriveSourceResponse:
-    """Link a Google Drive folder to a RAG space for sync."""
+    """Link a folder of the connected drive to a RAG space for sync."""
     service = RAGDriveSyncService(db)
     source = await service.link_folder(space_id, user.id, data.folder_id, data.folder_name)
     return RAGDriveSourceResponse.model_validate(source)
@@ -568,7 +568,7 @@ async def list_drive_sources(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> list[RAGDriveSourceResponse]:
-    """List all Google Drive folders linked to a space."""
+    """List all the drive folders linked to a space."""
     service = RAGSpaceService(db)
     sources = await service.list_drive_sources(space_id, user.id)
     return [RAGDriveSourceResponse.model_validate(s) for s in sources]
@@ -586,7 +586,7 @@ async def unlink_drive_folder(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Unlink a Google Drive folder from a space."""
+    """Unlink a drive folder from a space."""
     service = RAGDriveSyncService(db)
     await service.unlink_folder(space_id, source_id, user.id, delete_documents)
 
@@ -623,8 +623,8 @@ async def sync_drive_folder(
     """Trigger manual sync of a Drive folder. Returns 202 Accepted."""
     service = RAGDriveSyncService(db)
 
-    # Verify ownership
-    await service.get_sync_status(space_id, source_id, user.id)
+    # Verify ownership, and that its drive is the one connected
+    await service.require_live_source(space_id, source_id, user.id)
 
     # Atomic lock
     acquired = await service.try_acquire_sync_lock(source_id)

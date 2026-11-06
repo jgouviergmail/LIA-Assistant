@@ -16,16 +16,24 @@ import { useCallback, useMemo } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
+import apiClient from '@/lib/api-client';
 import type { EventChangeBody, NewEventBody } from '@/lib/workbench/calendar/editor';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type {
   CalendarEventDetail,
+  EventAnswer,
   CalendarEventsWindow,
+  DueTasks,
   WorkbenchCalendar,
 } from '@/lib/workbench/types';
+import { generateUUID } from '@/lib/utils';
 
 const CALENDARS_PATH = '/workbench/calendar/calendars';
 const EVENTS_PATH = '/workbench/calendar/events';
+const EVENT_PATH = '/workbench/calendar/event';
+const ANSWER_PATH = '/workbench/calendar/events/answer';
+const MOVE_PATH = '/workbench/calendar/events/move';
+const DUE_TASKS_PATH = '/workbench/tasks/due';
 const NO_PARAMS = {};
 
 /** The days a view shows, and the calendars drawn in it. */
@@ -39,9 +47,89 @@ export interface CalendarWindowRequest {
 
 export interface WorkbenchCalendarState {
   window: WorkbenchItemState<CalendarEventsWindow>;
+  /** One event, whole: what a drop must know before it acts. */
+  read: (calendarId: string, eventId: string) => Promise<CalendarEventDetail>;
   create: (body: NewEventBody) => Promise<CalendarEventDetail | undefined>;
   update: (body: EventChangeBody) => Promise<CalendarEventDetail | undefined>;
-  remove: (calendarId: string, eventId: string, notify?: boolean) => Promise<void>;
+  remove: (
+    calendarId: string,
+    eventId: string,
+    notify?: boolean,
+    series?: boolean
+  ) => Promise<void>;
+  /** Answers an invitation, the organiser told; the window is read again. */
+  answer: (calendarId: string, eventId: string, response: EventAnswer) => Promise<void>;
+  /** Sends an event to another calendar; the window is read again, whatever came of it. */
+  move: (calendarId: string, eventId: string, destinationId: string) => Promise<void>;
+}
+
+/** Calendars of the person's own: each act rejects when refused, and reads them again. */
+export interface CalendarManagement {
+  create: (name: string) => Promise<void>;
+  rename: (calendarId: string, name: string) => Promise<void>;
+  remove: (calendarId: string) => Promise<void>;
+}
+
+/**
+ * @param start - The first day shown.
+ * @param end - The last day shown (included).
+ * @param shown - Whether the tasks are drawn: otherwise nothing is read.
+ * @returns The open tasks due over those days, from every list.
+ */
+export function useDueTasks(
+  start: string,
+  end: string,
+  shown: boolean
+): WorkbenchItemState<DueTasks> {
+  return useWorkbenchItem<DueTasks>(shown ? DUE_TASKS_PATH : null, { start, end });
+}
+
+/** @param reread - Reads the calendars, and the window they draw, again. */
+export function useCalendarManagement(reread: () => Promise<void>): CalendarManagement {
+  const { mutate: post } = useApiMutation<Record<string, string>, void>({
+    method: 'POST',
+    componentName: 'WorkbenchCalendar',
+  });
+  const { mutate: patch } = useApiMutation<Record<string, string>, void>({
+    method: 'PATCH',
+    componentName: 'WorkbenchCalendar',
+  });
+  const { mutate: del } = useApiMutation<void, void>({
+    method: 'DELETE',
+    componentName: 'WorkbenchCalendar',
+  });
+  const create = useCallback(
+    async (name: string) => {
+      await post(CALENDARS_PATH, { name, idempotency_key: generateUUID() });
+      await reread();
+    },
+    [post, reread]
+  );
+  const rename = useCallback(
+    async (calendarId: string, name: string) => {
+      await patch(CALENDARS_PATH, { calendar_id: calendarId, name });
+      await reread();
+    },
+    [patch, reread]
+  );
+  const remove = useCallback(
+    async (calendarId: string) => {
+      await del(CALENDARS_PATH, undefined, { params: { calendar_id: calendarId } });
+      await reread();
+    },
+    [del, reread]
+  );
+  return useMemo(() => ({ create, rename, remove }), [create, rename, remove]);
+}
+
+/** @param open - The event the address names; null reads nothing. */
+export function useOpenEvent(
+  open: { calendarId: string; eventId: string } | null
+): WorkbenchItemState<CalendarEventDetail> {
+  return useWorkbenchItem<CalendarEventDetail>(open ? EVENT_PATH : null, {
+    calendar_id: open?.calendarId,
+    event_id: open?.eventId,
+  });
 }
 
 /** The account's calendars. */
@@ -75,6 +163,42 @@ export function useWorkbenchCalendar(
     method: 'DELETE',
     componentName: 'WorkbenchCalendar',
   });
+  const { mutate: postAnswer } = useApiMutation<Record<string, string>, void>({
+    method: 'POST',
+    componentName: 'WorkbenchCalendar',
+  });
+
+  const read = useCallback(
+    (calendarId: string, eventId: string) =>
+      apiClient.get<CalendarEventDetail>(EVENT_PATH, {
+        params: { calendar_id: calendarId, event_id: eventId },
+      }),
+    []
+  );
+
+  const answer = useCallback(
+    async (calendarId: string, eventId: string, response: EventAnswer) => {
+      await postAnswer(ANSWER_PATH, { calendar_id: calendarId, event_id: eventId, response });
+      await refresh();
+    },
+    [postAnswer, refresh]
+  );
+
+  const move = useCallback(
+    async (calendarId: string, eventId: string, destinationId: string) => {
+      const asked = {
+        calendar_id: calendarId,
+        event_id: eventId,
+        destination_id: destinationId,
+      };
+      try {
+        await postAnswer(MOVE_PATH, asked);
+      } finally {
+        await refresh();
+      }
+    },
+    [postAnswer, refresh]
+  );
 
   const create = useCallback(
     async (body: NewEventBody) => {
@@ -95,8 +219,13 @@ export function useWorkbenchCalendar(
   );
 
   const remove = useCallback(
-    async (calendarId: string, eventId: string, notify?: boolean) => {
-      const query = { calendar_id: calendarId, event_id: eventId, notify };
+    async (calendarId: string, eventId: string, notify?: boolean, series?: boolean) => {
+      const query = {
+        calendar_id: calendarId,
+        event_id: eventId,
+        notify,
+        ...(series ? { scope: 'series' } : {}),
+      };
       try {
         await del(EVENTS_PATH, undefined, { params: query });
       } catch (error: unknown) {
@@ -107,5 +236,5 @@ export function useWorkbenchCalendar(
     [del, refresh]
   );
 
-  return { window, create, update, remove };
+  return { window, read, create, update, remove, answer, move };
 }

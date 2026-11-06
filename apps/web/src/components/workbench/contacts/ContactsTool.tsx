@@ -9,9 +9,12 @@
  * answered in one go says when it may hold more. The open contact rides the
  * address (`?contact=`): opening pushes, closing replaces, so « back » closes
  * it; below `lg` it takes the list's place and the focus follows it there and
- * back. Creating, changing and deleting are the person's own acts.
+ * back. Creating, changing and deleting are the person's own acts. A contact met
+ * in mail is shown from its row: Google reads, changes and deletes none by its id.
+ * Each row wears its initials; the whole list is headed by letter where the
+ * provider answered it in that order.
  */
-import { Plus, Search, Users } from 'lucide-react';
+import { Download, Plus, Search, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useId, useRef, useState, type FormEvent, type RefObject } from 'react';
@@ -29,8 +32,17 @@ import { useWorkbenchContacts, type ContactsListing } from '@/hooks/useWorkbench
 import { useWorkbenchItem } from '@/hooks/useWorkbenchItem';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { cn } from '@/lib/utils';
-import { contactName } from '@/lib/workbench/contacts';
+import { cn, generateUUID } from '@/lib/utils';
+import {
+  contactInitials,
+  contactLetters,
+  contactName,
+  contactOfSummary,
+  contactsExportUrl,
+  isOtherContact,
+  type ContactFields,
+} from '@/lib/workbench/contacts';
+import { copyText } from '@/lib/workbench/copy';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import { toolPath, WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
 import type {
@@ -44,9 +56,12 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
+import { useHandoff, useToolBridges } from '../useToolBridges';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { ContactDetail } from './ContactDetail';
 import { ContactEditor } from './ContactEditor';
+import { ContactGroupActions } from './ContactGroupActions';
+import { ContactImport } from './ContactImport';
 
 const NO_PARAMS = {};
 const OTHER = 'other';
@@ -82,6 +97,8 @@ function useContactAddress(lng: Language) {
     hrefOf: (contact: WorkbenchContactSummary) =>
       `${base}?${new URLSearchParams({ contact: contact.id })}`,
     close: () => router.replace(base, { scroll: false }),
+    show: (contact: WorkbenchContactSummary) =>
+      router.replace(`${base}?${new URLSearchParams({ contact: contact.id })}`, { scroll: false }),
   };
 }
 
@@ -99,6 +116,17 @@ function useRelationHref(lng: Language, contact: WorkbenchContact | undefined): 
   return `${buildLocalizedPath('/dashboard/relations', lng)}?${search}`;
 }
 
+/** The contact open: read by its id, or taken from the search that listed one met in mail. */
+function useOpenContact(openId: string | null, rows: readonly WorkbenchContactSummary[]) {
+  const metInMail = openId !== null && isOtherContact(openId);
+  const open = useWorkbenchItem<WorkbenchContact>(
+    openId && !metInMail ? '/workbench/contacts/contact' : null,
+    { id: openId ?? undefined }
+  );
+  const row = metInMail ? rows.find(item => item.id === openId) : undefined;
+  return { metInMail, open, shown: row ? contactOfSummary(row) : open.item };
+}
+
 function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailability }) {
   const { t } = useTranslation(lng);
   const { confirm, confirmDialog } = useConfirm();
@@ -111,26 +139,50 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
   const [editor, setEditor] = useState<{
     id: number;
     contact: WorkbenchContact | undefined;
+    prefill?: Partial<ContactFields>;
   } | null>(null);
-  const openings = useRef(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // One key per contact until it is saved: a retry after a lost answer saves nothing twice.
+  const saveKeys = useRef(new Map<string, string>());
   const groupsOffered = tool.features.includes('contact_groups');
   const state = useWorkbenchContacts(listingOf(words, filter), groupsOffered);
-  const open = useWorkbenchItem<WorkbenchContact>(
-    address.openId ? '/workbench/contacts/contact' : null,
-    { id: address.openId ?? undefined }
-  );
-  const relationHref = useRelationHref(lng, open.item);
+  const groups = state.groups.item?.groups;
+  const chosen = groups?.find(group => group.id === filter);
+  const { metInMail, open, shown } = useOpenContact(address.openId, state.list.items);
+  const relationHref = useRelationHref(lng, shown);
   const linkRef = useDrillDownFocus(address.openId, {
     enabled: !desktop,
     opened: closeRef,
     fallback: searchRef,
   });
 
-  const edit = (contact: WorkbenchContact | undefined) => {
-    openings.current += 1;
-    setEditor({ id: openings.current, contact });
+  const edit = (contact: WorkbenchContact | undefined, prefill?: Partial<ContactFields>) => {
+    setEditor(previous => ({ id: (previous?.id ?? 0) + 1, contact, prefill }));
+  };
+  const bridges = useToolBridges(lng);
+  useHandoff('contact', true, handed =>
+    edit(undefined, { name: handed.name, emails: [{ value: handed.email, type: null }] })
+  );
+  const copy = (value: string) => {
+    copyText(value).then(
+      () => toast.success(t('workbench.contacts.copied')),
+      () => toast.error(t('workbench.contacts.failed'))
+    );
+  };
+  const saveOther = async (id: string) => {
+    const key = saveKeys.current.get(id) ?? generateUUID();
+    saveKeys.current.set(id, key);
+    try {
+      const saved = await state.saveOther(id, key);
+      saveKeys.current.delete(id);
+      setFilter('');
+      if (saved) address.show(saved);
+      toast.success(t('workbench.contacts.saved_other'));
+    } catch (error: unknown) {
+      const refusal = workbenchRefusal(error);
+      toast.error(refusal ? t(refusal.key, refusal.values) : t('workbench.contacts.failed'));
+    }
   };
   const remove = async (contact: WorkbenchContact) => {
     const confirmed = await confirm({
@@ -153,7 +205,45 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
 
   return (
     <>
-      <WorkbenchToolHeader lng={lng} tool="contacts">
+      <WorkbenchToolHeader
+        lng={lng}
+        tool="contacts"
+        shortcuts={[
+          {
+            key: 'n',
+            labelKey: 'workbench.shortcuts.new_contact',
+            run: () => edit(undefined),
+          },
+          {
+            key: '/',
+            labelKey: 'workbench.shortcuts.search',
+            run: () => searchRef.current?.focus(),
+          },
+        ]}
+        onRefresh={async options => {
+          await Promise.all([
+            state.list.refresh(options),
+            state.groups.refresh(options),
+            open.refresh(options),
+          ]);
+        }}
+      >
+        <Button asChild variant="outline" size="icon">
+          <a
+            href={contactsExportUrl()}
+            aria-label={t('workbench.contacts.export_all')}
+            title={t('workbench.contacts.export_bound', {
+              count: tool.bounds.export_max_contacts,
+            })}
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+          </a>
+        </Button>
+        <ContactImport
+          lng={lng}
+          maxBytes={tool.bounds.import_max_bytes}
+          onImported={state.list.refresh}
+        />
         <Button className="gap-1.5" onClick={() => edit(undefined)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t('workbench.contacts.new_contact')}
@@ -177,16 +267,30 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           <ContactFinder
             lng={lng}
             searchRef={searchRef}
-            groups={state.groups.item?.groups}
+            groups={groups}
             otherOffered={tool.features.includes('other_contacts')}
             filter={filter}
             onFilter={setFilter}
             onSearch={setWords}
           />
+          {chosen?.own && (
+            <div className="border-b px-3 py-1">
+              <ContactGroupActions
+                key={chosen.id}
+                lng={lng}
+                group={chosen}
+                nameMax={tool.bounds.name_max_chars}
+                onRename={state.renameGroup}
+                onDelete={state.deleteGroup}
+                onDeleted={() => setFilter('')}
+              />
+            </div>
+          )}
           <ContactRows
             lng={lng}
             state={state}
             other={filter === OTHER && !words}
+            lettered={!filter && !words}
             openId={address.openId}
             hrefOf={address.hrefOf}
             linkRef={linkRef}
@@ -200,15 +304,35 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           <div className="flex min-w-0 flex-1">
             <ContactDetail
               lng={lng}
-              contact={open.item}
+              contact={shown}
               loading={open.loading}
               error={open.error}
+              readOnly={metInMail}
+              photoMaxBytes={tool.bounds.photo_max_bytes}
+              historyAddresses={tool.bounds.history_addresses}
+              groups={
+                groupsOffered
+                  ? {
+                      known: groups ?? [],
+                      onChanged: () => state.groups.refresh(),
+                      nameMax: tool.bounds.name_max_chars,
+                    }
+                  : undefined
+              }
               relationHref={relationHref}
               closeRef={closeRef}
               onClose={address.close}
               onRetry={() => void open.refresh()}
               onEdit={() => open.item && edit(open.item)}
               onDelete={() => open.item && void remove(open.item)}
+              onCopy={copy}
+              onSaveOther={() => saveOther(address.openId ?? '')}
+              onWrite={
+                bridges.offers('compose') ? to => bridges.go({ kind: 'compose', to }) : undefined
+              }
+              onAsk={contact =>
+                bridges.ask(t('workbench.ask.contact', { name: contactName(contact) }))
+              }
             />
           </div>
         ) : (
@@ -222,6 +346,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           key={editor.id}
           lng={lng}
           contact={editor.contact}
+          prefill={editor.prefill}
           bounds={tool.bounds}
           onCreate={async body => {
             await state.create(body);
@@ -317,12 +442,14 @@ interface ContactRowsProps {
   state: ReturnType<typeof useWorkbenchContacts>;
   /** « Other contacts » chosen and nothing typed: Google searches them, it never lists them. */
   other: boolean;
+  /** The whole list is shown: it may be headed by letter. */
+  lettered: boolean;
   openId: string | null;
   hrefOf: (contact: WorkbenchContactSummary) => string;
   linkRef: (id: string, element: HTMLElement | null) => void;
 }
 
-function ContactRows({ lng, state, other, openId, hrefOf, linkRef }: ContactRowsProps) {
+function ContactRows({ lng, state, other, lettered, openId, hrefOf, linkRef }: ContactRowsProps) {
   const { t } = useTranslation(lng);
   const { list } = state;
   if (other)
@@ -350,23 +477,40 @@ function ContactRows({ lng, state, other, openId, hrefOf, linkRef }: ContactRows
       <EmptyState className="flex-1" icon={Users} description={t('workbench.contacts.empty')} />
     );
   }
+  const letters = lettered ? contactLetters(list.items, lng) : null;
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <ul>
         {list.items.map(contact => (
           <li key={contact.id}>
+            {letters?.has(contact.id) && (
+              <span
+                aria-hidden="true"
+                className="block border-b bg-muted/40 px-4 py-1 text-xs font-semibold text-muted-foreground"
+              >
+                {letters.get(contact.id)}
+              </span>
+            )}
             <Link
               ref={element => linkRef(contact.id, element)}
               href={hrefOf(contact)}
               scroll={false}
               aria-current={contact.id === openId ? 'true' : undefined}
-              className="flex flex-col border-b px-4 py-2.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-[current=true]:bg-primary/10"
+              className="flex items-center gap-3 border-b px-4 py-2.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-[current=true]:bg-primary/10"
             >
-              <span className="truncate font-medium">
-                {contactName(contact) || t('workbench.contacts.no_name')}
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
+              >
+                {contactInitials(contact)}
               </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {[contact.email, contact.phone, contact.organization].filter(Boolean).join(' · ')}
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">
+                  {contactName(contact) || t('workbench.contacts.no_name')}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {[contact.email, contact.phone, contact.organization].filter(Boolean).join(' · ')}
+                </span>
               </span>
             </Link>
           </li>

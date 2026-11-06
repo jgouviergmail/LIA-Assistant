@@ -42,6 +42,8 @@ import {
   Star,
   Undo2,
   UserRound,
+  CalendarDays,
+  FileText,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +52,15 @@ import { directionTone } from '@/lib/status-tone';
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, MiniChip, MiniSettingRow, PhoneFrame, SkeletonLine, STAGE } from './primitives';
+import {
+  KeyCap,
+  Cursor,
+  MiniChip,
+  MiniSettingRow,
+  PhoneFrame,
+  SkeletonLine,
+  STAGE,
+} from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -1231,6 +1241,61 @@ function DatedRowsScene({ active, labels }: SceneProps) {
   );
 }
 
+type SearchEverywherePhase = 'key' | 'mail' | 'calendar' | 'contacts' | 'files';
+const SEARCH_EVERYWHERE_STEPS: readonly TimelineStep<SearchEverywherePhase>[] = [
+  { at: 0, state: 'key' },
+  { at: 700, state: 'mail' },
+  { at: 1100, state: 'calendar' },
+  { at: 1500, state: 'contacts' },
+  { at: 1900, state: 'files' },
+];
+
+/** What the shortcut reads, in the order the rows answer; the last one fails. */
+const SEARCH_EVERYWHERE_ROWS = [
+  { key: 'mail', icon: Mail },
+  { key: 'calendar', icon: CalendarDays },
+  { key: 'contacts', icon: UserRound },
+  { key: 'files', icon: FileText },
+] as const;
+
+/** One shortcut reads every tool, and the tool that failed is named, not empty. */
+function SearchEverywhereScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SEARCH_EVERYWHERE_STEPS, { active });
+  const answered = SEARCH_EVERYWHERE_STEPS.findIndex(step => step.state === phase);
+  return (
+    <div className={cn(STAGE, 'justify-start gap-1 pt-3')}>
+      <div className="flex w-3/4 items-center gap-1">
+        <KeyCap>{labels.key}</KeyCap>
+        <KeyCap>K</KeyCap>
+        <SkeletonLine w="w-1/2" className="ml-1" />
+      </div>
+      {SEARCH_EVERYWHERE_ROWS.map(({ key, icon: Icon }, index) => {
+        const failed = index === SEARCH_EVERYWHERE_ROWS.length - 1;
+        return (
+          <div
+            key={key}
+            className={cn(
+              'flex w-3/4 items-center gap-1.5 rounded-md bg-background px-1.5 py-0.5 text-px-9 transition-opacity duration-300 motion-reduce:transition-none',
+              answered > index ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <Icon
+              className={cn('h-3 w-3 shrink-0', failed ? 'text-warning' : 'text-primary')}
+              aria-hidden="true"
+            />
+            <span className="font-medium text-foreground/80">{labels[key]}</span>
+            {failed ? (
+              <span className="ml-auto truncate text-warning">{labels.unreachable}</span>
+            ) : (
+              <SkeletonLine w="w-1/3" className="ml-auto h-1" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   place_numbers: PlaceNumbersScene,
   dated_rows: DatedRowsScene,
@@ -1248,6 +1313,7 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   relation_sections: RelationSectionsScene,
   relation_debrief: RelationDebriefScene,
   grouped_actions: GroupedActionsScene,
+  search_everywhere: SearchEverywhereScene,
   pinned_dock: PinnedDockScene,
   network_grants: NetworkGrantsScene,
   skill_library: SkillLibraryScene,

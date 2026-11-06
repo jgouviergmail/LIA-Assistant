@@ -53,7 +53,7 @@ workboard_run_duration_seconds = Histogram(
     "Wall time of one workboard run, from claim to settle.",
     ["outcome"],
     # The last buckets straddle WORKBOARD_RUN_TIMEOUT_SECONDS_DEFAULT (600):
-    # a run landing there is one the reaper is about to release.
+    # a run landing there used a whole attempt, or more than one.
     buckets=(1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0),
 )
 

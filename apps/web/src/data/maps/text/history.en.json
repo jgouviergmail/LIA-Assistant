@@ -1200,8 +1200,8 @@
     },
     "221": {
       "title": "The timeout shown is the timeout enforced",
-      "summary": "The per-model timeout was editable but never enforced. It becomes the transport bound of every call, tested against real latencies.",
-      "src": "2571bd210852"
+      "summary": "The per-model timeout was editable but never enforced. It becomes the transport bound of every call, tested against real latencies, and nothing around a call cuts it shorter.",
+      "src": "4e954a5f7c9a"
     },
     "222": {
       "title": "A never-wired HITL layer removed",
@@ -1935,8 +1935,13 @@
     },
     "369": {
       "title": "The person acts on their own services, with no model",
-      "summary": "The “Tools” section opens the person’s mail, calendar, tasks, contacts, Drive files and lights so they consult them and act by hand: no model, no token, the provider’s own speed. The screen offers only what the provider accepts, and whatever a client gains for it, the assistant’s tools gain at the same time; nothing the person does by hand reaches a register, since it is not an act of LIA’s.",
-      "src": "07998b0c5d8d"
+      "summary": "The “Tools” section opens the person’s mail, calendar, tasks, contacts, files, on Google Drive or OneDrive, and lights so they consult them and act by hand: no model, no token, the provider’s own speed. The screen offers only what the provider accepts, and whatever a client gains for it, the assistant’s tools gain at the same time; nothing the person does by hand reaches a register, since it is not an act of LIA’s.",
+      "src": "3c8fbff549a4"
+    },
+    "370": {
+      "title": "A page the model writes runs in the chat, in the strictest frame",
+      "summary": "Asking for a game or a small tool gives a page that runs in the conversation, with its file; asking for the code gives the code, and what a person types stays text. The page runs isolated, with no access to the account or to any site of its choosing, under a policy that names no host. Read back from history it waits for a click, because an endless loop would freeze the tab, and the model only ever reads its title.",
+      "src": "ab92ef5e6f98"
     }
   }
 }

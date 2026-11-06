@@ -11,6 +11,7 @@ Lives here because the client is frozen at its audited size.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from email.message import Message
 from email.mime.multipart import MIMEMultipart
@@ -27,7 +28,11 @@ from src.domains.connectors.clients.email_compose import (
     reply_subject,
 )
 from src.domains.connectors.clients.gmail_attachments_mixin import read_gmail_attachment
-from src.infrastructure.email.outgoing import OutgoingAttachment, attachment_part
+from src.infrastructure.email.outgoing import (
+    OutgoingAttachment,
+    attachment_part,
+    with_attachments,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -94,6 +99,8 @@ class GmailComposeMixin:
         reply_all: bool,
         is_html: bool,
         to: str | None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> ComposedReply:
         """Build the reply to ``message_id``: recipients, quote and threading headers.
 
@@ -103,6 +110,8 @@ class GmailComposeMixin:
             reply_all: Answer every recipient of the original.
             is_html: Whether ``body`` is HTML (an HTML reply quotes nothing).
             to: A recipient chosen instead of the answered ones.
+            cc: The copies chosen instead of the computed ones; empty for none.
+            attachments: The files it carries.
 
         Returns:
             The message (headers encoded) and the original's thread id.
@@ -113,13 +122,14 @@ class GmailComposeMixin:
         # The person's address only matters to a reply to all (never answer
         # oneself) and to a reply to their own message (answer its recipients).
         own_needed = reply_all or "SENT" in original.get("labelIds", [])
-        recipients, cc = reply_recipients(
+        recipients, copies = reply_recipients(
             original_from,
             headers.get("to", ""),
             headers.get("cc", ""),
             own_address=await self.get_own_address() if own_needed else None,
             reply_all=reply_all,
             override_to=to,
+            override_cc=cc,
             reply_to=headers.get("reply-to"),
         )
         full_body = quoted_reply(
@@ -129,14 +139,16 @@ class GmailComposeMixin:
             sender=original_from,
             is_html=is_html,
         )
-        message = MIMEText(full_body, "html" if is_html else "plain", "utf-8")
+        message = with_attachments(
+            MIMEText(full_body, "html" if is_html else "plain", "utf-8"), attachments
+        )
         # Encode headers with RFC 2047 for non-ASCII characters
         message["To"] = self._encode_email_header(recipients)
         message["Subject"] = reply_subject(headers.get("subject", ""))
         message["In-Reply-To"] = headers.get("message-id", "")
         message["References"] = headers.get("message-id", "")
-        if cc:
-            message["Cc"] = self._encode_email_header(cc)
+        if copies:
+            message["Cc"] = self._encode_email_header(copies)
         return ComposedReply(message=message, thread_id=original.get("threadId"))
 
     async def _compose_forward(
@@ -148,6 +160,7 @@ class GmailComposeMixin:
         cc: str | None,
         is_html: bool,
         include_attachments: bool,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> ComposedForward:
         """Build the forward of ``message_id``, its files carried along.
 
@@ -162,6 +175,7 @@ class GmailComposeMixin:
             cc: Copies, comma-separated, if any.
             is_html: Whether ``body`` is HTML.
             include_attachments: Carry the original's files.
+            attachments: The person's own files, after the original's.
 
         Returns:
             The message (headers encoded) and the files the original listed.
@@ -177,15 +191,18 @@ class GmailComposeMixin:
             date=headers.get("date", ""),
             subject=original_subject,
             to=headers.get("to", ""),
+            is_html=is_html,
         )
         listed = self._extract_attachment_info(payload) if include_attachments else []
         text_part = MIMEText(full_body, "html" if is_html else "plain", "utf-8")
         message: Message = text_part
-        if listed:
+        if listed or attachments:
             message = MIMEMultipart("mixed")
             message.attach(text_part)
             for info in listed:
                 message.attach(await _download_part(self, message_id, payload, info))
+            for attachment in attachments:
+                message.attach(attachment_part(attachment))
         # Encode headers with RFC 2047 for non-ASCII characters
         message["To"] = self._encode_email_header(to)
         message["Subject"] = forward_subject(original_subject)

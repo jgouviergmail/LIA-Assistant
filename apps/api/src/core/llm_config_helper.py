@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
+from src.core.constants import CAPABILITY_PROVENANCE_DECLARED, LLM_RUN_BOUND_MARGIN_SECONDS
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.reasoning_intent import ReasoningIntent
 from src.core.reasoning_profiles import resolve_reasoning_profile
@@ -69,20 +69,8 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
     Raises:
         ValueError: If agent_type is not recognized
     """
-    from src.domains.llm_config.cache import LLMConfigOverrideCache
-    from src.domains.llm_config.constants import LLM_DEFAULTS
-
+    effective = _merged_config(agent_type)
     canonical_type = _resolve_canonical_type(agent_type)
-
-    defaults = LLM_DEFAULTS.get(canonical_type)
-    if defaults is None:
-        raise ValueError(
-            f"Unknown agent_type '{agent_type}'. " f"Expected one of: {list(LLM_DEFAULTS.keys())}"
-        )
-
-    # Check for DB override in cache (sync read, zero latency)
-    override = LLMConfigOverrideCache.get_override(canonical_type)
-    effective = defaults if not override else merge_config(defaults, override)
 
     # Report only, never reject: this model came from a code default or from an
     # admin decision, and the catalogue is evidence, not authority over a human
@@ -97,6 +85,88 @@ def get_llm_config_for_agent(settings: Settings, agent_type: str) -> LLMAgentCon
     # 2026-10-18: 200 000 kept on a model capped at 128 000, every call
     # refused). The catalogue's vouched cap bounds what is sent.
     return capped_config(effective, llm_type=canonical_type)
+
+
+def llm_call_timeout_seconds(agent_type: str) -> float:
+    """How long ONE call on a slot may last: what the administrator configured.
+
+    The slot's row in ``llm_config_overrides`` wins, its code default stands in
+    when the row leaves it empty. It is what the client applies per attempt, and
+    every wall clock put around a model call reads it here: only the budget of a
+    voice turn, which counts several models and tools, can end a call before the
+    time displayed in admin-llm-config (ADR-221 amendment 2026-11-05).
+
+    Args:
+        agent_type: The slot.
+
+    Returns:
+        The call's bound, in seconds.
+
+    Raises:
+        ValueError: The slot is unknown, or declares no time.
+    """
+    timeout = _merged_config(agent_type).timeout_seconds
+    if timeout is None:
+        raise ValueError(f"LLM slot '{agent_type}' declares no timeout")
+    return timeout
+
+
+def run_bound_seconds(
+    configured_seconds: float,
+    *agent_types: str,
+    margin_seconds: float = LLM_RUN_BOUND_MARGIN_SECONDS,
+) -> float:
+    """The bound of work that calls the model: never shorter than those calls.
+
+    A step, a job or a deadline keeps the value the environment gives it, unless
+    the slots it surrounds need longer: then each listed call may reach its own
+    timeout, with the work around them on top. A loop lists its slot once: it is
+    guaranteed one whole call, and the environment's value remains its budget.
+
+    Args:
+        configured_seconds: What the environment or a constant asks for.
+        *agent_types: The slots the work calls, one after the other; none leaves
+            the configured value standing.
+        margin_seconds: The time of the work around the calls.
+
+    Returns:
+        The bound, in seconds.
+
+    Raises:
+        ValueError: A slot is unknown, or declares no time.
+    """
+    if not agent_types:
+        return configured_seconds
+    calls = sum(llm_call_timeout_seconds(agent_type) for agent_type in agent_types)
+    return max(configured_seconds, calls + margin_seconds)
+
+
+def _merged_config(agent_type: str) -> LLMAgentConfig:
+    """A slot's code default under its database row, and nothing else.
+
+    Args:
+        agent_type: The slot.
+
+    Returns:
+        The merged configuration.
+
+    Raises:
+        ValueError: If agent_type is not recognized
+    """
+    from src.domains.llm_config.cache import LLMConfigOverrideCache
+    from src.domains.llm_config.constants import LLM_DEFAULTS
+
+    canonical_type = _resolve_canonical_type(agent_type)
+
+    defaults = LLM_DEFAULTS.get(canonical_type)
+    if defaults is None:
+        raise ValueError(
+            f"Unknown agent_type '{agent_type}'. " f"Expected one of: {list(LLM_DEFAULTS.keys())}"
+        )
+
+    # Check for DB override in cache (sync read, zero latency)
+    override = LLMConfigOverrideCache.get_override(canonical_type)
+    return defaults if not override else merge_config(defaults, override)
 
 
 def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgentConfig:

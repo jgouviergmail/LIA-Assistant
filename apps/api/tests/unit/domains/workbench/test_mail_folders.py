@@ -22,8 +22,16 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config import settings
+from src.core.constants import WORKBENCH_MAIL_COUNTS_FOLDERS_MAX
 from src.core.exceptions import BaseAPIException, ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.mail_folders import MailFolder as Folder
+from src.domains.connectors.clients.mail_folders import (
+    MailFolderNameTakenError,
+    MailFolderNotEmptyError,
+    SystemFolderError,
+)
+from src.domains.connectors.clients.mail_moves import UnreadCounts
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import mail_folders
 from src.domains.workbench.features import TOOL_PROVIDERS, WorkbenchTool
@@ -82,6 +90,7 @@ class TestTheFolderPane:
             ("system:starred", "starred"),
             ("system:sent", "sent"),
             ("system:drafts", "drafts"),
+            ("system:all", "all"),
             ("system:spam", "spam"),
             ("system:trash", "trash"),
         ]
@@ -96,15 +105,50 @@ class TestTheFolderPane:
 
         client.list_labels_full.assert_awaited_once_with(use_cache=False)
 
+    async def test_outlook_draws_a_nested_folder_by_its_path(self) -> None:
+        client = MagicMock(
+            list_folders=AsyncMock(
+                return_value=(
+                    [
+                        Folder("f1", "Boîte de réception", "Boîte de réception"),
+                        Folder("f2", "Clients", "Clients"),
+                        Folder("f3", "Clients/2026", "2026"),
+                        Folder("f4", "Boîte de réception/Factures", "Factures"),
+                    ],
+                    True,
+                )
+            ),
+            system_folder_ids=AsyncMock(return_value=frozenset({"f1"})),
+        )
+        with _door(client, OUTLOOK):
+            view = await mail_folders.read_folders(USER)
+
+        own = [folder.id for folder in view.folders if folder.kind == "user"]
+        assert own == ["Boîte de réception/Factures", "Clients", "Clients/2026"]
+        assert view.truncated is False
+
+    async def test_a_mailbox_read_only_in_part_says_so(self) -> None:
+        client = MagicMock(
+            list_folders=AsyncMock(return_value=([Folder("f2", "Clients", "Clients")], False)),
+            system_folder_ids=AsyncMock(return_value=frozenset()),
+        )
+        with _door(client, OUTLOOK):
+            view = await mail_folders.read_folders(USER)
+
+        assert view.truncated is True
+
     async def test_outlook_drops_its_well_known_folders_whatever_their_language(self) -> None:
         client = MagicMock(
-            list_labels=AsyncMock(
-                return_value={
-                    "f1": "Boîte de réception",
-                    "f2": "Éléments envoyés",
-                    "f3": "Projets",
-                    "f4": "Boîte d'envoi",
-                }
+            list_folders=AsyncMock(
+                return_value=(
+                    [
+                        Folder("f1", "Boîte de réception", "Boîte de réception"),
+                        Folder("f2", "Éléments envoyés", "Éléments envoyés"),
+                        Folder("f3", "Projets", "Projets"),
+                        Folder("f4", "Boîte d'envoi", "Boîte d'envoi"),
+                    ],
+                    True,
+                )
             ),
             system_folder_ids=AsyncMock(return_value=frozenset({"f1", "f2"})),
         )
@@ -224,13 +268,116 @@ class TestGmailLabels:
         client.batch_modify_labels.assert_not_awaited()
 
     @pytest.mark.parametrize("kind", [OUTLOOK, ICLOUD])
-    async def test_labels_elsewhere_are_not_supported(self, kind: ConnectorType) -> None:
-        client = MagicMock(create_label=AsyncMock())
-        with _door(client, kind), pytest.raises(BaseAPIException) as refused:
-            await mail_folders.create_label(USER, NewLabel(name="New"))
+    async def test_labels_elsewhere_are_not_applied(self, kind: ConnectorType) -> None:
+        with _door(MagicMock(), kind), pytest.raises(BaseAPIException) as refused:
+            await mail_folders.apply_labels(
+                USER, LabelApplication(message_ids=["m1"], add=["Label_1"])
+            )
 
         assert refused.value.detail == {"code": "not_supported_by_provider"}
-        client.create_label.assert_not_awaited()
+
+
+class TestUnreadCounts:
+    async def test_each_figure_is_keyed_as_the_pane_names_the_folder(self) -> None:
+        client = MagicMock(
+            unread_counts=AsyncMock(
+                return_value=UnreadCounts(
+                    roles={"inbox": 3, "spam": 1}, folders={"Projects": 2}, complete=True
+                )
+            )
+        )
+        with _door(client, ConnectorType.MICROSOFT_OUTLOOK):
+            counts = await mail_folders.read_counts(USER)
+
+        client.unread_counts.assert_awaited_once_with(WORKBENCH_MAIL_COUNTS_FOLDERS_MAX)
+        assert counts.counts == {"system:inbox": 3, "system:spam": 1, "Projects": 2}
+        assert counts.truncated is False
+
+    async def test_a_cut_is_stated(self) -> None:
+        client = MagicMock(
+            unread_counts=AsyncMock(
+                return_value=UnreadCounts(roles={"inbox": 0}, folders={}, complete=False)
+            )
+        )
+        with _door(client, ConnectorType.GOOGLE_GMAIL):
+            counts = await mail_folders.read_counts(USER)
+
+        assert counts.truncated is True
+
+
+class TestFoldersOfThePerson:
+    @pytest.mark.parametrize("kind", [ConnectorType.MICROSOFT_OUTLOOK, ConnectorType.APPLE_EMAIL])
+    async def test_create_rename_delete_where_a_mailbox_has_folders(
+        self, kind: ConnectorType
+    ) -> None:
+        client = MagicMock(
+            create_folder=AsyncMock(return_value="Projects"),
+            rename_folder=AsyncMock(return_value="Old"),
+            delete_folder=AsyncMock(),
+        )
+        with _door(client, kind):
+            made = await mail_folders.create_label(USER, NewLabel(name="Projects"))
+            renamed = await mail_folders.rename_label(
+                USER, LabelChange(label_id="Projects", name="Old")
+            )
+            await mail_folders.delete_label(USER, "Old")
+
+        assert (made.id, made.name, made.kind) == ("Projects", "Projects", "user")
+        assert (renamed.id, renamed.name) == ("Old", "Old")
+        client.create_folder.assert_awaited_once_with("Projects")
+        client.rename_folder.assert_awaited_once_with("Projects", "Old")
+        client.delete_folder.assert_awaited_once_with("Old")
+
+    async def test_a_rename_names_the_folder_never_a_path(self) -> None:
+        client = MagicMock(rename_folder=AsyncMock())
+        with (
+            _door(client, ConnectorType.MICROSOFT_OUTLOOK),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_folders.rename_label(USER, LabelChange(label_id="A", name="B/C"))
+
+        assert refused.value.detail["code"] == "invalid_request"
+        client.rename_folder.assert_not_awaited()
+
+    async def test_a_name_graph_already_holds_is_said_as_such(self) -> None:
+        client = MagicMock(create_folder=AsyncMock(side_effect=_taken()))
+        with (
+            _door(client, ConnectorType.MICROSOFT_OUTLOOK),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_folders.create_label(USER, NewLabel(name="Projects"))
+
+        assert refused.value.detail["code"] == "name_taken"
+
+    async def test_a_system_folder_is_refused_as_the_provider_s_limit(self) -> None:
+        client = MagicMock(delete_folder=AsyncMock(side_effect=SystemFolderError()))
+        with (
+            _door(client, ConnectorType.APPLE_EMAIL),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_folders.delete_label(USER, "INBOX")
+
+        assert refused.value.detail["code"] == "not_supported_by_provider"
+
+    async def test_a_folder_holding_folders_says_so(self) -> None:
+        client = MagicMock(delete_folder=AsyncMock(side_effect=MailFolderNotEmptyError()))
+        with (
+            _door(client, ConnectorType.APPLE_EMAIL),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_folders.delete_label(USER, "Projects")
+
+        assert refused.value.detail["code"] == "folder_not_empty"
+
+    async def test_a_name_icloud_already_holds_is_said_as_such(self) -> None:
+        client = MagicMock(create_folder=AsyncMock(side_effect=MailFolderNameTakenError()))
+        with (
+            _door(client, ConnectorType.APPLE_EMAIL),
+            pytest.raises(BaseAPIException) as refused,
+        ):
+            await mail_folders.create_label(USER, NewLabel(name="Projects"))
+
+        assert refused.value.detail["code"] == "name_taken"
 
 
 class TestTheContract:

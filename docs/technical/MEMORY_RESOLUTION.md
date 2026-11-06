@@ -165,7 +165,7 @@ regex patterns. This makes the system **language-agnostic** — it works for all
 supported languages without maintaining per-language regex patterns.
 
 **Prompt**: `memory_reference_extraction_prompt.txt`
-**LLM slot**: `memory_reference_extraction`, configured through central LLM administration. The outer call is also bounded by `MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS`; it is not a fixed two-second call.
+**LLM slot**: `memory_reference_extraction`, configured through central LLM administration. The outer call is bounded by that slot's timeout; it is not a fixed two-second call.
 
 The LLM extracts any expression that designates a person, place, or entity through
 a relationship or possession rather than by name:
@@ -236,17 +236,14 @@ configured timeout come from the [central LLM configuration](LLM_CONFIG_ADMIN.md
 and its database overrides/defaults. Do not infer an instance's model from a
 historical environment example.
 
-`MemoryResolver._extract_references()` has an additional outer timeout from
-`core.constants.MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS`.
-`MemoryReferenceResolutionService._resolve_with_llm()` reads its timeout through
-`get_llm_config_for_agent(settings, "memory_reference_resolution")`.
+`MemoryResolver._extract_references()` and
+`MemoryReferenceResolutionService._resolve_all_via_llm()` read their timeout
+through `llm_call_timeout_seconds`, each from its own slot.
 
 ```python
-from src.core.config import settings
-from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.llm_config_helper import llm_call_timeout_seconds
 
-resolution_config = get_llm_config_for_agent(settings, "memory_reference_resolution")
-timeout_seconds = resolution_config.timeout_seconds
+timeout_seconds = llm_call_timeout_seconds("memory_reference_resolution")
 ```
 
 There is no `MEMORY_REFERENCE_RESOLUTION_ENABLED` feature switch. Reference

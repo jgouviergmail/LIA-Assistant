@@ -8,6 +8,7 @@ fabricates no Gmail ``payload`` tree — the vocabulary is the contract, not
 the first provider's wire format.
 """
 
+import base64
 from datetime import datetime
 from typing import Any
 
@@ -15,6 +16,7 @@ import structlog
 
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
+from src.infrastructure.email.outgoing import OutgoingAttachment
 from src.infrastructure.email.recipients import name_addr, parse_recipients
 
 logger = structlog.get_logger(__name__)
@@ -30,10 +32,15 @@ _GRAPH_FOLDER_TO_LABEL: dict[str, str] = {
     "junkemail": "SPAM",
     "archive": "ARCHIVE",
 }
-#: The well-known names of the folders a folder pane draws as system places:
-#: Graph serves each under its name in every locale, while their display names
-#: are in the mailbox's language.
-GRAPH_SYSTEM_FOLDERS: tuple[str, ...] = tuple(_GRAPH_FOLDER_TO_LABEL)
+#: The well-known names of the folders a pane never lists as the person's own: its
+#: system places, plus the two a mailbox holds for its own use and Graph lists all the
+#: same (measured on a real mailbox). Graph serves each under its name in every locale,
+#: while their display names are in the mailbox's language.
+GRAPH_SYSTEM_FOLDERS: tuple[str, ...] = (
+    *_GRAPH_FOLDER_TO_LABEL,
+    "outbox",
+    "conversationhistory",
+)
 
 
 def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
@@ -57,6 +64,26 @@ def _mailbox(entry: dict[str, Any] | None) -> str:
 def _extract_recipients(recipients: list[dict[str, Any]] | None) -> str:
     """Comma-separated readable mailboxes of Microsoft Graph recipients."""
     return ", ".join(mailbox for mailbox in map(_mailbox, recipients or []) if mailbox)
+
+
+def graph_file_attachment(attachment: OutgoingAttachment) -> dict[str, str]:
+    """One file as Graph carries it inside a message (ADR-321).
+
+    Args:
+        attachment: The file.
+
+    Returns:
+        The ``fileAttachment`` resource, its bytes in base64.
+    """
+    content_type = attachment.mime_type
+    if attachment.charset:
+        content_type = f"{content_type}; charset={attachment.charset}"
+    return {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        "name": attachment.filename,
+        "contentType": content_type,
+        "contentBytes": base64.b64encode(attachment.data).decode("ascii"),
+    }
 
 
 def build_graph_recipients(addresses: str) -> list[dict[str, Any]]:

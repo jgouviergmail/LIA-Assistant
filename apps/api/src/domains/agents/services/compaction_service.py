@@ -46,6 +46,8 @@ from src.core.constants import (
 from src.core.i18n import get_language_name
 from src.core.llm_config_helper import (
     get_effective_context_window_for_slot,
+    llm_call_timeout_seconds,
+    run_bound_seconds,
 )
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -95,6 +97,11 @@ _IDENTIFIER_PATTERN = re.compile(
 #: Sentence punctuation the pattern swallows after an identifier.
 _TRAILING_PUNCTUATION = ".,;:!?"
 _CLOSING_PAIRS = {")": "(", "]": "["}
+
+
+def _global_bound_seconds() -> float:
+    """The whole compaction's bound: it never ends before one whole call may."""
+    return run_bound_seconds(settings.compaction_global_timeout_seconds, "compaction")
 
 
 def _identifiers_in(text: str) -> list[str]:
@@ -440,7 +447,7 @@ class CompactionService:
         when `caller_may_relaunch` allows it: never once it may have reached the
         provider (a timed-out summary may be running and billed — Q3 of 2026-10-28),
         never on a client that owns its retries. Settings
-        `compaction_per_chunk_timeout_seconds`, `compaction_max_retries`, and
+        the compaction slot's timeout, `compaction_max_retries`, and
         `compaction_retry_backoff_base_seconds` control these.
 
         Returns:
@@ -496,12 +503,12 @@ class CompactionService:
                 try:
                     response = await asyncio.wait_for(
                         llm.ainvoke(messages, config=enriched_config),
-                        timeout=settings.compaction_per_chunk_timeout_seconds,
+                        timeout=llm_call_timeout_seconds("compaction"),
                     )
                 except TimeoutError:
                     logger.warning(
                         "compaction_chunk_timeout",
-                        timeout_seconds=settings.compaction_per_chunk_timeout_seconds,
+                        timeout_seconds=llm_call_timeout_seconds("compaction"),
                         attempt=attempt_number,
                     )
                     compaction_chunk_timeouts_total.inc()
@@ -546,12 +553,12 @@ class CompactionService:
         try:
             return await asyncio.wait_for(
                 self._compact_impl_llm(messages, preserve_recent_n, language, config),
-                timeout=settings.compaction_global_timeout_seconds,
+                timeout=_global_bound_seconds(),
             )
         except TimeoutError:
             logger.error(
                 "compaction_global_timeout_fallback_to_truncation",
-                global_timeout_seconds=settings.compaction_global_timeout_seconds,
+                global_timeout_seconds=_global_bound_seconds(),
                 message_count=len(messages),
             )
             compaction_global_timeouts_total.inc()

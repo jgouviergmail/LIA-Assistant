@@ -27,6 +27,7 @@ import { DriveSourcesList } from '../DriveSourcesList';
 
 const SOURCE: RAGDriveSource = {
   id: 'src-1',
+  provider: 'google_drive',
   folder_id: 'folder-1',
   folder_name: 'Reports',
   sync_status: 'idle',
@@ -59,11 +60,12 @@ function report(over: Partial<RAGDrivePreflight> = {}): RAGDrivePreflight {
 
 const onSync = vi.fn();
 
-function renderList() {
+function renderList(activeDrive: string | null = 'google_drive') {
   return render(
     <DriveSourcesList
       spaceId="space-1"
       sources={[SOURCE]}
+      activeDrive={activeDrive}
       onLink={vi.fn()}
       onUnlink={vi.fn()}
       onSync={onSync}
@@ -75,6 +77,29 @@ beforeEach(() => {
   preflightFolder.mockReset();
   onSync.mockReset();
   toast.error.mockReset();
+});
+
+describe('DriveSourcesList — a folder of another drive', () => {
+  it('waits for it: nothing is counted, nothing synced', () => {
+    renderList('microsoft_onedrive');
+
+    expect(screen.getByText('spaces.drive.paused')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'spaces.drive.sync_now' })).toBeDisabled();
+    expect(preflightFolder).not.toHaveBeenCalled();
+  });
+
+  it('waits with no drive connected at all', () => {
+    renderList(null);
+
+    expect(screen.getByRole('button', { name: 'spaces.drive.sync_now' })).toBeDisabled();
+  });
+
+  it('answers again once its drive is back', () => {
+    renderList('google_drive');
+
+    expect(screen.queryByText('spaces.drive.paused')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'spaces.drive.sync_now' })).toBeEnabled();
+  });
 });
 
 describe('DriveSourcesList — sync preflight', () => {

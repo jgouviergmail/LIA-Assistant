@@ -15,9 +15,11 @@ from datetime import UTC, datetime
 from email.utils import getaddresses
 from typing import Any
 
+from src.domains.connectors.clients.email_attachments import declares_attachments
 from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
+from src.domains.workbench.previews import can_be_shown
 from src.domains.workbench.schemas.mail import MailAddress, MailAttachment
 
 
@@ -57,6 +59,18 @@ def is_starred(message: Mapping[str, Any]) -> bool:
     return "STARRED" in (message.get("labelIds") or [])
 
 
+def has_attachments(message: Mapping[str, Any]) -> bool:
+    """Whether a row carries files: the normaliser's word, else Gmail's top-level type."""
+    if message.get("hasAttachment"):
+        return True
+    headers = (message.get("payload") or {}).get("headers") or []
+    return any(
+        declares_attachments(header.get("value"))
+        for header in headers
+        if str(header.get("name")).lower() == "content-type"
+    )
+
+
 def user_labels(message: Mapping[str, Any], provider: ConnectorType) -> list[str]:
     """The person's own Gmail labels on a message; a system one is a flag or a place,
     never a label of theirs. Elsewhere the Gmail-style list carries flags alone."""
@@ -70,24 +84,36 @@ def user_labels(message: Mapping[str, Any], provider: ConnectorType) -> list[str
 
 
 def attachments_of(raw: Mapping[str, Any], provider: ConnectorType) -> list[MailAttachment]:
-    """Gmail's from its MIME parts; Graph's and IMAP's from the message's own list."""
+    """Gmail's from its MIME parts; Graph's and IMAP's from the message's own list.
+
+    A Gmail part goes by its place in the message: its attachment id changes at each read.
+    """
     if provider is ConnectorType.GOOGLE_GMAIL:
         parts = GmailAttachmentsMixin._extract_attachment_info(raw.get("payload") or {})
         return [
-            MailAttachment(
-                id=part.get("attachment_id") or None,
-                filename=str(part.get("filename") or ""),
-                mime_type=str(part.get("mime_type") or ""),
-                size=part.get("size"),
+            _attachment(
+                part.get("part_id") or part.get("attachment_id"),
+                part.get("filename"),
+                part.get("mime_type"),
+                part,
             )
             for part in parts
         ]
     return [
-        MailAttachment(
-            id=item.get("attachmentId") or None,
-            filename=str(item.get("filename") or ""),
-            mime_type=str(item.get("mimeType") or ""),
-            size=item.get("size"),
-        )
+        _attachment(item.get("attachmentId"), item.get("filename"), item.get("mimeType"), item)
         for item in raw.get("attachments") or []
     ]
+
+
+def _attachment(
+    handle: object, filename: object, mime_type: object, listed: Mapping[str, Any]
+) -> MailAttachment:
+    name = str(filename or "")
+    kind = str(mime_type or "")
+    return MailAttachment(
+        id=str(handle) if handle else None,
+        filename=name,
+        mime_type=kind,
+        size=listed.get("size"),
+        previewable=can_be_shown(kind, name),
+    )

@@ -44,6 +44,7 @@ class ConnectorType(str, enum.Enum):
     MICROSOFT_CALENDAR = "microsoft_calendar"
     MICROSOFT_CONTACTS = "microsoft_contacts"
     MICROSOFT_TASKS = "microsoft_tasks"
+    MICROSOFT_ONEDRIVE = "microsoft_onedrive"
 
     # Google services (API Key - global key, not per-user)
     GOOGLE_ROUTES = "google_routes"
@@ -224,6 +225,7 @@ _MICROSOFT_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
         ConnectorType.MICROSOFT_CALENDAR,
         ConnectorType.MICROSOFT_CONTACTS,
         ConnectorType.MICROSOFT_TASKS,
+        ConnectorType.MICROSOFT_ONEDRIVE,
     }
 )
 
@@ -297,6 +299,7 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
         }
     ),
     "tasks": frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
+    "files": frozenset({ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE}),
     # Weather (lot E, 2026-08): OpenWeatherMap (personal key) vs Google Weather
     # (keyless, the instance's DEFAULT — ADR-307): the provider the person
     # configured wins, Google Weather answers when they configured none. AQ and
@@ -329,6 +332,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "calendar": "Calendar",
     "contacts": "Contacts",
     "tasks": "Tasks",
+    "files": "Files",
     "weather": "Weather",
     "smart_home": "Smart Home",
     "telephony": "Telephony",
@@ -401,6 +405,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.MICROSOFT_CALENDAR: "Microsoft Calendar",
     ConnectorType.MICROSOFT_CONTACTS: "Microsoft Contacts",
     ConnectorType.MICROSOFT_TASKS: "Microsoft To Do",
+    ConnectorType.MICROSOFT_ONEDRIVE: "OneDrive",
     ConnectorType.OPENWEATHERMAP: "OpenWeatherMap",
     ConnectorType.WIKIPEDIA: "Wikipedia",
     ConnectorType.PERPLEXITY: "Perplexity",
@@ -446,6 +451,7 @@ CONNECTOR_AUTHORIZE_PATHS: dict[ConnectorType, str] = {
     ConnectorType.MICROSOFT_CALENDAR: "/microsoft-calendar/authorize",
     ConnectorType.MICROSOFT_CONTACTS: "/microsoft-contacts/authorize",
     ConnectorType.MICROSOFT_TASKS: "/microsoft-tasks/authorize",
+    ConnectorType.MICROSOFT_ONEDRIVE: "/microsoft-onedrive/authorize",
 }
 
 

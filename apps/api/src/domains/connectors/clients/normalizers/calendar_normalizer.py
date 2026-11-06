@@ -11,6 +11,7 @@ from typing import Any
 
 import structlog
 
+from src.domains.connectors.clients.calendar_options import ical_options
 from src.domains.connectors.clients.normalizers.calendar_occurrence import caldav_occurrence_fields
 
 logger = structlog.get_logger(__name__)
@@ -66,6 +67,7 @@ def normalize_vevent(event: Any) -> dict[str, Any]:
         result["status"] = status.lower()
 
     result.update(_people(vevent))
+    result.update(ical_options(vevent))
 
     # Created / Updated
     created = _get_prop_value(vevent, "created")

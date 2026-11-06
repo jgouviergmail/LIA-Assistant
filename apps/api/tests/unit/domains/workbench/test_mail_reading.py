@@ -14,7 +14,7 @@ import contextlib
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -30,6 +30,7 @@ from src.domains.connectors.clients.mail_folders import MailFolderNotFoundError
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import mail_reading
 from src.domains.workbench.availability import listing_page_size
+from src.domains.workbench.mail_projection import has_attachments
 from src.domains.workbench.schemas.mail import MailAddress, MailListing
 
 pytestmark = pytest.mark.unit
@@ -88,6 +89,13 @@ class TestTheListing:
         )
         assert (page.next_page_token, page.skipped) == ("p2", 0)
 
+    async def test_a_caller_showing_less_reads_no_more_than_it_shows(self) -> None:
+        client = MagicMock(search_emails=AsyncMock(return_value=_page()))
+        with _door(client, OUTLOOK):
+            await mail_reading.list_messages(USER, PARIS, MailListing(), size=5)
+
+        assert client.search_emails.await_args.kwargs["max_results"] == 5
+
     async def test_a_gmail_label_is_read_by_its_id(self) -> None:
         client = MagicMock(search_in_labels=AsyncMock(return_value=_page()))
         listing = MailListing(folder="Label_12", page_token="p2")
@@ -131,6 +139,32 @@ class TestTheListing:
         assert (row.sender, row.received_at, row.is_read) == (None, None, True)
 
 
+class TestThePaperclip:
+    @pytest.mark.parametrize(
+        ("hit", "expected"),
+        [
+            ({"hasAttachment": True}, True),
+            ({"hasAttachment": False}, False),
+            (
+                {
+                    "payload": {
+                        "headers": [{"name": "Content-Type", "value": "multipart/mixed; b=1"}]
+                    }
+                },
+                True,
+            ),
+            (
+                {"payload": {"headers": [{"name": "content-type", "value": "multipart/related"}]}},
+                False,
+            ),
+            ({"payload": {"headers": [{"name": "Subject", "value": "multipart/mixed"}]}}, False),
+            ({}, False),
+        ],
+    )
+    def test_a_row_says_what_its_headers_say(self, hit: dict[str, Any], expected: bool) -> None:
+        assert has_attachments(hit) is expected
+
+
 class TestTheReader:
     async def test_a_gmail_message_whole_its_attachments_from_its_parts(self) -> None:
         message = _hit(
@@ -154,9 +188,7 @@ class TestTheReader:
         client.get_message.assert_awaited_once_with("m1", use_cache=False)
         assert [address.address for address in read.to] == ["bob@example.org", "carla@example.org"]
         assert read.body == "Le budget est joint."
-        assert [(a.id, a.filename, a.size) for a in read.attachments] == [
-            ("ANGj", "budget.pdf", 1234)
-        ]
+        assert [(a.id, a.filename, a.size) for a in read.attachments] == [("1", "budget.pdf", 1234)]
         assert not client.mark_read.called, "reading is not an act"
 
     async def test_elsewhere_the_attachments_are_the_message_s_own_list(self) -> None:
@@ -173,6 +205,84 @@ class TestTheReader:
         assert [(a.id, a.filename, a.mime_type) for a in read.attachments] == [
             ("AAMk", "a.txt", "text/plain")
         ]
+
+
+class TestTheReplyRecipients:
+    """Who an answer would reach: the one rule of the three clients, read for the composer."""
+
+    ORIGINAL: ClassVar[dict[str, Any]] = {
+        "id": "m1",
+        "from": "Bob <bob@example.org>",
+        "to": "me@example.org, Ann <ann@example.org>",
+        "cc": "carl@example.org, ME@example.org",
+    }
+
+    def _client(self, **fields: Any) -> MagicMock:
+        return MagicMock(
+            get_message=AsyncMock(return_value={**self.ORIGINAL, **fields}),
+            get_own_address=AsyncMock(return_value="me@example.org"),
+        )
+
+    async def test_a_reply_answers_the_sender(self) -> None:
+        with _door(self._client(), GMAIL):
+            read = await mail_reading.read_reply_recipients(USER, "m1", reply_all=False)
+
+        assert [item.address for item in read.to] == ["bob@example.org"]
+        assert read.cc == []
+
+    async def test_reply_to_wins_over_the_sender(self) -> None:
+        client = self._client(reply_to="List <list@example.org>")
+        with _door(client, OUTLOOK):
+            read = await mail_reading.read_reply_recipients(USER, "m1", reply_all=False)
+
+        assert [item.address for item in read.to] == ["list@example.org"]
+
+    async def test_a_reply_to_all_leaves_the_person_out(self) -> None:
+        with _door(self._client(), OUTLOOK):
+            read = await mail_reading.read_reply_recipients(USER, "m1", reply_all=True)
+
+        assert [item.address for item in read.to] == ["bob@example.org", "ann@example.org"]
+        assert [item.address for item in read.cc] == ["carl@example.org"]
+
+    async def test_a_reply_to_one_s_own_message_answers_its_recipients(self) -> None:
+        client = self._client(**{"from": "me@example.org", "to": "ann@example.org"})
+        with _door(client, GMAIL):
+            read = await mail_reading.read_reply_recipients(USER, "m1", reply_all=False)
+
+        assert [item.address for item in read.to] == ["ann@example.org"]
+
+    async def test_it_reads_the_message_fresh_as_the_reader_does(self) -> None:
+        client = self._client()
+        with _door(client, GMAIL):
+            await mail_reading.read_reply_recipients(USER, "m1", reply_all=False)
+
+        client.get_message.assert_awaited_once_with("m1", use_cache=False)
+
+
+class TestTheConversation:
+    async def test_its_rows_read_as_a_listing_s_and_the_cut_is_said(self) -> None:
+        client = MagicMock(
+            get_conversation=AsyncMock(
+                return_value={"messages": [_hit(), _hit(id="m2")], "truncated": True}
+            )
+        )
+
+        with _door(client, GMAIL):
+            found = await mail_reading.read_conversation(USER, "m2")
+
+        client.get_conversation.assert_awaited_once_with("m2", listing_page_size())
+        assert [item.id for item in found.items] == ["m1", "m2"]
+        assert found.items[0].sender == MailAddress(name="Lima, Ana", address="ana@example.org")
+        assert found.items[0].received_at == RECEIVED
+        assert found.truncated is True
+
+    async def test_a_message_gone_is_said_gone(self) -> None:
+        client = MagicMock(get_conversation=AsyncMock(side_effect=ImapMessageNotFoundError("x")))
+
+        with _door(client, OUTLOOK), pytest.raises(BaseAPIException) as refused:
+            await mail_reading.read_conversation(USER, "m1")
+
+        assert refused.value.status_code == 404
 
 
 class TestTheLabels:

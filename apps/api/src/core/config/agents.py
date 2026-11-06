@@ -46,7 +46,6 @@ from src.core.constants import (
     COMPACTION_INCLUDE_PREVIOUS_SUMMARIES_DEFAULT,
     COMPACTION_MAX_RETRIES_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
-    COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT,
     COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT,
     COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,
     COMPACTION_THRESHOLD_RATIO_DEFAULT,
@@ -186,7 +185,6 @@ from src.core.constants import (
     MEMORY_PURGE_AT_RISK_MARGIN_DEFAULT,
     MEMORY_PURGE_THRESHOLD_DEFAULT,
     MEMORY_RECENCY_DECAY_DAYS_DEFAULT,
-    MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
     MEMORY_RELEVANCE_THRESHOLD_DEFAULT,
     MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
     MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT,
@@ -213,7 +211,6 @@ from src.core.constants import (
     PLANNER_MAX_STEPS_HARD_LIMIT,
     PLANNER_PROMPT_VERSION_DEFAULT,
     PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
-    PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
     PROMPT_CACHE_EXTENDED_TTL_ENABLED_DEFAULT,
     PYTHON_SANDBOX_EGRESS_HEALTH_URL_DEFAULT,
@@ -253,7 +250,6 @@ from src.core.constants import (
     RESPONSE_CONTEXT_PREFETCH_AWAIT_TIMEOUT_SECONDS,
     RESPONSE_CONTEXT_PREFETCH_ENABLED_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_MAX_ENTRIES,
-    RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
     RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
     RESPONSE_PROMPT_VERSION_DEFAULT,
     RETRY_BACKOFF_FACTOR_DEFAULT,
@@ -278,7 +274,6 @@ from src.core.constants import (
     SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
     SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
     SEMANTIC_VALIDATION_FALLBACK_CONFIDENCE_DEFAULT,
-    SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT,
     SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT,
     SSE_HEARTBEAT_INTERVAL_DEFAULT,
     SUB_AGENTS_ENABLED_DEFAULT,
@@ -513,7 +508,7 @@ class AgentsSettings(BaseSettings):
         ge=1_024,
         le=8_388_608,
         description=(
-            "Per-widget budget (JSON bytes) for persisting SKILL_APP/MCP_APP payloads "
+            "Per-widget budget (JSON bytes) for persisting SKILL_APP/MCP_APP/PAGE_APP payloads "
             "in message_metadata so widgets survive a page reload. A widget over "
             "budget is dropped, never truncated — the frontend then shows its explicit "
             "unavailable state instead of a broken frame."
@@ -598,7 +593,8 @@ class AgentsSettings(BaseSettings):
         description=(
             "Budget (seconds) for the ReAct loop's own REASONING — the time "
             "charged by react_call_model. Tool execution is bounded separately "
-            "by react_tool_budget_seconds (ADR-256)."
+            "by react_tool_budget_seconds (ADR-256). It yields to one whole call of "
+            "the react_agent slot (ADR-221)."
         ),
     )
     react_tool_budget_seconds: int = Field(
@@ -954,15 +950,8 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Node Timeouts (Sprint 17.4 - Gold-Grade Production)
     # ========================================================================
-    # LLM call timeouts for each node type - prevents runaway operations.
-    # (router_llm_timeout_seconds was removed by ADR-221: defined for years,
-    # read nowhere — the router node makes no direct LLM call.)
-    response_llm_timeout_seconds: float = Field(
-        default=RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
-        ge=5.0,
-        le=180.0,
-        description="Timeout for response node LLM call (synthesis, longer due to streaming)",
-    )
+    # A model call's time is its SLOT's, in admin-llm-config: no setting here
+    # (ADR-221 amendment 2026-11-05, read through `llm_call_timeout_seconds`).
     task_orchestrator_execution_timeout_seconds: float = Field(
         default=TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
         ge=30.0,
@@ -1189,16 +1178,6 @@ class AgentsSettings(BaseSettings):
     # Validates that execution plans semantically match user intent
     # NOTE: Semantic validation is always enabled (detects cardinality mismatches, etc.)
 
-    semantic_validation_timeout_seconds: float = Field(
-        default=SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT,
-        ge=0.5,
-        le=30.0,
-        description=(
-            "Timeout for semantic validation (optimistic validation). "
-            "If validation exceeds this timeout, assumes plan is valid (fail-open). "
-            "Default: 10.0s - increased for proper CARDINALITY_MISMATCH detection (Issue #60)."
-        ),
-    )
     semantic_validation_confidence_threshold: float = Field(
         default=SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
@@ -1467,20 +1446,18 @@ class AgentsSettings(BaseSettings):
     # Compaction v2 — Hardening (2026-05)
     # ------------------------------------------------------------------------
     # Robustness layer added after the 2026-05-16 incident where llm.ainvoke()
-    # hung without a timeout. These settings cap per-chunk and global durations,
-    # add retries with exponential backoff, and enable consolidation of prior
-    # `compaction #N` SystemMessages into the new summary.
-    compaction_per_chunk_timeout_seconds: float = Field(
-        default=COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT,
-        ge=5.0,
-        le=300.0,
-        description="asyncio.wait_for budget per LLM compaction chunk call.",
-    )
+    # hung without a timeout. A chunk's call is bounded by the compaction slot;
+    # these settings cap the global duration, add retries with exponential
+    # backoff, and enable consolidation of prior `compaction #N` SystemMessages
+    # into the new summary.
     compaction_global_timeout_seconds: float = Field(
         default=COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT,
         ge=10.0,
         le=600.0,
-        description="Whole compact() budget covering all chunks and merge.",
+        description=(
+            "Whole compact() budget covering all chunks and merge; it yields to one "
+            "whole call of the compaction slot."
+        ),
     )
     compaction_max_retries: int = Field(
         default=COMPACTION_MAX_RETRIES_DEFAULT,
@@ -1676,12 +1653,6 @@ class AgentsSettings(BaseSettings):
             "the user and a read-only plan runs as is."
         ),
     )
-    planner_timeout_seconds: int = Field(
-        default=PLANNER_TIMEOUT_SECONDS,
-        gt=0,
-        description="Timeout for planner LLM response in seconds",
-    )
-
     # FOR_EACH iteration pattern configuration
     for_each_max_default: int = Field(
         default=FOR_EACH_MAX_DEFAULT,
@@ -2138,17 +2109,6 @@ class AgentsSettings(BaseSettings):
     # before the planner generates the execution plan.
     # Uses LLM micro-call for robust multilingual resolution.
     # NOTE: Memory reference resolution is always enabled
-
-    memory_reference_resolution_timeout_ms: int = Field(
-        default=MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
-        ge=100,
-        le=60000,
-        description=(
-            "Timeout for memory reference resolution LLM call in milliseconds. "
-            "If exceeded, returns original query (fail-safe). "
-            "Default: 2000ms. Increase if LLM calls timeout frequently."
-        ),
-    )
 
     # NOTE: force_planner_routing removed - debug flag no longer needed
     # NOTE: recipient_resolution_enabled removed - always enabled, no toggle needed
@@ -2889,7 +2849,10 @@ class AgentsSettings(BaseSettings):
         default=HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS_DEFAULT,
         ge=5,
         le=180,
-        description="Hard timeout for the enrichment fetch (fail-open to the plain draft).",
+        description=(
+            "Hard timeout for the enrichment fetch (fail-open to the plain draft); it "
+            "yields to one whole call of the interest_content slot (ADR-221)."
+        ),
     )
 
     # Cross-type proactive cooldown (applies to ALL proactive task types)
@@ -3555,6 +3518,5 @@ def get_debug_thresholds() -> dict[str, dict[str, float | int | bool]]:
         "semantic_validation": {
             "enabled": True,  # Always enabled
             "confidence_threshold": settings.semantic_validation_confidence_threshold,
-            "timeout_seconds": settings.semantic_validation_timeout_seconds,
         },
     }

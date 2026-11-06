@@ -40,6 +40,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_timezone,
     runtime_user_id_str,
 )
+from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.prompts import (
     get_smart_planner_prompt,
     load_prompt,
@@ -59,6 +60,7 @@ from src.domains.agents.services.planner.parameter_restoration import (
     preserved_parameters_for_prompt,
     restore_and_report,
 )
+from src.domains.agents.services.planner.plan_skill import resolve_plan_skill_name
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.domains.agents.services.smart_catalogue_service import (
     FilteredCatalogue,
@@ -999,7 +1001,7 @@ class SmartPlannerService:
             subagent_research_tools=", ".join(tools)
             or "every read-only tool (no whitelist configured)",
             subagent_instruction_max_tokens=settings.subagent_instruction_max_tokens_resolved,
-            subagent_timeout_seconds=int(settings.subagent_tool_timeout_seconds),
+            subagent_timeout_seconds=int(compute_step_timeout(TOOL_NAME_DELEGATE_SUB_AGENT, None)),
         )
 
     def _get_field_specific_instruction(self, clarification_field: str) -> str:
@@ -1430,7 +1432,7 @@ class SmartPlannerService:
         # answer. Dropping an incoherent value lets response_node fall back to
         # the authoritative QueryAnalyzer detection (its priority-3 path).
         skill_name = plan_data.get("skill_name")
-        resolved_skill = self._resolve_plan_skill_name(skill_name, intelligence, config)
+        resolved_skill = resolve_plan_skill_name(skill_name, intelligence)
         if resolved_skill:
             plan.metadata["skill_name"] = resolved_skill
 
@@ -1444,63 +1446,6 @@ class SmartPlannerService:
         restore_and_report(plan, existing_plan, clarification_field)
 
         return plan
-
-    def _resolve_plan_skill_name(
-        self,
-        llm_skill_name: str | None,
-        intelligence: QueryIntelligence,
-        config: RunnableConfig,
-    ) -> str | None:
-        """Validate the planner-emitted ``skill_name`` before it reaches metadata.
-
-        Coherence rules (audit D2):
-            1. No skill_name emitted -> nothing to propagate.
-            2. It matches ``intelligence.detected_skill_name`` -> coherent, keep.
-            3. The QueryAnalyzer detected a DIFFERENT skill -> the detection is
-               authoritative; drop the LLM value (response_node uses the
-               detected skill via its own fallback) and log the mismatch.
-            4. No skill detected by the analyzer -> keep only if the emitted
-               name is a real skill in the catalog (user-scoped then global);
-               otherwise it is a hallucination -> drop.
-
-        Args:
-            llm_skill_name: ``skill_name`` field from the planner LLM output.
-            intelligence: Query intelligence carrying ``detected_skill_name``.
-            config: RunnableConfig (used to resolve the user for catalog lookup).
-
-        Returns:
-            The skill name to store in ``plan.metadata``, or ``None`` to omit it.
-        """
-        if not llm_skill_name:
-            return None
-
-        detected = intelligence.detected_skill_name
-
-        if detected:
-            if llm_skill_name == detected:
-                return llm_skill_name
-            logger.warning(
-                "planner_skill_name_mismatch_dropped",
-                llm_skill_name=llm_skill_name,
-                detected_skill_name=detected,
-                msg="Planner emitted a skill_name inconsistent with the "
-                "QueryAnalyzer detection; dropping it (detection is authoritative)",
-            )
-            return None
-
-        # detected is None: accept only a real, known skill.
-        from src.domains.skills.cache import SkillsCache
-
-        user_id = runtime_user_id_str() or ""
-        if SkillsCache.get_by_name_for_user(llm_skill_name, str(user_id)):
-            return llm_skill_name
-
-        logger.warning(
-            "planner_skill_name_unknown_dropped",
-            llm_skill_name=llm_skill_name,
-            msg="Planner emitted a skill_name absent from the catalog; dropping it",
-        )
-        return None
 
     def _normalize_tool_name(self, tool_name: str, domain: str, query: str = "") -> str:
         """

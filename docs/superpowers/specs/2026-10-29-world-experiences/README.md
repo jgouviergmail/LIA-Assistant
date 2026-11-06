@@ -1,6 +1,7 @@
 # LIA World experiences — cross-cutting reference dossier
 
-**Status: proposed framing; no feature implementation authorized by this dossier.**  
+**Status: framing and D01–D11 accepted on 2026-11-03; detailed design only.**
+
 **Assessment date: 2026-10-29.** Repository evidence is the local working tree on
 `main`, starting at `b32961fc98b7dbed89b372a8a92c2b3e889a963d`, including
 pre-existing staged and unstaged changes. This is not a production assessment.
@@ -12,7 +13,11 @@ conversations in writing and Live, language immersion in writing and Live, and
 base camps for real projects. The owner also required reuse of LIA's existing
 accounting, limits, registers, authority, memory and architecture contracts.
 
-The owner has **not yet approved** the scope cuts or technical choices below.
+The owner accepted the recommendations on **2026-11-03** and authorized the
+documentation update and detailed focus-lounge framing prompt. The accepted
+directions do not authorize business implementation. The source evidence remains
+the 2026-10-29 snapshot and must be refreshed by each feature chat.
+
 Read the dossier in this order:
 
 1. This master plan.
@@ -45,9 +50,9 @@ Walking to another chat box is not an acceptance criterion.
 These benefits are hypotheses to validate. No retention, learning or productivity
 gain is claimed as measured.
 
-## Recommended delivery order and actual dependencies
+## Accepted delivery order and actual dependencies
 
-**Recommended sequence: focus → theatre (written and Live) → language (written
+**Accepted sequence: focus → theatre (written and Live) → language (written
 and Live) → base camps.** Begin each with a thin, useful end-to-end slice.
 
 - Focus exercises entry, session lifetime, privacy, bounded optional coaching and
@@ -77,7 +82,7 @@ The theatre-to-language edge is the recommended reuse sequence, not a reason to
 make the theatre feature switch a runtime prerequisite for language. A shared
 training implementation must remain independently available to each feature.
 
-## Architecture direction — recommendation, not an existing subsystem
+## Accepted architecture direction — detailed design still required
 
 Distinguish three lifetimes:
 
@@ -103,7 +108,7 @@ checking import boundaries and the current implementation.
 
 | Gate | Deliverable and exit evidence | Workstream |
 |---|---|---|
-| G0 — framing | Owner decisions recorded in [decisions](decisions.md); unknowns assigned; contracts refreshed | This dossier, then each affected chat |
+| G0 — framing | D01–D11 accepted on 2026-11-03 in [decisions](decisions.md); each feature chat still refreshes source contracts and identifies detailed unknowns | This dossier, then each affected chat |
 | G1 — focus | Deterministic interval works without an LLM; optional private coaching passes accounting, concurrency and privacy acceptance | Focus |
 | G2 — written rehearsal | Isolated scenario, explicit attempts, feedback and zero automatic personal learning; roleplay cannot execute real actions | Theatre |
 | G3 — Live rehearsal | Provider-by-provider evidence for isolated startup, transcript handling, standby, failure and closing; personal-key/platform cost split proven | Theatre |
@@ -120,7 +125,7 @@ scope, acceptance IDs and recorded decisions. A chat reads current code and
 refreshes the dossier before implementation. It must not assume access to another
 chat's history.
 
-The recommended order is sequential implementation, with independent product
+The accepted order is sequential implementation, with independent product
 refinement allowed earlier. If development later overlaps, each chat must
 coordinate ownership of shared files and dependency versions. The first consumer
 of a proposed abstraction supplies its concrete proof before the next extends it.

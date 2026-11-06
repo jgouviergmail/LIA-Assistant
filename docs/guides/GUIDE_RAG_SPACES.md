@@ -177,6 +177,10 @@ Source: paper.pdf
 
 ## Google Drive Sources (ADR-056, ADR-297)
 
+The same section serves OneDrive (ADR-369): a source names its drive in `rag_drive_sources.provider`.
+An account connects one drive at a time, so a folder of the other one keeps its documents and waits:
+the screen shows it paused, and `POST .../sync` and the preflight answer 409 `drive_source_paused`.
+
 A space follows a **Drive folder**, walked as a **tree**: sub-folders included,
 breadth-first, bounded twice (`RAG_DRIVE_MAX_FILES_PER_SYNC`,
 `RAG_DRIVE_MAX_FOLDERS_PER_WALK`) with the cut stated (`truncated`). A shortcut
@@ -191,6 +195,9 @@ walk, shared by the synchronisation and by the preflight.
 | Preflight | `GET …/drive-sources/{id}/preflight` | walks the tree and classifies every file with the ingest's own predicates (`is_supported_drive_file`, `is_unchanged`) under the space's document cap: `new`, `modified`, `unchanged`, `unsupported`, `over_capacity`, `to_index`, `folders`, `unreadable_folders`, `truncated`, the published `threshold` (`RAG_DRIVE_SYNC_CONFIRM_THRESHOLD`, default 10) and bounds, `requires_confirmation` |
 | Sync | `POST …/drive-sources/{id}/sync`, background | walks the tree under ONE recorded consultation (`space_read`, section `drive`), ingests the supported files, prunes the documents whose file left the tree, persists the walked folder set in `rag_drive_sources.folder_ids` |
 | Push (ADR-261) | Drive changes feed | a change is routed on its file's parents against each source's walked set (the root alone before the first walk); a folder created under the tree joins the set, a trashed one leaves it — the next full sync prunes its documents |
+
+No periodic job walks a linked folder: it re-syncs when linked, on a manual Sync and by push,
+which needs `PUSH_CHANNELS_ENABLED` and a public `PUSH_WEBHOOK_URL`.
 
 The frontend asks the preflight **at the click** on Sync: under the threshold the
 sync starts at once; past it, an alert dialog states the exact figures (« at

@@ -13,7 +13,11 @@
  *   rolled back, and a refusal of the whole act rolls back every one (the
  *   error is rethrown so the screen says why); a message whose act is on its
  *   way takes no second one;
- * - the trash removes exactly the messages it moved, the others stay listed;
+ * - a star shows at once the same way;
+ * - a move takes exactly the messages it moved out of a place, the others stay
+ *   listed; a view (the starred, the sent, all mail) is read again instead, since
+ *   what it lists may still answer to it, under a new id;
+ * - deleting for good takes exactly the messages it deleted;
  * - a label applied is drawn on its rows, and a row whose label is removed
  *   leaves that label's own listing.
  */
@@ -23,31 +27,53 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useWorkbenchPage, type WorkbenchPageState } from '@/hooks/useWorkbenchPage';
 import type { QueryParamValue } from '@/lib/api-client';
-import type { WorkbenchActOutcome, MailFolder, MailSummary } from '@/lib/workbench/types';
+import { isPlace } from '@/lib/workbench/mail';
+import type {
+  MailFolder,
+  MailMoveOutcome,
+  MailSummary,
+  MailTrashEmptied,
+  RereadOptions,
+  WorkbenchActOutcome,
+} from '@/lib/workbench/types';
 
 const MAIL = '/workbench/mail';
 const NO_PARAMS = {};
 
 interface MailFolders {
   folders: MailFolder[];
+  truncated?: boolean;
 }
 
 export interface WorkbenchMailState {
   /** The pane: system places first, then the person's own; undefined until read. */
   folders: MailFolder[] | undefined;
+  /** The mailbox holds more folders than were read (ADR-185: a cut is stated). */
+  foldersTruncated: boolean;
   foldersError: unknown;
   messages: WorkbenchPageState<MailSummary>;
+  /** Re-reads the listing and the pane. */
+  reread: (options?: RereadOptions) => Promise<void>;
   /** Messages whose act is on its way (they take no second one). */
   pending: ReadonlySet<string>;
   setRead: (messages: readonly MailSummary[], read: boolean) => Promise<WorkbenchActOutcome>;
-  trash: (ids: readonly string[]) => Promise<WorkbenchActOutcome>;
+  setStarred: (messages: readonly MailSummary[], starred: boolean) => Promise<WorkbenchActOutcome>;
+  /**
+   * Sends messages to a place, as the pane names it.
+   *
+   * @param origin - Where they are, when it is not the listing (a way back).
+   */
+  move: (ids: readonly string[], to: string, origin?: string) => Promise<MailMoveOutcome>;
+  deleteForever: (ids: readonly string[]) => Promise<WorkbenchActOutcome>;
+  emptyTrash: () => Promise<MailTrashEmptied | undefined>;
   applyLabels: (
     messages: readonly MailSummary[],
     add: readonly string[],
     remove: readonly string[]
   ) => Promise<void>;
   createLabel: (name: string) => Promise<MailFolder | undefined>;
-  renameLabel: (labelId: string, name: string) => Promise<void>;
+  /** @returns The folder as it is now: a path changes with its name. */
+  renameLabel: (labelId: string, name: string) => Promise<MailFolder | undefined>;
   deleteLabel: (labelId: string) => Promise<void>;
 }
 
@@ -82,9 +108,17 @@ export function useWorkbenchMail(
     enabled && params ? `${MAIL}/messages` : null,
     params ?? NO_PARAMS
   );
-  const { replaceItem } = messages;
+  const { replaceItem, refresh: rereadMessages } = messages;
   const { refetch: rereadFolders } = folders;
   const { mutate: postOutcome } = useApiMutation<Record<string, unknown>, WorkbenchActOutcome>({
+    method: 'POST',
+    componentName: 'WorkbenchMail',
+  });
+  const { mutate: postMove } = useApiMutation<Record<string, unknown>, MailMoveOutcome>({
+    method: 'POST',
+    componentName: 'WorkbenchMail',
+  });
+  const { mutate: postEmptied } = useApiMutation<Record<string, unknown>, MailTrashEmptied>({
     method: 'POST',
     componentName: 'WorkbenchMail',
   });
@@ -112,15 +146,21 @@ export function useWorkbenchMail(
     setPending(new Set(inFlight.current));
   }, []);
 
-  const setRead = useCallback(
-    async (rows: readonly MailSummary[], read: boolean) => {
+  /** A state shown at once, rolled back for what the provider did not do. */
+  const changeRows = useCallback(
+    async (
+      rows: readonly MailSummary[],
+      path: string,
+      body: Record<string, unknown>,
+      changed: (row: MailSummary) => MailSummary
+    ) => {
       const asked = rows.filter(row => !inFlight.current.has(row.id));
       const ids = asked.map(row => row.id);
       if (ids.length === 0) return { done: [], failed: [] };
       settle(ids, true);
-      for (const row of asked) replaceItem(row.id, { ...row, is_read: read });
+      for (const row of asked) replaceItem(row.id, changed(row));
       try {
-        const outcome = (await postOutcome(`${MAIL}/read-state`, { message_ids: ids, read })) ?? {
+        const outcome = (await postOutcome(path, { message_ids: ids, ...body })) ?? {
           done: ids,
           failed: [],
         };
@@ -137,13 +177,48 @@ export function useWorkbenchMail(
     [postOutcome, replaceItem, settle]
   );
 
-  const trash = useCallback(
+  const setRead = useCallback(
+    (rows: readonly MailSummary[], read: boolean) =>
+      changeRows(rows, `${MAIL}/read-state`, { read }, row => ({ ...row, is_read: read })),
+    [changeRows]
+  );
+
+  const setStarred = useCallback(
+    (rows: readonly MailSummary[], starred: boolean) =>
+      changeRows(rows, `${MAIL}/star`, { starred }, row => ({ ...row, is_starred: starred })),
+    [changeRows]
+  );
+
+  const move = useCallback(
+    async (ids: readonly string[], to: string, origin: string = folder) => {
+      const asked = ids.filter(id => !inFlight.current.has(id));
+      if (asked.length === 0) return { done: [], failed: [], moved: [] };
+      settle(asked, true);
+      try {
+        const body = { message_ids: asked, to, origin };
+        const outcome = (await postMove(`${MAIL}/move`, body)) ?? {
+          done: [],
+          failed: [],
+          moved: [],
+        };
+        if (isPlace(folder)) for (const id of outcome.done) replaceItem(id, null);
+        else if (outcome.done.length > 0) await rereadMessages();
+        return outcome;
+      } finally {
+        settle(asked, false);
+      }
+    },
+    [folder, postMove, replaceItem, rereadMessages, settle]
+  );
+
+  const deleteForever = useCallback(
     async (ids: readonly string[]) => {
       const asked = ids.filter(id => !inFlight.current.has(id));
       if (asked.length === 0) return { done: [], failed: [] };
       settle(asked, true);
       try {
-        const outcome = (await postOutcome(`${MAIL}/trash`, { message_ids: asked })) ?? {
+        const body = { message_ids: asked };
+        const outcome = (await postOutcome(`${MAIL}/delete-forever`, body)) ?? {
           done: [],
           failed: [],
         };
@@ -155,6 +230,12 @@ export function useWorkbenchMail(
     },
     [postOutcome, replaceItem, settle]
   );
+
+  const emptyTrash = useCallback(async () => {
+    const emptied = await postEmptied(`${MAIL}/empty-trash`, {});
+    await rereadMessages();
+    return emptied;
+  }, [postEmptied, rereadMessages]);
 
   const applyLabels = useCallback(
     async (rows: readonly MailSummary[], add: readonly string[], removed: readonly string[]) => {
@@ -184,8 +265,9 @@ export function useWorkbenchMail(
 
   const renameLabel = useCallback(
     async (labelId: string, name: string) => {
-      await patchFolder(`${MAIL}/labels`, { label_id: labelId, name });
+      const renamed = await patchFolder(`${MAIL}/labels`, { label_id: labelId, name });
       await reread();
+      return renamed;
     },
     [patchFolder, reread]
   );
@@ -198,13 +280,25 @@ export function useWorkbenchMail(
     [remove, reread]
   );
 
+  const rereadScreen = useCallback(
+    async (options?: RereadOptions) => {
+      await Promise.all([rereadMessages(options), reread()]);
+    },
+    [rereadMessages, reread]
+  );
+
   return {
     folders: folders.data?.folders,
+    foldersTruncated: folders.data?.truncated ?? false,
     foldersError: folders.error,
     messages,
+    reread: rereadScreen,
     pending,
     setRead,
-    trash,
+    setStarred,
+    move,
+    deleteForever,
+    emptyTrash,
     applyLabels,
     createLabel,
     renameLabel,

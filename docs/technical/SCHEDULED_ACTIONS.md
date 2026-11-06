@@ -148,7 +148,7 @@ Une routine `condition` ne possède pas cette planification :
 
 Le job `process_scheduled_actions` tourne toutes les 60 secondes :
 
-1. **Recovery** : reset actions `executing` > 10 min (crash recovery)
+1. **Recovery** : reset actions `executing` au-delà du pire cas d'un run, jamais moins de 10 min (crash recovery)
 2. **Lock** : `FOR UPDATE SKIP LOCKED`, transition `status='executing'` et nouveau `execution_token`
 3. **Commit** : libere les verrous FOR UPDATE (status='executing' sert de verrou logique)
 4. **Execute** : `execute_single_action()` dans sa propre session DB
@@ -352,7 +352,7 @@ Cles `scheduled_actions.*` dans les 6 langues (fr, en, es, de, it, zh).
 |-----------|--------|-------------|
 | `SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS` | 60 | Intervalle du scheduler job |
 | `SCHEDULED_ACTIONS_MAX_PER_USER` | 20 | Limite par utilisateur |
-| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | 300 | Timeout execution (5 min) |
+| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | 300 | Budget d'une tentative (5 min), jamais sous les appels modèle d'un tour (ADR-221) |
 | `SCHEDULED_ACTIONS_MAX_RETRIES` | 1 | Retries sur erreur transitoire (2 tentatives max) |
 | `SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS` | 30 | Delai entre retries |
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | 10 | Seuil recovery stale |

@@ -9,6 +9,11 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
+ *   Re-measured 2026-11-06 (v4.4.0): 338 native manifests from
+ *   initialize_catalogue in a cold interpreter with every optional native
+ *   family enabled, the same figure as `tool_count` of `catalogue_initialized`
+ *   on dev: the organising tools of mail, files, tasks and calendars, the
+ *   invitation answer, the mailbox settings and the interactive page joined.
  *   Re-measured 2026-10-31 (v4.3.0): 323 native manifests from
  *   initialize_catalogue with every optional native family enabled in an
  *   isolated test process. Personal/admin server tools vary by instance and
@@ -111,6 +116,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Measured for v4.4.0: backend 59,214 collected in 3,872 files (pytest tests
+ *   --collect-only -q --no-cov, 2026-11-06); frontend 17,167 tests in 1,421 files
+ *   (vitest list, 2026-11-06). Combined inventory: 76,381.
  *   Measured for v4.3.0: backend 56,255 collected (pytest --collect-only,
  *   2026-10-31); frontend: 15,882 collected (vitest list, 2026-11-01).
  *   Combined inventory: 72,137 -> 72000. Collection is distinct from execution.
@@ -444,14 +452,14 @@
 
 export const LANDING_STATS = {
   agents: 21,
-  tools: 323,
+  tools: 338,
   providers: 7,
   voiceLanguages: 99,
   metrics: 658,
   uiLanguages: 6,
-  tests: 72137,
-  adrs: 367,
-  releases: 293,
+  tests: 76381,
+  adrs: 368,
+  releases: 294,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;

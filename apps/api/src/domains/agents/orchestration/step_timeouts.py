@@ -17,7 +17,7 @@ Every per-family timeout lives in Settings and is read inside
   ``max_image_generation_tool_timeout_seconds`` (ADR-160)
 - document  : ``document_generation_tool_timeout_seconds`` /
   ``max_document_generation_tool_timeout_seconds`` (ADR-226 — the internal
-  LLM writes whole documents, well above 30 s)
+  LLM writes whole documents, well above 30 s); a page shares them (ADR-370)
 - web rsrch : ``web_research_tool_timeout_seconds`` /
   ``max_web_research_tool_timeout_seconds`` (Perplexity-backed synthesis,
   killed at the generic 30 s in prod 2026-08)
@@ -26,12 +26,24 @@ Every per-family timeout lives in Settings and is read inside
 The image family got its own ceiling on 2026-07-27: a measured 138.3 s
 render sat above the generic 120 s cap, so no floor value could have
 rescued it.
+
+Those numbers are the environment's, and it has no word over the database: a
+tool declared in :data:`TOOL_LLM_SLOTS` waits for the calls it makes, whatever
+its family says (ADR-221 amendment 2026-11-05). ReAct asks for no timeout, so a
+family's floor is all a call ever gets there.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
 from src.core.config import get_settings
 from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX, MCP_TOOL_NAME_PREFIX
+from src.core.llm_config_helper import run_bound_seconds
+
+if TYPE_CHECKING:
+    from src.core.config import Settings
 
 # Tool-name groupings consumed by `compute_step_timeout`. Kept at module
 # scope (not inside the helper) so the timeout policy is greppable and the
@@ -47,7 +59,7 @@ _NESTED_LOOP_TOOL_NAMES: frozenset[str] = frozenset(
     {_SUB_AGENT_TOOL_NAME, _SKILL_ACTIVATION_TOOL_NAME}
 )
 _IMAGE_TOOL_NAMES: frozenset[str] = frozenset({"generate_image", "edit_image"})
-_DOCUMENT_TOOL_NAMES: frozenset[str] = frozenset({"generate_document"})
+_DOCUMENT_TOOL_NAMES: frozenset[str] = frozenset({"generate_document", "generate_interactive_page"})
 #: A skill's script and command (ADR-327 lot 2): the sandbox bounds them itself,
 #: so the step waits exactly that bound — floor AND ceiling, never the generic
 #: 30 s that cut a command the sandbox still allowed.
@@ -59,13 +71,122 @@ _SKILL_COMMAND_TOOL_NAME = "run_skill_command"
 _WEB_RESEARCH_TOOL_NAMES: frozenset[str] = frozenset(
     {"unified_web_search_tool", "perplexity_search_tool", "perplexity_ask_tool"}
 )
+#: What a tool asks of the model, in the order it asks. Its step waits for these
+#: calls whatever its family says (ADR-221 amendment 2026-11-05); the guard
+#: ``test_llm_wall_clock_guard.py`` refuses a tool module reaching a model unlisted.
+TOOL_LLM_SLOTS: Mapping[str, tuple[str, ...]] = {
+    _SUB_AGENT_TOOL_NAME: ("subagent",),
+    _SKILL_ACTIVATION_TOOL_NAME: ("mcp_react_agent",),
+    _BROWSER_TOOL_NAME: ("browser_agent",),
+    "generate_image": ("image_prompt_enhancement", "image_generation"),
+    "edit_image": ("image_generation",),
+    "generate_document": ("document_generation",),
+    "generate_interactive_page": ("interactive_page",),
+    "get_emails_tool": ("email_digest",),
+    "get_email_attachment_tool": ("vision_analysis",),
+    "send_email_tool": ("emails_agent",),
+    "send_email_to_me_tool": ("emails_agent",),
+    "create_mailbox_draft_tool": ("emails_agent",),
+    "create_mailbox_reply_draft_tool": ("emails_agent",),
+    "update_mailbox_draft_tool": ("hitl_question_generator",),
+}
+#: A server's task runs on ONE of these, chosen from what the server exposes.
+_MCP_TASK_LLM_SLOTS: tuple[str, ...] = ("mcp_react_agent", "mcp_app_react_agent")
 _HIGH_LATENCY_TOOL_NAMES: frozenset[str] = (
     _IMAGE_TOOL_NAMES
     | _DOCUMENT_TOOL_NAMES
     | _WEB_RESEARCH_TOOL_NAMES
     | _NESTED_LOOP_TOOL_NAMES
     | frozenset({_DEVOPS_TOOL_NAME, _BROWSER_TOOL_NAME})
+    | frozenset(TOOL_LLM_SLOTS)
 )
+
+
+def _family_floor(
+    cfg: Settings, step_tool_name: str | None, *, is_mcp_react_task: bool, is_direct_mcp_call: bool
+) -> float:
+    """The floor of a tool's family: its default, and its minimum when high-latency.
+
+    Args:
+        cfg: The settings.
+        step_tool_name: The tool, ``None`` for a CONDITIONAL step.
+        is_mcp_react_task: The tool is an iterative MCP task.
+        is_direct_mcp_call: The tool is a direct MCP call.
+
+    Returns:
+        The floor, in seconds.
+    """
+    if step_tool_name in _NESTED_LOOP_TOOL_NAMES:
+        return cfg.subagent_tool_timeout_seconds
+    if step_tool_name in _IMAGE_TOOL_NAMES:
+        return cfg.image_generation_tool_timeout_seconds
+    if step_tool_name in _DOCUMENT_TOOL_NAMES:
+        return cfg.document_generation_tool_timeout_seconds
+    if step_tool_name == _DEVOPS_TOOL_NAME:
+        return cfg.devops_claude_tool_timeout_seconds
+    if step_tool_name == _BROWSER_TOOL_NAME:
+        return cfg.browser_tool_timeout_seconds
+    if step_tool_name in _WEB_RESEARCH_TOOL_NAMES:
+        return cfg.web_research_tool_timeout_seconds
+    if is_mcp_react_task:
+        return float(cfg.mcp_react_step_timeout_seconds)
+    if is_direct_mcp_call:
+        return float(cfg.mcp_tool_timeout_seconds)
+    return cfg.default_tool_timeout_seconds
+
+
+def _family_ceiling(
+    cfg: Settings, step_tool_name: str | None, *, is_mcp_react_task: bool, is_direct_mcp_call: bool
+) -> float:
+    """The most a tool's family grants a step.
+
+    Args:
+        cfg: The settings.
+        step_tool_name: The tool, ``None`` for a CONDITIONAL step.
+        is_mcp_react_task: The tool is an iterative MCP task.
+        is_direct_mcp_call: The tool is a direct MCP call.
+
+    Returns:
+        The ceiling, in seconds.
+    """
+    if step_tool_name == _BROWSER_TOOL_NAME:
+        return cfg.max_browser_tool_timeout_seconds
+    if step_tool_name in _NESTED_LOOP_TOOL_NAMES:
+        return cfg.subagent_tool_max_timeout_seconds
+    if step_tool_name in _IMAGE_TOOL_NAMES:
+        # Dedicated ceiling: the generic 120 s sat BELOW the 138.3 s measured
+        # for gpt-image-2 at quality=high, so raising the floor alone could
+        # never make a high-quality render succeed (audit 2026-07-27).
+        return cfg.max_image_generation_tool_timeout_seconds
+    if step_tool_name in _DOCUMENT_TOOL_NAMES:
+        # Dedicated ceiling (ADR-226): a large document at 16k output tokens
+        # legitimately exceeds the generic 120 s cap.
+        return cfg.max_document_generation_tool_timeout_seconds
+    if step_tool_name in _WEB_RESEARCH_TOOL_NAMES:
+        return cfg.max_web_research_tool_timeout_seconds
+    if is_mcp_react_task:
+        return float(cfg.mcp_react_step_max_timeout_seconds)
+    if is_direct_mcp_call:
+        return float(cfg.mcp_tool_timeout_seconds)
+    return cfg.max_tool_timeout_seconds
+
+
+def _floor_under_the_slots(
+    floor: float, step_tool_name: str | None, *, is_mcp_react_task: bool
+) -> float:
+    """A family's floor, lifted to what the tool's model calls may take.
+
+    Args:
+        floor: The family's floor.
+        step_tool_name: The tool, ``None`` for a CONDITIONAL step.
+        is_mcp_react_task: The tool is an iterative MCP task.
+
+    Returns:
+        The floor, in seconds: the family's, unless a slot needs longer.
+    """
+    if is_mcp_react_task:
+        return max(run_bound_seconds(floor, slot) for slot in _MCP_TASK_LLM_SLOTS)
+    return run_bound_seconds(floor, *TOOL_LLM_SLOTS.get(step_tool_name or "", ()))
 
 
 def compute_step_timeout(
@@ -92,6 +213,7 @@ def compute_step_timeout(
       ceiling pair (`document_generation_tool_timeout_seconds` /
       `max_document_generation_tool_timeout_seconds`) — the internal LLM
       writes whole documents, well above the generic tool default.
+    - Page tool (``generate_interactive_page``, ADR-370): the document family.
     - ``claude_server_task_tool``: 120 s floor, `MAX_TOOL_TIMEOUT_SECONDS`
       ceiling.
     - MCP iterative task tools (``{server}_task``, ADR-062): dedicated
@@ -117,11 +239,15 @@ def compute_step_timeout(
     - Everything else: `DEFAULT_TOOL_TIMEOUT_SECONDS` (30 s) floor,
       `MAX_TOOL_TIMEOUT_SECONDS` (120 s) ceiling.
 
-    For high-latency tools (image / sub-agent / devops / browser), the
-    effective timeout is ``max(planner_request, family_default)`` capped by
-    the family ceiling — this prevents the planner from imposing a too-short
-    timeout that would kill the loop mid-task. For regular tools, it is just
+    For high-latency tools (image / sub-agent / devops / browser, and every
+    tool of :data:`TOOL_LLM_SLOTS`), the effective timeout is
+    ``max(planner_request, family_default)`` capped by the family ceiling — this
+    prevents the planner from imposing a too-short timeout that would kill the
+    loop mid-task. For regular tools, it is just
     ``min(planner_request or default, ceiling)``.
+
+    Above all of it stand the slots a tool calls (ADR-221 amendment 2026-11-05):
+    the floor rises to what those calls may take, the ceiling with it.
 
     Args:
         step_tool_name: ``ExecutionStep.tool_name`` (``None`` falls back to
@@ -166,48 +292,26 @@ def compute_step_timeout(
     )
 
     # Floor (effective default if planner left it unset, AND minimum for
-    # high-latency tools — see docstring).
-    if step_tool_name in _NESTED_LOOP_TOOL_NAMES:
-        effective_default: float = cfg.subagent_tool_timeout_seconds
-    elif step_tool_name in _IMAGE_TOOL_NAMES:
-        effective_default = cfg.image_generation_tool_timeout_seconds
-    elif step_tool_name in _DOCUMENT_TOOL_NAMES:
-        effective_default = cfg.document_generation_tool_timeout_seconds
-    elif step_tool_name == _DEVOPS_TOOL_NAME:
-        effective_default = cfg.devops_claude_tool_timeout_seconds
-    elif step_tool_name == _BROWSER_TOOL_NAME:
-        effective_default = cfg.browser_tool_timeout_seconds
-    elif step_tool_name in _WEB_RESEARCH_TOOL_NAMES:
-        effective_default = cfg.web_research_tool_timeout_seconds
-    elif is_mcp_react_task:
-        effective_default = float(cfg.mcp_react_step_timeout_seconds)
-    elif is_direct_mcp_call:
-        effective_default = float(cfg.mcp_tool_timeout_seconds)
-    else:
-        effective_default = cfg.default_tool_timeout_seconds
-
-    # Ceiling.
-    if step_tool_name == _BROWSER_TOOL_NAME:
-        max_timeout: float = cfg.max_browser_tool_timeout_seconds
-    elif step_tool_name in _NESTED_LOOP_TOOL_NAMES:
-        max_timeout = cfg.subagent_tool_max_timeout_seconds
-    elif step_tool_name in _IMAGE_TOOL_NAMES:
-        # Dedicated ceiling: the generic 120 s sat BELOW the 138.3 s measured
-        # for gpt-image-2 at quality=high, so raising the floor alone could
-        # never make a high-quality render succeed (audit 2026-07-27).
-        max_timeout = cfg.max_image_generation_tool_timeout_seconds
-    elif step_tool_name in _DOCUMENT_TOOL_NAMES:
-        # Dedicated ceiling (ADR-226): a large document at 16k output tokens
-        # legitimately exceeds the generic 120 s cap.
-        max_timeout = cfg.max_document_generation_tool_timeout_seconds
-    elif step_tool_name in _WEB_RESEARCH_TOOL_NAMES:
-        max_timeout = cfg.max_web_research_tool_timeout_seconds
-    elif is_mcp_react_task:
-        max_timeout = float(cfg.mcp_react_step_max_timeout_seconds)
-    elif is_direct_mcp_call:
-        max_timeout = float(cfg.mcp_tool_timeout_seconds)
-    else:
-        max_timeout = cfg.max_tool_timeout_seconds
+    # high-latency tools — see docstring), lifted to the tool's model calls.
+    effective_default = _floor_under_the_slots(
+        _family_floor(
+            cfg,
+            step_tool_name,
+            is_mcp_react_task=is_mcp_react_task,
+            is_direct_mcp_call=is_direct_mcp_call,
+        ),
+        step_tool_name,
+        is_mcp_react_task=is_mcp_react_task,
+    )
+    max_timeout = max(
+        effective_default,
+        _family_ceiling(
+            cfg,
+            step_tool_name,
+            is_mcp_react_task=is_mcp_react_task,
+            is_direct_mcp_call=is_direct_mcp_call,
+        ),
+    )
 
     # High-latency tools: enforce family floor even if planner asked for less.
     if step_tool_name in _HIGH_LATENCY_TOOL_NAMES or is_mcp_react_task:

@@ -19,6 +19,7 @@ from src.core.constants import (
     RAG_DRIVE_REGULAR_FILE_MAP,
 )
 from src.core.exceptions import BaseAPIException
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
 
@@ -113,6 +114,7 @@ class TestRAGDriveSyncServiceLinkFolder:
             return_value={"mimeType": "application/vnd.google-apps.folder"}
         )
         mock_client.close = AsyncMock()
+        mock_client.connector_type = ConnectorType.GOOGLE_DRIVE
 
         with patch.object(service, "_get_drive_client", return_value=mock_client):
             result = await service.link_folder(
@@ -178,6 +180,7 @@ class TestRAGDriveSyncServiceLinkFolder:
 
         client.get_file_metadata = AsyncMock(side_effect=metadata)
         client.close = AsyncMock()
+        client.connector_type = ConnectorType.GOOGLE_DRIVE
         return client
 
     @pytest.mark.asyncio
@@ -191,7 +194,7 @@ class TestRAGDriveSyncServiceLinkFolder:
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.source_repo.count_for_space = AsyncMock(return_value=1)
         service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
-        existing = MagicMock(folder_id="parent", folder_ids=[])
+        existing = MagicMock(folder_id="parent", folder_ids=[], provider="google_drive")
         service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
         client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
 
@@ -222,7 +225,7 @@ class TestRAGDriveSyncServiceLinkFolder:
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.source_repo.count_for_space = AsyncMock(return_value=1)
         service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
-        existing = MagicMock(folder_id="parent", folder_ids=[])
+        existing = MagicMock(folder_id="parent", folder_ids=[], provider="google_drive")
         service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
         client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
         flushed: list = []
@@ -259,7 +262,7 @@ class TestRAGDriveSyncServiceLinkFolder:
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.source_repo.count_for_space = AsyncMock(return_value=1)
         service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
-        existing = MagicMock(folder_id="child", folder_ids=[])
+        existing = MagicMock(folder_id="child", folder_ids=[], provider="google_drive")
         service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
         client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
 
@@ -283,7 +286,9 @@ class TestRAGDriveSyncServiceLinkFolder:
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
         service.source_repo.count_for_space = AsyncMock(return_value=1)
         service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
-        existing = MagicMock(folder_id="left", folder_ids=["left", "left-sub"])
+        existing = MagicMock(
+            folder_id="left", folder_ids=["left", "left-sub"], provider="google_drive"
+        )
         service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
         service.source_repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
         client = self._client_with_parents(

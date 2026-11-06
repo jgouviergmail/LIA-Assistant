@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { driveName } from '@/lib/drives';
 import { useDashboardChat } from '../DashboardNavigation';
 import type { CardSection, DocumentsData } from '@/types/briefing';
 
@@ -16,11 +17,12 @@ interface DocumentsCardProps {
 }
 
 /**
- * Documents card (P15 extension, 2026-07-22 — Drive source arbitration).
+ * Documents card (P15 extension, 2026-07-22).
  *
- * Latest modified Google Drive files. Each row is a button opening the chat
- * prefilled with a summarize intent (QW-9 `?draft=`), plus a separate
- * external-link anchor to the file in Drive (user arbitration: both).
+ * Latest modified files of the connected drive, Google Drive or OneDrive. Each
+ * row is a button opening the chat prefilled with a summarize intent (QW-9
+ * `?draft=`), plus a separate external-link anchor to the file on its drive
+ * (user arbitration: both).
  */
 export function DocumentsCard({
   section,
@@ -50,6 +52,12 @@ export function DocumentsCard({
       staggerIndex={staggerIndex}
     />
   );
+}
+
+/** Where a file lives: its drive, then its folders; nothing when that is unknown. */
+function place(provider: string | null, path: string | null | undefined): string | null {
+  if (provider === null || path === null || path === undefined) return null;
+  return [driveName(provider), ...path.split('/').filter(Boolean)].join(' / ');
 }
 
 function documentTypeKey(mime: string | null): string {
@@ -138,6 +146,11 @@ function DocumentsContent({
             <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
               {doc.name}
             </span>
+            {place(data.provider, doc.path) && (
+              <span className="truncate text-xs text-muted-foreground">
+                {place(data.provider, doc.path)}
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">
               {t(`dashboard.briefing.cards.documents.${documentTypeKey(doc.mime_type)}`)}
             </span>

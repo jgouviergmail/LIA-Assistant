@@ -426,7 +426,9 @@ async def test_authenticated_connect_all_route_derives_services_and_rejects_empt
     assert len(store.values) == 1
     assert store.values[state]["bulk_mode"] == "connect"
     assert store.values[state]["user_id"] == str(user.id)
-    assert len(store.values[state]["connector_types"].split(",")) == 4
+    assert set(store.values[state]["connector_types"].split(",")) == {
+        connector_type.value for connector_type in ConnectorType.get_microsoft_types()
+    }
 
     invalid = await client.post(
         "/api/v1/connectors/oauth-bulk/microsoft/connect-all/authorize",

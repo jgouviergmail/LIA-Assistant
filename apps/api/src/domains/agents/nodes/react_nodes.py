@@ -226,6 +226,9 @@ async def react_setup_node(
     # Context blocks, in injection ORDER (react_context.build_setup_blocks).
     setup_blocks = await react_context.build_setup_blocks(state, config)
     system_blocks: list[str] = [system_prompt, *setup_blocks.blocks]
+    page_request = react_context.build_page_request_block(state, tool_names)
+    if page_request:
+        system_blocks.append(page_request)
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(

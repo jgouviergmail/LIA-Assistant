@@ -14,6 +14,7 @@ from src.domains.agents.display.components.file_item import FileItem
 from src.domains.agents.display.components.location_card import LocationCard
 from src.domains.agents.display.components.mcp_app_sentinel import McpAppSentinel
 from src.domains.agents.display.components.mcp_result_card import McpResultCard
+from src.domains.agents.display.components.page_app_sentinel import PageAppSentinel
 from src.domains.agents.display.components.place_card import PlaceCard
 from src.domains.agents.display.components.reminder_card import ReminderCard
 from src.domains.agents.display.components.route_card import RouteCard
@@ -75,6 +76,9 @@ PRESENTATIONS: dict[Kind, Presentation] = {
     ),
     Kind.SKILL_APP: Presentation(
         "widget", SkillAppSentinel, reason="Existing rich-output sentinel and sandbox flow."
+    ),
+    Kind.PAGE_APP: Presentation(
+        "widget", PageAppSentinel, reason="A page the model wrote runs in its own sandbox."
     ),
     Kind.DRAFT: Presentation("widget", reason="Approval belongs to the existing HITL flow."),
     Kind.WEB_PAGE: Presentation(

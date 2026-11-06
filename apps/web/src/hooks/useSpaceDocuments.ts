@@ -17,6 +17,7 @@ import type {
   RAGDocumentIdsRequest,
   RAGDocumentMoveRequest,
 } from '@/types/rag-spaces';
+import { generateUUID } from '@/lib/utils';
 
 /** Upload progress state for a single file. */
 export interface DocumentUploadState {
@@ -83,7 +84,7 @@ export function useSpaceDocuments({
   // Upload a file via XHR
   const uploadDocument = useCallback(
     async (file: File): Promise<{ success?: boolean; error?: string }> => {
-      const tempId = crypto.randomUUID();
+      const tempId = generateUUID();
 
       setUploads(prev => [
         ...prev,

@@ -90,6 +90,14 @@ def max_file_bytes(message_max_bytes: int) -> int:
     return max(0, usable // _LINE_WIRE_BYTES * _LINE_SOURCE_BYTES)
 
 
+def media_type_of(attachment: OutgoingAttachment) -> tuple[str, str]:
+    """A file's main type and subtype; a type nobody can read goes out opaque."""
+    maintype, _, subtype = attachment.mime_type.partition("/")
+    if not maintype or not subtype or "/" in subtype:
+        return _FALLBACK_TYPE
+    return maintype, subtype
+
+
 def attachment_part(attachment: OutgoingAttachment) -> MIMEBase:
     """The MIME part of one file: base64, named, offered as an attachment.
 
@@ -99,9 +107,7 @@ def attachment_part(attachment: OutgoingAttachment) -> MIMEBase:
     Returns:
         The part, ready to attach to a ``multipart/mixed`` message.
     """
-    maintype, _, subtype = attachment.mime_type.partition("/")
-    if not maintype or not subtype or "/" in subtype:
-        maintype, subtype = _FALLBACK_TYPE
+    maintype, subtype = media_type_of(attachment)
     part = MIMEBase(maintype, subtype)
     if attachment.charset:
         part.set_param("charset", attachment.charset)

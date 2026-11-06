@@ -52,6 +52,7 @@ import time
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, TypedDict
 
+from src.core.llm_config_helper import run_bound_seconds
 from src.domains.agents.utils.react_execution_contracts import CachedRead, ReadObservation
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ __all__ = [
     "REACT_TURN_KEYS_OWNED_BY_SETUP",
     "ReactTurnReset",
     "TIMEOUT_ATTRIBUTION_MARGIN",
+    "react_compute_budget_seconds",
     "abandoned_call_message",
     "effective_react_budget",
     "loop_compute_seconds",
@@ -174,6 +176,17 @@ def react_turn_reset() -> ReactTurnReset:
 TIMEOUT_ATTRIBUTION_MARGIN = 0.95
 
 
+def react_compute_budget_seconds() -> float:
+    """The loop's model time: the environment's budget, never below one whole call.
+
+    Returns:
+        The budget, in seconds (ADR-221 amendment 2026-11-05).
+    """
+    from src.core.config import settings as _settings
+
+    return run_bound_seconds(_settings.react_agent_timeout_seconds, "react_agent")
+
+
 def effective_react_budget(
     domain_count: int, *, base: int, per_extra_domain: int, ceiling: int
 ) -> int:
@@ -257,7 +270,7 @@ def react_exit_reason(state: MessagesState) -> str | None:
     from src.core.config import settings as _settings
 
     compute_elapsed = float(state.get("react_elapsed_seconds") or 0.0)
-    if compute_elapsed > 0.0 and compute_elapsed > _settings.react_agent_timeout_seconds:
+    if compute_elapsed > 0.0 and compute_elapsed > react_compute_budget_seconds():
         return "compute_budget"
 
     tool_elapsed = float(state.get("react_tool_seconds") or 0.0)

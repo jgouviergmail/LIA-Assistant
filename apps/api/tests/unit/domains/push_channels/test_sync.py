@@ -38,6 +38,7 @@ class TestSyncPushChannels:
             patch.object(sync_module, "_list_user_ids", new=AsyncMock(return_value=[user_id])),
             patch.object(sync_module, "_ensure_user_calendar", new=AsyncMock()) as ensure_calendar,
             patch.object(sync_module, "_ensure_user_drive", new=AsyncMock()) as ensure_drive,
+            patch.object(sync_module, "_ensure_user_onedrive", new=AsyncMock()) as ensure_onedrive,
             patch.object(sync_module, "_ensure_user_gmail", new=AsyncMock()) as ensure_gmail,
             patch.object(
                 sync_module, "_purge_orphan_channels", new=AsyncMock(return_value=0)
@@ -46,13 +47,20 @@ class TestSyncPushChannels:
             mock_settings.push_channels_enabled = True
             mock_settings.gmail_push_enabled = False
             result = await sync_module.sync_push_channels()
-        assert result == {"ensured": 2, "errors": 0, "purged": 0}
+        assert result == {"ensured": 3, "errors": 0, "purged": 0}
         ensure_calendar.assert_awaited_once_with(user_id)
         ensure_drive.assert_awaited_once_with(user_id)
+        ensure_onedrive.assert_awaited_once_with(user_id)
         ensure_gmail.assert_not_awaited()
         # Orphan purge covers exactly the swept providers (gmail is out of
         # scope while phase 2 is off — its dedup ledger must survive).
-        purge.assert_awaited_once_with({"google_calendar": {user_id}, "google_drive": {user_id}})
+        purge.assert_awaited_once_with(
+            {
+                "google_calendar": {user_id},
+                "google_drive": {user_id},
+                "microsoft_onedrive": {user_id},
+            }
+        )
 
     async def test_gmail_joins_when_phase2_is_enabled(self) -> None:
         user_id = uuid4()
@@ -61,13 +69,14 @@ class TestSyncPushChannels:
             patch.object(sync_module, "_list_user_ids", new=AsyncMock(return_value=[user_id])),
             patch.object(sync_module, "_ensure_user_calendar", new=AsyncMock()),
             patch.object(sync_module, "_ensure_user_drive", new=AsyncMock()),
+            patch.object(sync_module, "_ensure_user_onedrive", new=AsyncMock()),
             patch.object(sync_module, "_ensure_user_gmail", new=AsyncMock()) as ensure_gmail,
             patch.object(sync_module, "_purge_orphan_channels", new=AsyncMock(return_value=0)),
         ):
             mock_settings.push_channels_enabled = True
             mock_settings.gmail_push_enabled = True
             result = await sync_module.sync_push_channels()
-        assert result == {"ensured": 3, "errors": 0, "purged": 0}
+        assert result == {"ensured": 4, "errors": 0, "purged": 0}
         ensure_gmail.assert_awaited_once_with(user_id)
 
     async def test_one_users_failure_does_not_stop_the_sweep(self) -> None:
@@ -85,6 +94,7 @@ class TestSyncPushChannels:
                 new=AsyncMock(side_effect=[RuntimeError("api down"), None]),
             ) as ensure_calendar,
             patch.object(sync_module, "_ensure_user_drive", new=AsyncMock()),
+            patch.object(sync_module, "_ensure_user_onedrive", new=AsyncMock()),
             patch.object(sync_module, "_ensure_user_gmail", new=AsyncMock()),
             patch.object(sync_module, "_purge_orphan_channels", new=AsyncMock(return_value=0)),
         ):
@@ -93,7 +103,7 @@ class TestSyncPushChannels:
             result = await sync_module.sync_push_channels()
         assert ensure_calendar.await_count == 2
         assert result["errors"] == 1
-        assert result["ensured"] == 3  # 1 calendar + 2 drive
+        assert result["ensured"] == 5  # 1 calendar + 2 drive + 2 onedrive
 
     async def test_orphan_purge_deletes_channels_without_an_active_connector(self) -> None:
         kept_user, orphan_user = uuid4(), uuid4()

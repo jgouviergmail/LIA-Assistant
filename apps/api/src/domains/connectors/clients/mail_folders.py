@@ -39,11 +39,25 @@ class MailFolder:
         folder_id: What the provider selects it by (a Graph id, an IMAP name).
         path: Its place in the hierarchy, ``/``-separated, as the person reads it.
         name: Its own name, the last segment of the path.
+        unread: What it leaves unread, where the listing says (Graph's walk does).
     """
 
     folder_id: str
     path: str
     name: str
+    unread: int | None = None
+
+
+class SystemFolderError(Exception):
+    """A folder of the mailbox's own was named where only the person's are accepted."""
+
+
+class MailFolderNameTakenError(Exception):
+    """A folder already answers to the name asked for."""
+
+
+class MailFolderNotEmptyError(Exception):
+    """A folder that holds messages or folders is never deleted (see the two clients)."""
 
 
 class MailFolderLookupError(LookupError):

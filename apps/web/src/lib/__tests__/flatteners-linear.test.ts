@@ -27,8 +27,10 @@ import { describe, expect, it } from 'vitest';
 import { htmlToPlainText, looksLikeHtml } from '../html-plain-text';
 import { flattenForVoice } from '../live/delegation';
 import { readAsMarkdown } from '../markdown-references';
+import { prepareMarkdownSource } from '../markdown-source';
 import { messageToPlainText } from '../message-clipboard';
 import { toPlainPreview } from '../notification-preview';
+import { linkSegments } from '../text-links';
 
 const SMALL = 8_000;
 const FLOOR_MS = 20;
@@ -53,9 +55,18 @@ const FLATTENERS: Record<string, (text: string) => unknown> = {
   flattenForVoice,
   messageToPlainText,
   toPlainPreview: text => toPlainPreview(text, 120),
+  linkSegments,
+  prepareMarkdownSource: text => prepareMarkdownSource(text, false),
 };
 
 const WITNESSES: Record<string, (n: number) => string> = {
+  'pre tags that never close in an answer': n => '<div>' + '<pre '.repeat(n / 5),
+  'closed pre blocks in an answer': n => '<div>' + '<pre>a\n\nb</pre>\n'.repeat(n / 17),
+  'code spans that never close': n => '<div>' + '<code>a'.repeat(n / 7),
+  'math openers that never close': n => '\\( '.repeat(n / 3),
+  'display math openers that never close': n => '\\[ '.repeat(n / 3),
+  'math openers then blanks': n => '\\(' + ' '.repeat(n),
+  'math fences that never end a line': n => '```math\nx```y'.repeat(n / 14),
   'unclosed <a then blanks': n => '<a' + ' '.repeat(n),
   'unclosed <a then newlines': n => '<a' + '\n'.repeat(n),
   'a run of blanks': n => ' '.repeat(n),
@@ -68,6 +79,13 @@ const WITNESSES: Record<string, (n: number) => string> = {
   'unmatched brackets': n => '['.repeat(n),
   'link openers': n => '[a]('.repeat(n / 4),
   'link openers with a scheme': n => '[a](http://x'.repeat(n / 12),
+  'written link openers': n => '[link]('.repeat(n / 7),
+  'written links never closed': n => '[link](http://x '.repeat(n / 16),
+  'www openers': n => 'www.'.repeat(n / 4),
+  'scheme openers': n => 'https://'.repeat(n / 8),
+  'an address closed many times': n => 'https://x.org/' + ')'.repeat(n),
+  'an address opened many times': n => 'https://x.org/' + '('.repeat(n),
+  'an address of closing marks': n => 'https://x.org/' + '.,'.repeat(n / 2),
   'italic openers': n => '*a '.repeat(n / 3),
   'bold openers': n => '**a '.repeat(n / 4),
   'strike openers': n => '~~a '.repeat(n / 4),

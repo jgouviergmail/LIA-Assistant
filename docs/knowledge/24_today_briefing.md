@@ -16,7 +16,7 @@ If the briefing cannot load, the radio and your shortcuts stay available.
 
 ## Which cards are on My dashboard, and what can I do from them?
 
-Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (recent Drive files) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
+Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (each file with its place on your drive) (your latest files, on Google Drive or OneDrive; Microsoft offers no such list, so on OneDrive the card starts from the top of your drive and completes itself as your files change) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
 
 **👆 From an item:**
 • a click opens the chat with a matching request ready — you send it yourself

@@ -20,6 +20,21 @@ from dataclasses import dataclass
 from typing import Any
 
 
+def declares_attachments(content_type: str | None) -> bool:
+    """Whether a message's top-level type is the one files travel in.
+
+    A listing reads headers, no part. ``multipart/mixed`` is how mailers wrap a body
+    and its files; images a body shows are ``multipart/related``, and stay out.
+
+    Args:
+        content_type: The ``Content-Type`` header, parameters included.
+
+    Returns:
+        True for ``multipart/mixed``, whatever its case.
+    """
+    return (content_type or "").split(";", 1)[0].strip().lower() == "multipart/mixed"
+
+
 @dataclass(frozen=True, slots=True)
 class EmailAttachmentContent:
     """The bytes of one attachment, with what the sender called them."""
@@ -81,6 +96,11 @@ def attachment_handle(listed: Mapping[str, Any]) -> str | None:
     return str(handle) if handle else None
 
 
+def _goes_by(listed: Mapping[str, Any], wanted: str) -> bool:
+    """Whether the handle names this part, or its place in the message (Gmail's stable name)."""
+    return wanted in (attachment_handle(listed), listed.get("part_id"))
+
+
 def attachment_mime(listed: Mapping[str, Any]) -> str:
     """The MIME type of a listed attachment, whichever spelling it carries."""
     return str(listed.get("mimeType") or listed.get("mime_type") or "")
@@ -96,7 +116,7 @@ def select_attachment(
 
     Args:
         attachments: The message's listed attachments.
-        attachment_id: The provider handle; wins when given.
+        attachment_id: The provider handle, or the part's place; wins when given.
         filename: The name as sent; must match exactly one part.
 
     Returns:
@@ -109,7 +129,7 @@ def select_attachment(
     """
     if attachment_id:
         for listed in attachments:
-            if attachment_handle(listed) == attachment_id:
+            if _goes_by(listed, attachment_id):
                 return listed
         # A handle nobody lists is STALE, not a lie: Gmail's attachment ids
         # change between two reads of the same message (measured on a real

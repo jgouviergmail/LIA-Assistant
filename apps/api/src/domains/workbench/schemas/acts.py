@@ -12,8 +12,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 #: What became of an item an act could not do: gone since it was listed,
-#: refused for it alone, or never answered (the provider stopped mid-way).
-ActStatus = Literal["not_found", "failed", "unavailable"]
+#: refused for it alone, never answered (the provider stopped mid-way), or copied
+#: to where it was going while its original stayed.
+ActStatus = Literal["not_found", "failed", "unavailable", "name_taken", "task_left_behind"]
 
 
 class ActFailure(BaseModel):

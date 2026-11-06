@@ -28,6 +28,7 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
 )
 from src.core.i18n import normalize_language
+from src.core.llm_config_helper import run_bound_seconds
 from src.core.llm_usage import LLMBillingRecord
 from src.domains.habits.presence import last_seen_at
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
@@ -373,7 +374,9 @@ class HeartbeatProactiveTask:
                         recent_notification_embeddings=recent_embeddings,
                     )
                 ),
-                timeout=settings.heartbeat_enrichment_timeout_seconds,
+                timeout=run_bound_seconds(
+                    settings.heartbeat_enrichment_timeout_seconds, "interest_content"
+                ),
             )
         except Exception as e:
             # Fail-open by contract: enrichment is a bonus, never a blocker.

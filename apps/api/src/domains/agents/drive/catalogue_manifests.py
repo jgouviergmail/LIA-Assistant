@@ -12,6 +12,7 @@ from src.core.config import settings
 from src.core.constants import (
     DRIVE_TOOL_DEFAULT_LIMIT,
     GOOGLE_DRIVE_SCOPES,
+    WORKSPACE_DOC_APPEND_MAX_CHARS,
 )
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -217,7 +218,7 @@ get_files_catalogue_manifest = ToolManifest(
 
 
 # ============================================================================
-# SHEETS / DOCS CONTENT READ (lot F phase read, 2026-08 — Drive token)
+# SPREADSHEET / DOCUMENT CONTENT READ (lot F; both drives since ADR-369, lot 11)
 # ============================================================================
 
 read_spreadsheet_catalogue_manifest = ToolManifest(
@@ -227,14 +228,16 @@ read_spreadsheet_catalogue_manifest = ToolManifest(
     tool_category="readonly",
     agent="file_agent",
     description=(
-        "**Tool: read_spreadsheet_tool** - Read the CELL VALUES of a Google "
-        "Sheets spreadsheet ('read this sheet and answer', budgets, lists, "
-        "trackers). Chain from get_files_tool: pass files[].id as file_id. "
+        "**Tool: read_spreadsheet_tool** - Read the CELL VALUES of a "
+        "spreadsheet ('read this sheet and answer', budgets, lists, trackers): "
+        "a Google Sheet, or an .xlsx or .xlsm workbook on OneDrive. Chain from "
+        "get_files_tool: pass files[].id as file_id. "
         "Returns the sheet list, one sheet's values (bounded page) and an "
         "explicit truncation flag. Use get_files_tool for file METADATA."
     ),
     semantic_keywords=[
         "read the values of my google sheet",
+        "read my excel workbook",
         "what does this spreadsheet contain",
         "answer from my budget tracking sheet",
         "look up a number in my spreadsheet",
@@ -244,7 +247,7 @@ read_spreadsheet_catalogue_manifest = ToolManifest(
             name="file_id",
             type="string",
             required=True,
-            description="Drive file id of the spreadsheet (from get_files_tool)",
+            description="File id of the spreadsheet (from get_files_tool)",
             semantic_type="file_id",
         ),
         ParameterSchema(
@@ -296,13 +299,16 @@ read_document_catalogue_manifest = ToolManifest(
     tool_category="readonly",
     agent="file_agent",
     description=(
-        "**Tool: read_document_tool** - Read a Google Doc's CONTENT as "
-        "structured text (headings, lists, tables). Chain from "
+        "**Tool: read_document_tool** - Read a document's CONTENT as "
+        "structured text (headings, lists, tables): a Google Doc, a .docx "
+        "Word file on OneDrive, or a plain text file (.txt, .md, .csv) on either "
+        "drive. Chain from "
         "get_files_tool: pass files[].id as file_id. Use to answer about, "
         "summarize or compare a document's content."
     ),
     semantic_keywords=[
         "read the content of my google doc",
+        "read my word document",
         "summarize this document from drive",
         "what does the meeting notes doc say",
         "compare information inside a document",
@@ -312,7 +318,7 @@ read_document_catalogue_manifest = ToolManifest(
             name="file_id",
             type="string",
             required=True,
-            description="Drive file id of the Google Doc (from get_files_tool)",
+            description="File id of the document (from get_files_tool)",
             semantic_type="file_id",
         ),
     ],
@@ -351,8 +357,10 @@ write_spreadsheet_catalogue_manifest = ToolManifest(
     tool_category="update",
     agent="file_agent",
     description=(
-        "**Tool: write_spreadsheet_tool** - WRITE into a Google Sheets "
-        "spreadsheet ('add this expense to my budget sheet'). mode='append' "
+        "**Tool: write_spreadsheet_tool** - WRITE into a spreadsheet ('add "
+        "this expense to my budget sheet'): a Google Sheet, or an .xlsx or "
+        ".xlsm workbook on a work OneDrive (a personal OneDrive refuses: it "
+        "holds no workbook API). mode='append' "
         "adds rows below the table (default); mode='update' overwrites the "
         "cells of a1_range. Chain from get_files_tool (files[].id as "
         "file_id). Returns a confirmation draft: nothing is written until "
@@ -360,6 +368,7 @@ write_spreadsheet_catalogue_manifest = ToolManifest(
     ),
     semantic_keywords=[
         "add a row to my google sheet",
+        "add a row to my excel workbook",
         "write this expense into my budget spreadsheet",
         "update a cell in my tracking sheet",
         "record these values in the spreadsheet",
@@ -369,7 +378,7 @@ write_spreadsheet_catalogue_manifest = ToolManifest(
             name="file_id",
             type="string",
             required=True,
-            description="Drive file id of the spreadsheet (from get_files_tool)",
+            description="File id of the spreadsheet (from get_files_tool)",
             semantic_type="file_id",
         ),
         ParameterSchema(
@@ -428,12 +437,14 @@ append_document_text_catalogue_manifest = ToolManifest(
     agent="file_agent",
     description=(
         "**Tool: append_document_text_tool** - APPEND text at the end of a "
-        "Google Doc ('add this note to my meeting doc'). Chain from "
+        "document ('add this note to my meeting doc'): a Google Doc, a "
+        ".docx Word file on OneDrive, or a plain text file on either drive. Chain from "
         "get_files_tool (files[].id as file_id). Returns a confirmation "
         "draft: nothing is written until the user approves the full text."
     ),
     semantic_keywords=[
         "add a note to my google doc",
+        "add a note to my word document",
         "append this text to the meeting document",
         "write a paragraph into my doc",
     ],
@@ -442,7 +453,7 @@ append_document_text_catalogue_manifest = ToolManifest(
             name="file_id",
             type="string",
             required=True,
-            description="Drive file id of the Google Doc (from get_files_tool)",
+            description="File id of the document (from get_files_tool)",
             semantic_type="file_id",
         ),
         ParameterSchema(
@@ -474,12 +485,75 @@ append_document_text_catalogue_manifest = ToolManifest(
 )
 
 
+replace_document_text_catalogue_manifest = ToolManifest(
+    name="replace_document_text_tool",
+    mutation_policy="draft",
+    # ADR-256: REWRITES a text file — a mutation whose name says 'replace'.
+    tool_category="update",
+    agent="file_agent",
+    description=(
+        "**Tool: replace_document_text_tool** - REWRITE the whole text of a plain "
+        "text file on the drive (.txt, .md, .csv, .json), for a change inside it "
+        "('fix the typo in notes.txt'). Read it first with read_document_tool, then "
+        "pass the COMPLETE new text. Chain from get_files_tool (files[].id as "
+        "file_id). A Google Doc or a Word file holds more than its words: use "
+        "append_document_text_tool. Returns a confirmation draft: nothing is "
+        "written until the user approves the full text, and a file changed "
+        "meanwhile is refused."
+    ),
+    semantic_keywords=[
+        "fix a typo in my text file",
+        "rewrite my notes file",
+        "correct the markdown file",
+        "replace the content of a text file",
+    ],
+    parameters=[
+        ParameterSchema(
+            name="file_id",
+            type="string",
+            required=True,
+            description="File id of the text file (from get_files_tool)",
+            semantic_type="file_id",
+        ),
+        ParameterSchema(
+            name="text",
+            type="string",
+            required=True,
+            description="The file's complete new text, written verbatim",
+            semantic_type="Text",
+            constraints=[
+                ParameterConstraint(kind="max_length", value=WORKSPACE_DOC_APPEND_MAX_CHARS)
+            ],
+        ),
+    ],
+    outputs=[
+        OutputFieldSchema(path="success", type="boolean", description="Success"),
+    ],
+    cost=CostProfile(est_tokens_in=150, est_tokens_out=60, est_cost_usd=0.004, est_latency_ms=700),
+    permissions=PermissionProfile(
+        required_scopes=GOOGLE_DRIVE_SCOPES,
+        # Draft-based (see write_spreadsheet_tool above).
+        hitl_required=False,
+        data_classification="CONFIDENTIAL",
+    ),
+    max_iterations=1,
+    supports_dry_run=False,
+    reference_examples=["success"],
+    version="1.0.0",
+    maintainer="Team Agents",
+    display=DisplayMetadata(
+        emoji="📝", i18n_key="replace_document_text", visible=True, category="tool"
+    ),
+)
+
+
 # Registration collection for the catalogue loader (lot F family)
 WORKSPACE_DOCS_TOOL_MANIFESTS: tuple[ToolManifest, ...] = (
     read_spreadsheet_catalogue_manifest,
     read_document_catalogue_manifest,
     write_spreadsheet_catalogue_manifest,
     append_document_text_catalogue_manifest,
+    replace_document_text_catalogue_manifest,
 )
 
 __all__ = [
@@ -490,5 +564,6 @@ __all__ = [
     "read_document_catalogue_manifest",
     "write_spreadsheet_catalogue_manifest",
     "append_document_text_catalogue_manifest",
+    "replace_document_text_catalogue_manifest",
     "WORKSPACE_DOCS_TOOL_MANIFESTS",
 ]

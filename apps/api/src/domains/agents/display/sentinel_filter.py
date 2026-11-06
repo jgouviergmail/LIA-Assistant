@@ -45,7 +45,7 @@ logger = get_logger(__name__)
 # `lia-skill-app__placeholder` / `lia-mcp-app__loading`, which must not be
 # treated as sentinels in their own right.
 _SENTINEL_CLASSES = frozenset(
-    {"lia-skill-app", "lia-mcp-app", "lia-classification", "lia-place-position"}
+    {"lia-skill-app", "lia-mcp-app", "lia-page-app", "lia-classification", "lia-place-position"}
 )
 
 

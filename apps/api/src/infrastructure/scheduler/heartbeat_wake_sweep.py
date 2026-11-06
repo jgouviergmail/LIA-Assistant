@@ -44,6 +44,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_HEARTBEAT_WAKE_SWEEP
+from src.core.llm_config_helper import run_bound_seconds
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.push_channels.models import PushChannelProvider
 from src.domains.push_channels.wake import (
@@ -67,6 +68,10 @@ logger = structlog.get_logger(__name__)
 MailDelta = tuple[list[dict[str, Any]], str | None]
 
 _PROVIDERS: tuple[str, ...] = tuple(p.value for p in PushChannelProvider)
+#: A drive's wake reindexes what the person linked: it decides nothing.
+_DRIVE_PROVIDERS = frozenset(
+    {PushChannelProvider.GOOGLE_DRIVE.value, PushChannelProvider.MICROSOFT_ONEDRIVE.value}
+)
 #: Every outcome a wake is counted under (``push_wakes_total``), the Drive
 #: reindex's included. Each provider × outcome series is exported from import at
 #: zero: a pair's FIRST increment is invisible to ``increase()`` when the pair had
@@ -366,7 +371,7 @@ async def _serve_mail_sources(payload: WakePayload) -> None:
 async def _serve_drive(payload: WakePayload) -> str:
     from src.domains.rag_spaces.drive_push import reindex_from_push
 
-    return await reindex_from_push(payload.user_id)
+    return await reindex_from_push(payload.user_id, payload.provider)
 
 
 async def _serve_one(redis: Any, payload: WakePayload) -> str:
@@ -374,7 +379,7 @@ async def _serve_one(redis: Any, payload: WakePayload) -> str:
     ttl = timedelta(seconds=settings.push_wake_payload_ttl_seconds)
     if datetime.now(UTC) - payload.enqueued_at > ttl:
         return "stale"
-    if payload.provider == PushChannelProvider.GOOGLE_DRIVE.value:
+    if payload.provider in _DRIVE_PROVIDERS:
         return await _serve_drive(payload)
     delta: MailDelta | None = None
     if payload.provider == PushChannelProvider.GOOGLE_GMAIL.value:
@@ -403,6 +408,16 @@ async def _serve_one(redis: Any, payload: WakePayload) -> str:
     return await _serve_heartbeat(enriched)
 
 
+def _serve_bound_seconds() -> float:
+    """One wake's ceiling: it never ends before the model calls of a heartbeat may."""
+    return run_bound_seconds(
+        settings.push_wake_serve_timeout_seconds,
+        "heartbeat_decision",
+        "interest_content",
+        "heartbeat_message",
+    )
+
+
 async def _serve_counted(redis: Any, payload: WakePayload) -> bool:
     """Serve one wake under the ceiling; count and log its one outcome.
 
@@ -411,9 +426,7 @@ async def _serve_counted(redis: Any, payload: WakePayload) -> bool:
     """
     started = time.monotonic()
     try:
-        outcome = await asyncio.wait_for(
-            _serve_one(redis, payload), timeout=settings.push_wake_serve_timeout_seconds
-        )
+        outcome = await asyncio.wait_for(_serve_one(redis, payload), timeout=_serve_bound_seconds())
     except TimeoutError:
         # A wake that stopped moving: cut, so the next account is served.
         outcome = "timeout"
@@ -421,7 +434,7 @@ async def _serve_counted(redis: Any, payload: WakePayload) -> bool:
             "push_wake_timed_out",
             provider=payload.provider,
             user_id=str(payload.user_id),
-            timeout_seconds=settings.push_wake_serve_timeout_seconds,
+            timeout_seconds=_serve_bound_seconds(),
         )
     except Exception as exc:  # noqa: BLE001 — one wake must not kill the sweep
         outcome = "error"

@@ -159,6 +159,7 @@ beforeEach(() => {
     documents: [document(), document({ id: 'd2', original_filename: 'notes.md' })],
     drive_sources: [],
     mail_sources: [],
+    active_drive: null,
   };
   detail.loading = false;
   list.spaces = [space(), space({ id: 's2', name: 'Archives', document_count: 4 })];

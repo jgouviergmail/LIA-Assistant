@@ -7,11 +7,9 @@ from importlib import import_module
 from xml.etree.ElementTree import Element
 from zipfile import BadZipFile, ZipFile
 
-OFFICE_FORMATS = {
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-}
+from src.core.document_types import SLIDES_TYPE, WORD_TYPE, WORKBOOK_TYPE
+
+OFFICE_FORMATS = {WORD_TYPE: "docx", SLIDES_TYPE: "pptx", WORKBOOK_TYPE: "xlsx"}
 _PARTS = {
     "docx": "word/document.xml",
     "pptx": "ppt/slides/slide1.xml",

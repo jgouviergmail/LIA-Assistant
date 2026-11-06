@@ -63,6 +63,19 @@ def block(lbl: dict[str, str], key: str, text: str) -> Block:
     return Block(lbl[key], text)
 
 
+def format_day(raw: str, format_dt: FormatDt) -> str:
+    """A day as the card shows it, in the reader's language.
+
+    Args:
+        raw: An ISO day, or ``--MM-DD`` when the contact holds no year.
+        format_dt: The card's formatter, which keeps a date a date.
+
+    Returns:
+        The day; a day with no year as it was written.
+    """
+    return raw.removeprefix("--") if raw.startswith("--") else format_dt(raw)
+
+
 def updated_row(
     lbl: dict[str, str], key: str, new_value: str | None, current_value: str
 ) -> Row | None:

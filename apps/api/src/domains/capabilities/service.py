@@ -349,6 +349,11 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "is a connector the map already counts (ADR-321). A star for it could "
         "only ever be lit."
     ),
+    PlatformCapability.INTERACTIVE_PAGES: (
+        "An answer, not a thing to set up: a page lives in its message and its "
+        "file among the documents the map already counts (ADR-370). A star for "
+        "it could only ever be lit."
+    ),
     PlatformCapability.SKILL_LIBRARY: (
         "A way to fill a record the map already counts: what the library "
         "installs are the person's skills, under the skills node (ADR-327). A "

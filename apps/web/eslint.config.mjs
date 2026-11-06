@@ -55,8 +55,18 @@ const eslintConfig = defineConfig([
       // timezones — the wrong civil date for a date input or export range. Use
       // formatLocalDateInput() from '@/lib/date-format'. For a genuine UTC
       // date-only string, disable this rule on the line with a justification.
+      //
+      // `crypto.randomUUID()` exists in a secure context only: on the plain-HTTP LAN
+      // install the installer offers by default it is undefined, and a key minted at
+      // render takes the whole screen down. generateUUID() from '@/lib/utils' works
+      // in both.
       'no-restricted-syntax': [
         'error',
+        {
+          selector: "CallExpression[callee.property.name='randomUUID']",
+          message:
+            "crypto.randomUUID() needs a secure context: a plain-HTTP LAN install has none. Use generateUUID() from '@/lib/utils'.",
+        },
         {
           selector:
             "CallExpression[callee.property.name='split'][callee.object.callee.property.name='toISOString']",
@@ -95,6 +105,11 @@ const eslintConfig = defineConfig([
         },
       ],
     },
+  },
+  {
+    // The two modules that test for it before calling it.
+    files: ['src/lib/utils.ts', 'src/lib/application-device-identity.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     // The one module allowed to import zod itself: it configures it.

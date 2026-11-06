@@ -43,6 +43,10 @@ class TestTheTurnDataSummary:
             "language": "fr",
         }
 
+    def test_a_page_the_turn_wrote_is_not_the_persons_data(self) -> None:
+        items = {"page_app_1": {"type": "PAGE_APP", "payload": {"html_content": "<p>x</p>"}}}
+        assert summarize_turn_data(items, max_bytes=100_000, language="fr")["counts"] == {}
+
     def test_says_when_the_data_cannot_travel(self) -> None:
         summary = summarize_turn_data(ITEMS, max_bytes=10, language="en")
         assert summary["available"] is False and summary["counts"] == {"email": 2, "contact": 1}

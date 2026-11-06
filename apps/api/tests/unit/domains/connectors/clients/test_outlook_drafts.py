@@ -30,9 +30,11 @@ from src.domains.connectors.clients.mailbox_drafts import (
 from src.domains.connectors.clients.microsoft_outlook_client import MicrosoftOutlookClient
 from src.domains.connectors.clients.outlook_drafts_mixin import with_own_words
 from src.domains.connectors.schemas import ConnectorCredentials
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 pytestmark = pytest.mark.unit
 
+FILE = OutgoingAttachment("note.txt", "text/plain", b"hello")
 DRAFTS = "folder-drafts"
 DELETED = "folder-deleted"
 INBOX = "folder-inbox"
@@ -103,6 +105,21 @@ class FakeGraph:
         )
         return self.messages[draft_id]
 
+    def _files(
+        self, method: str, message_id: str, file_id: str | None, body: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """A message's attachments, a resource of their own; a change moves its ``changeKey``."""
+        message = self._get(message_id)
+        held: list[dict[str, Any]] = message.setdefault("attachments", [])
+        if method == "GET":
+            return {"value": held}
+        message["changeKey"] = f"after-{self._id()}"
+        if method == "POST":
+            held.append({**(body or {}), "id": self._id()})
+            return held[-1]
+        message["attachments"] = [item for item in held if item["id"] != file_id]
+        return {}
+
     async def request(
         self,
         method: str,
@@ -121,6 +138,9 @@ class FakeGraph:
                 "max_retries": max_retries,
             }
         )
+        files = re.fullmatch(r"/me/messages/([^/]+)/attachments(?:/([^/]+))?", endpoint)
+        if files:
+            return self._files(method, files[1], files[2], json_data)
         if method == "GET" and endpoint == "/me/mailFolders/drafts":
             return {"id": DRAFTS}
         if method == "GET" and endpoint == "/me/mailFolders/drafts/messages":
@@ -308,6 +328,128 @@ class TestCreate:
             }
         }
         assert draft["body"].startswith("Pour info.")
+
+
+class TestFormatting:
+    async def test_a_change_may_write_html(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = graph.add(folder=DRAFTS, is_draft=True)
+
+        await client.update_draft(draft_id, body="<b>New</b>", is_html=True)
+
+        (patched,) = _calls(graph, "PATCH")
+        assert patched["json"]["body"] == {"contentType": "HTML", "content": "<b>New</b>"}
+
+    async def test_a_new_draft_may_write_html(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        await client.create_draft("a@example.com", "S", "<b>New</b>", is_html=True)
+
+        (created,) = _calls(graph, "POST", "/me/messages")
+        assert created["json"]["body"] == {"contentType": "HTML", "content": "<b>New</b>"}
+
+
+class TestFiles:
+    def _draft(self, graph: FakeGraph, *names: str) -> str:
+        held = [{"id": f"att-{name}-{i}", "name": name} for i, name in enumerate(names)]
+        return graph.add(folder=DRAFTS, is_draft=True, attachments=held, changeKey="current")
+
+    async def test_a_new_draft_carries_them_in_its_creation(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        await client.create_draft("a@example.com", "S", "Words", attachments=[FILE])
+
+        (created,) = [c for c in _calls(graph, "POST") if c["endpoint"] == "/me/messages"]
+        assert [item["name"] for item in created["json"]["attachments"]] == ["note.txt"]
+
+    async def test_a_new_draft_with_none_names_no_list(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        await client.create_draft("a@example.com", "S", "Words")
+
+        (created,) = [c for c in _calls(graph, "POST") if c["endpoint"] == "/me/messages"]
+        assert "attachments" not in created["json"]
+
+    async def test_one_joins_a_draft_on_its_own_resource_attempted_once(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph)
+
+        await client.update_draft(draft_id, add_files=[FILE])
+
+        (added,) = _calls(graph, "POST")
+        assert added["endpoint"] == f"/me/messages/{draft_id}/attachments"
+        assert added["json"]["name"] == "note.txt"
+        assert added["max_retries"] == 1
+        assert _calls(graph, "PATCH") == []
+
+    async def test_one_leaves_by_its_name(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf", "b.pdf")
+
+        await client.update_draft(draft_id, remove_files=["a.pdf"])
+
+        assert [item["name"] for item in graph.messages[draft_id]["attachments"]] == ["b.pdf"]
+
+    async def test_a_name_takes_one_file_when_two_share_it(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf", "a.pdf")
+
+        await client.update_draft(draft_id, remove_files=["a.pdf"])
+
+        assert len(graph.messages[draft_id]["attachments"]) == 1
+
+    async def test_two_names_take_the_two_files_that_share_them(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf", "a.pdf")
+
+        await client.update_draft(draft_id, remove_files=["a.pdf", "a.pdf"])
+
+        assert graph.messages[draft_id]["attachments"] == []
+
+    async def test_a_name_the_draft_does_not_hold_changes_nothing(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf")
+
+        await client.update_draft(draft_id, remove_files=["gone.pdf"])
+
+        assert _calls(graph, "DELETE") == []
+
+    async def test_words_alone_touch_no_file(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf")
+
+        await client.update_draft(draft_id, body="New.")
+
+        assert not [c for c in graph.calls if c["endpoint"].endswith("/attachments")]
+
+    async def test_a_stale_revision_moves_no_file(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph, "a.pdf")
+
+        with pytest.raises(LookupError):
+            await client.update_draft(
+                draft_id, add_files=[FILE], remove_files=["a.pdf"], expected_revision="old"
+            )
+
+        assert _calls(graph, "POST") == [] and _calls(graph, "DELETE") == []
+
+    async def test_the_answer_carries_the_revision_the_files_left_it_at(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        draft_id = self._draft(graph)
+
+        draft = await client.update_draft(draft_id, add_files=[FILE])
+
+        assert draft["mailbox_draft_revision"] == graph.messages[draft_id]["changeKey"]
+        assert draft["mailbox_draft_revision"] != "current"
 
 
 class TestUpdate:

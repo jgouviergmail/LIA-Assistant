@@ -360,7 +360,9 @@ for selected services on a verified provider account; it introduces no new
 mandatory environment setting, Compose service, seed or boot step. Existing
 connections continue working until a person chooses the grouped flow. The
 [platform setup guide](../GETTING_STARTED.md#external-platform-setup) lists
-the complete callback set.
+the complete callback set. A linked Google Drive or OneDrive folder follows its
+changes by push only when `PUSH_CHANNELS_ENABLED` is on and `PUSH_WEBHOOK_URL`
+names a public address; otherwise it re-syncs when linked and on a manual Sync.
 
 **An anti-robot check on the password doors** (Cloudflare Turnstile,
 [ADR-364](../architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md))
@@ -677,6 +679,12 @@ container, at every start (`alembic upgrade head` in its entrypoint). That is
 what makes the upgrade short — and what makes step 1 non-negotiable, because a
 migration is applied the moment the new container boots and this project ships
 no downgrade path.
+
+**From a release before 4.4.0, with Microsoft connectors:** add
+`…/connectors/microsoft-onedrive/callback` and the delegated `Files.Read`,
+`Files.Read.All`, `Files.ReadWrite.All` and `MailboxSettings.ReadWrite` permissions to
+the Entra registration. An Outlook connection keeps working and asks to be reconnected
+once for its automatic replies and rules; OneDrive is connected from Settings > Connectors.
 
 #### 1. Back up — before anything else
 

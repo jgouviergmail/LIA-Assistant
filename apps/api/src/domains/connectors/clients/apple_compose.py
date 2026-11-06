@@ -89,6 +89,8 @@ def reply_message(
     reply_all: bool = False,
     is_html: bool = False,
     override_to: str | None = None,
+    override_cc: str | None = None,
+    attachments: Sequence[OutgoingAttachment] = (),
 ) -> MIMEMultipart:
     """The reply to a normalised message, threaded on its ``Message-ID``.
 
@@ -97,8 +99,10 @@ def reply_message(
         body: The reply's own words.
         sender: The mailbox's address (never answered, never copied).
         reply_all: Answer every recipient of the original.
-        is_html: Whether ``body`` is HTML (an HTML reply quotes nothing).
+        is_html: Whether ``body`` is HTML.
         override_to: A recipient chosen instead of the answered ones.
+        override_cc: The copies chosen instead of the computed ones; empty for none.
+        attachments: The files it carries.
 
     Raises:
         ValueError: A recipient that cannot be read.
@@ -111,6 +115,7 @@ def reply_message(
         own_address=sender,
         reply_all=reply_all,
         override_to=override_to,
+        override_cc=override_cc,
         reply_to=str(original.get("reply_to") or ""),
     )
     message = _headed(
@@ -131,6 +136,8 @@ def reply_message(
         is_html=is_html,
     )
     message.attach(_text(full_body, is_html=is_html))
+    for attachment in attachments:
+        message.attach(attachment_part(attachment))
     return message
 
 
@@ -158,6 +165,7 @@ def forward_message(
         date=str(original.get("date") or ""),
         subject=original_subject,
         to=str(original.get("to") or ""),
+        is_html=is_html,
     )
     message.attach(_text(full_body, is_html=is_html))
     for file in files:

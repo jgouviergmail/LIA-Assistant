@@ -21,6 +21,9 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+#: Registry items a text summary leaves out: their payload is a page or a draft.
+_WIDGET_ITEM_TYPES = frozenset({"DRAFT", "MCP_APP", "SKILL_APP", "PAGE_APP"})
+
 # Domain labels by language for text summaries
 # Keys must include CONTEXT_DOMAIN_* aliases (events, weathers, wikipedias, perplexitys)
 DOMAIN_LABELS = {
@@ -54,6 +57,7 @@ DOMAIN_LABELS = {
         "mcps": "Résultat(s) MCP",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "Application(s) MCP",  # CONTEXT_DOMAIN_MCP_APPS
         "skill_apps": "Skill(s) interactif(s)",  # CONTEXT_DOMAIN_SKILL_APPS
+        "page_apps": "Page(s) interactive(s)",  # CONTEXT_DOMAIN_PAGE_APPS
         "other": "Élément(s)",
     },
     "en": {
@@ -86,6 +90,7 @@ DOMAIN_LABELS = {
         "mcps": "MCP result(s)",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "MCP app(s)",  # CONTEXT_DOMAIN_MCP_APPS
         "skill_apps": "Skill widget(s)",  # CONTEXT_DOMAIN_SKILL_APPS
+        "page_apps": "Interactive page(s)",  # CONTEXT_DOMAIN_PAGE_APPS
         "other": "Item(s)",
     },
     "es": {
@@ -118,6 +123,7 @@ DOMAIN_LABELS = {
         "mcps": "Resultado(s) MCP",
         "mcp_apps": "Aplicación(es) MCP",
         "skill_apps": "Skill(s) interactivo(s)",
+        "page_apps": "Página(s) interactiva(s)",
         "other": "Elemento(s)",
     },
     "de": {
@@ -150,6 +156,7 @@ DOMAIN_LABELS = {
         "mcps": "MCP-Ergebnis(se)",
         "mcp_apps": "MCP-App(s)",
         "skill_apps": "Skill-Widget(s)",
+        "page_apps": "Interaktive Seite(n)",
         "other": "Element(e)",
     },
     "it": {
@@ -182,6 +189,7 @@ DOMAIN_LABELS = {
         "mcps": "Risultato/i MCP",
         "mcp_apps": "App MCP",
         "skill_apps": "Skill interattivo/i",
+        "page_apps": "Pagina/e interattiva/e",
         "other": "Elemento/i",
     },
     "zh-CN": {
@@ -214,6 +222,7 @@ DOMAIN_LABELS = {
         "mcps": "MCP结果",
         "mcp_apps": "MCP应用",
         "skill_apps": "技能小部件",
+        "page_apps": "交互式页面",
         "other": "项目",
     },
 }
@@ -334,9 +343,9 @@ def generate_text_summary_for_llm(
                 item_type = item_type.value
             payload = item.get("payload", {})
 
-        # Skip DRAFT, MCP_APP and SKILL_APP items (interactive widgets rendered in iframe,
-        # not useful for LLM text commentary — payload contains html_content/tool_result)
-        if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
+        # Skip interactive widgets rendered in an iframe: not useful for LLM text
+        # commentary, and the payload contains html_content/tool_result.
+        if item_type in _WIDGET_ITEM_TYPES:
             continue
 
         # SMS was already paged under its token cap; even a short body is evidence.
@@ -419,9 +428,9 @@ def generate_data_for_filtering(
                     item_type = item_type.value
                 payload = item.get("payload", {})
 
-            # Skip DRAFT, MCP_APP and SKILL_APP items (interactive widgets rendered in iframe,
-            # not useful for LLM filtering — payload contains html_content/tool_result)
-            if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
+            # Skip interactive widgets rendered in an iframe: not useful for LLM text
+            # commentary, and the payload contains html_content/tool_result.
+            if item_type in _WIDGET_ITEM_TYPES:
                 continue
 
             # Filtering needs evidence, not a shortened display/voice summary.

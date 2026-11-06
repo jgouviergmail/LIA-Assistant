@@ -30,6 +30,11 @@ export function longDay(day: string, lng: Language): string {
   return dayFormat(lng, { weekday: 'long', day: 'numeric', month: 'long' }).format(dayDate(day));
 }
 
+/** @returns « 4 janv. 2027 » for a day that may stand in another year. */
+export function datedDay(day: string, lng: Language): string {
+  return dayFormat(lng, { day: 'numeric', month: 'short', year: 'numeric' }).format(dayDate(day));
+}
+
 /** @returns « 26 oct. – 1 nov. 2026 » for the days of a view. */
 export function rangeLabel(first: string, last: string, lng: Language): string {
   const format = dayFormat(lng, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -87,4 +92,18 @@ export function eventWhen(
     timeStyle: 'short',
     timeZone: zone,
   }).formatRange(start, end);
+}
+
+/** A reminder as a person reads it: at the start, minutes, hours or days before. */
+export function reminderLabel(
+  minutes: number,
+  t: (key: string, values?: Record<string, string | number>) => string
+): string {
+  if (minutes === -1) return t('workbench.calendar.editor.reminder_none');
+  if (minutes === 0) return t('workbench.calendar.reminder_at_start');
+  if (minutes % 1440 === 0) {
+    return t('workbench.calendar.reminder_days', { count: minutes / 1440 });
+  }
+  if (minutes % 60 === 0) return t('workbench.calendar.reminder_hours', { count: minutes / 60 });
+  return t('workbench.calendar.reminder_minutes', { count: minutes });
 }

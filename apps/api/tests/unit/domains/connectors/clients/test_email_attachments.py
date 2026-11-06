@@ -31,6 +31,18 @@ pytestmark = pytest.mark.unit
 
 
 # ============================================================================
+def test_a_stale_gmail_handle_finds_its_part_by_its_place_among_same_named_parts() -> None:
+    """Measured 2026-11-05: two parts named alike, every read a new handle, 409 at every click."""
+    same_name = [
+        {"attachment_id": "new-1", "filename": "image.png", "part_id": "1"},
+        {"attachment_id": "new-2", "filename": "image.png", "part_id": "2"},
+    ]
+
+    chosen = select_attachment(same_name, attachment_id="2", filename="image.png")
+
+    assert chosen["attachment_id"] == "new-2"
+
+
 # select_attachment — one rule for the three providers
 # ============================================================================
 

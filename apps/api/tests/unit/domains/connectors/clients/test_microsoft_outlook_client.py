@@ -346,7 +346,8 @@ class TestForwardEmail:
         payload = request.await_args.kwargs["json_data"]
         assert endpoint == "/me/messages/AAMk-1/forward"
         assert payload["comment"] == "FYI"
-        assert payload["ccRecipients"][0]["emailAddress"]["address"] == "carol@example.com"
+        cc = payload["message"]["ccRecipients"]
+        assert cc[0]["emailAddress"]["address"] == "carol@example.com"
 
     async def test_omits_comment_when_no_body_is_given(
         self, client: MicrosoftOutlookClient

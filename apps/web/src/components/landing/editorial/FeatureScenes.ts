@@ -94,6 +94,8 @@ export const FEATURE_SCENES: Readonly<Record<string, FeatureScene>> = {
   peer_images: 'image',
   peer_presence: 'people',
   skills: 'tools',
+  interactive_pages: 'tools',
+  workbench: 'tools',
   plugins: 'tools',
   mcp: 'tools',
   mcp_apps: 'tools',

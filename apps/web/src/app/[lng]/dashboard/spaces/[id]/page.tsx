@@ -229,10 +229,11 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
           onDismissUpload={dismissUpload}
         />
 
-        {/* Google Drive Sources */}
+        {/* Linked folders */}
         <DriveSourcesList
           spaceId={spaceId}
           sources={sources.driveSources}
+          activeDrive={sources.activeDrive}
           onLink={sources.drive.handleLink}
           onUnlink={sources.drive.handleUnlink}
           onSync={sources.drive.handleSync}

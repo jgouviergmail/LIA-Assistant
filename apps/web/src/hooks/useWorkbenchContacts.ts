@@ -41,6 +41,15 @@ export interface WorkbenchContactsState {
   create: (body: NewContactBody) => Promise<WorkbenchContact | undefined>;
   update: (body: ContactChangeBody) => Promise<WorkbenchContact | undefined>;
   remove: (id: string) => Promise<void>;
+  /** Keeps a contact met in mail among the person's own; its key makes a retry the same act. */
+  saveOther: (id: string, idempotencyKey: string) => Promise<WorkbenchContact | undefined>;
+  renameGroup: (id: string, name: string) => Promise<void>;
+  deleteGroup: (id: string) => Promise<void>;
+}
+
+interface OtherContactBody {
+  id: string;
+  idempotency_key: string;
 }
 
 function pathOf(listing: ContactsListing): string | null {
@@ -72,7 +81,15 @@ export function useWorkbenchContacts(
     method: 'POST',
     componentName: 'WorkbenchContacts',
   });
+  const { mutate: postOther } = useApiMutation<OtherContactBody, WorkbenchContact>({
+    method: 'POST',
+    componentName: 'WorkbenchContacts',
+  });
   const { mutate: patch } = useApiMutation<ContactChangeBody, WorkbenchContact>({
+    method: 'PATCH',
+    componentName: 'WorkbenchContacts',
+  });
+  const { mutate: patchGroup } = useApiMutation<{ id: string; name: string }, void>({
     method: 'PATCH',
     componentName: 'WorkbenchContacts',
   });
@@ -109,5 +126,31 @@ export function useWorkbenchContacts(
     [del, refresh]
   );
 
-  return { list, groups, create, update, remove };
+  const renameGroup = useCallback(
+    async (id: string, name: string) => {
+      await patchGroup(`${CONTACTS_PATH}/groups`, { id, name });
+      await groups.refresh();
+    },
+    [patchGroup, groups]
+  );
+  const deleteGroup = useCallback(
+    async (id: string) => {
+      await del(`${CONTACTS_PATH}/groups`, undefined, { params: { id } });
+      await groups.refresh();
+    },
+    [del, groups]
+  );
+  const saveOther = useCallback(
+    async (id: string, idempotencyKey: string) => {
+      const saved = await postOther(`${CONTACTS_PATH}/other/save`, {
+        id,
+        idempotency_key: idempotencyKey,
+      });
+      await refresh();
+      return saved;
+    },
+    [postOther, refresh]
+  );
+
+  return { list, groups, create, update, remove, saveOther, renameGroup, deleteGroup };
 }

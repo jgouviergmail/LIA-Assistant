@@ -2,23 +2,24 @@
 
 ## Overview
 
-Microsoft 365 integration provides 4 connectors via the **Microsoft Graph REST API v1.0**:
+Microsoft 365 integration provides 5 connectors via the **Microsoft Graph REST API v1.0**:
 
 | Connector | Graph API Resource | Scopes |
 |-----------|-------------------|--------|
-| `MICROSOFT_OUTLOOK` | `/me/messages` | `Mail.Read`, `Mail.ReadWrite`, `Mail.Send` |
+| `MICROSOFT_OUTLOOK` | `/me/messages`, `/me/mailboxSettings`, `/me/mailFolders/inbox/messageRules` | `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `MailboxSettings.ReadWrite` |
 | `MICROSOFT_CALENDAR` | `/me/events`, `/me/calendarView` | `Calendars.Read`, `Calendars.ReadWrite` |
 | `MICROSOFT_CONTACTS` | `/me/contacts` | `Contacts.Read`, `Contacts.ReadWrite` |
 | `MICROSOFT_TASKS` | `/me/todo/lists`, `/me/todo/lists/{id}/tasks` | `Tasks.Read`, `Tasks.ReadWrite` |
+| `MICROSOFT_ONEDRIVE` | `/me/drive`, `/me/drive/items`, `/me/drive/root/delta`, `/subscriptions` | `Files.Read`, `Files.Read.All`, `Files.ReadWrite.All` |
 
 All connectors share `User.Read` and `offline_access` base scopes.
 
 **Authentication**: OAuth 2.0 via **Microsoft Entra ID** (formerly Azure AD) with PKCE (S256). Multi-tenant transparent: `tenant=common` accepts both personal accounts (outlook.com, hotmail.com, live.com) and enterprise accounts (Azure AD). Microsoft detects the account type from the email entered by the user.
 
-**Mutual exclusivity**: 3-way (Google / Apple / Microsoft) — only one provider per functional category (`email`, `calendar`, `contacts`, `tasks`) can be ACTIVE at a time. Activating Microsoft deactivates Google and Apple (set to `INACTIVE`, not deleted) and vice versa.
+**Mutual exclusivity**: 3-way (Google / Apple / Microsoft) — only one provider per functional category (`email`, `calendar`, `contacts`, `tasks`, `files`) can be ACTIVE at a time. Activating Microsoft deactivates Google and Apple (set to `INACTIVE`, not deleted) and vice versa.
 
 **Version**: v6.2
-**Status**: Implemented (4 connectors + normalizers + preferences + OAuth flow).
+**Status**: Implemented (5 connectors + normalizers + preferences + OAuth flow).
 
 ---
 
@@ -44,30 +45,32 @@ apps/api/src/domains/connectors/
 │   ├── microsoft_outlook_client.py    # MicrosoftOutlookClient: email search/read/send/reply/forward/trash
 │   ├── microsoft_calendar_client.py   # MicrosoftCalendarClient: calendar + event CRUD, calendarView
 │   ├── microsoft_contacts_client.py   # MicrosoftContactsClient: contact search/list/CRUD
+│   ├── microsoft_onedrive_client.py   # MicrosoftOneDriveClient (files category, ADR-369)
 │   └── microsoft_tasks_client.py      # MicrosoftTasksClient: task list + task CRUD
 ├── clients/normalizers/
 │   ├── microsoft_email_normalizer.py  # Graph message → Gmail-compatible dict
 │   ├── microsoft_calendar_normalizer.py # Graph event → Google Calendar event dict
 │   ├── microsoft_contacts_normalizer.py # Graph contact → Google People person dict
-│   └── microsoft_tasks_normalizer.py  # Graph To Do task → Google Tasks task dict
+│   ├── microsoft_tasks_normalizer.py  # Graph To Do task → Google Tasks task dict
+│   └── onedrive_normalizer.py         # Graph drive item → Drive's words at the client boundary
 ├── preferences/
-│   ├── schemas.py                     # MicrosoftCalendarPreferences, MicrosoftTasksPreferences
+│   ├── schemas.py                     # MicrosoftOutlookPreferences, MicrosoftCalendarPreferences, MicrosoftTasksPreferences
 │   └── registry.py                    # Connector type → preferences schema mapping
 ├── provider_resolver.py              # Runtime provider selection (Google vs Apple vs Microsoft)
 apps/api/src/core/oauth/providers/
-└── microsoft.py                       # MicrosoftOAuthProvider with 4 factory methods
+└── microsoft.py                       # MicrosoftOAuthProvider with 5 factory methods
 ```
 
 ### Design Patterns
 
 - **Template Method (BaseOAuthClient)**: `BaseMicrosoftClient` inherits from `BaseOAuthClient[ConnectorType]` and overrides 3 hooks for Microsoft-specific behavior
-- **Normalizer pattern**: Each client has a companion normalizer that converts Microsoft Graph data to Google API dict format. Domain tools (email, calendar, contacts, tasks) remain provider-agnostic
+- **Normalizer pattern**: Each client has a companion normalizer that converts Microsoft Graph data to Google API dict format. Domain tools (email, calendar, contacts, tasks, files) remain provider-agnostic
 - **Provider resolver**: At tool execution time, resolves which client to instantiate based on user's active connector for the functional category
-- **Factory methods**: `MicrosoftOAuthProvider` provides 4 `@classmethod` factories (`for_outlook`, `for_calendar`, `for_contacts`, `for_tasks`)
+- **Factory methods**: `MicrosoftOAuthProvider` provides 5 `@classmethod` factories (`for_outlook`, `for_calendar`, `for_contacts`, `for_tasks`, `for_onedrive`)
 
 ### BaseMicrosoftClient
 
-Inherits from `BaseOAuthClient` (Template Method pattern). Provides shared functionality for all 4 Microsoft clients:
+Inherits from `BaseOAuthClient` (Template Method pattern). Provides shared functionality for all 5 Microsoft clients:
 
 - **Rate limiting**: Redis sliding window (`client_rate_limit_microsoft_per_second`, default 4/s)
 - **Token management**: `BaseOAuthClient._refresh_access_token()` delegates to the connector service. Linked connectors refresh their common grant once; legacy connectors retain their individual token path
@@ -91,13 +94,17 @@ Inherits from `BaseOAuthClient` (Template Method pattern). Provides shared funct
 
 ### MicrosoftOAuthProvider
 
-Dataclass in `core/oauth/providers/microsoft.py` with 4 factory methods:
+Dataclass in `core/oauth/providers/microsoft.py` with 5 factory methods:
 
 ```python
-MicrosoftOAuthProvider.for_outlook(settings)   # Mail.Read, Mail.ReadWrite, Mail.Send
+MicrosoftOAuthProvider.for_outlook(settings)   # Mail.Read, Mail.ReadWrite, Mail.Send, MailboxSettings.ReadWrite
+# OneDrive asks Files.Read beside Files.Read.All and Files.ReadWrite.All: a change subscription
+# on a personal drive takes that scope alone. A search there refuses an empty query, ignores
+# $orderby and stops at 200 items (measured): the latest files come from the delta feed.
 MicrosoftOAuthProvider.for_calendar(settings)   # Calendars.Read, Calendars.ReadWrite
 MicrosoftOAuthProvider.for_contacts(settings)   # Contacts.Read, Contacts.ReadWrite
 MicrosoftOAuthProvider.for_tasks(settings)      # Tasks.Read, Tasks.ReadWrite
+MicrosoftOAuthProvider.for_onedrive(settings)   # Files.Read, Files.Read.All, Files.ReadWrite.All
 ```
 
 ### Endpoints
@@ -119,6 +126,7 @@ Each connector retains its individual authorize/callback pair under `/api/v1/con
 | `/microsoft-calendar/authorize` → `/microsoft-calendar/callback` | `MICROSOFT_CALENDAR` |
 | `/microsoft-contacts/authorize` → `/microsoft-contacts/callback` | `MICROSOFT_CONTACTS` |
 | `/microsoft-tasks/authorize` → `/microsoft-tasks/callback` | `MICROSOFT_TASKS` |
+| `/microsoft-onedrive/authorize` → `/microsoft-onedrive/callback` | `MICROSOFT_ONEDRIVE` |
 
 For **Connect all** and **Reconnect my Microsoft services**, the application also
 offers one authorization request for the eligible services of one selected
@@ -144,6 +152,7 @@ Each normalizer converts Microsoft Graph response objects to the dict format exp
 | `microsoft_calendar_normalizer.py` | `normalize_graph_event()`, `normalize_graph_calendar()` | Graph event → Google Calendar dict. Maps attendee response statuses (tentativelyAccepted→tentative, etc.) |
 | `microsoft_contacts_normalizer.py` | `normalize_graph_contact()`, `build_contact_body()`, `build_contact_update_body()` | Graph contact → Google People dict. Maps phone types (business→work) and address types |
 | `microsoft_tasks_normalizer.py` | `normalize_graph_task()`, `normalize_graph_task_list()`, `build_task_body()` | Graph To Do task → Google Tasks dict. Maps statuses (notStarted/inProgress/waitingOnOthers/deferred→needsAction, completed→completed) |
+| `onedrive_normalizer.py` | see the module | Graph drive item → Drive's words at the client boundary, so the screen and the assistant name no provider (ADR-369) |
 
 ---
 
@@ -157,10 +166,11 @@ CONNECTOR_FUNCTIONAL_CATEGORIES = {
     "calendar": frozenset({ConnectorType.GOOGLE_CALENDAR, ConnectorType.APPLE_CALENDAR, ConnectorType.MICROSOFT_CALENDAR}),
     "contacts": frozenset({ConnectorType.GOOGLE_CONTACTS, ConnectorType.APPLE_CONTACTS, ConnectorType.MICROSOFT_CONTACTS}),
     "tasks":    frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
+    "files":    frozenset({ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE}),
 }
 ```
 
-**3-way exclusivity** for email, calendar, and contacts. **2-way** for tasks (no Apple Tasks — Apple Reminders are inaccessible via CalDAV since iOS 13).
+**3-way exclusivity** for email, calendar, and contacts. **2-way** for tasks and files (no Apple Tasks — Apple Reminders are inaccessible via CalDAV since iOS 13).
 
 Helper functions: `get_conflicting_connector_types()` (plural, returns frozenset of ALL conflicting types), `get_conflicting_connector_type()` (singular, returns first match — legacy convenience).
 
@@ -170,7 +180,11 @@ Helper functions: `get_conflicting_connector_types()` (plural, returns frozenset
 
 ## Preferences
 
-Two connector-specific preference schemas in `preferences/schemas.py`:
+Three connector-specific preference schemas in `preferences/schemas.py`:
+
+### MicrosoftOutlookPreferences
+
+- `signature: str | None` — The mailbox's signature, closing the messages the person writes and those LIA prepares (`mail_signature`, ADR-369).
 
 ### MicrosoftCalendarPreferences
 
@@ -180,7 +194,7 @@ Two connector-specific preference schemas in `preferences/schemas.py`:
 
 - `default_task_list_name: str | None` — Name of the default task list. Falls back to the first available task list if not set.
 
-Registered in `preferences/registry.py` mapping `ConnectorType.MICROSOFT_CALENDAR` and `ConnectorType.MICROSOFT_TASKS` to their respective schemas.
+Registered in `preferences/registry.py` mapping `ConnectorType.MICROSOFT_OUTLOOK`, `ConnectorType.MICROSOFT_CALENDAR` and `ConnectorType.MICROSOFT_TASKS` to their respective schemas.
 
 ---
 
@@ -213,5 +227,5 @@ Registered in `preferences/registry.py` mapping `ConnectorType.MICROSOFT_CALENDA
 6. **Message bodies are HTML by default**: Microsoft Graph returns `body.content` in HTML format by default. Use `Prefer: outlook.body-content-type="text"` header for plain text
 7. **Task status mapping lossy**: Microsoft To Do has 5 statuses (`notStarted`, `inProgress`, `completed`, `waitingOnOthers`, `deferred`) but Google Tasks only has 2 (`needsAction`, `completed`). All non-completed Microsoft statuses map to `needsAction`, losing granularity
 8. **No `@default` task list**: Unlike Google Tasks which has a magic `@default` list ID, Microsoft To Do requires listing all task lists first to find the default one
-9. **No subtask hierarchy**: Microsoft To Do supports checklist items within tasks, but these are not exposed as nested tasks. The normalizer flattens to a single level matching Google Tasks' flat structure
+9. **Steps, not subtasks**: a To Do task keeps a checklist, exposed as steps (`task_steps`); To Do has no nested tasks
 10. **Multi-tenant transparent**: The `common` tenant endpoint works for both personal Microsoft accounts and Azure AD enterprise accounts. No configuration change needed per account type — Microsoft handles detection automatically

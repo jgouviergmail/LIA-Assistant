@@ -9,6 +9,8 @@ Gmail replaces a draft's whole message on update and IMAP stores a new one, so
 an edit rebuilt from the visible fields alone would drop the files a forward
 carries and the headers that keep a reply in its thread. :func:`edit_draft_message`
 rewrites the RAW message instead: the fields given change, everything else stays.
+Files join and leave the same way, and leave by name: a Gmail handle does not last
+from one read to the next (ADR-296), a name does, on every provider.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ import structlog
 
 from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_MAILBOX_DRAFT_REVISION
+from src.infrastructure.email.outgoing import OutgoingAttachment, media_type_of
 from src.infrastructure.email.recipients import parse_recipients
 
 logger = structlog.get_logger(__name__)
@@ -87,6 +90,9 @@ def edit_draft_message(
     bcc: str | None = None,
     subject: str | None = None,
     body: str | None = None,
+    add_files: Sequence[OutgoingAttachment] = (),
+    remove_files: Sequence[str] = (),
+    is_html: bool = False,
 ) -> EmailMessage:
     """A draft rebuilt with the fields given, and everything else kept.
 
@@ -104,13 +110,22 @@ def edit_draft_message(
         bcc: New ``Bcc`` value, or None to keep it.
         subject: New subject, or None to keep it.
         body: New plain-text body, or None to keep it.
+        add_files: Files that join it.
+        remove_files: Names of files that leave it, one file for each.
+        is_html: The new body is HTML.
 
     Returns:
         The edited message.
     """
     message = parse_message(raw)
     if body is not None:
-        message = _with_body(message, body)
+        message = _with_body(message, body, is_html=is_html)
+    _drop_files(message, remove_files)
+    for file in add_files:
+        maintype, subtype = media_type_of(file)
+        message.add_attachment(
+            file.data, maintype=maintype, subtype=subtype, filename=file.filename
+        )
     for name, value in zip(_EDITABLE_HEADERS, (to, cc, bcc, subject), strict=True):
         if value is None:
             continue
@@ -120,8 +135,21 @@ def edit_draft_message(
     return message
 
 
-def _with_body(message: EmailMessage, body: str) -> EmailMessage:
-    """The message with a new plain-text body, its headers and files kept."""
+def _drop_files(message: EmailMessage, names: Sequence[str]) -> None:
+    """Each name takes the first file bearing it; a name nothing bears takes nothing."""
+    parts = message.get_payload()
+    if not isinstance(parts, list):
+        return
+    for name in names:
+        held = next(
+            (part for part in message.iter_attachments() if part.get_filename() == name), None
+        )
+        if held is not None:
+            parts.remove(held)
+
+
+def _with_body(message: EmailMessage, body: str, *, is_html: bool) -> EmailMessage:
+    """The message with a new body, its headers and files kept."""
     files = list(message.iter_attachments()) if message.is_multipart() else []
     rebuilt = EmailMessage(policy=policy.default)
     for name, value in message.items():
@@ -129,7 +157,7 @@ def _with_body(message: EmailMessage, body: str) -> EmailMessage:
             rebuilt[name] = value
     # Seven bits on every road (Gmail's upload, an IMAP APPEND, SMTP): left to
     # itself, the modern policy writes accented text as raw 8-bit bytes.
-    rebuilt.set_content(body, cte="quoted-printable")
+    rebuilt.set_content(body, subtype="html" if is_html else "plain", cte="quoted-printable")
     if files:
         rebuilt.make_mixed()
         for part in files:

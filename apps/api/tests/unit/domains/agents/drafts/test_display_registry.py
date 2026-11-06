@@ -241,6 +241,22 @@ def test_get_plural_form_normalizes_language() -> None:
         ("es", 3, 3, "reminder", "deleted", "3 recordatorios eliminados"),
         # German — invariant participle, noun changes form
         ("de", 1, 1, "event", "deleted", "1 Termin gelöscht"),
+        # An invitation's answer leaves for its organiser: it is sent, in every language.
+        ("fr", 1, 1, "event_answer", "sent", "1 réponse envoyée"),
+        ("fr", 2, 3, "event_answer", "sent", "2/3 réponses envoyées"),
+        ("en", 2, 2, "event_answer", "sent", "2 answers sent"),
+        ("es", 1, 1, "event_answer", "sent", "1 respuesta enviada"),
+        ("de", 1, 1, "event_answer", "sent", "1 Antwort gesendet"),
+        ("it", 2, 2, "event_answer", "sent", "2 risposte inviate"),
+        ("zh-CN", 1, 1, "event_answer", "sent", "已发送 1 个回复"),
+        # A sharing is told to the person by the drive: it is sent too.
+        ("fr", 1, 1, "file_share", "sent", "1 partage envoyé"),
+        ("fr", 2, 3, "file_share", "sent", "2/3 partages envoyés"),
+        ("en", 2, 2, "file_share", "sent", "2 shares sent"),
+        ("es", 1, 1, "file_share", "sent", "1 invitación enviada"),
+        ("de", 1, 1, "file_share", "sent", "1 Freigabe gesendet"),
+        ("it", 2, 2, "file_share", "sent", "2 condivisioni inviate"),
+        ("zh-CN", 1, 1, "file_share", "sent", "已发送 1 个共享邀请"),
         ("de", 3, 3, "event", "deleted", "3 Termine gelöscht"),
         # Italian — feminine invariant for number, verb still agrees
         ("it", 1, 1, "task", "created", "1 attività creata"),

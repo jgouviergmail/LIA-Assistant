@@ -17,9 +17,9 @@ The calendar read is the OWNER's configured default, never ``primary``.
 ``connectors/preferences`` exists because that shortcut once answered that a
 peer was free at 10:00 while his agenda — in a named calendar — held a meeting.
 
-Apple's events carry no organizer at all. Rather than report "organized
-nothing" (a negative nobody verified — ADR-184), the payload states that the
-split is UNKNOWN, and the reader is shown one list instead of two.
+An event that names no organizer (most of Apple's) is never reported as
+"organized nothing", a negative nobody verified (ADR-184): the payload states
+that the split is UNKNOWN, and the reader is shown one list instead of two.
 
 No count is reported. A window is not the whole calendar, so any total would
 be a claim the data cannot back — ADR-185. What the reader is told instead is
@@ -62,7 +62,7 @@ _NO_TITLE = "(no title)"
 _WINDOW_PAGE_SIZE = 250
 
 
-def _instant(event: dict[str, Any], edge: str) -> datetime | None:
+def event_instant(event: dict[str, Any], edge: str) -> datetime | None:
     """Parse one edge of an event, ``dateTime`` or all-day ``date``.
 
     Args:
@@ -88,7 +88,7 @@ def _instant(event: dict[str, Any], edge: str) -> datetime | None:
     return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
-def _organizes(event: dict[str, Any], folded_addresses: set[str]) -> bool:
+def organizes(event: dict[str, Any], folded_addresses: set[str]) -> bool:
     """Whether this person is the event's organizer."""
     organizer = event.get("organizer")
     if not isinstance(organizer, dict):
@@ -96,7 +96,7 @@ def _organizes(event: dict[str, Any], folded_addresses: set[str]) -> bool:
     return fold_email(str(organizer.get("email") or "")) in folded_addresses
 
 
-def _attends(event: dict[str, Any], folded_addresses: set[str]) -> bool:
+def attends(event: dict[str, Any], folded_addresses: set[str]) -> bool:
     """Whether one of the person's addresses is on the attendee list."""
     for attendee in event.get("attendees") or []:
         if not isinstance(attendee, dict):
@@ -113,12 +113,12 @@ def _to_event(
     event_id = str(event.get("id") or "").strip()
     if not event_id:
         return None  # nothing stable to key a row on
-    starts_at = _instant(event, "start")
+    starts_at = event_instant(event, "start")
     return SharedEvent(
         id=event_id,
         summary=str(event.get("summary") or "").strip() or _NO_TITLE,
         starts_at=starts_at,
-        ends_at=_instant(event, "end"),
+        ends_at=event_instant(event, "end"),
         is_past=starts_at is not None and starts_at < now,
         role=role,
         organizer_known=organizer_known,
@@ -171,13 +171,13 @@ def _shared_with(
     organizer_known = any("organizer" in event for event in items)
     shared: list[SharedEvent] = []
     for event in items:
-        organizes = _organizes(event, folded_addresses)
-        if not organizes and not _attends(event, folded_addresses):
+        organizer = organizes(event, folded_addresses)
+        if not organizer and not attends(event, folded_addresses):
             continue
         mapped = _to_event(
             event,
             now,
-            role="organizer" if organizes else "attendee",
+            role="organizer" if organizer else "attendee",
             organizer_known=organizer_known,
         )
         if mapped is not None:

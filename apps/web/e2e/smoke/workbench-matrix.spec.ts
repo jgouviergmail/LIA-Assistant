@@ -6,7 +6,8 @@
  * CSS pixels) and in the five accents: no horizontal scroll, axe clean on the
  * screen; on the phone the row of tools scrolls itself to the open one, and
  * the section opens on its first tool. On a computer each screen runs the whole
- * window while the other pages keep their rail. With `E2E_SHOT_DIR` set, each
+ * window while the other pages keep their rail, and every tool's frame starts on
+ * one line. With `E2E_SHOT_DIR` set, each
  * accent's screen and each screen at 1920 px are kept as evidence.
  * Run with `E2E_ALL_BROWSERS=1` for the Firefox and WebKit smoke.
  */
@@ -45,7 +46,11 @@ const RAIL = {
     page_size: 25,
     bulk_max_items: 50,
     download_max_bytes: 26214400,
+    upload_max_bytes: 26214400,
     calendar_window_max_events: 500,
+    send_undo_seconds: 0,
+    draft_autosave_seconds: 0,
+    search_max_chars: 500,
   },
 };
 
@@ -60,6 +65,32 @@ const SCREENS = [
 ] as const;
 
 const ANSWERS: Array<[RegExp, unknown]> = [
+  [
+    /\/workbench\/search$/,
+    {
+      results: [
+        {
+          tool: 'mail',
+          hits: [
+            {
+              id: 'm1',
+              title: 'Committee agenda for Thursday',
+              subtitle: 'Camille Martin',
+              mail_folder: 'system:all',
+              calendar_id: null,
+              day: null,
+              is_folder: false,
+            },
+          ],
+          truncated: true,
+          inbox_only: false,
+        },
+        { tool: 'contacts', hits: [], truncated: false, inbox_only: false },
+      ],
+      failed: ['files'],
+    },
+  ],
+  [/\/tasks\/due$/, { tasks: [], truncated: false, failed: [] }],
   [
     /\/mail\/folders$/,
     {
@@ -93,7 +124,14 @@ const ANSWERS: Array<[RegExp, unknown]> = [
     /\/calendar\/calendars$/,
     {
       calendars: [
-        { id: 'primary', name: 'Ana Lima', color: '#7c3aed', primary: true, writable: true },
+        {
+          id: 'primary',
+          name: 'Ana Lima',
+          color: '#7c3aed',
+          primary: true,
+          writable: true,
+          manageable: false,
+        },
       ],
     },
   ],
@@ -153,6 +191,9 @@ const ANSWERS: Array<[RegExp, unknown]> = [
           phone: null,
           organization: 'Atlas',
           name_key: 'ana lima',
+          job_title: null,
+          website: null,
+          birthday: null,
         },
       ],
       next_page_token: null,
@@ -175,6 +216,7 @@ const ANSWERS: Array<[RegExp, unknown]> = [
           target_kind: null,
           formats: [],
           downloadable: false,
+          starred: false,
         },
       ],
       next_page_token: null,
@@ -183,7 +225,18 @@ const ANSWERS: Array<[RegExp, unknown]> = [
   [
     /\/lights$/,
     {
-      rooms: [{ id: 'r1', name: 'Living room', light_ids: ['a'], on: true }],
+      rooms: [
+        {
+          id: 'r1',
+          name: 'Living room',
+          light_ids: ['a'],
+          on: true,
+          kind: 'room',
+          supports_color: false,
+          mirek_min: null,
+          mirek_max: null,
+        },
+      ],
       lights: [
         {
           id: 'a',
@@ -208,6 +261,29 @@ async function answer(route: Route): Promise<void> {
   const found = ANSWERS.find(([pattern]) => pattern.test(path));
   await route.fulfill({ json: found ? found[1] : {} });
 }
+
+/** Audit 2026-11-06: at a tablet's width the rail was cut by the actions beside it. */
+test('at a tablet’s width every tool of the rail stands whole on the page', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 820, height: 1100 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+
+  const rail = page.getByRole('navigation', { name: 'Tools' });
+  await expect(rail).toBeVisible();
+  const frame = await rail.boundingBox();
+  if (frame === null) throw new Error('not drawn');
+  for (const link of await rail.getByRole('link').all()) {
+    const box = await link.boundingBox();
+    if (box === null) throw new Error('not drawn');
+    expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  }
+});
 
 async function playTheWorkbench(mockApi: (routes: MockRoute[]) => Promise<void>) {
   await mockApi([
@@ -235,9 +311,9 @@ async function expectAxeClean(page: Page): Promise<void> {
   expect(scan.violations).toEqual([]);
 }
 
-/** What a tool works in: whatever follows its heading row, panes or cards. */
+/** What a tool works in: whatever follows its heading, panes or cards. */
 function toolArea(page: Page): Locator {
-  return page.locator('main div:has(> h1) + *');
+  return page.locator('main h1 + *');
 }
 
 /** Where a box starts and ends across the window, in whole pixels. */
@@ -266,6 +342,61 @@ for (const screen of SCREENS) {
     await expectNoOverflow(page, `${screen.tool} 200%`);
   });
 }
+
+test('one search reaches across the tools: a chord opens it, a hit opens in its tool', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openScreen(page, 'contacts', 'Ana Lima');
+
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Search across your tools' });
+  const box = dialog.getByRole('searchbox', { name: 'Words to look for' });
+  await expect(box).toBeFocused();
+  await box.fill('committee');
+  await page.keyboard.press('Enter');
+
+  await expect(dialog.getByRole('status')).toContainText('Files');
+  await expect(dialog.getByText('Nothing found here')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: /search in Mail/ })).toBeVisible();
+  const scan = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+  expect(scan.violations).toEqual([]);
+
+  await dialog.getByRole('link', { name: /Committee agenda for Thursday/ }).click();
+
+  await expect(page).toHaveURL(/\/dashboard\/tools\/mail\?folder=system%3Aall&id=m1$/);
+  await expect(dialog).toBeHidden();
+});
+
+test('the search holds on a phone, and gives the focus back to its button', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openScreen(page, 'contacts', 'Ana Lima');
+
+  const opener = page.getByRole('button', { name: 'Search across your tools' });
+  await opener.click();
+  const dialog = page.getByRole('dialog', { name: 'Search across your tools' });
+  await dialog.getByRole('searchbox').fill('committee');
+  await dialog.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(dialog.getByRole('link', { name: /Committee agenda/ })).toBeVisible();
+
+  await expectNoOverflow(page, 'search 320px');
+  const box = await dialog.boundingBox();
+  expect(box && box.x >= 0 && box.x + box.width <= 320).toBe(true);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+});
 
 test('the section opens its first ready tool on a phone', async ({
   page,
@@ -322,6 +453,26 @@ test('a pane sized by hand keeps its width on this device, and a double-click gi
 });
 
 /**
+ * A tool holds its own panes in the window: the page around it never scrolls, or the
+ * frame's height (`WORKBENCH_PANE_HEIGHT`) no longer matches what stands above it.
+ */
+test('on a laptop no tool makes the page scroll', async ({ page, authenticate, mockApi }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+
+  for (const screen of SCREENS) {
+    await openScreen(page, screen.tool, screen.shows);
+    const spare = await page.evaluate(() => {
+      const scrolling = document.scrollingElement ?? document.documentElement;
+      return scrolling.scrollHeight - scrolling.clientHeight;
+    });
+    expect(spare, `${screen.tool} leaves the window`).toBeLessThanOrEqual(1);
+  }
+});
+
+/**
  * Owner request (2026-11-04): on a computer the tools use the whole window, less
  * a 16 px gutter — on any screen they had the rail's 1216 px — and every other
  * page keeps the rail, 1920 px in the middle of a 2560 px window.
@@ -352,6 +503,26 @@ test('on a computer each tool runs the whole window, and another page keeps its 
   await page.goto('/en/dashboard/faq');
   await waitForHydration(page, 'main');
   await expect.poll(() => span(page.locator('main'))).toEqual({ left: 320, right: 2240 });
+});
+
+test('every tool’s frame starts on one line, whatever its heading holds', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheWorkbench(mockApi);
+
+  const tops = new Map<string, number>();
+  for (const screen of SCREENS) {
+    await openScreen(page, screen.tool, screen.shows);
+    const drawn = await toolArea(page).boundingBox();
+    tops.set(screen.tool, Math.round(drawn?.y ?? 0));
+  }
+
+  expect(new Set(tops.values()).size, JSON.stringify([...tops])).toBe(1);
 });
 
 test('a tool leaves the frame of the other pages where a computer starts, not before', async ({

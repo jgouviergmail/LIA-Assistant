@@ -290,7 +290,11 @@ class TestGetSpaceDetail:
         service.source_repo.get_all_for_space = AsyncMock(return_value=[])
         service.mail_source_repo.get_all_for_space = AsyncMock(return_value=[])
 
-        result = await service.get_space_detail(space_id, user_id)
+        with patch(
+            "src.domains.rag_spaces.service.active_drive_provider",
+            AsyncMock(return_value=None),
+        ):
+            result = await service.get_space_detail(space_id, user_id)
 
         assert result["name"] == "Test Space"
         assert result["document_count"] == 1

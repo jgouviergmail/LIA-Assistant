@@ -12,15 +12,23 @@ Scopes required:
 - Calendars.Read, Calendars.ReadWrite
 """
 
-from typing import Any
+from typing import Any, Final
 from uuid import UUID, uuid4
 
 import structlog
+from fastapi import status
 
 from src.core.constants import DEFAULT_TIMEZONE
+from src.core.exceptions import ConnectorAPIError
 from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.calendar_answers import GRAPH_ACTS, EventAnswer
+from src.domains.connectors.clients.calendar_management import (
+    EventLeftBehindError,
+    EventNotMovableError,
+)
+from src.domains.connectors.clients.calendar_options import EventOptions, graph_options
 from src.domains.connectors.clients.normalizers.all_day import all_day_dates
 from src.domains.connectors.clients.normalizers.graph_paging import (
     graph_page_params,
@@ -47,10 +55,34 @@ def _segment(provider_id: str) -> str:
 _EVENT_SELECT_FIELDS = (
     "id,subject,bodyPreview,body,start,end,location,attendees,organizer,"
     "recurrence,isAllDay,isCancelled,showAs,webLink,createdDateTime,"
-    "lastModifiedDateTime,iCalUId,seriesMasterId,type,originalStart,originalStartTimeZone"
+    "lastModifiedDateTime,iCalUId,seriesMasterId,type,originalStart,originalStartTimeZone,"
+    "responseStatus,isOrganizer,isReminderOn,reminderMinutesBeforeStart,sensitivity"
 )
 
-_CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit"
+_CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit,isRemovable"
+
+#: What a move copies. Graph writes the rest itself, or the event has none (see the refusals).
+_COPIED_FIELDS: Final = (
+    "subject",
+    "body",
+    "start",
+    "end",
+    "location",
+    "isAllDay",
+    "showAs",
+    "sensitivity",
+    "isReminderOn",
+    "reminderMinutesBeforeStart",
+    "categories",
+    "importance",
+)
+_MOVE_SELECT_FIELDS: Final = ",".join(
+    (*_COPIED_FIELDS, "attendees", "hasAttachments", "type", "seriesMasterId")
+)
+
+# Graph attaches the Teams join link asynchronously; the event's onlineMeeting is
+# surfaced by normalize_graph_event.
+_ONLINE_MEETING = {"isOnlineMeeting": True, "onlineMeetingProvider": "teamsForBusiness"}
 
 
 class MicrosoftCalendarClient(BaseMicrosoftClient):
@@ -238,6 +270,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         add_conference: bool = False,
         idempotency_key: str | None = None,
         all_day: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
         Create a new calendar event.
@@ -285,11 +318,9 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 for email in attendees
             ]
 
+        event_body.update(graph_options(options or EventOptions()))
         if add_conference:
-            # Graph attaches the Teams join link asynchronously; the created
-            # event's onlineMeeting is surfaced by normalize_graph_event.
-            event_body["isOnlineMeeting"] = True
-            event_body["onlineMeetingProvider"] = "teamsForBusiness"
+            event_body.update(_ONLINE_MEETING)
 
         if calendar_id == "primary":
             endpoint = "/me/calendar/events"
@@ -320,6 +351,8 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         calendar_id: str = "primary",
         all_day: bool | None = None,
         send_updates: str | None = None,
+        add_conference: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing calendar event.
@@ -358,19 +391,7 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             # Stated both ways: an all-day event stays all-day unless told otherwise.
             event_body["isAllDay"] = all_day
             start_datetime = end_datetime = None
-        if start_datetime is not None:
-            # Microsoft Graph preserves the existing event timezone if timeZone
-            # is not included in the PATCH body. Only set timeZone when the caller
-            # explicitly provides one; otherwise let Graph keep the original.
-            start_obj: dict[str, str] = {"dateTime": start_datetime}
-            if timezone is not None:
-                start_obj["timeZone"] = timezone
-            event_body["start"] = start_obj
-        if end_datetime is not None:
-            end_obj: dict[str, str] = {"dateTime": end_datetime}
-            if timezone is not None:
-                end_obj["timeZone"] = timezone
-            event_body["end"] = end_obj
+        event_body.update(_changed_bounds(start_datetime, end_datetime, timezone))
         if description is not None:
             event_body["body"] = {"contentType": "text", "content": description}
         if location is not None:
@@ -383,6 +404,10 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
                 }
                 for email in attendees
             ]
+
+        event_body.update(graph_options(options or EventOptions()))
+        if add_conference:
+            event_body.update(_ONLINE_MEETING)
 
         response = await self._make_request(
             "PATCH", f"/me/events/{_segment(event_id)}", json_data=event_body
@@ -436,6 +461,27 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
         events = [normalize_graph_event(event) for event in raw[:bound]]
         return {"events": events, "truncated": more or len(raw) > bound}
 
+    async def respond_to_event(
+        self, event_id: str, response: EventAnswer, calendar_id: str = "primary"
+    ) -> dict[str, Any]:
+        """Answer an invitation: Graph's own act, the organiser told.
+
+        Args:
+            event_id: The event, an occurrence's own id within a series.
+            response: The answer.
+            calendar_id: Unused: an event's id names it in any calendar.
+
+        Returns:
+            What was answered. Graph takes a declined event out of the calendar.
+        """
+        await self._make_request(
+            "POST",
+            f"/me/events/{_segment(event_id)}/{GRAPH_ACTS[response]}",
+            json_data={"sendResponse": True},
+        )
+        logger.info("microsoft_calendar_invitation_answered", user_id=str(self.user_id))
+        return {"id": event_id, "response": response}
+
     async def delete_event(
         self,
         event_id: str,
@@ -467,11 +513,116 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             "message": APIMessages.event_deleted_successfully(event_id),
         }
 
+    async def move_event(
+        self, event_id: str, calendar_id: str, destination_id: str
+    ) -> dict[str, Any]:
+        """Move an event: Graph has no such act, so it is copied, then the original removed.
+
+        Args:
+            event_id: The event.
+            calendar_id: The calendar it is in (unused: an event's id is the mailbox's).
+            destination_id: The calendar it goes to.
+
+        Returns:
+            The event as the destination holds it, under the id Graph gave the copy.
+
+        Raises:
+            EventNotMovableError: It has guests, attachments or a series: nothing was sent.
+            EventLeftBehindError: The copy exists, and the original could not be removed.
+        """
+        path = f"/me/events/{_segment(event_id)}"
+        raw = await self._make_request("GET", path, {"$select": _MOVE_SELECT_FIELDS})
+        if raw.get("attendees") or raw.get("hasAttachments") or _in_a_series(raw):
+            raise EventNotMovableError
+        body = {key: raw[key] for key in _COPIED_FIELDS if key in raw}
+        # One move, one copy: a copy whose answer was lost may be sent again.
+        body["transactionId"] = provider_idempotency_id(
+            f"move:{event_id}:{destination_id}", "microsoft"
+        )
+        copy = await self._make_request(
+            "POST",
+            f"/me/calendars/{_segment(destination_id)}/events",
+            json_data=body,
+            idempotent=True,
+        )
+        await self._remove_original(path)
+        return normalize_graph_event(copy)
+
+    async def _remove_original(self, path: str) -> None:
+        """Remove what a move copied; an original already gone is the move done.
+
+        Args:
+            path: The original's address.
+
+        Raises:
+            EventLeftBehindError: It stands beside its copy.
+        """
+        try:
+            await self._make_request("DELETE", path)
+        except ConnectorAPIError as error:
+            if error.upstream_status_code != status.HTTP_404_NOT_FOUND:
+                raise EventLeftBehindError from error
+        except Exception as error:
+            raise EventLeftBehindError from error
+
+    async def create_calendar(self, name: str, timezone: str | None = None) -> dict[str, Any]:
+        """Create a calendar of the account's.
+
+        Args:
+            name: Its name.
+            timezone: Unused: a Graph calendar has no zone of its own.
+
+        Returns:
+            The calendar, as a listing names it.
+        """
+        raw = await self._make_request("POST", "/me/calendars", json_data={"name": name})
+        return normalize_graph_calendar(raw)
+
+    async def rename_calendar(self, calendar_id: str, name: str) -> dict[str, Any]:
+        """Give a calendar another name.
+
+        Args:
+            calendar_id: The calendar.
+            name: Its new name.
+
+        Returns:
+            The calendar, as a listing names it.
+        """
+        raw = await self._make_request(
+            "PATCH", f"/me/calendars/{_segment(calendar_id)}", json_data={"name": name}
+        )
+        return normalize_graph_calendar(raw)
+
+    async def delete_calendar(self, calendar_id: str) -> None:
+        """Delete a calendar and all it holds.
+
+        Args:
+            calendar_id: The calendar.
+        """
+        await self._make_request("DELETE", f"/me/calendars/{_segment(calendar_id)}")
+
+
+def _in_a_series(raw: dict[str, Any]) -> bool:
+    """Whether an event belongs to a series: a copy would stand alone."""
+    return bool(raw.get("seriesMasterId")) or raw.get("type", "singleInstance") != "singleInstance"
+
 
 #: Events asked per page while a window is drained.
 _WINDOW_PAGE_SIZE = 100
 #: Pages one window read may take.
 _WINDOW_MAX_PAGES = 40
+
+
+def _changed_bounds(
+    start: str | None, end: str | None, timezone: str | None
+) -> dict[str, dict[str, str]]:
+    """The bounds a change names.
+
+    Graph keeps an event's zone when a PATCH says none: it is said only when asked.
+    """
+    zone = {"timeZone": timezone} if timezone is not None else {}
+    bounds = {"start": start, "end": end}
+    return {key: {"dateTime": value, **zone} for key, value in bounds.items() if value is not None}
 
 
 def _graph_bounds(start: str, end: str, timezone: str, *, all_day: bool) -> dict[str, Any]:

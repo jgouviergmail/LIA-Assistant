@@ -6,40 +6,84 @@
  *
  * The subject, who sent it to whom, when (in the account's zone), the
  * person's labels, the message — its original layout in a sandboxed frame on
- * its own paper when it has one (D3; its text a click away, since links do not
- * open in the frame), else the provider's clean text in the theme's colours —
- * and the files. The
+ * its own paper when it has one (D3; its text a click away), else the provider's
+ * clean text in the theme's colours — and the files. What the list it came from
+ * says of leaving it sits under the sender. The
  * toolbar answers, forwards, marks unread or read, labels (Gmail) and trashes;
- * on a phone the answers sit in a bar at the bottom, where the thumb is.
+ * on a phone the answers sit in a bar at the bottom, where the thumb is. Under the
+ * toolbar stands what the screen passes as the conversation: outside the message,
+ * it stays while the next one loads.
  * Below `xl` the reader replaces the list, so its first control leads back to
  * the folder, and it takes the focus when it opens below `lg`.
  */
-import { ChevronLeft, Forward, Mail, MailOpen, Reply, ReplyAll, Trash2, X } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  CalendarPlus,
+  ChevronLeft,
+  FolderInput,
+  Forward,
+  Inbox,
+  ListPlus,
+  Mail,
+  MailOpen,
+  MoreHorizontal,
+  OctagonAlert,
+  Printer,
+  Reply,
+  ReplyAll,
+  Sparkles,
+  Star,
+  Trash2,
+  UserPlus,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LinkedText } from '@/components/ui/linked-text';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import { getIntlLocale, type Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import { addressLabel, initials } from '@/lib/workbench/mail';
-import type { MailAddress, MailFolder, MailHtml, MailMessage } from '@/lib/workbench/types';
+import { isAndroidShell, shellCapability } from '@/lib/native/shell';
+import { addressLabel, initials, type MailMoves, type MailSendAct } from '@/lib/workbench/mail';
+import type {
+  MailAddress,
+  MailFolder,
+  MailHtml,
+  MailInlineImage,
+  MailInlineImages,
+  MailMessage,
+  MailUnsubscribe,
+} from '@/lib/workbench/types';
 
 import { AttachmentList } from './AttachmentList';
 import { LabelMenu } from './LabelMenu';
+import type { MailBulkAct } from './MailSelectionBar';
 
 // The original-layout reader parses an inert document with browser DOM APIs.
-const MailHtmlFrame = dynamic(
-  () => import('./MailHtmlFrame').then(module => module.MailHtmlFrame),
+const AuthoredHtmlFrame = dynamic(
+  () => import('../AuthoredHtmlFrame').then(module => module.AuthoredHtmlFrame),
   {
     ssr: false,
   }
 );
 
+const NO_IMAGES: readonly MailInlineImage[] = [];
+
 /** Which act of the reader is on its way, if any. */
-export type ReaderAct = 'read' | 'trash' | 'labels';
+export type ReaderAct = MailBulkAct;
 
 export interface MessageReaderProps {
   lng: Language;
@@ -57,6 +101,8 @@ export interface MessageReaderProps {
   /** The person's labels where the provider has labels; undefined elsewhere. */
   labels: readonly MailFolder[] | undefined;
   downloadMax: number;
+  /** The drive an attachment can be kept on, when one is ready. */
+  drive?: { provider: string | null };
   busy: ReaderAct | null;
   focusOnOpen: boolean;
   onClose: () => void;
@@ -64,8 +110,33 @@ export interface MessageReaderProps {
   onReply: (all: boolean) => void;
   onForward: () => void;
   onToggleRead: (read: boolean) => void;
-  onTrash: () => void;
+  onToggleStar: (starred: boolean) => void;
+  /** What the folder offers (`movesFrom`). */
+  moves: MailMoves;
+  onSend: (act: MailSendAct) => void;
+  /** Opens the folder picker. */
+  onMove: () => void;
+  onForever: () => void;
   onLabels: (add: string[], remove: string[]) => void;
+  /** Where the message can go from here; a tool that is not ready is left out. */
+  bridges: MessageBridges;
+  /** The images it carries, once read. */
+  inline: MailInlineImages | undefined;
+  /** How it says it can be left, once read. */
+  leaving: MailUnsubscribe | undefined;
+  onUnsubscribe: () => void;
+  /** Its text on paper, where the page has a printer dialog. */
+  onPrint?: () => void;
+  /** What was said around it. */
+  conversation?: ReactNode;
+}
+
+/** The ways out of a message, each given the message. */
+export interface MessageBridges {
+  toTask?: (message: MailMessage) => void;
+  toEvent?: (message: MailMessage) => void;
+  toContact?: (message: MailMessage) => void;
+  ask: (message: MailMessage) => void;
 }
 
 function receivedFull(iso: string | null, zone: string | undefined, lng: Language): string {
@@ -84,7 +155,8 @@ function names(addresses: readonly MailAddress[]): string {
 }
 
 export function MessageReader(props: MessageReaderProps) {
-  const { lng, message, loading, error, backLabel, focusOnOpen, onClose, onRetry } = props;
+  const { lng, message, loading, error, backLabel, focusOnOpen, onClose, onRetry, conversation } =
+    props;
   const { t } = useTranslation(lng);
   const back = useRef<HTMLButtonElement>(null);
 
@@ -127,8 +199,82 @@ export function MessageReader(props: MessageReaderProps) {
         </Button>
         {message && <ReaderToolbar {...props} message={message} />}
       </div>
+      {conversation}
       {content}
     </article>
+  );
+}
+
+/** Where the message can go: another tool, or a question to LIA. */
+function BridgeMenu({
+  lng,
+  message,
+  bridges,
+  onPrint,
+  moves,
+  onSend,
+  onMove,
+}: {
+  lng: Language;
+  message: MailMessage;
+  bridges: MessageBridges;
+  onPrint?: () => void;
+  moves: MailMoves;
+  onSend: (act: MailSendAct) => void;
+  onMove: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  const { toTask, toEvent, toContact, ask } = bridges;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={t('workbench.mail.more_actions')}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {toTask && (
+          <DropdownMenuItem onSelect={() => toTask(message)}>
+            <ListPlus className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.to_task')}
+          </DropdownMenuItem>
+        )}
+        {toEvent && (
+          <DropdownMenuItem onSelect={() => toEvent(message)}>
+            <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.to_event')}
+          </DropdownMenuItem>
+        )}
+        {toContact && message.sender && (
+          <DropdownMenuItem onSelect={() => toContact(message)}>
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.to_contact')}
+          </DropdownMenuItem>
+        )}
+        {moves.move && (
+          <DropdownMenuItem className="sm:hidden" onSelect={onMove}>
+            <FolderInput className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.move_to')}
+          </DropdownMenuItem>
+        )}
+        {moves.spam && (
+          <DropdownMenuItem className="sm:hidden" onSelect={() => onSend('spam')}>
+            <OctagonAlert className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.report_spam')}
+          </DropdownMenuItem>
+        )}
+        {onPrint && (
+          <DropdownMenuItem onSelect={onPrint}>
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            {t('workbench.mail.print')}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={() => ask(message)}>
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          {t('workbench.ask.label')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -140,8 +286,14 @@ function ReaderToolbar({
   onReply,
   onForward,
   onToggleRead,
-  onTrash,
+  onToggleStar,
+  moves,
+  onSend,
+  onMove,
+  onForever,
   onLabels,
+  bridges,
+  onPrint,
 }: MessageReaderProps & { message: MailMessage }) {
   const { t } = useTranslation(lng);
   // A guard, not the attribute: `aria-disabled` keeps the focus where it is.
@@ -179,6 +331,19 @@ function ReaderToolbar({
           <MailOpen className="h-4 w-4" aria-hidden="true" />
         )}
       </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        isLoading={busy === 'star'}
+        aria-disabled={(busy !== null && busy !== 'star') || undefined}
+        onClick={guarded(() => onToggleStar(!message.is_starred))}
+        aria-label={t(message.is_starred ? 'workbench.mail.unstar' : 'workbench.mail.star')}
+      >
+        <Star
+          className={cn('h-4 w-4', message.is_starred && 'fill-current text-primary')}
+          aria-hidden="true"
+        />
+      </Button>
       {labels && (
         <LabelMenu
           lng={lng}
@@ -189,18 +354,139 @@ function ReaderToolbar({
           onApply={onLabels}
         />
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        isLoading={busy === 'trash'}
-        aria-disabled={(busy !== null && busy !== 'trash') || undefined}
-        onClick={guarded(onTrash)}
-        className="text-destructive hover:text-destructive"
-        aria-label={t('workbench.mail.trash')}
-      >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-      </Button>
+      <ReaderMoves
+        lng={lng}
+        busy={busy}
+        moves={moves}
+        onSend={onSend}
+        onMove={onMove}
+        onForever={onForever}
+      />
+      <BridgeMenu
+        lng={lng}
+        message={message}
+        bridges={bridges}
+        onPrint={onPrint}
+        moves={moves}
+        onSend={onSend}
+        onMove={onMove}
+      />
     </span>
+  );
+}
+
+/** Where the open message can go from its folder. */
+function ReaderMoves({
+  lng,
+  busy,
+  moves,
+  onSend,
+  onMove,
+  onForever,
+}: Pick<MessageReaderProps, 'lng' | 'busy' | 'moves' | 'onSend' | 'onMove' | 'onForever'>) {
+  // Below `sm` a phone has no room for them all: `BridgeMenu` holds the two least used.
+  const { t } = useTranslation(lng);
+  // A guard, not the attribute: `aria-disabled` keeps the focus where it is.
+  const guarded = (act: () => void) => () => {
+    if (busy === null) act();
+  };
+  return (
+    <>
+      {sendButtons(moves).map(({ act, key, icon: Icon }) => (
+        <Button
+          key={act}
+          variant="ghost"
+          size="icon"
+          isLoading={busy === act}
+          aria-disabled={(busy !== null && busy !== act) || undefined}
+          onClick={guarded(() => onSend(act))}
+          aria-label={t(key)}
+          className={act === 'spam' ? 'hidden sm:inline-flex' : undefined}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      ))}
+      {moves.move && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-disabled={busy !== null || undefined}
+          onClick={guarded(onMove)}
+          aria-label={t('workbench.mail.move_to')}
+          className="hidden sm:inline-flex"
+        >
+          <FolderInput className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+      {!moves.restore && (
+        <Button
+          variant="ghost"
+          size="icon"
+          isLoading={busy === 'trash'}
+          aria-disabled={(busy !== null && busy !== 'trash') || undefined}
+          onClick={guarded(() => onSend('trash'))}
+          className="text-destructive hover:text-destructive"
+          aria-label={t('workbench.mail.trash')}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+      {moves.forever && (
+        <Button
+          variant="ghost"
+          size="icon"
+          isLoading={busy === 'forever'}
+          aria-disabled={(busy !== null && busy !== 'forever') || undefined}
+          onClick={guarded(onForever)}
+          className="text-destructive hover:text-destructive"
+          aria-label={t('workbench.mail.delete_forever')}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+    </>
+  );
+}
+
+/** The one-click ways out of the folder, as the toolbar draws them. */
+function sendButtons(moves: MailMoves): { act: MailSendAct; key: string; icon: LucideIcon }[] {
+  const all: { act: MailSendAct; key: string; icon: LucideIcon; on: boolean }[] = [
+    { act: 'archive', key: 'workbench.mail.archive', icon: Archive, on: moves.archive },
+    { act: 'restore', key: 'workbench.mail.restore', icon: ArchiveRestore, on: moves.restore },
+    { act: 'not_spam', key: 'workbench.mail.not_spam', icon: Inbox, on: moves.notSpam },
+    { act: 'spam', key: 'workbench.mail.report_spam', icon: OctagonAlert, on: moves.spam },
+  ];
+  return all.filter(button => button.on);
+}
+
+/** The way out the message names, the plainest first: one click, its page, a message. */
+function Unsubscribe({
+  lng,
+  leaving,
+  onUnsubscribe,
+}: {
+  lng: Language;
+  leaving: MailUnsubscribe | undefined;
+  onUnsubscribe: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  if (!leaving || (!leaving.web_url && !leaving.mail_to)) return null;
+  if (leaving.web_url && !leaving.one_click) {
+    return (
+      <a
+        href={leaving.web_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-primary underline-offset-4 hover:underline"
+      >
+        {t('workbench.mail.unsubscribe')}
+      </a>
+    );
+  }
+  return (
+    <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onUnsubscribe}>
+      {t('workbench.mail.unsubscribe')}
+    </Button>
   );
 }
 
@@ -212,8 +498,12 @@ function ReaderBody({
   zone,
   labels,
   downloadMax,
+  drive,
   onReply,
   onForward,
+  inline,
+  leaving,
+  onUnsubscribe,
 }: MessageReaderProps & { message: MailMessage }) {
   const { t } = useTranslation(lng);
   const sender = message.sender;
@@ -251,6 +541,7 @@ function ReaderBody({
                 {t('workbench.mail.cc_line', { names: names(message.cc) })}
               </p>
             )}
+            <Unsubscribe lng={lng} leaving={leaving} onUnsubscribe={onUnsubscribe} />
           </div>
           {when && (
             <time
@@ -277,6 +568,7 @@ function ReaderBody({
           lng={lng}
           text={message.body}
           original={original}
+          inline={inline}
           originalFailed={originalFailed}
         />
         <AttachmentList
@@ -284,6 +576,7 @@ function ReaderBody({
           messageId={message.id}
           attachments={message.attachments}
           maxBytes={downloadMax}
+          drive={drive}
         />
       </div>
       <nav
@@ -309,12 +602,28 @@ interface MessageBodyProps {
   text: string;
   original: MailHtml | undefined;
   originalFailed: boolean;
+  inline: MailInlineImages | undefined;
+}
+
+/**
+ * Whether the reader says the links open from the text: measured, an Android shell older than
+ * its `frameLinks` capability opens nothing from a sandboxed frame.
+ */
+function useLinksInText(): boolean {
+  const [frameLinks, setFrameLinks] = useState(false);
+  useEffect(() => {
+    void shellCapability('frameLinks').then(setFrameLinks);
+  }, []);
+  return isAndroidShell() && !frameLinks;
 }
 
 /** The original layout when the message has one, else (or on demand) its text. */
-function MessageBody({ lng, text, original, originalFailed }: MessageBodyProps) {
+function MessageBody({ lng, text, original, originalFailed, inline }: MessageBodyProps) {
   const { t } = useTranslation(lng);
   const [asText, setAsText] = useState(false);
+  // Above the frame, so a look at the text does not take back what the reader asked for.
+  const [images, setImages] = useState(false);
+  const linksInText = useLinksInText();
   const html = original?.html ?? null;
   const swap = (label: string, next: boolean) => (
     <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setAsText(next)}>
@@ -324,22 +633,33 @@ function MessageBody({ lng, text, original, originalFailed }: MessageBodyProps) 
   if (html !== null && !asText) {
     return (
       <div className="space-y-2">
-        {/* Above the frame: why its images are missing, and the way to the links, in sight. */}
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          <span>{t('workbench.mail.html_notice')}</span>
+          {linksInText && <span>{t('workbench.mail.links_in_text')}</span>}
           {swap(t('workbench.mail.show_text'), true)}
         </p>
         {original?.truncated && (
           <p className="text-xs text-muted-foreground">{t('workbench.mail.html_truncated')}</p>
         )}
-        <MailHtmlFrame lng={lng} html={html} />
+        <AuthoredHtmlFrame
+          lng={lng}
+          html={html}
+          title={t('workbench.mail.html_frame_title')}
+          images={images}
+          onShowImages={() => setImages(true)}
+          inline={inline?.images ?? NO_IMAGES}
+        />
+        {Boolean(inline?.skipped) && (
+          <p className="text-xs text-muted-foreground">
+            {t('workbench.mail.inline_skipped', { count: inline?.skipped })}
+          </p>
+        )}
       </div>
     );
   }
   return (
     <div className="space-y-2">
       <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-        {text}
+        <LinkedText text={text} />
       </div>
       {html !== null && swap(t('workbench.mail.show_original'), false)}
       {originalFailed && (

@@ -16,6 +16,7 @@ from typing import Any, Final
 import structlog
 from imap_tools.utils import DEFAULT_EMAIL_DATE, EmailAddress
 
+from src.domains.connectors.clients.email_attachments import declares_attachments
 from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
 from src.domains.connectors.clients.normalizers.imap_handles import message_handle
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
@@ -31,6 +32,12 @@ _GMAIL_OPERATOR_PATTERN = re.compile(
     r'(?<![\w-])(-?)(from|to|cc|subject|after|before|label|is|has|in):("(?:[^"\\]|\\.)*"|\S+)'
 )
 #: The imap_tools criterion each people or subject operator states.
+#: A message id as an IMAP search can carry it: criteria leave in US-ASCII, and a stranger
+#: writes these headers, so anything else names nothing.
+_SEARCHABLE_MESSAGE_ID: Final = re.compile(r"<[!-;=?-~]+>")
+#: Where a conversation's name is read, the best first.
+_CONVERSATION_HEADERS: Final = ("references", "in-reply-to", "message-id")
+
 _IMAP_TEXT_CRITERIA: Final[dict[str, str]] = {
     "from": "from_",
     "to": "to",
@@ -116,6 +123,31 @@ def _internal_date(value: Any) -> str | None:
         return None
 
 
+def conversation_opening(headers: Any) -> str | None:
+    """The id naming a message's conversation, as IMAP keeps none: its headers do.
+
+    ``References`` starts with the message that opened the conversation, ``In-Reply-To``
+    stands in for a sender who writes none, and a message nothing precedes names itself.
+
+    Args:
+        headers: The headers as ``imap_tools`` keys them (lower case, a tuple each).
+
+    Returns:
+        The id, brackets included; None when no header names one a search can carry.
+    """
+    for name in _CONVERSATION_HEADERS:
+        for value in headers.get(name) or ():
+            if found := _SEARCHABLE_MESSAGE_ID.search(str(value)):
+                return found.group()
+    return None
+
+
+def _first_header(headers: Any, name: str) -> str | None:
+    """A header's first value, as ``imap_tools`` keys them (lower case, a tuple each)."""
+    values = headers.get(name) or ()
+    return str(values[0]).strip() if values else None
+
+
 def normalize_imap_message(
     msg: Any, folder: str, *, keep_quoted: bool = False, scope: str | None = None
 ) -> dict[str, Any]:
@@ -160,8 +192,8 @@ def normalize_imap_message(
     date_value = msg.date_str or ""
     # RFC 2822 Message-ID, for In-Reply-To / References on a reply. imap_tools
     # keys its headers in lower case; a test double may carry none.
-    rfc_ids = (getattr(msg, "headers", None) or {}).get("message-id") or ()
-    rfc_message_id = str(rfc_ids[0]).strip() if rfc_ids else None
+    headers = getattr(msg, "headers", None) or {}
+    rfc_message_id = _first_header(headers, "message-id")
 
     # =========================================================================
     # Attachments: top-level for direct access by _enrich_email()
@@ -184,7 +216,7 @@ def normalize_imap_message(
 
     return {
         "id": message_id,
-        "threadId": message_id,  # IMAP has no thread concept
+        "threadId": conversation_opening(headers) or message_id,
         "labelIds": label_ids,
         "snippet": snippet,
         "subject": subject,
@@ -201,7 +233,9 @@ def normalize_imap_message(
         "rfc_message_id": rfc_message_id,
         "body": body_text,
         "unread": "UNREAD" in label_ids,
-        "hasAttachment": len(attachments) > 0,
+        # A listing fetches headers alone: no part to count, the top-level type speaks.
+        "hasAttachment": bool(attachments)
+        or declares_attachments(_first_header(headers, "content-type")),
         "attachments": attachments,
         "internalDate": internal_date,
         # Provider marker for downstream formatters and display components.

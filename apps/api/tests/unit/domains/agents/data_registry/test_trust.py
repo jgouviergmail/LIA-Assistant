@@ -49,6 +49,7 @@ EXPECTED_EXTERNAL: dict[RegistryItemType, str] = {
     RegistryItemType.MCP_RESULT: "third-party MCP server output",
     RegistryItemType.MCP_APP: "third-party MCP widget payload",
     RegistryItemType.SKILL_APP: "rich output of a URL-imported skill",
+    RegistryItemType.PAGE_APP: "title of a page written after reading third-party content",
     RegistryItemType.TICKET: "title/description/comments of a ticket a connected user handed over",
 }
 

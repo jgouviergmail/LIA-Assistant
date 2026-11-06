@@ -181,6 +181,15 @@ A `_coerce_parameters(value: dict | str | None) -> dict` helper accepts JSON str
 - [docs/knowledge/12_skills.md](../knowledge/12_skills.md) § Rich outputs.
 - Skill-generator references: [data/skills/system/skill-generator/references/format-specification.md](../../data/skills/system/skill-generator/references/format-specification.md), [archetype-examples.md](../../data/skills/system/skill-generator/references/archetype-examples.md).
 
+## Amendment 2026-11-05: a frame's policy opens the document
+
+The policy of a user skill was written after the `<head>` a regular expression found. A `<head>`
+inside a comment or a string satisfied it, and what the page held before the real one ran
+ungoverned (measured for [ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). The policy is now a prefix of the document, whatever
+the document says: `frame_policy.with_leading_policy` composes it, for skills and for pages alike.
+The document's own doctype and `<head>` are then parse errors a browser ignores, and its `<html>`
+attributes still apply, so a page keeps its language and standards mode.
+
 ## Alternatives considered and rejected
 
 1. **Single shared widget type for MCP Apps and Skills** — merging `MCP_APP` and `SKILL_APP` under one `INTERACTIVE_APP` type. Rejected: the two have distinct security models (MCP apps are per-user-opted, skill frames are per-import), different bridge capabilities (MCP bridge supports `tools/call`, skill bridge does not), and different payload shapes. Keeping them distinct preserves auditability.

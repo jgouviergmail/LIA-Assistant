@@ -5,7 +5,7 @@
  * lists them, ticks them and takes a new one.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   answerConfirmDialog,
@@ -27,7 +27,37 @@ const TASK: WorkbenchTask = {
   due: '2026-11-03',
   parent: null,
   position: null,
+  steps: [],
+  importance: null,
+  reminder: null,
+  repeat: null,
 };
+
+describe('the links of its notes', () => {
+  it('can be followed, though the notes stay a text area', async () => {
+    editor({ task: { ...TASK, notes: 'Compare on https://shop.example.org/milk first.' } });
+
+    const link = screen.getByRole('link', { name: 'https://shop.example.org/milk' });
+
+    expect(link).toHaveAttribute('href', 'https://shop.example.org/milk');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('follow what is typed', () => {
+    editor();
+    expect(screen.queryByRole('list', { name: 'workbench.tasks.notes_links' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('workbench.tasks.notes'), {
+      target: { value: 'www.example.org' },
+    });
+
+    expect(screen.getByRole('link', { name: 'www.example.org' })).toHaveAttribute(
+      'href',
+      'https://www.example.org/'
+    );
+  });
+});
 
 function editor({
   task = TASK,
@@ -35,12 +65,14 @@ function editor({
   features = ['subtasks'],
   pending = new Set<string>(),
   focusOnOpen = false,
+  today = '2026-11-04',
 }: {
   task?: WorkbenchTask;
   subtasks?: WorkbenchTask[];
   features?: WorkbenchFeature[];
   pending?: Set<string>;
   focusOnOpen?: boolean;
+  today?: string;
 } = {}) {
   const props = {
     onSave: vi.fn().mockResolvedValue(undefined),
@@ -48,6 +80,7 @@ function editor({
     onDelete: vi.fn().mockResolvedValue(undefined),
     onAddSubtask: vi.fn().mockResolvedValue(undefined),
     onClose: vi.fn(),
+    onAsk: vi.fn(),
   };
   const rendered = renderWithProviders(
     <TaskEditor
@@ -63,6 +96,7 @@ function editor({
       }}
       pending={pending}
       focusOnOpen={focusOnOpen}
+      today={today}
       {...props}
     />
   );
@@ -116,9 +150,7 @@ describe('TaskEditor — editing', () => {
   it('saves once at a time, and keeps what was typed when refused', async () => {
     let refuse: (reason: Error) => void = () => undefined;
     const { user, onSave } = editor();
-    onSave.mockImplementationOnce(
-      () => new Promise<void>((_, reject) => (refuse = reject))
-    );
+    onSave.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
     const notes = screen.getByLabelText('workbench.tasks.notes');
 
     await user.type(notes, 'oat');
@@ -143,6 +175,62 @@ describe('TaskEditor — editing', () => {
   });
 });
 
+describe('TaskEditor — saved as it is written', () => {
+  it('saves a field when the person leaves it', async () => {
+    const { onSave } = editor();
+
+    const title = screen.getByLabelText('workbench.tasks.title');
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { title: 'Buy oat milk' }));
+    expect(await screen.findByText('workbench.tasks.saved')).toBeInTheDocument();
+  });
+
+  it('saves nothing when nothing changed', () => {
+    const { onSave } = editor();
+
+    fireEvent.blur(screen.getByLabelText('workbench.tasks.title'));
+
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('never saves a task left without a title', () => {
+    const { onSave } = editor();
+
+    const title = screen.getByLabelText('workbench.tasks.title');
+    fireEvent.change(title, { target: { value: '   ' } });
+    fireEvent.blur(title);
+
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskEditor — due dates at hand', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-04T10:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('sets today, tomorrow and next week from the account’s day, and saves it', async () => {
+    const { onSave } = editor({ today: '2026-11-04' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_tomorrow' }));
+
+    expect(screen.getByLabelText('workbench.tasks.due')).toHaveValue('2026-11-05');
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { due: '2026-11-05' }));
+  });
+
+  it('takes the date away', async () => {
+    const { onSave } = editor({ today: '2026-11-04' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_none' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { due: null }));
+  });
+});
+
 describe('TaskEditor — acts', () => {
   it('marks a task done or reopens it, never while its last change is on its way', async () => {
     const open = editor();
@@ -152,7 +240,9 @@ describe('TaskEditor — acts', () => {
 
     const done = { ...TASK, completed: true };
     const reopened = editor({ task: done });
-    await reopened.user.click(screen.getByRole('button', { name: 'workbench.tasks.reopen_action' }));
+    await reopened.user.click(
+      screen.getByRole('button', { name: 'workbench.tasks.reopen_action' })
+    );
     expect(reopened.onToggle).toHaveBeenCalledWith(done, false);
     reopened.unmount();
 

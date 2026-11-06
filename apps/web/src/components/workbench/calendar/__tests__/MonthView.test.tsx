@@ -69,7 +69,7 @@ describe('MonthView', () => {
     month([event('Trip', { start: '2026-10-27', end: '2026-10-30' })]);
 
     const bar = screen.getByRole('link', { name: 'Trip' });
-    expect(bar.getAttribute('style')).toContain('width: calc(300% - 4px)');
+    expect(bar.parentElement?.getAttribute('style')).toContain('width: calc(300% - 4px)');
     const cell = bar.closest('[role="gridcell"]');
     expect(cell?.querySelector('a')?.getAttribute('href')).toBe('/agenda/2026-10-27');
   });

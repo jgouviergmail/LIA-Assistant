@@ -1404,7 +1404,7 @@ Without this, `ExceptionGroup` from the MCP SDK's anyio task groups would crash 
 
 ### Step Timeout
 
-MCP iterative tools run a multi-iteration ReAct agent loop that needs significantly more time than single tool calls. The parallel executor enforces a minimum timeout of **120s** (configurable via `mcp_react_step_timeout_seconds`) for any tool ending with `_task` (the `MCP_ITERATIVE_TASK_SUFFIX`). This override uses `max(planner_timeout, 120)` to ensure the floor is respected even when the planner LLM specifies a lower value.
+MCP iterative tools run a multi-iteration ReAct agent loop that needs significantly more time than single tool calls. The parallel executor enforces a floor of `mcp_react_step_timeout_seconds` for any tool ending with `_task` (the `MCP_ITERATIVE_TASK_SUFFIX`), lifted to the `mcp_react_agent` and `mcp_app_react_agent` slots' calls (ADR-221 amendment 2026-11-05). The floor holds even when the planner LLM specifies a lower value.
 
 ### Requirements
 

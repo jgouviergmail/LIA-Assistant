@@ -1200,8 +1200,8 @@
     },
     "221": {
       "title": "El tiempo de espera mostrado es el que se aplica",
-      "summary": "El tiempo de espera por modelo se podía editar pero nunca se aplicaba. Pasa a ser el límite de transporte de cada llamada, contrastado con las latencias reales.",
-      "src": "2571bd210852"
+      "summary": "El tiempo de espera por modelo se podía editar pero nunca se aplicaba. Pasa a ser el límite de transporte de cada llamada, contrastado con las latencias reales, y nada alrededor de una llamada lo corta antes.",
+      "src": "4e954a5f7c9a"
     },
     "222": {
       "title": "Eliminada una capa HITL que nunca se conectó",
@@ -1935,8 +1935,13 @@
     },
     "369": {
       "title": "La persona actúa ella misma sobre sus servicios, sin modelo",
-      "summary": "La sección «Herramientas» abre el correo, la agenda, las tareas, los contactos, los archivos de Drive y las luces de la persona para que los consulte y actúe a mano: ningún modelo, ningún token, la velocidad del proveedor. La pantalla solo ofrece lo que el proveedor acepta, y lo que un cliente gana para ella lo ganan a la vez las herramientas de la asistente; nada de lo que la persona hace a mano llega a un registro, porque no es un acto de LIA.",
-      "src": "07998b0c5d8d"
+      "summary": "La sección «Herramientas» abre el correo, la agenda, las tareas, los contactos, los archivos, en Google Drive u OneDrive, y las luces de la persona para que los consulte y actúe a mano: ningún modelo, ningún token, la velocidad del proveedor. La pantalla solo ofrece lo que el proveedor acepta, y lo que un cliente gana para ella lo ganan a la vez las herramientas de la asistente; nada de lo que la persona hace a mano llega a un registro, porque no es un acto de LIA.",
+      "src": "3c8fbff549a4"
+    },
+    "370": {
+      "title": "Una página escrita por el modelo funciona en el chat, en el marco más estricto",
+      "summary": "Pedir un juego o una pequeña herramienta da una página que funciona en la conversación, con su archivo; pedir el código da el código, y lo que una persona escribe sigue siendo texto. La página se ejecuta aislada, sin acceso a la cuenta ni a ningún sitio de su elección, bajo una política que no nombra ningún host. Releída desde el historial espera un clic, porque un bucle sin fin congelaría la pestaña, y el modelo solo lee su título.",
+      "src": "ab92ef5e6f98"
     }
   }
 }

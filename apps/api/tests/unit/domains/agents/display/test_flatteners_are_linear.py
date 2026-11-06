@@ -28,6 +28,7 @@ from src.domains.agents.display import plain_text
 from src.domains.agents.display.components import base as display_base
 from src.domains.agents.display.components.folded_synthesis import format_synthesis_html
 from src.domains.agents.display.components.html_flatten import format_email_body, html_to_text
+from src.domains.connectors.clients.normalizers.html_text import html_to_text as body_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.shared.markdown_literal import read_as_markdown, untrusted_markdown
 from src.domains.voice.expressive_cues import (
@@ -64,6 +65,7 @@ FLATTENERS: dict[str, Flattener] = {
     "read_as_markdown": lambda s: read_as_markdown(s),
     "untrusted_markdown": untrusted_markdown,
     "flatten_for_voice": lambda s: flatten_for_voice(s, strip_html=plain_text.strip_html_if_markup),
+    "body_to_text": lambda s: body_to_text(s, url_shorten_threshold=60),
     "clean_reply_body": lambda s: clean_reply_body(s, subject="x"),
     # A sentence bound for TTS, read before every synthesis (py/polynomial-redos
     # #956/#957: a tag or bracket pattern rescanning to the end per opening mark).
@@ -95,6 +97,7 @@ WITNESSES: dict[str, Callable[[int], str]] = {
     "table cells with tabs": lambda n: "--" + "|\t" * (n // 2) + "x",
     "unmatched brackets": lambda n: "[" * n,
     "link openers": lambda n: "[a](" * (n // 4),
+    "written link openers": lambda n: "[link](" * (n // 7),
     "link openers with a scheme": lambda n: "[a](http://x" * (n // 12),
     "italic openers": lambda n: "*a " * (n // 3),
     "bold openers": lambda n: "**a " * (n // 4),

@@ -1131,6 +1131,7 @@ class ConnectorsSettings(BaseSettings):
             "microsoft_calendar": self.calendar_cache_list_ttl_seconds,
             "microsoft_contacts": self.contacts_cache_list_ttl_seconds,
             "microsoft_tasks": self.tasks_cache_list_ttl_seconds,
+            "microsoft_onedrive": self.drive_cache_list_ttl_seconds,
         }
 
         if connector_type in cache_mapping:

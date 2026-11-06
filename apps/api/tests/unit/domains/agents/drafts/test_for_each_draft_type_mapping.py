@@ -20,11 +20,18 @@ from src.domains.agents.services.hitl.interactions.for_each_confirmation import 
         # Delete variants — all map to "{domain}_delete"
         ("cancel_reminder_tool", "reminder_delete"),
         ("delete_event_tool", "event_delete"),
+        # An answer names no verb of the table: it has a type of its own.
+        ("respond_to_event_tool", "event_answer"),
+        # A sharing names no verb of the table either.
+        ("share_file_tool", "file_share"),
         ("delete_email_tool", "email_delete"),
         ("delete_contact_tool", "contact_delete"),
         ("delete_task_tool", "task_delete"),
         ("delete_file_tool", "file_delete"),
         ("delete_label_tool", "label_delete"),
+        # A filter is not a message, though its tool's name holds the word « email ».
+        ("delete_email_filter_tool", "email_filter_delete"),
+        ("create_email_filter_tool", "email_filter"),
         ("remove_event_tool", "event_delete"),
         ("trash_email_tool", "email_delete"),
         # Update variants — "{domain}_update"

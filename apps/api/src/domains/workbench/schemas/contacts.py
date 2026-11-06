@@ -8,18 +8,24 @@ whole, with its bound. Reading is forgiving and writing strict: a contact is
 shown as its provider wrote it (an address on several lines, a kind the person
 typed), and only what is written is checked. A page says what comes next — a
 cursor for the account's contacts, a cut for a search or a group the provider
-answers in one go — never presenting a part as the whole (ADR-185).
+answers in one go — never presenting a part as the whole (ADR-185). What a contact
+holds beyond its lists goes by the clients' contract (``clients/contact_details``):
+left out it is kept, an empty text empties it, a birthday goes by a flag. A birthday
+reads as an ISO day, or ``--MM-DD`` when the provider holds no year; none is written
+without one.
 """
 
 from __future__ import annotations
 
-from typing import Annotated, Self
+from datetime import date, datetime
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, model_validator
 
 from src.core.constants import (
     WORKBENCH_CONTACT_ADDRESS_MAX_CHARS,
+    WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
     WORKBENCH_CONTACT_NAME_MAX_CHARS,
     WORKBENCH_CONTACT_NOTES_MAX_CHARS,
     WORKBENCH_CONTACT_VALUE_MAX_CHARS,
@@ -45,6 +51,10 @@ OptionalOrganization = Annotated[
 ]
 OptionalNotes = Annotated[
     str | None, StringConstraints(max_length=WORKBENCH_CONTACT_NOTES_MAX_CHARS)
+]
+OptionalWebsite = Annotated[
+    str | None,
+    StringConstraints(max_length=WORKBENCH_CONTACT_VALUE_MAX_CHARS, pattern=r"^[^\x00-\x1f\x7f]*$"),
 ]
 _Value = Annotated[
     str,
@@ -124,6 +134,66 @@ OptionalAddresses = Annotated[
 ]
 
 
+HistorySource = Literal["used", "disabled", "unavailable"]
+
+
+class ContactHistoryQuery(BaseModel):
+    """Whose exchanges are asked: an address never carries a search operator."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    address: list[EmailStr] = Field(
+        min_length=1,
+        max_length=WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
+        description="The contact's addresses.",
+    )
+
+
+class HistoryMail(BaseModel):
+    """One message exchanged with a contact."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="The message.")
+    subject: str = Field(description="Its subject; empty for none, the page says so.")
+    at: datetime | None = Field(description="When it was exchanged.")
+
+
+class HistoryMeeting(BaseModel):
+    """One meeting with a contact."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="The event.")
+    title: str = Field(description="Its title; empty for none, the page says so.")
+    at: datetime | None = Field(description="When it began.")
+    day: str | None = Field(description="Its day, on the person's clock.")
+    all_day: bool = Field(description="It takes whole days.")
+    calendar_id: str = Field(description="The calendar it was read on.")
+
+
+class ContactHistory(BaseModel):
+    """The latest exchanges with a contact, each source saying why it has nothing."""
+
+    model_config = ConfigDict(frozen=True)
+
+    mail: HistorySource = Field(description="What became of the mailbox's read.")
+    received: list[HistoryMail] = Field(description="The latest mail they sent the person.")
+    sent: list[HistoryMail] = Field(description="The latest mail the person sent them.")
+    calendar: HistorySource = Field(description="What became of the calendar's read.")
+    organized_by_them: list[HistoryMeeting] = Field(
+        description="The latest meetings they organised, the person invited."
+    )
+    organized_by_you: list[HistoryMeeting] = Field(
+        description="The latest meetings the person organised, they invited."
+    )
+    shared: list[HistoryMeeting] = Field(
+        description="The latest meetings with them whose organiser nobody named."
+    )
+    meetings_window_days: int = Field(description="How far back the calendar was read.")
+    meetings_cut: bool = Field(description="A window held more events than were read.")
+
+
 class ContactsQuery(BaseModel):
     """Which contacts a page lists: the account's, a search, or a group (Google)."""
 
@@ -181,6 +251,11 @@ class Contact(ContactSummary):
     phones: list[ContactValue] = Field(description="Every phone number, typed.")
     addresses: list[ContactAddress] = Field(description="Every postal address, typed.")
     notes: str | None = Field(description="Its notes.")
+    job_title: str | None = Field(default=None, description="What they do.")
+    website: str | None = Field(default=None, description="Its first website, as written.")
+    birthday: str | None = Field(
+        default=None, description="An ISO day, or --MM-DD when the provider holds no year."
+    )
 
 
 class ContactsPage(BaseModel):
@@ -194,22 +269,33 @@ class ContactsPage(BaseModel):
 
 
 class ContactGroup(BaseModel):
-    """One group of contacts (Google)."""
+    """One group of contacts."""
 
     model_config = ConfigDict(frozen=True)
 
-    id: str = Field(description="The group's resource name.")
+    id: str = Field(description="The group's id.")
     name: str = Field(description="Its name.")
-    count: int | None = Field(description="How many contacts it holds, when Google says.")
+    count: int | None = Field(description="How many contacts it holds, when that is exact.")
+    own: bool = Field(default=True, description="The person's: it can be renamed and deleted.")
 
 
 class ContactGroups(BaseModel):
-    """The account's contact groups (Google)."""
+    """Contact groups."""
 
     groups: list[ContactGroup] = Field(description="Its groups, the person's own first.")
 
 
-class NewContact(BaseModel):
+class _ContactDetailFields(BaseModel):
+    """What a write carries beyond a name, a company and notes: left out, it is kept."""
+
+    given_name: OptionalOrganization = Field(default=None, description="Their given name.")
+    family_name: OptionalOrganization = Field(default=None, description="Their family name.")
+    job_title: OptionalOrganization = Field(default=None, description="What they do.")
+    website: OptionalWebsite = Field(default=None, description="Their website.")
+    birthday: date | None = Field(default=None, description="Their birthday.")
+
+
+class NewContact(_ContactDetailFields):
     """A contact to create, once per submission."""
 
     model_config = ConfigDict(extra="forbid")
@@ -223,7 +309,59 @@ class NewContact(BaseModel):
     idempotency_key: UUID = Field(description="One key per submission (a replay creates nothing).")
 
 
-class ContactChange(BaseModel):
+class OtherContactSave(BaseModel):
+    """A contact met in mail, to keep among the person's own (Google)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: ProviderId = Field(description="The contact, as « other contacts » names it.")
+    idempotency_key: UUID = Field(description="One key per submission (a replay saves nothing).")
+
+
+class GroupJoin(BaseModel):
+    """A contact joining a group by its name: a name nobody holds makes the group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contact_id: ProviderId = Field(description="The contact.")
+    name: Name = Field(description="The group's name.")
+
+
+class GroupLeave(BaseModel):
+    """A contact leaving a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contact_id: ProviderId = Field(description="The contact.")
+    group_id: ProviderId = Field(description="The group.")
+
+
+class GroupRename(BaseModel):
+    """A group's new name."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: ProviderId = Field(description="The group.")
+    name: Name = Field(description="Its new name.")
+
+
+class ImportFailure(BaseModel):
+    """One card an import could not make a contact of."""
+
+    model_config = ConfigDict(frozen=True)
+
+    position: int = Field(description="Its place in the file, from 1.")
+    name: str = Field(description="The name it carries; empty when it carries none.")
+
+
+class ContactsImported(BaseModel):
+    """What an import did: never all-or-nothing."""
+
+    done: int = Field(description="How many cards became contacts.")
+    failed: list[ImportFailure] = Field(description="The others, in the file's order.")
+
+
+class ContactChange(_ContactDetailFields):
     """What changes on one contact: a list sent replaces that list, one left out is kept."""
 
     model_config = ConfigDict(extra="forbid")
@@ -235,10 +373,13 @@ class ContactChange(BaseModel):
     emails: OptionalValues = Field(default=None, description="The e-mails, replaced whole.")
     phones: OptionalValues = Field(default=None, description="The phones, replaced whole.")
     addresses: OptionalAddresses = Field(default=None, description="The addresses, replaced whole.")
+    clear_birthday: bool = Field(default=False, description="Take the birthday off.")
 
     @model_validator(mode="after")
     def _changes_something(self) -> Self:
-        named = (self.name, self.organization, self.notes, self.emails, self.phones, self.addresses)
-        if all(value is None for value in named):
+        if self.birthday is not None and self.clear_birthday:
+            raise ValueError("a birthday is written or taken off, never both")
+        named = self.model_dump(exclude={"id", "clear_birthday"}, exclude_none=True)
+        if not named and not self.clear_birthday:
             raise ValueError("a change names at least one field")
         return self

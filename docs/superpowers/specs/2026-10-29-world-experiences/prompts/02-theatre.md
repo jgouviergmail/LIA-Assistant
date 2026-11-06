@@ -24,7 +24,7 @@ versions, one actor per reply, coach separation, checkpoint retries, explicit
 real-draft export and separate personal-provider/platform costs.
 Define a provider/transport/device release matrix, not assumed parity.
 
-Resolve applicable D01 and D03–D10 decisions. Map THE acceptance criteria and leave
+Apply accepted D01, D03–D07 and D09–D11. Map THE acceptance criteria and leave
 the small shared training contract and fixtures for language. The ordinary
 browser/telephone Live policies must remain intact.
 
@@ -44,9 +44,11 @@ Start from these repository-root documents:
 - docs/superpowers/specs/2026-10-29-world-experiences/decisions.md
 - docs/superpowers/specs/2026-10-29-world-experiences/handoff.md
 
-Distinguish verified facts, recommendations and actual owner decisions.
-Do not treat pending D decisions as accepted. Advance independent analysis and
-name only the choices that materially block the affected scope.
+The owner accepted D01–D11 on 2026-11-03 in decisions.md. Apply those decisions;
+do not request repeat approval merely because this is a new chat. Distinguish
+accepted direction, new detailed proposals and verified current behavior.
+Escalate only a new material contradiction or scope change, with a recommendation,
+while continuing independent analysis. Acceptance does not authorize business code.
 
 Systematically map account and instance quotas, platform versus personal-key
 cost, token attribution, rate/concurrency limits, decisions/effects/consultations,

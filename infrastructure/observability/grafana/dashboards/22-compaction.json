@@ -390,7 +390,7 @@
         "x": 0,
         "y": 14
       },
-      "description": "Rate of per-chunk asyncio.wait_for triggers. Tune COMPACTION_PER_CHUNK_TIMEOUT_SECONDS if this stays > 0. Empty panel = zero events in the window (healthy).",
+      "description": "Rate of per-chunk asyncio.wait_for triggers. Raise the compaction slot's timeout in admin-llm-config if this stays > 0. Empty panel = zero events in the window (healthy).",
       "targets": [
         {
           "expr": "rate(compaction_chunk_timeouts_total[$__rate_interval])",

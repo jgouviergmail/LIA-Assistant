@@ -13,7 +13,10 @@ import structlog
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
+from src.domains.agents.calendar.answer_manifest import EVENT_ANSWERS
+from src.domains.agents.calendar.event_options import event_options
 from src.domains.agents.effects.scope import current_scope
+from src.domains.connectors.clients.event_recurrence import first_day_of, series_bounds
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -133,6 +136,7 @@ async def execute_event_draft(
         add_conference=draft_content.get("add_conference", False),
         idempotency_key=scope.idempotency_key if scope is not None else None,
         all_day=bool(draft_content.get("all_day", False)),
+        options=event_options(draft_content),
     )
 
     # No PII at INFO: the event title is user content (ids and flags only).
@@ -141,7 +145,7 @@ async def execute_event_draft(
         user_id=str(user_id),
         event_id=result.get("id"),
         calendar_id=calendar_id,
-        has_conference_link=bool(_extract_conference_link(result)),
+        has_conference_link=bool(extract_conference_link(result)),
     )
 
     response: dict[str, Any] = {
@@ -156,13 +160,13 @@ async def execute_event_draft(
     }
     # Only claim a conference link the provider actually returned: Meet/Teams
     # creation is best-effort and can fail while the event itself succeeds.
-    conference_link = _extract_conference_link(result)
+    conference_link = extract_conference_link(result)
     if conference_link:
         response["conference_link"] = conference_link
     return response
 
 
-def _extract_conference_link(event: dict[str, Any]) -> str | None:
+def extract_conference_link(event: dict[str, Any]) -> str | None:
     """Extract the video join URL from a created event, if any.
 
     ``hangoutLink`` is Google's convenience field; the video entry point of
@@ -180,6 +184,35 @@ def _extract_conference_link(event: dict[str, Any]) -> str | None:
         ),
         None,
     )
+
+
+async def _reached(
+    client: Any, draft_content: dict[str, Any], calendar_id: str
+) -> tuple[str, str | None, str | None]:
+    """What an act reaches: this event, or its whole series from the series' first day.
+
+    Args:
+        client: The calendar client.
+        draft_content: The draft.
+        calendar_id: The event's calendar.
+
+    Returns:
+        The event to act on, and its bounds.
+    """
+    event_id: str = draft_content["event_id"]
+    start, end = draft_content.get("start_datetime"), draft_content.get("end_datetime")
+    if draft_content.get("scope") != "series":
+        return event_id, start, end
+    occurrence = await client.get_event(event_id, calendar_id)
+    series_id = occurrence.get("recurringEventId") or event_id
+    master = occurrence if series_id == event_id else await client.get_event(series_id, calendar_id)
+    zone = draft_content.get("timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
+    first_day = first_day_of(master, zone)
+    if not draft_content.get("moves_series") or not start or not end or first_day is None:
+        # What was not asked is not sent: a provider resets a series' exceptions on a new start.
+        return series_id, None, None
+    all_day = bool(draft_content.get("all_day")) or "T" not in start
+    return (series_id, *series_bounds(first_day, start, end, all_day=all_day))
 
 
 async def execute_event_update_draft(
@@ -208,11 +241,12 @@ async def execute_event_update_draft(
     client, resolved_type = await resolve_client_for_category("calendar", user_id, deps)
     calendar_id = await _resolve_calendar_id(draft_content, client, user_id, resolved_type, deps)
 
+    event_id, start, end = await _reached(client, draft_content, calendar_id)
     result = await client.update_event(
-        event_id=draft_content["event_id"],
+        event_id=event_id,
         summary=draft_content.get("summary"),
-        start_datetime=draft_content.get("start_datetime"),
-        end_datetime=draft_content.get("end_datetime"),
+        start_datetime=start,
+        end_datetime=end,
         timezone=draft_content.get("timezone", DEFAULT_USER_DISPLAY_TIMEZONE),
         description=draft_content.get("description"),
         location=draft_content.get("location"),
@@ -221,6 +255,8 @@ async def execute_event_update_draft(
         all_day=draft_content.get("all_day"),
         # The attendees are told, as a deletion tells them and as Graph always does (D2).
         send_updates=draft_content.get("send_updates", "all"),
+        add_conference=bool(draft_content.get("add_conference")),
+        options=event_options(draft_content),
     )
 
     # No PII at INFO: the event title is user content (ids only).
@@ -231,7 +267,7 @@ async def execute_event_update_draft(
         calendar_id=calendar_id,
     )
 
-    return {
+    response: dict[str, Any] = {
         "success": True,
         "event_id": result.get("id"),
         "html_link": result.get("htmlLink"),
@@ -239,6 +275,45 @@ async def execute_event_update_draft(
         "calendar_id": calendar_id,
         "message": APIMessages.event_updated_successfully(result.get("summary", "")),
     }
+    # As on creation: only a link the provider returned is claimed.
+    conference_link = extract_conference_link(result)
+    if conference_link:
+        response["conference_link"] = conference_link
+    return response
+
+
+async def execute_event_answer_draft(
+    draft_content: dict[str, Any],
+    user_id: UUID,
+    deps: Any,
+) -> dict[str, Any]:
+    """Give the answer the person confirmed, from the calendar the card read; the organiser is told.
+
+    Args:
+        draft_content: The card's content.
+        user_id: The draft's owner.
+        deps: ToolDependencies for getting the client.
+
+    Returns:
+        The answer given.
+
+    Raises:
+        ValueError: The card holds no answer a calendar knows: nothing leaves.
+    """
+    from src.domains.connectors.provider_resolver import resolve_client_for_category
+
+    response = draft_content.get("response")
+    if response not in EVENT_ANSWERS:
+        raise ValueError("The card holds no answer a calendar knows.")
+    client, _resolved_type = await resolve_client_for_category("calendar", user_id, deps)
+    event_id = str(draft_content["event_id"])
+    await client.respond_to_event(
+        event_id,
+        response,
+        str(draft_content.get("calendar_id") or "primary"),
+    )
+    logger.info("event_answer_draft_executed", user_id=str(user_id), event_id=event_id)
+    return {"success": True, "event_id": event_id, "response": response}
 
 
 async def execute_event_delete_draft(
@@ -267,8 +342,9 @@ async def execute_event_delete_draft(
     client, resolved_type = await resolve_client_for_category("calendar", user_id, deps)
     calendar_id = await _resolve_calendar_id(draft_content, client, user_id, resolved_type, deps)
 
+    event_id, _, _ = await _reached(client, draft_content, calendar_id)
     await client.delete_event(
-        event_id=draft_content["event_id"],
+        event_id=event_id,
         send_updates=draft_content.get("send_updates", "all"),
         calendar_id=calendar_id,
     )

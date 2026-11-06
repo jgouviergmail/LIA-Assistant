@@ -14,6 +14,7 @@ from src.domains.agents.drafts.models import (
     TaskUpdateDraftInput,
 )
 from src.domains.agents.drafts.service import DraftService
+from src.domains.agents.tasks.extras import TaskExtras
 from src.domains.agents.tools.output import UnifiedToolOutput
 
 
@@ -22,6 +23,7 @@ def create_task_draft(
     notes: str | None = None,
     due: str | None = None,
     task_list_id: str = "@default",
+    extras: TaskExtras | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "create_task_tool",
     user_language: str | None = None,
@@ -34,6 +36,7 @@ def create_task_draft(
         notes: Task notes/description
         due: Due date (RFC 3339 format)
         task_list_id: Task list ID
+        extras: What To Do keeps beyond these
         related_registry_ids: Related registry items
         source_tool: Source tool name
         user_language: Language for HITL
@@ -42,11 +45,16 @@ def create_task_draft(
         UnifiedToolOutput with draft
     """
     service = DraftService()
+    kept = extras or TaskExtras()
     draft_input = TaskDraftInput(
         title=title,
         notes=notes,
         due=due,
         task_list_id=task_list_id,
+        importance=kept.importance,
+        reminder=kept.reminder,
+        repeat=kept.repeat,
+        steps=list(kept.steps),
         related_registry_ids=related_registry_ids or [],
         user_language=resolve_language(user_language),
     )
@@ -65,6 +73,7 @@ def create_task_update_draft(
     source_tool: str = "update_task_tool",
     user_language: str | None = None,
     clear_due: bool = False,
+    extras: TaskExtras | None = None,
 ) -> UnifiedToolOutput:
     """
     Convenience function to create a task update draft.
@@ -81,11 +90,13 @@ def create_task_update_draft(
         source_tool: Source tool name
         user_language: Language for HITL
         clear_due: Remove the due date (never with ``due``)
+        extras: What To Do keeps beyond these
 
     Returns:
         UnifiedToolOutput with draft
     """
     service = DraftService()
+    kept = extras or TaskExtras()
     draft_input = TaskUpdateDraftInput(
         task_id=task_id,
         title=title,
@@ -97,6 +108,11 @@ def create_task_update_draft(
         related_registry_ids=related_registry_ids or [],
         user_language=resolve_language(user_language),
         clear_due=clear_due,
+        importance=kept.importance,
+        reminder=kept.reminder,
+        repeat=kept.repeat,
+        clear_reminder=kept.clear_reminder,
+        clear_repeat=kept.clear_repeat,
     )
     return service.create_task_update_draft(draft_input, source_tool=source_tool)
 

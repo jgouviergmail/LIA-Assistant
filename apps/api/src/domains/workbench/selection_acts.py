@@ -1,4 +1,4 @@
-"""An act on a selection, item by item — a few at a time, each answered (ADR-369).
+"""An act on a selection of files or tasks, item by item — a few at a time, each answered (ADR-369).
 
 A provider throttles a burst, so items are acted on a few at a time. Each is
 done, or said with why: gone since it was listed, refused for it alone, or
@@ -17,11 +17,14 @@ from typing import Any, Final
 import structlog
 
 from src.core.exceptions import ConnectorAPIError
+from src.domains.connectors.clients.files_management import FileNameTakenError
+from src.domains.connectors.clients.normalizers.contact_values import ContactValuesRefused
+from src.domains.connectors.clients.task_details import TaskLeftBehindError
 from src.domains.workbench.schemas.acts import ActFailure, ActOutcome, ActStatus
 
 logger = structlog.get_logger(__name__)
 
-#: Items acted on at once (a mailbox and Drive alike answer a burst with 429).
+#: Items acted on at once (Drive answers a burst with 429).
 ACT_CONCURRENCY: Final = 4
 UNAVAILABLE: Final[ActStatus] = "unavailable"
 #: A provider's « this item is not here ».
@@ -30,9 +33,14 @@ _GONE: Final = frozenset({404, 410})
 Settled = dict[str, ActStatus | BaseException | None]
 
 
-async def settle_each(ids: list[str], act: Callable[[str], Awaitable[Any]]) -> Settled:
+async def settle_each(
+    ids: list[str],
+    act: Callable[[str], Awaitable[Any]],
+    *,
+    concurrency: int = ACT_CONCURRENCY,
+) -> Settled:
     """Each item's fate: None when done, a status, or the provider's failure."""
-    gate = asyncio.Semaphore(ACT_CONCURRENCY)
+    gate = asyncio.Semaphore(concurrency)
 
     async def one(item_id: str) -> ActStatus | None:
         async with gate:
@@ -40,9 +48,14 @@ async def settle_each(ids: list[str], act: Callable[[str], Awaitable[Any]]) -> S
                 await act(item_id)
             except ConnectorAPIError as refused:
                 return "not_found" if refused.upstream_status_code in _GONE else "failed"
-            except ValueError:
-                # iCloud's « not found »: a handle naming no message of its folder.
-                return "not_found"
+            except FileNameTakenError:
+                # This one file's own: the provider still answers the others.
+                return "name_taken"
+            except TaskLeftBehindError:
+                return "task_left_behind"
+            except ContactValuesRefused:
+                # This one contact's own: the provider holds fewer of a list than it carries.
+                return "failed"
             return None
 
     fates = await asyncio.gather(*(one(item_id) for item_id in ids), return_exceptions=True)

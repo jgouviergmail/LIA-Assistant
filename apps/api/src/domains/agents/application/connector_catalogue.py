@@ -16,7 +16,7 @@ from src.domains.agents.registry.catalogue import (
 CONNECTOR_PREFERENCES_READ_MANIFEST = ToolManifest(
     name="get_lia_connector_preferences_tool",
     agent="setting_agent",
-    description="Read this account's saved non-secret calendar/task-list defaults and saved connector status. No credentials, OAuth tokens or live provider health test. Read all pages through next_cursor when a complete list is required; other connector settings are separate secure flows.",
+    description="Read this account's saved non-secret calendar/task-list defaults, mailbox signature and saved connector status. No credentials, OAuth tokens or live provider health test. Read all pages through next_cursor when a complete list is required; other connector settings are separate secure flows.",
     parameters=[
         ParameterSchema(
             name="query",
@@ -43,6 +43,7 @@ CONNECTOR_PREFERENCES_READ_MANIFEST = ToolManifest(
     semantic_keywords=[
         "my default calendar",
         "my default task list",
+        "my mail signature",
         "saved connector preferences",
     ],
     display=DisplayMetadata(emoji="⚙️", i18n_key="get_lia_connector_preferences", category="tool"),
@@ -50,7 +51,7 @@ CONNECTOR_PREFERENCES_READ_MANIFEST = ToolManifest(
 CONNECTOR_PREFERENCES_UPDATE_MANIFEST = ToolManifest(
     name="update_lia_connector_preferences_tool",
     agent="setting_agent",
-    description="Prepare human confirmation to set or clear a saved calendar/task-list default on one owned connector. Read its current id first. Preview the exact sanitized value; no write before approval. Empty string clears the default, preserving the existing provider fallback. This saves a preference, not a provider availability guarantee; credentials and connection authorization stay in secure UI flows.",
+    description="Prepare human confirmation to set or clear a saved calendar/task-list default or a mailbox signature on one owned connector. Read its current id first. Preview the exact sanitized value; no write before approval. Empty string clears the default, preserving the existing provider fallback. This saves a preference, not a provider availability guarantee; credentials and connection authorization stay in secure UI flows.",
     parameters=[
         ParameterSchema(
             name="change",
@@ -68,7 +69,11 @@ CONNECTOR_PREFERENCES_UPDATE_MANIFEST = ToolManifest(
     mutation_policy="draft",
     tool_category="update",
     binding_unit="lia_connector_preferences",
-    semantic_keywords=["change default calendar", "clear default task list"],
+    semantic_keywords=[
+        "change default calendar",
+        "clear default task list",
+        "change my mail signature",
+    ],
     display=DisplayMetadata(
         emoji="⚙️", i18n_key="update_lia_connector_preferences", category="tool"
     ),

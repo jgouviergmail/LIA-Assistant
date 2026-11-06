@@ -65,6 +65,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # --- per-user caches: purged by a reset ------------------------------
     # Per-message IMAP contents, including legacy and account-scoped IDs.
     "apple_email": KeyScope.USER_CACHE,
+    "onedrive:recent": KeyScope.USER_CACHE,
     "contacts_list": KeyScope.USER_CACHE,
     "contacts_search": KeyScope.USER_CACHE,
     "contacts_details": KeyScope.USER_CACHE,

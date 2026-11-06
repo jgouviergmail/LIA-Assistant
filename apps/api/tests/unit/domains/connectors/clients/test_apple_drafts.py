@@ -32,12 +32,14 @@ from src.domains.connectors.clients.normalizers.imap_handles import (
     scope_digest,
 )
 from src.domains.connectors.schemas import AppleCredentials
+from src.infrastructure.email.outgoing import OutgoingAttachment
 from tests.unit.domains.connectors.clients.imap_fakes import FakeImap
 
 pytestmark = pytest.mark.unit
 
 MIXIN = "src.domains.connectors.clients.apple_drafts_mixin"
 ME = "jane@icloud.com"
+FILE = OutgoingAttachment("note.txt", "text/plain", b"hello")
 
 
 def _handle(client: AppleEmailClient, uid: str) -> str:
@@ -228,6 +230,27 @@ class TestUpdate:
     async def test_an_unknown_draft_is_not_found(self, client: AppleEmailClient) -> None:
         with pytest.raises(MailboxDraftNotFoundError):
             await client.update_draft("999", subject="x")
+
+
+class TestFiles:
+    async def test_a_new_draft_carries_them(self, client: AppleEmailClient, imap: FakeImap) -> None:
+        draft = await client.create_draft("a@example.com", "S", "Words", attachments=[FILE])
+
+        stored = imap.stored("Drafts", draft[FIELD_MAILBOX_DRAFT_ID])
+        assert [p.get_filename() for p in stored.walk() if p.get_filename()] == ["note.txt"]
+
+    async def test_one_joins_and_one_leaves_a_draft(
+        self, client: AppleEmailClient, imap: FakeImap
+    ) -> None:
+        old = imap.put("Drafts", _draft(with_file=True), ("\\Draft", "\\Seen"))
+
+        draft = await client.update_draft(
+            _handle(client, old), add_files=[FILE], remove_files=["b.pdf"]
+        )
+
+        stored = imap.stored("Drafts", draft[FIELD_MAILBOX_DRAFT_ID])
+        assert [p.get_filename() for p in stored.walk() if p.get_filename()] == ["note.txt"]
+        assert stored["In-Reply-To"] == "<orig-1@example.com>"
 
 
 class TestRead:

@@ -1,15 +1,18 @@
 'use client';
 
 /**
- * MailFilters — Gmail's filters, listed and created (ADR-369, Task 4.6/4.7).
+ * MailFilters — a mailbox's filters, Gmail's or Outlook's rules, listed, created and
+ * deleted (ADR-369).
  *
  * Each filter reads as what it matches and what it does. A new one matches
- * something (from, to, subject, words, an attachment) and does something (a
- * label, archive, mark read): the form says so before anything is sent, and
- * a submission carries its own key, so a second press creates nothing more. A
- * system label is never offered. Nothing deletes a filter here: Gmail's client
- * has no such act, and the list says where it is done.
+ * something (from, to, subject, words where Gmail reads them, an attachment) and
+ * does something (a label or a folder, archive, mark read): the form says so before
+ * anything is sent, and a submission carries its own key, so a second press creates
+ * nothing more. A system label is never offered. Deleting one asks first, and says
+ * what stays; a rule only Outlook can change offers no deletion, and one whose
+ * conditions no field here reads goes by its name.
  */
+import { Trash2 } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -17,21 +20,31 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RowActions } from '@/components/ui/row-actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useConfirm } from '@/components/ui/use-confirm';
 import type { MailFilterBody } from '@/hooks/useWorkbenchMailSettings';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { MailFilter, MailFolder } from '@/lib/workbench/types';
+import { generateUUID } from '@/lib/utils';
 
 export interface MailFiltersProps {
   lng: Language;
   filters: readonly MailFilter[] | undefined;
-  failed: boolean;
+  /** Why the list could not be read, in the reader's words. */
+  failure: string | null;
   labels: readonly MailFolder[];
+  /** The mailbox reads a search of its own. */
+  wordsOffered: boolean;
+  /** A filter moves to a folder here, where Gmail applies a label. */
+  folders: boolean;
   /** The published bound on one criterion. */
   criterionMax: number | undefined;
   /** Resolves true once created (the form starts over), false when refused. */
   onCreate: (body: MailFilterBody) => Promise<boolean>;
+  /** Deletes one; says its own refusal. */
+  onDelete: (filter: MailFilter) => Promise<void>;
 }
 
 interface Draft {
@@ -78,16 +91,21 @@ function filterOf(draft: Draft): Omit<MailFilterBody, 'idempotency_key'> | 'matc
 export function MailFilters({
   lng,
   filters,
-  failed,
+  failure,
   labels,
+  wordsOffered,
+  folders,
   criterionMax,
   onCreate,
+  onDelete,
 }: MailFiltersProps) {
   const { t } = useTranslation(lng);
+  const { confirm, confirmDialog } = useConfirm();
   const [draft, setDraft] = useState<Draft>(EMPTY);
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  const [key, setKey] = useState(() => generateUUID());
   const [problem, setProblem] = useState<'matches' | 'acts' | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const ids = { attachment: useId(), archive: useId(), read: useId(), label: useId() };
   const labelName = (id: string) => labels.find(label => label.id === id)?.name ?? id;
 
@@ -104,10 +122,28 @@ export function MailFilters({
     try {
       if (await onCreate({ ...body, idempotency_key: key })) {
         setDraft(EMPTY);
-        setKey(crypto.randomUUID());
+        setKey(generateUUID());
       }
     } finally {
       setCreating(false);
+    }
+  };
+  const said = (parts: readonly Part[]) => parts.map(part => t(part.key, part.values)).join(' · ');
+  const remove = async (filter: MailFilter) => {
+    if (deleting) return;
+    // Two filters on one sender differ only by what they do: the question says both.
+    const facts = [said(matchesOf(filter)), said(actsOf(filter, labelName, folders))];
+    const confirmed = await confirm({
+      title: t('workbench.mail.filters.delete_title'),
+      description: [...facts, '', t('workbench.mail.filters.delete_description')].join('\n'),
+      confirmLabel: t('common.delete'),
+    });
+    if (!confirmed) return;
+    setDeleting(filter.id);
+    try {
+      await onDelete(filter);
+    } finally {
+      setDeleting(null);
     }
   };
   const field = (name: 'sender' | 'recipient' | 'subject' | 'query', labelKey: string) => (
@@ -122,8 +158,8 @@ export function MailFilters({
   return (
     <div className="space-y-5">
       {filters === undefined ? (
-        failed ? (
-          <EmptyState description={t('workbench.mail.settings.failed')} />
+        failure ? (
+          <EmptyState description={failure} />
         ) : (
           <Skeleton className="h-24 w-full" />
         )
@@ -132,29 +168,41 @@ export function MailFilters({
       ) : (
         <ul className="divide-y rounded-md border">
           {filters.map(filter => (
-            <li key={filter.id} className="space-y-0.5 px-3 py-2 text-sm">
-              <p>
-                {matchesOf(filter)
-                  .map(part => t(part.key, part.values))
-                  .join(' · ')}
-              </p>
-              <p className="text-muted-foreground">
-                {actsOf(filter, labelName)
-                  .map(part => t(part.key, part.values))
-                  .join(' · ')}
-              </p>
+            <li key={filter.id} className="flex items-start gap-2 px-3 py-2 text-sm">
+              <div className="min-w-0 flex-1 space-y-0.5 break-words">
+                <p>{said(matchesOf(filter))}</p>
+                <p className="text-muted-foreground">{said(actsOf(filter, labelName, folders))}</p>
+              </div>
+              {!filter.read_only && (
+                <RowActions
+                  menuLabel={t('workbench.mail.filters.row_actions', {
+                    value: said(matchesOf(filter)),
+                  })}
+                  actions={[
+                    {
+                      key: 'delete',
+                      label: t('workbench.mail.filters.delete', {
+                        value: said(matchesOf(filter)),
+                      }),
+                      icon: Trash2,
+                      tone: 'destructive',
+                      loading: deleting === filter.id,
+                      onSelect: () => void remove(filter),
+                    },
+                  ]}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
-      <p className="text-xs text-muted-foreground">{t('workbench.mail.filters.delete_in_gmail')}</p>
       <form onSubmit={create} className="space-y-3 rounded-md border p-3">
         <h3 className="text-sm font-semibold">{t('workbench.mail.filters.new')}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {field('sender', 'workbench.mail.filters.sender')}
           {field('recipient', 'workbench.mail.filters.recipient')}
           {field('subject', 'workbench.mail.filters.subject')}
-          {field('query', 'workbench.mail.filters.words')}
+          {wordsOffered && field('query', 'workbench.mail.filters.words')}
         </div>
         <div className="flex items-center gap-2">
           <Checkbox
@@ -171,7 +219,7 @@ export function MailFilters({
           {labels.length > 0 && (
             <div className="space-y-1.5">
               <Label id={`${ids.label}-label`} htmlFor={ids.label}>
-                {t('workbench.mail.filters.add_label')}
+                {t(`workbench.mail.filters.${folders ? 'move_to' : 'add_label'}`)}
               </Label>
               <select
                 id={ids.label}
@@ -182,7 +230,9 @@ export function MailFilters({
                 }
                 className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
               >
-                <option value="">{t('workbench.mail.filters.no_label')}</option>
+                <option value="">
+                  {t(`workbench.mail.filters.${folders ? 'no_folder' : 'no_label'}`)}
+                </option>
                 {labels.map(label => (
                   <option key={label.id} value={label.id}>
                     {label.name}
@@ -223,6 +273,7 @@ export function MailFilters({
           </Button>
         </div>
       </form>
+      {confirmDialog}
     </div>
   );
 }
@@ -247,13 +298,16 @@ function matchesOf(filter: MailFilter): Part[] {
     value ? [{ key: `${FILTERS}.${key}`, values: { value } }] : []
   );
   if (filter.has_attachment) parts.push({ key: `${FILTERS}.has_attachment` });
+  if (parts.length === 0 && filter.name) {
+    parts.push({ key: `${FILTERS}.named`, values: { value: filter.name } });
+  }
   return parts;
 }
 
 /** What a filter does, part by part. */
-function actsOf(filter: MailFilter, labelName: (id: string) => string): Part[] {
+function actsOf(filter: MailFilter, labelName: (id: string) => string, folders: boolean): Part[] {
   const parts: Part[] = filter.add_label_ids.map(id => ({
-    key: `${FILTERS}.labels_as`,
+    key: `${FILTERS}.${folders ? 'moves_to' : 'labels_as'}`,
     values: { value: labelName(id) },
   }));
   if (filter.archive) parts.push({ key: `${FILTERS}.archives` });

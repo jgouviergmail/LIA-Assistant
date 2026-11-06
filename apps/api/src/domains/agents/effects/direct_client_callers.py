@@ -46,6 +46,7 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/briefing/fetchers.py": "briefing",
     # The push-driven drain of the Drive changes feed (ADR-304 moved it out
     # of ``drive_ingest``), under ``space_read``.
+    "domains/rag_spaces/drive_provider.py": "space",
     "domains/rag_spaces/drive_push.py": "space",
     "domains/rag_spaces/drive_sync.py": "space",
     "domains/rag_spaces/mail_source_service.py": "space",
@@ -159,20 +160,72 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Closes the shared geocoding client at teardown. Opening nothing is "
         "the whole point of this module."
     ),
+    "domains/agents/drafts/preview_renderer.py": (
+        "Imports only the pure reading of a birthday, to show it on a draft's card: it opens no "
+        "connection and reads nothing (ADR-369, lot 9)."
+    ),
     # ADR-369, owner decision D5 (2026-10-30): the « Tools » section is the
     # PERSON acting by hand on their own services, with no model in the path.
     # The registers answer « which capability did LIA use »; a person clicking
     # in their own mailbox used none, so nothing of the workbench is recorded.
+    "domains/workbench/calendar_management.py": (
+        "Moves an event and manages calendars by hand, the person's own act: no capability "
+        "of LIA reads anything here (D5, ADR-369, lot 5)."
+    ),
     "domains/workbench/calendar_service.py": (
         "The person's own calendars and events, read and changed BY HAND in the Tools "
         "section (ADR-369, D5): an act of the person, not of LIA. It imports the "
         "calendar client PROTOCOL to type the client its door opened."
+    ),
+    "domains/workbench/calendar_series.py": (
+        "Reads a repeating event's rule from what the person typed, through the pure helpers of "
+        "the clients: it opens no connection and reads nothing (ADR-369, lot 10)."
+    ),
+    "domains/workbench/contacts_groups.py": (
+        "The person's own contact groups, read and changed BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the contacts client "
+        "PROTOCOL to type the client its door opened."
+    ),
+    "domains/workbench/contacts_history.py": (
+        "What a contact and the person exchanged, read BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the protocols to type the "
+        "clients its door opened."
+    ),
+    "domains/workbench/contacts_photos.py": (
+        "A contact's photo, shown and changed BY HAND in the Tools section (ADR-369, D5): an "
+        "act of the person, not of LIA. It imports the contacts client PROTOCOL to type the "
+        "client its door opened."
     ),
     "domains/workbench/contacts_service.py": (
         "The person's own contacts, read and changed BY HAND in the Tools section "
         "(ADR-369, D5): an act of the person, not of LIA. It imports the contacts "
         "client PROTOCOL and the typed-values contract to type what it hands the "
         "client its door opened."
+    ),
+    "domains/workbench/contacts_transfer.py": (
+        "The person's own contacts, exported and imported BY HAND in the Tools section (ADR-369, "
+        "D5): an act of the person, not of LIA. It imports the contacts client PROTOCOL to type "
+        "the client its door opened."
+    ),
+    "domains/workbench/selection_acts.py": (
+        "Imports the name-taken exception to answer one file of a selection: it opens no "
+        "connection and reads nothing (ADR-369, lot 6)."
+    ),
+    "domains/workbench/files_organize.py": (
+        "The person's own files organised BY HAND in the Tools section (ADR-369, D5): an act "
+        "of the person, not of LIA. It imports the files PROTOCOL to type the client."
+    ),
+    "domains/workbench/files_sharing.py": (
+        "Who a file is shared with, read and changed BY HAND in the Tools section (ADR-369, D5): "
+        "an act of the person, not of LIA. It imports the files PROTOCOL to type the client."
+    ),
+    "domains/workbench/files_text.py": (
+        "the person's own hand on the Tools screen: a text they read and wrote, no capability "
+        "(ADR-369, D5)"
+    ),
+    "domains/workbench/previews.py": (
+        "parses bytes the person asked to see, on the Tools screen: it reaches no provider "
+        "(ADR-369, D5)"
     ),
     "domains/workbench/files_service.py": (
         "The person's own Drive files, browsed, downloaded and trashed BY HAND in "
@@ -187,6 +240,11 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
     "domains/workbench/errors.py": (
         "Imports the clients' exception TYPES to classify a failure into a refusal "
         "code: it opens no connection and reads nothing."
+    ),
+    "domains/workbench/lights_service.py": (
+        "The person's own lights, read and changed BY HAND in the Tools section (ADR-369, D5): "
+        "an act of the person, not of LIA. It imports the pure reading of who the bridge "
+        "reaches and of what a recall asks."
     ),
     "domains/workbench/mail_acts.py": (
         "The person's own messages marked read or moved to the trash BY HAND in the Tools "
@@ -213,6 +271,22 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Tools section (ADR-369, D5): an act of the person, not of LIA. It imports the "
         "mail clients to type the client its door opened, and iCloud's role folder names."
     ),
+    "domains/workbench/mail_leaving.py": (
+        "the person's own hand: the way out of a mailing list, read from the message they "
+        "opened and followed at their click, with no model and no register row (ADR-369, D5)"
+    ),
+    "domains/workbench/schemas/calendar.py": (
+        "Imports the vocabulary of an invitation's answers, a Literal: it opens no connection "
+        "and reads nothing (ADR-369, lot 5)."
+    ),
+    "domains/agents/calendar/event_options.py": (
+        "Imports the vocabulary of an event's options to publish and read it: it opens no "
+        "connection and reads nothing (ADR-369, lot 5)."
+    ),
+    "domains/agents/calendar/answer_manifest.py": (
+        "Imports the vocabulary of an invitation's answers to publish it to the planner: a "
+        "manifest opens no connection and reads nothing (ADR-369, lot 5)."
+    ),
     "domains/workbench/mail_projection.py": (
         "Imports Gmail's part SCAN, a pure function over a message already read, and "
         "its system label set, to list a message's attachments and the person's own "
@@ -228,6 +302,11 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "The person's own mailbox listed and read BY HAND in the Tools section (ADR-369, "
         "D5): an act of the person, not of LIA. It imports the mail clients to type the "
         "client its door opened."
+    ),
+    "domains/workbench/tasks_organize.py": (
+        "The person's own task lists and tasks, organised BY HAND in the Tools section "
+        "(ADR-369, D5): an act of the person, not of LIA. It imports the tasks client "
+        "PROTOCOLS to type the client its door opened."
     ),
     "domains/workbench/tasks_service.py": (
         "The person's own task lists and tasks, read and changed BY HAND in the Tools "

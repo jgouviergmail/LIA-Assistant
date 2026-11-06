@@ -159,6 +159,7 @@ _CONTENT_QUERY_PARAMS = (
     "terms",
     "titles",
     "name",
+    "filename",
     "address",
     "prompt",
     "question",

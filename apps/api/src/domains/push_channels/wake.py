@@ -47,7 +47,8 @@ class WakePayload:
 
     Attributes:
         user_id: Owner of the channel that notified.
-        provider: ``google_gmail`` | ``google_calendar`` | ``google_drive``.
+        provider: ``google_gmail`` | ``google_calendar`` | ``google_drive`` |
+            ``microsoft_onedrive``.
         enqueued_at: When the FIRST notification of the pair was queued (UTC).
         history_id: Gmail history id carried by the notification, if any.
 

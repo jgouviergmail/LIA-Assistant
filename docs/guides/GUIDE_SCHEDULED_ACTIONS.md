@@ -186,7 +186,7 @@ Toutes les constantes sont definies dans `apps/api/src/core/constants.py` :
 |-----------|--------|-------------|
 | `SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS` | `60` | Intervalle du scheduler job (secondes) |
 | `SCHEDULED_ACTIONS_MAX_PER_USER` | `20` | Limite d'actions par utilisateur |
-| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `300` | Timeout execution (5 min) |
+| `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` | `300` | Budget d'une tentative (5 min), jamais sous les appels modèle d'un tour (ADR-221) |
 | `SCHEDULED_ACTIONS_MAX_RETRIES` | `1` | Retries sur erreur transitoire (2 tentatives max) |
 | `SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS` | `30` | Delai entre retries (secondes) |
 | `SCHEDULED_ACTIONS_STALE_TIMEOUT_MINUTES` | `10` | Seuil recovery pour actions bloquees en `executing` ; jamais applique sous le pire cas d'un run |
@@ -374,7 +374,7 @@ Toute requete qui peut etre traitee par le pipeline d'agents peut etre planifiee
 
 - Une routine qui rencontre une **interaction HITL** (confirmation destructive, clarification) s'arrête sur la question — comptée en échec — et la question attend dans la conversation ; la garde HITL ne fait que reporter, sans erreur, les routines SUIVANTES tant que l'enregistrement de cette question vit.
 - `auto_approve_plan=True` ne contourne rien : le routeur remet le drapeau à `None` au début du tour. Une clarification du validateur s'arrête sur une question comme dans un tour tapé ; un outil qui doit être confirmé ou rédigé en brouillon (`confirm`, `draft`) est refusé dans une routine, qui ne peut pas porter de brouillon (ADR-276).
-- Le timeout d'execution est de **5 minutes** (`SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS`). Les prompts tres complexes ou lents peuvent echouer par timeout.
+- Une tentative dure au plus **5 minutes** (`SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS`), ou le temps des appels modèle d'un tour réglé dans admin-llm-config s'il est plus long (ADR-221). Les prompts très complexes ou lents peuvent échouer par timeout, et une routine longue retarde celles prévues derrière elle.
 
 ---
 
@@ -704,7 +704,7 @@ C'est un signe de crash pendant l'execution. Le mecanisme `recover_stale_executi
 UPDATE scheduled_actions
 SET status = 'active'
 WHERE status = 'executing'
-  AND updated_at < NOW() - INTERVAL '10 minutes';
+  AND updated_at < NOW() - INTERVAL '30 minutes'; -- au-delà du pire cas d'un run (ADR-221)
 ```
 
 ### L'action est auto-desactivee (`status = 'error'`)

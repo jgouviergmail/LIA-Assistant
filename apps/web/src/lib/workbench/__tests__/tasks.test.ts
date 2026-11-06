@@ -6,7 +6,17 @@
 import { describe, expect, it } from 'vitest';
 
 import type { WorkbenchTask } from '../types';
-import { dayIn, dueTone, openCount, taskTree } from '../tasks';
+import {
+  dayIn,
+  dueTone,
+  openCount,
+  placementOf,
+  reminderInput,
+  reminderInstant,
+  siblingsOf,
+  taskTree,
+  taskView,
+} from '../tasks';
 
 function task(id: string, overrides: Partial<WorkbenchTask> = {}): WorkbenchTask {
   return {
@@ -17,9 +27,87 @@ function task(id: string, overrides: Partial<WorkbenchTask> = {}): WorkbenchTask
     due: null,
     parent: null,
     position: null,
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
     ...overrides,
   };
 }
+
+describe('placementOf', () => {
+  const siblings = [task('a'), task('b'), task('c')];
+
+  it('moves a task up behind the one before its neighbour', () => {
+    expect(placementOf(siblings, 'c', -1)).toEqual({ after: 'a' });
+  });
+
+  it('moves the second task to the top', () => {
+    expect(placementOf(siblings, 'b', -1)).toEqual({ after: null });
+  });
+
+  it('moves a task down behind its neighbour', () => {
+    expect(placementOf(siblings, 'a', 1)).toEqual({ after: 'b' });
+  });
+
+  it('has nowhere to go past either end', () => {
+    expect(placementOf(siblings, 'a', -1)).toBeNull();
+    expect(placementOf(siblings, 'c', 1)).toBeNull();
+  });
+
+  it('knows nothing of a task it does not hold', () => {
+    expect(placementOf(siblings, 'z', 1)).toBeNull();
+  });
+});
+
+describe('siblingsOf', () => {
+  const items = [task('a'), task('b', { parent: 'a' }), task('c'), task('d', { parent: 'a' })];
+
+  it('reads the top level for a top-level task', () => {
+    expect(siblingsOf(items, items[0]).map(item => item.id)).toEqual(['a', 'c']);
+  });
+
+  it('reads the task under one parent for a subtask', () => {
+    expect(siblingsOf(items, items[1]).map(item => item.id)).toEqual(['b', 'd']);
+  });
+});
+
+describe('taskView', () => {
+  it('reads the three views', () => {
+    expect(taskView('today')).toBe('today');
+    expect(taskView('overdue')).toBe('overdue');
+    expect(taskView('upcoming')).toBe('upcoming');
+  });
+
+  it('reads anything else as no view', () => {
+    expect(taskView('someday')).toBeNull();
+    expect(taskView(null)).toBeNull();
+  });
+});
+
+describe('reminderInput', () => {
+  it("shows an instant on the account's clock", () => {
+    expect(reminderInput('2027-01-10T09:00:00Z', 'Europe/Paris')).toBe('2027-01-10T10:00');
+  });
+
+  it('shows nothing without a reminder', () => {
+    expect(reminderInput(null, 'Europe/Paris')).toBe('');
+  });
+
+  it('writes what the field holds as the instant it names there', () => {
+    expect(reminderInstant('2027-01-10T10:00', 'Europe/Paris')).toBe('2027-01-10T09:00:00.000Z');
+  });
+
+  it('writes nothing for an empty field', () => {
+    expect(reminderInstant('', 'Europe/Paris')).toBeNull();
+  });
+
+  it('gives back what it reads', () => {
+    const shown = reminderInput('2027-07-01T06:30:00Z', 'America/New_York');
+
+    expect(reminderInstant(shown, 'America/New_York')).toBe('2027-07-01T06:30:00.000Z');
+  });
+});
 
 describe('taskTree', () => {
   it('puts each subtask under its parent, in the parent’s order', () => {

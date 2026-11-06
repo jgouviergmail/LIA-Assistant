@@ -9,7 +9,9 @@ contact_values``): a list sent replaces that list, one left out is kept, one the
 provider cannot hold is refused whole with its bound. A create runs once per
 submission (``run_once``: the providers carry no idempotency of their own). A
 search and a group, answered in one go, say when they may hold more (ADR-185).
-Groups and « other contacts » are Google's (the descriptor).
+« Other contacts » are Google's (the descriptor), and Google reads, changes and
+deletes none of them by its id: refused unsent. What a contact
+holds beyond its lists goes as ``ContactDetails`` (``clients/contact_details``).
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from src.core.constants import (
     GOOGLE_CONTACTS_SEARCH_PAGE_MAX,
     GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
 )
+from src.domains.connectors.clients.contact_details import ContactDetails, birthday_text
 from src.domains.connectors.clients.normalizers.contact_order import contact_order_key
 from src.domains.connectors.clients.normalizers.contact_values import (
     TypedAddress,
@@ -51,12 +54,15 @@ from src.domains.workbench.schemas.contacts import (
     ContactValue,
     ContactValueInput,
     NewContact,
+    OtherContactSave,
 )
 
 _TOOL = WorkbenchTool.CONTACTS
 #: What a group's member page reads of each person.
 _MEMBER_FIELDS: Final = ["names", "emailAddresses", "phoneNumbers", "organizations"]
 _USER_GROUP: Final = "USER_CONTACT_GROUP"
+#: What names a contact met in mail and never saved: the search's answer is all there is.
+_OTHER_CONTACT_PREFIX: Final = "otherContacts/"
 
 
 async def list_contacts(user_id: UUID, query: ContactsQuery) -> ContactsPage:
@@ -94,7 +100,7 @@ async def search_other(user_id: UUID, q: str) -> ContactsPage:
 
 
 async def list_groups(user_id: UUID) -> ContactGroups:
-    """The account's contact groups, the person's own first (Google)."""
+    """The account's contact groups, the person's own first."""
     async with open_tool_client(_TOOL, user_id) as opened:
         _require(opened.connector_type, WorkbenchFeature.CONTACT_GROUPS)
         async with provider_call(_TOOL, "list_groups", act=False):
@@ -103,20 +109,22 @@ async def list_groups(user_id: UUID) -> ContactGroups:
         raw.get("contactGroups") or [],
         key=lambda group: group.get("groupType") != _USER_GROUP,
     )
-    return ContactGroups(
-        groups=[
-            ContactGroup(
-                id=str(group.get("resourceName") or ""),
-                name=str(group.get("formattedName") or group.get("name") or ""),
-                count=group.get("memberCount"),
-            )
-            for group in groups
-        ]
+    return ContactGroups(groups=[group_of(group) for group in groups])
+
+
+def group_of(group: Mapping[str, Any]) -> ContactGroup:
+    """A group as the screen reads it."""
+    return ContactGroup(
+        id=str(group.get("resourceName") or ""),
+        name=str(group.get("formattedName") or group.get("name") or ""),
+        count=group.get("memberCount"),
+        own=group.get("groupType") == _USER_GROUP,
     )
 
 
 async def read_contact(user_id: UUID, contact_id: str) -> Contact:
     """One contact, whole and typed."""
+    refuse_other_contact(contact_id)
     async with open_tool_client(_TOOL, user_id) as opened:
         client: ContactsClientProtocol = opened.client
         async with provider_call(_TOOL, "read", act=False):
@@ -138,6 +146,7 @@ async def create_contact(user_id: UUID, request: NewContact) -> Contact:
                     emails=_values(request.emails),
                     phones=_values(request.phones),
                     addresses=_addresses(request.addresses),
+                    details=_details(request),
                 )
         return _contact(raw)
 
@@ -150,8 +159,28 @@ async def create_contact(user_id: UUID, request: NewContact) -> Contact:
     )
 
 
+async def save_other_contact(user_id: UUID, request: OtherContactSave) -> Contact:
+    """Keep a contact met in mail among the person's own, once per submission (Google)."""
+
+    async def save() -> Contact:
+        async with open_tool_client(_TOOL, user_id) as opened:
+            _require(opened.connector_type, WorkbenchFeature.OTHER_CONTACTS)
+            async with provider_call(_TOOL, "save_other", act=True):
+                raw = await opened.client.save_other_contact(request.id)
+        return _contact(raw)
+
+    return await run_once(
+        user_id,
+        request.idempotency_key,
+        save,
+        tool=_TOOL.value,
+        record=lambda made: {"contact_id": made.id},
+    )
+
+
 async def update_contact(user_id: UUID, request: ContactChange) -> Contact:
     """Change a contact: a list sent replaces that list, one left out is kept."""
+    refuse_other_contact(request.id)
     async with open_tool_client(_TOOL, user_id) as opened:
         client: ContactsClientProtocol = opened.client
         async with provider_call(_TOOL, "update", act=True):
@@ -163,12 +192,14 @@ async def update_contact(user_id: UUID, request: ContactChange) -> Contact:
                 emails=None if request.emails is None else _values(request.emails),
                 phones=None if request.phones is None else _values(request.phones),
                 addresses=None if request.addresses is None else _addresses(request.addresses),
+                details=_details(request),
             )
     return _contact(raw)
 
 
 async def delete_contact(user_id: UUID, contact_id: str) -> None:
     """Delete one contact."""
+    refuse_other_contact(contact_id)
     async with open_tool_client(_TOOL, user_id) as opened:
         client: ContactsClientProtocol = opened.client
         async with provider_call(_TOOL, "delete", act=True):
@@ -176,28 +207,25 @@ async def delete_contact(user_id: UUID, contact_id: str) -> None:
 
 
 async def _group_page(client: Any, group: str, page_token: str | None) -> ContactsPage:
-    """A page of a group, through its members (the group lists names, not people).
+    """A page of a group.
 
-    Google lists the members in no order, so the group — read whole, at most
-    ``GOOGLE_CONTACT_GROUP_MAX_MEMBERS``, one batch — is sorted by family then given
-    name before it is paged (owner request 2026-10-31).
+    A provider lists a group's people in no order, so the group — read whole, at most
+    ``GOOGLE_CONTACT_GROUP_MAX_MEMBERS`` — is sorted by family then given name before it
+    is paged (owner request 2026-10-31).
     """
     size = listing_page_size()
     start = int(page_token) if page_token and page_token.isdigit() else 0
     async with provider_call(_TOOL, "list", act=False):
-        raw = await client.get_contact_group(group, max_members=GOOGLE_CONTACT_GROUP_MAX_MEMBERS)
-        members: list[str] = list(raw.get("memberResourceNames") or [])
-        batch = await client.get_people_batch(members, fields=_MEMBER_FIELDS) if members else {}
-    people = sorted(
-        (person for item in batch.get("responses") or [] if (person := item.get("person"))),
-        key=contact_order_key,
-    )[start : start + size]
-    more = start + size < len(members)
+        found = await client.group_people(
+            group, GOOGLE_CONTACT_GROUP_MAX_MEMBERS, fields=_MEMBER_FIELDS
+        )
+    everyone = sorted(found["people"], key=contact_order_key)
+    more = start + size < len(everyone)
     return ContactsPage(
-        items=[_summary(person) for person in people],
+        items=[_summary(person) for person in everyone[start : start + size]],
         next_page_token=str(start + size) if more else None,
         # The group read only so many members: the rest is said, never implied away.
-        truncated=int(raw.get("memberCount") or 0) > len(members),
+        truncated=bool(found["cut"]),
     )
 
 
@@ -221,6 +249,12 @@ def _found(results: Sequence[Mapping[str, Any]], size: int) -> ContactsPage:
         next_page_token=None,
         truncated=len(people) >= size,
     )
+
+
+def refuse_other_contact(contact_id: str) -> None:
+    """Refuse, unsent, an act on a contact Google only lists and searches."""
+    if contact_id.startswith(_OTHER_CONTACT_PREFIX):
+        refuse(NOT_SUPPORTED_BY_PROVIDER)
 
 
 def _require(provider: ConnectorType, feature: WorkbenchFeature) -> None:
@@ -255,6 +289,21 @@ def _contact(person: Mapping[str, Any]) -> Contact:
         phones=[ContactValue(**value) for value in values_read(person.get("phoneNumbers"))],
         addresses=[ContactAddress(**item) for item in addresses_read(person.get("addresses"))],
         notes=_first(person.get("biographies"), "value"),
+        job_title=_first(person.get("organizations"), "title"),
+        website=_first(person.get("urls"), "value"),
+        birthday=birthday_text(person.get("birthdays")),
+    )
+
+
+def _details(request: NewContact | ContactChange) -> ContactDetails:
+    """What a write carries beyond a name, a company and notes."""
+    return ContactDetails(
+        given_name=request.given_name,
+        family_name=request.family_name,
+        job_title=request.job_title,
+        website=request.website,
+        birthday=request.birthday,
+        clear_birthday=isinstance(request, ContactChange) and request.clear_birthday,
     )
 
 

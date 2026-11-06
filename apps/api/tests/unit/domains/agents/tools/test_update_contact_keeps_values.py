@@ -23,10 +23,8 @@ from src.domains.agents.google_contacts.value_descriptions import (
     CONTACT_EMAIL_DESCRIPTION,
     CONTACT_PHONE_DESCRIPTION,
 )
-from src.domains.agents.tools.google_contacts_tools import (
-    execute_contact_update_draft,
-    update_contact_tool,
-)
+from src.domains.agents.tools.contacts_draft_executors import execute_contact_update_draft
+from src.domains.agents.tools.google_contacts_tools import update_contact_tool
 from src.domains.connectors.clients.google_people_client import GooglePeopleClient
 
 pytestmark = pytest.mark.unit

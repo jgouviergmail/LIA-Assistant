@@ -80,6 +80,9 @@ ALLOWED: set[tuple[str, str]] = {
     # 1 000. Capped at the agent ceiling (25) it took 5 832 calls in 50 minutes
     # to drain one account and blocked the wake sweep 22 minutes (2026-09-22).
     ("google_drive_client.py", "list_changes"),
+    # OneDrive's half of the same drain (ADR-369, lot 11): the same internal read,
+    # clamped to the same bound by Graph's own delta paging.
+    ("onedrive_changes.py", "list_changes"),
     # The whole address book behind the « Send by e-mail » recipient suggestions
     # (clients/contact_directory, ADR-321 amendment): an internal read matched
     # server-side, never handed to an agent, bounded by its OWN published cap
@@ -92,7 +95,7 @@ ALLOWED: set[tuple[str, str]] = {
     # name→ID resolution, never handed to an agent, bounded by its OWN setting
     # (OUTLOOK_MAIL_FOLDERS_WALK_MAX) and stated when it cuts. At the agent
     # ceiling (25) a folder past the 25th would read as « does not exist ».
-    ("microsoft_outlook_client.py", "_mail_folders"),
+    ("microsoft_outlook_client.py", "list_folders"),
 }
 
 

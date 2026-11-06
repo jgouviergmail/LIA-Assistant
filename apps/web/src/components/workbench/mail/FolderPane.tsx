@@ -5,15 +5,19 @@
  *
  * From `lg`, a named landmark of links beside the messages: « New message »
  * first, the system places (their role named in the reader's language), then
- * the person's own folders — Gmail's labels — and the doors to the label
- * manager and the mailbox settings where the provider has them. Below `lg`, a
- * native select above the messages (what the keyboard and the screen reader
- * already know). No count is drawn beside a folder: one would be exact only
- * once every message of it was read (ADR-185).
+ * the person's own folders — Gmail's labels — each under its parent, the door
+ * to the label manager where the provider has one, and the mailbox settings
+ * every mailbox has. Below `lg`, a native select above the messages (what the keyboard and
+ * the screen reader already know), each folder named whole. What a folder leaves
+ * unread is the provider's own counter (ADR-185), read apart from the folders; a
+ * folder it did not read draws none. A row dragged here lands on a place or on a
+ * folder of the person's own (`takesDrop`), never on what is listed or on a view.
  */
+import { useDroppable } from '@dnd-kit/core';
 import Link from 'next/link';
 import {
   Archive,
+  Boxes,
   FileText,
   Folder,
   Inbox,
@@ -27,7 +31,7 @@ import {
   Tags,
   Trash2,
 } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -35,6 +39,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
+import { folderTree, takesDrop } from '@/lib/workbench/mail';
 import type { MailFolder, MailRole } from '@/lib/workbench/types';
 
 import { paneWidth, type WorkbenchPaneState } from '../useWorkbenchPane';
@@ -45,13 +50,21 @@ const ROLE_ICONS: Readonly<Record<MailRole, LucideIcon>> = {
   sent: Send,
   drafts: FileText,
   archive: Archive,
+  all: Boxes,
   spam: OctagonAlert,
   trash: Trash2,
 };
 
+/** The steps a nested folder is drawn in from: a deep tree keeps a pane's width readable. */
+const FOLDER_INDENT_REM = 0.75;
+const FOLDER_INDENT_MAX_DEPTH = 4;
+const FOLDER_PADDING_REM = 0.625;
+
 export interface FolderPaneProps {
   lng: Language;
   folders: readonly MailFolder[] | undefined;
+  /** The mailbox holds more folders than were read. */
+  truncated?: boolean;
   openId: string;
   /** Gmail: the person's folders are labels (named and managed as such). */
   labels: boolean;
@@ -61,12 +74,16 @@ export interface FolderPaneProps {
   onCompose: () => void;
   /** Opens the label manager; absent where the provider has no labels. */
   onManageLabels?: () => void;
-  /** Opens the mailbox settings; absent where the provider has none. */
-  onSettings?: () => void;
+  /** Opens the mailbox settings. */
+  onSettings: () => void;
   /** A message is open: between `lg` and `xl` the pane steps aside for it. */
   readerOpen?: boolean;
   /** The pane as the person sized it on a large screen (its separator is the tool's). */
   pane?: WorkbenchPaneState;
+  /** What each folder leaves unread, by its id; undefined until read. */
+  unread?: Readonly<Record<string, number>>;
+  /** Rows can be dragged here. */
+  takesRows?: boolean;
 }
 
 /** A folder's name in the reader's language (a system place) or the person's own. */
@@ -78,35 +95,107 @@ export function useFolderName(lng: Language): (folder: MailFolder) => string {
       : (folder.name ?? '');
 }
 
+/** The person's folders in their tree: sorted once per answer, not on every render. */
+function useOwnFolders(folders: readonly MailFolder[] | undefined, lng: Language) {
+  return useMemo(
+    () =>
+      folderTree(
+        (folders ?? []).filter(folder => folder.kind === 'user'),
+        lng
+      ),
+    [folders, lng]
+  );
+}
+
+/** What the ear is told of a folder's link; undefined when its words say it all. */
+function linkName(
+  folder: MailFolder,
+  name: string,
+  depth: number,
+  unread: number | undefined,
+  unreadLabel: (name: string, count: number) => string
+): string | undefined {
+  const whole = depth > 0 ? (folder.name ?? undefined) : undefined;
+  return unread ? unreadLabel(whole ?? name, unread) : whole;
+}
+
 function FolderLink({
   folder,
   name,
+  depth = 0,
   open,
   href,
   icon: Icon,
+  unread,
+  listed,
+  takesRows = false,
+  unreadLabel,
 }: {
   folder: MailFolder;
   name: string;
+  depth?: number;
   open: boolean;
   href: string;
   icon: LucideIcon;
+  unread: number | undefined;
+  listed: string;
+  takesRows?: boolean;
+  /** Says the name and the figure as one (the eye reads them apart). */
+  unreadLabel: (name: string, count: number) => string;
 }) {
+  const indent = Math.min(depth, FOLDER_INDENT_MAX_DEPTH) * FOLDER_INDENT_REM;
+  const { setNodeRef: setTarget, isOver } = useDroppable({
+    id: folder.id,
+    disabled: !takesRows || !takesDrop(folder, listed),
+  });
+  const told = linkName(folder, name, depth, unread, unreadLabel);
   return (
-    <li>
+    <li ref={setTarget}>
       <Link
         href={href}
         scroll={false}
         aria-current={open ? 'page' : undefined}
+        // What the eye reads from its place, the ear is told whole.
+        aria-label={told}
+        style={depth > 0 ? { paddingInlineStart: `${FOLDER_PADDING_REM + indent}rem` } : undefined}
         data-folder={folder.id}
         className={cn(
           'flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          open ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground hover:bg-muted'
+          open ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground hover:bg-muted',
+          isOver && 'bg-primary/20 ring-2 ring-primary'
         )}
       >
         <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate">{name}</span>
+        {unread ? (
+          <span className="shrink-0 text-xs font-semibold tabular-nums">{unread}</span>
+        ) : null}
       </Link>
     </li>
+  );
+}
+
+/** The doors at the foot of the pane, where the provider has them. */
+function PaneDoors({
+  lng,
+  labels,
+  onManageLabels,
+  onSettings,
+}: Pick<FolderPaneProps, 'lng' | 'labels' | 'onManageLabels' | 'onSettings'>) {
+  const { t } = useTranslation(lng);
+  return (
+    <div className="mt-auto space-y-0.5 border-t pt-3">
+      {onManageLabels && (
+        <Button variant="ghost" className="w-full justify-start gap-2" onClick={onManageLabels}>
+          <Tags className="h-4 w-4" aria-hidden="true" />
+          {t(labels ? 'workbench.mail.manage_labels' : 'workbench.mail.manage_folders')}
+        </Button>
+      )}
+      <Button variant="ghost" className="w-full justify-start gap-2" onClick={onSettings}>
+        <Settings2 className="h-4 w-4" aria-hidden="true" />
+        {t('workbench.mail.settings_title')}
+      </Button>
+    </div>
   );
 }
 
@@ -114,6 +203,7 @@ function FolderLink({
 export function FolderColumn({
   lng,
   folders,
+  truncated = false,
   openId,
   labels,
   hrefOf,
@@ -122,10 +212,14 @@ export function FolderColumn({
   onSettings,
   readerOpen = false,
   pane,
+  unread,
+  takesRows = false,
 }: FolderPaneProps) {
   const { t } = useTranslation(lng);
   const nameOf = useFolderName(lng);
-  const own = (folders ?? []).filter(folder => folder.kind === 'user');
+  const own = useOwnFolders(folders, lng);
+  const unreadLabel = (name: string, count: number) =>
+    t('workbench.mail.folder_unread', { name, count });
   const places = (folders ?? []).filter(folder => folder.kind === 'system');
   const ownTitle = t(labels ? 'workbench.mail.labels_title' : 'workbench.mail.own_folders_title');
   return (
@@ -158,6 +252,10 @@ export function FolderColumn({
               open={folder.id === openId}
               href={hrefOf(folder.id)}
               icon={folder.role ? ROLE_ICONS[folder.role] : Folder}
+              unread={unread?.[folder.id]}
+              listed={openId}
+              takesRows={takesRows}
+              unreadLabel={unreadLabel}
             />
           ))}
         </ul>
@@ -168,48 +266,67 @@ export function FolderColumn({
             {ownTitle}
           </h2>
           <ul className="space-y-0.5">
-            {own.map(folder => (
+            {own.map(({ folder, name, depth }) => (
               <FolderLink
                 key={folder.id}
                 folder={folder}
-                name={nameOf(folder)}
+                name={name}
+                depth={depth}
                 open={folder.id === openId}
                 href={hrefOf(folder.id)}
                 icon={labels ? Tag : Folder}
+                unread={unread?.[folder.id]}
+                listed={openId}
+                takesRows={takesRows}
+                unreadLabel={unreadLabel}
               />
             ))}
           </ul>
         </section>
       )}
-      {(onManageLabels || onSettings) && (
-        <div className="mt-auto space-y-0.5 border-t pt-3">
-          {onManageLabels && (
-            <Button variant="ghost" className="w-full justify-start gap-2" onClick={onManageLabels}>
-              <Tags className="h-4 w-4" aria-hidden="true" />
-              {t('workbench.mail.manage_labels')}
-            </Button>
-          )}
-          {onSettings && (
-            <Button variant="ghost" className="w-full justify-start gap-2" onClick={onSettings}>
-              <Settings2 className="h-4 w-4" aria-hidden="true" />
-              {t('workbench.mail.settings_title')}
-            </Button>
-          )}
-        </div>
+      {truncated && (
+        <p role="status" className="px-2.5 text-xs text-muted-foreground">
+          {t('workbench.mail.folders_truncated')}
+        </p>
       )}
+      <PaneDoors
+        lng={lng}
+        labels={labels}
+        onManageLabels={onManageLabels}
+        onSettings={onSettings}
+      />
     </nav>
   );
 }
 
 /** The select above the messages (below `lg`). */
-export function FolderSelect({ lng, folders, openId, labels, onPick }: FolderPaneProps) {
+export function FolderSelect({
+  lng,
+  folders,
+  truncated = false,
+  openId,
+  labels,
+  onPick,
+  unread,
+}: FolderPaneProps) {
   const { t } = useTranslation(lng);
   const nameOf = useFolderName(lng);
   const id = useId();
+  const own = useOwnFolders(folders, lng);
   if (!folders || folders.length === 0) return null;
   const known = folders.some(folder => folder.id === openId);
+  const optionName = (folder: MailFolder) => {
+    const own = labels ? 'workbench.mail.label_option' : 'workbench.mail.folder_option';
+    const name = folder.kind === 'user' ? t(own, { name: nameOf(folder) }) : nameOf(folder);
+    const count = unread?.[folder.id];
+    return count ? t('workbench.mail.folder_unread', { name, count }) : name;
+  };
+  const ordered = [
+    ...folders.filter(folder => folder.kind !== 'user'),
+    ...own.map(node => node.folder),
+  ];
   return (
-    <div className="border-b px-4 py-3 lg:hidden">
+    <div className="border-b px-3 py-2 lg:hidden">
       <Label id={`${id}-label`} htmlFor={id} className="sr-only">
         {t('workbench.mail.folder')}
       </Label>
@@ -225,16 +342,17 @@ export function FolderSelect({ lng, folders, openId, labels, onPick }: FolderPan
             {t('workbench.mail.folder')}
           </option>
         )}
-        {folders.map(folder => (
+        {ordered.map(folder => (
           <option key={folder.id} value={folder.id}>
-            {folder.kind === 'user'
-              ? t(labels ? 'workbench.mail.label_option' : 'workbench.mail.folder_option', {
-                  name: nameOf(folder),
-                })
-              : nameOf(folder)}
+            {optionName(folder)}
           </option>
         ))}
       </select>
+      {truncated && (
+        <p role="status" className="mt-2 text-xs text-muted-foreground">
+          {t('workbench.mail.folders_truncated')}
+        </p>
+      )}
     </div>
   );
 }

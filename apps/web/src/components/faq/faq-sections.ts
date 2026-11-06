@@ -11,6 +11,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  AppWindow,
   Bell,
   Blocks,
   Brain,
@@ -79,6 +80,7 @@ export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {
   voice_mode: Mic,
   image_generation: ImageIcon,
   document_generation: FileOutput,
+  interactive_pages: AppWindow,
   journals: BookOpen,
   health_metrics: HeartPulse,
   usage_limits: Gauge,
@@ -129,6 +131,7 @@ export const FAQ_SECTIONS = [
   'meetings',
   'image_generation',
   'document_generation',
+  'interactive_pages',
   'journals',
   'psyche',
   'health_metrics',

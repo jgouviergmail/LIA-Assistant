@@ -6,11 +6,17 @@ size, headers only. A row says who, what, when, read or starred; the page says
 how many hits the provider listed but could not read (F11). The reader reads
 one message whole, fresh, and marks nothing read: reading is not an act. Its
 text is the provider's clean text (the quoted history left out — the HTML
-reader shows the message whole); an attachment carries its handle AND its
+reader shows the message whole); its conversation is read apart, so the message
+never waits for it, as rows, the newest kept and the cut said; an attachment
+carries its handle AND its
 name, because a Gmail handle expires between two reads (ADR-296). The HTML
 reader is served the message's HTML up to a published ceiling, cut on a
 character boundary past it, and the cut said — never read by any tool: the
-model reads text, never markup (ADR-287).
+model reads text, never markup (ADR-287). The images its HTML names are read
+apart, so the message never waits for them, under a published budget. Who an
+answer would reach is read when the person answers, never with the message:
+the mailbox's own address costs a call the reader has no use for, and the rule
+is the clients' own, never a second one on the screen.
 """
 
 from __future__ import annotations
@@ -21,9 +27,12 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from src.core.config import settings
+from src.core.constants import WORKBENCH_MAIL_INLINE_IMAGES_MAX
 from src.core.field_names import FIELD_SKIPPED_HITS
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.email_compose import reply_recipients
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
+from src.domains.connectors.clients.mail_inline_images import InlineBudget
 from src.domains.connectors.clients.protocols import EmailClientProtocol
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench.availability import listing_page_size
@@ -34,6 +43,7 @@ from src.domains.workbench.mail_projection import (
     addresses,
     attachments_of,
     first_address,
+    has_attachments,
     is_read,
     is_starred,
     received_at,
@@ -41,22 +51,39 @@ from src.domains.workbench.mail_projection import (
 )
 from src.domains.workbench.mail_query import MailSearch, compose_query
 from src.domains.workbench.schemas.mail import (
+    InlineImagesQuery,
+    MailConversation,
     MailHtml,
+    MailInlineImage,
+    MailInlineImages,
     MailListing,
     MailMessage,
     MailPage,
     MailSummary,
 )
+from src.domains.workbench.schemas.mail_compose import ReplyRecipients
 
 _TOOL = WorkbenchTool.MAIL
 
 
-async def list_messages(user_id: UUID, zone: ZoneInfo, listing: MailListing) -> MailPage:
-    """One page of a folder, narrowed by the person's words and the chips."""
+async def list_messages(
+    user_id: UUID, zone: ZoneInfo, listing: MailListing, *, size: int | None = None
+) -> MailPage:
+    """One page of a folder, narrowed by the person's words and the chips.
+
+    Args:
+        user_id: The account.
+        zone: The account's zone (where a day starts).
+        listing: The folder, the words and the chips.
+        size: What a caller showing fewer rows reads; a listing's page when left out.
+
+    Returns:
+        The page, and the next one's token.
+    """
     async with open_tool_client(_TOOL, user_id) as opened:
         search = compose_query(opened.connector_type, listing, zone)
         async with provider_call(_TOOL, "list", act=False):
-            raw = await _search(opened, search, listing.page_token)
+            raw = await _search(opened, search, listing.page_token, size or listing_page_size())
     return MailPage(
         items=[_summary(hit, opened.connector_type) for hit in raw.get("messages") or []],
         next_page_token=raw.get("next_page_token") or None,
@@ -88,6 +115,38 @@ async def read_message(user_id: UUID, message_id: str) -> MailMessage:
     )
 
 
+async def read_conversation(user_id: UUID, message_id: str) -> MailConversation:
+    """What was said around a message, as rows; nothing is marked read."""
+    async with open_tool_client(_TOOL, user_id) as opened:
+        client: EmailClientProtocol = opened.client
+        async with provider_call(_TOOL, "read_conversation", act=False):
+            raw = await client.get_conversation(message_id, listing_page_size())
+    return MailConversation(
+        items=[_summary(hit, opened.connector_type) for hit in raw["messages"]],
+        truncated=bool(raw["truncated"]),
+    )
+
+
+async def read_reply_recipients(
+    user_id: UUID, message_id: str, *, reply_all: bool
+) -> ReplyRecipients:
+    """Who a reply to this message would reach, by the rule the clients send with."""
+    async with open_tool_client(_TOOL, user_id) as opened:
+        client: EmailClientProtocol = opened.client
+        async with provider_call(_TOOL, "read", act=False):
+            raw = await client.get_message(message_id, use_cache=False)
+            own_address = await client.get_own_address()
+    to, cc = reply_recipients(
+        str(raw.get("from") or ""),
+        str(raw.get("to") or ""),
+        str(raw.get("cc") or ""),
+        own_address=own_address,
+        reply_all=reply_all,
+        reply_to=str(raw.get("reply_to") or "") or None,
+    )
+    return ReplyRecipients(to=addresses(to), cc=addresses(cc))
+
+
 async def read_message_html(user_id: UUID, message_id: str) -> MailHtml:
     """The message's HTML, cut at the published ceiling; none when it has none."""
     async with open_tool_client(_TOOL, user_id) as opened:
@@ -95,6 +154,22 @@ async def read_message_html(user_id: UUID, message_id: str) -> MailHtml:
         async with provider_call(_TOOL, "read_html", act=False):
             html = await client.get_message_html(message_id)
     return bounded_html(html, settings.workbench_mail_html_max_bytes)
+
+
+async def read_inline_images(user_id: UUID, query: InlineImagesQuery) -> MailInlineImages:
+    """The images a message's HTML names, under the published budget."""
+    ceiling = settings.workbench_mail_inline_max_bytes
+    budget = InlineBudget(
+        each_max=ceiling, total_max=ceiling, count_max=WORKBENCH_MAIL_INLINE_IMAGES_MAX
+    )
+    async with open_tool_client(_TOOL, user_id) as opened:
+        client: EmailClientProtocol = opened.client
+        async with provider_call(_TOOL, "read_inline", act=False):
+            await client.read_inline_images(query.message_id, set(query.cid), budget)
+    return MailInlineImages(
+        images=[MailInlineImage(cid=image.cid, data_url=image.data_url) for image in budget.images],
+        skipped=budget.skipped,
+    )
 
 
 def bounded_html(html: str | None, max_bytes: int) -> MailHtml:
@@ -109,14 +184,14 @@ def bounded_html(html: str | None, max_bytes: int) -> MailHtml:
 
 
 async def _search(
-    opened: ActiveClient, search: MailSearch, page_token: str | None
+    opened: ActiveClient, search: MailSearch, page_token: str | None, size: int
 ) -> dict[str, Any]:
     if search.label_ids:
         gmail: GoogleGmailClient = opened.client
         return await gmail.search_in_labels(
             search.label_ids,
             search.query,
-            max_results=listing_page_size(),
+            max_results=size,
             use_cache=False,
             page_token=page_token,
             headers_only=True,
@@ -124,7 +199,7 @@ async def _search(
     client: EmailClientProtocol = opened.client
     page: dict[str, Any] = await client.search_emails(
         search.query,
-        max_results=listing_page_size(),
+        max_results=size,
         use_cache=False,
         page_token=page_token,
         headers_only=True,
@@ -142,5 +217,6 @@ def _summary(hit: Mapping[str, Any], provider: ConnectorType) -> MailSummary:
         received_at=received_at(hit.get("internalDate")),
         is_read=is_read(hit),
         is_starred=is_starred(hit),
+        has_attachments=has_attachments(hit),
         label_ids=user_labels(hit, provider),
     )

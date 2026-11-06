@@ -219,13 +219,19 @@ class ProactiveDiscussionSettings(BaseSettings):
         default=DISCUSSION_RUN_LEASE_SECONDS_DEFAULT,
         ge=30,
         le=3600,
-        description="Seconds a run holds its account before it must renew its claim.",
+        description=(
+            "Seconds a run holds its account before it must renew its claim; it yields to "
+            "the longest call of the discussion slots (ADR-221)."
+        ),
     )
     discussion_run_deadline_seconds: int = Field(
         default=DISCUSSION_RUN_DEADLINE_SECONDS_DEFAULT,
         ge=10,
         le=3600,
-        description="Seconds after which an opening run stops, shorter than its lease.",
+        description=(
+            "Seconds after which an opening run stops, shorter than its lease; it yields to "
+            "the calls of the discussion slots (ADR-221)."
+        ),
     )
     discussion_rebuild_deadline_seconds: int = Field(
         default=DISCUSSION_REBUILD_DEADLINE_SECONDS_DEFAULT,

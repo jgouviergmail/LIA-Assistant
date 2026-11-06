@@ -18,7 +18,7 @@ Natively, on both platforms — and deliberately differently. On **Android**, th
 The app ships its own offline screen (in all six languages) with a retry button and, crucially, a "use a different server" way out. A mistyped address at first launch never means reinstalling the app.
 
 ## Do connected services (Gmail, calendars, MCP) work from the app?
-Yes. Every authorization that leaves for the browser — connectors, MCP servers, sign-in — returns to the right screen of the app when it completes, instead of stranding you in a browser tab.
+Yes. Every authorization that leaves for the browser — connectors, MCP servers, sign-in — returns to the right screen of the app when it completes, instead of stranding you in a browser tab. On Android, a file downloads with your session and a link in a message's original layout opens in your browser; this arrives with the next store update.
 
 ## How does browser installation differ from the native app?
 

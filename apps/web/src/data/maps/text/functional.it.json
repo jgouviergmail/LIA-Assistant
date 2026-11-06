@@ -157,39 +157,39 @@
     },
     "f.connectors": {
       "name": "Connettori e Strumenti",
-      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo flusso di consenso per fornitore, un fornitore attivo per categoria. I servizi senza chiave vengono attivati per tutti dall'amministratore. Apri Strumenti quando vuoi fare da te: posta, calendario, attività, contatti, file Drive e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.",
+      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo percorso di consenso per fornitore, un fornitore attivo per categoria, file compresi: Google Drive o OneDrive. I servizi senza chiave sono attivati per tutti dall'amministratore. In Strumenti agisci tu, senza chiamare un'IA, su posta, calendario, attività, contatti, file e luci Hue: ogni schermata offre ciò che sa fare il suo fornitore, una ricerca le percorre tutte e i tuoi gesti restano fuori dai registri di LIA.",
       "goal": "Collegare una volta i tuoi veri account, e che restino collegati.",
-      "src": "7819084f0780"
+      "src": "2893800457d4"
     },
     "f.mail": {
       "name": "E-mail",
-      "role": "Leggere e-mail ripulite, riassumerle una sola volta, cercare, scrivere, rispondere, leggere gli allegati e tenere le bozze della tua casella — l'invio ad altri chiede sempre una conferma; un'e-mail al tuo indirizzo parte direttamente. Categorie e priorità JEV opzionali restano indicative e raggiungono anche LIA; il dubbio non mostra badge.",
+      "role": "Leggere e-mail ripulite, riassumerle una sola volta, cercare, scrivere, rispondere, riordinare, leggere gli allegati, seguire una conversazione e tenere le bozze della tua casella — l'invio ad altri passa sempre da una conferma; un'e-mail a te stesso parte direttamente. Le categorie e priorità JEV facoltative restano consultive e raggiungono anche l'assistente; il dubbio non mostra alcun badge.",
       "goal": "Gestire la tua casella in poche frasi.",
-      "src": "b553d3afc253"
+      "src": "bf27a5568c84"
     },
     "f.calendar": {
       "name": "Agenda",
-      "role": "Consultare, cercare, creare, spostare ed eliminare eventi, con invitati, promemoria e fusi orari. La valutazione lavoro/personale opzionale è comune all’interfaccia e a LIA, con astensione nel dubbio.",
+      "role": "Consultare, cercare, creare, spostare ed eliminare eventi, con invitati, promemoria, fusi orari e ripetizioni, e rispondere a un invito. La qualificazione lavoro/personale facoltativa è comune alla visualizzazione e all'assistente, con astensione nel dubbio.",
       "goal": "Organizzare il tuo tempo parlando.",
-      "src": "b8fd0be7b2e3"
+      "src": "d2db069ee962"
     },
     "f.contacts": {
       "name": "Contatti",
-      "role": "Ritrovare qualcuno, i suoi recapiti e i suoi compleanni, creare o aggiornare una scheda.",
+      "role": "Ritrovare qualcuno, i suoi recapiti, i suoi gruppi e i suoi compleanni, creare o aggiornare un contatto, con la sua foto e la sua vCard.",
       "goal": "Sapere di chi parli quando dici «scrivi a Marie».",
-      "src": "620b9e7a0222"
+      "src": "23beb21905d1"
     },
     "f.tasks": {
       "name": "Attività",
-      "role": "Le tue liste di attività presso il tuo fornitore: aggiungere, spuntare, spostare, ritrovare.",
+      "role": "I tuoi elenchi di attività presso il fornitore: aggiungere, spuntare, spostare, ritrovare, e vedere subito cosa c'è oggi, in ritardo o in arrivo.",
       "goal": "Non dimenticare nulla di ciò che resta da fare.",
-      "src": "622330403b7b"
+      "src": "1a047bacb0bd"
     },
     "f.drive": {
       "name": "File",
-      "role": "Cercare e leggere i tuoi file online, e collegare un'intera cartella — sottocartelle comprese — a uno spazio di conoscenza.",
+      "role": "Cercare, leggere e riordinare i tuoi file su Google Drive o OneDrive, condividerli dopo una scheda e collegare un'intera cartella — sottocartelle comprese — a uno spazio di conoscenza.",
       "goal": "Ritrovare un documento da ciò che contiene.",
-      "src": "ec74d6fcf071"
+      "src": "05f47c0d9b15"
     },
     "f.places": {
       "name": "Luoghi, tragitti e meteo",
@@ -229,9 +229,9 @@
     },
     "f.documents": {
       "name": "Documenti generati",
-      "role": "Report Word, presentazioni PowerPoint, cartelle di lavoro Excel e PDF impaginati dal motore di rendering, senza che nulla trabocchi; una galleria conserva i tuoi file.",
+      "role": "Report Word, presentazioni PowerPoint, cartelle Excel e PDF impaginati dal motore di rendering, senza sbordare; una galleria conserva i tuoi file. Un gioco, un quiz o una calcolatrice che chiedi girano nella chat, in un riquadro sigillato, con il loro file .html.",
       "goal": "Passare da una ricerca a un elaborato pulito.",
-      "src": "40eb00fb8abe"
+      "src": "f712529a36af"
     },
     "f.images": {
       "name": "Immagini generate",

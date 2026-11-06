@@ -62,6 +62,20 @@ function writeStoredDraft(userId: string, value: string): void {
   }
 }
 
+/**
+ * Leaves a text for the chat composer, which reads the draft when it opens: an
+ * address would be logged by every server on the way, and a stored draft is not.
+ * What the person had started stays, above it.
+ *
+ * @param userId - The account.
+ * @param text - The words to find there; nothing is sent.
+ */
+export function seedInputDraft(userId: string, text: string): void {
+  const { text: started } = decodeCompositionDraft(readStoredDraft(userId));
+  const draft = started?.trim() ? `${started}\n\n${text}` : text;
+  writeStoredDraft(userId, draft.slice(0, CHAT_INPUT_MAX_LENGTH));
+}
+
 export interface UseInputDraftReturn {
   /** Draft read once at mount — feeds ChatInput's `initialMessage`. */
   initialDraft: string | undefined;

@@ -32,6 +32,9 @@ from src.core.constants import (
     DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT,
     DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT,
     DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
+    INTERACTIVE_PAGE_ENABLED_DEFAULT,
+    INTERACTIVE_PAGE_MAX_BYTES_DEFAULT,
+    INTERACTIVE_PAGE_SOURCE_LOOKBACK_MESSAGES_DEFAULT,
     MAX_DOCUMENT_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
 
@@ -85,7 +88,8 @@ class DocumentGenerationSettings(BaseSettings):
         description=(
             "Wall-clock FLOOR (seconds) applied by the parallel executor to a "
             "generate_document step — the internal LLM call writes whole "
-            "documents and exceeds the generic tool default."
+            "documents and exceeds the generic tool default. It yields to the "
+            "document_generation slot's timeout (ADR-221)."
         ),
     )
 
@@ -113,6 +117,40 @@ class DocumentGenerationSettings(BaseSettings):
             "Maximum characters of source_data forwarded to the document LLM; "
             "the excess is truncated and the truncation is reported to the "
             "caller (never silent)."
+        ),
+    )
+
+    # ========================================================================
+    # Interactive pages (ADR-370)
+    # ========================================================================
+
+    interactive_page_enabled: bool = Field(
+        default=INTERACTIVE_PAGE_ENABLED_DEFAULT,
+        description=(
+            "Global feature flag for interactive pages. When false, the "
+            "generate_interactive_page tool is not registered and the "
+            "interactive_page domain is absent from the planner catalogue."
+        ),
+    )
+
+    interactive_page_max_bytes: int = Field(
+        default=INTERACTIVE_PAGE_MAX_BYTES_DEFAULT,
+        ge=10240,
+        le=524288,
+        description=(
+            "Largest page, in UTF-8 bytes, published to the writer and enforced "
+            "on its result. Stays under widget_persist_max_bytes: a page travels "
+            "with its message, and its JSON encoding is larger than the page."
+        ),
+    )
+
+    interactive_page_source_lookback_messages: int = Field(
+        default=INTERACTIVE_PAGE_SOURCE_LOOKBACK_MESSAGES_DEFAULT,
+        ge=2,
+        le=200,
+        description=(
+            "How many recent messages of the conversation are read to find the "
+            "page or HTML code a revision, a display or a source request works from."
         ),
     )
 

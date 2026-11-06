@@ -113,6 +113,7 @@
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --lia-font-mono: 'SF Mono', 'Fira Code', 'Monaco', monospace;
 
+  --lia-text-2xs: calc(0.625rem * var(--lia-text-scale, 1)); /* 10px */
   --lia-text-xs: calc(0.75rem * var(--lia-text-scale, 1)); /* 12px */
   --lia-text-sm: calc(0.8125rem * var(--lia-text-scale, 1)); /* 13px */
   --lia-text-base: calc(0.875rem * var(--lia-text-scale, 1)); /* 14px */
@@ -361,9 +362,6 @@ html.dark[data-oled] {
 }
 .lia-file .lia-title-underline {
   --lia-title-gradient: var(--lia-drive-gradient);
-}
-.lia-article .lia-title-underline {
-  --lia-title-gradient: var(--lia-primary-gradient);
 }
 
 /* Extended Section - Collapsible content area
@@ -3157,7 +3155,7 @@ a.lia-email__sender-email:hover {
 .lia-place__address a {
   color: var(--lia-text-secondary);
   text-decoration: none;
-  transition: color var(--lia-transition);
+  transition: color var(--lia-transition-fast);
 }
 
 .lia-place__address a:hover {
@@ -3273,7 +3271,7 @@ a.lia-email__sender-email:hover {
 .lia-place__phone a {
   color: var(--lia-text-secondary);
   text-decoration: none;
-  transition: color var(--lia-transition);
+  transition: color var(--lia-transition-fast);
 }
 
 .lia-place__phone a:hover {
@@ -3459,9 +3457,9 @@ a.lia-email__sender-email:hover {
   justify-content: center;
   padding: var(--lia-space-sm);
   border-radius: 50%;
-  background: var(--lia-bg-primary);
+  background: var(--lia-surface);
   border: 1px solid var(--lia-border);
-  color: var(--lia-text-primary);
+  color: var(--lia-text);
   cursor: pointer;
   opacity: 0.85;
   transition: all var(--lia-transition-fast);
@@ -3470,7 +3468,7 @@ a.lia-email__sender-email:hover {
 
 .lia-place-carousel__nav:hover {
   opacity: 1;
-  background: var(--lia-bg-secondary);
+  background: var(--lia-surface-hover);
   transform: translateY(-50%) scale(1.05);
 }
 
@@ -3478,7 +3476,7 @@ a.lia-email__sender-email:hover {
    a focused-but-not-hovered arrow nearly invisible. */
 .lia-place-carousel__nav:focus-visible {
   opacity: 1;
-  outline: 2px solid var(--lia-text-primary);
+  outline: 2px solid var(--lia-text);
   outline-offset: 2px;
 }
 
@@ -4564,7 +4562,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-web-search__result:hover {
-  box-shadow: 0 2px 8px var(--lia-shadow);
+  box-shadow: var(--lia-shadow-md);
 }
 
 .lia-web-search__result-title {
@@ -6552,7 +6550,7 @@ a:focus-visible {
   align-items: center;
   gap: var(--lia-space-2xs);
   font-size: var(--lia-text-sm);
-  color: var(--lia-accent);
+  color: var(--lia-primary);
   font-weight: 600;
   /* Force full width to align with duration row start */
   width: 100%;
@@ -6624,7 +6622,7 @@ a:focus-visible {
   align-items: center;
   gap: var(--lia-space-2xs);
   padding: var(--lia-space-2xs) var(--lia-space-sm);
-  border-radius: var(--lia-radius-pill);
+  border-radius: var(--lia-radius-full);
   font-size: var(--lia-text-xs);
   font-weight: 500;
 }
@@ -6949,15 +6947,15 @@ a:focus-visible {
 
 .lia-mcp-app-widget {
   margin: var(--lia-space-lg) 0;
-  border-radius: var(--lia-radius);
+  border-radius: var(--lia-radius-lg);
   overflow: hidden;
   border: 1px solid var(--lia-border);
-  background: var(--lia-bg);
+  background: var(--lia-surface);
 }
 
 .lia-mcp-app-widget__header {
   padding: var(--lia-space-sm) var(--lia-space-md);
-  background: var(--lia-bg-muted);
+  background: var(--lia-surface-hover);
   border-bottom: 1px solid var(--lia-border);
 }
 
@@ -6966,7 +6964,6 @@ a:focus-visible {
   height: 500px;
   max-height: 80dvh;
   border: none;
-  background: var(--lia-bg);
 }
 
 @media (max-width: 640px) {
@@ -6980,7 +6977,7 @@ a:focus-visible {
   align-items: center;
   gap: var(--lia-space-sm);
   padding: var(--lia-space-xs) var(--lia-space-md);
-  background: var(--lia-bg-muted);
+  background: var(--lia-surface-hover);
   border-bottom: 1px solid var(--lia-border);
   font-size: calc(0.85rem * var(--lia-text-scale, 1));
 }
@@ -7012,7 +7009,7 @@ a:focus-visible {
 
 .lia-mcp-app__loading {
   margin-top: var(--lia-space-sm);
-  color: var(--lia-text-muted);
+  color: var(--color-muted-foreground);
   font-size: var(--lia-text-sm);
 }
 
@@ -7022,15 +7019,15 @@ a:focus-visible {
 
 .lia-skill-app-widget {
   margin: var(--lia-space-lg) 0;
-  border-radius: var(--lia-radius);
+  border-radius: var(--lia-radius-lg);
   overflow: hidden;
   border: 1px solid var(--lia-border);
-  background: var(--lia-bg);
+  background: var(--lia-surface);
 }
 
 .lia-skill-app-widget__header {
   padding: var(--lia-space-sm) var(--lia-space-md);
-  background: var(--lia-bg-muted);
+  background: var(--lia-surface-hover);
   border-bottom: 1px solid var(--lia-border);
   display: flex;
   align-items: center;
@@ -7040,11 +7037,11 @@ a:focus-visible {
 
 .lia-skill-app-widget__external-badge {
   font-size: var(--lia-text-xs);
-  color: var(--lia-text-muted);
+  color: var(--color-muted-foreground);
   padding: 2px var(--lia-space-xs);
   border: 1px solid var(--lia-border);
   border-radius: var(--lia-radius-sm);
-  background: var(--lia-bg);
+  background: var(--lia-surface);
 }
 
 .lia-skill-app-widget__iframe {
@@ -7052,7 +7049,6 @@ a:focus-visible {
   min-height: 320px;
   max-height: 80dvh;
   border: none;
-  background: var(--lia-bg);
   display: block;
 }
 
@@ -7085,7 +7081,7 @@ a:focus-visible {
   align-items: center;
   gap: var(--lia-space-sm);
   padding: var(--lia-space-xs) var(--lia-space-md);
-  background: var(--lia-bg-muted);
+  background: var(--lia-surface-hover);
   border-bottom: 1px solid var(--lia-border);
   font-size: calc(0.85rem * var(--lia-text-scale, 1));
 }
@@ -7102,7 +7098,7 @@ a:focus-visible {
 .lia-skill-app-widget__link-close {
   background: none;
   border: none;
-  color: var(--lia-text-muted);
+  color: var(--color-muted-foreground);
   cursor: pointer;
   font-size: calc(1.1rem * var(--lia-text-scale, 1));
   line-height: 1;
@@ -7123,7 +7119,7 @@ a:focus-visible {
 
 .lia-skill-app-widget__fallback-text {
   margin: 0;
-  color: var(--lia-text-muted);
+  color: var(--color-muted-foreground);
   font-size: var(--lia-text-sm);
 }
 
@@ -7131,7 +7127,7 @@ a:focus-visible {
    visually technical (mono, muted) and let long URLs wrap anywhere. */
 .lia-skill-app-widget__fallback-detail {
   margin: 0;
-  color: var(--lia-text-muted);
+  color: var(--color-muted-foreground);
   font-family: var(--lia-font-mono, monospace);
   font-size: var(--lia-text-xs);
   overflow-wrap: anywhere;
@@ -7151,7 +7147,7 @@ a:focus-visible {
   padding: var(--lia-space-xs) var(--lia-space-md);
   border: 1px solid var(--lia-border);
   border-radius: var(--lia-radius-sm);
-  background: var(--lia-bg);
+  background: var(--lia-surface);
   color: var(--lia-primary);
   cursor: pointer;
   text-decoration: none;
@@ -7159,10 +7155,77 @@ a:focus-visible {
 
 .lia-skill-app-widget__fallback-link:hover,
 .lia-skill-app-widget__fallback-retry:hover {
-  background: var(--lia-bg-muted);
+  background: var(--lia-surface-hover);
 }
 
 /* Server-rendered placeholder (before React hydration / fallback) */
+/* An interactive page (ADR-370). The page draws its own surface: the host only
+   frames it, and says who wrote it. */
+.lia-page-app-widget {
+  margin: var(--lia-space-lg) 0;
+  /* Clears the chat's sticky header when a click brings the page into view. */
+  scroll-margin-top: 6rem;
+  border-radius: var(--lia-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--lia-border-light);
+  background: var(--lia-surface);
+}
+
+.lia-page-app-widget__header {
+  padding: var(--lia-space-xs) var(--lia-space-md);
+  border-bottom: 1px solid var(--lia-border-light);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lia-space-xs) var(--lia-space-sm);
+}
+
+.lia-page-app-widget__title {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lia-page-app-widget__origin {
+  font-size: var(--lia-text-xs);
+  color: var(--color-muted-foreground);
+}
+
+.lia-page-app-widget__actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--lia-space-xs);
+}
+
+/* White is the canvas of any page opened on its own: over a dark theme, a page
+   that sets no background would otherwise be black text on black. */
+.lia-page-app-widget__iframe {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 80dvh;
+  border: none;
+  background: #fff;
+  display: block;
+}
+
+.lia-page-app-widget__poster {
+  padding: var(--lia-space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lia-space-md);
+  text-align: center;
+  color: var(--color-muted-foreground);
+}
+
+.lia-page-app-widget__notice {
+  margin: 0;
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  font-size: var(--lia-text-sm);
+  color: var(--color-muted-foreground);
+  overflow-wrap: anywhere;
+}
+
 .lia-skill-app__placeholder {
   padding: var(--lia-space-lg);
   text-align: center;

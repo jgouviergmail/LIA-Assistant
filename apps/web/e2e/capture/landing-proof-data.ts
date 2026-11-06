@@ -53,7 +53,8 @@ export const PROOF_SPACE: RAGSpaceDetail = {
     { id: 'proof-doc-email', original_filename: 'Supplier · Delivery date.eml', source_type: 'mail', content_type: 'text/plain', file_size: 84000 },
     { id: 'proof-doc-meeting', original_filename: 'Launch review · Minutes.md', source_type: 'meeting', content_type: 'text/markdown', file_size: 180000 },
   ].map(document => ({ ...document, source_type: document.source_type as 'upload' | 'drive' | 'mail' | 'meeting', status: 'ready', error_message: null, error_code: null, chunk_count: 12, embedding_model: 'text-embedding-3-small', embedding_tokens: 8200, embedding_cost_eur: 0.000164, drive_file_id: document.source_type === 'drive' ? 'proof-drive-file' : null, created_at: PROOF_TIME })),
-  drive_sources: [{ id: 'proof-drive', folder_id: 'proof-folder', folder_name: 'Atlas · Project documents', sync_status: 'completed', last_sync_at: PROOF_TIME, file_count: 1, synced_file_count: 1, error_message: null, created_at: PROOF_TIME }],
+  drive_sources: [{ id: 'proof-drive', provider: 'google_drive', folder_id: 'proof-folder', folder_name: 'Atlas · Project documents', sync_status: 'completed', last_sync_at: PROOF_TIME, file_count: 1, synced_file_count: 1, error_message: null, created_at: PROOF_TIME }],
+  active_drive: 'google_drive',
   mail_sources: [{ id: 'proof-mail', label_id: 'proof-label', label_name: 'Atlas / Suppliers', sync_status: 'completed', last_sync_at: PROOF_TIME, thread_count: 1, synced_thread_count: 1, error_message: null, created_at: PROOF_TIME }],
 };
 

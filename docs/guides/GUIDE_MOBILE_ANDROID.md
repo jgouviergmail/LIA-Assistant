@@ -87,6 +87,27 @@ Re-measure at any time:
 task mobile:probe:android          # needs a booted emulator or device
 ```
 
+Two limits of the WebView, measured on Android 16 with Capacitor 8.5.3 (2026-11-04), reached the
+Tools section. The shell lifts both (`ShellFiles`, `ShellChromeClient`, `ShellLinkRules`), measured
+again on the real debug APK against a stand-in server on 2026-11-05; a shell already installed keeps
+them until its store update, and says so through `capabilities` (`serverFiles`, `frameLinks`):
+
+- **A download landed nowhere.** A same-origin `Content-Disposition: attachment` was answered and
+  dropped: no file in `Download`, no error, because neither Capacitor nor the shell set a
+  `DownloadListener`. On another origin (production's API) Capacitor handed the address to the system
+  browser, which holds no session. Now the file reaches the download manager with the cookie of the
+  host that set it, the API on a sibling host stays in the WebView, and an `UTF-8` name keeps its
+  accents. Before Android 10 it lands in the app's own folder, reached from its notification. A
+  `blob:` download (a file the page built itself) still lands nowhere.
+- **A link in a sandboxed frame opened nothing with `target="_blank"`**: the frame of a mail's
+  original layout. `_self` navigates the frame itself, Capacitor's interception does not see it, so
+  it is no way out. Now it reaches `onCreateWindow` and the system browser. Only a gesture of the
+  person opens a window, and only `http`, `https` and `mailto` leave: an unasked `window.open`
+  started nothing.
+
+The download manager trusts the system store alone, so a bench needs its authority there, in a
+throwaway emulator: the APK stays the one that ships.
+
 The engine probe measures what the WebView can do; a second bench holds the
 REAL shell to its own guarantees — setup screen, HTTPS refusal, the offline
 screen on an unreachable server, deep-link routing and refusal, and the

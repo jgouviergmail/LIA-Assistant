@@ -41,6 +41,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.i18n import get_language_name, resolve_language
+from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
@@ -916,7 +917,7 @@ class PlanSemanticValidator:
         Args:
             llm: Optional LLM instance. If None, uses default semantic validator LLM.
             provider: Optional provider name. If None, uses default from settings.
-            timeout_seconds: Validation timeout. If None, uses settings.semantic_validation_timeout_seconds
+            timeout_seconds: Validation timeout. If None, the semantic_validator slot's.
         """
         self._llm = llm
         from src.core.llm_config_helper import get_llm_config_for_agent
@@ -924,7 +925,7 @@ class PlanSemanticValidator:
         self._provider = (
             provider or get_llm_config_for_agent(settings, "semantic_validator").provider
         )
-        self._timeout_seconds = timeout_seconds or settings.semantic_validation_timeout_seconds
+        self._timeout_seconds = timeout_seconds or llm_call_timeout_seconds("semantic_validator")
 
         # Lazy initialization of LLM
         if self._llm is None:

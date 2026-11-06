@@ -32,6 +32,7 @@ _PROVIDER_SECTIONS: dict[str, str] = {
     PushChannelProvider.GOOGLE_CALENDAR.value: SECTION_AGENDA,
     PushChannelProvider.GOOGLE_DRIVE.value: SECTION_DOCUMENTS,
     PushChannelProvider.GOOGLE_GMAIL.value: SECTION_MAILS,
+    PushChannelProvider.MICROSOFT_ONEDRIVE.value: SECTION_DOCUMENTS,
 }
 # Completeness raised (not asserted) so the guard survives -O and a missing
 # entry can never fall through silently (ADR-085 pattern).

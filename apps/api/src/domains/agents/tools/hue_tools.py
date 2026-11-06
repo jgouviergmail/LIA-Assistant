@@ -1,14 +1,14 @@
 """
 LangChain v1 tools for Philips Hue smart lighting operations.
 
-Provides 6 tools for controlling Philips Hue lights, rooms, and scenes
+Provides 6 tools for controlling Philips Hue lights, rooms, zones and scenes
 via the Hue Bridge CLIP v2 API:
-- list_hue_lights_tool: List all lights with state
+- list_hue_lights_tool: List all lights with state, naming those that do not answer
 - control_hue_light_tool: Control a specific light (on/off, brightness, color)
-- list_hue_rooms_tool: List all rooms with their lights
-- control_hue_room_tool: Control all lights in a room
+- list_hue_rooms_tool: List all rooms and zones with their lights
+- control_hue_room_tool: Control all lights in a room or a zone (on/off, brightness, color)
 - list_hue_scenes_tool: List available scenes
-- activate_hue_scene_tool: Activate a scene
+- activate_hue_scene_tool: Activate a scene, in motion if asked
 
 Architecture:
 - Uses ConnectorTool base class (same as OAuth/Apple tools)
@@ -28,7 +28,6 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
-from src.core.field_names import FIELD_ERROR, FIELD_ERROR_CODE, FIELD_SUCCESS
 from src.core.i18n import _
 from src.core.tool_outcome import explicit_success
 from src.domains.agents.constants import AGENT_HUE, CONTEXT_DOMAIN_HUE
@@ -42,11 +41,19 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.display.components.light_details import hue_display_fields
 from src.domains.agents.tools.base import ConnectorTool
-from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.hue_resources import (
+    find_resource_by_name,
+    not_found,
+    refusal,
+    unreadable_colour,
+)
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.clients.philips_hue_client import (
+    HueGroupKind,
     PhilipsHueClient,
+    reached_devices,
     resolve_color,
+    scene_action,
 )
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -90,87 +97,6 @@ ContextTypeRegistry.register(
 
 
 # =============================================================================
-# Helper: Name-to-ID resolution
-# =============================================================================
-
-
-def _find_resource_by_name(
-    resources: list[dict[str, Any]],
-    name_or_id: str,
-) -> dict[str, Any] | None:
-    """
-    Find a Hue resource by exact name or ID.
-
-    Performs strict matching only — no fuzzy or partial matching.
-    The planner is responsible for resolving user descriptions to exact
-    device names via IoT discovery context injection.
-
-    Search order:
-    1. Exact ID match
-    2. Case-insensitive exact name match on metadata.name
-
-    Args:
-        resources: List of Hue API resource dicts.
-        name_or_id: Resource name or ID to search for.
-
-    Returns:
-        Matching resource dict, or None if not found.
-    """
-    # Try exact ID match first
-    for r in resources:
-        if r.get("id") == name_or_id:
-            return r
-
-    # Try case-insensitive name match
-    search = name_or_id.strip().lower()
-    for r in resources:
-        resource_name = r.get("metadata", {}).get("name", "").strip().lower()
-        if resource_name == search:
-            return r
-
-    return None
-
-
-def _not_found(message: str, language: str) -> dict[str, Any]:
-    """The payload of a command whose target the bridge does not hold.
-
-    The refusal is DECLARED (``success`` false, a typed code) so that every
-    reader of the verdict sees a failure: answered as a success saying it failed,
-    the effect register settled the act SUCCEEDED and the ReAct directive told
-    the response model it had switched the light.
-
-    Args:
-        message: The localised sentence naming what the bridge does hold.
-        language: The user's language, read back by the formatter.
-
-    Returns:
-        The refusal payload ``format_registry_response`` turns into a failure.
-    """
-    return {
-        FIELD_SUCCESS: False,
-        FIELD_ERROR_CODE: ToolErrorCode.NOT_FOUND.value,
-        FIELD_ERROR: message,
-        ConnectorTool._LANGUAGE_RESULT_KEY: language,
-    }
-
-
-def _refusal(result: dict[str, Any], fallback: str) -> UnifiedToolOutput:
-    """A refused command as the failure it is, its code kept.
-
-    Args:
-        result: The refusal payload of ``execute_api_call``.
-        fallback: The localised sentence used when the payload names no error.
-
-    Returns:
-        A failure the runtime failures directive words from its code.
-    """
-    return UnifiedToolOutput.failure(
-        message=result.get(FIELD_ERROR) or fallback,
-        error_code=str(result.get(FIELD_ERROR_CODE) or ToolErrorCode.NOT_FOUND.value),
-    )
-
-
-# =============================================================================
 # Tool Class: List Hue Lights
 # =============================================================================
 
@@ -191,7 +117,17 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
         """Execute list lights API call."""
         language = await self._fetch_language()
         lights = await client.list_lights()
-        return {"success": True, "data": {"lights": lights}, self._LANGUAGE_RESULT_KEY: language}
+        reached = reached_devices(await client.list_connectivity())
+        unreachable = [
+            light.get("metadata", {}).get("name", "")
+            for light in lights
+            if reached.get(light.get("owner", {}).get("rid", "")) is False
+        ]
+        return {
+            "success": True,
+            "data": {"lights": lights, "unreachable": unreachable},
+            self._LANGUAGE_RESULT_KEY: language,
+        }
 
     def format_registry_response(
         self,
@@ -199,6 +135,7 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
     ) -> UnifiedToolOutput:
         """Format lights as Data Registry UnifiedToolOutput."""
         lights = result.get("data", {}).get("lights", [])
+        unreachable = result.get("data", {}).get("unreachable", [])
         language = self._language_from_result(result)
         registry_updates: dict[str, RegistryItem] = {}
 
@@ -231,6 +168,10 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
         summary_parts.append(_("{count} light(s) found", language).format(count=len(lights)))
         if on_count:
             summary_parts.append(_("{count} currently on", language).format(count=on_count))
+        if unreachable:
+            summary_parts.append(
+                _("not answering: {names}", language).format(names=", ".join(unreachable))
+            )
 
         return UnifiedToolOutput.data_success(
             message=", ".join(summary_parts),
@@ -238,6 +179,7 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
             structured_data={
                 "count": len(lights),
                 "on_count": on_count,
+                "unreachable": unreachable,
             },
             metadata={"type": "hue_lights", "count": len(lights)},
         )
@@ -270,10 +212,10 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
 
         # Resolve name → ID
         lights = await client.list_lights()
-        target = _find_resource_by_name(lights, light_name_or_id)
+        target = find_resource_by_name(lights, light_name_or_id)
         if not target:
             available = [lt.get("metadata", {}).get("name", "?") for lt in lights]
-            return _not_found(
+            return not_found(
                 _("Light '{name}' not found. Available: {available}", language).format(
                     name=light_name_or_id, available=", ".join(available)
                 ),
@@ -285,6 +227,8 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
 
         # Build update params
         color_xy = resolve_color(color) if color else None
+        if color and color_xy is None:
+            return unreadable_colour(color, language)
         brightness_float = float(brightness) if brightness is not None else None
 
         result = await client.update_light(
@@ -315,7 +259,7 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         language = self._language_from_result(result)
 
         if not explicit_success(result):
-            return _refusal(result, _("Light control failed", language))
+            return refusal(result, _("Light control failed", language))
 
         data = result.get("data", {})
         parts = [f"'{data.get('name')}':"]
@@ -347,7 +291,7 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
 
 
 class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
-    """Tool for listing Philips Hue rooms."""
+    """Tool for listing Philips Hue rooms and zones."""
 
     connector_type = ConnectorType.PHILIPS_HUE
     client_class = PhilipsHueClient
@@ -362,19 +306,28 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
         """Execute list rooms API call."""
         language = await self._fetch_language()
         rooms = await client.list_rooms()
-        return {"success": True, "data": {"rooms": rooms}, self._LANGUAGE_RESULT_KEY: language}
+        zones = await client.list_zones()
+        return {
+            "success": True,
+            "data": {"rooms": rooms, "zones": zones},
+            self._LANGUAGE_RESULT_KEY: language,
+        }
 
     def format_registry_response(
         self,
         result: dict[str, Any],
     ) -> UnifiedToolOutput:
         """Format rooms list."""
-        rooms = result.get("data", {}).get("rooms", [])
+        data = result.get("data", {})
+        groups = [
+            *(("room", room) for room in data.get("rooms", [])),
+            *(("zone", zone) for zone in data.get("zones", [])),
+        ]
         language = self._language_from_result(result)
 
         summary_parts = []
         structured_rooms: list[dict[str, Any]] = []
-        for room in rooms:
+        for kind, room in groups:
             name = room.get("metadata", {}).get("name", "?")
             room_id = room.get("id", "")
             children_count = len(room.get("children", []))
@@ -385,21 +338,22 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
                 {
                     "room_id": room_id,
                     "name": name,
+                    "kind": kind,
                     "children_count": children_count,
                 }
             )
 
-        if rooms:
+        if groups:
             message = _("{count} room(s): {rooms}", language).format(
-                count=len(rooms), rooms=", ".join(summary_parts)
+                count=len(groups), rooms=", ".join(summary_parts)
             )
         else:
             message = _("No rooms found", language)
 
         return UnifiedToolOutput.data_success(
             message=message,
-            structured_data={"rooms": structured_rooms, "count": len(rooms)},
-            metadata={"type": "hue_rooms", "count": len(rooms)},
+            structured_data={"rooms": structured_rooms, "count": len(groups)},
+            metadata={"type": "hue_rooms", "count": len(groups)},
         )
 
 
@@ -409,7 +363,7 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
 
 
 class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
-    """Tool for controlling all lights in a Philips Hue room."""
+    """Tool for controlling all lights in a Philips Hue room or zone."""
 
     connector_type = ConnectorType.PHILIPS_HUE
     client_class = PhilipsHueClient
@@ -426,13 +380,23 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         room_name_or_id: str = kwargs.get("room_name_or_id", "")
         on: bool | None = kwargs.get("on")
         brightness: int | None = kwargs.get("brightness")
+        color: str | None = kwargs.get("color")
 
-        # Resolve name → ID
+        color_xy = resolve_color(color) if color else None
+        if color and color_xy is None:
+            return unreadable_colour(color, language)
+
+        # Resolve name → ID, a room first: a zone gathers lamps a room already holds
         rooms = await client.list_rooms()
-        target = _find_resource_by_name(rooms, room_name_or_id)
+        zones = await client.list_zones()
+        target = find_resource_by_name(rooms, room_name_or_id)
+        group: HueGroupKind = "room"
         if not target:
-            available = [r.get("metadata", {}).get("name", "?") for r in rooms]
-            return _not_found(
+            target = find_resource_by_name(zones, room_name_or_id)
+            group = "zone"
+        if not target:
+            available = [r.get("metadata", {}).get("name", "?") for r in (*rooms, *zones)]
+            return not_found(
                 _("Room '{name}' not found. Available: {available}", language).format(
                     name=room_name_or_id, available=", ".join(available)
                 ),
@@ -443,7 +407,9 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         room_name = target.get("metadata", {}).get("name", room_id)
 
         brightness_float = float(brightness) if brightness is not None else None
-        result = await client.control_room(room_id, on=on, brightness=brightness_float)
+        result = await client.control_room(
+            room_id, on=on, brightness=brightness_float, color_xy=color_xy, group=group
+        )
 
         return {
             "success": True,
@@ -452,6 +418,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
                 "name": room_name,
                 "on": on,
                 "brightness": brightness,
+                "color": color,
                 "api_result": result,
             },
             self._LANGUAGE_RESULT_KEY: language,
@@ -465,7 +432,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         language = self._language_from_result(result)
 
         if not explicit_success(result):
-            return _refusal(result, _("Room control failed", language))
+            return refusal(result, _("Room control failed", language))
 
         data = result.get("data", {})
         parts = [_("Room '{name}':", language).format(name=data.get("name"))]
@@ -473,6 +440,8 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
             parts.append(_("all on", language) if data["on"] else _("all off", language))
         if data.get("brightness") is not None:
             parts.append(_("brightness {pct}%", language).format(pct=data["brightness"]))
+        if data.get("color"):
+            parts.append(_("color {color}", language).format(color=data["color"]))
 
         return UnifiedToolOutput.data_success(
             message=" ".join(parts),
@@ -483,6 +452,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
                 "name": data.get("name"),
                 "on": data.get("on"),
                 "brightness": data.get("brightness"),
+                "color": data.get("color"),
             },
             metadata={"type": "hue_room_control", "room_id": data.get("room_id")},
         )
@@ -563,13 +533,14 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         """Execute scene activation API call."""
         language = await self._fetch_language()
         scene_name_or_id: str = kwargs.get("scene_name_or_id", "")
+        motion: bool | None = kwargs.get("motion")
 
         # Resolve name → ID
         scenes = await client.list_scenes()
-        target = _find_resource_by_name(scenes, scene_name_or_id)
+        target = find_resource_by_name(scenes, scene_name_or_id)
         if not target:
             available = [s.get("metadata", {}).get("name", "?") for s in scenes]
-            return _not_found(
+            return not_found(
                 _("Scene '{name}' not found. Available: {available}", language).format(
                     name=scene_name_or_id, available=", ".join(available)
                 ),
@@ -579,13 +550,14 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         scene_id = target["id"]
         scene_name = target.get("metadata", {}).get("name", scene_id)
 
-        result = await client.activate_scene(scene_id)
+        result = await client.activate_scene(scene_id, action=scene_action(motion))
 
         return {
             "success": True,
             "data": {
                 "scene_id": scene_id,
                 "name": scene_name,
+                "motion": motion,
                 "api_result": result,
             },
             self._LANGUAGE_RESULT_KEY: language,
@@ -599,7 +571,7 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         language = self._language_from_result(result)
 
         if not explicit_success(result):
-            return _refusal(result, _("Scene activation failed", language))
+            return refusal(result, _("Scene activation failed", language))
 
         data = result.get("data", {})
         return UnifiedToolOutput.data_success(
@@ -609,6 +581,7 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
                 "success": True,
                 "scene_id": data.get("scene_id"),
                 "name": data.get("name"),
+                "motion": data.get("motion"),
             },
             metadata={"type": "hue_scene", "scene_id": data.get("scene_id")},
         )
@@ -745,7 +718,7 @@ async def list_hue_rooms_tool(
 async def control_hue_room_tool(
     room_name_or_id: Annotated[
         str,
-        "Name or ID of the room to control (e.g., 'Living room', 'Bedroom')",
+        "Name or ID of the room or zone to control (e.g., 'Living room', 'TV corner')",
     ],
     on: Annotated[
         bool | None,
@@ -755,19 +728,25 @@ async def control_hue_room_tool(
         int | None,
         "Brightness percentage 0-100 for all lights. Leave empty to keep current.",
     ] = None,
+    color: Annotated[
+        str | None,
+        "Color name (red, blue, warm_white) or CIE 'x,y' for all lights. Leave empty to keep "
+        "current; a light without color keeps its own.",
+    ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
-    Control all lights in a Philips Hue room at once.
+    Control all lights in a Philips Hue room or zone at once.
 
-    Adjusts all lights in the specified room simultaneously.
-    Use list_hue_rooms_tool first to find available room names.
+    Adjusts all lights in the specified room or zone simultaneously.
+    Use list_hue_rooms_tool first to find available names.
     """
     return await _control_hue_room_impl.execute(
         runtime,
         room_name_or_id=room_name_or_id,
         on=on,
         brightness=brightness,
+        color=color,
     )
 
 
@@ -802,6 +781,11 @@ async def activate_hue_scene_tool(
         str,
         "Name or ID of the scene to activate (e.g., 'Movie', 'Relax', 'Energize')",
     ],
+    motion: Annotated[
+        bool | None,
+        "True plays the scene in motion, false holds it still. Leave empty to show it as it "
+        "stands.",
+    ] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -813,4 +797,5 @@ async def activate_hue_scene_tool(
     return await _activate_hue_scene_impl.execute(
         runtime,
         scene_name_or_id=scene_name_or_id,
+        motion=motion,
     )

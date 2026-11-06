@@ -210,7 +210,7 @@ function SkillFrameCard({ payload }: { payload: SkillAppRegistryPayload }) {
     className: 'lia-skill-app-widget__iframe',
     title: `Skill: ${title}`,
     sandbox,
-    // background: transparent so the parent (LIA) page shows through the
+    // background: transparent so the widget's surface shows through the
     // iframe when the skill's own <body> is transparent. Without this the
     // browser default (white) leaks through in dark mode.
     style: { aspectRatio: String(aspect), background: 'transparent' },

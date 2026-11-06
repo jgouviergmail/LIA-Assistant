@@ -55,21 +55,68 @@ function section(data: DocumentsData | null, status = 'ok'): CardSection<Documen
 const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
 
 const fullData: DocumentsData = {
+  provider: null,
   items: [
     {
       name: 'Devis plomberie.pdf',
       modified_local: '14:30',
       web_view_link: 'https://drive.google.com/file/d/f1/view',
       mime_type: 'application/pdf',
+      path: null,
     },
     {
       name: 'Notes réunion',
       modified_local: '09:12 21/07/2026',
       web_view_link: null,
       mime_type: 'application/vnd.google-apps.document',
+      path: null,
     },
   ],
 };
+
+describe('DocumentsCard — where a file lives', () => {
+  const located = (path: string | null, provider: string | null): CardSection<DocumentsData> =>
+    section({
+      provider,
+      items: [
+        {
+          name: 'Devis.pdf',
+          modified_local: '10:00',
+          web_view_link: null,
+          mime_type: 'application/pdf',
+          path,
+        },
+      ],
+    });
+  const render = (card: CardSection<DocumentsData>) =>
+    renderWithProviders(<DocumentsCard {...cardProps} section={card} />);
+
+  it('names the drive and the folders', () => {
+    render(located('Documents/Factures', 'microsoft_onedrive'));
+
+    expect(screen.getByText('OneDrive / Documents / Factures')).toBeInTheDocument();
+  });
+
+  it('names the drive alone for a file at its top', () => {
+    render(located('', 'google_drive'));
+
+    expect(screen.getByText('Google Drive')).toBeInTheDocument();
+  });
+
+  it('reads the place above the kind of file', () => {
+    render(located('Documents', 'microsoft_onedrive'));
+
+    const where = screen.getByText('OneDrive / Documents');
+    const kind = screen.getByText('dashboard.briefing.cards.documents.type_pdf');
+    expect(where.compareDocumentPosition(kind) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says nothing of a place it does not know', () => {
+    render(located(null, 'google_drive'));
+
+    expect(screen.queryByText(/Google Drive/)).toBeNull();
+  });
+});
 
 describe('DocumentsCard', () => {
   beforeEach(() => {
@@ -123,7 +170,7 @@ describe('DocumentsCard', () => {
     renderWithProviders(
       <DocumentsCard
         {...cardProps}
-        section={section({ items: [{ ...fullData.items[0], mime_type }] })}
+        section={section({ provider: null, items: [{ ...fullData.items[0]!, mime_type }] })}
       />
     );
 

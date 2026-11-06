@@ -34,6 +34,9 @@ per finding:
   the manual synchronisation does. A crash mid-apply leaves a lease the reaper
   reclaims with a full synchronisation (audit F001), so the token may move as
   soon as every window is handed over.
+- **A wake reads one drive.** The feed is the account's, on the provider the
+  notification came from; a folder of the other drive waits (``drive_provider``).
+  A feed that forgot its token, as Graph's does, is rebased like a long one.
 """
 
 from __future__ import annotations
@@ -53,11 +56,10 @@ from src.core.constants import (
     REDIS_KEY_DRIVE_PUSH_TRUNCATIONS_PREFIX,
 )
 from src.core.exceptions import ExternalServiceError
-from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
+from src.domains.connectors.clients.onedrive_changes import ChangesFeedLostError
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.session_scope import DetachedConnectorService
-from src.domains.push_channels.models import PushChannelProvider
 from src.domains.push_channels.repository import PushChannelRepository
 from src.domains.push_channels.service import DRIVE_WATCH_TARGET
 from src.domains.push_channels.wake import enqueue_wake
@@ -76,6 +78,7 @@ from src.domains.rag_spaces.drive_ingest import (
     process_queued,
     remove_drive_document,
 )
+from src.domains.rag_spaces.drive_provider import drive_client_of
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
@@ -135,12 +138,14 @@ class _PushPlan:
     """What one wake needs, read in a session that is closed before the drain.
 
     Attributes:
+        provider: The drive the notification came from.
         channel_id: The Drive channel row.
         token: Where the feed is read from — the channel's own token.
-        credentials: The account's Drive credentials.
-        sources: The linked sources, as routing snapshots.
+        credentials: The account's credentials for that drive.
+        sources: The folders linked on that drive, as routing snapshots.
     """
 
+    provider: str
     channel_id: UUID
     token: str
     credentials: ConnectorCredentials
@@ -161,11 +166,12 @@ class _Handover:
     token: str
 
 
-async def reindex_from_push(user_id: UUID) -> str:
-    """Turn a Drive change notification into targeted reindexations.
+async def reindex_from_push(user_id: UUID, provider: str) -> str:
+    """Turn a drive's change notification into targeted reindexations.
 
     Args:
         user_id: The channel owner.
+        provider: The drive it came from: a push provider, the connector's own word.
 
     Returns:
         A bounded outcome: ``reindexed`` (a touched tree's window was handed
@@ -177,7 +183,7 @@ async def reindex_from_push(user_id: UUID) -> str:
     """
     outcome = _ERROR
     try:
-        plan = await _load_plan(user_id)
+        plan = await _load_plan(user_id, provider)
         outcome = _NO_LINKED_FOLDER if plan is None else await _serve(user_id, plan)
         return outcome
     except _FeedUnavailable as unavailable:
@@ -198,21 +204,23 @@ async def reindex_from_push(user_id: UUID) -> str:
         rag_drive_push_reindex_total.labels(outcome=outcome).inc()
 
 
-async def _load_plan(user_id: UUID) -> _PushPlan | None:
+async def _load_plan(user_id: UUID, provider: str) -> _PushPlan | None:
     """Sources, channel token and credentials — one short session, closed on return."""
     async with DetachedConnectorService().unit_of_work() as service:
-        sources = await RAGDriveSourceRepository(service.db).get_all_for_user(user_id)
+        linked = await RAGDriveSourceRepository(service.db).get_all_for_user(user_id)
+        sources = [source for source in linked if source.provider == provider]
         if not sources:
             return None
         channel = await PushChannelRepository(service.db).get_for_user(
-            user_id, PushChannelProvider.GOOGLE_DRIVE.value, DRIVE_WATCH_TARGET
+            user_id, provider, DRIVE_WATCH_TARGET
         )
         if channel is None or not channel.page_token:
             return None
-        credentials = await service.get_connector_credentials(user_id, ConnectorType.GOOGLE_DRIVE)
+        credentials = await service.get_connector_credentials(user_id, ConnectorType(provider))
         if credentials is None:
             return None
         return _PushPlan(
+            provider=provider,
             channel_id=channel.id,
             token=str(channel.page_token),
             credentials=credentials,
@@ -222,13 +230,17 @@ async def _load_plan(user_id: UUID) -> _PushPlan | None:
 
 async def _serve(user_id: UUID, plan: _PushPlan) -> str:
     """Drain under bounds, offer the window, then move the token — or hold it."""
-    client = GoogleDriveClient(user_id, plan.credentials, DetachedConnectorService())
+    client = drive_client_of(plan.provider, user_id, plan.credentials, DetachedConnectorService())
     try:
         router = ChangeRouter(plan.sources)
-        # A Google push can trigger this at four in the morning; before it was
-        # recorded, the person had no way to learn their Drive had been opened.
-        async with space_read(user_id=user_id, section=SECTION_DRIVE):
-            last, end = await _drain(user_id, client, plan.token, router)
+        # A push can trigger this at four in the morning; before it was recorded,
+        # the person had no way to learn their drive had been opened.
+        try:
+            async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                last, end = await _drain(user_id, client, plan.token, router)
+        except ChangesFeedLostError:
+            logger.warning("rag_drive_push_feed_lost", user_id=str(user_id))
+            return await _settle(user_id, plan, await _rebase(user_id, plan, client), _REBASED)
         rebasing = not last.drained and await _truncation_streak(user_id) >= (
             settings.rag_drive_push_max_consecutive_truncations
         )
@@ -237,17 +249,22 @@ async def _serve(user_id: UUID, plan: _PushPlan) -> str:
             if rebasing
             else _offer_window(user_id, plan.credentials, router, last)
         )
-        if _LOCKED in handover.outcomes:
-            return await _hold(user_id)
-        await _advance(plan, handover.token)
-        await _close_drain(user_id, end=_REBASED if rebasing else end)
-        return _REBASED if rebasing else _aggregate(handover.outcomes)
+        return await _settle(user_id, plan, handover, _REBASED if rebasing else end)
     finally:
         await client.close()
 
 
+async def _settle(user_id: UUID, plan: _PushPlan, handover: _Handover, end: str) -> str:
+    """Move the token past what was handed over, or hold it for a tree still syncing."""
+    if _LOCKED in handover.outcomes:
+        return await _hold(user_id, plan.provider)
+    await _advance(plan, handover.token)
+    await _close_drain(user_id, plan.provider, end=end)
+    return _REBASED if end == _REBASED else _aggregate(handover.outcomes)
+
+
 async def _drain(
-    user_id: UUID, client: GoogleDriveClient, token: str, router: ChangeRouter
+    user_id: UUID, client: Any, token: str, router: ChangeRouter
 ) -> tuple[ChangesPage, str]:
     """Route every page of one bounded drain; the last page says where it stopped.
 
@@ -353,7 +370,7 @@ async def _launch_locked(
 async def _apply(user_id: UUID, credentials: ConnectorCredentials, entry: TouchedSource) -> None:
     """Apply one tree's window under its lease, then release it (COMPLETED or ERROR)."""
     route = entry.source
-    client = GoogleDriveClient(user_id, credentials, DetachedConnectorService())
+    client = drive_client_of(route.provider, user_id, credentials, DetachedConnectorService())
     try:
         async with get_db_context() as db:
             repo = RAGDriveSourceRepository(db)
@@ -377,7 +394,7 @@ async def _apply(user_id: UUID, credentials: ConnectorCredentials, entry: Touche
 
 
 async def _apply_changes(
-    db: Any, client: GoogleDriveClient, entry: TouchedSource, user_id: UUID
+    db: Any, client: Any, entry: TouchedSource, user_id: UUID
 ) -> list[dict[str, Any]]:
     """Removals and ingestions of one window; the ingestion kwargs to embed."""
     jobs = RAGJobsRepository(db)
@@ -391,7 +408,7 @@ async def _apply_changes(
 
 async def _apply_change(
     db: Any,
-    client: GoogleDriveClient,
+    client: Any,
     jobs: RAGJobsRepository,
     route: SourceRoute,
     change: dict[str, Any],
@@ -468,27 +485,27 @@ async def _truncation_streak(user_id: UUID) -> int:
         return 0
 
 
-async def _close_drain(user_id: UUID, *, end: str) -> None:
+async def _close_drain(user_id: UUID, provider: str, *, end: str) -> None:
     """A drained or rebased feed ends the streak; a cut one continues next sweep."""
     rag_drive_push_drains_total.labels(end=end).inc()
     if end in _CUT_ENDS:
-        await _requeue(user_id)
+        await _requeue(user_id, provider)
         return
     await _reset_streak(user_id)
 
 
-async def _hold(user_id: UUID) -> str:
+async def _hold(user_id: UUID, provider: str) -> str:
     """A tree refused its window: keep the token, replay the window next sweep."""
     rag_drive_push_drains_total.labels(end=_HELD).inc()
-    await _requeue(user_id)
+    await _requeue(user_id, provider)
     return _LOCKED
 
 
-async def _requeue(user_id: UUID) -> None:
+async def _requeue(user_id: UUID, provider: str) -> None:
     await enqueue_wake(
         await get_redis_cache(),
         user_id,
-        PushChannelProvider.GOOGLE_DRIVE.value,
+        provider,
         ttl_seconds=settings.push_wake_payload_ttl_seconds,
     )
 
@@ -500,7 +517,7 @@ async def _reset_streak(user_id: UUID) -> None:
         logger.debug("rag_drive_push_streak_reset_failed", error_type=type(exc).__name__)
 
 
-async def _rebase(user_id: UUID, plan: _PushPlan, client: GoogleDriveClient) -> _Handover:
+async def _rebase(user_id: UUID, plan: _PushPlan, client: Any) -> _Handover:
     """Stop replaying: the feed's CURRENT start, then every tree re-synchronised in full.
 
     The start token is read BEFORE the synchronisations begin: each walk then

@@ -47,12 +47,16 @@ def build_tasks_agent() -> Any:
         resolve_reference,
         set_current_item,
     )
+    from src.domains.agents.tools.task_organize_tools import (
+        list_task_lists_tool,
+        move_task_tool,
+        rename_task_list_tool,
+    )
     from src.domains.agents.tools.tasks_tools import (
         complete_task_tool,
         create_task_tool,
         delete_task_tool,
         get_tasks_tool,  # Unified tool (v2.0 - replaces list + details)
-        list_task_lists_tool,
         update_task_tool,
     )
 
@@ -66,6 +70,8 @@ def build_tasks_agent() -> Any:
             delete_task_tool,
             complete_task_tool,
             list_task_lists_tool,
+            rename_task_list_tool,
+            move_task_tool,
             # Context resolution tools
             resolve_reference,
             get_context_list,

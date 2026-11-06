@@ -65,6 +65,7 @@ from src.infrastructure.observability.metrics_proactive_discussions import (
     proactive_discussion_runs_total,
 )
 from src.infrastructure.proactive.discussion_attention import DiscussionAuthority, InitiativeStopped
+from src.infrastructure.proactive.discussion_bounds import discussion_deadline_seconds
 from src.infrastructure.proactive.discussion_context import NativeContextStore
 from src.infrastructure.proactive.discussion_control import ControlSnapshot
 from src.infrastructure.proactive.discussion_delivery import dispatch_discussion
@@ -656,11 +657,7 @@ async def _attempt(act: DiscussionAct) -> SettledRunState:
     (a rebuild cut short is served again and resumes), never a failure.
     """
     claim = act.setup.claim
-    deadline = asyncio.timeout(
-        settings.discussion_rebuild_deadline_seconds
-        if act.setup.context_only
-        else settings.discussion_run_deadline_seconds
-    )
+    deadline = asyncio.timeout(discussion_deadline_seconds(act.setup.context_only))
     try:
         async with deadline:
             return "completed" if await _generate_and_publish(act) else "skipped"

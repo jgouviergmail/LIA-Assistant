@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 3.0
-**Data**: 2026-11-01
-**Applicazione**: LIA v4.3.0
+**Data**: 2026-11-06
+**Applicazione**: LIA v4.4.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA. Il mio lavoro è stato 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA, diretta, inquadrata e controllata | **≈ 100 %** |
-| Righe di codice sorgente (esclusi i test), suddivise in 60 pacchetti di dominio backend | **1.092.074** |
-| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **72.137** |
-| Decisioni di architettura documentate (ADR) | **367** |
-| Versioni rilasciate a ritmo regolare | **293** |
+| Righe di codice sorgente (esclusi i test), suddivise in 61 pacchetti di dominio backend | **1.130.379** |
+| Test automatizzati inventariati, in suite adatte al commit e al rilascio | **76.381** |
+| Decisioni di architettura documentate (ADR) | **368** |
+| Versioni rilasciate a ritmo regolare | **294** |
 | Lingue, con una parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **7,9/10** |
 
@@ -37,7 +37,7 @@ LIA può anche avviare da sé una conversazione personale, ma solo negli orari, 
 
 L'IA generativa cambia ciò che i team producono, e anche il modo in cui lo producono. Su queste due questioni non volevo farmi un'opinione a partire dai discorsi del mercato. Ho preferito confrontarmi di persona con la realtà completa di un sistema di IA in produzione, con i suoi costi, i suoi rischi, la sua gestione operativa e il suo debito, e con quella dello sviluppo assistito dall'IA, andando fino in fondo in entrambi i casi.
 
-Il mio terreno di prova è LIA, un assistente IA conversazionale multi-agente, auto-ospitato e multilingue. Gestisce la posta, l'agenda, i contatti e i file su Google, Apple e Microsoft, offre un'interfaccia vocale in tempo reale, una memoria a lungo termine e la ricerca nei documenti, e un personaggio animato la incarna.
+Il mio terreno di prova è LIA, un assistente IA conversazionale multi-agente, auto-ospitato e multilingue. Gestisce la posta, l'agenda e i contatti su Google, Apple e Microsoft, i file su Google Drive e OneDrive, offre un'interfaccia vocale in tempo reale, una memoria a lungo termine e la ricerca nei documenti, e un personaggio animato la incarna.
 
 Mi sono imposto dei vincoli: lavorare da solo, fuori dal mio orario di lavoro, con un budget hardware minimo, e affidare tutto lo sviluppo all'IA. Questo progetto non misura quindi quanto velocemente una persona riesce a produrre. Misura ciò che una direzione esigente ottiene da un'IA inquadrata correttamente.
 
@@ -64,7 +64,7 @@ Il mondo condiviso dà all'assistente dei luoghi: una biblioteca per le conoscen
 
 Volevo anche che un assistente lasciasse spazio alle cose fatte in prima persona. Strumenti utilizza gli stessi servizi collegati, ma un clic non chiama modelli e non viene registrato come un atto di LIA. Delega e controllo diretto possono condividere un’interfaccia se resta chiaro chi ha deciso, chi ha agito e che cosa è stato approvato.
 
-Ecco tre decisioni strutturanti, tra le 367 documentate.
+Ecco tre decisioni strutturanti, tra le 368 documentate.
 
 La prima riguarda la **sovranità**: non volevo alcuna dipendenza irreversibile da un fornitore. I modelli di IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity e modelli locali con Ollama) passano tutti per una stessa astrazione, così ogni utilizzo può cambiare fornitore con una semplice configurazione, con il confronto dei costi. Quanto ai servizi, Google, Apple e Microsoft sono intercambiabili per ogni categoria, che si tratti di posta, agenda o contatti. L'auto-hosting dà il controllo del server: i dati dell'account sono conservati sull'istanza e le credenziali dei connettori sono cifrate. I servizi remoti che la persona sceglie ricevono comunque i dati utili alla loro parte della richiesta.
 
@@ -76,7 +76,7 @@ La terza riguarda il **controllo del rischio**: nessuna azione irreversibile sen
 
 Al telefono, la scheda di conferma serve a proteggere un terzo. Quando LIA chiama la persona stessa, su un numero che ha dichiarato e verificato con un codice letto ad alta voce, è la persona stessa a fare da scheda. Per le sue chiamate, come per una sessione vocale live del browser aperta sulla sua chiave Gemini, OpenAI o ElevenLabs, è lei a scegliere la modalità: o la voce affida ogni richiesta alla chat nel momento in cui viene detta, con le sue conferme, oppure legge da sola e non agisce su nulla. Ciò che gira sulla sua chiave personale è fatturato dal fornitore e mostrato una volta, ma non viene contato qui. Ciò che la piattaforma paga per lei, invece, viene registrato nel suo account, qualunque sia il percorso: una mappa consultata durante una chiamata, il meteo del briefing, una foto mostrata.
 
-Ciò che invia uno sconosciuto, un'e-mail o il suo allegato, resta un dato da leggere e mai un'istruzione da seguire. Uno script scritto dall'assistente esce sul web da una sola porta, e le chiavi della persona vengono scambiate lì, fuori dalla portata dello script; per un sito che nessuno ha autorizzato, LIA chiede prima alla persona, che ha tre risposte possibili: con i dati, senza i dati, oppure per niente. Quando l'agente autonomo non riesce a ottenere ciò che gli si chiede, lo dice, con ciò che ha tentato, invece di colmare il vuoto. Ciò che deve essere esatto, come un importo, una durata o una conversione, è calcolato da uno strumento e mai stimato dal modello. Ciò che parte senza conferma è rivolto solo alla persona stessa, un'e-mail a sé o una chiamata al proprio numero verificato: lì il destinatario non è un parametro, quindi nulla può deviarlo. Una competenza scritta altrove, presa da una libreria pubblica o da un plugin, lavora in disparte: non accede mai ai connettori della persona e raggiunge solo gli host consentiti. E una competenza scritta dall'IA entra nello spazio della persona solo quando questa fa clic.
+Ciò che invia uno sconosciuto, un'e-mail o il suo allegato, resta un dato da leggere e mai un'istruzione da seguire. Uno script scritto dall'assistente esce sul web da una sola porta, e le chiavi della persona vengono scambiate lì, fuori dalla portata dello script; per un sito che nessuno ha autorizzato, LIA chiede prima alla persona, che ha tre risposte possibili: con i dati, senza i dati, oppure per niente. Una pagina che scrive gira in un riquadro che non raggiunge né l'account della persona né alcun sito di sua scelta. Quando l'agente autonomo non riesce a ottenere ciò che gli si chiede, lo dice, con ciò che ha tentato, invece di colmare il vuoto. Ciò che deve essere esatto, come un importo, una durata o una conversione, è calcolato da uno strumento e mai stimato dal modello. Ciò che parte senza conferma è rivolto solo alla persona stessa, un'e-mail a sé o una chiamata al proprio numero verificato: lì il destinatario non è un parametro, quindi nulla può deviarlo. Una competenza scritta altrove, presa da una libreria pubblica o da un plugin, lavora in disparte: non accede mai ai connettori della persona e raggiunge solo gli host consentiti. E una competenza scritta dall'IA entra nello spazio della persona solo quando questa fa clic.
 
 ## 5. L'esercizio
 
@@ -118,4 +118,4 @@ Ecco che cosa cambia questa esperienza nel mio modo di dirigere.
 - Tra il divieto generale e la fiducia cieca esiste una **via governabile**. Il controllo umano graduato si specifica, si testa e si sottopone ad audit. È l'approccio che stanno delineando le esigenze normative, ed è operativo fin da ora.
 - Un dirigente che pratica in prima persona **arbitra meglio**. Fare o far fare, accettare un debito o no, credere o no alla promessa di un fornitore: queste decisioni diventano più giuste quando si è toccata la materia con mano. Questo progetto è il mio modo di mantenere questo contatto con il terreno.
 
-*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall'audit del 25 ottobre 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 31 ottobre 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Progetto personale, condotto al di fuori di ogni attività professionale. Valutazione tecnica dall'audit del 25 ottobre 2026, con rilievi contro-verificati. I conteggi strutturali seguono il repository; le righe di codice sorgente sono state rimisurate il 6 novembre 2026. Repository: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

@@ -79,6 +79,17 @@ class TestProductionHijacks:
         assert effective_skill_name("mcp_excalidraw", ["mcp_excalidraw"], "action") is None
 
 
+class TestAPageIsMadeNotPlayed:
+    """The skill wins every routing, so a request to make a page must not reach it."""
+
+    def test_a_skill_named_beside_a_page_verdict_is_suppressed(self, skills_cache: None) -> None:
+        assert effective_skill_name("interactive-map", ["interactive_page"], "action") is None
+
+    def test_a_secondary_page_domain_does_not_suppress(self, skills_cache: None) -> None:
+        kept = effective_skill_name("interactive-map", ["event", "interactive_page"], "action")
+        assert kept == "interactive-map"
+
+
 class TestAdr118DialogueExemption:
     def test_conversational_answer_keeps_the_dialogue_skill(self, skills_cache: None) -> None:
         """Mid-dialogue answer mentioning an MCP surface ('un skill qui

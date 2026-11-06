@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Gmail's mailbox settings on the mail screen (ADR-369, Tasks 4.6-4.7): the
+ * A mailbox's settings on the mail screen (ADR-369, Tasks 4.6-4.7, lot 12): the
  * vacation responder, read and set in the account's own days (the last one
- * included), and the filters, listed and created once per submission. Nothing
- * deletes a filter here: Gmail's client has no such act, and the panel says so.
- * Both are read only while the panel is open.
+ * included), and the filters, listed, created once per submission and deleted
+ * (one already gone is a deletion done). Both are read only while the panel is
+ * open.
  */
 import { useCallback } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { MailFilter, MailVacation } from '@/lib/workbench/types';
 
 const MAIL = '/workbench/mail';
@@ -44,6 +45,7 @@ export interface WorkbenchMailSettings {
   filtersError: unknown;
   setVacation: (change: MailVacationBody) => Promise<void>;
   createFilter: (body: MailFilterBody) => Promise<void>;
+  deleteFilter: (filterId: string) => Promise<void>;
 }
 
 /**
@@ -74,6 +76,10 @@ export function useWorkbenchMailSettings(
     method: 'POST',
     componentName: 'WorkbenchMailSettings',
   });
+  const { mutate: del } = useApiMutation<undefined, void>({
+    method: 'DELETE',
+    componentName: 'WorkbenchMailSettings',
+  });
 
   const setVacation = useCallback(
     async (change: MailVacationBody) => {
@@ -92,6 +98,19 @@ export function useWorkbenchMailSettings(
     [post, rereadFilters]
   );
 
+  const deleteFilter = useCallback(
+    async (filterId: string) => {
+      try {
+        await del(`${MAIL}/filters`, undefined, { params: { filter_id: filterId } });
+      } catch (error: unknown) {
+        if (workbenchRefusal(error)?.key !== 'workbench.errors.item_gone') throw error;
+      }
+      // The filter is gone; a failed re-read is the list's own error, said there.
+      await rereadFilters().catch(() => undefined);
+    },
+    [del, rereadFilters]
+  );
+
   return {
     vacation: vacation.data,
     vacationError: vacation.error,
@@ -99,5 +118,6 @@ export function useWorkbenchMailSettings(
     filtersError: filters.error,
     setVacation,
     createFilter,
+    deleteFilter,
   };
 }

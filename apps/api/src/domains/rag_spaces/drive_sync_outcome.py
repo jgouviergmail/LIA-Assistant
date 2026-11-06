@@ -1,5 +1,6 @@
 """A partial Drive census retains routing coverage and cannot claim a completed sync."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -13,6 +14,35 @@ from src.domains.rag_spaces.models import (
     RAGDriveSyncStatus,
 )
 from src.domains.rag_spaces.source_worker_lease import current_source_worker, require_source_worker
+
+
+@dataclass(frozen=True, slots=True)
+class DrivePreflight:
+    """What one synchronisation would do to the linked tree, counted exactly.
+
+    Every figure is computed by the code the synchronisation runs — the same
+    walk, the same ``is_unchanged`` and ``is_supported_drive_file`` — under
+    the space's document cap, and the walk's bounds travel with them: a cut
+    walk (``truncated``) makes every count a floor.
+    """
+
+    total_files: int
+    unsupported: int
+    unchanged: int
+    modified: int
+    new: int
+    #: New files the space has no room for (``rag_spaces_max_docs_per_space``).
+    over_capacity: int
+    #: ``modified + new`` within capacity — the files a synchronisation writes.
+    to_index: int
+    folders: int
+    unreadable_folders: int
+    truncated: bool
+    #: Published bounds and threshold (ADR-184: what is enforced is read).
+    threshold: int
+    max_files: int
+    max_folders: int
+    requires_confirmation: bool
 
 
 def drive_sync_values(

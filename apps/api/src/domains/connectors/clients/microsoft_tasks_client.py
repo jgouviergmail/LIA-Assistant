@@ -12,14 +12,15 @@ Scopes required:
 - Tasks.Read, Tasks.ReadWrite
 """
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Final
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
-from src.core.exceptions import ResourceNotFoundError
+from src.core.exceptions import ConnectorAPIError, ResourceNotFoundError
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
 from src.domains.connectors.clients.normalizers.graph_paging import (
@@ -31,12 +32,22 @@ from src.domains.connectors.clients.normalizers.microsoft_tasks_normalizer impor
     graph_task_status,
     normalize_graph_task,
     normalize_graph_task_list,
+    normalize_step,
+    task_copy_body,
 )
 from src.domains.connectors.clients.path_segments import path_segment
+from src.domains.connectors.clients.task_details import (
+    TaskDetails,
+    TaskLeftBehindError,
+    details_body,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
 logger = structlog.get_logger(__name__)
+
+#: A task's steps come with it: one read, none per task.
+_WITH_STEPS: Final = {"$expand": "checklistItems"}
 
 
 class MicrosoftTasksClient(BaseMicrosoftClient):
@@ -51,7 +62,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
     task list and uses its ID.
 
     GOTCHA: Microsoft To Do has no subtask hierarchy (parent parameter).
-    The parent parameter is accepted for interface compatibility but ignored.
+    The parent parameter is accepted for interface compatibility but ignored;
+    a task holds steps of its own instead (``add_task_step``).
 
     Example:
         >>> client = MicrosoftTasksClient(user_id, credentials, connector_service)
@@ -172,6 +184,31 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
 
         return normalize_graph_task_list(response)
 
+    async def rename_task_list(self, task_list_id: str, title: str) -> dict[str, Any]:
+        """
+        Rename a task list.
+
+        Args:
+            task_list_id: Task list ID.
+            title: Its new title.
+
+        Returns:
+            The list as it is now, in Google Tasks format.
+        """
+        resolved_id = await self._resolve_list_id(task_list_id)
+
+        response = await self._make_request(
+            "PATCH", _list_path(resolved_id), json_data={"displayName": title}
+        )
+
+        logger.info(
+            "microsoft_tasks_rename_task_list",
+            user_id=str(self.user_id),
+            task_list_id=resolved_id,
+        )
+
+        return normalize_graph_task_list(response)
+
     async def delete_task_list(self, task_list_id: str) -> bool:
         """
         Delete a task list and all its tasks.
@@ -233,7 +270,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         max_results = apply_max_items_limit(max_results)
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        params: dict[str, Any] = {"$top": max_results}
+        params: dict[str, Any] = {"$top": max_results, **_WITH_STEPS}
 
         # Build $filter for completed status and due dates
         filters: list[str] = []
@@ -279,7 +316,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         """
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        response = await self._make_request("GET", _task_path(resolved_id, task_id))
+        response = await self._make_request("GET", _task_path(resolved_id, task_id), _WITH_STEPS)
 
         logger.info(
             "microsoft_tasks_get_task",
@@ -297,6 +334,9 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         notes: str | None = None,
         due: str | None = None,
         parent: str | None = None,
+        *,
+        details: TaskDetails | None = None,
+        steps: Sequence[str] = (),
     ) -> dict[str, Any]:
         """
         Create a new task.
@@ -307,6 +347,8 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             notes: Task notes/description.
             due: Due date in RFC 3339 format.
             parent: Parent task ID (IGNORED — Microsoft To Do has no subtask hierarchy).
+            details: Its importance, reminder and repetition.
+            steps: The steps it starts with.
 
         Returns:
             Created task data.
@@ -320,7 +362,9 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             )
 
         resolved_id = await self._resolve_list_id(task_list_id)
-        body = build_task_body(title=title, notes=notes, due=due)
+        body = build_task_body(title=title, notes=notes, due=due) | details_body(details)
+        if steps:
+            body["checklistItems"] = [{"displayName": step} for step in steps]
 
         response = await self._make_request(
             "POST", f"{_list_path(resolved_id)}/tasks", json_data=body
@@ -345,6 +389,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         status: str | None = None,
         *,
         clear_due: bool = False,
+        details: TaskDetails | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing task.
@@ -359,6 +404,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             due: New due date in RFC 3339 format.
             status: New status ("needsAction" or "completed").
             clear_due: Remove the due date (ADR-369).
+            details: What changes of its importance, reminder and repetition.
 
         Returns:
             Updated task data.
@@ -370,7 +416,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             raise ValueError("a due date and its removal cannot be asked together")
         resolved_id = await self._resolve_list_id(task_list_id)
 
-        body: dict[str, Any] = {}
+        body = details_body(details)
         if title is not None:
             body["title"] = title
         if notes is not None:
@@ -400,6 +446,108 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         )
 
         return normalize_graph_task(response)
+
+    async def move_task(
+        self, task_list_id: str, task_id: str, destination_list_id: str
+    ) -> dict[str, Any]:
+        """
+        Move a task to another list: a copy, then the original removed (``task_details``).
+
+        Args:
+            task_list_id: Its list.
+            task_id: The task.
+            destination_list_id: The list it goes to.
+
+        Returns:
+            The task where it is now, under the id To Do gave the copy.
+
+        Raises:
+            TaskLeftBehindError: It stands in both lists.
+        """
+        source = await self._resolve_list_id(task_list_id)
+        destination = await self._resolve_list_id(destination_list_id)
+        read = await self._make_request("GET", _task_path(source, task_id), _WITH_STEPS)
+        copy = await self._make_request(
+            "POST", f"{_list_path(destination)}/tasks", json_data=task_copy_body(read)
+        )
+        try:
+            await self._make_request("DELETE", _task_path(source, task_id))
+        except ConnectorAPIError as error:
+            raise TaskLeftBehindError from error
+
+        logger.info(
+            "microsoft_tasks_move_task",
+            user_id=str(self.user_id),
+            task_list_id=source,
+            task_id=task_id,
+        )
+
+        return normalize_graph_task(copy)
+
+    async def add_task_step(self, task_list_id: str, task_id: str, title: str) -> dict[str, Any]:
+        """
+        Add a step to a task.
+
+        Args:
+            task_list_id: Its list.
+            task_id: The task.
+            title: What the step says.
+
+        Returns:
+            The step: ``id``, ``title``, ``checked``.
+        """
+        resolved_id = await self._resolve_list_id(task_list_id)
+        response = await self._make_request(
+            "POST",
+            f"{_task_path(resolved_id, task_id)}/checklistItems",
+            json_data={"displayName": title},
+        )
+        return normalize_step(response)
+
+    async def change_task_step(
+        self,
+        task_list_id: str,
+        task_id: str,
+        step_id: str,
+        *,
+        title: str | None = None,
+        checked: bool | None = None,
+    ) -> dict[str, Any]:
+        """
+        Change a step: what is left out is kept.
+
+        Args:
+            task_list_id: Its list.
+            task_id: The task.
+            step_id: The step.
+            title: What it says now.
+            checked: Whether it is done.
+
+        Returns:
+            The step: ``id``, ``title``, ``checked``.
+        """
+        resolved_id = await self._resolve_list_id(task_list_id)
+        body: dict[str, Any] = {}
+        if title is not None:
+            body["displayName"] = title
+        if checked is not None:
+            body["isChecked"] = checked
+        response = await self._make_request(
+            "PATCH", _step_path(resolved_id, task_id, step_id), json_data=body
+        )
+        return normalize_step(response)
+
+    async def remove_task_step(self, task_list_id: str, task_id: str, step_id: str) -> None:
+        """
+        Remove a step.
+
+        Args:
+            task_list_id: Its list.
+            task_id: The task.
+            step_id: The step.
+        """
+        resolved_id = await self._resolve_list_id(task_list_id)
+        await self._make_request("DELETE", _step_path(resolved_id, task_id, step_id))
 
     async def complete_task(self, task_list_id: str, task_id: str) -> dict[str, Any]:
         """
@@ -479,6 +627,11 @@ def _list_path(task_list_id: str) -> str:
     """A list's path, its id one quoted segment (a browser's or a model's id)."""
     segment = path_segment(task_list_id, connector_type=ConnectorType.MICROSOFT_TASKS)
     return f"/me/todo/lists/{segment}"
+
+
+def _step_path(task_list_id: str, task_id: str, step_id: str) -> str:
+    segment = path_segment(step_id, connector_type=ConnectorType.MICROSOFT_TASKS)
+    return f"{_task_path(task_list_id, task_id)}/checklistItems/{segment}"
 
 
 def _task_path(task_list_id: str, task_id: str) -> str:

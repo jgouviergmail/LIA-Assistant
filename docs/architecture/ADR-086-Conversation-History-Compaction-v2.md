@@ -255,3 +255,9 @@ Guards: the point-10 cases of `tests/unit/agents/services/test_compaction_proven
 (`test_the_identifier_scan_stays_linear_on_hostile_input` among them),
 `test_compact_single_chunk` and `test_summarize_chunk_retries_then_succeeds` on the
 real usage shape.
+
+## Amendment 2026-11-05
+
+A chunk's call is bounded by the `compaction` slot's timeout, and `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS`
+is gone: it cut at 35 s a call the administrator had given 300 (ADR-221 amendment 2026-11-05).
+`COMPACTION_GLOBAL_TIMEOUT_SECONDS` stays the whole budget and yields to one whole call.

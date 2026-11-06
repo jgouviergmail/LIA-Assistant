@@ -1,4 +1,4 @@
-"""Skill-detection suppression on MCP-domain turns.
+"""Skill-detection suppression on turns another domain serves (MCP, a page).
 
 The defect this closes (proved in production, 2026-07-21 18:15-18:23): the
 QueryAnalyzer LLM fills ``domains`` and ``skill_name`` in ONE structured
@@ -38,6 +38,9 @@ from typing import Final
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+#: The domain that makes what a person will use (ADR-370).
+_PAGE_DOMAIN: Final = "interactive_page"
 
 # Textual stand-ins an LLM writes when it means "no value". Kept local rather
 # than in core/constants.py — like the parallel executor's timeout policy, this
@@ -152,6 +155,42 @@ def _is_dialogue_skill(skill_name: str | None, user_id: str | None) -> bool:
     return bool(skill and skill.get("dialogue"))
 
 
+def makes_a_page(domains: list[str]) -> bool:
+    """Whether the analyzer settled the turn on making a page (ADR-370).
+
+    Args:
+        domains: Detected domains, primary first.
+
+    Returns:
+        True when the page is the primary domain.
+    """
+    return bool(domains) and domains[0] == _PAGE_DOMAIN
+
+
+def contradicting_domain(domains: list[str]) -> str | None:
+    """Why the primary domain rules a skill out, or None when it does not.
+
+    Both verdicts name another way to serve the turn, and the router would follow
+    the skill. A page is the second such case (ADR-370): asked to make a game, the
+    analyzer named the page AND the skill of a neighbouring game, and the page
+    was never written, or written beside it. The planner reads the same answer for
+    the skill it tags a plan with.
+
+    Args:
+        domains: Detected domains, primary first.
+
+    Returns:
+        The metric's reason, or None.
+    """
+    from src.domains.agents.registry.domain_taxonomy import is_mcp_domain
+
+    if not domains:
+        return None
+    if is_mcp_domain(domains[0]):
+        return "mcp_domain"
+    return "page_domain" if makes_a_page(domains) else None
+
+
 def effective_skill_name(
     skill_name: str | None,
     domains: list[str],
@@ -172,7 +211,8 @@ def effective_skill_name(
        hallucination. The router gives ``detected_skill_name`` absolute
        priority, so an unreachable name steers the turn towards a skill that
        cannot run.
-    3. **MCP-domain coherence** (the original guard, see module docstring).
+    3. **Domain coherence**: an MCP verdict (the original guard, see module
+       docstring) or a page verdict (:func:`contradicting_domain`).
 
     Note the ordering moved the hallucinated-name case: ``mcp_excalidraw`` on an
     MCP turn used to be counted ``reason="mcp_domain"``, and now lands on
@@ -193,7 +233,6 @@ def effective_skill_name(
         The normalised skill name to act on, or None when the detection is
         suppressed by any of the three filters.
     """
-    from src.domains.agents.registry.domain_taxonomy import is_mcp_domain
     from src.infrastructure.observability.metrics_registry import (
         skill_detection_suppressed_total,
     )
@@ -223,16 +262,17 @@ def effective_skill_name(
         skill_detection_suppressed_total.labels(reason="unknown_skill").inc()
         return None
 
-    if domains and is_mcp_domain(domains[0]):
+    contradiction = contradicting_domain(domains)
+    if contradiction:
         if not (intent == "conversation" and _is_dialogue_skill(name, user_id)):
             logger.info(
-                "skill_detection_suppressed_mcp_domain",
+                f"skill_detection_suppressed_{contradiction}",
                 skill_name=name,
                 primary_domain=domains[0],
                 intent=intent,
-                msg="LLM filled skill_name against its own MCP-domain verdict",
+                msg="LLM filled skill_name against its own domain verdict",
             )
-            skill_detection_suppressed_total.labels(reason="mcp_domain").inc()
+            skill_detection_suppressed_total.labels(reason=contradiction).inc()
             return None
         logger.info(
             "skill_detection_kept_dialogue_over_mcp",

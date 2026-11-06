@@ -44,6 +44,10 @@ GOOGLE_CONTACTS_FIELD_MAPPINGS: dict[str, str] = {
     "occupations": "occupations",
     "skill": "skills",
     "skills": "skills",
+    "website": "urls",
+    "websites": "urls",
+    "url": "urls",
+    "urls": "urls",
     # ===== GROUP 5: SOCIAL & RELATIONSHIPS =====
     "relation": "relations",
     "relations": "relations",

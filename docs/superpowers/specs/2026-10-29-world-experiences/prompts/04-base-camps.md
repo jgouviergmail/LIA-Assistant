@@ -19,12 +19,12 @@ native approvals, results and runner recovery. Design camp outcome/reference
 data around those authorities; do not duplicate tasks, statuses, schedules,
 executors or permissions. A peer assigned one ticket gains no project-wide ACL.
 
-Explicitly settle D08: owner-private camp with native peer ticket assignment,
-or a separately designed genuinely shared project. Verify source permissions
-again when read or passed to a model. Focus or rehearsal completion cannot
-prove completion of real work.
+Apply accepted D08: the first release is an owner-private camp with native peer
+ticket assignment; full shared-project membership is deferred. Verify source
+permissions again when read or passed to a model. Focus or rehearsal completion
+cannot prove completion of real work.
 
-Resolve D01 and D07–D11 as applicable. Map CMP acceptance criteria, including
+Apply accepted D01 and D07–D11. Map CMP acceptance criteria, including
 two-account database tests, revoked references, late writes, chat-reset
 independence and account deletion. Return a reviewable bounded plan and update
 the dossier with decisions and the precise remaining work.
@@ -45,9 +45,11 @@ Start from these repository-root documents:
 - docs/superpowers/specs/2026-10-29-world-experiences/decisions.md
 - docs/superpowers/specs/2026-10-29-world-experiences/handoff.md
 
-Distinguish verified facts, recommendations and actual owner decisions.
-Do not treat pending D decisions as accepted. Advance independent analysis and
-name only the choices that materially block the affected scope.
+The owner accepted D01–D11 on 2026-11-03 in decisions.md. Apply those decisions;
+do not request repeat approval merely because this is a new chat. Distinguish
+accepted direction, new detailed proposals and verified current behavior.
+Escalate only a new material contradiction or scope change, with a recommendation,
+while continuing independent analysis. Acceptance does not authorize business code.
 
 Systematically map account and instance quotas, platform versus personal-key
 cost, token attribution, rate/concurrency limits, decisions/effects/consultations,

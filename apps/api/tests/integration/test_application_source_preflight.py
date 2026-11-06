@@ -11,6 +11,7 @@ from sqlalchemy import delete
 from src.core.config import settings
 from src.domains.agents.application.source_options_schemas import SourceOptionsQuery
 from src.domains.agents.tools import application_source_options_tools
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.models import RAGDocument, RAGDriveSource, RAGSpace
 from tests.helpers.runtime_context import make_tool_runtime
@@ -32,6 +33,7 @@ pytestmark = pytest.mark.integration
         "revoked",
         "timeout",
         "truncated",
+        "paused",
     ],
 )
 async def test_native_preflight_uses_source_counts_and_rechecks_authority(
@@ -90,6 +92,13 @@ async def test_native_preflight_uses_source_counts_and_rechecks_authority(
     monkeypatch.setattr(client, "list_files", observed)
     get_client = AsyncMock(return_value=client)
     monkeypatch.setattr(RAGDriveSyncService, "_get_drive_client", get_client)
+    connected = (
+        ConnectorType.MICROSOFT_ONEDRIVE if scenario == "paused" else ConnectorType.GOOGLE_DRIVE
+    )
+    monkeypatch.setattr(
+        "src.domains.rag_spaces.drive_sync.active_drive_provider",
+        AsyncMock(return_value=connected.value),
+    )
     if scenario == "truncated":
         monkeypatch.setattr("src.domains.rag_spaces.drive_sync.RAG_DRIVE_MAX_FILES_PER_SYNC", 1)
     if scenario == "foreign":
@@ -138,7 +147,9 @@ async def test_native_preflight_uses_source_counts_and_rechecks_authority(
             "timeout": "DEPENDENCY_ERROR",
             "kind_disabled": "CAPABILITY_DISABLED",
             "revoked": "FORBIDDEN",
+            # The folder waits for its drive: said as such, never as an outage.
+            "paused": "CONNECTOR_NOT_ACTIVATED",
         }
         assert result.error_code == expected[scenario]
-    if scenario in {"missing", "foreign"}:
+    if scenario in {"missing", "foreign", "paused"}:
         get_client.assert_not_awaited()

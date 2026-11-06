@@ -10,12 +10,21 @@ Used for type safety with mypy strict mode.
 Created: 2026-03-10
 """
 
-from collections.abc import Sequence
-from typing import ClassVar, Protocol, runtime_checkable
+from collections.abc import Mapping, Sequence
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
+from src.domains.connectors.clients.calendar_answers import EventAnswer
+from src.domains.connectors.clients.calendar_options import EventOptions
+from src.domains.connectors.clients.contact_details import ContactDetails
 from src.domains.connectors.clients.contact_directory import ContactDirectory
+from src.domains.connectors.clients.contact_photos import ContactPhoto
 from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
+from src.domains.connectors.clients.mail_inline_images import InlineBudget
+from src.domains.connectors.clients.mail_moves import MailPlace, UnreadCounts
+from src.domains.connectors.clients.mail_unsubscribe import Unsubscribe
 from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
+from src.domains.connectors.clients.office_files import OfficeRefusal
+from src.domains.connectors.clients.task_details import TaskDetails
 from src.infrastructure.email.outgoing import OutgoingAttachment
 
 
@@ -79,6 +88,8 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         reply_all: bool = False,
         is_html: bool = False,
         to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict:
         """Reply to an email. If to is provided, overrides the default recipient (original sender)."""
         ...
@@ -91,6 +102,7 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         cc: str | None = None,
         is_html: bool = False,
         include_attachments: bool = True,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict: ...
 
     async def trash_email(self, message_id: str) -> dict: ...
@@ -102,6 +114,37 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         one of ``mail_read_state.READ_STATE_FAILURE_STATUSES``: a message gone
         since it was listed never costs the rest of the selection.
         """
+        ...
+
+    async def set_starred(self, message_ids: Sequence[str], starred: bool) -> dict:
+        """Star messages or take their star off: ``mark_read``'s contract (ADR-369, lot 4)."""
+        ...
+
+    async def move_emails(
+        self,
+        message_ids: Sequence[str],
+        place: MailPlace,
+        origin: MailPlace | None = None,
+    ) -> dict:
+        """Send messages to a place (ADR-369, lot 4).
+
+        Args:
+            message_ids: The messages (each counted once).
+            place: Where they go.
+            origin: Where they are, when the caller knows (Gmail's leaving is part
+                of the move).
+
+        Returns:
+            ``mail_moves.moved_result``: ``mark_read``'s answer, and what each id became.
+        """
+        ...
+
+    async def place_named(self, name: str) -> MailPlace:
+        """The place a person's name for a folder is (Gmail keeps labels by id)."""
+        ...
+
+    async def unread_counts(self, folders_max: int) -> UnreadCounts:
+        """What the inbox, the spam and the person's folders leave unread (ADR-369, lot 4)."""
         ...
 
     async def get_own_address(self) -> str | None:
@@ -121,6 +164,10 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         max_bytes: int | None = None,
     ) -> EmailAttachmentContent: ...
 
+    async def get_conversation(self, message_id: str, max_messages: int) -> dict:
+        """The conversation a message belongs to, headers alone (``mail_conversation``)."""
+        ...
+
     async def get_message_html(self, message_id: str) -> str | None:
         """The message's HTML body, as its author laid it out (ADR-369, D3).
 
@@ -129,6 +176,20 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         attached file, even an ``.html`` one, or a message forwarded as an
         attachment, is never the body. Reading it marks nothing read.
         """
+        ...
+
+    async def read_inline_images(
+        self, message_id: str, cids: set[str], budget: InlineBudget
+    ) -> None:
+        """Read into ``budget`` the images of a message its HTML names (ADR-369, lot 3).
+
+        Display only, like the HTML. A part ``budget`` refuses by its listed size is
+        never read. A message forwarded as an attachment keeps its images.
+        """
+        ...
+
+    async def read_unsubscribe(self, message_id: str) -> Unsubscribe | None:
+        """The ways out a message names (``mail_unsubscribe``); None when it names none."""
         ...
 
     # ------------------------------------------------------------------
@@ -162,6 +223,7 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict:
         """Save a new draft; an empty ``to`` leaves the recipient unset.
 
@@ -208,11 +270,15 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         subject: str | None = None,
         body: str | None = None,
         expected_revision: str | None = None,
+        add_files: Sequence[OutgoingAttachment] = (),
+        remove_files: Sequence[str] = (),
+        is_html: bool = False,
     ) -> dict:
         """Change the fields given (None keeps one, "" clears it), keep the rest.
 
-        A new ``body`` is the whole plain-text body (an HTML draft loses its
-        formatting, never its files). Returns the saved draft, as ``get_draft``
+        A new ``body`` is the whole body, text unless ``is_html`` says so (text takes an
+        HTML draft's formatting with it, never its files). ``add_files`` join it; ``remove_files`` name
+        those that leave, one file for each. Returns the saved draft, as ``get_draft``
         reads it — under a NEW ``mailbox_draft_id`` on IMAP, which stores a new
         message.
         """
@@ -241,6 +307,37 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
     async def list_labels(self, use_cache: bool = True) -> dict[str, str]: ...
 
     async def resolve_label_names_in_query(self, query: str, use_cache: bool = True) -> str: ...
+
+
+class MailTrashClientProtocol(Protocol):
+    """Deleting for good, where the provider's scopes allow it (ADR-369, lot 4)."""
+
+    async def delete_emails_forever(self, message_ids: Sequence[str]) -> dict:
+        """Delete messages of the trash for good: ``mark_read``'s answer, any other refused."""
+        ...
+
+    async def empty_trash(self, limit: int) -> dict:
+        """Delete what the trash holds within a bound: ``{"deleted", "remaining"}``."""
+        ...
+
+
+class MailFolderClientProtocol(Protocol):
+    """The folders of the person's own, where a mailbox has folders (ADR-369, lot 4).
+
+    Outlook and iCloud; Gmail's are labels, and answer through its own client.
+    """
+
+    async def create_folder(self, name: str) -> str:
+        """Create a folder (« / » nests it); answers what the pane names it by."""
+        ...
+
+    async def rename_folder(self, folder: str, name: str) -> str:
+        """Rename a folder in place; answers what the pane names it by from now on."""
+        ...
+
+    async def delete_folder(self, folder: str) -> None:
+        """Delete a folder that holds nothing; one that holds anything is refused."""
+        ...
 
 
 class CalendarClientProtocol(Protocol):
@@ -278,6 +375,7 @@ class CalendarClientProtocol(Protocol):
         add_conference: bool = False,
         idempotency_key: str | None = None,
         all_day: bool = False,
+        options: EventOptions | None = None,
     ) -> dict:
         """With ``all_day`` the bounds are dates, the end EXCLUSIVE (``normalizers.all_day``)."""
         ...
@@ -295,6 +393,8 @@ class CalendarClientProtocol(Protocol):
         calendar_id: str = "primary",
         all_day: bool | None = None,
         send_updates: str | None = None,
+        add_conference: bool = False,
+        options: EventOptions | None = None,
     ) -> dict:
         """``all_day`` None keeps the event's shape; True/False switches it, both bounds given.
 
@@ -319,6 +419,243 @@ class CalendarClientProtocol(Protocol):
         calendar_id: str = "primary",
         send_updates: str = "all",
     ) -> dict: ...
+
+
+class CalendarAnswerProtocol(Protocol):
+    """Answering an invitation, on the three calendars (ADR-369, lot 5)."""
+
+    async def respond_to_event(
+        self, event_id: str, response: EventAnswer, calendar_id: str = "primary"
+    ) -> dict:
+        """The person's own answer, the organiser told; ``NotInvitedError`` when none is theirs."""
+        ...
+
+
+class TaskStepsProtocol(Protocol):
+    """A task's steps (``WorkbenchFeature.TASK_STEPS``): To Do's alone."""
+
+    async def add_task_step(self, task_list_id: str, task_id: str, title: str) -> dict: ...
+
+    async def change_task_step(
+        self,
+        task_list_id: str,
+        task_id: str,
+        step_id: str,
+        *,
+        title: str | None = None,
+        checked: bool | None = None,
+    ) -> dict: ...
+
+    async def remove_task_step(self, task_list_id: str, task_id: str, step_id: str) -> None: ...
+
+
+class TaskOrderProtocol(Protocol):
+    """The order of a list (``WorkbenchFeature.TASK_ORDER``): Google's alone."""
+
+    async def place_task(self, task_list_id: str, task_id: str, previous_id: str | None) -> dict:
+        """Put a task after a sibling; None puts it first."""
+        ...
+
+
+class FilesClientProtocol(Protocol):
+    """A drive, in Drive's words: Google Drive and OneDrive (ADR-369, lot 6)."""
+
+    async def recent_files(self, max_results: int) -> dict[str, Any]: ...
+
+    async def folder_path(self, file: Mapping[str, Any], known: dict[str, Any]) -> str | None: ...
+
+    async def search_files(
+        self,
+        query: str,
+        max_results: int = 10,
+        mime_type: str | None = None,
+        folder_id: str | None = None,
+        fields: list[str] | None = None,
+        content_type: str | None = "files_only",
+        search_mode: str = "name_only",
+        page_token: str | None = None,
+    ) -> dict:
+        """``files`` and ``nextPageToken``; a page may be partial before the end."""
+        ...
+
+    async def list_files(
+        self,
+        folder_id: str = "root",
+        max_results: int = 20,
+        page_token: str | None = None,
+        fields: list[str] | None = None,
+        content_type: str | None = "files_only",
+        order_by: str = "folder,name",
+    ) -> dict:
+        """``files`` and ``nextPageToken``; folders first on each page."""
+        ...
+
+    async def get_file_metadata(self, file_id: str, fields: list[str] | None = None) -> dict:
+        """One item; ``root`` is the top of the drive."""
+        ...
+
+    async def get_file_content(
+        self,
+        file_id: str,
+        max_size_bytes: int = 10 * 1024 * 1024,
+        known_size: int | None = None,
+    ) -> bytes | None:
+        """A file's bytes; None past the ceiling."""
+        ...
+
+    async def delete_file(self, file_id: str) -> bool:
+        """Moves a file to the trash."""
+        ...
+
+    async def restore_file(self, file_id: str) -> dict:
+        """The item, out of the trash."""
+        ...
+
+    async def storage_quota(self) -> dict[str, int | None]:
+        """What the account uses of what it has, in bytes."""
+        ...
+
+    async def read_sharing(self, file_id: str) -> dict:
+        """Who reaches an item (``people``), and the ``link`` anyone can follow."""
+        ...
+
+    async def share_with(self, file_id: str, email: str, role: str) -> None:
+        """Give a person access, told by the drive; ``role`` is ``reader`` or ``writer``."""
+        ...
+
+    async def open_link(self, file_id: str) -> dict:
+        """Let anyone with the link read an item: its ``id`` and its ``url``."""
+        ...
+
+    async def remove_share(self, file_id: str, permission_id: str) -> None:
+        """Take an access back."""
+        ...
+
+    async def create_folder(self, name: str, parent_id: str = "root") -> dict:
+        """The new folder; ``FileNameTakenError`` where the provider keeps one of a name."""
+        ...
+
+    async def rename_file(self, file_id: str, name: str) -> dict:
+        """The item under its new name."""
+        ...
+
+    async def upload_file(
+        self, name: str, data: bytes, mime_type: str, parent_id: str = "root"
+    ) -> dict:
+        """Add a file to a folder; a drive that holds one name per folder refuses a second."""
+        ...
+
+    async def move_file(self, file_id: str, parent_id: str) -> dict:
+        """The item in its new folder."""
+        ...
+
+    async def copy_file(
+        self, file_id: str, parent_id: str | None = None, name: str | None = None
+    ) -> dict | None:
+        """The copy, or None where the provider finishes it after answering."""
+        ...
+
+
+class FileViewsProtocol(Protocol):
+    """Drive's views, stars and trash (ADR-369, lot 6): OneDrive has no call for them."""
+
+    async def list_view(
+        self, view: str, *, max_results: int, page_token: str | None, fields: list[str]
+    ) -> dict:
+        """One page of what the drive holds under a view."""
+        ...
+
+    async def set_starred(self, file_id: str, starred: bool) -> dict:
+        """The item, its star set."""
+        ...
+
+    async def delete_file_forever(self, file_id: str) -> None:
+        """Delete an item for good."""
+        ...
+
+    async def empty_trash(self) -> None:
+        """Delete for good all that the trash holds."""
+        ...
+
+
+class CalendarManagementProtocol(Protocol):
+    """Moving an event and managing calendars, on the three calendars (ADR-369, lot 5)."""
+
+    async def move_event(self, event_id: str, calendar_id: str, destination_id: str) -> dict:
+        """The event in its new calendar; a provider that copies refuses what it would reach."""
+        ...
+
+    async def create_calendar(self, name: str, timezone: str | None = None) -> dict:
+        """A new calendar of the account's."""
+        ...
+
+    async def rename_calendar(self, calendar_id: str, name: str) -> dict:
+        """The calendar under its new name."""
+        ...
+
+    async def delete_calendar(self, calendar_id: str) -> None:
+        """Deletes the calendar and all it holds."""
+        ...
+
+
+@runtime_checkable
+class SpreadsheetsProtocol(Protocol):
+    """A drive's spreadsheets, in the words of Sheets: Google's and OneDrive's (ADR-369)."""
+
+    async def get_spreadsheet(self, spreadsheet_id: str) -> dict[str, Any]: ...
+
+    async def read_rows(
+        self, spreadsheet_id: str, sheet: str, max_rows: int
+    ) -> list[list[Any]]: ...
+
+    async def write_refusal(
+        self, a1_range: str, values: list[list[str]]
+    ) -> OfficeRefusal | None: ...
+
+    async def write_range(
+        self, spreadsheet_id: str, sheet: str, a1_range: str, values: list[list[str]]
+    ) -> int: ...
+
+    async def append_rows(
+        self, spreadsheet_id: str, sheet: str, values: list[list[str]]
+    ) -> int: ...
+
+
+@runtime_checkable
+class DocumentsProtocol(Protocol):
+    """A drive's documents: Google Docs and OneDrive's Word files (ADR-369)."""
+
+    async def read_text(self, document_id: str) -> dict[str, str]: ...
+
+    async def read_title(self, document_id: str) -> str: ...
+
+    async def append_text(self, document_id: str, text: str) -> Any: ...
+
+
+@runtime_checkable
+class MailboxSettingsProtocol(Protocol):
+    """A mailbox's responder and filters, in the one vocabulary of both providers."""
+
+    async def get_vacation(self) -> dict: ...
+
+    async def update_vacation(
+        self,
+        enable: bool,
+        subject: str | None = None,
+        body: str | None = None,
+        start_time_ms: int | None = None,
+        end_time_ms: int | None = None,
+    ) -> dict: ...
+
+    async def list_filters(self) -> dict: ...
+
+    async def label_names(self) -> dict[str, str]: ...
+
+    async def create_filter(self, criteria: dict, action: dict) -> dict: ...
+
+    async def delete_filter(self, filter_id: str) -> None: ...
+
+    async def list_send_as(self) -> dict: ...
 
 
 class ContactsClientProtocol(Protocol):
@@ -358,6 +695,7 @@ class ContactsClientProtocol(Protocol):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict: ...
 
     # A list REPLACES that list and ``None`` keeps it; a single ``email`` /
@@ -376,9 +714,34 @@ class ContactsClientProtocol(Protocol):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict: ...
 
     async def delete_contact(self, resource_name: str) -> bool: ...
+
+    async def get_contact_photo(self, resource_name: str) -> ContactPhoto | None: ...
+
+    async def set_contact_photo(self, resource_name: str, photo: ContactPhoto) -> None: ...
+
+    async def remove_contact_photo(self, resource_name: str) -> None: ...
+
+    async def list_contact_groups(self) -> dict: ...
+
+    async def group_people(
+        self, group: str, max_members: int, fields: list[str] | None = None
+    ) -> dict: ...
+
+    async def groups_of_contact(self, resource_name: str) -> list[dict]: ...
+
+    async def create_contact_group(self, name: str) -> dict: ...
+
+    async def rename_contact_group(self, group: str, name: str) -> None: ...
+
+    async def delete_contact_group(self, group: str) -> None: ...
+
+    async def change_group_members(
+        self, group: str, *, add: Sequence[str], remove: Sequence[str]
+    ) -> None: ...
 
     async def list_email_directory(
         self, max_contacts: int, *, cache_scope: str | None = None
@@ -397,6 +760,8 @@ class TasksClientProtocol(Protocol):
     async def get_task_list(self, task_list_id: str) -> dict: ...
 
     async def create_task_list(self, title: str) -> dict: ...
+
+    async def rename_task_list(self, task_list_id: str, title: str) -> dict: ...
 
     async def delete_task_list(self, task_list_id: str) -> bool: ...
 
@@ -423,7 +788,12 @@ class TasksClientProtocol(Protocol):
         notes: str | None = None,
         due: str | None = None,
         parent: str | None = None,
-    ) -> dict: ...
+        *,
+        details: TaskDetails | None = None,
+        steps: Sequence[str] = (),
+    ) -> dict:
+        """``details`` and ``steps`` are To Do's alone: Google refuses them (``task_details``)."""
+        ...
 
     async def update_task(
         self,
@@ -435,8 +805,13 @@ class TasksClientProtocol(Protocol):
         status: str | None = None,
         *,
         clear_due: bool = False,
+        details: TaskDetails | None = None,
     ) -> dict:
         """``None`` keeps a field; ``clear_due`` removes the due date (never with ``due``)."""
+        ...
+
+    async def move_task(self, task_list_id: str, task_id: str, destination_list_id: str) -> dict:
+        """The task where it is now; To Do gives its copy another id (``task_details``)."""
         ...
 
     async def complete_task(self, task_list_id: str, task_id: str) -> dict: ...

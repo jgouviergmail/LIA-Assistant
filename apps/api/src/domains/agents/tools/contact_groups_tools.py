@@ -9,8 +9,8 @@ LIA never called:
   entity resolution and relations with identities that plain contact search
   cannot see.
 
-Provider parity: these are Google People API concepts. Microsoft (categories/
-contact folders) and Apple have no equivalent wired here — any non-Google
+Provider parity (ADR-369, lot 9): the three clients answer groups in one vocabulary (a Google
+group, a Graph category, an iCloud group card). Other contacts exist on Google alone: any other
 resolved client gets a localized graceful refusal, never an AttributeError.
 """
 
@@ -21,6 +21,7 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 
+from src.core.constants import GOOGLE_CONTACT_GROUP_MAX_MEMBERS
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_CONTACT, CONTEXT_DOMAIN_CONTACTS
@@ -109,10 +110,6 @@ class ListContactGroupsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """List user contact groups, hiding Google's system plumbing groups."""
-        refusal = await _provider_refusal_if_not_google(client, self.runtime)
-        if refusal:
-            return refusal
-
         response = await client.list_contact_groups()
         groups = [
             {
@@ -159,10 +156,6 @@ class GetContactGroupMembersTool(ToolOutputMixin, ConnectorTool[GooglePeopleClie
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Resolve the group by name (case-insensitive) and expand its members."""
-        refusal = await _provider_refusal_if_not_google(client, self.runtime)
-        if refusal:
-            return refusal
-
         group_name: str = (kwargs.get("group_name") or "").strip()
         response = await client.list_contact_groups()
         user_groups = _user_groups(response)
@@ -179,10 +172,8 @@ class GetContactGroupMembersTool(ToolOutputMixin, ConnectorTool[GooglePeopleClie
                 "available_groups": available,
             }
 
-        group_detail = await client.get_contact_group(match["resourceName"])
-        member_ids = group_detail.get("memberResourceNames", [])
-        batch = await client.get_people_batch(member_ids)
-        raw_persons = [item["person"] for item in batch.get("responses", []) if item.get("person")]
+        found = await client.group_people(match["resourceName"], GOOGLE_CONTACT_GROUP_MAX_MEMBERS)
+        raw_persons = found["people"]
         members = [_person_to_contact(person) for person in raw_persons]
 
         logger.info(

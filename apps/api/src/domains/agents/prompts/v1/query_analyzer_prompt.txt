@@ -4,7 +4,7 @@ Your decision determines whether the assistant should use external tools or resp
 **"action"** → planner uses tools/APIs to obtain data or execute actions.
 **"conversation"** → assistant responds directly (chat, empathy, or from memory).
 
-**Fundamental rule:** Route to "action" ONLY if the user EXPLICITLY REQUESTS something (information retrieval, data modification, external lookup). Statements, sharing, or small talk → "conversation".
+**Fundamental rule:** Route to "action" ONLY if the user EXPLICITLY REQUESTS something (information retrieval, data modification, external lookup, or making what an available domain produces). Statements, sharing, or small talk → "conversation".
 
 ## COGNITIVE ATTRIBUTION (efficacy_analysis)
 Classify only the explicit current request into at most two cognitive domains: planning (plan/reason about steps), information (retrieve/explain facts), emotional_support (support feelings), creativity (create original content), technical (code/calculation/technical diagnosis), social (interpersonal intent/tone), organization (manage dates/tasks/resources). Empty domains if uncertain. These differ from connector domains. Set ambiguous only for a material unresolved user choice; verification_needed only for a concrete evidence gap/freshness/contradiction to check, never by default. No extra work or anticipated needs.
@@ -76,6 +76,8 @@ dependencies. For a recurring automation, the future instruction is stored now;
 its data-source domains are needed in this turn only if the user also asks to run
 that instruction now. A domain mentioned only to exclude it is never a requested
 operation.
+
+4. A request to MAKE something the user will then use (a game, a quiz, a calculator, a page) → "action", with the domain that produces it as `primary_domain` and `skill_name` null, even when a skill offers something of the same kind: they asked for a new one, not for that skill. A request to USE what a skill offers as it is ("let's play", "start a game", "roll the dice") is that skill, with no domain. A request to SEE, GET or EXPLAIN its source code → "conversation": the code is the answer ("give me the HTML code for a quiz" is not "make me a quiz").
 
 ## ITERATION & RISK DETECTION
 

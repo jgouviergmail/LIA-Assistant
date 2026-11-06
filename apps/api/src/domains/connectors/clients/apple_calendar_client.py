@@ -22,8 +22,11 @@ import structlog
 
 from src.core.config import settings
 from src.core.read_budget import current_read_owner, source_dav_request, source_http_hooks
+from src.domains.connectors.clients.apple_calendar_acts_mixin import AppleCalendarActsMixin
 from src.domains.connectors.clients.base_apple_client import BaseAppleClient
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
+from src.domains.connectors.clients.calendar_answers import PARTSTATS, EventAnswer, NotInvitedError
+from src.domains.connectors.clients.calendar_options import EventOptions, apply_ical_options
 from src.domains.connectors.clients.normalizers.all_day import all_day_dates
 from src.domains.connectors.clients.normalizers.calendar_normalizer import (
     normalize_calendar,
@@ -36,7 +39,7 @@ from src.domains.connectors.schemas import AppleCredentials
 logger = structlog.get_logger(__name__)
 
 
-class AppleCalendarClient(BaseAppleClient):
+class AppleCalendarClient(AppleCalendarActsMixin, BaseAppleClient):
     """
     Apple iCloud Calendar client using CalDAV.
 
@@ -54,6 +57,7 @@ class AppleCalendarClient(BaseAppleClient):
         super().__init__(user_id, credentials, connector_service)
         self._dav_client: Any | None = None
         self._principal: Any | None = None
+        self._known_addresses: set[str] | None = None
 
     # =========================================================================
     # CalDAV CONNECTION
@@ -202,6 +206,7 @@ class AppleCalendarClient(BaseAppleClient):
         add_conference: bool = False,
         idempotency_key: str | None = None,
         all_day: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """Create a new event.
 
@@ -232,6 +237,7 @@ class AppleCalendarClient(BaseAppleClient):
             calendar_id,
             uid=provider_idempotency_id(idempotency_key or uuid4().hex, "apple"),
             all_day=all_day,
+            options=options,
         )
 
     async def update_event(
@@ -247,6 +253,8 @@ class AppleCalendarClient(BaseAppleClient):
         calendar_id: str = "primary",
         all_day: bool | None = None,
         send_updates: str | None = None,
+        add_conference: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """Update an existing event (full PUT, no PATCH on iCloud).
 
@@ -265,6 +273,7 @@ class AppleCalendarClient(BaseAppleClient):
             attendees,
             calendar_id,
             all_day=all_day,
+            options=options,
         )
 
     async def list_events_window(
@@ -280,6 +289,32 @@ class AppleCalendarClient(BaseAppleClient):
         """
         return await self._execute_with_retry(
             "list_events_window", self._events_window_impl, calendar_id, time_min, time_max, bound
+        )
+
+    async def respond_to_event(
+        self, event_id: str, response: EventAnswer, calendar_id: str = "primary"
+    ) -> dict[str, Any]:
+        """Answer an invitation: the person's own ``PARTSTAT``, the server tells the organiser.
+
+        Args:
+            event_id: The event's UID.
+            response: The answer.
+            calendar_id: Its calendar.
+
+        Returns:
+            The event as it is now.
+
+        Raises:
+            NotInvitedError: No attendee of this event is an address of the account.
+            ValueError: The calendar holds no such event.
+        """
+        return await self._execute_with_retry(
+            "respond_to_event",
+            self._respond_impl,
+            event_id,
+            response,
+            calendar_id,
+            max_retries=0,
         )
 
     async def delete_event(
@@ -457,6 +492,7 @@ class AppleCalendarClient(BaseAppleClient):
             except Exception as error:
                 logger.warning("apple_calendar_event_parse_error", error_type=type(error).__name__)
         events.sort(key=_start_instant)
+        await self._mark_own_organizer(events)
         return {"events": events[:bound], "truncated": len(events) > bound}
 
     async def _get_event_impl(
@@ -472,7 +508,7 @@ class AppleCalendarClient(BaseAppleClient):
         if event is None:
             raise ValueError(f"Event '{event_id}' not found in calendar")
 
-        return normalize_vevent(event)
+        return await self._with_own_attendee(normalize_vevent(event))
 
     async def _create_event_impl(
         self,
@@ -487,6 +523,7 @@ class AppleCalendarClient(BaseAppleClient):
         *,
         uid: str,
         all_day: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """Create a new event via CalDAV, under the ``uid`` its caller fixed."""
         calendar = await self._get_calendar(calendar_id)
@@ -505,15 +542,69 @@ class AppleCalendarClient(BaseAppleClient):
 
         event = await calendar.save_event(**kwargs)
 
-        # Add attendees if specified (modify VEVENT post-creation)
-        if attendees and event.vobject_instance:
+        # What save_event takes no argument for is written on the VEVENT afterwards.
+        if (attendees or options) and event.vobject_instance:
             vevent = event.vobject_instance.vevent
-            for email in attendees:
+            for email in attendees or []:
                 att = vevent.add("attendee")
                 att.value = f"mailto:{email}"
+            apply_ical_options(vevent, options or EventOptions())
             await event.save()
 
         return normalize_vevent(event)
+
+    async def _mark_own_organizer(self, events: list[dict[str, Any]]) -> None:
+        """Say which events the person organises, in Google's word: iCloud names no such thing."""
+        organizers = [event["organizer"] for event in events if "organizer" in event]
+        if not organizers:
+            return
+        if self._known_addresses is None:
+            try:
+                self._known_addresses = await self._own_addresses()
+            except Exception as error:
+                # The word only sorts a meeting between two lists: the sign-in still answers.
+                logger.info("apple_calendar_addresses_unread", error_type=type(error).__name__)
+                self._known_addresses = {self.credentials.apple_id.casefold()}
+        for organizer in organizers:
+            if str(organizer.get("email") or "").casefold() in self._known_addresses:
+                organizer["self"] = True
+
+    async def _own_addresses(self) -> set[str]:
+        """The addresses the server knows the account by, in lower case, the sign-in's first."""
+        principal = await self._get_principal()
+        known = await principal.calendar_user_address_set()
+        cleaned = {str(item).removeprefix("mailto:").casefold() for item in known if item}
+        return {self.credentials.apple_id.casefold(), *cleaned}
+
+    async def _respond_impl(
+        self, event_id: str, response: EventAnswer, calendar_id: str
+    ) -> dict[str, Any]:
+        """Write the answer on the attendee the account is, and on no other."""
+        calendar = await self._get_calendar(calendar_id)
+        target = await self._find_event_by_uid(calendar, event_id)
+        if target is None:
+            raise ValueError(f"Event '{event_id}' not found")
+        addresses = {address.casefold() for address in await self._own_addresses()}
+        vevent = target.vobject_instance.vevent
+        mine = [item for item in _attendees_of(vevent) if _address_of(item) in addresses]
+        if not mine:
+            raise NotInvitedError
+        for attendee in mine:
+            attendee.params["PARTSTAT"] = [PARTSTATS[response]]
+            attendee.params.pop("RSVP", None)
+        await target.save()
+        return await self._with_own_attendee(normalize_vevent(target))
+
+    async def _with_own_attendee(self, event: dict[str, Any]) -> dict[str, Any]:
+        """Marks the attendee the account is, as Google does: only the server knows its names."""
+        attendees = event.get("attendees") or []
+        if not attendees:
+            return event
+        addresses = await self._own_addresses()
+        for attendee in attendees:
+            if str(attendee.get("email") or "").casefold() in addresses:
+                attendee["self"] = True
+        return event
 
     async def _update_event_impl(
         self,
@@ -528,6 +619,7 @@ class AppleCalendarClient(BaseAppleClient):
         calendar_id: str,
         *,
         all_day: bool | None = None,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing event (full PUT, no PATCH on iCloud).
@@ -564,6 +656,7 @@ class AppleCalendarClient(BaseAppleClient):
             _write_end(vevent, self._apply_timezone(dt, timezone))
 
         _apply_text_fields(vevent, description, location, attendees)
+        apply_ical_options(vevent, options or EventOptions())
 
         await target_event.save()
         return normalize_vevent(target_event)
@@ -680,6 +773,17 @@ def _start_instant(event: dict[str, Any]) -> datetime:
     except ValueError:
         return datetime.max.replace(tzinfo=UTC)
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _attendees_of(vevent: Any) -> list[Any]:
+    """The event's attendees, none when it names nobody."""
+    return list(getattr(vevent, "attendee_list", ()) or ())
+
+
+def _address_of(attendee: Any) -> str:
+    """An attendee's address, in lower case, whatever the case of its scheme."""
+    value = str(getattr(attendee, "value", ""))
+    return value.split(":", 1)[-1].casefold()
 
 
 def _apply_text_fields(

@@ -192,8 +192,8 @@ class TestDeadSettingRemoved:
 
         assert not hasattr(settings, "router_llm_timeout_seconds")
 
-    def test_response_barrier_still_exists(self) -> None:
-        """The wait_for barrier keeps its setting — ADR-221 leaves it in place."""
+    def test_response_barrier_has_no_setting_of_its_own(self) -> None:
+        """Its time is the slot's: a setting would cut the call before the screen says."""
         from src.core.config import settings
 
-        assert settings.response_llm_timeout_seconds > 0
+        assert not hasattr(settings, "response_llm_timeout_seconds")

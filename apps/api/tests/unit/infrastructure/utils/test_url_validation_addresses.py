@@ -86,6 +86,24 @@ class TestUnreachableAddress:
             assert request.headers["host"] == "example.com"
             assert request.extensions["sni_hostname"] == "example.com"
 
+    async def test_a_body_is_sent_whole_on_the_address_that_answers(self) -> None:
+        """The one-click unsubscribe's POST: its one line reaches the validated address."""
+        bodies: list[tuple[str, bytes]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.host == V6:
+                raise httpx.ConnectError("[Errno 101] Network is unreachable", request=request)
+            bodies.append((request.method, request.content))
+            return httpx.Response(200)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            async with pinned_stream(
+                client, "POST", _verdict(V6, V4), content=b"List-Unsubscribe=One-Click"
+            ) as response:
+                assert response.status_code == 200
+
+        assert bodies == [("POST", b"List-Unsubscribe=One-Click")]
+
     async def test_when_every_address_refuses_the_last_refusal_is_raised(self) -> None:
         seen: list[str] = []
 

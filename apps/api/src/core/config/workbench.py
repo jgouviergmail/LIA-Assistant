@@ -23,13 +23,17 @@ from src.core.constants import (
     WORKBENCH_DOWNLOAD_MAX_BYTES_DEFAULT,
     WORKBENCH_DOWNLOAD_RATE_LIMIT_CALLS_DEFAULT,
     WORKBENCH_DOWNLOAD_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    WORKBENCH_DRAFT_AUTOSAVE_SECONDS_DEFAULT,
     WORKBENCH_IDEMPOTENCY_TTL_SECONDS_DEFAULT,
     WORKBENCH_MAIL_HTML_MAX_BYTES_DEFAULT,
+    WORKBENCH_MAIL_INLINE_MAX_BYTES_DEFAULT,
     WORKBENCH_PAGE_SIZE_DEFAULT,
     WORKBENCH_READ_RATE_LIMIT_CALLS_DEFAULT,
     WORKBENCH_READ_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     WORKBENCH_SEND_RATE_LIMIT_CALLS_DEFAULT,
     WORKBENCH_SEND_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    WORKBENCH_SEND_UNDO_SECONDS_DEFAULT,
+    WORKBENCH_UPLOAD_MAX_BYTES_DEFAULT,
     WORKBENCH_WRITE_RATE_LIMIT_CALLS_DEFAULT,
     WORKBENCH_WRITE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
 )
@@ -125,6 +129,33 @@ class WorkbenchSettings(BaseSettings):
         le=500,
         description="The largest selection one bulk act carries (published).",
     )
+    workbench_mail_inline_max_bytes: int = Field(
+        default=WORKBENCH_MAIL_INLINE_MAX_BYTES_DEFAULT,
+        ge=1024,
+        le=64 * 1024 * 1024,
+        description=(
+            "What one message may carry to its frame as images of its own (bytes); "
+            "past it the rest are counted and said."
+        ),
+    )
+    workbench_send_undo_seconds: int = Field(
+        default=WORKBENCH_SEND_UNDO_SECONDS_DEFAULT,
+        ge=0,
+        le=30,
+        description=(
+            "How long « Send » waits on the page before a message leaves, so the person "
+            "can take it back (0: it leaves at once). Published."
+        ),
+    )
+    workbench_draft_autosave_seconds: int = Field(
+        default=WORKBENCH_DRAFT_AUTOSAVE_SECONDS_DEFAULT,
+        ge=0,
+        le=600,
+        description=(
+            "How long a composer stays quiet before it saves what was written as a draft "
+            "(0: only when the person asks). Published."
+        ),
+    )
     workbench_calendar_window_max_events: int = Field(
         default=WORKBENCH_CALENDAR_WINDOW_MAX_EVENTS_DEFAULT,
         ge=1,
@@ -139,6 +170,15 @@ class WorkbenchSettings(BaseSettings):
         ge=1,
         le=200 * 1024 * 1024,
         description="The largest attachment or Drive file served (bytes, published).",
+    )
+    workbench_upload_max_bytes: int = Field(
+        default=WORKBENCH_UPLOAD_MAX_BYTES_DEFAULT,
+        ge=1,
+        le=200 * 1024 * 1024,
+        description=(
+            "The largest file sent to a drive (bytes, published); MAX_REQUEST_BODY_BYTES "
+            "must carry it, or the boot refuses."
+        ),
     )
     workbench_mail_html_max_bytes: int = Field(
         default=WORKBENCH_MAIL_HTML_MAX_BYTES_DEFAULT,

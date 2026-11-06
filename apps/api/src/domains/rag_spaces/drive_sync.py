@@ -1,9 +1,9 @@
 """
 RAG Drive Sync service.
 
-Manages Google Drive folder sources linked to RAG Spaces. Handles
-listing, downloading/exporting, and processing files through the
-existing RAG pipeline.
+Manages the folders of a drive (Google Drive or OneDrive, ``drive_provider``)
+linked to RAG Spaces. Handles listing, downloading/exporting, and processing
+files through the existing RAG pipeline.
 
 Phase: evolution — RAG Spaces (Google Drive Integration)
 Created: 2026-03-17
@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 from uuid import UUID
 
 from fastapi import status
@@ -24,12 +24,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
-    RAG_DRIVE_MAX_ANCESTOR_DEPTH,
     RAG_DRIVE_MAX_FILES_PER_SYNC,
     RAG_DRIVE_MAX_FOLDERS_PER_WALK,
 )
 from src.core.exceptions import BaseAPIException
-from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
+from src.domains.connectors.clients.protocols import FilesClientProtocol
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.session_scope import DetachedConnectorService
@@ -44,8 +43,15 @@ from src.domains.rag_spaces.drive_ingest import (
 from src.domains.rag_spaces.drive_ingest import (
     safe_storage_path as _safe_storage_path,
 )
-from src.domains.rag_spaces.drive_sync_outcome import sync_result_values
-from src.domains.rag_spaces.drive_walk import DriveWalkError, walk_drive_tree
+from src.domains.rag_spaces.drive_provider import (
+    DRIVE_SOURCE_PAUSED_CODE,
+    DriveSourcePausedError,
+    active_drive_provider,
+    drive_client_of,
+    is_paused,
+)
+from src.domains.rag_spaces.drive_sync_outcome import DrivePreflight, sync_result_values
+from src.domains.rag_spaces.drive_walk import DriveWalkError, ancestor_ids, walk_drive_tree
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository, validate_source_worker_id
 from src.domains.rag_spaces.models import (
     RAGDriveSource,
@@ -148,57 +154,18 @@ def _raise_drive_folder_nested(folder_id: str, other_folder_id: str) -> NoReturn
     )
 
 
-async def ancestor_ids(client: GoogleDriveClient, folder_id: str) -> list[str]:
-    """The parent chain of a folder, nearest first, bounded in depth.
-
-    Drive files have ONE parent today (legacy multi-parent items keep the
-    first); the chain ends at the root, which has none.
-    """
-    chain: list[str] = []
-    current = folder_id
-    seen: set[str] = {folder_id}
-    while len(chain) < RAG_DRIVE_MAX_ANCESTOR_DEPTH:
-        metadata = await client.get_file_metadata(current, fields=["id", "parents"])
-        parents = [str(p) for p in metadata.get("parents") or []]
-        if not parents or parents[0] in seen:
-            break
-        current = parents[0]
-        seen.add(current)
-        chain.append(current)
-    return chain
-
-
-@dataclass(frozen=True, slots=True)
-class DrivePreflight:
-    """What one synchronisation would do to the linked tree, counted exactly.
-
-    Every figure is computed by the code the synchronisation runs — the same
-    walk, the same ``is_unchanged`` and ``is_supported_drive_file`` — under
-    the space's document cap, and the walk's bounds travel with them: a cut
-    walk (``truncated``) makes every count a floor.
-    """
-
-    total_files: int
-    unsupported: int
-    unchanged: int
-    modified: int
-    new: int
-    #: New files the space has no room for (``rag_spaces_max_docs_per_space``).
-    over_capacity: int
-    #: ``modified + new`` within capacity — the files a synchronisation writes.
-    to_index: int
-    folders: int
-    unreadable_folders: int
-    truncated: bool
-    #: Published bounds and threshold (ADR-184: what is enforced is read).
-    threshold: int
-    max_files: int
-    max_folders: int
-    requires_confirmation: bool
+def _raise_drive_source_paused(source_id: UUID) -> NoReturn:
+    """409: the folder's drive is not the one connected; it waits, kept as it is."""
+    raise DriveSourcePausedError(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": DRIVE_SOURCE_PAUSED_CODE},
+        log_event="rag_drive_source_paused",
+        source_id=str(source_id),
+    )
 
 
 class RAGDriveSyncService:
-    """Service for managing Google Drive folder sources linked to RAG spaces."""
+    """Service for managing the drive folders linked to RAG spaces."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -234,12 +201,12 @@ class RAGDriveSyncService:
         observation: SourceLinkObservation | None = None,
         commit: bool = True,
     ) -> RAGDriveSource:
-        """Link a Google Drive folder to a RAG space for sync.
+        """Link a folder of the account's drive to a RAG space for sync.
 
         Args:
             space_id: Target RAG space ID.
             user_id: Owning user ID.
-            folder_id: Google Drive folder ID.
+            folder_id: The folder's ID on its drive.
             folder_name: Human-readable folder name.
 
         Returns:
@@ -260,15 +227,14 @@ class RAGDriveSyncService:
         if await self.space_repo.get_by_id_for_owner_update(space_id, user_id) is None:
             raise_space_not_found(space_id)
         await self._folder_link_constraints(space_id, user_id, folder_id)
-        if (
-            linked_drive_roots(await self.source_repo.get_all_for_space(space_id))
-            != observation.roots
-        ):
+        linked = await self.source_repo.get_all_for_space(space_id)
+        if linked_drive_roots(linked, observation.drive_provider) != observation.roots:
             raise ValueError("Linked Drive roots changed after provider inspection")
         source = await self.source_repo.create(
             {
                 "space_id": space_id,
                 "user_id": user_id,
+                "provider": observation.drive_provider,
                 "folder_id": folder_id,
                 "folder_name": folder_name,
                 "sync_status": RAGDriveSyncStatus.IDLE,
@@ -311,8 +277,9 @@ class RAGDriveSyncService:
     ) -> SourceLinkObservation:
         """Inspect an owned candidate and the existing trees without writing a source."""
         await self._folder_link_constraints(space_id, user_id, folder_id)
-        roots = linked_drive_roots(await self.source_repo.get_all_for_space(space_id))
         client = await self._get_drive_client(user_id)
+        provider = client.connector_type.value
+        roots = linked_drive_roots(await self.source_repo.get_all_for_space(space_id), provider)
         try:
             await self.db.commit()  # The whole provider traversal uses detached read snapshots.
             # ONE read of the Drive for the act — the verdicts come AFTER the
@@ -321,7 +288,7 @@ class RAGDriveSyncService:
             async with space_read(user_id=user_id, section=SECTION_DRIVE):
                 metadata = await client.get_file_metadata(folder_id)
                 nested_in = (
-                    await self._nested_folder_conflict(client, space_id, folder_id, roots=roots)
+                    await self._nested_folder_conflict(client, folder_id, roots=roots)
                     if "folder" in metadata.get("mimeType", "")
                     else None
                 )
@@ -347,15 +314,15 @@ class RAGDriveSyncService:
             folder_id,
             observed_source_name(metadata, folder_id, fallback_name),
             roots,
+            provider,
         )
 
     async def _nested_folder_conflict(
         self,
-        client: GoogleDriveClient,
-        space_id: UUID,
+        client: FilesClientProtocol,
         folder_id: str,
         *,
-        roots: tuple[DriveLinkRoot, ...] | None = None,
+        roots: tuple[DriveLinkRoot, ...],
     ) -> str | None:
         """The linked root ``folder_id`` shares a tree with, or None.
 
@@ -364,15 +331,10 @@ class RAGDriveSyncService:
         — plus its last walked folder set — against the candidate (candidate
         ABOVE a tree). Reads only; the caller raises, outside the recorded read.
         """
-        others = (
-            roots
-            if roots is not None
-            else linked_drive_roots(await self.source_repo.get_all_for_space(space_id))
-        )
-        if not others:
+        if not roots:
             return None
         candidate_ancestors = set(await ancestor_ids(client, folder_id))
-        for other in others:
+        for other in roots:
             if other.folder_id in candidate_ancestors or folder_id in (other.folder_ids or []):
                 return str(other.folder_id)
             if folder_id in set(await ancestor_ids(client, other.folder_id)):
@@ -448,6 +410,29 @@ class RAGDriveSyncService:
     # ========================================================================
     # Status & Lock
     # ========================================================================
+
+    async def require_live_source(
+        self, space_id: UUID, source_id: UUID, user_id: UUID
+    ) -> RAGDriveSource:
+        """The account's folder, once its drive is the one connected.
+
+        Args:
+            space_id: Parent RAG space ID.
+            source_id: The linked folder.
+            user_id: Owning user ID.
+
+        Returns:
+            The source.
+
+        Raises:
+            BaseAPIException: 404 for a folder of no such space; 409, its code stated, for one
+                whose drive is not connected.
+        """
+        await self._verify_space_ownership(space_id, user_id)
+        source = await self._get_source_or_404(source_id, space_id)
+        if is_paused(source, await active_drive_provider(user_id, ConnectorService(self.db))):
+            _raise_drive_source_paused(source_id)
+        return source
 
     async def get_sync_status(
         self,
@@ -537,8 +522,7 @@ class RAGDriveSyncService:
         Raises:
             BaseAPIException: Ownership, a missing source, or an unreadable root.
         """
-        await self._verify_space_ownership(space_id, user_id)
-        source = await self._get_source_or_404(source_id, space_id)
+        source = await self.require_live_source(space_id, source_id, user_id)
         folder_id = source.folder_id
         client = await self._get_drive_client(user_id)
         try:
@@ -608,7 +592,7 @@ class RAGDriveSyncService:
         *,
         max_results: int = 100,
     ) -> dict:
-        """Browse contents of a Google Drive folder for the folder picker.
+        """Browse contents of a folder of the account's drive for the folder picker.
 
         Returns both folders (navigable) and files (preview only) so the user
         can see what will be synced before selecting a folder.
@@ -626,12 +610,13 @@ class RAGDriveSyncService:
         try:
             await self.db.commit()  # Credential reads end before the provider wait.
             async with space_read(user_id=user_id, section=SECTION_DRIVE):
-                return await client.list_files(
+                listed: dict = await client.list_files(
                     folder_id=folder_id,
                     content_type=None,
                     page_token=page_token,
                     max_results=max_results,
                 )
+                return listed
         finally:
             await client.close()
 
@@ -639,30 +624,34 @@ class RAGDriveSyncService:
     # Helpers
     # ========================================================================
 
-    async def _get_drive_client(self, user_id: UUID) -> GoogleDriveClient:
-        """Get an authenticated Google Drive client for the user.
+    async def _get_drive_client(self, user_id: UUID) -> Any:
+        """Get an authenticated client of the drive the user has connected.
 
         Args:
             user_id: User UUID.
 
         Returns:
-            Authenticated GoogleDriveClient.
+            Its authenticated client.
 
         Raises:
-            BaseAPIException: If Drive connector is not active.
+            BaseAPIException: If no drive connector is active.
         """
-        credentials = await ConnectorService(self.db).get_connector_credentials(
-            user_id, ConnectorType.GOOGLE_DRIVE
+        connectors = ConnectorService(self.db)
+        provider = await active_drive_provider(user_id, connectors)
+        credentials = (
+            await connectors.get_connector_credentials(user_id, ConnectorType(provider))
+            if provider is not None
+            else None
         )
-        if not credentials:
+        if provider is None or not credentials:
             raise BaseAPIException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Google Drive connector is not active",
+                detail="No drive connector is active",
                 log_event="rag_drive_connector_not_active",
                 user_id=str(user_id),
             )
         # The client's own writes run on a session of their own (ADR-304).
-        return GoogleDriveClient(user_id, credentials, DetachedConnectorService())
+        return drive_client_of(provider, user_id, credentials, DetachedConnectorService())
 
 
 # ============================================================================
@@ -710,27 +699,28 @@ async def sync_folder_background(
                 )
                 return
 
-            # Get drive client: its credentials read in a session of their
-            # own, its token refreshes written through it (ADR-304).
+            # The client of the folder's own drive: its credentials read in a
+            # session of their own, its token refreshes written through it (ADR-304).
             connectors = DetachedConnectorService()
+            provider = source.provider
             await db.commit()
             async with connectors.unit_of_work() as connector_service:
                 credentials = await connector_service.get_connector_credentials(
-                    user_id, ConnectorType.GOOGLE_DRIVE
+                    user_id, ConnectorType(provider)
                 )
             if not credentials:
                 await source_repo.update(
                     source,
                     {
                         "sync_status": RAGDriveSyncStatus.ERROR,
-                        "error_message": "Google Drive connector not active",
+                        "error_message": "The folder's drive connector is not active",
                     },
                 )
                 await db.commit()
                 rag_drive_sync_runs_total.labels(status="error").inc()
                 return
 
-            client = GoogleDriveClient(user_id, credentials, connectors)
+            client = drive_client_of(provider, user_id, credentials, connectors)
             # The reads end before the walk: a tree of hundreds of folders is
             # hundreds of Drive calls, and no transaction waits on them.
             await db.commit()

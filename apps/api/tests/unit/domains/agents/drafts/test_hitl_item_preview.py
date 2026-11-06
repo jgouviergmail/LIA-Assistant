@@ -49,6 +49,24 @@ _SEP = label_separator("fr")
 # =============================================================================
 
 
+def test_an_answer_says_who_it_leaves_for() -> None:
+    """A batch of answers tells apart whom each one reaches, as a batch of mails does."""
+    row = format_hitl_item_preview(
+        draft_type=DraftType.EVENT_ANSWER.value,
+        content={
+            "summary": "Standup",
+            "organizer": "ana@example.org",
+            "start_datetime": "2026-05-17T19:00:00+02:00",
+        },
+        language="fr",
+        user_timezone="Europe/Paris",
+    )
+
+    assert row is not None
+    assert row.startswith("📨 Réponse à ana"), row
+    assert "Standup" in row
+
+
 def test_reminder_delete_no_duplicate_emoji_and_localized_noun() -> None:
     """Reminder rows show one emoji, the capitalized noun, the label, and the date."""
     row = format_hitl_item_preview(

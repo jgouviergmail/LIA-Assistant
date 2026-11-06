@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-11-01
-**Compatibility**: LIA v4.3.0
+**Compatibility**: LIA v4.4.0
 
 ## Table of Contents
 
@@ -74,18 +74,18 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Tools | 311 (tool manifests registered at startup, measured 2026-10-19 on Docker dev) |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
-| Configurable model and decision slots | 89, including 23 native JEV usages (admin registry, measured 2026-10-19) |
+| Configurable model and decision slots | 95, including 23 native JEV usages (admin registry, measured 2026-11-06) |
 | UI languages | 6 — fr, en, es, de, it, zh |
 | Prometheus metrics | 658 |
 | Grafana dashboards | 33 |
-| Built-in FAQ knowledge base | 535 questions in six languages; the English help corpus is indexed at startup |
+| Built-in FAQ knowledge base | 544 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.141.1, LangGraph 1.2.14, LangChain 1.3.15, SQLAlchemy 2.0.54, Python 3.14 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.4.2, React 19.3.1 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.4.5, React 19.3.1 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 (`pgvector/pgvector`, pinned by version and digest) |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo (+ Langfuse in dev) | Prometheus 3.15.0, Grafana 12.4.11, Loki 3.7.8, Tempo 2.10.8 |
@@ -98,7 +98,7 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | **Contacts** | Contact management | Google People API / Microsoft Graph / Apple CardDAV |
 | **Emails** | Read/send/organize emails | Gmail API / Microsoft Graph / Apple IMAP-SMTP |
 | **Calendar** | Event management | Google Calendar API / Microsoft Graph / Apple CalDAV |
-| **Files** | File search | Google Drive API |
+| **Files** | Browse, read, organise, share | Google Drive API / Microsoft Graph |
 | **Tasks** | Task management | Google Tasks API / Microsoft To Do |
 | **Places** | Location search | Google Places API (New) |
 | **Routes** | Directions and itineraries | Google Routes API |
@@ -169,7 +169,7 @@ Production reference platform: Raspberry Pi 5 (linux/arm64) — all images are m
 | Service | Usage | Sign Up |
 |---------|-------|---------|
 | **Google Cloud** | Google OAuth login + Google connectors + Places/Routes | [console.cloud.google.com](https://console.cloud.google.com/) |
-| **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, To Do) | [portal.azure.com](https://portal.azure.com/) |
+| **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, To Do, OneDrive) | [portal.azure.com](https://portal.azure.com/) |
 | **Firebase** | Push notifications (FCM) | [console.firebase.google.com](https://console.firebase.google.com/) |
 | **ElevenLabs** | Premium STT (Scribe) + TTS | [elevenlabs.io](https://elevenlabs.io/) |
 | **Fish Audio** | Premium TTS (S2, drama-3) + STT + voice cloning and design | [fish.audio](https://fish.audio/) |
@@ -782,22 +782,23 @@ Settings > **Connectors** > **Connect** on an individual Google service, or sele
 
 ### 2. Microsoft Azure (Optional)
 
-> **Required for**: Outlook (email), Calendar, Contacts and To Do via Microsoft Graph.
+> **Required for**: Outlook (email), Calendar, Contacts, To Do and OneDrive via Microsoft Graph.
 
 1. [Azure Portal](https://portal.azure.com/) > **Microsoft Entra ID** > **App registrations** > **New registration**
    - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (`tenant=common`)
-2. **Authentication** > **Web** > add the 5 redirect URIs:
+2. **Authentication** > **Web** > add the 6 redirect URIs:
 
    ```
    https://localhost:8000/api/v1/connectors/microsoft-outlook/callback
    https://localhost:8000/api/v1/connectors/microsoft-calendar/callback
    https://localhost:8000/api/v1/connectors/microsoft-contacts/callback
    https://localhost:8000/api/v1/connectors/microsoft-tasks/callback
+   https://localhost:8000/api/v1/connectors/microsoft-onedrive/callback
    https://localhost:8000/api/v1/connectors/oauth-bulk/microsoft/callback
    ```
 
    Leave implicit grant unchecked (LIA uses authorization code flow with PKCE).
-3. **API permissions** > **Microsoft Graph** > **Delegated**: `User.Read`, `offline_access`, `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `Calendars.Read`, `Calendars.ReadWrite`, `Contacts.Read`, `Contacts.ReadWrite`, `Tasks.Read`, `Tasks.ReadWrite` (no admin consent needed for personal accounts)
+3. **API permissions** > **Microsoft Graph** > **Delegated**: `User.Read`, `offline_access`, `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `MailboxSettings.ReadWrite`, `Calendars.Read`, `Calendars.ReadWrite`, `Contacts.Read`, `Contacts.ReadWrite`, `Tasks.Read`, `Tasks.ReadWrite`, `Files.Read`, `Files.Read.All`, `Files.ReadWrite.All` (no admin consent needed for personal accounts)
 4. **Certificates & secrets** > **New client secret** — copy the value immediately
 5. In `.env`:
 
@@ -809,7 +810,9 @@ Settings > **Connectors** > **Connect** on an individual Google service, or sele
 
 6. Connect in Settings > Connectors. You can choose one Microsoft service, or select several and authorize the verified Microsoft account in one consent. Services remain independently disconnectable; existing connections are not migrated automatically.
 
-> **Mutual exclusivity**: only one provider per functional category (email, calendar, contacts, tasks) can be active. Activating Microsoft deactivates Google/Apple for that category (deactivated connectors are set INACTIVE, not deleted).
+> **Upgrading from an earlier release**: add the OneDrive redirect URI and the `Files.*` and `MailboxSettings.ReadWrite` permissions to the registration. An Outlook connection keeps working and asks to be reconnected once for its automatic replies and rules; OneDrive is connected from Settings > Connectors.
+
+> **Mutual exclusivity**: only one provider per functional category (email, calendar, contacts, tasks, files) can be active. Activating Microsoft deactivates Google/Apple for that category (deactivated connectors are set INACTIVE, not deleted).
 
 > See [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md).
 
@@ -884,7 +887,7 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `INITIATIVE_ENABLED` | Proactive initiative phase after responses | `true` |
 | `RAG_SPACES_ENABLED` | Personal document knowledge spaces | `true` |
 | `RAG_SPACES_SYSTEM_ENABLED` | Built-in FAQ knowledge base | `true` |
-| `RAG_SPACES_DRIVE_SYNC_ENABLED` | Google Drive sync for RAG spaces | `true` |
+| `RAG_SPACES_DRIVE_SYNC_ENABLED` | Google Drive and OneDrive folder sync for RAG spaces | `true` |
 | `SUB_AGENTS_ENABLED` | Persistent specialized sub-agents | `true` |
 | `JOURNALS_ENABLED` | Assistant introspective journals | `true` |
 | `PSYCHE_ENABLED` | Dynamic psychological state | `true` |
@@ -1263,8 +1266,8 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 
 ## LLM Configuration
 
-LIA declares **89 independently configurable model and decision slots** in
-`LLM_TYPES_REGISTRY` (67 static entries and 17 JEV usages). Pipeline nodes,
+LIA declares **95 independently configurable model and decision slots** in
+`LLM_TYPES_REGISTRY` (72 static entries and 23 JEV usages). Pipeline nodes,
 domain agents and background tasks select their own provider and model; native
 decision slots expose only the parameters their provider accepts. Configuration
 is resolved as **code defaults (`LLM_DEFAULTS`) → database overrides** (admin
@@ -1352,6 +1355,7 @@ The tables below show the **effective production configuration** (code defaults 
 |------|----------|-------|------|------------|-----------|
 | `vision_analysis` | Gemini | `gemini-3.5-flash` | 1.0 | 5 000 | — |
 | `image_generation` | OpenAI | `gpt-image-2` | — | — | — |
+| `interactive_page` (code default, as a document's) | OpenAI | `gpt-4.1` | 0.2 | 16 000 | — |
 | `voice_comment` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
 | `voice_transcription` | ElevenLabs | `scribe_v2` | — | — | — |
 | `voice_tts` | ElevenLabs | `eleven_flash_v2_5` | — | — | — |

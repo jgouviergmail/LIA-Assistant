@@ -5,26 +5,114 @@
  *
  * - the ADDRESS: the open folder and message ride the query string — opening
  *   a message pushes, closing replaces, so « back » closes the reader;
- * - the SELECTION belongs to one listing: another folder, other words or other
- *   chips start with nothing selected (derived, never reset by an effect);
  * - the COMPOSER slot: each opening mounts a new composer, hence a new key;
  * - the LOOK: an unread message open for `MAIL_READ_DWELL_MS` is marked read;
- * - the DRAFTS' row acts: one draft opened at a time, each trash answered.
+ * - the DRAFTS' row acts: one draft opened at a time, each trash answered;
+ * - the IMAGES a message carries: read apart, once its layout names them;
+ * - the FRESHNESS: a folder's figure growing means mail arrived, and its listing
+ *   is read again without being asked;
+ * - the CONVERSATION: read once the message landed, so the message never waits for it, and
+ *   kept while the person walks it;
+ * - the LINES: the listing as the list draws it, by this device's grouping.
  */
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { toast } from 'sonner';
 
-import type { WorkbenchItemState } from '@/hooks/useWorkbenchItem';
+import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import type { WorkbenchMailDrafts } from '@/hooks/useWorkbenchMailDrafts';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { toggleId } from '@/lib/selection';
-import { MAIL_INBOX, MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
+import {
+  MAIL_INBOX,
+  MAIL_READ_DWELL_MS,
+  cidsOf,
+  conversationAnchor,
+  mailLines,
+  readMailGrouping,
+  subscribeMailGrouping,
+  type MailGrouping,
+  type MailLine,
+} from '@/lib/workbench/mail';
 import type { ComposerTarget } from '@/lib/workbench/mail-compose';
 import { toolPath } from '@/lib/workbench/tools';
-import type { MailMessage, MailSummary } from '@/lib/workbench/types';
+import type {
+  MailConversation,
+  MailInlineImages,
+  MailMessage,
+  MailSummary,
+  RereadOptions,
+} from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+
+const INLINE_IMAGES_PATH = '/workbench/mail/message/images';
+const CONVERSATION_PATH = '/workbench/mail/conversation';
+const NO_ROWS: readonly MailSummary[] = [];
+
+const flat = (): MailGrouping => 'flat';
+
+export interface MailLines {
+  lines: readonly MailLine[];
+  /** This device's grouping. */
+  grouping: MailGrouping;
+}
+
+/** @param rows - What is loaded, in the listing's order. */
+export function useMailLines(rows: readonly MailSummary[]): MailLines {
+  const grouping = useSyncExternalStore(subscribeMailGrouping, readMailGrouping, flat);
+  const lines = useMemo(() => mailLines(rows, grouping === 'grouped'), [grouping, rows]);
+  return { lines, grouping };
+}
+
+export interface ConversationState {
+  /** Its messages, oldest first; none until read. */
+  rows: readonly MailSummary[];
+  /** It holds older messages than these. */
+  truncated: boolean;
+  /** It could not be read: the message stands alone, and says why. */
+  failed: boolean;
+  /** The person opened the list. */
+  expanded: boolean;
+  setExpanded: (expanded: boolean) => void;
+  refresh: (options?: RereadOptions) => Promise<void>;
+}
+
+/**
+ * @param reading - The reader is open.
+ * @param message - The message on screen, once it landed.
+ */
+export function useConversation(
+  reading: boolean,
+  message: MailMessage | undefined
+): ConversationState {
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const read = useWorkbenchItem<MailConversation>(anchor ? CONVERSATION_PATH : null, {
+    id: anchor ?? undefined,
+  });
+  const next = conversationAnchor(anchor, read.item?.items, reading, message?.id);
+  if (next !== anchor) {
+    setAnchor(next);
+    setExpanded(false);
+  }
+  return {
+    rows: read.item?.items ?? NO_ROWS,
+    truncated: read.item?.truncated ?? false,
+    failed: read.error !== null,
+    expanded,
+    setExpanded,
+    refresh: read.refresh,
+  };
+}
 
 export interface MailAddress {
   folder: string;
@@ -32,6 +120,8 @@ export interface MailAddress {
   folderHref: (folderId: string) => string;
   messageHref: (message: MailSummary) => string;
   openMessage: (message: MailSummary) => void;
+  /** Opens another message in the place of the open one (« back » skips it). */
+  replaceMessage: (message: MailSummary) => void;
   closeMessage: () => void;
   pickFolder: (folderId: string) => void;
 }
@@ -65,6 +155,10 @@ export function useMailAddress(lng: Language): MailAddress {
     (message: MailSummary) => router.push(messageHref(message), { scroll: false }),
     [messageHref, router]
   );
+  const replaceMessage = useCallback(
+    (message: MailSummary) => router.replace(messageHref(message), { scroll: false }),
+    [messageHref, router]
+  );
   const closeMessage = useCallback(
     () => router.replace(hrefOf(folderQuery), { scroll: false }),
     [folderQuery, hrefOf, router]
@@ -73,31 +167,16 @@ export function useMailAddress(lng: Language): MailAddress {
     (id: string) => router.replace(folderHref(id), { scroll: false }),
     [folderHref, router]
   );
-  return { folder, openId, folderHref, messageHref, openMessage, closeMessage, pickFolder };
-}
-
-export interface MailSelection {
-  selected: ReadonlySet<string>;
-  select: (ids: ReadonlySet<string>) => void;
-  toggle: (id: string) => void;
-}
-
-/** @param listingKey - The listing the selection belongs to (its params, serialised). */
-export function useMailSelection(listingKey: string): MailSelection {
-  const [selection, setSelection] = useState<{ key: string; ids: ReadonlySet<string> }>({
-    key: '',
-    ids: new Set(),
-  });
-  const selected = useMemo(
-    () => (selection.key === listingKey ? selection.ids : new Set<string>()),
-    [listingKey, selection]
-  );
-  const select = useCallback(
-    (ids: ReadonlySet<string>) => setSelection({ key: listingKey, ids }),
-    [listingKey]
-  );
-  const toggle = useCallback((id: string) => select(toggleId(selected, id)), [select, selected]);
-  return { selected, select, toggle };
+  return {
+    folder,
+    openId,
+    folderHref,
+    messageHref,
+    openMessage,
+    replaceMessage,
+    closeMessage,
+    pickFolder,
+  };
 }
 
 export interface ComposerSlot {
@@ -142,6 +221,54 @@ export function useReadAfterLook(
     const timer = window.setTimeout(() => mark(), MAIL_READ_DWELL_MS);
     return () => window.clearTimeout(timer);
   }, [unreadShown]);
+}
+
+const NO_CIDS: readonly string[] = [];
+
+/**
+ * @param messageId - The open message.
+ * @param html - Its layout, once read.
+ * @returns The images it carries, once read; nothing is asked where it names none.
+ */
+export function useInlineImages(
+  messageId: string | null,
+  html: string | null
+): MailInlineImages | undefined {
+  const cids = useMemo(() => (html ? cidsOf(html) : NO_CIDS), [html]);
+  const params = useMemo(
+    () => ({ message_id: messageId ?? undefined, cid: [...cids] }),
+    [cids, messageId]
+  );
+  const read = useWorkbenchItem<MailInlineImages>(
+    messageId && cids.length > 0 ? INLINE_IMAGES_PATH : null,
+    params
+  );
+  if (read.error && !read.item) return { images: [], skipped: cids.length };
+  return read.item;
+}
+
+/**
+ * Reads the listing again when what it leaves unread grows: a message arrived. A figure
+ * that falls is the person's own reading, and asks for nothing.
+ *
+ * @param folder - The listing.
+ * @param counts - The figures, once read.
+ * @param reread - Reads the listing again.
+ */
+export function useFreshListing(
+  folder: string,
+  counts: Readonly<Record<string, number>> | undefined,
+  reread: () => void
+): void {
+  const figure = counts?.[folder];
+  const seen = useRef<{ folder: string; figure: number | undefined }>({ folder, figure });
+  const read = useEffectEvent(reread);
+  useEffect(() => {
+    const before = seen.current;
+    seen.current = { folder, figure };
+    if (before.folder !== folder || before.figure === undefined || figure === undefined) return;
+    if (figure > before.figure) read();
+  }, [folder, figure]);
 }
 
 export interface DraftActs {

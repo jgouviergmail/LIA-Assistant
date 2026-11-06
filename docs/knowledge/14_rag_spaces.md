@@ -55,8 +55,8 @@ RAG uses OpenAI embeddings, which have a small cost:
 
 Costs are **fully tracked** and visible in the assistant message cost breakdown and your usage dashboard. The RAG embedding cost appears under the gemini-embedding-001 model.**Tip:** For a typical 10-page PDF, indexing costs less than $0.001.
 
-## How does Google Drive sync work?
-You can link Google Drive folders to your knowledge spaces. Click **'Link Folder'**, browse your Drive and select a folder: LIA walks it **as a tree, sub-folders included**, lists the supported files, downloads them and processes them through the same indexing pipeline. A folder inside an already linked one — or above it — is refused rather than indexed twice.
+## How does folder sync work?
+You can link folders of your drive, Google Drive or OneDrive, to your knowledge spaces. Click **'Link Folder'**, browse your Drive and select a folder: LIA walks it **as a tree, sub-folders included**, lists the supported files, downloads them and processes them through the same indexing pipeline. A folder inside an already linked one — or above it — is refused rather than indexed twice.
 
 Use **'Sync Now'** to update — LIA detects new, modified and deleted files automatically. Past a number of files (10 by default, a setting of the instance), the button first shows the **exact count** of files about to be indexed — new, modified, unchanged, unsupported, and what the space cannot hold — and waits for your confirmation; a walk cut by a bound says "at least".
 
@@ -87,12 +87,12 @@ Administrators can manage system knowledge spaces in **Settings › Administrati
 ## Can LIA search my documents on its own? (v1.25.13)
 Yes. Your document spaces are now an **active domain**: beyond the automatic context injection, the planner can decide to search them — with derived queries, several passes if needed, and combinations with other sources: « compare the PDF quote with what Paul sent by email » chains a document search and an email search.
 
-The « Documents » briefing card also shows your latest modified Drive files — one click to summarize in chat, or open directly in Drive.
+The « Documents » briefing card also shows your latest modified files, on Google Drive or OneDrive — one click to summarize in chat, or open directly in your drive.
 
 ## Can I download, move or delete several documents?
 Yes. Every document in a space offers **Download** — the original file, under its original name — and ticks to act on several at once. A selection can be **downloaded as one zip archive**, **moved to another space** or **deleted** in one go.
 
-A move takes everything with it: the row, the index the search reads and the file itself — after which the document answers from its new space, and only from there. What stays put is what LIA maintains for you: documents synced from a Google Drive folder and meeting minutes, which belong to their source.
+A move takes everything with it: the row, the index the search reads and the file itself — after which the document answers from its new space, and only from there. What stays put is what LIA maintains for you: documents synced from a drive folder (Google Drive or OneDrive) and meeting minutes, which belong to their source.
 
 Every batch tells you what it did and what it left aside, with the reason — target space full, document still being indexed, document managed elsewhere. And nothing moves during a general reindex: LIA would rather refuse cleanly than move a document the engine is re-reading.
 

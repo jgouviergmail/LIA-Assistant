@@ -167,6 +167,7 @@ FERNET_KEY=fake-fernet
         # "Cannot find module .../copy-ort-runtime.mjs" (2026-10-01 deploy).
         New-Item -ItemType Directory (Join-Path $proj "apps/web/scripts") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/web/scripts/copy-ort-runtime.mjs") "// ORT_SENTINEL"
+        Set-Content (Join-Path $proj "apps/web/scripts/copy-pdf-runtime.mjs") "// PDF_SENTINEL"
         # Modules the tests under src/ import, which `next build` type-checks:
         # left out of the bundle, the build failed on "Cannot find module
         # '../../scripts/double-cast.mjs'" (2026-10-24 deploy).
@@ -702,6 +703,8 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") | Should -Exist
         Get-Content (Join-Path $prod "apps/web/scripts/copy-ort-runtime.mjs") -Raw |
             Should -Match "ORT_SENTINEL"
+        Get-Content (Join-Path $prod "apps/web/scripts/copy-pdf-runtime.mjs") -Raw |
+            Should -Match "PDF_SENTINEL"
     }
 
     It "stages the modules a type-checked file under src/ imports" {
@@ -728,6 +731,7 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         $named = @()
         $named = [regex]::Matches($build, 'scripts/(?<file>[A-Za-z0-9_.-]+)') | ForEach-Object { $_.Groups['file'].Value }
         $named | Should -Contain "copy-ort-runtime.mjs"
+        $named | Should -Contain "copy-pdf-runtime.mjs"
         foreach ($file in $named) {
             $staged | Should -Contain $file
         }

@@ -83,6 +83,26 @@ export function isAndroidShell(): boolean {
   return isNativeShell() && capacitor()?.getPlatform?.() === 'android';
 }
 
+/**
+ * Whether the installed shell says it can do something.
+ *
+ * The web moves with the server and the shell with the store, so a page often runs in an older
+ * binary: a gesture a shell gained is asked of it, never assumed from the platform.
+ *
+ * @param name - The capability, as the shell's `get` names it.
+ * @returns True when the shell names it; false in a browser, in an older shell, or on no answer.
+ */
+export async function shellCapability(name: string): Promise<boolean> {
+  const plugin = capacitor()?.Plugins?.LiaShell;
+  if (!isNativeShell() || typeof plugin?.get !== 'function') return false;
+  try {
+    const answer = (await plugin.get()) as { capabilities?: Record<string, unknown> } | null;
+    return Boolean(answer?.capabilities?.[name]);
+  } catch {
+    return false;
+  }
+}
+
 /** Base64url, unpadded — the alphabet RFC 7636 uses and the API validates. */
 function base64url(bytes: Uint8Array): string {
   let binary = '';

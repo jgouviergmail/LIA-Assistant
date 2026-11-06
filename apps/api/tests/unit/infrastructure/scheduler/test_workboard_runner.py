@@ -581,6 +581,28 @@ class TestTheReaperNeverFreesALiveRun:
         if settings.workboard_run_max_attempts > 1:
             assert _worst_case_seconds() > settings.workboard_run_timeout_seconds
 
+    def test_the_reaper_waits_for_the_bound_the_run_really_got(self) -> None:
+        """A slot that lifts an attempt lifts the reaper with it: both read one door."""
+        from src.core.config import settings
+        from src.core.constants import WORKBOARD_RUN_RETRY_DELAY_SECONDS
+        from src.infrastructure.scheduler.out_of_turn_run import worst_case_run_seconds
+        from src.infrastructure.scheduler.workboard_runner import _worst_case_seconds
+
+        with patch(f"{MODULE}._attempt_bound_seconds", return_value=5000):
+            assert _worst_case_seconds() == worst_case_run_seconds(
+                5000, settings.workboard_run_max_attempts, WORKBOARD_RUN_RETRY_DELAY_SECONDS
+            )
+
+    async def test_a_ticket_s_attempt_lasts_what_its_model_calls_may_take(self) -> None:
+        """An administrator's timeout reaches the run, not only the client (ADR-221)."""
+        env = _Env(_repository(_ticket()))
+        with patch(f"{MODULE}._attempt_bound_seconds", return_value=4321):
+            async with _running(env):
+                await sweep_workboard_runs()
+
+        (request,), _ = env.stream.await_args
+        assert request.timeout_seconds == 4321
+
     async def test_the_tick_reaps_on_the_worst_case(self) -> None:
         """The reaper's cut-off is the worst case BEFORE the sweep's own instant.
 

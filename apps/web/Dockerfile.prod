@@ -139,8 +139,9 @@ COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/standalone ./
 # Copy static files (not included in standalone)
 # Next.js standalone looks for static files relative to server.js location (apps/web/)
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/static ./apps/web/.next/static
-# `public/` carries the wake-word models (committed, ADR-329) and the ONNX
-# Runtime binary `pnpm run build` copied into `public/ort/<version>/`.
+# `public/` carries the wake-word models (committed, ADR-329), the ONNX Runtime
+# binary `pnpm run build` copied into `public/ort/<version>/` and PDF.js's worker
+# and data into `public/pdfjs/<version>/`.
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/public ./apps/web/public
 
 USER nextjs

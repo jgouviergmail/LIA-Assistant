@@ -50,10 +50,17 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.google_contacts.value_descriptions import (
     CONTACT_ADDRESS_DESCRIPTION,
+    CONTACT_BIRTHDAY_DESCRIPTION,
+    CONTACT_CLEAR_BIRTHDAY_DESCRIPTION,
     CONTACT_EMAIL_DESCRIPTION,
+    CONTACT_FAMILY_NAME_DESCRIPTION,
+    CONTACT_GIVEN_NAME_DESCRIPTION,
+    CONTACT_JOB_TITLE_DESCRIPTION,
     CONTACT_PHONE_DESCRIPTION,
+    CONTACT_WEBSITE_DESCRIPTION,
 )
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.contact_extras import read_extras, refusal_of
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
@@ -72,40 +79,6 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
-
-
-# ============================================================================
-# URL HELPERS
-# ============================================================================
-
-
-def _build_contact_url(resource_name: str | None) -> str | None:
-    """
-    Build Google Contacts URL from resource_name.
-
-    Google Contacts URL format: https://contacts.google.com/person/{person_id}
-    resource_name format: people/c{person_id} (e.g., people/c6737050419687533025)
-
-    Args:
-        resource_name: Contact resource name (e.g., "people/c6737050419687533025")
-
-    Returns:
-        Google Contacts URL or None if resource_name is invalid
-
-    Example:
-        >>> _build_contact_url("people/c6737050419687533025")
-        "https://contacts.google.com/person/c6737050419687533025"
-    """
-    if not resource_name:
-        return None
-
-    # Extract person_id from resource_name
-    # Format: people/{person_id} where person_id starts with 'c'
-    if resource_name.startswith("people/"):
-        person_id = resource_name.replace("people/", "")
-        return f"https://contacts.google.com/person/{person_id}"
-
-    return None
 
 
 # ============================================================================
@@ -1650,6 +1623,9 @@ class CreateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         phone: str | None = kwargs.get("phone")
         organization: str | None = kwargs.get("organization")
         notes: str | None = kwargs.get("notes")
+        extras = read_extras(kwargs)
+        if refused := await refusal_of(extras, self.get_user_preferences_safe):
+            return refused
 
         logger.info(
             "create_contact_draft_prepared",
@@ -1666,6 +1642,7 @@ class CreateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             "phone": phone,
             "organization": organization,
             "notes": notes,
+            **extras.fields(),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1689,6 +1666,7 @@ class CreateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             phone=result.get("phone"),
             organization=result.get("organization"),
             notes=result.get("notes"),
+            extras=read_extras(result),
             source_tool="create_contact_tool",
             user_language=self.get_user_language(),
         )
@@ -1710,6 +1688,11 @@ async def create_contact_tool(
     phone: Annotated[str | None, "Contact phone number (optional)"] = None,
     organization: Annotated[str | None, "Company/organization name (optional)"] = None,
     notes: Annotated[str | None, "Additional notes (optional)"] = None,
+    given_name: Annotated[str | None, CONTACT_GIVEN_NAME_DESCRIPTION] = None,
+    family_name: Annotated[str | None, CONTACT_FAMILY_NAME_DESCRIPTION] = None,
+    job_title: Annotated[str | None, CONTACT_JOB_TITLE_DESCRIPTION] = None,
+    website: Annotated[str | None, CONTACT_WEBSITE_DESCRIPTION] = None,
+    birthday: Annotated[str | None, CONTACT_BIRTHDAY_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1731,6 +1714,11 @@ async def create_contact_tool(
         phone: Contact phone number (optional)
         organization: Company/organization name (optional)
         notes: Additional notes (optional)
+        given_name: Their given name (optional)
+        family_name: Their family name (optional)
+        job_title: What they do at work (optional)
+        website: Their website (optional)
+        birthday: Their birthday, an ISO date (optional)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1748,71 +1736,12 @@ async def create_contact_tool(
         phone=phone,
         organization=organization,
         notes=notes,
+        given_name=given_name,
+        family_name=family_name,
+        job_title=job_title,
+        website=website,
+        birthday=birthday,
     )
-
-
-# ============================================================================
-# DRAFT EXECUTION HELPER (LOT 5.4)
-# ============================================================================
-
-
-async def execute_contact_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute a contact draft: actually create the contact.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-
-    This is the execute_fn passed to DraftService.process_draft_action().
-    It retrieves the Google People client and creates the contact.
-
-    Args:
-        draft_content: Dict with contact content from draft
-            {name, email, phone, organization, notes}
-        user_id: User UUID
-        deps: ToolDependencies for getting Google People client
-
-    Returns:
-        Dict with create result:
-            {success, resource_name, name, email, message}
-
-    Raises:
-        Exception: If contact creation fails
-    """
-    # Get contacts client via dynamic provider resolution
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    client, _resolved_type = await resolve_client_for_category("contacts", user_id, deps)
-
-    # Create contact
-    result = await client.create_contact(
-        name=draft_content["name"],
-        email=draft_content.get("email"),
-        phone=draft_content.get("phone"),
-        organization=draft_content.get("organization"),
-        notes=draft_content.get("notes"),
-    )
-
-    logger.info(
-        "contact_draft_executed",
-        user_id=str(user_id),
-        resource_name=result.get("resourceName"),
-    )
-
-    resource_name = result.get("resourceName")
-    html_link = _build_contact_url(resource_name)
-
-    return {
-        "success": True,
-        "resource_name": resource_name,
-        "html_link": html_link,
-        "name": draft_content["name"],
-        "email": draft_content.get("email"),
-        "message": APIMessages.contact_created_successfully(draft_content["name"]),
-    }
 
 
 # ============================================================================
@@ -1855,6 +1784,9 @@ class UpdateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         organization: str | None = kwargs.get("organization")
         notes: str | None = kwargs.get("notes")
         address: str | None = kwargs.get("address")
+        extras = read_extras(kwargs)
+        if refused := await refusal_of(extras, self.get_user_preferences_safe):
+            return refused
 
         # Fetch current contact to show in draft comparison
         current_contact = await client.get_person(resource_name, use_cache=False)
@@ -1897,6 +1829,7 @@ class UpdateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             "notes": notes if notes is not None else current_notes,
             "address": address if address is not None else current_address,
             "current_contact": current_contact,
+            **extras.fields(),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1917,6 +1850,7 @@ class UpdateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             notes=result.get("notes"),
             address=result.get("address"),
             current_contact=result.get("current_contact"),
+            extras=read_extras(result),
             source_tool="update_contact_tool",
             user_language=self.get_user_language(),
         )
@@ -1939,6 +1873,12 @@ async def update_contact_tool(
     organization: Annotated[str | None, "New organization name (optional)"] = None,
     notes: Annotated[str | None, "New notes (optional)"] = None,
     address: Annotated[str | None, CONTACT_ADDRESS_DESCRIPTION] = None,
+    given_name: Annotated[str | None, CONTACT_GIVEN_NAME_DESCRIPTION] = None,
+    family_name: Annotated[str | None, CONTACT_FAMILY_NAME_DESCRIPTION] = None,
+    job_title: Annotated[str | None, CONTACT_JOB_TITLE_DESCRIPTION] = None,
+    website: Annotated[str | None, CONTACT_WEBSITE_DESCRIPTION] = None,
+    birthday: Annotated[str | None, CONTACT_BIRTHDAY_DESCRIPTION] = None,
+    clear_birthday: Annotated[bool, CONTACT_CLEAR_BIRTHDAY_DESCRIPTION] = False,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1957,6 +1897,12 @@ async def update_contact_tool(
         organization: New organization name (optional)
         notes: New notes (optional)
         address: New primary address, e.g. '15 rue de la Paix, Paris 75001' (optional)
+        given_name: Their given name; an empty text empties it (optional)
+        family_name: Their family name; an empty text empties it (optional)
+        job_title: What they do at work; an empty text empties it (optional)
+        website: Their website; an empty text removes it (optional)
+        birthday: Their birthday, an ISO date (optional)
+        clear_birthday: True to remove the birthday (optional)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1971,6 +1917,12 @@ async def update_contact_tool(
         organization=organization,
         notes=notes,
         address=address,
+        given_name=given_name,
+        family_name=family_name,
+        job_title=job_title,
+        website=website,
+        birthday=birthday,
+        clear_birthday=clear_birthday,
     )
 
 
@@ -2089,92 +2041,6 @@ async def delete_contact_tool(
 
 
 # ============================================================================
-# DRAFT EXECUTION HELPERS (LOT 5.4)
-# ============================================================================
-
-
-async def execute_contact_update_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute a contact update draft: actually update the contact.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-    """
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    client, _resolved_type = await resolve_client_for_category("contacts", user_id, deps)
-
-    result = await client.update_contact(
-        resource_name=draft_content["resource_name"],
-        name=draft_content.get("name"),
-        email=draft_content.get("email"),
-        phone=draft_content.get("phone"),
-        organization=draft_content.get("organization"),
-        notes=draft_content.get("notes"),
-        address=draft_content.get("address"),
-    )
-
-    # Get display name
-    names = result.get("names", [])
-    display_name = names[0].get("displayName") if names else draft_content.get("name", "Contact")
-
-    resource_name = draft_content["resource_name"]
-    html_link = _build_contact_url(resource_name)
-
-    logger.info(
-        "contact_update_draft_executed",
-        user_id=str(user_id),
-        resource_name=resource_name,
-    )
-
-    return {
-        "success": True,
-        "resource_name": resource_name,
-        "html_link": html_link,
-        "name": display_name,
-        "message": APIMessages.contact_updated_successfully(display_name),
-    }
-
-
-async def execute_contact_delete_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute a contact delete draft: actually delete the contact.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-    """
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    client, _resolved_type = await resolve_client_for_category("contacts", user_id, deps)
-
-    await client.delete_contact(draft_content["resource_name"])
-
-    # Get name from contact data if available
-    contact = draft_content.get("current_contact", {})
-    names = contact.get("names", [])
-    display_name = names[0].get("displayName") if names else ""
-
-    logger.info(
-        "contact_delete_draft_executed",
-        user_id=str(user_id),
-        resource_name=draft_content["resource_name"],
-    )
-
-    return {
-        "success": True,
-        "resource_name": draft_content["resource_name"],
-        "name": display_name,
-        "message": APIMessages.contact_deleted_successfully(display_name),
-    }
-
-
-# ============================================================================
 # UNIFIED TOOL: GET CONTACTS (v2.0 - replaces search + list + details)
 # ============================================================================
 
@@ -2273,8 +2139,4 @@ __all__ = [
     "CreateContactDraftTool",
     "UpdateContactDraftTool",
     "DeleteContactDraftTool",
-    # Draft execution helpers
-    "execute_contact_draft",
-    "execute_contact_update_draft",
-    "execute_contact_delete_draft",
 ]

@@ -4,8 +4,9 @@
  * The tasks screen's reads and acts (ADR-369, Task 6.2).
  *
  * Two cursor listings (`useWorkbenchPage`): the account's lists, and the tasks
- * of the list asked for — the first list when none is (the address names a
- * list once the person picks one). Every act goes through `useApiMutation`:
+ * of the list asked for — the settings' default when none is, else the first
+ * (the address names a list once the person picks one). Every act goes through
+ * `useApiMutation`:
  *
  * - a completion shows AT ONCE and is rolled back when the provider refuses it
  *   (the error is rethrown so the screen says why); a task whose completion is
@@ -22,7 +23,13 @@ import { useCallback, useRef, useState } from 'react';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useWorkbenchPage, type WorkbenchPageState } from '@/hooks/useWorkbenchPage';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import type { WorkbenchTask, WorkbenchTaskList } from '@/lib/workbench/types';
+import type {
+  DueTask,
+  WorkbenchTask,
+  WorkbenchTaskImportance,
+  WorkbenchTaskList,
+  WorkbenchTaskRepeat,
+} from '@/lib/workbench/types';
 
 const LISTS_PATH = '/workbench/tasks/lists';
 const TASKS_PATH = '/workbench/tasks';
@@ -46,6 +53,11 @@ export interface TaskChangeBody {
   notes?: string;
   due?: string | null;
   completed?: boolean;
+  importance?: WorkbenchTaskImportance;
+  /** An instant; null removes the reminder. */
+  reminder?: string | null;
+  /** null removes the repetition. */
+  repeat?: WorkbenchTaskRepeat | null;
 }
 
 type NewTaskRequest = NewTaskBody & { list_id: string };
@@ -56,13 +68,15 @@ interface NewListRequest {
 }
 
 export interface WorkbenchTasksState {
-  /** The open list: the one asked for, else the first; null while there is none. */
+  /** The open list: the one asked for, the default, the first; null while there is none. */
   listId: string | null;
   lists: WorkbenchPageState<WorkbenchTaskList>;
   tasks: WorkbenchPageState<WorkbenchTask>;
   /** Tasks whose completion is on its way (their checkbox takes no second one). */
   pending: ReadonlySet<string>;
   setCompleted: (task: WorkbenchTask, completed: boolean) => Promise<void>;
+  /** Marks done a task of any list, as a view shows it. */
+  completeDue: (task: DueTask) => Promise<void>;
   saveTask: (task: WorkbenchTask, change: TaskChangeBody) => Promise<void>;
   addTask: (body: NewTaskBody) => Promise<void>;
   removeTask: (task: WorkbenchTask) => Promise<void>;
@@ -81,17 +95,20 @@ function isReplay(error: unknown): boolean {
 }
 
 /**
- * @param requested - The list the address names; null opens the first one.
+ * @param requested - The list the address names; null opens the default one.
  * @param showCompleted - Whether completed tasks are listed too.
+ * @param readsTasks - A list is on screen; a view reads what it gathers itself.
  * @returns The open list, the two listings and the screen's acts.
  */
 export function useWorkbenchTasks(
   requested: string | null,
-  showCompleted: boolean
+  showCompleted: boolean,
+  readsTasks = true
 ): WorkbenchTasksState {
   const lists = useWorkbenchPage<WorkbenchTaskList>(LISTS_PATH, NO_PARAMS);
-  const listId = requested ?? lists.items[0]?.id ?? null;
-  const tasks = useWorkbenchPage<WorkbenchTask>(listId ? TASKS_PATH : null, {
+  const listId =
+    requested ?? (lists.items.find(list => list.default) ?? lists.items[0])?.id ?? null;
+  const tasks = useWorkbenchPage<WorkbenchTask>(listId && readsTasks ? TASKS_PATH : null, {
     list_id: listId ?? undefined,
     show_completed: showCompleted,
   });
@@ -139,6 +156,13 @@ export function useWorkbenchTasks(
       }
     },
     [listId, patchTask, replaceTask, settle]
+  );
+
+  const completeDue = useCallback(
+    async (task: DueTask) => {
+      await patchTask(TASKS_PATH, { list_id: task.list_id, task_id: task.id, completed: true });
+    },
+    [patchTask]
   );
 
   const saveTask = useCallback(
@@ -211,6 +235,7 @@ export function useWorkbenchTasks(
     tasks,
     pending,
     setCompleted,
+    completeDue,
     saveTask,
     addTask,
     removeTask,

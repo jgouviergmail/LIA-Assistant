@@ -64,7 +64,7 @@ _DIRECTION_QUERIES: tuple[tuple[str, str], ...] = (
 _AFTER_FORMAT = "%Y/%m/%d"
 
 #: Shown when the provider gave no subject — never an empty line.
-_NO_SUBJECT = "(no subject)"
+NO_SUBJECT = "(no subject)"
 
 #: Sorting key for a message the provider dated unusably: it goes last, but it
 #: is never dropped — that would hide real correspondence over a header quirk.
@@ -103,12 +103,26 @@ def _excerpt(message: dict[str, Any]) -> str | None:
     return collapsed[: settings.relations_provider_email_excerpt_max_chars] or None
 
 
-def _to_email(message: dict[str, Any], direction: str) -> ExchangedEmail | None:
+def exchange_queries(address: str) -> list[tuple[str, str]]:
+    """The searches that find one address's mail, each with the direction it finds.
+
+    Args:
+        address: The person's address.
+
+    Returns:
+        ``(direction, query)`` pairs, none of them bounded in time.
+    """
+    return [
+        (direction, template.format(address=address)) for direction, template in _DIRECTION_QUERIES
+    ]
+
+
+def to_exchanged_email(message: dict[str, Any], direction: str) -> ExchangedEmail | None:
     """Map one normalized message onto the contract (None when unusable)."""
     message_id = str(message.get("id") or "").strip()
     if not message_id:
         return None  # nothing stable to key a row on
-    subject = str(message.get("subject") or "").strip() or _NO_SUBJECT
+    subject = str(message.get("subject") or "").strip() or NO_SUBJECT
     return ExchangedEmail(
         id=message_id,
         direction=direction,
@@ -147,7 +161,7 @@ async def _search_one(
         return []
     found = []
     for message in response.get("messages") or []:
-        if isinstance(message, dict) and (email := _to_email(message, direction)) is not None:
+        if isinstance(message, dict) and (email := to_exchanged_email(message, direction)):
             found.append(email)
     return found
 
@@ -179,8 +193,8 @@ async def fetch_exchanged_emails(
     async with open_category_client("email", user_id) as opened:
         client = opened.client
         for address in addresses:
-            for direction, template in _DIRECTION_QUERIES:
-                query = f"{template.format(address=address)} after:{since}"
+            for direction, search in exchange_queries(address):
+                query = f"{search} after:{since}"
                 for email in await _search_one(client, query, direction, limit, user_id):
                     # Two addresses of one person can surface the same thread;
                     # the first sighting wins, so a message is listed once.

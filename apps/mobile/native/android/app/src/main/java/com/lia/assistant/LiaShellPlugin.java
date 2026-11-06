@@ -54,8 +54,26 @@ public class LiaShellPlugin extends Plugin {
         result.put("url", ServerUrlStore.read(getContext()));
         JSObject capabilities = new JSObject();
         capabilities.put("shareImage", 1);
+        capabilities.put("serverFiles", 1);
+        capabilities.put("frameLinks", 1);
         result.put("capabilities", capabilities);
         call.resolve(result);
+    }
+
+    /**
+     * Keep the server's API in the WebView, the one place that holds the session.
+     *
+     * <p>Production serves the API on a sibling host, which Capacitor would hand to the system
+     * browser: measured, a file link then answered that browser with no session at all. Kept
+     * here, the file reaches {@link ShellFiles} with the name and type the response gives.
+     *
+     * @param url The address asked for.
+     * @return False to keep it here; null to leave the decision to Capacitor.
+     */
+    @Override
+    public Boolean shouldOverrideLoad(Uri url) {
+        String server = ShellFiles.serverHost(getContext());
+        return ShellLinkRules.isServerApi(server, url.getHost(), url.getPath()) ? Boolean.FALSE : null;
     }
 
     /** Receive only a bounded already-previewed JPEG, never a filesystem path. */

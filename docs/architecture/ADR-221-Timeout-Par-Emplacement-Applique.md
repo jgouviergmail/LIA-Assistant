@@ -147,3 +147,63 @@ today, so nothing changes there).
 
 Not measured: a live Graph or CalDAV call (no active account on dev). Those two contracts are their
 documented ones: Graph `transactionId`, CalDAV objects addressed by uid. Google's was measured (above).
+
+## Amendment 2026-11-05 — the administrator's timeout is the call's, and nothing around the call is stricter
+
+This ADR made the client apply the slot's timeout and left the `wait_for` barriers in place, free to
+be tighter. Read on production's rows, that left the screen wrong again: `compaction` at 300 s cut at
+35, `document_generation` at 300 s cut at 120 in ReAct, `journal_consolidation` at 600 s cut at 300,
+`world_message_translator` at 10 s clamped to 8, `image_generation` at 240 s never reaching its
+client, which waited the step's ceiling. Owner rule, 2026-11-05: the timeouts of every model
+configured in admin-llm-config take priority.
+
+- **One door.** `llm_call_timeout_seconds(slot)` (`core/llm_config_helper.py`) is how long one call
+  may last: the row first, its code default when the row leaves it empty. Every wall clock around a
+  call reads it. `QUERY_ANALYZER_LLM_TIMEOUT_SECONDS`, `RESPONSE_LLM_TIMEOUT_SECONDS`,
+  `SEMANTIC_VALIDATION_TIMEOUT_SECONDS`, `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS` and the constants of
+  the initiative, the memory-reference extraction and the world translator are gone, with two
+  settings nothing read (`PLANNER_TIMEOUT_SECONDS`, `MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS`).
+- **A bound around work yields.** `run_bound_seconds(configured, *slots)` keeps the environment's
+  value until the slots need longer: the listed calls one after the other, plus
+  `LLM_RUN_BOUND_MARGIN_SECONDS`. It holds a step (`TOOL_LLM_SLOTS` declares what a tool calls, floor
+  and ceiling follow), the compaction's whole budget, a consolidation and its hold, a discussion's
+  deadlines and lease, a push wake and its enrichment, a world translation's fence, and the ReAct
+  compute budget. A slot lifts a bound, it never shortens one. A loop lists its slot once: it is
+  guaranteed one whole call, and the environment's value stays its budget.
+- **A code default is what the call really got.** `image_generation` moves to 300 s, what its client
+  waited: left at 120 s, the door would have cut the 138.3 s render ADR-160 measured. The other
+  defaults stand and take effect: where a barrier was tighter (`response` 60 → 120 s, `initiative`
+  30 → 60 s, `semantic_validator` 20 → 30 s, `compaction` 35 → 180 s, `query_analyzer` 30 → 60 s,
+  `memory_reference_extraction` 30 → 45 s), a slot whose row leaves the timeout empty now gets the
+  value the screen displays.
+- **A turn nobody waits for yields too** (owner decision, 2026-11-05). Production, 30 days: 337
+  routine runs, 9 failures, every one of them cut by this budget. 7 had already acted, so nothing
+  relaunched them; 2 were relaunched and cut again; 2 more succeeded only on relaunch. The sum of
+  15 to 27 calls cut them, not one long call. `unattended_turn_seconds`
+  (`scheduler/out_of_turn_run.py`) lists what one turn calls in each mode, and takes the longer: a
+  recovery cannot know a run's mode. `SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS` and
+  `WORKBOARD_RUN_TIMEOUT_SECONDS` stay what the environment asks for. With production's rows (600 +
+  120 + 30, the margin on top) an attempt goes from 300 and 600 s to 780 s. The attempt and what
+  frees a stranded claim read the same door, so neither outlives the other.
+  - The gain comes from those rows: `react_agent` and `planner` both lowered to 120 s bring a
+    routine back to 300 s; one of them alone changes nothing, the longer mode decides.
+  - A crash now holds a claim longer, the delay being the bound times the attempts: a routine from
+    10.5 to 26.5 min, a ticket from 31 to 40.
+  - A tick waits for its batch (`max_instances=1`), so a routine planned behind a long one fires
+    late: at worst 26.5 min against 10.5. Measured over the same 30 days, 3 routines were planned
+    during the 12 runs of 290 s or more, and 7 within the 480 s after a cut run ended: about the
+    most this change could have delayed.
+  - A slot lowered while a run is live shortens the recovery under it. A tick and a sweep hold
+    their own run, so it takes a manual run or a failover; the stale settle is still refused,
+    and the run may be spent twice.
+- **What stays the environment's, stated.** A voice turn's budget:
+  `VOICE_DELEGATION_RUN_TIMEOUT_SECONDS`, because a person is on the line, and
+  `TELEPHONY_RELAY_TIMEOUT_SECONDS`; no cut of either has been measured, so neither moved. The
+  plan's soft budget (`TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS`), checked between waves,
+  interrupts no call. What a voice waits before it speaks
+  (`TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS`, `VOICE_PARALLEL_TIMEOUT_SECONDS`,
+  `LIVE_DELEGATION_TIMEOUT_SECONDS`) is a conversation's pace, not a model's time.
+- **Guard.** `test_llm_wall_clock_guard.py` refuses a wall clock around a model call that reads no
+  slot (proven on the nine the code held), and a tool module reaching a model with no tool declared
+  in `TOOL_LLM_SLOTS` (a net at module level: a new tool beside a declared one is its author's to
+  add).

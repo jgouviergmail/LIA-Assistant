@@ -59,7 +59,8 @@ class TestTimeoutFamily:
 
         assert "generate_document" in _DOCUMENT_TOOL_NAMES
         resolved = compute_step_timeout("generate_document", None)
-        assert resolved == settings.document_generation_tool_timeout_seconds
+        # At least the family's floor: the writer's slot may need longer (ADR-221).
+        assert resolved >= settings.document_generation_tool_timeout_seconds
 
     def test_planner_cannot_undercut_the_floor(self) -> None:
         from src.domains.agents.orchestration.step_timeouts import (

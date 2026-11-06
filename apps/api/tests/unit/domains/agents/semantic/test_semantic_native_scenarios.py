@@ -25,7 +25,7 @@ from src.domains.agents.registry.agent_registry import AgentRegistry
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.registry.semantic_inventory import collect_static_manifests
 from src.domains.agents.semantic.expansion_service import generate_linking_hints_for_plan
-from src.domains.agents.tools import runtime_helpers, tasks_tools, weather_dates
+from src.domains.agents.tools import email_files, runtime_helpers, tasks_tools, weather_dates
 from src.domains.agents.tools.base import _current_runtime
 from src.domains.agents.tools.calendar_tools import CreateEventDraftTool
 from src.domains.agents.tools.emails_tools import SendEmailDraftTool
@@ -136,6 +136,7 @@ async def test_contact_address_reaches_native_mail_and_calendar_without_name_loo
 ) -> None:
     lookup = AsyncMock(side_effect=AssertionError("A known address needs no contact lookup"))
     monkeypatch.setattr(runtime_helpers, "resolve_contact_to_email", lookup)
+    monkeypatch.setattr(email_files, "read_signature", AsyncMock(return_value=""))
     contact = ToolOutputMixin().build_contacts_output(
         [{"resourceName": "people/ada", "emailAddresses": [{"value": "ada@example.com"}]}]
     )

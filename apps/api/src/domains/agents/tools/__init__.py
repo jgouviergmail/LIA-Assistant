@@ -84,10 +84,14 @@ from src.domains.agents.tools.schemas import (
     ToolResponseError,
     ToolResponseSuccess,
 )
+from src.domains.agents.tools.task_organize_tools import (
+    list_task_lists_tool,
+    move_task_tool,
+    rename_task_list_tool,
+)
 from src.domains.agents.tools.tasks_tools import (
     complete_task_tool,
     create_task_tool,
-    list_task_lists_tool,
     list_tasks_tool,
 )
 from src.domains.agents.tools.weather_tools import (
@@ -196,6 +200,8 @@ __all__ = [
     "list_tasks_tool",
     "create_task_tool",
     "complete_task_tool",
+    "move_task_tool",
+    "rename_task_list_tool",
     "list_task_lists_tool",
     # Weather Tools (LOT 10)
     "get_current_weather_tool",

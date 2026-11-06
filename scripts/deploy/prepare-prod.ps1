@@ -253,6 +253,7 @@ foreach ($file in $webFiles) {
 # commande build ; deploy-prod.Tests.ps1 refuse tout script qu'elle nomme et oublie.
 $webScripts = @(
     "copy-ort-runtime.mjs"
+    "copy-pdf-runtime.mjs"
 )
 $webScriptsDir = Join-Path $webDir "scripts"
 New-Item -ItemType Directory -Path $webScriptsDir -Force | Out-Null

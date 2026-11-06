@@ -14,4 +14,21 @@ TASK_CLEAR_DUE_DESCRIPTION: Final = (
     "'due', which sets a new one; omit both to keep the current date."
 )
 
-__all__ = ["TASK_CLEAR_DUE_DESCRIPTION"]
+TASK_IMPORTANCE_DESCRIPTION: Final = "How much it matters: low | normal | high (To Do only)"
+TASK_REMINDER_DESCRIPTION: Final = "When it reminds, RFC 3339 (To Do only)"
+TASK_REPEAT_DESCRIPTION: Final = (
+    "How it repeats from its due date: daily | weekly | monthly | yearly (To Do only)"
+)
+TASK_STEPS_DESCRIPTION: Final = "The steps it starts with (To Do only)"
+TASK_CLEAR_REMINDER_DESCRIPTION: Final = "true to REMOVE its reminder (To Do only)"
+TASK_CLEAR_REPEAT_DESCRIPTION: Final = "true to REMOVE its repetition (To Do only)"
+
+__all__ = [
+    "TASK_CLEAR_DUE_DESCRIPTION",
+    "TASK_CLEAR_REMINDER_DESCRIPTION",
+    "TASK_CLEAR_REPEAT_DESCRIPTION",
+    "TASK_IMPORTANCE_DESCRIPTION",
+    "TASK_REMINDER_DESCRIPTION",
+    "TASK_REPEAT_DESCRIPTION",
+    "TASK_STEPS_DESCRIPTION",
+]

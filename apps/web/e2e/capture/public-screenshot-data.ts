@@ -183,24 +183,28 @@ const cards: CardsBundle = {
     ],
   }),
   documents: section({
+    provider: 'google_drive',
     items: [
       {
         name: 'Atlas · Launch plan.pdf',
         modified_local: '08:50',
         web_view_link: null,
         mime_type: 'application/pdf',
+        path: null,
       },
       {
         name: 'Supplier delivery comparison.xlsx',
         modified_local: '08:15',
         web_view_link: null,
         mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        path: null,
       },
       {
         name: 'Friday review · decisions.md',
         modified_local: 'Friday',
         web_view_link: null,
         mime_type: 'text/markdown',
+        path: null,
       },
     ],
   }),

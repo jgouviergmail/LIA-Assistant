@@ -10,6 +10,7 @@ from sqlalchemy import select, update
 from src.core.config import settings
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
 from src.core.exceptions import BaseAPIException
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.mail_source_service import RAGMailSyncService
 from src.domains.rag_spaces.models import RAGDriveSource, RAGMailSource, RAGSpace
@@ -42,6 +43,7 @@ async def test_inspected_source_link_can_be_deferred_and_rechecks_current_constr
         else {"label_id": identifier, "label_name": "Source"}
     )
     client = AsyncMock()
+    client.connector_type = ConnectorType.GOOGLE_DRIVE
 
     async def metadata(*args, **kwargs):
         assert not async_session.in_transaction(), "Provider reads cannot borrow an SQL transaction"
@@ -144,6 +146,7 @@ async def test_drive_link_refuses_a_root_changed_outside_the_identity_map(
     existing_id = existing.id
     service = RAGDriveSyncService(async_session)
     client = AsyncMock()
+    client.connector_type = ConnectorType.GOOGLE_DRIVE
 
     async def metadata(identity, **kwargs):
         assert not async_session.in_transaction()

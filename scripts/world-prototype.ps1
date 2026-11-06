@@ -95,7 +95,7 @@ Invoke-Docker -Arguments @('run', '-d', '--name', $Container, '--label', "lia.ta
 Sync-Source
 $nodeEnvironment = if ($Mode -eq 'Production') { 'production' } else { 'development' }
 $runScript = if ($Mode -eq 'Production') {
-    'node scripts/copy-ort-runtime.mjs && node node_modules/next/dist/bin/next build --webpack && mkdir -p .next-world/standalone/apps/web/public .next-world/standalone/apps/web/.next-world/static && cp -a public/. .next-world/standalone/apps/web/public/ && cp -a .next-world/static/. .next-world/standalone/apps/web/.next-world/static/ && HOSTNAME=0.0.0.0 PORT=3000 NODE_OPTIONS=--max-old-space-size=320 exec node .next-world/standalone/apps/web/server.js'
+    'node scripts/copy-ort-runtime.mjs && node scripts/copy-pdf-runtime.mjs && node node_modules/next/dist/bin/next build --webpack && mkdir -p .next-world/standalone/apps/web/public .next-world/standalone/apps/web/.next-world/static && cp -a public/. .next-world/standalone/apps/web/public/ && cp -a .next-world/static/. .next-world/standalone/apps/web/.next-world/static/ && HOSTNAME=0.0.0.0 PORT=3000 NODE_OPTIONS=--max-old-space-size=320 exec node .next-world/standalone/apps/web/server.js'
 } else {
     'exec node node_modules/next/dist/bin/next dev --webpack --hostname 0.0.0.0 --port 3000'
 }

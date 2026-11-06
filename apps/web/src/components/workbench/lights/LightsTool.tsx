@@ -3,19 +3,20 @@
 /**
  * LightsTool — the « Tools » lights screen (ADR-369, mock-ups « Lumières »).
  *
- * The bridge is read once: its rooms, each with a switch and a slider for all
- * its lamps; the open room (`?room=`, the first from `lg`) beside them with
+ * The bridge is read once: its rooms, then its zones, each with a switch and a slider
+ * for all its lamps; the open room (`?room=`, the first from `lg`) beside them with
  * its scenes and each lamp's own controls; lamps no room owns under « Other
  * lights ». Rooms and lamps come in alphabetical order. Below `lg` the rooms are the screen and a room replaces them, with
  * the way back, which takes the focus — and the room's card gets it back when
  * the list returns; opening pushes, closing replaces (the workboard's rule). A
  * refused change is said in the refusal's own words; « Refresh » re-reads the
- * bridge in place.
+ * bridge in place. « All off » switches off what is lit, room by room, and says
+ * what stayed on; once nothing is lit it says « All on », and lights what has lamps.
  */
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Lightbulb, RefreshCw } from 'lucide-react';
-import { type RefObject, useCallback, useMemo, useRef } from 'react';
+import { ArrowLeft, Lightbulb, Power, PowerOff } from 'lucide-react';
+import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -33,13 +34,21 @@ import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import {
-  OTHER_LIGHTS,
   inNameOrder,
+  lampsByAnswer,
   openSelection,
+  OTHER_LIGHTS,
+  scenesOutsideRooms,
   type LightsSelection,
 } from '@/lib/workbench/lights';
 import { WORKBENCH_DESKTOP, toolPath } from '@/lib/workbench/tools';
-import type { WorkbenchLight, WorkbenchRoom, WorkbenchScene } from '@/lib/workbench/types';
+import type {
+  RereadOptions,
+  WorkbenchLight,
+  WorkbenchLights,
+  WorkbenchRoom,
+  WorkbenchScene,
+} from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { useWorkbench } from '../WorkbenchShell';
@@ -47,7 +56,7 @@ import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
 import { LightControls } from './LightControls';
 import { RoomCard } from './RoomCard';
-import { ScenePicker } from './ScenePicker';
+import { ScenePicker, type SceneRecallAct } from './ScenePicker';
 
 export function LightsTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -75,6 +84,7 @@ function ReadyLights({ lng }: { lng: Language }) {
     setLight,
     setRoom,
     recallScene,
+    switchAll,
   } = useWorkbenchLights(true);
   // Rooms and lamps in alphabetical order, in the reader's language (owner request
   // 2026-10-31) — sorted once here, so the list, the room opened by default and the
@@ -102,27 +112,34 @@ function ReadyLights({ lng }: { lng: Language }) {
     },
     [t]
   );
-  const reread = () => void refresh().catch(() => undefined);
+  // What is on screen stays on a failed re-read: the person who asked is told.
+  const reread = ({ unasked = false }: RereadOptions = {}) =>
+    refresh().catch(() => {
+      if (!unasked) toast.error(t('workbench.lights.failed'));
+    });
 
   if (!bridge) {
-    return <PendingLights lng={lng} failed={!loading && Boolean(error)} onRetry={reread} />;
+    return (
+      <PendingLights
+        lng={lng}
+        failed={!loading && Boolean(error)}
+        onRetry={() => void refresh().catch(() => undefined)}
+      />
+    );
   }
   const selection = openSelection(bridge, asked, desktop);
   const empty = bridge.rooms.length === 0 && selection.orphans.length === 0;
 
   return (
     <>
-      <WorkbenchToolHeader lng={lng} tool="lights">
-        <Button variant="outline" size="sm" isLoading={loading} onClick={reread}>
-          <RefreshCw className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.lights.refresh')}
-        </Button>
+      <WorkbenchToolHeader lng={lng} tool="lights" onRefresh={reread}>
+        {!empty && <AllSwitchButton lng={lng} bridge={bridge} onSwitch={switchAll} />}
       </WorkbenchToolHeader>
       {empty ? (
         <EmptyState
           icon={Lightbulb}
           title={t('workbench.lights.no_lights_title')}
-          action={{ label: t('workbench.lights.refresh'), onClick: reread }}
+          action={{ label: t('workbench.states.refresh'), onClick: () => void reread() }}
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
@@ -130,11 +147,14 @@ function ReadyLights({ lng }: { lng: Language }) {
             lng={lng}
             rooms={bridge.rooms}
             lights={bridge.lights}
+            cardScenes={desktop ? [] : bridge.scenes}
+            otherScenes={scenesOutsideRooms(bridge)}
             selection={selection}
             replaced={selection.detailOpen && asked !== null}
             href={href}
             linkRef={linkRef}
             onRoomChange={(roomId, change) => act(() => setRoom(roomId, change))}
+            onRecall={(scene, play) => act(() => recallScene(scene.id, play))}
           />
           {selection.detailOpen && (
             <RoomDetail
@@ -145,12 +165,63 @@ function ReadyLights({ lng }: { lng: Language }) {
               back={back}
               backHref={href(null)}
               onLightChange={(lightId, change) => act(() => setLight(lightId, change))}
-              onRecall={scene => act(() => recallScene(scene.id))}
+              onRecall={(scene, play) => act(() => recallScene(scene.id, play))}
             />
           )}
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Switches off what is lit, and lights everything once nothing is; says what did not follow. What
+ * it offers is read from the bridge, so it follows a lamp switched by hand as it follows its own
+ * click, on the same button, under the same focus.
+ */
+function AllSwitchButton({
+  lng,
+  bridge,
+  onSwitch,
+}: {
+  lng: Language;
+  bridge: WorkbenchLights;
+  onSwitch: (
+    on: boolean,
+    roomIds: readonly string[],
+    lightIds: readonly string[]
+  ) => Promise<number>;
+}) {
+  const { t } = useTranslation(lng);
+  const [busy, setBusy] = useState(false);
+  // A zone's lamps go with their rooms: a second command would only cost the bridge's window.
+  const rooms = bridge.rooms.filter(room => room.kind !== 'zone' && room.light_ids.length > 0);
+  // A lamp that does not answer takes no command, and its last word says nothing of the house.
+  const lamps = bridge.lights.filter(light => light.room_id === null && light.reachable !== false);
+  const lit = rooms.some(room => room.on) || lamps.some(light => light.on);
+  const word = lit ? 'all_off' : 'all_on';
+  const switchAll = async () => {
+    const roomIds = rooms.filter(room => room.on === lit).map(room => room.id);
+    const lightIds = lamps.filter(light => light.on === lit).map(light => light.id);
+    if (busy || roomIds.length + lightIds.length === 0) return;
+    setBusy(true);
+    const failed = await onSwitch(!lit, roomIds, lightIds);
+    setBusy(false);
+    if (failed > 0) toast.error(t(`workbench.lights.${word}_partial`, { count: failed }));
+  };
+  const Icon = lit ? PowerOff : Power;
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-1.5"
+      isLoading={busy}
+      onClick={() => void switchAll()}
+      aria-label={t(`workbench.lights.${word}`)}
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      <span className="hidden sm:inline">{t(`workbench.lights.${word}`)}</span>
+    </Button>
   );
 }
 
@@ -184,24 +255,32 @@ interface RoomListProps {
   lng: Language;
   rooms: readonly WorkbenchRoom[];
   lights: readonly WorkbenchLight[];
+  /** Every room's scenes drawn on its card; none where the room sits beside the list. */
+  cardScenes: readonly WorkbenchScene[];
+  /** The scenes no room holds, under the rooms. */
+  otherScenes: readonly WorkbenchScene[];
   selection: LightsSelection;
   /** Below lg, an open room takes the list's place. */
   replaced: boolean;
   href: (room: string | null) => string;
   linkRef: (id: string, element: HTMLElement | null) => void;
   onRoomChange: (roomId: string, change: RoomChangeBody) => Promise<void>;
+  onRecall: SceneRecallAct;
 }
 
-/** The rooms, then the lamps no room owns. */
+/** The rooms, then the lamps and the scenes no room owns. */
 function RoomList({
   lng,
   rooms,
   lights,
+  cardScenes,
+  otherScenes,
   selection,
   replaced,
   href,
   linkRef,
   onRoomChange,
+  onRecall,
 }: RoomListProps) {
   const { t } = useTranslation(lng);
   return (
@@ -214,8 +293,10 @@ function RoomList({
           lights={lights}
           open={room.id === selection.openId}
           href={href(room.id)}
-          onChange={change => onRoomChange(room.id, change)}
+          onChange={change => onRoomChange(room.id, { kind: room.kind, ...change })}
           linkRef={linkRef}
+          scenes={cardScenes.filter(scene => scene.room_id === room.id)}
+          onRecall={onRecall}
         />
       ))}
       {selection.orphans.length > 0 && (
@@ -229,7 +310,57 @@ function RoomList({
           {t('workbench.lights.other_lights')}
         </Link>
       )}
+      <ScenePicker
+        lng={lng}
+        scenes={otherScenes}
+        labelKey="workbench.lights.other_scenes"
+        onRecall={onRecall}
+      />
     </div>
+  );
+}
+
+/** A room's lamps; those that answer first, those that do not set apart under a title. */
+function LampGroups({
+  lng,
+  lights,
+  onLightChange,
+}: {
+  lng: Language;
+  lights: readonly WorkbenchLight[];
+  onLightChange: (lightId: string, change: LightChangeBody) => Promise<void>;
+}) {
+  const { t } = useTranslation(lng);
+  const { answering, silent } = lampsByAnswer(lights);
+  const cards = (lamps: readonly WorkbenchLight[]) => (
+    // As many columns as hold a card (`auto-fill`, never `auto-fit`, which would stretch a
+    // lamp alone across the window).
+    <div className="grid gap-3 xl:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
+      {lamps.map(light => (
+        <LightControls
+          key={light.id}
+          lng={lng}
+          light={light}
+          onChange={change => onLightChange(light.id, change)}
+        />
+      ))}
+    </div>
+  );
+  if (silent.length === 0) return cards(answering);
+  const group = (title: string, lamps: readonly WorkbenchLight[]) => (
+    <section aria-label={title} className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      {cards(lamps)}
+    </section>
+  );
+  return (
+    <>
+      {answering.length > 0 &&
+        group(t('workbench.lights.answering_group', { count: answering.length }), answering)}
+      {group(t('workbench.lights.silent_group', { count: silent.length }), silent)}
+    </>
   );
 }
 
@@ -242,7 +373,7 @@ interface RoomDetailProps {
   back: RefObject<HTMLAnchorElement | null>;
   backHref: string;
   onLightChange: (lightId: string, change: LightChangeBody) => Promise<void>;
-  onRecall: (scene: WorkbenchScene) => Promise<void>;
+  onRecall: SceneRecallAct;
 }
 
 /** The open room: its scenes and each of its lamps. */
@@ -279,18 +410,7 @@ function RoomDetail({
         scenes={scenes.filter(scene => scene.room_id === selection.openRoom?.id)}
         onRecall={onRecall}
       />
-      {/* As many columns as hold a card (`auto-fill`, never `auto-fit`, which
-          would stretch a lamp alone across the window). */}
-      <div className="grid gap-3 xl:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
-        {selection.openLights.map(light => (
-          <LightControls
-            key={light.id}
-            lng={lng}
-            light={light}
-            onChange={change => onLightChange(light.id, change)}
-          />
-        ))}
-      </div>
+      <LampGroups lng={lng} lights={selection.openLights} onLightChange={onLightChange} />
       <p className="text-xs text-muted-foreground">{t('workbench.lights.release_hint')}</p>
     </section>
   );

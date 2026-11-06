@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -146,6 +146,32 @@ class AttachmentRepository(BaseRepository[Attachment]):
         )
 
         return count
+
+    async def newest_by_filename(
+        self, user_id: uuid.UUID, filename: str, now: datetime
+    ) -> Attachment | None:
+        """The file an account's name designates, among those that can still be read.
+
+        Args:
+            user_id: Whose files.
+            filename: The exact name, as the attachment hint and the gallery show it.
+            now: Past its deadline a file is about to go, and is not offered.
+
+        Returns:
+            The newest such file, or None.
+        """
+        stmt = (
+            select(Attachment)
+            .where(
+                Attachment.user_id == user_id,
+                Attachment.original_filename == filename,
+                Attachment.status == AttachmentStatus.READY,
+                or_(Attachment.expires_at.is_(None), Attachment.expires_at > now),
+            )
+            .order_by(Attachment.created_at.desc(), Attachment.id.desc())
+            .limit(1)
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def get_file_paths_for_user(
         self, user_id: uuid.UUID, *, origins: Collection[str] | None = None

@@ -93,6 +93,7 @@ def progressive_installed(rig: Rig) -> Iterator[Register]:
             ("src.domains.briefing.progressive.out_of_turn_spend", spend),
             ("src.domains.briefing.progressive.file_briefing_act", file_act),
             ("src.domains.briefing.text_cache.get_redis_cache", redis),
+            ("src.domains.briefing.act_snapshot.get_redis_cache", redis),
             ("src.domains.briefing.progressive.get_redis_cache", redis),
             ("src.domains.briefing.progressive.TEXT_POLL_SECONDS", 0.01),
             (

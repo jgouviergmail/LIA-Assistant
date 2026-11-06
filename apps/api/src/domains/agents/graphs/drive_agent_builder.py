@@ -50,6 +50,8 @@ def build_drive_agent() -> Any:
         delete_file_tool,
         get_files_tool,  # Unified tool (v2.0 - replaces search + list + details)
     )
+    from src.domains.agents.tools.file_organize_tools import manage_files_tool
+    from src.domains.agents.tools.file_share_tools import share_file_tool
 
     tools: list[BaseTool] = cast(
         list[BaseTool],
@@ -57,6 +59,8 @@ def build_drive_agent() -> Any:
             # Drive tools (unified)
             get_files_tool,  # Unified: search + list + details
             delete_file_tool,
+            manage_files_tool,  # Folders, rename, move, copy (ADR-369, lot 6)
+            share_file_tool,  # A card first: the drive tells someone (ADR-369, lot 6)
             # Context resolution tools
             resolve_reference,
             get_context_list,

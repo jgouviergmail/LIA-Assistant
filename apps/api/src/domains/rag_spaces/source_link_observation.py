@@ -22,6 +22,8 @@ class SourceLinkObservation:
     provider_id: str
     name: str
     roots: tuple[DriveLinkRoot, ...] = ()
+    #: The drive that answered the inspection; a mailbox source has none.
+    drive_provider: str | None = None
 
     def require_scope(
         self, kind: str, space_id: UUID, user_id: UUID, provider_id: str, name: str
@@ -36,10 +38,17 @@ class SourceLinkObservation:
             raise ValueError("Source observation does not match the requested write")
 
 
-def linked_drive_roots(sources: list[RAGDriveSource]) -> tuple[DriveLinkRoot, ...]:
+def linked_drive_roots(
+    sources: list[RAGDriveSource], provider: str | None
+) -> tuple[DriveLinkRoot, ...]:
+    """The trees linked on one drive: a tree of another shares nothing with it."""
     return tuple(
         sorted(
-            (DriveLinkRoot(source.folder_id, tuple(source.folder_ids or ())) for source in sources),
+            (
+                DriveLinkRoot(source.folder_id, tuple(source.folder_ids or ()))
+                for source in sources
+                if source.provider == provider
+            ),
             key=lambda root: (root.folder_id, root.folder_ids),
         )
     )

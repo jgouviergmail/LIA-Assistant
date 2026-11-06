@@ -25,7 +25,7 @@ Build a corpus with valid paraphrases, ambiguity and missing input; identify the
 supported language/provider subset to qualify. Fictional practice must not become
 personal biography or real actions.
 
-Resolve applicable D01 and D03–D11 choices. Map LNG acceptance criteria, verify
+Apply accepted D01, D03–D07 and D09–D11. Map LNG acceptance criteria, verify
 independent feature availability, cost ownership and retention, then leave an
 accurate shared-contract and qualification handoff.
 
@@ -45,9 +45,11 @@ Start from these repository-root documents:
 - docs/superpowers/specs/2026-10-29-world-experiences/decisions.md
 - docs/superpowers/specs/2026-10-29-world-experiences/handoff.md
 
-Distinguish verified facts, recommendations and actual owner decisions.
-Do not treat pending D decisions as accepted. Advance independent analysis and
-name only the choices that materially block the affected scope.
+The owner accepted D01–D11 on 2026-11-03 in decisions.md. Apply those decisions;
+do not request repeat approval merely because this is a new chat. Distinguish
+accepted direction, new detailed proposals and verified current behavior.
+Escalate only a new material contradiction or scope change, with a recommendation,
+while continuing independent analysis. Acceptance does not authorize business code.
 
 Systematically map account and instance quotas, platform versus personal-key
 cost, token attribution, rate/concurrency limits, decisions/effects/consultations,

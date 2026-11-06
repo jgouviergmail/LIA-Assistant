@@ -89,7 +89,7 @@ apps/api/src/domains/agents/
 |   |-- contacts_tools.py        # Google Contacts tools
 |   |-- emails_tools.py          # Email tools (Gmail, Outlook)
 |   |-- calendar_tools.py        # Google Calendar tools
-|   |-- drive_tools.py           # Google Drive tools
+|   |-- drive_tools.py           # Google Drive and OneDrive tools
 |   |-- tasks_tools.py           # Google Tasks tools
 |   |-- weather_tools.py         # OpenWeatherMap tools
 |   |-- wikipedia_tools.py       # Wikipedia tools
@@ -168,7 +168,7 @@ Synthesizes tool results into conversational responses.
 | Contacts | OAuth/Google | search, get_details |
 | Emails | OAuth/Google | search, get_details, send |
 | Calendar | OAuth/Google | search, get_details, create, update, delete |
-| Drive | OAuth/Google | search, list, get_content |
+| Files | OAuth/Google or Microsoft | search, list, get_content, organise, share |
 | Tasks | OAuth/Google | list, create, complete |
 | Weather | API Key | current, forecast |
 | Wikipedia | Public API | search, get_article |

@@ -9,12 +9,14 @@
  * called, frees it on a CERTAIN failure (the person may fix and press « Send »
  * again) and keeps it when the outcome is unknown, so a second press is told
  * what became of the first and never sends twice (ADR-221). Nothing here
- * retries: a refusal is rethrown for the composer to say.
+ * retries: a refusal is rethrown for the composer to say. Who a reply would
+ * reach is read here too, for the one who writes it, and nowhere else.
  */
 import { useCallback } from 'react';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
-import type { MailDraft, MailSent } from '@/lib/workbench/types';
+import apiClient from '@/lib/api-client';
+import type { MailDraft, MailReplyRecipients, MailSent } from '@/lib/workbench/types';
 
 const MAIL = '/workbench/mail';
 
@@ -26,6 +28,11 @@ export interface NewMailBody {
   subject: string;
   body: string;
   attachment_ids: string[];
+  drive_file_ids: string[];
+  /** The alias it leaves from; left out, the mailbox's default. */
+  send_as?: string;
+  /** Its words with their formatting; left out, they are plain text. */
+  html?: string;
   idempotency_key: string;
 }
 
@@ -34,15 +41,26 @@ export interface MailReplyBody {
   message_id: string;
   body: string;
   reply_all: boolean;
+  /** Whom the person left in it; left out, the provider computes it. */
+  to?: string[];
+  cc?: string[];
+  attachment_ids: string[];
+  drive_file_ids: string[];
+  send_as?: string;
+  html?: string;
   idempotency_key: string;
 }
 
-/** A message forwarded with its files. */
+/** A message forwarded with its files, and the person's own. */
 export interface MailForwardBody {
   message_id: string;
   to: string[];
   cc: string[];
   body: string;
+  attachment_ids: string[];
+  drive_file_ids: string[];
+  send_as?: string;
+  html?: string;
   idempotency_key: string;
 }
 
@@ -55,6 +73,13 @@ export interface MailDraftSaveBody {
   bcc?: string[];
   subject?: string;
   body?: string;
+  /** Files that join it. */
+  attachment_ids?: string[];
+  drive_file_ids?: string[];
+  /** The names of files that leave it. */
+  removed_files?: string[];
+  send_as?: string;
+  html?: string;
   idempotency_key?: string;
 }
 
@@ -71,6 +96,7 @@ export interface WorkbenchMailWriting {
   forward: (body: MailForwardBody) => Promise<MailSent | undefined>;
   saveDraft: (body: MailDraftSaveBody) => Promise<MailDraft | undefined>;
   sendDraft: (body: MailDraftSendBody) => Promise<MailSent | undefined>;
+  replyRecipients: (messageId: string, all: boolean) => Promise<MailReplyRecipients>;
 }
 
 export function useWorkbenchMailWriting(): WorkbenchMailWriting {
@@ -99,5 +125,12 @@ export function useWorkbenchMailWriting(): WorkbenchMailWriting {
     (body: MailDraftSendBody) => postSent(`${MAIL}/drafts/send`, body),
     [postSent]
   );
-  return { send, reply, forward, saveDraft, sendDraft };
+  const replyRecipients = useCallback(
+    (messageId: string, all: boolean) =>
+      apiClient.get<MailReplyRecipients>(`${MAIL}/reply-recipients`, {
+        params: { message_id: messageId, reply_all: all },
+      }),
+    []
+  );
+  return { send, reply, forward, saveDraft, sendDraft, replyRecipients };
 }

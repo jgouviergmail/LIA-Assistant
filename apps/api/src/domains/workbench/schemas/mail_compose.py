@@ -34,6 +34,14 @@ RecipientText = Annotated[
         pattern=r"^[^\x00-\x1f\x7f]+$",
     ),
 ]
+OptionalRecipientText = Annotated[
+    str | None,
+    StringConstraints(
+        min_length=1,
+        max_length=WORKBENCH_MAIL_RECIPIENT_MAX_CHARS,
+        pattern=r"^[^\x00-\x1f\x7f]+$",
+    ),
+]
 _Recipients = Annotated[list[RecipientText], Field(max_length=WORKBENCH_MAIL_RECIPIENTS_MAX)]
 #: A subject: one line.
 _SUBJECT: Final = StringConstraints(
@@ -47,7 +55,38 @@ Body = Annotated[str, _BODY]
 OptionalBody = Annotated[str | None, _BODY]
 
 
-class NewMessage(BaseModel):
+#: A file a draft holds, as its reader showed it.
+_HeldFileName = Annotated[str, StringConstraints(min_length=1, max_length=255)]
+#: A recipient field of a change: absent keeps it, [] clears it.
+_ChangedRecipients = Annotated[
+    list[RecipientText] | None, Field(max_length=WORKBENCH_MAIL_RECIPIENTS_MAX)
+]
+
+
+class _Outgoing(BaseModel):
+    """What a message carries beyond its words, counted together, and where it leaves from."""
+
+    send_as: OptionalRecipientText = Field(
+        default=None, description="The alias it leaves from; none: the mailbox's default."
+    )
+    html: OptionalBody = Field(
+        default=None, description="Its words with their formatting; none: they are plain text."
+    )
+    attachment_ids: Annotated[list[UUID], Field(max_length=WORKBENCH_MAIL_ATTACHMENTS_MAX)] = Field(
+        default_factory=list, description="The person's own files it carries."
+    )
+    drive_file_ids: Annotated[
+        list[ProviderId], Field(max_length=WORKBENCH_MAIL_ATTACHMENTS_MAX)
+    ] = Field(default_factory=list, description="Files of the person's drive it carries.")
+
+    @model_validator(mode="after")
+    def _files_are_bounded(self) -> Self:
+        if len(self.attachment_ids) + len(self.drive_file_ids) > WORKBENCH_MAIL_ATTACHMENTS_MAX:
+            raise ValueError("a message carries a bounded number of files")
+        return self
+
+
+class NewMessage(_Outgoing):
     """A new message, sent when the person presses « Send »."""
 
     model_config = ConfigDict(extra="forbid")
@@ -57,9 +96,6 @@ class NewMessage(BaseModel):
     bcc: _Recipients = Field(default_factory=list, description="Its blind copies.")
     subject: Subject = Field(default="", description="Its subject.")
     body: Body = Field(default="", description="Its text.")
-    attachment_ids: Annotated[list[UUID], Field(max_length=WORKBENCH_MAIL_ATTACHMENTS_MAX)] = Field(
-        default_factory=list, description="The person's own files it carries."
-    )
     idempotency_key: UUID = Field(description="The page's key for this submission.")
 
     @model_validator(mode="after")
@@ -69,18 +105,39 @@ class NewMessage(BaseModel):
         return self
 
 
-class Reply(BaseModel):
-    """A reply to a message (its thread, its subject), sent at once."""
+class Reply(_Outgoing):
+    """A reply to a message (its thread, its subject), sent at once.
+
+    Recipients left out are the provider's to compute; those the person saw are
+    what leaves, the person's own answer to who it reaches.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     message_id: ProviderId = Field(description="The message answered.")
     body: Body = Field(description="The reply's text.")
     reply_all: bool = Field(default=False, description="Answer every recipient too.")
+    to: _ChangedRecipients = Field(default=None, description="Its recipients, as chosen.")
+    cc: _ChangedRecipients = Field(default=None, description="Its copies, as chosen.")
     idempotency_key: UUID = Field(description="The page's key for this submission.")
 
+    @model_validator(mode="after")
+    def _still_reaches_someone(self) -> Self:
+        if self.to is not None and not self.to:
+            raise ValueError("a reply whose recipients were chosen goes to someone")
+        return self
 
-class Forward(BaseModel):
+
+class ReplyRecipients(BaseModel):
+    """Who an answer would reach, for the person to change before it leaves."""
+
+    model_config = ConfigDict(frozen=True)
+
+    to: list[MailAddress] = Field(description="Its recipients.")
+    cc: list[MailAddress] = Field(description="Its copies.")
+
+
+class Forward(_Outgoing):
     """A message forwarded with its files, sent at once."""
 
     model_config = ConfigDict(extra="forbid")
@@ -103,14 +160,12 @@ class SentMessage(BaseModel):
     thread_id: str | None = Field(description="Its conversation's id, when named.")
 
 
-#: A recipient field of a change: absent keeps it, [] clears it.
-_ChangedRecipients = Annotated[
-    list[RecipientText] | None, Field(max_length=WORKBENCH_MAIL_RECIPIENTS_MAX)
-]
+class DraftSave(_Outgoing):
+    """A draft created (no ``draft_id``) or changed (a field left out is kept).
 
-
-class DraftSave(BaseModel):
-    """A draft created (no ``draft_id``) or changed (a field left out is kept)."""
+    The files named join it; those it already holds stay until ``removed_files`` says
+    otherwise, by name, the one handle that lasts on every provider.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -123,6 +178,9 @@ class DraftSave(BaseModel):
     bcc: _ChangedRecipients = Field(default=None, description="Its blind copies.")
     subject: OptionalSubject = Field(default=None, description="Its subject.")
     body: OptionalBody = Field(default=None, description="Its whole text.")
+    removed_files: Annotated[
+        list[_HeldFileName], Field(max_length=WORKBENCH_MAIL_ATTACHMENTS_MAX)
+    ] = Field(default_factory=list, description="The names of files it no longer carries.")
     idempotency_key: UUID | None = Field(
         default=None, description="The page's key for a creation (required for one)."
     )
@@ -205,6 +263,7 @@ class MailDraft(BaseModel):
 
     id: str = Field(description="The draft's id.")
     revision: str = Field(description="Its stored revision.")
+    sender: MailAddress | None = Field(description="Where it leaves from, when it says.")
     to: list[MailAddress] = Field(description="Its recipients.")
     cc: list[MailAddress] = Field(description="Its copies.")
     bcc: list[MailAddress] = Field(description="Its blind copies.")

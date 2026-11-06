@@ -6,8 +6,10 @@
  * Each day with something in it, its all-day events first, then its timed ones
  * by their start on the account's wall; an event across midnight shows on each
  * day it touches and says it goes on. The day a « +N » of the week points at
- * opens scrolled to.
+ * opens scrolled to. An event's call is a link of its own at the end of its
+ * row, its series a mark beside its title.
  */
+import { Repeat, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef } from 'react';
 
@@ -15,7 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import type { ShownEvent } from '@/lib/workbench/calendar/events';
+import { callHref, type ShownEvent } from '@/lib/workbench/calendar/events';
 import { longDay, timeLabel } from '@/lib/workbench/calendar/format';
 import { daySegments } from '@/lib/workbench/calendar/layout';
 
@@ -35,13 +37,13 @@ export interface AgendaViewProps {
   linkRef: (key: string, element: HTMLElement | null) => void;
 }
 
-interface AgendaEntry {
+export interface AgendaEntry {
   event: ShownEvent;
   /** Its times on this day, or null for an all-day event. */
   times: string | null;
 }
 
-function entriesOf(
+export function entriesOf(
   day: string,
   events: readonly ShownEvent[],
   zone: string,
@@ -108,36 +110,79 @@ export function AgendaView({
           >
             {longDay(day, lng)}
           </h3>
-          <ul className="space-y-1.5">
-            {entries.map(({ event, times }) => (
-              <li key={event.key}>
-                <Link
-                  ref={element => linkRef(event.key, element)}
-                  href={hrefOf(event)}
-                  scroll={false}
-                  aria-current={event.key === openId ? 'true' : undefined}
-                  className="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:bg-primary/10"
-                >
-                  <span className="w-28 shrink-0 text-xs text-muted-foreground">
-                    {times ?? t('workbench.calendar.all_day')}
-                  </span>
-                  <CalendarSwatch color={event.color} className="mt-1 h-2.5 w-2.5" />
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {event.summary || t('workbench.calendar.no_title')}
-                    </span>
-                    {event.location && (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {event.location}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <AgendaEntries
+            lng={lng}
+            entries={entries}
+            openId={openId}
+            hrefOf={hrefOf}
+            linkRef={linkRef}
+          />
         </section>
       ))}
     </div>
+  );
+}
+
+interface AgendaEntriesProps {
+  lng: Language;
+  entries: readonly AgendaEntry[];
+  openId: string | null;
+  hrefOf: (event: ShownEvent) => string;
+  linkRef: (key: string, element: HTMLElement | null) => void;
+}
+
+/** A day's rows: each a link to its event, its call a link of its own beside it. */
+export function AgendaEntries({ lng, entries, openId, hrefOf, linkRef }: AgendaEntriesProps) {
+  const { t } = useTranslation(lng);
+  return (
+    <ul className="space-y-1.5">
+      {entries.map(({ event, times }) => {
+        const call = callHref(event.conference_url);
+        const summary = event.summary || t('workbench.calendar.no_title');
+        return (
+          <li key={event.key} className="flex items-start gap-1">
+            <Link
+              ref={element => linkRef(event.key, element)}
+              href={hrefOf(event)}
+              scroll={false}
+              aria-current={event.key === openId ? 'true' : undefined}
+              className="flex min-w-0 flex-1 items-start gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:bg-primary/10"
+            >
+              <span className="w-28 shrink-0 sm:w-36 text-xs text-muted-foreground">
+                {times ?? t('workbench.calendar.all_day')}
+              </span>
+              <CalendarSwatch color={event.color} className="mt-1 h-2.5 w-2.5" />
+              <span className="min-w-0">
+                <span className="flex min-w-0 items-center gap-1 font-medium">
+                  <span className="truncate">{summary}</span>
+                  {event.recurring && (
+                    <>
+                      <Repeat className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="sr-only">{t('workbench.calendar.series')}</span>
+                    </>
+                  )}
+                </span>
+                {event.location && (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {event.location}
+                  </span>
+                )}
+              </span>
+            </Link>
+            {call && (
+              <a
+                href={call}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${t('workbench.calendar.join_call')} — ${summary}`}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Video className="h-4 w-4" aria-hidden="true" />
+              </a>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

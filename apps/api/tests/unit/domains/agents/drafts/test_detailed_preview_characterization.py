@@ -445,6 +445,99 @@ CASES: tuple[PreviewCase, ...] = (
         language="en",
     ),
     PreviewCase("event_delete_empty_fr", DraftType.EVENT_DELETE, {"event_id": "e11"}),
+    # ----------------------------------------------------------- Event options
+    PreviewCase(
+        "event_options_said_fr",
+        DraftType.EVENT,
+        {
+            "summary": "Point",
+            "start_datetime": "2026-06-05T11:00:00+02:00",
+            "end_datetime": "2026-06-05T12:00:00+02:00",
+            "reminder_minutes": 30,
+            "busy": False,
+            "private": True,
+        },
+    ),
+    PreviewCase(
+        "event_options_no_reminder_en",
+        DraftType.EVENT,
+        {
+            "summary": "Point",
+            "start_datetime": "2026-06-05T11:00:00+02:00",
+            "end_datetime": "2026-06-05T12:00:00+02:00",
+            "reminder_minutes": -1,
+            "busy": True,
+            "private": False,
+        },
+        language="en",
+    ),
+    PreviewCase(
+        "event_options_at_start_fr",
+        DraftType.EVENT,
+        {
+            "summary": "Point",
+            "start_datetime": "2026-06-05T11:00:00+02:00",
+            "end_datetime": "2026-06-05T12:00:00+02:00",
+            "reminder_minutes": 0,
+        },
+    ),
+    PreviewCase(
+        "event_update_options_fr",
+        DraftType.EVENT_UPDATE,
+        {
+            "event_id": "e15",
+            "current_event": {"summary": "Point"},
+            "reminder_minutes": 15,
+            "busy": False,
+            "add_conference": True,
+        },
+    ),
+    # ------------------------------------------------------------ Event answer
+    PreviewCase(
+        "event_answer_full_fr",
+        DraftType.EVENT_ANSWER,
+        {
+            "event_id": "e12",
+            "response": "declined",
+            "summary": "Point d'étape",
+            "start_datetime": "2026-06-05T09:00:00Z",
+            "organizer": "ana@example.org",
+        },
+    ),
+    PreviewCase(
+        "event_answer_allday_en",
+        DraftType.EVENT_ANSWER,
+        {
+            "event_id": "e13",
+            "response": "tentative",
+            "summary": "Holiday",
+            "start_datetime": "2026-06-06",
+            "organizer": "ana@example.org",
+        },
+        language="en",
+    ),
+    PreviewCase(
+        "event_answer_empty_fr",
+        DraftType.EVENT_ANSWER,
+        {"event_id": "e14", "response": "accepted"},
+    ),
+    # -------------------------------------------------------------- File share
+    PreviewCase(
+        "file_share_reader_fr",
+        DraftType.FILE_SHARE,
+        {"file_id": "f1", "email": "ana@example.org", "role": "reader", "name": "Rapport.pdf"},
+    ),
+    PreviewCase(
+        "file_share_writer_en",
+        DraftType.FILE_SHARE,
+        {"file_id": "f1", "email": "ana@example.org", "role": "writer", "name": "Report.pdf"},
+        language="en",
+    ),
+    PreviewCase(
+        "file_share_empty_fr",
+        DraftType.FILE_SHARE,
+        {"file_id": "f1", "role": "reader"},
+    ),
     # ---------------------------------------------------------- Contact create
     PreviewCase(
         "contact_full_fr",
@@ -874,6 +967,11 @@ CASES: tuple[PreviewCase, ...] = (
         DraftType.DOCUMENT_APPEND,
         {"document_title": "Compte-rendu", "text": "Décision: reporter la réunion."},
     ),
+    PreviewCase(
+        "document_replace_fr",
+        DraftType.DOCUMENT_REPLACE,
+        {"document_title": "Notes.txt", "text": "Texte corrigé."},
+    ),
     # Gmail filter creation (lot I): criteria + only the requested actions.
     PreviewCase(
         "email_filter_full_fr",
@@ -889,6 +987,24 @@ CASES: tuple[PreviewCase, ...] = (
         "email_filter_query_en",
         DraftType.EMAIL_FILTER,
         {"criteria": {"query": "has:attachment larger:5M"}, "archive": False},
+        language="en",
+    ),
+    # Gmail filter deletion (ADR-369): what it matches and does, then what the act changes.
+    PreviewCase(
+        "email_filter_delete_full_fr",
+        DraftType.EMAIL_FILTER_DELETE,
+        {
+            "criteria": {"from": "news@x.com", "hasAttachment": True},
+            "label_names": ["Newsletters", "STARRED"],
+            "archive": True,
+            "mark_as_read": True,
+            "forward": "copy@x.com",
+        },
+    ),
+    PreviewCase(
+        "email_filter_delete_minimal_en",
+        DraftType.EMAIL_FILTER_DELETE,
+        {"criteria": {"query": "larger:5M"}, "label_names": []},
         language="en",
     ),
     # Automation draft (ADR-140): title + pre-localized schedule + instruction.
@@ -970,6 +1086,16 @@ EXPECTED: dict[str, str] = {
     "event_delete_full_fr": "- **Événement**\xa0: Dentiste\n- **Date**\xa0: vendredi 05 juin 2026 à 11:00",
     "event_delete_allday_en": "- **Event**: Holiday\n- **Date**: Saturday 06 June 2026",
     "event_delete_empty_fr": "- **Événement**\xa0: ?",
+    "event_options_said_fr": "- **Événement**\xa0: Point\n- **Début**\xa0: vendredi 05 juin 2026 à 11:00\n- **Fin**\xa0: vendredi 05 juin 2026 à 12:00\n- **Rappel**\xa0: 30 min avant\n- **Disponibilité**\xa0: Libre\n- **Visibilité**\xa0: Privé",
+    "event_options_no_reminder_en": "- **Event**: Point\n- **Start**: Friday 05 June 2026 at 11:00\n- **End**: Friday 05 June 2026 at 12:00\n- **Reminder**: None\n- **Availability**: Busy\n- **Visibility**: Default",
+    "event_options_at_start_fr": "- **Événement**\xa0: Point\n- **Début**\xa0: vendredi 05 juin 2026 à 11:00\n- **Fin**\xa0: vendredi 05 juin 2026 à 12:00\n- **Rappel**\xa0: Au début",
+    "event_update_options_fr": "- **Événement**\xa0: Point\n- **Rappel**\xa0: 15 min avant ✏️\n- **Disponibilité**\xa0: Libre ✏️\n- **Visioconférence**\xa0: Incluse ✏️",
+    "event_answer_full_fr": "- **Événement**\xa0: Point d'étape\n- **Date**\xa0: vendredi 05 juin 2026 à 11:00\n- **Ta réponse**\xa0: Refuser\n- **Organisation**\xa0: ana&#64;example.org",
+    "event_answer_allday_en": "- **Event**: Holiday\n- **Date**: Saturday 06 June 2026\n- **Your answer**: Maybe\n- **Organiser**: ana&#64;example.org",
+    "event_answer_empty_fr": "- **Événement**\xa0: ?\n- **Ta réponse**\xa0: Accepter",
+    "file_share_reader_fr": "- **Fichier**\xa0: Rapport.pdf\n- **Partagé avec**\xa0: ana&#64;example.org\n- **Accès**\xa0: Peut lire",
+    "file_share_writer_en": "- **File**: Report.pdf\n- **Shared with**: ana&#64;example.org\n- **Access**: Can edit",
+    "file_share_empty_fr": "- **Fichier**\xa0: ?\n- **Partagé avec**\xa0: ?\n- **Accès**\xa0: Peut lire",
     "contact_full_fr": "- **Contact**\xa0: Marie Dupont\n- **Email**\xa0: marie&#64;example.com\n- **Téléphone**\xa0: +33612345678\n- **Organisation**\xa0: ACME",
     "contact_minimal_en": "- **Contact**: John Smith",
     "contact_email_only_fr": "- **Contact**\xa0: Luc Bernard\n- **Email**\xa0: luc&#64;example.com",
@@ -1016,8 +1142,11 @@ EXPECTED: dict[str, str] = {
     "spreadsheet_append_fr": "- **Fichier**\xa0: Budget 2026\n- **Feuille**\xa0: Dépenses\n- Loyer | 1200\n- EDF | 80",
     "spreadsheet_update_en": "- **File**: Budget 2026\n- **Sheet**: Dépenses\n- **Range**: B2:B3\n- 1300\n- 90",
     "document_append_fr": "- **Fichier**\xa0: Compte-rendu\n\n**Texte**\n\nDécision: reporter la réunion.",
+    "document_replace_fr": "- **Fichier**\xa0: Notes.txt\n\n**Texte**\n\nTexte corrigé.",
     "email_filter_full_fr": "- **De**\xa0: news&#64;x.com\n- **Objet**\xa0: promo\n- **Label**\xa0: Newsletters\n- Les messages seront archivés\n- Les messages seront marqués comme lus",
     "email_filter_query_en": "- **Query**: has:attachment larger:5M",
+    "email_filter_delete_full_fr": "- **De**\xa0: news&#64;x.com\n- Uniquement avec une pièce jointe\n- **Label**\xa0: Newsletters, STARRED\n- **Transfère à**\xa0: copy&#64;x.com\n- Il archive ces messages\n- Il les marque comme lus\n- Les messages déjà triés restent où ils sont. Les prochains ne seront plus triés",
+    "email_filter_delete_minimal_en": "- **Query**: larger:5M\n- Mail already sorted stays where it is. The next messages will no longer be sorted",
     "scheduled_action_full_fr": "- **Titre**\xa0: Revue de presse IA\n- **Planification**\xa0: Lun, Mer à 08:00\n- **Instruction**\xa0: Fais-moi une revue de presse IA",
     "scheduled_action_minimal_en": "- **Title**: Daily digest",
 }

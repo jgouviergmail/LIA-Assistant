@@ -42,7 +42,7 @@
  * - Skill widget iframes use srcDoc (inherit this CSP) and are
  *   self-contained by design — inline allowance keeps them working. The one
  *   external embed is the interactive-map system skill (Google Maps iframe)
- *   → frame-src allowlists https://www.google.com.
+ *   → frame-src allowlists that one path of https://www.google.com.
  * - MCP App widgets are NOT srcDoc anymore — they go through the widget
  *   airlock (see above) precisely because they are not self-contained.
  * - Google Fonts stylesheet + font files (see app/[lng]/layout.tsx).
@@ -165,12 +165,14 @@ export function buildAppCsp(isDev: boolean, apiUrl: string | undefined): string 
     // img-src.
     "media-src 'self' data: blob: https:",
     "worker-src 'self' blob:",
-    // 'self' → widget airlock + srcDoc frames; www.google.com → the
+    // 'self' → widget airlock + srcDoc frames; www.google.com/maps/embed → the
     // interactive-map system skill's Google Maps embed (frame.url), the only
     // external frame we ship besides the Turnstile challenge frame (ADR-364).
     // Without an explicit frame-src, the directive falls back to default-src
-    // 'self' and blocks them.
-    "frame-src 'self' https://www.google.com https://challenges.cloudflare.com",
+    // 'self' and blocks them. The PATH is a boundary: nothing stops a frame from
+    // navigating itself, so this line is what a page of ADR-370 can reach, and a
+    // whole host would hand it Google's services that fetch a domain it names.
+    "frame-src 'self' https://www.google.com/maps/embed https://challenges.cloudflare.com",
     `connect-src ${buildConnectSrc(isDev, apiUrl)}`,
     "object-src 'none'",
     "base-uri 'self'",

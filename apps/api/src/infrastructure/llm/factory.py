@@ -219,6 +219,8 @@ LLMType = Literal[
     "telephony_agent",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation",
+    # Interactive pages — dedicated whole-page writer (ADR-370)
+    "interactive_page",
     # E-mail digest: one short structured call per message, cached (ADR-287)
     "email_digest",
     # Image prompt enhancement: an optional rewrite before the image model (ADR-315)
@@ -419,8 +421,9 @@ def get_llm(
         streaming=streaming,
         llm_type=llm_type,
         # ADR-221 (ex-F2): the admin-visible per-slot timeout is the timeout
-        # the client APPLIES (per-attempt transport bound). The asyncio
-        # wait_for barriers on graph nodes stay in place and may be tighter.
+        # the client APPLIES (per-attempt transport bound). A wall clock around
+        # the call reads the same value (`llm_call_timeout_seconds`), never a
+        # tighter one (ADR-221 amendment 2026-11-05).
         timeout_seconds=agent_config.timeout_seconds,
         # Pass additional provider-specific params
         top_p=merged_config.get("top_p"),

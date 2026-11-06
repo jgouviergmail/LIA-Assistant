@@ -14,7 +14,10 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import RUN_RECORDS_MAX_RUNS
+from src.core.constants import (
+    RUN_RECORDS_MAX_RUNS,
+    TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS,
+)
 from src.core.context import current_tracker
 from src.core.field_names import (
     FIELD_COST_EUR,
@@ -58,6 +61,7 @@ from src.domains.chat.tracking_records import (
     token_log_row,
     tts_usage_record,
 )
+from src.infrastructure.async_utils import write_through_cancellation
 from src.infrastructure.cache.pricing_cache import PricingCacheData
 from src.infrastructure.database import get_db_context
 
@@ -154,6 +158,8 @@ class TrackingContext:
         import asyncio
 
         self._lock = asyncio.Lock()
+        # commit() and __aexit__ can be open at once on a cancelled turn: ONE writes.
+        self._persist_lock = asyncio.Lock()
 
         # ContextVar token for cleanup in __aexit__
         self._context_token: Any = None
@@ -206,18 +212,12 @@ class TrackingContext:
 
         # Persist whenever auto_commit is enabled — INCLUDING on exception or
         # cancellation (ADR-117): pending records correspond to calls that
-        # actually happened and were billed by the provider. The UPSERT commit
-        # is incremental and idempotent (records are cleared after persist),
-        # so this cannot double-count.
+        # actually happened and were billed by the provider. The write adds up,
+        # so `_write_pending` lets one writer at a time read what is pending:
+        # a door opened beside another finds nothing left to count twice.
         if self.auto_commit:
             try:
-                if exc_type is not None and issubclass(exc_type, asyncio.CancelledError):
-                    # __aexit__ may run while the task is being cancelled
-                    # (detached producer drain / hard kill): shield the write
-                    # so a second cancellation cannot abort it mid-flight.
-                    await asyncio.shield(self._persist_to_database())
-                else:
-                    await self._persist_to_database()
+                await self._persist_to_database()
                 logger.info(
                     "tracking_context_persisted",
                     run_id=self.run_id,
@@ -1021,11 +1021,40 @@ class TrackingContext:
         When external session provided (self._external_db), uses that session
         and does NOT commit - caller is responsible for transaction management.
         This enables participation in larger transactions (e.g., proactive tasks).
+
+        A write of its own runs to its end whatever happens to its caller: the
+        records leave only after the commit, so a write cut at its commit, with an
+        outcome nobody can read, would be written again by the next door.
+
+        Raises:
+            asyncio.CancelledError: The caller was cancelled, once the write ended.
         """
-        # Use external session if provided, otherwise create new one
         if self._external_db is not None:
-            await self._do_persist(self._external_db, commit=False)
-        else:
+            # The caller's session stays in the caller's task: it is never shared.
+            await self._write_pending()
+            return
+        cancelled = await write_through_cancellation(
+            self._write_pending,
+            attempts=TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS,
+            label="tracker_persist",
+        )
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _write_pending(self) -> None:
+        """Write what is still pending, one writer at a time.
+
+        A cancelled turn opens both doors together, the stream's commit and
+        ``__aexit__``. Whoever waited finds the records already written and gone:
+        the write adds to the summary, the ledger and the statistics, so a second
+        one over the same records counts them twice (production, 2026-11-04).
+        """
+        async with self._persist_lock:
+            if not any(self.pending_families().values()):
+                return
+            if self._external_db is not None:
+                await self._do_persist(self._external_db, commit=False)
+                return
             async with get_db_context() as db:
                 await self._do_persist(db, commit=True)
 

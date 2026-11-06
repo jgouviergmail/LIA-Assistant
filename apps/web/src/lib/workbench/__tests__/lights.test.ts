@@ -5,15 +5,28 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { WorkbenchLight, WorkbenchLights } from '../types';
+import type { WorkbenchLight, WorkbenchLights, WorkbenchRoom } from '../types';
 import {
   OTHER_LIGHTS,
   inNameOrder,
   lightKind,
   openSelection,
   roomBrightness,
+  roomColour,
+  roomMirek,
+  lampsByAnswer,
+  scenesOutsideRooms,
   toneTitleKey,
+  unreachableCount,
 } from '../lights';
+
+const PLAIN_ROOM = {
+  kind: 'room',
+  supports_color: false,
+  mirek_min: null,
+  mirek_max: null,
+} as const;
+const STILL = { dynamic: false, playing: false };
 
 function light(id: string, overrides: Partial<WorkbenchLight> = {}): WorkbenchLight {
   return {
@@ -27,9 +40,97 @@ function light(id: string, overrides: Partial<WorkbenchLight> = {}): WorkbenchLi
     mirek: null,
     mirek_min: null,
     mirek_max: null,
+    reachable: null,
     ...overrides,
   };
 }
+
+describe('a room and a zone', () => {
+  const zone: WorkbenchRoom = {
+    ...PLAIN_ROOM,
+    kind: 'zone',
+    id: 'z1',
+    name: 'Aa',
+    light_ids: [],
+    on: false,
+  };
+  const room = { ...PLAIN_ROOM, id: 'r1', name: 'Zz', light_ids: [], on: false };
+
+  it('draws the rooms first: a zone gathers lamps a room already holds', () => {
+    const ordered = inNameOrder({ rooms: [zone, room], lights: [], scenes: [] }, 'en');
+
+    expect(ordered.rooms.map(item => item.id)).toEqual(['r1', 'z1']);
+  });
+
+  it("keeps a zone's scenes with the zone", () => {
+    const held = { id: 's1', name: 'Calm', room_id: 'z1', active: false, ...STILL };
+    const lost = { id: 's2', name: 'Calm', room_id: 'gone', active: false, ...STILL };
+
+    expect(
+      scenesOutsideRooms({ rooms: [zone], lights: [], scenes: [held, lost] }).map(item => item.id)
+    ).toEqual(['s2']);
+  });
+
+  it("names a room's tone by what its lamps take", () => {
+    expect(toneTitleKey({ supports_color: true, mirek_min: 153, mirek_max: 500 })).toBe(
+      'workbench.lights.tone'
+    );
+    expect(toneTitleKey({ supports_color: false, mirek_min: null, mirek_max: null })).toBeNull();
+  });
+});
+
+describe('lampsByAnswer', () => {
+  it('sets apart the lamps the bridge cannot reach, each group in its order', () => {
+    const lights = [
+      light('a', { reachable: false }),
+      light('b', { reachable: true }),
+      light('c', { reachable: null }),
+      light('d', { reachable: false }),
+    ];
+
+    const { answering, silent } = lampsByAnswer(lights);
+
+    expect(answering.map(lamp => lamp.id)).toEqual(['b', 'c']);
+    expect(silent.map(lamp => lamp.id)).toEqual(['a', 'd']);
+  });
+});
+
+describe('unreachableCount', () => {
+  it('counts the lamps the bridge says it cannot reach, and no others', () => {
+    const lights = [
+      light('a', { reachable: false }),
+      light('b', { reachable: true }),
+      light('c', { reachable: null }),
+      light('d', { reachable: false }),
+    ];
+
+    expect(unreachableCount(['a', 'b', 'c'], lights)).toBe(1);
+  });
+});
+
+describe('roomColour', () => {
+  it('reads the first lamp that shows one, whichever comes first in the room', () => {
+    const lights = [light('a'), light('b', { color_hex: '#ff0000' })];
+
+    expect(roomColour(['a', 'b'], lights)).toBe('#ff0000');
+  });
+
+  it('reads nothing from a lamp of another room', () => {
+    expect(roomColour(['a'], [light('a'), light('b', { color_hex: '#ff0000' })])).toBeNull();
+  });
+});
+
+describe('roomMirek', () => {
+  it('reads the mean temperature of the lamps that have one', () => {
+    const lights = [light('a', { mirek: 200 }), light('b', { mirek: 301 }), light('c')];
+
+    expect(roomMirek(['a', 'b', 'c'], lights)).toBe(251);
+  });
+
+  it('has none when no lamp reports one', () => {
+    expect(roomMirek(['c'], [light('c')])).toBeNull();
+  });
+});
 
 describe('lightKind', () => {
   it('names what each lamp can do', () => {
@@ -59,9 +160,9 @@ describe('roomBrightness', () => {
 describe('inNameOrder', () => {
   const bridge: WorkbenchLights = {
     rooms: [
-      { id: 'r1', name: 'Salon', light_ids: [], on: true },
-      { id: 'r2', name: 'cuisine', light_ids: [], on: false },
-      { id: 'r3', name: 'Étage', light_ids: [], on: false },
+      { id: 'r1', name: 'Salon', light_ids: [], on: true, ...PLAIN_ROOM },
+      { id: 'r2', name: 'cuisine', light_ids: [], on: false, ...PLAIN_ROOM },
+      { id: 'r3', name: 'Étage', light_ids: [], on: false, ...PLAIN_ROOM },
     ],
     lights: [
       light('a', { name: 'Lampe 10' }),
@@ -69,8 +170,8 @@ describe('inNameOrder', () => {
       light('c', { name: 'Applique' }),
     ],
     scenes: [
-      { id: 's2', name: 'Lecture', room_id: 'r1', active: false },
-      { id: 's1', name: 'Détente', room_id: 'r1', active: true },
+      { id: 's2', name: 'Lecture', room_id: 'r1', active: false, ...STILL },
+      { id: 's1', name: 'Détente', room_id: 'r1', active: true, ...STILL },
     ],
   };
 
@@ -108,8 +209,8 @@ describe('toneTitleKey', () => {
 describe('openSelection', () => {
   const bridge: WorkbenchLights = {
     rooms: [
-      { id: 'r1', name: 'Living room', light_ids: ['a'], on: true },
-      { id: 'r2', name: 'Kitchen', light_ids: ['b'], on: false },
+      { id: 'r1', name: 'Living room', light_ids: ['a'], on: true, ...PLAIN_ROOM },
+      { id: 'r2', name: 'Kitchen', light_ids: ['b'], on: false, ...PLAIN_ROOM },
     ],
     lights: [light('a'), light('b', { room_id: 'r2' }), light('c', { room_id: null })],
     scenes: [],

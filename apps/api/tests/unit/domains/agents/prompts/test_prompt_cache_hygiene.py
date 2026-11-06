@@ -55,6 +55,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "hitl_question_generator_prompt",
     # Documents (ADR-274): the static craft rules first, the request in the tail
     "document_generation_prompt",
+    # Interactive pages (ADR-370): the sandbox's rules first, the request in the tail
+    "interactive_page_prompt",
     # Images (ADR-315): the prompting techniques first, the request in the tail
     "image_prompt_enhancement_prompt",
     # Mailbox drafts (ADR-344): the reply's rules first, the received e-mail in the tail
@@ -143,6 +145,9 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # are invariant for a deployment — they change when an administrator edits
     # a setting, not between two requests — and they must sit NEXT TO the rules
     # they quantify, or a writer reads a rule whose number lives elsewhere.
+    # The same rule for a page's ceiling (ADR-370): the setting read through the
+    # slot's output budget, invariant for a deployment, beside the rule it bounds.
+    "interactive_page_prompt": frozenset({"max_page_kb"}),
     "document_generation_prompt": frozenset(
         {
             "max_bullets_per_slide",

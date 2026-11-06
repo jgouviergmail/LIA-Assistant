@@ -364,11 +364,8 @@ async def planner_node(state: MessagesState, config: RunnableConfig) -> dict[str
         # The planner slot's own configuration (LLM_DEFAULTS + admin overrides)
         llm = get_llm("planner")
 
-        # Build config with timeout and callbacks
-        llm_config: RunnableConfig = {"timeout": settings.planner_timeout_seconds}
-        if config:
-            # Merge node config (callbacks) with timeout
-            llm_config = {**config, "timeout": settings.planner_timeout_seconds}
+        # The call's time is the slot's: the client applies it (ADR-221)
+        llm_config: RunnableConfig = dict(config) if config else {}
 
         # Enrich config with node metadata for token tracking + Langfuse
         node_name = (
@@ -2098,7 +2095,6 @@ ResolvedReferences(
 # apps/api/src/core/config/agents.py
 class AgentsSettings:
     memory_reference_resolution_enabled: bool = True
-    memory_reference_resolution_timeout_ms: int = 2000
     memory_reference_resolution_min_confidence: float = 0.7
 ```
 
@@ -3105,13 +3101,11 @@ Le planner est le poste `planner` : ses valeurs par defaut sont dans `LLM_DEFAUL
 | `PLANNER_MAX_STEPS` | 10 | Max steps dans un plan |
 | `PLANNER_MAX_COST_USD` | 1.0 | Budget limite USD par plan |
 | `PLANNER_MAX_REPLANS` | 2 | Re-planifications bornées d'un plan refusé par le validateur, avant exécution (jamais un rejeu après exécution — ADR-346) |
-| `PLANNER_TIMEOUT_SECONDS` | 30 | Timeout LLM response |
 
 ```python
 # apps/api/src/core/config/ (code reference)
 
 class Settings(BaseSettings):
-    planner_timeout_seconds: int = 30
     planner_max_steps: int = 10
     planner_max_cost_usd: float = 1.0
     planner_max_replans: int = 2

@@ -14,10 +14,13 @@ from typing import TYPE_CHECKING
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.schemas import (
     AppleCalendarPreferences,
+    AppleEmailPreferences,
     BaseConnectorPreferences,
     GoogleCalendarPreferences,
+    GoogleGmailPreferences,
     GoogleTasksPreferences,
     MicrosoftCalendarPreferences,
+    MicrosoftOutlookPreferences,
     MicrosoftTasksPreferences,
 )
 
@@ -32,6 +35,9 @@ CONNECTOR_PREFERENCES_REGISTRY: dict[str, type[BaseConnectorPreferences]] = {
     ConnectorType.APPLE_CALENDAR.value: AppleCalendarPreferences,
     ConnectorType.MICROSOFT_CALENDAR.value: MicrosoftCalendarPreferences,
     ConnectorType.MICROSOFT_TASKS.value: MicrosoftTasksPreferences,
+    ConnectorType.GOOGLE_GMAIL.value: GoogleGmailPreferences,
+    ConnectorType.MICROSOFT_OUTLOOK.value: MicrosoftOutlookPreferences,
+    ConnectorType.APPLE_EMAIL.value: AppleEmailPreferences,
 }
 
 

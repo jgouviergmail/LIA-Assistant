@@ -13,10 +13,17 @@ from urllib.parse import quote
 
 import structlog
 
+from src.core.constants import SHEETS_READ_MAX_COLUMN
 from src.domains.connectors.clients.base_google_client import BaseGoogleClient
+from src.domains.connectors.clients.office_files import OfficeRefusal
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
+
+
+def _quoted_sheet(title: str) -> str:
+    """A sheet's name in A1 notation: a quote inside it is doubled, or the API answers 400."""
+    return "'" + title.replace("'", "''") + "'"
 
 
 class GoogleSheetsClient(BaseGoogleClient):
@@ -66,6 +73,57 @@ class GoogleSheetsClient(BaseGoogleClient):
             rows=len(response.get("values", [])),
         )
         return response
+
+    async def read_rows(self, spreadsheet_id: str, sheet: str, max_rows: int) -> list[list[Any]]:
+        """The first rows of a sheet.
+
+        Args:
+            spreadsheet_id: Drive file id of the spreadsheet.
+            sheet: The sheet's exact title.
+            max_rows: The most rows read.
+
+        Returns:
+            The rows, as the API gives them.
+        """
+        a1_range = f"{_quoted_sheet(sheet)}!A1:{SHEETS_READ_MAX_COLUMN}{max_rows}"
+        return (await self.get_values(spreadsheet_id, a1_range)).get("values", [])
+
+    async def write_refusal(self, a1_range: str, values: list[list[str]]) -> OfficeRefusal | None:
+        """Nothing is refused ahead: the API judges the write itself."""
+        return None
+
+    async def write_range(
+        self, spreadsheet_id: str, sheet: str, a1_range: str, values: list[list[str]]
+    ) -> int:
+        """Overwrite cells of a sheet (write — always behind HITL).
+
+        Args:
+            spreadsheet_id: Drive file id of the spreadsheet.
+            sheet: The sheet's exact title.
+            a1_range: The cells, without the sheet.
+            values: Row-major cell values.
+
+        Returns:
+            The cells the API says it wrote.
+        """
+        target = f"{_quoted_sheet(sheet)}!{a1_range}"
+        return int(
+            (await self.update_values(spreadsheet_id, target, values)).get("updatedCells", 0)
+        )
+
+    async def append_rows(self, spreadsheet_id: str, sheet: str, values: list[list[str]]) -> int:
+        """Add rows below a sheet's table (write — always behind HITL).
+
+        Args:
+            spreadsheet_id: Drive file id of the spreadsheet.
+            sheet: The sheet's exact title.
+            values: The rows.
+
+        Returns:
+            The rows the API says it wrote.
+        """
+        response = await self.append_values(spreadsheet_id, f"{_quoted_sheet(sheet)}!A1", values)
+        return int((response.get("updates") or {}).get("updatedRows", 0))
 
     async def update_values(
         self, spreadsheet_id: str, a1_range: str, values: list[list[str]]

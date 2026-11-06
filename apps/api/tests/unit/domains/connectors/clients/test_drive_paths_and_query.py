@@ -163,6 +163,80 @@ class TestASearchPages:
         assert seen[0].url.params.get("orderBy") == order
 
 
+class TestWhereAFileLives:
+    @staticmethod
+    def _folders(client: GoogleDriveClient, tree: dict[str, dict[str, Any]]) -> AsyncMock:
+        reader = AsyncMock(side_effect=lambda folder_id, fields=None: tree[folder_id])
+        client.get_file_metadata = reader  # type: ignore[method-assign]
+        return reader
+
+    async def test_its_folders_are_named_from_the_top_my_drive_left_out(
+        self, client: GoogleDriveClient
+    ) -> None:
+        self._folders(
+            client,
+            {
+                "sub": {"name": "Factures", "parents": ["top"]},
+                "top": {"name": "Documents", "parents": ["root-id"]},
+                "root-id": {"name": "My Drive"},
+            },
+        )
+
+        assert await client.folder_path({"parents": ["sub"]}, {}) == "Documents/Factures"
+
+    async def test_a_file_at_the_top_has_an_empty_path(self, client: GoogleDriveClient) -> None:
+        self._folders(client, {"root-id": {"name": "My Drive"}})
+
+        assert await client.folder_path({"parents": ["root-id"]}, {}) == ""
+
+    async def test_a_file_shared_with_the_person_says_no_path(
+        self, client: GoogleDriveClient
+    ) -> None:
+        reader = self._folders(client, {})
+
+        assert await client.folder_path({"id": "f"}, {}) is None
+        reader.assert_not_awaited()
+
+    async def test_a_folder_is_read_once_for_all_the_files_it_holds(
+        self, client: GoogleDriveClient
+    ) -> None:
+        reader = self._folders(
+            client,
+            {"sub": {"name": "Docs", "parents": ["root-id"]}, "root-id": {"name": "My Drive"}},
+        )
+        known: dict[str, Any] = {}
+
+        await client.folder_path({"parents": ["sub"]}, known)
+        await client.folder_path({"parents": ["sub"]}, known)
+
+        assert reader.await_count == 2
+
+    async def test_a_tree_past_its_bound_claims_no_path(self, client: GoogleDriveClient) -> None:
+        tree = {f"f{index}": {"name": "d", "parents": [f"f{index + 1}"]} for index in range(99)}
+        self._folders(client, tree)
+
+        assert await client.folder_path({"parents": ["f0"]}, {}) is None
+
+
+class TestWhatChangedLast:
+    async def test_every_file_is_asked_newest_first_and_no_folder(
+        self, client: GoogleDriveClient
+    ) -> None:
+        seen, page = await _drive(
+            client,
+            lambda: client.recent_files(5),
+            httpx.Response(200, json={"files": [{"id": "f1"}]}),
+        )
+
+        asked = seen[0].url.params
+        assert asked["orderBy"] == "modifiedTime desc"
+        assert asked["pageSize"] == "5"
+        assert "mimeType != 'application/vnd.google-apps.folder'" in asked["q"]
+        for field in ("id", "name", "mimeType", "modifiedTime", "webViewLink", "parents"):
+            assert field in asked["fields"]
+        assert page == {"files": [{"id": "f1"}]}
+
+
 class TestAKnownSize:
     async def test_reads_the_body_without_a_second_metadata_read(
         self, client: GoogleDriveClient

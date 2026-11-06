@@ -26,8 +26,8 @@ Generic Pattern:
 References:
     - draft_critique_node.py: Sets draft_action_result
     - calendar_tools.py: execute_event_draft()
-    - emails_tools.py: execute_email_draft()
-    - google_contacts_tools.py: execute_contact_draft()
+    - email_draft_execution.py: execute_email_draft()
+    - contacts_draft_executors.py: execute_contact_draft()
     - command_api.py: DraftService.process_draft_action()
     - dependencies.py: ToolDependencies container
 
@@ -246,6 +246,7 @@ _DRAFT_TYPE_TO_TCM_DOMAIN: dict[str, str] = {
     "mailbox_draft_send": "emails",  # the draft became this message (ADR-344)
     # Update
     "event_update": "events",
+    "event_answer": "events",
     "contact_update": "contacts",
     "task_update": "tasks",
     # Delete

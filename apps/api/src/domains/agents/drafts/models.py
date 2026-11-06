@@ -55,12 +55,14 @@ class DraftType(str, Enum):
     EVENT = "event"  # Calendar event draft (create_event)
     EVENT_UPDATE = "event_update"  # Calendar event update draft (update_event)
     EVENT_DELETE = "event_delete"  # Calendar event delete draft (delete_event)
+    EVENT_ANSWER = "event_answer"  # An invitation's answer, told to its organiser (ADR-369)
     CONTACT = "contact"  # Contact creation draft (create_contact)
     CONTACT_UPDATE = "contact_update"  # Contact update draft (update_contact)
     CONTACT_DELETE = "contact_delete"  # Contact delete draft (delete_contact)
     TASK = "task"  # Task creation draft (create_task)
     TASK_UPDATE = "task_update"  # Task update draft (update_task)
     TASK_DELETE = "task_delete"  # Task delete draft (delete_task)
+    FILE_SHARE = "file_share"  # A file's sharing, told to the person by the drive
     FILE_DELETE = "file_delete"  # Drive file delete draft (delete_file)
     LABEL_DELETE = "label_delete"  # Gmail label delete draft (delete_label)
     REMINDER_DELETE = "reminder_delete"  # Reminder delete draft (cancel_reminder)
@@ -70,10 +72,12 @@ class DraftType(str, Enum):
     PEER_MESSAGE = "peer_message"  # Relayed message to a connected user (peers, A3)
     VACATION_RESPONDER = "vacation_responder"  # Gmail auto-reply settings (lot I)
     EMAIL_FILTER = "email_filter"  # Gmail filter creation (lot I)
+    EMAIL_FILTER_DELETE = "email_filter_delete"  # Gmail filter deletion (ADR-369)
     TOOL_CALL = "tool_call"  # A tool whose policy demands confirmation (ADR-263)
     SANDBOX_EGRESS = "sandbox_egress"  # A script asks to reach hosts (ADR-298)
     SPREADSHEET_WRITE = "spreadsheet_write"  # Sheets range update / row append (lot F)
     DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
+    DOCUMENT_REPLACE = "document_replace"  # A plain text file rewritten whole (ADR-369)
     TICKET_DELETE = "ticket_delete"  # Workboard ticket delete draft (ADR-276)
     APPLICATION_ACTION = "application_action"  # Confirmed application command
     MAILBOX_DRAFT_SEND = "mailbox_draft_send"  # A draft of the person's mailbox, sent (ADR-344)
@@ -138,7 +142,16 @@ class BaseDraftInput(BaseModel):
     )
 
 
-class EmailDraftInput(BaseDraftInput):
+class _EmailWithFiles(BaseDraftInput):
+    """What an e-mail carries beyond its words, as the card names it (``tools/email_files``)."""
+
+    files: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="The person's files it carries (id, filename, mime_type, size, origin)",
+    )
+
+
+class EmailDraftInput(_EmailWithFiles):
     """
     Input for creating an email draft.
 
@@ -153,7 +166,7 @@ class EmailDraftInput(BaseDraftInput):
     is_html: bool = Field(default=False, description="Whether body is HTML")
 
 
-class EmailReplyDraftInput(BaseDraftInput):
+class EmailReplyDraftInput(_EmailWithFiles):
     """
     Input for creating an email reply draft.
 
@@ -172,7 +185,7 @@ class EmailReplyDraftInput(BaseDraftInput):
     thread_id: str | None = Field(default=None, description="Thread ID to maintain")
 
 
-class EmailForwardDraftInput(BaseDraftInput):
+class EmailForwardDraftInput(_EmailWithFiles):
     """
     Input for creating an email forward draft.
 
@@ -221,7 +234,25 @@ class EmailDeleteDraftInput(BaseDraftInput):
         }
 
 
-class EventDraftInput(BaseDraftInput):
+class EventOptionFields(BaseModel):
+    """What an event is asked to say beyond its time; None keeps what it has (ADR-369)."""
+
+    reminder_minutes: int | None = Field(
+        default=None, description="Minutes before it starts; the client's NO_REMINDER for none"
+    )
+    busy: bool | None = Field(default=None, description="Whether its time shows as taken")
+    recurrence: dict[str, Any] | None = Field(
+        default=None, description="A new series' rule, as plain data"
+    )
+    recurrence_text: str | None = Field(
+        default=None, description="The rule's sentence, in the person's language"
+    )
+    scope: str | None = Field(default=None, description="'series' reaches the whole series")
+    moves_series: bool = Field(default=False, description="A whole series takes a new time")
+    private: bool | None = Field(default=None, description="Whether its details are kept back")
+
+
+class EventDraftInput(EventOptionFields, BaseDraftInput):
     """
     Input for creating a calendar event draft.
 
@@ -261,10 +292,13 @@ class EventDraftInput(BaseDraftInput):
             "calendar_id": self.calendar_id,
             "add_conference": self.add_conference,
             "all_day": self.all_day,
+            "reminder_minutes": self.reminder_minutes,
+            "busy": self.busy,
+            "private": self.private,
         }
 
 
-class EventUpdateDraftInput(BaseDraftInput):
+class EventUpdateDraftInput(EventOptionFields, BaseDraftInput):
     """
     Input for updating a calendar event draft.
 
@@ -291,6 +325,9 @@ class EventUpdateDraftInput(BaseDraftInput):
         default=None,
         description="True/False switches the event all-day/timed; None keeps its shape (ADR-369)",
     )
+    add_conference: bool = Field(
+        default=False, description="Add a video-call link to the event (ADR-369)"
+    )
 
     def to_update_event_args(self) -> dict[str, Any]:
         """Convert to args for update_event execution."""
@@ -305,7 +342,31 @@ class EventUpdateDraftInput(BaseDraftInput):
             "timezone": self.timezone,
             "calendar_id": self.calendar_id,
             "all_day": self.all_day,
+            "add_conference": self.add_conference,
+            "reminder_minutes": self.reminder_minutes,
+            "busy": self.busy,
+            "private": self.private,
         }
+
+
+class EventAnswerDraftInput(BaseDraftInput):
+    """An invitation's answer, deferred for the person's confirmation: it leaves for someone."""
+
+    event_id: str = Field(..., description="The event, an occurrence's own id within a series")
+    response: str = Field(..., description="accepted, declined or tentative")
+    summary: str | None = Field(default=None, description="Event title, as shown on the card")
+    start_datetime: str | None = Field(default=None, description="Its start, as shown")
+    organizer: str | None = Field(default=None, description="Who is told")
+    calendar_id: str | None = Field(default=None, description="Its calendar")
+
+
+class FileShareDraftInput(BaseDraftInput):
+    """A file's sharing, deferred for the person's confirmation: the drive tells someone."""
+
+    file_id: str = Field(..., description="The item")
+    email: str = Field(..., description="Who it is shared with")
+    role: str = Field(..., description="reader or writer")
+    name: str | None = Field(default=None, description="Its name, as shown on the card")
 
 
 class EventDeleteDraftInput(BaseDraftInput):
@@ -316,6 +377,8 @@ class EventDeleteDraftInput(BaseDraftInput):
     Homogenized with EventUpdateDraftInput to enable draft type changes
     (e.g., user says "no, move it to May 23" on a delete HITL).
     """
+
+    scope: str | None = Field(default=None, description="'series' reaches the whole series")
 
     event_id: str = Field(..., description="Event ID to delete")
     summary: str | None = Field(default=None, description="Event title")
@@ -347,7 +410,17 @@ class EventDeleteDraftInput(BaseDraftInput):
         }
 
 
-class ContactDraftInput(BaseDraftInput):
+class _ContactDetailInput(BaseDraftInput):
+    """What a contact draft carries beyond a name, a company and notes (ADR-369, lot 9)."""
+
+    given_name: str | None = Field(default=None, description="Given name")
+    family_name: str | None = Field(default=None, description="Family name")
+    job_title: str | None = Field(default=None, description="Job title")
+    website: str | None = Field(default=None, description="Website")
+    birthday: str | None = Field(default=None, description="Birthday, an ISO day")
+
+
+class ContactDraftInput(_ContactDetailInput):
     """
     Input for creating a contact draft.
 
@@ -360,18 +433,8 @@ class ContactDraftInput(BaseDraftInput):
     organization: str | None = Field(default=None, description="Company name")
     notes: str | None = Field(default=None, description="Additional notes")
 
-    def to_create_contact_args(self) -> dict[str, Any]:
-        """Convert to args for create_contact_tool."""
-        return {
-            "name": self.name,
-            "email": self.email,
-            "phone": self.phone,
-            "organization": self.organization,
-            "notes": self.notes,
-        }
 
-
-class ContactUpdateDraftInput(BaseDraftInput):
+class ContactUpdateDraftInput(_ContactDetailInput):
     """
     Input for updating a contact draft.
 
@@ -387,22 +450,11 @@ class ContactUpdateDraftInput(BaseDraftInput):
     address: str | None = Field(
         default=None, description="New address (e.g. '15 rue de la Paix, Paris 75001')"
     )
+    clear_birthday: bool = Field(default=False, description="Take the birthday off")
     current_contact: dict[str, Any] = Field(
         default_factory=dict,
         description="Current contact data for comparison display",
     )
-
-    def to_update_contact_args(self) -> dict[str, Any]:
-        """Convert to args for update_contact execution."""
-        return {
-            "resource_name": self.resource_name,
-            "name": self.name,
-            "email": self.email,
-            "phone": self.phone,
-            "organization": self.organization,
-            "notes": self.notes,
-            "address": self.address,
-        }
 
 
 class ReminderDeleteDraftInput(BaseDraftInput):
@@ -478,6 +530,10 @@ class TaskDraftInput(BaseDraftInput):
     notes: str | None = Field(default=None, description="Task notes/description")
     due: str | None = Field(default=None, description="Due date (RFC 3339 format)")
     task_list_id: str = Field(default="@default", description="Task list ID")
+    importance: str | None = Field(default=None, description="How much it matters (To Do)")
+    reminder: str | None = Field(default=None, description="When it reminds (To Do)")
+    repeat: str | None = Field(default=None, description="How it repeats (To Do)")
+    steps: list[str] = Field(default_factory=list, description="Its first steps (To Do)")
 
     def to_create_task_args(self) -> dict[str, Any]:
         """Convert to args for create_task_tool."""
@@ -506,6 +562,11 @@ class TaskUpdateDraftInput(BaseDraftInput):
         default_factory=dict,
         description="Current task data for comparison display",
     )
+    importance: str | None = Field(default=None, description="How much it matters (To Do)")
+    reminder: str | None = Field(default=None, description="When it reminds (To Do)")
+    repeat: str | None = Field(default=None, description="How it repeats (To Do)")
+    clear_reminder: bool = Field(default=False, description="Remove the reminder (To Do)")
+    clear_repeat: bool = Field(default=False, description="Remove the repetition (To Do)")
     clear_due: bool = Field(default=False, description="Remove the due date (never with a new one)")
 
     def to_update_task_args(self) -> dict[str, Any]:
@@ -604,6 +665,7 @@ DraftInput = (
     | EventDraftInput
     | EventUpdateDraftInput
     | EventDeleteDraftInput
+    | EventAnswerDraftInput
     | ContactDraftInput
     | ContactUpdateDraftInput
     | ContactDeleteDraftInput

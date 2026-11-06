@@ -1200,8 +1200,8 @@
     },
     "221": {
       "title": "Il timeout mostrato è il timeout applicato",
-      "summary": "Il timeout per modello era modificabile ma mai applicato. Diventa il limite di trasporto di ogni chiamata, confrontato con le latenze reali.",
-      "src": "2571bd210852"
+      "summary": "Il timeout per modello era modificabile ma mai applicato. Diventa il limite di trasporto di ogni chiamata, confrontato con le latenze reali, e nulla attorno a una chiamata lo interrompe prima.",
+      "src": "4e954a5f7c9a"
     },
     "222": {
       "title": "Rimosso uno strato HITL mai collegato",
@@ -1935,8 +1935,13 @@
     },
     "369": {
       "title": "La persona agisce da sé sui propri servizi, senza modello",
-      "summary": "La sezione «Strumenti» apre la posta, il calendario, le attività, i contatti, i file di Drive e le luci della persona perché li consulti e agisca a mano: nessun modello, nessun token, la velocità del fornitore. Lo schermo offre solo ciò che il fornitore accetta, e ciò che un client guadagna per esso lo guadagnano insieme gli strumenti dell’assistente; nulla di ciò che la persona fa a mano entra in un registro, perché non è un atto di LIA.",
-      "src": "07998b0c5d8d"
+      "summary": "La sezione «Strumenti» apre la posta, il calendario, le attività, i contatti, i file, su Google Drive o OneDrive, e le luci della persona perché li consulti e agisca a mano: nessun modello, nessun token, la velocità del fornitore. Lo schermo offre solo ciò che il fornitore accetta, e ciò che un client guadagna per esso lo guadagnano insieme gli strumenti dell’assistente; nulla di ciò che la persona fa a mano entra in un registro, perché non è un atto di LIA.",
+      "src": "3c8fbff549a4"
+    },
+    "370": {
+      "title": "Una pagina scritta dal modello gira nella chat, nel riquadro più rigoroso",
+      "summary": "Chiedere un gioco o un piccolo strumento dà una pagina che gira nella conversazione, con il suo file; chiedere il codice dà il codice, e ciò che una persona scrive resta testo. La pagina gira isolata, senza accesso all’account né ad alcun sito di sua scelta, sotto una politica che non nomina alcun host. Riletta dalla cronologia aspetta un clic, perché un ciclo infinito bloccherebbe la scheda, e il modello ne legge solo il titolo.",
+      "src": "ab92ef5e6f98"
     }
   }
 }

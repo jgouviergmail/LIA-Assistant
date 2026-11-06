@@ -32,11 +32,12 @@ vi.mock('react-i18next', () => ({
 
 import { ActivityTimeline } from '../ActivityTimeline';
 import type { ActivityEvent } from '@/types/activity';
+import { generateUUID } from '@/lib/utils';
 
 function event(over: Partial<ActivityEvent> = {}): ActivityEvent {
   return {
     kind: 'habit_detected',
-    ref_id: crypto.randomUUID(),
+    ref_id: generateUUID(),
     occurred_at: '2026-08-19T10:00:00Z',
     text: 'evening_review',
     status: null,

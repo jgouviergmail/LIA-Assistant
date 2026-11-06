@@ -973,7 +973,7 @@
     },
     "221": {
       "title": "Le délai affiché est le délai appliqué",
-      "summary": "Le délai d'attente par modèle était éditable mais jamais appliqué. Il devient la borne transport de chaque appel, confrontée aux latences réelles."
+      "summary": "Le délai d'attente par modèle était éditable mais jamais appliqué. Il devient la borne transport de chaque appel, confrontée aux latences réelles, et rien autour d'un appel ne le coupe plus tôt."
     },
     "222": {
       "title": "Une couche HITL jamais branchée supprimée",
@@ -1549,7 +1549,11 @@
     },
     "369": {
       "title": "La personne agit elle-même sur ses services, sans modèle",
-      "summary": "La section « Outils » ouvre le courrier, l’agenda, les tâches, les contacts, les fichiers Drive et les lampes de la personne pour qu’elle les consulte et agisse à la main : aucun modèle, aucun jeton, la vitesse du fournisseur. L’écran n’offre que ce que le fournisseur accepte, et ce qu’un client gagne pour l’atelier, les outils de l’assistant le gagnent dans le même temps ; rien de ce que la personne fait à la main n’entre dans un registre, puisque ce n’est pas un acte de LIA."
+      "summary": "La section « Outils » ouvre le courrier, l’agenda, les tâches, les contacts, les fichiers, sur Google Drive ou OneDrive, et les lampes de la personne pour qu’elle les consulte et agisse à la main : aucun modèle, aucun jeton, la vitesse du fournisseur. L’écran n’offre que ce que le fournisseur accepte, et ce qu’un client gagne pour l’atelier, les outils de l’assistant le gagnent dans le même temps ; rien de ce que la personne fait à la main n’entre dans un registre, puisque ce n’est pas un acte de LIA."
+    },
+    "370": {
+      "title": "Une page écrite par le modèle tourne dans le chat, dans le cadre le plus strict",
+      "summary": "Demander un jeu ou un petit outil donne une page qui tourne dans la conversation, avec son fichier ; demander le code donne le code, et le texte d’une personne reste du texte. La page s’exécute isolée, sans accès au compte ni à aucun site de son choix, sous une politique qui ne nomme aucun hôte. Relue depuis l’historique, elle attend un clic, car une boucle sans fin figerait l’onglet, et le modèle n’en lit jamais que le titre."
     }
   }
 }

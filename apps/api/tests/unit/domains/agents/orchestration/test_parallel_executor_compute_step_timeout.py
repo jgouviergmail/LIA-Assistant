@@ -17,6 +17,8 @@ executor's whole context.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -25,10 +27,15 @@ from src.core.config import get_settings
 from src.core.constants import (
     BROWSER_TOOL_TIMEOUT_SECONDS,
     DEFAULT_TOOL_TIMEOUT_SECONDS,
+    LLM_RUN_BOUND_MARGIN_SECONDS,
     MAX_BROWSER_TOOL_TIMEOUT_SECONDS,
     MAX_TOOL_TIMEOUT_SECONDS,
 )
-from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
+from src.domains.agents.orchestration.step_timeouts import (
+    TOOL_LLM_SLOTS,
+    compute_step_timeout,
+)
+from src.domains.llm_config.constants import LLM_DEFAULTS
 
 
 @pytest.mark.unit
@@ -137,7 +144,7 @@ class TestComputeStepTimeoutImage:
         """Image tools no longer cap at the generic 120 s — below the measurement."""
         ceiling = compute_step_timeout(tool_name, 9999.0)
         assert ceiling > MAX_TOOL_TIMEOUT_SECONDS
-        assert ceiling == get_settings().max_image_generation_tool_timeout_seconds
+        assert ceiling >= get_settings().max_image_generation_tool_timeout_seconds
 
     @pytest.mark.parametrize("tool_name", ["generate_image", "edit_image"])
     def test_floor_stays_under_the_ceiling(self, tool_name: str):
@@ -246,8 +253,6 @@ class TestComputeStepTimeoutGeneric:
     @pytest.mark.parametrize(
         "tool_name",
         [
-            "get_emails_tool",
-            "send_email_tool",
             "brave_search_tool",
             "fetch_web_page_tool",
             "get_events_tool",
@@ -308,3 +313,94 @@ class TestComputeStepTimeoutSkillRuns:
         wall = get_settings().skills_script_wall_seconds
         assert compute_step_timeout("run_skill_script", None) == wall
         assert compute_step_timeout("run_skill_script", 1.0) == wall
+
+
+@pytest.fixture
+def slots() -> Iterator[dict[str, dict[str, Any]]]:
+    """Rows of ``llm_config_overrides``, as the in-memory cache serves them."""
+    rows: dict[str, dict[str, Any]] = {}
+    with patch(
+        "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
+        side_effect=rows.get,
+    ):
+        yield rows
+
+
+@pytest.mark.unit
+class TestTheSlotOutranksTheFamily:
+    """The environment never cuts a call before the timeout its slot holds in base."""
+
+    @pytest.mark.parametrize("tool", sorted(TOOL_LLM_SLOTS))
+    def test_a_step_waits_for_every_call_its_tool_makes(
+        self, tool: str, slots: dict[str, Any]
+    ) -> None:
+        """ReAct asks for no timeout, so the step's default is all a call gets."""
+        far_past_every_ceiling = 3000
+        for slot in TOOL_LLM_SLOTS[tool]:
+            slots[slot] = {"timeout_seconds": far_past_every_ceiling}
+
+        expected = far_past_every_ceiling * len(TOOL_LLM_SLOTS[tool])
+        assert compute_step_timeout(tool, None) > expected
+
+    @pytest.mark.parametrize("tool", sorted(TOOL_LLM_SLOTS))
+    def test_the_planner_cannot_ask_for_less_than_the_slot(
+        self, tool: str, slots: dict[str, Any]
+    ) -> None:
+        for slot in TOOL_LLM_SLOTS[tool]:
+            slots[slot] = {"timeout_seconds": 3000}
+
+        assert compute_step_timeout(tool, 1.0) == compute_step_timeout(tool, None)
+
+    @pytest.mark.parametrize("tool", sorted(TOOL_LLM_SLOTS))
+    def test_a_short_slot_leaves_the_family_s_bound_standing(
+        self, tool: str, slots: dict[str, Any]
+    ) -> None:
+        """The slot lifts a bound, it never shortens one the environment grants."""
+        with_defaults = compute_step_timeout(tool, None)
+        for slot in TOOL_LLM_SLOTS[tool]:
+            slots[slot] = {"timeout_seconds": 1}
+
+        assert compute_step_timeout(tool, None) <= with_defaults
+        assert compute_step_timeout(tool, None) >= get_settings().default_tool_timeout_seconds
+
+    def test_the_planner_may_still_ask_for_more_up_to_the_ceiling(
+        self, slots: dict[str, Any]
+    ) -> None:
+        settings = get_settings()
+        slots["document_generation"] = {"timeout_seconds": 1}
+        ceiling = settings.max_document_generation_tool_timeout_seconds
+
+        assert compute_step_timeout("generate_document", ceiling * 2) == ceiling
+
+    def test_a_page_and_a_document_wait_for_their_own_slots(self, slots: dict[str, Any]) -> None:
+        slots["interactive_page"] = {"timeout_seconds": 3000}
+
+        step = compute_step_timeout("generate_interactive_page", None)
+
+        assert step == 3000 + LLM_RUN_BOUND_MARGIN_SECONDS
+        assert compute_step_timeout("generate_document", None) < step
+
+    @pytest.mark.parametrize("slot", ["mcp_react_agent", "mcp_app_react_agent"])
+    def test_a_server_task_waits_for_the_slot_it_may_run_on(
+        self, slot: str, slots: dict[str, Any]
+    ) -> None:
+        """One server runs on one of the two slots: neither is added to the other."""
+        slots[slot] = {"timeout_seconds": 3000}
+
+        step = compute_step_timeout("weather_server_task", None)
+
+        assert step == 3000 + LLM_RUN_BOUND_MARGIN_SECONDS
+
+    def test_a_tool_that_calls_no_model_keeps_its_family(self, slots: dict[str, Any]) -> None:
+        settings = get_settings()
+        slots["document_generation"] = {"timeout_seconds": 3000}
+
+        assert (
+            compute_step_timeout("list_contacts_tool", None)
+            == settings.default_tool_timeout_seconds
+        )
+
+    def test_every_declared_slot_exists(self) -> None:
+        declared = {slot for slots_of in TOOL_LLM_SLOTS.values() for slot in slots_of}
+
+        assert declared <= set(LLM_DEFAULTS)

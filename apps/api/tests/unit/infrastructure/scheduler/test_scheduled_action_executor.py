@@ -1188,3 +1188,25 @@ async def test_the_routines_preapproval_reaches_its_run() -> None:
 
     (request,), _ = streamed.await_args
     assert request.mcp_preapproval == preapproval
+
+
+@pytest.mark.asyncio
+async def test_a_routine_s_attempt_lasts_what_its_model_calls_may_take() -> None:
+    """An administrator's timeout reaches the run, not only the client (ADR-221)."""
+    result = RunResult(outcome=RunOutcome.SUCCESS, attempts=1, text="ok")
+    streamed = AsyncMock(return_value=result)
+    with (
+        _executor_env(chunks=[]) as env,
+        patch(
+            "src.infrastructure.scheduler.scheduled_action_executor.stream_instruction",
+            streamed,
+        ),
+        patch(
+            "src.infrastructure.scheduler.scheduled_action_executor._attempt_bound_seconds",
+            return_value=4321,
+        ),
+    ):
+        await execute_single_action(env.action_id, env.user_id)
+
+    (request,), _ = streamed.await_args
+    assert request.timeout_seconds == 4321

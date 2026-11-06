@@ -45,6 +45,8 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "tts",
         "image_generation",
         "document_generation",
+        # ADR-370 — a page the model writes, run in a sandboxed frame.
+        "interactive_pages",
         "attachments",
         "rag_spaces",
         "web_search",

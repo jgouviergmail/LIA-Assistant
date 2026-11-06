@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Datum**: 2026-11-01
-**Anwendung**: LIA v4.3.0
+**Datum**: 2026-11-06
+**Anwendung**: LIA v4.4.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ Wie das funktioniert, erklärt [der technische Leitfaden](/de/how). Wie der Code
 
 ## 2. Was LIA für dich tut
 
-Öffne **Werkzeuge**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Drive-Dateien und Hue-Leuchten nutzen Deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
+Öffne **Tools**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Dateien und Hue-Leuchten nutzen deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
 
 Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
 
@@ -43,7 +43,7 @@ Wenn du die Anzeige als **Karten** wählst (die beiden anderen Modi sind einfach
 
 ### Deine Dienste
 
-Du bittest LIA, deinen Termin am Donnerstag zu verschieben: Sie bereitet die Änderung vor und zeigt sie dir, bevor sie sie absendet. Sie liest deine E-Mails (Gmail, Outlook, Apple Mail), durchsucht und verfasst sie, fasst sie zusammen, sendet und leitet sie weiter, liest ihre Anhänge, auch ein Foto oder einen Scan, und verwaltet die Entwürfe deines Postfachs, die sie erst nach deiner Bestätigung sendet. Sie führt deinen Kalender und deine Kontakte bei Google, Microsoft oder Apple, deine Aufgaben bei Google oder Microsoft, liest deine Drive-Dateien und schreibt dort nur mit deiner Zustimmung, und schaltet deine Philips-Hue-Lampen ein.
+Du bittest LIA, deinen Termin am Donnerstag zu verschieben: Sie bereitet die Änderung vor und zeigt sie dir, bevor sie sie absendet. Sie liest deine E-Mails (Gmail, Outlook, Apple Mail), durchsucht und verfasst sie, fasst sie zusammen, sendet und leitet sie weiter, liest ihre Anhänge, auch ein Foto oder einen Scan, und verwaltet die Entwürfe deines Postfachs, die sie erst nach deiner Bestätigung sendet. Sie führt deinen Kalender und deine Kontakte bei Google, Microsoft oder Apple, deine Aufgaben bei Google oder Microsoft, liest und ordnet deine Dateien auf Google Drive oder OneDrive, schreibt dort nur mit deiner Zustimmung, und schaltet deine Philips-Hue-Lampen ein.
 
 Ohne etwas einzurichten, hast du Wikipedia, das Lesen von Webseiten, Orte in der Nähe mit Öffnungszeiten und Bewertungen, das Wetter für fünf Tage mit Luftqualität und Pollen sowie Routen zu Fuß, mit dem Rad, mit dem Auto oder mit öffentlichen Verkehrsmitteln ([Konnektoren](/de/faq#faq-connectors)). Mit deinen eigenen Schlüsseln verbindet die Websuche auch Brave Search und Perplexity und nennt ihre Quellen. LIA kann für dich auch eine Website durchgehen, klicken, ein Formular ausfüllen.
 
@@ -55,7 +55,7 @@ Der **Live-Modus** öffnet ein Sprachgespräch in Echtzeit mit deinem eigenen Sc
 
 ### Erstellen und behalten
 
-LIA erstellt und bearbeitet Bilder mit dem Modell, das der Administrator gewählt hat, ohne zu einer teureren Option zu wechseln, als deine Einstellungen vorsehen. Auf Wunsch reichert sie deine Beschreibung an, und ein Bild findest du wieder, indem du sie danach fragst ([Bilder](/de/faq#faq-image_generation)). Sie erzeugt echte Dateien (CSV, Excel, Word, PowerPoint, PDF), die eine lokale Engine baut und die mit ihrem Ablaufdatum ankommen, dazu Excalidraw-Diagramme, und sie liest die Fotos und PDFs, die du anhängst. MCP-Apps zeigen ihre Formulare direkt im Chat an.
+LIA erstellt und bearbeitet Bilder mit dem Modell, das der Administrator gewählt hat, ohne zu einer teureren Option zu wechseln, als deine Einstellungen vorsehen. Auf Wunsch reichert sie deine Beschreibung an, und ein Bild findest du wieder, indem du sie danach fragst ([Bilder](/de/faq#faq-image_generation)). Sie erzeugt echte Dateien (CSV, Excel, Word, PowerPoint, PDF), die eine lokale Engine baut und die mit ihrem Ablaufdatum ankommen, dazu Excalidraw-Diagramme, und sie liest die Fotos und PDFs, die du anhängst. MCP-Apps zeigen ihre Formulare direkt im Chat an, und ein Spiel, ein Quiz oder ein Rechner, um den du bittest, läuft dort ebenfalls, in einem versiegelten Rahmen.
 
 Was sie erzeugt, behältst du, schickst es mit einem Klick per E-Mail, teilst ein Bild mit einer Person, die mit deiner Instanz verbunden ist, oder lässt es ablaufen. Eine behaltene Antwort verlässt das Gespräch mit deiner Anfrage und ihrem Datum und kommt in einen Wissensraum, wo LIA sie Wochen später wiederfindet.
 
@@ -97,7 +97,7 @@ Auf dem Smartphone dient eine einzige App pro Store als Fenster zu deinem Server
 
 Ein geführtes Installationsprogramm (`./install.sh`) stellt ein paar Fragen, auf Französisch oder Englisch, legt das Administratorkonto an, ohne ein Geheimnis im Klartext zu schreiben, prüft, dass alles wirklich funktioniert, und macht dort weiter, wo es aufgehört hat, wenn ein Schritt fehlschlägt. Jeder Schritt ist in einer Schritt-für-Schritt-Anleitung beschrieben. Die erste Einrichtung braucht trotzdem etwas Zeit und ein paar technische Grundkenntnisse. Ein Update folgt einem schriftlichen Ablauf, der mit einer Sicherung beginnt, denn sobald die Migrationen angewendet sind, gibt es kein Zurück ([Selbst-Hosting](/de/faq#faq-self_hosting)).
 
-Danach stellst du alles in der Weboberfläche ein, ohne Terminal und ohne Konfigurationsdatei, am Computer, Tablet oder Smartphone ([erste Schritte](/de/faq#faq-getting_started)). Ein vollständiger Assistent muss sich so einfach nutzen lassen wie eine Verbraucher-App. Jeder hat seinen eigenen Einstellungsbereich, mit einer Suche, die deine Sprache versteht: Google oder Microsoft mit einer einzigen Freigabe verbinden ([Konnektoren](/de/faq#faq-connectors)), die Persönlichkeit von LIA wählen (Lehrer, Freund, Coach, Dichter…) und ihre Stimmen, das Aussehen anpassen, entscheiden, was sie lernt und wann sie dich anspricht, deine MCP-Server, deine Skills und deine Wissensräume hinzufügen, die einem Drive-Ordner oder einem Gmail-Label folgen können. Du wählst auch deinen Austauschrhythmus, häufig oder gelegentlich, damit LIA den Cache des Anbieters bestmöglich nutzt.
+Danach stellst du alles in der Weboberfläche ein, ohne Terminal und ohne Konfigurationsdatei, am Computer, Tablet oder Smartphone ([erste Schritte](/de/faq#faq-getting_started)). Ein vollständiger Assistent muss sich so einfach nutzen lassen wie eine Verbraucher-App. Jeder hat seinen eigenen Einstellungsbereich, mit einer Suche, die deine Sprache versteht: Google oder Microsoft mit einer einzigen Freigabe verbinden ([Konnektoren](/de/faq#faq-connectors)), die Persönlichkeit von LIA wählen (Lehrer, Freund, Coach, Dichter…) und ihre Stimmen, das Aussehen anpassen, entscheiden, was sie lernt und wann sie dich anspricht, deine MCP-Server, deine Skills und deine Wissensräume hinzufügen, die einem Drive- oder OneDrive-Ordner oder einem Gmail-Label folgen können. Du wählst auch deinen Austauschrhythmus, häufig oder gelegentlich, damit LIA den Cache des Anbieters bestmöglich nutzt.
 
 Du kannst LIA auch einstellen, indem du mit ihr sprichst: „Zeig meine Antworten als Karten“. Eine Abfrage oder eine kleine, umkehrbare Einstellung wird sofort ausgeführt; ein Anlegen, ein Löschen oder eine heikle Änderung braucht weiterhin eine Bestätigung. Ein Passwort oder ein Schlüssel geht über deinen Browser, nicht über den Chat, und ein Befehl umgeht keinen Schutz ([Privatsphäre](/de/faq#faq-privacy)). Danach sagt LIA, was wirklich passiert ist, auch ein Teilergebnis oder einen Konflikt, ohne vorzugeben, jede interne Wirkung eines Werkzeugs zu kennen.
 
@@ -139,7 +139,7 @@ Der Betreiber kann einige genau umrissene Entscheidungen einer eigenen Engine an
 
 LIA arbeitet mit OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen und, für lokale Modelle, Ollama. Du mischst sie Rolle für Rolle, und wenn einer seine Preise ändert oder schlechter wird, wechselst du sofort ([die Modelle](/de/how#llm)).
 
-Sie spricht offene, öffentliche Standards statt eines hauseigenen Protokolls, und ihre Architektur ist darauf ausgelegt, weitere Konnektoren, Kanäle und Anbieter aufzunehmen. Über **MCP** bindest du externe Werkzeuge an, ohne Code zu schreiben. Ein Plugin im Format Agent Plugins lässt sich sauber installieren und deinstallieren. **Skills** im Format agentskills.io fügen Know-how hinzu, das in natürlicher Sprache geschrieben ist; ein Generator hilft dir, eigene zu erstellen, ein Skill lässt sich von einer https-Adresse oder aus der Bibliothek skills.sh installieren und kann eine kleine App im Chat anzeigen oder dir Dateien zurückgeben. Ein Skill von anderswo arbeitet getrennt, ohne deine Konnektoren zu berühren, und was du in diesem Ökosystem aufbaust, nimmst du mit. Eine vertrauenswürdige Verbindung kann dir einen Skill oder ein Plugin übergeben: Du erhältst eine deaktivierte Kopie, ohne ihre Zugangsdaten, und mit der Aktivierung stehst du dafür ein, als hättest du sie selbst erstellt.
+Sie spricht offene, öffentliche Standards (MCP, iCalendar, CalDAV, CardDAV, IMAP, vCard) statt eines hauseigenen Protokolls, und ihre Architektur ist darauf ausgelegt, weitere Konnektoren, Kanäle und Anbieter aufzunehmen. Über **MCP** bindest du externe Werkzeuge an, ohne Code zu schreiben. Ein Plugin im Format Agent Plugins lässt sich sauber installieren und deinstallieren. **Skills** im Format agentskills.io fügen Know-how hinzu, das in natürlicher Sprache geschrieben ist; ein Generator hilft dir, eigene zu erstellen, ein Skill lässt sich von einer https-Adresse oder aus der Bibliothek skills.sh installieren und kann eine kleine App im Chat anzeigen oder dir Dateien zurückgeben. Ein Skill von anderswo arbeitet getrennt, ohne deine Konnektoren zu berühren, und was du in diesem Ökosystem aufbaust, nimmst du mit. Eine vertrauenswürdige Verbindung kann dir einen Skill oder ein Plugin übergeben: Du erhältst eine deaktivierte Kopie, ohne ihre Zugangsdaten, und mit der Aktivierung stehst du dafür ein, als hättest du sie selbst erstellt.
 
 Deine Konten verbinden sich über OAuth 2.1, ohne dass LIA ihr Passwort kennt, und ein Passkey meldet dich ganz ohne Passwort an. Jede Version veröffentlicht das genaue Verzeichnis dessen, was sie enthält, und wird auf frischen Maschinen installiert, bevor sie veröffentlicht wird ([Sicherheit](/de/faq#faq-privacy)). Jede Architekturentscheidung ist aufgeschrieben und auf [den Karten](/de/maps) eingeordnet. Der Code steht unter AGPL-3.0: Du kannst ihn prüfen, ihn ändern, und er muss offen bleiben.
 

@@ -91,6 +91,8 @@ TRUST_BY_REGISTRY_TYPE: dict[RegistryItemType, ContentTrust] = {
     # skills are importable from an arbitrary URL, so their rich output is
     # third-party authored even though the execution is local.
     RegistryItemType.SKILL_APP: ContentTrust.EXTERNAL,
+    # a model wrote it, possibly after reading a third party's mail.
+    RegistryItemType.PAGE_APP: ContentTrust.EXTERNAL,
     # a ticket a CONNECTED USER handed over carries THEIR title, description
     # and comments — the one internal domain another person writes into.
     RegistryItemType.TICKET: ContentTrust.EXTERNAL,

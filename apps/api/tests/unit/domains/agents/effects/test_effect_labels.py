@@ -292,3 +292,19 @@ class TestTheLanguageIsTheReadersNotTheWriters:
             "values": {"recipient": "Marie"},
         }
         assert render_effect_label(stored, "fr") != render_effect_label(stored, "de")
+
+
+@pytest.mark.parametrize(
+    ("capability", "content", "target"),
+    [
+        ("draft:document_append", {"document_title": "Notes", "file_id": "f1"}, "Notes"),
+        ("draft:document_replace", {"document_title": "Notes", "file_id": "f1"}, "Notes"),
+        ("draft:spreadsheet_write", {"spreadsheet_title": "Budget", "file_id": "f1"}, "Budget"),
+    ],
+)
+def test_a_document_draft_names_what_it_wrote_to(
+    capability: str, content: dict[str, str], target: str
+) -> None:
+    built = EFFECT_LABEL_BUILDERS[capability]({"draft": {"content": content}})
+
+    assert built == {"target": target}

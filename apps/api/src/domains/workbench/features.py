@@ -20,18 +20,27 @@ from src.core.constants import (
     APPLE_MAIL_MESSAGE_MAX_BYTES,
     EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS,
     GMAIL_SEND_MESSAGE_MAX_BYTES,
+    MAIL_SIGNATURE_MAX_CHARS,
     OUTLOOK_INLINE_ATTACHMENT_MAX_BYTES,
     WORKBENCH_CALENDAR_IDS_MAX,
+    WORKBENCH_CALENDAR_NAME_MAX_CHARS,
     WORKBENCH_CALENDAR_WINDOW_MAX_DAYS,
     WORKBENCH_CONTACT_ADDRESS_MAX_CHARS,
+    WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
     WORKBENCH_CONTACT_NAME_MAX_CHARS,
     WORKBENCH_CONTACT_NOTES_MAX_CHARS,
+    WORKBENCH_CONTACT_PHOTO_MAX_BYTES,
     WORKBENCH_CONTACT_VALUE_MAX_CHARS,
     WORKBENCH_CONTACT_VALUES_MAX,
+    WORKBENCH_CONTACTS_EXPORT_MAX,
+    WORKBENCH_CONTACTS_IMPORT_MAX_BYTES,
+    WORKBENCH_CONTACTS_IMPORT_MAX_CARDS,
     WORKBENCH_EVENT_ATTENDEES_MAX,
     WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS,
     WORKBENCH_EVENT_LOCATION_MAX_CHARS,
+    WORKBENCH_EVENT_SERIES_MAX_COUNT,
     WORKBENCH_EVENT_SUMMARY_MAX_CHARS,
+    WORKBENCH_FILE_NAME_MAX_CHARS,
     WORKBENCH_MAIL_ATTACHMENTS_MAX,
     WORKBENCH_MAIL_BODY_MAX_CHARS,
     WORKBENCH_MAIL_QUERY_MAX_CHARS,
@@ -74,8 +83,18 @@ class WorkbenchFeature(str, Enum):
     #: The « with attachments » chip: IMAP's translator has no criterion for it.
     ATTACHMENT_FILTER = "attachment_filter"
     LABELS = "labels"
+    #: Folders of the person's own created, renamed and deleted (Gmail's are labels).
+    FOLDER_MANAGEMENT = "folder_management"
+    #: Deleting for good. Gmail's needs ``https://mail.google.com/``, a scope LIA does
+    #: not hold; it empties its own trash after 30 days.
+    PERMANENT_DELETE = "permanent_delete"
     VACATION = "vacation"
+    VACATION_SUBJECT = "vacation_subject"
+    VACATION_OPEN_END = "vacation_open_end"
     FILTERS = "filters"
+    FILTER_WORDS = "filter_words"
+    #: The aliases a message may leave from: Gmail alone lists and honours them.
+    SEND_AS = "send_as"
     # Calendar
     ALL_DAY = "all_day"
     CONFERENCE = "conference"
@@ -83,16 +102,29 @@ class WorkbenchFeature(str, Enum):
     #: One occurrence of a series is changed or deleted alone (CalDAV names it by the
     #: series' uid, so a change there would reach every occurrence).
     OCCURRENCE_EDIT = "occurrence_edit"
+    #: Moving an event to another calendar (a copy where the provider has no move).
+    EVENT_MOVE = "event_move"
+    #: Moving one that has guests: only a provider that moves rather than copies.
+    EVENT_MOVE_WITH_GUESTS = "event_move_with_guests"
+    #: Calendars of the person's own created, renamed and deleted.
+    CALENDAR_MANAGEMENT = "calendar_management"
     # Tasks
     LIST_MANAGEMENT = "list_management"
     SUBTASKS = "subtasks"
     DUE_DATE_ONLY = "due_date_only"
+    #: A task's own checklist (To Do; Google's subtasks are tasks of their own).
+    TASK_STEPS = "task_steps"
+    #: An importance, a reminder and a repetition: fields Google Tasks has none of.
+    TASK_DETAILS = "task_details"
+    #: A list's order: To Do's API gives a task no position.
+    TASK_ORDER = "task_order"
     # Contacts
     MULTI_VALUED = "multi_valued"
     CONTACT_GROUPS = "contact_groups"
     OTHER_CONTACTS = "other_contacts"
     # Files
     EXPORT = "export"
+    FILE_VIEWS = "file_views"
     # Lights
     SCENES = "scenes"
 
@@ -103,12 +135,11 @@ TOOL_CATEGORY: Final[dict[WorkbenchTool, str]] = {
     WorkbenchTool.CALENDAR: "calendar",
     WorkbenchTool.TASKS: "tasks",
     WorkbenchTool.CONTACTS: "contacts",
+    WorkbenchTool.FILES: "files",
 }
-#: A tool served by ONE connector, opened by its type: Drive belongs to no
-#: category, and the bridge's credentials are a shape the category door does
-#: not read (the smart-home category has a single member).
+#: A tool served by ONE connector, opened by its type: the bridge's credentials are a
+#: shape the category door does not read (the smart-home category has a single member).
 TOOL_SINGLE_TYPE: Final[dict[WorkbenchTool, ConnectorType]] = {
-    WorkbenchTool.FILES: ConnectorType.GOOGLE_DRIVE,
     WorkbenchTool.LIGHTS: ConnectorType.PHILIPS_HUE,
 }
 
@@ -118,7 +149,7 @@ TOOL_PROVIDERS: Final[dict[WorkbenchTool, frozenset[ConnectorType]]] = {
     WorkbenchTool.CALENDAR: CONNECTOR_FUNCTIONAL_CATEGORIES["calendar"],
     WorkbenchTool.TASKS: CONNECTOR_FUNCTIONAL_CATEGORIES["tasks"],
     WorkbenchTool.CONTACTS: CONNECTOR_FUNCTIONAL_CATEGORIES["contacts"],
-    WorkbenchTool.FILES: frozenset({ConnectorType.GOOGLE_DRIVE}),
+    WorkbenchTool.FILES: CONNECTOR_FUNCTIONAL_CATEGORIES["files"],
     WorkbenchTool.LIGHTS: CONNECTOR_FUNCTIONAL_CATEGORIES["smart_home"],
 }
 
@@ -131,41 +162,75 @@ _MAIL_COMMON: Final = frozenset(
     }
 )
 
-#: What each provider accepts. Gmail alone carries the label and mailbox-settings
-#: gestures because LIA's tools offer them for Gmail alone (spec §6.3).
+#: What each provider accepts. Gmail and Outlook hold a responder and filters, and
+#: what only Gmail's take is named apart (spec §6.3, lot 12).
 PROVIDER_FEATURES: Final[dict[ConnectorType, frozenset[WorkbenchFeature]]] = {
     ConnectorType.GOOGLE_GMAIL: _MAIL_COMMON
     | {
         WorkbenchFeature.ATTACHMENT_FILTER,
         WorkbenchFeature.LABELS,
         WorkbenchFeature.VACATION,
+        WorkbenchFeature.VACATION_SUBJECT,
+        WorkbenchFeature.VACATION_OPEN_END,
+        WorkbenchFeature.FILTERS,
+        WorkbenchFeature.FILTER_WORDS,
+        WorkbenchFeature.SEND_AS,
+    },
+    ConnectorType.MICROSOFT_OUTLOOK: _MAIL_COMMON
+    | {
+        WorkbenchFeature.ATTACHMENT_FILTER,
+        WorkbenchFeature.FOLDER_MANAGEMENT,
+        WorkbenchFeature.PERMANENT_DELETE,
+        WorkbenchFeature.VACATION,
         WorkbenchFeature.FILTERS,
     },
-    ConnectorType.MICROSOFT_OUTLOOK: _MAIL_COMMON | {WorkbenchFeature.ATTACHMENT_FILTER},
-    ConnectorType.APPLE_EMAIL: _MAIL_COMMON,
+    ConnectorType.APPLE_EMAIL: _MAIL_COMMON
+    | {WorkbenchFeature.FOLDER_MANAGEMENT, WorkbenchFeature.PERMANENT_DELETE},
     ConnectorType.GOOGLE_CALENDAR: frozenset(
         {
             WorkbenchFeature.ALL_DAY,
             WorkbenchFeature.CONFERENCE,
             WorkbenchFeature.NOTIFY_ATTENDEES,
             WorkbenchFeature.OCCURRENCE_EDIT,
+            WorkbenchFeature.EVENT_MOVE,
+            WorkbenchFeature.EVENT_MOVE_WITH_GUESTS,
+            WorkbenchFeature.CALENDAR_MANAGEMENT,
         }
     ),
     # Graph attaches a Teams link as the assistant's tool already asks it to (D2), and
     # tells attendees of every change on its own: no « notify » choice to offer.
     ConnectorType.MICROSOFT_CALENDAR: frozenset(
-        {WorkbenchFeature.ALL_DAY, WorkbenchFeature.CONFERENCE, WorkbenchFeature.OCCURRENCE_EDIT}
+        {
+            WorkbenchFeature.ALL_DAY,
+            WorkbenchFeature.CONFERENCE,
+            WorkbenchFeature.OCCURRENCE_EDIT,
+            WorkbenchFeature.EVENT_MOVE,
+            WorkbenchFeature.CALENDAR_MANAGEMENT,
+        }
     ),
     # CalDAV carries no conference and leaves scheduling to the server.
-    ConnectorType.APPLE_CALENDAR: frozenset({WorkbenchFeature.ALL_DAY}),
+    ConnectorType.APPLE_CALENDAR: frozenset(
+        {
+            WorkbenchFeature.ALL_DAY,
+            WorkbenchFeature.EVENT_MOVE,
+            WorkbenchFeature.CALENDAR_MANAGEMENT,
+        }
+    ),
     ConnectorType.GOOGLE_TASKS: frozenset(
         {
             WorkbenchFeature.LIST_MANAGEMENT,
             WorkbenchFeature.SUBTASKS,
             WorkbenchFeature.DUE_DATE_ONLY,
+            WorkbenchFeature.TASK_ORDER,
         }
     ),
-    ConnectorType.MICROSOFT_TASKS: frozenset({WorkbenchFeature.LIST_MANAGEMENT}),
+    ConnectorType.MICROSOFT_TASKS: frozenset(
+        {
+            WorkbenchFeature.LIST_MANAGEMENT,
+            WorkbenchFeature.TASK_STEPS,
+            WorkbenchFeature.TASK_DETAILS,
+        }
+    ),
     ConnectorType.GOOGLE_CONTACTS: frozenset(
         {
             WorkbenchFeature.MULTI_VALUED,
@@ -173,9 +238,15 @@ PROVIDER_FEATURES: Final[dict[ConnectorType, frozenset[WorkbenchFeature]]] = {
             WorkbenchFeature.OTHER_CONTACTS,
         }
     ),
-    ConnectorType.MICROSOFT_CONTACTS: frozenset({WorkbenchFeature.MULTI_VALUED}),
-    ConnectorType.APPLE_CONTACTS: frozenset({WorkbenchFeature.MULTI_VALUED}),
-    ConnectorType.GOOGLE_DRIVE: frozenset({WorkbenchFeature.EXPORT}),
+    ConnectorType.MICROSOFT_CONTACTS: frozenset(
+        {WorkbenchFeature.MULTI_VALUED, WorkbenchFeature.CONTACT_GROUPS}
+    ),
+    ConnectorType.APPLE_CONTACTS: frozenset(
+        {WorkbenchFeature.MULTI_VALUED, WorkbenchFeature.CONTACT_GROUPS}
+    ),
+    # Exports are Google's documents': OneDrive keeps files, downloaded as they are.
+    ConnectorType.MICROSOFT_ONEDRIVE: frozenset(),
+    ConnectorType.GOOGLE_DRIVE: frozenset({WorkbenchFeature.EXPORT, WorkbenchFeature.FILE_VIEWS}),
     ConnectorType.PHILIPS_HUE: frozenset({WorkbenchFeature.SCENES}),
 }
 
@@ -187,10 +258,15 @@ _TASK_TEXT_BOUNDS: Final = {
 #: A contact's parts (the routes refuse beyond; a provider may hold fewer values).
 _CONTACT_BOUNDS: Final = {
     "name_max_chars": WORKBENCH_CONTACT_NAME_MAX_CHARS,
+    "history_addresses": WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
     "notes_max_chars": WORKBENCH_CONTACT_NOTES_MAX_CHARS,
     "value_max_chars": WORKBENCH_CONTACT_VALUE_MAX_CHARS,
     "address_max_chars": WORKBENCH_CONTACT_ADDRESS_MAX_CHARS,
     "values_max": WORKBENCH_CONTACT_VALUES_MAX,
+    "photo_max_bytes": WORKBENCH_CONTACT_PHOTO_MAX_BYTES,
+    "export_max_contacts": WORKBENCH_CONTACTS_EXPORT_MAX,
+    "import_max_cards": WORKBENCH_CONTACTS_IMPORT_MAX_CARDS,
+    "import_max_bytes": WORKBENCH_CONTACTS_IMPORT_MAX_BYTES,
 }
 #: A calendar window and an event's parts (the routes refuse beyond), and the shortest
 #: query the guests' contact suggestions search (the recipients' matcher, below which it
@@ -198,12 +274,16 @@ _CONTACT_BOUNDS: Final = {
 _CALENDAR_BOUNDS: Final = {
     "window_max_days": WORKBENCH_CALENDAR_WINDOW_MAX_DAYS,
     "calendars_max": WORKBENCH_CALENDAR_IDS_MAX,
+    "calendar_name_max_chars": WORKBENCH_CALENDAR_NAME_MAX_CHARS,
     "summary_max_chars": WORKBENCH_EVENT_SUMMARY_MAX_CHARS,
     "location_max_chars": WORKBENCH_EVENT_LOCATION_MAX_CHARS,
     "description_max_chars": WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS,
     "attendees_max": WORKBENCH_EVENT_ATTENDEES_MAX,
+    "series_max_count": WORKBENCH_EVENT_SERIES_MAX_COUNT,
     "recipient_query_min_chars": EMAIL_SHARE_RECIPIENT_QUERY_MIN_CHARS,
 }
+#: A file's or a folder's name (the routes refuse beyond).
+_FILE_BOUNDS: Final = {"file_name_max_chars": WORKBENCH_FILE_NAME_MAX_CHARS}
 #: The words a mail search takes, and a message's parts (the routes refuse beyond).
 _MAIL_TEXT_BOUNDS: Final = {
     "search_max_chars": WORKBENCH_MAIL_QUERY_MAX_CHARS,
@@ -213,6 +293,7 @@ _MAIL_TEXT_BOUNDS: Final = {
     "subject_max_chars": WORKBENCH_MAIL_SUBJECT_MAX_CHARS,
     "body_max_chars": WORKBENCH_MAIL_BODY_MAX_CHARS,
     "attachments_max": WORKBENCH_MAIL_ATTACHMENTS_MAX,
+    "signature_max_chars": MAIL_SIGNATURE_MAX_CHARS,
 }
 
 
@@ -235,6 +316,8 @@ PROVIDER_BOUNDS: Final[dict[ConnectorType, dict[str, int]]] = {
     ConnectorType.APPLE_CALENDAR: _CALENDAR_BOUNDS,
     ConnectorType.GOOGLE_TASKS: _TASK_TEXT_BOUNDS,
     ConnectorType.MICROSOFT_TASKS: _TASK_TEXT_BOUNDS,
+    ConnectorType.GOOGLE_DRIVE: _FILE_BOUNDS,
+    ConnectorType.MICROSOFT_ONEDRIVE: _FILE_BOUNDS,
     ConnectorType.GOOGLE_CONTACTS: _CONTACT_BOUNDS,
     ConnectorType.APPLE_CONTACTS: _CONTACT_BOUNDS,
     ConnectorType.MICROSOFT_CONTACTS: {

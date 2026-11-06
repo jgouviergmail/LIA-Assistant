@@ -21,6 +21,7 @@ from src.core.application_origin import ApplicationOrigin
 from src.core.config import settings
 from src.core.constants import (
     DEFAULT_USER_DISPLAY_TIMEZONE,
+    STREAM_TEARDOWN_WAIT_SECONDS,
 )
 from src.core.field_names import (
     FIELD_ERROR_TYPE,
@@ -76,6 +77,7 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
     voice_listens,
 )
 from src.domains.agents.utils import generate_run_id
+from src.infrastructure.async_utils import cancel_and_wait
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -156,8 +158,10 @@ class AgentService(
                         break
                 # Otherwise: timeout — loop back and poll again
         finally:
+            # The stream closes before the turn does: left behind, its end raced the
+            # turn's on the tracker and wrote a cancelled turn's spend twice.
             if pending is not None and not pending.done():
-                pending.cancel()
+                await cancel_and_wait(pending, timeout_seconds=STREAM_TEARDOWN_WAIT_SECONDS)
             # Note: no yield in finally — avoids RuntimeError if exception propagating.
             # Final drain is done below (only reached on normal exit, not on exception).
 

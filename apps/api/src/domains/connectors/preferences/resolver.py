@@ -30,6 +30,27 @@ logger = structlog.get_logger(__name__)
 T = TypeVar("T")
 
 
+def preference_key(name: str) -> str:
+    """A name as a preference compares it: neither case nor outer spaces decide."""
+    return name.lower().strip()
+
+
+def is_preferred(preferred: str | None, *names: object) -> bool:
+    """Whether a container is the one a preference names, by its name or by its id.
+
+    Args:
+        preferred: The name the owner's settings hold, if any.
+        *names: What the container answers to.
+
+    Returns:
+        True when one of them is the preference.
+    """
+    if not preferred:
+        return False
+    wanted = preference_key(preferred)
+    return any(isinstance(name, str) and preference_key(name) == wanted for name in names)
+
+
 def _as_str(value: object) -> str:
     """Return an API field as a string, tolerating missing/non-string values.
 
@@ -214,7 +235,7 @@ class PreferenceNameResolver:
             items = await strategy.fetch_items(client)
 
             # Normalize search name for case-insensitive comparison
-            name_lower = name.lower().strip()
+            name_lower = preference_key(name)
 
             # First pass: exact case match
             for item in items:
@@ -231,7 +252,7 @@ class PreferenceNameResolver:
             # Second pass: case-insensitive match
             for item in items:
                 item_name = strategy.get_item_name(item)
-                if item_name.lower().strip() == name_lower:
+                if preference_key(item_name) == name_lower:
                     item_id = strategy.get_item_id(item)
                     logger.debug(
                         "preference_name_resolved_case_insensitive",
@@ -370,6 +391,8 @@ __all__ = [
     "MicrosoftTasksListNameResolver",
     "NameResolverStrategy",
     "PreferenceNameResolver",
+    "is_preferred",
+    "preference_key",
     "ResolvedItem",
     "resolve_calendar_name",
     "resolve_task_list_name",

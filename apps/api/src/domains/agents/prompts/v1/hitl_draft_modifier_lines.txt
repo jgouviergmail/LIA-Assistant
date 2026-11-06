@@ -11,6 +11,9 @@ cc|Current CC (editable): {cc}
 subject|Current subject: {subject}
 event|Event: {summary}
 event_date|Date: {start}
+event_options|Options, each left out or null unless asked for: reminder_minutes (minutes before it starts, 0 when it starts, {no_reminder} for none), busy (false shows it as free), private (true keeps its details back).
+event_answer|Invitation: {summary}. The response field holds exactly one of these words, never translated: {answers}.
+file_share|File: {name}. The role field holds exactly one of these words, never translated: {roles}. The email field holds the address it is shared with.
 contact|Contact: {name}
 task|Task: {title}
 generic|Generic draft

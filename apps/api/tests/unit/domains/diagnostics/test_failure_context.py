@@ -197,6 +197,14 @@ class TestRuntimeFailuresDirective:
         assert "UNKNOWN" in block  # failures still rendered without the advisor
 
 
+def _failed(name: str) -> ToolMessage:
+    return ToolMessage(tool_call_id=f"f-{name}", name=name, content="no", status="error")
+
+
+def _worked(name: str) -> ToolMessage:
+    return ToolMessage(tool_call_id=f"w-{name}", name=name, content="done")
+
+
 @pytest.mark.unit
 class TestReactExtraction:
     def test_failed_tool_messages_become_typed_failures(self) -> None:
@@ -224,6 +232,26 @@ class TestReactExtraction:
         assert len(failures) == 1
         assert failures[0]["tool"] == "search_emails_tool"
         assert failures[0]["error_code"] == "AUTHENTICATION_ERROR"
+
+    def test_a_call_that_worked_on_retry_is_no_failure_of_the_turn(self) -> None:
+        """Measured 2026-11-05: « no page was produced » written beside a running page."""
+        assert extract_failures_from_tool_messages([_failed("page"), _worked("page")]) == []
+
+    def test_a_success_answers_one_failure_and_no_more(self) -> None:
+        messages = [_failed("page"), _failed("page"), _worked("page")]
+        assert len(extract_failures_from_tool_messages(messages)) == 1
+
+    def test_a_failure_after_the_success_stays_a_failure(self) -> None:
+        messages = [_worked("page"), _failed("page")]
+        assert len(extract_failures_from_tool_messages(messages)) == 1
+
+    def test_another_tool_recovers_nothing(self) -> None:
+        messages = [_failed("page"), _worked("search")]
+        assert [f["tool"] for f in extract_failures_from_tool_messages(messages)] == ["page"]
+
+    def test_a_nameless_call_recovers_nothing(self) -> None:
+        messages = [_failed(""), _worked("")]
+        assert len(extract_failures_from_tool_messages(messages)) == 1
 
     def test_non_json_tool_content_is_ignored(self) -> None:
         messages = [ToolMessage(tool_call_id="c", name="t", content="plain text")]

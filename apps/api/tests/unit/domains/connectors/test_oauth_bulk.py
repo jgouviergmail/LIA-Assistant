@@ -72,6 +72,7 @@ def test_microsoft_reconnection_deduplicates_common_scopes() -> None:
         "Mail.Read",
         "Mail.ReadWrite",
         "Mail.Send",
+        "MailboxSettings.ReadWrite",
         "Tasks.Read",
         "Tasks.ReadWrite",
     )
@@ -126,6 +127,21 @@ def test_microsoft_mail_write_does_not_implicitly_grant_send() -> None:
     assert not scopes_cover_connector(
         ConnectorType.MICROSOFT_OUTLOOK, {"Mail.ReadWrite", "User.Read"}
     )
+
+
+def test_an_outlook_grant_made_before_its_settings_scope_keeps_the_mailbox() -> None:
+    # Every refresh holds a grant's connectors to this check and sends a failing row to ERROR:
+    # the scope that opens automatic replies and rules must not stop a whole mailbox.
+    before_the_settings = {"User.Read", "Mail.Read", "Mail.ReadWrite", "Mail.Send"}
+
+    assert scopes_cover_connector(ConnectorType.MICROSOFT_OUTLOOK, before_the_settings)
+
+
+def test_a_broader_files_scope_covers_the_narrower_ones() -> None:
+    assert scopes_cover_connector(
+        ConnectorType.MICROSOFT_ONEDRIVE, {"User.Read", "Files.ReadWrite.All"}
+    )
+    assert not scopes_cover_connector(ConnectorType.MICROSOFT_ONEDRIVE, {"User.Read", "Files.Read"})
 
 
 def test_microsoft_access_token_scope_need_not_repeat_offline_access() -> None:
@@ -186,10 +202,11 @@ def test_connect_all_refuses_to_overwrite_an_existing_service(status: ConnectorS
 def test_connect_all_microsoft_uses_one_scope_union() -> None:
     selected = connectable_provider_types("microsoft", [])
     plan = plan_connection("microsoft", [], list(selected))
-    assert len(selected) == 4
+    assert len(selected) == 5
     assert plan.scopes.count("offline_access") == 1
     assert "Mail.Send" in plan.scopes
     assert "Tasks.ReadWrite" in plan.scopes
+    assert "Files.ReadWrite.All" in plan.scopes
 
 
 @pytest.mark.parametrize(

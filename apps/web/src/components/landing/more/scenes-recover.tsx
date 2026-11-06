@@ -629,9 +629,58 @@ function ErrorNotEmptyScene({ active, labels }: SceneProps) {
   );
 }
 
+type PageWaitsPhase = 'running' | 'reloading' | 'waiting';
+const PAGE_WAITS_STEPS: readonly TimelineStep<PageWaitsPhase>[] = [
+  { at: 0, state: 'running' },
+  { at: 1500, state: 'reloading' },
+  { at: 2100, state: 'waiting' },
+];
+
+/** The board of the small game the scene shows running. */
+const PAGE_BOARD = ['X', 'O', '', '', 'X', 'O', 'O', '', 'X'] as const;
+
+/**
+ * A page runs by itself in the answer that made it; read back after a reload it
+ * waits for a click, so a faulty one never keeps a person out of the conversation.
+ */
+function PageWaitsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PAGE_WAITS_STEPS, { active });
+  return (
+    <div className={STAGE}>
+      <div className="relative flex h-24 w-40 items-center justify-center overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+        <div
+          className={cn(
+            'grid grid-cols-3 gap-0.5 transition-opacity duration-300 motion-reduce:transition-none',
+            phase === 'running' ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          {PAGE_BOARD.map((mark, index) => (
+            <span
+              key={index}
+              className="flex h-6 w-6 items-center justify-center rounded-sm bg-muted text-px-10 font-semibold text-primary"
+            >
+              {mark}
+            </span>
+          ))}
+        </div>
+        <span
+          className={cn(
+            'absolute flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-px-9 font-medium text-primary-foreground transition-opacity duration-300 motion-reduce:transition-none',
+            phase === 'waiting' ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <Play className="h-3 w-3" aria-hidden="true" />
+          {labels.start}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   meeting_banner: MeetingBannerScene,
   diagnosis_evidence: DiagnosisEvidenceScene,
+  page_waits: PageWaitsScene,
   actionable_errors: ActionableErrorsScene,
   reconnect_all: ReconnectAllScene,
   retry_turn: RetryTurnScene,

@@ -39,7 +39,7 @@ class TestLLMDefaults:
     def test_default_count(self) -> None:
         """A newly exposed configuration slot must be an intentional addition."""
         assert (
-            len(LLM_DEFAULTS) == 94
+            len(LLM_DEFAULTS) == 95
         )  # Includes discussion stages and the private World translator.
 
     @pytest.mark.parametrize(

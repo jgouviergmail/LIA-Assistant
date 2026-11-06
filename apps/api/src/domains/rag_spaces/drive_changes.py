@@ -183,12 +183,14 @@ class SourceRoute:
     Attributes:
         id: The source.
         space_id: Its space.
+        provider: The drive it lives on.
         folder_id: The linked root.
         folder_ids: The walked tree the last synchronisation persisted.
     """
 
     id: UUID
     space_id: UUID
+    provider: str
     folder_id: str
     folder_ids: tuple[str, ...]
 
@@ -198,6 +200,7 @@ class SourceRoute:
         return cls(
             id=source.id,
             space_id=source.space_id,
+            provider=source.provider,
             folder_id=str(source.folder_id),
             folder_ids=tuple(source.folder_ids or ()),
         )

@@ -12,6 +12,8 @@
  */
 import { useId, useRef, useState, type FormEvent } from 'react';
 
+import { EventRepeatField } from './EventRepeatField';
+
 import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,20 +34,30 @@ import type { Language } from '@/i18n/settings';
 import {
   changeBody,
   endsAfterStart,
-  fieldsOf,
+  editorFieldsOf,
   newEventBody,
   type EventChangeBody,
   type EventFields,
   type NewEventBody,
+  NO_REMINDER,
+  REMINDER_CHOICES,
 } from '@/lib/workbench/calendar/editor';
+import { reminderLabel } from '@/lib/workbench/calendar/format';
+import { zoneChoices } from '@/lib/workbench/calendar/zoned';
+import { recurrenceIsComplete } from '@/lib/recurrence';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import { WORKBENCH_RECIPIENTS_PATH } from '@/lib/workbench/recipients';
 import type { CalendarEventDetail, WorkbenchCalendar } from '@/lib/workbench/types';
+import { generateUUID } from '@/lib/utils';
 
 /** What the editor was opened on. */
 export type EditorTarget =
   | { kind: 'new'; fields: EventFields }
-  | { kind: 'edit'; event: CalendarEventDetail };
+  /**
+   * `fields`: what the form opens on when a change is already asked (a drop on guests).
+   * `series`: the whole series, rather than this occurrence.
+   */
+  | { kind: 'edit'; event: CalendarEventDetail; fields?: EventFields; series?: boolean };
 
 export interface EventEditorProps {
   lng: Language;
@@ -66,21 +78,25 @@ export function EventEditor(props: EventEditorProps) {
   const { lng, target, zone, onClose } = props;
   const { t } = useTranslation(lng);
   const [initial] = useState(() =>
-    target.kind === 'new' ? target.fields : fieldsOf(target.event, zone)
+    target.kind === 'new' ? target.fields : editorFieldsOf(target.event, zone)
   );
-  const [fields, setFields] = useState(initial);
+  const [fields, setFields] = useState(() =>
+    target.kind === 'edit' && target.fields ? target.fields : initial
+  );
   const [conference, setConference] = useState(false);
   const [notify, setNotify] = useState(true);
-  const [key] = useState(() => crypto.randomUUID());
+  const [key] = useState(() => generateUUID());
   const [status, setStatus] = useState<'editing' | 'saving' | 'unknown'>('editing');
   const [problem, setProblem] = useState<string | null>(null);
   const busy = useRef(false);
   const reversed = !endsAfterStart(fields, zone);
+  const repeatable = target.kind === 'new' || target.series === true;
+  const held = cannotBeSaved(fields, reversed, repeatable);
   const set = (change: Partial<EventFields>) => setFields(current => ({ ...current, ...change }));
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy.current || reversed || !fields.summary.trim()) return;
+    if (busy.current || held) return;
     const run = submission(props, initial, fields, { conference, notify, key });
     if (run === null) {
       onClose();
@@ -106,17 +122,24 @@ export function EventEditor(props: EventEditorProps) {
       <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:overflow-y-auto max-sm:rounded-none max-sm:border-0 sm:max-w-xl">
         <form onSubmit={save} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>
-              {t(
-                target.kind === 'new'
-                  ? 'workbench.calendar.editor.title_new'
-                  : 'workbench.calendar.editor.title_edit'
-              )}
-            </DialogTitle>
-            <DialogDescription>{t('workbench.calendar.editor.zone', { zone })}</DialogDescription>
+            <DialogTitle>{t(editorTitle(target))}</DialogTitle>
+            <DialogDescription>
+              {fields.zone
+                ? t('workbench.calendar.editor.own_zone', { zone: fields.zone })
+                : t('workbench.calendar.editor.zone', { zone })}
+            </DialogDescription>
           </DialogHeader>
           <EditorFields {...props} fields={fields} set={set} reversed={reversed} />
-          {props.conferenceOffered && target.kind === 'new' && (
+          {repeatable && (
+            <EventRepeatField
+              lng={props.lng}
+              fields={fields}
+              set={set}
+              maxCount={props.bounds.series_max_count}
+            />
+          )}
+          <EventOptionsFields lng={props.lng} fields={fields} set={set} />
+          {props.conferenceOffered && (target.kind === 'new' || !target.event.conference_url) && (
             <CheckLine
               label={t('workbench.calendar.editor.conference')}
               checked={conference}
@@ -139,11 +162,7 @@ export function EventEditor(props: EventEditorProps) {
             <Button type="button" variant="outline" onClick={onClose}>
               {t('common.cancel')}
             </Button>
-            <Button
-              type="submit"
-              isLoading={status === 'saving'}
-              aria-disabled={reversed || !fields.summary.trim() || undefined}
-            >
+            <Button type="submit" isLoading={status === 'saving'} aria-disabled={held || undefined}>
               {t(
                 target.kind === 'new'
                   ? 'workbench.calendar.editor.create'
@@ -155,6 +174,19 @@ export function EventEditor(props: EventEditorProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** The form says what is missing: a title, an end after the start, a rule set to its end. */
+function cannotBeSaved(fields: EventFields, reversed: boolean, repeatable: boolean): boolean {
+  const unfinished = repeatable && !recurrenceIsComplete(fields.repeat);
+  return reversed || unfinished || !fields.summary.trim();
+}
+
+function editorTitle(target: EditorTarget): string {
+  if (target.kind === 'new') return 'workbench.calendar.editor.title_new';
+  return target.series
+    ? 'workbench.calendar.editor.title_series'
+    : 'workbench.calendar.editor.title_edit';
 }
 
 /** The act the form submits; null when a change names nothing. */
@@ -177,7 +209,9 @@ function submission(
     initial,
     fields,
     zone,
-    notifyOffered ? choices.notify : undefined
+    notifyOffered ? choices.notify : undefined,
+    conferenceOffered && choices.conference,
+    target.series === true
   );
   return change === null ? null : () => props.onUpdate(change);
 }
@@ -191,6 +225,7 @@ interface EditorFieldsProps extends EventEditorProps {
 function EditorFields({
   lng,
   target,
+  zone,
   calendars,
   bounds,
   fields,
@@ -249,6 +284,7 @@ function EditorFields({
         </Label>
       </div>
       <BoundFields lng={lng} fields={fields} set={set} reversed={reversed} />
+      {!fields.allDay && <ZoneField lng={lng} zone={zone} fields={fields} set={set} />}
       <Input
         label={t('workbench.calendar.editor.location')}
         value={fields.location}
@@ -262,6 +298,40 @@ function EditorFields({
         maxLength={bounds.description_max_chars}
         onChange={event => set({ description: event.target.value })}
       />
+    </div>
+  );
+}
+
+/** The clock the times are on: the account's first, whatever the event was set in kept. */
+function ZoneField({
+  lng,
+  zone,
+  fields,
+  set,
+}: {
+  lng: Language;
+  zone: string;
+  fields: EventFields;
+  set: (change: Partial<EventFields>) => void;
+}) {
+  const { t } = useTranslation(lng);
+  const id = useId();
+  const [choices] = useState(() => zoneChoices(zone, fields.zone));
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{t('workbench.calendar.editor.time_zone')}</Label>
+      <select
+        id={id}
+        value={fields.zone ?? zone}
+        onChange={event => set({ zone: event.target.value === zone ? null : event.target.value })}
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+      >
+        {choices.map(choice => (
+          <option key={choice} value={choice}>
+            {choice.replaceAll('_', ' ')}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -316,6 +386,53 @@ function BoundFields({
           error={reversed ? t(`${prefix}.ends_before`) : undefined}
         />
       )}
+    </div>
+  );
+}
+
+/** What an event says beyond its time: a reminder, busy or free, private. */
+function EventOptionsFields({
+  lng,
+  fields,
+  set,
+}: {
+  lng: Language;
+  fields: EventFields;
+  set: (change: Partial<EventFields>) => void;
+}) {
+  const { t } = useTranslation(lng);
+  const reminderId = useId();
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <Label htmlFor={reminderId}>{t('workbench.calendar.editor.reminder')}</Label>
+        <select
+          id={reminderId}
+          value={fields.reminder ?? ''}
+          onChange={event =>
+            set({ reminder: event.target.value === '' ? null : Number(event.target.value) })
+          }
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">{t('workbench.calendar.editor.reminder_default')}</option>
+          <option value={NO_REMINDER}>{t('workbench.calendar.editor.reminder_none')}</option>
+          {REMINDER_CHOICES.map(minutes => (
+            <option key={minutes} value={minutes}>
+              {reminderLabel(minutes, t)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <CheckLine
+        label={t('workbench.calendar.editor.busy')}
+        checked={fields.busy}
+        onChange={busy => set({ busy })}
+      />
+      <CheckLine
+        label={t('workbench.calendar.editor.private')}
+        checked={fields.private}
+        onChange={value => set({ private: value })}
+      />
     </div>
   );
 }

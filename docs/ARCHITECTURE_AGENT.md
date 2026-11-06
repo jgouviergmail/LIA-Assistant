@@ -3192,7 +3192,7 @@ Le système valide les plans générés par le Planner avant exécution.
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Activation :** la validation sémantique est toujours active — aucun réglage ne la désactive ; seuls son délai (`SEMANTIC_VALIDATION_TIMEOUT_SECONDS`) et son seuil de confiance (`SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD`) se règlent.
+**Activation :** la validation sémantique est toujours active — aucun réglage ne la désactive ; seuls son délai (le timeout du poste `semantic_validator`, dans admin-llm-config) et son seuil de confiance (`SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD`) se règlent.
 
 ### 19.2 Validation Sémantique
 

@@ -8,9 +8,9 @@ from src.core.config import settings
 from src.core.i18n import normalize_language
 from src.domains.world.message_access import MessageAccess
 from src.domains.world.message_attempts import (
-    ATTEMPT_SECONDS,
     QUEUE_SECONDS,
     MessageAttempts,
+    attempt_seconds,
 )
 from src.domains.world.message_content import MessageAddress
 from src.domains.world.message_identity import message_fingerprint
@@ -94,7 +94,7 @@ class PublicMessaging:
                 job_id=payload.id,
                 payer=account,
                 status="pending",
-                deadline=context.now + QUEUE_SECONDS + ATTEMPT_SECONDS,
+                deadline=context.now + QUEUE_SECONDS + attempt_seconds(),
             )
         await self.mailbox.stage(message, context.scope)
         async with asyncio.timeout(settings.world_policy_timeout):

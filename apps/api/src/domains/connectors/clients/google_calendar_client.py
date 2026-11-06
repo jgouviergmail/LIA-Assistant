@@ -21,6 +21,8 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.calendar_answers import EventAnswer, NotInvitedError
+from src.domains.connectors.clients.calendar_options import EventOptions, google_options
 from src.domains.connectors.clients.normalizers.all_day import all_day_dates, is_all_day
 from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.clients.retry_policy import (
@@ -115,6 +117,7 @@ class GoogleCalendarClient(BaseGoogleClient):
         add_conference: bool = False,
         idempotency_key: str | None = None,
         all_day: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
         Create a new calendar event in Google Calendar.
@@ -183,13 +186,9 @@ class GoogleCalendarClient(BaseGoogleClient):
         # meeting to different events). conferenceDataVersion=1 opts into the
         # conference-aware API behavior.
         params: dict[str, Any] | None = None
+        event_body.update(google_options(options or EventOptions()))
         if add_conference:
-            event_body["conferenceData"] = {
-                "createRequest": {
-                    "requestId": str(uuid4()),
-                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
-                }
-            }
+            event_body.update(_conference_request())
             params = {"conferenceDataVersion": 1}
 
         # POST /calendars/{calendarId}/events — replay-safe: it carries its own id, which
@@ -533,6 +532,8 @@ class GoogleCalendarClient(BaseGoogleClient):
         calendar_id: str = "primary",
         all_day: bool | None = None,
         send_updates: str | None = None,
+        add_conference: bool = False,
+        options: EventOptions | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing calendar event.
@@ -594,13 +595,19 @@ class GoogleCalendarClient(BaseGoogleClient):
             ),
         }
 
+        event_body.update(google_options(options or EventOptions()))
+        params: dict[str, Any] = {} if send_updates is None else {"sendUpdates": send_updates}
+        if add_conference:
+            event_body.update(_conference_request())
+            params["conferenceDataVersion"] = 1
+
         # Make PATCH request to update event
         # Using PATCH for partial update (PUT would replace entirely)
         response = await self._make_request(
             "PATCH",
             f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}",
             json_data=event_body,
-            params=None if send_updates is None else {"sendUpdates": send_updates},
+            params=params or None,
         )
 
         logger.info(
@@ -610,6 +617,40 @@ class GoogleCalendarClient(BaseGoogleClient):
         )
 
         return response
+
+    async def respond_to_event(
+        self, event_id: str, response: EventAnswer, calendar_id: str = "primary"
+    ) -> dict[str, Any]:
+        """Answer an invitation: the person's own attendee, the organiser told.
+
+        Args:
+            event_id: The event, an occurrence's own id within a series.
+            response: The answer.
+            calendar_id: Its calendar.
+
+        Returns:
+            The event as it is now.
+
+        Raises:
+            NotInvitedError: Google marks no attendee of this event as the person.
+        """
+        event = await self.get_event(event_id, calendar_id)
+        attendees = event.get("attendees") or []
+        if not any(item.get("self") for item in attendees):
+            raise NotInvitedError
+        answered = await self._make_request(
+            "PATCH",
+            f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}",
+            json_data={
+                "attendees": [
+                    {**item, "responseStatus": response} if item.get("self") else item
+                    for item in attendees
+                ]
+            },
+            params={"sendUpdates": "all"},
+        )
+        logger.info("calendar_invitation_answered", user_id=str(self.user_id))
+        return answered
 
     async def list_events_window(
         self, calendar_id: str, time_min: str, time_max: str, *, bound: int
@@ -695,6 +736,60 @@ class GoogleCalendarClient(BaseGoogleClient):
             "message": APIMessages.event_deleted_successfully(event_id),
         }
 
+    async def move_event(
+        self, event_id: str, calendar_id: str, destination_id: str
+    ) -> dict[str, Any]:
+        """Move an event to another calendar, its id kept: Google's own act.
+
+        Args:
+            event_id: The event.
+            calendar_id: The calendar it is in.
+            destination_id: The calendar it goes to.
+
+        Returns:
+            The event as the destination holds it.
+        """
+        return await self._make_request(
+            "POST",
+            f"/calendars/{_segment(calendar_id)}/events/{_segment(event_id)}/move",
+            params={"destination": destination_id},
+        )
+
+    async def create_calendar(self, name: str, timezone: str | None = None) -> dict[str, Any]:
+        """Create a calendar of the account's.
+
+        Args:
+            name: Its name.
+            timezone: The zone Google shows it in; left out, Google's own default.
+
+        Returns:
+            The calendar, as a listing names it.
+        """
+        body = {"summary": name, **({"timeZone": timezone} if timezone else {})}
+        return await self._make_request("POST", "/calendars", json_data=body)
+
+    async def rename_calendar(self, calendar_id: str, name: str) -> dict[str, Any]:
+        """Give a calendar another name.
+
+        Args:
+            calendar_id: The calendar.
+            name: Its new name.
+
+        Returns:
+            The calendar, as a listing names it.
+        """
+        return await self._make_request(
+            "PATCH", f"/calendars/{_segment(calendar_id)}", json_data={"summary": name}
+        )
+
+    async def delete_calendar(self, calendar_id: str) -> None:
+        """Delete a calendar and all it holds.
+
+        Args:
+            calendar_id: The calendar.
+        """
+        await self._make_request("DELETE", f"/calendars/{_segment(calendar_id)}")
+
     async def watch_events(
         self,
         channel_id: str,
@@ -756,6 +851,18 @@ def _event_bounds(
     return {
         "start": {"dateTime": start, "timeZone": timezone},
         "end": {"dateTime": end, "timeZone": timezone},
+    }
+
+
+def _conference_request() -> dict[str, Any]:
+    """What asks Google for a Meet link: a fresh id each time, a reused one is the same meeting."""
+    return {
+        "conferenceData": {
+            "createRequest": {
+                "requestId": str(uuid4()),
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        }
     }
 
 

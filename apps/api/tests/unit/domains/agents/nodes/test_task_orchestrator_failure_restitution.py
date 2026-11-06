@@ -79,13 +79,13 @@ _CASES = (
     ),
     _Case(
         name="no_connector_beside_an_answer",
-        tools=("get_gmail_settings_tool", "get_events_tool"),
+        tools=("get_mailbox_settings_tool", "get_events_tool"),
         completed_steps={
             "step_1": _failed("No Gmail connector is active.", "CONNECTOR_NOT_ACTIVATED"),
             "step_2": {"success": True},
         },
         status=AgentResultStatus.SUCCESS.value,
-        failed=(("get_gmail_settings_tool", "CONNECTOR_NOT_ACTIVATED"),),
+        failed=(("get_mailbox_settings_tool", "CONNECTOR_NOT_ACTIVATED"),),
     ),
     _Case(
         # The tool's own code (`invalid_parameters`) is no taxonomy member: the

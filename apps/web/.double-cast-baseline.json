@@ -1,6 +1,6 @@
 {
   "_comment": "Double-assertion ratchet (audit AC-037). PER-FILE frozen counts of `as unknown as` / `as any as` over src and e2e. A file may only DECREASE; a new file starts at zero. --update lowers counts and never raises or adds one.",
-  "total": 119,
+  "total": 115,
   "perFile": {
     "e2e/a11y/scan.ts": 1,
     "e2e/smoke/chat-conversation-sync.spec.ts": 2,
@@ -61,7 +61,7 @@
     "src/lib/live/__tests__/session-controller.test.ts": 1,
     "src/lib/meetings/__tests__/recorder-controller.test.ts": 1,
     "src/lib/native/__tests__/push.test.ts": 2,
-    "src/lib/native/__tests__/shell.test.ts": 5,
+    "src/lib/native/__tests__/shell.test.ts": 1,
     "src/lib/native/push.ts": 1,
     "src/lib/native/shell.ts": 1,
     "src/lib/sse-handlers/__tests__/compaction-handler.test.ts": 1,

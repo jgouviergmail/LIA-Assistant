@@ -61,18 +61,41 @@ export const WORKBENCH_ROOT = '/dashboard/tools';
 /** The `lg` breakpoint: from here a list and its detail stand side by side. */
 export const WORKBENCH_DESKTOP = '(min-width: 1024px)';
 
+/** The `sm` breakpoint: below it a screen is read as a phone. */
+export const WORKBENCH_BEYOND_PHONE = '(min-width: 640px)';
+
 /**
- * A tool's pane height from `lg`: the viewport less the header, the rail row
- * above the tool (3.25rem), the tool's heading and the banners — so a list and
- * its detail scroll inside the pane, never the page. ONE value for every tool.
+ * A tool's pane height from `lg`: the viewport less the header, the row of the
+ * tools above it, which also holds the tool's actions, and the banners — so a
+ * list and its detail scroll inside the pane, never the page. ONE value for
+ * every tool.
  */
 export const WORKBENCH_PANE_HEIGHT =
-  'lg:h-[calc(100dvh-16.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))]';
+  'lg:h-[calc(100dvh-12.75rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))]';
+
+/** How long a screen goes unread before coming back to it re-reads it. */
+export const WORKBENCH_RETURN_REREAD_MIN_MS = 60_000;
 
 const TOOL_IDS: ReadonlySet<string> = new Set(ORDER);
 
 function isToolId(value: string): value is WorkbenchToolId {
   return TOOL_IDS.has(value);
+}
+
+/** The vendors of the connectors: a brand reads the same in every language. */
+const VENDORS: readonly (readonly [string, string])[] = [
+  ['google_', 'Google'],
+  ['microsoft_', 'Microsoft'],
+  ['apple_', 'Apple'],
+  ['philips_', 'Philips Hue'],
+];
+
+/**
+ * @param provider - The active connector of a tool.
+ * @returns Whose service the tool works on; null for one this page does not know.
+ */
+export function providerVendor(provider: string | null): string | null {
+  return VENDORS.find(([prefix]) => provider?.startsWith(prefix))?.[1] ?? null;
 }
 
 /**

@@ -1,5 +1,8 @@
 /**
- * Card displaying a linked Google Drive folder source with sync status and actions.
+ * Card displaying a folder linked from a drive with sync status and actions.
+ *
+ * A folder belongs to the drive it was linked on: while another one is connected
+ * it waits, its documents kept, and says which drive it waits for.
  *
  * The card itself is shared with the Gmail label source (ADR-262):
  * `SourceSyncCard` owns the layout, the lifecycle tone and the two actions;
@@ -15,10 +18,13 @@ import { useTranslation } from 'react-i18next';
 import { FolderSync } from 'lucide-react';
 
 import { SourceSyncCard } from '@/components/spaces/SourceSyncCard';
+import { driveName } from '@/lib/drives';
 import type { RAGDriveSource, RAGSourceSyncStatus } from '@/types/rag-spaces';
 
 interface DriveSourceCardProps {
   source: RAGDriveSource;
+  /** The drive the account has connected now. */
+  activeDrive: string | null;
   onSync: (sourceId: string) => void;
   onUnlink: (sourceId: string) => void;
   syncing?: boolean;
@@ -31,8 +37,15 @@ const STATUS_KEYS: Record<RAGSourceSyncStatus, string> = {
   error: 'spaces.drive.status_error',
 };
 
-export function DriveSourceCard({ source, onSync, onUnlink, syncing }: DriveSourceCardProps) {
+export function DriveSourceCard({
+  source,
+  activeDrive,
+  onSync,
+  onUnlink,
+  syncing,
+}: DriveSourceCardProps) {
   const { t } = useTranslation();
+  const paused = source.provider !== activeDrive;
 
   return (
     <SourceSyncCard
@@ -45,6 +58,11 @@ export function DriveSourceCard({ source, onSync, onUnlink, syncing }: DriveSour
       lastSyncAt={source.last_sync_at}
       lastSyncedLabel={time => t('spaces.drive.last_synced', { time })}
       errorMessage={source.error_message}
+      pausedNote={
+        paused
+          ? t('spaces.drive.paused', { drive: driveName(source.provider) })
+          : undefined
+      }
       onSync={() => onSync(source.id)}
       onUnlink={() => onUnlink(source.id)}
       syncing={syncing}

@@ -19,6 +19,7 @@ Created: 2025-12-18
 import asyncio
 import time
 from abc import ABC
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any, Generic, TypeVar
@@ -59,6 +60,11 @@ logger = structlog.get_logger(__name__)
 
 # Type variable for connector type (allows subclasses to use specific enum values)
 ConnectorTypeT = TypeVar("ConnectorTypeT")
+
+
+def json_answer(response: httpx.Response) -> dict[str, Any]:
+    """What a success answers: its JSON, or nothing."""
+    return response.json() if response.content else {}
 
 
 def _call_timeout(timeout: httpx.Timeout | None) -> httpx.Timeout | Any:
@@ -675,6 +681,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         base_url: str | None = None,
         idempotent: bool | None = None,
         timeout: httpx.Timeout | None = None,
+        answer: Callable[[httpx.Response], dict[str, Any]] = json_answer,
     ) -> dict[str, Any]:
         """
         Make HTTP request to provider API with retry logic.
@@ -696,13 +703,15 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             json_data: JSON body for POST/PUT requests.
             max_retries: Max retry attempts for 429/5xx errors.
             extra_headers: Additional headers to include.
-            content: A raw POST or PUT body, in place of ``json_data`` — its
+            content: A raw POST, PUT or PATCH body, in place of ``json_data`` — its
                 type goes in ``extra_headers`` (Gmail's upload URI takes RFC 822
                 bytes, or a multipart body carrying them).
             base_url: Another root than ``api_base_url`` for this call only.
             idempotent: True for a POST that is a read or whose effect cannot
                 repeat, so a lost answer is resent; None lets the method decide.
             timeout: A budget for this call only, in place of the client's.
+            answer: What a success answers, for a call whose answer is not its
+                JSON (the address of a Drive upload session is a header).
 
         Returns:
             JSON response from API.
@@ -793,7 +802,12 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                     )
                 elif method.upper() == "PATCH":
                     response = await client.patch(
-                        url, headers=headers, params=params, json=json_data, timeout=request_timeout
+                        url,
+                        headers=headers,
+                        params=params,
+                        json=json_data,
+                        content=content,
+                        timeout=request_timeout,
                     )
                 elif method.upper() == "DELETE":
                     response = await client.delete(
@@ -818,7 +832,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
                         connector_api_duration_seconds.labels(
                             connector_type=connector_type_value, operation=_conn_op
                         ).observe(_time.perf_counter() - _conn_start)
-                    return response.json() if response.content else {}
+                    return answer(response)
 
                 # Rate limited - retry with hook-based delay
                 if response.status_code == 429:

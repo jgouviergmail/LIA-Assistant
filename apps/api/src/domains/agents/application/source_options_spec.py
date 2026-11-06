@@ -30,7 +30,7 @@ SOURCE_OPTIONS_MANIFEST = ToolManifest(
     agent="setting_agent",
     description=(
         "Read the existing source picker of a real owned personal knowledge space. "
-        "drive_contents lists literal Google Drive folder/file ids, names, MIME and modification times; "
+        "drive_contents lists literal folder/file ids of the connected drive, names, MIME and modification times; "
         "absent folder_id means root. Continue with the returned provider next_page_token, never an offset. "
         "mail_labels lists only Gmail user labels the source picker offers, alphabetically; use next_offset. "
         "drive_preflight requires an existing linked source_id and reports what its bounded tree walk would index, "

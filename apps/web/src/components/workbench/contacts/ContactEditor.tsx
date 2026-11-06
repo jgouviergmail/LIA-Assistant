@@ -8,7 +8,8 @@
  * published bound). A change sends only the lists it changed
  * (`lib/workbench/contacts`); a new contact carries ONE key for the life of
  * this form. A refusal is said in its own words — a list the provider cannot
- * hold names its bound. Each opening mounts a new editor.
+ * hold names its bound. Each opening mounts a new editor. A birthday with no year
+ * cannot sit in a date field: it is named beside it, and goes by its button.
  */
 import { Plus, X } from 'lucide-react';
 import { useId, useRef, useState, type FormEvent } from 'react';
@@ -28,8 +29,11 @@ import type { Language } from '@/i18n/settings';
 import {
   CONTACT_KINDS,
   EMPTY_CONTACT,
+  birthdayLabel,
   contactChange,
+  displayNameOf,
   fieldsOfContact,
+  fullBirthday,
   newContactBody,
   valuesMax,
   type ContactChangeBody,
@@ -39,11 +43,14 @@ import {
 } from '@/lib/workbench/contacts';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { WorkbenchContact } from '@/lib/workbench/types';
+import { generateUUID } from '@/lib/utils';
 
 export interface ContactEditorProps {
   lng: Language;
   /** The contact changed; undefined for a new one. */
   contact: WorkbenchContact | undefined;
+  /** What a new contact opens on: another tool's words. */
+  prefill?: Partial<ContactFields>;
   bounds: Readonly<Record<string, number>>;
   onCreate: (body: NewContactBody) => Promise<unknown>;
   onUpdate: (body: ContactChangeBody) => Promise<unknown>;
@@ -53,15 +60,18 @@ export interface ContactEditorProps {
 export function ContactEditor({
   lng,
   contact,
+  prefill,
   bounds,
   onCreate,
   onUpdate,
   onClose,
 }: ContactEditorProps) {
   const { t } = useTranslation(lng);
-  const [initial] = useState(() => (contact ? fieldsOfContact(contact) : EMPTY_CONTACT));
+  const [initial] = useState(() =>
+    contact ? fieldsOfContact(contact) : { ...EMPTY_CONTACT, ...prefill }
+  );
   const [fields, setFields] = useState(initial);
-  const [key] = useState(() => crypto.randomUUID());
+  const [key] = useState(() => generateUUID());
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const busy = useRef(false);
@@ -69,7 +79,7 @@ export function ContactEditor({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy.current || !fields.name.trim()) return;
+    if (busy.current || !displayNameOf(fields)) return;
     const change = contact ? contactChange(contact.id, initial, fields) : null;
     if (contact && change === null) {
       onClose();
@@ -103,19 +113,40 @@ export function ContactEditor({
               )}
             </DialogTitle>
           </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label={t('workbench.contacts.editor.given_name')}
+              value={fields.given_name}
+              maxLength={bounds.name_max_chars}
+              onChange={event => set({ given_name: event.target.value })}
+            />
+            <Input
+              label={t('workbench.contacts.editor.family_name')}
+              value={fields.family_name}
+              maxLength={bounds.name_max_chars}
+              onChange={event => set({ family_name: event.target.value })}
+            />
+          </div>
           <Input
             label={t('workbench.contacts.editor.name')}
             value={fields.name}
             maxLength={bounds.name_max_chars}
-            required
             onChange={event => set({ name: event.target.value })}
           />
-          <Input
-            label={t('workbench.contacts.editor.organization')}
-            value={fields.organization}
-            maxLength={bounds.name_max_chars}
-            onChange={event => set({ organization: event.target.value })}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label={t('workbench.contacts.editor.organization')}
+              value={fields.organization}
+              maxLength={bounds.name_max_chars}
+              onChange={event => set({ organization: event.target.value })}
+            />
+            <Input
+              label={t('workbench.contacts.editor.job_title')}
+              value={fields.job_title}
+              maxLength={bounds.name_max_chars}
+              onChange={event => set({ job_title: event.target.value })}
+            />
+          </div>
           {(['emails', 'phones', 'addresses'] as const).map(list => (
             <MultiValueField
               key={list}
@@ -127,6 +158,14 @@ export function ContactEditor({
               onChange={set}
             />
           ))}
+          <Input
+            label={t('workbench.contacts.editor.website')}
+            inputMode="url"
+            value={fields.website}
+            maxLength={bounds.value_max_chars}
+            onChange={event => set({ website: event.target.value })}
+          />
+          <BirthdayField lng={lng} fields={fields} onChange={set} />
           <Textarea
             label={t('workbench.contacts.editor.notes')}
             value={fields.notes}
@@ -146,7 +185,7 @@ export function ContactEditor({
             <Button
               type="submit"
               isLoading={saving}
-              aria-disabled={!fields.name.trim() || undefined}
+              aria-disabled={!displayNameOf(fields) || undefined}
             >
               {t(contact ? 'workbench.contacts.editor.save' : 'workbench.contacts.editor.create')}
             </Button>
@@ -154,6 +193,46 @@ export function ContactEditor({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A birthday: a day with its year, or one with none, named and removable. */
+function BirthdayField({
+  lng,
+  fields,
+  onChange,
+}: {
+  lng: Language;
+  fields: ContactFields;
+  onChange: (change: Partial<ContactFields>) => void;
+}) {
+  const { t } = useTranslation(lng);
+  const held = fields.birthday;
+  return (
+    <div className="space-y-2">
+      <Input
+        label={t('workbench.contacts.editor.birthday')}
+        type="date"
+        value={fullBirthday(held)}
+        onChange={event => onChange({ birthday: event.target.value })}
+      />
+      {held && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {held.startsWith('--') &&
+              t('workbench.contacts.editor.birthday_no_year', { day: birthdayLabel(held, lng) })}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange({ birthday: '' })}
+          >
+            {t('workbench.contacts.editor.birthday_remove')}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

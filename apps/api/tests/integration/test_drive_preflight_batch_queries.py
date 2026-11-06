@@ -2,12 +2,14 @@
 
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import event
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.repository import RAGDocumentRepository
@@ -67,6 +69,10 @@ async def test_preflight_uses_two_document_queries_and_no_transaction_during_dri
         return client
 
     monkeypatch.setattr(RAGDriveSyncService, "_get_drive_client", get_client)
+    monkeypatch.setattr(
+        "src.domains.rag_spaces.drive_sync.active_drive_provider",
+        AsyncMock(return_value=ConnectorType.GOOGLE_DRIVE.value),
+    )
 
     @asynccontextmanager
     async def database():

@@ -39,12 +39,14 @@ from src.domains.agents.services import draft_executor
 from src.domains.agents.services.draft_execution_result import DraftExecutionResult
 from src.domains.agents.services.draft_result_adaptation import incomplete_draft_result
 from src.domains.agents.tools.common import ToolErrorCode, connector_not_activated_refusal
-from src.domains.agents.tools.gmail_settings_tools import (
+from src.domains.agents.tools.mailbox_settings_tools import (
+    execute_email_filter_delete_draft,
     execute_email_filter_draft,
     execute_vacation_responder_draft,
 )
 from src.domains.agents.tools.workspace_docs_tools import (
     execute_document_append_draft,
+    execute_document_replace_draft,
     execute_spreadsheet_write_draft,
 )
 from src.domains.connectors.errors import ConnectorRevokedError
@@ -71,6 +73,11 @@ _EXECUTORS: list[tuple[Executor, dict[str, Any], ConnectorType]] = [
         ConnectorType.GOOGLE_GMAIL,
     ),
     (
+        execute_email_filter_delete_draft,
+        {"filter_id": "f2"},
+        ConnectorType.GOOGLE_GMAIL,
+    ),
+    (
         execute_spreadsheet_write_draft,
         {"file_id": "sheet-1", "sheet_name": "Expenses", "mode": "append", "values": [["x"]]},
         ConnectorType.GOOGLE_DRIVE,
@@ -78,6 +85,11 @@ _EXECUTORS: list[tuple[Executor, dict[str, Any], ConnectorType]] = [
     (
         execute_document_append_draft,
         {"file_id": "doc-1", "text": "A new note."},
+        ConnectorType.GOOGLE_DRIVE,
+    ),
+    (
+        execute_document_replace_draft,
+        {"file_id": "doc-1", "text": "A new text.", "tag": "tag-1"},
         ConnectorType.GOOGLE_DRIVE,
     ),
 ]
@@ -98,7 +110,14 @@ class TestEveryExecutorStatesTheFacts:
     @pytest.mark.parametrize(
         ("executor", "content", "connector"),
         _EXECUTORS,
-        ids=["vacation_responder", "email_filter", "spreadsheet_write", "document_append"],
+        ids=[
+            "vacation_responder",
+            "email_filter",
+            "email_filter_delete",
+            "spreadsheet_write",
+            "document_append",
+            "document_replace",
+        ],
     )
     async def test_a_missing_connector_is_a_typed_refusal_naming_it(
         self, executor: Executor, content: dict[str, Any], connector: ConnectorType
@@ -112,7 +131,7 @@ class TestEveryExecutorStatesTheFacts:
             FIELD_ERROR_CODE: _CODE,
             FIELD_CONNECTOR_TYPE: connector.value,
         }
-        assert service.get_connector_credentials.await_args.args[1] is connector
+        assert service.get_connector_credentials.await_args_list[0].args[1] is connector
 
 
 class TestTheCardSaysWhy:

@@ -11,6 +11,8 @@ Covers:
 
 from __future__ import annotations
 
+import pytest
+
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.data_registry.models import RegistryItemType
 from src.domains.skills.output_builder import (
@@ -33,26 +35,23 @@ def _sole_item(out):  # type: ignore[no-untyped-def]
 
 
 class TestInjectCsp:
-    def test_injects_after_head_tag(self) -> None:
-        html = "<html><head><title>x</title></head><body>y</body></html>"
+    @pytest.mark.parametrize(
+        "html",
+        [
+            "<html><head><title>x</title></head><body>y</body></html>",
+            "<html><body>y</body></html>",
+            "<p>just a fragment</p>",
+            # Both leaked on Chromium, Firefox and WebKit when a regex looked for
+            # <head>: it found the comment, or the script ran ahead of it.
+            "<!-- <head> --><html><head></head><body><script>x()</script></body></html>",
+            "<script>x()</script><html><head></head></html>",
+        ],
+        ids=["document", "no-head", "fragment", "head-in-a-comment", "script-before-head"],
+    )
+    def test_the_policy_opens_the_document(self, html: str) -> None:
         result = _inject_csp_meta(html)
-        assert _USER_SKILL_CSP_META in result
-        # CSP inserted right after <head>
-        head_idx = result.index("<head>") + len("<head>")
-        assert result[head_idx:].startswith(_USER_SKILL_CSP_META)
-
-    def test_creates_head_if_missing(self) -> None:
-        html = "<html><body>y</body></html>"
-        result = _inject_csp_meta(html)
-        assert "<head>" in result
-        assert _USER_SKILL_CSP_META in result
-
-    def test_wraps_fragment(self) -> None:
-        html = "<p>just a fragment</p>"
-        result = _inject_csp_meta(html)
-        assert "<!DOCTYPE html>" in result
-        assert _USER_SKILL_CSP_META in result
-        assert "<p>just a fragment</p>" in result
+        assert result.startswith(f'<!DOCTYPE html><meta charset="utf-8">{_USER_SKILL_CSP_META}')
+        assert result.endswith(html)
 
 
 class TestBuildSkillAppOutput:

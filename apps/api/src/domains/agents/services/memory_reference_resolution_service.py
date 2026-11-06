@@ -36,7 +36,6 @@ Key Features:
 Configuration:
     - NOTE: Memory reference resolution is always enabled
     - the ``memory_reference_resolution`` slot (LLM_DEFAULTS + overrides): model
-    - settings.memory_reference_resolution_timeout_ms: Max timeout
 
 References:
     - Related: reference_resolver.py (contextual references)
@@ -49,6 +48,7 @@ from dataclasses import dataclass, field
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import get_settings
+from src.core.llm_config_helper import llm_call_timeout_seconds
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
@@ -213,7 +213,6 @@ class MemoryReferenceResolutionService:
             result = await self._resolve_all_via_llm(
                 query=query,
                 memory_facts=memory_facts,
-                timeout_ms=self._settings.memory_reference_resolution_timeout_ms,
                 base_config=config,
             )
 
@@ -238,13 +237,10 @@ class MemoryReferenceResolutionService:
             return result
 
         except TimeoutError:
-            from src.core.llm_config_helper import get_llm_config_for_agent
-
-            _cfg = get_llm_config_for_agent(self._settings, "memory_reference_resolution")
             logger.warning(
                 "memory_resolution_timeout",
                 query_length=len(query),
-                timeout_seconds=_cfg.timeout_seconds,
+                timeout_seconds=llm_call_timeout_seconds("memory_reference_resolution"),
             )
             return ResolvedReferences(
                 original_query=query,
@@ -327,7 +323,6 @@ class MemoryReferenceResolutionService:
         self,
         query: str,
         memory_facts: str,
-        timeout_ms: int = 1000,
         base_config: RunnableConfig | None = None,
     ) -> ResolvedReferences:
         """
@@ -341,15 +336,12 @@ class MemoryReferenceResolutionService:
         Args:
             query: User query (any language)
             memory_facts: Memory facts to search in
-            timeout_ms: Deprecated — timeout is now read from centralized LLM config
             base_config: RunnableConfig for callback propagation
 
         Returns:
             ResolvedReferences with enriched_query and mappings
         """
         import json
-
-        from src.core.llm_config_helper import get_llm_config_for_agent
 
         llm = get_llm("memory_reference_resolution")
 
@@ -362,10 +354,6 @@ class MemoryReferenceResolutionService:
 
         config = enrich_config_with_node_metadata(base_config or {}, "memory_reference_resolution")
 
-        # Use timeout from centralized LLM config (DB/defaults), not hardcoded setting
-        llm_config = get_llm_config_for_agent(self._settings, "memory_reference_resolution")
-        timeout_seconds = llm_config.timeout_seconds
-
         logger.debug(
             "memory_resolution_llm_input",
             query=query,
@@ -376,7 +364,7 @@ class MemoryReferenceResolutionService:
         try:
             result = await asyncio.wait_for(
                 llm.ainvoke(full_prompt, config=config),
-                timeout=timeout_seconds,
+                timeout=llm_call_timeout_seconds("memory_reference_resolution"),
             )
 
             # Extract response text via BaseMessage.text (LangChain Core 1.2+).

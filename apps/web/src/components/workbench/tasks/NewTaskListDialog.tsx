@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { generateUUID } from '@/lib/utils';
 
 export interface NewTaskListDialogProps {
   lng: Language;
@@ -31,6 +32,71 @@ export interface NewTaskListDialogProps {
   maxLength?: number;
   /** Make the list; resolves when it is made, rejects when refused. */
   onCreate: (title: string, idempotencyKey: string) => Promise<void>;
+}
+
+export interface RenameTaskListDialogProps {
+  lng: Language;
+  /** Its name now. */
+  name: string;
+  /** The longest name the provider takes (published bound). */
+  maxLength?: number;
+  onClose: () => void;
+  /** Rename it; resolves when it is done, rejects when refused. */
+  onRename: (title: string) => Promise<void>;
+}
+
+/** A list renamed: mounted to be used, so it opens on the name it has. */
+export function RenameTaskListDialog({
+  lng,
+  name,
+  maxLength,
+  onClose,
+  onRename,
+}: RenameTaskListDialogProps) {
+  const { t } = useTranslation(lng);
+  const [title, setTitle] = useState(name);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = title.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    try {
+      await onRename(trimmed);
+      onClose();
+    } catch {
+      // Said by the caller; the name stays for a retry.
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent>
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{t('workbench.tasks.rename_list')}</DialogTitle>
+          </DialogHeader>
+          <Input
+            label={t('workbench.tasks.new_list_name')}
+            value={title}
+            maxLength={maxLength}
+            onChange={event => setTitle(event.target.value)}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" isLoading={busy}>
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function NewTaskListDialog({
@@ -43,12 +109,12 @@ export function NewTaskListDialog({
   const { t } = useTranslation(lng);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  const [key, setKey] = useState(() => generateUUID());
 
   const openChange = (next: boolean) => {
     if (!next) {
       setTitle('');
-      setKey(crypto.randomUUID());
+      setKey(generateUUID());
     }
     onOpenChange(next);
   };

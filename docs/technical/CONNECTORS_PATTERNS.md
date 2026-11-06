@@ -414,10 +414,11 @@ key raises no « Reconnect » banner.
 
 | Connecteur | Key Features |
 |------------|--------------|
-| **MicrosoftOutlookClient** | Email search ($search KQL), send, reply, forward, trash |
+| **MicrosoftOutlookClient** | Email search ($search KQL), send, reply, forward, trash, automatic replies and rules |
 | **MicrosoftCalendarClient** | calendarView for ranges, PATCH updates |
 | **MicrosoftContactsClient** | OData pagination, search, CRUD |
-| **MicrosoftTasksClient** | @default resolution, status mapping, no subtasks |
+| **MicrosoftTasksClient** | @default resolution, status mapping, steps, no subtasks |
+| **MicrosoftOneDriveClient** | Files category (`FilesClientProtocol`): Drive's words at the boundary, delta feed, Graph subscription |
 
 #### Hybrid Auth Clients (API Key + OAuth)
 

@@ -39,6 +39,8 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.EVENT: {"summary": "Réunion", "start_datetime": "2026-06-01T09:00:00+02:00"},
     DraftType.EVENT_UPDATE: {"current_event": {"summary": "Réunion"}},
     DraftType.EVENT_DELETE: {"event": {"summary": "Dentiste"}},
+    DraftType.EVENT_ANSWER: {"summary": "Réunion", "response": "accepted"},
+    DraftType.FILE_SHARE: {"name": "Rapport.pdf", "email": "ana@x.org", "role": "reader"},
     DraftType.CONTACT: {"name": "Marie Dupont"},
     DraftType.CONTACT_UPDATE: {"current_contact": {"names": [{"displayName": "Marie"}]}},
     DraftType.CONTACT_DELETE: {"contact": {"names": [{"displayName": "Marie"}]}},
@@ -47,6 +49,7 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.TASK_DELETE: {"title": "Ancienne tâche"},
     DraftType.FILE_DELETE: {"file": {"name": "rapport.pdf"}},
     DraftType.LABEL_DELETE: {"label_name": "pro/archive"},
+    DraftType.EMAIL_FILTER_DELETE: {"criteria": {"to": "news@x.com"}},
     DraftType.REMINDER_DELETE: {"content": "Appeler le médecin"},
     DraftType.PHONE_CALL: {"callee_name": "Paul", "objective": "Sa disponibilité"},
     DraftType.SCHEDULED_ACTION: {"title": "Revue de presse"},
@@ -57,6 +60,7 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.TOOL_CALL: {"tool_label": "era: cancel subscription"},
     DraftType.SANDBOX_EGRESS: {"hosts_unknown": ["api.example.org"], "hosts": ["api.example.org"]},
     DraftType.SPREADSHEET_WRITE: {"spreadsheet_title": "Budget", "sheet_name": "Dépenses"},
+    DraftType.DOCUMENT_REPLACE: {"document_title": "Notes.txt", "text": "x", "tag": "t"},
     DraftType.DOCUMENT_APPEND: {"document_title": "Compte-rendu"},
     DraftType.TICKET_DELETE: {"title": "Réserver la salle"},
     DraftType.APPLICATION_ACTION: {"title": "Application preferences"},
@@ -146,6 +150,11 @@ class TestTheNineThatWereMissing:
             ),
             (DraftType.EMAIL_FILTER, "Filtre email\u00a0: news@x.com", "Email filter: news@x.com"),
             (
+                DraftType.EMAIL_FILTER_DELETE,
+                "Suppression du filtre\u00a0: news@x.com",
+                "Delete filter: news@x.com",
+            ),
+            (
                 DraftType.TOOL_CALL,
                 "Action\u00a0: era: cancel subscription",
                 "Action: era: cancel subscription",
@@ -161,6 +170,7 @@ class TestTheNineThatWereMissing:
                 "Write to Budget (Dépenses)",
             ),
             (DraftType.DOCUMENT_APPEND, "Ajout dans Compte-rendu", "Append to Compte-rendu"),
+            (DraftType.DOCUMENT_REPLACE, "Réécriture de Notes.txt", "Rewrite Notes.txt"),
         ],
     )
     def test_the_sentence_is_the_one_written(

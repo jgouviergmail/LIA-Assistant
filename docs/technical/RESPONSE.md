@@ -267,7 +267,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Invoke LLM: every block is already in the template
         result = await asyncio.wait_for(
             chain.ainvoke({STATE_KEY_MESSAGES: conversational_messages}, config=enriched_config),
-            timeout=settings.response_llm_timeout_seconds,
+            timeout=llm_call_timeout_seconds(response_slot),
         )
 
         # POST-PROCESSING: the psyche self-report and the tone annotation are
@@ -1664,8 +1664,8 @@ Sa configuration vient de `LLM_DEFAULTS["response"]`
 (ADR-244) ; ce document n'en recopie aucune valeur. Les variables
 `RESPONSE_LLM_*` de `core/config/llm.py` (fournisseur, modèle, température, top-p,
 pénalités, plafond de sortie, effort de raisonnement) ne sont lues par aucun code :
-les changer ne change rien. Seule `RESPONSE_LLM_TIMEOUT_SECONDS`
-(`core/config/agents.py`) borne l'appel.
+les changer ne change rien. L'appel est borné par le timeout de son poste, celui
+d'admin-llm-config (ADR-221, amendement du 2026-11-05).
 
 ### Ressources
 

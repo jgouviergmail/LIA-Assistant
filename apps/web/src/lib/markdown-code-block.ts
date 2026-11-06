@@ -62,7 +62,8 @@ function languageOf(code: ElementNode): string {
  * (a `<pre>` of plain text is left to the default renderer).
  *
  * @param node - The hast `pre` element, as react-markdown passes it.
- * @returns The language and the text, the fence's trailing newline dropped.
+ * @returns The language and every character of the block, the fence's trailing
+ *   newline dropped.
  */
 export function codeBlockOf(node: unknown): CodeBlockSource | null {
   const pre = node as HastNode | undefined;

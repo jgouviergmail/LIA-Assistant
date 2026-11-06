@@ -37,6 +37,9 @@ pytestmark = pytest.mark.unit
 GENERATOR_EXCLUDED_AGENTS = frozenset(
     {
         "devops_agent",  # admin-only in-container CLI
+        # A page is asked for in the chat, where it is shown: a skill has its own
+        # frames, and a generated plan has no use for a second one (ADR-370).
+        "interactive_page_agent",
         "health_agent",  # personal health data, feature-flagged
         "sms_agent",  # private phone archive; no implicit generated-template access
         "sub_agent_agent",  # internal delegation, not a plan-executable domain agent

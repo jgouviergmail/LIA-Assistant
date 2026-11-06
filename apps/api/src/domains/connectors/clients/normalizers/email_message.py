@@ -39,7 +39,7 @@ class EmailMessage(BaseModel):
 
     id: str = Field(description="Provider message id (the id every tool takes).")
     threadId: str = Field(
-        description="Provider thread id; the message id where threads do not exist."
+        description="Provider thread id; on IMAP what its headers name, else the message id."
     )
     labelIds: list[str] = Field(
         default_factory=list, description="Gmail-style labels, UNREAD included."

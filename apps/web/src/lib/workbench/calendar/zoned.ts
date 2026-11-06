@@ -11,6 +11,29 @@
  * arithmetic on dates), so a day is never 23 or 25 hours long.
  */
 
+/** @returns The zones a person can pick: the account's first, then the one kept, then all. */
+export function zoneChoices(account: string, kept: string | null): string[] {
+  // A browser that cannot list them still offers the two that matter.
+  const known = Intl.supportedValuesOf?.('timeZone') ?? [];
+  return [...new Set([account, ...(kept ? [kept] : []), ...known])];
+}
+
+/**
+ * The server reads zones with its own table, the page with the browser's, and an unknown
+ * one makes `Intl` throw.
+ *
+ * @returns The zone when this browser can read it; null otherwise.
+ */
+export function readableZone(zone: string | null): string | null {
+  if (zone === null) return null;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return zone;
+  } catch {
+    return null;
+  }
+}
+
 /** A minute on a wall: its day and its time, as native inputs write them. */
 export interface WallTime {
   date: string;

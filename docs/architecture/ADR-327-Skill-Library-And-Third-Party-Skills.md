@@ -457,3 +457,10 @@ its CLI tools, while the web image and CI keep their Node 24 line. The `NODE_USE
 and offline-npm measurements above were taken on Node 24; `task sandbox:libraries:check`
 re-runs every declared command against the built image, so the rule they support is proven
 on the version that ships rather than assumed.
+
+## Amendment: a third-party skill's frame policy opens its document (2026-11-05)
+
+A third-party skill chooses every byte of its `frame.html`, and a policy placed after a `<head>`
+found by a regular expression could be walked around with a `<head>` in a comment (measured for
+[ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). `frame_policy.with_leading_policy` makes the policy the document's prefix,
+so nothing the skill wrote runs before it.

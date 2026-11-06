@@ -8,7 +8,14 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, fireEvent, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import {
+  act,
+  answerConfirmDialog,
+  fireEvent,
+  renderWithProviders,
+  screen,
+  waitFor,
+} from '@/__tests__/test-utils';
 import { ApiError } from '@/lib/api-client';
 import type { MailFilter, MailVacation, WorkbenchFeature } from '@/lib/workbench/types';
 
@@ -56,6 +63,8 @@ function filter(overrides: Partial<MailFilter> = {}): MailFilter {
     archive: false,
     mark_read: false,
     forward: null,
+    name: null,
+    read_only: false,
     ...overrides,
   };
 }
@@ -74,10 +83,27 @@ beforeEach(() => {
   api.post.mockResolvedValue(filter({ id: 'created' }));
 });
 
+const GMAIL: WorkbenchFeature[] = [
+  'vacation',
+  'vacation_subject',
+  'vacation_open_end',
+  'filters',
+  'filter_words',
+  'labels',
+];
+const OUTLOOK: WorkbenchFeature[] = ['vacation', 'filters'];
+
 function panel({
   open = true,
-  features = ['vacation', 'filters'] as WorkbenchFeature[],
-}: { open?: boolean; features?: WorkbenchFeature[] } = {}) {
+  features = GMAIL,
+  signature = '',
+  onSaveSignature = vi.fn().mockResolvedValue(undefined),
+}: {
+  open?: boolean;
+  features?: WorkbenchFeature[];
+  signature?: string;
+  onSaveSignature?: (text: string) => Promise<void>;
+} = {}) {
   const onSaved = vi.fn();
   const onRefused = vi.fn();
   const rendered = renderWithProviders(
@@ -90,23 +116,155 @@ function panel({
         state: 'ready',
         provider: 'google_gmail',
         features,
-        bounds: { search_max_chars: 200 },
+        bounds: { search_max_chars: 200, signature_max_chars: 1000 },
       }}
       labels={[{ id: 'Label_7', kind: 'user', role: null, name: 'Work' }]}
+      signature={signature}
+      onSaveSignature={onSaveSignature}
       onRefused={onRefused}
       onSaved={onSaved}
     />
   );
-  return { ...rendered, onSaved, onRefused };
+  return { ...rendered, onSaved, onRefused, onSaveSignature };
 }
 
 function readsOf(path: string): number {
   return api.get.mock.calls.filter(([called]) => called === path).length;
 }
 
+describe('MailboxSettingsPanel — on Outlook', () => {
+  it('asks no subject: an automatic reply has none', async () => {
+    panel({ features: OUTLOOK });
+
+    await screen.findByLabelText('workbench.mail.settings.vacation_text');
+    expect(screen.queryByLabelText('workbench.mail.compose.subject')).toBeNull();
+  });
+
+  it('sends none either', async () => {
+    const { user } = panel({ features: OUTLOOK });
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.mail.settings.save' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+    expect(api.put.mock.calls[0]?.[1]).not.toHaveProperty('subject');
+  });
+
+  it('asks a last day for a first one, sending nothing until then', async () => {
+    vacation = { ...AWAY, end_date: null };
+    const { user } = panel({ features: OUTLOOK });
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.mail.settings.save' }));
+
+    expect(await screen.findByText('workbench.mail.settings.last_day_needed')).toBeVisible();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it('keeps Gmail free of it', async () => {
+    vacation = { ...AWAY, end_date: null };
+    const { user } = panel();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.mail.settings.save' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+  });
+
+  it("says a connection must be renewed, in the refusal's words", async () => {
+    api.get.mockImplementation(() =>
+      Promise.reject(new ApiError('refused', 409, { detail: { code: 'reconnect_required' } }))
+    );
+    panel({ features: OUTLOOK });
+
+    expect(await screen.findByText('workbench.errors.reconnect_required')).toBeInTheDocument();
+  });
+
+  it('offers no words: no rule reads a Gmail search', async () => {
+    const { user } = panel({ features: OUTLOOK });
+
+    await filtersTab(user);
+
+    await screen.findByLabelText('workbench.mail.filters.sender');
+    expect(screen.queryByLabelText('workbench.mail.filters.words')).toBeNull();
+  });
+
+  it('moves to a folder, where Gmail applies a label', async () => {
+    filters = [filter({ sender: 'a@example.org', add_label_ids: ['Label_7'] })];
+    const { user } = panel({ features: OUTLOOK });
+
+    await filtersTab(user);
+
+    expect(await screen.findByLabelText('workbench.mail.filters.move_to')).toBeInTheDocument();
+    expect(await screen.findByText(/workbench.mail.filters.moves_to/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('workbench.mail.filters.add_label')).toBeNull();
+  });
+
+  it('offers no deletion of a rule only Outlook can change', async () => {
+    filters = [filter({ sender: 'a@example.org', read_only: true })];
+    const { user } = panel({ features: OUTLOOK });
+
+    await filtersTab(user);
+
+    await screen.findByText(/workbench.mail.filters.from_is/);
+    expect(screen.queryByRole('button', { name: 'workbench.mail.filters.row_actions' })).toBeNull();
+  });
+
+  it('names a rule whose conditions no field here reads', async () => {
+    filters = [filter({ name: 'Old rule', mark_read: true })];
+    const { user } = panel({ features: OUTLOOK });
+
+    await filtersTab(user);
+
+    expect(await screen.findByText('workbench.mail.filters.named:Old rule')).toBeInTheDocument();
+  });
+});
+
 async function filtersTab(user: ReturnType<typeof panel>['user']) {
   await user.click(screen.getByRole('tab', { name: 'workbench.mail.settings.filters' }));
 }
+
+describe('MailboxSettingsPanel — the signature', () => {
+  const text = () => screen.getByLabelText('workbench.mail.settings.signature_label');
+
+  it('is offered on a mailbox with no setting of its own', () => {
+    panel({ features: [], signature: 'Ana' });
+
+    expect(text()).toHaveValue('Ana');
+    expect(screen.queryByRole('tab', { name: 'workbench.mail.settings.vacation' })).toBeNull();
+  });
+
+  it('keeps what is written, and says so', async () => {
+    const { user, onSaveSignature, onSaved } = panel({ features: [], signature: '' });
+
+    await user.type(text(), 'Ana');
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.settings.save' }));
+
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.signature_saved')
+    );
+    expect(onSaveSignature).toHaveBeenCalledWith('Ana');
+  });
+
+  it('says a refusal and keeps what was typed', async () => {
+    const refused = new Error('no');
+    const { user, onRefused, onSaved } = panel({
+      features: [],
+      signature: '',
+      onSaveSignature: vi.fn().mockRejectedValue(refused),
+    });
+
+    await user.type(text(), 'Ana');
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.settings.save' }));
+
+    await waitFor(() => expect(onRefused).toHaveBeenCalledWith(refused));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(text()).toHaveValue('Ana');
+  });
+
+  it('draws the bound the server keeps', () => {
+    panel({ features: [], signature: '' });
+
+    expect(text()).toHaveAttribute('maxlength', '1000');
+  });
+});
 
 describe('MailboxSettingsPanel — the vacation responder', () => {
   it('reads nothing while closed, and only what the provider offers once open', async () => {
@@ -118,7 +276,7 @@ describe('MailboxSettingsPanel — the vacation responder', () => {
     expect(api.get).not.toHaveBeenCalled();
     closed.unmount();
 
-    panel({ features: ['vacation'] });
+    panel({ features: ['vacation', 'vacation_subject'] });
     await screen.findByDisplayValue('Away');
     expect(readsOf(FILTERS)).toBe(0);
     expect(screen.queryByRole('tab', { name: 'workbench.mail.settings.filters' })).toBeNull();
@@ -131,7 +289,9 @@ describe('MailboxSettingsPanel — the vacation responder', () => {
     await user.type(subject, ' — on leave');
     await user.click(screen.getByRole('button', { name: 'workbench.mail.settings.save' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.vacation_saved'));
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.vacation_saved')
+    );
     // Path and body: the mutation's own plumbing is not the contract.
     expect(api.put.mock.calls[0].slice(0, 2)).toEqual([
       VACATION,
@@ -232,6 +392,84 @@ describe('MailboxSettingsPanel — the filters', () => {
     ).toBeInTheDocument();
   });
 
+  describe('deleting one', () => {
+    const DELETE = /^workbench\.mail\.filters\.delete/;
+
+    async function asked(accept: boolean) {
+      filters = [filter({ id: 'f9', sender: 'ana@example.org', archive: true })];
+      const rendered = panel();
+      await filtersTab(rendered.user);
+      await rendered.user.click(await screen.findByRole('button', { name: DELETE }));
+      await answerConfirmDialog(rendered.user, accept);
+      return rendered;
+    }
+
+    it('asks first, then deletes it and reads the list again', async () => {
+      filters = [filter({ id: 'f9', sender: 'ana@example.org', archive: true })];
+      const { onSaved } = await asked(true);
+
+      await waitFor(() =>
+        expect(api.delete).toHaveBeenCalledWith(FILTERS, { params: { filter_id: 'f9' } })
+      );
+      await waitFor(() => expect(readsOf(FILTERS)).toBe(2));
+      expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.filter_deleted');
+    });
+
+    it('says what the filter matches and does before anything goes', async () => {
+      filters = [filter({ id: 'f9', sender: 'ana@example.org', archive: true })];
+      const { user } = panel();
+      await filtersTab(user);
+
+      await user.click(await screen.findByRole('button', { name: DELETE }));
+
+      const question = await screen.findByRole('alertdialog');
+      expect(question).toHaveTextContent('workbench.mail.filters.from_is:ana@example.org');
+      expect(question).toHaveTextContent('workbench.mail.filters.archives');
+      expect(question).toHaveTextContent('workbench.mail.filters.delete_description');
+    });
+
+    it('tells two filters apart for the ear', async () => {
+      filters = [
+        filter({ id: 'f1', sender: 'ana@example.org', archive: true }),
+        filter({ id: 'f2', sender: 'bea@example.org', archive: true }),
+      ];
+      const { user } = panel();
+      await filtersTab(user);
+
+      expect(
+        await screen.findByRole('button', { name: /delete:.*ana@example\.org/ })
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /delete:.*bea@example\.org/ })).toBeInTheDocument();
+    });
+
+    it('deletes nothing when the answer is no', async () => {
+      const { onSaved } = await asked(false);
+
+      expect(api.delete).not.toHaveBeenCalled();
+      expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('takes a filter already gone for a deletion done', async () => {
+      api.delete.mockRejectedValueOnce(
+        new ApiError('gone', 404, { detail: { code: 'item_gone' } })
+      );
+      const { onSaved, onRefused } = await asked(true);
+
+      await waitFor(() => expect(onSaved).toHaveBeenCalled());
+      expect(onRefused).not.toHaveBeenCalled();
+    });
+
+    it('says a refusal, and reads nothing more', async () => {
+      const refusal = new ApiError('down', 503, { detail: { code: 'provider_unavailable' } });
+      api.delete.mockRejectedValueOnce(refusal);
+      const { onSaved, onRefused } = await asked(true);
+
+      await waitFor(() => expect(onRefused).toHaveBeenCalledWith(refusal));
+      expect(onSaved).not.toHaveBeenCalled();
+      expect(readsOf(FILTERS)).toBe(1);
+    });
+  });
+
   it('says when there is none, and when the list could not be read', async () => {
     const empty = panel();
     await filtersTab(empty.user);
@@ -275,7 +513,9 @@ describe('MailboxSettingsPanel — the filters', () => {
     const readsBefore = readsOf(FILTERS);
     await user.click(screen.getByRole('button', { name: 'workbench.mail.filters.create' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.filter_created'));
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.filter_created')
+    );
     const [path, first] = api.post.mock.calls[0];
     expect(path).toBe(FILTERS);
     expect(first).toEqual({
@@ -310,7 +550,9 @@ describe('MailboxSettingsPanel — the filters', () => {
 
     await user.click(screen.getByRole('button', { name: 'workbench.mail.filters.create' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(api.post.mock.calls[1][1].idempotency_key).toBe(api.post.mock.calls[0][1].idempotency_key);
+    expect(api.post.mock.calls[1][1].idempotency_key).toBe(
+      api.post.mock.calls[0][1].idempotency_key
+    );
   });
 
   it('creates nothing more on a second press, and a list that cannot be re-read is no refusal', async () => {
@@ -330,7 +572,9 @@ describe('MailboxSettingsPanel — the filters', () => {
     );
     finish(filter({ id: 'created' }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.filter_created'));
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith('workbench.mail.settings.filter_created')
+    );
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(onRefused).not.toHaveBeenCalled();
   });

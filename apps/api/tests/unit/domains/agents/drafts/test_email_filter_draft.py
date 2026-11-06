@@ -16,7 +16,7 @@ from src.core.i18n_drafts import get_draft_preview_labels
 from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import _render_email_filter
-from src.domains.agents.tools.gmail_settings_tools import execute_email_filter_draft
+from src.domains.agents.tools.mailbox_settings_tools import execute_email_filter_draft
 from src.domains.shared.markdown_literal import read_as_markdown
 
 pytestmark = pytest.mark.unit
@@ -64,7 +64,7 @@ class TestPreview:
 
 class TestExecutor:
     async def test_creates_the_filter_with_resolved_action(self) -> None:
-        client = MagicMock()
+        client = MagicMock(close=AsyncMock())
         client.create_filter = AsyncMock(return_value={"id": "f42"})
         service = MagicMock()
         service.get_connector_credentials = AsyncMock(return_value=MagicMock())
@@ -72,7 +72,7 @@ class TestExecutor:
         deps.get_connector_service = AsyncMock(return_value=service)
 
         with patch(
-            "src.domains.agents.tools.gmail_settings_tools.GoogleGmailSettingsClient",
+            "src.domains.agents.tools.mailbox_settings_tools.GoogleGmailSettingsClient",
             return_value=client,
         ):
             result = await execute_email_filter_draft(
@@ -92,11 +92,12 @@ class TestExecutor:
         kwargs = client.create_filter.call_args.kwargs
         assert kwargs["criteria"] == {"from": "news@x.com"}
         assert kwargs["action"]["addLabelIds"] == ["Label_7"]
+        client.close.assert_awaited_once()
         # archive => leaves the inbox; mark_as_read => drops UNREAD.
         assert set(kwargs["action"]["removeLabelIds"]) == {"INBOX", "UNREAD"}
 
     async def test_label_only_filter_has_no_remove_ids(self) -> None:
-        client = MagicMock()
+        client = MagicMock(close=AsyncMock())
         client.create_filter = AsyncMock(return_value={"id": "f1"})
         service = MagicMock()
         service.get_connector_credentials = AsyncMock(return_value=MagicMock())
@@ -104,7 +105,7 @@ class TestExecutor:
         deps.get_connector_service = AsyncMock(return_value=service)
 
         with patch(
-            "src.domains.agents.tools.gmail_settings_tools.GoogleGmailSettingsClient",
+            "src.domains.agents.tools.mailbox_settings_tools.GoogleGmailSettingsClient",
             return_value=client,
         ):
             result = await execute_email_filter_draft(

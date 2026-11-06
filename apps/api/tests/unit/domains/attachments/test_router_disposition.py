@@ -51,6 +51,10 @@ class TestServingDisposition:
         response = await _serve(tmp_path, "application/pdf", "rapport.pdf")
         assert response.headers["content-disposition"].startswith("inline")
 
+    async def test_an_svg_is_a_page_that_runs_scripts_and_stays_a_download(self, tmp_path) -> None:
+        response = await _serve(tmp_path, "image/svg+xml", "a.svg")
+        assert response.headers["content-disposition"].startswith("attachment")
+
     async def test_docx_stays_a_download(self, tmp_path) -> None:
         response = await _serve(
             tmp_path,

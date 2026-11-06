@@ -39,8 +39,8 @@ Any modification or deletion requires your explicit confirmation.
 **📧 Notifications:**
 If the event has participants, they will be automatically notified of changes by Google Calendar.
 
-## How do I search my Google Drive files?
-**Google Drive** - Exploring your files:
+## How do I search my drive files?
+**Google Drive or OneDrive** - Exploring your files:
 
 **🔍 Search by name:**
 • "*Find the budget file*"
@@ -58,13 +58,13 @@ If the event has participants, they will be automatically notified of changes by
 • "*My recent files*"
 
 **📋 Results:**
-LIA displays the name, type, size and modification date of each file, with a link to open it in Drive.
+LIA displays the name, type, size and modification date of each file, with a link to open it in your drive.
 
 **💡 Then:**
 Say "*open the first one*" or "*read the report content*" to access the file.
 
-## How do I read a Drive file?
-**Google Drive** - Reading content:
+## How do I read a file of my drive?
+**Google Drive or OneDrive** - Reading content:
 
 **📖 Read a document:**
 • "*Open the Q3 report document*"
@@ -86,7 +86,7 @@ Say "*open the first one*" or "*read the report content*" to access the file.
 For complex files, ask for a summary: "*Summarize the report content*"
 
 ## How do I write into a spreadsheet or a document?
-**Google Sheets / Docs** - Writing, always confirmed:
+**Google Sheets / Docs, Word and Excel on OneDrive** - Writing, always confirmed:
 
 **✍️ What you can ask:**
 • "*Add the line Rent / 1200 to my budget sheet*"
@@ -96,11 +96,12 @@ For complex files, ask for a summary: "*Summarize the report content*"
 **🛡️ Nothing is written before you approve:**
 The preview shows the EXACT rows or text that will land in the file — you read
 what you are approving, then confirm or cancel. No new permission is requested:
-the Drive access you already granted is enough.
+the access to your drive you already granted is enough.
 
 **📐 Bounds:**
 • Rows are added below the existing table, or a range is overwritten if you name one
 • A chat-driven write is a correction or a small addition (up to 50 rows), not a bulk import
+• On OneDrive, text is added to a Word file; an Excel workbook can be written on a work account only, and is refused before any card on a personal one
 
 ## How do I manage my tasks?
 **Google Tasks / Microsoft To Do** - Task management:
@@ -128,7 +129,7 @@ the Drive access you already granted is enough.
 Set your default task list in settings to save time. Commands are the same regardless of whether you use Google Tasks or Microsoft To Do — LIA automatically uses the active provider.
 
 ## What is the draft and approval system?
-To protect your data, any modification action goes through a **draft system**:
+To protect your data, anything that reaches someone else or cannot be undone in one gesture goes through a **draft system**:
 
 **🔒 How it works:**
 1. You request an action ("*Send an email to John*")
@@ -143,8 +144,11 @@ To protect your data, any modification action goes through a **draft system**:
 • Sending, replying, forwarding emails
 • Creating, modifying, deleting events
 • Creating, modifying contacts
-• Creating, completing tasks
+• Creating tasks
 • Deleting emails
+• Answering an invitation
+• Sharing a file
+• Rewriting a text file
 
 **🛡️ Benefits:**
 • Verification before every important action
@@ -156,8 +160,8 @@ To protect your data, any modification action goes through a **draft system**:
 **📚 Several drafts at once:**
 Ask for two e-mails in one sentence: LIA first lists what it prepared, then shows one draft at a time ("*Draft 1 of 2*"), each with its own card and its own Approve / Edit / Cancel. Nothing is sent before your last answer, and the report says to whom and what went out — a cancelled draft is listed too. A bulk action you approved as a list ("*delete these 5 emails*") keeps a single confirmation.
 
-**✉️ One exception:**
-An e-mail to yourself leaves without a draft: its recipient is your own address, which nothing can change — not even a text slipped into an e-mail LIA reads.
+**✉️ Without a card:**
+Sorting a mail, moving a file or ticking a task happens at once: one gesture undoes it. An e-mail to yourself leaves without a draft too: its recipient is your own address, which nothing can change — not even a text slipped into an e-mail LIA reads.
 
 ## How do I use contextual references?
 LIA understands **references to previous items** in the conversation:
@@ -458,3 +462,19 @@ The card shows the draft as your mailbox holds it. If it was edited in your mail
 
 **🗑️ Bulk deletions:**
 A request aimed at many drafts handles them in bounded batches and says how many remain.
+
+## Can LIA sort my mail, answer an invitation and organise my files?
+Yes, in your words.
+
+**⚡ Done at once, because a gesture undoes it:**
+• "*Archive this mail*"
+• "*Move the invoices to Accounting*"
+• "*Create a folder Taxes and put the report there*"
+
+**🔒 A card first:**
+• "*Accept Thursday's invitation*"
+• "*Make this meeting repeat every Monday*"
+• "*Share this file with Marie*"
+• "*Set my automatic reply until Friday*"
+
+A reply or a forward can carry a file LIA made, one you sent or one of your drive, named on its card. Deleting for good stays in your hands, in **Tools**.

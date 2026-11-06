@@ -29,14 +29,14 @@ the others; an explicit list replaces that list. See
 - [Best Practices](#-best-practices)
 - [Performance & Caching](#-performance--caching)
 
-### Domaines Implémentés (56+ tools)
+### Domaines Implémentés (extrait)
 
 | Domaine | Type | Tools | Fichier Tools |
 |---------|------|-------|---------------|
 | **Contacts** | Google OAuth | 6 | `google_contacts_tools.py` |
 | **Emails** | Google OAuth | 6 | `emails_tools.py` |
 | **Calendar** | Google OAuth | 6 | `calendar_tools.py` |
-| **Drive** | Google OAuth | 3 | `drive_tools.py` |
+| **Files** | Google ou Microsoft OAuth | 8 | `drive_tools.py`, `file_organize_tools.py`, `file_share_tools.py` |
 | **Tasks** | Google OAuth | 7 | `tasks_tools.py` |
 | **Places** | Google OAuth | 3 | `places_tools.py` |
 | **Weather** | API Key | 3 | `weather_tools.py` |
@@ -1707,7 +1707,7 @@ client = httpx.AsyncClient(
 - `apps/api/src/domains/agents/tools/google_contacts_tools.py` - Contacts (6 tools)
 - `apps/api/src/domains/agents/tools/emails_tools.py` - Emails (6 tools)
 - `apps/api/src/domains/agents/tools/calendar_tools.py` - Calendar (6 tools)
-- `apps/api/src/domains/agents/tools/drive_tools.py` - Drive (3 tools)
+- `apps/api/src/domains/agents/tools/drive_tools.py` - Files (Google Drive or OneDrive; with `file_organize_tools.py` and `file_share_tools.py`, 8 tools)
 - `apps/api/src/domains/agents/tools/tasks_tools.py` - Tasks (7 tools)
 - `apps/api/src/domains/agents/tools/places_tools.py` - Places (3 tools)
 - `apps/api/src/domains/agents/tools/weather_tools.py` - Weather (3 tools)

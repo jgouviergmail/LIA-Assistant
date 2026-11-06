@@ -23,9 +23,19 @@ from httpx import ASGITransport, AsyncClient
 from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.domains.workbench import router as router_module
-from src.domains.workbench import tasks_service
+from src.domains.workbench import tasks_organize, tasks_service
 from src.domains.workbench.errors import ITEM_GONE, refuse
-from src.domains.workbench.schemas.tasks import Task, TaskList, TaskListsPage, TasksPage
+from src.domains.workbench.schemas.acts import ActOutcome
+from src.domains.workbench.schemas.tasks import (
+    DueTasks,
+    Task,
+    TaskList,
+    TaskListsPage,
+    TaskMoveOutcome,
+    TasksCleared,
+    TasksPage,
+    TaskStep,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -43,9 +53,25 @@ _SERVICES: dict[str, Any] = {
     "create_task_list": TaskList(id="l2", title="Trip"),
     "delete_task_list": None,
     "list_tasks": TasksPage(items=[_TASK], next_page_token="p2"),
+    "read_due_tasks": DueTasks(tasks=[], truncated=False, failed=[]),
+    "read_task_view": DueTasks(tasks=[], truncated=False, failed=[]),
     "create_task": _TASK,
     "update_task": _TASK,
     "delete_task": None,
+}
+
+
+_STEP = TaskStep(id="s1", title="Pack", checked=False)
+_ORGANIZE: dict[str, Any] = {
+    "rename_task_list": TaskList(id="l1", title="New"),
+    "set_completed": ActOutcome(done=["t1"], failed=[]),
+    "delete_tasks": ActOutcome(done=["t1"], failed=[]),
+    "move_tasks": TaskMoveOutcome(done=["t1"], failed=[], moved=[]),
+    "clear_completed": TasksCleared(deleted=1, remaining=False),
+    "place_task": _TASK,
+    "add_step": _STEP,
+    "change_step": _STEP,
+    "remove_step": None,
 }
 
 
@@ -70,9 +96,10 @@ async def http(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[AsyncClie
     user = SimpleNamespace(id=uuid4(), timezone="America/New_York")
     app.dependency_overrides[get_current_active_session_for_stream] = lambda: user
     services = {name: AsyncMock(return_value=value) for name, value in _SERVICES.items()}
-    with patch.multiple(tasks_service, **services):
+    organize = {name: AsyncMock(return_value=value) for name, value in _ORGANIZE.items()}
+    with patch.multiple(tasks_service, **services), patch.multiple(tasks_organize, **organize):
         async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
-            yield client, SimpleNamespace(limiter=limiter, user=user, **services)
+            yield client, SimpleNamespace(limiter=limiter, user=user, **services, **organize)
 
 
 def _key() -> str:
@@ -81,6 +108,79 @@ def _key() -> str:
 
 _ROUTES: list[tuple[str, str, dict[str, Any] | None, str, int, str]] = [
     ("GET", "/workbench/tasks/lists", None, "list_task_lists", 200, "workbench_read"),
+    (
+        "PATCH",
+        "/workbench/tasks/lists",
+        {"list_id": "l1", "title": "New"},
+        "rename_task_list",
+        200,
+        "workbench_write",
+    ),
+    ("GET", "/workbench/tasks/view?view=today", None, "read_task_view", 200, "workbench_read"),
+    (
+        "POST",
+        "/workbench/tasks/selection/completed",
+        {"list_id": "l1", "task_ids": ["t1"], "completed": True},
+        "set_completed",
+        200,
+        "workbench_write",
+    ),
+    (
+        "POST",
+        "/workbench/tasks/selection/delete",
+        {"list_id": "l1", "task_ids": ["t1", "t2"]},
+        "delete_tasks",
+        200,
+        "workbench_bulk",
+    ),
+    (
+        "POST",
+        "/workbench/tasks/selection/move",
+        {"list_id": "l1", "task_ids": ["t1"], "destination_list_id": "l2"},
+        "move_tasks",
+        200,
+        "workbench_write",
+    ),
+    (
+        "POST",
+        "/workbench/tasks/clear-completed",
+        {"list_id": "l1"},
+        "clear_completed",
+        200,
+        "workbench_bulk",
+    ),
+    (
+        "POST",
+        "/workbench/tasks/place",
+        {"list_id": "l1", "task_id": "t1", "after": None},
+        "place_task",
+        200,
+        "workbench_write",
+    ),
+    (
+        "POST",
+        "/workbench/tasks/steps",
+        {"list_id": "l1", "task_id": "t1", "title": "Pack", "idempotency_key": "K"},
+        "add_step",
+        201,
+        "workbench_write",
+    ),
+    (
+        "PATCH",
+        "/workbench/tasks/steps",
+        {"list_id": "l1", "task_id": "t1", "step_id": "s1", "checked": True},
+        "change_step",
+        200,
+        "workbench_write",
+    ),
+    (
+        "DELETE",
+        "/workbench/tasks/steps?list_id=l1&task_id=t1&step_id=s1",
+        None,
+        "remove_step",
+        204,
+        "workbench_write",
+    ),
     (
         "POST",
         "/workbench/tasks/lists",
@@ -98,6 +198,14 @@ _ROUTES: list[tuple[str, str, dict[str, Any] | None, str, int, str]] = [
         "workbench_write",
     ),
     ("GET", "/workbench/tasks?list_id=l1", None, "list_tasks", 200, "workbench_read"),
+    (
+        "GET",
+        "/workbench/tasks/due?start=2026-11-02&end=2026-11-08",
+        None,
+        "read_due_tasks",
+        200,
+        "workbench_read",
+    ),
     (
         "POST",
         "/workbench/tasks",

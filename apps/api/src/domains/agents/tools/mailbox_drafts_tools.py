@@ -39,6 +39,7 @@ from src.domains.agents.emails.message_finishing import finish_messages
 from src.domains.agents.emails.reply_drafting import draft_reply_body
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
+from src.domains.agents.tools.email_files import signed_body
 from src.domains.agents.tools.mailbox_draft_base import (
     MAILBOX_REFUSALS,
     MailboxDraftTool,
@@ -187,13 +188,14 @@ class CreateMailboxDraftTool(MailboxDraftTool):
     ) -> dict[str, Any]:
         """Save the draft as given; a draft may wait for its recipient or its words."""
         try:
+            is_html = bool(kwargs.get("is_html", False))
             draft = await client.create_draft(
                 to=str(kwargs.get("to") or ""),
                 subject=one_line(kwargs.get("subject")) or "",
-                body=str(kwargs.get("body") or ""),
+                body=await signed_body(user_id, str(kwargs.get("body") or ""), is_html=is_html),
                 cc=kwargs.get("cc") or None,
                 bcc=kwargs.get("bcc") or None,
-                is_html=bool(kwargs.get("is_html", False)),
+                is_html=is_html,
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)
@@ -333,7 +335,9 @@ class CreateMailboxReplyDraftTool(MailboxDraftTool):
             if isinstance(body, dict):
                 return body
             draft = await client.create_reply_draft(
-                message_id, str(body), reply_all=bool(kwargs.get("reply_all", False))
+                message_id,
+                await signed_body(user_id, str(body)),
+                reply_all=bool(kwargs.get("reply_all", False)),
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)
@@ -417,7 +421,10 @@ class CreateMailboxForwardDraftTool(MailboxDraftTool):
             return refusal(ToolErrorCode.MISSING_REQUIRED_PARAM, "message_id and to are required.")
         try:
             draft = await client.create_forward_draft(
-                message_id, to, body=kwargs.get("body") or None, cc=kwargs.get("cc") or None
+                message_id,
+                to,
+                body=await signed_body(user_id, str(kwargs.get("body") or "")) or None,
+                cc=kwargs.get("cc") or None,
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)

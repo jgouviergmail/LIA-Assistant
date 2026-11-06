@@ -15,6 +15,7 @@ from src.domains.agents.application.draft_execution import execute_application_a
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
 from src.domains.agents.services import draft_executor
 from src.domains.agents.tools import application_source_link_tools
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.mail_source_service import RAGMailSyncService
 from src.domains.rag_spaces.models import RAGDriveSource, RAGMailSource, RAGSpace
@@ -44,6 +45,7 @@ async def test_native_link_original_approval_and_addressed_invalidation(
     space_id = space.id
     provider_id = "folder" if kind == "drive" else "Label_1"
     client = AsyncMock()
+    client.connector_type = ConnectorType.GOOGLE_DRIVE
     client.get_file_metadata.return_value = {
         "id": provider_id,
         "name": "Source",

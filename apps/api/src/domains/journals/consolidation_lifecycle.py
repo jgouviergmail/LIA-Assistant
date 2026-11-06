@@ -9,11 +9,19 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.llm_config_helper import run_bound_seconds
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.journals.consolidation_controls import check_consolidation_work
 from src.domains.journals.source_state import portrait_source_state
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
+
+
+def consolidation_bound_seconds() -> float:
+    """A consolidation's bound: it never ends before its model call may."""
+    return run_bound_seconds(
+        settings.journal_consolidation_timeout_seconds, "journal_consolidation"
+    )
 
 
 @dataclass(frozen=True)
@@ -75,7 +83,7 @@ async def claim_consolidation(
         source_state = await portrait_source_state(db, user)
         user.journal_consolidation_owner = owner
         user.journal_consolidation_held_until = now + timedelta(
-            seconds=settings.journal_consolidation_timeout_seconds + 30
+            seconds=consolidation_bound_seconds() + 30
         )
         user.journal_last_attempted_at = now
         user.journal_last_attempt_status = "running"

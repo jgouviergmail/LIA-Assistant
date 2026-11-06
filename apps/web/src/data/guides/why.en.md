@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 7.0
-**Date**: 2026-11-01
-**Application**: LIA v4.3.0
+**Date**: 2026-11-06
+**Application**: LIA v4.4.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ The mechanics are explained in [the technical guide](/en/how). How the code was 
 
 ## 2. What LIA does for you
 
-Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, Drive files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
+Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
 
 You talk to her normally, in writing or by voice. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
 
@@ -43,7 +43,7 @@ If you choose the **cards** display (the other two modes are plain HTML and Mark
 
 ### Your services
 
-You ask LIA to move your Thursday appointment: she prepares the change and shows it to you before sending it. She reads, searches, summarizes, drafts, sends and forwards your emails (Gmail, Outlook, Apple Mail), reads their attachments, including a photo or a scan, and manages your mailbox drafts, which she sends only after you confirm. She keeps your calendar and your contacts at Google, Microsoft or Apple, your tasks at Google or Microsoft, reads your Drive files and writes there only with your consent, and turns on your Philips Hue lights.
+You ask LIA to move your Thursday appointment: she prepares the change and shows it to you before sending it. She reads, searches, summarizes, drafts, sends and forwards your emails (Gmail, Outlook, Apple Mail), reads their attachments, including a photo or a scan, and manages your mailbox drafts, which she sends only after you confirm. She keeps your calendar and your contacts at Google, Microsoft or Apple, your tasks at Google or Microsoft, reads and organizes your files on Google Drive or OneDrive, writes into them only with your consent, and turns on your Philips Hue lights.
 
 Without configuring anything, you get Wikipedia, web page reading, nearby places with opening hours and reviews, five-day weather with air quality and pollen, and routes on foot, by bike, by car or by public transport ([connectors](/en/faq#faq-connectors)). With your own keys, web search also cross-checks Brave Search and Perplexity, and cites its sources. LIA can also browse a site for you, click, fill in a form.
 
@@ -55,7 +55,7 @@ You hold down the microphone, or you say "Dis LIA" to talk hands-free. This wake
 
 ### Create and keep
 
-LIA creates and edits images with the model the administrator chose, without moving to an option more expensive than your preferences. As an option, she enriches your description, and you find an image again by asking her for it ([images](/en/faq#faq-image_generation)). She produces real files (CSV, Excel, Word, PowerPoint, PDF), built by a local engine and delivered with their expiry date, Excalidraw diagrams, and she reads the photos and PDFs you attach. MCP apps display their forms directly in the chat.
+LIA creates and edits images with the model the administrator chose, without moving to an option more expensive than your preferences. As an option, she enriches your description, and you find an image again by asking her for it ([images](/en/faq#faq-image_generation)). She produces real files (CSV, Excel, Word, PowerPoint, PDF), built by a local engine and delivered with their expiry date, Excalidraw diagrams, and she reads the photos and PDFs you attach. MCP apps display their forms directly in the chat, and a game, a quiz or a calculator you ask for runs there too, in a sealed frame.
 
 What she produces, you keep, send by email in one click, share with a person connected to your instance when it is an image, or let expire. A kept answer leaves the conversation with your request and its date, and joins a knowledge space where LIA will find it weeks later.
 
@@ -97,7 +97,7 @@ On the phone, a single app per store serves as a window onto your server. You en
 
 A guided installer (`./install.sh`) asks a few questions, in French or English, creates the administrator account without writing any secret in clear text, checks that everything really works, and picks up where it left off if a step fails. Each step is described in a step-by-step guide. The first setup still takes a bit of time and some technical basics. An update follows a written procedure that starts with a backup, because there is no going back once the migrations are applied ([self-hosting](/en/faq#faq-self_hosting)).
 
-After that, everything is set in the web interface, with no terminal or configuration file, on a computer, tablet or phone ([getting started](/en/faq#faq-getting_started)). A full assistant should be as simple to use as a consumer app. Everyone has their own settings space, with a search that understands your language: connect Google or Microsoft in one authorization ([connectors](/en/faq#faq-connectors)), choose LIA's personality (teacher, friend, coach, poet…) and her voices, adjust the appearance, decide what she learns and when she reaches out to you, add your MCP servers, your skills and your knowledge spaces, which can follow a Drive folder or a Gmail label. You also choose your exchange rhythm, frequent or occasional, so that LIA makes the most of the provider's cache.
+After that, everything is set in the web interface, with no terminal or configuration file, on a computer, tablet or phone ([getting started](/en/faq#faq-getting_started)). A full assistant should be as simple to use as a consumer app. Everyone has their own settings space, with a search that understands your language: connect Google or Microsoft in one authorization ([connectors](/en/faq#faq-connectors)), choose LIA's personality (teacher, friend, coach, poet…) and her voices, adjust the appearance, decide what she learns and when she reaches out to you, add your MCP servers, your skills and your knowledge spaces, which can follow a Drive or OneDrive folder, or a Gmail label. You also choose your exchange rhythm, frequent or occasional, so that LIA makes the most of the provider's cache.
 
 You can also set LIA up by talking to her: "Switch my answers to cards". A read or a small reversible setting happens right away; a creation, a deletion or a sensitive change keeps its confirmation. A password or a key goes through your browser, not through the chat, and a command bypasses no protection ([privacy](/en/faq#faq-privacy)). Then LIA says what actually happened, including a partial result or a conflict, without claiming to know every internal effect of a tool.
 
@@ -139,7 +139,7 @@ The operator can hand a few precise decisions to a dedicated engine, such as cho
 
 LIA works with OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen and, for local models, Ollama. You mix them role by role, and if one changes its prices or gets worse, you switch right away ([the models](/en/how#llm)).
 
-She speaks open, public standards rather than an in-house protocol, and her architecture is built to welcome other connectors, channels and providers. Through **MCP**, you plug in external tools without writing code. A plugin in the Agent Plugins format installs and uninstalls cleanly. **Skills** in the agentskills.io format add know-how written in natural language; a generator helps you create them, a skill installs from an https address or the skills.sh library, and it can display a small app in the chat or hand you files. A skill from elsewhere works apart, without touching your connectors, and what you build in this ecosystem follows you. A trusted connection can pass you a skill or a plugin: you receive a disabled copy, without its credentials, and enabling it commits you as if you had created it.
+She speaks open, public standards (MCP, iCalendar, CalDAV, CardDAV, IMAP, vCard) rather than an in-house protocol, and her architecture is built to welcome other connectors, channels and providers. Through **MCP**, you plug in external tools without writing code. A plugin in the Agent Plugins format installs and uninstalls cleanly. **Skills** in the agentskills.io format add know-how written in natural language; a generator helps you create them, a skill installs from an https address or the skills.sh library, and it can display a small app in the chat or hand you files. A skill from elsewhere works apart, without touching your connectors, and what you build in this ecosystem follows you. A trusted connection can pass you a skill or a plugin: you receive a disabled copy, without its credentials, and enabling it commits you as if you had created it.
 
 Your accounts connect through OAuth 2.1 without LIA knowing their password, and a passkey signs you in with no password at all. Each release publishes the exact inventory of what it contains and is installed on clean machines before it is published ([security](/en/faq#faq-privacy)). Every architecture decision is written down and filed on [the maps](/en/maps). The code is under AGPL-3.0: you can audit it, modify it, and it must stay open.
 

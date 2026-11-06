@@ -31,6 +31,7 @@ from structlog.testing import capture_logs
 from src.core.config import settings
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME, RAG_DRIVE_MAX_FILES_PER_SYNC
 from src.core.exceptions import ExternalServiceError
+from src.domains.connectors.clients.onedrive_changes import ChangesFeedLostError
 from src.domains.rag_spaces import drive_push
 from src.domains.rag_spaces.drive_ingest import IngestResult, is_supported_drive_file
 from src.infrastructure.observability.metrics_push_channels import (
@@ -90,6 +91,7 @@ def _source(folder_id: str, folder_ids: list[str] | None = None) -> MagicMock:
     source.space_id = uuid.uuid4()
     source.folder_id = folder_id
     source.folder_ids = list(folder_ids or [])
+    source.provider = "google_drive"
     source.synced_file_count = 3
     return source
 
@@ -200,7 +202,7 @@ class _Harness:
             patch.object(drive_push, "DetachedConnectorService", _Detached),
             patch.object(drive_push, "RAGDriveSourceRepository", return_value=self.source_repo),
             patch.object(drive_push, "PushChannelRepository", return_value=self.channel_repo),
-            patch.object(drive_push, "GoogleDriveClient", return_value=self.client),
+            patch.object(drive_push, "drive_client_of", return_value=self.client),
             patch.object(drive_push, "RAGDriveSyncService", return_value=self.sync_service),
             patch.object(drive_push, "RAGJobsRepository", return_value=self.jobs),
             patch.object(drive_push, "safe_fire_and_forget", _fire),
@@ -213,11 +215,11 @@ class _Harness:
             patch.object(drive_push, "space_read", _space_read),
         ]
 
-    async def run(self, user_id: uuid.UUID | None = None) -> str:
+    async def run(self, user_id: uuid.UUID | None = None, provider: str = "google_drive") -> str:
         with contextlib.ExitStack() as stack:
             for p in self.patches:
                 stack.enter_context(p)
-            outcome = await drive_push.reindex_from_push(user_id or uuid.uuid4())
+            outcome = await drive_push.reindex_from_push(user_id or uuid.uuid4(), provider)
             # The test double owns what was fired: it runs it, like the loop would.
             for coro in self.fired:
                 await coro
@@ -242,6 +244,55 @@ async def test_no_linked_folder_touches_nothing() -> None:
     harness = _Harness(sources=[], pages=[])
     assert await harness.run() == "no_linked_folder"
     harness.client.list_changes.assert_not_awaited()
+
+
+async def test_a_wake_reads_the_drive_it_came_from_and_only_its_folders() -> None:
+    onedrive = _source("od-root")
+    onedrive.provider = "microsoft_onedrive"
+    google = _source("g-root")
+    harness = _Harness(
+        sources=[onedrive, google],
+        pages=[_page([_change("f1", "od-root"), _change("f2", "g-root")])],
+    )
+
+    await harness.run(provider="microsoft_onedrive")
+
+    harness.channel_repo.get_for_user.assert_awaited_once()
+    assert harness.channel_repo.get_for_user.await_args.args[1] == "microsoft_onedrive"
+    assert [call.kwargs["drive_file"]["id"] for call in harness.ingest.await_args_list] == ["f1"]
+
+
+async def test_a_folder_of_the_other_drive_makes_no_wake() -> None:
+    harness = _Harness(sources=[_source("g-root")], pages=[_page([])])
+
+    assert await harness.run(provider="microsoft_onedrive") == "no_linked_folder"
+
+    harness.client.list_changes.assert_not_awaited()
+
+
+async def test_a_cut_drain_wakes_again_on_its_own_drive() -> None:
+    onedrive = _source("od-root")
+    onedrive.provider = "microsoft_onedrive"
+    harness = _Harness(sources=[onedrive], pages=[_page([], next_token="t1")] * 50)
+
+    with patch.object(drive_push.settings, "rag_drive_push_max_pages", 1):
+        await harness.run(provider="microsoft_onedrive")
+
+    assert harness.enqueue.await_args.args[2] == "microsoft_onedrive"
+
+
+async def test_a_feed_that_forgot_its_token_is_rebased_never_replayed() -> None:
+    source = _source("root")
+    harness = _Harness(sources=[source], pages=[])
+    harness.client.list_changes = AsyncMock(side_effect=ChangesFeedLostError)
+    user_id = uuid.uuid4()
+
+    assert await harness.run(user_id) == "rebased"
+
+    harness.channel_repo.advance_page_token.assert_awaited_once_with(
+        harness.channel.id, expected="t0", new="fresh"
+    )
+    harness.full_sync.assert_awaited_once_with(source.space_id, source.id, user_id)
 
 
 async def test_a_channel_without_a_token_drains_nothing() -> None:
@@ -302,7 +353,7 @@ async def test_the_apply_runs_outside_the_wake_under_the_sources_lease() -> None
     with contextlib.ExitStack() as stack:
         for p in harness.patches:
             stack.enter_context(p)
-        await drive_push.reindex_from_push(uuid.uuid4())
+        await drive_push.reindex_from_push(uuid.uuid4(), "google_drive")
         harness.ingest.assert_not_awaited()
         assert len(harness.fired) == 1
         harness.sync_service.try_acquire_sync_lock.assert_awaited_once()

@@ -1,4 +1,4 @@
-"""Verified Google contact group contracts, re-exported by the native catalogue."""
+"""Contact group contracts, on the three providers, re-exported by the native catalogue."""
 
 from src.core.constants import GOOGLE_CONTACTS_SCOPES
 from src.domains.agents.registry.catalogue import (
@@ -16,8 +16,7 @@ list_contact_groups_catalogue_manifest = ToolManifest(
     agent="contact_agent",
     description=(
         "**Tool: list_contact_groups_tool** - List the user's contact groups "
-        "(family, colleagues, clients, ...) with EXACT member counts. "
-        "Google Contacts only (clear unsupported message otherwise)."
+        "(family, colleagues, clients, ...), each with its member count when it is exact."
     ),
     semantic_keywords=[
         "list my contact groups labels",

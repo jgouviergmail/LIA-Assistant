@@ -951,7 +951,8 @@
   /* Cards contain their inline size for responsive queries. They cannot
      supply an intrinsic width to a shrink-to-fit bubble: a short answer
      otherwise squeezes the whole card to the heading's width. */
-  .message-bubble-assistant:has(.lia-card) {
+  .message-bubble-assistant:has(.lia-card),
+  .message-bubble-assistant:has(.lia-page-app-widget) {
     width: 100%;
     max-width: 100%;
   }
@@ -962,7 +963,8 @@
      request; ADR-177). Beside the avatar they keep their 95 %. */
   @media (min-width: 880px) {
     .message-bubble:has(table),
-    .message-bubble-assistant:has(.lia-card) {
+    .message-bubble-assistant:has(.lia-card),
+    .message-bubble-assistant:has(.lia-page-app-widget) {
       width: 95%;
       max-width: 95%;
     }

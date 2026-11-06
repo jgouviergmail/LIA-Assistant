@@ -80,8 +80,8 @@ def test_registry_required_capabilities_are_all_known():
 class TestDeclaredCapabilitiesAreComplete:
     """A capability the code relies on must be declared, and spelled correctly."""
 
-    def test_the_five_structured_output_slots_declare_it(self) -> None:
-        """Verified at each call site: these five ask the model for a schema.
+    def test_the_structured_output_slots_declare_it(self) -> None:
+        """Verified at each call site: these ask the model for a schema.
 
         ``heartbeat_message`` and ``contacts_agent`` matched the same heuristic
         and were checked and discarded as false positives — do not add them.
@@ -92,6 +92,7 @@ class TestDeclaredCapabilitiesAreComplete:
             "query_analyzer",
             "semantic_validator",
             "document_generation",
+            "interactive_page",
             "memory_reference_extraction",
             "open_loop_extraction",
         ):

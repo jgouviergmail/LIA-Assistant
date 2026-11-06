@@ -34,6 +34,8 @@ export interface SourceSyncCardProps {
   /** Translated "Last synced {time}" builder — the caller owns the wording. */
   lastSyncedLabel: (time: string) => string;
   errorMessage: string | null;
+  /** Why this source cannot sync for now, translated: its action stays, disabled. */
+  pausedNote?: string;
   onSync: () => void;
   onUnlink: () => void;
   syncing?: boolean;
@@ -78,6 +80,7 @@ export function SourceSyncCard({
   lastSyncAt,
   lastSyncedLabel,
   errorMessage,
+  pausedNote,
   onSync,
   onUnlink,
   syncing,
@@ -112,6 +115,7 @@ export function SourceSyncCard({
           {status === 'error' && errorMessage && (
             <p className="mt-1 text-xs text-destructive truncate">{errorMessage}</p>
           )}
+          {pausedNote && <p className="mt-1 text-xs text-muted-foreground">{pausedNote}</p>}
         </div>
 
         {/* ADR-208: never `opacity-0 group-hover` — a keyboard focus would land
@@ -127,7 +131,7 @@ export function SourceSyncCard({
               label: syncTitle,
               icon: RefreshCw,
               onSelect: onSync,
-              disabled: syncing || status === 'syncing',
+              disabled: syncing || status === 'syncing' || Boolean(pausedNote),
               loading: status === 'syncing',
             },
             {

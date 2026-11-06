@@ -42,29 +42,31 @@ def ensure_executors_registered() -> None:
         # no draft of its own. The gate handed the call back as this draft; the
         # executor replays it once the user has answered.
         from src.domains.agents.effects.confirmation import execute_tool_call_draft
+        from src.domains.agents.tools.calendar_draft_execution import execute_event_answer_draft
         from src.domains.agents.tools.calendar_tools import (
             execute_event_delete_draft,
             execute_event_draft,
             execute_event_update_draft,
         )
 
+        # Contact executors
+        from src.domains.agents.tools.contacts_draft_executors import (
+            execute_contact_delete_draft,
+            execute_contact_draft,
+            execute_contact_update_draft,
+        )
+
         # Drive executors
         from src.domains.agents.tools.drive_tools import execute_file_delete_draft
 
         # Email executors
-        from src.domains.agents.tools.emails_tools import (
+        from src.domains.agents.tools.email_draft_execution import (
             execute_email_delete_draft,
             execute_email_draft,
             execute_email_forward_draft,
             execute_email_reply_draft,
         )
-
-        # Contact executors
-        from src.domains.agents.tools.google_contacts_tools import (
-            execute_contact_delete_draft,
-            execute_contact_draft,
-            execute_contact_update_draft,
-        )
+        from src.domains.agents.tools.file_share_tools import execute_file_share_draft
 
         # Label executors
         from src.domains.agents.tools.labels_tools import execute_label_delete_draft
@@ -103,6 +105,10 @@ def ensure_executors_registered() -> None:
         register_executor(DraftType.EVENT.value, execute_event_draft)
         register_executor(DraftType.EVENT_UPDATE.value, execute_event_update_draft)
         register_executor(DraftType.EVENT_DELETE.value, execute_event_delete_draft)
+        register_executor(DraftType.EVENT_ANSWER.value, execute_event_answer_draft)
+
+        # Files
+        register_executor(DraftType.FILE_SHARE.value, execute_file_share_draft)
 
         # Contacts
         register_executor(DraftType.CONTACT.value, execute_contact_draft)
@@ -149,22 +155,26 @@ def ensure_executors_registered() -> None:
         register_executor(DraftType.PEER_MESSAGE.value, execute_peer_message_draft)
 
         # Gmail settings writes (lot I): the draft IS the confirmation gate
-        from src.domains.agents.tools.gmail_settings_tools import (
+        from src.domains.agents.tools.mailbox_settings_tools import (
+            execute_email_filter_delete_draft,
             execute_email_filter_draft,
             execute_vacation_responder_draft,
         )
 
         register_executor(DraftType.VACATION_RESPONDER.value, execute_vacation_responder_draft)
         register_executor(DraftType.EMAIL_FILTER.value, execute_email_filter_draft)
+        register_executor(DraftType.EMAIL_FILTER_DELETE.value, execute_email_filter_delete_draft)
 
         # Workspace writes (lot F phase write): the draft IS the confirmation gate
         from src.domains.agents.tools.workspace_docs_tools import (
             execute_document_append_draft,
+            execute_document_replace_draft,
             execute_spreadsheet_write_draft,
         )
 
         register_executor(DraftType.SPREADSHEET_WRITE.value, execute_spreadsheet_write_draft)
         register_executor(DraftType.DOCUMENT_APPEND.value, execute_document_append_draft)
+        register_executor(DraftType.DOCUMENT_REPLACE.value, execute_document_replace_draft)
 
         logger.info(
             "draft_executors_initialized",

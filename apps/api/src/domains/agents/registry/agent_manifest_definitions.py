@@ -90,12 +90,15 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
         "delete_mailbox_drafts_tool",
         "send_mailbox_draft_tool",  # confirmed before it leaves
         "set_email_read_state_tool",  # read / unread on any provider (ADR-369)
+        "organize_emails_tool",  # archive, move, spam, star on any provider (ADR-369)
+        "manage_mail_folder_tool",  # folders of Outlook and iCloud (ADR-369)
         "reply_email_tool",
         "forward_email_tool",
         "delete_email_tool",
-        "get_gmail_settings_tool",
+        "get_mailbox_settings_tool",
         "set_vacation_responder_tool",
         "create_email_filter_tool",
+        "delete_email_filter_tool",
     ],
     max_parallel_runs=1,
     default_timeout_ms=settings.default_tool_timeout_ms,
@@ -122,6 +125,7 @@ EVENT_AGENT_MANIFEST = AgentManifest(
         "create_event_tool",
         "update_event_tool",
         "delete_event_tool",
+        "respond_to_event_tool",  # answers an invitation, confirmed first (ADR-369)
         "list_calendars_tool",  # Metadata tool (list containers)
     ],
     max_parallel_runs=1,
@@ -140,15 +144,19 @@ EVENT_AGENT_MANIFEST = AgentManifest(
 FILE_AGENT_MANIFEST = AgentManifest(
     name="file_agent",
     description=(
-        "Agent specialised in Google Drive operations. Searches, lists and reads files (documents, "
-        "spreadsheets, presentations, PDFs, images), contents included."
+        "Agent specialised in the person's drive (Google Drive or OneDrive). Searches, lists, "
+        "reads and organises files (documents, spreadsheets, presentations, PDFs, images), "
+        "contents included."
     ),
     tools=[
         "get_files_tool",  # Unified tool (v2.0 - replaces search + list + details)
+        "manage_files_tool",  # Folders, rename, move, copy (ADR-369, lot 6)
+        "share_file_tool",  # A card first: the drive tells someone (ADR-369, lot 6)
         "read_spreadsheet_tool",
         "read_document_tool",
         "write_spreadsheet_tool",
         "append_document_text_tool",
+        "replace_document_text_tool",
     ],
     max_parallel_runs=1,
     default_timeout_ms=settings.default_tool_timeout_ms,
@@ -176,6 +184,8 @@ TASK_AGENT_MANIFEST = AgentManifest(
         "delete_task_tool",
         "complete_task_tool",
         "list_task_lists_tool",  # Metadata tool (list containers)
+        "rename_task_list_tool",
+        "move_task_tool",
     ],
     max_parallel_runs=1,
     default_timeout_ms=settings.default_tool_timeout_ms,

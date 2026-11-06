@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { cn } from '@/lib/utils';
+import { cn, generateUUID } from '@/lib/utils';
 
 export interface TaskQuickAddProps {
   lng: Language;
@@ -24,20 +24,22 @@ export interface TaskQuickAddProps {
   placeholderKey: string;
   /** The longest title the provider takes (published bound). */
   maxLength?: number;
+  /** A title already there, for the person to confirm. */
+  initialTitle?: string;
   /** Make the task; resolves when it is made, rejects when refused. */
   onAdd: (title: string, idempotencyKey: string) => Promise<void>;
   className?: string;
 }
 
 export const TaskQuickAdd = forwardRef<HTMLInputElement, TaskQuickAddProps>(function TaskQuickAdd(
-  { lng, labelKey, placeholderKey, maxLength, onAdd, className },
+  { lng, labelKey, placeholderKey, maxLength, initialTitle = '', onAdd, className },
   ref
 ) {
   const { t } = useTranslation(lng);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle);
   const [busy, setBusy] = useState(false);
   // Minted once (lazily), renewed only once a task is made.
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  const [key, setKey] = useState(() => generateUUID());
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -46,7 +48,7 @@ export const TaskQuickAdd = forwardRef<HTMLInputElement, TaskQuickAddProps>(func
     setBusy(true);
     try {
       await onAdd(trimmed, key);
-      setKey(crypto.randomUUID());
+      setKey(generateUUID());
       setTitle('');
     } catch {
       // Said by the caller; what was typed, and the key, stay for a retry.

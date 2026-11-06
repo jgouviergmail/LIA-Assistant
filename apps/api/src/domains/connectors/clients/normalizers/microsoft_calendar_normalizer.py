@@ -29,6 +29,38 @@ _RESPONSE_STATUS_MAP: dict[str, str] = {
 }
 
 
+def _personal_fields(event: dict[str, Any]) -> dict[str, Any]:
+    """What the event says for this person: only what it does say, as the other providers."""
+    fields: dict[str, Any] = {}
+    answer = _own_response(event)
+    if answer is not None:
+        fields["myResponse"] = answer
+    if event.get("isReminderOn"):
+        fields["reminderMinutes"] = event.get("reminderMinutesBeforeStart")
+    if event.get("sensitivity") == "private":
+        fields["visibility"] = "private"
+    zone = event.get("originalStartTimeZone")
+    if zone:
+        fields["ownZone"] = _iana_zone(zone)
+    return fields
+
+
+def _iana_zone(zone: str) -> str:
+    """Windows' name for a zone in IANA's; a name it does not know stays as it came."""
+    # Local: the table imports the whole of icalendar, read for an event alone.
+    from icalendar.timezone.windows_to_olson import WINDOWS_TO_OLSON
+
+    return WINDOWS_TO_OLSON.get(zone, zone)
+
+
+def _own_response(event: dict[str, Any]) -> str | None:
+    """What the person answered; None for an event they organise or are not invited to."""
+    response = (event.get("responseStatus") or {}).get("response")
+    if event.get("isOrganizer") or response in (None, "none", "organizer"):
+        return None
+    return _RESPONSE_STATUS_MAP.get(response, "needsAction")
+
+
 def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize a Microsoft Graph event to Google Calendar API dict format.
@@ -84,6 +116,8 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
             "email": organizer_data.get("address", ""),
             "displayName": organizer_data.get("name", ""),
         }
+        if event.get("isOrganizer"):
+            organizer["self"] = True
 
     # Status mapping (Microsoft → Google)
     show_as = event.get("showAs", "busy")
@@ -98,6 +132,7 @@ def normalize_graph_event(event: dict[str, Any]) -> dict[str, Any]:
         "end": end or {},
         "attendees": attendees,
         "organizer": organizer,
+        **_personal_fields(event),
         # Graph's native pattern is not an RFC 5545 FREQ. Keep the supplied
         # schedule for semantic readers; no write/scheduling adapter consumes it.
         "recurrence": [],
@@ -184,6 +219,7 @@ def normalize_graph_calendar(cal: dict[str, Any]) -> dict[str, Any]:
         "description": "",
         "primary": cal.get("isDefaultCalendar", False),
         "accessRole": "writer" if cal.get("canEdit", False) else "reader",
+        "removable": cal.get("isRemovable", False),
         "backgroundColor": _color_name_to_hex(cal.get("color", "")),
         "selected": True,
         "_provider": "microsoft",

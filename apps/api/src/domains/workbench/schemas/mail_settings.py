@@ -14,6 +14,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from src.core.constants import MAIL_SIGNATURE_MAX_CHARS
 from src.domains.workbench.ids import OptionalProviderId
 from src.domains.workbench.schemas.mail_compose import Body, Subject
 
@@ -24,6 +25,44 @@ _CRITERION: Final = StringConstraints(
     min_length=1, max_length=FILTER_CRITERION_MAX_CHARS, pattern=r"^[^\x00-\x1f\x7f]+$"
 )
 OptionalCriterion = Annotated[str | None, _CRITERION]
+
+
+class MailSender(BaseModel):
+    """An address of the mailbox a message may leave from."""
+
+    model_config = ConfigDict(frozen=True)
+
+    address: str = Field(description="The address.")
+    name: str = Field(description="The name it signs with; empty when none.")
+    is_default: bool = Field(description="Whether a message leaves from it by default.")
+
+
+class MailSenders(BaseModel):
+    """The addresses a message may leave from."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[MailSender] = Field(description="The addresses, the mailbox's own first.")
+
+
+class MailSignature(BaseModel):
+    """What the person signs with, and what a message's body gains for it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str = Field(description="The signature; empty when none was written.")
+    block: str = Field(description="What a plain-text body gains to carry it.")
+
+
+class SignatureChange(BaseModel):
+    """A signature written; an empty text clears it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: Annotated[
+        str,
+        StringConstraints(max_length=MAIL_SIGNATURE_MAX_CHARS, pattern=r"^[^\x00]*$"),
+    ] = Field(description="The signature.")
 
 
 class Vacation(BaseModel):
@@ -57,11 +96,13 @@ class VacationChange(BaseModel):
 
 
 class MailFilter(BaseModel):
-    """One Gmail filter: what it matches, what it does."""
+    """One filter or Outlook rule: what it matches, what it does."""
 
     model_config = ConfigDict(frozen=True)
 
-    id: str = Field(description="Gmail's filter id.")
+    id: str = Field(description="The provider's id of it.")
+    name: str | None = Field(default=None, description="What Outlook calls it; Gmail has no name.")
+    read_only: bool = Field(default=False, description="It can only be changed at the provider.")
     sender: str | None = Field(description="Messages from this.")
     recipient: str | None = Field(description="Messages to this.")
     subject: str | None = Field(description="Messages whose subject holds this.")
@@ -70,13 +111,13 @@ class MailFilter(BaseModel):
     add_label_ids: list[str] = Field(description="Labels it adds.")
     archive: bool = Field(description="Whether it skips the inbox.")
     mark_read: bool = Field(description="Whether it marks them read.")
-    forward: str | None = Field(description="Where it forwards them (set in Gmail).")
+    forward: str | None = Field(description="Where it forwards them (set at the provider).")
 
 
 class MailFilters(BaseModel):
     """The mailbox's filters."""
 
-    filters: list[MailFilter] = Field(description="As Gmail lists them.")
+    filters: list[MailFilter] = Field(description="As the provider lists them.")
 
 
 class NewFilter(BaseModel):

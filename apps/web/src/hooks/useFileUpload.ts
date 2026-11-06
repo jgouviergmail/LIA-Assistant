@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_ENDPOINTS } from '@/lib/api-config';
 import { compressImage, isImageFile } from '@/lib/utils/image-compress';
+import { generateUUID } from '@/lib/utils';
 
 export interface PendingAttachment {
   /** Client-side temporary ID */
@@ -157,7 +158,7 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         return { error: 'file_too_large' as const, maxMB };
       }
 
-      const tempId = crypto.randomUUID();
+      const tempId = generateUUID();
       const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
 
       // Add to state as uploading

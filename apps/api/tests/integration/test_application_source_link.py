@@ -14,6 +14,7 @@ from src.core.exceptions import AuthorizationError
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.source_link import execute_source_link, prepare_source_link
 from src.domains.agents.application.source_link_schemas import SourceLinkInput
+from src.domains.connectors.models import ConnectorType
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
 from src.domains.rag_spaces.mail_source_service import RAGMailSyncService
 from src.domains.rag_spaces.models import RAGDriveSource, RAGMailSource, RAGSpace
@@ -68,6 +69,7 @@ async def test_native_link_fences_and_known_acknowledgement(
             1,
         )
     client = AsyncMock()
+    client.connector_type = ConnectorType.GOOGLE_DRIVE
     remote_name = "Controlled provider name"
     metadata_reads = 0
 

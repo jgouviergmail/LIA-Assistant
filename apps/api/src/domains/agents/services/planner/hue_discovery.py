@@ -88,7 +88,7 @@ async def build_iot_device_context(
         _read_failed = False
         try:
             lights = await client.list_lights()
-            rooms = await client.list_rooms()
+            rooms = [*await client.list_rooms(), *await client.list_zones()]
         except Exception:
             _read_failed = True
             raise
@@ -123,7 +123,7 @@ async def build_iot_device_context(
             )
         if room_names:
             parts.append(
-                "AVAILABLE HUE ROOMS (use EXACT name for room_name_or_id):\n"
+                "AVAILABLE HUE ROOMS AND ZONES (use EXACT name for room_name_or_id):\n"
                 + ", ".join(f'"{n}"' for n in room_names)
             )
 

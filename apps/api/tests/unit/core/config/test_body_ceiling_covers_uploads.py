@@ -49,6 +49,14 @@ class TestBodyCeilingCoversUploads:
         with pytest.raises(ValueError, match="max_request_body_bytes"):
             Settings(**base)
 
+    def test_a_drive_upload_past_the_ceiling_is_refused(self) -> None:
+        """The workbench's upload is a body like the others."""
+        base = get_settings().model_dump()
+        base["workbench_upload_max_bytes"] = base["max_request_body_bytes"]
+
+        with pytest.raises(ValueError, match="max_request_body_bytes"):
+            Settings(**base)
+
     def test_raising_both_together_is_accepted(self) -> None:
         """The guard blocks the contradiction, not the legitimate change."""
         base = get_settings().model_dump()

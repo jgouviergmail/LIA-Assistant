@@ -1,9 +1,10 @@
-"""Defensive parsers for Google push notifications (lot H, 2026-08).
+"""Defensive parsers for push notifications (lot H, 2026-08; ADR-369, lot 11).
 
 Phase 1 channels notify with ``X-Goog-*`` headers and an empty body; phase 2
-(Gmail) notifies through a Pub/Sub push envelope carrying base64 JSON. A
-malformed notification degrades to ``None`` (ignored) — the webhook endpoint
-answers 200 regardless, never revealing what it knows.
+(Gmail) notifies through a Pub/Sub push envelope carrying base64 JSON; Graph
+batches JSON entries, each with its subscription and its secret. A malformed
+notification degrades to ``None`` (ignored) — the webhook endpoint answers 2xx
+regardless, never revealing what it knows.
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
+
+from src.core.constants import GRAPH_NOTIFICATIONS_PER_DELIVERY_MAX
 
 logger = structlog.get_logger(__name__)
 
@@ -37,6 +40,35 @@ class GmailPushEvent:
 
     email_address: str
     history_id: int
+
+
+@dataclass(frozen=True)
+class GraphNotification:
+    """One entry of a Microsoft Graph delivery."""
+
+    subscription_id: str
+    client_state: str
+
+
+def parse_graph_body(body: Mapping[str, Any]) -> list[GraphNotification]:
+    """The entries of a Graph delivery, what is no such entry dropped.
+
+    Args:
+        body: The delivery's JSON body.
+
+    Returns:
+        Its notifications, within what one delivery is read for.
+    """
+    entries = body.get("value")
+    if not isinstance(entries, list):
+        return []
+    parsed: list[GraphNotification] = []
+    for entry in entries[:GRAPH_NOTIFICATIONS_PER_DELIVERY_MAX]:
+        subscription = entry.get("subscriptionId") if isinstance(entry, Mapping) else None
+        state = entry.get("clientState") if isinstance(entry, Mapping) else None
+        if isinstance(subscription, str) and subscription and isinstance(state, str) and state:
+            parsed.append(GraphNotification(subscription_id=subscription, client_state=state))
+    return parsed
 
 
 def parse_channel_headers(headers: Mapping[str, str]) -> ChannelNotification | None:

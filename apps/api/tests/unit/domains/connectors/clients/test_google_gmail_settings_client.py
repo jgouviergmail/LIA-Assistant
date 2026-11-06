@@ -12,6 +12,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import GOOGLE_GMAIL_SCOPES
+from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.clients.google_gmail_settings_client import (
     GoogleGmailSettingsClient,
 )
@@ -93,6 +94,43 @@ class TestCreateFilter:
         assert payload["criteria"] == {"from": "news@x.com"}
         assert payload["action"]["addLabelIds"] == ["Label_1"]
         assert result["id"] == "f9"
+
+
+class TestDeleteFilter:
+    async def test_it_deletes_by_the_id_as_one_path_segment(self) -> None:
+        client = _client()
+        spy = AsyncMock(return_value={})
+        client._make_request = spy  # type: ignore[method-assign]
+
+        await client.delete_filter("a/b?c")
+
+        assert spy.call_args.args == ("DELETE", "/users/me/settings/filters/a%2Fb%3Fc")
+
+    async def test_an_id_that_names_nothing_is_never_sent(self) -> None:
+        client = _client()
+        spy = AsyncMock(return_value={})
+        client._make_request = spy  # type: ignore[method-assign]
+
+        with pytest.raises(ConnectorAPIError):
+            await client.delete_filter("..")
+
+        spy.assert_not_awaited()
+
+
+class TestLabelNames:
+    async def test_each_label_is_named_by_its_id(self) -> None:
+        client = _client()
+        client._make_request = AsyncMock(  # type: ignore[method-assign]
+            return_value={"labels": [{"id": "Label_7", "name": "Work"}]}
+        )
+
+        assert await client.label_names() == {"Label_7": "Work"}
+
+    async def test_a_mailbox_with_no_label_names_none(self) -> None:
+        client = _client()
+        client._make_request = AsyncMock(return_value={})  # type: ignore[method-assign]
+
+        assert await client.label_names() == {}
 
 
 class TestReadOnlyLists:

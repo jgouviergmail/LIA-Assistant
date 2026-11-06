@@ -31,14 +31,27 @@ from src.core.exceptions import (
     RateLimitError,
 )
 from src.domains.connectors.clients.apple_imap import ImapMessageNotFoundError
+from src.domains.connectors.clients.calendar_answers import NotInvitedError
+from src.domains.connectors.clients.calendar_management import (
+    EventLeftBehindError,
+    EventNotMovableError,
+)
 from src.domains.connectors.clients.email_attachments import (
     EmailAttachmentAmbiguousError,
     EmailAttachmentNotFoundError,
     EmailAttachmentTooLargeError,
 )
+from src.domains.connectors.clients.event_recurrence import RecurrenceNotHeldError
+from src.domains.connectors.clients.files_management import (
+    FileNameRefusedError,
+    FileNameTakenError,
+)
 from src.domains.connectors.clients.mail_folders import (
     MailFolderAmbiguousError,
     MailFolderLookupError,
+    MailFolderNameTakenError,
+    MailFolderNotEmptyError,
+    SystemFolderError,
 )
 from src.domains.connectors.clients.mailbox_drafts import (
     MailboxDraftChangedError,
@@ -47,6 +60,12 @@ from src.domains.connectors.clients.mailbox_drafts import (
     MailboxOperationUnavailableError,
 )
 from src.domains.connectors.clients.normalizers.contact_values import ContactValuesRefused
+from src.domains.connectors.clients.office_files import OfficeContentRefusedError, OfficeRefusal
+from src.domains.connectors.clients.outlook_mailbox_settings_mixin import (
+    MailboxSettingNotHeldError,
+    MailboxSettingsNotGrantedError,
+)
+from src.domains.connectors.clients.task_details import TaskLeftBehindError
 from src.domains.connectors.errors import ConnectorRevokedError
 from src.infrastructure.resilience import CircuitBreakerError
 from src.infrastructure.utils.request_outcome import never_reached_the_server, outcome_unknown
@@ -68,6 +87,9 @@ CONFLICT: Final = "conflict"
 #: A name the provider already holds: a label has no revision, so a 409 on its
 #: write means nothing else.
 NAME_TAKEN: Final = "name_taken"
+NAME_REFUSED: Final = "name_refused"
+#: A folder that holds messages or folders: deleting it would lose them.
+FOLDER_NOT_EMPTY: Final = "folder_not_empty"
 #: Larger than what is served or carried (``max_bytes`` beside it).
 TOO_LARGE: Final = "too_large"
 #: A recipient address cannot be read (``index`` beside it).
@@ -82,6 +104,22 @@ NOT_SUPPORTED_BY_PROVIDER: Final = "not_supported_by_provider"
 PROVIDER_REFUSED: Final = "provider_refused"
 #: The request could not be carried out as given (refused before any call).
 INVALID_REQUEST: Final = "invalid_request"
+#: An event reached its new calendar and its original could not be removed: it stands in both.
+EVENT_LEFT_BEHIND: Final = "event_left_behind"
+#: A task reached its new list and its original could not be removed: it stands in both.
+TASK_LEFT_BEHIND: Final = "task_left_behind"
+
+#: A series starts on a day its own rule does not serve.
+EVENT_START_OUTSIDE_SERIES: Final = "event_start_outside_series"
+#: A file meant to hold contacts holds none anyone can read.
+NOT_A_CONTACTS_FILE: Final = "not_a_contacts_file"
+#: A file meant to be a picture cannot be drawn.
+NOT_AN_IMAGE: Final = "not_an_image"
+#: More cards than an import takes (``max_items`` beside it).
+TOO_MANY_CARDS: Final = "too_many_cards"
+
+#: Someone holds the file: nothing was written.
+FILE_LOCKED: Final = "file_locked"
 
 #: What each refusal answers — and the one vocabulary the web app translates.
 _STATUSES: Final[dict[str, int]] = {
@@ -93,6 +131,8 @@ _STATUSES: Final[dict[str, int]] = {
     STALE_HANDLE: status.HTTP_409_CONFLICT,
     CONFLICT: status.HTTP_409_CONFLICT,
     NAME_TAKEN: status.HTTP_409_CONFLICT,
+    NAME_REFUSED: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    FOLDER_NOT_EMPTY: status.HTTP_409_CONFLICT,
     TOO_LARGE: status.HTTP_413_CONTENT_TOO_LARGE,
     INVALID_RECIPIENT: status.HTTP_422_UNPROCESSABLE_CONTENT,
     ALREADY_SUBMITTED: status.HTTP_409_CONFLICT,
@@ -100,14 +140,32 @@ _STATUSES: Final[dict[str, int]] = {
     NOT_SUPPORTED_BY_PROVIDER: status.HTTP_422_UNPROCESSABLE_CONTENT,
     PROVIDER_REFUSED: status.HTTP_422_UNPROCESSABLE_CONTENT,
     INVALID_REQUEST: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    EVENT_LEFT_BEHIND: status.HTTP_409_CONFLICT,
+    TASK_LEFT_BEHIND: status.HTTP_409_CONFLICT,
+    EVENT_START_OUTSIDE_SERIES: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    NOT_A_CONTACTS_FILE: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    NOT_AN_IMAGE: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    TOO_MANY_CARDS: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    FILE_LOCKED: status.HTTP_423_LOCKED,
 }
 WORKBENCH_CODES: Final[frozenset[str]] = frozenset(_STATUSES)
+
+#: What a file's refusal amounts to; the rest of its vocabulary is the assistant's alone.
+_FILE_REFUSALS: Final[dict[OfficeRefusal, str]] = {
+    OfficeRefusal.CHANGED: CONFLICT,
+    OfficeRefusal.LOCKED: FILE_LOCKED,
+    OfficeRefusal.TOO_LARGE: TOO_LARGE,
+}
 
 #: Client failures that name what happened by their type.
 _TYPED: Final[tuple[tuple[type[BaseException], str], ...]] = (
     # A connector revoked meanwhile (the Hue remote refresh finds it gone): it
     # is no longer connected — never « reconnect », ADR-134 never nags a revoke.
     (ConnectorRevokedError, NOT_CONNECTED),
+    (RecurrenceNotHeldError, NOT_SUPPORTED_BY_PROVIDER),
+    (MailboxSettingNotHeldError, NOT_SUPPORTED_BY_PROVIDER),
+    # A connection made before the right was asked: only a new one carries it.
+    (MailboxSettingsNotGrantedError, RECONNECT_REQUIRED),
     (ConnectorTokenExpiredError, RECONNECT_REQUIRED),
     (AuthenticationError, RECONNECT_REQUIRED),
     (MailboxDraftNotFoundError, ITEM_GONE),
@@ -121,6 +179,17 @@ _TYPED: Final[tuple[tuple[type[BaseException], str], ...]] = (
     # A folder of the pane: two now answering to its name, or gone since.
     (MailFolderAmbiguousError, CONFLICT),
     (MailFolderLookupError, ITEM_GONE),
+    (MailFolderNameTakenError, NAME_TAKEN),
+    (MailFolderNotEmptyError, FOLDER_NOT_EMPTY),
+    (SystemFolderError, NOT_SUPPORTED_BY_PROVIDER),
+    # Nothing to answer: the page offers no answer on such an event.
+    (NotInvitedError, INVALID_REQUEST),
+    # What a provider that copies would reach or lose: the page offers no move of it.
+    (EventNotMovableError, NOT_SUPPORTED_BY_PROVIDER),
+    (EventLeftBehindError, EVENT_LEFT_BEHIND),
+    (TaskLeftBehindError, TASK_LEFT_BEHIND),
+    (FileNameTakenError, NAME_TAKEN),
+    (FileNameRefusedError, NAME_REFUSED),
 )
 
 
@@ -175,6 +244,8 @@ def _named_refusal(error: BaseException) -> tuple[str, dict[str, Any]] | None:
             return code, {}
     if isinstance(error, EmailAttachmentTooLargeError):
         return TOO_LARGE, {"max_bytes": error.max_bytes}
+    if isinstance(error, OfficeContentRefusedError):
+        return _FILE_REFUSALS.get(error.refusal, NOT_SUPPORTED_BY_PROVIDER), {}
     if isinstance(error, ContactValuesRefused):
         # A list the provider cannot hold, refused whole: the page says its bound.
         return NOT_SUPPORTED_BY_PROVIDER, {"bound": error.bound, "field": error.field}
@@ -281,10 +352,15 @@ def _seconds(value: object) -> int | None:
 __all__ = [
     "ALREADY_SUBMITTED",
     "CONFLICT",
+    "EVENT_LEFT_BEHIND",
+    "TASK_LEFT_BEHIND",
     "INVALID_RECIPIENT",
     "INVALID_REQUEST",
     "ITEM_GONE",
     "NOT_CONNECTED",
+    "EVENT_START_OUTSIDE_SERIES",
+    "NOT_AN_IMAGE",
+    "NOT_A_CONTACTS_FILE",
     "NOT_SUPPORTED_BY_PROVIDER",
     "OUTCOME_UNKNOWN",
     "PROVIDER_RATE_LIMITED",
@@ -293,6 +369,7 @@ __all__ = [
     "RECONNECT_REQUIRED",
     "STALE_HANDLE",
     "TOO_LARGE",
+    "TOO_MANY_CARDS",
     "WORKBENCH_CODES",
     "refusal_for",
     "refuse",

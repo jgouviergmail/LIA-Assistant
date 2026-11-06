@@ -488,7 +488,7 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         return list(result.scalars().all())
 
     async def get_by_drive_file_id(self, space_id: UUID, drive_file_id: str) -> RAGDocument | None:
-        """Get a document by its Google Drive file ID within a space."""
+        """Get a document by the ID of its file on its drive, within a space."""
         stmt = select(RAGDocument).where(
             RAGDocument.space_id == space_id,
             RAGDocument.drive_file_id == drive_file_id,

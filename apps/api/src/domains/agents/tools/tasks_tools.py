@@ -44,17 +44,21 @@ from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
-from src.domains.agents.data_registry.models import (
-    RegistryItem,
-    RegistryItemMeta,
-    RegistryItemType,
+from src.domains.agents.tasks.parameter_descriptions import (
+    TASK_CLEAR_DUE_DESCRIPTION,
+    TASK_CLEAR_REMINDER_DESCRIPTION,
+    TASK_CLEAR_REPEAT_DESCRIPTION,
+    TASK_IMPORTANCE_DESCRIPTION,
+    TASK_REMINDER_DESCRIPTION,
+    TASK_REPEAT_DESCRIPTION,
+    TASK_STEPS_DESCRIPTION,
 )
-from src.domains.agents.tasks.parameter_descriptions import TASK_CLEAR_DUE_DESCRIPTION
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.task_extras import extras_refusal, read_extras
 from src.domains.agents.tools.validation_helpers import (
     require_field,
     validate_positive_int_or_default,
@@ -715,6 +719,9 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         notes: str | None = kwargs.get("notes")
         due: str | None = kwargs.get("due")
         task_list_id_input: str = kwargs.get("task_list_id", "@default")
+        extras = read_extras(kwargs)
+        if refused := extras_refusal(client, extras, has_due=bool(due)):
+            return refused
 
         # Normalize due date: strip wrong LLM offset and re-localize to user timezone
         if due:
@@ -737,6 +744,7 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "notes": notes,
             "due": due,
             "task_list_id": task_list_id,
+            **extras.fields(),
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -747,12 +755,17 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         from src.domains.agents.drafts import create_task_draft
 
+        if "error_code" in result:
+            return UnifiedToolOutput.failure(
+                message=str(result["message"]), error_code=str(result["error_code"])
+            )
         # create_task_draft returns UnifiedToolOutput directly
         return create_task_draft(
             title=result["title"],
             notes=result.get("notes"),
             due=result.get("due"),
             task_list_id=result.get("task_list_id", "@default"),
+            extras=read_extras(result),
             source_tool="create_task_tool",
             user_language=self.get_user_language(),
         )
@@ -772,6 +785,10 @@ async def create_task_tool(
     notes: Annotated[str | None, "Task notes/description (optional)"] = None,
     due: Annotated[str | None, "Due date in RFC 3339 format (e.g., '2025-01-15T00:00:00Z')"] = None,
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
+    importance: Annotated[str | None, TASK_IMPORTANCE_DESCRIPTION] = None,
+    reminder: Annotated[str | None, TASK_REMINDER_DESCRIPTION] = None,
+    repeat: Annotated[str | None, TASK_REPEAT_DESCRIPTION] = None,
+    steps: Annotated[list[str] | None, TASK_STEPS_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -785,6 +802,10 @@ async def create_task_tool(
         notes: Task notes/description (optional)
         due: Due date in RFC 3339 format (optional)
         task_list_id: Task list ID (default: '@default')
+        importance: How much it matters (To Do only)
+        reminder: When it reminds (To Do only)
+        repeat: How it repeats from its due date (To Do only)
+        steps: The steps it starts with (To Do only)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -796,6 +817,10 @@ async def create_task_tool(
         notes=notes,
         due=due,
         task_list_id=task_list_id,
+        importance=importance,
+        reminder=reminder,
+        repeat=repeat,
+        steps=steps,
     )
 
 
@@ -886,137 +911,6 @@ async def complete_task_tool(
 
 
 # ============================================================================
-# TOOL 4: LIST TASK LISTS
-# ============================================================================
-
-
-class ListTaskListsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
-    """List all task lists for the user."""
-
-    connector_type = ConnectorType.GOOGLE_TASKS
-    client_class = GoogleTasksClient
-    functional_category = "tasks"
-    registry_enabled = True
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="list_task_lists_tool", operation="list_lists")
-
-    async def execute_api_call(
-        self,
-        client: GoogleTasksClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute list task lists API call."""
-        max_results: int = kwargs.get("max_results", get_settings().tasks_tool_default_max_results)
-
-        result = await client.list_task_lists(max_results=max_results)
-
-        task_lists = result.get("items", [])
-
-        logger.info(
-            "list_task_lists_success",
-            user_id=str(user_id),
-            total_results=len(task_lists),
-        )
-
-        return {"task_lists": task_lists}
-
-    def format_response(self, result: dict[str, Any]) -> str:
-        """Format using JSON (legacy mode)."""
-        task_lists = result.get("task_lists", [])
-        formatted = []
-        for tl in task_lists:
-            formatted.append(
-                {
-                    "id": tl.get("id"),
-                    "title": tl.get("title"),
-                    "updated": tl.get("updated"),
-                }
-            )
-
-        return json.dumps(
-            {
-                "success": True,
-                "data": {
-                    "task_lists": formatted,
-                    "total": len(formatted),
-                },
-            },
-            ensure_ascii=False,
-        )
-
-    def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
-        """
-        Format as Data Registry UnifiedToolOutput.
-
-        Note: Task lists don't go through fewshots (no display in response).
-        They're used for internal reference only.
-        """
-        task_lists = result.get("task_lists", [])
-        registry_updates: dict[str, RegistryItem] = {}
-        item_ids: list[str] = []
-        item_names: list[str] = []
-
-        for tl in task_lists:
-            list_id = tl.get("id", "")
-            if not list_id:
-                continue
-
-            # Use TASK type with task_list prefix for lists
-            item_id = f"tasklist_{list_id[:8]}"
-            registry_updates[item_id] = RegistryItem(
-                id=item_id,
-                type=RegistryItemType.TASK,  # Task lists are related to tasks
-                payload=tl,
-                meta=RegistryItemMeta(source="google_tasks", domain=CONTEXT_DOMAIN_TASKS),
-            )
-            item_ids.append(item_id)
-            item_names.append(tl.get("title") or item_id)
-
-        # Minimal summary for debug/logs only
-        summary = f"[list] {len(task_lists)} task list(s): {self._build_item_preview(item_names)}"
-
-        return UnifiedToolOutput.data_success(
-            message=summary,
-            registry_updates=registry_updates,
-            metadata={
-                "tool_name": "list_task_lists_tool",
-                "total_results": len(task_lists),
-            },
-        )
-
-
-_list_task_lists_tool_instance = ListTaskListsTool()
-
-
-@connector_tool(
-    name="list_task_lists",
-    agent_name=AGENT_TASK,
-    context_domain=CONTEXT_DOMAIN_TASKS,
-    category="read",
-)
-async def list_task_lists_tool(
-    max_results: Annotated[int, "Maximum number of results (default 20)"] = 20,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> UnifiedToolOutput:
-    """
-    List all task lists for the user.
-
-    Args:
-        max_results: Maximum task lists to return (default 20)
-        runtime: Tool runtime (injected)
-
-    Returns:
-        UnifiedToolOutput with list of task lists with id and title
-    """
-    return await _list_task_lists_tool_instance.execute(
-        runtime=runtime,
-        max_results=max_results,
-    )
-
-
-# ============================================================================
 # TOOL 5: UPDATE TASK (with HITL Draft)
 # ============================================================================
 
@@ -1063,6 +957,7 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
                 "'clear_due' removes it",
                 field="clear_due",
             )
+        extras = read_extras(kwargs)
 
         # Normalize due date: strip wrong LLM offset and re-localize to user timezone
         if due:
@@ -1074,28 +969,10 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         # BugFix 2025-12-19: Resolve default task list from user preferences
         task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
 
-        # Fetch current task for before→after comparison in HITL draft critique
-        current_task: dict[str, Any] = {}
-        try:
-            current_task = await client.get_task(task_list_id, task_id)
+        current_task = await self._current_task(client, task_list_id, task_id)
 
-            # Convert current_task due date from UTC to user timezone for display consistency
-            # Google Tasks returns due in RFC 3339 UTC (e.g., "2025-01-15T00:00:00.000Z")
-            if current_task.get("due"):
-                from src.core.time_utils import (
-                    convert_to_user_timezone,
-                )  # Lazy: only needed when due exists
-
-                user_timezone, _ = await self.get_user_preferences_safe()
-                converted_dt = convert_to_user_timezone(current_task["due"], user_timezone)
-                if converted_dt:
-                    current_task["due"] = converted_dt.isoformat()
-        except Exception as e:
-            logger.warning(
-                "update_task_current_fetch_failed",
-                task_id=task_id,
-                error=str(e),
-            )
+        if refused := extras_refusal(client, extras, has_due=bool(due or current_task.get("due"))):
+            return refused
 
         logger.info(
             "update_task_draft_prepared",
@@ -1120,7 +997,35 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "status": status or current_task.get("status"),
             "task_list_id": task_list_id,
             "current_task": current_task,
+            **extras.fields(),
         }
+
+    async def _current_task(
+        self, client: GoogleTasksClient, task_list_id: str, task_id: str
+    ) -> dict[str, Any]:
+        """The task as it stands, for the before→after comparison in the HITL draft critique."""
+        current_task: dict[str, Any] = {}
+        try:
+            current_task = await client.get_task(task_list_id, task_id)
+
+            # Convert current_task due date from UTC to user timezone for display consistency
+            # Google Tasks returns due in RFC 3339 UTC (e.g., "2025-01-15T00:00:00.000Z")
+            if current_task.get("due"):
+                from src.core.time_utils import (
+                    convert_to_user_timezone,
+                )  # Lazy: only needed when due exists
+
+                user_timezone, _ = await self.get_user_preferences_safe()
+                converted_dt = convert_to_user_timezone(current_task["due"], user_timezone)
+                if converted_dt:
+                    current_task["due"] = converted_dt.isoformat()
+        except Exception as e:
+            logger.warning(
+                "update_task_current_fetch_failed",
+                task_id=task_id,
+                error=str(e),
+            )
+        return current_task
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
         """
@@ -1130,6 +1035,10 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         from src.domains.agents.drafts import create_task_update_draft
 
+        if "error_code" in result:
+            return UnifiedToolOutput.failure(
+                message=str(result["message"]), error_code=str(result["error_code"])
+            )
         # create_task_update_draft returns UnifiedToolOutput directly
         return create_task_update_draft(
             task_id=result["task_id"],
@@ -1140,6 +1049,7 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             task_list_id=result.get("task_list_id", "@default"),
             current_task=result.get("current_task"),
             clear_due=bool(result.get("clear_due", False)),
+            extras=read_extras(result),
             source_tool="update_task_tool",
             user_language=self.get_user_language(),
         )
@@ -1162,6 +1072,11 @@ async def update_task_tool(
     status: Annotated[str | None, "New status: 'needsAction' or 'completed' (optional)"] = None,
     task_list_id: Annotated[str, "Task list ID (default: '@default')"] = "@default",
     clear_due: Annotated[bool, TASK_CLEAR_DUE_DESCRIPTION] = False,
+    importance: Annotated[str | None, TASK_IMPORTANCE_DESCRIPTION] = None,
+    reminder: Annotated[str | None, TASK_REMINDER_DESCRIPTION] = None,
+    repeat: Annotated[str | None, TASK_REPEAT_DESCRIPTION] = None,
+    clear_reminder: Annotated[bool, TASK_CLEAR_REMINDER_DESCRIPTION] = False,
+    clear_repeat: Annotated[bool, TASK_CLEAR_REPEAT_DESCRIPTION] = False,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1178,6 +1093,11 @@ async def update_task_tool(
         status: New status - 'needsAction' or 'completed' (optional)
         task_list_id: Task list ID (default: '@default')
         clear_due: Remove the due date (never with ``due``)
+        importance: How much it matters (To Do only)
+        reminder: When it reminds (To Do only)
+        repeat: How it repeats from its due date (To Do only)
+        clear_reminder: Remove its reminder (To Do only)
+        clear_repeat: Remove its repetition (To Do only)
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1192,6 +1112,11 @@ async def update_task_tool(
         status=status,
         task_list_id=task_list_id,
         clear_due=clear_due,
+        importance=importance,
+        reminder=reminder,
+        repeat=repeat,
+        clear_reminder=clear_reminder,
+        clear_repeat=clear_repeat,
     )
 
 
@@ -1396,13 +1321,11 @@ __all__ = [
     "update_task_tool",
     "delete_task_tool",
     # Metadata tools (list containers)
-    "list_task_lists_tool",
     # Tool classes
     "ListTasksTool",
     "GetTaskDetailsTool",
     "CreateTaskDraftTool",
     "CompleteTaskTool",
-    "ListTaskListsTool",
     "UpdateTaskDraftTool",
     "DeleteTaskDraftTool",
 ]

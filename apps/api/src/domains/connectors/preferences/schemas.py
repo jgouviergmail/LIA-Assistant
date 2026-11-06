@@ -8,6 +8,8 @@ Security:
     - max_length=100 prevents excessive data storage
     - extra="forbid" rejects unknown fields
     - Values are sanitized before encryption (see service.py)
+    - A field a person reads and no prompt ever holds is declared free text: it keeps
+      its lines and quotes, under a bound of its own
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from __future__ import annotations
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from src.core.constants import MAIL_SIGNATURE_MAX_CHARS
 
 
 class BaseConnectorPreferences(BaseModel):
@@ -26,11 +30,43 @@ class BaseConnectorPreferences(BaseModel):
     """
 
     connector_type: ClassVar[str]
+    #: Fields no prompt holds: only what could never be read in a message is taken out.
+    free_text_fields: ClassVar[frozenset[str]] = frozenset()
 
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
     )
+
+
+class _MailboxPreferences(BaseConnectorPreferences):
+    """What a mailbox signs with, whichever provider carries it (ADR-369, lot 7, A3)."""
+
+    free_text_fields: ClassVar[frozenset[str]] = frozenset({"signature"})
+
+    signature: str | None = Field(
+        default=None,
+        max_length=MAIL_SIGNATURE_MAX_CHARS,
+        description="The lines at the foot of the person's messages",
+    )
+
+
+class GoogleGmailPreferences(_MailboxPreferences):
+    """Preferences of the Gmail connector."""
+
+    connector_type: ClassVar[str] = "google_gmail"
+
+
+class MicrosoftOutlookPreferences(_MailboxPreferences):
+    """Preferences of the Outlook connector."""
+
+    connector_type: ClassVar[str] = "microsoft_outlook"
+
+
+class AppleEmailPreferences(_MailboxPreferences):
+    """Preferences of the iCloud Mail connector."""
+
+    connector_type: ClassVar[str] = "apple_email"
 
 
 class GoogleCalendarPreferences(BaseConnectorPreferences):
@@ -154,4 +190,11 @@ class PreferencesRequest(BaseModel):
         default=None,
         max_length=100,
         description="Name of the default task list (any tasks connector)",
+    )
+
+    # What a mailbox signs with (Gmail, Outlook and iCloud Mail)
+    signature: str | None = Field(
+        default=None,
+        max_length=MAIL_SIGNATURE_MAX_CHARS,
+        description="The lines at the foot of the person's messages (any mail connector)",
     )

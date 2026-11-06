@@ -10,6 +10,7 @@ resolved it to nothing. Verified against the production database: assistant
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from src.domains.agents.data_registry.message_widgets import (
@@ -19,6 +20,7 @@ from src.domains.agents.data_registry.message_widgets import (
     with_persisted_widgets,
     with_rehydrated_widgets,
 )
+from src.domains.interactive_pages.document import page_frame
 
 
 def _item(item_type: str, *, skill_name: str = "interactive-map", **payload: Any) -> dict[str, Any]:
@@ -154,3 +156,55 @@ class TestWithRehydratedWidgets:
         metadata = {"run_id": "r"}
         assert with_rehydrated_widgets(metadata, system_skill_names=frozenset()) is metadata
         assert with_rehydrated_widgets(None, system_skill_names=frozenset()) is None
+
+
+def _page_message(document: str, offset: int) -> dict:
+    return {
+        "widgets": {
+            "page_app_1": {
+                "id": "page_app_1",
+                "type": "PAGE_APP",
+                "payload": {"title": "Jeu", "html_content": document, "source_offset": offset},
+            }
+        }
+    }
+
+
+class TestPagesAreRecomposedOnRead:
+    """A flaw found in the frame's policy must reach every page already archived."""
+
+    def test_an_archived_page_runs_under_today_s_policy(self) -> None:
+        old_prefix = "<!DOCTYPE html><meta OLD POLICY>"
+        source = "<p>🎃</p>"
+        metadata = _page_message(old_prefix + source, len(old_prefix))
+
+        rehydrated = rehydrate_message_widgets(metadata, system_skill_names=frozenset())
+
+        payload = rehydrated["page_app_1"]["payload"]
+        frame = page_frame(source)
+        assert payload["html_content"] == frame.document
+        assert payload["source_offset"] == frame.source_offset
+        assert payload["title"] == "Jeu"
+
+    def test_the_stored_row_is_never_touched(self) -> None:
+        metadata = _page_message("<x>" + "<p>a</p>", 3)
+        before = json.dumps(metadata)
+        rehydrate_message_widgets(metadata, system_skill_names=frozenset())
+        assert json.dumps(metadata) == before
+
+    def test_a_damaged_page_is_handed_back_as_it_is(self) -> None:
+        metadata = {"widgets": {"p": {"type": "PAGE_APP", "payload": {"html_content": 3}}}}
+        rehydrated = rehydrate_message_widgets(metadata, system_skill_names=frozenset())
+        assert rehydrated["p"]["payload"] == {"html_content": 3}
+
+    def test_a_skill_frame_is_left_alone(self) -> None:
+        metadata = {
+            "widgets": {
+                "s": {
+                    "type": "SKILL_APP",
+                    "payload": {"skill_name": "x", "is_system_skill": True, "html_content": "<p>"},
+                }
+            }
+        }
+        rehydrated = rehydrate_message_widgets(metadata, system_skill_names=frozenset({"x"}))
+        assert rehydrated["s"]["payload"]["html_content"] == "<p>"

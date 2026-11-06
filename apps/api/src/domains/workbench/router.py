@@ -8,12 +8,16 @@ none depends on ``get_db``. Each tool mounts its own router here.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
 
 from src.core.session_dependencies import get_current_active_session_for_stream
+from src.core.time_utils import resolve_user_timezone
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
+from src.domains.workbench import search
 from src.domains.workbench.availability import read_availability
 from src.domains.workbench.calendar_router import router as calendar_router
 from src.domains.workbench.contacts_router import router as contacts_router
@@ -24,6 +28,7 @@ from src.domains.workbench.mail_router import router as mail_router
 from src.domains.workbench.mail_settings_router import router as mail_settings_router
 from src.domains.workbench.rate_limits import rate_limit_read
 from src.domains.workbench.schemas.common import WorkbenchAvailability
+from src.domains.workbench.schemas.search import GlobalSearch, SearchQuery
 from src.domains.workbench.tasks_router import router as tasks_router
 
 router = APIRouter(
@@ -39,6 +44,20 @@ router.include_router(contacts_router)
 router.include_router(files_router)
 router.include_router(tasks_router)
 router.include_router(lights_router)
+
+
+@router.get(
+    "/search",
+    response_model=GlobalSearch,
+    summary="Words looked for across the tools; a tool that fails is named",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_search(
+    query: Annotated[SearchQuery, Query()],
+    user: Annotated[User, Depends(get_current_active_session_for_stream)],
+) -> GlobalSearch:
+    """Search the tools at once."""
+    return await search.search_everything(user.id, resolve_user_timezone(user), query.q)
 
 
 @router.get(

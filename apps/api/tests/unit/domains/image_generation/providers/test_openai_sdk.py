@@ -29,6 +29,20 @@ def _status_error(status: int, body: object) -> openai.APIStatusError:
 
 
 @pytest.mark.unit
+async def test_the_image_client_waits_what_the_slot_says() -> None:
+    """The administrator's time reaches the client: it used to wait the step's ceiling."""
+    with patch(
+        "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
+        return_value={"timeout_seconds": 240},
+    ):
+        client = openai_sdk_client("openai", "sk-test")
+    try:
+        assert client.timeout == 240
+    finally:
+        await client.close()
+
+
+@pytest.mark.unit
 async def test_the_image_client_never_buys_a_timed_out_generation_twice() -> None:
     """An image's outcome is unknown after a timeout: the relaunch policy, not the SDK's two."""
     client = openai_sdk_client("openai", "sk-test")

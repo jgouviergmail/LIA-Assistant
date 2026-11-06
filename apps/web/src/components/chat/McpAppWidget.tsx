@@ -149,9 +149,8 @@ function McpAppWidgetInner({
         onLoad={handleFrameLoad}
         sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
         className="lia-mcp-app-widget__iframe"
-        // Transparent so a widget that renders nothing shows the page through
-        // instead of an opaque slab (`--lia-bg` reads as a black rectangle in
-        // dark mode — that is what "frame noir" was). Mirrors SkillAppWidget.
+        // Transparent so a widget that renders nothing shows the surface of its
+        // frame instead of an opaque slab. Mirrors SkillAppWidget.
         style={{ background: 'transparent' }}
         title={`MCP App: ${payload.tool_name}`}
       />

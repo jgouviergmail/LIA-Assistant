@@ -1572,6 +1572,36 @@ function SharedWithScene({ active, labels }: SceneProps) {
   );
 }
 
+type ReadingWidthPhase = 'narrow' | 'wide';
+const READING_WIDTH_STEPS: readonly TimelineStep<ReadingWidthPhase>[] = [
+  { at: 0, state: 'narrow' },
+  { at: 1200, state: 'wide' },
+];
+
+/** The page opens on a large screen; the words keep their line, the table takes the room. */
+function ReadingWidthScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(READING_WIDTH_STEPS, { active });
+  return (
+    <div className={STAGE}>
+      <div
+        className={cn(
+          'flex flex-col gap-1.5 rounded-lg border border-border bg-background p-2 shadow-sm transition-[width] duration-700 motion-reduce:transition-none',
+          phase === 'wide' ? 'w-full' : 'w-3/5'
+        )}
+      >
+        <SkeletonLine w="w-36" />
+        <SkeletonLine w="w-32" />
+        <SkeletonLine w="w-36" />
+        <div className="grid h-6 grid-cols-4 gap-1">
+          {[0, 1, 2, 3].map(cell => (
+            <span key={cell} className="rounded-sm bg-primary/15" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   one_line: OneLineScene,
   activity_timeline: ActivityTimelineScene,
@@ -1599,4 +1629,5 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   slide_never_overflows: SlideNeverOverflowsScene,
   button_stays_itself: ButtonStaysItselfScene,
   shared_with: SharedWithScene,
+  reading_width: ReadingWidthScene,
 };

@@ -219,7 +219,7 @@ même valeur est publiée à qui produit la donnée (règle ADR-184).
 |---|---|---|
 | `WORKBOARD_ENABLED` | `true` | la fonctionnalité entière |
 | `WORKBOARD_RUN_SWEEP_SECONDS` | 60 | l'intervalle du balayage d'exécution |
-| `WORKBOARD_RUN_TIMEOUT_SECONDS` | 600 | la durée d'un run, et l'âge d'une réclamation périmée |
+| `WORKBOARD_RUN_TIMEOUT_SECONDS` | 600 | la durée d'une tentative, jamais sous les appels modèle d'un tour (ADR-221) ; une réclamation n'est périmée qu'après toutes les tentatives |
 | `WORKBOARD_RUN_MAX_ATTEMPTS` | 3 | les tentatives d'UN run |
 | `WORKBOARD_QUOTA_RETRY_MINUTES` | 30 | le report après un refus de quota |
 | `WORKBOARD_MAX_TICKETS_PER_USER` | 2000 | les tickets qu'un compte possède |

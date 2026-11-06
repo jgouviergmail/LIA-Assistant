@@ -75,6 +75,17 @@ class DocumentOutputTruncatedError(Exception):
         self.budget_tokens = budget_tokens
 
 
+@dataclass(frozen=True, slots=True)
+class StoredDocument:
+    """A file on disk, its attachment row and its queued card."""
+
+    attachment_id: str
+    url: str
+    filename: str
+    size_bytes: int
+    expires_at_iso: str | None
+
+
 @dataclass
 class GeneratedDocumentResult:
     """Outcome of a successful document generation."""
@@ -197,6 +208,79 @@ async def _write_document_file(data: bytes, relative_path: str) -> None:
     await asyncio.to_thread(absolute_path.write_bytes, data)
 
 
+async def store_document(
+    *,
+    user_id: uuid.UUID,
+    conversation_id: str,
+    data: bytes,
+    stem: str,
+    extension: str,
+    mime_type: str,
+) -> StoredDocument:
+    """Persist a generated file and queue its card. Nothing is queued unless it is on disk.
+
+    Args:
+        user_id: Owner of the resulting attachment.
+        conversation_id: Thread id the card is delivered to.
+        data: The file's bytes.
+        stem: Sanitized filename stem.
+        extension: Filename extension, which is also what the card calls the format.
+        mime_type: The attachment's media type.
+
+    Returns:
+        The stored file.
+    """
+    download_filename = f"{stem}.{extension}"
+    stored_filename = f"{uuid.uuid4()}.{extension}"
+    relative_path = f"{user_id}/{stored_filename}"
+    await _write_document_file(data, relative_path)
+
+    async with get_db_context() as db:
+        repo = AttachmentRepository(db)
+        attachment = await repo.create(
+            {
+                "user_id": user_id,
+                "original_filename": download_filename,
+                "stored_filename": stored_filename,
+                "mime_type": mime_type,
+                "file_size": len(data),
+                "file_path": relative_path,
+                "content_type": AttachmentContentType.DOCUMENT,
+                # Named, so the person finds it again in their gallery
+                # after the conversation is reset (ADR-279).
+                "origin": AttachmentOrigin.GENERATED_DOCUMENT.value,
+                "title": download_filename,
+                "conversation_id": conversation_uuid(conversation_id),
+                "status": AttachmentStatus.READY,
+                "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
+            }
+        )
+        # Serialized next to its source (the image-tool convention): what
+        # leaves this block is an ISO string, never a datetime.
+        expires_at_iso = attachment.expires_at.isoformat() if attachment.expires_at else None
+        await db.commit()
+        attachment_id = str(attachment.id)
+
+    url = attachment_url(attachment_id)
+    store_pending_document(
+        conversation_id,
+        PendingDocument(
+            url=url,
+            filename=download_filename,
+            doc_type=extension,
+            size_bytes=len(data),
+            expires_at=expires_at_iso,
+        ),
+    )
+    return StoredDocument(
+        attachment_id=attachment_id,
+        url=url,
+        filename=download_filename,
+        size_bytes=len(data),
+        expires_at_iso=expires_at_iso,
+    )
+
+
 async def generate_document_for_user(
     *,
     user_id: uuid.UUID,
@@ -260,63 +344,28 @@ async def generate_document_for_user(
     data = await asyncio.to_thread(render_document, doc_type, content, context)
 
     stem = sanitize_filename_stem(requested_filename or content.filename_stem)
-    extension = DOCUMENT_EXTENSIONS[doc_type]
-    download_filename = f"{stem}.{extension}"
-    stored_filename = f"{uuid.uuid4()}.{extension}"
-    relative_path = f"{user_id}/{stored_filename}"
-    await _write_document_file(data, relative_path)
-
-    async with get_db_context() as db:
-        repo = AttachmentRepository(db)
-        attachment = await repo.create(
-            {
-                "user_id": user_id,
-                "original_filename": download_filename,
-                "stored_filename": stored_filename,
-                "mime_type": DOCUMENT_MIME_TYPES[doc_type],
-                "file_size": len(data),
-                "file_path": relative_path,
-                "content_type": AttachmentContentType.DOCUMENT,
-                # Named, so the person finds it again in their gallery
-                # after the conversation is reset (ADR-279).
-                "origin": AttachmentOrigin.GENERATED_DOCUMENT.value,
-                "title": download_filename,
-                "conversation_id": conversation_uuid(conversation_id),
-                "status": AttachmentStatus.READY,
-                "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
-            }
-        )
-        # Serialized next to its source (the image-tool convention): what
-        # leaves this block is an ISO string, never a datetime.
-        expires_at_iso = attachment.expires_at.isoformat() if attachment.expires_at else None
-        await db.commit()
-        attachment_id = str(attachment.id)
-
-    url = attachment_url(attachment_id)
-    store_pending_document(
-        conversation_id,
-        PendingDocument(
-            url=url,
-            filename=download_filename,
-            doc_type=doc_type.value,
-            size_bytes=len(data),
-            expires_at=expires_at_iso,
-        ),
+    stored = await store_document(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        data=data,
+        stem=stem,
+        extension=DOCUMENT_EXTENSIONS[doc_type],
+        mime_type=DOCUMENT_MIME_TYPES[doc_type],
     )
     logger.info(
         "document_generation_attachment_saved",
-        attachment_id=attachment_id,
+        attachment_id=stored.attachment_id,
         user_id=str(user_id),
         doc_type=doc_type.value,
-        file_size=len(data),
+        file_size=stored.size_bytes,
         truncated_source=truncated,
     )
     return GeneratedDocumentResult(
-        attachment_id=attachment_id,
-        url=url,
-        filename=download_filename,
+        attachment_id=stored.attachment_id,
+        url=stored.url,
+        filename=stored.filename,
         doc_type=doc_type.value,
-        size_bytes=len(data),
-        expires_at_iso=expires_at_iso,
+        size_bytes=stored.size_bytes,
+        expires_at_iso=stored.expires_at_iso,
         truncated_source=truncated,
     )

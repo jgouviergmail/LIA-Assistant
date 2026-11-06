@@ -128,7 +128,11 @@ describe('AttachablePicker', () => {
   });
 
   it('says a file past the byte bound and does not pick it, but picks one that fits', async () => {
-    pages['0'] = { items: [file('big', 3 * MB), file('fits', 2 * MB)], total: 2, next_offset: null };
+    pages['0'] = {
+      items: [file('big', 3 * MB), file('fits', 2 * MB)],
+      total: 2,
+      next_offset: null,
+    };
     const { user, onToggle } = picker({ chosen: [file('x', 8 * MB)], maxBytes: 10 * MB });
     const big = (await screen.findByText('big.pdf')).closest('li') as HTMLElement;
 

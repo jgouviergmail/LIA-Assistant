@@ -15,9 +15,9 @@ from src.core.i18n_types import Language
 from src.domains.world.mailbox import WorldMailbox
 from src.domains.world.message_access import MessageAccess, MessageContext
 from src.domains.world.message_attempts import (
-    ATTEMPT_SECONDS,
     QUEUE_SECONDS,
     MessageAttempts,
+    attempt_seconds,
 )
 from src.domains.world.message_content import (
     MessageAddress,
@@ -124,7 +124,7 @@ def _pending_variant(request_id: str, account: str, now: float) -> MessageVarian
         job_id=request_id,
         payer=account,
         status="pending",
-        deadline=now + QUEUE_SECONDS + ATTEMPT_SECONDS,
+        deadline=now + QUEUE_SECONDS + attempt_seconds(),
     )
 
 

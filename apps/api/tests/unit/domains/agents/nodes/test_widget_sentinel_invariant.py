@@ -62,7 +62,35 @@ def _render(content: str, registry: dict[str, Any], display_mode: str = "html") 
     )
 
 
+def _page_item(registry_id: str) -> dict[str, Any]:
+    return {
+        "id": registry_id,
+        "type": "PAGE_APP",
+        "payload": {
+            FIELD_REGISTRY_ID: registry_id,
+            "title": "Morpion",
+            "html_content": "<p>PAGE BODY</p>",
+            "source_offset": 0,
+            "initial_view": "page",
+        },
+        "meta": {"source": "interactive_page", "timestamp": "2026-11-05T09:00:00Z"},
+    }
+
+
 class TestSentinelInvariant:
+    @pytest.mark.parametrize("display_mode", ["cards", "html", "html_cards", "markdown"])
+    def test_a_page_keeps_one_sentinel_and_its_body_stays_out(self, display_mode: str) -> None:
+        """Written by the model or not, a page is mounted once, and only through its frame."""
+        registry = {"page_app_1": _page_item("page_app_1")}
+        content = 'Voilà.<div class="lia-page-app" data-registry-id="page_app_1"></div>'
+
+        out = _render(content, registry, display_mode)
+
+        assert count_widget_sentinels(out) == 1
+        assert out.count('data-registry-id="page_app_1"') == 1
+        assert "Voilà." in out
+        assert "PAGE BODY" not in out
+
     @pytest.mark.parametrize("display_mode", ["cards", "html", "html_cards", "markdown"])
     def test_llm_copy_is_replaced_not_duplicated(self, display_mode: str) -> None:
         """The exact production shape: the model wrote the sentinel itself."""

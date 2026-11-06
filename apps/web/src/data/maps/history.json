@@ -4633,6 +4633,24 @@
         "t.registers",
         "t.metrics"
       ]
+    },
+    {
+      "adr": 370,
+      "date": "2026-11-05",
+      "theme": "experience",
+      "functional": [
+        "f.chat",
+        "f.documents",
+        "f.skills",
+        "f.routing"
+      ],
+      "technical": [
+        "t.web",
+        "t.dataregistry",
+        "t.toolsys",
+        "t.skills",
+        "t.response"
+      ]
     }
   ]
 }

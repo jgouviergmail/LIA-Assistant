@@ -103,7 +103,10 @@ class JournalsSettings(BaseSettings):
         default=300,
         ge=30,
         le=1800,
-        description="Hard bound for a consolidation operation, including maintenance settlement.",
+        description=(
+            "Hard bound for a consolidation operation, including maintenance settlement; "
+            "it yields to one whole call of the journal_consolidation slot (ADR-221)."
+        ),
     )
 
     journal_consolidation_history_max_messages: int = Field(

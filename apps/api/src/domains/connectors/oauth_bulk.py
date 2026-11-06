@@ -12,6 +12,7 @@ from src.core.constants import (
     GOOGLE_TASKS_SCOPES,
     MICROSOFT_CALENDAR_SCOPES,
     MICROSOFT_CONTACTS_SCOPES,
+    MICROSOFT_ONEDRIVE_SCOPES,
     MICROSOFT_OUTLOOK_SCOPES,
     MICROSOFT_TASKS_SCOPES,
 )
@@ -32,6 +33,7 @@ _SCOPES: dict[ConnectorType, list[str]] = {
     ConnectorType.MICROSOFT_CALENDAR: MICROSOFT_CALENDAR_SCOPES,
     ConnectorType.MICROSOFT_CONTACTS: MICROSOFT_CONTACTS_SCOPES,
     ConnectorType.MICROSOFT_TASKS: MICROSOFT_TASKS_SCOPES,
+    ConnectorType.MICROSOFT_ONEDRIVE: MICROSOFT_ONEDRIVE_SCOPES,
 }
 
 _IDENTITY_SCOPES = {
@@ -73,6 +75,16 @@ _IMPLIED: dict[str, frozenset[str]] = {
     "calendars.read": frozenset({"calendars.readwrite"}),
     "contacts.read": frozenset({"contacts.readwrite"}),
     "tasks.read": frozenset({"tasks.readwrite"}),
+    "files.read": frozenset({"files.read.all", "files.readwrite", "files.readwrite.all"}),
+    "files.read.all": frozenset({"files.readwrite.all"}),
+}
+
+#: Scopes a connector asks for and works without: what they open is a gesture of its own, whose
+#: 403 says to reconnect. A grant made before one of them keeps the connector active, because
+#: every refresh of a grant holds its connectors to this check and a row it fails goes to ERROR:
+#: Outlook's settings must never stop a whole mailbox (ADR-369, phase 2).
+_OFFERED_ONLY: dict[ConnectorType, frozenset[str]] = {
+    ConnectorType.MICROSOFT_OUTLOOK: frozenset({"mailboxsettings.readwrite"}),
 }
 
 
@@ -211,7 +223,12 @@ def scopes_cover_connector(connector_type: ConnectorType, granted: set[str]) -> 
     if required is None:
         return False
     normalized = {scope.lower().removeprefix("https://graph.microsoft.com/") for scope in granted}
-    access_scopes = (scope for scope in required if scope != "offline_access")
+    offered_only = _OFFERED_ONLY.get(canonical_type, frozenset())
+    access_scopes = (
+        scope
+        for scope in required
+        if scope != "offline_access" and scope.lower() not in offered_only
+    )
     return all(
         scope.lower() in normalized or bool(_IMPLIED.get(scope.lower(), frozenset()) & normalized)
         for scope in access_scopes

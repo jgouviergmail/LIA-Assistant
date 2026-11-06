@@ -66,6 +66,8 @@ AUXILIARY_TYPES: frozenset[str] = frozenset(
         "mcp_apps",  # MCP Apps interactive widgets (evolution F2.5)
         "skill_app",
         "skill_apps",  # Skill rich outputs (frame/image widgets)
+        "page_app",
+        "page_apps",  # Interactive pages the model wrote (ADR-370)
     }
 )
 

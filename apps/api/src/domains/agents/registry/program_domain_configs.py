@@ -58,10 +58,34 @@ PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
             "Create downloadable documents (CSV, Excel, Word, PowerPoint, PDF, "
             "Markdown, text) from instructions and optional data. "
             "Use when the user asks for a file, an export, a report document, "
-            "a spreadsheet or a presentation. NOT for images."
+            "a spreadsheet or a presentation. NOT for images, NOT for a game or a "
+            "page to use (interactive_page)."
         ),
         agent_names=["document_generation_agent"],
         result_key="document_generations",  # $steps.step_N.document_generations
+        related_domains=[],
+        is_routable=True,
+        # requires_api_key False: uses the admin LLM Config slot.
+        metadata={"provider": "internal", "requires_oauth": False, "requires_api_key": False},
+    ),
+    # Interactive pages (ADR-370): a page the model writes, shown live in the
+    # conversation. A domain of its own so that a switched-off capability leaves
+    # the analyzer's menu, and so that one sentence can tell a thing from its code.
+    "interactive_page": DomainConfig(
+        name="interactive_page",
+        display_name="Interactive pages",
+        description=(
+            "Create a self-contained interactive web page the user can use right away "
+            "in the conversation: a game, a quiz, a calculator, a timer, a simulation, "
+            "an animation, a small tool, including when they say 'in HTML'. Also change "
+            "such a page, display HTML code as a working page, or show a page's source. "
+            "NOT when the user asks to see, get or explain source code they did not "
+            "already receive as a page (answer directly), NOT to use as it is what an "
+            "available skill offers (play a game, roll dice: the skill, with no domain), "
+            "NOT for documents (document_generation), NOT for images (image_generation)."
+        ),
+        agent_names=["interactive_page_agent"],
+        result_key="interactive_pages",  # $steps.step_N.interactive_pages
         related_domains=[],
         is_routable=True,
         # requires_api_key False: uses the admin LLM Config slot.

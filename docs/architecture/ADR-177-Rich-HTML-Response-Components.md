@@ -237,6 +237,24 @@ feuille de style (`styles/__tests__/chat-layout.guard.test.ts`) refuse, sous 880
 règle qui réduit une bulle sous sa colonne ; vu en échec contre l'ancienne feuille, puis
 vert. Le parcours e2e n'a pas été relancé (il construit l'application).
 
+## Amendement 2026-11-05 — un `<pre>` garde ses lignes, les mots d'une personne restent des mots
+
+Constat en production ([ADR-370](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)) : une réponse HTML montrant le code d'une page
+s'affichait coupée, alors que la réponse archivée était entière. Un `<pre>` vit dans un bloc HTML
+de type 6 pour CommonMark, qui finit à la première ligne vide ; la suite devenait des paragraphes,
+et `rehype-raw` sortait la fin du bloc de `<code>`. Le bouton Copier rendait un document au
+`<script>` jamais fermé. Mesuré : 24 des 48 blocs de code stockés en production.
+
+- **Un `<pre>` garde ses lignes** : `lib/markdown-source.ts` remplace chaque saut de ligne de son
+  corps par `&#10;` avant Markdown, dans une réponse HTML seulement. Un bloc clôturé par des
+  backticks n'est pas touché.
+- **Ce qu'une personne tape n'est jamais du HTML** : `lib/remark-literal-html.ts` change chaque
+  nœud `html` de son message en texte. `pas </script>, </body> et </html>` s'affiche tel quel.
+- **Copier rend le fichier** : seul le dernier saut de ligne du bloc est retiré.
+
+Toutes ces passes sont linéaires par construction (ADR-326), tenues par
+`flatteners-linear.test.ts`.
+
 ## Alternatives considérées
 
 - **Composants React interceptés** (tabs, accordéons animés — pattern

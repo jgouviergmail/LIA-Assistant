@@ -47,6 +47,55 @@ function manager(labels: MailFolder[] = LABELS) {
 const field = () => screen.getByLabelText('workbench.mail.labels.new');
 const create = () => screen.getByRole('button', { name: 'workbench.mail.labels.create' });
 
+describe('LabelsManager — a mailbox with folders', () => {
+  const NESTED: MailFolder[] = [
+    { id: 'Projets/2026', kind: 'user', role: null, name: 'Projets/2026' },
+  ];
+
+  function folderManager(labels: MailFolder[] = NESTED) {
+    const onRename = vi.fn().mockResolvedValue(undefined);
+    const rendered = renderWithProviders(
+      <LabelsManager
+        lng="en"
+        open
+        onOpenChange={vi.fn()}
+        labels={labels}
+        kind="folders"
+        onCreate={vi.fn().mockResolvedValue(undefined)}
+        onRename={onRename}
+        onDelete={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    return { ...rendered, onRename };
+  }
+
+  it('speaks of folders, never of labels', () => {
+    folderManager([]);
+
+    expect(screen.getByRole('dialog', { name: 'workbench.mail.manage_folders' })).toBeVisible();
+    expect(screen.getByText('workbench.mail.folder_manager.none')).toBeInTheDocument();
+    expect(screen.queryByText(/workbench\.mail\.labels\./)).toBeNull();
+  });
+
+  it('renames a folder by its own name, its place kept', async () => {
+    const { user, onRename } = folderManager();
+
+    await user.click(
+      screen.getByRole('button', { name: 'workbench.mail.folder_manager.rename(Projets/2026)' })
+    );
+    const field = screen.getByRole('textbox', {
+      name: 'workbench.mail.folder_manager.rename_field(Projets/2026)',
+    });
+
+    expect(field).toHaveValue('2026');
+    await user.clear(field);
+    await user.type(field, '2027');
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.folder_manager.save' }));
+
+    expect(onRename).toHaveBeenCalledWith('Projets/2026', '2027');
+  });
+});
+
 describe('LabelsManager', () => {
   it('lists the person’s labels, and says when there is none', () => {
     const listed = manager();
@@ -132,7 +181,9 @@ describe('LabelsManager', () => {
 
   it('deletes a label only once confirmed', async () => {
     const { user, onDelete } = manager();
-    const remove = screen.getByRole('button', { name: 'workbench.mail.labels.delete(Work/Clients)' });
+    const remove = screen.getByRole('button', {
+      name: 'workbench.mail.labels.delete(Work/Clients)',
+    });
 
     await user.click(remove);
     await answerConfirmDialog(user, false);

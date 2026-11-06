@@ -21,12 +21,15 @@ from src.domains.workbench import (
     mail_acts,
     mail_attachments,
     mail_folders,
+    mail_leaving,
     mail_reading,
 )
 from src.domains.workbench.downloads import download_response
 from src.domains.workbench.ids import ProviderId
+from src.domains.workbench.previews import preview_response
 from src.domains.workbench.rate_limits import (
     charge_selection,
+    rate_limit_bulk,
     rate_limit_download,
     rate_limit_read,
     rate_limit_write,
@@ -34,17 +37,27 @@ from src.domains.workbench.rate_limits import (
 from src.domains.workbench.schemas.acts import ActOutcome
 from src.domains.workbench.schemas.mail import (
     AttachmentRequest,
+    InlineImagesQuery,
     LabelApplication,
     LabelChange,
+    MailConversation,
+    MailCounts,
     MailFolder,
     MailFolders,
     MailHtml,
+    MailInlineImages,
     MailListing,
     MailMessage,
     MailPage,
+    MailUnsubscribe,
     MessageSelection,
+    MoveOutcome,
+    MoveRequest,
     NewLabel,
     ReadStateChange,
+    StarChange,
+    TrashEmptied,
+    UnsubscribeRequest,
 )
 
 router = APIRouter(prefix="/mail")
@@ -61,6 +74,17 @@ _Account = Annotated[User, Depends(get_current_active_session_for_stream)]
 async def get_folders(user: _Account) -> MailFolders:
     """Read the folder pane of the signed-in account's mailbox."""
     return await mail_folders.read_folders(user.id)
+
+
+@router.get(
+    "/counts",
+    response_model=MailCounts,
+    dependencies=[Depends(rate_limit_read)],
+    summary="What the mailbox leaves unread, each figure keyed as the pane names its folder",
+)
+async def get_counts(user: _Account) -> MailCounts:
+    """The pane's and the rail's figures, read apart from the folders."""
+    return await mail_folders.read_counts(user.id)
 
 
 @router.get(
@@ -89,6 +113,20 @@ async def get_message(
 
 
 @router.get(
+    "/conversation",
+    response_model=MailConversation,
+    summary="What was said around a message: its conversation, oldest first, headers alone",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_conversation(
+    message_id: Annotated[ProviderId, Query(alias="id", description="Any message of it.")],
+    user: _Account,
+) -> MailConversation:
+    """Read a message's conversation."""
+    return await mail_reading.read_conversation(user.id, message_id)
+
+
+@router.get(
     "/message/html",
     response_model=MailHtml,
     summary="One message's HTML, for the sandboxed frame (cut at the published ceiling)",
@@ -100,6 +138,44 @@ async def get_message_html(
 ) -> MailHtml:
     """Read one message's HTML body."""
     return await mail_reading.read_message_html(user.id, message_id)
+
+
+@router.get(
+    "/message/images",
+    response_model=MailInlineImages,
+    summary="The images a message's HTML names, for its frame, under a published budget",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_inline_images(
+    query: Annotated[InlineImagesQuery, Query()], user: _Account
+) -> MailInlineImages:
+    """Read the images a message carries inside itself."""
+    return await mail_reading.read_inline_images(user.id, query)
+
+
+@router.get(
+    "/message/unsubscribe",
+    response_model=MailUnsubscribe,
+    summary="The ways out of a mailing list a message names",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_unsubscribe(
+    message_id: Annotated[ProviderId, Query(alias="id", description="The message.")],
+    user: _Account,
+) -> MailUnsubscribe:
+    """Read how a message says it can be left."""
+    return await mail_leaving.read_ways(user.id, message_id)
+
+
+@router.post(
+    "/unsubscribe",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Post the one-click unsubscribe a message promises (RFC 8058)",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def post_unsubscribe(request: UnsubscribeRequest, user: _Account) -> None:
+    """Leave a mailing list from one of its messages."""
+    await mail_leaving.leave(user.id, request.message_id)
 
 
 @router.post(
@@ -161,14 +237,60 @@ async def post_read_state(change: ReadStateChange, user: _Account) -> ActOutcome
 
 
 @router.post(
-    "/trash",
+    "/star",
     response_model=ActOutcome,
-    summary="Move a selection to the trash; each message answered",
+    summary="Star a selection or take its star off; each message answered",
 )
-async def post_trash(selection: MessageSelection, user: _Account) -> ActOutcome:
-    """Move messages to the trash."""
+async def post_star(change: StarChange, user: _Account) -> ActOutcome:
+    """Star messages or take their star off."""
+    await charge_selection(user, len(change.message_ids))
+    return await mail_acts.set_star(user.id, change)
+
+
+@router.post(
+    "/move",
+    response_model=MoveOutcome,
+    summary="Send a selection to a place; each message answered with its id from now on",
+)
+async def post_move(request: MoveRequest, user: _Account) -> MoveOutcome:
+    """Send messages to the trash, the archive, the spam, the inbox or a folder."""
+    await charge_selection(user, len(request.message_ids))
+    return await mail_acts.move_messages(user.id, request)
+
+
+@router.post(
+    "/delete-forever",
+    response_model=ActOutcome,
+    summary="Delete messages of the trash for good; each message answered",
+)
+async def post_delete_forever(selection: MessageSelection, user: _Account) -> ActOutcome:
+    """Delete messages of the trash for good."""
     await charge_selection(user, len(selection.message_ids))
-    return await mail_acts.trash_messages(user.id, selection)
+    return await mail_acts.delete_forever(user.id, selection)
+
+
+@router.post(
+    "/empty-trash",
+    response_model=TrashEmptied,
+    summary="Delete for good what the trash holds, within a bound",
+)
+async def post_empty_trash(user: _Account) -> TrashEmptied:
+    """Empty the trash: charged as an act on many, whatever it finds."""
+    await rate_limit_bulk(user)
+    return await mail_acts.empty_trash(user.id)
+
+
+@router.get(
+    "/attachment/preview",
+    response_class=Response,
+    summary="What can be read of one attachment (kept by no cache, never run)",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_attachment_preview(
+    request: Annotated[AttachmentRequest, Query()], user: _Account
+) -> Response:
+    """A bounded image, text or table of one attachment of a message."""
+    return preview_response(await mail_attachments.preview_attachment(user.id, request))
 
 
 @router.get(

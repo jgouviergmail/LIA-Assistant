@@ -12,6 +12,7 @@ from typing import Any
 import structlog
 
 from src.domains.connectors.clients.base_google_client import BaseGoogleClient
+from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -69,6 +70,13 @@ class GoogleGmailSettingsClient(BaseGoogleClient):
         """The user's Gmail filters ({"filter": [...]})."""
         return await self._make_request("GET", "/users/me/settings/filters")
 
+    async def label_names(self) -> dict[str, str]:
+        """Each label's name by its id: a filter names its labels by id alone."""
+        response = await self._make_request("GET", "/users/me/labels")
+        return {
+            str(label.get("id")): str(label.get("name")) for label in response.get("labels") or []
+        }
+
     async def create_filter(
         self, criteria: dict[str, Any], action: dict[str, Any]
     ) -> dict[str, Any]:
@@ -88,6 +96,16 @@ class GoogleGmailSettingsClient(BaseGoogleClient):
         )
         logger.info("gmail_filter_created", user_id=str(self.user_id))
         return response
+
+    async def delete_filter(self, filter_id: str) -> None:
+        """Delete a Gmail filter; the mail it already sorted stays where it is.
+
+        Args:
+            filter_id: The filter's id.
+        """
+        segment = path_segment(filter_id, connector_type=self.connector_type)
+        await self._make_request("DELETE", f"/users/me/settings/filters/{segment}")
+        logger.info("gmail_filter_deleted", user_id=str(self.user_id))
 
     async def list_send_as(self) -> dict[str, Any]:
         """The user's sendAs aliases ({"sendAs": [...]})."""

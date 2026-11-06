@@ -16,15 +16,23 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from src.core.session_dependencies import get_current_active_session_for_stream
 from src.core.time_utils import resolve_user_timezone
 from src.domains.users.models import User
-from src.domains.workbench import calendar_service
+from src.domains.workbench import calendar_management, calendar_service
 from src.domains.workbench.ids import ProviderId
 from src.domains.workbench.rate_limits import rate_limit_read, rate_limit_write
 from src.domains.workbench.schemas.calendar import (
+    CalendarInfo,
     CalendarList,
+    CalendarRename,
     EventChange,
     EventDetail,
+    EventInvitationAnswer,
+    EventMove,
+    EventScope,
+    EventSearch,
+    EventSearchQuery,
     EventsWindow,
     EventWindowQuery,
+    NewCalendar,
     NewEvent,
 )
 
@@ -68,6 +76,17 @@ async def get_event(calendar_id: _CalendarId, event_id: _EventId, user: _Account
     return await calendar_service.read_event(user.id, calendar_id, event_id)
 
 
+@router.get(
+    "/search",
+    response_model=EventSearch,
+    summary="Words looked for in the calendars asked, around today",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_search(query: Annotated[EventSearchQuery, Query()], user: _Account) -> EventSearch:
+    """Search the calendars."""
+    return await calendar_service.search_events(user.id, resolve_user_timezone(user), query)
+
+
 @router.post(
     "/events",
     response_model=EventDetail,
@@ -91,11 +110,71 @@ async def patch_event(request: EventChange, user: _Account) -> EventDetail:
     return await calendar_service.update_event(user.id, request)
 
 
+@router.post(
+    "/events/move",
+    response_model=EventDetail,
+    summary="Move an event to another calendar",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def post_move(request: EventMove, user: _Account) -> EventDetail:
+    """Move an event: the id it answers under may change."""
+    return await calendar_management.move_event(user.id, request)
+
+
+@router.post(
+    "/calendars",
+    response_model=CalendarInfo,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a calendar, once per submission",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def post_calendar(request: NewCalendar, user: _Account) -> CalendarInfo:
+    """Create a calendar of the person's own."""
+    return await calendar_management.create_calendar(user.id, resolve_user_timezone(user), request)
+
+
+@router.patch(
+    "/calendars",
+    response_model=CalendarInfo,
+    summary="Rename a calendar of the person's own",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def patch_calendar(request: CalendarRename, user: _Account) -> CalendarInfo:
+    """Rename a calendar."""
+    return await calendar_management.rename_calendar(user.id, request)
+
+
+@router.delete(
+    "/calendars",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="Delete a calendar of the person's own, and all it holds",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def delete_calendar(calendar_id: _CalendarId, user: _Account) -> Response:
+    """Delete a calendar."""
+    await calendar_management.delete_calendar(user.id, calendar_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/events/answer",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="Answer an invitation, the organiser told",
+    dependencies=[Depends(rate_limit_write)],
+)
+async def post_answer(request: EventInvitationAnswer, user: _Account) -> Response:
+    """Answer an invitation."""
+    await calendar_service.answer_event(user.id, request)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.delete(
     "/events",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    summary="Delete one event — an occurrence alone",
+    summary="Delete one event — an occurrence alone unless the whole series is asked for",
     dependencies=[Depends(rate_limit_write)],
 )
 async def delete_event(
@@ -106,9 +185,12 @@ async def delete_event(
         bool | None,
         Query(description="Tell the attendees (where the provider lets the page choose)."),
     ] = None,
+    scope: Annotated[EventScope, Query(description="This occurrence, or its series.")] = (
+        "occurrence"
+    ),
 ) -> Response:
     """Delete an event."""
     await calendar_service.delete_event(
-        user.id, calendar_id=calendar_id, event_id=event_id, notify=notify
+        user.id, calendar_id=calendar_id, event_id=event_id, notify=notify, scope=scope
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

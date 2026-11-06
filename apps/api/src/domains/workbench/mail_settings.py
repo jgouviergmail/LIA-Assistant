@@ -1,13 +1,14 @@
-"""Gmail's mailbox settings, by the person's own hand (ADR-369).
+"""A mailbox's settings, by the person's own hand (ADR-369, lot 12).
 
-Gmail alone carries them (the descriptor's VACATION and FILTERS): elsewhere
-they are refused before anything is sent. They ride the Gmail connector's own
-token through Gmail's settings client, built beside the mailbox's client and
-closed on every path. The vacation responder is set in the person's own days —
-the first one from its midnight, the last one INCLUDED (Gmail's ``endTime`` is
-exclusive: the midnight after, the assistant's tool's own rule) — and reads
-back as the same days. A filter is created once per submission and never
-applies a system label; nothing deletes one (the client has no such act).
+Gmail and Outlook carry them (the descriptor's VACATION and FILTERS): elsewhere
+they are refused before anything is sent. Both speak one vocabulary through
+``mailbox_settings_of``: Gmail's settings client on its connector's token, closed
+on every path, and Outlook's own client. The vacation responder is set in the
+person's own days — the first one from its midnight, the last one INCLUDED (the
+end is exclusive: the midnight after, the assistant's tool's own rule) — and reads
+back as the same days. A filter is created once per submission and never applies
+a system label; deleting one leaves what it already sorted where it is. Send-as
+stays Gmail's: Outlook sends from the mailbox alone.
 """
 
 from __future__ import annotations
@@ -19,27 +20,111 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.clients.google_gmail_settings_client import (
     GoogleGmailSettingsClient,
 )
+from src.domains.connectors.clients.mailbox_settings import mailbox_settings_of
+from src.domains.connectors.clients.protocols import MailboxSettingsProtocol
+from src.domains.connectors.preferences import mail_signature
 from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.workbench.calls import provider_call
 from src.domains.workbench.clients import open_tool_client
-from src.domains.workbench.errors import NOT_SUPPORTED_BY_PROVIDER, refuse
+from src.domains.workbench.errors import (
+    INVALID_REQUEST,
+    NOT_CONNECTED,
+    NOT_SUPPORTED_BY_PROVIDER,
+    refuse,
+)
 from src.domains.workbench.features import PROVIDER_FEATURES, WorkbenchFeature, WorkbenchTool
 from src.domains.workbench.idempotency import run_once
 from src.domains.workbench.schemas.mail_settings import (
     MailFilter,
     MailFilters,
+    MailSender,
+    MailSenders,
+    MailSignature,
     NewFilter,
+    SignatureChange,
     Vacation,
     VacationChange,
 )
+from src.infrastructure.email.recipients import name_addr
 
 _TOOL = WorkbenchTool.MAIL
+#: What Gmail says of an alias it will send from.
+_VERIFIED = "accepted"
 #: The system labels a filter's « archive » and « mark read » remove.
 _INBOX, _UNREAD = "INBOX", "UNREAD"
+
+
+async def read_send_as(user_id: UUID) -> MailSenders:
+    """The addresses a message may leave from."""
+    async with _settings(user_id, WorkbenchFeature.SEND_AS) as (client, _):
+        async with provider_call(_TOOL, "read_send_as", act=False):
+            raw = await client.list_send_as()
+    return MailSenders(items=_senders(raw))
+
+
+async def apply_send_as(opened: ActiveClient, user_id: UUID, address: str) -> None:
+    """Make ``address`` where this client's messages leave from.
+
+    Gmail rewrites a ``From`` it does not know, in silence: an address the mailbox does
+    not hold is refused here, before anything is sent.
+
+    Raises:
+        BaseAPIException: ``not_supported_by_provider`` where a provider has no alias,
+            ``invalid_request`` for an address the mailbox does not hold.
+    """
+    if WorkbenchFeature.SEND_AS not in PROVIDER_FEATURES[opened.connector_type]:
+        refuse(NOT_SUPPORTED_BY_PROVIDER)
+    mailbox: GoogleGmailClient = opened.client
+    client = GoogleGmailSettingsClient(user_id, mailbox.credentials, DetachedConnectorService())
+    try:
+        async with provider_call(_TOOL, "read_send_as", act=False):
+            raw = await client.list_send_as()
+    finally:
+        await client.close()
+    wanted = address.casefold()
+    held = next((item for item in _senders(raw) if item.address.casefold() == wanted), None)
+    if held is None:
+        refuse(INVALID_REQUEST)
+    mailbox.send_from(name_addr(held.name, held.address))
+
+
+def _senders(raw: Mapping[str, Any]) -> list[MailSender]:
+    """What Gmail sends from: the mailbox's own, and the aliases it has verified."""
+    return [
+        MailSender(
+            address=str(item.get("sendAsEmail") or ""),
+            name=str(item.get("displayName") or ""),
+            is_default=bool(item.get("isDefault")),
+        )
+        for item in raw.get("sendAs") or []
+        if item.get("isPrimary") or item.get("verificationStatus") == _VERIFIED
+    ]
+
+
+async def read_signature(user_id: UUID) -> MailSignature:
+    """What the active mailbox signs with; the database alone answers."""
+    return _signature(await mail_signature.read_signature(user_id))
+
+
+async def save_signature(user_id: UUID, change: SignatureChange) -> MailSignature:
+    """Keep what the active mailbox signs with.
+
+    Raises:
+        BaseAPIException: ``not_connected`` when no mailbox is.
+    """
+    try:
+        return _signature(await mail_signature.save_signature(user_id, change.text))
+    except mail_signature.NoActiveMailboxError:
+        refuse(NOT_CONNECTED)
+
+
+def _signature(text: str) -> MailSignature:
+    return MailSignature(text=text, block=mail_signature.signature_block(text))
 
 
 async def read_vacation(user_id: UUID, zone: ZoneInfo) -> Vacation:
@@ -98,20 +183,23 @@ async def create_filter(user_id: UUID, request: NewFilter) -> MailFilter:
     )
 
 
+async def delete_filter(user_id: UUID, filter_id: str) -> None:
+    """Delete a filter: what it already sorted stays, what comes next is no longer sorted."""
+    async with _settings(user_id, WorkbenchFeature.FILTERS) as (client, _):
+        async with provider_call(_TOOL, "delete_filter", act=True):
+            await client.delete_filter(filter_id)
+
+
 @asynccontextmanager
 async def _settings(
     user_id: UUID, feature: WorkbenchFeature
-) -> AsyncIterator[tuple[GoogleGmailSettingsClient, GoogleGmailClient]]:
-    """Gmail's settings client on the mailbox's token; refused unsent elsewhere."""
+) -> AsyncIterator[tuple[MailboxSettingsProtocol, Any]]:
+    """What speaks the settings' vocabulary, and the mailbox; refused unsent elsewhere."""
     async with open_tool_client(_TOOL, user_id) as opened:
         if feature not in PROVIDER_FEATURES[opened.connector_type]:
             refuse(NOT_SUPPORTED_BY_PROVIDER)
-        mailbox: GoogleGmailClient = opened.client
-        client = GoogleGmailSettingsClient(user_id, mailbox.credentials, DetachedConnectorService())
-        try:
-            yield client, mailbox
-        finally:
-            await client.close()
+        async with mailbox_settings_of(opened.client, user_id) as client:
+            yield client, opened.client
 
 
 def _midnight_ms(day: date | None, zone: ZoneInfo) -> int | None:
@@ -171,6 +259,8 @@ def _filter(raw: Mapping[str, Any]) -> MailFilter:
     removed = action.get("removeLabelIds") or []
     return MailFilter(
         id=str(raw.get("id") or ""),
+        name=raw.get("name") or None,
+        read_only=bool(raw.get("read_only")),
         sender=criteria.get("from") or None,
         recipient=criteria.get("to") or None,
         subject=criteria.get("subject") or None,

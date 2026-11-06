@@ -19,6 +19,7 @@ SHORTCUT_MIME: Final = "application/vnd.google-apps.shortcut"
 _GOOGLE_TYPE_PREFIX: Final = "application/vnd.google-apps."
 
 ExportFormat = Literal["pdf", "docx", "xlsx", "pptx"]
+PDF_EXPORT: Final[ExportFormat] = "pdf"
 DriveKind = Literal["folder", "file", "shortcut"]
 
 

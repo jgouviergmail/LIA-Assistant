@@ -66,6 +66,31 @@ def _register_sms_catalogue(registry: AgentRegistry, *, enabled: bool) -> None:
         registry.register_tool_manifest(tool_manifest)
 
 
+def _register_writer_catalogue(registry: AgentRegistry) -> None:
+    """Register the virtual agents that write a deliverable, each behind its flag.
+
+    Args:
+        registry: The agent registry being filled.
+    """
+    from src.core.config import get_settings as _get_settings
+
+    # Document generation (ADR-226).
+    if getattr(_get_settings(), "document_generation_enabled", False):
+        from src.domains.agents.document_generation import catalogue_manifests as _doc_manifests
+
+        registry.register_agent_manifest(_doc_manifests.document_agent_manifest)
+        registry.register_tool_manifest(_doc_manifests.generate_document_catalogue_manifest)
+
+    # Interactive pages (ADR-370).
+    if getattr(_get_settings(), "interactive_page_enabled", False):
+        from src.domains.agents.interactive_page import catalogue_manifests as _page_manifests
+
+        registry.register_agent_manifest(_page_manifests.interactive_page_agent_manifest)
+        registry.register_tool_manifest(
+            _page_manifests.generate_interactive_page_catalogue_manifest
+        )
+
+
 def initialize_catalogue(registry: AgentRegistry) -> None:
     """
     Initialize the catalogue with Phase 5 + LOT 9/10 manifests.
@@ -102,6 +127,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         brave_news_catalogue_manifest,
         brave_search_catalogue_manifest,
     )
+    from src.domains.agents.calendar.answer_manifest import respond_to_event_catalogue_manifest
     from src.domains.agents.calendar.catalogue_manifests import (
         CALENDAR_TOOL_MANIFESTS,
     )
@@ -116,6 +142,8 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         WORKSPACE_DOCS_TOOL_MANIFESTS,
         get_files_catalogue_manifest,  # Unified (v2.0)
     )
+    from src.domains.agents.drive.organize_manifest import manage_files_catalogue_manifest
+    from src.domains.agents.drive.share_manifest import share_file_catalogue_manifest
     from src.domains.agents.emails.catalogue_manifests import (
         apply_labels_catalogue_manifest,
         create_label_catalogue_manifest,
@@ -132,6 +160,10 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     )
     from src.domains.agents.emails.mailbox_drafts_manifests import (
         MAILBOX_DRAFT_TOOL_MANIFESTS,
+    )
+    from src.domains.agents.emails.organize_manifest import (
+        manage_mail_folder_catalogue_manifest,
+        organize_emails_catalogue_manifest,
     )
     from src.domains.agents.emails.read_state_manifest import (
         set_email_read_state_catalogue_manifest,
@@ -257,6 +289,9 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         *GMAIL_SETTINGS_TOOL_MANIFESTS,
         *MAILBOX_DRAFT_TOOL_MANIFESTS,
         set_email_read_state_catalogue_manifest,
+        organize_emails_catalogue_manifest,
+        manage_mail_folder_catalogue_manifest,
+        respond_to_event_catalogue_manifest,
         *CALENDAR_TOOL_MANIFESTS,
         *WORKSPACE_DOCS_TOOL_MANIFESTS,
         *ENVIRONMENT_TOOL_MANIFESTS,
@@ -289,12 +324,21 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     # Register LOT 9 tool manifests (Google Drive, Tasks) - Unified v2.0
     # (calendar + workspace docs families registered in the family loop above)
     registry.register_tool_manifest(get_files_catalogue_manifest)  # Unified
+    registry.register_tool_manifest(manage_files_catalogue_manifest)
+    registry.register_tool_manifest(share_file_catalogue_manifest)
 
     registry.register_tool_manifest(get_tasks_catalogue_manifest)  # Unified
     registry.register_tool_manifest(create_task_catalogue_manifest)
     registry.register_tool_manifest(update_task_catalogue_manifest)
     registry.register_tool_manifest(delete_task_catalogue_manifest)
     registry.register_tool_manifest(complete_task_catalogue_manifest)
+    from src.domains.agents.tasks.organize_manifest import (
+        move_task_catalogue_manifest,
+        rename_task_list_catalogue_manifest,
+    )
+
+    registry.register_tool_manifest(rename_task_list_catalogue_manifest)
+    registry.register_tool_manifest(move_task_catalogue_manifest)
     registry.register_tool_manifest(list_task_lists_catalogue_manifest)  # Metadata
 
     # Register LOT 10 tool manifests (Weather, Wikipedia, Perplexity, Places)
@@ -392,12 +436,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         registry.register_tool_manifest(_img_manifests.generate_image_catalogue_manifest)
         registry.register_tool_manifest(_img_manifests.edit_image_catalogue_manifest)
 
-    # Register Document Generation manifests (feature-flagged, ADR-226)
-    if getattr(_get_settings(), "document_generation_enabled", False):
-        from src.domains.agents.document_generation import catalogue_manifests as _doc_manifests
-
-        registry.register_agent_manifest(_doc_manifests.document_agent_manifest)
-        registry.register_tool_manifest(_doc_manifests.generate_document_catalogue_manifest)
+    _register_writer_catalogue(registry)
 
     # DevOps: Claude CLI remote server management (feature-flagged)
     if getattr(_get_settings(), "devops_enabled", False):

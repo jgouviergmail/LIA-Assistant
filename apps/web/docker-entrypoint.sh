@@ -21,6 +21,7 @@ dependencies_ready() {
     const expected = require(app + "/package.json").dependencies.next;
     const installed = require(app + "/node_modules/next/package.json").version;
     require.resolve(app + "/node_modules/next/dist/bin/next");
+    require.resolve(app + "/node_modules/pdfjs-dist/package.json");
     if (installed !== expected) process.exit(1);
   ' >/dev/null 2>&1
 }

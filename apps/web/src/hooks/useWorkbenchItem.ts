@@ -9,14 +9,17 @@
  * previous one as its answer, a late answer to the previous id is dropped, and
  * a change of account clears it at once. A refresh re-reads IN PLACE — what is
  * on screen stays until its answer lands — and a failed one withdraws it
- * (owner rule 2026-10-21). `setItem` applies an optimistic or confirmed change
- * without a read.
+ * (owner rule 2026-10-21). A re-read nobody asked for (`unasked`) takes nothing
+ * away: it waits for a first read, leaves a failed one to its retry, and keeps
+ * what is on screen when it fails. `setItem` applies an optimistic or confirmed
+ * change without a read.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/hooks/useAuth';
 import apiClient, { type QueryParamValue } from '@/lib/api-client';
 import { paramsOf, serialiseParams } from '@/lib/workbench/params';
+import type { RereadOptions } from '@/lib/workbench/types';
 
 export interface WorkbenchItemState<T> {
   /** The item, once read for the current key. */
@@ -25,7 +28,7 @@ export interface WorkbenchItemState<T> {
   loading: boolean;
   /** Why the last read failed (`workbenchRefusal` tells it), else null. */
   error: unknown;
-  refresh: () => Promise<void>;
+  refresh: (options?: RereadOptions) => Promise<void>;
   /** A change to the shown item, from what is shown; nothing when nothing is. */
   setItem: (change: (current: T) => T) => void;
 }
@@ -69,16 +72,22 @@ export function useWorkbenchItem<T>(
     return () => transport.abort();
   }, [key, path, queryKey]);
 
-  const refresh = useCallback(async () => {
-    if (key === null || path === null) return;
-    const readId = ++generation.current;
-    try {
-      const item = await apiClient.get<T>(path, { params: paramsOf(queryKey) });
-      if (readId === generation.current) setRead({ key, item, error: null });
-    } catch (error: unknown) {
-      if (readId === generation.current) setRead({ key, item: undefined, error });
-    }
-  }, [key, path, queryKey]);
+  const current = read !== null && read.key === key;
+  const itemShown = current && read.item !== undefined;
+
+  const refresh = useCallback(
+    async ({ unasked = false }: RereadOptions = {}) => {
+      if (key === null || path === null || (unasked && !itemShown)) return;
+      const readId = ++generation.current;
+      try {
+        const item = await apiClient.get<T>(path, { params: paramsOf(queryKey) });
+        if (readId === generation.current) setRead({ key, item, error: null });
+      } catch (error: unknown) {
+        if (readId === generation.current && !unasked) setRead({ key, item: undefined, error });
+      }
+    },
+    [key, path, queryKey, itemShown]
+  );
 
   const setItem = useCallback(
     (change: (current: T) => T) => {
@@ -91,7 +100,6 @@ export function useWorkbenchItem<T>(
     [key]
   );
 
-  const current = read !== null && read.key === key;
   return {
     item: current ? read.item : undefined,
     loading: key !== null && !current,

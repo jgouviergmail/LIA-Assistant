@@ -46,8 +46,9 @@ class SchedulerSettings(BaseSettings):
         ge=30,
         le=1800,
         description=(
-            "Per-action wall-clock timeout for the scheduled-actions executor. "
-            "Beyond this, the action is forcibly cancelled and recorded as a "
+            "Wall-clock budget of ONE attempt of a routine, never below the "
+            "model calls of one turn as configured in admin-llm-config (ADR-221). "
+            "Beyond it, the attempt is forcibly cancelled and recorded as a "
             "FAILURE in scheduled_action_runs (ADR-265). "
             "Symptom if too low: legitimate actions (long LLM-bound prompts) "
             "fail with TIMEOUT. Symptom if too high: a stuck action keeps a "

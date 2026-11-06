@@ -23,6 +23,8 @@ const SYNC_POLL_MS = 5_000;
 
 export interface SpaceSources {
   driveSources: RAGDriveSource[];
+  /** The drive the account has connected now. */
+  activeDrive: string | null;
   mailSources: RAGMailSource[];
   /** The instance runs the Gmail label source — the section exists only then. */
   mailSyncEnabled: boolean;
@@ -92,6 +94,7 @@ export function useSpaceSources(
 
   return {
     driveSources,
+    activeDrive: space?.active_drive ?? null,
     mailSources,
     mailSyncEnabled,
     drive: { ...driveActions, linking: linkingFolder, syncing: syncingFolder },

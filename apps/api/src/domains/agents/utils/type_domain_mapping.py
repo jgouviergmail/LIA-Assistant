@@ -47,6 +47,7 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
     "MCP_RESULT": ("mcp", "mcps"),  # MCP tool results (evolution F2.3)
     "MCP_APP": ("mcp_app", "mcp_apps"),  # MCP Apps interactive widgets (evolution F2.5)
     "SKILL_APP": ("skill_app", "skill_apps"),  # Skill rich outputs (frame/image widgets)
+    "PAGE_APP": ("page_app", "page_apps"),  # Interactive pages the model wrote (ADR-370)
     "BROWSER_PAGE": ("browser", "browsers"),  # Browser page snapshot (evolution F7)
 }
 

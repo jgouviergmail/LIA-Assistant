@@ -153,9 +153,24 @@ class TestSubjectsAndBodies:
             "Ok.", "Line 1\nLine 2\n", date="Mon, 12 Oct 2026", sender=PAUL, is_html=False
         ) == (f"Ok.\n\nOn Mon, 12 Oct 2026, {PAUL} wrote:\n> Line 1\n> Line 2")
 
-    @pytest.mark.parametrize(("original", "is_html"), [("", False), ("Line", True)])
-    def test_nothing_is_quoted_without_a_plain_original(self, original: str, is_html: bool) -> None:
-        assert quoted_reply("Ok.", original, date="d", sender=PAUL, is_html=is_html) == "Ok."
+    @pytest.mark.parametrize("is_html", [False, True])
+    def test_nothing_is_quoted_of_an_original_with_no_text(self, is_html: bool) -> None:
+        assert quoted_reply("Ok.", "", date="d", sender=PAUL, is_html=is_html) == "Ok."
+
+    def test_a_formatted_reply_quotes_the_original_as_words(self) -> None:
+        quoted = quoted_reply("<b>Ok.</b>", "Line <1>\nLine 2", date="d", sender=PAUL, is_html=True)
+
+        assert quoted.startswith("<b>Ok.</b><br><br>On d, ")
+        assert quoted.endswith("<blockquote>Line &lt;1&gt;<br>Line 2</blockquote>")
+
+    def test_a_formatted_forward_keeps_the_original_as_words(self) -> None:
+        forwarded = forwarded_body(
+            "<b>Fyi</b>", "Body <x>", sender=PAUL, date="d", subject="S", to=ME, is_html=True
+        )
+
+        assert forwarded.startswith("<b>Fyi</b><br><br>")
+        assert forwarded.endswith("<br><br>Body &lt;x&gt;")
+        assert "<br>Subject: S<br>" in forwarded
 
     def test_a_forward_carries_the_original_headers_and_body(self) -> None:
         assert forwarded_body(None, "Body", sender=PAUL, date="d", subject="Budget", to=ME) == (

@@ -389,7 +389,7 @@ class TasksData(BaseModel):
 
 
 class DocumentItem(BaseModel):
-    """One recently-modified Drive file."""
+    """One recently-modified file of the account's drive."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -399,6 +399,10 @@ class DocumentItem(BaseModel):
     )
     web_view_link: str | None = Field(default=None, description="Drive web link")
     mime_type: str | None = None
+    path: str | None = Field(
+        default=None,
+        description="Its folders from the top of the drive, empty at the top; None when unknown.",
+    )
     # The file's identity (ADR-322): a document routine announces a file once,
     # however often it is edited afterwards.
     id: str | None = Field(default=None, description="Drive file id, when it sent one.")
@@ -408,6 +412,7 @@ class DocumentsData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     items: list[DocumentItem]
+    provider: str | None = Field(default=None, description="The drive these files are on.")
 
 
 class WorkboardTicketItem(BaseModel):

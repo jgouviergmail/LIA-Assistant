@@ -129,7 +129,7 @@ async def test_the_sweeps_client_is_used_with_no_session_and_always_closed() -> 
         patch.object(sync_module, "DetachedConnectorService", return_value=units),
         pytest.raises(RuntimeError),
     ):
-        async with sync_module._google_client(
+        async with sync_module._connector_client(
             uuid4(), ConnectorType.GOOGLE_DRIVE, client_class
         ) as opened:
             assert opened is client
@@ -144,7 +144,7 @@ async def test_the_sweeps_client_is_used_with_no_session_and_always_closed() -> 
 async def test_no_credentials_builds_no_client() -> None:
     client_class = MagicMock()
     with patch.object(sync_module, "DetachedConnectorService", return_value=_Units(None)):
-        async with sync_module._google_client(
+        async with sync_module._connector_client(
             uuid4(), ConnectorType.GOOGLE_CALENDAR, client_class
         ) as opened:
             assert opened is None

@@ -18,8 +18,14 @@ from src.domains.agents.google_contacts.group_manifests import (
 )
 from src.domains.agents.google_contacts.value_descriptions import (
     CONTACT_ADDRESS_DESCRIPTION,
+    CONTACT_BIRTHDAY_DESCRIPTION,
+    CONTACT_CLEAR_BIRTHDAY_DESCRIPTION,
     CONTACT_EMAIL_DESCRIPTION,
+    CONTACT_FAMILY_NAME_DESCRIPTION,
+    CONTACT_GIVEN_NAME_DESCRIPTION,
+    CONTACT_JOB_TITLE_DESCRIPTION,
     CONTACT_PHONE_DESCRIPTION,
+    CONTACT_WEBSITE_DESCRIPTION,
 )
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -258,6 +264,42 @@ get_contacts_catalogue_manifest = ToolManifest(
 )
 
 
+#: What a write carries beyond a name, a company and notes: one wording for two manifests.
+_DETAIL_PARAMETERS = [
+    ParameterSchema(
+        name="given_name",
+        type="string",
+        required=False,
+        description=CONTACT_GIVEN_NAME_DESCRIPTION,
+        semantic_type="person_name",
+    ),
+    ParameterSchema(
+        name="family_name",
+        type="string",
+        required=False,
+        description=CONTACT_FAMILY_NAME_DESCRIPTION,
+        semantic_type="person_name",
+    ),
+    ParameterSchema(
+        name="job_title",
+        type="string",
+        required=False,
+        description=CONTACT_JOB_TITLE_DESCRIPTION,
+    ),
+    ParameterSchema(
+        name="website",
+        type="string",
+        required=False,
+        description=CONTACT_WEBSITE_DESCRIPTION,
+    ),
+    ParameterSchema(
+        name="birthday",
+        type="string",
+        required=False,
+        description=CONTACT_BIRTHDAY_DESCRIPTION,
+    ),
+]
+
 # ============================================================================
 # 2. CREATE CONTACT
 # ============================================================================
@@ -311,6 +353,7 @@ create_contact_catalogue_manifest = ToolManifest(
             description="Notes",
             semantic_type="biography",
         ),
+        *_DETAIL_PARAMETERS,
     ],
     outputs=[
         OutputFieldSchema(
@@ -406,6 +449,13 @@ update_contact_catalogue_manifest = ToolManifest(
             required=False,
             description=CONTACT_ADDRESS_DESCRIPTION,
             semantic_type="physical_address",  # Guarded + linkable from places/events outputs
+        ),
+        *_DETAIL_PARAMETERS,
+        ParameterSchema(
+            name="clear_birthday",
+            type="boolean",
+            required=False,
+            description=CONTACT_CLEAR_BIRTHDAY_DESCRIPTION,
         ),
     ],
     outputs=[

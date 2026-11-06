@@ -6,6 +6,7 @@ import type { AvatarSession } from './types';
 import { SimliPlayout, pushDecoded } from './playout';
 import { logger } from '@/lib/logger';
 import { outputFailureCode, type AvatarOutputFailure } from './output-failure';
+import { generateUUID } from '@/lib/utils';
 
 type AvatarFailureCode =
   | AvatarStartFailure
@@ -168,7 +169,7 @@ export class AvatarEngine {
     const mintedAt = performance.now();
     const connection: Connection = {
       demand,
-      owner: crypto.randomUUID(),
+      owner: generateUUID(),
       controller: new AbortController(),
       wire: null,
       closing: false,

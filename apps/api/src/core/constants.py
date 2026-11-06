@@ -73,6 +73,8 @@ SESSION_COOKIE_SAMESITE = "lax"  # CSRF protection
 CONTACTS_TOOL_DEFAULT_LIMIT = 10
 TASKS_TOOL_DEFAULT_LIMIT = 10
 EMAILS_TOOL_DEFAULT_LIMIT = 10
+#: How many messages ``get_emails_tool`` reads whole from ids, a conversation's included.
+EMAILS_TOOL_ID_BATCH_MAX: Final = 10
 DRIVE_TOOL_DEFAULT_LIMIT = 10
 
 # External APIs with specific limits
@@ -131,9 +133,42 @@ GOOGLE_POLLEN_MAX_DAYS = 5
 # ============================================================================
 # GOOGLE SHEETS / DOCS (lot F, 2026-08)
 # ============================================================================
+#: OneDrive's latest files, filled from its feed (``onedrive_recent``): the files kept, the
+#: requests a first read may spend at the top of the drive, the feed pages one read may drain,
+#: and how long a window outlives its last read.
+ONEDRIVE_RECENT_WINDOW_MAX = 50
+ONEDRIVE_RECENT_SEED_REQUESTS = 5
+ONEDRIVE_RECENT_FEED_PAGES = 5
+ONEDRIVE_RECENT_TTL_SECONDS = 30 * 24 * 3600
+REDIS_KEY_ONEDRIVE_RECENT_PREFIX = "onedrive:recent:"
+#: What Graph searches when no word is given: it refuses an empty query.
+ONEDRIVE_SEARCH_EVERYTHING = "*"
+#: The largest Office file the assistant reads or adds to on a drive that gives bytes alone.
+OFFICE_FILE_MAX_BYTES = 20 * 1024 * 1024
+#: An Office file is an archive: what it may unpack to, and how many parts, before any parser.
+OFFICE_ARCHIVE_MAX_UNPACKED_BYTES = 64 * 1024 * 1024
+OFFICE_ARCHIVE_MAX_PARTS = 2048
+#: The Office files one worker parses at once: a parser holds many times the size of its file.
+OFFICE_PARSE_SLOTS = 2
+# A text changed whole, by hand or by the assistant: a cut text can never be written back.
+DRIVE_TEXT_MAX_BYTES: Final = 256 * 1024
+# A drive's word for a version: Graph's eTag and Drive's revision are well under this.
+WORKBENCH_FILE_TAG_MAX_CHARS: Final = 512
+# A contact's history: what each list shows, how many of its addresses are asked, and the walk
+# back through a calendar, which answers a window oldest first.
+WORKBENCH_CONTACT_HISTORY_ITEMS: Final = 5
+WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES: Final = 3
+WORKBENCH_CONTACT_HISTORY_SPAN_DAYS: Final = 90
+WORKBENCH_CONTACT_HISTORY_SPANS: Final = 8
+# What a person consulting a workbook or a CSV reads of it: the cut is said.
+WORKBENCH_READING_MAX_SHEETS: Final = 12
+WORKBENCH_READING_MAX_ROWS: Final = 200
+WORKBENCH_READING_MAX_COLUMNS: Final = 26
+WORKBENCH_READING_CELL_MAX_CHARS: Final = 200
 SHEETS_READ_DEFAULT_MAX_ROWS = 50
 SHEETS_READ_MAX_ROWS = 200
 SHEETS_READ_MAX_COLUMN = "ZZ"  # generous A1 column bound (702 columns)
+SHEETS_READ_MAX_COLUMNS = 702  # the same bound, for a workbook read from its bytes
 WORKSPACE_DOC_READ_MAX_CHARS = 20000  # LLM token budget guard
 # Phase write: cap on rows accepted in one HITL-drafted write — a chat-driven
 # write is a correction or a small addition, never a bulk import.
@@ -413,7 +448,8 @@ CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER = "[previous answer, formatting omitted]
 CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER = "[Results displayed]"
 
 # Placeholder substituted for an interactive widget sentinel
-# (``lia-skill-app`` / ``lia-mcp-app``) in the history served to the ReAct loop.
+# (``lia-skill-app`` / ``lia-mcp-app`` / ``lia-page-app``) in the history served to
+# the ReAct loop.
 # The sentinel is HOST-OWNED markup: only ``response_node`` may emit one, from
 # the current-turn registry. Leaving it in the model's context taught it to
 # write its own — producing duplicate widgets, and sometimes one pointing at a
@@ -553,6 +589,7 @@ GOOGLE_CONTACTS_PROFESSIONAL_FIELDS = [
     "organizations",  # Company name, title, department
     "occupations",  # Job title, career information
     "skills",  # Professional skills
+    "urls",  # Websites: a change replaces one and keeps the others
 ]
 
 # Group 5: Social & Relationships
@@ -1276,6 +1313,8 @@ DATABASE_SESSION_CLOSE_CANCELLATION_GRACE_ATTEMPTS: Final = 3
 # The same grace for the turn's spend commit at the end of its stream: the records
 # are model calls that happened and were billed (ADR-117).
 TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS: Final = 3
+# How long a cancelled turn waits for its stream to close, spend written included.
+STREAM_TEARDOWN_WAIT_SECONDS: Final = 5.0
 
 # LangGraph PostgreSQL connection pools (ADR-111 — checkpointer & store scalability)
 # Replaces the former single persistent AsyncConnection per worker (audit S2/A7):
@@ -1879,6 +1918,10 @@ BROADCAST_HISTORY_RECIPIENTS_SHOWN = 5
 # TOOL EXECUTION TIMEOUTS
 # ============================================================================
 
+# What a bound around model calls grants the work around them: preparing a call,
+# reading its answer, rendering it (ADR-221 amendment 2026-11-05).
+LLM_RUN_BOUND_MARGIN_SECONDS = 30.0
+
 # Default timeout for tool execution in parallel executor (in seconds)
 # Each step in ExecutionPlan can override this with timeout_seconds field
 DEFAULT_TOOL_TIMEOUT_SECONDS = 30.0  # 30 seconds - enough for most API calls
@@ -2149,6 +2192,7 @@ GOOGLE_GMAIL_API_BASE_URL = "https://gmail.googleapis.com/gmail/v1"
 GOOGLE_PEOPLE_API_BASE_URL = "https://people.googleapis.com/v1"
 GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3"
 GOOGLE_DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3"
+GOOGLE_DRIVE_UPLOAD_BASE_URL = "https://www.googleapis.com/upload/drive/v3"
 GOOGLE_TASKS_API_BASE_URL = "https://tasks.googleapis.com/tasks/v1"
 GOOGLE_PLACES_API_BASE_URL = "https://places.googleapis.com/v1"
 
@@ -2302,9 +2346,6 @@ PLANNER_MAX_STEPS_DEFAULT = 20  # Maximum steps allowed in a plan
 PLANNER_MAX_STEPS_HARD_LIMIT = 25  # Hard limit (cannot be exceeded)
 PLANNER_MAX_COST_USD_DEFAULT = 2.0  # Default budget limit per plan
 PLANNER_MAX_REPLANS_DEFAULT = 2  # Automatic replans of a rejected plan, before it runs
-
-# Planner timeout
-PLANNER_TIMEOUT_SECONDS = 30  # Timeout for planner LLM response
 
 # Token Overflow Fallback Thresholds (Phase B)
 # Progressive thresholds for catalogue reduction when token count exceeds limits.
@@ -2910,6 +2951,7 @@ MICROSOFT_OUTLOOK_SCOPES: list[str] = [
     "Mail.Read",
     "Mail.ReadWrite",
     "Mail.Send",
+    "MailboxSettings.ReadWrite",
 ]
 
 # Microsoft Calendar scopes
@@ -2931,6 +2973,17 @@ MICROSOFT_TASKS_SCOPES: list[str] = [
     *MICROSOFT_COMMON_SCOPES,
     "Tasks.Read",
     "Tasks.ReadWrite",
+]
+
+# OneDrive scopes. `.All` reaches what was shared with the person and a restore; the read
+# scope is asked beside the write one because Graph refuses a change subscription a write
+# scope alone would have to carry.
+MICROSOFT_ONEDRIVE_SCOPES: list[str] = [
+    *MICROSOFT_COMMON_SCOPES,
+    # Graph takes this one alone for a change subscription on a personal drive.
+    "Files.Read",
+    "Files.Read.All",
+    "Files.ReadWrite.All",
 ]
 
 
@@ -3010,7 +3063,6 @@ RETRY_JITTER_DEFAULT = True
 # --- Agents config defaults ---
 MAX_AGENT_RESULTS_DEFAULT = 10
 MAX_ROUTING_HISTORY_DEFAULT = 30
-RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT = 60.0
 # Raised 120 -> 600 (audit D1): must dominate the longest per-step family
 # ceilings (MCP react / browser / sub-agent go up to 600 s) — a 120 s soft
 # plan budget silently stopped scheduling waves after any long legitimate step.
@@ -3057,7 +3109,6 @@ TOOL_CALL_RUN_LIMITS_DEFAULT = (
 CONTEXT_EDIT_CLEAR_TRIGGER_TOKENS_DEFAULT = 100000  # langchain ClearToolUsesEdit default
 CONTEXT_EDIT_CLEAR_KEEP_TOOL_RESULTS_DEFAULT = 3  # langchain ClearToolUsesEdit default
 TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT = 1  # Aligned from .env.prod (was 7)
-SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT = 20.0  # Aligned from .env.prod
 SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT = 0.70  # Aligned from .env.prod (was 0.7)
 PLAN_PATTERN_PRIOR_ALPHA_DEFAULT = 2
 PLAN_PATTERN_PRIOR_BETA_DEFAULT = 1
@@ -3141,7 +3192,6 @@ MEMORY_CONSOLIDATION_HOUR_DEFAULT = 5  # UTC, right after memory_cleanup (4 AM U
 MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT = 0.9  # Cosine similarity threshold
 MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT = 50  # Cap per user per run
 MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP_DEFAULT = 5  # Skip pair if |weight_a - weight_b| > this
-MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT = 5000  # Aligned from .env.prod
 SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT = 8
 V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT = 0.6
 V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT = "first_line"
@@ -3276,6 +3326,8 @@ EMAIL_DRAFTS_BULK_MAX_DEFAULT = 20
 # Messages one call of set_email_read_state_tool marks read or unread (ADR-369):
 # a longer selection is served up to it and the remainder is stated.
 EMAIL_READ_STATE_MAX_MESSAGES: Final = 50
+# Messages one call of organize_emails_tool sorts (ADR-369, lot 4): same rule.
+EMAIL_ORGANIZE_MAX_MESSAGES: Final = 50
 # Concurrent per-message metadata fetches during Gmail search (the list
 # endpoint returns IDs only — N+1 pattern). 8 concurrent fetches resolve
 # 20 results in ~3 sequential-equivalent round-trips (audit wave 3, N-194.8).
@@ -3584,7 +3636,6 @@ INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 # Initiative node independently of the pipeline. Default off -> ship dark; the
 # ReAct draft path (already wired to initiative) is unaffected by this flag.
 INITIATIVE_REACT_ENABLED_DEFAULT = True
-INITIATIVE_LLM_TIMEOUT_SECONDS = 30  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
@@ -3786,7 +3837,6 @@ RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
 # MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)
 # ============================================================================
 # Phase 1: LLM nano extracts personal references from query (e.g., "my wife").
-MEMORY_REFERENCE_EXTRACTION_TIMEOUT_SECONDS = 30.0  # Nano model, strict latency budget
 # Absence-only native gate, evaluated on independent multilingual queries; kept on
 # jev-1.14.0 (2026-10-26): 25 of 26 absences admitted, no false skip at any level.
 JEV_MEMORY_REFERENCE_MIN_CONFIDENCE = 0.99
@@ -4969,15 +5019,41 @@ WORKBENCH_BULK_MAX_ITEMS_DEFAULT = 50
 WORKBENCH_CALENDAR_WINDOW_MAX_EVENTS_DEFAULT = 500
 #: The largest attachment or Drive file served (Drive exports stop at 10 MB anyway).
 WORKBENCH_DOWNLOAD_MAX_BYTES_DEFAULT = 25 * 1024 * 1024
+#: The largest file sent to a drive: under the request ceiling (MAX_REQUEST_BODY_BYTES).
+WORKBENCH_UPLOAD_MAX_BYTES_DEFAULT = 20 * 1024 * 1024
+#: How long a file's bytes may take to reach a drive, from a home connection.
+WORKBENCH_UPLOAD_TIMEOUT_SECONDS: Final = 120.0
 #: The largest HTML body the reader is served; past it the HTML is cut and the cut said.
 WORKBENCH_MAIL_HTML_MAX_BYTES_DEFAULT = 2 * 1024 * 1024
 #: How long a submitted send or create remembers its outcome (one day).
 WORKBENCH_IDEMPOTENCY_TTL_SECONDS_DEFAULT = 86_400
+#: How long « Send » waits on the page before a message leaves, taken back meanwhile.
+WORKBENCH_SEND_UNDO_SECONDS_DEFAULT = 5
+#: How long a signature may be: a few lines, not a second message.
+MAIL_SIGNATURE_MAX_CHARS: Final = 1000
+#: How long a composer stays quiet before it saves what was written as a draft.
+WORKBENCH_DRAFT_AUTOSAVE_SECONDS_DEFAULT = 15
+#: What one message may carry to its frame as images of its own, in bytes.
+WORKBENCH_MAIL_INLINE_MAX_BYTES_DEFAULT = 8 * 1024 * 1024
+#: How many of its own images one message draws: past it the rest are counted.
+WORKBENCH_MAIL_INLINE_IMAGES_MAX: Final = 30
+#: How long a one-click unsubscribe waits for a stranger's server.
+WORKBENCH_UNSUBSCRIBE_TIMEOUT_SECONDS: Final = 10.0
+# The person's own folders whose unread figure one reading asks for (Gmail: one call each).
+WORKBENCH_MAIL_COUNTS_FOLDERS_MAX: Final = 40
+# Messages one « empty the trash » deletes for good: Graph has no batch, so each is a call.
+WORKBENCH_MAIL_EMPTY_TRASH_MAX: Final = 200
 REDIS_KEY_WORKBENCH_IDEMPOTENCY_PREFIX: Final = "workbench:idem:"
 #: A task's or a task list's title, and a task's notes, as long as Google Tasks
 #: documents them (its Task and TaskList resources); published to the page.
 WORKBENCH_TASK_TITLE_MAX_CHARS: Final = 1024
 WORKBENCH_TASK_NOTES_MAX_CHARS: Final = 8192
+#: The steps a new To Do task may carry.
+WORKBENCH_TASK_STEPS_MAX: Final = 100
+#: How far ahead the « Upcoming » view reads, past today.
+WORKBENCH_TASK_UPCOMING_DAYS: Final = 7
+#: The done tasks one click may delete (a list holding more says so).
+WORKBENCH_TASKS_CLEAR_MAX: Final = 200
 #: The words of a mail search, as long as a search box takes (published to the
 #: page); the composed query also carries the chips and the folder.
 WORKBENCH_MAIL_QUERY_MAX_CHARS: Final = 500
@@ -4987,6 +5063,13 @@ WORKBENCH_MAIL_QUERY_MAX_CHARS: Final = 500
 REDIS_KEY_WORKBENCH_DOWNLOAD_PREFIX: Final = "workbench:download:"
 WORKBENCH_DOWNLOAD_CLAIM_TTL_SECONDS: Final = 120
 WORKBENCH_DOWNLOAD_RETRY_AFTER_SECONDS: Final = 5
+#: What a person is LOOKING AT waits for the transfer under way rather than failing: a
+#: read the page dropped still runs here, and the next click arrives behind it. The wait
+#: spans a slow read, and is watched this often.
+WORKBENCH_PREVIEW_WAIT_SECONDS: Final = 15
+#: The words of a text a person reads in the page: past them, it is cut and says so.
+WORKBENCH_READING_TEXT_MAX_BYTES: Final = 512 * 1024
+WORKBENCH_TRANSFER_POLL_SECONDS: Final = 0.2
 #: A message written in the « Tools » section (published to the page): the
 #: recipients of one field, one recipient as typed (an address is at most 254
 #: characters, a display name beside it), a subject (RFC 5322's line), a body.
@@ -5005,7 +5088,26 @@ WORKBENCH_CALENDAR_IDS_MAX: Final = 25
 WORKBENCH_EVENT_SUMMARY_MAX_CHARS: Final = 1024
 WORKBENCH_EVENT_LOCATION_MAX_CHARS: Final = 1024
 WORKBENCH_EVENT_DESCRIPTION_MAX_CHARS: Final = 8192
+WORKBENCH_EVENT_SERIES_MAX_COUNT: Final = 730
+#: What one search across the tools shows of each: enough to recognise, not to read through.
+WORKBENCH_SEARCH_HITS_PER_TOOL: Final = 5
 WORKBENCH_EVENT_ATTENDEES_MAX: Final = 100
+# The furthest ahead a reminder is set: four weeks, Google's own bound.
+WORKBENCH_EVENT_REMINDER_MAX_MINUTES: Final = 40_320
+#: How long a calendar's name may be: Graph's own bound on a folder's, the strictest of the three.
+WORKBENCH_CALENDAR_NAME_MAX_CHARS: Final = 255
+#: How long a file's or a folder's name may be: OneDrive's own bound, the stricter of the two.
+WORKBENCH_FILE_NAME_MAX_CHARS: Final = 255
+#: What OneDrive refuses in a name beyond a path's own separators, which no drive takes.
+ONEDRIVE_REFUSED_NAME_CHARACTERS: Final = '"*:<>?|'
+#: The dated tasks a calendar draws: how many lists are read at once, and how many pages
+#: of each. A list longer than that is stated as read in part (ADR-185).
+WORKBENCH_DUE_TASKS_CONCURRENCY: Final = 4
+WORKBENCH_DUE_TASKS_PAGES_MAX: Final = 5
+# Events one search answers, over every calendar asked.
+WORKBENCH_EVENT_SEARCH_MAX: Final = 50
+# How far a search of the calendars reads on each side of today.
+WORKBENCH_EVENT_SEARCH_SPAN_DAYS: Final = 366
 #: A contact as written in the « Tools » section (published to the page): a name
 #: and an organization, notes, one value (an address is at most 254 characters, a
 #: number far less), and the values of one list (a provider may hold fewer —
@@ -5014,6 +5116,19 @@ WORKBENCH_CONTACT_NAME_MAX_CHARS: Final = 512
 WORKBENCH_CONTACT_NOTES_MAX_CHARS: Final = 8192
 WORKBENCH_CONTACT_VALUE_MAX_CHARS: Final = 320
 WORKBENCH_CONTACT_VALUES_MAX: Final = 20
+#: A photo a person picks; what leaves is redrawn smaller (``WORKBENCH_CONTACT_PHOTO_MAX_SIDE``).
+WORKBENCH_CONTACT_PHOTO_MAX_BYTES: Final = 10 * 1024 * 1024
+#: The longest side of a contact's photo as it is written: a card stays a size iCloud takes.
+WORKBENCH_CONTACT_PHOTO_MAX_SIDE: Final = 512
+#: A photo read from a provider, whatever wrote it there.
+WORKBENCH_CONTACT_PHOTO_READ_MAX_BYTES: Final = 5 * 1024 * 1024
+#: How many contacts an export reads, page after page, within one request a proxy still answers.
+WORKBENCH_CONTACTS_EXPORT_MAX: Final = 1000
+#: How many cards an import creates, one at a time: Google asks mutations for one person to be
+#: sequential, and the whole run must fit one request behind a proxy's own timeout.
+WORKBENCH_CONTACTS_IMPORT_MAX_CARDS: Final = 100
+#: A vCard file taken for an import, a contact's photo included.
+WORKBENCH_CONTACTS_IMPORT_MAX_BYTES: Final = 5 * 1024 * 1024
 #: A postal address as written: Google keeps its own lines (street, postcode and
 #: city, country), so an address is bounded apart from a one-line value.
 WORKBENCH_CONTACT_ADDRESS_MAX_CHARS: Final = 1024
@@ -5030,6 +5145,7 @@ WORKBENCH_DRIVE_FIELDS: Final = (
     "size",
     "webViewLink",
     "shortcutDetails",
+    "starred",
 )
 WORKBENCH_DRIVE_DETAIL_FIELDS: Final = (
     *WORKBENCH_DRIVE_FIELDS,
@@ -5194,6 +5310,12 @@ RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT = 10
 # itself, and after MAX_CONSECUTIVE_TRUNCATIONS truncated wakes in a row
 # rebases the feed and re-synchronises the linked folders in full: a backlog a
 # full synchronisation reconciles is never replayed change by change.
+#: How long Graph keeps a subscription on a drive: under 30 days (42,300 minutes).
+GRAPH_DRIVE_SUBSCRIPTION_MAX_SECONDS = 42_300 * 60
+#: The most notifications read from one Graph delivery: it batches, and one wake serves them all.
+GRAPH_NOTIFICATIONS_PER_DELIVERY_MAX = 100
+#: Graph's validation token is short: anything longer is nobody's handshake.
+GRAPH_VALIDATION_TOKEN_MAX_CHARS = 1024
 RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT = 1000
 #: Google's documented maximum for ``changes.list`` ``pageSize``.
 RAG_DRIVE_CHANGES_PAGE_SIZE_MAX = 1000
@@ -5605,7 +5727,6 @@ COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT = 2000
 COMPACTION_ENABLED_DEFAULT = True
 
 # Compaction v2 — Hardening (2026-05)
-COMPACTION_PER_CHUNK_TIMEOUT_SECONDS_DEFAULT = 35.0
 COMPACTION_GLOBAL_TIMEOUT_SECONDS_DEFAULT = 120.0
 COMPACTION_MAX_RETRIES_DEFAULT = 3
 COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT = 1.0
@@ -6238,6 +6359,25 @@ DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT: int = 60000
 
 # LLM config key (LLM_TYPES_REGISTRY / LLMConfigOverrideCache lookup)
 DOCUMENT_GENERATION_LLM_TYPE: str = "document_generation"
+
+# Interactive pages (ADR-370): a page the model writes, shown live in the chat
+# and kept as an .html file. The rate limit and the step family of documents
+# apply to it too; what differs is below.
+INTERACTIVE_PAGE_ENABLED_DEFAULT: bool = True
+# A page is persisted WITH its message (`widget_persist_max_bytes`) and read back
+# with every history page, so it stays small: the order of a skill frame's own
+# ceiling. Pages measured 2026-11-04 weigh 3 KB to 30 KB.
+INTERACTIVE_PAGE_MAX_BYTES_DEFAULT: int = 200 * 1024
+# How far back a revision looks for the page it changes: the messages of a long
+# conversation that started elsewhere stay unread.
+INTERACTIVE_PAGE_SOURCE_LOOKBACK_MESSAGES_DEFAULT: int = 40
+# LLM config key of the writer's slot, and the name its calls carry in the ledger.
+INTERACTIVE_PAGE_LLM_TYPE: str = "interactive_page"
+INTERACTIVE_PAGE_TOOL_NAME: str = "generate_interactive_page"
+# Bytes of page the writer can produce per output token of the slot: a conversion
+# factor, not a tunable. Measured 2026-11-04 (o200k_base) on real pages inside
+# their JSON field: 2.78 to 2.80, kept ~20% under for language and markup.
+INTERACTIVE_PAGE_BYTES_PER_OUTPUT_TOKEN: float = 2.2
 
 # ----------------------------------------------------------------------------
 # Rendering craft (ADR-276)

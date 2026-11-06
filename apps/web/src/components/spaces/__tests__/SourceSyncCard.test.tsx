@@ -109,6 +109,29 @@ describe('SourceSyncCard', () => {
   });
 });
 
+describe('SourceSyncCard — a source that waits', () => {
+  it('says why, and offers no sync', () => {
+    renderCard({ pausedNote: 'Waiting for its drive' });
+
+    expect(screen.getByText('Waiting for its drive')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ns.sync_now' })).toBeDisabled();
+  });
+
+  it('keeps its other action: a folder can still be unlinked', () => {
+    renderCard({ pausedNote: 'Waiting for its drive' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'ns.unlink' }));
+
+    expect(onUnlink).toHaveBeenCalled();
+  });
+
+  it('says nothing of the kind when it can sync', () => {
+    renderCard();
+
+    expect(screen.getByRole('button', { name: 'ns.sync_now' })).toBeEnabled();
+  });
+});
+
 describe('formatRelativeTime', () => {
   it('reads in minutes, then hours, then days', () => {
     const ago = (ms: number) => new Date(Date.now() - ms).toISOString();

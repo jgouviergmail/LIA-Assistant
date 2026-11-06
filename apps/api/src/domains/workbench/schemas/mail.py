@@ -17,7 +17,7 @@ from typing import Annotated, Final, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from src.core.config import settings
-from src.core.constants import WORKBENCH_MAIL_QUERY_MAX_CHARS
+from src.core.constants import WORKBENCH_MAIL_INLINE_IMAGES_MAX, WORKBENCH_MAIL_QUERY_MAX_CHARS
 from src.domains.workbench.ids import (
     OptionalPageToken,
     OptionalProviderId,
@@ -25,9 +25,10 @@ from src.domains.workbench.ids import (
     ProviderId,
     ProviderName,
 )
+from src.domains.workbench.schemas.acts import ActOutcome
 
 #: The system places of a mailbox, in the order the pane draws them.
-MailRole = Literal["inbox", "starred", "sent", "drafts", "archive", "spam", "trash"]
+MailRole = Literal["inbox", "starred", "sent", "drafts", "archive", "all", "spam", "trash"]
 #: The prefix of a system place's id (a provider handle never starts with it:
 #: a Gmail label id is ``Label_…``, a folder name has no colon).
 SYSTEM_FOLDER_PREFIX: Final = "system:"
@@ -54,6 +55,9 @@ class MailFolders(BaseModel):
     """The folder pane."""
 
     folders: list[MailFolder] = Field(description="System places first, then the person's own.")
+    truncated: bool = Field(
+        default=False, description="The mailbox holds more folders than the walk may read."
+    )
 
 
 class NewLabel(BaseModel):
@@ -93,6 +97,50 @@ class ReadStateChange(MessageSelection):
     """A selection marked read or unread."""
 
     read: bool = Field(description="True marks them read, False unread.")
+
+
+class StarChange(MessageSelection):
+    """A selection starred or unstarred."""
+
+    starred: bool = Field(description="True stars them, False takes their star off.")
+
+
+class MoveRequest(MessageSelection):
+    """A selection sent to a place, as the folder pane names it."""
+
+    to: ProviderId = Field(description="Where they go: a system place, or a folder's id.")
+    origin: OptionalProviderId = Field(
+        default=None, description="Where they are listed; None when the page does not know."
+    )
+
+
+class MovedMessage(BaseModel):
+    """What a message is called after a move."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="Its id before the move.")
+    new_id: str | None = Field(description="Its id now; None when the provider does not say.")
+
+
+class MoveOutcome(ActOutcome):
+    """What a move did, and what each message moved is called from now on."""
+
+    moved: list[MovedMessage] = Field(description="The messages moved, with their new ids.")
+
+
+class TrashEmptied(BaseModel):
+    """What emptying the trash did."""
+
+    deleted: int = Field(ge=0, description="The messages deleted for good.")
+    remaining: bool = Field(description="Whether the trash still holds messages.")
+
+
+class MailCounts(BaseModel):
+    """What the mailbox leaves unread."""
+
+    counts: dict[str, int] = Field(description="Each folder read, by its id in the pane.")
+    truncated: bool = Field(description="True when a folder was left out.")
 
 
 class LabelApplication(MessageSelection):
@@ -166,6 +214,12 @@ class MailSummary(BaseModel):
     received_at: datetime | None = Field(description="When the mailbox received it (UTC).")
     is_read: bool = Field(description="Whether it was read.")
     is_starred: bool = Field(description="Whether it is starred (flagged).")
+    has_attachments: bool = Field(
+        description=(
+            "Whether it carries files: Graph's own word; elsewhere a listing reads no "
+            "part, so its top-level type, which holds for what most mailers send."
+        )
+    )
     label_ids: list[str] = Field(
         description="The person's own Gmail labels on it (ids); none elsewhere."
     )
@@ -181,6 +235,13 @@ class MailPage(BaseModel):
     )
 
 
+class MailConversation(BaseModel):
+    """What was said around a message, for the reader."""
+
+    items: list[MailSummary] = Field(description="Its messages, oldest first, drafts left out.")
+    truncated: bool = Field(description="It holds older messages than these.")
+
+
 class MailAttachment(BaseModel):
     """One attachment of a message."""
 
@@ -192,6 +253,7 @@ class MailAttachment(BaseModel):
     filename: str = Field(description="Its name as sent.")
     mime_type: str = Field(description="Its type as sent.")
     size: int | None = Field(description="Its size in bytes, when the provider says.")
+    previewable: bool = Field(default=False, description="Something can be read of it.")
 
 
 class MailMessage(BaseModel):
@@ -227,6 +289,55 @@ class MailHtml(BaseModel):
     truncated: bool = Field(
         description="Whether the HTML was cut at the published ceiling (workbench_mail_html_max_bytes)."
     )
+
+
+class InlineImagesQuery(BaseModel):
+    """The images of a message its HTML names."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    message_id: ProviderId = Field(description="The message carrying them.")
+    cid: list[ProviderName] = Field(
+        min_length=1,
+        max_length=WORKBENCH_MAIL_INLINE_IMAGES_MAX,
+        description="The ``cid:`` names its HTML uses.",
+    )
+
+
+class MailInlineImage(BaseModel):
+    """One image of a message, as its frame draws it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    cid: str = Field(description="The name its HTML uses.")
+    data_url: str = Field(description="Its bytes, as a ``data:`` address of an image type.")
+
+
+class MailInlineImages(BaseModel):
+    """The images of a message, and how many were left out."""
+
+    model_config = ConfigDict(frozen=True)
+
+    images: list[MailInlineImage] = Field(description="What fits the published budget.")
+    skipped: int = Field(ge=0, description="What was left out: a size, a number or a type.")
+
+
+class MailUnsubscribe(BaseModel):
+    """The ways out of a mailing list a message names."""
+
+    model_config = ConfigDict(frozen=True)
+
+    web_url: str | None = Field(description="An https page, checked for its shape alone.")
+    mail_to: str | None = Field(description="A mail address, with what ``mailto:`` carries.")
+    one_click: bool = Field(description="The sender promises a one-click POST (RFC 8058).")
+
+
+class UnsubscribeRequest(BaseModel):
+    """A one-click unsubscribe from a message."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    message_id: ProviderId = Field(description="The message; its address is read again.")
 
 
 class AttachmentRequest(BaseModel):

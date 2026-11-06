@@ -40,6 +40,7 @@ def build_calendar_agent() -> Any:
 
     from langchain_core.tools import BaseTool
 
+    from src.domains.agents.tools.calendar_answer_tools import respond_to_event_tool
     from src.domains.agents.tools.calendar_tools import (
         create_event_tool,
         delete_event_tool,
@@ -64,6 +65,7 @@ def build_calendar_agent() -> Any:
             create_event_tool,
             update_event_tool,
             delete_event_tool,
+            respond_to_event_tool,  # An invitation answered, confirmed first (ADR-369)
             # Context resolution tools
             resolve_reference,
             get_context_list,

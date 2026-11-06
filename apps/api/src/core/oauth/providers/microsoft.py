@@ -8,6 +8,7 @@ from src.core.constants import (
     MICROSOFT_CONTACTS_SCOPES,
     MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT,
     MICROSOFT_OAUTH_TOKEN_ENDPOINT,
+    MICROSOFT_ONEDRIVE_SCOPES,
     MICROSOFT_OUTLOOK_SCOPES,
     MICROSOFT_TASKS_SCOPES,
 )
@@ -78,6 +79,21 @@ class MicrosoftOAuthProvider:
                 f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-contacts/callback"
             ),
             scopes=MICROSOFT_CONTACTS_SCOPES,
+            authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),
+            token_endpoint=MICROSOFT_OAUTH_TOKEN_ENDPOINT.format(tenant=tenant),
+        )
+
+    @classmethod
+    def for_onedrive(cls, settings: Settings) -> MicrosoftOAuthProvider:
+        """Create provider config for the OneDrive (files) connector."""
+        tenant = settings.microsoft_tenant_id
+        return cls(
+            client_id=settings.microsoft_client_id,
+            client_secret=settings.microsoft_client_secret,
+            redirect_uri=(
+                f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-onedrive/callback"
+            ),
+            scopes=MICROSOFT_ONEDRIVE_SCOPES,
             authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),
             token_endpoint=MICROSOFT_OAUTH_TOKEN_ENDPOINT.format(tenant=tenant),
         )

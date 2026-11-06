@@ -26,9 +26,10 @@ from src.domains.workbench.features import PROVIDER_FEATURES, WorkbenchFeature
 from src.domains.workbench.schemas.mail import SYSTEM_FOLDER_PREFIX, MailListing, MailRole
 
 #: The system places each provider has, in the order the pane draws them.
-#: Gmail keeps no archive folder: an archived message is one without INBOX.
+#: Gmail keeps no archive folder: an archived message is one without INBOX, and
+#: « all mail » is where it is found again.
 SYSTEM_PLACES: Final[dict[ConnectorType, tuple[MailRole, ...]]] = {
-    ConnectorType.GOOGLE_GMAIL: ("inbox", "starred", "sent", "drafts", "spam", "trash"),
+    ConnectorType.GOOGLE_GMAIL: ("inbox", "starred", "sent", "drafts", "all", "spam", "trash"),
     ConnectorType.MICROSOFT_OUTLOOK: (
         "inbox",
         "starred",
@@ -48,6 +49,8 @@ _PLACE_TERMS: Final[dict[MailRole, str]] = {
     "sent": "in:sent",
     "drafts": "in:drafts",
     "archive": "in:archive",
+    # Gmail's own default: a search with no place reads all but the spam and the trash.
+    "all": "",
     "spam": "in:spam",
     "trash": "in:trash",
 }
@@ -91,7 +94,7 @@ def compose_query(provider: ConnectorType, listing: MailListing, zone: ZoneInfo)
             terms.append(f"{operator}:{_day(provider, day, zone)}")
     folder = listing.folder
     if folder.startswith(SYSTEM_FOLDER_PREFIX):
-        terms.append(_place(provider, folder))
+        terms += [term for term in (_place(provider, folder),) if term]
     elif provider is ConnectorType.GOOGLE_GMAIL:
         return MailSearch(" ".join(terms), label_ids=(folder,))
     else:

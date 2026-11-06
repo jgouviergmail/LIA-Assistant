@@ -27,7 +27,7 @@ SOURCE_LINK_MANIFEST = ToolManifest(
     name=SOURCE_LINK_OPERATION.tool_name,
     agent="setting_agent",
     description=(
-        "Prepare mandatory human approval to link one real Google Drive folder or Gmail user label to an owned personal knowledge space. "
+        "Prepare mandatory human approval to link one real folder of the connected drive or Gmail user label to an owned personal knowledge space. "
         "Get real space ids from get_lia_knowledge_spaces_tool and provider ids from get_lia_knowledge_source_options_tool; names are re-read from the provider. "
         "This creates a standing automatic synchronization instruction, which can later consume provider quotas and embedding costs through the existing Source jobs. "
         "Linking does not mean documents have already been imported or indexed. No immediate synchronization or embedding is performed by this action. "

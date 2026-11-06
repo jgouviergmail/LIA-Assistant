@@ -37,6 +37,7 @@ from src.domains.connectors.clients.mailbox_drafts import (
     MailboxDraftNotFoundError,
     MailboxFolderUnavailableError,
 )
+from src.domains.connectors.clients.office_files import OfficeContentRefusedError, OfficeRefusal
 from src.domains.workbench import errors
 from src.domains.workbench.errors import refusal_for, refuse, refuse_provider_failure
 from src.domains.workbench.ids import ProviderId
@@ -224,6 +225,21 @@ class TestTypedClientErrors:
     )
     def test_a_typed_failure_is_classified(self, failure: BaseException, code: str) -> None:
         assert refusal_for(failure, act=True)[0] == code
+
+    @pytest.mark.parametrize(
+        ("refusal", "code"),
+        [
+            (OfficeRefusal.CHANGED, errors.CONFLICT),
+            (OfficeRefusal.LOCKED, errors.FILE_LOCKED),
+            (OfficeRefusal.TOO_LARGE, errors.TOO_LARGE),
+            (OfficeRefusal.NOT_THIS_FORMAT, errors.NOT_SUPPORTED_BY_PROVIDER),
+            (OfficeRefusal.UNREADABLE, errors.NOT_SUPPORTED_BY_PROVIDER),
+        ],
+    )
+    def test_a_file_that_refuses_says_why(self, refusal: OfficeRefusal, code: str) -> None:
+        failure = OfficeContentRefusedError(refusal)
+
+        assert errors.refusal_for(failure, act=True)[0] == code
 
     def test_a_part_over_the_bound_quotes_the_bound(self) -> None:
         too_large = EmailAttachmentTooLargeError(size=30, max_bytes=20)

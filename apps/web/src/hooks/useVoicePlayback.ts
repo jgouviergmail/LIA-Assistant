@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import type { VoiceAudioChunk } from '@/types/chat';
 import { avatarEngine } from '@/lib/avatars/runtime';
 import { VoiceOutputCoordinator, type VoiceOutputSelection } from '@/lib/voice-output/coordinator';
+import { generateUUID } from '@/lib/utils';
 
 /**
  * useVoicePlayback - Hook for managing voice comment playback.
@@ -131,7 +132,7 @@ export function useVoicePlayback() {
 
       try {
         setError(null);
-        if (!selection.current) beginVoiceRun(crypto.randomUUID());
+        if (!selection.current) beginVoiceRun(generateUUID());
         audioQueueRef.current.setDecodedOutput(selection.current?.output ?? null);
         await audioQueueRef.current.enqueue(chunk.audio_base64);
       } catch (err) {

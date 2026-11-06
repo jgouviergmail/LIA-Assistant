@@ -70,7 +70,11 @@ function rail(ready: readonly WorkbenchToolId[]): WorkbenchAvailability {
       page_size: 25,
       bulk_max_items: 50,
       download_max_bytes: 1,
+      upload_max_bytes: 1,
       calendar_window_max_events: 500,
+      send_undo_seconds: 0,
+      draft_autosave_seconds: 0,
+      search_max_chars: 500,
     },
   };
 }

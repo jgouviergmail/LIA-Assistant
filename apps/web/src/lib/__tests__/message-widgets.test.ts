@@ -81,4 +81,21 @@ describe('mergeRegistryWithHistory', () => {
     const live = { skill_app_a: item('skill_app_a') };
     expect(mergeRegistryWithHistory(live, [message('m1')])).toBe(live);
   });
+
+  it('says a widget came back from history, so a page waits to be asked', () => {
+    const merged = mergeRegistryWithHistory({}, [message('m1', { page_a: item('page_a') })]);
+    expect(merged.page_a.restored).toBe(true);
+  });
+
+  it('keeps a widget of this session live when its message is read back mid-game', () => {
+    const live = { page_a: item('page_a') };
+    const merged = mergeRegistryWithHistory(live, [message('m1', { page_a: item('page_a') })]);
+    expect(merged.page_a.restored).toBeUndefined();
+  });
+
+  it('keeps the payload by identity, which is what a frame is keyed on', () => {
+    const stored = item('page_a');
+    const merged = mergeRegistryWithHistory({}, [message('m1', { page_a: stored })]);
+    expect(merged.page_a.payload).toBe(stored.payload);
+  });
 });

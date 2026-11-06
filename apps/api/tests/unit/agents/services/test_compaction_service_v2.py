@@ -25,6 +25,22 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from src.domains.agents.services.compaction_service import CompactionService
 
 
+def _pin_chunk_bound(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
+    """A chunk's call is bounded by the compaction slot: pin it short."""
+    monkeypatch.setattr(
+        "src.domains.agents.services.compaction_service.llm_call_timeout_seconds",
+        lambda _slot: seconds,
+    )
+
+
+def _pin_global_bound(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
+    """The whole compaction yields to the slot: pin the bound it arrives at."""
+    monkeypatch.setattr(
+        "src.domains.agents.services.compaction_service._global_bound_seconds",
+        lambda: seconds,
+    )
+
+
 @pytest.fixture
 def service() -> CompactionService:
     """CompactionService with a deterministic token counter for v2 tests."""
@@ -45,7 +61,7 @@ async def test_summarize_chunk_times_out(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """When llm.ainvoke hangs longer than per-chunk timeout, raise TimeoutError."""
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 0.05)
+    _pin_chunk_bound(monkeypatch, 0.05)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
 
     async def hang(*_a: object, **_kw: object) -> None:
@@ -63,7 +79,7 @@ async def test_summarize_chunk_never_relaunches_a_timed_out_call(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """A summary that timed out may be running and billed: it is never sent again (Q3)."""
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 0.05)
+    _pin_chunk_bound(monkeypatch, 0.05)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
 
@@ -83,7 +99,7 @@ async def test_summarize_chunk_leaves_a_failed_call_to_a_client_owning_its_retri
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """The factory's clients already spent the relaunch budget: one layer of retries only."""
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
     refused = httpx.ConnectError("refused", request=httpx.Request("POST", "http://x"))
@@ -107,7 +123,7 @@ async def test_summarize_chunk_retries_then_succeeds(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """A call that never reached the provider is sent again, within the relaunch budget."""
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 3)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
 
@@ -137,7 +153,7 @@ async def test_summarize_chunk_exhausts_retries(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """When every attempt is refused, the last exception is re-raised."""
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 2)
     monkeypatch.setattr("src.core.config.settings.compaction_retry_backoff_base_seconds", 0.01)
 
@@ -161,8 +177,8 @@ async def test_compact_global_timeout_falls_back_to_truncation(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """When _compact_impl_llm exceeds the global budget, compact() returns strategy='truncation'."""
-    monkeypatch.setattr("src.core.config.settings.compaction_global_timeout_seconds", 0.1)
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_global_bound(monkeypatch, 0.1)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
     monkeypatch.setattr("src.core.config.settings.compaction_chunk_max_tokens", 100_000)
 
@@ -195,8 +211,8 @@ async def test_compact_llm_unexpected_failure_falls_back_to_truncation(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """A non-retryable exception inside _compact_impl_llm routes through the truncation fallback."""
-    monkeypatch.setattr("src.core.config.settings.compaction_global_timeout_seconds", 10.0)
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_global_bound(monkeypatch, 10.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
     monkeypatch.setattr("src.core.config.settings.compaction_chunk_max_tokens", 100_000)
 
@@ -221,9 +237,9 @@ async def test_truncation_fallback_preserves_previous_summaries_flag(
     monkeypatch: pytest.MonkeyPatch, service: CompactionService
 ) -> None:
     """The truncation fallback always sets consolidated_previous_summaries=False, even with prior summaries present."""
-    monkeypatch.setattr("src.core.config.settings.compaction_global_timeout_seconds", 0.05)
+    _pin_global_bound(monkeypatch, 0.05)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_chunk_max_tokens", 100_000)
 
     async def slow(*_a: object, **_kw: object):
@@ -265,8 +281,8 @@ async def test_previous_compaction_summaries_are_consolidated(
     can remove the prior summaries from state without losing context.
     """
     monkeypatch.setattr("src.core.config.settings.compaction_include_previous_summaries", True)
-    monkeypatch.setattr("src.core.config.settings.compaction_global_timeout_seconds", 10.0)
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_global_bound(monkeypatch, 10.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
     monkeypatch.setattr("src.core.config.settings.compaction_chunk_max_tokens", 100_000)
 
@@ -311,8 +327,8 @@ async def test_no_previous_summaries_keeps_consolidated_flag_false(
 ) -> None:
     """When no prior compaction summary exists, consolidated_previous_summaries=False."""
     monkeypatch.setattr("src.core.config.settings.compaction_include_previous_summaries", True)
-    monkeypatch.setattr("src.core.config.settings.compaction_global_timeout_seconds", 10.0)
-    monkeypatch.setattr("src.core.config.settings.compaction_per_chunk_timeout_seconds", 5.0)
+    _pin_global_bound(monkeypatch, 10.0)
+    _pin_chunk_bound(monkeypatch, 5.0)
     monkeypatch.setattr("src.core.config.settings.compaction_max_retries", 1)
     monkeypatch.setattr("src.core.config.settings.compaction_chunk_max_tokens", 100_000)
 

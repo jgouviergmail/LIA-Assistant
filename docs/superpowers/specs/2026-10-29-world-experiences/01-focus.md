@@ -3,8 +3,9 @@
 [Master plan](README.md) · [Contracts](contracts.md) ·
 [Decisions](decisions.md) · [Launch prompt](prompts/01-focus.md)
 
-**Status:** proposed first slice; not implemented by this dossier.
-**Blocking choices:** D01, D02, D09, D10; D07 for persisted content.
+**Status:** first-release direction accepted on 2026-11-03; detailed design only.
+Business implementation is not authorized by this framing request.
+**Accepted decisions:** D01, D02, D07, D09, D10 and D11.
 
 ## Job and useful result
 
@@ -15,7 +16,7 @@ Example: choose “draft the introduction,” optionally select a native ticket,
 a quiet interval, work, then record whether the intended step advanced. The useful
 result is the work interval plus a deliberate next step, not avatar attendance.
 
-## Proposed first-release scope
+## Accepted first-release scope
 
 - Solo focus and voluntary peer co-presence using existing accepted-peer rules.
   Participants may share a rhythm without sharing their intention or screen.

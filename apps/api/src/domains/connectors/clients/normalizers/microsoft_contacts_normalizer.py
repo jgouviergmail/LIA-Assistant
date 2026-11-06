@@ -14,6 +14,7 @@ from typing import Any, Final
 
 import structlog
 
+from src.domains.connectors.clients.contact_details import NO_YEAR, ContactDetails
 from src.domains.connectors.clients.normalizers.contact_values import (
     ContactValuesRefused,
     TypedAddress,
@@ -123,6 +124,9 @@ def normalize_graph_contact(contact: dict[str, Any]) -> dict[str, Any]:
     # Notes
     notes = contact.get("personalNotes", "")
 
+    # The one website Graph keeps
+    website = contact.get("businessHomePage", "")
+
     # Photos
     photos = []
     if contact.get("photo"):
@@ -137,6 +141,7 @@ def normalize_graph_contact(contact: dict[str, Any]) -> dict[str, Any]:
         "organizations": organizations,
         "addresses": addresses,
         "birthdays": birthdays,
+        "urls": [{"value": website}] if website else [],
         "biographies": [{"value": notes}] if notes else [],
         "photos": photos,
         "_provider": "microsoft",
@@ -217,7 +222,7 @@ def _parse_birthday(birthday_str: str) -> dict[str, int] | None:
             month = int(parts[1])
             day = int(parts[2])
             # Microsoft uses year 1604 as sentinel for "no year"
-            if year <= 1604:
+            if year <= NO_YEAR:
                 year = 0
             return {"year": year, "month": month, "day": day}
     except ValueError, IndexError:
@@ -235,6 +240,7 @@ def build_contact_body(
     emails: list[TypedValue] | None = None,
     phones: list[TypedValue] | None = None,
     addresses: list[TypedAddress] | None = None,
+    details: ContactDetails | None = None,
 ) -> dict[str, Any]:
     """
     Build a Microsoft Graph contact request body from parameters.
@@ -248,6 +254,7 @@ def build_contact_body(
         emails: Every e-mail (optional; not with ``email``).
         phones: Every phone, each in its kind's slot (optional; not with ``phone``).
         addresses: Every address, one per kind (optional).
+        details: Its name's parts, job title, website and birthday (optional).
 
     Returns:
         Dict suitable for POST /me/contacts.
@@ -277,7 +284,27 @@ def build_contact_body(
     if notes:
         body["personalNotes"] = notes
 
-    return body
+    return body | _detail_fields(details)
+
+
+def _detail_fields(details: ContactDetails | None) -> dict[str, Any]:
+    """The Graph fields ``details`` changes; none for what it leaves out."""
+    if details is None:
+        return {}
+    fields: dict[str, Any] = {}
+    for key, value in (
+        ("givenName", details.given_name),
+        ("surname", details.family_name),
+        ("jobTitle", details.job_title),
+        ("businessHomePage", details.website),
+    ):
+        if value is not None:
+            fields[key] = value
+    if details.birthday is not None:
+        fields["birthday"] = f"{details.birthday.isoformat()}T00:00:00Z"
+    elif details.clear_birthday:
+        fields["birthday"] = None
+    return fields
 
 
 def build_contact_update_body(
@@ -292,6 +319,7 @@ def build_contact_update_body(
     emails: list[TypedValue] | None = None,
     phones: list[TypedValue] | None = None,
     addresses: list[TypedAddress] | None = None,
+    details: ContactDetails | None = None,
 ) -> dict[str, Any]:
     """
     Build a Microsoft Graph contact PATCH body from parameters.
@@ -311,6 +339,7 @@ def build_contact_update_body(
         emails: Every e-mail (optional).
         phones: Every phone (optional).
         addresses: Every address (optional).
+        details: What changes of its name's parts, job, website and birthday (optional).
 
     Returns:
         Dict suitable for PATCH /me/contacts/{id}.
@@ -344,7 +373,7 @@ def build_contact_update_body(
     if notes is not None:
         body["personalNotes"] = notes
 
-    return body
+    return body | _detail_fields(details)
 
 
 def contact_value_fields(

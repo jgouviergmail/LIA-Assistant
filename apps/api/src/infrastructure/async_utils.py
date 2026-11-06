@@ -352,6 +352,24 @@ async def write_through_cancellation(
     return cancelled
 
 
+async def cancel_and_wait(task: asyncio.Future[Any], *, timeout_seconds: float) -> None:
+    """Cancel a task and give it the time to end, what it closes before what follows.
+
+    A cancelled task left behind runs its ``finally`` blocks beside its caller's: a
+    turn's stream wrote its spend while the turn wrote the same spend (2026-11-05).
+    The wait is bounded, so a task that does not end holds nobody, and a failure met
+    while closing is read and said.
+
+    Args:
+        task: The task to stop.
+        timeout_seconds: How long its end is worth waiting for.
+    """
+    task.cancel()
+    await asyncio.wait({task}, timeout=timeout_seconds)
+    if task.done() and not task.cancelled() and (failure := task.exception()) is not None:
+        logger.warning("cancelled_task_failed_closing", error_type=type(failure).__name__)
+
+
 def settled_or_raise(results: Sequence[object], *, quiet: Collection[int] = ()) -> list[Any]:
     """The answers of a ``gather(..., return_exceptions=True)``, the first failure raised.
 

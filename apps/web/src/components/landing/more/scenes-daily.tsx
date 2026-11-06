@@ -40,6 +40,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Volume2,
+  Users,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -1378,11 +1379,56 @@ function HandoverTrailScene({ active, labels }: SceneProps) {
   );
 }
 
+type DragWithGuestsPhase = 'slot' | 'dragged' | 'editor';
+const DRAG_WITH_GUESTS_STEPS: readonly TimelineStep<DragWithGuestsPhase>[] = [
+  { at: 0, state: 'slot' },
+  { at: 900, state: 'dragged' },
+  { at: 1700, state: 'editor' },
+];
+
+/**
+ * An event with guests dragged to a new time opens its editor there: nobody is
+ * told by a slip of the mouse, and nothing leaves before « Save ».
+ */
+function DragWithGuestsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DRAG_WITH_GUESTS_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'flex-row items-stretch justify-center gap-2 py-3')}>
+      <div className="relative w-24 rounded-md border border-border bg-background">
+        <span
+          className={cn(
+            'absolute inset-x-1 flex h-6 items-center gap-1 rounded-sm bg-primary/15 px-1 transition-[top] duration-500 motion-reduce:transition-none',
+            phase === 'slot' ? 'top-[12%]' : 'top-[60%]'
+          )}
+        >
+          <Users className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <SkeletonLine w="w-1/2" className="h-1" />
+        </span>
+      </div>
+      <div
+        className={cn(
+          'flex w-32 flex-col justify-center gap-1.5 rounded-md border border-border bg-background p-1.5 shadow-sm transition-opacity duration-300 motion-reduce:transition-none',
+          phase === 'editor' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <span className="flex items-start gap-1 text-px-9 font-medium leading-tight text-foreground/80">
+          <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          {labels.notify}
+        </span>
+        <span className="self-end rounded-md bg-primary px-1.5 py-0.5 text-px-9 font-medium text-primary-foreground">
+          {labels.save}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
   progressive_home: ProgressiveHomeScene,
+  drag_with_guests: DragWithGuestsScene,
   card_actions: CardActionsScene,
   folded_settings: FoldedSettingsScene,
   exchange_rhythm: ExchangeRhythmScene,

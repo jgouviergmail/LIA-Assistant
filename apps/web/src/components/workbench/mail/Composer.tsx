@@ -3,41 +3,68 @@
 /**
  * Composer — a new message, a reply, a forward or a draft (ADR-369, Task 4.7).
  *
- * A dialog on a large screen, the whole screen on a phone. The recipients are
- * typed with the account's contacts suggested (the Tools door, which files
+ * A window docked at the corner of a large screen, so the mail stays readable and
+ * usable behind it; the whole screen on a phone, where a reply and a forward
+ * keep the message in sight above their own words. Nothing behind it is hidden
+ * or trapped: its focus is its own, and given back when it closes. The recipients
+ * are typed with the account's contacts suggested (the Tools door, which files
  * nothing: the person types); the subject and the text are bounded by the
- * very limits the send refuses beyond (ADR-184); a new message may carry the
- * person's own files. « Send » is held while the message leaves; when nobody
+ * very limits the send refuses beyond (ADR-184); a message and an answer may carry
+ * the person's own files and those of the device, chosen or dropped, and nothing
+ * leaves while one is on its way; who a reply reaches shows as soon as it is read.
+ * « Send » is held while the message leaves; when nobody
  * knows whether it left, what was written stays and the person is told to look
  * in Sent — the page never sends it again by itself (ADR-221). Closing with
- * words not sent nor saved asks first.
+ * words not sent nor saved asks first, and so does the browser leaving the page;
+ * words a quiet composer saved by itself are in the drafts, and closing says so.
+ * « Send » first holds the message for a moment, the composer aside and « Undo »
+ * in its place (`useComposer`).
  */
-import { Paperclip, Send, X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { Paperclip, Send, Type, Upload, X } from 'lucide-react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 
 import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { LinkedText } from '@/components/ui/linked-text';
 import { Textarea } from '@/components/ui/textarea';
 import { useConfirm } from '@/components/ui/use-confirm';
 import type { WorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 import { addressLabel, fileSize } from '@/lib/workbench/mail';
-import { writes, type ComposerTarget, type RecipientField } from '@/lib/workbench/mail-compose';
+import {
+  senderShown,
+  textToHtml,
+  writes,
+  type ComposeFailure,
+  type ComposerFields,
+  type ComposerTarget,
+  type RecipientField,
+} from '@/lib/workbench/mail-compose';
 import { WORKBENCH_RECIPIENTS_PATH } from '@/lib/workbench/recipients';
-import type { AttachableFile, WorkbenchToolAvailability } from '@/lib/workbench/types';
+import type {
+  AttachableFile,
+  MailAttachment,
+  MailSender,
+  WorkbenchToolAvailability,
+} from '@/lib/workbench/types';
 
+import { FileSendingLine, useFileDrop } from '../files/FileSending';
 import { AttachablePicker } from './AttachablePicker';
+import { RichBody } from './RichBody';
 import { useComposer, type ComposerState } from './useComposer';
+import { useDeviceFiles } from './useDeviceFiles';
 
 /** The published bounds the composer draws, each with a fallback the send would refuse anyway. */
 function boundsOf(tool: WorkbenchToolAvailability) {
@@ -60,7 +87,24 @@ export interface ComposerProps {
   onClose: () => void;
   onSent: (alreadySent: boolean) => void;
   onDraftSaved: () => void;
+  /** What one file of the device may weigh. */
+  uploadMaxBytes: number;
+  /** How long « Send » waits before the message leaves (0: at once). */
+  holdMs?: number;
+  /** How long a quiet composer waits before it saves a draft (0: never by itself). */
+  autosaveMs?: number;
+  /** What a body gains to carry the person's signature. */
+  signatureBlock?: string;
+  /** The addresses the mailbox sends from: a choice from two up. */
+  senders?: readonly MailSender[];
+  /** What was held could not leave and the composer is gone. */
+  onLost?: (words: ComposerFields, failure: ComposeFailure) => void;
 }
+
+/** The first field to write in: the recipients, or the words of a reply. */
+const FIRST_FIELD = 'input, textarea';
+/** Where the words are written, whichever the person chose. */
+const BODY_FIELD = 'textarea, [contenteditable="true"]';
 
 export function Composer({
   lng,
@@ -70,22 +114,71 @@ export function Composer({
   onClose,
   onSent,
   onDraftSaved,
+  uploadMaxBytes,
+  holdMs = 0,
+  autosaveMs = 0,
+  signatureBlock = '',
+  senders = [],
+  onLost,
 }: ComposerProps) {
   const { t } = useTranslation(lng);
   const { confirm, confirmDialog } = useConfirm();
   const [picking, setPicking] = useState(false);
   const bounds = boundsOf(tool);
-  const parts = writes(target);
-  const offersFiles = parts.files && tool.features.includes('attachments');
   const state = useComposer({
     target,
     writing,
     recipientsMax: bounds.recipientsMax,
     onSent,
     onDraftSaved,
+    holdMs,
+    autosaveMs: tool.features.includes('drafts') ? autosaveMs : 0,
+    signatureBlock,
+    onLost,
   });
   const { fields, set } = state;
-  const context = contextOf(target);
+  const parts = writes(target, state.answered);
+  const offersFiles = parts.files && tool.features.includes('attachments');
+  const carried = state.heldFiles.map(file => ({ size: file.size ?? 0 }));
+  const device = useDeviceFiles({
+    lng,
+    chosen: [...fields.files, ...carried],
+    bounds: {
+      maxFiles: bounds.filesMax,
+      maxBytes: bounds.filesMaxBytes,
+      eachMaxBytes: Math.min(uploadMaxBytes, bounds.filesMaxBytes),
+    },
+    onKept: state.addFile,
+  });
+  const drop = useFileDrop({ lng, enabled: offersFiles, onFiles: device.send });
+  const uploading = device.now !== null;
+  const context = contextOf(target, state.answered);
+  const panel = useRef<HTMLElement>(null);
+  const undo = useRef<HTMLButtonElement>(null);
+  const wasHolding = useRef(false);
+  const titleId = useId();
+  const lineId = useId();
+  const holding = state.status === 'holding';
+  const atStake = holding || state.dirty;
+
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panel.current?.querySelector<HTMLElement>(FIRST_FIELD)?.focus();
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
+  }, []);
+  useEffect(() => {
+    if (holding) undo.current?.focus();
+    else if (wasHolding.current) panel.current?.querySelector<HTMLElement>(BODY_FIELD)?.focus();
+    wasHolding.current = holding;
+  }, [holding]);
+  useEffect(() => {
+    if (!atStake) return;
+    const guard = (event: Event) => event.preventDefault();
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [atStake]);
 
   const requestClose = async () => {
     if (state.status === 'sending') return;
@@ -96,25 +189,57 @@ export function Composer({
         description: t('workbench.mail.compose.discard_description'),
         confirmLabel: t('workbench.mail.compose.discard'),
       }));
-    if (discard) onClose();
+    if (!discard) return;
+    if (state.autosave === 'saved') onDraftSaved();
+    onClose();
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void requestClose();
   };
 
   return (
-    <Dialog open onOpenChange={open => !open && void requestClose()}>
-      <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 sm:max-w-2xl">
+    <>
+      <HoldingNotice lng={lng} holding={holding} undo={undo} onUndo={state.undoSend} />
+      <section
+        ref={panel}
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby={titleId}
+        aria-describedby={lineId}
+        hidden={holding}
+        onKeyDown={onKeyDown}
+        {...drop.handlers}
+        className={cn(
+          'fixed z-50 flex-col bg-card shadow-2xl max-sm:inset-0 sm:bottom-4 sm:right-4 sm:max-h-[calc(100dvh-2rem)] sm:w-[min(42rem,calc(100vw-2rem))] sm:rounded-lg sm:border',
+          holding ? 'hidden' : 'flex'
+        )}
+      >
         <form
-          className="flex min-h-0 flex-col gap-4"
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4"
           onSubmit={event => {
             event.preventDefault();
-            void state.send();
+            if (!uploading) void state.send();
           }}
         >
-          <DialogHeader>
-            <DialogTitle>{t(`workbench.mail.compose.title_${titleOf(target)}`)}</DialogTitle>
-            <DialogDescription>{t(context.key, context.values)}</DialogDescription>
-          </DialogHeader>
+          <div className="space-y-1">
+            <h2 id={titleId} className="text-base font-semibold">
+              {t(`workbench.mail.compose.title_${titleOf(target)}`)}
+            </h2>
+            <p id={lineId} className="text-sm text-muted-foreground">
+              {t(context.key, context.values)}
+            </p>
+          </div>
           {parts.recipients && (
-            <RecipientFields lng={lng} target={target} state={state} queryMin={bounds.queryMin} />
+            <RecipientFields
+              lng={lng}
+              target={target}
+              state={state}
+              senders={senders}
+              queryMin={bounds.queryMin}
+            />
           )}
           {parts.subject && (
             <Input
@@ -124,44 +249,142 @@ export function Composer({
               onChange={event => set({ subject: event.target.value })}
             />
           )}
-          <Textarea
-            label={t('workbench.mail.compose.body')}
-            value={fields.body}
-            maxLength={bounds.bodyMax}
-            rows={10}
-            onChange={event => set({ body: event.target.value })}
-            className="min-h-48"
-          />
-          {offersFiles && !state.drafted && (
+          <BodyField lng={lng} state={state} maxLength={bounds.bodyMax} />
+          <AnsweredMessage lng={lng} target={target} />
+          {offersFiles && (
             <FilesField
               lng={lng}
               files={fields.files}
+              held={state.heldFiles}
               onRemove={id => set({ files: fields.files.filter(file => file.id !== id) })}
+              onDropHeld={state.dropHeldFile}
               onPick={() => setPicking(true)}
+              onDevice={device.send}
             />
           )}
+          {device.now && <FileSendingLine lng={lng} now={device.now} onStop={device.stop} />}
           <ComposerNotices lng={lng} state={state} />
           <ComposerFooter
             lng={lng}
             state={state}
+            uploading={uploading}
             offersDrafts={parts.bcc && tool.features.includes('drafts')}
             onCancel={() => void requestClose()}
           />
         </form>
+        <DropVeil lng={lng} dragging={drop.dragging} />
         {offersFiles && (
           <AttachablePicker
             lng={lng}
             open={picking}
             onOpenChange={setPicking}
             chosen={fields.files}
+            carried={carried}
             maxFiles={bounds.filesMax}
             maxBytes={bounds.filesMaxBytes}
             onToggle={file => set({ files: toggleFile(fields.files, file) })}
           />
         )}
         {confirmDialog}
-      </DialogContent>
-    </Dialog>
+      </section>
+    </>
+  );
+}
+
+/** The words of the message, plain or formatted: the person's choice, for this message. */
+function BodyField({
+  lng,
+  state,
+  maxLength,
+}: {
+  lng: Language;
+  state: ComposerState;
+  maxLength: number | undefined;
+}) {
+  const { t } = useTranslation(lng);
+  const { fields, set } = state;
+  const formatted = fields.html !== null;
+  return (
+    <div className="space-y-1">
+      {fields.html !== null ? (
+        <RichBody lng={lng} html={fields.html} onChange={(html, body) => set({ html, body })} />
+      ) : (
+        <Textarea
+          label={t('workbench.mail.compose.body')}
+          value={fields.body}
+          maxLength={maxLength}
+          rows={8}
+          onChange={event => set({ body: event.target.value })}
+          className="min-h-36"
+        />
+      )}
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5"
+          aria-pressed={formatted}
+          onClick={() => set({ html: formatted ? null : textToHtml(fields.body) })}
+        >
+          <Type className="h-4 w-4" aria-hidden="true" />
+          {t('workbench.mail.compose.format')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** The message held for its moment, and the way to take it back. */
+function HoldingNotice({
+  lng,
+  holding,
+  undo,
+  onUndo,
+}: {
+  lng: Language;
+  holding: boolean;
+  undo: RefObject<HTMLButtonElement | null>;
+  onUndo: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  if (!holding) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-lg">
+      <span role="status" className="text-sm">
+        {t('workbench.mail.compose.holding')}
+      </span>
+      <Button ref={undo} variant="outline" size="sm" onClick={onUndo}>
+        {t('workbench.mail.compose.undo')}
+      </Button>
+    </div>
+  );
+}
+
+/** What a drag of files over the composer sees. */
+function DropVeil({ lng, dragging }: { lng: Language; dragging: boolean }) {
+  const { t } = useTranslation(lng);
+  if (!dragging) return null;
+  return (
+    <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/90 text-sm font-medium">
+      {t('workbench.files.drop_here')}
+    </div>
+  );
+}
+
+/** The message a reply or a forward answers, kept in sight: a phone has nothing behind it. */
+function AnsweredMessage({ lng, target }: { lng: Language; target: ComposerTarget }) {
+  const { t } = useTranslation(lng);
+  if (target.kind !== 'reply' && target.kind !== 'forward') return null;
+  return (
+    <details open className="rounded-md border bg-muted/30">
+      <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground">
+        {t('workbench.mail.compose.answered')}
+      </summary>
+      <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words px-3 pb-3 text-sm">
+        <LinkedText text={target.message.body} />
+      </p>
+    </details>
   );
 }
 
@@ -176,15 +399,50 @@ interface RecipientFieldsProps {
   lng: Language;
   target: ComposerTarget;
   state: ComposerState;
+  senders: readonly MailSender[];
   queryMin: number;
 }
 
-/** To, and on demand Cc (and Bcc where the target carries it), contacts suggested. */
-function RecipientFields({ lng, target, state, queryMin }: RecipientFieldsProps) {
+/** Where the message leaves from, among the addresses the mailbox holds. */
+function SenderField({
+  lng,
+  senders,
+  value,
+  onChange,
+}: {
+  lng: Language;
+  senders: readonly MailSender[];
+  value: string;
+  onChange: (address: string) => void;
+}) {
   const { t } = useTranslation(lng);
-  const [shown, setShown] = useState(target.kind === 'draft' && target.draft.cc.length > 0);
-  const copiesId = useId();
+  const fieldId = useId();
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={fieldId}>{t('workbench.mail.compose.from')}</Label>
+      <select
+        id={fieldId}
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+      >
+        {senders.map(sender => (
+          <option key={sender.address} value={sender.address}>
+            {sender.name ? `${sender.name} <${sender.address}>` : sender.address}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** To, and on demand Cc (and Bcc where the target carries it), contacts suggested. */
+function RecipientFields({ lng, target, state, senders, queryMin }: RecipientFieldsProps) {
+  const { t } = useTranslation(lng);
   const { fields, set, problem } = state;
+  // Drawn once its recipients are known: copies already there show from the start.
+  const [shown, setShown] = useState(fields.cc !== '');
+  const copiesId = useId();
   const withBcc = writes(target).bcc;
   const field = (name: RecipientField, labelKey: string) => (
     <RecipientCombobox
@@ -199,6 +457,14 @@ function RecipientFields({ lng, target, state, queryMin }: RecipientFieldsProps)
   );
   return (
     <div className="space-y-3">
+      {senders.length > 1 && (
+        <SenderField
+          lng={lng}
+          senders={senders}
+          value={senderShown(fields, target, senders)}
+          onChange={sendAs => set({ sendAs })}
+        />
+      )}
       {field('to', 'workbench.mail.compose.to')}
       <Button
         type="button"
@@ -243,17 +509,20 @@ function ComposerNotices({ lng, state }: { lng: Language; state: ComposerState }
 interface ComposerFooterProps {
   lng: Language;
   state: ComposerState;
+  /** A file is on its way: nothing leaves without it. */
+  uploading: boolean;
   offersDrafts: boolean;
   onCancel: () => void;
 }
 
 /** Save as a draft (where the provider keeps drafts), cancel, send — held while busy. */
-function ComposerFooter({ lng, state, offersDrafts, onCancel }: ComposerFooterProps) {
+function ComposerFooter({ lng, state, uploading, offersDrafts, onCancel }: ComposerFooterProps) {
   const { t } = useTranslation(lng);
   const { status } = state;
   const settled = status === 'unknown';
   return (
-    <DialogFooter className="gap-2 max-sm:mt-auto">
+    <div className="flex flex-wrap items-center justify-end gap-2 max-sm:mt-auto">
+      <AutosaveLine lng={lng} state={state} />
       {offersDrafts && (
         <Button
           type="button"
@@ -272,13 +541,32 @@ function ComposerFooter({ lng, state, offersDrafts, onCancel }: ComposerFooterPr
       <Button
         type="submit"
         isLoading={status === 'sending'}
-        aria-disabled={settled || status === 'saving' || undefined}
+        aria-disabled={settled || status === 'saving' || uploading || undefined}
         className="gap-1.5"
       >
         <Send className="h-4 w-4" aria-hidden="true" />
         {t('workbench.mail.compose.send')}
       </Button>
-    </DialogFooter>
+    </div>
+  );
+}
+
+/** What the composer's last save by itself came to, while it still holds. */
+function AutosaveLine({ lng, state }: { lng: Language; state: ComposerState }) {
+  const { t } = useTranslation(lng);
+  const { autosave, dirty } = state;
+  if (autosave === 'failed') {
+    return (
+      <span role="status" className="mr-auto text-xs text-destructive">
+        {t('workbench.mail.compose.autosave_failed')}
+      </span>
+    );
+  }
+  if (autosave !== 'saved' || dirty) return null;
+  return (
+    <span role="status" className="mr-auto text-xs text-muted-foreground">
+      {t('workbench.mail.compose.autosaved')}
+    </span>
   );
 }
 
@@ -288,12 +576,18 @@ function titleOf(target: ComposerTarget): string {
 }
 
 /** Whom a reply goes to, what a forward carries, or what a new message is (a key and its values). */
-function contextOf(target: ComposerTarget): {
+function contextOf(
+  target: ComposerTarget,
+  answered: boolean
+): {
   key: string;
   values?: Record<string, string | number>;
 } {
   if (target.kind === 'reply') {
     const { message } = target;
+    if (answered) {
+      return { key: 'workbench.mail.compose.reply_about', values: { subject: message.subject } };
+    }
     const to =
       message.reply_to.length > 0 ? message.reply_to : message.sender ? [message.sender] : [];
     return {
@@ -312,58 +606,115 @@ function contextOf(target: ComposerTarget): {
           values: { subject: target.message.subject, count },
         };
   }
-  if (target.kind === 'draft' && target.draft.attachments.length > 0) {
-    return {
-      key: 'workbench.mail.compose.draft_files',
-      values: { count: target.draft.attachments.length },
-    };
-  }
   return { key: 'workbench.mail.compose.new_line' };
+}
+
+/** A file on the message, and the way to take it off. */
+function FileChip({
+  lng,
+  filename,
+  size,
+  onRemove,
+}: {
+  lng: Language;
+  filename: string;
+  size: number | null;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation(lng);
+  return (
+    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card py-1 pl-3 pr-1 text-sm">
+      <span className="truncate">{filename}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {size ? fileSize(size, lng) : null}
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={onRemove}
+        aria-label={t('workbench.mail.files.remove', { name: filename })}
+      >
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
+      </Button>
+    </li>
+  );
 }
 
 function FilesField({
   lng,
   files,
+  held,
   onRemove,
+  onDropHeld,
   onPick,
+  onDevice,
 }: {
   lng: Language;
   files: readonly { id: string; filename: string; size: number }[];
+  /** What a draft carries already. */
+  held: readonly MailAttachment[];
   onRemove: (id: string) => void;
+  onDropHeld: (name: string) => void;
   onPick: () => void;
+  onDevice: (files: File[]) => void;
 }) {
   const { t } = useTranslation(lng);
+  const chooser = useRef<HTMLInputElement>(null);
+  const chosen = (event: ChangeEvent<HTMLInputElement>) => {
+    onDevice([...(event.target.files ?? [])]);
+    // The same file chosen again is a new choice.
+    event.target.value = '';
+  };
   return (
     <div className="space-y-2">
-      {files.length > 0 && (
+      {files.length + held.length > 0 && (
         <ul aria-label={t('workbench.mail.files.chosen')} className="flex flex-wrap gap-2">
+          {held.map((file, index) => (
+            <FileChip
+              key={`${file.filename}-${index}`}
+              lng={lng}
+              filename={file.filename}
+              size={file.size}
+              onRemove={() => onDropHeld(file.filename)}
+            />
+          ))}
           {files.map(file => (
-            <li
+            <FileChip
               key={file.id}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card py-1 pl-3 pr-1 text-sm"
-            >
-              <span className="truncate">{file.filename}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {fileSize(file.size, lng)}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => onRemove(file.id)}
-                aria-label={t('workbench.mail.files.remove', { name: file.filename })}
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </li>
+              lng={lng}
+              filename={file.filename}
+              size={file.size}
+              onRemove={() => onRemove(file.id)}
+            />
           ))}
         </ul>
       )}
-      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onPick}>
-        <Paperclip className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.mail.files.add')}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onPick}>
+          <Paperclip className="h-4 w-4" aria-hidden="true" />
+          {t('workbench.mail.files.add')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => chooser.current?.click()}
+        >
+          <Upload className="h-4 w-4" aria-hidden="true" />
+          {t('workbench.mail.files.from_device')}
+        </Button>
+        <input
+          ref={chooser}
+          type="file"
+          multiple
+          hidden
+          aria-label={t('workbench.mail.files.from_device')}
+          onChange={chosen}
+        />
+      </div>
     </div>
   );
 }

@@ -32,7 +32,11 @@ function availability(states: States): WorkbenchAvailability {
       page_size: 25,
       bulk_max_items: 50,
       download_max_bytes: 1,
+      upload_max_bytes: 1,
       calendar_window_max_events: 500,
+      send_undo_seconds: 0,
+      draft_autosave_seconds: 0,
+      search_max_chars: 500,
     },
   };
 }
@@ -43,6 +47,37 @@ function rail(states: States, active: WorkbenchToolId | null = null): HTMLElemen
   );
   return screen.getByRole('navigation', { name: 'workbench.rail.label' });
 }
+
+describe('WorkbenchRail — whose tool it is', () => {
+  it('names the vendor of the open tool, and of no other', () => {
+    renderWithProviders(
+      <WorkbenchRail
+        lng="en"
+        availability={{
+          tools: [
+            {
+              tool: 'mail',
+              state: 'ready',
+              provider: 'microsoft_outlook',
+              features: [],
+              bounds: {},
+            },
+            { tool: 'tasks', state: 'ready', provider: 'google_tasks', features: [], bounds: {} },
+          ],
+          limits: availability({}).limits,
+        }}
+        activeTool="mail"
+      />
+    );
+
+    expect(screen.getByRole('link', { name: /workbench.tools.mail.label/ })).toHaveTextContent(
+      'Microsoft'
+    );
+    expect(screen.getByRole('link', { name: /workbench.tools.tasks.label/ })).not.toHaveTextContent(
+      'Google'
+    );
+  });
+});
 
 describe('WorkbenchRail', () => {
   it('lists the usable and broken tools in « Tools », as links to their pages', () => {

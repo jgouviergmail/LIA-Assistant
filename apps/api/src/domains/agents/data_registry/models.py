@@ -82,6 +82,7 @@ class RegistryItemType(str, Enum):
     MCP_RESULT = "MCP_RESULT"  # MCP tool result (evolution F2.3)
     MCP_APP = "MCP_APP"  # MCP Apps interactive widget (evolution F2.5)
     SKILL_APP = "SKILL_APP"  # Skill rich output (frame/image) interactive widget
+    PAGE_APP = "PAGE_APP"  # Interactive page the model wrote (ADR-370)
     BROWSER_PAGE = "BROWSER_PAGE"  # Browser page snapshot (evolution F7)
 
     # Generic/utility types
@@ -108,6 +109,7 @@ INTERACTIVE_WIDGET_TYPES: frozenset[RegistryItemType] = frozenset(
     {
         RegistryItemType.SKILL_APP,
         RegistryItemType.MCP_APP,
+        RegistryItemType.PAGE_APP,
         RegistryItemType.DRAFT,
     }
 )

@@ -88,6 +88,10 @@ class RAGSpaceDetailResponse(RAGSpaceResponse):
     mail_sources: list[RAGMailSourceResponse] = Field(
         default_factory=list, description="Gmail labels linked to the space (ADR-262)."
     )
+    active_drive: str | None = Field(
+        default=None,
+        description="The drive the account has connected: a folder of another one waits.",
+    )
 
 
 class RAGSpaceListResponse(BaseModel):
@@ -220,7 +224,7 @@ class RAGReindexStatusResponse(BaseModel):
 
 
 class RAGDriveSourceCreate(BaseModel):
-    """Request body to link a Google Drive folder to a RAG space."""
+    """Request body to link a folder of the connected drive to a RAG space."""
 
     # A Drive id is an opaque token; the shape keeps a path fragment out of
     # the ``/files/{id}`` request the link builds from it.
@@ -234,6 +238,7 @@ class RAGDriveSourceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    provider: str = Field(description="The drive this folder lives on: a connector type")
     folder_id: str
     folder_name: str
     sync_status: str

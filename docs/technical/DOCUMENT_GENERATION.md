@@ -200,6 +200,15 @@ Measured 2026-09-08 after implementation: **0 overflows on 69 slides**, all
 960 × 540 pt; `Page 1 / 10` and `第 1 页，共 7 页` computed by Word; contents on
 the long documents only; every workbook opened.
 
+## Interactive pages have a slot of their own
+
+A page the person will use (a game, a quiz, a calculator) is not a document: it runs in the chat,
+in a sandboxed frame, and only its `.html` file joins the documents, through the same
+`store_document`. See [INTERACTIVE_PAGES.md](INTERACTIVE_PAGES.md) and
+[ADR-370](../architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md). Its model, output budget and timeout are the
+`interactive_page` slot's; the rate limit and the step family stay shared, so a change to those
+here is felt there.
+
 ## Stated limits
 
 - Word's contents shows no page numbers until the reader presses F9 (the

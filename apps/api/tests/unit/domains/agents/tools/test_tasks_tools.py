@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.config import get_settings
-from src.domains.agents.tools.tasks_tools import ListTaskListsTool
+from src.domains.agents.tools.task_organize_tools import ListTaskListsTool
 
 # ============================================================================
 # FIXTURES

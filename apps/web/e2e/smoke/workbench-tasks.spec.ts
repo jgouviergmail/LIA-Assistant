@@ -43,7 +43,11 @@ const RAIL = {
     page_size: 25,
     bulk_max_items: 50,
     download_max_bytes: 26214400,
+    upload_max_bytes: 26214400,
     calendar_window_max_events: 500,
+    send_undo_seconds: 0,
+    draft_autosave_seconds: 0,
+    search_max_chars: 500,
   },
 };
 
@@ -56,6 +60,10 @@ const TASKS = [
     due: TODAY,
     parent: null,
     position: '1',
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
   },
   {
     id: 't2',
@@ -65,6 +73,10 @@ const TASKS = [
     due: shifted(4),
     parent: null,
     position: '2',
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
   },
   {
     id: 't2a',
@@ -74,6 +86,10 @@ const TASKS = [
     due: null,
     parent: 't2',
     position: '1',
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
   },
   {
     id: 't3',
@@ -83,8 +99,18 @@ const TASKS = [
     due: shifted(-2),
     parent: null,
     position: '3',
+    steps: [],
+    importance: null,
+    reminder: null,
+    repeat: null,
   },
 ];
+
+const VIEW = {
+  tasks: [{ id: 't1', list_id: 'l2', title: 'Send back the insurance form', due: TODAY }],
+  truncated: false,
+  failed: [],
+};
 
 async function playTheApi(mockApi: (routes: MockRoute[]) => Promise<void>, refuse = false) {
   await mockApi([
@@ -105,6 +131,17 @@ async function playTheApi(mockApi: (routes: MockRoute[]) => Promise<void>, refus
           { id: 'l2', title: 'Groceries' },
         ],
         next_page_token: null,
+      },
+    },
+    { url: '**/api/v1/workbench/tasks/view*', method: 'GET', json: VIEW },
+    {
+      url: '**/api/v1/workbench/tasks/selection/move',
+      method: 'POST',
+      handler: async route => {
+        const { task_ids: ids } = route.request().postDataJSON() as { task_ids: string[] };
+        await route.fulfill({
+          json: { done: ids, failed: [], moved: ids.map(id => ({ id, new_id: `${id}-copy` })) },
+        });
       },
     },
     {
@@ -153,6 +190,92 @@ for (const sample of [
     expect(scan.violations).toEqual([]);
   });
 }
+
+test("a view gathers the lists, names each task's list and stays within a phone", async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+  await page.getByRole('combobox', { name: 'List', exact: true }).selectOption({ label: 'Today' });
+  await expect(page).toHaveURL(/view=today/);
+
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Send back the insurance form/ })).toContainText(
+    'Groceries'
+  );
+  await expectNoOverflow(page, 'a view at 390px');
+  const scan = await new AxeBuilder({ page }).include('main').analyze();
+  expect(scan.violations).toEqual([]);
+});
+
+test('ticked tasks go to another list, and leave this one', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+  await page.getByRole('button', { name: 'Select' }).click();
+  await page.getByRole('checkbox', { name: 'Select: Send back the insurance form' }).check();
+
+  const bar = page.getByRole('region', { name: 'Selected tasks' });
+  await expect(bar).toBeVisible();
+  const scan = await new AxeBuilder({ page }).include('main').analyze();
+  expect(scan.violations).toEqual([]);
+
+  await bar.getByRole('combobox', { name: 'Move to a list' }).selectOption({ label: 'Groceries' });
+
+  await expect(page.getByRole('link', { name: /Send back the insurance form/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Prepare the committee deck/ })).toBeVisible();
+});
+
+test('a long list scrolls inside its pane, never the page', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+  await mockApi([
+    {
+      url: '**/api/v1/workbench/tasks?*',
+      handler: async route => {
+        const many = Array.from({ length: 60 }, (_, index) => ({
+          ...TASKS[0],
+          id: `long-${index}`,
+          title: `Task number ${index}`,
+        }));
+        await route.fulfill({ json: { items: many, next_page_token: null } });
+      },
+    },
+  ]);
+
+  await page.goto('/en/dashboard/tools/tasks');
+  await waitForHydration(page, 'input[type="checkbox"]');
+  await expect(page.getByText('Task number 59')).toBeAttached();
+
+  const frame = page.getByRole('region', { name: 'Tasks' });
+  const box = await frame.boundingBox();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(700);
+  const scroller = await page.evaluate(() => {
+    const page = document.scrollingElement!;
+    return page.scrollHeight <= page.clientHeight;
+  });
+  expect(scroller).toBe(true);
+  await page.getByText('Task number 59').scrollIntoViewIfNeeded();
+  await expect(page.getByText('Task number 59')).toBeInViewport();
+});
 
 test('a refused completion is rolled back and said in the refusal’s words', async ({
   page,

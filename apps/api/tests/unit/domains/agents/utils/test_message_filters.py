@@ -2355,6 +2355,7 @@ class TestRichAnswersKeepTheirSynthesis:
             '<div class="lia-response"><p>Conserver cette conclusion.</p>'
             '<div class="lia-card"><div><p>PRIVATE CARD</p></div></div>'
             '<div class="lia-mcp-app"><div>PRIVATE WIDGET</div></div>'
+            '<div class="lia-page-app"><div>PRIVATE PAGE</div></div>'
             "<script>PRIVATE SCRIPT</script><style>PRIVATE STYLE</style>"
             "<template>PRIVATE TEMPLATE</template><iframe>PRIVATE FRAME</iframe>"
             '<span class="material-symbols-outlined">PRIVATE ICON</span>'

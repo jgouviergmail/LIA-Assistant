@@ -51,6 +51,10 @@ def assert_connector_preference_coverage() -> None:
         "microsoft_calendar": {"default_calendar_name"},
         "google_tasks": {"default_task_list_name"},
         "microsoft_tasks": {"default_task_list_name"},
+        # The words the person signs with: what every recipient reads, no credential.
+        "google_gmail": {"signature"},
+        "microsoft_outlook": {"signature"},
+        "apple_email": {"signature"},
     }
     if (
         set(reviewed) != set(CONNECTOR_PREFERENCES_REGISTRY)

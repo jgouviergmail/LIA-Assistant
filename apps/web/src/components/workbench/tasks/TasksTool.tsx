@@ -10,11 +10,24 @@
  * detail replaces them. A refused act is said in the refusal's own words.
  * Focus is never left to chance: below `lg` the opening detail takes it from
  * the row it hides, and whichever way the detail closes (its button, « back »)
- * the task's row gets it back — the quick-add field when the task is gone.
+ * the task's row gets it back — the quick-add field when the task is gone. What
+ * another tool hands over waits in that field, for the person to confirm. A view
+ * (`?view=`) stands in the place of a list and gathers what every list holds for
+ * one stretch of the account's days.
  */
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ListChecks, MoreVertical, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { CheckSquare, ListChecks, ListX, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -33,25 +46,54 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useWorkbenchTasks } from '@/hooks/useWorkbenchTasks';
+import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
+import { useWorkbenchTaskActs, type WorkbenchTaskActs } from '@/hooks/useWorkbenchTaskActs';
+import { useWorkbenchTasks, type WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import { dayIn, openCount, taskTree } from '@/lib/workbench/tasks';
-import { WORKBENCH_DESKTOP, toolPath } from '@/lib/workbench/tools';
-import type { WorkbenchTask, WorkbenchToolAvailability } from '@/lib/workbench/types';
+import {
+  dayIn,
+  openCount,
+  placementOf,
+  siblingsOf,
+  taskTree,
+  taskView,
+} from '@/lib/workbench/tasks';
+import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT, toolPath } from '@/lib/workbench/tools';
+import { pageSelectionState } from '@/lib/selection';
+import type {
+  DueTask,
+  DueTasks,
+  WorkbenchTask,
+  WorkbenchTaskView,
+  WorkbenchToolAvailability,
+} from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
-import { PANE_SEPARATOR_CLASS, useWorkbenchPane } from '../useWorkbenchPane';
-import { NewTaskListDialog } from './NewTaskListDialog';
+import { useHandoff, useToolBridges } from '../useToolBridges';
+import {
+  PANE_SEPARATOR_CLASS,
+  useWorkbenchPane,
+  type WorkbenchPaneState,
+} from '../useWorkbenchPane';
+import { NewTaskListDialog, RenameTaskListDialog } from './NewTaskListDialog';
 import { TaskEditor } from './TaskEditor';
 import { TaskListsColumn, TaskListsSelect } from './TaskListsPane';
 import { TaskQuickAdd } from './TaskQuickAdd';
-import { TaskRow } from './TaskRow';
+import { TaskRow, type RowSelection } from './TaskRow';
+import { TaskSelectionBar } from './TaskSelectionBar';
+import { TaskViewPane } from './TaskViewPane';
+import { useTaskDoors, type TaskDoors } from './useTaskDoors';
+import { useTaskSelection, type TaskSelection } from './useTaskSelection';
+
+const VIEW_PATH = '/workbench/tasks/view';
+
+type PaneSeparatorProps = ComponentProps<typeof PaneSeparator>;
 
 export function TasksTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -75,10 +117,16 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const { confirm, confirmDialog } = useConfirm();
   const [showCompleted, setShowCompleted] = useState(false);
   const [newListOpen, setNewListOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const quickAdd = useRef<HTMLInputElement>(null);
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
-  const state = useWorkbenchTasks(params.get('list'), showCompleted);
+  const view = taskView(params.get('view'));
+  const state = useWorkbenchTasks(params.get('list'), showCompleted, view === null);
   const { listId, lists, tasks } = state;
+  const viewRead = useWorkbenchItem<DueTasks>(view ? VIEW_PATH : null, {
+    view: view ?? undefined,
+  });
+  const acts = useWorkbenchTaskActs(listId, lists, tasks);
   const openTaskId = params.get('task');
   const openTask = tasks.items.find(item => item.id === openTaskId) ?? null;
   // On a large screen the person sizes the lists and the task's detail.
@@ -89,6 +137,12 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const left = openCount(tasks.items, tasks.nextToken);
   const openList = lists.items.find(list => list.id === listId) ?? null;
   const managesLists = tool.features.includes('list_management');
+  const [handed, setHanded] = useState<{ title: string; notes: string } | null>(null);
+  const { ask } = useToolBridges(lng);
+  useHandoff('task', true, setHanded);
+  useEffect(() => {
+    if (handed) quickAdd.current?.focus();
+  }, [handed]);
 
   // Whichever way the detail closed, its task's row gets the focus back.
   const linkRef = useDrillDownFocus(openTaskId, { fallback: quickAdd });
@@ -124,133 +178,128 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
     },
     [tell]
   );
+  const selection = useTaskSelection(lng, listId, acts, tell);
 
   const closeTask = useCallback(
     () => router.replace(hrefOf(listId ? { list: listId } : {}), { scroll: false }),
     [router, hrefOf, listId]
   );
 
-  const deleteList = async () => {
-    if (!openList) return;
-    const confirmed = await confirm({
-      title: t('workbench.tasks.delete_list_title', { name: openList.title }),
-      description: t('workbench.tasks.delete_list_description'),
-      confirmLabel: t('common.delete'),
-    });
-    if (!confirmed) return;
-    try {
-      await act(() => state.removeList(openList));
-      router.replace(hrefOf({}), { scroll: false });
-    } catch {
-      // Said by `act`; the list stays open.
-    }
-  };
+  const doors = useTaskDoors({
+    lng,
+    acts,
+    state,
+    selection,
+    viewRead,
+    openList,
+    confirm,
+    tell,
+    act,
+    onListGone: () => router.replace(hrefOf({}), { scroll: false }),
+    onTaskGone: closeTask,
+  });
 
   const listPane = {
     lng,
     lists,
-    openId: listId,
+    openId: view ? null : listId,
+    view,
     hrefOf: listHref,
+    viewHrefOf: (item: WorkbenchTaskView) => hrefOf({ view: item }),
     onPick: (id: string) => router.replace(hrefOf({ list: id }), { scroll: false }),
+    onPickView: (item: WorkbenchTaskView) =>
+      router.replace(hrefOf({ view: item }), { scroll: false }),
     onNewList: managesLists ? () => setNewListOpen(true) : undefined,
   };
 
   return (
     <>
-      <WorkbenchToolHeader lng={lng} tool="tasks" />
+      <WorkbenchToolHeader
+        lng={lng}
+        tool="tasks"
+        shortcuts={[
+          {
+            key: 'n',
+            labelKey: 'workbench.shortcuts.new_task',
+            run: () => quickAdd.current?.focus(),
+          },
+        ]}
+        onRefresh={async options => {
+          await Promise.all([
+            lists.refresh(options),
+            tasks.refresh(options),
+            viewRead.refresh(options),
+          ]);
+        }}
+      />
       <section
         aria-label={t('workbench.tools.tasks.label')}
-        className="flex min-h-[28rem] overflow-hidden rounded-lg border bg-card"
+        className={cn(
+          'flex min-h-[28rem] overflow-hidden rounded-lg border bg-card',
+          WORKBENCH_PANE_HEIGHT
+        )}
       >
         <TaskListsColumn {...listPane} detailOpen={openTask !== null} pane={listsPane} />
         <PaneSeparator
           {...listsPane.separator}
           className={cn(PANE_SEPARATOR_CLASS, openTask ? 'hidden xl:flex' : 'hidden lg:flex')}
         />
-        <div className={cn('min-w-0 flex-1 flex-col', openTask ? 'hidden lg:flex' : 'flex')}>
+        <div
+          className={cn('min-h-0 min-w-0 flex-1 flex-col', openTask ? 'hidden lg:flex' : 'flex')}
+        >
           <TaskListsSelect {...listPane} />
-          {lists.loading ? (
-            <ListSkeleton />
-          ) : lists.items.length === 0 ? (
-            <EmptyState
-              icon={ListChecks}
-              title={t('workbench.tasks.no_lists_title')}
-              description={t('workbench.tasks.no_lists_description')}
-              action={
-                managesLists
-                  ? { label: t('workbench.tasks.new_list'), onClick: () => setNewListOpen(true) }
-                  : undefined
-              }
+          <TasksMain
+            lng={lng}
+            tool={tool}
+            view={view}
+            viewRead={viewRead}
+            state={state}
+            managesLists={managesLists}
+            viewHrefOf={task => hrefOf({ list: task.list_id, task: task.id })}
+            onCompleteDue={doors.completeDue}
+            onNewList={() => setNewListOpen(true)}
+          >
+            <OpenList
+              lng={lng}
+              tool={tool}
+              state={state}
+              openTitle={openList?.title}
+              left={left}
+              showCompleted={showCompleted}
+              onShowCompleted={setShowCompleted}
+              managesLists={managesLists}
+              selection={selection}
+              doors={doors}
+              quickAdd={quickAdd}
+              handed={handed}
+              onHandedAdded={() => setHanded(null)}
+              act={act}
+              tree={tree}
+              today={today}
+              openId={openTaskId}
+              hrefOf={taskHref}
+              linkRef={linkRef}
+              onNewList={() => setNewListOpen(true)}
+              onRenameList={() => setRenaming(true)}
             />
-          ) : (
-            <>
-              <ListHead
-                lng={lng}
-                title={openList?.title ?? ''}
-                left={left}
-                showCompleted={showCompleted}
-                onShowCompleted={setShowCompleted}
-                managesLists={managesLists}
-                onNewList={() => setNewListOpen(true)}
-                onDeleteList={() => void deleteList()}
-              />
-              <TaskQuickAdd
-                ref={quickAdd}
-                lng={lng}
-                labelKey="workbench.tasks.new_task"
-                placeholderKey="workbench.tasks.new_task_placeholder"
-                maxLength={tool.bounds.title_max_chars}
-                onAdd={(title, key) => act(() => state.addTask({ title, idempotency_key: key }))}
-              />
-              <TaskList
-                lng={lng}
-                state={state}
-                tree={tree}
-                today={today}
-                openId={openTaskId}
-                hrefOf={taskHref}
-                onToggle={(task, completed) =>
-                  void act(() => state.setCompleted(task, completed)).catch(() => undefined)
-                }
-                onAddFirst={() => quickAdd.current?.focus()}
-                linkRef={linkRef}
-              />
-            </>
-          )}
+          </TasksMain>
         </div>
         {openTask && (
-          <>
-            <PaneSeparator
-              {...editorPane.separator}
-              className={cn(PANE_SEPARATOR_CLASS, 'hidden lg:flex')}
-            />
-            <TaskEditor
-              key={openTask.id}
-              pane={editorPane}
-              lng={lng}
-              task={openTask}
-              subtasks={tasks.items.filter(item => item.parent === openTask.id)}
-              tool={tool}
-              pending={state.pending}
-              onSave={(task, change) => act(() => state.saveTask(task, change))}
-              onToggle={(task, completed) =>
-                void act(() => state.setCompleted(task, completed)).catch(() => undefined)
-              }
-              onDelete={async task => {
-                try {
-                  await act(() => state.removeTask(task));
-                  closeTask();
-                } catch {
-                  // Said by `act`; the detail stays open.
-                }
-              }}
-              onAddSubtask={(parent, title, key) =>
-                act(() => state.addTask({ title, parent: parent.id, idempotency_key: key }))
-              }
-              onClose={closeTask}
-              focusOnOpen={!desktop}
-            />
-          </>
+          <OpenTaskPane
+            lng={lng}
+            task={openTask}
+            tool={tool}
+            state={state}
+            acts={acts}
+            act={act}
+            pane={editorPane}
+            desktop={desktop}
+            today={today}
+            timezone={user?.timezone}
+            onClose={closeTask}
+            onAsk={task => ask(t('workbench.ask.task', { title: task.title }))}
+            onMove={destination => void doors.moveOpen(openTask, destination)}
+          />
         )}
       </section>
       <NewTaskListDialog
@@ -265,7 +314,273 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
           });
         }}
       />
+      {renaming && openList && (
+        <RenameTaskListDialog
+          lng={lng}
+          name={openList.title}
+          maxLength={tool.bounds.title_max_chars}
+          onClose={() => setRenaming(false)}
+          onRename={title => act(() => acts.renameList(openList, title))}
+        />
+      )}
       {confirmDialog}
+    </>
+  );
+}
+
+interface TasksMainProps {
+  lng: Language;
+  tool: WorkbenchToolAvailability;
+  view: WorkbenchTaskView | null;
+  viewRead: WorkbenchItemState<DueTasks>;
+  state: WorkbenchTasksState;
+  managesLists: boolean;
+  viewHrefOf: (task: DueTask) => string;
+  onCompleteDue: (task: DueTask) => void;
+  onNewList: () => void;
+  /** The open list. */
+  children: ReactNode;
+}
+
+/** What stands beside the lists: a view, the way out of having none, or the open list. */
+function TasksMain({
+  lng,
+  view,
+  viewRead,
+  state,
+  managesLists,
+  viewHrefOf,
+  onCompleteDue,
+  onNewList,
+  children,
+}: TasksMainProps) {
+  const { t } = useTranslation(lng);
+  const { lists } = state;
+  if (view) {
+    return (
+      <TaskViewPane
+        lng={lng}
+        view={view}
+        read={viewRead}
+        lists={lists.items}
+        hrefOf={viewHrefOf}
+        onComplete={onCompleteDue}
+      />
+    );
+  }
+  if (lists.loading) return <ListSkeleton />;
+  if (lists.items.length > 0) return <>{children}</>;
+  return (
+    <EmptyState
+      icon={ListChecks}
+      title={t('workbench.tasks.no_lists_title')}
+      description={t('workbench.tasks.no_lists_description')}
+      action={
+        managesLists ? { label: t('workbench.tasks.new_list'), onClick: onNewList } : undefined
+      }
+    />
+  );
+}
+
+interface OpenListProps {
+  lng: Language;
+  tool: WorkbenchToolAvailability;
+  state: WorkbenchTasksState;
+  openTitle: string | undefined;
+  left: number | null;
+  showCompleted: boolean;
+  onShowCompleted: (shown: boolean) => void;
+  managesLists: boolean;
+  selection: TaskSelection;
+  doors: TaskDoors;
+  quickAdd: RefObject<HTMLInputElement | null>;
+  /** What another tool handed over, for the person to confirm. */
+  handed: { title: string; notes: string } | null;
+  onHandedAdded: () => void;
+  /** Runs an act and says its refusal. */
+  act: (run: () => Promise<unknown>) => Promise<void>;
+  tree: ReturnType<typeof taskTree>;
+  today: string;
+  openId: string | null;
+  hrefOf: (task: WorkbenchTask) => string;
+  linkRef: (taskId: string, link: HTMLAnchorElement | null) => void;
+  onNewList: () => void;
+  onRenameList: () => void;
+}
+
+/** The open list: its head, what is ticked, the field that adds and its tasks. */
+function OpenList({
+  lng,
+  tool,
+  state,
+  openTitle,
+  left,
+  showCompleted,
+  onShowCompleted,
+  managesLists,
+  selection,
+  doors,
+  quickAdd,
+  handed,
+  onHandedAdded,
+  act,
+  tree,
+  today,
+  openId,
+  hrefOf,
+  linkRef,
+  onNewList,
+  onRenameList,
+}: OpenListProps) {
+  const { lists, tasks, listId } = state;
+  const ids = tasks.items.map(item => item.id);
+  const ticking: RowSelection | undefined = selection.selecting
+    ? { selected: selection.selected, onToggle: task => selection.toggle(task.id) }
+    : undefined;
+  return (
+    <>
+      <ListHead
+        lng={lng}
+        title={openTitle ?? ''}
+        left={left}
+        showCompleted={showCompleted}
+        onShowCompleted={onShowCompleted}
+        managesLists={managesLists}
+        selecting={selection.selecting}
+        onSelecting={selection.toggleSelecting}
+        onNewList={onNewList}
+        onRenameList={onRenameList}
+        onClearCompleted={() => void doors.clearDone()}
+        onDeleteList={() => void doors.deleteList()}
+      />
+      {selection.selected.size > 0 && (
+        <TaskSelectionBar
+          lng={lng}
+          count={selection.selected.size}
+          pageState={pageSelectionState(ids, selection.selected)}
+          others={lists.items.filter(list => list.id !== listId)}
+          busy={selection.busy}
+          onSelectAll={() => selection.select(new Set(ids))}
+          onClear={() => selection.select(new Set())}
+          onCompleted={completed => void selection.setCompleted(completed)}
+          onDelete={() => void doors.removeSelected()}
+          onMove={destination => void selection.move(destination)}
+        />
+      )}
+      <TaskQuickAdd
+        key={handed?.title}
+        ref={quickAdd}
+        lng={lng}
+        labelKey="workbench.tasks.new_task"
+        placeholderKey="workbench.tasks.new_task_placeholder"
+        maxLength={tool.bounds.title_max_chars}
+        initialTitle={handed?.title}
+        onAdd={async (title, key) => {
+          const notes = handed?.notes || undefined;
+          await act(() => state.addTask({ title, notes, idempotency_key: key }));
+          onHandedAdded();
+        }}
+      />
+      <TaskList
+        lng={lng}
+        state={state}
+        tree={tree}
+        today={today}
+        openId={openId}
+        hrefOf={hrefOf}
+        onToggle={(task, completed) =>
+          void act(() => state.setCompleted(task, completed)).catch(() => undefined)
+        }
+        onAddFirst={() => quickAdd.current?.focus()}
+        linkRef={linkRef}
+        selection={ticking}
+      />
+    </>
+  );
+}
+
+interface OpenTaskPaneProps {
+  lng: Language;
+  task: WorkbenchTask;
+  tool: WorkbenchToolAvailability;
+  state: WorkbenchTasksState;
+  acts: WorkbenchTaskActs;
+  /** Runs an act and says its refusal. */
+  act: (run: () => Promise<unknown>) => Promise<void>;
+  pane: WorkbenchPaneState & { separator: PaneSeparatorProps };
+  desktop: boolean;
+  today: string;
+  /** The account's zone, when it has one. */
+  timezone: string | undefined;
+  onClose: () => void;
+  onAsk: (task: WorkbenchTask) => void;
+  onMove: (destination: string) => void;
+}
+
+/** The open task's detail, its separator and what its acts reach. */
+function OpenTaskPane({
+  lng,
+  task: openTask,
+  tool,
+  state,
+  acts,
+  act,
+  pane,
+  desktop,
+  today,
+  timezone,
+  onClose,
+  onAsk,
+  onMove,
+}: OpenTaskPaneProps) {
+  const { listId, lists, tasks } = state;
+  const quiet = (run: () => Promise<unknown>) => void act(run).catch(() => undefined);
+  /** One place up or down among its siblings; nothing where it has nowhere to go. */
+  const stepping = (by: -1 | 1) => {
+    const placement = placementOf(siblingsOf(tasks.items, openTask), openTask.id, by);
+    return placement ? () => quiet(() => acts.place(openTask, placement.after)) : undefined;
+  };
+  return (
+    <>
+      <PaneSeparator {...pane.separator} className={cn(PANE_SEPARATOR_CLASS, 'hidden lg:flex')} />
+      <TaskEditor
+        key={openTask.id}
+        pane={pane}
+        lng={lng}
+        task={openTask}
+        subtasks={tasks.items.filter(item => item.parent === openTask.id)}
+        tool={tool}
+        pending={state.pending}
+        onSave={(task, change) => act(() => state.saveTask(task, change))}
+        onToggle={(task, completed) => quiet(() => state.setCompleted(task, completed))}
+        onDelete={async task => {
+          try {
+            await act(() => state.removeTask(task));
+            onClose();
+          } catch {
+            // Said by `act`; the detail stays open.
+          }
+        }}
+        onAddSubtask={(parent, title, key) =>
+          act(() => state.addTask({ title, parent: parent.id, idempotency_key: key }))
+        }
+        onClose={onClose}
+        focusOnOpen={!desktop}
+        today={today}
+        onAsk={onAsk}
+        zone={timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
+        moves={
+          listId
+            ? { listId, lists: lists.items, busy: state.pending.has(openTask.id), onMove }
+            : undefined
+        }
+        steps={{
+          onAdd: (task, title, key) => act(() => acts.addStep(task, title, key)),
+          onToggle: (task, step) => quiet(() => acts.toggleStep(task, step)),
+          onRemove: (task, step) => quiet(() => acts.removeStep(task, step)),
+        }}
+        order={{ up: stepping(-1), down: stepping(1) }}
+      />
     </>
   );
 }
@@ -279,7 +594,11 @@ interface ListHeadProps {
   onShowCompleted: (shown: boolean) => void;
   /** Whether the provider creates and deletes lists (`list_management`). */
   managesLists: boolean;
+  selecting: boolean;
+  onSelecting: () => void;
   onNewList: () => void;
+  onRenameList: () => void;
+  onClearCompleted: () => void;
   onDeleteList: () => void;
 }
 
@@ -291,7 +610,11 @@ function ListHead({
   showCompleted,
   onShowCompleted,
   managesLists,
+  selecting,
+  onSelecting,
   onNewList,
+  onRenameList,
+  onClearCompleted,
   onDeleteList,
 }: ListHeadProps) {
   const { t } = useTranslation(lng);
@@ -313,6 +636,16 @@ function ListHead({
           {t('workbench.tasks.show_completed')}
         </Label>
       </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-1.5"
+        aria-pressed={selecting}
+        onClick={onSelecting}
+      >
+        <CheckSquare className="h-4 w-4" aria-hidden="true" />
+        {t('workbench.tasks.select')}
+      </Button>
       {managesLists && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -324,6 +657,14 @@ function ListHead({
             <DropdownMenuItem className="lg:hidden" onSelect={onNewList}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               {t('workbench.tasks.new_list')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onRenameList}>
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              {t('workbench.tasks.rename_list')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onClearCompleted}>
+              <ListX className="h-4 w-4" aria-hidden="true" />
+              {t('workbench.tasks.clear_completed')}
             </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onSelect={onDeleteList}>
               <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -346,6 +687,7 @@ interface TaskListProps {
   onToggle: (task: WorkbenchTask, completed: boolean) => void;
   onAddFirst: () => void;
   linkRef: (taskId: string, link: HTMLAnchorElement | null) => void;
+  selection?: RowSelection;
 }
 
 /** The open list's tasks: a skeleton on the first read, the way out when empty. */
@@ -359,6 +701,7 @@ function TaskList({
   onToggle,
   onAddFirst,
   linkRef,
+  selection,
 }: TaskListProps) {
   const { t } = useTranslation(lng);
   const { tasks } = state;
@@ -378,7 +721,7 @@ function TaskList({
     );
   }
   return (
-    <div aria-busy={tasks.loadingMore || undefined}>
+    <div className="min-h-0 flex-1 overflow-y-auto" aria-busy={tasks.loadingMore || undefined}>
       <ul>
         {tree.map(node => (
           <TaskRow
@@ -391,6 +734,7 @@ function TaskList({
             hrefOf={hrefOf}
             onToggle={onToggle}
             linkRef={linkRef}
+            selection={selection}
           />
         ))}
       </ul>

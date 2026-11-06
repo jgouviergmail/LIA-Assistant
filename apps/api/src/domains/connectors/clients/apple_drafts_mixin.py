@@ -372,6 +372,7 @@ class AppleDraftsMixin:
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save a new draft; an empty ``to`` leaves the recipient unset."""
         message = new_message(
@@ -382,6 +383,7 @@ class AppleDraftsMixin:
             cc=cc,
             bcc=bcc,
             is_html=is_html,
+            attachments=attachments,
         )
         return await self._store_draft(message)
 
@@ -430,11 +432,15 @@ class AppleDraftsMixin:
         subject: str | None = None,
         body: str | None = None,
         expected_revision: str | None = None,
+        add_files: Sequence[OutgoingAttachment] = (),
+        remove_files: Sequence[str] = (),
+        is_html: bool = False,
     ) -> dict[str, Any]:
         """Change the fields given (None keeps one, "" clears it), keep the rest.
 
         The edited message is stored as a new draft — a NEW ``mailbox_draft_id``
-        — and the old one removed once the new one is in.
+        — and the old one removed once the new one is in. Files join and leave
+        in that one store.
 
         Raises:
             MailboxDraftNotFoundError: No such draft.
@@ -459,7 +465,9 @@ class AppleDraftsMixin:
             raw = current.obj.as_bytes()
             revision = hashlib.sha256(raw).hexdigest() if expected_revision is not None else None
             ensure_draft_revision({FIELD_MAILBOX_DRAFT_REVISION: revision}, expected_revision)
-            edited = edit_draft_message(raw, **changes)
+            edited = edit_draft_message(
+                raw, **changes, add_files=add_files, remove_files=remove_files, is_html=is_html
+            )
             return (
                 _append(mailbox, drafts, _renewed(edited, sender), principal=sender, replacing=uid),
                 drafts,

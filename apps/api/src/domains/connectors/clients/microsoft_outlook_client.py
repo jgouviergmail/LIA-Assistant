@@ -38,17 +38,18 @@ from src.domains.connectors.clients.email_attachments import (
     ensure_within_bound,
     select_attachment,
 )
+from src.domains.connectors.clients.email_compose import forwarded_body, quoted_reply
+from src.domains.connectors.clients.mail_conversation import conversation_answer
 from src.domains.connectors.clients.mail_folders import (
     EXCLUDES_ITS_FOLDER,
     MailFolder,
     find_mail_folder,
 )
+from src.domains.connectors.clients.mail_inline_images import InlineBudget, content_id_of
 from src.domains.connectors.clients.mail_read_state import (
-    READ_STATE_FAILED,
-    READ_STATE_NOT_FOUND,
-    read_state_result,
     unique_ids,
 )
+from src.domains.connectors.clients.mail_unsubscribe import Unsubscribe, read_unsubscribe
 from src.domains.connectors.clients.normalizers.graph_mail_query import (
     GraphMailQuery,
     graph_mail_query,
@@ -56,10 +57,15 @@ from src.domains.connectors.clients.normalizers.graph_mail_query import (
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
     GRAPH_SYSTEM_FOLDERS,
     build_graph_recipients,
+    graph_file_attachment,
     normalize_graph_folder,
     normalize_graph_message,
 )
 from src.domains.connectors.clients.outlook_drafts_mixin import OutlookDraftsMixin
+from src.domains.connectors.clients.outlook_mailbox_acts_mixin import OutlookMailboxActsMixin
+from src.domains.connectors.clients.outlook_mailbox_settings_mixin import (
+    OutlookMailboxSettingsMixin,
+)
 from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -73,13 +79,13 @@ def _segment(graph_id: str) -> str:
     return path_segment(graph_id, connector_type=ConnectorType.MICROSOFT_OUTLOOK)
 
 
-#: Messages whose read state is changed at once: Graph has no batch for it, and a
-#: mailbox throttles a burst of PATCHes (it answers 429 with a Retry-After).
-_READ_STATE_CONCURRENCY: Final = 4
 #: Graph answers a body in the format this header asks for (a text body rendered as HTML).
 _PREFER_HTML_BODY: Final = {"Prefer": 'outlook.body-content-type="html"'}
 
 # Default fields to request from Microsoft Graph (performance optimization)
+#: What is read of an attachment to find a message's own images; ``contentId`` needs its cast.
+_INLINE_ATTACHMENT_FIELDS = "id,contentType,size,isInline,microsoft.graph.fileAttachment/contentId"
+
 _MESSAGE_SELECT_FIELDS = (
     "id,conversationId,subject,from,toRecipients,ccRecipients,bccRecipients,replyTo,"
     "body,bodyPreview,receivedDateTime,isRead,isDraft,hasAttachments,"
@@ -91,11 +97,22 @@ _MESSAGE_LIST_SELECT_FIELDS = (
     "receivedDateTime,isRead,hasAttachments,flag,importance"
 )
 
-# What a folder walk reads of each folder: its id, its name, whether it has children.
-_FOLDER_WALK_FIELDS = "id,displayName,childFolderCount"
+#: Graph refuses a sort on a field its filter does not lead with (400, measured on a real
+#: mailbox on 2026-11-05), and the conversation's id alone gives no order: this date
+#: bound excludes nothing and makes the sort legal.
+_ANY_TIME: Final = "receivedDateTime ge 1900-01-01T00:00:00Z"
+
+# What a folder walk reads of each folder: its id, its name, whether it has children,
+# and what it leaves unread.
+_FOLDER_WALK_FIELDS = "id,displayName,childFolderCount,unreadItemCount"
 
 
-class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
+class MicrosoftOutlookClient(
+    OutlookMailboxSettingsMixin,
+    OutlookMailboxActsMixin,
+    OutlookDraftsMixin,
+    BaseMicrosoftClient,
+):
     """
     Microsoft Outlook email client via Graph API.
 
@@ -224,10 +241,10 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         Raises:
             MailFolderLookupError: No folder, or several, answer to ``name``.
         """
-        folders, complete = await self._mail_folders()
+        folders, complete = await self.list_folders()
         return find_mail_folder(folders, name, complete=complete).folder_id
 
-    async def _mail_folders(self) -> tuple[list[MailFolder], bool]:
+    async def list_folders(self) -> tuple[list[MailFolder], bool]:
         """The mailbox's folders, their paths built level by level, and whether all were read.
 
         Graph lists one level at a time (``childFolders``) in pages of its own
@@ -249,7 +266,8 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
                 for raw in response.get("value", []):
                     name = str(raw.get("displayName") or "")
                     path = f"{parent}/{name}" if parent else name
-                    folders.append(MailFolder(str(raw.get("id") or ""), path, name))
+                    unread = raw.get("unreadItemCount")
+                    folders.append(MailFolder(str(raw.get("id") or ""), path, name, unread))
                     if raw.get("childFolderCount"):
                         pending.append((f"/me/mailFolders/{raw.get('id')}/childFolders", path))
                 next_link = response.get("@odata.nextLink")
@@ -330,6 +348,37 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             FIELD_CACHED_AT: None,
         }
 
+    async def get_conversation(self, message_id: str, max_messages: int) -> dict[str, Any]:
+        """The conversation of a message, headers alone (``mail_conversation``).
+
+        Args:
+            message_id: Any message of it.
+            max_messages: How many are kept, the newest.
+
+        Returns:
+            ``{"messages": [...], "truncated": bool}``, oldest first, drafts left out.
+        """
+        anchor = await self._make_request(
+            "GET",
+            f"/me/messages/{_segment(message_id)}",
+            params={"$select": "conversationId"},
+        )
+        quoted = str(anchor.get("conversationId") or "").replace("'", "''")
+        found = await self._make_request(
+            "GET",
+            "/me/messages",
+            params={
+                "$filter": f"{_ANY_TIME} and conversationId eq '{quoted}' and isDraft eq false",
+                "$orderby": "receivedDateTime desc",
+                "$select": _MESSAGE_LIST_SELECT_FIELDS,
+                # One more than kept says the cut; past the ceiling, the next page does.
+                "$top": str(apply_max_items_limit(max_messages + 1)),
+            },
+        )
+        newest_first = [normalize_graph_message(item) for item in found.get("value") or []]
+        more = bool(found.get("@odata.nextLink"))
+        return conversation_answer(newest_first[::-1], max_messages, more=more)
+
     async def get_message_html(self, message_id: str) -> str | None:
         """The message's HTML body, for display only (ADR-369, D3; ADR-287).
 
@@ -348,6 +397,48 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         if str(body.get("contentType") or "").lower() != "html" or not isinstance(content, str):
             return None
         return content or None
+
+    async def read_inline_images(
+        self, message_id: str, cids: set[str], budget: InlineBudget
+    ) -> None:
+        """Read into ``budget`` the images of a message its HTML names.
+
+        ``contentId`` is a ``fileAttachment``'s own: Graph selects it by its cast. The
+        listing leaves ``contentBytes`` out, so a part past the budget is never read.
+        """
+        message = _segment(message_id)
+        listing = await self._make_request(
+            "GET",
+            f"/me/messages/{message}/attachments",
+            {"$select": _INLINE_ATTACHMENT_FIELDS},
+        )
+        for item in listing.get("value", []):
+            cid = content_id_of(item.get("contentId"))
+            if cid not in cids or not budget.worth_reading(item.get("size")):
+                continue
+            part = await self._make_request(
+                "GET", f"/me/messages/{message}/attachments/{_segment(str(item.get('id')))}"
+            )
+            encoded = part.get("contentBytes")
+            if encoded:
+                budget.admit(
+                    str(cid), str(item.get("contentType") or ""), base64.b64decode(encoded)
+                )
+
+    async def read_unsubscribe(self, message_id: str) -> Unsubscribe | None:
+        """The ways out a message names, from its internet headers."""
+        response = await self._make_request(
+            "GET",
+            f"/me/messages/{_segment(message_id)}",
+            {"$select": "internetMessageHeaders"},
+        )
+        headers = {
+            str(header.get("name") or "").lower(): str(header.get("value") or "")
+            for header in response.get("internetMessageHeaders") or []
+        }
+        return read_unsubscribe(
+            headers.get("list-unsubscribe"), headers.get("list-unsubscribe-post")
+        )
 
     async def download_attachment(
         self,
@@ -458,7 +549,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             message_body["message"]["bccRecipients"] = build_graph_recipients(bcc)
         if attachments:
             message_body["message"]["attachments"] = [
-                _file_attachment(attachment) for attachment in attachments
+                graph_file_attachment(attachment) for attachment in attachments
             ]
 
         await self._make_request(
@@ -498,6 +589,8 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         reply_all: bool = False,
         is_html: bool = False,
         to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Reply to an email.
@@ -508,20 +601,39 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             reply_all: Whether to reply to all recipients.
             is_html: Whether body is HTML.
             to: Override recipient address. If None, replies to original sender.
+            cc: The copies chosen instead of Graph's; empty for none.
+            attachments: The files it carries.
 
         Returns:
             Dict with reply confirmation.
         """
         action = "replyAll" if reply_all else "reply"
-        reply_body: dict[str, Any] = {
-            "comment": body,
-        }
+        reply_body: dict[str, Any] = {}
 
-        # Override recipient if user specified a different one (draft modification)
+        # What the person chose instead of what Graph would have done.
+        message: dict[str, Any] = {}
+        if is_html:
+            # A comment takes words: formatted ones are the message's whole body, and Graph
+            # refuses the two together, so the original is quoted here by the shared rule.
+            original = await self.get_message(message_id)
+            content = quoted_reply(
+                body,
+                str(original.get("body") or ""),
+                date=str(original.get("date") or ""),
+                sender=str(original.get("from") or ""),
+                is_html=True,
+            )
+            message["body"] = {"contentType": "HTML", "content": content}
+        else:
+            reply_body["comment"] = body
         if to:
-            reply_body["message"] = {
-                "toRecipients": build_graph_recipients(to),
-            }
+            message["toRecipients"] = build_graph_recipients(to)
+        if cc is not None:
+            message["ccRecipients"] = build_graph_recipients(cc)
+        if attachments:
+            message["attachments"] = [graph_file_attachment(item) for item in attachments]
+        if message:
+            reply_body["message"] = message
 
         await self._make_request(
             "POST",
@@ -549,6 +661,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         cc: str | None = None,
         is_html: bool = False,
         include_attachments: bool = True,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """
         Forward an email.
@@ -560,6 +673,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             cc: Optional CC addresses.
             is_html: Whether body is HTML.
             include_attachments: Attachments are included automatically by Graph API.
+            attachments: The person's own files, after the original's.
 
         Returns:
             Dict with forward confirmation.
@@ -568,11 +682,29 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             "toRecipients": build_graph_recipients(to),
         }
 
-        if body:
+        # Copies ride on the message: beside ``toRecipients`` Graph answers 202 and drops them.
+        message: dict[str, Any] = {}
+        if is_html:
+            # As for a reply: the whole body, the original set below it by the shared rule.
+            original = await self.get_message(message_id)
+            content = forwarded_body(
+                body,
+                str(original.get("body") or ""),
+                sender=str(original.get("from") or ""),
+                date=str(original.get("date") or ""),
+                subject=str(original.get("subject") or ""),
+                to=str(original.get("to") or ""),
+                is_html=True,
+            )
+            message["body"] = {"contentType": "HTML", "content": content}
+        elif body:
             forward_body["comment"] = body
-
         if cc:
-            forward_body["ccRecipients"] = build_graph_recipients(cc)
+            message["ccRecipients"] = build_graph_recipients(cc)
+        if attachments:
+            message["attachments"] = [graph_file_attachment(item) for item in attachments]
+        if message:
+            forward_body["message"] = message
 
         await self._make_request(
             "POST",
@@ -620,7 +752,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
 
         Graph has no batch for ``isRead``: one PATCH per message, a few at a time.
         A message gone since it was listed is named; an authorisation failure
-        stops the whole selection (the siblings are cancelled with it).
+        stops the selection (``mail_moves.settle_each``).
 
         Args:
             message_ids: The messages (each counted once).
@@ -630,36 +762,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
             ``{"updated": [ids], "failed": [{"id", "status"}]}``
             (``mail_read_state``).
         """
-        ids = unique_ids(message_ids)
-        gate = asyncio.Semaphore(_READ_STATE_CONCURRENCY)
-
-        async def mark(message_id: str) -> str | None:
-            async with gate:
-                try:
-                    # Setting a state twice leaves it set once: a lost answer may be resent.
-                    await self._make_request(
-                        "PATCH",
-                        f"/me/messages/{_segment(message_id)}",
-                        json_data={"isRead": read},
-                        idempotent=True,
-                    )
-                except ConnectorAPIError as refused:
-                    gone = refused.upstream_status_code in (404, 410)
-                    return READ_STATE_NOT_FOUND if gone else READ_STATE_FAILED
-                return None
-
-        try:
-            async with asyncio.TaskGroup() as group:
-                marked = {message_id: group.create_task(mark(message_id)) for message_id in ids}
-        except* Exception as failures:
-            # A TaskGroup raises a GROUP even for one failure: raised as ITSELF, the
-            # refusal stays classifiable by its type (reconnect, rate limit).
-            raise failures.exceptions[0] from None
-        outcomes = {message_id: task.result() for message_id, task in marked.items()}
-        result = read_state_result(
-            [message_id for message_id, status in outcomes.items() if status is None],
-            [(message_id, status) for message_id, status in outcomes.items() if status],
-        )
+        result = await self._patch_each(unique_ids(message_ids), {"isRead": read})
         logger.info(
             "outlook_read_state_changed",
             user_id=str(self.user_id),
@@ -699,7 +802,7 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         return labels
 
     async def system_folder_ids(self) -> frozenset[str]:
-        """The ids of the folders a folder pane draws as system places (ADR-369).
+        """The ids of the folders a pane never lists as the person's own (ADR-369).
 
         Graph names a well-known folder in the mailbox's own language (« Boîte
         de réception »), so its display name says nothing of its role; its
@@ -749,23 +852,3 @@ class MicrosoftOutlookClient(OutlookDraftsMixin, BaseMicrosoftClient):
         # Graph routes a folder by endpoint (``graph_mail_query``), never by
         # a ``$filter`` on parentFolderId, which it does not support.
         return query
-
-
-def _file_attachment(attachment: OutgoingAttachment) -> dict[str, str]:
-    """One file as Graph carries it inside a message (ADR-321).
-
-    Args:
-        attachment: The file.
-
-    Returns:
-        The ``fileAttachment`` resource, its bytes in base64.
-    """
-    content_type = attachment.mime_type
-    if attachment.charset:
-        content_type = f"{content_type}; charset={attachment.charset}"
-    return {
-        "@odata.type": "#microsoft.graph.fileAttachment",
-        "name": attachment.filename,
-        "contentType": content_type,
-        "contentBytes": base64.b64encode(attachment.data).decode("ascii"),
-    }

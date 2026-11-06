@@ -18,12 +18,14 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
+from src.core.constants import WORKBENCH_MAIL_ATTACHMENTS_MAX
 from src.core.exceptions import BaseAPIException
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_MAILBOX_DRAFT_REVISION
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import idempotency, mail_drafts
 from src.domains.workbench.schemas.mail_compose import DraftSave, DraftSelection, DraftSend
+from src.infrastructure.email.outgoing import OutgoingAttachment
 from tests.unit.domains.workbench.fakes import FakeRedis
 
 pytestmark = pytest.mark.unit
@@ -95,7 +97,7 @@ class TestSaving:
                 await mail_drafts.save_draft(USER, save)
 
         client.create_draft.assert_awaited_once_with(
-            "ana@example.org", "Budget", "", cc=None, bcc=None, is_html=False
+            "ana@example.org", "Budget", "", cc=None, bcc=None, is_html=False, attachments=()
         )
         assert saved.id == "d1"
         assert replayed.value.detail["code"] == "already_submitted"
@@ -121,6 +123,9 @@ class TestSaving:
             subject=None,
             body="Nouveau texte.",
             expected_revision="r1",
+            add_files=(),
+            remove_files=[],
+            is_html=False,
         )
         assert (saved.id, saved.revision) == ("d2", "r2")
 
@@ -129,6 +134,133 @@ class TestSaving:
             DraftSave(draft_id="d1", body="x")
         with pytest.raises(ValidationError):
             DraftSave(subject="x")
+
+
+class TestFormattedWords:
+    MARKED = "<b>Hi</b><script>alert(1)</script>"
+
+    async def test_a_new_draft_keeps_them_rebuilt_here(self) -> None:
+        client = MagicMock(create_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(subject="s", html=self.MARKED, idempotency_key=uuid4())
+        with _door(client):
+            await mail_drafts.save_draft(USER, request)
+
+        call = client.create_draft.await_args
+        assert call.args[2] == "<b>Hi</b>"
+        assert call.kwargs["is_html"] is True
+
+    async def test_a_change_keeps_them_too(self) -> None:
+        client = MagicMock(update_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(draft_id="d1", expected_revision="r1", html=self.MARKED)
+        with _door(client):
+            await mail_drafts.save_draft(USER, request)
+
+        call = client.update_draft.await_args.kwargs
+        assert call["body"] == "<b>Hi</b>"
+        assert call["is_html"] is True
+
+    async def test_a_change_of_words_alone_stays_text(self) -> None:
+        client = MagicMock(update_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(draft_id="d1", expected_revision="r1", body="Hi")
+        with _door(client):
+            await mail_drafts.save_draft(USER, request)
+
+        call = client.update_draft.await_args.kwargs
+        assert (call["body"], call["is_html"]) == ("Hi", False)
+
+
+class TestAnAddressChosen:
+    async def test_a_new_draft_leaves_from_it_later(self) -> None:
+        client = MagicMock(create_draft=AsyncMock(return_value=_draft()))
+        chosen = AsyncMock()
+        request = DraftSave(subject="s", send_as="w@example.com", idempotency_key=uuid4())
+        with _door(client), patch.object(mail_drafts, "apply_send_as", chosen):
+            await mail_drafts.save_draft(USER, request)
+
+        chosen.assert_awaited_once()
+
+    async def test_a_change_may_name_one(self) -> None:
+        client = MagicMock(update_draft=AsyncMock(return_value=_draft()))
+        chosen = AsyncMock()
+        request = DraftSave(draft_id="d1", expected_revision="r1", send_as="w@example.com")
+        with _door(client), patch.object(mail_drafts, "apply_send_as", chosen):
+            await mail_drafts.save_draft(USER, request)
+
+        chosen.assert_awaited_once()
+
+    async def test_a_draft_says_where_it_leaves_from(self) -> None:
+        client = MagicMock(get_draft=AsyncMock(return_value=_draft(**{"from": "w@example.com"})))
+        with _door(client):
+            read = await mail_drafts.read_draft(USER, "d1")
+
+        assert read.sender is not None and read.sender.address == "w@example.com"
+
+
+class TestItsFiles:
+    KEPT = OutgoingAttachment("note.txt", "text/plain", b"hello")
+
+    def _read(self) -> Any:
+        return patch.object(mail_drafts, "carried_files", AsyncMock(return_value=(self.KEPT,)))
+
+    async def test_a_new_draft_carries_those_it_was_given(self) -> None:
+        client = MagicMock(
+            create_draft=AsyncMock(return_value=_draft()), OUTGOING_FILE_MAX_BYTES=1000
+        )
+        own = [uuid4()]
+        request = DraftSave(
+            subject="s", attachment_ids=own, drive_file_ids=["f1"], idempotency_key=uuid4()
+        )
+        with _door(client), self._read() as read:
+            await mail_drafts.save_draft(USER, request)
+
+        read.assert_awaited_once_with(USER, own, ["f1"], max_bytes=1000)
+        assert client.create_draft.await_args.kwargs["attachments"] == (self.KEPT,)
+
+    async def test_a_change_adds_those_and_drops_the_ones_named(self) -> None:
+        client = MagicMock(
+            update_draft=AsyncMock(return_value=_draft()), OUTGOING_FILE_MAX_BYTES=1000
+        )
+        request = DraftSave(
+            draft_id="d1",
+            expected_revision="r1",
+            attachment_ids=[uuid4()],
+            removed_files=["old.pdf"],
+        )
+        with _door(client), self._read():
+            await mail_drafts.save_draft(USER, request)
+
+        call = client.update_draft.await_args.kwargs
+        assert call["add_files"] == (self.KEPT,)
+        assert call["remove_files"] == ["old.pdf"]
+
+    async def test_a_save_with_none_reads_none(self) -> None:
+        client = MagicMock(update_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(draft_id="d1", expected_revision="r1", body="b")
+        with _door(client), self._read() as read:
+            await mail_drafts.save_draft(USER, request)
+
+        read.assert_not_awaited()
+
+    async def test_a_file_that_cannot_be_read_saves_nothing(self) -> None:
+        client = MagicMock(update_draft=AsyncMock(), OUTGOING_FILE_MAX_BYTES=1000)
+        request = DraftSave(draft_id="d1", expected_revision="r1", attachment_ids=[uuid4()])
+        gone = AsyncMock(side_effect=BaseAPIException(status_code=404, detail="gone"))
+        with (
+            _door(client),
+            patch.object(mail_drafts, "carried_files", gone),
+            pytest.raises(BaseAPIException),
+        ):
+            await mail_drafts.save_draft(USER, request)
+
+        client.update_draft.assert_not_awaited()
+
+    def test_a_save_names_a_bounded_number_of_files_to_drop(self) -> None:
+        with pytest.raises(ValidationError):
+            DraftSave(
+                draft_id="d1",
+                expected_revision="r1",
+                removed_files=["a"] * (WORKBENCH_MAIL_ATTACHMENTS_MAX + 1),
+            )
 
 
 class TestSending:

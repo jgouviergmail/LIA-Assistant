@@ -9,6 +9,7 @@ import {
 } from '@/lib/capability-sharing';
 import { useAuth } from './useAuth';
 import { useApplicationAccountLifetime } from './useApplicationAccountLifetime';
+import { generateUUID } from '@/lib/utils';
 
 interface State {
   preview: CapabilityTransfer | null;
@@ -161,7 +162,7 @@ export function useCapabilityTransfer(source: CapabilitySelection) {
     async (connectionId: string) => {
       if (!current() || operation.current) return;
       if (key.current?.scope !== scope || key.current.value.peer !== connectionId) {
-        key.current = { scope, value: { peer: connectionId, id: crypto.randomUUID() } };
+        key.current = { scope, value: { peer: connectionId, id: generateUUID() } };
       }
       const idempotencyKey = key.current.value.id;
       await run(async signal => ({

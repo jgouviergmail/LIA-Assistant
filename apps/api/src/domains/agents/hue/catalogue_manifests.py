@@ -57,7 +57,7 @@ _ROOM_NAME_PARAM = ParameterSchema(
     name="room_name_or_id",
     type="string",
     required=True,
-    description="Name or ID of the room (e.g., 'Living room', 'Kitchen').",
+    description="Name or ID of the room or zone (e.g., 'Living room', 'TV corner').",
 )
 
 _SCENE_NAME_PARAM = ParameterSchema(
@@ -81,6 +81,15 @@ _BRIGHTNESS_PARAM = ParameterSchema(
     description="Brightness 0-100%. Leave empty to keep current.",
 )
 
+_MOTION_PARAM = ParameterSchema(
+    name="motion",
+    type="boolean",
+    required=False,
+    description=(
+        "True plays the scene in motion, false holds it still. Leave empty to show it as it stands."
+    ),
+)
+
 _COLOR_PARAM = ParameterSchema(
     name="color",
     type="string",
@@ -97,7 +106,7 @@ list_hue_lights_catalogue_manifest = ToolManifest(
     agent=AGENT_HUE,
     description=(
         "**Tool: list_hue_lights_tool** - List all Philips Hue lights with state.\n"
-        "Returns light names, IDs, on/off, brightness, color.\n"
+        "Returns light names, IDs, on/off, brightness, color, and names those not answering.\n"
         "**Use for**: 'What lights are on?', 'Show my lights', 'List Hue bulbs'."
     ),
     semantic_keywords=[
@@ -193,9 +202,9 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
     name="list_hue_rooms_tool",
     agent=AGENT_HUE,
     description=(
-        "**Tool: list_hue_rooms_tool** - List all Philips Hue rooms.\n"
-        "Returns room names, IDs, and device counts.\n"
-        "**Use for**: 'What rooms do I have?', 'Show my rooms'."
+        "**Tool: list_hue_rooms_tool** - List all Philips Hue rooms and zones.\n"
+        "Returns their names, IDs, kinds (room or zone) and device counts.\n"
+        "**Use for**: 'What rooms do I have?', 'Show my zones'."
     ),
     semantic_keywords=[
         "list hue rooms zones",
@@ -209,6 +218,7 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="rooms[].name", type="string", description="Room name", semantic_type="Text"
         ),
+        OutputFieldSchema(path="rooms[].kind", type="string", description="Room or zone"),
     ],
     cost=CostProfile(est_tokens_in=50, est_tokens_out=300, est_cost_usd=0.001, est_latency_ms=300),
     permissions=PermissionProfile(
@@ -232,23 +242,25 @@ control_hue_room_catalogue_manifest = ToolManifest(
     mutation_policy_reason=REASON_UNDONE_BY_ONE_CALL,
     agent=AGENT_HUE,
     description=(
-        "**Tool: control_hue_room_tool** - Control all lights in a room.\n"
-        "Turn on/off and adjust brightness for entire room.\n"
-        "**Use for**: 'Turn on living room', 'Dim the bedroom', 'Lights off in kitchen'."
+        "**Tool: control_hue_room_tool** - Control all lights in a room or a zone.\n"
+        "Turn on/off, adjust brightness and set a color for the whole group.\n"
+        "**Use for**: 'Turn on living room', 'Dim the bedroom', 'Make the TV corner red'."
     ),
     semantic_keywords=[
         "turn on off all lights in room",
         "control entire room lighting",
         "dim whole room brightness",
+        "change color of all lights in a room or zone",
         "room level light control",
     ],
-    parameters=[_ROOM_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM],
+    parameters=[_ROOM_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM, _COLOR_PARAM],
     outputs=[
         OutputFieldSchema(
             path="name", type="string", description="Room name", semantic_type="Text"
         ),
         OutputFieldSchema(path="on", type="boolean", description="New state"),
         OutputFieldSchema(path="brightness", type="number", description="New brightness"),
+        OutputFieldSchema(path="color", type="string", description="New color"),
     ],
     cost=CostProfile(est_tokens_in=100, est_tokens_out=200, est_cost_usd=0.001, est_latency_ms=500),
     permissions=PermissionProfile(
@@ -321,7 +333,7 @@ activate_hue_scene_catalogue_manifest = ToolManifest(
         "apply lighting mood",
         "movie relax concentrate scene",
     ],
-    parameters=[_SCENE_NAME_PARAM],
+    parameters=[_SCENE_NAME_PARAM, _MOTION_PARAM],
     outputs=[
         OutputFieldSchema(
             path="name", type="string", description="Activated scene name", semantic_type="Text"

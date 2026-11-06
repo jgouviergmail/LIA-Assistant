@@ -77,7 +77,7 @@ fidélité linguistique du fournisseur.
 ## La personne agit à la main
 
 La section « Outils » ouvre le courrier, l'agenda, les tâches, les contacts, les
-fichiers Drive et les lampes Hue de la personne sans aucun modèle sur le chemin :
+fichiers (Google Drive ou OneDrive) et les lampes Hue de la personne sans aucun modèle sur le chemin :
 un contexte borné REST (`domains/workbench/`), une porte qui ouvre le client de
 l'outil sans garder de session pendant que le fournisseur répond, une couture qui
 transforme chaque échec en un refus stable par son type et son statut, et un
@@ -946,7 +946,7 @@ DOMAINS = [
 
 ### Connecteurs Google (OAuth 2.1 + APIs)
 
-**Architecture multi-domaine** : 6 clients Google, 3 clients Apple iCloud, 4 clients Microsoft 365 avec clients séparés par API.
+**Architecture multi-domaine** : 6 clients Google, 3 clients Apple iCloud, 5 clients Microsoft 365 avec clients séparés par API.
 
 #### Clients Implémentés
 
@@ -1019,6 +1019,10 @@ src/domains/connectors/clients/
 ├── microsoft_tasks_client.py    # Microsoft Graph /me/todo/lists
 │   ├── list/create/complete     # @default → first list
 │   └── Normalizers → Google Tasks format
+│
+├── microsoft_onedrive_client.py # Microsoft Graph, catégorie files (FilesClientProtocol)
+│   ├── browse/organize/share    # les mots de Drive à la frontière du client
+│   └── delta + abonnement Graph # flux et notifications de changements
 │
 └── src/domains/voice/
     ├── client.py                 # EdgeTTSClient (Microsoft Neural voices - GRATUIT)

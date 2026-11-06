@@ -1,4 +1,4 @@
-"""Whether an iCloud message was read — the IMAP ``\\Seen`` flag (ADR-369, D2).
+"""Whether an iCloud message was read or starred — IMAP's flags (ADR-369, D2).
 
 Out of ``apple_email_client.py``, which is close to its size cap. A message id
 names its folder (``imap_handles``): the selection is flagged folder by folder,
@@ -38,7 +38,7 @@ from src.infrastructure.cache.redis import get_redis_session
 logger = structlog.get_logger(__name__)
 
 #: The messages of one folder (and one account scope), with what each id says.
-_Group = list[tuple[str, MessageLocation]]
+Group = list[tuple[str, MessageLocation]]
 _GroupKey = tuple[str | None, str | None]
 
 
@@ -54,11 +54,11 @@ class _AppleStateHost(Protocol):
 
     def _check_imap_auth_error(self, error: Exception) -> None: ...
 
-    async def _mark_read_impl(self, ids: list[str], read: bool) -> dict[str, Any]: ...
+    async def _set_flag_impl(self, ids: list[str], flag: str, value: bool) -> dict[str, Any]: ...
 
 
 class AppleMailStateMixin:
-    """The read state of iCloud messages."""
+    """The read state and the star of iCloud messages."""
 
     async def mark_read(
         self: _AppleStateHost, message_ids: Sequence[str], read: bool
@@ -75,12 +75,41 @@ class AppleMailStateMixin:
         """
         # Setting a flag twice leaves it set once, but the session is the act: no replay.
         return await self._execute_with_retry(
-            "mark_read", self._mark_read_impl, unique_ids(message_ids), read, max_retries=0
+            "mark_read",
+            self._set_flag_impl,
+            unique_ids(message_ids),
+            MailMessageFlags.SEEN,
+            read,
+            max_retries=0,
         )
 
-    async def _mark_read_impl(self: _AppleStateHost, ids: list[str], read: bool) -> dict[str, Any]:
+    async def set_starred(
+        self: _AppleStateHost, message_ids: Sequence[str], starred: bool
+    ) -> dict[str, Any]:
+        """Star messages or take their star off, and say which could not be.
+
+        Args:
+            message_ids: The messages (each counted once).
+            starred: True to star them.
+
+        Returns:
+            ``{"updated": [ids], "failed": [{"id", "status"}]}``
+            (``mail_read_state``).
+        """
+        return await self._execute_with_retry(
+            "set_starred",
+            self._set_flag_impl,
+            unique_ids(message_ids),
+            MailMessageFlags.FLAGGED,
+            starred,
+            max_retries=0,
+        )
+
+    async def _set_flag_impl(
+        self: _AppleStateHost, ids: list[str], flag: str, value: bool
+    ) -> dict[str, Any]:
         """Flag each folder's messages in one selection of that folder."""
-        groups, unreadable = _by_folder(ids)
+        groups, unreadable = by_folder(ids)
         principal = self.credentials.apple_id
 
         def flag_each_folder() -> tuple[list[str], list[str]]:
@@ -88,13 +117,13 @@ class AppleMailStateMixin:
                 with authenticated_imap_mailbox(
                     MailBox, principal, self.credentials.app_password
                 ) as mailbox:
-                    return _flag_groups(mailbox, groups, principal, read)
+                    return _flag_groups(mailbox, groups, principal, flag, value)
             except Exception as error:
                 self._check_imap_auth_error(error)
                 raise
 
         flagged, missing = await asyncio.to_thread(flag_each_folder)
-        await _forget_cached(self, flagged)
+        await forget_cached(self, flagged)
         # Reported in the selection's own order, whatever folder each one was in.
         not_found = {*missing, *unreadable}
         flagged_set = set(flagged)
@@ -103,18 +132,17 @@ class AppleMailStateMixin:
             [(mid, READ_STATE_NOT_FOUND) for mid in ids if mid in not_found],
         )
         logger.info(
-            "apple_read_state_changed",
+            "apple_flag_changed",
             user_id=str(self.user_id),
-            read=read,
             updated=len(result["updated"]),
             failed=len(result["failed"]),
         )
         return result
 
 
-def _by_folder(ids: list[str]) -> tuple[dict[_GroupKey, _Group], list[str]]:
+def by_folder(ids: list[str]) -> tuple[dict[_GroupKey, Group], list[str]]:
     """The ids grouped by the folder (and scope) they name; the unreadable ones apart."""
-    groups: dict[_GroupKey, _Group] = defaultdict(list)
+    groups: dict[_GroupKey, Group] = defaultdict(list)
     unreadable: list[str] = []
     for message_id in ids:
         location = read_message_handle(message_id)
@@ -126,20 +154,20 @@ def _by_folder(ids: list[str]) -> tuple[dict[_GroupKey, _Group], list[str]]:
 
 
 def _flag_groups(
-    mailbox: Any, groups: dict[_GroupKey, _Group], principal: str, read: bool
+    mailbox: Any, groups: dict[_GroupKey, Group], principal: str, flag: str, value: bool
 ) -> tuple[list[str], list[str]]:
     """Flag every group in its own folder selection: (flagged ids, ids not there)."""
     flagged: list[str] = []
     missing: list[str] = []
     for members in groups.values():
-        found, absent = _flag_one_folder(mailbox, members, principal, read)
+        found, absent = _flag_one_folder(mailbox, members, principal, flag, value)
         flagged += found
         missing += absent
     return flagged, missing
 
 
 def _flag_one_folder(
-    mailbox: Any, members: _Group, principal: str, read: bool
+    mailbox: Any, members: Group, principal: str, flag: str, value: bool
 ) -> tuple[list[str], list[str]]:
     """Select the members' folder, flag the UIDs it still holds: (flagged, absent)."""
     folder = select_message_folder(mailbox, members[0][1], principal=principal)
@@ -148,15 +176,20 @@ def _flag_one_folder(
     present = set(mailbox.uids(AND(uid=[location.uid for _, location in members])))
     found = [(mid, location) for mid, location in members if location.uid in present]
     if found:
-        mailbox.flag([location.uid for _, location in found], MailMessageFlags.SEEN, read)
+        mailbox.flag([location.uid for _, location in found], flag, value)
     return (
         [mid for mid, _ in found],
         [mid for mid, location in members if location.uid not in present],
     )
 
 
-async def _forget_cached(host: _AppleStateHost, message_ids: list[str]) -> None:
-    """Drop the cached copies of messages whose flags changed (they carry ``is_read``)."""
+async def forget_cached(host: Any, message_ids: list[str]) -> None:
+    """Drop the cached copies of messages whose flags or place changed.
+
+    Args:
+        host: The client (its ``user_id`` and credentials name the cache entries).
+        message_ids: The messages.
+    """
     if not message_ids:
         return
     try:

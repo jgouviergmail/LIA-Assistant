@@ -3,9 +3,10 @@
 [Master plan](README.md) · [Contracts](contracts.md) ·
 [Decisions](decisions.md) · [Launch prompt](prompts/03-language.md)
 
-**Status:** proposed; written and Live required.
+**Status:** first-release direction accepted on 2026-11-03; detailed design only.
+Business implementation is not authorized by this framing request.
 **Dependencies:** qualified training contracts from theatre, not theatre content
-or its feature switch. **Blocking choices:** D01, D03–D07, D09–D11.
+or its feature switch. **Accepted decisions:** D01, D03–D07, D09–D11.
 
 ## Job and useful result
 
@@ -16,7 +17,7 @@ Example: ask for a change to a booking, clarify an ambiguous reply, then revisit
 the difficult phrase in another scene. Success is communicating the intended
 request; perfectly reproducing a model sentence is not the goal.
 
-## Proposed first-release scope
+## Accepted first-release scope
 
 - A small authored set of practical scenes: a shop, a journey, a social
   introduction or a work interaction. Places represent situations and objectives.

@@ -238,11 +238,13 @@ export function homeBriefing(): BriefingResponse {
         })),
       }),
       documents: section({
+        provider: 'google_drive',
         items: items(HOME_CAPS.documents, index => ({
           name: homeItemName('documents', index),
           modified_local: 'Aujourd’hui à 08:45',
           web_view_link: `https://drive.example.test/document-${index}`,
           mime_type: 'application/pdf',
+          path: null,
         })),
       }),
       workboard: section({

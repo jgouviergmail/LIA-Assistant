@@ -29,7 +29,10 @@ def test_each_tool_is_served_by_the_connectors_of_its_category() -> None:
     assert TOOL_PROVIDERS[WorkbenchTool.TASKS] == CONNECTOR_FUNCTIONAL_CATEGORIES["tasks"]
     assert TOOL_PROVIDERS[WorkbenchTool.CONTACTS] == CONNECTOR_FUNCTIONAL_CATEGORIES["contacts"]
     assert TOOL_PROVIDERS[WorkbenchTool.LIGHTS] == CONNECTOR_FUNCTIONAL_CATEGORIES["smart_home"]
-    assert TOOL_PROVIDERS[WorkbenchTool.FILES] == frozenset({ConnectorType.GOOGLE_DRIVE})
+    assert TOOL_PROVIDERS[WorkbenchTool.FILES] == CONNECTOR_FUNCTIONAL_CATEGORIES["files"]
+    assert TOOL_PROVIDERS[WorkbenchTool.FILES] == frozenset(
+        {ConnectorType.GOOGLE_DRIVE, ConnectorType.MICROSOFT_ONEDRIVE}
+    )
 
 
 def test_the_shipped_descriptor_is_complete() -> None:
@@ -52,11 +55,18 @@ def test_an_entry_for_a_provider_no_tool_has_stops_the_boot(
         assert_descriptor_completeness()
 
 
-def test_gmail_alone_manages_labels_and_mailbox_settings() -> None:
-    """The label and settings tools exist for Gmail only (owner's brief §6.3)."""
-    for gesture in (WorkbenchFeature.LABELS, WorkbenchFeature.VACATION, WorkbenchFeature.FILTERS):
+def test_gmail_alone_manages_labels() -> None:
+    """Outlook files mail in folders, and iCloud has no labels either (owner's brief §6.3)."""
+    gesture = WorkbenchFeature.LABELS
+    offering = {t for t, offered in PROVIDER_FEATURES.items() if gesture in offered}
+    assert offering == {ConnectorType.GOOGLE_GMAIL}
+
+
+def test_a_mailbox_s_settings_are_gmail_s_and_outlook_s() -> None:
+    """iCloud has no automatic reply nor rule a client can reach (ADR-369, lot 12)."""
+    for gesture in (WorkbenchFeature.VACATION, WorkbenchFeature.FILTERS):
         offering = {t for t, offered in PROVIDER_FEATURES.items() if gesture in offered}
-        assert offering == {ConnectorType.GOOGLE_GMAIL}, gesture
+        assert offering == {ConnectorType.GOOGLE_GMAIL, ConnectorType.MICROSOFT_OUTLOOK}, gesture
 
 
 def test_the_attachments_chip_follows_what_each_translator_carries() -> None:

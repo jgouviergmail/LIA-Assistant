@@ -159,6 +159,12 @@ const nextConfig: NextConfig = {
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
+        // PDF.js's worker and data, under its release's directory
+        // (scripts/copy-pdf-runtime.mjs): an upgrade is a new URL.
+        source: '/pdfjs/:version/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
         // Every route EXCEPT the widget airlock (negative lookahead): the
         // airlock carries its own permissive CSP below, and two CSP headers
         // on one response would enforce their intersection.

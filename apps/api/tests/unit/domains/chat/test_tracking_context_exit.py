@@ -22,8 +22,10 @@ import asyncio
 import inspect
 import textwrap
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -266,3 +268,112 @@ class TestThePredicateCoversEveryBucketByConstruction:
         assert not (
             read & self._buckets_created_by_init()
         ), "a persistence door reads a record bucket directly instead of the predicate"
+
+
+@asynccontextmanager
+async def _a_session() -> AsyncIterator[MagicMock]:
+    yield MagicMock()
+
+
+class _SlowWrites:
+    """A tracker whose write takes the database's time, and counts what it wrote.
+
+    Production, 2026-11-04: a cancelled turn opened both doors at once, 10 ms apart,
+    and wrote its six records twice (usage logs, summary, ledger, statistics).
+    """
+
+    def __init__(self, *, failures: int = 0) -> None:
+        self.tracker = TrackingContext("run_race", uuid.uuid4(), "session", uuid.uuid4())
+        self.tracker._node_records.append(MagicMock())
+        self.written: list[int] = []
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.failures = failures
+        self.tracker._do_persist = self._do_persist  # type: ignore[method-assign]
+
+    async def _do_persist(self, _db: object, *, commit: bool) -> None:
+        self.started.set()
+        await self.release.wait()
+        if self.failures:
+            self.failures -= 1
+            raise RuntimeError("database unavailable")
+        self.written.append(len(self.tracker._node_records))
+        self.tracker._node_records.clear()
+        self.tracker._message_count_committed = True
+
+
+@pytest.mark.asyncio
+class TestOneWriteAtATime:
+    @pytest.fixture(autouse=True)
+    def _session(self):
+        with patch("src.domains.chat.service.get_db_context", _a_session):
+            yield
+
+    async def test_two_doors_open_together_write_once(self) -> None:
+        writes = _SlowWrites()
+        commit = asyncio.create_task(writes.tracker.commit())
+        await writes.started.wait()
+        exit_door = asyncio.create_task(
+            writes.tracker.__aexit__(asyncio.CancelledError, asyncio.CancelledError(), None)
+        )
+        await asyncio.sleep(0)
+        writes.release.set()
+
+        await asyncio.gather(commit, exit_door)
+
+        assert writes.written == [1]
+
+    async def test_a_write_in_flight_survives_its_caller_s_cancellation(self) -> None:
+        """Cut at its commit, a write leaves its outcome unknown: it must finish."""
+        writes = _SlowWrites()
+        commit = asyncio.create_task(writes.tracker.commit())
+        await writes.started.wait()
+
+        commit.cancel()
+        await asyncio.sleep(0)
+        writes.release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await commit
+
+        assert writes.written == [1]
+        await writes.tracker.__aexit__(None, None, None)
+        assert writes.written == [1]
+
+    async def test_a_failed_write_leaves_the_next_door_something_to_write(self) -> None:
+        writes = _SlowWrites(failures=1)
+        writes.release.set()
+
+        await writes.tracker.commit()
+        assert writes.written == []
+        assert writes.tracker.pending_families()["llm"] == 1
+
+        await writes.tracker.commit()
+        assert writes.written == [1]
+
+    async def test_a_second_write_after_new_records_is_a_write(self) -> None:
+        """Incremental commits stand: what is new is pending, whoever comes next."""
+        writes = _SlowWrites()
+        writes.release.set()
+
+        await writes.tracker.commit()
+        writes.tracker._node_records.append(MagicMock())
+        await writes.tracker.commit()
+
+        assert writes.written == [1, 1]
+
+    async def test_a_caller_s_session_stays_in_the_caller_s_task(self) -> None:
+        """A session is never shared: an external one is written where it lives."""
+        session = MagicMock()
+        tracker = TrackingContext("run_external", uuid.uuid4(), "session", None, db=session)
+        tracker._node_records.append(MagicMock())
+        seen: list[object] = []
+
+        async def persist(db: object, *, commit: bool) -> None:
+            seen.append((db, commit, asyncio.current_task()))
+            tracker._node_records.clear()
+
+        tracker._do_persist = persist  # type: ignore[method-assign]
+
+        await tracker.commit()
+
+        assert seen == [(session, False, asyncio.current_task())]

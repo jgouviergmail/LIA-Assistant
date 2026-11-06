@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.constants import SHEETS_READ_MAX_COLUMN
 from src.domains.connectors.clients.google_docs_client import GoogleDocsClient
 from src.domains.connectors.clients.google_sheets_client import GoogleSheetsClient
 
@@ -23,6 +24,88 @@ def _client(cls: type) -> object:
     instance = cls.__new__(cls)
     instance.user_id = uuid4()
     return instance
+
+
+class TestSheetsInTheWordsOfBothDrives:
+    async def test_rows_are_read_up_to_the_page(self) -> None:
+        client = _client(GoogleSheetsClient)
+        client.get_values = AsyncMock(return_value={"values": [["a"]]})  # type: ignore[attr-defined]
+
+        rows = await client.read_rows("sheet-1", "Dépenses", 50)  # type: ignore[attr-defined]
+
+        assert rows == [["a"]]
+        client.get_values.assert_awaited_once_with(  # type: ignore[attr-defined]
+            "sheet-1", f"'Dépenses'!A1:{SHEETS_READ_MAX_COLUMN}50"
+        )
+
+    async def test_a_sheet_with_no_values_reads_no_rows(self) -> None:
+        client = _client(GoogleSheetsClient)
+        client.get_values = AsyncMock(return_value={})  # type: ignore[attr-defined]
+
+        assert await client.read_rows("sheet-1", "Vide", 5) == []  # type: ignore[attr-defined]
+
+    async def test_a_quote_in_a_sheet_name_is_doubled_or_the_api_refuses_it(self) -> None:
+        client = _client(GoogleSheetsClient)
+        client.get_values = AsyncMock(return_value={})  # type: ignore[attr-defined]
+
+        await client.read_rows("sheet-1", "Bob's data", 5)  # type: ignore[attr-defined]
+
+        requested = client.get_values.await_args.args[1]  # type: ignore[attr-defined]
+        assert requested.startswith("'Bob''s data'!")
+
+    async def test_cells_are_written_on_their_sheet_and_counted_by_the_api(self) -> None:
+        client = _client(GoogleSheetsClient)
+        client.update_values = AsyncMock(return_value={"updatedCells": 2})  # type: ignore[attr-defined]
+
+        count = await client.write_range(  # type: ignore[attr-defined]
+            "sheet-1", "Dépenses", "B2:B3", [["1"], ["2"]]
+        )
+
+        assert count == 2
+        client.update_values.assert_awaited_once_with(  # type: ignore[attr-defined]
+            "sheet-1", "'Dépenses'!B2:B3", [["1"], ["2"]]
+        )
+
+    async def test_rows_are_added_below_the_sheets_table_and_counted_by_the_api(self) -> None:
+        client = _client(GoogleSheetsClient)
+        client.append_values = AsyncMock(  # type: ignore[attr-defined]
+            return_value={"updates": {"updatedRows": 1}}
+        )
+
+        count = await client.append_rows("sheet-1", "Dépenses", [["x"]])  # type: ignore[attr-defined]
+
+        assert count == 1
+        client.append_values.assert_awaited_once_with(  # type: ignore[attr-defined]
+            "sheet-1", "'Dépenses'!A1", [["x"]]
+        )
+
+    async def test_it_refuses_no_write_ahead(self) -> None:
+        client = _client(GoogleSheetsClient)
+
+        assert await client.write_refusal("B2", [["1"]]) is None  # type: ignore[attr-defined]
+
+
+class TestDocsInTheWordsOfBothDrives:
+    async def test_a_document_reads_as_its_title_and_its_text(self) -> None:
+        client = _client(GoogleDocsClient)
+        client.get_document = AsyncMock(  # type: ignore[attr-defined]
+            return_value={
+                "title": "Notes",
+                "body": {
+                    "content": [{"paragraph": {"elements": [{"textRun": {"content": "Salut\n"}}]}}]
+                },
+            }
+        )
+
+        read = await client.read_text("doc-1")  # type: ignore[attr-defined]
+
+        assert read == {"title": "Notes", "content": "Salut"}
+
+    async def test_its_title_is_the_one_it_holds(self) -> None:
+        client = _client(GoogleDocsClient)
+        client.get_document = AsyncMock(return_value={"title": "Notes"})  # type: ignore[attr-defined]
+
+        assert await client.read_title("doc-1") == "Notes"  # type: ignore[attr-defined]
 
 
 class TestSheetsWrites:

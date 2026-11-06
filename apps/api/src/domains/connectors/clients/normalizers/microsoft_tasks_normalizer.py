@@ -13,6 +13,7 @@ import structlog
 from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.core.time_utils import parse_provider_datetime
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
+from src.domains.connectors.clients.task_details import repeat_of
 
 logger = structlog.get_logger(__name__)
 
@@ -25,6 +26,21 @@ _STATUS_TO_GOOGLE: dict[str, str] = {
     "deferred": "needsAction",
 }
 
+#: What a copy of a task carries: what To Do lets a client write. Its steps go apart.
+_COPIED_FIELDS: tuple[str, ...] = (
+    "title",
+    "body",
+    "importance",
+    "categories",
+    "status",
+    "startDateTime",
+    "dueDateTime",
+    "completedDateTime",
+    "isReminderOn",
+    "reminderDateTime",
+    "recurrence",
+)
+
 # Google Tasks status → Microsoft To Do status mapping
 _STATUS_FROM_GOOGLE: dict[str, str] = {
     "needsAction": "notStarted",
@@ -35,6 +51,27 @@ _STATUS_FROM_GOOGLE: dict[str, str] = {
 def graph_task_status(status: str) -> str:
     """The To Do status a Google Tasks status names (``needsAction`` → ``notStarted``)."""
     return _STATUS_FROM_GOOGLE.get(status, "notStarted")
+
+
+def normalize_step(step: dict[str, Any]) -> dict[str, Any]:
+    """One step of a task, in the vocabulary of the clients."""
+    return {
+        "id": str(step.get("id") or ""),
+        "title": str(step.get("displayName") or ""),
+        "checked": bool(step.get("isChecked")),
+    }
+
+
+def task_copy_body(task: dict[str, Any]) -> dict[str, Any]:
+    """What a task's copy is written with, in another list, its steps included."""
+    body = {key: task[key] for key in _COPIED_FIELDS if key in task}
+    steps = task.get("checklistItems") or []
+    if steps:
+        body["checklistItems"] = [
+            {"displayName": step.get("displayName"), "isChecked": bool(step.get("isChecked"))}
+            for step in steps
+        ]
+    return body
 
 
 def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
@@ -84,6 +121,13 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
     # Importance → not in Google Tasks, but useful metadata
     importance = task.get("importance", "normal")
 
+    reminder = None
+    reminder_data = task.get("reminderDateTime")
+    if task.get("isReminderOn") and reminder_data:
+        reminder = _normalize_due_date(
+            reminder_data.get("dateTime", ""), reminder_data.get("timeZone", "UTC")
+        )
+
     return {
         "id": task_id,
         "title": title,
@@ -98,6 +142,9 @@ def normalize_graph_task(task: dict[str, Any]) -> dict[str, Any]:
         "position": "",
         # Extra metadata
         "importance": importance,
+        "reminder": reminder,
+        "repeat": repeat_of(task.get("recurrence")),
+        "steps": [normalize_step(step) for step in task.get("checklistItems") or []],
         "_provider": "microsoft",
         FIELD_DISPLAY_ONLY: {
             "native_task": {

@@ -62,6 +62,15 @@ _PREVIEW_VALUE_MAX_CHARS = 50
 
 #: The domains a FOR_EACH tool name may name, tried in order.
 _FOR_EACH_DOMAINS = ("reminder", "email", "event", "contact", "task", "file", "label")
+#: A name holding one of these words acts on none of those domains: the word, the verb
+#: that has a type of its own, that type, and what any other verb answers. A mailbox
+#: draft asks only when sent (ADR-344); a filter is no message, whatever its name holds.
+_FOR_EACH_OWN_TYPES: tuple[tuple[str, str, str, str | None], ...] = (
+    ("mailbox_draft", "send", "mailbox_draft_send", None),
+    ("email_filter", "delete", "email_filter_delete", "email_filter"),
+    ("respond_to_event", "respond", "event_answer", None),
+    ("share_file", "share", "file_share", None),
+)
 #: The verbs that make a domain's delete or update type, tried in order.
 _FOR_EACH_VERB_SUFFIXES = (
     (("delete", "cancel", "remove", "trash"), "_delete"),
@@ -383,6 +392,9 @@ class ForEachConfirmationInteraction:
             - ``create_event`` → ``"event"`` (base DraftType)
             - ``send_mailbox_draft`` → ``"mailbox_draft_send"``; any other
               mailbox draft act → ``None`` (it asks nothing, ADR-344)
+            - ``delete_email_filter`` → ``"email_filter_delete"``; ``create_email_filter``
+              → ``"email_filter"``
+            - ``respond_to_event`` → ``"event_answer"``
             - Unrecognized tool name → ``None`` (caller falls back).
 
         Args:
@@ -395,9 +407,9 @@ class ForEachConfirmationInteraction:
             or ``None`` when no mapping can be inferred.
         """
         tool_name = str(steps[0].get("tool_name", "")).lower() if steps else ""
-        # The person's mailbox drafts (ADR-344): only SENDING one asks first.
-        if "mailbox_draft" in tool_name:
-            return "mailbox_draft_send" if "send" in tool_name else None
+        for word, verb, asked, otherwise in _FOR_EACH_OWN_TYPES:
+            if word in tool_name:
+                return asked if verb in tool_name else otherwise
         domain = next((d for d in _FOR_EACH_DOMAINS if d in tool_name), None)
         if domain is None:
             return None

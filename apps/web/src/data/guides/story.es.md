@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 3.0
-**Fecha**: 2026-11-01
-**Aplicación**: LIA v4.3.0
+**Fecha**: 2026-11-06
+**Aplicación**: LIA v4.4.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Casi todo el código lo escribió una IA. Mi trabajo consistió en dirigirla: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA, dirigida, encuadrada y controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests), repartidas en 60 paquetes de dominio backend | **1.092.074** |
-| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **72.137** |
-| Decisiones de arquitectura documentadas (ADR) | **367** |
-| Versiones entregadas a ritmo regular | **293** |
+| Líneas de código fuente (sin tests), repartidas en 61 paquetes de dominio backend | **1.130.379** |
+| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **76.381** |
+| Decisiones de arquitectura documentadas (ADR) | **368** |
+| Versiones entregadas a ritmo regular | **294** |
 | Idiomas, con una paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **7,9/10** |
 
@@ -37,7 +37,7 @@ LIA también puede abrir por su cuenta una conversación personal, pero solo en 
 
 La IA generativa cambia lo que producen los equipos, y también la forma en que lo producen. Sobre estas dos cuestiones, no quería formarme una opinión a partir de los discursos del mercado. Preferí enfrentarme yo mismo a la realidad completa de un sistema de IA en producción, con sus costes, sus riesgos, su explotación y su deuda, y a la del desarrollo asistido por IA, llegando hasta el final en ambos casos.
 
-Mi terreno de prácticas es LIA, un asistente de IA conversacional multiagente, autoalojado y multilingüe. Gestiona el correo, la agenda, los contactos y los archivos en Google, Apple y Microsoft, ofrece una interfaz de voz en tiempo real, una memoria a largo plazo y la búsqueda en documentos, y la encarna un personaje animado.
+Mi terreno de prácticas es LIA, un asistente de IA conversacional multiagente, autoalojado y multilingüe. Gestiona el correo, la agenda y los contactos en Google, Apple y Microsoft, los archivos en Google Drive y OneDrive, ofrece una interfaz de voz en tiempo real, una memoria a largo plazo y la búsqueda en documentos, y la encarna un personaje animado.
 
 Me impuse unas restricciones: trabajar solo, fuera de mi tiempo de trabajo, con un presupuesto de hardware mínimo, y confiar todo el desarrollo a la IA. Por tanto, este proyecto no mide lo que una persona puede producir deprisa. Mide lo que una dirección exigente obtiene de una IA correctamente encuadrada.
 
@@ -64,7 +64,7 @@ El mundo compartido le da a la asistente lugares: una biblioteca para el conocim
 
 También quería que un asistente dejara espacio para hacer las cosas uno mismo. Herramientas utiliza los mismos servicios conectados, pero un clic no llama a ningún modelo ni se registra como un acto de LIA. Delegar y mantener el control pueden compartir interfaz si queda claro quién decidió, quién actuó y qué se aprobó.
 
-Estas son tres decisiones estructurantes, entre las 367 documentadas.
+Estas son tres decisiones estructurantes, entre las 368 documentadas.
 
 La primera trata de la **soberanía**: no quería ninguna dependencia irreversible de un proveedor. Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity y modelos locales con Ollama) pasan todos por una misma abstracción, de modo que cada uso puede cambiar de proveedor con un simple cambio de configuración, comparando costes. En cuanto a los servicios, Google, Apple y Microsoft son intercambiables en cada categoría, ya se trate del correo, de la agenda o de los contactos. El autoalojamiento da el control del servidor: los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Aun así, los servicios remotos que la persona elige reciben los datos útiles para su parte de la petición.
 
@@ -76,7 +76,7 @@ La tercera trata del **control del riesgo**: ninguna acción irreversible sin va
 
 En las llamadas telefónicas, la tarjeta de confirmación sirve para proteger a un tercero. Cuando LIA llama a la propia persona, a un número que esta ha declarado y verificado con un código leído en voz alta, es la persona quien hace de tarjeta. Para sus llamadas, igual que para una sesión de voz live del navegador abierta con su propia clave de Gemini, OpenAI o ElevenLabs, es ella quien elige el modo: o bien la voz confía cada petición al chat en el momento en que se dice, con sus confirmaciones, o bien lee sola y no actúa sobre nada. Lo que funciona con su clave personal lo factura el proveedor y se muestra una vez, pero no se contabiliza aquí. En cambio, lo que la plataforma paga por ella queda registrado en su cuenta, sea cual sea el camino: un mapa consultado durante una llamada, el tiempo del briefing, una foto mostrada.
 
-Lo que envía un desconocido, un correo o su adjunto, sigue siendo un dato que leer y nunca una instrucción que seguir. Un script escrito por la asistente solo sale a la web por una única puerta, y allí las claves de la persona se intercambian fuera del alcance del script; para un sitio que nadie ha autorizado, LIA pregunta primero a la persona, que tiene tres respuestas posibles: con los datos, sin ellos o de ninguna manera. Cuando el agente autónomo no puede obtener lo que se le pide, lo dice, junto con lo que ha intentado, en lugar de rellenar el hueco. Lo que debe ser exacto, como un importe, una duración o una conversión, lo calcula una herramienta y nunca lo estima el modelo. Lo que sale sin confirmación solo va dirigido a la propia persona, un correo a sí misma o una llamada a su número verificado: el destinatario no es ahí un parámetro, así que nada puede desviarlo. Una competencia escrita en otro lugar, tomada de una biblioteca pública o de un plugin, trabaja aparte: nunca accede a los conectores de la persona y solo contacta con los hosts permitidos. Y una competencia que escribe la IA solo entra en el espacio de la persona cuando esta hace clic.
+Lo que envía un desconocido, un correo o su adjunto, sigue siendo un dato que leer y nunca una instrucción que seguir. Un script escrito por la asistente solo sale a la web por una única puerta, y allí las claves de la persona se intercambian fuera del alcance del script; para un sitio que nadie ha autorizado, LIA pregunta primero a la persona, que tiene tres respuestas posibles: con los datos, sin ellos o de ninguna manera. Una página que escribe se ejecuta en un marco que no alcanza ni la cuenta de la persona ni ningún sitio de su elección. Cuando el agente autónomo no puede obtener lo que se le pide, lo dice, junto con lo que ha intentado, en lugar de rellenar el hueco. Lo que debe ser exacto, como un importe, una duración o una conversión, lo calcula una herramienta y nunca lo estima el modelo. Lo que sale sin confirmación solo va dirigido a la propia persona, un correo a sí misma o una llamada a su número verificado: el destinatario no es ahí un parámetro, así que nada puede desviarlo. Una competencia escrita en otro lugar, tomada de una biblioteca pública o de un plugin, trabaja aparte: nunca accede a los conectores de la persona y solo contacta con los hosts permitidos. Y una competencia que escribe la IA solo entra en el espacio de la persona cuando esta hace clic.
 
 ## 5. La explotación
 
@@ -118,4 +118,4 @@ Esto es lo que esta experiencia cambia en mi forma de dirigir.
 - Entre la prohibición general y la confianza ciega, existe una **vía gobernable**. El control humano graduado se especifica, se prueba y se audita. Es el enfoque que dibujan las exigencias regulatorias, y ya es operativo.
 - Un directivo que practica **arbitra mejor**. Hacer o encargar, aceptar una deuda o no, creer o no en la promesa de un proveedor: estas decisiones ganan en acierto cuando uno ha probado la materia por sí mismo. Este proyecto es mi forma de mantener ese contacto con el terreno.
 
-*Proyecto personal, llevado a cabo fuera de toda actividad profesional. Evaluación técnica procedente de la auditoría del 25 de octubre de 2026, con hallazgos contraverificados. Los recuentos estructurales siguen el repositorio; las líneas de código fuente se volvieron a medir el 31 de octubre de 2026. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*
+*Proyecto personal, llevado a cabo fuera de toda actividad profesional. Evaluación técnica procedente de la auditoría del 25 de octubre de 2026, con hallazgos contraverificados. Los recuentos estructurales siguen el repositorio; las líneas de código fuente se volvieron a medir el 6 de noviembre de 2026. Repositorio: [github.com/jgouviergmail/LIA-Assistant](https://github.com/jgouviergmail/LIA-Assistant).*

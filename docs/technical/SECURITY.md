@@ -2840,7 +2840,7 @@ Hue bridge pairing/activation accepts a user-provided `bridge_ip`. Security laye
 
 ### OAuth Callback Redirect Sanitization
 
-All 10 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft Outlook/Calendar/Contacts/Tasks, Philips Hue) use the centralized `handle_oauth_callback_error_redirect()` handler. This handler:
+All 11 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft Outlook/Calendar/Contacts/Tasks/OneDrive, Philips Hue) use the centralized `handle_oauth_callback_error_redirect()` handler. This handler:
 
 1. Classifies errors via `OAuthCallbackErrorCode` enum (safe, bounded values)
 2. Never embeds raw user/provider input in redirect URLs

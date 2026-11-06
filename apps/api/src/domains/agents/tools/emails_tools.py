@@ -34,6 +34,7 @@ from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.constants import (
+    EMAILS_TOOL_ID_BATCH_MAX,
     GMAIL_DATE_OPERATORS,
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
@@ -48,6 +49,10 @@ from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.catalogue_manifests import (
+    MAIL_DRIVE_FILES_DESCRIPTION,
+    MAIL_FILE_NAMES_DESCRIPTION,
+)
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.detail_levels import (
     DEFAULT_DETAIL,
@@ -55,14 +60,21 @@ from src.domains.agents.emails.detail_levels import (
     apply_detail_level,
     coerce_detail,
 )
+from src.domains.agents.emails.get_emails_manifest import WHOLE_CONVERSATION_DESCRIPTION
 from src.domains.agents.emails.message_finishing import finish_messages
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
+from src.domains.agents.tools.email_files import card_files, original_files, signed_body
 from src.domains.agents.tools.email_reading import fetch_messages
 from src.domains.agents.tools.exceptions import (
     EmailValidationError,
 )
-from src.domains.agents.tools.mailbox_draft_base import MAIL_SEARCH_REFUSALS, refusal_for
+from src.domains.agents.tools.mailbox_draft_base import (
+    MAIL_SEARCH_REFUSALS,
+    refusal,
+    refusal_for,
+)
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
@@ -371,22 +383,6 @@ ContextTypeRegistry.register(
 # ============================================================================
 
 
-class GetEmailsInput(BaseModel):
-    """Input schema for get_emails_tool (unified search + details)."""
-
-    # Query mode: search by text
-    query: str | None = None
-    max_results: int = settings.emails_tool_default_limit
-    page_token: str | None = None
-    # ID mode: direct fetch by ID(s)
-    message_id: str | None = None
-    message_ids: list[str] | None = None
-    # Common options (ADR-287)
-    detail: str = DEFAULT_DETAIL.value
-    part: int = 1
-    use_cache: bool = True
-
-
 # ============================================================================
 # TOOL IMPLEMENTATION CLASSES (Phase 3.2 - New Architecture)
 # ============================================================================
@@ -398,7 +394,8 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
     Modes:
     1. Query mode: query provided → search, then what ``detail`` asks for
-    2. ID mode: message_id/message_ids provided → fetch specific emails
+    2. ID mode: message_id/message_ids provided → fetch specific emails, or
+       with ``whole_conversation`` the messages of one's conversation
     3. No params: latest emails
 
     Detail levels (``detail``) shape what the MODEL reads; every level reads
@@ -454,6 +451,16 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         locale: str = kwargs.get("locale", get_locale_for_language(None))
         detail = coerce_detail(kwargs.get("detail"))
         part = validate_positive_int_or_default(kwargs.get("part"), 1)
+        conversation_cut = False
+        if kwargs.get("whole_conversation"):
+            if not message_id:
+                return refusal(
+                    ToolErrorCode.INVALID_INPUT,
+                    "whole_conversation starts from one message: pass message_id.",
+                )
+            conversation = await client.get_conversation(message_id, EMAILS_TOOL_ID_BATCH_MAX)
+            message_ids = [str(item["id"]) for item in conversation["messages"]]
+            conversation_cut = bool(conversation["truncated"])
 
         # Route to appropriate mode
         if message_id or message_ids:
@@ -485,6 +492,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         result["emails"] = bind_email_card_accounts(client, result["emails"])
         result["detail"] = detail.value
+        result["conversation_truncated"] = conversation_cut or None
         return result
 
     async def _shape_for_detail(
@@ -645,15 +653,14 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             raise ValueError("Either message_id or message_ids must be provided for ID mode")
 
         # Cap batch size
-        max_batch = 10
-        if len(ids_to_fetch) > max_batch:
+        if len(ids_to_fetch) > EMAILS_TOOL_ID_BATCH_MAX:
             logger.warning(
                 "get_emails_batch_capped",
                 user_id=str(user_id),
                 requested=len(ids_to_fetch),
-                capped=max_batch,
+                capped=EMAILS_TOOL_ID_BATCH_MAX,
             )
-            ids_to_fetch = ids_to_fetch[:max_batch]
+            ids_to_fetch = ids_to_fetch[:EMAILS_TOOL_ID_BATCH_MAX]
 
         # Fetch full details
         emails_with_details = await self._fetch_full_details(
@@ -723,6 +730,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             detail=result.get("detail"),
             result_size_estimate=result.get("result_size_estimate"),
             next_page_token=result.get("next_page_token"),
+            conversation_truncated=result.get("conversation_truncated"),
             **{FIELD_SET_ASIDE_ON_PAGE: result.get(FIELD_SET_ASIDE_ON_PAGE)},
         )
         if failed := result.get("failed_read_count"):
@@ -751,6 +759,7 @@ async def get_emails_tool(
     message_ids: Annotated[
         list[str] | None, "List of Gmail message IDs for batch fetch (optional)"
     ] = None,
+    whole_conversation: Annotated[bool, WHOLE_CONVERSATION_DESCRIPTION] = False,
     max_results: Annotated[
         int, "Maximum number of results for query mode (see the catalogue for the bound)"
     ] = settings.emails_tool_default_limit,
@@ -774,6 +783,7 @@ async def get_emails_tool(
     - Query mode: get_emails_tool(query="from:john") → search, then ``detail``
     - ID mode: get_emails_tool(message_id="abc123") → fetch one message
     - Batch mode: get_emails_tool(message_ids=["abc", "def"]) → fetch several
+    - Conversation mode: get_emails_tool(message_id="abc", whole_conversation=True)
     - List mode: get_emails_tool() → latest messages
 
     Detail levels:
@@ -794,6 +804,7 @@ async def get_emails_tool(
         query: Gmail search query (optional)
         message_id: Specific message ID to fetch (optional)
         message_ids: List of message IDs for batch fetch (optional)
+        whole_conversation: Read the conversation of ``message_id`` instead
         max_results: Maximum number of results for query mode (the catalogue
             publishes the default and the bound)
         detail: ``metadata`` | ``full`` | ``summary``
@@ -817,6 +828,7 @@ async def get_emails_tool(
         query=query,
         message_id=message_id,
         message_ids=message_ids,
+        whole_conversation=whole_conversation,
         max_results=max_results,
         detail=detail,
         page_token=page_token,
@@ -944,6 +956,9 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         # Centralized validation (DRY)
         _validate_send_email_inputs(to, subject, body, cc, bcc)
+        files = await card_files(
+            client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+        )
 
         # No PII at INFO: recipients/subjects are contents
         logger.info(
@@ -956,10 +971,11 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         return {
             "to": to,
             "subject": subject,
-            "body": body,
+            "body": await signed_body(user_id, body or "", is_html=is_html),
             "cc": cc,
             "bcc": bcc,
             "is_html": is_html,
+            "files": files,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -984,6 +1000,7 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             cc=result.get("cc"),
             bcc=result.get("bcc"),
             is_html=result.get("is_html", False),
+            files=result.get("files"),
             source_tool="send_email_tool",
             user_language=self.get_user_language(),
         )
@@ -1014,6 +1031,8 @@ async def send_email_tool(
     cc: Annotated[str | None, "CC recipients (optional, comma-separated)"] = None,
     bcc: Annotated[str | None, "BCC recipients (optional, comma-separated)"] = None,
     is_html: Annotated[bool, "True if body is HTML, False for plain text (default False)"] = False,
+    file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
+    drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1039,6 +1058,8 @@ async def send_email_tool(
         cc: CC recipients (optional, comma-separated)
         bcc: BCC recipients (optional, comma-separated)
         is_html: True if body is HTML, False for plain text
+        file_names: Files LIA holds, by name, to attach
+        drive_file_ids: Files of the person's drive, by id, to attach
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1067,69 +1088,9 @@ async def send_email_tool(
         cc=cc,
         bcc=bcc,
         is_html=is_html,
+        file_names=file_names,
+        drive_file_ids=drive_file_ids,
     )
-
-
-# ============================================================================
-# DRAFT EXECUTION HELPER (LOT 5.4)
-# ============================================================================
-
-
-async def execute_email_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute an email draft: actually send the email.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-
-    This is the execute_fn passed to DraftService.process_draft_action().
-    It retrieves the Gmail client and sends the email.
-
-    Args:
-        draft_content: Dict with email content from draft
-            {to, subject, body, cc, bcc, is_html}
-        user_id: User UUID
-        deps: ToolDependencies for getting Gmail client
-
-    Returns:
-        Dict with send result:
-            {success, message_id, thread_id, to, subject, message}
-
-    Raises:
-        Exception: If email send fails
-    """
-    # Get email client via dynamic provider resolution
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-
-    # Send email
-    result = await client.send_email(
-        to=draft_content["to"],
-        subject=draft_content["subject"],
-        body=draft_content["body"],
-        cc=draft_content.get("cc"),
-        bcc=draft_content.get("bcc"),
-        is_html=draft_content.get("is_html", False),
-    )
-
-    logger.info(
-        "email_draft_executed",
-        user_id=str(user_id),
-        message_id=result.get("id"),
-    )
-
-    return {
-        "success": True,
-        "message_id": result.get("id"),
-        "thread_id": result.get("threadId"),
-        "to": draft_content["to"],
-        "subject": draft_content["subject"],
-        "message": APIMessages.email_sent_successfully(draft_content["to"]),
-    }
 
 
 # ============================================================================
@@ -1195,6 +1156,9 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             reply_all=reply_all,
             reply_to=str(original.get("reply_to") or ""),
         )
+        files = await card_files(
+            client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+        )
 
         logger.info(
             "reply_email_draft_prepared",
@@ -1205,13 +1169,14 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
         return {
             "message_id": message_id,
-            "body": body,
+            "body": await signed_body(user_id, body),
             "reply_all": reply_all,
             "original_subject": original_subject,
             "original_from": original_from,
             "to": to,
             "cc": cc,
             "thread_id": original.get("threadId"),
+            "files": files,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1244,6 +1209,7 @@ class ReplyEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             original_subject=result.get("original_subject", ""),
             original_from=result.get("original_from", ""),
             thread_id=result.get("thread_id"),
+            files=result.get("files", []),
             user_language=self.get_user_language(),
         )
 
@@ -1267,6 +1233,8 @@ async def reply_email_tool(
     message_id: Annotated[str, "Original message ID to reply to (required)"],
     body: Annotated[str, "Reply message body (required)"],
     reply_all: Annotated[bool, "Reply to all recipients (default False)"] = False,
+    file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
+    drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1281,6 +1249,8 @@ async def reply_email_tool(
         message_id: Original message ID to reply to (required)
         body: Reply message body (required)
         reply_all: Reply to all recipients (default False)
+        file_names: Files LIA holds, by name, to attach
+        drive_file_ids: Files of the person's drive, by id, to attach
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1291,6 +1261,8 @@ async def reply_email_tool(
         message_id=message_id,
         body=body,
         reply_all=reply_all,
+        file_names=file_names,
+        drive_file_ids=drive_file_ids,
     )
 
 
@@ -1377,18 +1349,15 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         if cc:
             _validate_email_addresses(cc, "cc")
 
-        # Get original message to show context in draft
+        # The original, in the provider-neutral vocabulary (ADR-287): Outlook and
+        # iCloud carry no Gmail header tree.
         original = await client.get_message(message_id)
-        payload = original.get("payload", {})
-        headers = payload.get("headers", [])
-        header_dict = {h.get("name", "").lower(): h.get("value", "") for h in headers}
-
-        original_subject = header_dict.get("subject", "")
-        original_from = header_dict.get("from", "")
-
-        # Extract attachment info for draft preview
-        # Uses the same extraction method as forward_email for consistency
-        attachments_info = client._extract_attachment_info(payload)
+        original_subject = str(original.get("subject") or "")
+        original_from = str(original.get("from") or "")
+        attachments_info = original_files(original)
+        files = await card_files(
+            client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+        )
 
         logger.info(
             "forward_email_draft_prepared",
@@ -1400,19 +1369,13 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         return {
             "message_id": message_id,
             "to": to,
-            "body": body,
+            "body": await signed_body(user_id, body or ""),
             "cc": cc,
             "original_subject": original_subject,
             "original_from": original_from,
             # Include attachments for draft preview display
-            "attachments": [
-                {
-                    "filename": att.get("filename", "attachment"),
-                    "mime_type": att.get("mime_type", "application/octet-stream"),
-                    "size": att.get("size", 0),
-                }
-                for att in attachments_info
-            ],
+            "attachments": attachments_info,
+            "files": files,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1445,6 +1408,7 @@ class ForwardEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             original_from=result.get("original_from", ""),
             # Include attachments for draft preview display
             attachments=result.get("attachments", []),
+            files=result.get("files", []),
             user_language=self.get_user_language(),
         )
 
@@ -1469,6 +1433,8 @@ async def forward_email_tool(
     to: Annotated[str, "Forward recipient email (required)"],
     body: Annotated[str | None, "Additional message to prepend (optional)"] = None,
     cc: Annotated[str | None, "CC recipients (optional)"] = None,
+    file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
+    drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -1484,6 +1450,8 @@ async def forward_email_tool(
         to: Forward recipient email (required)
         body: Additional message to prepend (optional)
         cc: CC recipients (optional)
+        file_names: Files LIA holds, by name, to attach
+        drive_file_ids: Files of the person's drive, by id, to attach
         runtime: Tool runtime (injected)
 
     Returns:
@@ -1495,6 +1463,8 @@ async def forward_email_tool(
         to=to,
         body=body,
         cc=cc,
+        file_names=file_names,
+        drive_file_ids=drive_file_ids,
     )
 
 
@@ -1636,124 +1606,6 @@ async def delete_email_tool(
 
 
 # ============================================================================
-# DRAFT EXECUTION HELPERS (LOT 5.4)
-# ============================================================================
-
-
-async def execute_email_reply_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute an email reply draft: actually send the reply.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-    """
-    from src.domains.agents.services.card_composition_service import draft_composition_scope
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    async with draft_composition_scope(draft_content, user_id, deps, "reply"):
-        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-        result = await client.reply_email(
-            message_id=draft_content["message_id"],
-            body=draft_content["body"],
-            reply_all=draft_content.get("reply_all", False),
-            # Whom the card showed (the clients' own rule, ADR-344), or whom the
-            # person put instead: Graph would otherwise address it by ITS rule.
-            to=draft_content.get("to"),
-        )
-
-    logger.info(
-        "email_reply_draft_executed",
-        user_id=str(user_id),
-        message_id=result.get("id"),
-        original_message_id=draft_content["message_id"],
-    )
-
-    return {
-        "success": True,
-        "message_id": result.get("id"),
-        "thread_id": result.get("threadId"),
-        "to": draft_content.get("to"),
-        "subject": draft_content.get("subject"),
-        "message": APIMessages.reply_sent_successfully(),
-    }
-
-
-async def execute_email_forward_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute an email forward draft: actually send the forwarded email.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-    """
-    from src.domains.agents.services.card_composition_service import draft_composition_scope
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    async with draft_composition_scope(draft_content, user_id, deps, "forward"):
-        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-        result = await client.forward_email(
-            message_id=draft_content["message_id"],
-            to=draft_content["to"],
-            body=draft_content.get("body"),
-            cc=draft_content.get("cc"),
-        )
-
-    logger.info(
-        "email_forward_draft_executed",
-        user_id=str(user_id),
-        message_id=result.get("id"),
-        original_message_id=draft_content["message_id"],
-    )
-
-    return {
-        "success": True,
-        "message_id": result.get("id"),
-        "thread_id": result.get("threadId"),
-        "to": draft_content["to"],
-        "subject": draft_content.get("subject"),
-        "message": APIMessages.email_forwarded_successfully(draft_content["to"]),
-    }
-
-
-async def execute_email_delete_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """
-    Execute an email delete draft: actually move email to trash.
-
-    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
-    """
-    from src.domains.agents.services.card_composition_service import draft_composition_scope
-    from src.domains.connectors.provider_resolver import resolve_client_for_category
-
-    async with draft_composition_scope(draft_content, user_id, deps, "delete_email"):
-        client, _resolved_type = await resolve_client_for_category("email", user_id, deps)
-        await client.trash_email(draft_content["message_id"])
-
-    # Falsy subject → APIMessages renders its localized subject-less variant.
-    subject = draft_content.get("subject") or None
-
-    logger.info(
-        "email_delete_draft_executed",
-        user_id=str(user_id),
-        message_id=draft_content["message_id"],
-    )
-
-    return {
-        "success": True,
-        "message_id": draft_content["message_id"],
-        "message": APIMessages.email_moved_to_trash(subject),
-    }
-
-
-# ============================================================================
 # EXPORTS
 # ============================================================================
 
@@ -1771,9 +1623,4 @@ __all__ = [
     "ReplyEmailDraftTool",
     "ForwardEmailDraftTool",
     "DeleteEmailDraftTool",
-    # Draft execution helpers (LOT 5.4)
-    "execute_email_draft",
-    "execute_email_reply_draft",
-    "execute_email_forward_draft",
-    "execute_email_delete_draft",
 ]

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException, raise_not_found_or_unauthorized
+from src.domains.connectors.service import ConnectorService
 from src.domains.rag_spaces import space_creation, space_deletion
 from src.domains.rag_spaces.document_access import (
     document_file_path,
@@ -29,6 +30,7 @@ from src.domains.rag_spaces.document_access import (
     require_deletable_document,
 )
 from src.domains.rag_spaces.document_deletion import delete_selected_document_rows
+from src.domains.rag_spaces.drive_provider import active_drive_provider
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentStatus,
@@ -274,12 +276,14 @@ class RAGSpaceService:
         documents = await self.doc_repo.get_all_for_space(space_id)
         drive_sources = await self.source_repo.get_all_for_space(space_id)
         mail_sources = await self.mail_source_repo.get_all_for_space(space_id)
+        active_drive = await active_drive_provider(user_id, ConnectorService(self.db))
         return {
             **space.dict(),
             **stats,
             "documents": [doc.dict() for doc in documents],
             "drive_sources": [src.dict() for src in drive_sources],
             "mail_sources": [src.dict() for src in mail_sources],
+            "active_drive": active_drive,
         }
 
     async def update_space(

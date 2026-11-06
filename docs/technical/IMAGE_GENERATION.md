@@ -313,7 +313,7 @@ confirmation. `POST /peers/connections/{connection_id}/images`
 | `IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST` | Max images per tool call |
 | `IMAGE_GENERATION_RATE_LIMIT_CALLS` | Max tool calls per user per window (`generate_image` and `edit_image` tracked separately) |
 | `IMAGE_GENERATION_RATE_LIMIT_WINDOW` | Rate limit window in seconds |
-| `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` / `MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | Floor and ceiling of an image tool step; the ceiling is also each client's HTTP timeout |
+| `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` / `MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | Floor and ceiling of an image tool step; each client's HTTP timeout is the `image_generation` slot's (ADR-221 amendment 2026-11-05) |
 | `IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS` | Total deadline to download an image a vendor returned as a URL |
 | `IMAGE_GENERATION_RESULT_MAX_MB` | Largest image downloaded from a vendor result URL |
 | `IMAGE_GENERATION_ENCODING_QUALITY` | JPEG/WebP quality of an image delivered in the person's format, and of an edit's source re-encoded to fit its vendor |

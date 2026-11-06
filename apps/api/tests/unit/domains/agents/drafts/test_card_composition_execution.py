@@ -12,7 +12,7 @@ from src.core.card_composition import (
     card_composition_ctx,
 )
 from src.domains.agents.services import card_composition_service
-from src.domains.agents.tools.emails_tools import (
+from src.domains.agents.tools.email_draft_execution import (
     execute_email_delete_draft,
     execute_email_reply_draft,
 )

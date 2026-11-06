@@ -60,6 +60,7 @@ function renderList(onLink = vi.fn().mockResolvedValue(undefined)) {
     <DriveSourcesList
       spaceId="space-1"
       sources={sources}
+      activeDrive="google_drive"
       onLink={onLink}
       onUnlink={vi.fn()}
       onSync={vi.fn()}

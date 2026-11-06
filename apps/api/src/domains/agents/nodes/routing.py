@@ -938,7 +938,10 @@ def route_from_react_call_model(
             # the loop budget; surfacing it turns the old defect into a signal.
             # Shared helper — react_finalize logs the same quantity, and two
             # copies of this arithmetic would drift.
-            from src.domains.agents.utils.react_budget import uncharged_wall_seconds
+            from src.domains.agents.utils.react_budget import (
+                react_compute_budget_seconds,
+                uncharged_wall_seconds,
+            )
 
             uncharged = uncharged_wall_seconds(state, compute_elapsed + tool_elapsed)
             logger.warning(
@@ -946,7 +949,7 @@ def route_from_react_call_model(
                 reason=exit_reason,
                 compute_seconds=round(compute_elapsed, 1),
                 tool_seconds=round(tool_elapsed, 1),
-                timeout_seconds=settings.react_agent_timeout_seconds,
+                timeout_seconds=react_compute_budget_seconds(),
                 tool_budget_seconds=settings.react_tool_budget_seconds,
                 uncharged_wall_seconds=uncharged,
                 iteration=iteration,

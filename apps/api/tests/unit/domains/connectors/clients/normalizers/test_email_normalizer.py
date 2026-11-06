@@ -44,6 +44,43 @@ def _make_mail_message(
 
 
 @pytest.mark.unit
+class TestConversationOfAnImapMessage:
+    """IMAP keeps no thread: the headers of a listing name the conversation."""
+
+    @pytest.mark.parametrize(
+        ("headers", "named"),
+        [
+            ({"references": ("<a@x> <b@x>",), "message-id": ("<c@x>",)}, "<a@x>"),
+            ({"references": ("<a@x>\r\n <b@x>",)}, "<a@x>"),
+            ({"in-reply-to": ("<b@x>",), "message-id": ("<c@x>",)}, "<b@x>"),
+            ({"message-id": ("<c@x>",)}, "<c@x>"),
+            ({"references": ("<naïve@x>",), "message-id": ("<c@x>",)}, "<c@x>"),
+        ],
+    )
+    def test_what_opened_it_names_it(self, headers: dict[str, tuple[str, ...]], named: str) -> None:
+        msg = _make_mail_message()
+        msg.headers = headers
+
+        assert normalize_imap_message(msg, "INBOX")["threadId"] == named
+
+    def test_a_message_naming_nothing_is_its_own(self) -> None:
+        msg = _make_mail_message()
+        msg.headers = {"references": ("not an id",)}
+
+        assert normalize_imap_message(msg, "INBOX")["threadId"] == "42"
+
+    def test_an_answer_and_what_it_answers_share_it(self) -> None:
+        opened, answer = _make_mail_message(), _make_mail_message()
+        opened.headers = {"message-id": ("<a@x>",)}
+        answer.headers = {"message-id": ("<b@x>",), "references": ("<a@x>",)}
+
+        assert (
+            normalize_imap_message(opened, "INBOX")["threadId"]
+            == normalize_imap_message(answer, "INBOX")["threadId"]
+        )
+
+
+@pytest.mark.unit
 class TestNormalizeImapMessage:
     """Tests for normalize_imap_message()."""
 
@@ -85,6 +122,23 @@ class TestNormalizeImapMessage:
         assert result["attachments"][0]["filename"] == "report.pdf"
         assert result["attachments"][0]["mimeType"] == "application/pdf"
         assert result["attachments"][0]["size"] == len(b"fake-bytes")
+
+    @pytest.mark.parametrize(
+        ("content_type", "expected"),
+        [
+            ("multipart/mixed; boundary=x", True),
+            ("MULTIPART/MIXED", True),
+            ("multipart/alternative; boundary=x", False),
+            ("text/plain", False),
+        ],
+    )
+    def test_a_listing_with_no_body_reads_its_files_from_the_message_s_type(
+        self, content_type: str, expected: bool
+    ) -> None:
+        message = _make_mail_message()
+        message.headers = {"content-type": (content_type,)}
+
+        assert normalize_imap_message(message, "INBOX")["hasAttachment"] is expected
 
     def test_internal_date_epoch_ms(self) -> None:
         """internalDate is epoch milliseconds string."""

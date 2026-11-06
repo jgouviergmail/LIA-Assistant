@@ -1,22 +1,30 @@
 """Short SQL transactions fence a bounded fair queue; none spans provider I/O."""
 
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Final, Literal
 from uuid import UUID
 
 from sqlalchemy import case, delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.llm_config_helper import run_bound_seconds
 from src.domains.users.repository import UserRepository
 from src.domains.world.message_models import WorldMessageAttempt as Record
 from src.infrastructure.database.session import get_db_context
 
-TRANSLATION_SECONDS = 8
+SLOT: Final = "world_message_translator"
 QUEUE_SECONDS = 20
 ATTEMPT_SECONDS = 15
+#: What an attempt holds beyond its translation call.
+ATTEMPT_MARGIN_SECONDS = 7
 PAID_PARALLEL = 2
 PAID_WAITING = 5
 TOMBSTONE_DAYS = 2
+
+
+def attempt_seconds() -> float:
+    """How long a paid attempt may run: its call, as the slot bounds it, and its margin."""
+    return run_bound_seconds(ATTEMPT_SECONDS, SLOT, margin_seconds=ATTEMPT_MARGIN_SECONDS)
 
 
 class AttemptBusy(ValueError):
@@ -216,7 +224,7 @@ class MessageAttempts:
             if row is None:
                 return False
             row.status, row.updated_at = "running", now
-            row.running_until = now + timedelta(seconds=ATTEMPT_SECONDS)
+            row.running_until = now + timedelta(seconds=attempt_seconds())
             return True
 
     async def finish(

@@ -347,9 +347,9 @@ def start(mode: str, port: int, api_image: str, web_image: str) -> None:
             "-c",
             "rm -rf /monorepo/apps/web/src /monorepo/apps/web/public /monorepo/apps/web/locales /monorepo/apps/web/e2e; tar -xf /tmp/source.tar -C /monorepo; rm /tmp/source.tar",
         )
-        command = "node scripts/copy-ort-runtime.mjs && node node_modules/next/dist/bin/next dev --webpack --hostname 0.0.0.0 --port 3000"
+        command = "node scripts/copy-ort-runtime.mjs && node scripts/copy-pdf-runtime.mjs && node node_modules/next/dist/bin/next dev --webpack --hostname 0.0.0.0 --port 3000"
         if mode == "production":
-            command = "node scripts/copy-ort-runtime.mjs && node node_modules/next/dist/bin/next build --webpack && cp -a public .next-world/standalone/apps/web/ && cp -a .next-world/static .next-world/standalone/apps/web/.next-world/ && HOSTNAME=0.0.0.0 PORT=3000 NODE_OPTIONS=--max-old-space-size=512 exec node .next-world/standalone/apps/web/server.js"
+            command = "node scripts/copy-ort-runtime.mjs && node scripts/copy-pdf-runtime.mjs && node node_modules/next/dist/bin/next build --webpack && cp -a public .next-world/standalone/apps/web/ && cp -a .next-world/static .next-world/standalone/apps/web/.next-world/ && HOSTNAME=0.0.0.0 PORT=3000 NODE_OPTIONS=--max-old-space-size=512 exec node .next-world/standalone/apps/web/server.js"
         docker(
             "exec",
             "-d",

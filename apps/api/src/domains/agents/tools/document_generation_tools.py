@@ -182,9 +182,7 @@ async def generate_document(
             user_id=str(user_id),
         )
         return UnifiedToolOutput.failure(
-            message=(
-                f"Document generation failed ({type(exc).__name__}). " "No document was produced."
-            ),
+            message=("Document generation failed. No document was produced."),
             error_code="TOOL_ERROR",
         )
 

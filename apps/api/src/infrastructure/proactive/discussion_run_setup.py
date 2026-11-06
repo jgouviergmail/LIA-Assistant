@@ -36,6 +36,7 @@ from src.domains.usage_limits.service import UsageLimitService
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.proactive.discussion_attention import attention_hold
+from src.infrastructure.proactive.discussion_bounds import discussion_lease_seconds
 from src.infrastructure.proactive.discussion_control import ControlSnapshot, load_controls
 from src.infrastructure.proactive.discussion_llm import prepare_call
 
@@ -165,7 +166,7 @@ async def initialize_run(
         claim = await repo.claim_run(
             owner,
             now=datetime.now(UTC),
-            lease_seconds=settings.discussion_run_lease_seconds,
+            lease_seconds=discussion_lease_seconds(),
             rebuild_epoch=rebuild_epoch,
         )
         if claim is None:

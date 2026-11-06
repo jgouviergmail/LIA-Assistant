@@ -1,8 +1,10 @@
 'use client';
 
 /**
- * EventDeleteDialog — deleting one event, an occurrence alone (ADR-369).
+ * EventDeleteDialog — deleting one event, or its whole series (ADR-369).
  *
+ * An occurrence of a series asks which: this one, by default, or the whole series. A calendar
+ * that cannot change one occurrence alone only offers the whole series, and says so.
  * Where the provider lets the page choose, « tell the guests » is offered and
  * checked by default (spec §14); elsewhere nothing is offered — the provider
  * tells them its own way. The act runs once per opening.
@@ -28,28 +30,40 @@ export interface EventDeleteDialogProps {
   lng: Language;
   event: CalendarEventDetail;
   notifyOffered: boolean;
-  onDelete: (notify: boolean | undefined) => Promise<void>;
+  /** One occurrence can go alone. */
+  occurrenceEdit: boolean;
+  onDelete: (notify: boolean | undefined, series: boolean) => Promise<void>;
   onClose: () => void;
+}
+
+function deleteSentence(event: CalendarEventDetail, series: boolean): string {
+  if (series) return 'workbench.calendar.delete_series';
+  return event.recurring
+    ? 'workbench.calendar.delete_occurrence'
+    : 'workbench.calendar.delete_description';
 }
 
 export function EventDeleteDialog({
   lng,
   event,
   notifyOffered,
+  occurrenceEdit,
   onDelete,
   onClose,
 }: EventDeleteDialogProps) {
   const { t } = useTranslation(lng);
   const [notify, setNotify] = useState(true);
+  const [series, setSeries] = useState(event.recurring && !occurrenceEdit);
   const [deleting, setDeleting] = useState(false);
   const busy = useRef(false);
   const notifyId = useId();
+  const scopeName = useId();
   const remove = async () => {
     if (busy.current) return;
     busy.current = true;
     setDeleting(true);
     try {
-      await onDelete(notifyOffered ? notify : undefined);
+      await onDelete(notifyOffered ? notify : undefined, series);
     } finally {
       busy.current = false;
       setDeleting(false);
@@ -64,14 +78,33 @@ export function EventDeleteDialog({
               name: event.summary || t('workbench.calendar.no_title'),
             })}
           </DialogTitle>
-          <DialogDescription>
-            {t(
-              event.recurring
-                ? 'workbench.calendar.delete_occurrence'
-                : 'workbench.calendar.delete_description'
-            )}
-          </DialogDescription>
+          <DialogDescription>{t(deleteSentence(event, series))}</DialogDescription>
         </DialogHeader>
+        {event.recurring && occurrenceEdit && (
+          <fieldset className="space-y-2">
+            <legend className="sr-only">{t('workbench.calendar.delete_scope')}</legend>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={scopeName}
+                aria-label={t('workbench.calendar.delete_this')}
+                checked={!series}
+                onChange={() => setSeries(false)}
+              />
+              {t('workbench.calendar.delete_this')}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={scopeName}
+                aria-label={t('workbench.calendar.delete_whole')}
+                checked={series}
+                onChange={() => setSeries(true)}
+              />
+              {t('workbench.calendar.delete_whole')}
+            </label>
+          </fieldset>
+        )}
         {notifyOffered && event.attendees.length > 0 && (
           <div className="flex items-center gap-2">
             <Checkbox

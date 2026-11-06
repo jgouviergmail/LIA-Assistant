@@ -5,10 +5,13 @@
  * lights that are on (exact: the bridge is read whole). Rooms and lamps are
  * drawn in alphabetical order (owner request 2026-10-31).
  */
-import type { WorkbenchLight, WorkbenchLights, WorkbenchRoom } from './types';
+import type { WorkbenchLight, WorkbenchLights, WorkbenchRoom, WorkbenchScene } from './types';
 
 /** What a lamp can do, as its controls read. */
 export type LightKind = 'color_and_white' | 'white_ambiance' | 'dimmable' | 'on_off';
+
+/** What a lamp, or every lamp of a room, can take of a tone. */
+export type ToneOffer = Pick<WorkbenchLight, 'supports_color' | 'mirek_min' | 'mirek_max'>;
 
 /**
  * @param light - A lamp.
@@ -24,20 +27,20 @@ export function lightKind(light: WorkbenchLight): LightKind {
  * The folded section that holds a lamp's colour temperature and colour, named by
  * what the lamp can take (owner request 2026-10-31: folded until opened).
  *
- * @param light - A lamp.
- * @returns The section's title key, or null when the lamp takes neither.
+ * @param offer - What a lamp or a room can take.
+ * @returns The section's title key, or null when it takes neither.
  */
-export function toneTitleKey(light: WorkbenchLight): string | null {
-  const temperature = light.mirek_min !== null && light.mirek_max !== null;
-  if (temperature && light.supports_color) return 'workbench.lights.tone';
+export function toneTitleKey(offer: ToneOffer): string | null {
+  const temperature = offer.mirek_min !== null && offer.mirek_max !== null;
+  if (temperature && offer.supports_color) return 'workbench.lights.tone';
   if (temperature) return 'workbench.lights.temperature';
-  return light.supports_color ? 'workbench.lights.colour' : null;
+  return offer.supports_color ? 'workbench.lights.colour' : null;
 }
 
 /**
- * The bridge with its rooms and its lamps in alphabetical order, in the reader's
- * language: case and accents do not decide, and a number is read as a number
- * (« Lampe 2 » before « Lampe 10 »). The scenes keep the bridge's order.
+ * The bridge with its rooms, then its zones, and its lamps in alphabetical order, in
+ * the reader's language: case and accents do not decide, and a number is read as a
+ * number (« Lampe 2 » before « Lampe 10 »). The scenes keep the bridge's order.
  *
  * @param bridge - The bridge, as read.
  * @param language - The interface language the names are compared in.
@@ -47,7 +50,9 @@ export function inNameOrder(bridge: WorkbenchLights, language: string): Workbenc
   const collator = new Intl.Collator(language, { numeric: true });
   const byName = <T extends { name: string }>(items: readonly T[]): T[] =>
     [...items].sort((a, b) => collator.compare(a.name, b.name));
-  return { ...bridge, rooms: byName(bridge.rooms), lights: byName(bridge.lights) };
+  const zones = bridge.rooms.filter(room => room.kind === 'zone');
+  const rooms = bridge.rooms.filter(room => room.kind !== 'zone');
+  return { ...bridge, rooms: [...byName(rooms), ...byName(zones)], lights: byName(bridge.lights) };
 }
 
 /**
@@ -66,8 +71,76 @@ export function roomBrightness(
   return Math.round(total / lit.length);
 }
 
+/**
+ * @param lightIds - A room's lights.
+ * @param lights - Every light read.
+ * @returns The mean temperature of those that report one, or null.
+ */
+export function roomMirek(
+  lightIds: readonly string[],
+  lights: readonly WorkbenchLight[]
+): number | null {
+  const members = new Set(lightIds);
+  const toned = lights.filter(item => members.has(item.id) && item.mirek !== null);
+  if (toned.length === 0) return null;
+  return Math.round(toned.reduce((sum, item) => sum + (item.mirek ?? 0), 0) / toned.length);
+}
+
+/**
+ * @param lightIds - A room's lights.
+ * @param lights - Every light read.
+ * @returns The colour the first of them that shows one shows, or null.
+ */
+export function roomColour(
+  lightIds: readonly string[],
+  lights: readonly WorkbenchLight[]
+): string | null {
+  const members = new Set(lightIds);
+  return lights.find(item => members.has(item.id) && item.color_hex)?.color_hex ?? null;
+}
+
+/**
+ * @param lightIds - A room's lights.
+ * @param lights - Every light read.
+ * @returns How many of them the bridge says it cannot reach.
+ */
+/**
+ * What is off recedes into the page, what is lit keeps the card's own material. A tint of the
+ * accent would darken in a light theme and lighten in a dark one; the page's background lies
+ * below the card in all three, down to the true black of OLED.
+ */
+export const UNLIT_CARD = 'data-[lit=false]:bg-background';
+
+/** The lamps that answer, then those the bridge says it cannot reach, each in its order. */
+export function lampsByAnswer(lights: readonly WorkbenchLight[]): {
+  answering: WorkbenchLight[];
+  silent: WorkbenchLight[];
+} {
+  return {
+    answering: lights.filter(lamp => lamp.reachable !== false),
+    silent: lights.filter(lamp => lamp.reachable === false),
+  };
+}
+
+export function unreachableCount(
+  lightIds: readonly string[],
+  lights: readonly WorkbenchLight[]
+): number {
+  const members = new Set(lightIds);
+  return lights.filter(item => members.has(item.id) && item.reachable === false).length;
+}
+
 /** The pseudo-room of the lamps no room owns (`?room=other`). */
 export const OTHER_LIGHTS = 'other';
+
+/**
+ * @param bridge - The bridge.
+ * @returns The scenes no room or zone holds.
+ */
+export function scenesOutsideRooms(bridge: WorkbenchLights): WorkbenchScene[] {
+  const rooms = new Set(bridge.rooms.map(room => room.id));
+  return bridge.scenes.filter(scene => scene.room_id === null || !rooms.has(scene.room_id));
+}
 
 /** What the lights screen shows open. */
 export interface LightsSelection {

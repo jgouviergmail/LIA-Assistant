@@ -6,17 +6,143 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, renderHook } from '@/__tests__/test-utils';
+import { act, renderHook, waitFor } from '@/__tests__/test-utils';
 import type { WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import { MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
-import type { MailMessage } from '@/lib/workbench/types';
+import type { MailMessage, MailSummary } from '@/lib/workbench/types';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { useReadAfterLook } from '../useMailScreen';
+const { api } = vi.hoisted(() => ({ api: { get: vi.fn() } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: api,
+}));
+
+import { useConversation, useFreshListing, useReadAfterLook } from '../useMailScreen';
+
+describe('useConversation', () => {
+  const landed = (id: string) => ({ id }) as MailMessage;
+  const row = (id: string) => ({ id, thread_id: 't1' }) as MailSummary;
+  const held = { items: [row('m1'), row('m2')], truncated: false };
+
+  function reading(message: MailMessage | undefined) {
+    return renderHook(
+      (props: { open: boolean; message: MailMessage | undefined }) =>
+        useConversation(props.open, props.message),
+      { initialProps: { open: true, message } }
+    );
+  }
+
+  beforeEach(() => {
+    // The file's clock is frozen for the look; a read here lands on its own.
+    vi.useRealTimers();
+    api.get.mockReset();
+    api.get.mockResolvedValue(held);
+  });
+
+  it('reads nothing before the message landed', () => {
+    reading(undefined);
+
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('keeps what it read while the person walks it, and stays open', async () => {
+    const { result, rerender } = reading(landed('m1'));
+    await waitFor(() => expect(result.current.rows).toHaveLength(2));
+    act(() => result.current.setExpanded(true));
+
+    rerender({ open: true, message: undefined });
+    rerender({ open: true, message: landed('m2') });
+
+    expect(result.current.rows).toHaveLength(2);
+    expect(result.current.expanded).toBe(true);
+    expect(api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads anew and closes for a message outside it', async () => {
+    const { result, rerender } = reading(landed('m1'));
+    await waitFor(() => expect(result.current.rows).toHaveLength(2));
+    act(() => result.current.setExpanded(true));
+
+    rerender({ open: true, message: landed('m9') });
+
+    expect(result.current.expanded).toBe(false);
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    expect(api.get.mock.calls[1][1]).toMatchObject({ params: { id: 'm9' } });
+  });
+
+  it('lets go of it when the reader closes', async () => {
+    const { result, rerender } = reading(landed('m1'));
+    await waitFor(() => expect(result.current.rows).toHaveLength(2));
+
+    rerender({ open: false, message: undefined });
+
+    expect(result.current.rows).toEqual([]);
+  });
+
+  it('says a read that failed', async () => {
+    api.get.mockRejectedValue(new Error('unread'));
+
+    const { result } = reading(landed('m1'));
+
+    await waitFor(() => expect(result.current.failed).toBe(true));
+  });
+});
+
+describe('useFreshListing', () => {
+  function watched(folder: string, figure: number | undefined) {
+    const reread = vi.fn();
+    const view = renderHook(
+      (props: { folder: string; figure: number | undefined }) =>
+        useFreshListing(
+          props.folder,
+          props.figure === undefined ? undefined : { [props.folder]: props.figure },
+          reread
+        ),
+      { initialProps: { folder, figure } }
+    );
+    return { reread, ...view };
+  }
+
+  it('reads the listing again when its figure grows', () => {
+    const { reread, rerender } = watched('system:inbox', 2);
+
+    rerender({ folder: 'system:inbox', figure: 3 });
+
+    expect(reread).toHaveBeenCalledOnce();
+  });
+
+  it('asks for nothing when the person read a message', () => {
+    const { reread, rerender } = watched('system:inbox', 2);
+
+    rerender({ folder: 'system:inbox', figure: 1 });
+
+    expect(reread).not.toHaveBeenCalled();
+  });
+
+  it('takes another folder for what it is, never for mail arriving', () => {
+    const { reread, rerender } = watched('system:inbox', 2);
+
+    rerender({ folder: 'Projets', figure: 9 });
+
+    expect(reread).not.toHaveBeenCalled();
+  });
+
+  it('waits for a first figure', () => {
+    const { reread, rerender } = watched('system:inbox', undefined);
+
+    rerender({ folder: 'system:inbox', figure: 4 });
+    expect(reread).not.toHaveBeenCalled();
+
+    rerender({ folder: 'system:inbox', figure: 5 });
+    expect(reread).toHaveBeenCalledOnce();
+  });
+});
 
 function shown(id: string, isRead: boolean): WorkbenchItemState<MailMessage> {
   return {
@@ -31,6 +157,7 @@ function shown(id: string, isRead: boolean): WorkbenchItemState<MailMessage> {
       received_at: null,
       is_read: isRead,
       is_starred: false,
+      has_attachments: false,
       label_ids: [],
       body: '',
       attachments: [],

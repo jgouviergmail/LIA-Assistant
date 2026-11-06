@@ -54,9 +54,10 @@ class WorkboardSettings(BaseSettings):
         ge=30,
         le=3600,
         description=(
-            "Hard bound of ONE attempt of a ticket run. A run may retry a "
-            "transient failure, so the claim it holds is reaped only after the "
-            "worst case this and WORKBOARD_RUN_MAX_ATTEMPTS allow."
+            "Budget of ONE attempt of a ticket run, never below the model calls "
+            "of one turn as configured in admin-llm-config (ADR-221). A run may "
+            "retry a transient failure, so the claim it holds is reaped only "
+            "after the worst case this and WORKBOARD_RUN_MAX_ATTEMPTS allow."
         ),
     )
     workboard_run_max_attempts: int = Field(
@@ -158,10 +159,10 @@ class WorkboardSettings(BaseSettings):
     def timeout_covers_a_sweep_interval(self) -> WorkboardSettings:
         """Refuse a timeout below the sweep interval.
 
-        The reaper releases a claim older than ``workboard_run_timeout_seconds``.
-        Below the sweep interval, the next tick would release a run still in
-        flight and hand the same ticket to a second worker — the boot-time
-        guard the background-runs settings use for the same class of mistake.
+        The reaper's age derives from this value. Below the sweep interval, a tick
+        could release a run still in flight and hand the same ticket to a second
+        worker — the boot-time guard the background-runs settings use for the same
+        class of mistake.
 
         Returns:
             The validated settings.

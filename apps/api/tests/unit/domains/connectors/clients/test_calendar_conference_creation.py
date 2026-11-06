@@ -156,4 +156,8 @@ class TestAppleGracefulDegradation:
         # The flag never reaches the CalDAV impl (no conference concept there).
         assert True not in executed["args"]
         # Only the uid fixed before the retry loop, and the shape (ADR-369).
-        assert executed["kwargs"] == {"uid": executed["kwargs"]["uid"], "all_day": False}
+        assert executed["kwargs"] == {
+            "uid": executed["kwargs"]["uid"],
+            "all_day": False,
+            "options": None,
+        }

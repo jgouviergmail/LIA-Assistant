@@ -44,6 +44,7 @@ def _client() -> MagicMock:
     client = MagicMock()
     client.list_lights = AsyncMock(return_value=_BRIDGE_LIGHTS)
     client.list_rooms = AsyncMock(return_value=_BRIDGE_ROOMS)
+    client.list_zones = AsyncMock(return_value=[])
     client.list_scenes = AsyncMock(return_value=_BRIDGE_SCENES)
     client.update_light = AsyncMock(return_value={})
     client.control_room = AsyncMock(return_value={})

@@ -52,7 +52,6 @@ class TestGetConflictingConnectorType:
     @pytest.mark.parametrize(
         "connector_type",
         [
-            ConnectorType.GOOGLE_DRIVE,
             ConnectorType.WIKIPEDIA,
             ConnectorType.PERPLEXITY,
             ConnectorType.BRAVE_SEARCH,
@@ -131,7 +130,7 @@ class TestGetConflictingConnectorTypes:
     @pytest.mark.unit
     def test_uncategorized_returns_empty_frozenset(self):
         """Uncategorized connectors return an empty frozenset."""
-        result = get_conflicting_connector_types(ConnectorType.GOOGLE_DRIVE)
+        result = get_conflicting_connector_types(ConnectorType.WIKIPEDIA)
         assert result == frozenset()
         assert isinstance(result, frozenset)
 
@@ -182,7 +181,6 @@ class TestGetFunctionalCategory:
     @pytest.mark.parametrize(
         "connector_type",
         [
-            ConnectorType.GOOGLE_DRIVE,
             ConnectorType.WIKIPEDIA,
         ],
     )
@@ -321,6 +319,7 @@ class TestFunctionalCategoriesCompleteness:
             "calendar",
             "contacts",
             "tasks",
+            "files",
             "weather",
             "smart_home",
             "telephony",
@@ -339,6 +338,16 @@ class TestFunctionalCategoriesCompleteness:
             assert any("google" in n for n in names), f"Category '{category}' missing Google"
             assert any("apple" in n for n in names), f"Category '{category}' missing Apple"
             assert any("microsoft" in n for n in names), f"Category '{category}' missing Microsoft"
+
+    @pytest.mark.unit
+    def test_drive_and_onedrive_exclude_each_other(self):
+        """A4: one drive active, as one provider per category everywhere else."""
+        assert get_conflicting_connector_types(ConnectorType.GOOGLE_DRIVE) == frozenset(
+            {ConnectorType.MICROSOFT_ONEDRIVE}
+        )
+        assert get_conflicting_connector_types(ConnectorType.MICROSOFT_ONEDRIVE) == frozenset(
+            {ConnectorType.GOOGLE_DRIVE}
+        )
 
     @pytest.mark.unit
     def test_tasks_category_has_two_providers(self):

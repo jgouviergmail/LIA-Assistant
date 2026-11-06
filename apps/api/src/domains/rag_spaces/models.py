@@ -229,16 +229,18 @@ class RAGSpace(BaseModel):
 
 
 class RAGDriveSource(BaseModel):
-    """Google Drive folder linked to a RAG space for automatic sync.
+    """A folder of a drive linked to a RAG space for automatic sync.
 
-    Tracks a Drive folder that is continuously synced into the parent
-    RAG space.  New / updated files are detected via the Google Drive
-    API and ingested through the standard RAG document pipeline.
+    Tracks a folder that is continuously synced into the parent RAG space.
+    New / updated files are detected through its drive's API and ingested
+    through the standard RAG document pipeline.
 
     Attributes:
         space_id: Parent RAG space.
         user_id: Owning user (denormalized for direct access checks).
-        folder_id: Google Drive folder ID.
+        provider: The drive it lives on (a ``ConnectorType`` value): its id means
+            nothing on another, and it waits while that drive is not connected.
+        folder_id: The folder's ID on that drive.
         folder_name: Human-readable folder name (display only).
         sync_status: Current sync lifecycle state (idle/syncing/completed/error).
         last_sync_at: Timestamp of the last successful sync.
@@ -257,6 +259,14 @@ class RAGDriveSource(BaseModel):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+    )
+
+    provider: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="google_drive",
+        server_default="google_drive",
+        comment="The drive this folder lives on: a ConnectorType value.",
     )
 
     folder_id: Mapped[str] = mapped_column(

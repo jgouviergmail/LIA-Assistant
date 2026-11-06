@@ -77,6 +77,8 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/image_generation/prompt_enhancement.py": SpendRoad.TURN,
     "domains/agents/tools/react_runner.py": SpendRoad.TURN,
     "domains/document_generation/service.py": SpendRoad.TURN,
+    # The page writer, inside the tool's turn, on the document slot (ADR-370).
+    "domains/interactive_pages/service.py": SpendRoad.TURN,
     "domains/interests/services/extraction_service.py": SpendRoad.TURN,
     "domains/voice/service.py": SpendRoad.TURN,
     # --- Out of turn, billed to the account that benefits ------------------

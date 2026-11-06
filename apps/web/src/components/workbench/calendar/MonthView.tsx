@@ -8,7 +8,9 @@
  * hour — in lanes, and a day past the lane budget says how many more it holds
  * (« +N », a link to that day in the agenda). Each day's number is a link to
  * that day in the agenda, and the days are walked with the keyboard (the grid
- * pattern: arrows, Home, End).
+ * pattern: arrows, Home, End). A click on an empty part of a day starts an event
+ * on it: a pointer's shortcut to « New event », which stays the keyboard's way.
+ * A phone reads the month through `MonthCompact` instead.
  */
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -43,6 +45,8 @@ export interface MonthViewProps {
   hrefOf: (event: ShownEvent) => string;
   agendaHref: (day: string) => string;
   linkRef: (key: string, element: HTMLElement | null) => void;
+  /** A click on an empty part of a day; left out where none can be written. */
+  onDay?: (day: string) => void;
 }
 
 export function MonthView(props: MonthViewProps) {
@@ -98,6 +102,7 @@ function WeekRow({
   hrefOf,
   agendaHref,
   linkRef,
+  onDay,
 }: WeekRowProps) {
   const { t } = useTranslation(lng);
   const byKey = useMemo(() => new Map(events.map(event => [event.key, event])), [events]);
@@ -116,13 +121,23 @@ function WeekRow({
       {week.map((day, index) => (
         // Every link lives in a cell: a bar is drawn from the cell it starts in, across its days.
         <div key={day} role="gridcell" className="relative border-l px-1 pt-1 first:border-l-0">
+          {onDay && (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden="true"
+              data-slot={day}
+              className="absolute inset-0 hover:bg-primary/5 focus:outline-none"
+              onClick={() => onDay(day)}
+            />
+          )}
           <Link
             {...grid.cell(offset + index)}
             href={agendaHref(day)}
             scroll={false}
             aria-label={longDay(day, lng)}
             className={cn(
-              'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'relative inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               day === today && 'bg-primary text-primary-foreground',
               day.slice(0, 7) !== month && day !== today && 'text-muted-foreground'
             )}
@@ -144,8 +159,10 @@ function WeekRow({
                 untitled={t('workbench.calendar.no_title')}
                 color={event.color}
                 current={event.key === openId}
+                dense
+                seriesLabel={event.recurring ? t('workbench.calendar.series') : undefined}
                 linkRef={element => linkRef(event.key, element)}
-                className="absolute z-[1] py-0"
+                className="absolute z-[1]"
                 style={{
                   top: LANE_TOP + bar.lane * LANE_PX,
                   left: 2,

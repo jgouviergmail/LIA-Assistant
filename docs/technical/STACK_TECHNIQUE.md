@@ -33,7 +33,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **Next.js** | 16.4.2 | Framework React SSR/SSG |
+| **Next.js** | 16.4.5 | Framework React SSR/SSG |
 | **React** | 19.3.1 | UI Library |
 | **TypeScript** | 6.0.3 | Type safety |
 | **Tailwind CSS** | 4.3.3 | Utility-first CSS |
@@ -53,6 +53,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **lucide-react** | 1.x | Icons |
 | **sonner** | 2.0.x | Toast notifications |
 | **next-themes** | 0.4.x | Dark mode |
+| **pdfjs-dist** | 6.x | Lecture d'un PDF dans la page (Outils), runtime copie depuis le lockfile |
+| **docx-preview** | 0.4.x | Mise en page d'un Word dans la page, rendue dans un cadre isole |
 
 ### Internationalization
 

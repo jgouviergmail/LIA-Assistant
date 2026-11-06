@@ -608,7 +608,7 @@ et une valeur synthétique nouvellement commitée doit encore être refusée.
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CodeQL           | Analyse statique Python + JavaScript (queries `security-and-quality` + `security-extended`), config `.github/codeql/codeql-config.yml`                                                                                                                                                                                                                                                                                              |
 | Dependency Audit | `task security:scan:backend` (pip-audit a la version epinglee dans `Taskfile.yml`, lance isole par uv, sur les **trois** lockfiles runtime, dev et sandbox, transitifs inclus — ADR-112) + `pnpm install --frozen-lockfile` + `task security:scan:frontend` (`pnpm audit --audit-level=high`). **Bloquants.** La liste d'exceptions vit dans le Taskfile, plus dans le workflow : le developpeur lance exactement la meme commande. |
-| Trivy            | Scan filesystem (severite CRITICAL/HIGH), resultats SARIF                                                                                                                                                                                                                                                                                                                                                                           |
+| Trivy            | Scan filesystem des vulnérabilités et des secrets, **bloquant sur tout résultat**, sans seuil de sévérité ; résultats SARIF                                                                                                                                                                                                                                                                                                         |
 | SBOM             | `task security:sbom:backend` : CycloneDX depuis `requirements.lock.txt` (cyclonedx-bom epingle dans le Taskfile ; versions exactes embarquees, artifact conserve 90 jours)                                                                                                                                                                                                                                                          |
 
 **`pnpm audit` a longtemps tourne avec `continue-on-error: true`** : l'etape signalait les
@@ -626,6 +626,18 @@ l'archive sur la release GitHub et la tient à `TRIVY_SHA256`, puis l'action ave
 `skip-setup-trivy` (`test_trivy_install_guard.py`). `TRIVY_VERSION` et sa somme bougent ensemble
 et à la main, car Dependabot ne lit pas le Taskfile, et une montée change le moteur d'un scan
 bloquant. L'image de `security:scan:docker` lit la même version : le dépôt n'a qu'un Trivy.
+
+**Le job Trivy bloque sur tout résultat, sans seuil.** Pour un rapport SARIF, `trivy-action`
+retire `severity` tant que `limit-severities-for-sarif` ne vaut pas `true`, et `exit-code` répond à
+ce qui reste : toutes les sévérités, avec ou sans correctif, et les secrets, que `trivy fs`
+cherche aussi par défaut. Le step déclarait `severity: CRITICAL,HIGH` sans que rien ne
+l'applique : trois avis MEDIUM suffisaient déjà à faire échouer le job. Retirer cette ligne n'a
+rien changé, mesuré le 2026-11-04 : ce que Trivy reçoit et son rapport sont identiques avec et
+sans elle. Cette rigueur est le choix du dépôt : `test_trivy_install_guard.py` refuse donc
+`severity`, `limit-severities-for-sarif` et `ignore-unfixed` sur ce step. Deux conséquences : le
+job peut échouer sur un avis que `pnpm audit --audit-level=high` laisse passer, et le seuil
+HIGH/CRITICAL ne vaut que pour `security:scan:docker`, qui scanne les images avec `--severity`
+(`test_container_security_gate_contract.py`).
 
 ### Perimetre analyse par CodeQL
 

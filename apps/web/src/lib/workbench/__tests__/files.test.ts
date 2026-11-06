@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { WorkbenchDriveItem } from '@/lib/workbench/types';
 
-import { downloadUrl, fileOf, folderOf, instantLabel, isTooLarge } from '../files';
+import { downloadUrl, fileKind, fileOf, folderOf, instantLabel, isTooLarge } from '../files';
 
 const ITEM: WorkbenchDriveItem = {
   id: 'i1',
@@ -25,7 +25,43 @@ const ITEM: WorkbenchDriveItem = {
   target_kind: null,
   formats: [],
   downloadable: true,
+  starred: false,
+  previewable: true,
+  editable: false,
 };
+
+describe('fileKind', () => {
+  const kindOf = (mime_type: string) => fileKind({ kind: 'file', target_kind: null, mime_type });
+
+  it('reads what a file is from its type', () => {
+    expect(kindOf('application/vnd.google-apps.document')).toBe('document');
+    expect(kindOf('application/vnd.google-apps.spreadsheet')).toBe('spreadsheet');
+    expect(kindOf('application/vnd.google-apps.presentation')).toBe('presentation');
+    expect(kindOf('application/pdf')).toBe('pdf');
+    expect(kindOf('image/png')).toBe('image');
+    expect(kindOf('audio/mpeg')).toBe('audio');
+    expect(kindOf('video/mp4')).toBe('video');
+    expect(kindOf('application/zip')).toBe('archive');
+    expect(kindOf('application/octet-stream')).toBe('file');
+  });
+
+  it('reads an office file by its type as a person calls it', () => {
+    expect(kindOf('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe(
+      'document'
+    );
+    expect(kindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe(
+      'spreadsheet'
+    );
+    expect(
+      kindOf('application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    ).toBe('presentation');
+  });
+
+  it('reads a folder and what a shortcut points at', () => {
+    expect(fileKind({ kind: 'folder', target_kind: null, mime_type: 'x' })).toBe('folder');
+    expect(fileKind({ kind: 'shortcut', target_kind: 'folder', mime_type: 'x' })).toBe('folder');
+  });
+});
 
 describe('where an item opens', () => {
   it('opens a folder in the list and a file in the detail', () => {

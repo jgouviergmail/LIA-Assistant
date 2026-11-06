@@ -41,6 +41,7 @@ settled as a SUCCESS with the tokens streamed before it (ADR-276, lot 7).
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -55,6 +56,7 @@ from src.core.constants import (
     USAGE_LIMIT_EXCEEDED_ERROR_CODE,
 )
 from src.core.i18n import language_scope, normalize_language
+from src.core.llm_config_helper import run_bound_seconds
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
@@ -65,6 +67,12 @@ logger = structlog.get_logger(__name__)
 
 #: Failures worth another attempt: the world blinked, the request did not.
 _TRANSIENT_ERRORS = (TimeoutError, ConnectionError, OSError)
+#: The calls of one turn that run one after the other, in each mode. A loop is listed
+#: once: it is guaranteed one whole call, and the environment's value stays its budget.
+_TURN_LLM_SLOTS: tuple[tuple[str, ...], ...] = (
+    ("query_analyzer", "react_agent", "response"),
+    ("query_analyzer", "planner", "response"),
+)
 
 
 def worst_case_run_seconds(timeout_seconds: int, max_attempts: int, retry_delay: int) -> int:
@@ -89,6 +97,26 @@ def worst_case_run_seconds(timeout_seconds: int, max_attempts: int, retry_delay:
         The age past which a claim is certainly stranded.
     """
     return timeout_seconds * max_attempts + retry_delay * max(0, max_attempts - 1)
+
+
+def unattended_turn_seconds(configured_seconds: int) -> int:
+    """How long ONE attempt of a turn nobody waits for may last.
+
+    The environment's budget stands until the calls of one turn need longer. Cut
+    at its budget, a routine loses a call the administrator still allowed, and a
+    run that already acted is never relaunched (ADR-221 amendment 2026-11-05).
+    A claim's recovery cannot know a run's mode, so both modes read the longer
+    bound. A voice turn keeps its own budget.
+
+    Args:
+        configured_seconds: The budget the environment gives one attempt.
+
+    Returns:
+        The bound, in whole seconds.
+    """
+    return math.ceil(
+        max(run_bound_seconds(configured_seconds, *slots) for slots in _TURN_LLM_SLOTS)
+    )
 
 
 class RunOutcome(str, Enum):

@@ -43,6 +43,18 @@ from src.domains.agents.drafts.action_models import (
     DraftActionRequest,
     DraftActionResult,
 )
+from src.domains.agents.drafts.contact_factories import (
+    create_contact_delete_draft,
+    create_contact_draft,
+    create_contact_update_draft,
+)
+from src.domains.agents.drafts.event_factories import (
+    create_delete_event_draft,
+    create_event_answer_draft,
+    create_event_draft,
+    create_update_event_draft,
+)
+from src.domains.agents.drafts.file_factories import create_file_share_draft
 from src.domains.agents.drafts.models import (
     BaseDraftInput,
     ContactDeleteDraftInput,
@@ -57,10 +69,12 @@ from src.domains.agents.drafts.models import (
     EmailDraftInput,
     EmailForwardDraftInput,
     EmailReplyDraftInput,
+    EventAnswerDraftInput,
     EventDeleteDraftInput,
     EventDraftInput,
     EventUpdateDraftInput,
     FileDeleteDraftInput,
+    FileShareDraftInput,
     LabelDeleteDraftInput,
     PhoneCallDraftInput,
     ReminderDeleteDraftInput,
@@ -70,19 +84,13 @@ from src.domains.agents.drafts.models import (
 )
 from src.domains.agents.drafts.service import (
     DraftService,
-    create_contact_delete_draft,
-    create_contact_draft,
-    create_contact_update_draft,
-    create_delete_event_draft,
     create_email_delete_draft,
     create_email_draft,
     create_email_forward_draft,
     create_email_reply_draft,
-    create_event_draft,
     create_file_delete_draft,
     create_label_delete_draft,
     create_reminder_delete_draft,
-    create_update_event_draft,
 )
 from src.domains.agents.drafts.task_factories import (
     create_task_delete_draft,
@@ -106,6 +114,8 @@ __all__ = [
     "EmailDeleteDraftInput",
     "EventDraftInput",
     "EventUpdateDraftInput",
+    "EventAnswerDraftInput",
+    "FileShareDraftInput",
     "EventDeleteDraftInput",
     "ContactDraftInput",
     "ContactUpdateDraftInput",
@@ -131,6 +141,8 @@ __all__ = [
     "create_event_draft",
     "create_update_event_draft",
     "create_delete_event_draft",
+    "create_event_answer_draft",
+    "create_file_share_draft",
     "create_contact_draft",
     "create_contact_update_draft",
     "create_contact_delete_draft",

@@ -93,6 +93,7 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     conversation_has_pending_hitl,
     resolve_run_context,
     stream_instruction,
+    unattended_turn_seconds,
     worst_case_run_seconds,
 )
 from src.infrastructure.streaming.run_stream_broker import (
@@ -322,15 +323,24 @@ def _approved_draft_of(ticket: WorkboardTicket) -> ApprovedDraft | None:
     )
 
 
+def _attempt_bound_seconds() -> int:
+    """How long one attempt of a ticket may last, read by its run and its reaper.
+
+    Returns:
+        The bound, in seconds.
+    """
+    return unattended_turn_seconds(settings.workboard_run_timeout_seconds)
+
+
 def _worst_case_seconds() -> int:
     """How long a legitimate run may hold its claim, on this deployment.
 
-    Reads the two settings and the retry pause through ONE derivation, so the
+    Reads the attempt's bound and the retry pause through ONE derivation, so the
     reaper cannot free a ticket a live worker is still running — which would
     put two runs on it, spending twice and possibly acting twice.
     """
     return worst_case_run_seconds(
-        settings.workboard_run_timeout_seconds,
+        _attempt_bound_seconds(),
         settings.workboard_run_max_attempts,
         WORKBOARD_RUN_RETRY_DELAY_SECONDS,
     )
@@ -539,7 +549,7 @@ async def _run(prepared: ClaimedRun) -> RunResult | None:
         timezone=prepared.timezone,
         display_name=prepared.display_name,
         display_mode=prepared.display_mode,
-        timeout_seconds=settings.workboard_run_timeout_seconds,
+        timeout_seconds=_attempt_bound_seconds(),
         max_attempts=settings.workboard_run_max_attempts,
         retry_delay_seconds=WORKBOARD_RUN_RETRY_DELAY_SECONDS,
         origin=RunOrigin(
@@ -933,7 +943,7 @@ async def sweep_workboard_runs() -> None:
     except Exception as run_error:  # noqa: BLE001 — a claim always gets settled
         # Everything INSIDE the turn is already settled by the engine; reaching
         # here means the plumbing around it broke (Redis, the lock). The claim
-        # is closed now rather than left for the reaper ten minutes later.
+        # is closed now rather than left for the reaper.
         logger.error(
             "workboard_run_crashed",
             ticket_id=str(prepared.ticket_id),

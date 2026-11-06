@@ -62,15 +62,22 @@ from src.domains.agents.drafts.card_spec import (
     first_block_index,
     to_markdown_lines,
 )
-from src.domains.agents.drafts.dates import draft_datetime_formatter, shown_end
+from src.domains.agents.drafts.dates import draft_datetime_formatter
 from src.domains.agents.drafts.models import DraftType
+from src.domains.agents.drafts.preview_event import render_event as _render_event
+from src.domains.agents.drafts.preview_event import render_event_answer as _render_event_answer
+from src.domains.agents.drafts.preview_event import render_event_delete as _render_event_delete
+from src.domains.agents.drafts.preview_event import render_event_update as _render_event_update
+from src.domains.agents.drafts.preview_file import render_file_share as _render_file_share
 from src.domains.agents.drafts.preview_rows import FormatDt as _FormatDt
 from src.domains.agents.drafts.preview_rows import block as _block
 from src.domains.agents.drafts.preview_rows import first_item_value as _first_item_value
+from src.domains.agents.drafts.preview_rows import format_day
 from src.domains.agents.drafts.preview_rows import note as _note
 from src.domains.agents.drafts.preview_rows import row as _row
 from src.domains.agents.drafts.preview_rows import updated_datetime_row as _updated_datetime_row
 from src.domains.agents.drafts.preview_rows import updated_row as _updated_row
+from src.domains.connectors.clients.contact_details import birthday_text
 from src.domains.shared.markdown_literal import markdown_data_literal
 
 if TYPE_CHECKING:
@@ -108,6 +115,8 @@ def _render_email_send(
     # message) must render empty, not as the literal string "None".
     body = content.get("body") or ""
 
+    files = content.get("files") or []
+
     # Every field is optional to SHOW: a draft the model left half-filled is
     # still confirmed on what it holds, not on « Destinataire : » over nothing.
     if to:
@@ -118,6 +127,11 @@ def _render_email_send(
         lines.append(_row(lbl, "bcc", bcc))
     if subject:
         lines.append(_row(lbl, "subject", subject))
+    # Before the message: the body is a block that ends the preview, and a list item
+    # following it would open a second list under the words being approved.
+    if files:
+        names = [item.get("filename", item.get("name", "?")) for item in files]
+        lines.append(_row(lbl, "attachments", ", ".join(names)))
     if body:
         lines.append(_block(lbl, "body", body))
     return lines
@@ -126,19 +140,9 @@ def _render_email_send(
 def _render_email_forward(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
-    """Render an email forward preview: send fields plus attachments.
-
-    The attachments row is inserted BEFORE the message, not appended after it:
-    the body is a block that ends the preview, and a list item following it
-    would open a second list under the words being approved.
-    """
-    lines = _render_email_send(content, lbl, format_dt)
-    attachments = content.get("attachments", [])
-    if attachments:
-        att_names = [a.get("filename", a.get("name", "?")) for a in attachments]
-        row = _row(lbl, "attachments", ", ".join(att_names))
-        lines.insert(_first_block_index(lines), row)
-    return lines
+    """Render an email forward preview: the original's files, then the person's."""
+    files = [*(content.get("attachments") or []), *(content.get("files") or [])]
+    return _render_email_send({**content, "files": files}, lbl, format_dt)
 
 
 def _render_email_delete(
@@ -194,111 +198,6 @@ def _render_reminder_delete(
     return lines
 
 
-def _render_event(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render an event creation preview (summary, times, place, attendees)."""
-    summary = content.get("summary", "")
-    location = content.get("location", "")
-    description = content.get("description", "")
-    attendees = content.get("attendees", [])
-
-    # An event with no times is a draft the model left incomplete; « Début: »
-    # over nothing states less than saying nothing at all.
-    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
-    lines += _event_time_rows(content, lbl, format_dt)
-    if location:
-        lines.append(_row(lbl, "location", location))
-    if attendees:
-        lines.append(_row(lbl, "attendees", ", ".join(attendees)))
-    if content.get("add_conference"):
-        lines.append(_row(lbl, "video_conference", lbl["video_conference_included"]))
-    if description:
-        lines.append(_block(lbl, "body", description))
-    return lines
-
-
-def _event_time_rows(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """A new event's start and end rows — its days, the LAST one shown, when all-day."""
-    all_day = bool(content.get("all_day"))
-    start_raw = content.get("start_datetime") or ""
-    end_raw = shown_end(content.get("end_datetime") or "")
-    rows: list[PreviewLine] = []
-    start = format_dt(start_raw)
-    if start:
-        rows.append(_row(lbl, "start", f"{start} ({lbl['all_day']})" if all_day else start))
-    end = format_dt(end_raw)
-    if end and end_raw != start_raw:
-        rows.append(_row(lbl, "end", end))
-    return rows
-
-
-def _updated_time_rows(
-    content: dict[str, Any],
-    current: dict[str, Any],
-    lbl: dict[str, str],
-    format_dt: _FormatDt,
-) -> list[PreviewLine]:
-    """An update's start and end rows: new values marked, an all-day end as its last day."""
-    current_start = current.get("start", {}).get(
-        "dateTime", current.get("start", {}).get("date", "")
-    )
-    current_end = current.get("end", {}).get("dateTime", current.get("end", {}).get("date", ""))
-    new_end = content.get("end_datetime")
-    rows = [
-        _updated_datetime_row(
-            lbl, "start", content.get("start_datetime"), current_start, format_dt
-        ),
-        _updated_datetime_row(
-            lbl, "end", shown_end(new_end) if new_end else None, shown_end(current_end), format_dt
-        ),
-    ]
-    return [row for row in rows if row]
-
-
-def _render_event_update(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render an event update preview: resulting state, modified fields marked."""
-    current = content.get("current_event", {})
-    summary = content.get("summary") or current.get("summary", "?")
-    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
-
-    lines += _updated_time_rows(content, current, lbl, format_dt)
-
-    location_row = _updated_row(
-        lbl, "location", content.get("location"), current.get("location", "")
-    )
-    if location_row:
-        lines.append(location_row)
-
-    new_attendees = content.get("attendees")
-    if new_attendees:
-        lines.append(_row(lbl, "attendees", f"{', '.join(new_attendees)} ✏️"))
-    elif current.get("attendees"):
-        current_attendees = [a.get("email", a.get("displayName", "")) for a in current["attendees"]]
-        if current_attendees:
-            lines.append(_row(lbl, "attendees", ", ".join(current_attendees)))
-    return lines
-
-
-def _render_event_delete(
-    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[PreviewLine]:
-    """Render an event delete preview (summary, start date)."""
-    event = content.get("event", {})
-    summary = event.get("summary", "?")
-    start_raw = event.get("start", {}).get("dateTime", event.get("start", {}).get("date", ""))
-    start = format_dt(start_raw) if start_raw else ""
-
-    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
-    if start:
-        lines.append(_row(lbl, "date", start))
-    return lines
-
-
 def _render_contact(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
@@ -315,6 +214,56 @@ def _render_contact(
         lines.append(_row(lbl, "phone", phone))
     if organization:
         lines.append(_row(lbl, "organization", organization))
+    lines.extend(
+        _row(lbl, key, content[key])
+        for key in ("given_name", "family_name", "job_title", "website")
+        if content.get(key)
+    )
+    if birthday := content.get("birthday"):
+        lines.append(_row(lbl, "birthday", format_day(birthday, format_dt)))
+    return lines
+
+
+def _contact_change_rows(
+    content: dict[str, Any],
+    current: dict[str, Any],
+    lbl: dict[str, str],
+    format_dt: _FormatDt,
+) -> list[PreviewLine]:
+    """What a change does beyond a name and its lists, shown before it is confirmed.
+
+    A job, a website and a birthday left out show what the contact holds, and one emptied says
+    so; the parts of a name are shown only when they change, the name above them standing.
+    """
+    removed = f"{lbl['task_detail_removed']} ✏️"
+    held = {
+        "job_title": _first_item_value(current.get("organizations", []), "title"),
+        "website": _first_item_value(current.get("urls", []), "value"),
+    }
+    lines: list[PreviewLine] = []
+    for key, part in (("given_name", "givenName"), ("family_name", "familyName")):
+        asked = content.get(key)
+        if asked:
+            lines.append(_row(lbl, key, f"{asked} ✏️"))
+        elif asked == "" and _first_item_value(current.get("names", []), part):
+            lines.append(_row(lbl, key, removed))
+    for key, value in held.items():
+        if content.get(key) == "":
+            lines.append(_row(lbl, key, removed))
+        elif line := _updated_row(lbl, key, content.get(key), value):
+            lines.append(line)
+    if content.get("clear_birthday"):
+        lines.append(_row(lbl, "birthday", removed))
+        return lines
+    asked_day = content.get("birthday")
+    held_day = birthday_text(current.get("birthdays"))
+    if line := _updated_row(
+        lbl,
+        "birthday",
+        format_day(asked_day, format_dt) if asked_day else None,
+        format_day(held_day, format_dt) if held_day else "",
+    ):
+        lines.append(line)
     return lines
 
 
@@ -365,7 +314,7 @@ def _render_contact_update(
     )
     if organization_row:
         lines.append(organization_row)
-    return lines
+    return lines + _contact_change_rows(content, current, lbl, format_dt)
 
 
 def _render_contact_delete(
@@ -396,6 +345,26 @@ def _render_task(
         lines.append(_row(lbl, "due", due))
     if notes:
         lines.append(_block(lbl, "body", notes))
+    return lines + _task_extra_rows(content, lbl, format_dt)
+
+
+def _task_extra_rows(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
+    """What To Do keeps beyond the words and the day: shown before it is confirmed."""
+    lines: list[PreviewLine] = []
+    if importance := content.get("importance"):
+        lines.append(_row(lbl, "importance", lbl[f"importance_{importance}"]))
+    if reminder := content.get("reminder"):
+        lines.append(_row(lbl, "reminder", format_dt(reminder)))
+    elif content.get("clear_reminder"):
+        lines.append(_row(lbl, "reminder", f"{lbl['task_detail_removed']} ✏️"))
+    if repeat := content.get("repeat"):
+        lines.append(_row(lbl, "repeat", lbl[f"repeat_{repeat}"]))
+    elif content.get("clear_repeat"):
+        lines.append(_row(lbl, "repeat", f"{lbl['task_detail_removed']} ✏️"))
+    if steps := content.get("steps"):
+        lines.append(_block(lbl, "steps", "\n".join(steps)))
     return lines
 
 
@@ -422,7 +391,7 @@ def _render_task_update(
     notes_row = _updated_row(lbl, "body", content.get("notes"), current.get("notes", ""))
     if notes_row:
         lines.append(notes_row)
-    return lines
+    return lines + _task_extra_rows(content, lbl, format_dt)
 
 
 def _render_task_delete(
@@ -711,7 +680,7 @@ def _render_spreadsheet_write(
 def _render_document_append(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
-    """Render a Docs append preview (lot F phase write).
+    """Render the words a document receives: appended, or a text file's whole new text.
 
     The text is shown in FULL and untruncated: it lands verbatim in the
     user's document, so they must be able to read every word they approve.
@@ -752,6 +721,35 @@ def _render_email_filter(
     return lines
 
 
+def _render_email_filter_delete(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
+    """Render a Gmail filter deletion preview (ADR-369).
+
+    What the filter matches and does TODAY, in the present: two filters on one
+    sender differ only by that, and a creation's « will be archived » would read
+    as this act's effect. The last line is the act's own.
+    """
+    criteria = content.get("criteria") or {}
+    lines: list[PreviewLine] = [
+        _row(lbl, key, criteria[key])
+        for key in ("from", "to", "subject", "query")
+        if criteria.get(key)
+    ]
+    if criteria.get("hasAttachment"):
+        lines.append(_note(lbl["filter_with_attachment"]))
+    if content.get("label_names"):
+        lines.append(_row(lbl, "label", ", ".join(content["label_names"])))
+    if content.get("forward"):
+        lines.append(_row(lbl, "filter_forward", content["forward"]))
+    if content.get("archive"):
+        lines.append(_note(lbl["filter_does_archive"]))
+    if content.get("mark_as_read"):
+        lines.append(_note(lbl["filter_does_mark_read"]))
+    lines.append(_note(lbl["filter_delete_effect"]))
+    return lines
+
+
 def _render_scheduled_action(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
@@ -789,6 +787,8 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.EVENT: _render_event,
     DraftType.EVENT_UPDATE: _render_event_update,
     DraftType.EVENT_DELETE: _render_event_delete,
+    DraftType.EVENT_ANSWER: _render_event_answer,
+    DraftType.FILE_SHARE: _render_file_share,
     DraftType.CONTACT: _render_contact,
     DraftType.CONTACT_UPDATE: _render_contact_update,
     DraftType.CONTACT_DELETE: _render_contact_delete,
@@ -807,8 +807,10 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.PEER_MESSAGE: _render_peer_message,
     DraftType.VACATION_RESPONDER: _render_vacation_responder,
     DraftType.EMAIL_FILTER: _render_email_filter,
+    DraftType.EMAIL_FILTER_DELETE: _render_email_filter_delete,
     DraftType.SPREADSHEET_WRITE: _render_spreadsheet_write,
     DraftType.DOCUMENT_APPEND: _render_document_append,
+    DraftType.DOCUMENT_REPLACE: _render_document_append,
 }
 
 

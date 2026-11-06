@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.domains.agents.calendar.answer_manifest import EVENT_ANSWERS
+from src.domains.agents.drive.share_manifest import FILE_SHARE_ROLES
 from src.domains.agents.services.hitl.draft_modifier import (
     CONTENT_FIELDS,
     PRESERVED_FIELDS,
@@ -74,7 +76,7 @@ class TestContentFieldsConstants:
         assert "to" in CONTENT_FIELDS["email_reply"]
         assert "body" in CONTENT_FIELDS["email_reply"]
         # Not supported by connector protocol (reply_email signature)
-        assert "cc" not in CONTENT_FIELDS["email_reply"]
+        assert "cc" in CONTENT_FIELDS["email_reply"]
         assert "bcc" not in CONTENT_FIELDS["email_reply"]
         assert "subject" not in CONTENT_FIELDS["email_reply"]
 
@@ -127,6 +129,153 @@ class TestContentFieldsConstants:
     def test_task_update_has_status_field(self):
         """Test that task_update includes status field."""
         assert "status" in CONTENT_FIELDS["task_update"]
+
+
+class TestAnInvitationsAnswer:
+    """« No, rather maybe » on the card changes the answer, and nothing else."""
+
+    @pytest.fixture
+    def service(self):
+        """The service, no model involved."""
+        with patch("src.domains.agents.services.hitl.draft_modifier.get_llm"):
+            return DraftModificationService()
+
+    def test_the_answer_alone_can_change(self):
+        assert CONTENT_FIELDS["event_answer"] == ["response"]
+        assert PRESERVED_FIELDS["event_answer"] == ["event_id", "calendar_id"]
+
+    def test_the_model_reads_the_answers_the_code_accepts(self, service):
+        told = service._build_context_info({"summary": "Standup"}, "event_answer")
+
+        assert "Standup" in told
+        assert all(answer in told for answer in EVENT_ANSWERS)
+
+    @pytest.mark.parametrize(
+        ("written", "kept"),
+        [
+            ('{"response": "tentative"}', "tentative"),
+            ('{"response": "peut-être"}', "accepted"),
+        ],
+    )
+    @patch("src.domains.agents.prompts.load_prompt")
+    @patch("src.domains.agents.services.hitl.draft_modifier.create_instrumented_config")
+    @patch("src.domains.agents.services.hitl.draft_modifier.enrich_config_with_node_metadata")
+    @patch("src.domains.agents.services.hitl.draft_modifier.get_llm")
+    async def test_a_word_off_the_vocabulary_changes_nothing(
+        self, mock_get_llm, mock_enrich, mock_create_config, mock_load_prompt, written, kept
+    ):
+        mock_load_prompt.return_value = "prompt"
+        mock_create_config.return_value = {}
+        mock_enrich.return_value = {}
+        answer = MagicMock(content=written, text=written)
+        mock_get_llm.return_value = MagicMock(ainvoke=AsyncMock(return_value=answer))
+
+        result = await DraftModificationService().modify(
+            original_draft={"event_id": "e1", "response": "accepted", "summary": "Standup"},
+            instructions="rather maybe",
+            draft_type="event_answer",
+            user_language="fr",
+            run_id="run",
+        )
+
+        assert result["response"] == kept
+        assert result["event_id"] == "e1"
+
+
+class TestASharingOnItsCard:
+    """« Let them edit it » changes the role, never the file, and never owns it."""
+
+    @pytest.fixture
+    def service(self):
+        with patch("src.domains.agents.services.hitl.draft_modifier.get_llm"):
+            return DraftModificationService()
+
+    def test_the_person_and_the_role_alone_can_change(self):
+        assert CONTENT_FIELDS["file_share"] == ["email", "role"]
+        assert PRESERVED_FIELDS["file_share"] == ["file_id", "name"]
+
+    def test_the_model_reads_the_roles_the_code_accepts(self, service):
+        told = service._build_context_info({"name": "Report.pdf"}, "file_share")
+
+        assert "Report.pdf" in told
+        assert all(role in told for role in FILE_SHARE_ROLES)
+
+    @pytest.mark.parametrize(
+        ("written", "kept"),
+        [
+            ('{"role": "writer"}', "writer"),
+            ('{"role": "owner"}', "reader"),
+        ],
+    )
+    @patch("src.domains.agents.prompts.load_prompt")
+    @patch("src.domains.agents.services.hitl.draft_modifier.create_instrumented_config")
+    @patch("src.domains.agents.services.hitl.draft_modifier.enrich_config_with_node_metadata")
+    @patch("src.domains.agents.services.hitl.draft_modifier.get_llm")
+    async def test_a_role_off_the_vocabulary_changes_nothing(
+        self, mock_llm, mock_enrich, mock_config, mock_prompt, written, kept
+    ):
+        mock_prompt.return_value = "prompt"
+        mock_config.return_value = {}
+        mock_enrich.return_value = {}
+        answer = MagicMock(content=written, text=written)
+        mock_llm.return_value = MagicMock(ainvoke=AsyncMock(return_value=answer))
+
+        result = await DraftModificationService().modify(
+            original_draft={"file_id": "f1", "email": "a@x.org", "role": "reader", "name": "R"},
+            instructions="let them own it",
+            draft_type="file_share",
+            user_language="fr",
+            run_id="run",
+        )
+
+        assert result["role"] == kept
+        assert result["file_id"] == "f1"
+
+
+class TestAnEventsOptionsOnItsCard:
+    """« Remind me half an hour before » on the card reaches the draft, never a stray word."""
+
+    @pytest.mark.parametrize("draft_type", ["event", "event_update"])
+    def test_the_options_can_change(self, draft_type):
+        assert {"reminder_minutes", "busy", "private"} <= set(CONTENT_FIELDS[draft_type])
+
+    def test_a_call_can_be_added_to_an_existing_event(self):
+        assert "add_conference" in CONTENT_FIELDS["event_update"]
+
+    @pytest.mark.parametrize(
+        ("written", "said"),
+        [
+            ('{"busy": false}', {"busy": False}),
+            ('{"reminder_minutes": 0}', {"reminder_minutes": 0}),
+            ('{"reminder_minutes": "30"}', {"reminder_minutes": 30}),
+            ('{"reminder_minutes": "half an hour"}', {}),
+            ('{"private": "yes"}', {}),
+            ('{"summary": "New", "private": "yes"}', {"summary": "New"}),
+        ],
+    )
+    @patch("src.domains.agents.prompts.load_prompt")
+    @patch("src.domains.agents.services.hitl.draft_modifier.create_instrumented_config")
+    @patch("src.domains.agents.services.hitl.draft_modifier.enrich_config_with_node_metadata")
+    @patch("src.domains.agents.services.hitl.draft_modifier.get_llm")
+    async def test_what_the_model_writes_is_read_as_the_tool_reads_it(
+        self, mock_get_llm, mock_enrich, mock_create_config, mock_load_prompt, written, said
+    ):
+        mock_load_prompt.return_value = "prompt"
+        mock_create_config.return_value = {}
+        mock_enrich.return_value = {}
+        answer = MagicMock(content=written, text=written)
+        mock_get_llm.return_value = MagicMock(ainvoke=AsyncMock(return_value=answer))
+        original = {"summary": "Old", "reminder_minutes": None, "busy": None, "private": None}
+
+        result = await DraftModificationService().modify(
+            original_draft=original,
+            instructions="change it",
+            draft_type="event",
+            user_language="fr",
+            run_id="run",
+        )
+
+        assert result == {**original, **said}
 
 
 class TestDraftModificationServiceInit:

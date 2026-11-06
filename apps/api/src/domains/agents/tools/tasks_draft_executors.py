@@ -14,6 +14,7 @@ import structlog
 
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
+from src.domains.agents.tools.task_extras import details_of
 
 logger = structlog.get_logger(__name__)
 
@@ -131,6 +132,8 @@ async def execute_task_draft(
         title=draft_content["title"],
         notes=draft_content.get("notes"),
         due=due_rfc3339,
+        details=details_of(draft_content),
+        steps=tuple(draft_content.get("steps") or ()),
     )
 
     task_id = result.get("id")
@@ -179,6 +182,7 @@ async def execute_task_update_draft(
         due=due_rfc3339,
         status=draft_content.get("status"),
         clear_due=bool(draft_content.get("clear_due", False)),
+        details=details_of(draft_content),
     )
 
     title = result.get("title", draft_content.get("title", ""))

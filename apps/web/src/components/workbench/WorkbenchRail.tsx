@@ -11,8 +11,10 @@
  * (D6): « Tools » holds the usable tools and the ones whose provider must be
  * reconnected (marked, still linked to their page, which says what to do);
  * « To connect » follows, quieter, pointing at Settings › Connectors. A tool the
- * instance offers no provider for is in neither. Below `lg` the row scrolls
- * edge to edge and every pill takes a finger's height.
+ * instance offers no provider for is in neither. The open pill is the page's
+ * title, so it says whose service the tool works on. Below `lg` the row scrolls
+ * and every pill takes a finger's height. The mail's pill says what the inbox
+ * leaves unread, on every tool's page.
  */
 import Link from 'next/link';
 import { PlugZap, TriangleAlert } from 'lucide-react';
@@ -22,7 +24,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import { cn } from '@/lib/utils';
-import { railGroups, toolPath, toolSpec } from '@/lib/workbench/tools';
+import { providerVendor, railGroups, toolPath, toolSpec } from '@/lib/workbench/tools';
 import type {
   WorkbenchAvailability,
   WorkbenchToolAvailability,
@@ -35,17 +37,30 @@ export interface WorkbenchRailProps {
   availability: WorkbenchAvailability;
   /** The tool whose page is open; null on the section's root. */
   activeTool: WorkbenchToolId | null;
+  /** What the inbox leaves unread, once read. */
+  mailUnread?: number;
 }
 
-export function WorkbenchRail({ lng, availability, activeTool }: WorkbenchRailProps) {
+/** Past this, the pill says « more » rather than widen. */
+const UNREAD_BADGE_MAX = 99;
+
+export function WorkbenchRail({ lng, availability, activeTool, mailUnread }: WorkbenchRailProps) {
   const { t } = useTranslation(lng);
   const groups = railGroups(availability);
   const connectorsHref = settingsSectionHref(lng, 'connectors');
   const openRef = useRef<HTMLAnchorElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // `nearest` on both axes: the row scrolls to the open pill, the page never.
-    openRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    const bring = () => openRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    bring();
+    // The tool's actions come to share the row after this first look.
+    const row = navRef.current;
+    if (!row || typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(bring);
+    watch.observe(row);
+    return () => watch.disconnect();
   }, [activeTool]);
 
   // `relative`: the screen-reader notes are absolutely positioned; without a
@@ -55,8 +70,9 @@ export function WorkbenchRail({ lng, availability, activeTool }: WorkbenchRailPr
   // the screen's edge (measured: 99.6 % of it visible at 320 px without).
   return (
     <nav
+      ref={navRef}
       aria-label={t('workbench.rail.label')}
-      className="relative -mx-4 mb-3 scroll-px-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+      className="relative min-w-0 flex-1 basis-full scroll-px-4 xl:basis-48 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <div className="flex w-max items-center gap-3 py-0.5 sm:w-auto sm:flex-wrap">
         {groups.tools.length > 0 && (
@@ -75,6 +91,11 @@ export function WorkbenchRail({ lng, availability, activeTool }: WorkbenchRailPr
                       <TriangleAlert className="h-3.5 w-3.5 text-warning" aria-hidden="true" />
                       <span className="sr-only">{t('workbench.rail.reconnect')}</span>
                     </>
+                  ) : item.tool === 'mail' && mailUnread ? (
+                    <UnreadBadge
+                      count={mailUnread}
+                      label={t('workbench.rail.unread', { count: mailUnread })}
+                    />
                   ) : null
                 }
               />
@@ -98,6 +119,21 @@ export function WorkbenchRail({ lng, availability, activeTool }: WorkbenchRailPr
         )}
       </div>
     </nav>
+  );
+}
+
+/** The inbox's unread figure on the mail's pill, past a bound in the fewest characters. */
+function UnreadBadge({ count, label }: { count: number; label: string }) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground"
+      >
+        {count > UNREAD_BADGE_MAX ? `${UNREAD_BADGE_MAX}+` : count}
+      </span>
+      <span className="sr-only">{label}</span>
+    </>
   );
 }
 
@@ -175,6 +211,11 @@ function RailLink({
           aria-hidden="true"
         />
         <span>{label}</span>
+        {current && item.provider && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            {providerVendor(item.provider)}
+          </span>
+        )}
         {note}
       </Link>
     </li>

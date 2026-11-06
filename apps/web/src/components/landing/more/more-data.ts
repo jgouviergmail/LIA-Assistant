@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 113 cards in
+ * Single source of truth for the "/more" small-attentions page: 118 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (113 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (118 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -149,6 +149,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'drop_zone',
       'knowledge_pick',
       'bring_back',
+      'send_undo',
     ],
   },
   {
@@ -202,6 +203,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'fix_commitment',
       'meeting_banner',
       'diagnosis_evidence',
+      'page_waits',
     ],
   },
   {
@@ -227,6 +229,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'dated_rows',
       'relation_debrief',
       'grouped_actions',
+      'search_everywhere',
       'pinned_dock',
       'network_grants',
       'skill_library',
@@ -240,6 +243,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     cards: [
       'briefing_custom',
       'progressive_home',
+      'drag_with_guests',
       'card_actions',
       'alerts_hub',
       'sender_notice',
@@ -296,6 +300,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'local_model_fit',
       'slide_never_overflows',
       'shared_with',
+      'reading_width',
     ],
   },
 ] as const;
@@ -417,6 +422,11 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   shared_with: Share2,
   progressive_home: SquareDashed,
   named_wait: Timer,
+  send_undo: Undo2,
+  page_waits: MousePointerClick,
+  search_everywhere: TextSearch,
+  drag_with_guests: CalendarClock,
+  reading_width: StretchHorizontal,
   grouped_actions: Contact,
 };
 
@@ -538,5 +548,10 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   shared_with: ['shared'],
   progressive_home: [],
   named_wait: ['server', 'slow', 'skipped'],
+  send_undo: ['sending', 'undo'],
+  page_waits: ['start'],
+  search_everywhere: ['key', 'mail', 'calendar', 'contacts', 'files', 'unreachable'],
+  drag_with_guests: ['notify', 'save'],
+  reading_width: [],
   grouped_actions: ['home', 'work'],
 };

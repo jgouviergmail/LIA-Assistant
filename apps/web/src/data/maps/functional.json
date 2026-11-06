@@ -526,7 +526,8 @@
       "icon": "file-text",
       "domains": [
         "document_generation",
-        "attachments"
+        "attachments",
+        "interactive_pages"
       ],
       "surfaces": [
         "/dashboard/documents/[id]",

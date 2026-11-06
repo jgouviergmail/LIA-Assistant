@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LIA API 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 13:50+0000\n"
-"PO-Revision-Date: 2026-10-26 13:50+0000\n"
+"POT-Creation-Date: 2026-11-05 17:02+0000\n"
+"PO-Revision-Date: 2026-11-05 17:02+0000\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
 "Language-Team: English\n"
 "Language: en\n"
@@ -85,11 +85,17 @@ msgstr "List truncated to {limit} items ({available} available)"
 msgid "{count} items retrieved for '{domain}'"
 msgstr "{count} items retrieved for '{domain}'"
 
+msgid "Color '{color}' not recognized. Available: {available}"
+msgstr "Color '{color}' not recognized. Available: {available}"
+
 msgid "{count} light(s) found"
 msgstr "{count} light(s) found"
 
 msgid "{count} currently on"
 msgstr "{count} currently on"
+
+msgid "not answering: {names}"
+msgstr "not answering: {names}"
 
 msgid "Light '{name}' not found. Available: {available}"
 msgstr "Light '{name}' not found. Available: {available}"

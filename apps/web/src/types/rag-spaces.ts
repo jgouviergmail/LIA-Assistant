@@ -44,6 +44,8 @@ export interface RAGDocument {
 /** Linked Google Drive folder source. */
 export interface RAGDriveSource {
   id: string;
+  /** The drive it lives on: a connector type. */
+  provider: string;
   folder_id: string;
   folder_name: string;
   sync_status: RAGDriveSyncStatus;
@@ -151,6 +153,8 @@ export interface RAGSpaceDetail extends RAGSpace {
   documents: RAGDocument[];
   drive_sources: RAGDriveSource[];
   mail_sources: RAGMailSource[];
+  /** The drive the account has connected: a folder of another one waits. */
+  active_drive: string | null;
 }
 
 /** API response for space list endpoint. */

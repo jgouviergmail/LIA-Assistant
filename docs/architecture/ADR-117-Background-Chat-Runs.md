@@ -259,3 +259,38 @@ terminal session revocation and a 401 when reopening with the expired cookie.
 `tests/unit/core/test_event_stream_headers.py` covers the first-chunk and cache
 policy contract. This does not qualify every possible operator proxy or a
 physical mobile device.
+
+## Amendment 2026-11-05 — a cancelled turn writes its spend once
+
+Production: 14 turns in 30 days exactly doubled, 0.76 € counted twice, in the usage logs, the
+message summary, the instance ledger and the user statistics. Read on two of them in Loki and
+reproduced on dev: `persist_to_database_node_records_snapshot` twice, 10 ms apart, the second write
+reporting `node_count: 0` because the first had just emptied the list it had already read.
+
+The pump of `_interleave_side_channel` runs the stream in a task of its own, and it cancelled that
+task without waiting for it. So the stream's `finally` (`commit_tracked_spend`) and the turn's
+`TrackingContext.__aexit__` ran side by side, each writing the same records: a write is additive, and
+the records leave only after its commit. The comment claiming the write « cannot double-count » was
+wrong.
+
+- **The stream ends before the turn does**: `cancel_and_wait` (`infrastructure/async_utils.py`)
+  cancels the task and gives it `STREAM_TEARDOWN_WAIT_SECONDS`. The wait is bounded: a stream that
+  never ends holds nobody.
+- **One writer at a time**, whichever door opens: `TrackingContext._write_pending` holds a lock and
+  reads what is pending under it, so whoever waited finds nothing left. This holds when the bounded
+  wait runs out, and for any other pair of callers.
+- **A write of its own is not cut halfway**: `_persist_to_database` runs it through
+  `write_through_cancellation`, because a write interrupted at its commit has an unknown outcome and
+  the next door would write it again. A caller's session stays in the caller's task.
+
+Proven on real PostgreSQL (`tests/integration/domains/chat/test_tracker_concurrent_doors.py`: 6 rows,
+12 with the lock taken away) and on real cancelled turns on dev: one write, then
+`tracking_context_no_pending_records`.
+
+**What was doubled before stays as it is** (owner decision, 2026-11-05). No euro was paid twice:
+only LIA's own counters read high. Over the last 30 days that is 14 turns on 2 accounts, 0.76 € of
+72.68 €; over the whole history, proactive sweeps set aside, 48 turns on 4 accounts, 1.15 € of
+186.99 €. Correcting it would rewrite `token_usage_logs`, which billing retains, and three
+counters, on turns whose summaries are doubled, single or absent. The price is stated: those
+messages keep a cost that reads too high, often double, and the doubles go on in production until
+this fix is deployed. A doubled row carries the same `created_at` as its twin, to the millisecond.

@@ -10,6 +10,7 @@
  * columns the window holds, and a lamp alone stays a card.
  */
 import AxeBuilder from '@axe-core/playwright';
+import type { Locator, Page } from '@playwright/test';
 
 import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
@@ -26,7 +27,11 @@ const RAIL = {
     page_size: 25,
     bulk_max_items: 50,
     download_max_bytes: 26214400,
+    upload_max_bytes: 26214400,
     calendar_window_max_events: 500,
+    send_undo_seconds: 0,
+    draft_autosave_seconds: 0,
+    search_max_chars: 500,
   },
 };
 
@@ -42,14 +47,33 @@ function lamp(id: string, name: string, room: string, extra: Record<string, unkn
     mirek: null,
     mirek_min: null,
     mirek_max: null,
+    reachable: null,
     ...extra,
   };
 }
 
 const BRIDGE = {
   rooms: [
-    { id: 'r1', name: 'Living room', light_ids: ['a', 'b', 'c', 'e'], on: true },
-    { id: 'r2', name: 'Kitchen', light_ids: ['d'], on: false },
+    {
+      id: 'r1',
+      name: 'Living room',
+      light_ids: ['a', 'b', 'c', 'e'],
+      on: true,
+      kind: 'room',
+      supports_color: false,
+      mirek_min: null,
+      mirek_max: null,
+    },
+    {
+      id: 'r2',
+      name: 'Kitchen',
+      light_ids: ['d'],
+      on: false,
+      kind: 'room',
+      supports_color: false,
+      mirek_min: null,
+      mirek_max: null,
+    },
   ],
   lights: [
     lamp('a', 'Floor lamp', 'r1', {
@@ -66,15 +90,55 @@ const BRIDGE = {
     lamp('d', 'Pendant', 'r2', { on: false, brightness: 100 }),
   ],
   scenes: [
-    { id: 's1', name: 'Read', room_id: 'r1', active: false },
-    { id: 's2', name: 'Relax', room_id: 'r1', active: true },
+    { id: 's1', name: 'Read', room_id: 'r1', active: false, dynamic: false, playing: false },
+    { id: 's2', name: 'Relax', room_id: 'r1', active: true, dynamic: false, playing: false },
+  ],
+};
+
+/** A zone across the rooms, a lamp the bridge cannot reach, a scene whose palette can play. */
+const WHOLE_HOUSE = {
+  rooms: [
+    {
+      id: 'r1',
+      name: 'Living room',
+      kind: 'room',
+      light_ids: ['a', 'b'],
+      on: true,
+      supports_color: true,
+      mirek_min: 153,
+      mirek_max: 454,
+    },
+    {
+      id: 'z1',
+      name: 'Reading corner',
+      kind: 'zone',
+      light_ids: ['a'],
+      on: true,
+      supports_color: true,
+      mirek_min: 153,
+      mirek_max: 500,
+    },
+  ],
+  lights: [
+    lamp('a', 'Floor lamp', 'r1', {
+      supports_color: true,
+      color_hex: '#ffd59a',
+      mirek: 366,
+      mirek_min: 153,
+      mirek_max: 500,
+    }),
+    lamp('b', 'Ceiling', 'r1', { reachable: false }),
+  ],
+  scenes: [
+    { id: 's1', name: 'Aurora', room_id: 'r1', active: false, dynamic: true, playing: false },
   ],
 };
 
 async function playTheApi(
   mockApi: (routes: MockRoute[]) => Promise<void>,
   sent: Array<Record<string, unknown>>,
-  refuse = false
+  refuse = false,
+  bridge: unknown = BRIDGE
 ) {
   await mockApi([
     {
@@ -86,7 +150,7 @@ async function playTheApi(
       },
     },
     { url: '**/api/v1/workbench', json: RAIL },
-    { url: '**/api/v1/workbench/lights', method: 'GET', json: BRIDGE },
+    { url: '**/api/v1/workbench/lights', method: 'GET', json: bridge },
     {
       url: '**/api/v1/workbench/lights/*',
       method: 'POST',
@@ -127,10 +191,97 @@ for (const sample of [
   });
 }
 
+/** What a theme token paints, measured on the page as the browser computes it. */
+const tokenOf = (page: Page, name: string) =>
+  page.evaluate(token => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = `var(--color-${token})`;
+    document.body.append(probe);
+    const painted = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return painted;
+  }, name);
+
+const paintedOf = (target: Locator) =>
+  target.evaluate(node => getComputedStyle(node).backgroundColor);
+
+/**
+ * Owner request (2026-11-05): what is off recedes into the page and what is lit keeps the card's
+ * material. A tint of the accent darkens in a light theme and lightens in a dark one; the page's
+ * own background lies below the card in all three, down to the true black of OLED.
+ */
+for (const theme of ['light', 'dark', 'oled'] as const) {
+  test(`what is off recedes into the page, what is lit stays a card, in ${theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await prepareTheme(page, theme);
+    await authenticate();
+    await playTheApi(mockApi, []);
+
+    await page.goto('/en/dashboard/tools/lights');
+    await waitForHydration(page, 'button[role="switch"]');
+    const room = (name: string) =>
+      page.locator('[data-lit]').filter({ has: page.getByRole('link', { name }) });
+    const receded = await tokenOf(page, 'background');
+    const card = await tokenOf(page, 'card');
+    expect(receded).not.toBe(card);
+
+    await expect(room('Kitchen')).toHaveAttribute('data-lit', 'false');
+    expect(await paintedOf(room('Kitchen'))).toBe(receded);
+    expect(await paintedOf(room('Living room'))).toBe(card);
+    expect(await paintedOf(page.getByRole('group', { name: 'Pendant' }))).toBe(receded);
+
+    await page.getByRole('link', { name: /Living room/ }).click();
+    expect(await paintedOf(page.getByRole('group', { name: 'Floor lamp' }))).toBe(card);
+  });
+}
+
 /**
  * Owner requests (2026-10-31): rooms and lamps in alphabetical order — the room open by
  * default is the first of them — and a lamp's temperature and colour folded until opened.
  */
+test('a zone, a lamp that does not answer and a scene in motion hold on a phone', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  const sent: Array<Record<string, unknown>> = [];
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi, sent, false, WHOLE_HOUSE);
+
+  await page.goto('/en/dashboard/tools/lights');
+  await waitForHydration(page, 'main');
+  const zone = page.getByRole('link', { name: /Reading corner/ });
+  await expect(zone).toContainText('Zone');
+  await expect(page.getByRole('link', { name: /Living room/ })).toContainText(
+    '1 light not answering'
+  );
+
+  await page.getByRole('switch', { name: 'Turn on “Reading corner”' }).click();
+  await expect.poll(() => sent.at(-1)).toEqual({ room_id: 'z1', kind: 'zone', on: false });
+
+  await page.getByText('Temperature and colour').first().click();
+  await expect(page.getByRole('slider', { name: 'Temperature' }).first()).toBeVisible();
+  await expectNoOverflow(page, 'lights with a zone at 390px');
+
+  await page.goto('/en/dashboard/tools/lights?room=r1');
+  await waitForHydration(page, 'main');
+  const ceiling = page.getByRole('group', { name: 'Ceiling' });
+  await expect(ceiling.getByText('This lamp is not answering')).toBeVisible();
+  await expect(ceiling.getByRole('switch')).toBeDisabled();
+
+  await page.getByRole('button', { name: 'Play “Aurora” in motion' }).first().click();
+  await expect.poll(() => sent.at(-1)).toEqual({ scene_id: 's1', play: true });
+
+  await expectNoOverflow(page, 'a room at 390px');
+  const scan = await new AxeBuilder({ page }).include('main').analyze();
+  expect(scan.violations).toEqual([]);
+});
+
 test('rooms and lamps come in alphabetical order, the tone folded until opened', async ({
   page,
   authenticate,

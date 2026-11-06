@@ -28,8 +28,8 @@ from src.domains.agents.python_sandbox.egress.hosts import HostDecision
 from src.domains.agents.tools.output import UnifiedToolOutput
 
 #: Registry item types that are not the person's DATA (a draft under review,
-#: a chart the turn drew) — never counted on the card.
-_NOT_DATA_TYPES = frozenset({"DRAFT", "CHART", "MCP_APP"})
+#: a chart or a page the turn drew) — never counted on the card.
+_NOT_DATA_TYPES = frozenset({"DRAFT", "CHART", "MCP_APP", "PAGE_APP"})
 
 
 def summarize_turn_data(

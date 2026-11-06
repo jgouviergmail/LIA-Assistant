@@ -17,7 +17,7 @@ from src.core.i18n_drafts import get_draft_preview_labels
 from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import _render_vacation_responder
-from src.domains.agents.tools.gmail_settings_tools import execute_vacation_responder_draft
+from src.domains.agents.tools.mailbox_settings_tools import execute_vacation_responder_draft
 
 pytestmark = pytest.mark.unit
 
@@ -57,14 +57,14 @@ class TestPreview:
 
 class TestExecutor:
     async def _execute(self, draft_content: dict[str, Any]) -> MagicMock:
-        client = MagicMock()
+        client = MagicMock(close=AsyncMock())
         client.update_vacation = AsyncMock(return_value={"enableAutoReply": True})
         service = MagicMock()
         service.get_connector_credentials = AsyncMock(return_value=MagicMock())
         deps = MagicMock()
         deps.get_connector_service = AsyncMock(return_value=service)
         with patch(
-            "src.domains.agents.tools.gmail_settings_tools.GoogleGmailSettingsClient",
+            "src.domains.agents.tools.mailbox_settings_tools.GoogleGmailSettingsClient",
             return_value=client,
         ):
             result = await execute_vacation_responder_draft(draft_content, uuid4(), deps)

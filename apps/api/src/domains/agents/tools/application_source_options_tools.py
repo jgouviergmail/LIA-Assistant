@@ -18,6 +18,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.decorators import read_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
+from src.domains.rag_spaces.drive_provider import DriveSourcePausedError
 from src.infrastructure.database.session import get_db_context
 
 
@@ -58,6 +59,11 @@ async def get_lia_knowledge_source_options_tool(
     except CommandRejected as error:
         return UnifiedToolOutput.failure(
             message="Source changed during observation; read again.", error_code=error.code
+        )
+    except DriveSourcePausedError:
+        return UnifiedToolOutput.failure(
+            message="This folder's drive is not connected; the folder waits for it.",
+            error_code="CONNECTOR_NOT_ACTIVATED",
         )
     except TimeoutError:
         return UnifiedToolOutput.failure(message="Source picker timed out.", error_code="TIMEOUT")

@@ -29,10 +29,12 @@ from src.domains.connectors.clients.mailbox_drafts import (
     MailboxDraftNotFoundError,
 )
 from src.domains.connectors.schemas import ConnectorCredentials
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 pytestmark = pytest.mark.unit
 
 ORIGINAL_TEXT = "Voici le budget.\nMerci."
+FILE = OutgoingAttachment("note.txt", "text/plain", b"hello")
 
 
 def _b64(data: bytes) -> str:
@@ -385,6 +387,71 @@ class TestUpdate:
 
         with pytest.raises(MailboxDraftNotFoundError):
             await client.update_draft(draft_id, subject="x")
+
+
+class TestAlias:
+    async def test_a_new_draft_keeps_the_address_it_leaves_from(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        client.send_from("alias@example.com")
+
+        draft = await client.create_draft("a@example.com", "S", "Words")
+
+        assert _stored(gmail, draft[FIELD_MAILBOX_DRAFT_ID])["From"] == "alias@example.com"
+
+    async def test_a_change_of_address_replaces_the_one_it_had(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        draft_id = _seeded(gmail)
+        client.send_from("first@example.com")
+        await client.update_draft(draft_id, body="One")
+        client.send_from("second@example.com")
+
+        await client.update_draft(draft_id, body="Two")
+
+        assert _stored(gmail, draft_id).get_all("From") == ["second@example.com"]
+
+    async def test_a_change_with_no_choice_keeps_the_address_it_had(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        draft_id = _seeded(gmail)
+        client.send_from("alias@example.com")
+        await client.update_draft(draft_id, body="One")
+        client.send_from(None)
+
+        await client.update_draft(draft_id, body="Two")
+
+        assert _stored(gmail, draft_id)["From"] == "alias@example.com"
+
+
+class TestFiles:
+    async def test_a_new_draft_carries_them(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        draft = await client.create_draft("a@example.com", "S", "Words", attachments=[FILE])
+
+        stored = _stored(gmail, draft[FIELD_MAILBOX_DRAFT_ID])
+        assert [part.get_filename() for part in stored.iter_attachments()] == ["note.txt"]
+        assert stored["To"] == "a@example.com"
+        assert _text(stored).strip() == "Words"
+
+    async def test_a_new_draft_with_none_stays_a_single_part(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        draft = await client.create_draft("a@example.com", "S", "Words")
+
+        assert not _stored(gmail, draft[FIELD_MAILBOX_DRAFT_ID]).is_multipart()
+
+    async def test_one_joins_and_one_leaves_a_draft(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        draft_id = _seeded(gmail, with_file=True)
+
+        await client.update_draft(draft_id, add_files=[FILE], remove_files=["b.pdf"])
+
+        stored = _stored(gmail, draft_id)
+        assert [part.get_filename() for part in stored.iter_attachments()] == ["note.txt"]
+        assert stored["In-Reply-To"] == "<orig-1@example.com>"
 
 
 class TestRead:

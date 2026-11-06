@@ -111,8 +111,11 @@ async def test_only_an_opening_reads_its_facts_again_around_each_call(monkeypatc
 @pytest.mark.parametrize("context_only", [True, False])
 async def test_a_run_past_its_deadline_stops_and_says_so(monkeypatch, context_only):
     # A rebuild cut by its deadline used to settle as a plain failure.
-    monkeypatch.setattr(discussion_runner.settings, "discussion_run_deadline_seconds", 0.01)
-    monkeypatch.setattr(discussion_runner.settings, "discussion_rebuild_deadline_seconds", 0.02)
+    monkeypatch.setattr(
+        discussion_runner,
+        "discussion_deadline_seconds",
+        lambda rebuild: 0.02 if rebuild else 0.01,
+    )
 
     async def slow(act: object) -> bool:
         await asyncio.sleep(5)

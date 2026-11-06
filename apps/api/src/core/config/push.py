@@ -54,7 +54,8 @@ class PushSettings(BaseSettings):
             "Public HTTPS URL of the Google webhook endpoint "
             "(e.g. https://api.example.com/api/v1/webhooks/google). The domain "
             "must be ownership-verified in Search Console and registered in the "
-            "GCP project's allowed push domains."
+            "GCP project's allowed push domains. OneDrive's endpoint sits beside "
+            "it (.../webhooks/microsoft): the instance states its address once."
         ),
     )
     gmail_pubsub_topic: str | None = Field(
@@ -127,7 +128,8 @@ class PushSettings(BaseSettings):
         le=1800,
         description="Wall-clock ceiling of ONE wake: a wake that stops moving is cut and "
         "counted 'timeout' so the sweep serves the next account (ADR-304). A safety net "
-        "above every bounded step, never a budget.",
+        "above every bounded step, never a budget; it yields to the model calls of a "
+        "heartbeat (ADR-221).",
     )
     push_wake_mail_require_labels: list[str] = Field(
         default=list(PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT),

@@ -82,6 +82,17 @@ class TestServeOne:
             assert await sweep._serve_one(MagicMock(), _payload(age_seconds=7200)) == "stale"
         cooldown.assert_not_awaited()
 
+    async def test_a_onedrive_wake_reindexes_on_its_own_drive(self) -> None:
+        payload = _payload("microsoft_onedrive")
+
+        with patch(
+            "src.domains.rag_spaces.drive_push.reindex_from_push",
+            AsyncMock(return_value="reindexed"),
+        ) as reindex:
+            assert await sweep._serve_one(MagicMock(), payload) == "reindexed"
+
+        reindex.assert_awaited_once_with(payload.user_id, "microsoft_onedrive")
+
     async def test_drive_wake_is_a_reindex_not_a_decision(self) -> None:
         with (
             patch.object(sweep, "_serve_drive", AsyncMock(return_value="reindexed")) as drive,
@@ -245,7 +256,7 @@ class TestSweep:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Production, 2026-09-22: one Drive drain held the sweep 22 minutes (ADR-304)."""
-        monkeypatch.setattr(sweep, "settings", _settings(push_wake_serve_timeout_seconds=0.05))
+        monkeypatch.setattr(sweep, "_serve_bound_seconds", lambda: 0.05)
         stuck, next_one = _payload("google_drive"), _payload("google_gmail")
 
         async def _serve(_redis: object, payload: WakePayload) -> str:

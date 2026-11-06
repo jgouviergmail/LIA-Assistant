@@ -104,6 +104,7 @@ REGISTRY_TYPE_TO_KEY: dict[RegistryItemType, str] = {
     RegistryItemType.MCP_RESULT: "mcps",  # domain + "s" pattern (evolution F2.3)
     RegistryItemType.MCP_APP: "mcp_apps",  # MCP interactive widgets (evolution F2.5)
     RegistryItemType.SKILL_APP: "skill_apps",  # Skill rich outputs (frame/image widgets)
+    RegistryItemType.PAGE_APP: "page_apps",  # Interactive pages (ADR-370)
     RegistryItemType.DRAFT: "drafts",
     RegistryItemType.CHART: "charts",
     RegistryItemType.NOTE: "notes",

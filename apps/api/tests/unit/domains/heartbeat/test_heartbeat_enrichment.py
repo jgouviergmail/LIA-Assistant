@@ -7,10 +7,12 @@ tokens are accounted, and every failure path falls open to the plain draft.
 """
 
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.constants import LLM_RUN_BOUND_MARGIN_SECONDS
 from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 
 
@@ -71,6 +73,32 @@ class TestEnrichment:
         assert result.success
         assert result.content == "plain msg"
         assert gen_msg.await_args.kwargs["facts_block"] is None
+
+    async def test_the_fetch_waits_for_the_slot_of_the_call_it_makes(self) -> None:
+        """Configured at 400 s in admin-llm-config, the writer is not cut at 45 s."""
+        seen: list[float] = []
+
+        async def bound(work: Any, timeout: float) -> Any:
+            seen.append(timeout)
+            work.close()
+            raise TimeoutError
+
+        task = HeartbeatProactiveTask()
+        with (
+            patch(
+                "src.domains.llm_config.cache.LLMConfigOverrideCache.get_override",
+                side_effect={"interest_content": {"timeout_seconds": 400}}.get,
+            ),
+            patch.object(
+                task,
+                "_resolve_interest_for_enrichment",
+                new=AsyncMock(return_value=(None, "culture", [])),
+            ),
+            patch("src.domains.heartbeat.proactive_task.asyncio.wait_for", new=bound),
+        ):
+            await task._fetch_interest_facts(uuid.uuid4(), "Cinéma A24", "fr")
+
+        assert seen == [400 + LLM_RUN_BOUND_MARGIN_SECONDS]
 
     async def test_no_topic_means_no_enrichment_call(self) -> None:
         task = HeartbeatProactiveTask()

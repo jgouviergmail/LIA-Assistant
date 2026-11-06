@@ -960,7 +960,7 @@ Six modeles Pydantic typesafe organisent la configuration :
 
 ### LLM du QueryAnalyzerService
 
-L'analyse d'intention et de domaine est le poste `query_analyzer` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Seul son delai reste un reglage d'environnement (`QUERY_ANALYZER_LLM_TIMEOUT_SECONDS`).
+L'analyse d'intention et de domaine est le poste `query_analyzer` : ses valeurs par defaut sont dans `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur les remplace dans Settings > Administration > LLM Configuration. Son delai est celui du poste, lu par `llm_call_timeout_seconds` (ADR-221, amendement du 2026-11-05).
 
 ### Variables .env - V3 Routing (QueryAnalyzerService)
 
@@ -1036,7 +1036,6 @@ Detecte cardinality mismatches, implicit assumptions, missing dependencies.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEMANTIC_VALIDATION_TIMEOUT_SECONDS` | 10.0 | Timeout (fail-open si depasse) |
 | `SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD` | 0.7 | Seuil confidence clarification |
 
 Le modele du validateur est le poste `semantic_validator` (Settings > Administration > LLM Configuration).

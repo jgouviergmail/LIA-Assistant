@@ -15,17 +15,26 @@ Scopes required:
 from typing import Any
 from uuid import UUID
 
+import httpx
 import structlog
+from fastapi import status
 
 from src.core.config import settings
 from src.core.constants import MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE
+from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.contact_details import ContactDetails
 from src.domains.connectors.clients.contact_directory import (
     ContactDirectory,
     cached_directory,
     invalidate_contacts_cache,
+)
+from src.domains.connectors.clients.contact_photos import ContactPhoto, photo_of
+from src.domains.connectors.clients.microsoft_contact_groups_mixin import (
+    MicrosoftContactGroupsMixin,
+    contact_path,
 )
 from src.domains.connectors.clients.normalizers.contact_values import TypedAddress, TypedValue
 from src.domains.connectors.clients.normalizers.graph_paging import (
@@ -37,7 +46,6 @@ from src.domains.connectors.clients.normalizers.microsoft_contacts_normalizer im
     build_contact_update_body,
     normalize_graph_contact,
 )
-from src.domains.connectors.clients.path_segments import path_segment
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 
@@ -46,7 +54,7 @@ logger = structlog.get_logger(__name__)
 # Default fields for contact queries
 _CONTACT_SELECT_FIELDS = (
     "id,displayName,givenName,surname,middleName,emailAddresses,"
-    "homePhones,businessPhones,mobilePhone,companyName,jobTitle,"
+    "homePhones,businessPhones,mobilePhone,companyName,jobTitle,businessHomePage,"
     "department,homeAddress,businessAddress,otherAddress,"
     "birthday,personalNotes,photo"
 )
@@ -58,7 +66,7 @@ _DIRECTORY_SELECT_FIELDS = (
 )
 
 
-class MicrosoftContactsClient(BaseMicrosoftClient):
+class MicrosoftContactsClient(MicrosoftContactGroupsMixin, BaseMicrosoftClient):
     """
     Microsoft Contacts client via Graph API.
 
@@ -71,6 +79,8 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         >>> for contact in results["results"]:
         ...     print(contact["names"][0]["displayName"])
     """
+
+    _people_select = _CONTACT_SELECT_FIELDS
 
     connector_type = ConnectorType.MICROSOFT_CONTACTS
 
@@ -256,7 +266,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
 
         params: dict[str, Any] = {"$select": _CONTACT_SELECT_FIELDS}
 
-        response = await self._make_request("GET", _contact_path(contact_id), params)
+        response = await self._make_request("GET", contact_path(contact_id), params)
 
         logger.info(
             "microsoft_contact_retrieved",
@@ -285,6 +295,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """
         Create a new contact.
@@ -298,6 +309,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             emails: Every e-mail (not with ``email``).
             phones: Every phone (not with ``phone``).
             addresses: Every address.
+            details: Its name's parts, job title, website and birthday.
 
         Returns:
             Created contact in Google People API format.
@@ -314,6 +326,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
         )
 
         response = await self._make_request("POST", "/me/contacts", json_data=body)
@@ -328,6 +341,39 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
 
         return normalize_graph_contact(response)
 
+    async def get_contact_photo(self, resource_name: str) -> ContactPhoto | None:
+        """A contact's photo: Graph answers 404 where it holds none (measured)."""
+        path = contact_path(resource_name.removeprefix("people/"))
+        try:
+            answer = await self._make_request("GET", f"{path}/photo/$value", answer=_raw_answer)
+        except ConnectorAPIError as error:
+            if error.upstream_status_code == status.HTTP_404_NOT_FOUND:
+                return None
+            raise
+        return photo_of(answer["data"])
+
+    async def set_contact_photo(self, resource_name: str, photo: ContactPhoto) -> None:
+        """Replace a contact's photo: ``$value`` is written, as it is read."""
+        path = contact_path(resource_name.removeprefix("people/"))
+        await self._make_request(
+            "PUT",
+            f"{path}/photo/$value",
+            content=photo.data,
+            extra_headers={"Content-Type": photo.mime_type},
+            answer=_raw_answer,
+        )
+        await invalidate_contacts_cache(self.user_id)
+
+    async def remove_contact_photo(self, resource_name: str) -> None:
+        """Take a contact's photo off: ``/photo`` deletes, ``$value`` answers 405 (measured)."""
+        path = contact_path(resource_name.removeprefix("people/"))
+        try:
+            await self._make_request("DELETE", f"{path}/photo", answer=_raw_answer)
+        except ConnectorAPIError as error:
+            if error.upstream_status_code != status.HTTP_404_NOT_FOUND:
+                raise
+        await invalidate_contacts_cache(self.user_id)
+
     async def update_contact(
         self,
         resource_name: str,
@@ -341,6 +387,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         emails: list[TypedValue] | None = None,
         phones: list[TypedValue] | None = None,
         addresses: list[TypedAddress] | None = None,
+        details: ContactDetails | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing contact.
@@ -360,6 +407,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             emails: Every e-mail.
             phones: Every phone.
             addresses: Every address.
+            details: What changes of its name's parts, job, website and birthday.
 
         Returns:
             Updated contact in Google People API format.
@@ -371,7 +419,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         asks_values = any(
             value is not None for value in (email, phone, address, emails, phones, addresses)
         )
-        current = await self._make_request("GET", _contact_path(contact_id)) if asks_values else {}
+        current = await self._make_request("GET", contact_path(contact_id)) if asks_values else {}
         body = build_contact_update_body(
             name,
             email,
@@ -383,9 +431,10 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             emails=emails,
             phones=phones,
             addresses=addresses,
+            details=details,
         )
 
-        response = await self._make_request("PATCH", _contact_path(contact_id), json_data=body)
+        response = await self._make_request("PATCH", contact_path(contact_id), json_data=body)
         await invalidate_contacts_cache(self.user_id)
 
         logger.info(
@@ -408,7 +457,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         """
         contact_id = resource_name.removeprefix("people/")
 
-        await self._make_request("DELETE", _contact_path(contact_id))
+        await self._make_request("DELETE", contact_path(contact_id))
         await invalidate_contacts_cache(self.user_id)
 
         logger.info(
@@ -420,7 +469,6 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         return True
 
 
-def _contact_path(contact_id: str) -> str:
-    """A contact's path, its id quoted: an id from a browser or a model never shapes a path."""
-    segment = path_segment(contact_id, connector_type=ConnectorType.MICROSOFT_CONTACTS)
-    return f"/me/contacts/{segment}"
+def _raw_answer(response: httpx.Response) -> dict[str, Any]:
+    """An answer that is no JSON: a photo, or nothing at all."""
+    return {"data": response.content}

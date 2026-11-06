@@ -23,8 +23,10 @@ Reference: docs/connectors/CONNECTOR_PHILIPS_HUE.md
 """
 
 import asyncio
+from collections.abc import Iterable, Mapping
 from contextlib import suppress
-from typing import Any
+from http import HTTPStatus
+from typing import Any, Literal
 from uuid import UUID
 
 import httpx
@@ -50,6 +52,15 @@ from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import CircuitBreaker, CircuitBreakerError, get_circuit_breaker
 
 logger = structlog.get_logger(__name__)
+
+#: A group of the bridge: a zone gathers lamps a room already holds.
+HueGroupKind = Literal["room", "zone"]
+#: What a recall asks of a scene.
+HueSceneAction = Literal["active", "dynamic_palette", "static"]
+#: The one status of a device the bridge can command.
+HUE_DEVICE_CONNECTED = "connected"
+#: What a scene in motion reports, and what a recall asks to start one.
+HUE_SCENE_IN_MOTION: Literal["dynamic_palette"] = "dynamic_palette"
 
 # CIE xy color mapping for natural language color names (multilingual)
 HUE_COLOR_MAP: dict[str, tuple[float, float]] = {
@@ -137,6 +148,60 @@ def _bridge_id(value: str) -> str:
             status_code=404,
             detail="philips_hue API error: no such resource",
         ) from None
+
+
+def _state_body(
+    *,
+    on: bool | None,
+    brightness: float | None,
+    color_xy: tuple[float, float] | None,
+    color_temperature_mirek: int | None,
+) -> dict[str, Any]:
+    """What a lamp or a group is told: one body for both (ADR-369, lot 13)."""
+    body: dict[str, Any] = {}
+    if on is not None:
+        body["on"] = {"on": on}
+    if brightness is not None:
+        body["dimming"] = {"brightness": min(100.0, max(0.0, brightness))}
+    if color_xy is not None:
+        body["color"] = {"xy": {"x": color_xy[0], "y": color_xy[1]}}
+    if color_temperature_mirek is not None:
+        body["color_temperature"] = {"mirek": color_temperature_mirek}
+    return body
+
+
+def scene_action(motion: bool | None) -> HueSceneAction:
+    """The recall a person's choice asks.
+
+    Args:
+        motion: True plays the scene in motion, False holds it still, None takes it as it stands.
+
+    Returns:
+        The bridge's word for it.
+    """
+    if motion is None:
+        return "active"
+    return HUE_SCENE_IN_MOTION if motion else "static"
+
+
+def reached_devices(links: Iterable[Mapping[str, Any]]) -> dict[str, bool]:
+    """Which devices the bridge reaches, from its connectivity resources.
+
+    Anything but ``connected`` is a device the bridge cannot command: even
+    ``unidirectional_incoming``, which hears it without being heard.
+
+    Args:
+        links: The bridge's ``zigbee_connectivity`` resources.
+
+    Returns:
+        Each reported device's verdict; a device nobody reports on is absent, never lost.
+    """
+    verdicts: dict[str, bool] = {}
+    for link in links:
+        device = (link.get("owner") or {}).get("rid")
+        if device:
+            verdicts[str(device)] = link.get("status") == HUE_DEVICE_CONNECTED
+    return verdicts
 
 
 def _extract_grouped_light_id(room_data: dict[str, Any]) -> str:
@@ -488,16 +553,12 @@ class PhilipsHueClient:
         Returns:
             API response dict.
         """
-        body: dict[str, Any] = {}
-        if on is not None:
-            body["on"] = {"on": on}
-        if brightness is not None:
-            body["dimming"] = {"brightness": min(100.0, max(0.0, brightness))}
-        if color_xy is not None:
-            body["color"] = {"xy": {"x": color_xy[0], "y": color_xy[1]}}
-        if color_temperature_mirek is not None:
-            body["color_temperature"] = {"mirek": color_temperature_mirek}
-
+        body = _state_body(
+            on=on,
+            brightness=brightness,
+            color_xy=color_xy,
+            color_temperature_mirek=color_temperature_mirek,
+        )
         return await self._make_request("PUT", f"light/{_bridge_id(light_id)}", json_data=body)
 
     # =========================================================================
@@ -514,20 +575,54 @@ class PhilipsHueClient:
         result = await self._make_request("GET", "room")
         return list(result.get("data", []))
 
+    async def _list_if_held(self, resource: str) -> list[dict[str, Any]]:
+        """A resource that only adds to a view: a bridge without it reads as holding none."""
+        try:
+            result = await self._make_request("GET", resource)
+        except httpx.HTTPStatusError as refused:
+            if refused.response.status_code != HTTPStatus.NOT_FOUND:
+                raise
+            return []
+        return list(result.get("data", []))
+
+    async def list_zones(self) -> list[dict[str, Any]]:
+        """
+        List all zones: groups of lamps across rooms, a lamp keeping its room.
+
+        Returns:
+            List of zone resource dicts (a room's shape; children name lights).
+        """
+        return await self._list_if_held("zone")
+
+    async def list_connectivity(self) -> list[dict[str, Any]]:
+        """
+        List how the bridge reaches each device.
+
+        Returns:
+            List of zigbee_connectivity resource dicts.
+        """
+        return await self._list_if_held("zigbee_connectivity")
+
     async def control_room(
         self,
         room_id: str,
         *,
         on: bool | None = None,
         brightness: float | None = None,
+        color_xy: tuple[float, float] | None = None,
+        color_temperature_mirek: int | None = None,
+        group: HueGroupKind = "room",
     ) -> dict[str, Any]:
         """
-        Control all lights in a room via its grouped_light.
+        Control all lights in a room or a zone via its grouped_light.
 
         Args:
-            room_id: Room resource ID.
+            room_id: Room or zone resource ID.
             on: Turn all lights on (True) or off (False).
             brightness: Brightness percentage (0-100) for all lights.
+            color_xy: CIE xy color coordinates; a lamp without colour keeps its own.
+            color_temperature_mirek: Color temperature in mirek.
+            group: What the ID names.
 
         Returns:
             API response dict.
@@ -536,17 +631,17 @@ class PhilipsHueClient:
             ValueError: If room has no grouped_light service.
         """
         # Resolve room → grouped_light
-        room_result = await self._make_request("GET", f"room/{_bridge_id(room_id)}")
+        room_result = await self._make_request("GET", f"{group}/{_bridge_id(room_id)}")
         room_data = room_result.get("data", [{}])[0]
         grouped_light_id = _extract_grouped_light_id(room_data)
 
         # Control grouped light
-        body: dict[str, Any] = {}
-        if on is not None:
-            body["on"] = {"on": on}
-        if brightness is not None:
-            body["dimming"] = {"brightness": min(100.0, max(0.0, brightness))}
-
+        body = _state_body(
+            on=on,
+            brightness=brightness,
+            color_xy=color_xy,
+            color_temperature_mirek=color_temperature_mirek,
+        )
         return await self._make_request(
             "PUT", f"grouped_light/{_bridge_id(grouped_light_id)}", json_data=body
         )
@@ -565,18 +660,22 @@ class PhilipsHueClient:
         result = await self._make_request("GET", "scene")
         return list(result.get("data", []))
 
-    async def activate_scene(self, scene_id: str) -> dict[str, Any]:
+    async def activate_scene(
+        self, scene_id: str, *, action: HueSceneAction = "active"
+    ) -> dict[str, Any]:
         """
         Activate a scene by ID.
 
         Args:
             scene_id: Scene resource ID.
+            action: ``active`` as the scene stands, ``dynamic_palette`` in motion,
+                ``static`` held still.
 
         Returns:
             API response dict.
         """
         return await self._make_request(
-            "PUT", f"scene/{_bridge_id(scene_id)}", json_data={"recall": {"action": "active"}}
+            "PUT", f"scene/{_bridge_id(scene_id)}", json_data={"recall": {"action": action}}
         )
 
     # =========================================================================

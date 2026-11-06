@@ -22,9 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
 import re
-import uuid
 from collections.abc import Sequence
 from email.message import Message
 from email.mime.text import MIMEText
@@ -43,12 +41,17 @@ from src.core.exceptions import ConnectorAPIError
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_MAILBOX_DRAFT_REVISION
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.gmail_compose import ComposedForward, ComposedReply
+from src.domains.connectors.clients.gmail_send_mixin import (
+    multipart_related,
+    stamp_sender,
+)
 from src.domains.connectors.clients.mailbox_drafts import (
     MailboxDraftNotFoundError,
     edit_draft_message,
     ensure_draft_revision,
     trash_each,
 )
+from src.infrastructure.email.outgoing import OutgoingAttachment, with_attachments
 
 logger = structlog.get_logger(__name__)
 
@@ -87,6 +90,8 @@ class _GmailDraftsHost(Protocol):
         reply_all: bool,
         is_html: bool,
         to: str | None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> ComposedReply: ...
 
     async def _compose_forward(
@@ -122,19 +127,6 @@ def _checked(draft_id: str) -> str:
     if not _DRAFT_ID.fullmatch(draft_id):
         raise MailboxDraftNotFoundError(draft_id)
     return draft_id
-
-
-def _multipart_related(metadata: dict[str, Any], raw: bytes) -> tuple[bytes, str]:
-    """The upload URI's multipart body: the draft's metadata, then its message."""
-    boundary = f"lia_{uuid.uuid4().hex}"
-    head = (
-        f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
-        f"{json.dumps(metadata)}\r\n"
-        f"--{boundary}\r\nContent-Type: message/rfc822\r\n\r\n"
-    ).encode()
-    return head + raw + f"\r\n--{boundary}--\r\n".encode(), (
-        f"multipart/related; boundary={boundary}"
-    )
 
 
 def _encoded(host: _GmailDraftsHost, addresses: str | None) -> str | None:
@@ -183,10 +175,11 @@ class GmailDraftsMixin:
         a replacement after a lost acknowledgement could overwrite a later
         mailbox edit without checking its revision again.
         """
+        stamp_sender(self, message)
         metadata: dict[str, Any] = {"message": {"threadId": thread_id} if thread_id else {}}
         if draft_id:
             metadata["id"] = draft_id
-        content, content_type = _multipart_related(metadata, message.as_bytes())
+        content, content_type = multipart_related(metadata, message.as_bytes())
         saved = await self._make_request(
             "PUT" if draft_id else "POST",
             f"{_DRAFTS}/{draft_id}" if draft_id else _DRAFTS,
@@ -263,13 +256,16 @@ class GmailDraftsMixin:
         cc: str | None = None,
         bcc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save a new draft; an empty ``to`` leaves the recipient unset.
 
         Raises:
             ValueError: An address that is not one.
         """
-        message = MIMEText(body, "html" if is_html else "plain", "utf-8")
+        message = with_attachments(
+            MIMEText(body, "html" if is_html else "plain", "utf-8"), attachments
+        )
         for header, value in (("To", to), ("Cc", cc), ("Bcc", bcc)):
             if value:
                 message[header] = self._encode_email_header(value)
@@ -320,11 +316,14 @@ class GmailDraftsMixin:
         subject: str | None = None,
         body: str | None = None,
         expected_revision: str | None = None,
+        add_files: Sequence[OutgoingAttachment] = (),
+        remove_files: Sequence[str] = (),
+        is_html: bool = False,
     ) -> dict[str, Any]:
         """Change the fields given (None keeps one, "" clears it), keep the rest.
 
         The RAW message is edited, so the files and the threading headers stay,
-        and the draft stays in its thread.
+        and the draft stays in its thread. Files join and leave in the same save.
 
         Raises:
             MailboxDraftNotFoundError: Unknown id, or the draft is in the trash.
@@ -339,6 +338,9 @@ class GmailDraftsMixin:
             bcc=_encoded(self, bcc),
             subject=subject,
             body=body,
+            add_files=add_files,
+            remove_files=remove_files,
+            is_html=is_html,
         )
         return await self._save_draft(
             edited, thread_id=current.get("threadId"), draft_id=current[FIELD_MAILBOX_DRAFT_ID]

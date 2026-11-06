@@ -33,10 +33,10 @@ LIA Agent → hue_tools.py → PhilipsHueClient → Hue Bridge (local/remote)
 |------|-------------|
 | `list_hue_lights_tool` | List all lights with state |
 | `control_hue_light_tool` | Control a light (on/off, brightness, color) |
-| `list_hue_rooms_tool` | List rooms with devices |
-| `control_hue_room_tool` | Control all lights in a room |
+| `list_hue_rooms_tool` | List rooms and zones with their devices |
+| `control_hue_room_tool` | Control all lights in a room or a zone (on/off, brightness, color) |
 | `list_hue_scenes_tool` | List available scenes |
-| `activate_hue_scene_tool` | Activate a scene |
+| `activate_hue_scene_tool` | Activate a scene, in motion or held still if asked |
 
 ## IoT Discovery & Name Resolution (v1.12.4)
 
@@ -49,7 +49,7 @@ Before generating an execution plan, `SmartPlannerService._build_iot_device_cont
 ```
 AVAILABLE HUE LIGHTS (use EXACT name for light_name_or_id):
 "Plafond salon", "Bureau", "Lampe cuisine", ...
-AVAILABLE HUE ROOMS (use EXACT name for room_name_or_id):
+AVAILABLE HUE ROOMS AND ZONES (use EXACT name for room_name_or_id):
 "Salon", "Chambre", "Cuisine", ...
 ```
 

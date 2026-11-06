@@ -1,11 +1,14 @@
 'use client';
 
 /**
- * LabelsManager — the person's own Gmail labels, created, renamed, deleted
- * (ADR-369, spec §6.3: Gmail only; system labels are never listed, so never
- * offered). « / » in a name nests it under another, as Gmail does. Deleting a
- * label keeps its messages — the confirmation says so. A name already taken is
- * said in the refusal's own words.
+ * LabelsManager — the person's own Gmail labels, Outlook's and iCloud's folders, or
+ * calendars, created, renamed, deleted (ADR-369, spec §6.3, lots 4 and 5; what the
+ * provider keeps for itself is never listed, so never offered). « / » in a label's
+ * or a folder's name nests it under another. Deleting a label keeps its messages, a
+ * folder holding anything is refused, and a calendar takes its events with it: the
+ * confirmation says which. A folder's rename gives it a new own name, never a new
+ * place, so its field holds that name alone. A name already taken is said in the
+ * refusal's own words.
  */
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
@@ -28,11 +31,43 @@ export interface LabelsManagerProps {
   lng: Language;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  labels: readonly MailFolder[];
+  labels: readonly Pick<MailFolder, 'id' | 'name'>[];
+  /** What it manages, which decides its words: Gmail's labels by default. */
+  kind?: ManagedKind;
+  /** The longest name the provider keeps; left out, the provider says. */
+  maxLength?: number;
   /** Each act rejects when refused (the screen says why); it resolves once done. */
   onCreate: (name: string) => Promise<void>;
   onRename: (labelId: string, name: string) => Promise<void>;
   onDelete: (labelId: string) => Promise<void>;
+}
+
+export type ManagedKind = 'labels' | 'folders' | 'calendars';
+
+/** Where each kind's words live, and the two it says outside them. */
+const WORDS: Readonly<Record<Exclude<ManagedKind, 'labels'>, Record<string, string>>> = {
+  folders: {
+    prefix: 'workbench.mail.folder_manager.',
+    'workbench.mail.manage_labels': 'workbench.mail.manage_folders',
+    'workbench.mail.no_labels': 'workbench.mail.folder_manager.none',
+  },
+  calendars: {
+    prefix: 'workbench.calendar.manager.',
+    'workbench.mail.manage_labels': 'workbench.calendar.manage_calendars',
+    'workbench.mail.no_labels': 'workbench.calendar.manager.none',
+  },
+};
+
+function wordOf(kind: ManagedKind, key: string): string {
+  if (kind === 'labels') return key;
+  const words = WORDS[kind];
+  return words[key] ?? key.replace('workbench.mail.labels.', words.prefix);
+}
+
+/** What a rename starts from: a folder's own name, or a whole label's or calendar's. */
+function editableName(label: Pick<MailFolder, 'name'>, kind: ManagedKind): string {
+  const name = label.name ?? '';
+  return kind === 'folders' ? name.slice(name.lastIndexOf('/') + 1) : name;
 }
 
 export function LabelsManager({
@@ -40,11 +75,15 @@ export function LabelsManager({
   open,
   onOpenChange,
   labels,
+  kind = 'labels',
+  maxLength,
   onCreate,
   onRename,
   onDelete,
 }: LabelsManagerProps) {
-  const { t } = useTranslation(lng);
+  const { t: translate } = useTranslation(lng);
+  /** The manager's words: its kind's. */
+  const t = (key: string, values?: Record<string, string>) => translate(wordOf(kind, key), values);
   const { confirm, confirmDialog } = useConfirm();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
@@ -86,7 +125,7 @@ export function LabelsManager({
     if (await run(target.id, () => onRename(target.id, target.name.trim()))) setEditing(null);
   };
 
-  const remove = async (label: MailFolder) => {
+  const remove = async (label: Pick<MailFolder, 'id' | 'name'>) => {
     const confirmed = await confirm({
       title: t('workbench.mail.labels.delete_title', { name: label.name ?? '' }),
       description: t('workbench.mail.labels.delete_description'),
@@ -107,6 +146,7 @@ export function LabelsManager({
             id={newId}
             label={t('workbench.mail.labels.new')}
             value={name}
+            maxLength={maxLength}
             onChange={event => setName(event.target.value)}
             className="flex-1"
           />
@@ -127,6 +167,7 @@ export function LabelsManager({
                       ref={renameField}
                       label={t('workbench.mail.labels.rename_field', { name: label.name ?? '' })}
                       value={editing.name}
+                      maxLength={maxLength}
                       onChange={event => setEditing({ id: label.id, name: event.target.value })}
                       className="flex-1"
                     />
@@ -156,7 +197,7 @@ export function LabelsManager({
                     type="button"
                     size="icon"
                     variant="ghost"
-                    onClick={() => setEditing({ id: label.id, name: label.name ?? '' })}
+                    onClick={() => setEditing({ id: label.id, name: editableName(label, kind) })}
                     aria-label={t('workbench.mail.labels.rename', { name: label.name ?? '' })}
                   >
                     <Pencil className="h-4 w-4" aria-hidden="true" />

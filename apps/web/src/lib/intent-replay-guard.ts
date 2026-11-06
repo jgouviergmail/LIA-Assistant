@@ -33,6 +33,8 @@
  * replay across days is the intended use.
  */
 
+import { generateUUID } from '@/lib/utils';
+
 const STORAGE_KEY = 'lia.chat.consumed-intent-ids';
 
 /** Ledger capacity — a few weeks of clicks, far beyond omnibox relevance. */
@@ -40,7 +42,7 @@ const MAX_CONSUMED_IDS = 50;
 
 /** Mint the one-shot id a single click travels with. */
 export function newIntentId(): string {
-  return crypto.randomUUID();
+  return generateUUID();
 }
 
 /** The consumed ids, oldest first; [] when storage is unavailable/corrupt. */

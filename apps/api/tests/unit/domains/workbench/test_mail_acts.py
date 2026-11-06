@@ -1,16 +1,12 @@
-"""Acts on a selection of messages (ADR-369, Task 4.3).
+"""Acts on a selection of messages (ADR-369, Task 4.3 and lot 4).
 
-The read state rides the three clients' ``mark_read`` (one contract, D2); the
-trash moves each message with the provider's own ``trash_email``, a few at a
-time. Neither is all-or-nothing: each message is done or said with why — gone
-since it was listed, refused alone, or never answered because the mailbox
-stopped mid-way. A mailbox failure before ANY message was done is the act's
-own and leaves as a refusal; after one, a refusal would hide what was moved.
+Each rides one contract of the three clients (D2): ``mark_read``, ``set_starred``,
+``move_emails``. What they answer is proved on the clients (``test_mail_moves_parity``):
+here, what the screen's words become, and that a provider's limit is refused unsent.
 """
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from typing import Any
@@ -21,11 +17,18 @@ import pytest
 from pydantic import ValidationError
 
 from src.core.config import settings
-from src.core.exceptions import AuthenticationError, BaseAPIException, ConnectorAPIError
+from src.core.constants import WORKBENCH_MAIL_EMPTY_TRASH_MAX
+from src.core.exceptions import BaseAPIException
 from src.domains.connectors.active_client import ActiveClient
+from src.domains.connectors.clients.mail_moves import MailPlace
 from src.domains.connectors.models import ConnectorType
-from src.domains.workbench import mail_acts, selection_acts
-from src.domains.workbench.schemas.mail import MessageSelection, ReadStateChange
+from src.domains.workbench import mail_acts
+from src.domains.workbench.schemas.mail import (
+    MessageSelection,
+    MoveRequest,
+    ReadStateChange,
+    StarChange,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -38,20 +41,6 @@ def _door(client: Any, kind: ConnectorType = ConnectorType.GOOGLE_GMAIL) -> Any:
         yield ActiveClient(client=client, connector_type=kind, preferred_name=None)
 
     return patch.object(mail_acts, "open_tool_client", opened)
-
-
-def _refused(status: int) -> ConnectorAPIError:
-    return ConnectorAPIError(connector_type="google_gmail", status_code=status, detail="x")
-
-
-def _trash(outcomes: dict[str, BaseException | None]) -> AsyncMock:
-    async def trash(message_id: str) -> dict[str, Any]:
-        failure = outcomes.get(message_id)
-        if failure is not None:
-            raise failure
-        return {"id": message_id}
-
-    return AsyncMock(side_effect=trash)
 
 
 class TestTheReadState:
@@ -71,72 +60,129 @@ class TestTheReadState:
         assert [(f.id, f.status) for f in outcome.failed] == [("m2", "not_found")]
 
 
-class TestTheTrash:
-    async def test_each_message_once_and_each_answered(self) -> None:
-        trash = _trash(
-            {
-                "gone": _refused(404),
-                "imap_gone": ValueError("Message not found"),
-                "refused": _refused(403),
-            }
+class TestMoves:
+    async def test_a_selection_goes_where_the_pane_names_and_each_message_answers(self) -> None:
+        client = MagicMock(
+            move_emails=AsyncMock(
+                return_value={
+                    "updated": ["m1"],
+                    "failed": [{"id": "m2", "status": "not_found"}],
+                    "moved": {"m1": "new-1"},
+                }
+            )
         )
-        with _door(MagicMock(trash_email=trash)):
-            outcome = await mail_acts.trash_messages(
-                USER,
-                MessageSelection(message_ids=["m1", "gone", "m1", "imap_gone", "refused"]),
+        with _door(client):
+            outcome = await mail_acts.move_messages(
+                USER, MoveRequest(message_ids=["m1", "m2"], to="system:archive")
             )
 
-        assert sorted(call.args[0] for call in trash.await_args_list) == [
-            "gone",
-            "imap_gone",
-            "m1",
-            "refused",
-        ]
+        client.move_emails.assert_awaited_once_with(["m1", "m2"], MailPlace(role="archive"), None)
         assert outcome.done == ["m1"]
-        assert {(f.id, f.status) for f in outcome.failed} == {
-            ("gone", "not_found"),
-            ("imap_gone", "not_found"),
-            ("refused", "failed"),
-        }
+        assert [(f.id, f.status) for f in outcome.failed] == [("m2", "not_found")]
+        assert [(m.id, m.new_id) for m in outcome.moved] == [("m1", "new-1")]
 
-    async def test_a_mailbox_failure_before_anything_was_done_is_the_act_s(self) -> None:
-        trash = _trash({"m1": AuthenticationError("expired"), "m2": AuthenticationError("expired")})
-        with _door(MagicMock(trash_email=trash)), pytest.raises(BaseAPIException) as refused:
-            await mail_acts.trash_messages(USER, MessageSelection(message_ids=["m1", "m2"]))
+    async def test_a_folder_of_the_person_s_own_and_where_the_messages_are(self) -> None:
+        client = MagicMock(
+            move_emails=AsyncMock(return_value={"updated": [], "failed": [], "moved": {}})
+        )
+        with _door(client):
+            await mail_acts.move_messages(
+                USER, MoveRequest(message_ids=["m1"], to="Projects", origin="system:trash")
+            )
 
-        assert refused.value.detail == {"code": "reconnect_required"}
+        client.move_emails.assert_awaited_once_with(
+            ["m1"], MailPlace(folder="Projects"), MailPlace(role="trash")
+        )
 
-    async def test_after_one_was_moved_the_rest_is_said_unanswered(self) -> None:
-        trash = _trash({"m2": TimeoutError(), "m3": TimeoutError()})
-        with _door(MagicMock(trash_email=trash)):
-            outcome = await mail_acts.trash_messages(
-                USER, MessageSelection(message_ids=["m1", "m2", "m3"])
+    @pytest.mark.parametrize("origin", ["system:starred", "system:sent", "system:all"])
+    async def test_a_view_is_not_a_place_a_message_leaves(self, origin: str) -> None:
+        client = MagicMock(
+            move_emails=AsyncMock(return_value={"updated": [], "failed": [], "moved": {}})
+        )
+        with _door(client):
+            await mail_acts.move_messages(
+                USER, MoveRequest(message_ids=["m1"], to="system:trash", origin=origin)
+            )
+
+        client.move_emails.assert_awaited_once_with(["m1"], MailPlace(role="trash"), None)
+
+    @pytest.mark.parametrize("to", ["system:sent", "system:drafts", "system:starred", "system:x"])
+    async def test_a_place_no_message_can_be_sent_to_is_refused_unsent(self, to: str) -> None:
+        client = MagicMock(move_emails=AsyncMock())
+        with _door(client), pytest.raises(BaseAPIException) as refused:
+            await mail_acts.move_messages(USER, MoveRequest(message_ids=["m1"], to=to))
+
+        assert refused.value.detail["code"] == "invalid_request"
+        client.move_emails.assert_not_awaited()
+
+    async def test_a_status_it_does_not_know_stays_unanswered(self) -> None:
+        client = MagicMock(
+            move_emails=AsyncMock(
+                return_value={
+                    "updated": [],
+                    "failed": [{"id": "m1", "status": "unavailable"}],
+                    "moved": {},
+                }
+            )
+        )
+        with _door(client):
+            outcome = await mail_acts.move_messages(
+                USER, MoveRequest(message_ids=["m1"], to="system:trash")
+            )
+
+        assert outcome.failed[0].status == "unavailable"
+
+
+class TestTheStar:
+    async def test_the_selection_is_starred_and_each_message_answered(self) -> None:
+        client = MagicMock(
+            set_starred=AsyncMock(
+                return_value={"updated": ["m1"], "failed": [{"id": "m2", "status": "failed"}]}
+            )
+        )
+        with _door(client):
+            outcome = await mail_acts.set_star(
+                USER, StarChange(message_ids=["m1", "m2"], starred=True)
+            )
+
+        client.set_starred.assert_awaited_once_with(["m1", "m2"], True)
+        assert outcome.done == ["m1"]
+        assert [(f.id, f.status) for f in outcome.failed] == [("m2", "failed")]
+
+
+class TestForGood:
+    async def test_the_selection_is_deleted_and_each_message_answered(self) -> None:
+        client = MagicMock(
+            delete_emails_forever=AsyncMock(
+                return_value={"updated": ["m1"], "failed": [{"id": "m2", "status": "failed"}]}
+            )
+        )
+        with _door(client, ConnectorType.MICROSOFT_OUTLOOK):
+            outcome = await mail_acts.delete_forever(
+                USER, MessageSelection(message_ids=["m1", "m2"])
             )
 
         assert outcome.done == ["m1"]
-        assert {(f.id, f.status) for f in outcome.failed} == {
-            ("m2", "unavailable"),
-            ("m3", "unavailable"),
-        }
+        assert [(f.id, f.status) for f in outcome.failed] == [("m2", "failed")]
 
-    async def test_a_few_messages_at_a_time(self) -> None:
-        """A mailbox throttles a burst: the moves overlap, never past the bound."""
-        in_flight = peak = 0
+    async def test_the_trash_is_emptied_within_the_bound(self) -> None:
+        client = MagicMock(empty_trash=AsyncMock(return_value={"deleted": 2, "remaining": True}))
+        with _door(client, ConnectorType.APPLE_EMAIL):
+            emptied = await mail_acts.empty_trash(USER)
 
-        async def trash(message_id: str) -> dict[str, Any]:
-            nonlocal in_flight, peak
-            in_flight += 1
-            peak = max(peak, in_flight)
-            await asyncio.sleep(0)
-            in_flight -= 1
-            return {"id": message_id}
+        client.empty_trash.assert_awaited_once_with(WORKBENCH_MAIL_EMPTY_TRASH_MAX)
+        assert (emptied.deleted, emptied.remaining) == (2, True)
 
-        ids = [f"m{index}" for index in range(12)]
-        with _door(MagicMock(trash_email=AsyncMock(side_effect=trash))):
-            outcome = await mail_acts.trash_messages(USER, MessageSelection(message_ids=ids))
-
-        assert outcome.done == ids
-        assert 1 < peak <= selection_acts.ACT_CONCURRENCY
+    async def test_gmail_holds_no_scope_for_it_and_nothing_is_sent(self) -> None:
+        client = MagicMock(delete_emails_forever=AsyncMock(), empty_trash=AsyncMock())
+        with _door(client), pytest.raises(BaseAPIException) as refused:
+            await mail_acts.delete_forever(USER, MessageSelection(message_ids=["m1"]))
+        assert refused.value.detail["code"] == "not_supported_by_provider"
+        with _door(client), pytest.raises(BaseAPIException) as refused:
+            await mail_acts.empty_trash(USER)
+        assert refused.value.detail["code"] == "not_supported_by_provider"
+        client.delete_emails_forever.assert_not_awaited()
+        client.empty_trash.assert_not_awaited()
 
 
 class TestTheSelection:

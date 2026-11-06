@@ -4,7 +4,6 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Final
 from uuid import UUID
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -16,12 +15,13 @@ from src.core.i18n_types import Language
 from src.core.llm_config_helper import (
     get_effective_context_window_for_slot,
     get_llm_config_for_agent,
+    llm_call_timeout_seconds,
 )
 from src.core.prompt_store import read_prompt_file
 from src.domains.agents.effects.models import DecisionOutcome
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.domains.chat.service import TrackingContext
-from src.domains.world.message_attempts import TRANSLATION_SECONDS
+from src.domains.world.message_attempts import SLOT
 from src.domains.world.messages import (
     TRANSLATION_BYTES,
     TRANSLATION_CHARS,
@@ -29,14 +29,13 @@ from src.domains.world.messages import (
     literal_text,
 )
 from src.domains.world.translation_register import file_translation
-from src.infrastructure.llm.factory import LLMType, get_llm
+from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.output_truncation import is_output_truncated
 from src.infrastructure.llm.single_attempt import single_async_attempt
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
 
-SLOT: Final[LLMType] = "world_message_translator"
 PROMPT = "world_message_translator_prompt"
 
 
@@ -111,14 +110,7 @@ async def accounted_translation[T](
     """
     await enforce_usage_limit(user_id, layer="world_translation")
     config = get_llm_config_for_agent(settings, SLOT)
-    config = config.model_copy(
-        update={
-            "max_tokens": min(config.max_tokens, 2048),
-            "timeout_seconds": min(
-                config.timeout_seconds or TRANSLATION_SECONDS, TRANSLATION_SECONDS
-            ),
-        }
-    )
+    config = config.model_copy(update={"max_tokens": min(config.max_tokens, 2048)})
     # A conservative byte upper bound avoids an extra remote token-count request.
     # Actual billed tokens, including reasoning/cache tokens, use the native callback.
     prompt_bound = sum(len(str(message.content).encode("utf-8")) for message in messages) * 2 + 512
@@ -136,7 +128,7 @@ async def accounted_translation[T](
             # No content tracer, including an implicitly environment-enabled
             # LangSmith tracer. The native usage callback alone records spend.
             with tracing_context(enabled=False):
-                async with asyncio.timeout(TRANSLATION_SECONDS):
+                async with asyncio.timeout(llm_call_timeout_seconds(SLOT)):
                     called = True
                     response = await llm.ainvoke(
                         messages,

@@ -61,7 +61,7 @@ async def test_source_completed_only_after_all_documents_processed(tmp_path):
         events.append(("processed", kwargs["document_id"]))
         return True
 
-    source = MagicMock()
+    source = MagicMock(provider="google_drive")
     source_repo = AsyncMock()
     source_repo.get_by_id = AsyncMock(return_value=source)
 
@@ -107,7 +107,7 @@ async def test_source_completed_only_after_all_documents_processed(tmp_path):
             "DetachedConnectorService",
             return_value=FakeDetachedConnectors(connector_service),
         ),
-        patch.object(drive_sync, "GoogleDriveClient", return_value=client),
+        patch.object(drive_sync, "drive_client_of", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),
@@ -155,7 +155,7 @@ async def _run_sync(tmp_path, files: list[dict], fake_process) -> tuple[list[dic
         updates.append(payload)
 
     source_repo = AsyncMock()
-    source_repo.get_by_id = AsyncMock(return_value=MagicMock())
+    source_repo.get_by_id = AsyncMock(return_value=MagicMock(provider="google_drive"))
     source_repo.update = AsyncMock(side_effect=fake_update)
 
     doc_repo = AsyncMock()
@@ -188,7 +188,7 @@ async def _run_sync(tmp_path, files: list[dict], fake_process) -> tuple[list[dic
             "DetachedConnectorService",
             return_value=FakeDetachedConnectors(connector_service),
         ),
-        patch.object(drive_sync, "GoogleDriveClient", return_value=client),
+        patch.object(drive_sync, "drive_client_of", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
         patch.object(drive_ingest, "settings", settings_mock),

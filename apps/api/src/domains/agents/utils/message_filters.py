@@ -143,7 +143,7 @@ class _RichHistoryHtml(HTMLParser):
     """
 
     _EXCLUDED_CLASSES = frozenset(
-        {"lia-card", "lia-skill-app", "lia-mcp-app", "material-symbols-outlined"}
+        {"lia-card", "lia-skill-app", "lia-mcp-app", "lia-page-app", "material-symbols-outlined"}
     )
     _EXCLUDED_TAGS = frozenset({"script", "style", "head", "template", "iframe", "object"})
     _VOID_TAGS = frozenset(

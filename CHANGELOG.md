@@ -5,17 +5,187 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.4.0] - 2026-11-06
+
+**All your work, by hand or by asking.**
+Tools grows from a window on your services into a place to work: mail that sorts, invitations
+answered, repeating events, contacts and files handled like in the provider's own app, on every
+provider, and the assistant gains each gesture in the same release. OneDrive joins Google Drive
+everywhere, documents read in the page, and a game or a calculator asked of LIA now runs in the
+conversation.
+
+### Added
+
+- 🖥️ **A page you can use** (ADR-370): ask LIA for a game, a quiz or a calculator and it runs in the
+  conversation, with its `.html` file below it and its code behind one button. Asking for the code
+  still answers with the code. The page runs in a sandboxed frame that reaches neither your account nor
+  any site of its choosing; read back from history it waits for a click. An administrator switches it off in the
+  platform capabilities and sets the model that writes pages on its own line of the LLM settings.
+- ☁️ **OneDrive, everywhere Google Drive was** (ADR-369): a files connector, one active at a time,
+  for Tools, the assistant, the briefing's **Documents** card, reading **Word and Excel** files,
+  adding text to a Word file, and **knowledge-space folders** kept in sync. An Excel workbook can be
+  written on a work account only. Switching drive keeps a folder's documents, its sync paused.
+- 📖 **Documents read in the page**, on every device, the Android app included: a PDF whole, page
+  after page, its words selectable, zoomed from half to three times its size; a Word file as its
+  author laid it out; a Markdown formatted; a spreadsheet or a CSV as a table, a sheet at a time.
+  With OneDrive a Word file or a slide deck comes as the PDF your drive renders, and a Google
+  document through its export. A Markdown, CSV or log file OneDrive declares as nothing reads by its
+  name.
+- 📝 **A plain text file changes** from its detail, or by LIA after a card showing the whole new
+  text, on Google Drive and OneDrive. If it changed elsewhere meanwhile, nothing is written and your
+  words stay.
+- 🗂️ **Mail that sorts, on the three providers, by hand and through the assistant**: **Archive**
+  (with **All mail** on Gmail), **move** to a folder from a menu or by dragging a row onto the pane,
+  **star**, report as **spam** or not, **restore** from the trash, and **Undo** on what was done.
+  Outlook and iCloud also **delete for good** and **empty the trash**, by hand and after a
+  confirmation, and manage their folders. The rail and the pane say what is unread, the list reads
+  itself again when mail arrives, and a paperclip says a message carries files.
+- 💬 **Conversations, on the three providers**: a message shows the conversation it belongs to, and
+  you walk it from above the text. The list can group each conversation into one line, and LIA reads
+  a whole exchange in one go when you ask.
+- ✍️ **Writing a message**: a file of your device joins it by a button or by dropping it, and a reply
+  and a forward carry files on the three providers. A reply shows whom it reaches, and you can change
+  its recipients and copies. A draft keeps its files and saves itself when you stop writing.
+  **Formatting** adds bold, italic, lists and links. The composer leaves the mail usable behind it,
+  and **Send** waits a moment for an **Undo** (`WORKBENCH_SEND_UNDO_SECONDS`).
+- 📎 **The assistant's mail**: it attaches a file it made or you sent, and one of your drive, to a new
+  message, a reply and a forward, named on its card.
+- 🖋️ **Your signature**, set in the mailbox settings, closes your messages and those LIA prepares for
+  you. With Gmail, choose the address a message leaves from.
+- 🏖️ **Outlook's automatic replies and rules**, in Tools and through the assistant. An Outlook
+  connection made before this asks to be reconnected once. A Gmail filter can be deleted, after a
+  confirmation saying what it matches and what it does.
+- 👀 **Reading a mail**: the links of a message can be followed, in its original layout as in its
+  text view, and so can those of the notes of events, tasks, contacts and files. The images a message
+  carries show without a click; a remote image shows on a click, for that message alone. A message's
+  original layout follows the **dark theme**, its pictures keeping their colours, the sender's colours
+  one click away. A message's text prints, and a mailing list can be left from its message: one click
+  where it promises it (RFC 8058), through the validated door.
+- ✅ **Invitations answered** on the three calendars, the organiser told; LIA shows a card first. A
+  reminder, free or busy and private can be set on an event, and a call added to one that exists, by
+  hand and through the assistant.
+- 🔁 **Repeating events**: an event can repeat, on the three providers, and a change or a deletion can
+  reach the **whole series**, by hand and through the assistant.
+- 📅 **The calendar**: a **Day** view and a line for the time; a click on an empty slot starts an
+  event; an event dragged or stretched in the grid, one with guests opening its editor so nobody is
+  told by a slip of the mouse; the agenda on thirty days; a search of your events; your dated tasks
+  on their day; an event's own time zone shown and chosen; an event sent to another calendar or
+  duplicated; a call joined from the event itself; your own calendars created, renamed and deleted;
+  the month readable on a phone.
+- ☑️ **Tasks**: **Today**, **Overdue** and **Coming up** gather the tasks of all your lists. Rename a
+  list, delete its completed tasks, select several tasks to complete, delete or move them, and send a
+  task to another list; LIA can rename a list and move a task too. With Microsoft To Do, a task keeps
+  steps, an importance, a reminder and a repetition, through the assistant too. With Google Tasks,
+  move a task up or down its list. Tasks save as they are written, with dates at hand.
+- 👥 **Contacts**: a **given and family name, a job, a website and a birthday** on the three providers,
+  in Tools and through the assistant. In Tools: a **photo**, **groups** on the three providers,
+  **vCard export and import**, a contact met in mail saved, your **latest exchanges** (five messages
+  each way and five meetings each organised), initials, a tap to copy, an address on a map.
+- 📁 **Files**, on Google Drive and OneDrive: a new folder, files sent by a button or by dropping them
+  on the list, rename, move through a walk of your folders, copy, your storage used, **Undo** after
+  the trash, an order asked of the drive, several sent to the trash at once, a link copied, sending a
+  file by mail and keeping a mail's attachment on the drive. Sharing a file with someone or by a link
+  anyone can follow, and taking an access back. On Google Drive: recent, starred, shared with you and
+  shared drives, stars, and the trash restored, deleted for good or emptied by hand after a question.
+  The **Documents** card says where each file lives.
+- 🤖 **The assistant organises your files**: folders, rename, move, copy, restore, and a file you
+  attached or it made sent to your drive. It shows a card before it shares one.
+- 🔎 **One search for everything**: **Ctrl+K** searches your mail, calendars, contacts and files at
+  once, and says what it could not reach.
+- 💡 **Lights**: Hue **zones**, the colour of a whole room or zone, scenes **in motion**, and the lamps
+  that are not answering, in Tools and through the assistant; the temperature of a whole room or
+  zone, and a zone's scene within reach under the rooms. **All off** turns into **All on** once
+  nothing is lit, and a room's scenes stand on its card on a phone.
+- ⌨️ **Moving between tools**: **Refresh** on every tool, a re-read on coming back after a minute that
+  never takes back the pages already opened, keyboard shortcuts that can be switched off, ways from one
+  tool to another held in the page, and **Ask LIA** on an item, nothing sent until you send.
+- 📱 **Android shell**: a file downloads with your session, and a link in a message's original layout
+  opens in your browser. It reaches you with the next store update.
 
 ### Changed
 
-- Editorial refresh of the public site in all six languages: landing copy, sign-up
-  labels, the terms of use (v1.1) and the privacy policy (v1.3).
-- On a computer the Tools section uses the whole window instead of the centred 1280 px
-  column, and the lamps take as many columns as the width holds.
-- On a large screen every other page and the header grow to 1920 px, and the chat's thread
-  and composer widen by half, while the words of an answer, a document or a FAQ entry keep
-  a 1024 px reading width. Phones and tablets are unchanged.
+- 🖥️ **Room on a large screen**: on a computer the Tools section uses the whole window; every other
+  page and the header grow to 1920 px, and the chat's thread and composer widen by half, while the
+  words of an answer, a document or a FAQ entry keep a 1024 px reading width. Phones and tablets are
+  unchanged.
+- 📬 **Mail lists**: a row's actions start at its left above the sender, the unread dot stands before
+  the name, the star is said once, and a row has its own acts; Shift ticks a range, and on a computer
+  the next message opens after the trash. The buttons of a selection are said in a word or two, and a
+  remote image offers its button alone.
+- 🪟 **Tools ergonomics**: lights that answer come first and what is off recedes into the page; an
+  attachment opens from its card, its download beside it; on a phone a file, a contact or an event
+  says where it goes back to, and a subject reads to the edge of its row; the rail stands whole at a
+  tablet's width; a long task list scrolls inside its frame, and every tool's frame starts on one
+  line. The tool's title is the open pill, which names the vendor.
+- 🌳 **Folders**: a person's folders stand under their parent, Outlook's nested folders included, and
+  Outlook's Outbox and Conversation History leave the list. A new event and the task list opened
+  first follow the defaults of the connector's preferences.
+- ⏱️ **A model call's time is its slot's** (ADR-221 amendment): the timeout set for a model in the LLM
+  settings is the one its calls get, and nothing around a call ends it earlier, routines and tickets
+  included, whose budget follows the longest mode they can run. A voice turn keeps its own pace. Six
+  environment timeouts are gone (see *Operations*).
+- 🌐 **Public site**: editorial refresh in the six languages: landing copy, sign-up labels, the terms
+  of use (v1.1) and the privacy policy (v1.3).
+
+### Fixed
+
+- 👓 **Looking at a file no longer fails one time out of two**: a read waits for the one before it, a
+  Gmail part goes by its stable place in the message, and a failure can be tried again.
+- 📤 **Forwarding on Outlook and iCloud**: the assistant read a Gmail structure they do not have and
+  stopped there. A forward's copies reach them on Outlook, where Graph accepted them and dropped them
+  in silence. A reply prepared by the assistant goes to the copies its card showed.
+- 🧾 **Code in an HTML answer**: a code block no longer stops at its first blank line, on screen and on
+  **Copy**, and its backslashes stay as written; your own message shows the words you typed, `<` and
+  `>` included.
+- 🧭 **Honest failures**: a call a later call of the same tool answered is no longer told as a failure
+  of the turn (ADR-303), and a skill the planner tagged against the analyzer's verdict stays off the
+  plan.
+- 💶 **A cancelled turn is counted once** in your usage, not twice (ADR-117 amendment).
+- 🏠 **An instance reached over plain HTTP on a local network**: Tools, attachments and a few other
+  screens no longer stop there. Their keys came from `crypto.randomUUID`, which only a secure context
+  has; every call now goes through `generateUUID`, and ESLint refuses the other.
+- 🔗 **Mail text**: a long link was written twice in the text, and the text view showed its markup.
+- 📁 **A folder waiting for its drive**: the assistant says so, no longer « temporarily unavailable ».
+- 📇 **A Google « other contact »** opens read-only from what the search found, no longer asking Google
+  for what it cannot read.
+- 🎨 **Styles**: the keyboard focus ring of the places carousel is drawn again, and skill and MCP
+  widgets find their colours: twelve style tokens that were used and never defined, now guarded.
+
+### Security
+
+- 🛡️ **Frame policy**: `frame-src` admits Google's map embed path alone instead of the whole host, so a
+  page cannot reach Google's services that fetch a domain it names. A page's policy is the prefix of
+  its document, and the skills' frames share that door (`frame_policy`).
+- 🔒 **What a person writes reaches a mail rebuilt**: formatted words pass an allowlist on one parse
+  of the standard library, a picture is redrawn before it leaves (no EXIF, no GPS) and an SVG is
+  served as a download everywhere. A one-click unsubscribe leaves through the validated, pinned door
+  and carries nothing of the person.
+- 🧹 **Logs**: `filename` joins the query parameters withheld, in the API's filter and in Promtail.
+- 📦 **Dependencies**: Next.js 16.4.5, undici 7.30.2, cbor2 6.2, dnspython 2.9.2, grpcio 1.84.2,
+  soupsieve 4.0.1 and OpenTelemetry 1.45.2 close the advisories this release's watch read; what stays
+  is accepted in writing with a review date (ADR-331).
+
+### Operations and documentation
+
+- 🗃️ **Migrations**: `e4a1c7b92d3f` (a linked folder names its drive, `rag_drive_sources.provider`) and
+  `7c3e91a4d2f6` (the `interactive_page` slot). No new Compose service and no mandatory key.
+- 🔑 **Microsoft**: the Entra registration gains the delegated `Files.*` and
+  `MailboxSettings.ReadWrite` permissions and the OneDrive redirect URI; `/webhooks/microsoft` receives
+  Graph's change notifications when a public URL exists. See `MICROSOFT_365_INTEGRATION.md`.
+- ⚙️ **Settings**: new `INTERACTIVE_PAGE_*` and `WORKBENCH_*` keys, all with defaults. Removed, because
+  the slot owns a call's time: `QUERY_ANALYZER_LLM_TIMEOUT_SECONDS`, `RESPONSE_LLM_TIMEOUT_SECONDS`,
+  `SEMANTIC_VALIDATION_TIMEOUT_SECONDS`, `COMPACTION_PER_CHUNK_TIMEOUT_SECONDS`,
+  `PLANNER_TIMEOUT_SECONDS`, `MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS`. A leftover key is ignored.
+- 📦 **Dependencies**: `pdfjs-dist` and `docx-preview`; the PDF runtime is copied from the lockfile's
+  version, so a self-hosted install asks nobody for it.
+- 🧩 **Upgrade**: an Outlook connection made before `MailboxSettings.ReadWrite` stays active, its
+  settings alone asking for the reconnection; the catalogue loads in a cold interpreter, now guarded.
+- 🧪 **CI**: Trivy 0.74.0 from its GitHub release with a pinned digest, one version for the workflows
+  and the local scan, and `Trivy Scan` blocking on every finding, without a severity threshold.
+- 📚 **Documentation**: ADR-369 amended lot by lot, ADR-370, amendments to ADR-075, 086, 117, 136, 177,
+  221, 226, 303, 310 and 327, `INTERACTIVE_PAGES.md`, six-language FAQ and knowledge, public guides,
+  settings search and the functional, technical and decision maps. `CLAUDE.md` is rationalised and
+  guarded by a size budget.
 
 ## [4.3.0] - 2026-11-01
 

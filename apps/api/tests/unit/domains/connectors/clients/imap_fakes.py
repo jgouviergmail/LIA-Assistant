@@ -52,6 +52,9 @@ class FakeImap:
         self.folder.list = MagicMock(side_effect=self._list)
         self.folder.set = MagicMock(side_effect=self._select)
         self.folder.status = MagicMock(side_effect=self._status)
+        self.folder.create = MagicMock(side_effect=lambda name: self.store.setdefault(name, {}))
+        self.folder.rename = MagicMock(side_effect=self._rename)
+        self.folder.delete = MagicMock(side_effect=self.store.pop)
 
     # MailBox(host, port).login(user, password) -> context manager
     def __call__(self, *args: Any, **kwargs: Any) -> FakeImap:
@@ -78,9 +81,13 @@ class FakeImap:
         self.uid_validity.setdefault(name, 1)
         self.client.untagged_responses = {"UIDVALIDITY": [str(self.uid_validity[name]).encode()]}
 
+    def _rename(self, old: str, new: str) -> None:
+        self.store[new] = self.store.pop(old)
+
     def _status(self, folder: str | None = None, options: Any = None) -> dict[str, int]:
         name = folder or self.selected
-        return {"UIDVALIDITY": self.uid_validity[name]}
+        unseen = sum("\\Seen" not in flags for _, flags in self.store[name].values())
+        return {"UIDVALIDITY": self.uid_validity.setdefault(name, 1), "UNSEEN": unseen}
 
     def put(
         self,
@@ -104,11 +111,15 @@ class FakeImap:
         if found := re.search(r"UID ([\d,]+)", text):
             wanted = found.group(1).split(",")
             return [uid for uid in uids if uid in wanted]
-        if found := re.search(r'HEADER Message-ID "([^"]+)"', text):
+        # RFC 3501: HEADER matches when the field CONTAINS the string.
+        if found := re.findall(r'HEADER "?([\w-]+)"? "([^"]+)"', text):
             return [
                 uid
                 for uid in uids
-                if email.message_from_bytes(folder[uid][0])["Message-ID"] == found.group(1)
+                if any(
+                    value in str(email.message_from_bytes(folder[uid][0])[name] or "")
+                    for name, value in found
+                )
             ]
         if found := re.search(r'TO "([^"]+)"', text):
             needle = found.group(1).lower()

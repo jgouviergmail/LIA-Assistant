@@ -1,5 +1,5 @@
 /**
- * List of linked Google Drive folder sources with link/unlink/sync actions.
+ * List of the folders linked from a drive, with link/unlink/sync actions.
  *
  * A sync is preceded by its count: the folder is synchronised WITH its
  * sub-folders, so the list asks the API what one sync would index and, past
@@ -34,6 +34,8 @@ interface PendingSync {
 interface DriveSourcesListProps {
   spaceId: string;
   sources: RAGDriveSource[];
+  /** The drive the account has connected: a folder of another one waits. */
+  activeDrive: string | null;
   onLink: (folderId: string, folderName: string) => Promise<unknown>;
   onUnlink: (sourceId: string, deleteDocuments: boolean) => void;
   onSync: (sourceId: string) => void;
@@ -44,6 +46,7 @@ interface DriveSourcesListProps {
 export function DriveSourcesList({
   spaceId,
   sources,
+  activeDrive,
   onLink,
   onUnlink,
   onSync,
@@ -130,6 +133,7 @@ export function DriveSourcesList({
             <DriveSourceCard
               key={source.id}
               source={source}
+              activeDrive={activeDrive}
               onSync={sourceId => void handleSyncRequest(sourceId)}
               onUnlink={id => {
                 const found = sources.find(s => s.id === id);

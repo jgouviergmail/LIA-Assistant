@@ -35,7 +35,14 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.i18n import get_language_name, resolve_language
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.agents.calendar.answer_manifest import EVENT_ANSWERS
+from src.domains.agents.calendar.event_options import (
+    EVENT_OPTION_FIELDS,
+    NO_REMINDER,
+    readable_changes,
+)
 from src.domains.agents.constants import DEFAULT_CONTACT_NAME
+from src.domains.agents.drive.share_manifest import FILE_SHARE_ROLES
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.instrumentation import create_instrumented_config
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
@@ -55,6 +62,8 @@ PRESERVED_FIELDS: dict[str, list[str]] = {
     "mailbox_draft_send": ["mailbox_draft_id", "digest", "attachments", "quotes_history"],
     "event": ["calendar_id", "timezone"],
     "event_update": ["event_id", "calendar_id", "timezone"],
+    "event_answer": ["event_id", "calendar_id"],
+    "file_share": ["file_id", "name"],
     "contact": [],  # All fields can be modified
     "contact_update": ["resource_name"],
     "task": ["task_list_id"],
@@ -79,11 +88,19 @@ CONTENT_FIELDS: dict[str, list[str]] = {
     "application_action": ["intent", "remove_fields"],
     # Email types
     "email": ["to", "cc", "bcc", "subject", "body"],
-    "email_reply": ["to", "body"],  # no cc/bcc/subject: reply protocol doesn't support them
+    "email_reply": ["to", "cc", "body"],  # no bcc/subject: a reply protocol has neither
     "email_forward": ["to", "cc", "body"],  # no bcc/subject: forward protocol doesn't support them
     "mailbox_draft_send": ["to", "cc", "bcc", "subject", "body"],  # written before it leaves
     # Event types
-    "event": ["attendees", "summary", "description", "location", "start_datetime", "end_datetime"],
+    "event": [
+        "attendees",
+        "summary",
+        "description",
+        "location",
+        "start_datetime",
+        "end_datetime",
+        *EVENT_OPTION_FIELDS,
+    ],
     "event_update": [
         "attendees",
         "summary",
@@ -91,7 +108,11 @@ CONTENT_FIELDS: dict[str, list[str]] = {
         "location",
         "start_datetime",
         "end_datetime",
+        *EVENT_OPTION_FIELDS,
+        "add_conference",
     ],
+    "file_share": ["email", "role"],  # « let them edit it »: what is shared stays the file
+    "event_answer": ["response"],  # « rather maybe »: what the event is stays the event's
     # Contact types - all user-facing fields
     "contact": ["name", "email", "phone", "organization", "notes"],
     "contact_update": ["name", "email", "phone", "organization", "notes", "address"],
@@ -116,6 +137,22 @@ CONTENT_FIELDS: dict[str, list[str]] = {
 def _modifier_lines() -> dict[str, str]:
     """Scaffolds of the draft-modifier prompt, read once from the store (by path)."""
     return dict(parse_prompt_sections(read_prompt_file("hitl_draft_modifier_lines"), 2))
+
+
+def _within_what_a_calendar_takes(draft_type: str, modified: dict[str, Any]) -> dict[str, Any]:
+    """Keep what the model wrote to what a calendar reads: the rest of the card stays as it was."""
+    if draft_type in ("event", "event_update"):
+        return readable_changes(modified)
+    if draft_type == "file_share":
+        role = modified.get("role")
+        if role is None or role in FILE_SHARE_ROLES:
+            return modified
+        logger.warning("draft_modification_role_off_vocabulary", draft_type=draft_type)
+        return {}
+    if draft_type != "event_answer" or modified.get("response") in EVENT_ANSWERS:
+        return modified
+    logger.warning("draft_modification_answer_off_vocabulary", draft_type=draft_type)
+    return {}
 
 
 class DraftModificationService:
@@ -258,6 +295,8 @@ class DraftModificationService:
                 original_draft,
                 sensitive=draft_type == "application_action",
             )
+
+            modified_content = _within_what_a_calendar_takes(draft_type, modified_content)
 
             # Post-processing: if the LLM didn't change recipient fields but the
             # instructions contain explicit email addresses, apply them directly.
@@ -418,10 +457,22 @@ class DraftModificationService:
             return "\n".join(parts)
 
         if draft_type in ("event", "event_update"):
-            return (
-                templates["event"].format(summary=draft.get("summary", ""))
-                + "\n"
-                + templates["event_date"].format(start=draft.get("start_datetime", ""))
+            return "\n".join(
+                (
+                    templates["event"].format(summary=draft.get("summary", "")),
+                    templates["event_date"].format(start=draft.get("start_datetime", "")),
+                    templates["event_options"].format(no_reminder=NO_REMINDER),
+                )
+            )
+
+        if draft_type == "event_answer":
+            return templates["event_answer"].format(
+                summary=draft.get("summary", ""), answers=", ".join(EVENT_ANSWERS)
+            )
+
+        if draft_type == "file_share":
+            return templates["file_share"].format(
+                name=draft.get("name", ""), roles=", ".join(FILE_SHARE_ROLES)
             )
 
         if draft_type in ("contact", "contact_update"):
@@ -571,7 +622,8 @@ class DraftModificationService:
             clearable_fields = {"cc", "bcc"}
             for field in content_fields:
                 if field in parsed:
-                    if parsed[field]:
+                    # False and 0 are said: « free », « when it starts ».
+                    if parsed[field] or parsed[field] == 0:
                         result[field] = parsed[field]
                     elif field in clearable_fields:
                         # Allow explicit clearing of optional fields (cc, bcc)

@@ -525,6 +525,13 @@ class ConnectorType(str, enum.Enum):
     GOOGLE_TASKS = "google_tasks"
     GOOGLE_PLACES = "google_places"
 
+    # Microsoft 365 services (OAuth)
+    MICROSOFT_OUTLOOK = "microsoft_outlook"
+    MICROSOFT_CALENDAR = "microsoft_calendar"
+    MICROSOFT_CONTACTS = "microsoft_contacts"
+    MICROSOFT_TASKS = "microsoft_tasks"
+    MICROSOFT_ONEDRIVE = "microsoft_onedrive"
+
     # External API services (API Key)
     OPENWEATHERMAP = "openweathermap"
     WIKIPEDIA = "wikipedia"
@@ -588,6 +595,7 @@ class Connector(BaseModel):
 | Category | Types | Auth |
 |----------|-------|------|
 | **Google OAuth** | google_gmail, google_calendar, google_drive, google_contacts, google_tasks, google_places | OAuth 2.0 |
+| **Microsoft OAuth** | microsoft_outlook, microsoft_calendar, microsoft_contacts, microsoft_tasks, microsoft_onedrive | OAuth 2.0 |
 | **API Key** | openweathermap, wikipedia, perplexity | API Key |
 | **Legacy** | gmail (deprecated → use google_gmail) | OAuth |
 | **Future** | slack, notion, github | TBD |
@@ -2859,7 +2867,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `psyche_efficacy_episodes` | `src/domains/psyche/efficacy_models.py` | **Private efficacy evidence** (ADR-348): one row per logical run of the owner — `user_id` and `state_id` in `CASCADE`, `generation` (the state's epoch), `run_id` (128), `message_id` (deliberately no foreign key: clearing a conversation keeps what was learned), `terminal_at`, `observations` (JSONB array of at most two domain observations, `CHECK`), `config_fingerprint` (64), `feedback` (`helpful` \| `unhelpful` \| NULL, `CHECK`). Unique `(user_id, generation, run_id)` and `(user_id, generation, message_id)`; index `ix_efficacy_episode_owner_time (user_id, generation, terminal_at, message_id)`. No conversation text and no tool arguments. Retention is a window and a per-owner cap (`EFFICACY_WINDOW_DAYS`, `EFFICACY_MAX_EPISODES` in `src/domains/psyche/constants.py`), enforced by `efficacy_repository.py`, which advances the state's replay floor on every eviction. Migration `c8d1f4260e77` |
 | `reminders` | `src/domains/reminders/models.py` | Rappels, ponctuels ou récurrents ; supprimés quand plus rien ne suit (ADR-051) |
 | `attachments` | `src/domains/attachments/models.py` | Pièces jointes chat (images/PDF) + analyse vision. `shared_by_name` : sur la copie reçue d'une connexion, le nom de qui l'a partagée, instantané affiché par la galerie (ADR-316) |
-| `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` / `rag_mail_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive (ADR-055/056 ; ADR-297 : un dossier lié est un ARBRE — `rag_drive_sources.folder_ids`, JSONB, l'ensemble des dossiers parcourus sur lequel le push route un changement), source « libellé Gmail » opt-in (ADR-262 : `rag_mail_sources`, colonnes `mail_source_id` / `mail_thread_id` / `mail_last_message_at` de `rag_documents`) |
+| `rag_spaces` / `rag_documents` / `rag_chunks` / `rag_drive_sources` / `rag_mail_sources` | `src/domains/rag_spaces/models.py` | Espaces de connaissances RAG, documents, chunks vectorisés, sync Drive ou OneDrive (ADR-055/056 ; `rag_drive_sources.provider` nomme le drive d'une source, ADR-369 ; ADR-297 : un dossier lié est un ARBRE — `rag_drive_sources.folder_ids`, JSONB, l'ensemble des dossiers parcourus sur lequel le push route un changement), source « libellé Gmail » opt-in (ADR-262 : `rag_mail_sources`, colonnes `mail_source_id` / `mail_thread_id` / `mail_last_message_at` de `rag_documents`) |
 | `health_samples` / `health_metric_tokens` | `src/domains/health_metrics/models.py` | Métriques santé (iPhone Shortcuts) + tokens d'ingestion par utilisateur (ADR-076) |
 | `heartbeat_notifications` | `src/domains/heartbeat/models.py` | Historique des notifications proactives Heartbeat |
 | `interest_notifications` | `src/domains/interests/models.py` | Historique des notifications d'intérêts |

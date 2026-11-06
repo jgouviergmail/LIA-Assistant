@@ -28,6 +28,7 @@
  */
 
 import { useEffect, type RefObject } from 'react';
+import { applyFrameHeight } from '@/lib/frame-height';
 import type { SkillAppBridgeMessage, SkillAppRegistryPayload } from '@/types/skill-apps';
 import { APP_VERSION } from '@/lib/version';
 
@@ -139,14 +140,7 @@ function _handleOpenLink(
 function _handleSizeChanged(msg: SkillAppBridgeMessage, ctx: SkillBridgeContext): null {
   const sizeParams = msg.params as { height?: number; width?: number } | undefined;
   const iframe = ctx.iframeRef.current;
-  if (iframe && typeof sizeParams?.height === 'number' && isFinite(sizeParams.height)) {
-    const maxH = window.innerHeight * 0.8;
-    const clamped = Math.max(80, Math.min(sizeParams.height, maxH));
-    iframe.style.height = `${clamped}px`;
-    // Release the initial aspect-ratio placeholder so the explicit height takes
-    // full effect without fighting the CSS rule.
-    iframe.style.aspectRatio = 'auto';
-  }
+  if (iframe) applyFrameHeight(iframe, sizeParams?.height);
   return null;
 }
 
