@@ -135,7 +135,8 @@ it('keeps nested portals, same-owner edits and their effects alive through a rev
   await screen.findByRole('alert');
   expect(screen.queryByText('Private portal content')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Private draft')).not.toBeInTheDocument();
-  expect(cleaned).toHaveBeenCalledTimes(1);
+  // React runs an unmounted effect's cleanup after the commit, never during it.
+  await waitFor(() => expect(cleaned).toHaveBeenCalledTimes(1));
 });
 
 it.each(['editor', 'outside', 'background'] as const)(
