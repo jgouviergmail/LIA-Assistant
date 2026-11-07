@@ -82,12 +82,12 @@ def test_get_llm_response_with_streaming(mock_adapter, mock_llm):
 
 
 @patch("src.infrastructure.llm.factory.ProviderAdapter")
-def test_get_llm_contacts_agent(mock_adapter, mock_llm):
-    """Test contacts_agent LLM creation from LLM_DEFAULTS."""
+def test_get_llm_query_agent(mock_adapter, mock_llm):
+    """Test query_agent LLM creation from LLM_DEFAULTS."""
     mock_adapter.create_llm.return_value = mock_llm
-    defaults = LLM_DEFAULTS["contacts_agent"]
+    defaults = LLM_DEFAULTS["query_agent"]
 
-    get_llm("contacts_agent")
+    get_llm("query_agent")
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["provider"] == defaults.provider
@@ -168,7 +168,7 @@ def test_get_llm_with_multiple_overrides(mock_adapter, mock_llm):
         "frequency_penalty": 0.5,
     }
 
-    get_llm("contacts_agent", config_override=config_override)
+    get_llm("query_agent", config_override=config_override)
 
     call_kwargs = mock_adapter.create_llm.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4.1-mini"
@@ -214,7 +214,7 @@ def test_empty_callbacks_for_all_llm_types(mock_adapter, mock_llm):
     """Test that all LLM types have empty callbacks list (Phase 2.1.1 fix)."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm_types = ["hitl_classifier", "response", "contacts_agent", "planner", "hitl_classifier"]
+    llm_types = ["hitl_classifier", "response", "query_agent", "planner", "hitl_classifier"]
 
     for llm_type in llm_types:
         mock_llm.callbacks = []
@@ -232,7 +232,7 @@ def test_streaming_only_for_response(mock_adapter, mock_llm):
     """Test that only response LLM has streaming enabled."""
     mock_adapter.create_llm.return_value = mock_llm
 
-    llm_types = ["hitl_classifier", "response", "contacts_agent", "planner", "hitl_classifier"]
+    llm_types = ["hitl_classifier", "response", "query_agent", "planner", "hitl_classifier"]
 
     for llm_type in llm_types:
         get_llm(llm_type)
@@ -256,7 +256,7 @@ def test_provider_selection_per_llm_type(mock_adapter, mock_llm):
 
     # Distinct slots only: get_llm caches instances, so a repeated slot would
     # not call the adapter again and the assertion would read a stale call.
-    for llm_type in ["hitl_classifier", "response", "contacts_agent", "planner"]:
+    for llm_type in ["hitl_classifier", "response", "query_agent", "planner"]:
         get_llm(llm_type)
         call_kwargs = mock_adapter.create_llm.call_args.kwargs
         expected = LLM_DEFAULTS[llm_type].provider

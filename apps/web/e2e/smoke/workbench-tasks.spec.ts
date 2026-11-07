@@ -13,6 +13,14 @@ import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import {
+  expectInside,
+  expectLinesCentredIn,
+  expectNoZoomOnFocus,
+  expectOnOneLine,
+  expectSameStart,
+  expectUnder,
+} from './phone-lines';
 
 const TODAY = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Paris',
@@ -48,6 +56,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -295,6 +305,32 @@ test('a refused completion is rolled back and said in the refusal’s words', as
   await expect(box).not.toBeChecked();
 });
 
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test.skip(({ browserName }) => browserName === 'firefox', 'no mobile emulation');
+
+  /** Owner report (2026-11-06): iOS zoomed into a small field and stayed there. */
+  test('no field of the tasks is one iOS would zoom into', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+    await page.goto('/en/dashboard/tools/tasks');
+    await waitForHydration(page, 'main');
+    await expect(page.getByText('Send back the insurance form').first()).toBeVisible();
+
+    await expectNoZoomOnFocus(page);
+    await page
+      .getByRole('link', { name: /Send back the insurance form/ })
+      .first()
+      .click();
+    await expect(page.getByLabel('Notes')).toBeVisible();
+    await expectNoZoomOnFocus(page);
+  });
+});
+
 test('the keyboard opens a task and gets its row back when it closes', async ({
   page,
   authenticate,
@@ -310,10 +346,62 @@ test('the keyboard opens a task and gets its row back when it closes', async ({
   await link.focus();
   await page.keyboard.press('Enter');
 
-  const back = page.getByRole('button', { name: 'Back to the list' });
+  const back = page.getByRole('button', { name: 'Tasks' });
   await expect(back).toBeFocused();
   await expectNoOverflow(page, 'detail at 390px');
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('link', { name: /Prepare the committee deck/ })).toBeFocused();
+});
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+test('a task on a phone says where it goes back to, and acts as an event does', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/tasks?list=l1');
+  await waitForHydration(page, 'input[type="checkbox"]');
+  await expect(page.getByText('Completed', { exact: true })).toBeVisible();
+  const tool = page.getByRole('region', { name: 'Tasks' });
+  await expectLinesCentredIn(
+    tool,
+    tool.getByRole('switch', { name: 'Completed' }),
+    tool.getByText('Completed', { exact: true }),
+    tool.getByRole('button', { name: 'Select' }),
+    tool.getByRole('button', { name: 'Actions on this list' })
+  );
+  // « List » is for the ear alone: the eye reads the list's name in the field.
+  await expect(page.getByRole('combobox', { name: 'List' })).toBeVisible();
+  await expect(page.getByText('List', { exact: true })).toHaveCount(0);
+
+  await page.getByRole('link', { name: /Prepare the committee deck/ }).click();
+  const detail = page.getByRole('complementary', { name: 'Detail' });
+  const back = detail.getByRole('button', { name: 'Tasks' });
+  await expect(back).toBeVisible();
+  // The chevron starts where the fields start; the button's own padding is its reach.
+  const [chevron, title] = await Promise.all([
+    back.locator('svg').boundingBox(),
+    detail.getByRole('textbox', { name: 'Title' }).boundingBox(),
+  ]);
+  expect(Math.abs((chevron?.x ?? 0) - (title?.x ?? 0))).toBeLessThanOrEqual(1);
+
+  const save = detail.getByRole('button', { name: 'Save' });
+  const done = detail.getByRole('button', { name: 'Mark as done' });
+  const remove = detail.getByRole('button', { name: 'Delete' });
+  const ask = detail.getByRole('button', { name: 'Ask LIA' });
+  await expectOnOneLine(back, save, done, remove, ask);
+  await expectUnder(ask, detail.getByRole('textbox', { name: 'Title' }));
+  await expectInside(detail, ask);
+  await expectSameStart(back.locator('svg'), detail.getByRole('textbox', { name: 'Title' }));
+
+  // « Save » stands outside the form and still submits it.
+  const field = detail.getByRole('textbox', { name: 'Title' });
+  await field.fill('Prepare the committee deck, version 2');
+  await save.click();
+  await expect(detail.getByRole('status')).not.toBeEmpty();
 });

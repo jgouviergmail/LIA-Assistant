@@ -36,38 +36,17 @@ def get_prompts_for_version(prompts_dir: Path, version: str) -> list[str]:
     return sorted([f.stem for f in version_dir.glob("*.txt")])
 
 
-def get_env_config() -> dict[str, str | None]:
-    """Retrieve configuration from environment variables."""
-    return {
-        "router_version": os.getenv("ROUTER_PROMPT_VERSION"),
-        "planner_version": os.getenv("PLANNER_PROMPT_VERSION"),
-        "response_version": os.getenv("RESPONSE_PROMPT_VERSION"),
-        "contacts_agent_version": os.getenv("CONTACTS_AGENT_PROMPT_VERSION"),
-        "hitl_classifier_version": os.getenv("HITL_CLASSIFIER_PROMPT_VERSION"),
-    }
-
-
 # Mapping of critical prompts and their expected versions
 CRITICAL_PROMPTS = {
-    "router": {
-        "env_var": "ROUTER_PROMPT_VERSION",
-        "prompt_name": "router_system_prompt",
-        "description": "Router (syntactic classification)",
-    },
     "planner": {
         "env_var": "PLANNER_PROMPT_VERSION",
-        "prompt_name": "planner_system_prompt",
+        "prompt_name": "smart_planner_prompt",
         "description": "Planner (tool orchestration)",
     },
     "response": {
         "env_var": "RESPONSE_PROMPT_VERSION",
         "prompt_name": "response_system_prompt_base",
         "description": "Response (response generation)",
-    },
-    "contacts_agent": {
-        "env_var": "CONTACTS_AGENT_PROMPT_VERSION",
-        "prompt_name": "contacts_agent_prompt",
-        "description": "Contacts Agent (domain-specific)",
     },
     "hitl_classifier": {
         "env_var": "HITL_CLASSIFIER_PROMPT_VERSION",
@@ -114,7 +93,6 @@ def main():
 
     # 2. Configuration actuelle (.env)
     print("\n\n⚙️  CONFIGURATION ACTUELLE (Variables d'environnement):")
-    get_env_config()
 
     for _name, info in CRITICAL_PROMPTS.items():
         env_var = info["env_var"]
@@ -188,13 +166,6 @@ def main():
             print(f"   - {error}")
         print("\n🚨 Le système risque de ne pas démarrer correctement!")
         return 1
-
-    # Validation spécifique pour Router v8
-    router_version = os.getenv("ROUTER_PROMPT_VERSION")
-    if router_version == "v8":
-        print("\n✅ VALIDATION SPÉCIALE:")
-        print("   Router v8 est correctement configuré et disponible")
-        print("   Anti-hallucination Règle #5 activée")
 
     print("\n" + "=" * 80)
     return 0

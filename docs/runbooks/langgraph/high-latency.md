@@ -63,11 +63,7 @@ OPENAI_MODEL = "gpt-3.5-turbo"  # Instead of gpt-4
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,sum by (le,agent_name)(rate(langgraph_subgraph_duration_seconds_bucket[5m])))" | jq '.data.result'
 ```
 
-**Fix**: Reduce max iterations
-```python
-# agents/graphs/base_agent_builder.py
-MAX_ITERATIONS = 5  # Was 15
-```
+**Fix**: Lower `BROWSER_REACT_MAX_ITERATIONS`, the browser agent being the only subgraph left (see [BROWSER_CONTROL.md](../../technical/BROWSER_CONTROL.md)).
 
 ---
 

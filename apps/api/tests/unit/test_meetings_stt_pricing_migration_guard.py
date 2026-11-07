@@ -47,18 +47,20 @@ def test_the_migration_chains_after_the_meetings_schema() -> None:
 def test_every_migrated_tariff_equals_the_seed_bundle_row() -> None:
     module = _load_migration()
     seed = _SEED.read_text(encoding="utf-8")
-    active_rows = {
+    rows_at_its_date = {
         m.group("model"): m
         for m in _SEED_TARIFF.finditer(seed)
-        if m.group("active") == "true" and m.group("model") in dict(module.STT_TARIFFS)
+        if m.group("effective") == module.EFFECTIVE_FROM
+        and m.group("model") in dict(module.STT_TARIFFS)
     }
-    assert set(active_rows) == {name for name, _ in module.STT_TARIFFS}, "seed lacks a tariff row"
+    assert set(rows_at_its_date) == {
+        name for name, _ in module.STT_TARIFFS
+    }, "seed lacks a tariff row"
     for model_name, input_price in module.STT_TARIFFS:
-        row = active_rows[model_name]
+        row = rows_at_its_date[model_name]
         assert float(row.group("input")) == input_price, model_name
         assert row.group("cached") == "NULL" and float(row.group("output")) == 0.0, model_name
         assert row.group("unit") == module.PRICING_UNIT, model_name
-        assert row.group("effective") == module.EFFECTIVE_FROM, model_name
 
 
 def test_every_migrated_model_is_an_audio_row_of_the_seed_catalogue() -> None:

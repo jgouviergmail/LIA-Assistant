@@ -266,7 +266,8 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
     # Luna add ``none`` to the same ladder. The narrower name comes first:
     # GPT-6.1 Sol drops ``none`` again (« The none and minimal reasoning
     # efforts are not supported », measured 2026-09-30: a 400 on ``none``), and
-    # its ``gpt-6`` prefix would otherwise hand it the Sol ladder.
+    # its ``gpt-6`` prefix would otherwise hand it the Sol ladder. GPT-6.1 Terra
+    # keeps ``none`` (its model page, 2026-11-06), so that prefix serves it.
     (
         "openai",
         ("gpt-6-astra", "gpt-6.1-sol"),

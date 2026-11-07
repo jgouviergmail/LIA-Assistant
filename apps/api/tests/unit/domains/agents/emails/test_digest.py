@@ -38,6 +38,7 @@ from src.domains.agents.emails.digest import (
     EmailDigest,
     EmailDigestService,
     digest_cache_key,
+    read_cached_digest,
 )
 from src.infrastructure.cache.key_families import family_of
 from src.infrastructure.llm.structured_output_errors import StructuredOutputError
@@ -116,6 +117,39 @@ class TestTheCacheKey:
     def test_the_family_is_declared_as_a_user_cache(self) -> None:
         """ADR-260: a key named by a user id declares its scope; a reset purges it."""
         assert family_of(digest_cache_key(USER, "google", "m1", "fr")) == "email:digest"
+
+
+class TestReadingWhatIsHeld:
+    """A caller holding an id, and no body yet: a hit spares the mailbox its read."""
+
+    async def test_serves_the_digest_held_for_that_message(
+        self, redis: _FakeRedis, doors: dict
+    ) -> None:
+        redis.store[digest_cache_key(USER, "google", "m1", "fr")] = _digest(1).model_dump_json()
+
+        held = await read_cached_digest(USER, "google", "m1", "fr")
+
+        assert held == _digest(1)
+        doors["structured"].assert_not_awaited()
+
+    async def test_a_miss_is_none(self, redis: _FakeRedis, doors: dict) -> None:
+        assert await read_cached_digest(USER, "google", "m1", "fr") is None
+
+    async def test_reads_the_key_of_the_language_asked(
+        self, redis: _FakeRedis, doors: dict
+    ) -> None:
+        redis.store[digest_cache_key(USER, "google", "m1", "de")] = _digest(1).model_dump_json()
+
+        assert await read_cached_digest(USER, "google", "m1", "fr") is None
+
+    async def test_an_unreadable_value_is_a_miss(self, redis: _FakeRedis, doors: dict) -> None:
+        redis.store[digest_cache_key(USER, "google", "m1", "fr")] = "not json"
+
+        assert await read_cached_digest(USER, "google", "m1", "fr") is None
+
+    async def test_an_unreachable_cache_is_a_miss(self, doors: dict) -> None:
+        with patch(f"{MODULE}.get_redis_cache", AsyncMock(return_value=_FakeRedis(broken=True))):
+            assert await read_cached_digest(USER, "google", "m1", "fr") is None
 
 
 class TestHitAndMiss:

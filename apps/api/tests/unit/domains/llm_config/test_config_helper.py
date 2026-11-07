@@ -57,12 +57,12 @@ class TestGetLLMConfigForAgent:
         assert config.top_p == defaults.top_p
 
     def test_alias_resolution(self) -> None:
-        """Aliases like 'contact_agent' should resolve to 'contacts_agent'."""
+        """The alias 'email_agent' should resolve to 'emails_agent'."""
         settings = MagicMock()
-        config = get_llm_config_for_agent(settings, "contact_agent")
+        config = get_llm_config_for_agent(settings, "email_agent")
 
         assert isinstance(config, LLMAgentConfig)
-        assert config.provider == "openai"
+        assert config == get_llm_config_for_agent(settings, "emails_agent")
 
     def test_unknown_type_raises_error(self) -> None:
         """Should raise ValueError for unknown agent types."""

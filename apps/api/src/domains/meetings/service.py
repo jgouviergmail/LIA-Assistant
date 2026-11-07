@@ -470,10 +470,22 @@ class MeetingService:
         return await self.repo.get_live_for_user(user_id)
 
     async def list_meetings(
-        self, user_id: uuid.UUID, *, limit: int, offset: int, query: str | None = None
+        self,
+        user_id: uuid.UUID,
+        *,
+        limit: int,
+        offset: int,
+        query: str | None = None,
+        calendar_event_id: str | None = None,
     ) -> tuple[list[Meeting], int]:
         """A page of meetings with the exact total."""
-        return await self.repo.list_for_user(user_id, limit=limit, offset=offset, query=query)
+        return await self.repo.list_for_user(
+            user_id,
+            limit=limit,
+            offset=offset,
+            query=query,
+            calendar_event_id=calendar_event_id,
+        )
 
     async def get(self, user_id: uuid.UUID, meeting_id: uuid.UUID) -> Meeting:
         """One owned meeting or 404."""

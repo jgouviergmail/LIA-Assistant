@@ -38,17 +38,6 @@ NODE_REACT_FINALIZE = "react_finalize"
 # ADR-310: a declared gap re-opens the loop instead of ending the turn.
 NODE_REACT_RECOVERY = "react_recovery"
 
-# Agent nodes (NAMING: domain=entity(singular), agent=domain+"_agent")
-NODE_QUERY_AGENT = "query_agent"  # INTELLIA: LocalQueryEngine agent
-NODE_WEATHER_AGENT = "weather_agent"  # LOT 10: Weather API agent
-NODE_WIKIPEDIA_AGENT = "wikipedia_agent"  # LOT 10: Wikipedia API agent
-NODE_PERPLEXITY_AGENT = "perplexity_agent"  # LOT 11: Perplexity internet search
-NODE_BRAVE_AGENT = "brave_agent"  # Brave Search web/news search
-NODE_WEB_SEARCH_AGENT = "web_search_agent"  # Unified web search (Perplexity + Brave + Wikipedia)
-NODE_WEB_FETCH_AGENT = "web_fetch_agent"  # Web page content fetching (evolution F1)
-NODE_BROWSER_AGENT = "browser_agent"  # Interactive web browsing (evolution F7)
-NODE_HUE_AGENT = "hue_agent"  # Philips Hue smart lighting (Smart Home)
-
 # ============================================================================
 # AGENT NAMES (used in orchestration and result tracking)
 # ============================================================================
@@ -92,7 +81,7 @@ AGENT_TELEPHONY = "telephony_agent"  # Outbound calls + their history (ADR-193)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>
 MCP_DOMAIN_PREFIX = "mcp_"
 
-# Agent registry (all available agents)
+# Every agent name the manifests and the taxonomy know (compiled or not: ADR-371)
 ALL_AGENTS = [
     AGENT_CONTACT,
     AGENT_EMAIL,
@@ -125,67 +114,6 @@ ALL_AGENTS = [
 INTENTION_CONVERSATION = "conversation"  # Simple conversation, no tools needed
 INTENTION_ACTION = "action"  # Actionable turn routed to the planner (tools involved)
 INTENTION_UNKNOWN = "unknown"  # Unknown intention
-INTENTION_COMPLEX_MULTI_STEP = "complex_multi_step"  # Phase 5: Complex query requiring planner
-
-# Contact domain (singular)
-INTENTION_CONTACT = "contact"  # Contact-related (generic)
-INTENTION_CONTACT_SEARCH = "contact_search"  # Search contacts
-INTENTION_CONTACT_LIST = "contact_list"  # List all contacts
-INTENTION_CONTACT_DETAILS = "contact_details"  # Get contact details
-
-# Email domain (singular)
-INTENTION_EMAIL = "email"  # Email-related (generic)
-INTENTION_EMAIL_SEARCH = "email_search"  # Search emails
-INTENTION_EMAIL_READ = "email_read"  # Read email details
-INTENTION_EMAIL_SEND = "email_send"  # Send email
-
-# Event domain (was calendar)
-INTENTION_EVENT = "event"  # Event-related (generic)
-INTENTION_EVENT_LIST = "event_list"  # List events
-INTENTION_EVENT_CREATE = "event_create"  # Create event
-
-# File domain (was drive)
-INTENTION_FILE = "file"  # File-related (generic)
-INTENTION_FILE_SEARCH = "file_search"  # Search files
-INTENTION_FILE_READ = "file_read"  # Read file content
-
-# Task domain (singular)
-INTENTION_TASK = "task"  # Task-related (generic)
-INTENTION_TASK_LIST = "task_list"  # List tasks
-INTENTION_TASK_CREATE = "task_create"  # Create task
-
-# Weather domain
-INTENTION_WEATHER = "weather"  # Weather-related (generic)
-INTENTION_WEATHER_CURRENT = "weather_current"  # Get current weather
-INTENTION_WEATHER_FORECAST = "weather_forecast"  # Get weather forecast
-
-# Wikipedia domain
-INTENTION_WIKIPEDIA = "wikipedia"  # Wikipedia-related (generic)
-INTENTION_WIKIPEDIA_SEARCH = "wikipedia_search"  # Search Wikipedia
-INTENTION_WIKIPEDIA_ARTICLE = "wikipedia_article"  # Get Wikipedia article
-
-# Perplexity domain
-INTENTION_PERPLEXITY = "perplexity"  # Perplexity web search (generic)
-INTENTION_PERPLEXITY_SEARCH = "perplexity_search"  # Search web
-
-# Place domain
-INTENTION_PLACE = "place"  # Place-related (generic)
-INTENTION_PLACE_SEARCH = "place_search"  # Search places
-
-# Route domain
-INTENTION_ROUTE = "route"  # Route-related (generic)
-INTENTION_ROUTE_DIRECTIONS = "route_directions"  # Get directions
-
-# Brave domain
-INTENTION_BRAVE = "brave"  # Brave-related (generic)
-INTENTION_BRAVE_SEARCH = "brave_search"  # Brave web search
-INTENTION_BRAVE_NEWS = "brave_news"  # Brave news search
-
-# Web Search domain (unified meta-search)
-INTENTION_WEB_SEARCH = "web_search"  # Unified web search
-
-# Web Fetch domain (page content extraction, evolution F1)
-INTENTION_WEB_FETCH = "web_fetch"  # Fetch and read a web page
 
 # Browser domain (interactive web browsing, evolution F7)
 INTENTION_BROWSER = "browser"  # Browser-related (generic)
@@ -194,9 +122,6 @@ INTENTION_BROWSER_INTERACT = "browser_interact"  # Click, fill, interact with pa
 
 # Hue domain (smart home lighting)
 INTENTION_HUE = "hue"  # Hue-related (generic)
-INTENTION_HUE_CONTROL = "hue_control"  # Control lights/rooms
-INTENTION_HUE_LIST = "hue_list"  # List lights/rooms/scenes
-INTENTION_HUE_SCENE = "hue_scene"  # Activate scene
 
 # ============================================================================
 # CONTEXT TYPES (for context management and state)
@@ -477,7 +402,6 @@ def parse_agent_result_key(key: str) -> tuple[int, str]:
 HITL_ACTION_NAME = "name"
 HITL_ACTION_ARGS = "args"
 
-
 # ============================================================================
 # LIMITS AND THRESHOLDS
 # ============================================================================
@@ -556,7 +480,6 @@ class AgentResultStatus(StrEnum):
 STATUS_SUCCESS = AgentResultStatus.SUCCESS.value
 STATUS_ERROR = AgentResultStatus.ERROR.value
 
-
 # ============================================================================
 # GRAPH EDGES (for routing logic)
 # ============================================================================
@@ -609,7 +532,6 @@ HITL_DECISION_REPLAN = "REPLAN"  # User wants a different action type (delete↔
 HITL_DECISION_AMBIGUOUS = "AMBIGUOUS"
 HITL_DECISION_NEW_REQUEST = "NEW_REQUEST"  # Stale HITL state - treat as new message
 
-
 # ============================================================================
 # REGISTRY ITEM TYPES (for registry storage)
 # ============================================================================
@@ -658,15 +580,6 @@ __all__ = [
     "NODE_DRAFT_CRITIQUE",
     "NODE_HITL_DISPATCH",
     "NODE_REFERENCE_DISAMBIGUATION",
-    "NODE_QUERY_AGENT",
-    "NODE_WEATHER_AGENT",
-    "NODE_WIKIPEDIA_AGENT",
-    "NODE_PERPLEXITY_AGENT",
-    "NODE_BRAVE_AGENT",
-    "NODE_WEB_SEARCH_AGENT",
-    "NODE_WEB_FETCH_AGENT",
-    "NODE_BROWSER_AGENT",
-    "NODE_HUE_AGENT",
     # ReAct execution mode nodes (ADR-070)
     "NODE_REACT_SETUP",
     "NODE_REACT_CALL_MODEL",
@@ -699,48 +612,10 @@ __all__ = [
     "INTENTION_CONVERSATION",
     "INTENTION_ACTION",
     "INTENTION_UNKNOWN",
-    "INTENTION_COMPLEX_MULTI_STEP",
-    "INTENTION_CONTACT",
-    "INTENTION_CONTACT_SEARCH",
-    "INTENTION_CONTACT_LIST",
-    "INTENTION_CONTACT_DETAILS",
-    "INTENTION_EMAIL",
-    "INTENTION_EMAIL_SEARCH",
-    "INTENTION_EMAIL_READ",
-    "INTENTION_EMAIL_SEND",
-    "INTENTION_EVENT",
-    "INTENTION_EVENT_LIST",
-    "INTENTION_EVENT_CREATE",
-    "INTENTION_FILE",
-    "INTENTION_FILE_SEARCH",
-    "INTENTION_FILE_READ",
-    "INTENTION_TASK",
-    "INTENTION_TASK_LIST",
-    "INTENTION_TASK_CREATE",
-    "INTENTION_WEATHER",
-    "INTENTION_WEATHER_CURRENT",
-    "INTENTION_WEATHER_FORECAST",
-    "INTENTION_WIKIPEDIA",
-    "INTENTION_WIKIPEDIA_SEARCH",
-    "INTENTION_WIKIPEDIA_ARTICLE",
-    "INTENTION_PERPLEXITY",
-    "INTENTION_PERPLEXITY_SEARCH",
-    "INTENTION_PLACE",
-    "INTENTION_PLACE_SEARCH",
-    "INTENTION_ROUTE",
-    "INTENTION_ROUTE_DIRECTIONS",
-    "INTENTION_BRAVE",
-    "INTENTION_BRAVE_SEARCH",
-    "INTENTION_BRAVE_NEWS",
-    "INTENTION_WEB_SEARCH",
-    "INTENTION_WEB_FETCH",
     "INTENTION_BROWSER",
     "INTENTION_BROWSER_NAVIGATE",
     "INTENTION_BROWSER_INTERACT",
     "INTENTION_HUE",
-    "INTENTION_HUE_CONTROL",
-    "INTENTION_HUE_LIST",
-    "INTENTION_HUE_SCENE",
     # Context types
     "CONTEXT_DOMAIN_CONTACTS",
     "CONTEXT_DOMAIN_WEATHER",

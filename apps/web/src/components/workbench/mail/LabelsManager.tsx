@@ -14,18 +14,12 @@ import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { MailFolder } from '@/lib/workbench/types';
+import { ToolDialogHeader, useToolConfirm } from '../ToolForm';
 
 export interface LabelsManagerProps {
   lng: Language;
@@ -84,7 +78,7 @@ export function LabelsManager({
   const { t: translate } = useTranslation(lng);
   /** The manager's words: its kind's. */
   const t = (key: string, values?: Record<string, string>) => translate(wordOf(kind, key), values);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -137,10 +131,10 @@ export function LabelsManager({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{t('workbench.mail.manage_labels')}</DialogTitle>
           <DialogDescription>{t('workbench.mail.labels.description')}</DialogDescription>
-        </DialogHeader>
+        </ToolDialogHeader>
         <form onSubmit={create} className="flex items-end gap-2">
           <Input
             id={newId}
@@ -183,6 +177,7 @@ export function LabelsManager({
                       type="button"
                       size="icon"
                       variant="ghost"
+                      className="text-destructive hover:text-destructive"
                       onClick={() => setEditing(null)}
                       aria-label={t('common.cancel')}
                     >

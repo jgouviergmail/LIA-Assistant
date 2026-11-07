@@ -48,15 +48,7 @@ apps/api/src/domains/agents/prompts/
     ├── response_system_prompt_base.txt         # Response node
     ├── semantic_validator_prompt.txt           # Semantic validator
     │
-    ├── contacts_agent_prompt.txt               # Domain agents
-    ├── emails_agent_prompt.txt
-    ├── calendar_agent_prompt.txt
-    ├── drive_agent_prompt.txt
-    ├── tasks_agent_prompt.txt
-    ├── weather_agent_prompt.txt
-    ├── wikipedia_agent_prompt.txt
-    ├── perplexity_agent_prompt.txt
-    ├── places_agent_prompt.txt
+    ├── browser_agent_prompt.txt                # Compiled agents
     ├── query_agent_prompt.txt
     │
     ├── hitl_classifier_prompt.txt              # HITL prompts

@@ -13,18 +13,12 @@ import { useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { CalendarEventDetail } from '@/lib/workbench/types';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface EventDeleteDialogProps {
   lng: Language;
@@ -72,14 +66,14 @@ export function EventDeleteDialog({
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>
             {t('workbench.calendar.delete_title', {
               name: event.summary || t('workbench.calendar.no_title'),
             })}
           </DialogTitle>
           <DialogDescription>{t(deleteSentence(event, series))}</DialogDescription>
-        </DialogHeader>
+        </ToolDialogHeader>
         {event.recurring && occurrenceEdit && (
           <fieldset className="space-y-2">
             <legend className="sr-only">{t('workbench.calendar.delete_scope')}</legend>
@@ -115,14 +109,12 @@ export function EventDeleteDialog({
             <Label htmlFor={notifyId}>{t('workbench.calendar.editor.notify')}</Label>
           </div>
         )}
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
+        <ToolActions>
+          <CancelButton lng={lng} onClick={onClose} />
           <Button variant="destructive" isLoading={deleting} onClick={() => void remove()}>
             {t('workbench.calendar.delete')}
           </Button>
-        </DialogFooter>
+        </ToolActions>
       </DialogContent>
     </Dialog>
   );

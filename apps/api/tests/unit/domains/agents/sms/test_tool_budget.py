@@ -17,7 +17,7 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.mark.parametrize(
-    "mode,small", [("pipeline", "sms_agent"), ("react", "react_agent"), ("react", "response")]
+    "mode,small", [("pipeline", "response"), ("react", "react_agent"), ("react", "response")]
 )
 async def test_output_fits_a_smaller_actual_model_without_losing_the_source_page(
     monkeypatch, mode, small

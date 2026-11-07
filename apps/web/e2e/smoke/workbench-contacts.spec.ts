@@ -16,6 +16,7 @@ import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import { expectInside, expectOnOneLine, expectUnder } from './phone-lines';
 
 const RAIL = {
   tools: ['mail', 'calendar', 'tasks', 'contacts', 'files', 'lights'].map(tool =>
@@ -48,6 +49,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -358,3 +361,28 @@ test('the keyboard opens a contact and gets its row back when it closes', async 
 
   await expect(page.getByRole('link', { name: /Ana Lima/ })).toBeFocused();
 });
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+for (const width of [390, 360]) {
+  test(`an open contact offers its acts line by line at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/contacts?contact=people%2Fc1');
+    const detail = page.getByRole('article', { name: 'Ana Lima' });
+    const edit = detail.getByRole('button', { name: 'Edit' });
+    const exported = detail.getByRole('link', { name: 'Export' });
+    const remove = detail.getByRole('button', { name: 'Delete' });
+    const ask = detail.getByRole('button', { name: 'Ask LIA' });
+    await expect(ask).toBeVisible();
+    await expectOnOneLine(edit, exported, remove, ask);
+    await expectUnder(ask, detail.getByRole('heading', { level: 2 }));
+    await expectInside(detail, ask);
+    await expectNoOverflow(page, `the contact's acts at ${width}px`);
+  });
+}

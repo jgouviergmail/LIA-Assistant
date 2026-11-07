@@ -12,17 +12,12 @@
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { generateUUID } from '@/lib/utils';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface NewTaskListDialogProps {
   lng: Language;
@@ -76,23 +71,21 @@ export function RenameTaskListDialog({
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent>
         <form onSubmit={submit} className="space-y-4">
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle>{t('workbench.tasks.rename_list')}</DialogTitle>
-          </DialogHeader>
+          </ToolDialogHeader>
           <Input
             label={t('workbench.tasks.new_list_name')}
             value={title}
             maxLength={maxLength}
             onChange={event => setTitle(event.target.value)}
           />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={onClose} />
             <Button type="submit" isLoading={busy}>
               {t('common.save')}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -138,23 +131,21 @@ export function NewTaskListDialog({
     <Dialog open={open} onOpenChange={openChange}>
       <DialogContent>
         <form onSubmit={submit} className="space-y-4">
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle>{t('workbench.tasks.new_list')}</DialogTitle>
-          </DialogHeader>
+          </ToolDialogHeader>
           <Input
             label={t('workbench.tasks.new_list_name')}
             value={title}
             maxLength={maxLength}
             onChange={event => setTitle(event.target.value)}
           />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => openChange(false)}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={() => openChange(false)} />
             <Button type="submit" isLoading={busy}>
               {t('workbench.tasks.create')}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>

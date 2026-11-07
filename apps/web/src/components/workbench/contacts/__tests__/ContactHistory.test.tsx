@@ -66,6 +66,16 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe('ContactHistory — its two panels', () => {
+  it('sets each panel’s title on a ground of its own', async () => {
+    api.get.mockResolvedValue(history({}));
+    panel();
+
+    const mail = await screen.findByRole('region', { name: word('mail') });
+    expect(within(mail).getByRole('heading', { level: 4 })).toHaveClass('bg-muted/60');
+  });
+});
+
 describe('ContactHistory', () => {
   it('asks by the addresses it was given', async () => {
     api.get.mockResolvedValue(history({}));

@@ -240,9 +240,9 @@
     },
     "t.connclients": {
       "name": "Konnektor-Clients",
-      "role": "Ein Client pro Anbieter, eine einzige Tür zum aktiven Client einer Kategorie; nie eine offene Datenbanktransaktion während des Netzwerkaufrufs. Der Bereich Werkzeuge besitzt eigene REST-Endpunkte außerhalb des Gesprächsgraphen. Er verwendet dieselben Connector-Clients und veröffentlicht deren Funktionen und Grenzen für die Oberfläche. Datenbanksitzungen schließen vor Anbieteraufrufen; Übermittlungen sind gegen Wiederholungen geschützt, verlorene Antworten erscheinen als unbekannter Ausgang. HTML-Mails bleiben in einem isolierten Rahmen, der entfernte Inhalte blockiert. So bleibt eine manuelle Handlung von einer an LIA delegierten Aktion getrennt.",
+      "role": "Ein Client pro Anbieter, eine einzige Tür zum aktiven Client einer Kategorie; nie eine offene Datenbanktransaktion während des Netzwerkaufrufs. Der Bereich Werkzeuge besitzt eigene REST-Endpunkte außerhalb des Gesprächsgraphen. Er verwendet dieselben Connector-Clients und veröffentlicht deren Funktionen und Grenzen für die Oberfläche. Datenbanksitzungen schließen vor Anbieteraufrufen; Übermittlungen sind gegen Wiederholungen geschützt, verlorene Antworten erscheinen als unbekannter Ausgang. HTML-Mails bleiben in einem isolierten Rahmen, der entfernte Inhalte blockiert. So bleibt eine manuelle Handlung von einer an LIA delegierten Aktion getrennt. Worum ein Klick LIA auf diesen Bildschirmen bittet, läuft durch einen benachbarten Bounded Context mit einer einzigen Tür: beide Obergrenzen, die Ausgabe in jedem Fall verbucht, das Gelesene erfasst, nichts beim Anbieter geschrieben.",
       "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipedia"],
-      "src": "1186b3b6ffa5"
+      "src": "aabad59a9764"
     },
     "t.mcp": {
       "name": "MCP-Client",

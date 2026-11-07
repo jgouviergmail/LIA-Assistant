@@ -35,6 +35,39 @@ import { EditorialChapters } from '../EditorialChapters';
 import { CHAPTERS, WORLD_CHAPTER_ANCHOR } from '../chapters-data';
 
 describe('EditorialChapters', () => {
+  it('opens on the Tools, in their own capture, and numbers the others after them', async () => {
+    render(await EditorialChapters({ lng: 'fr' }));
+
+    const [first] = screen.getAllByRole('region');
+
+    expect(first).toHaveAttribute('id', 'chapter-tools');
+    expect(within(first!).getByTestId('screenshot-tools')).toBeInTheDocument();
+    expect(CHAPTERS[0]?.num).toBe('01');
+    expect(CHAPTERS.find(chapter => chapter.id === 'act')?.num).toBe('02');
+    expect(CHAPTERS.at(-1)?.num).toBe('08');
+  });
+
+  it('shows each chapter its capture, and the others their scene', async () => {
+    render(await EditorialChapters({ lng: 'fr' }));
+
+    const shown = (key: ChapterConfig['key'], testId: string) =>
+      within(screen.getByRole('region', { name: key })).getByTestId(testId);
+
+    expect(shown('c1', 'screenshot-meetings')).toBeInTheDocument();
+    expect(shown('c2', 'screenshot-relations')).toBeInTheDocument();
+    expect(shown('c3', 'scene-watch')).toBeInTheDocument();
+    expect(shown('c4', 'scene-call')).toBeInTheDocument();
+    expect(shown('c5', 'screenshot-knowledge')).toBeInTheDocument();
+  });
+
+  it('files the detailed tools under their chapter, the overview first', () => {
+    const tools = CHAPTERS.find(chapter => chapter.id === 'tools');
+    const control = CHAPTERS.find(chapter => chapter.id === 'control');
+
+    expect(tools?.catalog[0]).toBe('workbench');
+    expect(control?.catalog).not.toContain('workbench');
+  });
+
   it('keeps the connection relay separate from the new World screenshot and place directory', async () => {
     render(await EditorialChapters({ lng: 'fr' }));
     expect(screen.getAllByRole('region')).toHaveLength(CHAPTERS.length);

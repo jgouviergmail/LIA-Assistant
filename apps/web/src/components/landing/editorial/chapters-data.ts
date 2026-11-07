@@ -1,6 +1,6 @@
 /**
- * Single source of truth for the editorial landing narrative (chapters 01-07
- * plus the basics band). Every detailed feature card of the former features
+ * Single source of truth for the editorial landing narrative (the numbered
+ * chapters plus the basics band). Every detailed feature card of the former features
  * wall is re-parented here — never deleted — and rendered inside the
  * per-chapter expandable catalogs, reusing the translated
  * `landing.features.<key>.{title,description}` copy in all 6 locales.
@@ -45,7 +45,9 @@ import {
   Bookmark,
   Eye,
   Flame,
+  FolderOpen,
   LayoutTemplate,
+  ListChecks,
   MailCheck,
   PhoneIncoming,
   ShieldAlert,
@@ -85,11 +87,20 @@ import {
   Users,
   Repeat,
   Radio,
+  Search,
   ClipboardList,
   SquareKanban,
 } from 'lucide-react';
 
-export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect' | 'world';
+export type ChapterId =
+  | 'tools'
+  | 'act'
+  | 'know'
+  | 'anticipate'
+  | 'control'
+  | 'grow'
+  | 'connect'
+  | 'world';
 
 export const WORLD_CHAPTER_ANCHOR = 'chapter-world';
 
@@ -97,14 +108,11 @@ export interface ChapterConfig {
   id: ChapterId;
   /** Shared illustration tone and fallback scene; a chapter may show a capture. */
   scene: ProductSceneId;
-  /** i18n suffix under `landing.chapters.`. */
-  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7';
+  /** i18n suffix under `landing.chapters.`: a stable name, never the chapter's place. */
+  key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7' | 'c8';
   /** Anchor id (chapter rail + deep links). */
   anchor: string;
   num: string;
-  /** Psyche mood carried by the chapter's title bubble — intentional per
-   *  chapter: playful on differentiation, composed on trust (c2/c4). */
-  mood: string;
   /** Benefit count (b1..bN keys must exist in all locales). */
   benefits: 3 | 4;
   /** Detailed feature cards re-parented under this chapter. */
@@ -115,12 +123,30 @@ export interface ChapterConfig {
 
 export const CHAPTERS: readonly ChapterConfig[] = [
   {
+    id: 'tools',
+    scene: 'call',
+    key: 'c8',
+    anchor: 'chapter-tools',
+    num: '01',
+    benefits: 3,
+    catalog: [
+      'workbench',
+      'tools_mail',
+      'tools_calendar',
+      'tools_tasks',
+      'tools_contacts',
+      'tools_files',
+      'tools_lights',
+      'tools_search',
+    ],
+    tinted: true,
+  },
+  {
     id: 'act',
     scene: 'decision',
     key: 'c1',
     anchor: 'chapter-act',
-    num: '01',
-    mood: '😏',
+    num: '02',
     benefits: 3,
     catalog: [
       'multi_agent',
@@ -148,8 +174,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'day',
     key: 'c2',
     anchor: 'chapter-know',
-    num: '02',
-    mood: '🙂',
+    num: '03',
     benefits: 3,
     catalog: [
       'memory',
@@ -171,8 +196,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'watch',
     key: 'c3',
     anchor: 'chapter-anticipate',
-    num: '03',
-    mood: '😏',
+    num: '04',
     benefits: 3,
     catalog: [
       'workboard_delegation',
@@ -195,10 +219,9 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'call',
     key: 'c4',
     anchor: 'chapter-control',
-    num: '04',
-    mood: '🙂',
+    num: '05',
     benefits: 4,
-    catalog: ['workbench', 'control', 'privacy', 'usage_limits', 'native_apps'],
+    catalog: ['control', 'privacy', 'usage_limits', 'native_apps'],
     tinted: true,
   },
   {
@@ -206,8 +229,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'research',
     key: 'c5',
     anchor: 'chapter-grow',
-    num: '05',
-    mood: '😏',
+    num: '06',
     benefits: 3,
     catalog: [
       'sub_agents',
@@ -227,8 +249,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'relay',
     key: 'c6',
     anchor: 'chapter-connect',
-    num: '06',
-    mood: '🙂',
+    num: '07',
     benefits: 3,
     catalog: [
       'peers',
@@ -246,8 +267,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     scene: 'relay',
     key: 'c7',
     anchor: WORLD_CHAPTER_ANCHOR,
-    num: '07',
-    mood: '🙂',
+    num: '08',
     benefits: 3,
     catalog: [
       'world',
@@ -305,6 +325,15 @@ export const BASICS_CHIPS: readonly { emoji: string; key: string }[] = [
  * catalogs + basics catalog form an exact partition of this set.
  */
 export const REQUIRED_FEATURE_KEYS: readonly string[] = [
+  // the tools, by hand
+  'workbench',
+  'tools_mail',
+  'tools_calendar',
+  'tools_tasks',
+  'tools_contacts',
+  'tools_files',
+  'tools_lights',
+  'tools_search',
   // conversation
   'natural_language',
   'multi_agent',
@@ -382,7 +411,6 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'computed_answers',
   'devops_cli',
   // responsible & simple
-  'workbench',
   'control',
   'usage_limits',
   'privacy',
@@ -400,6 +428,14 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
 
 /** Icon per feature card, inherited from the former features wall. */
 export const FEATURE_ICONS: Record<string, LucideIcon> = {
+  workbench: Wrench,
+  tools_mail: Mail,
+  tools_calendar: CalendarClock,
+  tools_tasks: ListChecks,
+  tools_contacts: Users,
+  tools_files: FolderOpen,
+  tools_lights: Lightbulb,
+  tools_search: Search,
   natural_language: MessageSquareText,
   multi_agent: Bot,
   rich_responses: LayoutGrid,
@@ -471,7 +507,6 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   browser_control: Monitor,
   computed_answers: Calculator,
   devops_cli: Terminal,
-  workbench: Wrench,
   control: ShieldCheck,
   usage_limits: Gauge,
   privacy: Lock,

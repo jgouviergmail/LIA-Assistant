@@ -6,17 +6,18 @@
  *
  * The open folder and the open message ride the address (`?folder=`, `?id=`,
  * `useMailAddress`). From `xl`: the folders beside the messages beside the
- * reader; at `lg` two of them (the folders step aside for an open message);
+ * reader, which opens on the inbox's newest message (`useFirstLook`); at `lg`
+ * two of them (the folders step aside for an open message);
  * below, a select above the messages and the reader replaces them. The
  * person's words and chips narrow the folder; acts on a selection are told as
  * they went; the drafts are listed by their own route where the provider
  * keeps drafts. Escape closes the reader; whichever way it closes, the
- * message's row gets the focus back. « New message » sits in the tool's
+ * message's row gets the focus back. « New email » sits in the tool's
  * header below `lg` — a floating button would compete with the companion the
  * person places themselves. A message can become a task, an event or a contact,
  * and go to LIA (`useToolBridges`), unsent, the words outside any address.
  */
-import { CheckSquare, MessagesSquare, PenSquare, Rows3, Rows4 } from 'lucide-react';
+import { CheckSquare, MessagesSquare, Plus, Rows3, Rows4 } from 'lucide-react';
 import {
   useCallback,
   useMemo,
@@ -65,7 +66,13 @@ import {
 import { copyText } from '@/lib/workbench/copy';
 import type { ComposeFailure, ComposerFields } from '@/lib/workbench/mail-compose';
 import { dayIn } from '@/lib/workbench/tasks';
-import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
+import {
+  WORKBENCH_DESKTOP,
+  WORKBENCH_HEADER_ICON,
+  WORKBENCH_HEADER_PRIMARY,
+  WORKBENCH_PANE_HEIGHT,
+  WORKBENCH_SIDE_BY_SIDE,
+} from '@/lib/workbench/tools';
 import type {
   MailFolder,
   MailSenders,
@@ -84,6 +91,8 @@ import { isAndroidShell } from '@/lib/native/shell';
 import { printText } from '@/lib/workbench/print-text';
 
 import { useListSelection, type ListSelection } from '../useListSelection';
+import { useMailAssist } from '../assist/useMailAssist';
+import { useMailTriage } from '../assist/useMailTriage';
 import { useHandoff, useToolBridges, type ToolBridges } from '../useToolBridges';
 import type { ToolShortcut } from '../useToolShortcuts';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
@@ -106,6 +115,7 @@ import {
   useComposerSlot,
   useConversation,
   useDraftActs,
+  useFirstLook,
   useFreshListing,
   useMailLines,
   useInlineImages,
@@ -118,6 +128,8 @@ import {
 
 /** A mouse, or what moves like one: a finger scrolls a list. */
 const FINE_POINTER = '(pointer: fine)';
+
+const NO_ROWS: readonly MailSummary[] = [];
 
 /** Before hydration the server renders the comfortable list. */
 const comfortable = (): MailDensity => 'comfortable';
@@ -173,22 +185,28 @@ function ReadyMail({ lng, tool, limits, drive }: ReadyMailProps) {
   const { mailCounts } = useWorkbench();
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
   const dragsRows = useMediaQuery(`${WORKBENCH_DESKTOP} and ${FINE_POINTER}`);
+  const sideBySide = useMediaQuery(WORKBENCH_SIDE_BY_SIDE);
   const density = useSyncExternalStore(subscribeMailDensity, readMailDensity, comfortable);
-  const address = useMailAddress(lng);
+  const asked = useMailAddress(lng);
   const [search, setSearch] = useState<MailSearch>(EMPTY_MAIL_SEARCH);
   const [selecting, setSelecting] = useState(false);
   const [dialog, setDialog] = useState<'labels' | 'settings' | null>(null);
   const searchBox = useRef<HTMLDivElement>(null);
   const can = mailFeatures(tool);
   const zone = user?.timezone;
-  const draftsView = address.folder === MAIL_DRAFTS && can.drafts;
+  const draftsView = asked.folder === MAIL_DRAFTS && can.drafts;
   const today = dayIn(zone, new Date());
   const listing = useMemo(
-    () => listingParams(address.folder, search, today),
-    [address.folder, search, today]
+    () => listingParams(asked.folder, search, today),
+    [asked.folder, search, today]
   );
   // The drafts have their own listing: the folder's is not read under them.
-  const mail = useWorkbenchMail(true, address.folder, draftsView ? null : listing);
+  const mail = useWorkbenchMail(true, asked.folder, draftsView ? null : listing);
+  const address = useFirstLook(
+    asked,
+    isSearching(search) ? NO_ROWS : mail.messages.items,
+    sideBySide
+  );
   const drafts = useWorkbenchMailDrafts(draftsView);
   const writing = useWorkbenchMailWriting();
   const reading = !draftsView && address.openId !== null;
@@ -228,7 +246,7 @@ function ReadyMail({ lng, tool, limits, drive }: ReadyMailProps) {
   const slot = useComposerSlot();
   const draftActs = useDraftActs(lng, drafts, slot.compose, acts.tell);
   const labels = can.labels ? ownFolders(mail.folders) : undefined;
-  useReadAfterLook(open, () => acts.setOpenRead(true, true));
+  useReadAfterLook(open, () => acts.setOpenRead(true, true), asked.openId !== null);
   // Whichever way the reader closed, its message's row gets the focus back.
   const linkRef = useDrillDownFocus(address.openId, { fallback: searchBox });
   const toolBridges = useToolBridges(lng);
@@ -438,7 +456,9 @@ function toastLost(
     duration: Infinity,
     action: {
       label: t('workbench.mail.compose.copy_words'),
-      onClick: () => void copyText(words.body),
+      onClick: () => {
+        copyText(words.body).catch(() => toast.error(t('workbench.mail.compose.copy_refused')));
+      },
     },
   });
 }
@@ -542,13 +562,26 @@ function messageBridges(
 ): MessageBridges {
   const linkTo = (message: MailMessage) =>
     `${window.location.origin}${hrefOf({ ...message, snippet: '' })}`;
+  const withLink = (words: string | undefined, message: MailMessage) =>
+    [words, linkTo(message)].filter(Boolean).join('\n\n');
   return {
     toTask: bridges.offers('task')
-      ? message => bridges.go({ kind: 'task', title: message.subject, notes: linkTo(message) })
+      ? (message, task) =>
+          bridges.go({
+            kind: 'task',
+            title: task?.title || message.subject,
+            notes: withLink(task?.notes, message),
+            due: task?.due,
+          })
       : undefined,
     toEvent: bridges.offers('event')
-      ? message =>
-          bridges.go({ kind: 'event', summary: message.subject, description: linkTo(message) })
+      ? (message, event) =>
+          bridges.go({
+            kind: 'event',
+            summary: event?.summary || message.subject,
+            description: withLink(event?.description, message),
+            proposal: event,
+          })
       : undefined,
     toContact: bridges.offers('contact')
       ? ({ sender }) =>
@@ -611,10 +644,17 @@ interface MailHeaderActionsProps {
   onCompose: () => void;
 }
 
-/** What a toggle looks like while it is on: `aria-pressed` alone says it to a reader only. */
-const TOGGLE_ON = 'aria-pressed:bg-primary/10 aria-pressed:text-primary';
+/**
+ * A square of the header row that stays down while it is on, filled so the eye sees it:
+ * `aria-pressed` alone says it to a reader only.
+ */
+const TOGGLE = cn(
+  WORKBENCH_HEADER_ICON,
+  'aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground',
+  'aria-pressed:hover:bg-primary/90'
+);
 
-/** The list's two toggles, and below `lg` the selection mode and « New message ». */
+/** The list's two toggles, and below `lg` the selection mode and « New email ». */
 function MailHeaderActions({
   lng,
   density,
@@ -630,23 +670,23 @@ function MailHeaderActions({
     <>
       {canSelect && (
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           onClick={() => writeMailGrouping(grouping === 'grouped' ? 'flat' : 'grouped')}
           aria-pressed={grouping === 'grouped'}
           aria-label={t('workbench.mail.group_conversations')}
-          className={TOGGLE_ON}
+          className={TOGGLE}
         >
           <MessagesSquare className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
         onClick={() => writeMailDensity(compact ? 'comfortable' : 'compact')}
         aria-pressed={compact}
         aria-label={t('workbench.mail.compact_list')}
-        className={cn(TOGGLE_ON, 'hidden sm:inline-flex')}
+        className={cn(TOGGLE, 'hidden sm:inline-flex')}
       >
         {compact ? (
           <Rows4 className="h-4 w-4" aria-hidden="true" />
@@ -656,19 +696,19 @@ function MailHeaderActions({
       </Button>
       {canSelect && (
         <Button
-          variant="ghost"
-          size="sm"
+          variant="outline"
+          size="icon"
           onClick={onSelecting}
           aria-pressed={selecting}
-          className={cn(TOGGLE_ON, 'gap-1.5 lg:hidden')}
+          aria-label={t('workbench.mail.select')}
+          className={cn(TOGGLE, 'lg:hidden')}
         >
           <CheckSquare className="h-4 w-4" aria-hidden="true" />
-          <span className="sr-only sm:not-sr-only">{t('workbench.mail.select')}</span>
         </Button>
       )}
-      <Button size="sm" onClick={onCompose} className="gap-1.5 lg:hidden">
-        <PenSquare className="h-4 w-4" aria-hidden="true" />
-        <span className="sr-only sm:not-sr-only">{t('workbench.mail.new_message')}</span>
+      <Button onClick={onCompose} className={cn('gap-1.5 lg:hidden', WORKBENCH_HEADER_PRIMARY)}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        {t('workbench.mail.new_message')}
       </Button>
     </>
   );
@@ -703,7 +743,7 @@ function MessagesColumn({
   tool,
   limits,
   mail,
-  lines,
+  lines: listed,
   acts,
   sending,
   permanentDelete,
@@ -720,6 +760,8 @@ function MessagesColumn({
   linkRef,
 }: MessagesColumnProps) {
   const { selected, select, toggle } = selection;
+  const triage = useMailTriage(lng, listed, limits.page_size);
+  const { lines } = triage;
   // A selection ticks lines; every act below takes the messages they stand for.
   const lineIds = lines.map(line => line.message.id);
   const selectedRows = selectedMembers(lines, selected);
@@ -737,6 +779,8 @@ function MessagesColumn({
           onChange={onSearch}
           attachmentsOffered={tool.features.includes('attachment_filter')}
           maxChars={tool.bounds.search_max_chars}
+          triage={triage.chip}
+          triaged={triage.on}
         />
       </div>
       {selectedRows.length > 0 && (
@@ -771,6 +815,7 @@ function MessagesColumn({
         lng={lng}
         messages={mail.messages}
         lines={lines}
+        noteOf={triage.noteOf}
         openId={address.openId}
         selected={selected}
         selectable={selectable}
@@ -888,6 +933,18 @@ function ReaderPane({
   const shownId = reading ? address.openId : null;
   const leaving = useLeaving(lng, shownId, compose);
   const inline = useInlineImages(shownId, original.item?.html ?? null);
+  const openFolder = folders?.find(item => item.id === address.folder);
+  const {
+    panel: assistPanel,
+    attachmentLines,
+    ...assist
+  } = useMailAssist(lng, open.item, {
+    onPropose: message => compose({ kind: 'reply', message, all: false, propose: true }),
+    onTask: bridges.toTask,
+    onEvent: bridges.toEvent,
+    sent: openFolder?.role === 'sent',
+    said: conversation.rows.length,
+  });
   if (!reading) {
     return showPlaceholder ? (
       <div className="hidden min-w-0 flex-1 items-center justify-center border-l xl:flex">
@@ -895,7 +952,6 @@ function ReaderPane({
       </div>
     ) : null;
   }
-  const openFolder = folders?.find(item => item.id === address.folder);
   const message = open.item;
   const openIds = message ? [message.id] : [];
   return (
@@ -926,6 +982,9 @@ function ReaderPane({
         onForever={() => void sending.forever(openIds)}
         onLabels={(add, remove) => void acts.labelOpen(add, remove)}
         bridges={bridges}
+        assist={assist}
+        assistPanel={assistPanel}
+        attachmentLines={attachmentLines}
         inline={inline}
         leaving={leaving.ways}
         onUnsubscribe={() => void leaving.unsubscribe()}

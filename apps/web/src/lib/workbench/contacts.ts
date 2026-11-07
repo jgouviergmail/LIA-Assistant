@@ -25,6 +25,7 @@ import type {
   WorkbenchContact,
   WorkbenchContactSummary,
 } from './types';
+import type { ProposedContact, ProposedValue } from './assist';
 
 /** A line of a contact's history, as its tool's address reads it. */
 const HISTORY_HIT: Omit<SearchHit, 'id'> = {
@@ -233,6 +234,65 @@ export const CONTACT_KINDS: Readonly<Record<ContactList, readonly string[]>> = {
   phones: ['mobile', 'home', 'work', 'other'],
   addresses: ['home', 'work', 'other'],
 };
+
+/**
+ * @param fields - The card as it stands.
+ * @param values - What the person kept of what their messages say.
+ * @returns The card with them: a phone joins the others, anything else fills its blank.
+ */
+export function withFoundValues(
+  fields: ContactFields,
+  values: readonly ProposedValue[]
+): ContactFields {
+  const said = (field: string) => values.find(found => found.field === field)?.value;
+  const address = said('address');
+  return {
+    ...fields,
+    organization: fields.organization || said('organization') || '',
+    job_title: fields.job_title || said('job_title') || '',
+    website: fields.website || said('website') || '',
+    phones: [
+      ...fields.phones,
+      ...values
+        .filter(found => found.field === 'phone')
+        .map(found => ({ value: found.value, type: 'work' })),
+    ],
+    addresses:
+      fields.addresses.length === 0 && address
+        ? [{ formatted: address, type: 'work' }]
+        : fields.addresses,
+  };
+}
+
+/** @returns A list with the values it does not hold yet: reading a card twice adds nothing twice. */
+function withNewValues(list: readonly ContactValue[], values: readonly string[]): ContactValue[] {
+  const held = new Set(list.map(entry => entry.value.trim().toLowerCase()));
+  const fresh = values.filter(value => !held.has(value.trim().toLowerCase()));
+  return [...list, ...fresh.map(value => ({ value, type: 'work' }))];
+}
+
+/**
+ * @param fields - The form as the person left it.
+ * @param card - A business card read.
+ * @returns The form with it: what they typed stays, a value joins a list.
+ */
+export function withCard(fields: ContactFields, card: ProposedContact): ContactFields {
+  const named = [card.given_name, card.family_name].filter(Boolean).join(' ');
+  return {
+    ...fields,
+    given_name: fields.given_name || card.given_name,
+    family_name: fields.family_name || card.family_name,
+    name: fields.name || named || card.organization,
+    organization: fields.organization || card.organization,
+    job_title: fields.job_title || card.job_title,
+    website: fields.website || card.website,
+    emails: withNewValues(fields.emails, card.emails),
+    phones: withNewValues(fields.phones, card.phones),
+    addresses: card.address
+      ? [...fields.addresses, { formatted: card.address, type: 'work' }]
+      : fields.addresses,
+  };
+}
 
 export const EMPTY_CONTACT: ContactFields = {
   name: '',

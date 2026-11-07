@@ -3,7 +3,8 @@
 The person's own door to their connected services: mail, calendar, tasks, contacts, files
 (Google Drive or OneDrive) and Hue lights, consulted and acted on **by hand, with no model in the path**. The decisions are
 [ADR-369](../architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md); this page is
-the map of the code.
+the map of the code. What a click asks of LIA from these screens is another door, in another bounded
+context: [TOOL_ASSISTS.md](TOOL_ASSISTS.md).
 
 ## Where it lives
 
@@ -35,6 +36,11 @@ the map of the code.
 | `previews.py` | The best a document can be read as, for the mail and the files: its type names the page's viewer. |
 | `selection_acts.py` | An act on a selection, item by item, a few at a time, each answered (`ActOutcome`). |
 
+Every form of the Tools opens and ends through `components/workbench/ToolForm.tsx`: a head at the
+left, acts that stack the whole width on a phone, one « Cancel » and one way of asking
+(`useToolConfirm`); a list is `components/ui/native-select.tsx`. `toolForm.guard.test.ts` refuses a
+tool's own.
+
 On the web side, the frame is `WorkbenchShell` (the availability read once, the row of tools
 above the open one) and every vertical pane a person sizes by hand on a large screen is declared
 once in `lib/workbench/panes.ts` (its bounds and the share of its row it may take), drawn through
@@ -44,8 +50,11 @@ runs the whole window: the dashboard layout gives it `PAGE_FRAME_WINDOW` (`lib/d
 from `lg`, and every other page keeps the rail.
 
 The tool's name is said by the open pill of the rail, which also names the vendor
-(`providerVendor`); the page's `h1` is for the outline and the ear, and the tool's actions end the
-rail's row through a portal (`WorkbenchActionsSlot`), so a tool starts right under it. They hold
+(`providerVendor`); the page's `h1` is for the outline and the ear, and the tool's actions follow
+the rail through a portal (`WorkbenchActionsSlot`), so a tool starts right under them: on the
+rail's own row from `xl`, on a line of their own below it, the search and **Refresh** at its start
+and the act the tool leads with at its end (`WORKBENCH_HEADER_PRIMARY`). Its square buttons share
+one size (`WORKBENCH_HEADER_ICON`). They hold
 **Refresh** (`WorkbenchToolHeader`, `useToolRefresh`): the screen re-reads what it shows, and
 coming back to the page after `WORKBENCH_RETURN_REREAD_MIN_MS` does it unasked. An unasked re-read takes nothing away (`useWorkbenchPage`, `useWorkbenchItem`): it
 leaves alone a listing of several pages, a read still on its way and a failed one, and it keeps
@@ -66,7 +75,19 @@ PDF.js (`lib/workbench/pdf-document.ts`, its runtime copied by `scripts/copy-pdf
 by page as they come near, `viewers/WordViewer.tsx` hands docx-preview's output
 (`lib/workbench/word-html.ts`) to `AuthoredHtmlFrame`, and `viewers/MarkdownViewer.tsx` lets React
 draw a Markdown. `DetailClose` is the way out of a detail: a cross beside the list, the tool's name
-where the detail takes the screen.
+where the detail takes the screen. `DetailBar` holds it and what can be done, a task's detail
+included: a tool declares its acts (`DetailAct`), the bar draws them as icons at its end at every
+width, what is less common behind « … », never opened for one act. An act that must be told where
+(`choices`, the calendar's « Move to… ») opens its own list under its icon, even for one place.
+Where the room runs out, larger text on a small phone, the tool's name gives way, then the icons
+take another line: an act is never cut. Whatever order a tool declares, every bar ends on the
+deletion, then the question to LIA (`askAct`), « … » before them; the mail's reader, which draws its
+own toolbar, keeps that order.
+
+From `xl` the mailbox opens on the inbox's newest message (`useFirstLook`), the reader standing
+beside a list it would replace below. Nobody opened it, so it rides no address, `useReadAfterLook`
+leaves it unread and a message arriving does not take its place; closing it, opening a message or
+leaving the inbox lets go of it for the visit.
 
 A text is drawn through `components/ui/linked-text.tsx`: `lib/text-links.ts` reads it in one pass
 (ADR-326), turns the API's `[link](address)` into the host's name, keeps an address a person wrote
@@ -96,7 +117,7 @@ All under `/api/v1/workbench`, behind the capability guard and the session cooki
 | | `POST /mail/send` · `/mail/reply` · `/mail/forward` | Once per submission; words, files, an alias, formatted words (`html`, rebuilt by `infrastructure/email/html_body`) |
 | | `GET /mail/reply-recipients` | Who a reply would reach, by the clients' own rule, read when the person answers |
 | | `POST /mail/files` | A file of the device kept for a message, as an upload under the same deadline (`PlatformCapability.ATTACHMENTS`) |
-| | `GET` `POST /mail/drafts` · `GET /mail/draft` · `POST /mail/drafts/send` · `/mail/drafts/trash` | Drafts, against their revision; files join and leave by name, and a quiet composer saves by itself (`draft_autosave_seconds`) |
+| | `GET` `POST /mail/drafts` · `GET /mail/draft` · `POST /mail/drafts/send` · `/mail/drafts/trash` | Drafts, against their revision; files join and leave by name, and a quiet composer saves by itself (`draft_autosave_seconds`). A first save may name an `origin`: a reply or a forward kept in its thread, the provider's own reply or forward draft, saved once and never by itself |
 | | `GET /mail/recipients` · `GET /mail/attachable` | Contact suggestions for an address being typed — a message's recipients AND an event's guests (`lib/workbench/recipients.ts`) · the person's own files a message may carry |
 | | `GET` `PUT /mail/vacation` · `GET` `POST` `DELETE /mail/filters` | The vacation responder and the filters: Gmail's, and Outlook's automatic replies and rules |
 | | `GET` `PUT /mail/signature` | What the active mailbox signs with, on every provider, from LIA's own records (`connectors/preferences/mail_signature`) |
@@ -165,7 +186,7 @@ Every refusal is a `detail.code` with a sentence in six languages on the page
 `too_many_cards`, `not_a_contacts_file`, `not_an_image`, `invalid_recipient`, `invalid_request`,
 `event_left_behind`, `task_left_behind`, `event_start_outside_series`, `already_submitted` (with the
 outcome), `outcome_unknown`, `not_supported_by_provider` (with the bound and field when a list is
-too long).
+too long). The six `assist_*` codes share this vocabulary: [TOOL_ASSISTS.md](TOOL_ASSISTS.md).
 
 ## Adding a gesture or a provider
 

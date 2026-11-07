@@ -7,8 +7,10 @@
  * first, the system places (their role named in the reader's language), then
  * the person's own folders — Gmail's labels — each under its parent, the door
  * to the label manager where the provider has one, and the mailbox settings
- * every mailbox has. Below `lg`, a native select above the messages (what the keyboard and
- * the screen reader already know), each folder named whole. What a folder leaves
+ * every mailbox has. Below `lg`, a list above the messages as wide as the pane: a phone
+ * draws a native one as narrow as it likes, and cuts the labels. It holds what the column
+ * holds, in its order: each place, then the person's own under their title, each under its
+ * parent and told whole. What a folder leaves
  * unread is the provider's own counter (ADR-185), read apart from the folders; a
  * folder it did not read draws none. A row dragged here lands on a place or on a
  * folder of the person's own (`takesDrop`), never on what is listed or on a view.
@@ -23,7 +25,7 @@ import {
   Inbox,
   type LucideIcon,
   OctagonAlert,
-  PenSquare,
+  Plus,
   Send,
   Settings2,
   Star,
@@ -35,6 +37,15 @@ import { useId, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -59,6 +70,8 @@ const ROLE_ICONS: Readonly<Record<MailRole, LucideIcon>> = {
 const FOLDER_INDENT_REM = 0.75;
 const FOLDER_INDENT_MAX_DEPTH = 4;
 const FOLDER_PADDING_REM = 0.625;
+/** Where an option's words start in the list: past the mark of the open one. */
+const OPTION_PADDING_REM = 2;
 
 export interface FolderPaneProps {
   lng: Language;
@@ -233,7 +246,7 @@ export function FolderColumn({
       )}
     >
       <Button onClick={onCompose} className="w-full justify-start gap-2">
-        <PenSquare className="h-4 w-4" aria-hidden="true" />
+        <Plus className="h-4 w-4" aria-hidden="true" />
         {t('workbench.mail.new_message')}
       </Button>
       {folders === undefined ? (
@@ -299,7 +312,48 @@ export function FolderColumn({
   );
 }
 
-/** The select above the messages (below `lg`). */
+/** One folder of the list: the eye reads it from its place, the ear is told it whole. */
+function FolderOption({
+  folder,
+  name,
+  depth = 0,
+  icon: Icon,
+  unread,
+  unreadLabel,
+}: {
+  folder: MailFolder;
+  name: string;
+  depth?: number;
+  icon: LucideIcon;
+  unread: number | undefined;
+  unreadLabel: (name: string, count: number) => string;
+}) {
+  const indent = Math.min(depth, FOLDER_INDENT_MAX_DEPTH) * FOLDER_INDENT_REM;
+  const whole = folder.kind === 'user' ? (folder.name ?? name) : name;
+  return (
+    <SelectItem
+      value={folder.id}
+      textValue={name}
+      style={depth > 0 ? { paddingInlineStart: `${OPTION_PADDING_REM + indent}rem` } : undefined}
+      className="[&>span:last-child]:min-w-0 [&>span:last-child]:flex-1"
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span aria-hidden="true" className="min-w-0 flex-1 break-words">
+          {name}
+        </span>
+        {unread ? (
+          <span aria-hidden="true" className="shrink-0 text-xs font-semibold tabular-nums">
+            {unread}
+          </span>
+        ) : null}
+        <span className="sr-only">{unread ? unreadLabel(whole, unread) : whole}</span>
+      </span>
+    </SelectItem>
+  );
+}
+
+/** The list above the messages (below `lg`). */
 export function FolderSelect({
   lng,
   folders,
@@ -315,39 +369,52 @@ export function FolderSelect({
   const own = useOwnFolders(folders, lng);
   if (!folders || folders.length === 0) return null;
   const known = folders.some(folder => folder.id === openId);
-  const optionName = (folder: MailFolder) => {
-    const own = labels ? 'workbench.mail.label_option' : 'workbench.mail.folder_option';
-    const name = folder.kind === 'user' ? t(own, { name: nameOf(folder) }) : nameOf(folder);
-    const count = unread?.[folder.id];
-    return count ? t('workbench.mail.folder_unread', { name, count }) : name;
-  };
-  const ordered = [
-    ...folders.filter(folder => folder.kind !== 'user'),
-    ...own.map(node => node.folder),
-  ];
+  const unreadLabel = (name: string, count: number) =>
+    t('workbench.mail.folder_unread', { name, count });
+  const places = folders.filter(folder => folder.kind !== 'user');
   return (
     <div className="border-b px-3 py-2 lg:hidden">
-      <Label id={`${id}-label`} htmlFor={id} className="sr-only">
+      <Label id={`${id}-label`} className="sr-only">
         {t('workbench.mail.folder')}
       </Label>
-      <select
-        id={id}
-        aria-labelledby={`${id}-label`}
-        value={known ? openId : ''}
-        onChange={event => onPick(event.target.value)}
-        className="h-11 w-full rounded-md border border-input bg-card px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {!known && (
-          <option value="" disabled>
-            {t('workbench.mail.folder')}
-          </option>
-        )}
-        {ordered.map(folder => (
-          <option key={folder.id} value={folder.id}>
-            {optionName(folder)}
-          </option>
-        ))}
-      </select>
+      <Select value={known ? openId : ''} onValueChange={onPick}>
+        <SelectTrigger
+          aria-labelledby={`${id}-label`}
+          className="h-11 rounded-md bg-card font-semibold"
+        >
+          <SelectValue placeholder={t('workbench.mail.folder')} />
+        </SelectTrigger>
+        <SelectContent className="w-[var(--radix-select-trigger-width)]">
+          {places.map(folder => (
+            <FolderOption
+              key={folder.id}
+              folder={folder}
+              name={nameOf(folder)}
+              icon={folder.role ? ROLE_ICONS[folder.role] : Folder}
+              unread={unread?.[folder.id]}
+              unreadLabel={unreadLabel}
+            />
+          ))}
+          {own.length > 0 && (
+            <SelectGroup>
+              <SelectLabel>
+                {t(labels ? 'workbench.mail.labels_title' : 'workbench.mail.own_folders_title')}
+              </SelectLabel>
+              {own.map(({ folder, name, depth }) => (
+                <FolderOption
+                  key={folder.id}
+                  folder={folder}
+                  name={name}
+                  depth={depth}
+                  icon={labels ? Tag : Folder}
+                  unread={unread?.[folder.id]}
+                  unreadLabel={unreadLabel}
+                />
+              ))}
+            </SelectGroup>
+          )}
+        </SelectContent>
+      </Select>
       {truncated && (
         <p role="status" className="mt-2 text-xs text-muted-foreground">
           {t('workbench.mail.folders_truncated')}

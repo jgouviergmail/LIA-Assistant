@@ -5,8 +5,8 @@ cannot silently stop being true.
 
 | Map | What it answers |
 |---|---|
-| Functional map | What LIA does: every functional brick grouped in families, its role, its goal, what it relies on, what relies on it, and nine commented journeys (a request becoming an action, a ReAct question, LIA taking the initiative, a live voice session…). |
-| Technical map | How LIA is built: ten layers from the screen to the database, each brick with its stack, its paths in this repository and its dependencies, and six technical journeys (a chat message, a model call, a background job, a live session, a delivery, an incident). |
+| Functional map | What LIA does: every functional brick grouped in families, its role, its goal, what it relies on, what relies on it, and ten commented journeys (a request becoming an action, a ReAct question, LIA taking the initiative, a live voice session…). |
+| Technical map | How LIA is built: ten layers from the screen to the database, each brick with its stack, its paths in this repository and its dependencies, and seven technical journeys (a chat message, a model call, a background job, a live session, a delivery, an incident…). |
 | Decision history | Why LIA is the way it is: every architecture decision told in a few plain sentences, filed under one of twelve themes, grouped in chapters, placed among the releases, and linked to the bricks it shaped. |
 
 They are published twice, from ONE set of data:

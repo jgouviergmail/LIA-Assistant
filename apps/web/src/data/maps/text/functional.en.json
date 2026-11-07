@@ -157,9 +157,9 @@
     },
     "f.connectors": {
       "name": "Connectors and Tools",
-      "role": "Google, Microsoft, Apple and the services with a personal key; one consent journey per provider, one active provider per category, files included: Google Drive or OneDrive. Keyless services are switched on for everyone by the administrator. In Tools you act yourself, with no AI call, on your mail, calendar, tasks, contacts, files and Hue lights: each screen offers what its provider supports, one search reads them all, and your gestures stay out of LIA's registers.",
+      "role": "Google, Microsoft, Apple and the services with a personal key; one consent journey per provider, one active provider per category, files included: Google Drive or OneDrive. Keyless services are switched on for everyone by the administrator. In Tools you act yourself, with no AI call, on your mail, calendar, tasks, contacts, files and Hue lights: each screen offers what its provider supports, one search reads them all, and your gestures stay out of LIA's registers. The yellow stars ask for something else: one click, one call to LIA, a proposal you finish by hand, traced and billed as an act of LIA.",
       "goal": "Connect your real accounts once, and have them stay connected.",
-      "src": "2893800457d4"
+      "src": "d1bf7424213a"
     },
     "f.mail": {
       "name": "Emails",

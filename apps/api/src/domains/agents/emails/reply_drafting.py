@@ -45,7 +45,7 @@ class DraftedReply(BaseModel):
     )
 
 
-def _received(original: dict[str, Any]) -> str:
+def received_as_external(original: dict[str, Any]) -> str:
     """The received e-mail as external content: its headers, then its first part."""
     first_part, _parts = paginate_body(
         str(original.get("body") or ""), part=1, part_tokens=settings.emails_body_part_tokens
@@ -92,7 +92,7 @@ async def draft_reply_body(
     """
     rendered = load_prompt("mailbox_reply_draft_prompt").format(
         instruction=instruction or "",
-        original=_received(original),
+        original=received_as_external(original),
         sender_name=sender_name or "unknown",
         user_language=get_language_name(user_language),
     )
@@ -113,4 +113,4 @@ async def draft_reply_body(
     return body
 
 
-__all__ = ["DraftedReply", "draft_reply_body"]
+__all__ = ["DraftedReply", "draft_reply_body", "received_as_external"]

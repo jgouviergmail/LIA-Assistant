@@ -63,7 +63,6 @@ from src.core.constants import (
     DEFAULT_TOOL_TIMEOUT_SECONDS,
     EFFECT_ACTIVITY_MAX_ACTIONS_DEFAULT,
     EFFECT_ACTIVITY_WINDOW_DAYS_DEFAULT,
-    EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
     EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
     EXPRESSIVITY_ENABLED_DEFAULT,
     EXTRACTION_MAX_DELETES_PER_RUN_DEFAULT,
@@ -169,6 +168,7 @@ from src.core.constants import (
     MEMORY_CONSOLIDATION_HOUR_DEFAULT,
     MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT,
     MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT,
+    MEMORY_CONTENT_MAX_CHARS_DEFAULT,
     MEMORY_DEDUP_MIN_SCORE_DEFAULT,
     MEMORY_DEDUP_SEARCH_LIMIT_DEFAULT,
     MEMORY_EMBEDDING_DIMENSIONS_DEFAULT,
@@ -1834,6 +1834,17 @@ class AgentsSettings(BaseSettings):
             "Higher values provide more context but increase token usage."
         ),
     )
+    memory_content_max_chars: int = Field(
+        default=MEMORY_CONTENT_MAX_CHARS_DEFAULT,
+        ge=100,
+        le=2000,
+        description=(
+            "Longest text one memory may hold, in characters. Enforced on every writer "
+            "(settings form, assistant, extraction) and published to the form and to the "
+            "extraction prompt. Read at startup. Lowering it leaves longer memories "
+            "readable; they must be shortened the next time they are edited."
+        ),
+    )
     memory_min_search_score: float = Field(
         default=MEMORY_MIN_SEARCH_SCORE_DEFAULT,
         ge=0.0,
@@ -2122,10 +2133,6 @@ class AgentsSettings(BaseSettings):
     response_prompt_version: str = Field(
         default=RESPONSE_PROMPT_VERSION_DEFAULT,
         description="Response node system prompt version (for A/B testing and rollbacks)",
-    )
-    emails_agent_prompt_version: str = Field(
-        default=EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
-        description="Gmail agent system prompt version (for A/B testing and rollbacks)",
     )
     hitl_classifier_prompt_version: str = Field(
         default=HITL_CLASSIFIER_PROMPT_VERSION_DEFAULT,

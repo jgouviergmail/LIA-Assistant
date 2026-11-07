@@ -4,7 +4,7 @@
 
 **Version** : 7.0
 **Date** : 2026-11-06
-**Application** : LIA v4.4.0
+**Application** : LIA v4.5.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ La mécanique est expliquée dans [le guide technique](/how). La façon dont le 
 
 ## 2. Ce que LIA fait pour toi
 
-Ouvre **Outils** lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.
+Ouvre **Outils** lorsque tu veux faire toi-même : mails, agenda, tâches, contacts, fichiers et lumières Hue passent par les services que tu as connectés. Tu cliques, modifies et envoies directement, sans appel à une IA, et les étoiles jaunes demandent à LIA de résumer ou de rédiger quand tu le veux, coût affiché. Chaque écran propose seulement ce que son fournisseur sait faire ; tes gestes t’appartiennent et ne sont pas inscrits dans les registres de LIA.
 
 Tu lui parles normalement, à l'écrit ou à la voix. L'interface existe en six langues (français, anglais, allemand, espagnol, italien, chinois) et ta dictée est transcrite dans la langue de ton compte. Une vingtaine d'agents spécialisés se partagent le travail : tes données personnelles, le web, la création, la maison connectée, la navigation sur des sites et l'anticipation.
 

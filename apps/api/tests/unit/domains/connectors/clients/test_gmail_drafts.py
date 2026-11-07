@@ -310,6 +310,33 @@ class TestCreate:
         assert draft["subject"] == "Re: Budget 2027"
         assert "> Voici le budget." in draft["body"]
 
+    async def test_a_reply_draft_goes_to_those_the_person_chose_with_their_files(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        file = OutgoingAttachment("note.txt", "text/plain", b"hello")
+
+        draft = await client.create_reply_draft(
+            "orig-1", "Validé.", to="anne@example.com", cc="", attachments=(file,)
+        )
+
+        stored = _stored(gmail, draft[FIELD_MAILBOX_DRAFT_ID])
+        assert draft["threadId"] == "thread-9"
+        assert stored["To"] == "anne@example.com"
+        assert stored["Cc"] is None
+        assert [p.get_filename() for p in stored.iter_attachments()] == ["note.txt"]
+
+    async def test_a_forward_draft_adds_the_persons_files_after_the_originals(
+        self, client: GoogleGmailClient, gmail: FakeGmail
+    ) -> None:
+        file = OutgoingAttachment("note.txt", "text/plain", b"hello")
+
+        draft = await client.create_forward_draft(
+            "orig-1", "marie@example.com", attachments=(file,)
+        )
+
+        stored = _stored(gmail, draft[FIELD_MAILBOX_DRAFT_ID])
+        assert [p.get_filename() for p in stored.iter_attachments()] == ["budget.pdf", "note.txt"]
+
     async def test_a_forward_draft_carries_the_files(
         self, client: GoogleGmailClient, gmail: FakeGmail
     ) -> None:

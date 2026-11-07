@@ -5,11 +5,17 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { DialogModalContext, useDialogFocusReturn } from './dialog-focus';
+import {
+  DialogModalContext,
+  InsideModalDialogContext,
+  useDialogFocusReturn,
+} from './dialog-focus';
 
 const Dialog = (props: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Root>) => (
   <DialogModalContext.Provider value={props.modal ?? true}>
-    <DialogPrimitive.Root {...props} />
+    <InsideModalDialogContext.Provider value={props.modal ?? true}>
+      <DialogPrimitive.Root {...props} />
+    </InsideModalDialogContext.Provider>
   </DialogModalContext.Provider>
 );
 

@@ -327,6 +327,84 @@ function stored(overrides: Partial<MailDraft> = {}): MailDraft {
 
 const HELD = { id: 'a1', filename: 'kept.pdf', mime_type: 'application/pdf', size: 10 };
 
+describe('useComposer — an answer kept as a draft', () => {
+  const reply: ComposerTarget = { kind: 'reply', message: ANSWERED, all: false };
+
+  it('keeps a reply in its thread, leaving the provider to say whom it reaches', async () => {
+    const saveDraft = vi.fn().mockResolvedValue(stored());
+    const { result } = composer(reply, writing({ saveDraft }));
+    act(() => result.current.set({ body: 'Later' }));
+
+    await act(() => result.current.saveDraft());
+
+    const body = saveDraft.mock.calls[0][0];
+    expect(body.origin).toEqual({ message_id: 'm1', kind: 'reply' });
+    expect(body.body).toBe('Later');
+    for (const left of ['to', 'cc', 'bcc', 'subject']) expect(body[left]).toBeUndefined();
+  });
+
+  it('names whom a reply to all reaches once the person sees it', async () => {
+    const saveDraft = vi.fn().mockResolvedValue(stored());
+    const replyRecipients = vi.fn().mockResolvedValue(REACHED);
+    const { result } = composer(
+      { kind: 'reply', message: ANSWERED, all: true },
+      writing({ saveDraft, replyRecipients })
+    );
+    await act(async () => undefined);
+
+    await act(() => result.current.saveDraft());
+
+    expect(saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: { message_id: 'm1', kind: 'reply_all' },
+        to: ['ana@example.org'],
+        cc: ['carl@example.org'],
+      })
+    );
+  });
+
+  it('names what a forward carries and whom it goes to', async () => {
+    const saveDraft = vi.fn().mockResolvedValue(stored());
+    const { result } = composer({ kind: 'forward', message: ANSWERED }, writing({ saveDraft }));
+    act(() => result.current.set({ to: 'ana@example.org', files: [FILE] }));
+
+    await act(() => result.current.saveDraft());
+
+    const body = saveDraft.mock.calls[0][0];
+    expect(body.origin).toEqual({ message_id: 'm1', kind: 'forward' });
+    expect(body.to).toEqual(['ana@example.org']);
+    expect(body.attachment_ids).toEqual(['f1']);
+    expect(body.bcc).toBeUndefined();
+  });
+
+  it('asks whom a forward goes to before keeping it', async () => {
+    const saveDraft = vi.fn();
+    const { result } = composer({ kind: 'forward', message: ANSWERED }, writing({ saveDraft }));
+
+    await act(() => result.current.saveDraft());
+
+    expect(saveDraft).not.toHaveBeenCalled();
+    expect(result.current.problem).toEqual({
+      field: 'to',
+      key: 'workbench.mail.compose.no_recipient',
+    });
+  });
+
+  it('never saves an answer by itself: a second save would lose what the first one quoted', async () => {
+    vi.useFakeTimers();
+    const saveDraft = vi.fn().mockResolvedValue(stored());
+    const { result } = composer(reply, writing({ saveDraft }), { autosaveMs: 1000 });
+    act(() => result.current.set({ body: 'Later' }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(saveDraft).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
+
 describe('useComposer — a draft’s files', () => {
   it('saves the files chosen with the words, then holds them as the draft’s', async () => {
     const saveDraft = vi.fn().mockResolvedValue(stored({ attachments: [HELD] }));

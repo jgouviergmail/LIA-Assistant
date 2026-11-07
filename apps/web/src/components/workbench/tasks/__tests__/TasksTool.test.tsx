@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  act,
   answerConfirmDialog,
   fireEvent,
   renderWithProviders,
@@ -27,10 +28,11 @@ import type {
 
 type ShellConfig = Pick<AppConfig, 'capabilities'> & { features: { workbench_enabled?: boolean } };
 
-const { api, nav, toast, media } = vi.hoisted(() => ({
+const { api, nav, toast, media, instance } = vi.hoisted(() => ({
+  instance: { assists: false },
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
   nav: { search: '', push: vi.fn(), replace: vi.fn() },
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }),
   media: { desktop: true },
 }));
 vi.mock('@/hooks/useAuth', () => ({
@@ -53,7 +55,10 @@ vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => media.desktop }))
 vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useAppConfig')>()),
   useAppConfig: () => ({
-    config: { features: { workbench_enabled: true }, capabilities: {} } satisfies ShellConfig,
+    config: {
+      features: { workbench_enabled: true },
+      capabilities: { tool_assists: { enabled: instance.assists, family: 'work' } },
+    } satisfies ShellConfig,
     loading: false,
     error: null,
   }),
@@ -87,6 +92,8 @@ function rail(state: WorkbenchToolState = 'ready'): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -115,6 +122,7 @@ let viewAnswer: DueTasks | Error;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  instance.assists = false;
   nav.search = '';
   media.desktop = true;
   tasksPage = { items: [task('t1'), task('t2')], next_page_token: null };
@@ -150,6 +158,220 @@ function tool() {
 function screenOf() {
   return renderWithProviders(tool());
 }
+
+describe('TasksTool — a sentence LIA reads', () => {
+  const FIELD = 'workbench.tasks.new_task';
+  const READ = 'workbench.assist.tasks.from_words';
+  const ANSWER = {
+    task: { title: 'Call the plumber', notes: '', due: '2026-11-06', list_name: 'Trip' },
+    usage: { tokens_in: 90, tokens_out: 9, tokens_cache: 0, cost_eur: 0.001, model_name: 'm' },
+  };
+
+  beforeEach(() => {
+    instance.assists = true;
+    api.post.mockImplementation((path: string) =>
+      Promise.resolve(path.startsWith('/tool-assists') ? ANSWER : task('t9'))
+    );
+  });
+
+  it('offers nothing while nothing is typed, and nothing where the instance withholds it', async () => {
+    const { user } = screenOf();
+
+    const field = await screen.findByRole('textbox', { name: FIELD });
+    expect(screen.queryByRole('button', { name: READ })).toBeNull();
+    await user.type(field, 'Call');
+
+    expect(screen.getByRole('button', { name: READ })).toBeInTheDocument();
+  });
+
+  it('never offers it on a closed instance', async () => {
+    instance.assists = false;
+    const { user } = screenOf();
+
+    await user.type(await screen.findByRole('textbox', { name: FIELD }), 'Call');
+
+    expect(screen.queryByRole('button', { name: READ })).toBeNull();
+  });
+
+  it('leaves what the person typed while it read', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    api.post.mockImplementation((path: string) =>
+      path.startsWith('/tool-assists')
+        ? new Promise(resolve => {
+            answer = resolve;
+          })
+        : Promise.resolve(task('t9'))
+    );
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'call the plumber');
+    await user.click(screen.getByRole('button', { name: READ }));
+    await user.type(field, ' today');
+    await act(async () => answer(ANSWER));
+
+    expect(field).toHaveValue('call the plumber today');
+  });
+
+  it('keeps the title in the field and the day beside it: nothing is added yet', async () => {
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'call the plumber friday, trip list');
+    await user.click(screen.getByRole('button', { name: READ }));
+
+    await waitFor(() => expect(field).toHaveValue('Call the plumber'));
+    expect(screen.getByText(/ · Trip/)).toBeInTheDocument();
+    expect(api.post.mock.calls.map(([path]) => path)).toEqual(['/tool-assists/tasks/from-words']);
+    expect(api.post.mock.calls[0][1]).toEqual({
+      sentence: 'call the plumber friday, trip list',
+      lists: ['Home', 'Trip'],
+    });
+  });
+
+  it('adds a task typed by hand to the list on screen', async () => {
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'Call the plumber');
+    await user.click(screen.getByRole('button', { name: 'workbench.tasks.add' }));
+
+    await waitFor(() =>
+      expect(posted('/workbench/tasks')?.[1]).toMatchObject({
+        title: 'Call the plumber',
+        list_id: 'l1',
+      })
+    );
+  });
+
+  it('adds it with its day and in the list it named, once the person presses', async () => {
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'call the plumber friday');
+    await user.click(screen.getByRole('button', { name: READ }));
+    await waitFor(() => expect(field).toHaveValue('Call the plumber'));
+    await user.click(screen.getByRole('button', { name: 'workbench.tasks.add' }));
+
+    await waitFor(() =>
+      expect(posted('/workbench/tasks')?.[1]).toMatchObject({
+        title: 'Call the plumber',
+        due: '2026-11-06',
+        list_id: 'l2',
+      })
+    );
+  });
+
+  it('leaves out what LIA read when the person says so', async () => {
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'call the plumber friday');
+    await user.click(screen.getByRole('button', { name: READ }));
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.assist.tasks.drop_read' })
+    );
+    await user.click(screen.getByRole('button', { name: 'workbench.tasks.add' }));
+
+    await waitFor(() => expect(posted('/workbench/tasks')).toBeDefined());
+    expect(posted('/workbench/tasks')?.[1]).not.toHaveProperty('due', '2026-11-06');
+  });
+
+  it('tells a refusal and keeps what was typed', async () => {
+    api.post.mockRejectedValueOnce(
+      new ApiError('no', 422, { detail: { code: 'assist_not_found' } })
+    );
+    const { user } = screenOf();
+    const field = await screen.findByRole('textbox', { name: FIELD });
+
+    await user.type(field, 'hello');
+    await user.click(screen.getByRole('button', { name: READ }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('workbench.errors.assist_not_found')
+    );
+    expect(field).toHaveValue('hello');
+  });
+});
+
+describe('TasksTool — the steps LIA proposes', () => {
+  const STEPS = 'workbench.assist.tasks.steps';
+  const ADD = 'workbench.assist.tasks.add_steps';
+  const ANSWER = { steps: ['Pack', 'Label'], usage: null };
+
+  async function opened() {
+    instance.assists = true;
+    nav.search = 'list=l1&task=t1';
+    api.post.mockImplementation((path: string) =>
+      Promise.resolve(path === '/tool-assists/tasks/steps' ? ANSWER : task('t9'))
+    );
+    const rendered = screenOf();
+    await rendered.user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    return rendered;
+  }
+
+  it('reads the task as the form holds it, and adds nothing by itself', async () => {
+    const { user } = await opened();
+
+    await user.click(await screen.findByRole('menuitem', { name: STEPS }));
+
+    expect(await screen.findByText('Pack')).toBeInTheDocument();
+    expect(posted('/tool-assists/tasks/steps')?.[1]).toEqual({ title: 'Task t1', notes: null });
+    expect(api.post.mock.calls.map(([path]) => path)).toEqual(['/tool-assists/tasks/steps']);
+  });
+
+  it('adds what it proposed as subtasks, in order, when the person presses', async () => {
+    const { user } = await opened();
+
+    await user.click(await screen.findByRole('menuitem', { name: STEPS }));
+    await user.click(await screen.findByRole('button', { name: ADD }));
+
+    await waitFor(() =>
+      expect(api.post.mock.calls.filter(([path]) => path === '/workbench/tasks')).toHaveLength(2)
+    );
+    const made = api.post.mock.calls.filter(([path]) => path === '/workbench/tasks');
+    expect(made.map(([, body]) => body.title)).toEqual(['Pack', 'Label']);
+    expect(made[0][1]).toMatchObject({ parent: 't1' });
+    expect(made[0][1].idempotency_key).not.toBe(made[1][1].idempotency_key);
+    await waitFor(() => expect(screen.queryByText('Pack')).toBeNull());
+  });
+
+  it('goes on from where a refusal stopped it, adding nothing twice', async () => {
+    const { user } = await opened();
+    let refused = false;
+    api.post.mockImplementation((path: string, body: { title?: string }) => {
+      if (path === '/tool-assists/tasks/steps') return Promise.resolve(ANSWER);
+      if (body.title === 'Label' && !refused) {
+        refused = true;
+        return Promise.reject(new Error('down'));
+      }
+      return Promise.resolve(task('t9'));
+    });
+
+    await user.click(await screen.findByRole('menuitem', { name: STEPS }));
+    await user.click(await screen.findByRole('button', { name: ADD }));
+    await waitFor(() => expect(screen.queryByText('Pack')).toBeNull());
+    expect(screen.getByText('Label')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: ADD }));
+
+    await waitFor(() => expect(screen.queryByText('Label')).toBeNull());
+    const made = api.post.mock.calls.filter(([path]) => path === '/workbench/tasks');
+    expect(made.map(([, body]) => body.title)).toEqual(['Pack', 'Label', 'Label']);
+    expect(made[1][1].idempotency_key).toBe(made[2][1].idempotency_key);
+  });
+
+  it('offers no steps where the task cannot hold any', async () => {
+    tasksPage = { items: [task('t1', { parent: 't0' })], next_page_token: null };
+    instance.assists = true;
+    nav.search = 'list=l1&task=t1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+
+    await screen.findByRole('menuitem', { name: 'workbench.assist.remind.line' });
+    expect(screen.queryByRole('menuitem', { name: STEPS })).toBeNull();
+  });
+});
 
 describe('TasksTool — what another tool hands it', () => {
   it('holds the title for the person to confirm, and sends the notes with it', async () => {
@@ -291,7 +513,7 @@ describe('TasksTool', () => {
     nav.search = 'list=l1&task=t1';
     screenOf();
 
-    const back = await screen.findByRole('button', { name: 'workbench.tasks.back_to_list' });
+    const back = await screen.findByRole('button', { name: 'workbench.tools.tasks.label' });
     await waitFor(() => expect(back).toHaveFocus());
   });
 

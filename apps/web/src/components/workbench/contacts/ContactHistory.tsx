@@ -110,7 +110,7 @@ function Column({
 }) {
   return (
     <section aria-label={title} className="min-w-0 rounded-lg border bg-card">
-      <h4 className="flex items-center gap-2 border-b px-3 py-2 text-sm font-semibold">
+      <h4 className="flex items-center gap-2 rounded-t-lg border-b bg-muted/60 px-3 py-2 text-sm font-semibold">
         <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         {title}
       </h4>

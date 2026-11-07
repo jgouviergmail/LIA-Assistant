@@ -24,6 +24,7 @@ import pytest
 from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm.catalogue.vendor_announcements import VENDOR_SHUTDOWNS
 from tests.unit.infrastructure.llm.reasoning.test_family_coverage import _catalogue_rows
+from tests.unit.seed_extraction import retired_by_the_operator
 
 pytestmark = pytest.mark.unit
 
@@ -119,6 +120,7 @@ def test_every_catalogue_row_equals_its_seed_row_column_for_column() -> None:
             column: (value, seed_row[column])
             for column, value in params.items()
             if _as_seed_text(column, value) != seed_row[column]
+            and not retired_by_the_operator(name, column)
         }
         assert mismatches == {}, f"{name}: {mismatches}"
 

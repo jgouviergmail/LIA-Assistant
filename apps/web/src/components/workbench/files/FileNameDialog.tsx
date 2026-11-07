@@ -10,11 +10,12 @@
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { isOneName } from '@/lib/workbench/files';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface FileNameDialogProps {
   lng: Language;
@@ -59,9 +60,9 @@ export function FileNameDialog({
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+        </ToolDialogHeader>
         <form className="space-y-3" onSubmit={event => void submit(event)}>
           <Input
             aria-label={t('workbench.files.name_label')}
@@ -76,14 +77,12 @@ export function FileNameDialog({
               {t('workbench.files.name_is_one')}
             </p>
           )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={onClose} />
             <Button type="submit" isLoading={busy}>
               {submitLabel}
             </Button>
-          </div>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>

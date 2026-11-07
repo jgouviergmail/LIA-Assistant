@@ -33,12 +33,13 @@ import type {
 
 type ShellConfig = Pick<AppConfig, 'capabilities'> & { features: { workbench_enabled?: boolean } };
 
-const { api, nav, toast, media, openChat } = vi.hoisted(() => ({
+const { api, nav, toast, media, openChat, instance } = vi.hoisted(() => ({
   openChat: vi.fn(),
+  instance: { assists: false },
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
   nav: { search: '', push: vi.fn(), replace: vi.fn() },
   toast: { error: vi.fn(), success: vi.fn() },
-  media: { desktop: true, androidShell: false, frameLinks: false },
+  media: { desktop: true, sideBySide: false, androidShell: false, frameLinks: false },
 }));
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'owner', timezone: 'Europe/Paris' } }),
@@ -62,17 +63,25 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: nav.push, replace: nav.replace, back: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(nav.search),
 }));
-vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => media.desktop }));
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: (query: string) =>
+    query === '(min-width: 1280px)' ? media.sideBySide : media.desktop,
+}));
 vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useAppConfig')>()),
   useAppConfig: () => ({
-    config: { features: { workbench_enabled: true }, capabilities: {} } satisfies ShellConfig,
+    config: {
+      features: { workbench_enabled: true },
+      capabilities: { tool_assists: { enabled: instance.assists, family: 'work' } },
+    } satisfies ShellConfig,
     loading: false,
     error: null,
   }),
 }));
 
 import { handOff, takeHandoff } from '@/lib/workbench/handoff';
+
+import { MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
 
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { MailTool } from '../MailTool';
@@ -102,6 +111,8 @@ function rail(
         bounds: ready
           ? {
               search_max_chars: 500,
+              assist_text_max_chars: 8000,
+              assist_instruction_max_chars: 500,
               recipients_max: 100,
               recipient_max_chars: 320,
               subject_max_chars: 998,
@@ -122,6 +133,8 @@ function rail(
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -187,8 +200,10 @@ let conversation: { items: MailSummary[]; truncated: boolean } | Error;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  instance.assists = false;
   nav.search = '';
   media.desktop = true;
+  media.sideBySide = false;
   media.androidShell = false;
   media.frameLinks = false;
   features = GMAIL;
@@ -398,17 +413,71 @@ describe('MailTool — the person’s folders', () => {
     expect(screen.getByRole('link', { name: 'Work' }).style.paddingInlineStart).toBe('');
   });
 
-  it('keeps the phone’s list in the same order, each named whole', async () => {
+  async function phoneList() {
     media.desktop = false;
+    const rendered = screenOf();
+    await rendered.user.click(
+      await screen.findByRole('combobox', { name: 'workbench.mail.folder' })
+    );
+    return { ...rendered, options: await screen.findAllByRole('option') };
+  }
+
+  it('keeps the phone’s list in the same order, each told whole', async () => {
     foldersAnswer({ folders: [...NESTED.folders].reverse() });
+    const { options } = await phoneList();
+
+    expect(options.slice(-3)).toEqual([
+      screen.getByRole('option', { name: 'Work' }),
+      screen.getByRole('option', { name: 'Work/Clients' }),
+      screen.getByRole('option', { name: 'Work/Clients/Acme' }),
+    ]);
+  });
+
+  it('draws the phone’s folder from its place, under the title of the person’s own', async () => {
+    foldersAnswer(NESTED);
+    await phoneList();
+
+    const own = screen.getByRole('group', { name: 'workbench.mail.labels_title' });
+    const nested = within(own).getByRole('option', { name: 'Work/Clients/Acme' });
+
+    expect(nested).toHaveTextContent(/Acme/);
+    expect(nested.style.paddingInlineStart).not.toBe('');
+    expect(within(own).getByRole('option', { name: 'Work' }).style.paddingInlineStart).toBe('');
+    expect(within(own).queryByRole('option', { name: /inbox/ })).toBeNull();
+  });
+
+  it('shows the phone what a folder leaves unread, and tells it whole', async () => {
+    unread = { counts: { 'system:inbox': 3 }, truncated: false };
+    foldersAnswer(NESTED);
+    await phoneList();
+
+    const inbox = screen.getByRole('option', { name: 'workbench.mail.folder_unread' });
+
+    expect(within(inbox).getByText('3')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('opens the folder the phone picks, and states the open one', async () => {
+    nav.search = 'folder=Label_7';
+    foldersAnswer(NESTED);
+    const { user } = await phoneList();
+
+    expect(screen.getByRole('option', { name: 'Work' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('option', { name: 'Work/Clients' }));
+
+    expect(nav.replace).toHaveBeenCalledWith('/en/dashboard/tools/mail?folder=Work%2FClients', {
+      scroll: false,
+    });
+  });
+
+  it('says « folder » on the phone when the open one is not listed', async () => {
+    nav.search = 'folder=gone';
+    foldersAnswer(NESTED);
+    media.desktop = false;
     screenOf();
 
-    const select = await screen.findByRole('combobox', { name: 'workbench.mail.folder' });
-    const names = within(select)
-      .getAllByRole('option')
-      .map(option => (option as HTMLOptionElement).value);
-
-    expect(names.slice(-3)).toEqual(['Label_7', 'Work/Clients', 'Work/Clients/Acme']);
+    expect(
+      await screen.findByRole('combobox', { name: 'workbench.mail.folder' })
+    ).toHaveTextContent('workbench.mail.folder');
   });
 
   it('says a mailbox holds more folders than were read', async () => {
@@ -694,6 +763,57 @@ describe('MailTool — a list by conversation', () => {
 
 describe('MailTool — the original layout', () => {
   const FRAME = 'workbench.mail.html_frame_title';
+
+  it('holds the words, the images and the colours on one line', async () => {
+    htmls = {
+      m1: { html: '<img src="https://tracker.example/p.gif"><p>Original</p>', truncated: false },
+    };
+    nav.search = 'id=m1';
+    screenOf();
+
+    const reader = await screen.findByRole('article', { name: 'Subject m1' });
+    const images = await within(reader).findByRole('button', {
+      name: 'workbench.mail.show_images',
+    });
+
+    expect(
+      within(reader).getByRole('button', { name: 'workbench.mail.show_text' }).parentElement
+    ).toBe(images.parentElement);
+  });
+
+  it('offers the answers above the message, under it, and where a phone’s page ends', async () => {
+    const answers = ['workbench.mail.reply', 'workbench.mail.reply_all', 'workbench.mail.forward'];
+    nav.search = 'id=m1';
+    const { user } = screenOf();
+
+    const reader = await screen.findByRole('article', { name: 'Subject m1' });
+    const [above, ending] = within(reader).getAllByRole('group', {
+      name: 'workbench.mail.answer_bar',
+    });
+    const under = within(reader).getByRole('navigation', { name: 'workbench.mail.answer_bar' });
+    const body = within(reader).getByText('Body of m1');
+
+    expect(
+      within(above)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(answers);
+    expect(
+      within(under)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(answers);
+    expect(
+      within(ending)
+        .getAllByRole('button')
+        .map(button => button.textContent)
+    ).toEqual(answers);
+    expect(above.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ending.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+
+    await user.click(within(above).getByRole('button', { name: 'workbench.mail.forward' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
 
   it('draws an HTML message in its frame, and its text on demand', async () => {
     htmls = { m1: { html: '<p>Original of m1</p>', truncated: false } };
@@ -1248,6 +1368,18 @@ describe('MailTool — sorting', () => {
   });
 });
 
+describe('MailTool — the header below lg', () => {
+  it('says « New email » in words, and offers the selection by its name', async () => {
+    media.desktop = false;
+    screenOf();
+
+    const [header] = await screen.findAllByRole('button', { name: 'workbench.mail.new_message' });
+
+    expect(header?.querySelector('.sr-only')).toBeNull();
+    expect(screen.getByRole('button', { name: 'workbench.mail.select' })).toBeInTheDocument();
+  });
+});
+
 describe('MailTool — the composer', () => {
   async function opened() {
     const rendered = screenOf();
@@ -1476,22 +1608,24 @@ describe('MailTool — printing a message', () => {
 
     await user.click(await screen.findByRole('button', { name: 'workbench.mail.more_actions' }));
 
-    await screen.findByRole('menuitem', { name: 'workbench.ask.label' });
+    await screen.findByRole('menuitem', { name: 'workbench.mail.archive' });
     expect(screen.queryByRole('menuitem', { name: 'workbench.mail.print' })).toBeNull();
   });
 });
 
+/** The rail with these tools ready beside the mailbox. */
+function answerRail(tools: readonly WorkbenchToolId[]) {
+  const base = rail('ready', features);
+  const others = tools.map(tool => ({ ...base.tools[0]!, tool }));
+  const reader = api.get.getMockImplementation();
+  api.get.mockImplementation((path: string, options?: { params?: { id?: string } }) =>
+    path === '/workbench'
+      ? Promise.resolve({ ...base, tools: [...base.tools, ...others] })
+      : reader?.(path, options)
+  );
+}
+
 describe('MailTool — from a message to the other tools', () => {
-  const answerRail = (tools: WorkbenchToolId[]) => {
-    const base = rail('ready', features);
-    const others = tools.map(tool => ({ ...base.tools[0]!, tool }));
-    const reader = api.get.getMockImplementation();
-    api.get.mockImplementation((path: string, options?: { params?: { id?: string } }) =>
-      path === '/workbench'
-        ? Promise.resolve({ ...base, tools: [...base.tools, ...others] })
-        : reader?.(path, options)
-    );
-  };
   const opened = async (tools: WorkbenchToolId[]) => {
     answerRail(tools);
     nav.search = 'id=m1';
@@ -1544,21 +1678,287 @@ describe('MailTool — from a message to the other tools', () => {
   it('offers no way to a tool that is not ready', async () => {
     await opened([]);
 
-    await screen.findByRole('menuitem', { name: 'workbench.ask.label' });
+    await screen.findByRole('menuitem', { name: 'workbench.mail.archive' });
     expect(screen.queryByRole('menuitem', { name: 'workbench.mail.to_task' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'workbench.mail.to_event' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'workbench.mail.to_contact' })).toBeNull();
   });
 
-  it('hands the message to the chat outside the address, nothing sent', async () => {
-    const { user } = await opened([]);
+  it('offers no « … » where it would list nothing', async () => {
+    answerRail([]);
+    media.androidShell = true;
+    nav.search = 'folder=system%3Atrash&id=m1';
+    screenOf();
 
+    await screen.findByRole('article', { name: 'Subject m1' });
+
+    expect(screen.getByRole('button', { name: 'workbench.ask.label' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'workbench.mail.more_actions' })).toBeNull();
+  });
+
+  it('hands the message to the chat outside the address, nothing sent', async () => {
+    answerRail([]);
+    nav.search = 'id=m1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.label' }));
 
     expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
     expect(nav.push).not.toHaveBeenCalled();
     expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('workbench.ask.mail');
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('hands a ready-made question to the chat, nothing sent', async () => {
+    answerRail([]);
+    nav.search = 'id=m1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.ready.mail' }));
+
+    expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
+    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe(
+      'workbench.ask.ready.mail_words'
+    );
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('opens « Remind me » on who wrote and what about, from the same list', async () => {
+    answerRail([]);
+    nav.search = 'id=m1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.assist.remind.line' }));
+
+    expect(await screen.findByLabelText('workbench.assist.remind.what')).toHaveValue(
+      'workbench.assist.remind.words.mail'
+    );
+  });
+});
+
+describe('MailTool — the bar of a message', () => {
+  const opened = async () => {
+    const rendered = screenOf();
+    await screen.findByRole('article', { name: 'Subject m1' });
+    return rendered;
+  };
+  const acts = () =>
+    within(screen.getByTestId('reader-acts'))
+      .getAllByRole('button')
+      .map(act => act.getAttribute('aria-label'));
+  const more = () => screen.findByRole('button', { name: 'workbench.mail.more_actions' });
+
+  beforeEach(() => {
+    nav.search = 'id=m1';
+  });
+
+  it('ends on the trash, then the question to LIA, « … » before them', async () => {
+    await opened();
+
+    expect(acts().slice(-3)).toEqual([
+      'workbench.mail.more_actions',
+      'workbench.mail.trash',
+      'workbench.ask.label',
+    ]);
+  });
+
+  it('holds archiving, moving and reporting spam behind « … », at every width', async () => {
+    const { user } = await opened();
+
+    expect(acts()).not.toContain('workbench.mail.archive');
+    expect(acts()).not.toContain('workbench.mail.move_to');
+    expect(acts()).not.toContain('workbench.mail.report_spam');
+    await user.click(await more());
+
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.slice(0, 3).map(item => item.textContent)).toEqual([
+      'workbench.mail.archive',
+      'workbench.mail.move_to',
+      'workbench.mail.report_spam',
+    ]);
+    expect(items.map(item => item.textContent)).not.toContain('workbench.ask.label');
+    items.forEach(item => expect(item).not.toHaveClass('sm:hidden'));
+  });
+
+  it('archives from « … »', async () => {
+    api.post.mockResolvedValue(MOVED);
+    const { user } = await opened();
+
+    await user.click(await more());
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.archive' }));
+
+    await waitFor(() =>
+      expect(posted('/workbench/mail/move')).toEqual({
+        message_ids: ['m1'],
+        to: 'system:archive',
+        origin: 'system:inbox',
+      })
+    );
+  });
+
+  it('asks for a folder from « … »', async () => {
+    const { user } = await opened();
+
+    await user.click(await more());
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.move_to' }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('reports spam from « … »', async () => {
+    api.post.mockResolvedValue(MOVED);
+    const { user } = await opened();
+
+    await user.click(await more());
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.report_spam' }));
+
+    await waitFor(() =>
+      expect(posted('/workbench/mail/move')).toEqual({
+        message_ids: ['m1'],
+        to: 'system:spam',
+        origin: 'system:inbox',
+      })
+    );
+  });
+
+  it('keeps the way back in the bar, and ends on the deletion for good', async () => {
+    features = OUTLOOK;
+    nav.search = 'folder=system:trash&id=m1';
+    await opened();
+
+    expect(acts().slice(-4)).toEqual([
+      'workbench.mail.restore',
+      'workbench.mail.more_actions',
+      'workbench.mail.delete_forever',
+      'workbench.ask.label',
+    ]);
+  });
+
+  it('says the act behind « … » is on its way, and refuses a second one', async () => {
+    const running = deferred<typeof MOVED>();
+    api.post.mockReturnValue(running.promise);
+    const { user } = await opened();
+
+    await user.click(await more());
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.archive' }));
+
+    await waitFor(async () => expect(await more()).toHaveAttribute('aria-busy', 'true'));
+    await user.click(await more());
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.report_spam' }));
+    expect(postsTo('/workbench/mail/move')).toBe(1);
+    running.answer(MOVED);
+    await waitFor(async () => expect(await more()).not.toHaveAttribute('aria-busy', 'true'));
+  });
+});
+
+describe('MailTool — a large screen opens on the newest message', () => {
+  const follow = (href: string) => {
+    nav.search = href.split('?')[1] ?? '';
+  };
+
+  beforeEach(() => {
+    media.sideBySide = true;
+  });
+
+  it('shows it beside the list, and the address stays what the person asked', async () => {
+    screenOf();
+
+    const reader = await screen.findByRole('article', { name: 'Subject m1' });
+
+    expect(within(reader).getByText('Body of m1')).toBeInTheDocument();
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it('leaves it unread: nobody opened it', async () => {
+    page = { items: [row('m2', { is_read: false }), row('m1')], next_page_token: null, skipped: 0 };
+    screenOf();
+
+    await screen.findByRole('article', { name: 'Subject m2' });
+    await new Promise(resolve => setTimeout(resolve, MAIL_READ_DWELL_MS + 300));
+
+    expect(postsTo('/workbench/mail/read-state')).toBe(0);
+  });
+
+  it('marks it read once the person opens it themselves', async () => {
+    page = { items: [row('m2', { is_read: false }), row('m1')], next_page_token: null, skipped: 0 };
+    api.post.mockResolvedValue({ done: ['m2'], failed: [] });
+    nav.push.mockImplementation(follow);
+    const { user, rerender } = screenOf();
+    await screen.findByRole('article', { name: 'Subject m2' });
+
+    await user.click(await screen.findByRole('link', { name: /Subject m2/ }));
+    rerender(tool());
+
+    await waitFor(() => expect(postsTo('/workbench/mail/read-state')).toBe(1), { timeout: 3000 });
+    expect(posted('/workbench/mail/read-state')).toEqual({ message_ids: ['m2'], read: true });
+  });
+
+  it('stays closed once the person closes it', async () => {
+    const { user, rerender } = screenOf();
+    const reader = await screen.findByRole('article', { name: 'Subject m1' });
+
+    await user.click(within(reader).getByRole('button', { name: 'workbench.mail.close_message' }));
+
+    await waitFor(() => expect(screen.queryByRole('article')).toBeNull());
+    rerender(tool());
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it('gives its row the focus back when it closes', async () => {
+    const { user } = screenOf();
+    await screen.findByRole('article', { name: 'Subject m1' });
+
+    await user.keyboard('{Escape}');
+    fireEvent.keyDown(screen.getByRole('article', { name: 'Subject m1' }), { key: 'Escape' });
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Subject m1/ })).toHaveFocus());
+  });
+
+  it('opens nothing over the message the address names', async () => {
+    nav.search = 'id=m2';
+    screenOf();
+
+    await screen.findByRole('article', { name: 'Subject m2' });
+
+    expect(api.get).not.toHaveBeenCalledWith('/workbench/mail/message', {
+      params: { id: 'm1' },
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it('opens nothing in another folder', async () => {
+    nav.search = 'folder=system:sent';
+    screenOf();
+
+    await screen.findByRole('link', { name: /Subject m1/ });
+
+    expect(screen.queryByRole('article')).toBeNull();
+  });
+
+  it('opens nothing below the width that holds the list and the reader side by side', async () => {
+    media.sideBySide = false;
+    screenOf();
+
+    await screen.findByRole('link', { name: /Subject m1/ });
+
+    expect(screen.queryByRole('article')).toBeNull();
+  });
+
+  it('opens nothing in an empty inbox', async () => {
+    page = { items: [], next_page_token: null, skipped: 0 };
+    screenOf();
+
+    await screen.findByRole('button', { name: 'workbench.states.refresh' });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/workbench/mail/messages', expect.anything())
+    );
+
+    expect(screen.queryByRole('article')).toBeNull();
   });
 });
 
@@ -1626,6 +2026,202 @@ describe('MailTool — its keys', () => {
     expect(
       await screen.findByRole('dialog', { name: 'workbench.mail.compose.title_reply' })
     ).toBeInTheDocument();
+  });
+});
+
+describe('MailTool — what LIA does on a message', () => {
+  const SUMMARY_PATH = '/tool-assists/mail/summary';
+  const REPLY_PATH = '/tool-assists/mail/reply';
+  const ANSWER = {
+    gist: 'Ana asks for the budget.',
+    key_points: ['Due Friday'],
+    actions: ['Send the budget'],
+    category: 'work',
+    importance: 'high',
+    usage: { tokens_in: 90, tokens_out: 30, tokens_cache: 0, cost_eur: 0.001, model_name: 'm' },
+  };
+  const line = (name: string) => screen.findByRole('menuitem', { name });
+
+  async function opened(ready: readonly WorkbenchToolId[] = []) {
+    instance.assists = true;
+    answerRail(ready);
+    nav.search = 'id=m1';
+    api.post.mockImplementation((path: string) =>
+      Promise.resolve(path === REPLY_PATH ? { text: 'Dear Ana, yes.', usage: null } : ANSWER)
+    );
+    const rendered = screenOf();
+    await rendered.user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    return rendered;
+  }
+
+  it('asks nothing of a model until a line is pressed', async () => {
+    await opened();
+
+    await line('workbench.assist.mail.summary');
+
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('offers no line of a model where the instance withholds it', async () => {
+    answerRail([]);
+    nav.search = 'id=m1';
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+
+    expect(await line('workbench.assist.remind.line')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'workbench.assist.mail.summary' })).toBeNull();
+  });
+
+  it('sums the message up in the reader, by its id, with what it cost', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.summary'));
+
+    expect(await screen.findByText('Ana asks for the budget.')).toBeInTheDocument();
+    expect(screen.getByText('Due Friday')).toBeInTheDocument();
+    expect(posted(SUMMARY_PATH)).toEqual({ message_id: 'm1' });
+    expect(screen.getByText(/common\.llm_usage\.tokens/)).toBeInTheDocument();
+  });
+
+  it('leaves the message whole under the answer', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.summary'));
+    await screen.findByText('Ana asks for the budget.');
+
+    expect(screen.getByRole('heading', { name: 'Subject m1' })).toBeInTheDocument();
+    expect(screen.getByText('Body of m1')).toBeInTheDocument();
+  });
+
+  it('closes the answer, and the reader is as it was', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.summary'));
+    await screen.findByText('Ana asks for the budget.');
+    await user.click(screen.getByRole('button', { name: 'workbench.assist.close' }));
+
+    expect(screen.queryByText('Ana asks for the budget.')).toBeNull();
+  });
+
+  it('makes a task of an action it found, pointing back at the message', async () => {
+    const { user } = await opened(['tasks']);
+
+    await user.click(await line('workbench.assist.mail.summary'));
+    await user.click(
+      await screen.findByRole('button', { name: 'workbench.assist.mail.to_task' })
+    );
+
+    expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks');
+    const handed = takeHandoff('task');
+    expect(handed?.title).toBe('Send the budget');
+    expect(handed?.notes).toContain('/en/dashboard/tools/mail?id=m1');
+  });
+
+  it('opens the calendar on the event it read, the message linked: nothing is created', async () => {
+    const { user } = await opened(['calendar']);
+    const proposal = {
+      summary: 'Lunch with Ana',
+      start_date: '2026-11-05',
+      start_time: '12:00',
+      end_date: null,
+      end_time: null,
+      all_day: false,
+      location: '',
+      description: 'At the usual place',
+      attendees: [],
+      repeat: 'none',
+    };
+    api.post.mockResolvedValueOnce({ event: proposal, usage: null });
+
+    await user.click(await line('workbench.assist.mail.to_event'));
+
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/calendar'));
+    const handed = takeHandoff('event');
+    expect(handed?.summary).toBe('Lunch with Ana');
+    expect(handed?.proposal?.start_date).toBe('2026-11-05');
+    expect(handed?.description).toContain('At the usual place');
+    expect(handed?.description).toContain('/en/dashboard/tools/mail?id=m1');
+    expect(posted('/tool-assists/mail/event')).toEqual({ message_id: 'm1' });
+  });
+
+  it('opens the tasks on what it read, its day kept', async () => {
+    const { user } = await opened(['tasks']);
+    api.post.mockResolvedValueOnce({
+      task: { title: 'Send the budget', notes: '', due: '2026-11-06', list_name: null },
+      usage: null,
+    });
+
+    await user.click(await line('workbench.assist.mail.to_task_line'));
+
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks'));
+    const handed = takeHandoff('task');
+    expect(handed?.title).toBe('Send the budget');
+    expect(handed?.due).toBe('2026-11-06');
+  });
+
+  it('says it found no event, and goes nowhere', async () => {
+    const { user } = await opened(['calendar']);
+    api.post.mockRejectedValueOnce(
+      new ApiError('no', 422, { detail: { code: 'assist_not_found' } })
+    );
+
+    await user.click(await line('workbench.assist.mail.to_event'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('workbench.errors.assist_not_found');
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('offers no event where no calendar is ready', async () => {
+    await opened();
+
+    await line('workbench.assist.mail.summary');
+
+    expect(screen.queryByRole('menuitem', { name: 'workbench.assist.mail.to_event' })).toBeNull();
+  });
+
+  it('offers no task where no tasks tool is ready', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.summary'));
+    await screen.findByText('Send the budget');
+
+    expect(screen.queryByRole('button', { name: 'workbench.assist.mail.to_task' })).toBeNull();
+  });
+
+  it('tells a refusal in the reader, and leaves the message alone', async () => {
+    const { user } = await opened();
+    api.post.mockRejectedValueOnce(new ApiError('no', 429, { detail: { code: 'assist_quota' } }));
+
+    await user.click(await line('workbench.assist.mail.summary'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('workbench.errors.assist_quota');
+    expect(screen.getByText('Body of m1')).toBeInTheDocument();
+  });
+
+  it('opens the reply with LIA’s proposal, and writes nothing until the person says so', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.reply'));
+
+    expect(await screen.findByText('Dear Ana, yes.')).toBeInTheDocument();
+    expect(posted(REPLY_PATH)).toEqual({ message_id: 'm1', instruction: null });
+    // The proposal stands in a dialog over the composer, which it hides from the ear meanwhile.
+    expect(
+      screen.getByRole('textbox', { name: 'workbench.mail.compose.body', hidden: true })
+    ).toHaveValue('');
+  });
+
+  it('puts the proposal in the reply when the person takes it, and sends nothing', async () => {
+    const { user } = await opened();
+
+    await user.click(await line('workbench.assist.mail.reply'));
+    await user.click(await screen.findByRole('button', { name: 'workbench.assist.writing.use' }));
+
+    expect(
+      await screen.findByRole('textbox', { name: 'workbench.mail.compose.body' })
+    ).toHaveValue('Dear Ana, yes.');
+    expect(api.post).toHaveBeenCalledTimes(1);
   });
 });
 

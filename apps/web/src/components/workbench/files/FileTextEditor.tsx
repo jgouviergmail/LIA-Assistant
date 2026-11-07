@@ -6,30 +6,26 @@
  * The words are read when the window opens, with the version they are at, and written back on
  * that version: an edit made elsewhere meanwhile is refused, the words typed stay on the screen,
  * and the current version is one click away. Leaving with words unsaved asks first. Nothing here
- * reaches a model: the click is the confirmation.
+ * reaches a model unless the person asks LIA to write (`FieldAssist`, ADR-372): its words join the
+ * field, and the click on « Save » stays the confirmation.
  */
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import apiClient from '@/lib/api-client';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { WorkbenchFileDetail, WorkbenchFileText } from '@/lib/workbench/types';
+
+import { FieldAssist } from '../assist/FieldAssist';
+import { CancelButton, ToolActions, ToolDialogHeader, useToolConfirm } from '../ToolForm';
 
 const TEXT_PATH = '/workbench/files/text';
 const CONFLICT_KEY = 'workbench.errors.conflict';
@@ -44,7 +40,7 @@ export interface FileTextEditorProps {
 
 export function FileTextEditor({ lng, file, onClose, onSaved }: FileTextEditorProps) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const { id } = file;
   const {
     data: held,
@@ -100,19 +96,20 @@ export function FileTextEditor({ lng, file, onClose, onSaved }: FileTextEditorPr
     <>
       <Dialog open onOpenChange={open => !open && void leave()}>
         <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle className="truncate">
               {t('workbench.files.edit_title', { name: file.name })}
             </DialogTitle>
             <DialogDescription className="sr-only">
               {t('workbench.files.text_field')}
             </DialogDescription>
-          </DialogHeader>
+          </ToolDialogHeader>
           {failed && <p className="text-sm">{t('workbench.files.text_read_failed')}</p>}
           {!failed && held === undefined && <Skeleton className="h-64 w-full" />}
           {held !== undefined && (
             <Textarea
-              aria-label={t('workbench.files.text_field')}
+              label={t('workbench.files.text_field')}
+              labelEnd={<FieldAssist lng={lng} kind="document" value={text} onChange={setTyped} />}
               value={text}
               onChange={event => setTyped(event.target.value)}
               spellCheck={false}
@@ -131,14 +128,12 @@ export function FileTextEditor({ lng, file, onClose, onSaved }: FileTextEditorPr
               </AlertDescription>
             </Alert>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => void leave()}>
-              {t('workbench.files.text_cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={() => void leave()} />
             <Button disabled={!dirty || saving} onClick={() => void save()}>
               {t('workbench.files.text_save')}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </DialogContent>
       </Dialog>
       {confirmDialog}

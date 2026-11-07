@@ -18,7 +18,7 @@ There are TWO distinct message management mechanisms in the system:
 
 2. **AGENT_HISTORY_KEEP_LAST** (for ReAct agents):
    - Default: 50 messages
-   - Used by: contacts_agent, emails_agent, calendar_agent, etc.
+   - Used by: the compiled agents (browser, query)
    - Purpose: Keep tool results visible for context resolution
    - Implemented via: MessageHistoryMiddleware
 

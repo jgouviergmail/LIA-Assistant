@@ -429,3 +429,13 @@ unread `telegram_bot_username` held the maintainer's bot. A default is read
 from a constant of its own family, or the pair is declared with its reason
 (`test_settings_default_family_guard.py`, shrink-only); the 57 spelling
 variants inside one family are accepted.
+
+## Amendment 2026-11-06 — `llm_type_map` holds the agents that exist, and a seed row a slot that does
+
+[ADR-371](ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) retires sixteen domain-agent slots, so `llm_type_map` (`graphs/base_agent_builder.py`) keeps
+the two compiled agents that exist, `query_agent` and `browser_agent`; an unmapped name still fails
+loudly, as this ADR decided. A row of `llm_config_seed.sql` names a slot `LLM_TYPES_REGISTRY` declares, and
+every slot of a fresh install runs on a model with an active tariff:
+`test_the_configuration_seed_names_only_slots_that_exist` and
+`test_every_slot_of_a_fresh_install_runs_on_a_priced_model` refuse the orphan row and the model
+counted at zero.

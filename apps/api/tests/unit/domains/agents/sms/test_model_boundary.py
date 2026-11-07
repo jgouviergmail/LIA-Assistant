@@ -1,4 +1,4 @@
-"""Every domain-agent provider call revalidates persisted SMS evidence."""
+"""Every provider call of a compiled agent revalidates persisted SMS evidence."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -8,7 +8,6 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
-from src.domains.agents.graphs.sms_agent_builder import build_sms_agent
 from src.domains.agents.sms.live_authority import SmsLiveAuthority
 from src.domains.agents.sms.projection import project_page
 from src.domains.agents.tools.sms_tools import sms_output
@@ -17,6 +16,7 @@ from tests.unit.domains.agents.graphs.test_base_agent_builder_invocation import 
     _captured_prompts,
     _CapturingChatModel,
 )
+from tests.unit.domains.agents.sms.sms_reader_agent import build_sms_reader
 
 
 @pytest.mark.parametrize("allowed", [True, False])
@@ -61,7 +61,7 @@ async def test_real_compiled_domain_call_rechecks_sms_consent_before_model(allow
         ),
         patch("src.domains.agents.sms.state_policy.load_sms_authority", check),
     ):
-        agent = build_sms_agent()
+        agent = build_sms_reader()
         context = LiaRuntimeContext(
             user_id=owner, thread_id=str(uuid4()), conversation_id=str(uuid4())
         )

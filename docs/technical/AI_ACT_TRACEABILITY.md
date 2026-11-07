@@ -128,7 +128,10 @@ parties may close is written once (`record_decision_once`), and a sweep that
 spent then failed is billed and filed `failed`. Two acts the person makes by a
 click with no model in them — sharing a generated image with a connection,
 sending a file or an answer by e-mail — are actions in `agent_effects` (source
-`user`, policy `confirm`), through a seam the register installs at import.
+`user`, policy `confirm`), through a seam the register installs at import. A click
+on the Tools that asks LIA for a proposal (ADR-372) has no effect to file: its read
+is a consultation on the `tool_assist` surface, its run a decision, its spend on
+the account.
 
 The register's own limit is unchanged and still stated: it records what a
 capability was ASKED to do and what came back, never the words of the request.

@@ -14,13 +14,7 @@ import { Check, Paperclip, Search } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +24,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { fileSize } from '@/lib/workbench/mail';
 import type { AttachableFile, AttachablePage } from '@/lib/workbench/types';
+import { ToolDialogHeader } from '../ToolForm';
 
 export interface AttachablePickerProps {
   lng: Language;
@@ -85,7 +80,7 @@ export function AttachablePicker({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{t('workbench.mail.files.title')}</DialogTitle>
           <DialogDescription>
             {t('workbench.mail.files.description', {
@@ -93,7 +88,7 @@ export function AttachablePicker({
               max: fileSize(maxBytes, lng),
             })}
           </DialogDescription>
-        </DialogHeader>
+        </ToolDialogHeader>
         <form role="search" onSubmit={search} className="flex items-center gap-2">
           <Label htmlFor={fieldId} className="sr-only">
             {t('workbench.mail.files.search_label')}

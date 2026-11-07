@@ -65,12 +65,8 @@ apps/api/src/
 │       │   ├── {service}_tools.py       # Tools du connecteur
 │       │   └── formatters.py            # Formatter (ajout ou enrichissement)
 │       │
-│       ├── {service}/
-│       │   └── catalogue_manifests.py   # Tool manifests uniquement
-│       │
-│       └── prompts/
-│           └── v1/
-│               └── {service}_agent_prompt.txt
+│       └── {service}/
+│           └── catalogue_manifests.py   # Tool manifests uniquement
 │
 └── infrastructure/
     └── observability/
@@ -220,7 +216,9 @@ What a caller can rely on, whatever the provider:
 - **A reply or a forward draft stays in its thread** (Gmail: a multipart
   upload carrying `threadId` — a media upload loses it, measured; Graph:
   `createReply` / `createForward` then a write of the words, because Graph keeps
-  a `comment` for the sent message only).
+  a `comment` for the sent message only). `create_reply_draft` takes the person's
+  `to`, `cc` and `attachments`, `create_forward_draft` its `attachments`, as
+  `reply_email` and `forward_email` do.
 - **Trashing is recoverable** on all three (Gmail and iCloud trash, Outlook's
   Deleted Items) and draft by draft: what failed is said per draft
   (`not_found`, `refused`, `unavailable`), and a failure before anything moved

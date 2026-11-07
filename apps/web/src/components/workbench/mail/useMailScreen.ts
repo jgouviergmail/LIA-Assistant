@@ -6,7 +6,8 @@
  * - the ADDRESS: the open folder and message ride the query string — opening
  *   a message pushes, closing replaces, so « back » closes the reader;
  * - the COMPOSER slot: each opening mounts a new composer, hence a new key;
- * - the LOOK: an unread message open for `MAIL_READ_DWELL_MS` is marked read;
+ * - the FIRST LOOK: a large screen opens on the inbox's newest message, which nobody asked for;
+ * - the LOOK: an unread message the person opened, open for `MAIL_READ_DWELL_MS`, is marked read;
  * - the DRAFTS' row acts: one draft opened at a time, each trash answered;
  * - the IMAGES a message carries: read apart, once its layout names them;
  * - the FRESHNESS: a folder's figure growing means mail arrived, and its listing
@@ -179,6 +180,32 @@ export function useMailAddress(lng: Language): MailAddress {
   };
 }
 
+/**
+ * What a large screen shows when the mailbox opens: the inbox's newest message, as a mail
+ * application does. The person did not open it, so it rides no address and is never marked read;
+ * a message arriving does not take its place. Whatever the person does with the reader then
+ * (closing it, opening a message, leaving the inbox) lets go of it for the rest of the visit.
+ *
+ * @param address - What the person asked for.
+ * @param rows - The inbox as it lists, the newest first; none while a search narrows it.
+ * @param wide - The reader stands beside the list, which it would otherwise replace.
+ * @returns The address the screen reads, what it shows by itself included.
+ */
+export function useFirstLook(
+  address: MailAddress,
+  rows: readonly MailSummary[],
+  wide: boolean
+): MailAddress {
+  const atInbox = address.openId === null && address.folder === MAIL_INBOX;
+  const [waiting, setWaiting] = useState(atInbox);
+  const [firstId, setFirstId] = useState<string | null>(null);
+  const newest = rows[0]?.id ?? null;
+  if (waiting && !atInbox) setWaiting(false);
+  if (waiting && firstId === null && newest !== null) setFirstId(newest);
+  if (!waiting || !wide || !atInbox || firstId === null) return address;
+  return { ...address, openId: firstId, closeMessage: () => setWaiting(false) };
+}
+
 export interface ComposerSlot {
   /** The open composer: a new id per opening, so a new composer and a new key. */
   composer: { id: number; target: ComposerTarget } | null;
@@ -201,15 +228,20 @@ export function useComposerSlot(): ComposerSlot {
  * Marks the open message read once it has been open for a look, never at a
  * glance — ONCE per opening: the person's own « Mark as unread » (or a glance
  * that marked it read by hand) is never overridden by a second look.
+ *
+ * @param open - The open message.
+ * @param markRead - Marks it read.
+ * @param asked - The person opened it: what a screen shows by itself stays as it is.
  */
 export function useReadAfterLook(
   open: WorkbenchItemState<MailMessage>,
-  markRead: () => Promise<void>
+  markRead: () => Promise<void>,
+  asked: boolean
 ): void {
   const mark = useEffectEvent(() => void markRead());
   // The message the look was already given to (an external system's memory, not render state).
   const looked = useRef<string | null>(null);
-  const unreadShown = open.item && !open.item.is_read ? open.item.id : null;
+  const unreadShown = asked && open.item && !open.item.is_read ? open.item.id : null;
   const shownId = open.item?.id ?? null;
   // Nothing shown (closed, or another message loading): the next opening is a new look.
   useEffect(() => {

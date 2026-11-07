@@ -673,7 +673,7 @@ def mock_agent_service():
 def mock_graph():
     """Mock LangGraph CompiledStateGraph."""
     graph = MagicMock()
-    graph.nodes = ["router", "contacts_agent", "emails_agent", "response"]
+    graph.nodes = ["router", "planner", "task_orchestrator", "response"]
     return graph
 
 @pytest.fixture

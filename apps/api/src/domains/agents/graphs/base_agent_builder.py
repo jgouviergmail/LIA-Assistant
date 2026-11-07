@@ -4,19 +4,19 @@ Base Agent Builder - Generic Template for LangGraph Agents.
 Provides a reusable factory function for building LangChain v1.0 agents with
 standardized configuration, middleware, and best practices.
 
-This template enables rapid creation of new agents (Gmail, Calendar, Tasks, etc.)
-with consistent architecture and minimal boilerplate.
+This template builds the compiled agents (browser, query) with a consistent
+architecture and minimal boilerplate.
 
-Usage Example (Gmail Agent):
+Usage Example (Browser Agent):
     >>> config = AgentConfig(
-    ...     agent_name="emails_agent",
-    ...     tools=[send_email_tool, search_email_tool, ...],
-    ...     system_prompt=EMAILS_AGENT_SYSTEM_PROMPT.format(datetime=..., context=...),
+    ...     agent_name="browser_agent",
+    ...     tools=[browser_navigate_tool, browser_snapshot_tool, ...],
+    ...     system_prompt=BROWSER_AGENT_SYSTEM_PROMPT.format(datetime=..., context=...),
     ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
-    ...     # or override: llm_config=get_llm_config_for_agent(settings, "emails_agent")
+    ...     # or override: llm_config=get_llm_config_for_agent(settings, "browser_agent")
     ...     enable_hitl=True,  # Tools with manifest.permissions.hitl_required=True need approval
     ... )
-    >>> emails_agent = build_generic_agent(config)
+    >>> browser_agent = build_generic_agent(config)
 
 Best Practices Applied:
     - LangChain v1.0 create_agent() API
@@ -38,7 +38,6 @@ from typing_extensions import TypedDict
 
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_METADATA, FIELD_STATUS
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.sms.model_middleware import SmsModelBoundary, SmsSafeSummarization
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
@@ -73,7 +72,7 @@ class AgentConfig(TypedDict, total=False):
     Complete configuration for building a generic agent.
 
     Required Fields:
-        agent_name: Unique identifier for agent (e.g., "contacts_agent", "emails_agent").
+        agent_name: Unique identifier for agent (e.g., "browser_agent", "query_agent").
         tools: List of LangChain tools (functions decorated with @tool).
         system_prompt: Formatted system prompt string (static, no variables).
         llm_config: LLM configuration dictionary (see LLMConfig).
@@ -92,9 +91,9 @@ class AgentConfig(TypedDict, total=False):
 
     Example:
         >>> config = AgentConfig(
-        ...     agent_name="contacts_agent",
-        ...     tools=[search_contacts_tool, list_contacts_tool, get_contact_details_tool],
-        ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT.format(datetime=..., context=...),
+        ...     agent_name="query_agent",
+        ...     tools=[local_query_engine_tool],
+        ...     system_prompt=QUERY_AGENT_SYSTEM_PROMPT.format(datetime=..., context=...),
         ...     llm_config=LLMConfig(
         ...         model="gpt-4.1-mini-mini",
         ...         temperature=0.5,
@@ -150,41 +149,30 @@ def build_generic_agent(config: AgentConfig) -> Any:
         ValueError: If required config fields are missing.
         TypeError: If tools list is empty or invalid.
 
-    Example (Contacts Agent):
+    Example (Query Agent):
         >>> config = AgentConfig(
-        ...     agent_name="contacts_agent",
-        ...     tools=[search_contacts_tool, list_contacts_tool, get_contact_details_tool,
-        ...            resolve_reference, set_current_item, get_context_state, list_active_domains],
-        ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT.format(
+        ...     agent_name="query_agent",
+        ...     tools=[local_query_engine_tool],
+        ...     system_prompt=QUERY_AGENT_SYSTEM_PROMPT.format(
         ...         current_datetime=get_prompt_datetime_formatted(),
         ...         context_instructions="...",
         ...     ),
         ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
-        ...     # or override: llm_config=get_llm_config_for_agent(settings, "contacts_agent")
+        ...     # or override: llm_config=get_llm_config_for_agent(settings, "query_agent")
         ...     enable_hitl=True,  # Always enabled
         ... )
-        >>> contacts_agent = build_generic_agent(config)
-
-    Example (Gmail Agent):
-        >>> config = AgentConfig(
-        ...     agent_name="emails_agent",
-        ...     tools=[send_email_tool, search_email_tool, ...],
-        ...     system_prompt=EMAILS_AGENT_SYSTEM_PROMPT.format(...),
-        ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
-        ...     enable_hitl=True,
-        ... )
-        >>> emails_agent = build_generic_agent(config)
+        >>> query_agent = build_generic_agent(config)
 
     Usage in graph.py:
         >>> # In graph.py - wrap agent in node function
-        >>> contacts_agent_runnable = build_generic_agent(contacts_config)
+        >>> browser_agent_runnable = build_generic_agent(browser_config)
         >>>
-        >>> async def contacts_agent_node(state, config):
-        ...     result = await contacts_agent_runnable.ainvoke(state, config)
+        >>> async def browser_agent_node(state, config):
+        ...     result = await browser_agent_runnable.ainvoke(state, config)
         ...     # Store agent results for response_node
         ...     return {"messages": result["messages"], "agent_results": {...}}
         >>>
-        >>> graph.add_node("contacts_agent", contacts_agent_node)
+        >>> graph.add_node("browser_agent", browser_agent_node)
 
     Notes:
         - Store and checkpointer are propagated from parent graph.compile(store=..., checkpointer=...)
@@ -221,46 +209,15 @@ def build_generic_agent(config: AgentConfig) -> Any:
     # Map agent_name to LLMType for factory
     # New unified agent names (domain_agent pattern) - 2026-01 refactoring
     llm_type_map = {
-        # New unified names (domain_agent pattern)
-        "contact_agent": "contact_agent",
-        "email_agent": "email_agent",
-        "event_agent": "event_agent",
-        "file_agent": "file_agent",
-        "task_agent": "task_agent",
         "query_agent": "query_agent",
-        "weather_agent": "weather_agent",
-        "wikipedia_agent": "wikipedia_agent",
-        "perplexity_agent": "perplexity_agent",
-        "place_agent": "place_agent",
-        "route_agent": "route_agent",
-        "brave_agent": "brave_agent",
-        "web_search_agent": "web_search_agent",
-        "web_fetch_agent": "web_fetch_agent",
         "browser_agent": "browser_agent",
-        # Backward compatibility aliases (deprecated - will be removed in v4)
-        "contacts_agent": "contact_agent",
-        "emails_agent": "email_agent",
-        "calendar_agent": "event_agent",
-        "drive_agent": "file_agent",
-        "tasks_agent": "task_agent",
-        "places_agent": "place_agent",
-        "routes_agent": "route_agent",
-        # Health Metrics agent (v1.17.2)
-        "health_agent": "health_agent",
-        "sms_agent": "sms_agent",
-        # Philips Hue agent — absent from this map until ADR-244, so every one
-        # of its calls silently resolved to the CONTACTS slot's configuration.
-        "hue_agent": "hue_agent",
-        # Agentic telephony (ADR-127)
-        "telephony_agent": "telephony_agent",
     }
     llm_type = llm_type_map.get(agent_name)
     if llm_type is None:
-        # A silent default here sent an unmapped agent's calls to the CONTACTS
+        # A silent default here sent an unmapped agent's calls to another
         # slot's configuration -- wrong model, wrong token budget, wrong cost
-        # line -- and nothing anywhere said so. ``hue_agent`` had been in that
-        # state; the boot that first raised this found it in seconds, where a
-        # static search had found nothing (ADR-244).
+        # line -- and nothing anywhere said so; the boot that first raised this
+        # found one in seconds, where a static search had found nothing (ADR-244).
         #
         # Same doctrine as ``_import_tool_modules`` (audit wave 2, C9): fail
         # LOUDLY outside production so CI catches a forgotten mapping, and in
@@ -274,7 +231,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         logger.error(
             "agent_llm_type_unmapped",
             agent_name=agent_name,
-            fallback="contact_agent",
+            fallback="query_agent",
             msg="add this agent to llm_type_map in base_agent_builder.py",
         )
         if not settings.is_production:
@@ -282,7 +239,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
                 f"agent {agent_name!r} has no llm_type mapping; add it to llm_type_map "
                 f"in base_agent_builder.py (known: {sorted(llm_type_map)})"
             )
-        llm_type = "contact_agent"
+        llm_type = "query_agent"
 
     # Pass llm_config to factory for override support
     # This allows per-agent customization of model, temperature, max_tokens, etc.
@@ -415,8 +372,8 @@ def create_agent_wrapper_node(
 
     Args:
         agent_runnable: Compiled agent graph from build_generic_agent()
-        agent_name: Human-readable name for logging (e.g., "contacts_agent")
-        agent_constant: Constant identifier from constants.py (e.g., AGENT_CONTACT)
+        agent_name: Human-readable name for logging (e.g., "browser_agent")
+        agent_constant: Constant identifier from constants.py (e.g., AGENT_BROWSER)
 
     Returns:
         Async node function ready for graph.add_node()
@@ -438,17 +395,17 @@ def create_agent_wrapper_node(
 
     Usage:
         >>> # Build agent
-        >>> contacts_agent_runnable = build_contacts_agent()
+        >>> browser_agent_runnable = build_browser_agent()
         >>>
         >>> # Create wrapper with callback propagation
-        >>> contacts_agent_node = create_agent_wrapper_node(
-        ...     contacts_agent_runnable,
-        ...     "contacts_agent",
-        ...     AGENT_CONTACT
+        >>> browser_agent_node = create_agent_wrapper_node(
+        ...     browser_agent_runnable,
+        ...     "browser_agent",
+        ...     AGENT_BROWSER
         ... )
         >>>
         >>> # Add to graph
-        >>> graph.add_node("contacts_agent", contacts_agent_node)
+        >>> graph.add_node("browser_agent", browser_agent_node)
 
     LangGraph v1.0 Compliance:
         - Subgraphs are isolated by design (checkpointer/store separate)
@@ -713,7 +670,7 @@ def create_agent_config_from_settings(
     NOT from .env settings. The `settings` parameter is no longer used for LLM config.
 
     Args:
-        agent_name: Agent identifier (e.g., "contacts_agent", "weather_agent").
+        agent_name: Agent identifier (e.g., "browser_agent", "query_agent").
         tools: List of LangChain tools for this agent.
         system_prompt: Formatted system prompt string (can contain {current_datetime} placeholder).
         enable_hitl: Override HITL enabled (default: True, always enabled).
@@ -734,9 +691,9 @@ def create_agent_config_from_settings(
 
     Example:
         >>> config = create_agent_config_from_settings(
-        ...     agent_name="contacts_agent",
-        ...     tools=[search_contacts_tool, list_contacts_tool],
-        ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT.format(...),
+        ...     agent_name="query_agent",
+        ...     tools=[local_query_engine_tool],
+        ...     system_prompt=QUERY_AGENT_SYSTEM_PROMPT.format(...),
         ...     datetime_generator=get_prompt_datetime_formatted,
         ... )
         >>> agent = build_generic_agent(config)
@@ -767,27 +724,10 @@ def create_agent_config_from_settings(
     return config
 
 
-def domain_context_instructions(domain: str) -> str:
-    """The context-tool block of a domain agent's system prompt.
-
-    One versioned text (``agent_context_domain_instructions``) for every agent
-    whose results feed a registry domain, rendered for that domain.
-
-    Args:
-        domain: The registry domain the agent's results are stored under
-            (e.g. ``"events"``, ``"files"``).
-
-    Returns:
-        The rendered block, ready for the agent prompt's ``{context_instructions}``.
-    """
-    return load_prompt("agent_context_domain_instructions").format(domain=domain).strip()
-
-
 __all__ = [
     "AgentConfig",
     "LLMConfig",
     "build_generic_agent",
     "create_agent_config_from_settings",
     "create_agent_wrapper_node",  # Phase 6: Generic wrapper for callback propagation
-    "domain_context_instructions",
 ]

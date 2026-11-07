@@ -24,17 +24,14 @@ export function lightKind(light: WorkbenchLight): LightKind {
 }
 
 /**
- * The folded section that holds a lamp's colour temperature and colour, named by
- * what the lamp can take (owner request 2026-10-31: folded until opened).
+ * Whether there is a folded section to open for a lamp's colour temperature and colour (owner
+ * request 2026-10-31: folded until opened).
  *
  * @param offer - What a lamp or a room can take.
- * @returns The section's title key, or null when it takes neither.
+ * @returns Whether it takes either.
  */
-export function toneTitleKey(offer: ToneOffer): string | null {
-  const temperature = offer.mirek_min !== null && offer.mirek_max !== null;
-  if (temperature && offer.supports_color) return 'workbench.lights.tone';
-  if (temperature) return 'workbench.lights.temperature';
-  return offer.supports_color ? 'workbench.lights.colour' : null;
+export function offersTone(offer: ToneOffer): boolean {
+  return offer.supports_color || (offer.mirek_min !== null && offer.mirek_max !== null);
 }
 
 /**
@@ -105,11 +102,11 @@ export function roomColour(
  * @returns How many of them the bridge says it cannot reach.
  */
 /**
- * What is off recedes into the page, what is lit keeps the card's own material. A tint of the
- * accent would darken in a light theme and lighten in a dark one; the page's background lies
- * below the card in all three, down to the true black of OLED.
+ * What is off stands apart from the page and from what is lit, which keeps the card's own material:
+ * `--color-unlit` lies under the page in a light theme, and between the page and the card in a dark
+ * one, so that nothing off ever outshines a lit tile.
  */
-export const UNLIT_CARD = 'data-[lit=false]:bg-background';
+export const UNLIT_CARD = 'data-[lit=false]:bg-unlit';
 
 /** The lamps that answer, then those the bridge says it cannot reach, each in its order. */
 export function lampsByAnswer(lights: readonly WorkbenchLight[]): {
@@ -122,13 +119,6 @@ export function lampsByAnswer(lights: readonly WorkbenchLight[]): {
   };
 }
 
-export function unreachableCount(
-  lightIds: readonly string[],
-  lights: readonly WorkbenchLight[]
-): number {
-  const members = new Set(lightIds);
-  return lights.filter(item => members.has(item.id) && item.reachable === false).length;
-}
 
 /** The pseudo-room of the lamps no room owns (`?room=other`). */
 export const OTHER_LIGHTS = 'other';

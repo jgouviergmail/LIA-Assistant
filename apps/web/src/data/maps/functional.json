@@ -336,6 +336,7 @@
       "domains": [
         "connectors",
         "push_channels",
+        "tool_assists",
         "workbench"
       ],
       "surfaces": [

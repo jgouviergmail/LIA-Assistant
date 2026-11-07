@@ -832,7 +832,7 @@ CREATE TABLE token_usage_logs (
     -- Traceability
     user_id UUID NOT NULL,
     run_id VARCHAR(255) NOT NULL,  -- LangGraph run ID
-    node_name VARCHAR(100) NOT NULL,  -- router, planner, response, contacts_agent
+    node_name VARCHAR(100) NOT NULL,  -- router, planner, response, initiative
     model_name VARCHAR(100) NOT NULL,  -- gpt-4.1-mini, gpt-4-turbo, o1-mini
 
     -- Token Counts
@@ -913,7 +913,7 @@ class TokenUsageLog(BaseModel):
 **Champs Importants:**
 
 - **run_id**: LangGraph run UUID (lien vers `message_token_summary`)
-- **node_name**: Traçabilité par node (router, planner, response, contacts_agent)
+- **node_name**: Traçabilité par node (router, planner, response, initiative)
 - **cached_tokens**: OpenAI prompt caching (coût réduit 90%)
 - **cost_usd/cost_eur**: Coût calculé au moment de l'appel (immuable, audit)
 - **usd_to_eur_rate**: Exchange rate utilisé (pour vérification audit)

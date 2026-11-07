@@ -84,6 +84,8 @@ _ROUTER_MODULES: dict[PlatformCapability, str] = {
     # ADR-369 — the workbench's routes ARE the ability; the connectors and
     # what they hold stay untouched when it is off.
     PlatformCapability.WORKBENCH: "src.domains.workbench.router",
+    # ADR-372 — a click asks a model from those screens: the routes are that ability.
+    PlatformCapability.TOOL_ASSISTS: "src.domains.tool_assists.router",
 }
 
 

@@ -51,6 +51,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -120,6 +122,28 @@ const ANSWERS: Array<[RegExp, unknown]> = [
       skipped: 0,
     },
   ],
+  // A large screen opens on the newest message: the reader reads it whole.
+  [
+    /\/mail\/message$/,
+    {
+      id: 'm1',
+      thread_id: 'm1',
+      sender: { name: 'Camille Martin', address: 'camille@example.org' },
+      subject: 'Committee agenda for Thursday',
+      received_at: `${TODAY}T08:00:00Z`,
+      is_read: true,
+      is_starred: false,
+      has_attachments: false,
+      label_ids: [],
+      reply_to: [],
+      to: [{ name: '', address: 'me@example.org' }],
+      cc: [],
+      body: 'Here is the proposed agenda.',
+      attachments: [],
+    },
+  ],
+  [/\/mail\/message\/html$/, { html: null, truncated: false }],
+  [/\/mail\/conversation$/, { items: [], truncated: false }],
   [
     /\/calendar\/calendars$/,
     {

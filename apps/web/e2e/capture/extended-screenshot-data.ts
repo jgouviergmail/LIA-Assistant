@@ -29,6 +29,7 @@ import type {
 } from '../../src/types/llm-config';
 import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
 import { appConfig } from '../fixtures/dashboard-shell';
+import { surfaceMemoryLimits } from '../fixtures/settings-surfaces';
 import {
   landingProofRoutes,
   MEETING_ID,
@@ -193,6 +194,7 @@ export const EXTENDED_MEMORIES: MemoryListResponse = {
   })),
   total: memoryExamples.length,
   by_category: { procedural: 2, preference: 2, relationship: 1, event: 1, personal: 1, pattern: 1 },
+  limits: surfaceMemoryLimits,
 };
 
 const entries: JournalEntry[] = [
@@ -802,8 +804,8 @@ const modelSlots = [
   slot('query_analyzer', 'Query Analyzer', 'pipeline', 'openai', 'gpt-4.1-mini'),
   slot('planner', 'Planner', 'pipeline', 'anthropic', 'claude-sonnet-4-6', true),
   slot('react_agent', 'ReAct Agent', 'pipeline', 'anthropic', 'claude-sonnet-4-6', true),
-  slot('contacts_agent', 'Contacts Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'),
-  slot('calendar_agent', 'Calendar Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'),
+  slot('emails_agent', 'Emails Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'),
+  slot('browser_agent', 'Browser Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'),
   slot('response', 'Response', 'query_response', 'openai', 'gpt-4.1'),
 ];
 function model(model_id: string, reasoning: boolean): ModelCapabilities {

@@ -1579,7 +1579,7 @@ async def reset_conversation():
 
 ### ADR-043: Subgraph Architecture
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21), sous-graphes de domaine retirés par ADR-371 (2026-11-06)
 **Fichier**: `docs/architecture/ADR-043-Subgraph-Architecture.md`
 
 **Décision**: Implémenter **Supervisor Pattern + Agent Registry + Agent Wrappers** pour architecture LangGraph multi-agents.
@@ -2213,7 +2213,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ### ADR-065: Legacy Domain Agent LangGraph Nodes — Dead Code Analysis
 
-**Status**: ✅ ACCEPTED (2026-03-26)
+**Status**: ✅ ACCEPTED (2026-03-26), completed by ADR-371 (2026-11-06)
 **Fichier**: `docs/architecture/ADR-065-Legacy-Domain-Agent-Nodes.md`
 
 **Décision**: Documenter que les 15 domain agent LangGraph nodes (event_agent, contact_agent, etc.) sont du code mort depuis Phase 5.2B (parallel executor) et ne sont jamais invoqués en conditions normales.
@@ -5436,6 +5436,8 @@ graph TD
 
 **Amendments 2026-11-04/05 (phase 2)**: `files` becomes an exclusive category (`FilesClientProtocol`, OneDrive everywhere Drive was); mail sorted and composed on three providers; Outlook's automatic replies and rules (`get_mailbox_settings_tool`); invitations, repeating events and whole series on `core/recurrence`; tasks' views and To Do's details; contacts' fields, photos, groups and vCard; documents read in the page (PDF.js, docx-preview); one search; Hue zones; the Android shell's downloads and links; dashboard widths (`--container-*`).
 
+**Amendments 2026-11-06**: a phone reads a line at a time (`DetailBar`); a form opens and ends one way (`ToolForm`, `NativeSelect`); a reply or forward kept as a draft (`origin`); a scope a connector works without is offered only (`_OFFERED_ONLY`); what a click asks of LIA lives in ADR-372.
+
 ### ADR-370: A page the model writes runs in the chat, in the strictest frame the chat has
 
 **File**: [ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md](ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)
@@ -5443,3 +5445,19 @@ graph TD
 **Status**: Accepted, 2026-11-05. Amends ADR-075 and ADR-327 (a frame's policy opens the document), ADR-177 (a `<pre>` keeps its lines, a person's words stay words), ADR-226 (`store_document`; pages write on their own slot, `interactive_page`), ADR-303 and ADR-310 (a failed call a later call of the same tool answered is no failure of the turn).
 
 **Decision**: A request to make something the person will use gives a page that runs in the conversation, with its `.html` file; a request for its code gives the code. The page runs only in a sandboxed `srcDoc` frame (`allow-scripts allow-forms`) under a policy that names no host, as the document's prefix, with WebRTC closed by the runtime and storage in memory; the bridge hears a height and a failure. Read back from history it waits for a click. The model reads a title, never the page. Making goes to the domain with no skill, using stays the skill, and `effective_skill_name` resolves what contradicts. A page takes the document family's timeout floor, lifted to its slot's call, because ReAct requests none.
+
+### ADR-371: The domain agents' slots leave with the nodes that read them
+
+**File**: [ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md](ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)
+
+**Status**: Accepted, 2026-11-06. Completes ADR-065 (its Option 2) and amends ADR-244 (`llm_type_map`; a seed row names a declared slot, on a model with an active tariff).
+
+**Decision**: The sixteen domain-agent slots no node read leave with their nodes, builders, prompts, translations and `llm_config_overrides` rows (migration `b6d21f7e4a90`): production counted not one token on them across 109,043 calls, and a plan runs its tools directly. `emails_agent` stays as the mail tools' writer, `contact_agent` and its siblings as the `agent=` of the manifests, `build_generic_agent` and its middleware for the browser and query agents. A fresh install's slot runs on a priced model, and a seed row names a slot that exists: both guarded.
+
+### ADR-372: What LIA does from the Tools: a click, a call, a proposal
+
+**File**: [ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md](ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md)
+
+**Status**: Accepted, 2026-11-06. Amends ADR-369 (what a click asks of LIA lives beside the hand-made Tools) and ADR-272 (a text readout answers to both ceilings).
+
+**Decision**: A click on a screen of the Tools asks LIA once and gets a proposal back: words to read or a form to check, never a write to a provider. `domains/tool_assists/` is a bounded context of its own, reached through one door (`run_assist`): both ceilings, the spend billed whatever happens, the read filed, an outcome in the workbench's words, nothing retried. The assistant's own writers answer where they exist. Discretion is a rule: no control is added to a screen with no room for one, the last icon of every bar opens the list, and a panel takes no room until it is asked for. What a model answers is held to what the screen can take, and a value claiming a source is checked against it.

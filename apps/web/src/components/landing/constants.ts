@@ -4,10 +4,10 @@
  * (animated counters + engineering proof) and JsonLd (SEO feature list).
  *
  * Verified against the codebase (2026-07):
- * - agents: 18 statically registered domain agents (infrastructure/startup/
- *   agents.py, ADR-123) + MCP iterative agent + sub-agents = 20. Re-measured
- *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
- *   had landed without this counter following it.
+ * - agents: a floor, shown with « + ». A domain agent is a name in the catalogue,
+ *   not a compiled graph (ADR-371), so `register_agent(` no longer counts them.
+ *   Re-measured 2026-11-06: 38 manifests (`agent_count` of `catalogue_initialized`
+ *   on dev).
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
  *   Re-measured 2026-11-06 (v4.4.0): 338 native manifests from
  *   initialize_catalogue in a cold interpreter with every optional native
@@ -116,6 +116,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Measured for v4.5.0: backend 59,486 collected in 3,895 files (pytest tests
+ *   --collect-only -q --no-cov, 2026-11-07); frontend 17,676 tests in 1,446 files
+ *   (vitest list, 2026-11-07). Combined inventory: 77,162.
  *   Measured for v4.4.0: backend 59,214 collected in 3,872 files (pytest tests
  *   --collect-only -q --no-cov, 2026-11-06); frontend 17,167 tests in 1,421 files
  *   (vitest list, 2026-11-06). Combined inventory: 76,381.
@@ -455,11 +458,11 @@ export const LANDING_STATS = {
   tools: 338,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 658,
+  metrics: 660,
   uiLanguages: 6,
-  tests: 76381,
-  adrs: 368,
-  releases: 294,
+  tests: 77162,
+  adrs: 370,
+  releases: 295,
   auditScore: '7.9/10',
   auditAreas: 24,
 } as const;

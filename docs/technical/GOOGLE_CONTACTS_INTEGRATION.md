@@ -182,7 +182,7 @@ class SearchContactsOutput(BaseModel):
 ```python
 search_contacts_catalogue_manifest = ToolManifest(
     name="search_contacts_tool",
-    agent="contacts_agent",
+    agent="contact_agent",
     description="PRIMARY TOOL to FIND contacts...",
     parameters=[
         ParameterSchema(name="query", type="string", required=True),
@@ -619,7 +619,7 @@ async def get_contact_details_tool(
 search_contacts_catalogue_manifest = ToolManifest(
     # Identity
     name="search_contacts_tool",
-    agent="contacts_agent",
+    agent="contact_agent",
 
     # Description (enrichie avec exemples inline)
     description=enrich_description_with_examples(

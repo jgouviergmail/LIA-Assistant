@@ -18,6 +18,8 @@ import {
   filesToSend,
   fittingFiles,
   initialFields,
+  ownWords,
+  withProposal,
   keptFiles,
   linkOf,
   localProblem,
@@ -65,6 +67,76 @@ const DRAFT: MailDraft = {
 function refused(status: number, detail: Record<string, unknown>): ApiError {
   return new ApiError('refused', status, { detail });
 }
+
+describe('LIA’s words in the composer', () => {
+  const SIGNATURE = '\n\n-- \nAna';
+  const fields = (body: string, html: string | null = null) => ({
+    ...initialFields({ kind: 'new' }),
+    body,
+    html,
+  });
+
+  it('reads the person’s words apart from the signature', () => {
+    expect(ownWords(fields(SIGNATURE), SIGNATURE)).toBe('');
+    expect(ownWords(fields(`Hello${SIGNATURE}`), SIGNATURE)).toBe('Hello');
+    expect(ownWords(fields('Hello'), SIGNATURE)).toBe('Hello');
+  });
+
+  it('keeps the signature last when the words replace the person’s', () => {
+    const change = withProposal(fields(`Mine${SIGNATURE}`), SIGNATURE, 'Yours', 'replace');
+
+    expect(change.body).toBe(`Yours${SIGNATURE}`);
+  });
+
+  it('keeps the person’s words first when they add to them', () => {
+    const change = withProposal(fields(`Mine${SIGNATURE}`), SIGNATURE, 'Yours', 'add');
+
+    expect(change.body).toBe(`Mine\n\nYours${SIGNATURE}`);
+  });
+
+  it('keeps what the person formatted when the words follow theirs', () => {
+    const signed = textToHtml(SIGNATURE);
+    const held = { ...fields(`Mine${SIGNATURE}`), html: `<b>Mine</b>${signed}` };
+
+    const change = withProposal(held, SIGNATURE, 'You & me', 'add');
+
+    expect(change.html).toBe(`<b>Mine</b><br><br>You &amp; me${signed}`);
+  });
+
+  it('writes the page anew when the words replace the person’s', () => {
+    const held = { ...fields(`Mine${SIGNATURE}`), html: `<b>Mine</b>${textToHtml(SIGNATURE)}` };
+
+    const change = withProposal(held, SIGNATURE, 'Yours', 'replace');
+
+    expect(change.html).toBe(textToHtml(`Yours${SIGNATURE}`));
+  });
+
+  it('never leaves the signature above the words of a page it cannot read', () => {
+    const held = { ...fields(`Mine${SIGNATURE}`), html: '<div>Mine</div><div>signed</div>' };
+
+    const change = withProposal(held, SIGNATURE, 'Yours', 'add');
+
+    expect(change.html).toBe(textToHtml(`Mine\n\nYours${SIGNATURE}`));
+  });
+
+  it('adds nothing but the words to a body that held none', () => {
+    expect(withProposal(fields(''), '', 'Yours', 'add').body).toBe('Yours');
+  });
+
+  it('leaves a signature the person took off out', () => {
+    expect(withProposal(fields('Mine'), SIGNATURE, 'Yours', 'replace').body).toBe('Yours');
+  });
+
+  it('writes the formatted words too when the body is formatted', () => {
+    const change = withProposal(fields('Mine', '<b>Mine</b>'), '', 'Yours <now>', 'replace');
+
+    expect(change.html).toBe('Yours &lt;now&gt;');
+  });
+
+  it('leaves the plain body plain', () => {
+    expect(withProposal(fields('Mine'), '', 'Yours', 'replace').html).toBeNull();
+  });
+});
 
 describe('parseMailTo', () => {
   it('reads the address and what the sender wants said', () => {

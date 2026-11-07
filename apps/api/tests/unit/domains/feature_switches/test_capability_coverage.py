@@ -108,6 +108,7 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # « Tools » section): a new way to write to every mailbox, calendar,
         # address book and bridge, so an operator must be able to close it.
         "workbench",
+        "tool_assists",
     }
 )
 

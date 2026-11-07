@@ -240,9 +240,9 @@
     },
     "t.connclients": {
       "name": "Client dei connettori",
-      "role": "Un client per fornitore, una sola porta verso il client attivo di una categoria; mai una transazione di database aperta durante la chiamata di rete. Lo spazio Strumenti ha endpoint REST propri, esterni al grafo della conversazione. Riutilizza i client dei connettori e ne pubblica comandi e limiti nell’interfaccia. Le sessioni del database si chiudono prima delle chiamate al fornitore; gli invii sono protetti dalle ripetizioni e una risposta persa viene dichiarata come esito sconosciuto. L’HTML della posta resta in un riquadro isolato che blocca i contenuti remoti. Un gesto manuale rimane così distinto da un’azione delegata a LIA.",
+      "role": "Un client per fornitore, una sola porta verso il client attivo di una categoria; mai una transazione di database aperta durante la chiamata di rete. Lo spazio Strumenti ha endpoint REST propri, esterni al grafo della conversazione. Riutilizza i client dei connettori e ne pubblica comandi e limiti nell’interfaccia. Le sessioni del database si chiudono prima delle chiamate al fornitore; gli invii sono protetti dalle ripetizioni e una risposta persa viene dichiarata come esito sconosciuto. L’HTML della posta resta in un riquadro isolato che blocca i contenuti remoti. Un gesto manuale rimane così distinto da un’azione delegata a LIA. Ciò che un clic chiede a LIA da queste schermate passa da un contesto delimitato vicino, con una sola porta: i due tetti, la spesa fatturata in ogni caso, la lettura registrata, nessuna scrittura presso il fornitore.",
       "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipedia"],
-      "src": "1186b3b6ffa5"
+      "src": "aabad59a9764"
     },
     "t.mcp": {
       "name": "Client MCP",

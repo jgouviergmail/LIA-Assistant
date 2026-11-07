@@ -38,6 +38,8 @@ _PAYLOAD = WorkbenchAvailability(
         send_undo_seconds=5,
         draft_autosave_seconds=15,
         search_max_chars=500,
+        assist_text_max_chars=8000,
+        assist_instruction_max_chars=500,
     ),
 )
 

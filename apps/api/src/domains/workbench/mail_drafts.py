@@ -120,11 +120,49 @@ async def _files_of(
     )
 
 
+async def _first_save(
+    client: EmailClientProtocol,
+    request: DraftSave,
+    recipients: _Recipients,
+    files: tuple[OutgoingAttachment, ...],
+) -> Mapping[str, Any]:
+    """The draft on the provider: a new message, or the answer to one, in its thread."""
+    to, cc, bcc = recipients
+    body, is_html = words_of(request.html, request.body or "")
+    origin = request.origin
+    if origin is None:
+        return await client.create_draft(
+            to or "",
+            request.subject or "",
+            body,
+            cc=cc or None,
+            bcc=bcc or None,
+            is_html=is_html,
+            attachments=files,
+        )
+    if origin.kind == "forward":
+        return await client.create_forward_draft(
+            origin.message_id,
+            to or "",
+            body=body,
+            cc=cc or None,
+            is_html=is_html,
+            attachments=files,
+        )
+    return await client.create_reply_draft(
+        origin.message_id,
+        body,
+        reply_all=origin.kind == "reply_all",
+        is_html=is_html,
+        to=to or None,
+        cc=cc,
+        attachments=files,
+    )
+
+
 async def _create_draft(user_id: UUID, request: DraftSave, recipients: _Recipients) -> MailDraft:
     """A new draft, once per the page's key."""
     assert request.idempotency_key is not None  # the schema requires it for a creation
-    to, cc, bcc = recipients
-    body, is_html = words_of(request.html, request.body or "")
 
     async def create() -> MailDraft:
         async with open_tool_client(_TOOL, user_id) as opened:
@@ -133,15 +171,7 @@ async def _create_draft(user_id: UUID, request: DraftSave, recipients: _Recipien
                 await apply_send_as(opened, user_id, request.send_as)
             files = await _files_of(user_id, request, client)
             async with provider_call(_TOOL, "create_draft", act=True):
-                raw = await client.create_draft(
-                    to or "",
-                    request.subject or "",
-                    body,
-                    cc=cc or None,
-                    bcc=bcc or None,
-                    is_html=is_html,
-                    attachments=files,
-                )
+                raw = await _first_save(client, request, recipients, files)
             provider = opened.connector_type
         return _draft(raw, provider)
 

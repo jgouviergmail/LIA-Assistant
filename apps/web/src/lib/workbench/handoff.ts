@@ -7,12 +7,15 @@
  * loses it, as it would lose a form.
  */
 
+import type { ProposedEvent } from './assist';
 import type { AttachableFile } from './types';
 
 /** Each thing a tool can be handed, named by what it starts. */
 export type WorkbenchHandoff =
-  | { kind: 'task'; title: string; notes: string }
-  | { kind: 'event'; summary: string; description: string }
+  /** `due`: the day LIA read for it, which the person keeps or not. */
+  | { kind: 'task'; title: string; notes: string; due?: string | null }
+  /** `proposal`: what LIA read of it, for the editor to open on. */
+  | { kind: 'event'; summary: string; description: string; proposal?: ProposedEvent }
   | { kind: 'contact'; name: string; email: string }
   | { kind: 'compose'; to: string; file?: AttachableFile };
 

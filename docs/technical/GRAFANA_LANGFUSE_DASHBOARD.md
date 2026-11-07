@@ -148,7 +148,7 @@ All metrics are collected through:
 #### Panel 13: Subgraph Invocation Rate
 - **Type**: Time series
 - **Metric**: `sum by (subgraph_name) (rate(langfuse_subgraph_invocations[5m]))`
-- **Purpose**: Track agent-level activity (contacts_agent, emails_agent, etc.)
+- **Purpose**: Track agent-level activity (browser_agent)
 - **Use Case**: Identify most-used agents, detect bottlenecks
 
 ---
@@ -175,7 +175,7 @@ All metrics are collected through:
 #### Panel 16: Agent Handoff Flow
 - **Type**: Table
 - **Metric**: `sum by (source_agent, target_agent) (langfuse_agent_handoffs)`
-- **Purpose**: Visualize agent transition matrix (router → contacts_agent, etc.)
+- **Purpose**: Visualize agent transition matrix (planner → task_orchestrator, etc.)
 - **Use Case**: Understand conversation flow patterns, detect routing issues
 
 #### Panel 17: Handoff Duration by Agent Pair
@@ -260,7 +260,7 @@ All metrics are collected through:
 ### 3. $llm_type
 - **Type**: Query (multi-select)
 - **Query**: `label_values(llm_api_calls_total, llm_type)`
-- **Options**: `router, planner, contacts_agent, emails_agent, response, orchestrator`
+- **Options**: the slots that called a model (`planner`, `response`, `query_analyzer`, …)
 - **Purpose**: Filter by agent node type
 
 ### 4. $model
@@ -449,7 +449,6 @@ See **Phase 3.1.6.3 - Metrics Instrumentation** for implementation details.
 
 **Common Issues**:
 - router → planner: 5s handoff (excessive planning time)
-- contacts_agent → response: 3s handoff (large context transfer)
 
 ---
 

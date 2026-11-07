@@ -19,8 +19,10 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Label } from '@/components/ui/label';
 
 export interface CommitSliderProps {
-  /** Its name, visible and accessible. */
+  /** Its word on the screen, and its name unless `name` says more. */
   label: string;
+  /** What the ear is told, where the card around it names what the word is about. */
+  name?: string;
   /** The value the bridge holds. */
   value: number;
   min: number;
@@ -34,6 +36,7 @@ export interface CommitSliderProps {
 
 export function CommitSlider({
   label,
+  name,
   value,
   min,
   max,
@@ -93,7 +96,8 @@ export function CommitSlider({
         max={max}
         step={step}
         value={shown}
-        aria-labelledby={`${id}-label`}
+        aria-label={name}
+        aria-labelledby={name ? undefined : `${id}-label`}
         aria-valuetext={format(shown)}
         onChange={event => setDraft(Number(event.target.value))}
         onKeyDown={event => {

@@ -8,7 +8,8 @@
  * something (from, to, subject, words where Gmail reads them, an attachment) and
  * does something (a label or a folder, archive, mark read): the form says so before
  * anything is sent, and a submission carries its own key, so a second press creates
- * nothing more. A system label is never offered. Deleting one asks first, and says
+ * nothing more. A system label is never offered. A sentence fills the form (ADR-372):
+ * the form is the review, and nothing exists until it is sent. Deleting one asks first, and says
  * what stays; a rule only Outlook can change offers no deletion, and one whose
  * conditions no field here reads goes by its name.
  */
@@ -22,12 +23,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RowActions } from '@/components/ui/row-actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useConfirm } from '@/components/ui/use-confirm';
 import type { MailFilterBody } from '@/hooks/useWorkbenchMailSettings';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { ASSIST_PATHS, type FilterAnswer, type ProposedFilter } from '@/lib/workbench/assist';
 import type { MailFilter, MailFolder } from '@/lib/workbench/types';
 import { generateUUID } from '@/lib/utils';
+
+import { SentenceAssist } from '../assist/SentenceAssist';
+import { useAssistBounds } from '../WorkbenchShell';
+import { useToolConfirm } from '../ToolForm';
+import { NativeSelect } from '@/components/ui/native-select';
 
 export interface MailFiltersProps {
   lng: Language;
@@ -69,6 +75,24 @@ const EMPTY: Draft = {
   markRead: false,
 };
 
+/** What a sentence fills in: a label is the person's by its name, and words where they are read. */
+function draftOf(
+  filter: ProposedFilter,
+  labels: readonly MailFolder[],
+  wordsOffered: boolean
+): Draft {
+  return {
+    sender: filter.sender,
+    recipient: filter.recipient,
+    subject: filter.subject,
+    query: wordsOffered ? filter.words : '',
+    hasAttachment: filter.has_attachment,
+    labelId: labels.find(label => label.name === filter.label)?.id ?? '',
+    archive: filter.archive,
+    markRead: filter.mark_read,
+  };
+}
+
 /** The filter the form describes, or why it is not one yet. */
 function filterOf(draft: Draft): Omit<MailFilterBody, 'idempotency_key'> | 'matches' | 'acts' {
   const criteria = {
@@ -100,7 +124,8 @@ export function MailFilters({
   onDelete,
 }: MailFiltersProps) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const bounds = useAssistBounds();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [key, setKey] = useState(() => generateUUID());
   const [problem, setProblem] = useState<'matches' | 'acts' | null>(null);
@@ -197,7 +222,19 @@ export function MailFilters({
         </ul>
       )}
       <form onSubmit={create} className="space-y-3 rounded-md border p-3">
-        <h3 className="text-sm font-semibold">{t('workbench.mail.filters.new')}</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">{t('workbench.mail.filters.new')}</h3>
+          {bounds && (
+            <SentenceAssist<FilterAnswer>
+              lng={lng}
+              label={t('workbench.assist.mail.filter_words')}
+              path={ASSIST_PATHS.mailFilter}
+              maxInstruction={bounds.instructionMax}
+              body={{ labels: labels.flatMap(label => (label.name ? [label.name] : [])) }}
+              onAnswer={answer => setDraft(draftOf(answer.filter, labels, wordsOffered))}
+            />
+          )}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {field('sender', 'workbench.mail.filters.sender')}
           {field('recipient', 'workbench.mail.filters.recipient')}
@@ -217,29 +254,23 @@ export function MailFilters({
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t('workbench.mail.filters.then')}</legend>
           {labels.length > 0 && (
-            <div className="space-y-1.5">
-              <Label id={`${ids.label}-label`} htmlFor={ids.label}>
-                {t(`workbench.mail.filters.${folders ? 'move_to' : 'add_label'}`)}
-              </Label>
-              <select
-                id={ids.label}
-                aria-labelledby={`${ids.label}-label`}
-                value={draft.labelId}
-                onChange={event =>
-                  setDraft(previous => ({ ...previous, labelId: event.target.value }))
-                }
-                className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-              >
-                <option value="">
-                  {t(`workbench.mail.filters.${folders ? 'no_folder' : 'no_label'}`)}
+            <NativeSelect
+              id={ids.label}
+              label={t(`workbench.mail.filters.${folders ? 'move_to' : 'add_label'}`)}
+              value={draft.labelId}
+              onChange={event =>
+                setDraft(previous => ({ ...previous, labelId: event.target.value }))
+              }
+            >
+              <option value="">
+                {t(`workbench.mail.filters.${folders ? 'no_folder' : 'no_label'}`)}
+              </option>
+              {labels.map(label => (
+                <option key={label.id} value={label.id}>
+                  {label.name}
                 </option>
-                {labels.map(label => (
-                  <option key={label.id} value={label.id}>
-                    {label.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </NativeSelect>
           )}
           <div className="flex items-center gap-2">
             <Checkbox

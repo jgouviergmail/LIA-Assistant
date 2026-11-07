@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -22,6 +23,7 @@ from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.exceptions import EmailValidationError
 from src.domains.agents.tools.mailbox_draft_base import refusal_for
 from src.domains.agents.tools.mailbox_drafts_tools import (
     CreateMailboxDraftTool,
@@ -29,6 +31,7 @@ from src.domains.agents.tools.mailbox_drafts_tools import (
     CreateMailboxReplyDraftTool,
 )
 from src.domains.connectors.clients.mailbox_drafts import MailboxDraftNotFoundError
+from src.infrastructure.email.outgoing import OutgoingAttachment
 
 pytestmark = [pytest.mark.unit]
 
@@ -69,7 +72,13 @@ class TestCreate:
         )
 
         client.create_draft.assert_awaited_once_with(
-            to="", subject="Budget 2027", body="Hello", cc=None, bcc=None, is_html=False
+            to="",
+            subject="Budget 2027",
+            body="Hello",
+            cc=None,
+            bcc=None,
+            is_html=False,
+            attachments=(),
         )
         assert result["emails"][0][FIELD_MAILBOX_DRAFT_ID] == "r-9"
 
@@ -118,7 +127,9 @@ class TestReply:
             )
 
         written.assert_not_awaited()
-        client.create_reply_draft.assert_awaited_once_with("m1", "Friday works.", reply_all=True)
+        client.create_reply_draft.assert_awaited_once_with(
+            "m1", "Friday works.", reply_all=True, to=None, cc=None, attachments=()
+        )
         assert result["emails"][0]["body"] == "Friday works."
         assert result["emails"][0]["quotes_history"] is True
 
@@ -133,7 +144,9 @@ class TestReply:
         original = written.await_args.args[0]
         assert original == {"id": "m1", "body": "Friday?"}
         assert written.await_args.kwargs["instruction"] == "say yes"
-        client.create_reply_draft.assert_awaited_once_with("m1", "Yes, Friday.", reply_all=False)
+        client.create_reply_draft.assert_awaited_once_with(
+            "m1", "Yes, Friday.", reply_all=False, to=None, cc=None, attachments=()
+        )
 
     async def test_a_blank_text_is_no_text(self, client: AsyncMock) -> None:
         with patch(f"{TOOLS}.draft_reply_body", AsyncMock(return_value="Yes.")) as written:
@@ -142,7 +155,9 @@ class TestReply:
             )
 
         written.assert_awaited_once()
-        client.create_reply_draft.assert_awaited_once_with("m1", "Yes.", reply_all=False)
+        client.create_reply_draft.assert_awaited_once_with(
+            "m1", "Yes.", reply_all=False, to=None, cc=None, attachments=()
+        )
 
     @pytest.mark.parametrize(
         ("failure", "code"),
@@ -173,6 +188,59 @@ class TestReply:
         )
 
         assert result["error_code"] == "NOT_FOUND"
+
+
+class TestItsFiles:
+    """What a draft of the Tools carries, the assistant's drafts carry (ADR-369 §4)."""
+
+    FILE = OutgoingAttachment(filename="plan.pdf", mime_type="application/pdf", data=b"%PDF")
+
+    @pytest.fixture(autouse=True)
+    def files(self) -> Iterator[AsyncMock]:
+        with patch(f"{TOOLS}.draft_files", new=AsyncMock(return_value=(self.FILE,))) as read:
+            yield read
+
+    async def test_a_new_draft_carries_them(self, client: AsyncMock, files: AsyncMock) -> None:
+        await CreateMailboxDraftTool().execute_api_call(
+            client, uuid4(), body="Hi", file_names=["plan.pdf"], drive_file_ids=["d1"]
+        )
+
+        assert files.await_args.args[2:] == (["plan.pdf"], ["d1"])
+        assert client.create_draft.await_args.kwargs["attachments"] == (self.FILE,)
+
+    async def test_a_reply_draft_carries_them_to_whom_it_was_told(self, client: AsyncMock) -> None:
+        await CreateMailboxReplyDraftTool().execute_api_call(
+            client,
+            uuid4(),
+            message_id="m1",
+            body="Hi",
+            to="ana@example.org",
+            cc="paul@example.org",
+            file_names=["plan.pdf"],
+        )
+
+        sent = client.create_reply_draft.await_args.kwargs
+        assert sent["attachments"] == (self.FILE,)
+        assert (sent["to"], sent["cc"]) == ("ana@example.org", "paul@example.org")
+
+    async def test_a_forward_draft_carries_them(self, client: AsyncMock) -> None:
+        await CreateMailboxForwardDraftTool().execute_api_call(
+            client, uuid4(), message_id="m1", to="a@example.org", file_names=["plan.pdf"]
+        )
+
+        assert client.create_forward_draft.await_args.kwargs["attachments"] == (self.FILE,)
+
+    async def test_a_file_nothing_answers_to_saves_nothing(
+        self, client: AsyncMock, files: AsyncMock
+    ) -> None:
+        files.side_effect = EmailValidationError("unknown.pdf", field="file_names")
+
+        result = await CreateMailboxDraftTool().execute_api_call(
+            client, uuid4(), body="Hi", file_names=["unknown.pdf"]
+        )
+
+        assert result["error_code"]
+        client.create_draft.assert_not_awaited()
 
 
 class TestTheSignature:
@@ -226,7 +294,7 @@ class TestForward:
         )
 
         client.create_forward_draft.assert_awaited_once_with(
-            "m1", "paul@example.com", body="FYI", cc="a@example.com"
+            "m1", "paul@example.com", body="FYI", cc="a@example.com", attachments=()
         )
 
 

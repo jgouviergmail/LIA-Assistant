@@ -93,7 +93,7 @@ et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 | Composant                                  | Type             | Description                                                                                                                                                                                                                                                                                                       |
 | ------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chapters-data.ts`                         | data             | Configuration des chapitres, association `scene` partagée avec les liens des cas d’usage, ordre éditorial des capacités, `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS` et inventaire `REQUIRED_FEATURE_KEYS`. Les capacités différenciantes précèdent les fonctions courantes ; le compte est dérivé du code. |
-| `EditorialChapters`                        | Server           | Orchestre les chapitres déclarés sous l’ancre historique `features`, avec leurs scènes ou captures. Le chapitre `connect` conserve le relais entre assistantes ; `world` présente la capture du Monde et son répertoire de lieux. |
+| `EditorialChapters`                        | Server           | Orchestre les chapitres déclarés sous l’ancre historique `features`, avec leurs scènes ou captures (`CHAPTER_CAPTURES`). Le chapitre `tools` ouvre la série ; `connect` conserve le relais entre assistantes ; `world` présente la capture du Monde et son répertoire de lieux. |
 | `ChapterSection`                           | Server           | Titre, sous-titre, bénéfices courts, illustration partagée, explication « Ce qui rend cela possible » en `<details>`, puis catalogue dépliable. Les détails techniques restent disponibles dans le même dépliant.                                                                                                 |
 | `FeatureCatalog`                           | Server           | Traduit les titres, descriptions complètes, légendes et noms de commandes avant de transmettre ces données sérialisables à `FeatureExplorer`. Réutilise les textes `landing.features.*`.                                                                                                                          |
 | `FeatureExplorer`                          | Client           | Index de titres iconisés en deux colonnes, de hauteur bornée et défilable ; un panneau détaillé visible à la fois, avec illustration, texte intégral et boutons précédent/suivant. L’ordre vient du catalogue du chapitre. Tous les panneaux textuels restent dans le DOM.                                        |
@@ -111,6 +111,13 @@ et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 Le remaniement conserve l’inventaire complet de `REQUIRED_FEATURE_KEYS`, sans doublon entre chapitres et fonctions
 courantes. Une présentation plus compacte ne raccourcit ni ne supprime les descriptions. Le compteur de chaque
 catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
+
+Le chapitre `tools` (`c8`, `#chapter-tools`) ouvre la série : une clé `cN` est un nom
+stable, jamais une place, et le numéro affiché vit dans `num`. Il montre l’écran Outils
+sur une capture prise à la main, sur données fictives
+(`public/screenshots/proof/tools-manifest.json`), puis la carte d’ensemble `workbench`,
+venue du chapitre `control`, et sept cartes : une par outil, une pour la recherche. Il
+est teinté pour garder l’alternance avec la section qui le précède.
 
 Le chapitre `connect` (`c6`, `#chapter-connect`) conserve sa scène de relais entre
 assistantes et présente les connexions, les lectures autorisées, les images et les
@@ -145,7 +152,7 @@ AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
    1. CosmosHero           — démonstration partagée, choix parmi six scènes
    1b. LandingVideoSection — vidéo de l'opérateur, montée seulement si LANDING_MEDIA_BASE_URL répond (§10)
    2. PromiseSection       — trois promesses
-   3. EditorialChapters    — features ; chapter-{act,know,anticipate,control,grow,connect}
+   3. EditorialChapters    — features ; chapter-{tools,act,know,anticipate,control,grow,connect,world}
    4. BasicsBand           — basics
    5. TransparencySection  — transparency, CTA intermédiaire
    6. CosmosDay            — day, journées par profil
@@ -290,7 +297,7 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 - 6 langues (fr, en, es, de, it, zh), fallback fr ; parite stricte (hook pre-commit, reference `en`).
 - La landing **tutoie** ; les titres a la voix du produit sont **transcrees** par langue, pas traduits.
 - Namespaces principaux : `landing.hero.*`, `landing.product_demo.*` (scènes, sources, phases, commandes et
-  limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c7, bénéfices et mécanismes),
+  limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c8, bénéfices et mécanismes),
   `landing.catalog_explorer.*` (navigation et légendes), `landing.engineering.*` (principes et bénéfices),
   `landing.tech.*` (choix techniques détaillés), `landing.features.<k>.*` (textes intégraux conservés).
 - Les autres surfaces conservent `landing.basics.*`, `landing.transparency.*`, `landing.day.*`,

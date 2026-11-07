@@ -158,6 +158,53 @@ class TestCreate:
         assert stored["To"] == "Bob <bob@example.com>, carol@example.com"
         assert "> The figures?" in draft["body"]
 
+    async def test_a_reply_draft_goes_to_those_the_person_chose_with_their_files(
+        self, client: AppleEmailClient, imap: FakeImap
+    ) -> None:
+        from src.infrastructure.email.outgoing import OutgoingAttachment
+
+        original = {
+            "from": "Bob <bob@example.com>",
+            "to": "me@example.com",
+            "cc": "carol@example.com",
+            "subject": "Budget",
+            "date": "Mon, 20 Jul 2026",
+            "body": "The figures?",
+            "rfc_message_id": "<orig@example.com>",
+        }
+        file = OutgoingAttachment("note.txt", "text/plain", b"hello")
+        with patch.object(client, "get_message", AsyncMock(return_value=original)):
+            draft = await client.create_reply_draft(
+                "7", "Here.", to="erin@example.com", cc="", attachments=(file,)
+            )
+
+        stored = imap.stored("Drafts", draft[FIELD_MAILBOX_DRAFT_ID])
+        assert stored["In-Reply-To"] == "<orig@example.com>"
+        assert stored["To"] == "erin@example.com"
+        assert stored["Cc"] is None
+        assert [part.get_filename() for part in stored.walk() if part.get_filename()] == [
+            "note.txt"
+        ]
+
+    async def test_a_forward_draft_adds_the_persons_files_after_the_originals(
+        self, client: AppleEmailClient, imap: FakeImap
+    ) -> None:
+        from src.infrastructure.email.outgoing import OutgoingAttachment
+
+        original = {"from": "Bob <bob@example.com>", "subject": "Budget", "body": "Figures"}
+        carried = [OutgoingAttachment("b.pdf", "application/pdf", b"%PDF")]
+        file = OutgoingAttachment("note.txt", "text/plain", b"hello")
+        with patch.object(
+            client, "_original_with_files", AsyncMock(return_value=(original, carried))
+        ):
+            draft = await client.create_forward_draft("7", "erin@example.com", attachments=(file,))
+
+        stored = imap.stored("Drafts", draft[FIELD_MAILBOX_DRAFT_ID])
+        assert [part.get_filename() for part in stored.walk() if part.get_filename()] == [
+            "b.pdf",
+            "note.txt",
+        ]
+
     async def test_a_forward_draft_carries_the_files(
         self, client: AppleEmailClient, imap: FakeImap
     ) -> None:

@@ -32,10 +32,11 @@ from time import time
 from typing import Any, Literal
 from uuid import UUID
 
+import structlog
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
-from src.core.llm_usage import LLMBillingRecord
+from src.core.llm_usage import LLMBillingRecord, LLMUsage
 from src.infrastructure.cache.pricing_cache import (
     PricingCacheData,
     capture_pricing_snapshot,
@@ -51,6 +52,8 @@ from src.infrastructure.llm.usage_metadata import (
     tokens_from_usage_metadata,
 )
 from src.infrastructure.observability.error_taxonomy import classify_llm_error
+
+logger = structlog.get_logger(__name__)
 
 
 def _generation_usage(response: LLMResult) -> UsageTokens | None:
@@ -101,6 +104,39 @@ def _response_model(response: LLMResult) -> str | None:
     output = response.llm_output or {}
     reported = returned or output.get("model_name") or output.get("model")
     return reported if isinstance(reported, str) else None
+
+
+def captured_usage(capture: TokenCaptureHandler, model_name: str) -> LLMUsage:
+    """What a capture consumed, priced: a DISPLAY summary, never an account.
+
+    The pricing lookup is best-effort on purpose: a cache that cannot price a
+    model must not cost the reader what they asked for, and the authoritative
+    record of the spend is written separately into ``token_usage_logs``.
+
+    Args:
+        capture: The token counters the call accumulated.
+        model_name: The model the slot resolved to.
+
+    Returns:
+        The usage summary shown beside the words.
+    """
+    cost_eur = 0.0
+    records: tuple[LLMBillingRecord, ...] = ()
+    try:
+        records = capture.get_billing_records(model_name)
+        cost_eur = sum(record.cost_eur for record in records)
+    except Exception as exc:  # noqa: BLE001 - a price is a nicety, never a blocker
+        logger.warning("captured_usage_pricing_failed", error_type=type(exc).__name__)
+    return LLMUsage(
+        tokens_in=capture.tokens_in,
+        tokens_out=capture.tokens_out,
+        tokens_cache=capture.tokens_cache,
+        tokens_cache_write=capture.tokens_cache_write,
+        cost_eur=cost_eur,
+        model_name=records[-1].model_name if records else model_name,
+        billing_records=records,
+        accounting_handled=capture.accounting_handled,
+    )
 
 
 def priced_call(

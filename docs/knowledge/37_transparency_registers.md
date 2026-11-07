@@ -14,7 +14,7 @@ Actions and consultations are kept apart on purpose: they count different things
 
 What LIA did **without being asked**: its proactive passes, the interests it explored for you, the notifications it sent unprompted. The tab holds two lists, **Actions taken on its own** and **Sources consulted on its own**.
 
-Everything you set in motion stays in **Actions** and **Consultations**: what you typed or said, your reminders, the routines you configured — a routine is your own instruction, deferred — and the sub-agents you delegated to. Opening your Home page briefing counts as your request too.
+Everything you set in motion stays in **Actions** and **Consultations**: what you typed or said, what you asked in one click from Tools, your reminders, the routines you configured — a routine is your own instruction, deferred — and the sub-agents you delegated to. Opening your Home page briefing counts as your request too.
 
 Why a separate tab? A background pass runs on its own schedule and can far outnumber what you asked for: mixed together, the few lines that matter would be lost. Every line also states its origin: **You asked**, **Scheduled**, **Sub-agent** or **LIA's initiative**.
 

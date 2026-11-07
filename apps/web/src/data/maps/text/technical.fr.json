@@ -299,7 +299,7 @@
     },
     "t.connclients": {
       "name": "Clients connecteurs",
-      "role": "Un client par fournisseur, une seule porte vers le client actif d'une catégorie ; jamais de transaction de base ouverte pendant l'appel réseau. L’espace Outils possède ses propres routes REST, en dehors du graphe de conversation. Il réutilise les clients des connecteurs et publie leurs commandes et limites dans l’interface. Les sessions de base se ferment avant les appels aux fournisseurs ; les soumissions sont protégées contre les répétitions et une réponse perdue laisse un résultat déclaré inconnu. Le HTML d’un mail reste dans un cadre isolé qui bloque les contenus distants. Un geste manuel reste ainsi distinct d’une action confiée à LIA.",
+      "role": "Un client par fournisseur, une seule porte vers le client actif d'une catégorie ; jamais de transaction de base ouverte pendant l'appel réseau. L’espace Outils possède ses propres routes REST, en dehors du graphe de conversation. Il réutilise les clients des connecteurs et publie leurs commandes et limites dans l’interface. Les sessions de base se ferment avant les appels aux fournisseurs ; les soumissions sont protégées contre les répétitions et une réponse perdue laisse un résultat déclaré inconnu. Le HTML d’un mail reste dans un cadre isolé qui bloque les contenus distants. Un geste manuel reste ainsi distinct d’une action confiée à LIA. Ce qu’un clic demande à LIA depuis ces écrans passe par un contexte borné voisin, une seule porte : les deux plafonds, la dépense facturée quoi qu’il arrive, la lecture déposée, aucune écriture chez le fournisseur.",
       "stack": [
         "Google",
         "Microsoft 365",

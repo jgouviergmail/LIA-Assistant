@@ -21,7 +21,7 @@ Available LangChain Middleware (v1.1+):
 
 Usage:
     >>> from src.infrastructure.llm.middleware_config import create_agent_middleware_stack
-    >>> middleware = create_agent_middleware_stack("contacts_agent")
+    >>> middleware = create_agent_middleware_stack("query_agent")
     >>> agent = create_agent(model=llm, tools=tools, middleware=middleware)
 """
 
@@ -109,7 +109,7 @@ def create_agent_middleware_stack(
     Summarization > ContextEditing
 
     Args:
-        agent_name: Agent identifier for logging (e.g., "contacts_agent")
+        agent_name: Agent identifier for logging (e.g., "query_agent")
         enable_retry: Override retry middleware setting (default: from settings)
         enable_summarization: Override summarization setting (default: from settings)
         enable_fallback: Override the fallback middleware (default: on, over FALLBACK_MODELS)
@@ -127,7 +127,7 @@ def create_agent_middleware_stack(
 
     Example:
         >>> middleware = create_agent_middleware_stack(
-        ...     "contacts_agent",
+        ...     "query_agent",
         ...     primary_model="gpt-4.1-mini"
         ... )
         >>> # Returns full middleware stack based on settings

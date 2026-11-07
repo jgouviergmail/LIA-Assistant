@@ -10,7 +10,6 @@
  */
 import { useState, type ReactNode } from 'react';
 
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import {
@@ -25,6 +24,7 @@ import type { MailFolder, MailSummary } from '@/lib/workbench/types';
 import type { ListSelection } from '../useListSelection';
 import type { MailActs } from './useMailActs';
 import type { MailAddress } from './useMailScreen';
+import { useToolConfirm } from '../ToolForm';
 
 export interface MailSending {
   /** What the open folder offers. */
@@ -67,7 +67,7 @@ export function useMailSending({
   desktop,
 }: MailSendingOptions): MailSending {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [moving, setMoving] = useState<readonly string[] | null>(null);
   const { openId } = address;
 

@@ -26,7 +26,6 @@ import {
   PenSquare,
   Pencil,
   Phone,
-  Sparkles,
   Trash2,
   UserPlus,
   Users,
@@ -34,7 +33,7 @@ import {
 import Link from 'next/link';
 import { useState, type ReactNode, type Ref } from 'react';
 
-import { DetailClose } from '../DetailClose';
+import { askAct, DetailBar, type AssistOffer, type DetailAct } from '../DetailBar';
 import { ContactGroupsField } from './ContactGroupsField';
 import { ContactHistory } from './ContactHistory';
 import { ContactPortrait } from './ContactPortrait';
@@ -62,6 +61,8 @@ export interface ContactDetailProps {
   error: unknown;
   /** A contact met in mail: shown from its row, nothing to read, change or delete. */
   readOnly: boolean;
+  /** What LIA answered, first in the detail. */
+  assistPanel?: ReactNode;
   /** The published ceiling of a picture. */
   photoMaxBytes: number;
   /** How many of its addresses its history is asked by. */
@@ -86,12 +87,45 @@ export interface ContactDetailProps {
   onWrite?: (address: string) => void;
   /** Takes the contact to LIA. */
   onAsk: (contact: WorkbenchContact) => void;
+  /** What LIA can do on it, under the question's icon. */
+  assist?: AssistOffer;
   closeRef?: Ref<HTMLButtonElement>;
 }
 
+/** What the contact offers: one met in mail is kept or asked about, and nothing else. */
+function contactActs(
+  contact: WorkbenchContact,
+  { readOnly, onEdit, onDelete, onAsk, assist }: ContactDetailProps,
+  keeping: { busy: boolean; onSelect: () => void },
+  t: (key: string) => string
+): readonly DetailAct[] {
+  const ask = askAct(t('workbench.ask.label'), () => onAsk(contact), assist);
+  if (readOnly) {
+    return [{ label: t('workbench.contacts.save_other'), icon: UserPlus, ...keeping }, ask];
+  }
+  return [
+    { label: t('workbench.contacts.edit'), icon: Pencil, onSelect: onEdit },
+    {
+      label: t('workbench.contacts.export_one'),
+      icon: Download,
+      href: contactsExportUrl(contact.id),
+    },
+    { label: t('workbench.contacts.delete'), icon: Trash2, danger: true, onSelect: onDelete },
+    ask,
+  ];
+}
+
 export function ContactDetail(props: ContactDetailProps) {
-  const { lng, contact, loading, error, readOnly, onClose, onRetry, closeRef } = props;
+  const { lng, contact, loading, error, readOnly, onClose, onRetry, closeRef, onSaveOther } = props;
   const { t } = useTranslation(lng);
+  const [saving, setSaving] = useState(false);
+  const keeping = {
+    busy: saving,
+    onSelect: () => {
+      setSaving(true);
+      void onSaveOther().finally(() => setSaving(false));
+    },
+  };
   let content: ReactNode;
   if (contact) content = <DetailBody {...props} contact={contact} />;
   else if (readOnly) {
@@ -117,14 +151,14 @@ export function ContactDetail(props: ContactDetailProps) {
       aria-label={(contact && contactName(contact)) || t('workbench.contacts.contact_title')}
       className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
-      <div className="flex items-center border-b px-2 py-1.5">
-        <DetailClose
-          closeLabel={t('workbench.contacts.close_contact')}
-          backLabel={t('workbench.tools.contacts.label')}
-          onClose={onClose}
-          buttonRef={closeRef}
-        />
-      </div>
+      <DetailBar
+        lng={lng}
+        closeLabel={t('workbench.contacts.close_contact')}
+        backLabel={t('workbench.tools.contacts.label')}
+        onClose={onClose}
+        closeRef={closeRef}
+        acts={contact && contactActs(contact, props, keeping, t)}
+      />
       {content}
     </article>
   );
@@ -143,23 +177,15 @@ function DetailBody({
   lng,
   contact,
   readOnly,
+  assistPanel,
   photoMaxBytes,
   historyAddresses,
   groups,
   relationHref,
-  onEdit,
-  onDelete,
   onCopy,
-  onSaveOther,
   onWrite,
-  onAsk,
 }: ContactDetailProps & { contact: WorkbenchContact }) {
   const { t } = useTranslation(lng);
-  const [saving, setSaving] = useState(false);
-  const saveOther = () => {
-    setSaving(true);
-    void onSaveOther().finally(() => setSaving(false));
-  };
   const work = [contact.job_title, contact.organization].filter(Boolean).join(' · ');
   const copy = (value: string) => (
     <Button
@@ -177,6 +203,7 @@ function DetailBody({
       <div className="@container min-h-0 flex-1 overflow-y-auto p-4">
         <div className="grid items-start gap-6 @4xl:grid-cols-2">
           <div className="min-w-0 space-y-4">
+            {assistPanel}
             <ContactPortrait
               lng={lng}
               contact={contact}
@@ -308,47 +335,6 @@ function DetailBody({
             addresses={contact.emails.slice(0, historyAddresses).map(item => item.value)}
           />
         </div>
-      </div>
-      <div className="flex flex-wrap justify-end gap-2 border-t p-3">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAsk(contact)}>
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.ask.label')}
-        </Button>
-        {readOnly && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            isLoading={saving}
-            onClick={saveOther}
-          >
-            <UserPlus className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.contacts.save_other')}
-          </Button>
-        )}
-        {!readOnly && (
-          <>
-            <Button asChild variant="outline" size="sm" className="gap-1.5">
-              <a href={contactsExportUrl(contact.id)}>
-                <Download className="h-4 w-4" aria-hidden="true" />
-                {t('workbench.contacts.export_one')}
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-              {t('workbench.contacts.edit')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-destructive hover:text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              {t('workbench.contacts.delete')}
-            </Button>
-          </>
-        )}
       </div>
     </>
   );

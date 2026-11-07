@@ -35,6 +35,9 @@ ACCEPTS_A_BREAKPOINT = (
     # Measured 2026-09-30 on a 1,454-token static prefix: written at the
     # breakpoint by the first call, read back whole by the second.
     "gpt-6.1-sol",
+    # Not measured: no paid call was made. OpenAI's prompt-caching guide, read
+    # 2026-11-06, states explicit breakpoints for « GPT-5.6 and later » and names it.
+    "gpt-6.1-terra",
 )
 
 #: Measured the same day: each answers 400 « prompt_cache_breakpoint is not

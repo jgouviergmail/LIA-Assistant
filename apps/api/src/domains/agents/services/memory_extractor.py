@@ -27,7 +27,6 @@ Phase: v1.14.0 -- Migrated from LangGraph store to PostgreSQL custom + create/up
 
 import time
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -57,6 +56,7 @@ from src.domains.agents.services.memory_extraction_context import (
 from src.domains.agents.services.memory_extraction_context import (
     format_messages_for_extraction as _format_messages_for_extraction,
 )
+from src.domains.agents.services.memory_extraction_context import render_extraction_prompt
 from src.domains.agents.services.memory_extraction_debug import (
     _MEMORY_DEBUG_CACHE_MAX_SIZE as _MEMORY_DEBUG_CACHE_MAX_SIZE,
 )
@@ -189,11 +189,6 @@ async def _persist_memory_tokens(
 # ============================================================================
 # Prompt & Formatting Helpers
 # ============================================================================
-
-
-def _get_psychoanalysis_prompt() -> str:
-    """Load the memory extraction prompt from file."""
-    return str(load_prompt("memory_extraction_prompt"))
 
 
 def _get_personality_addon_prompt() -> str:
@@ -381,15 +376,10 @@ async def extract_memories_background(
         health_context = await _maybe_build_health_context(user_id)
 
         # Build prompt
-        prompt = _get_psychoanalysis_prompt().format(
+        prompt = render_extraction_prompt(
             conversation=conversation,
             existing_memories=existing_memories_text,
-            current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
-            known_relationships=(
-                "\n".join(f"- {r}" for r in known_relationships)
-                if known_relationships
-                else "No known relationships"
-            ),
+            known_relationships=known_relationships,
             health_context=health_context,
         )
 

@@ -5,6 +5,8 @@ Contains settings for:
 - The per-account rate windows of its routes (read, write, send, bulk, download)
 - The bounds it enforces and publishes (page, bulk selection, calendar window,
   download ceiling) and how long a submission remembers its outcome
+- What LIA does from the Tools (``PlatformCapability.TOOL_ASSISTS``, ADR-372): its
+  ceiling, its rate window and the bounds of what a click reads and writes
 
 Created: 2026-10-31
 Reference: docs/superpowers/specs/2026-10-30-workbench-design.md
@@ -16,6 +18,13 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    TOOL_ASSIST_CONVERSATION_MAX_MESSAGES_DEFAULT,
+    TOOL_ASSIST_DOCUMENT_MAX_CHARS_DEFAULT,
+    TOOL_ASSIST_INSTRUCTION_MAX_CHARS_DEFAULT,
+    TOOL_ASSIST_RATE_LIMIT_CALLS_DEFAULT,
+    TOOL_ASSIST_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    TOOL_ASSIST_READOUT_MAX_CHARS_DEFAULT,
+    TOOL_ASSIST_TEXT_MAX_CHARS_DEFAULT,
     WORKBENCH_BULK_MAX_ITEMS_DEFAULT,
     WORKBENCH_BULK_RATE_LIMIT_CALLS_DEFAULT,
     WORKBENCH_BULK_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
@@ -51,6 +60,57 @@ class WorkbenchSettings(BaseSettings):
             "the person reads and acts on their own mailbox, calendar, tasks, contacts, "
             "Drive and Hue bridge by hand, with no model in the path."
         ),
+    )
+
+    tool_assists_enabled: bool = Field(
+        default=True,
+        description=(
+            "Deployment ceiling of what LIA can do from the Tools (PlatformCapability."
+            "TOOL_ASSISTS, ADR-372): a person's click asks a model, on the instance's key, "
+            "billed and filed to their account. Off on a public demonstrator."
+        ),
+    )
+    tool_assist_rate_limit_calls: int = Field(
+        default=TOOL_ASSIST_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        le=1000,
+        description="Assists one account may ask in a window: a replayed session spends euros.",
+    )
+    tool_assist_rate_limit_window_seconds: int = Field(
+        default=TOOL_ASSIST_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        le=3600,
+        description="The window of the assists' limit (seconds).",
+    )
+    tool_assist_text_max_chars: int = Field(
+        default=TOOL_ASSIST_TEXT_MAX_CHARS_DEFAULT,
+        ge=100,
+        le=100_000,
+        description="The longest words of the person's own a writing helper takes (characters).",
+    )
+    tool_assist_instruction_max_chars: int = Field(
+        default=TOOL_ASSIST_INSTRUCTION_MAX_CHARS_DEFAULT,
+        ge=20,
+        le=4000,
+        description="The longest instruction a person gives an assist (characters).",
+    )
+    tool_assist_document_max_chars: int = Field(
+        default=TOOL_ASSIST_DOCUMENT_MAX_CHARS_DEFAULT,
+        ge=1000,
+        le=500_000,
+        description="What a model reads of a document or a conversation; a cut is said.",
+    )
+    tool_assist_readout_max_chars: int = Field(
+        default=TOOL_ASSIST_READOUT_MAX_CHARS_DEFAULT,
+        ge=100,
+        le=20_000,
+        description="What a click reads aloud (characters); a cut is said.",
+    )
+    tool_assist_conversation_max_messages: int = Field(
+        default=TOOL_ASSIST_CONVERSATION_MAX_MESSAGES_DEFAULT,
+        ge=2,
+        le=50,
+        description="The latest messages of a conversation a summary reads; a cut is said.",
     )
 
     workbench_read_rate_limit_calls: int = Field(

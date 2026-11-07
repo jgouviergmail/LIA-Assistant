@@ -36,8 +36,6 @@ _CONFIG_ROW = re.compile(r"^\s*\(gen_random_uuid\(\),\s*'([^']+)',", re.MULTILIN
 #: ``src.domains.agents.nodes.*`` — so the gap is documented debt, not a defect.
 LITERAL_GAP: frozenset[str] = frozenset(
     {
-        "health_agent",
-        "hue_agent",
         "image_generation",
         "voice_transcription",
         "voice_tts",
@@ -77,9 +75,8 @@ def test_the_install_contract_names_real_slots() -> None:
 def test_the_literal_names_only_real_slots() -> None:
     """Zero phantoms — this is what catches a removal the Literal forgot.
 
-    Compared through ``_resolve_canonical_type`` because the Literal carries
-    seven singular aliases (``contact_agent`` for ``contacts_agent`` and its
-    siblings) that the helper resolves.
+    Compared through ``_resolve_canonical_type`` because the Literal carries a
+    singular alias (``email_agent`` for ``emails_agent``) that the helper resolves.
     """
     phantom = sorted(_literal_slots() - set(LLM_TYPES_REGISTRY))
     assert phantom == [], f"the LLMType Literal names slots that do not exist: {phantom}"
@@ -89,4 +86,4 @@ def test_the_literal_gap_is_shrink_only() -> None:
     missing = set(LLM_TYPES_REGISTRY) - _literal_slots()
     new = sorted(missing - LITERAL_GAP)
     assert new == [], f"a new slot skipped the LLMType Literal: {new}"
-    assert len(LITERAL_GAP) <= 6, "LITERAL_GAP is shrink-only"
+    assert len(LITERAL_GAP) <= 3, "LITERAL_GAP is shrink-only"

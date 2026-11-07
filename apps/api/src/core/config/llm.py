@@ -49,6 +49,7 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # OpenAI GPT-5.x series (2025-2026) — all 1M, order doesn't matter
     # GPT-6: 1 050 000 window minus the 128 000 output it reserves. Read here
     # while the seeded row stays ``declared`` (see the Qwen series below).
+    "gpt-6.1-terra": 922_000,
     "gpt-6.1-sol": 922_000,
     "gpt-6-astra": 922_000,
     "gpt-6-sol": 922_000,

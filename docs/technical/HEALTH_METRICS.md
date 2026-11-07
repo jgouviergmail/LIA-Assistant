@@ -321,8 +321,8 @@ new kind transparently.
    (or `[_WINDOW_DAYS_PARAM]` for a baseline tool). Add the manifest
    to `HEALTH_TOOL_MANIFESTS` and the tool name to
    `HEALTH_AGENT_MANIFEST.tools`.
-6. **Prompt update** — extend `health_agent_prompt.txt` `<Logic>` with
-   selection rules for the new tools and a `<Strategies>` example.
+6. **Selection rules** — state in the manifest's `description` when the tool
+   applies: the planner and the ReAct loop read nothing else.
 7. **i18n** — add the kind's display name in the 6 locale files
    (`healthMetrics.kinds.<kind>`) and the tool i18n keys
    (`healthMetrics.tools.<tool_name>`).

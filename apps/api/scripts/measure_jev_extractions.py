@@ -9,6 +9,11 @@ from time import perf_counter
 import httpx
 
 from src.core.config import settings
+from src.core.constants import (
+    MEMORY_CONTENT_MIN_CHARS,
+    MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+    MEMORY_USAGE_NUANCE_MAX_CHARS,
+)
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -35,6 +40,10 @@ def prompts(message):
             current_datetime="29/09/2026 12:00",
             known_relationships="None",
             health_context="",
+            memory_content_min_chars=MEMORY_CONTENT_MIN_CHARS,
+            memory_content_max_chars=settings.memory_content_max_chars,
+            memory_trigger_topic_max_chars=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+            memory_usage_nuance_max_chars=MEMORY_USAGE_NUANCE_MAX_CHARS,
         ),
         "interests": _render_extraction_prompt(conversation, [], "en"),
         "journal": build_introspection_prompt(

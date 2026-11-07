@@ -3,8 +3,8 @@
 /**
  * ToneSection — the colour temperature and the colour of a lamp or of a whole room (ADR-369).
  *
- * One folded section, named by what it holds, its pill saying the current tone (owner,
- * 2026-10-31). The temperature comes before the colour. A colour is drawn as what the lamp shows
+ * One folded section, « Customize » whatever it holds, its pill saying the current tone (owner,
+ * 2026-11-06). The temperature comes before the colour. A colour is drawn as what the lamp shows
  * now, one swatch whose press opens the platform's choice panel, sent when the panel closes.
  */
 import { Palette, Thermometer } from 'lucide-react';
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import { toneTitleKey, type ToneOffer } from '@/lib/workbench/lights';
+import { offersTone, type ToneOffer } from '@/lib/workbench/lights';
 
 import { CommitSlider } from './CommitSlider';
 
@@ -46,14 +46,12 @@ export function ToneSection({
   onColour,
 }: ToneSectionProps) {
   const { t } = useTranslation(lng);
-  const title = toneTitleKey(offer);
-  if (title === null) return null;
+  if (!offersTone(offer)) return null;
   return (
     <Disclosure
       icon={offer.supports_color ? Palette : Thermometer}
-      title={t(title)}
-      // Wraps rather than cuts: beside the pill, « Température et couleur » needed
-      // 156 px of 150 on a 390 px phone (measured 2026-10-31).
+      title={t('workbench.lights.customize')}
+      // Wraps rather than cuts: a pill is as wide as the temperature it says.
       titleClassName="whitespace-normal break-words"
       surface="nested"
       badge={

@@ -28,14 +28,18 @@ from src.domains.memories.models import Memory
 from src.domains.memories.prepared_embeddings import MemoryEmbedder
 from src.domains.memories.protection import initial_memory_pin, is_protected_from_deletion
 from src.domains.memories.repository import MemoryRepository
-from src.domains.memories.schemas import MemoryCreate, MemoryUpdate
+from src.domains.memories.schemas import MemoryCreate, MemoryStored, MemoryUpdate
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def preview_memory_update(memory: Memory, changes: MemoryUpdate) -> MemoryCreate:
-    """Project a sparse UI delta without mutating the source or preparing vectors."""
+def preview_memory_update(memory: Memory, changes: MemoryUpdate) -> MemoryStored:
+    """Project a sparse UI delta without mutating the source or preparing vectors.
+
+    The stored row is read, never judged: what the delta adds was held to the write
+    bounds by ``MemoryUpdate``, and a row past them must stay correctable.
+    """
     current = {
         "content": memory.content,
         "category": memory.category,
@@ -44,7 +48,7 @@ def preview_memory_update(memory: Memory, changes: MemoryUpdate) -> MemoryCreate
         "usage_nuance": memory.usage_nuance,
         "importance": memory.importance,
     }
-    return MemoryCreate.model_validate(current | changes.model_dump(exclude_none=True))
+    return MemoryStored.model_validate(current | changes.model_dump(exclude_none=True))
 
 
 # =============================================================================
@@ -175,7 +179,7 @@ class MemoryService:
 
         Args:
             user_id: Owner user UUID.
-            content: Memory text (first-person, max 500 chars).
+            content: Memory text (first-person, bounded by the write schemas).
             category: Memory category (preference, personal, etc.).
             emotional_weight: Emotional intensity (-10 to +10).
             trigger_topic: Keyword trigger for search.

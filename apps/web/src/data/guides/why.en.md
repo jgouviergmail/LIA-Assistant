@@ -4,7 +4,7 @@
 
 **Version**: 7.0
 **Date**: 2026-11-06
-**Application**: LIA v4.4.0
+**Application**: LIA v4.5.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ The mechanics are explained in [the technical guide](/en/how). How the code was 
 
 ## 2. What LIA does for you
 
-Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
+Open **Tools** when you want to do something yourself: mail, calendar, tasks, contacts, files and Hue lights are available through the services you connected. You click, edit and send directly, without an AI call, and yellow stars ask LIA to sum up or write when you want, its cost shown. Each screen offers only what its provider supports; actions you take there belong to you and do not enter LIA’s activity registers.
 
 You talk to her normally, in writing or by voice. The interface exists in six languages (French, English, German, Spanish, Italian, Chinese) and your dictation is transcribed in your account's language. Some twenty specialized agents share the work: your personal data, the web, creation, the smart home, browsing websites and anticipation.
 

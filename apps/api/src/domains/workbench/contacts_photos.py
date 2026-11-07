@@ -29,11 +29,12 @@ _JPEG_QUALITY: Final = 85
 _WHITE: Final = (255, 255, 255)
 
 
-def prepared_photo(data: bytes) -> ContactPhoto:
+def prepared_photo(data: bytes, max_side: int = WORKBENCH_CONTACT_PHOTO_MAX_SIDE) -> ContactPhoto:
     """Any image as the one small JPEG that leaves.
 
     Args:
         data: What the person picked; anybody's.
+        max_side: Its longest side, once redrawn.
 
     Returns:
         The photo, its longest side bounded, its metadata gone.
@@ -51,7 +52,7 @@ def prepared_photo(data: bytes) -> ContactPhoto:
             upright.load()
     except UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError, SyntaxError:
         refuse(NOT_AN_IMAGE)
-    upright.thumbnail((WORKBENCH_CONTACT_PHOTO_MAX_SIDE, WORKBENCH_CONTACT_PHOTO_MAX_SIDE))
+    upright.thumbnail((max_side, max_side))
     drawn = Image.new("RGB", upright.size, _WHITE)
     held = upright.convert("RGBA")
     drawn.paste(held, mask=held.getchannel("A"))

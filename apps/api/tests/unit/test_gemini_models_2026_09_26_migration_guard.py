@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 from tests.unit.infrastructure.llm.reasoning.test_family_coverage import _catalogue_rows
+from tests.unit.seed_extraction import retired_by_the_operator
 
 pytestmark = pytest.mark.unit
 
@@ -74,21 +75,19 @@ def test_every_migrated_catalogue_row_equals_its_seed_row() -> None:
             column: (value, seed_row[column])
             for column, value in row.items()
             if _as_seed_text(column, value) != seed_row[column]
+            and not retired_by_the_operator(row["model_name"], column)
         }
         assert mismatches == {}, f"{row['model_name']}: {mismatches}"
 
 
-def test_every_migrated_tariff_equals_the_seed_bundles_active_row() -> None:
+def test_every_migrated_tariff_equals_the_seed_bundle_row_at_its_date() -> None:
     module = _load()
     seed = _SEED.read_text(encoding="utf-8")
-    active = {
-        m.group("model"): m for m in _SEED_TARIFF.finditer(seed) if m.group("active") == "true"
-    }
+    rows = {(m.group("model"), m.group("effective")): m for m in _SEED_TARIFF.finditer(seed)}
     assert set(module.TARIFFS) == {row["model_name"] for row in module.CATALOGUE_ROWS}
     for name, (input_price, cached_price, output_price) in module.TARIFFS.items():
-        bundle = active.get(name)
-        assert bundle is not None, f"{name} has no active tariff in the seed bundle"
-        assert bundle.group("effective") == module.EFFECTIVE_FROM, name
+        bundle = rows.get((name, module.EFFECTIVE_FROM))
+        assert bundle is not None, f"{name} has no tariff at the migration's date in the seed"
         assert bundle.group("unit") == module.PRICING_UNIT, name
         assert (
             _price(bundle.group("input")),

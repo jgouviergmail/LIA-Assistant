@@ -55,6 +55,12 @@ describe('editorial content coverage (zero information loss)', () => {
     }
   });
 
+  it('alternates its bands from the plain section above the first chapter', () => {
+    expect(CHAPTERS.map(chapter => chapter.tinted)).toEqual(
+      CHAPTERS.map((_, index) => index % 2 === 0)
+    );
+  });
+
   it('covers every canonical feature card exactly once', () => {
     expect([...covered].sort()).toEqual([...REQUIRED_FEATURE_KEYS].sort());
     expect(new Set(covered).size).toBe(covered.length);
@@ -149,7 +155,7 @@ describe('editorial i18n contract', () => {
     ),
     'use_cases.example6.query',
     'use_cases.example6.description',
-    // security block reused by chapter 04's catalog extra
+    // security block reused by the `control` chapter's catalog extra
     'security.title',
     'security.intro',
     'security.privacy_link',

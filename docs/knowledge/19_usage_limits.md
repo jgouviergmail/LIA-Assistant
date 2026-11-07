@@ -42,6 +42,7 @@ When a limit is reached:
 - Message input and voice are **disabled**
 - A **red banner** explains the situation
 - **Proactive notifications** and **scheduled actions** are also blocked
+- In **Tools**, what you do by hand goes on; an assist is refused without calling LIA
 
 **To unblock:**
 - Wait for the next cycle (period limits)

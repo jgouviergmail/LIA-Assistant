@@ -22,6 +22,7 @@ import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import { expectInside, expectOnOneLine, expectSameStart, expectUnder } from './phone-lines';
 
 const CEILING = 26214400;
 
@@ -46,6 +47,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -110,6 +113,7 @@ const DETAILS: Record<string, unknown> = {
   d1: detail(ITEMS[0]),
   g1: detail(ITEMS[2], { ancestors: [{ id: 'd1', name: 'Projects 2026' }] }),
   p1: detail(ITEMS[3]),
+  m1: detail(item('m1', 'Minutes.pdf')),
   w1: detail(item('w1', 'Budget.xlsx', { previewable: true })),
   t1: detail(item('t1', 'Notes.txt', { mime_type: 'text/plain', editable: true })),
   v1: detail(item('v1', 'Report.pdf', { mime_type: 'application/pdf', previewable: true })),
@@ -151,7 +155,8 @@ const SHARING = {
 
 async function playTheApi(
   mockApi: (routes: MockRoute[]) => Promise<void>,
-  extra: MockRoute[] = []
+  extra: MockRoute[] = [],
+  rail: unknown = RAIL
 ) {
   await mockApi([
     ...extra,
@@ -165,7 +170,7 @@ async function playTheApi(
         capabilities: { workbench: { enabled: true, family: 'work' } },
       },
     },
-    { url: '**/api/v1/workbench', json: RAIL },
+    { url: '**/api/v1/workbench', json: rail },
     {
       url: '**/api/v1/workbench/files/file*',
       handler: async route => {
@@ -237,8 +242,7 @@ test.describe('organising, on a phone', () => {
 
     await page.goto('/en/dashboard/tools/files?file=p1');
     await waitForHydration(page, 'article');
-    await page.getByRole('button', { name: 'Organise' }).click();
-    await page.getByRole('menuitem', { name: 'Move' }).click();
+    await page.getByRole('article').getByRole('button', { name: 'Move', exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('button', { name: 'Move here' })).toBeDisabled();
@@ -313,8 +317,7 @@ test.describe('organising, on a phone', () => {
 
     await page.goto('/en/dashboard/tools/files?file=p1');
     await waitForHydration(page, 'article');
-    await page.getByRole('button', { name: 'Organise' }).click();
-    await page.getByRole('menuitem', { name: 'Share' }).click();
+    await page.getByRole('article').getByRole('button', { name: 'Share' }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText('Ana Lima')).toBeVisible();
@@ -569,7 +572,8 @@ test('a text is changed on the version it was read at, and a change elsewhere ke
   ]);
 
   await page.goto('/en/dashboard/tools/files?file=t1');
-  await page.getByRole('button', { name: 'Edit the text' }).click();
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Edit the text' }).click();
   const field = page.getByRole('textbox', { name: 'Text of the file' });
   await expect(field).toHaveValue('Hello');
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -668,4 +672,96 @@ test('the keyboard opens a file and gets its row back when it closes', async ({
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('link', { name: /Customer deck\.pdf/ })).toBeFocused();
+});
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+for (const width of [390, 360]) {
+  test(`a phone reads the files line by line at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/files');
+    await waitForHydration(page, 'input[type="search"]');
+    const tool = page.getByRole('region', { name: 'Files' });
+    const folder = tool.getByRole('button', { name: 'New folder' });
+    await expect(folder).toHaveText('Folder');
+    await expectOnOneLine(
+      folder,
+      tool.getByRole('button', { name: 'Send', exact: true }),
+      tool.getByRole('combobox', { name: 'Order of the folder' })
+    );
+    await expectSameStart(page.getByRole('button', { name: 'Search across your tools' }), tool);
+
+    await page.goto('/en/dashboard/tools/files?file=p1');
+    const detail = page.getByRole('article', { name: 'Customer deck.pdf' });
+    const open = detail.getByRole('link', { name: 'Open in Drive' });
+    const link = detail.getByRole('button', { name: 'Copy the link' });
+    const move = detail.getByRole('button', { name: 'Move', exact: true });
+    const share = detail.getByRole('button', { name: 'Share' });
+    const more = detail.getByRole('button', { name: 'More actions' });
+    const remove = detail.getByRole('button', { name: 'Delete' });
+    const ask = detail.getByRole('button', { name: 'Ask LIA' });
+    await expectOnOneLine(open, link, move, share, more, remove, ask);
+    await expectUnder(ask, detail.getByRole('heading', { level: 2 }));
+    await expectInside(detail, ask);
+    await more.click();
+    await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible();
+    await expectNoOverflow(page, `the file's acts at ${width}px`);
+  });
+}
+
+/* Eight acts with a mail to go to: the name gives way, then the bar takes another line. */
+for (const width of [430, 390, 360, 320]) {
+  test(`every act of a file stays whole with a mail to go to at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, [], {
+      ...RAIL,
+      tools: RAIL.tools.map(tool =>
+        tool.tool === 'mail' ? { ...tool, state: 'ready', provider: 'google_gmail' } : tool
+      ),
+    });
+
+    await page.goto('/en/dashboard/tools/files?file=m1');
+    const detail = page.getByRole('article', { name: 'Minutes.pdf' });
+    await expect(detail.getByRole('button', { name: 'Send by mail' })).toBeVisible();
+    const acts = detail.getByTestId('detail-acts').locator('a, button');
+    await expect(acts).toHaveCount(8);
+
+    for (const act of await acts.all()) await expectInside(detail, act);
+    await expect(acts.nth(6)).toHaveAccessibleName('Delete');
+    await expect(acts.nth(7)).toHaveAccessibleName('Ask LIA');
+    await expectNoOverflow(page, `the file's eight acts at ${width}px`);
+  });
+}
+
+test('a very narrow phone keeps the acts of a file inside its bar', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/files?file=p1');
+  const detail = page.getByRole('article', { name: 'Customer deck.pdf' });
+  await expectInside(detail, detail.getByRole('button', { name: 'More actions' }));
+  await expectNoOverflow(page, "the file's acts at 320px");
+
+  // Larger text: the tool's name gives way, an act never does.
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '150%';
+  });
+  await expectInside(detail, detail.getByRole('button', { name: 'More actions' }));
+  await expectInside(detail, detail.getByRole('button', { name: 'Ask LIA' }));
 });

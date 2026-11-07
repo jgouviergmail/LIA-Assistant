@@ -5,8 +5,8 @@
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
 
-> **Nouveautés v1.5** : 15 agents actifs, ajout Philips Hue Smart Home Agent (v1.8.0), Semantic Tool Router (ADR-048) + OpenAI Embeddings (ADR-049).
-> Voir [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) pour le catalogue complet des 56+ tools.
+> Deux agents compilés (`query_agent`, `browser_agent`) ; un domaine est un nom de manifeste ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
+> Catalogue : [AGENT_MANIFEST.md](./AGENT_MANIFEST.md).
 
 ---
 
@@ -57,49 +57,50 @@ graph TB
     end
 
     subgraph "Agent Level"
-        F --> H[contacts_agent]
-        F --> I[emails_agent]
-        F --> J[calendar_agent]
-        H --> K[Google Contacts Tools]
-        I --> L[Emails Tools]
-        J --> M[Calendar Tools]
+        F --> H[query_agent]
+        F --> I[browser_agent]
+        H --> K[Local Query Engine Tool]
+        I --> L[Browser Tools]
     end
 
     subgraph "Shared Dependencies"
         D --> H
         D --> I
-        D --> J
         E --> H
         E --> I
-        E --> J
     end
 
     style C fill:#3498db
     style H fill:#2ecc71
     style I fill:#2ecc71
-    style J fill:#2ecc71
 ```
 
 **Architecture Pattern** : **Registry + Factory + Lazy Initialization**.
 
 ### Agents Actuels
 
+Depuis [ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md), ces agents sont des **noms de domaine** : ils regroupent les
+outils dans les manifestes, le catalogue, les métriques et `agent_results`. Un plan appelle leurs
+outils directement (`parallel_executor`) et la boucle ReAct les lie elle-même : aucun n'a de nœud
+de graphe ni de prompt de domaine. Le domaine e-mail garde un poste LLM, `emails_agent`, qui rédige
+les messages ; `browser_agent` et `query_agent` sont les seuls agents **compilés**, décrits plus bas.
+
 | Agent | Domaine | Outils Principaux | Status |
 |-------|---------|-------------------|--------|
-| `contacts_agent` | Google Contacts | search_contacts, list_contacts, get_contact_details + context tools | ✅ Production |
-| `emails_agent` | Gmail | search_emails, get_email_details, send_email, send_reply, trash_email | ✅ Production |
-| `calendar_agent` | Google Calendar | search_events, get_event_details, create_event, update_event | ✅ Production |
+| `contact_agent` | Google Contacts | search_contacts, list_contacts, get_contact_details + context tools | ✅ Production |
+| `email_agent` | Gmail | search_emails, get_email_details, send_email, send_reply, trash_email | ✅ Production |
+| `event_agent` | Google Calendar | search_events, get_event_details, create_event, update_event | ✅ Production |
 | `file_agent` | Google Drive or OneDrive | get_files, manage_files, share_file, read_spreadsheet, read_document, write_spreadsheet, append_document_text, replace_document_text | ✅ Production |
-| `tasks_agent` | Google Tasks | search_tasks, list_task_lists, get_task_details, create_task, complete_task | ✅ Production |
-| `places_agent` | Google Places API (New) | search_places, get_place_details | ✅ Production |
+| `task_agent` | Google Tasks | search_tasks, list_task_lists, get_task_details, create_task, complete_task | ✅ Production |
+| `place_agent` | Google Places API (New) | search_places, get_place_details | ✅ Production |
 | `weather_agent` | OpenWeatherMap | get_weather | ✅ Production |
 | `wikipedia_agent` | Wikipedia API | search_wikipedia | ✅ Production |
 | `perplexity_agent` | Perplexity API | search_web | ✅ Production |
 | `web_fetch_agent` | Web Fetch (URL → Markdown) | fetch_web_page | ✅ Production |
 | `web_search_agent` | Brave + Perplexity | web_search | ✅ Production |
 | `brave_agent` | Brave Search | brave_search, brave_news | ✅ Production |
-| `routes_agent` | Google Routes | compute_routes | ✅ Production |
-| `query_agent` | Context Resolution | resolve_reference, get_context_list, set_current_item | ✅ Production |
+| `route_agent` | Google Routes | compute_routes | ✅ Production |
+| `query_agent` | Analyse de données déjà en mémoire (LocalQueryEngine) | local_query_engine | Enregistré, jamais construit |
 | `hue_agent` | Philips Hue Smart Home | list_lights, control_light, list_rooms, control_room, list_scenes, activate_scene | ✅ Production |
 
 ---
@@ -198,57 +199,33 @@ class AgentRegistry:
 
 #### Niveau 3 : Agents (LangChain Agents)
 
-**Fichier** : `apps/api/src/domains/agents/graphs/contacts_agent_builder.py`
+**Fichier** : `apps/api/src/domains/agents/graphs/query_agent_builder.py`
 
 ```python
-def build_contacts_agent() -> Any:
-    """
-    Build and compile the contacts agent using the generic agent builder template.
+def build_query_agent() -> Any:
+    """Build and compile the Query agent using the generic agent builder template."""
+    tools: list[BaseTool] = cast(list[BaseTool], [local_query_engine_tool])
 
-    This function creates a LangChain v1.0 agent with:
-    - Google Contacts tools (search, list, get_details)
-    - Context resolution tools (resolve_reference, set_current_item, etc.)
-    - HITL middleware for tool approval
-    - Pre-model hook for message history management
-    - LLM configuration from settings
-
-    Returns:
-        Compiled LangChain agent ready to be wrapped in a parent graph node.
-    """
-    tools: list[BaseTool] = cast(
-        list[BaseTool],
-        [
-            # Contacts tools
-            search_contacts_tool,
-            list_contacts_tool,
-            get_contact_details_tool,
-            # Context resolution tools
-            resolve_reference,
-            get_context_list,
-            set_current_item,
-            get_context_state,
-            list_active_domains,
-        ],
+    # Load versioned prompt template
+    query_agent_prompt_template = load_prompt("query_agent_prompt", version="v1")
+    system_prompt_template = query_agent_prompt_template.format(
+        current_datetime="{current_datetime}",
+        context_instructions="",  # Local analysis, no external context
+        available_domains=available_domains_str,
     )
 
-    # Create agent config from settings
     config = create_agent_config_from_settings(
-        agent_name="contacts_agent",
+        agent_name="query_agent",
         tools=tools,
         system_prompt=system_prompt_template,
-        datetime_generator=_get_current_datetime_formatted,
+        datetime_generator=get_prompt_datetime_formatted,
     )
 
-    # Build agent using generic template
-    agent = build_generic_agent(config)
-
-    logger.info("contacts_agent_built_successfully")
-
-    return agent
+    return build_generic_agent(config)
 ```
 
 **Responsabilités** :
-- Définir la liste des outils du domaine
+- Définir la liste des outils de l'agent
 - Configurer le prompt système
 - Configurer le LLM (model, temperature, etc.)
 - Retourner l'agent compilé
@@ -264,8 +241,7 @@ sequenceDiagram
     participant Router
     participant Planner
     participant TaskOrchestrator
-    participant ContactsAgent
-    participant GmailAgent
+    participant Tools
     participant Response
 
     User->>AgentService: POST /chat
@@ -279,14 +255,14 @@ sequenceDiagram
     Planner->>TaskOrchestrator: Next: task_orchestrator
 
     TaskOrchestrator->>TaskOrchestrator: Parse plan.steps
-    TaskOrchestrator->>TaskOrchestrator: Identify agents: [contacts_agent, emails_agent]
+    TaskOrchestrator->>TaskOrchestrator: Compute waves (DependencyGraph)
 
     par Parallel Execution (asyncio)
-        TaskOrchestrator->>ContactsAgent: Execute steps 1-3<br/>(search_contacts, get_details)
-        ContactsAgent-->>TaskOrchestrator: Results
+        TaskOrchestrator->>Tools: Execute steps 1-3<br/>(search_contacts, get_details)
+        Tools-->>TaskOrchestrator: Results
     and
-        TaskOrchestrator->>GmailAgent: Execute step 4<br/>(send_email)
-        GmailAgent-->>TaskOrchestrator: Results
+        TaskOrchestrator->>Tools: Execute step 4<br/>(send_email)
+        Tools-->>TaskOrchestrator: Results
     end
 
     TaskOrchestrator->>TaskOrchestrator: Aggregate agent_results
@@ -331,9 +307,8 @@ classDiagram
 
     class AgentBuilder {
         <<function>>
-        +build_contacts_agent()
-        +build_emails_agent()
-        +build_calendar_agent()
+        +build_query_agent()
+        +build_browser_agent()
     }
 
     class LangChainAgent {
@@ -418,7 +393,7 @@ def register_agent(self, name: str, builder: Callable[[], Any], override: bool =
     This allows for efficient startup (agents built only when needed).
 
     Args:
-        name: Unique agent identifier (e.g., "contacts_agent").
+        name: Unique agent identifier (e.g., "query_agent").
         builder: Callable that returns a compiled agent (no arguments).
         override: If True, allows overriding existing registration.
 
@@ -427,8 +402,8 @@ def register_agent(self, name: str, builder: Callable[[], Any], override: bool =
         ValueError: If name or builder is invalid.
 
     Example:
-        >>> from src.domains.agents.graphs import build_contacts_agent
-        >>> registry.register_agent("contacts_agent", build_contacts_agent)
+        >>> from src.domains.agents.graphs import build_query_agent
+        >>> registry.register_agent("query_agent", build_query_agent)
     """
     if not name or not isinstance(name, str):
         raise ValueError(f"Invalid agent name: {name} (must be non-empty string)")
@@ -488,7 +463,7 @@ def get_agent(self, name: str) -> Any:
         AgentNotFoundError: If agent not registered.
 
     Example:
-        >>> agent = registry.get_agent("contacts_agent")
+        >>> agent = registry.get_agent("query_agent")
         >>> result = await agent.ainvoke(state, config)
 
     Note:
@@ -543,7 +518,7 @@ def get_agent(self, name: str) -> Any:
 **Flow** :
 1. **Cache check** → Si agent déjà construit, retourner immédiatement
 2. **Builder check** → Si builder absent, lever `AgentNotFoundError`
-3. **Build** → Appeler `builder()` (ex: `build_contacts_agent()`)
+3. **Build** → Appeler `builder()` (ex: `build_query_agent()`)
 4. **Cache** → Stocker l'agent compilé
 5. **Return** → Retourner l'agent
 
@@ -574,7 +549,7 @@ def rebuild_agent(self, name: str) -> Any:
 
     Example:
         >>> # After changing agent config
-        >>> agent = registry.rebuild_agent("contacts_agent")
+        >>> agent = registry.rebuild_agent("query_agent")
     """
     with self._lock:
         # Clear cache
@@ -618,7 +593,7 @@ def get_global_registry() -> AgentRegistry:
     Example:
         >>> # In AgentService.__init__
         >>> registry = get_global_registry()
-        >>> agent = registry.get_agent("contacts_agent")
+        >>> agent = registry.get_agent("query_agent")
 
     Note:
         The global registry is initialized without checkpointer/store.
@@ -656,7 +631,7 @@ def set_global_registry(registry: AgentRegistry) -> None:
         ...     checkpointer=postgres_checkpointer,
         ...     store=in_memory_store
         ... )
-        >>> registry.register_agent("contacts_agent", build_contacts_agent)
+        >>> registry.register_agent("query_agent", build_query_agent)
         >>> set_global_registry(registry)
 
     Note:
@@ -692,12 +667,12 @@ def reset_global_registry() -> None:
 ```python
 # main.py (startup)
 registry = AgentRegistry(checkpointer=postgres_checkpointer, store=in_memory_store)
-registry.register_agent("contacts_agent", build_contacts_agent)
+registry.register_agent("query_agent", build_query_agent)
 set_global_registry(registry)
 
 # AgentService (runtime)
 registry = get_global_registry()
-agent = registry.get_agent("contacts_agent")
+agent = registry.get_agent("query_agent")
 ```
 
 ---
@@ -711,7 +686,7 @@ Le **Agent Builder Pattern** utilise une fonction factory générique pour crée
 ```mermaid
 graph TB
     subgraph "Builder Layer"
-        A[build_contacts_agent] --> B[create_agent_config_from_settings]
+        A[build_query_agent] --> B[create_agent_config_from_settings]
         B --> C[build_generic_agent]
     end
 
@@ -769,7 +744,7 @@ class AgentConfig(TypedDict, total=False):
     Complete configuration for building a generic agent.
 
     Required Fields:
-        agent_name: Unique identifier (e.g., "contacts_agent").
+        agent_name: Unique identifier (e.g., "query_agent").
         tools: List of LangChain tools.
         system_prompt: Formatted system prompt string.
         llm_config: LLM configuration dictionary.
@@ -820,7 +795,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
 
     Example:
         >>> config = AgentConfig(
-        ...     agent_name="contacts_agent",
+        ...     agent_name="query_agent",
         ...     tools=[search_contacts_tool, list_contacts_tool],
         ...     system_prompt=CONTACTS_AGENT_SYSTEM_PROMPT,
         ...     llm_config=LLMConfig(
@@ -897,92 +872,11 @@ def build_generic_agent(config: AgentConfig) -> Any:
 
 ---
 
-### Contacts Agent Builder (Exemple)
+### Query Agent Builder (Exemple)
 
-**Fichier** : `apps/api/src/domains/agents/graphs/contacts_agent_builder.py`
-
-```python
-def build_contacts_agent() -> Any:
-    """
-    Build and compile the contacts agent using the generic agent builder template.
-
-    This function creates a LangChain v1.0 agent with:
-    - Google Contacts tools (search, list, get_details)
-    - Context resolution tools (resolve_reference, set_current_item, etc.)
-    - HITL middleware for tool approval
-    - Pre-model hook for message history management
-    - LLM configuration from settings
-
-    Returns:
-        Compiled LangChain agent ready to be wrapped in a parent graph node.
-    """
-    logger.info("building_contacts_agent_with_generic_template")
-
-    # Import all tools
-    from src.domains.agents.tools.context_tools import (
-        get_context_list,
-        get_context_state,
-        list_active_domains,
-        resolve_reference,
-        set_current_item,
-    )
-    from src.domains.agents.tools.google_contacts_tools import (
-        get_contact_details_tool,
-        list_contacts_tool,
-        search_contacts_tool,
-    )
-
-    tools: list[BaseTool] = cast(
-        list[BaseTool],
-        [
-            # Contacts tools
-            search_contacts_tool,
-            list_contacts_tool,
-            get_contact_details_tool,
-            # Context resolution tools
-            resolve_reference,
-            get_context_list,
-            set_current_item,
-            get_context_state,
-            list_active_domains,
-        ],
-    )
-
-    # Generate system prompt with dynamic datetime
-    def _get_current_datetime_formatted() -> str:
-        """Generate formatted datetime using centralized settings."""
-        tz = ZoneInfo(settings.prompt_timezone)
-        return datetime.now(tz).strftime(settings.prompt_datetime_format)
-
-    # One versioned text for every domain agent, rendered for this one (ADR-323)
-    context_instructions = domain_context_instructions("contacts")
-
-    # Load versioned prompt template
-    contacts_agent_prompt_template = load_prompt("contacts_agent_prompt", version="v1")
-
-    # Build prompt template
-    system_prompt_template = contacts_agent_prompt_template.format(
-        current_datetime="{current_datetime}",  # Placeholder for partial
-        context_instructions=context_instructions,
-    )
-
-    # Create agent config from settings
-    config = create_agent_config_from_settings(
-        agent_name="contacts_agent",
-        tools=tools,
-        system_prompt=system_prompt_template,
-        datetime_generator=_get_current_datetime_formatted,
-    )
-
-    # Build agent using generic template
-    agent = build_generic_agent(config)
-
-    logger.info("contacts_agent_built_successfully")
-
-    return agent
-```
-
-**Réduction boilerplate** : 150 lignes → 80 lignes (**47% reduction**).
+**Fichier** : `apps/api/src/domains/agents/graphs/query_agent_builder.py`, reproduit au niveau 3
+ci-dessus. Un domaine n'a pas de builder : `build_query_agent` et `build_browser_agent` sont les
+deux seuls ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
 
 ---
 
@@ -994,7 +888,7 @@ def build_contacts_agent() -> Any:
 # apps/api/src/main.py
 
 from src.domains.agents.registry import AgentRegistry, set_global_registry
-from src.domains.agents.graphs import build_contacts_agent
+from src.domains.agents.graphs import build_query_agent
 from src.infrastructure.database.checkpointer import get_postgres_checkpointer
 from src.domains.agents.context import get_tool_context_store
 
@@ -1015,9 +909,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     # Register agents (lazy - builders only)
-    registry.register_agent("contacts_agent", build_contacts_agent)
-    # registry.register_agent("emails_agent", build_emails_agent)  # Future
-    # registry.register_agent("calendar_agent", build_calendar_agent)  # Future
+    registry.register_agent("query_agent", build_query_agent)
 
     # Load catalogue manifests
     from src.domains.agents.registry import load_catalogue_manifests
@@ -1086,8 +978,8 @@ class AgentService:
 
         # Add agent nodes (lazy-loaded from registry)
         # Agent nodes are created as wrappers around agents from registry
-        # Example: contacts_agent_node = create_agent_wrapper_node("contacts_agent")
-        # The wrapper retrieves the agent via registry.get_agent("contacts_agent")
+        # Example: browser_agent_node = create_agent_wrapper_node("browser_agent")
+        # The wrapper retrieves the agent via registry.get_agent("browser_agent")
         # and calls agent.ainvoke(state, config)
 
         # Set entry point (F4: compaction before router)
@@ -1117,7 +1009,7 @@ class AgentService:
 
 **Key points** :
 - Graph est compilé avec checkpointer et store du registry
-- Agent nodes sont des wrappers qui appellent `registry.get_agent()`
+- Le seul nœud agent, `browser_agent`, est un wrapper qui appelle `registry.get_agent()` ; il n'existe que si Playwright est installé
 - Lazy build : Graph construit seulement au premier `/chat` request
 
 ---
@@ -1193,7 +1085,7 @@ class ToolManifest:
 
     Attributes:
         name: Unique tool identifier (e.g., "search_contacts_tool").
-        agent: Agent this tool belongs to (e.g., "contacts_agent").
+        agent: Agent this tool belongs to (e.g., "contact_agent").
         description: Brief tool description for LLM (1-2 sentences).
         parameters: List of parameter schemas (inputs).
         cost: Cost profile (token estimates, latency).
@@ -1206,7 +1098,7 @@ class ToolManifest:
     Example:
         >>> manifest = ToolManifest(
         ...     name="search_contacts_tool",
-        ...     agent="contacts_agent",
+        ...     agent="contact_agent",
         ...     description="Search Google Contacts by name, email, or phone",
         ...     parameters=[
         ...         ParameterSchema(
@@ -1430,7 +1322,7 @@ class DomainMetadata:
         display_name: Human-readable name (e.g., "Google Contacts").
         description: Brief description of domain capabilities.
         icon: Icon identifier (for UI).
-        default_agent: Default agent for this domain (e.g., "contacts_agent").
+        default_agent: Default agent for this domain (e.g., "contact_agent").
         cross_domain: If True, domain tools are always included (e.g., "context").
     """
     identifier: str
@@ -1451,28 +1343,28 @@ DOMAIN_REGISTRY: dict[str, DomainMetadata] = {
         display_name="Google Contacts",
         description="Manage Google Contacts (search, list, get details)",
         icon="users",
-        default_agent="contacts_agent",
+        default_agent="contact_agent",
     ),
     "email": DomainMetadata(
         identifier="email",
         display_name="Gmail",
         description="Send and manage emails via Gmail",
         icon="mail",
-        default_agent="emails_agent",
+        default_agent="email_agent",
     ),
     "calendar": DomainMetadata(
         identifier="calendar",
         display_name="Google Calendar",
         description="Create and manage calendar events",
         icon="calendar",
-        default_agent="calendar_agent",
+        default_agent="event_agent",
     ),
     "tasks": DomainMetadata(
         identifier="tasks",
         display_name="Google Tasks",
         description="Manage tasks and to-do lists",
         icon="check-square",
-        default_agent="tasks_agent",
+        default_agent="task_agent",
     ),
     "context": DomainMetadata(
         identifier="context",
@@ -1497,8 +1389,8 @@ def _build_domain_index(self) -> None:
 
     Example Index:
         _domain_to_agents = {
-            "contacts": ["contacts_agent"],
-            "email": ["emails_agent"],
+            "contacts": ["contact_agent"],
+            "email": ["email_agent"],
         }
         _domain_to_tools = {
             "contacts": ["search_contacts_tool", "list_contacts_tool"],
@@ -1845,33 +1737,33 @@ python
 >>>
 >>> # List registered agents
 >>> registry.list_agents()
-['contacts_agent']
+['query_agent', 'browser_agent']
 >>>
 >>> # Get agent stats
 >>> registry.get_stats()
 {
-    'registered': 1,
+    'registered': 2,
     'built': 0,
     'has_checkpointer': True,
     'has_store': True,
     'agents': {
-        'registered': ['contacts_agent'],
+        'registered': ['query_agent', 'browser_agent'],
         'built': []
     },
     'catalogue': {
-        'agent_manifests': 1,
-        'tool_manifests': 8,
-        'agents': ['contacts_agent'],
+        'agent_manifests': ...,
+        'tool_manifests': ...,
+        'agents': ['contact_agent', 'context_agent', ...],
         'tools': ['search_contacts_tool', 'list_contacts_tool', ...]
     }
 }
 >>>
 >>> # Get agent (triggers lazy build)
->>> agent = registry.get_agent("contacts_agent")
+>>> agent = registry.get_agent("query_agent")
 >>> # ... agent built ...
 >>>
 >>> # Check if built
->>> registry.is_built("contacts_agent")
+>>> registry.is_built("query_agent")
 True
 ```
 
@@ -1885,7 +1777,7 @@ True
 >>> manifests = registry.list_agent_manifests()
 >>> for m in manifests:
 ...     print(f"{m.name} v{m.version} - {len(m.tools)} tools")
-contacts_agent v1.0.0 - 8 tools
+query_agent v1.0.0 - 1 tools
 >>>
 >>> # Get tool manifest
 >>> manifest = registry.get_tool_manifest("search_contacts_tool")
@@ -1895,9 +1787,9 @@ Cost: 150 in, 800 out
 >>> # Export catalogue for planner
 >>> catalogue = registry.export_for_prompt()
 >>> print(f"Agents: {len(catalogue['agents'])}")
-Agents: 1
+Agents: ...
 >>> print(f"Tools: {sum(len(a['tools']) for a in catalogue['agents'])}")
-Tools: 8
+Tools: ...
 ```
 
 ### Troubleshooting "Agent Not Found"
@@ -1905,8 +1797,8 @@ Tools: 8
 **Symptôme** :
 
 ```
-AgentNotFoundError: Agent 'emails_agent' not found in registry.
-Available agents: ['contacts_agent'].
+AgentNotFoundError: Agent 'browser_agent' not found in registry.
+Available agents: ['query_agent'].
 Did you forget to call register_agent()?
 ```
 
@@ -1915,10 +1807,8 @@ Did you forget to call register_agent()?
 **Solution** :
 
 ```python
-# In main.py
-from src.domains.agents.graphs import build_emails_agent
-
-registry.register_agent("emails_agent", build_emails_agent)
+# In startup/agents.py::init_agent_registry
+registry.register_agent("browser_agent", build_browser_agent)
 ```
 
 ### Troubleshooting "Agent Build Failed"
@@ -1926,7 +1816,7 @@ registry.register_agent("emails_agent", build_emails_agent)
 **Symptôme** :
 
 ```
-AgentRegistryError: Failed to build agent 'contacts_agent': ImportError: No module named 'google.auth'
+AgentRegistryError: Failed to build agent 'query_agent': ImportError: No module named '...'
 ```
 
 **Cause** : Dépendance manquante ou erreur dans le builder.
@@ -1934,87 +1824,31 @@ AgentRegistryError: Failed to build agent 'contacts_agent': ImportError: No modu
 **Solution** :
 
 ```bash
-# Install missing dependency
-poetry add google-auth
+# Declare the missing dependency in apps/api/requirements.txt, then
+task deps:lock
 
 # Or check builder code for errors
-# apps/api/src/domains/agents/graphs/contacts_agent_builder.py
+# apps/api/src/domains/agents/graphs/query_agent_builder.py
 ```
 
 ---
 
 ## Exemples Pratiques
 
-### Exemple 1 : Créer un Nouvel Agent (Emails)
+### Exemple 1 : Ajouter un Domaine
 
-> **Note**: Suite à ADR-010, le domaine email utilise le nom générique `emails` (multi-provider: Gmail, Outlook).
+Un domaine n'a ni builder, ni nœud de graphe, ni poste LLM, ni prompt à lui
+([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)) : il existe par ses outils et ses manifestes.
 
-**Étape 1** : Créer le builder
+**Étape 1** : Écrire les outils (`apps/api/src/domains/agents/tools/{domain}_tools.py`), voir
+[GUIDE_TOOL_CREATION.md](../guides/GUIDE_TOOL_CREATION.md).
 
-```python
-# apps/api/src/domains/agents/graphs/emails_agent_builder.py
+**Étape 2** : Déclarer les manifestes (`apps/api/src/domains/agents/{domain}/catalogue_manifests.py`) :
+un `ToolManifest` par outil, un `AgentManifest` qui les regroupe. C'est ce que lisent le planner et
+la boucle ReAct.
 
-def build_emails_agent() -> Any:
-    """Build and compile the Emails agent."""
-    logger.info("building_emails_agent")
-
-    # Import tools
-    from src.domains.agents.tools.emails_tools import (
-        get_emails_tool,
-        send_email_tool,
-    )
-
-    tools: list[BaseTool] = cast(
-        list[BaseTool],
-        [
-            get_emails_tool,
-            send_email_tool,
-        ],
-    )
-
-    # Load prompt
-    emails_prompt_template = load_prompt("emails_agent_prompt", version="v1")
-
-    # Create config
-    config = create_agent_config_from_settings(
-        agent_name="emails_agent",
-        tools=tools,
-        system_prompt=emails_prompt_template,
-    )
-
-    # Build agent
-    agent = build_generic_agent(config)
-
-    logger.info("emails_agent_built_successfully")
-
-    return agent
-```
-
-**Étape 2** : Enregistrer dans le registry
-
-```python
-# main.py
-
-from src.domains.agents.graphs import build_emails_agent
-
-registry.register_agent("emails_agent", build_emails_agent)
-```
-
-**Étape 3** : Créer les manifests
-
-```yaml
-# apps/api/src/domains/agents/emails/catalogue_manifests.py
-
-agent:
-  name: emails_agent
-  description: Send and manage emails (Gmail, Outlook, etc.)
-  version: 1.0.0
-  domain: emails
-  tools:
-    - send_email_tool
-    - search_emails_tool
-    - get_email_details_tool
-```
+**Étape 3** : Enregistrer les manifestes dans le catalogue, voir
+[GUIDE_AGENT_CREATION.md](../guides/GUIDE_AGENT_CREATION.md).
 
 **Étape 4** : Tester
 
@@ -2037,7 +1871,7 @@ curl -X POST http://localhost:8000/api/v1/agents/chat \
 ```python
 # Router detects domains
 router_output = RouterOutput(
-    intention="complex_multi_step",
+    intention="action",
     confidence=0.92,
     next_node="planner",
     domains=["contacts", "email"],  # ✅ Detected domains
@@ -2056,12 +1890,12 @@ else:
 # catalogue = {
 #     "agents": [
 #         {
-#             "agent": "contacts_agent",
+#             "agent": "contact_agent",
 #             "domain": "contacts",
 #             "tools": [search_contacts, list_contacts, get_contact_details]
 #         },
 #         {
-#             "agent": "emails_agent",
+#             "agent": "email_agent",
 #             "domain": "email",
 #             "tools": [send_email, search_emails]
 #         },
@@ -2159,7 +1993,7 @@ else:
 
 - `apps/api/src/domains/agents/registry/agent_registry.py` - Registry complet (1,337 lignes)
 - `apps/api/src/domains/agents/graphs/base_agent_builder.py` - Generic builder template
-- `apps/api/src/domains/agents/graphs/contacts_agent_builder.py` - Exemple contacts agent
+- `apps/api/src/domains/agents/graphs/query_agent_builder.py` - Exemple d'agent compilé
 - `apps/api/src/domains/agents/registry/domain_taxonomy.py` - Domain registry
 - `apps/api/src/domains/agents/registry/catalogue.py` - Manifest schemas
 - `apps/api/src/domains/agents/api/service.py` - AgentService
@@ -2169,5 +2003,5 @@ else:
 
 **Document généré le** : 2025-12-27
 **Auteur** : Documentation Technique LIA
-**Phase** : LOT 9/10 + v1.8.0 - 15 agents actifs
+**Phase** : LOT 9/10 + v1.8.0
 **Statut** : ✅ Complète et Validée

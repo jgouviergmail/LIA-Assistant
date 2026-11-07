@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { fireEvent, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeUser } from '@/__tests__/factories';
 
 const { useMemories } = vi.hoisted(() => ({ useMemories: vi.fn() }));
@@ -27,9 +27,17 @@ const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() 
 vi.mock('sonner', () => ({ toast }));
 
 import { MemorySettings } from '../MemorySettings';
-import type { Memory, useMemories as useMemoriesFn } from '@/hooks/useMemories';
+import type { Memory, MemoryLimits, useMemories as useMemoriesFn } from '@/hooks/useMemories';
 
 type MemoriesHook = ReturnType<typeof useMemoriesFn>;
+
+/** What the API publishes on the list: the form holds a text to these. */
+const LIMITS: MemoryLimits = {
+  content_min_chars: 3,
+  content_max_chars: 500,
+  trigger_topic_max_chars: 100,
+  usage_nuance_max_chars: 300,
+};
 
 function memory(over: Partial<Memory> = {}): Memory {
   return {
@@ -51,6 +59,7 @@ function hook(over: Partial<MemoriesHook> = {}) {
   return {
     memories: [memory()],
     total: 1,
+    limits: LIMITS,
     loading: false,
     creating: false,
     deleting: false,
@@ -205,6 +214,188 @@ describe('MemorySettings — pinned export', () => {
   });
 });
 
+describe('MemorySettings — the form says what the API would refuse', () => {
+  // Measured in production on 2026-11-06: a 495-character memory, a few words added,
+  // and five saves answered the same bare error, while the API refused the text for
+  // its length. The person tried unpinning it, a reason the screen never gave.
+  const SAVE = 'common.save';
+  const CONTENT = 'memories.field_content';
+
+  async function openEdit(user: ReturnType<typeof render>['user']) {
+    await openCategory(user);
+    await user.click(await screen.findByRole('button', { name: 'memories.edit' }));
+    return screen.findByLabelText(CONTENT);
+  }
+
+  it('says why, and holds Save, the moment a memory outgrows its bound', async () => {
+    const updateMemory = vi.fn();
+    useMemories.mockReturnValue(
+      hook({ memories: [memory({ content: 'x'.repeat(495) })], updateMemory })
+    );
+    const { user } = render();
+    const field = await openEdit(user);
+
+    await user.type(field, 'plus !');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('memories.text_too_long');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    const save = screen.getByRole('button', { name: SAVE });
+    expect(save).toBeDisabled();
+    await user.click(save);
+    expect(updateMemory).not.toHaveBeenCalled();
+  });
+
+  it('saves again once the text is back within its bound', async () => {
+    const updateMemory = vi.fn().mockResolvedValue(undefined);
+    useMemories.mockReturnValue(
+      hook({ memories: [memory({ content: 'x'.repeat(495) })], updateMemory })
+    );
+    const { user } = render();
+    const field = await openEdit(user);
+
+    await user.type(field, 'plus !{Backspace}');
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: SAVE }));
+    await waitFor(() =>
+      expect(updateMemory).toHaveBeenCalledWith(
+        'm1',
+        expect.objectContaining({ content: `${'x'.repeat(495)}plus ` })
+      )
+    );
+    expect(toast.success).toHaveBeenCalledWith('memories.update_success');
+  });
+
+  it.each([
+    ['a text the API refused', 422, 'memories.text_refused'],
+    ['any other failure', 500, 'memories.update_error'],
+  ])('says so for %s', async (_case, status, expected) => {
+    const updateMemory = vi.fn().mockRejectedValue(Object.assign(new Error('refused'), { status }));
+    useMemories.mockReturnValue(hook({ updateMemory }));
+    const { user } = render();
+    await openEdit(user);
+
+    await user.click(screen.getByRole('button', { name: SAVE }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expected));
+  });
+
+  it('counts an emoji once, as the API does', async () => {
+    useMemories.mockReturnValue(hook({ memories: [memory({ content: '😀'.repeat(500) })] }));
+    const { user } = render();
+    await openEdit(user);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: SAVE })).toBeEnabled();
+  });
+
+  it('attaches the count to the field, for whoever cannot see it', async () => {
+    const { user } = render();
+    const field = await openEdit(user);
+
+    expect(field).toHaveAccessibleDescription('memories.characters');
+  });
+
+  it.each([
+    ['memories.field_trigger_topic', LIMITS.trigger_topic_max_chars],
+    ['memories.field_usage_nuance', LIMITS.usage_nuance_max_chars],
+  ])('holds %s to its own bound', async (label, ceiling) => {
+    const { user } = render();
+    await openEdit(user);
+
+    fireEvent.change(screen.getByLabelText(label), { target: { value: 'x'.repeat(ceiling) } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: SAVE })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText(label), {
+      target: { value: 'x'.repeat(ceiling + 1) },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('memories.text_too_long');
+    expect(screen.getByRole('button', { name: SAVE })).toBeDisabled();
+  });
+
+  it('clears a nuance and a trigger for real: an emptied field reaches the API', async () => {
+    const updateMemory = vi.fn().mockResolvedValue(undefined);
+    useMemories.mockReturnValue(hook({ updateMemory }));
+    const { user } = render();
+    await openEdit(user);
+
+    await user.clear(screen.getByLabelText('memories.field_usage_nuance'));
+    await user.clear(screen.getByLabelText('memories.field_trigger_topic'));
+    await user.click(screen.getByRole('button', { name: SAVE }));
+
+    await waitFor(() =>
+      expect(updateMemory).toHaveBeenCalledWith(
+        'm1',
+        expect.objectContaining({ usage_nuance: '', trigger_topic: '' })
+      )
+    );
+  });
+
+  it('keeps working before the limits are known: the API still decides', async () => {
+    useMemories.mockReturnValue(hook({ limits: undefined }));
+    const { user } = render();
+    const field = await openEdit(user);
+
+    expect(field).not.toHaveAccessibleDescription();
+    expect(screen.getByRole('button', { name: SAVE })).toBeEnabled();
+  });
+
+  describe('the create dialog', () => {
+    const CREATE = 'memories.create_button';
+
+    async function openCreate(user: ReturnType<typeof render>['user']) {
+      await user.click(await screen.findByRole('button', { name: 'memories.create' }));
+      return screen.findByLabelText(`${CONTENT} *`);
+    }
+
+    it('does not scold a form nobody has filled yet', async () => {
+      const { user } = render();
+      await openCreate(user);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: CREATE })).toBeDisabled();
+    });
+
+    it('states the floor as soon as a too-short text is typed', async () => {
+      const { user } = render();
+      const field = await openCreate(user);
+
+      await user.type(field, 'ab');
+      expect(await screen.findByRole('alert')).toHaveTextContent('memories.text_too_short');
+      expect(screen.getByRole('button', { name: CREATE })).toBeDisabled();
+
+      await user.type(field, 'c');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: CREATE })).toBeEnabled();
+    });
+
+    it('names a text the API refused, with the limits still unknown', async () => {
+      const createMemory = vi
+        .fn()
+        .mockRejectedValue(Object.assign(new Error('refused'), { status: 422 }));
+      useMemories.mockReturnValue(hook({ limits: undefined, createMemory }));
+      const { user } = render();
+      const field = await openCreate(user);
+
+      await user.type(field, 'abc');
+      await user.click(screen.getByRole('button', { name: CREATE }));
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('memories.text_refused'));
+    });
+
+    it('holds a new memory to the same ceiling', async () => {
+      const { user } = render();
+      const field = await openCreate(user);
+
+      fireEvent.change(field, { target: { value: 'x'.repeat(LIMITS.content_max_chars + 1) } });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('memories.text_too_long');
+      expect(screen.getByRole('button', { name: CREATE })).toBeDisabled();
+    });
+  });
+});
+
 describe('procedural category (ADR-236) — the learned-rules admin surface', () => {
   it('every category of the type is offered by the edit selector', async () => {
     const { MEMORY_CATEGORIES } = await import('@/hooks/useMemories');
@@ -213,7 +404,7 @@ describe('procedural category (ADR-236) — the learned-rules admin surface', ()
     // missing here is how learned rules became invisible to their owner.
     expect(MEMORY_CATEGORIES).toContain('procedural');
     // Icons stay complete by type, but assert the runtime map too.
-    const { CATEGORY_ICONS } = await import('../MemorySettings');
+    const { CATEGORY_ICONS } = await import('../MemoryFormFields');
     for (const category of MEMORY_CATEGORIES) {
       expect(CATEGORY_ICONS[category], `icon for ${category}`).toBeTruthy();
     }
@@ -236,5 +427,20 @@ describe('category labels exist in the REAL locales', () => {
         `${lng}: memories.categories.${category}`
       ).toBeTruthy();
     }
+  });
+
+  // The stub echoes keys, so only the real files can say a refusal carries its figures:
+  // without its placeholder, the reason reads as a bare sentence with no number in it.
+  it.each(['en', 'fr', 'de', 'es', 'it', 'zh'])('%s words every refusal', async lng => {
+    const translation = (await import(`../../../../locales/${lng}/translation.json`)).default;
+    const { memories } = translation;
+
+    expect(memories.characters, `${lng}: characters`).toContain('{{count}}');
+    expect(memories.characters, `${lng}: characters`).toContain('{{max}}');
+    expect(memories.text_too_long, `${lng}: too long`).toContain('{{max}}');
+    // An alert is announced again whenever its text changes: no moving figure here.
+    expect(memories.text_too_long, `${lng}: too long`).not.toContain('{{count}}');
+    expect(memories.text_too_short, `${lng}: too short`).toContain('{{min}}');
+    expect(memories.text_refused, `${lng}: refused`).toBeTruthy();
   });
 });

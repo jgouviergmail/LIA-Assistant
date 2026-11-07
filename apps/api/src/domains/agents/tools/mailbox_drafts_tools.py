@@ -33,13 +33,17 @@ from src.domains.agents.context.runtime_context import (
     tool_runtime_context,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.catalogue_manifests import (
+    MAIL_DRIVE_FILES_DESCRIPTION,
+    MAIL_FILE_NAMES_DESCRIPTION,
+)
 from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.mailbox_drafts_manifests import LIST_MAX_RESULTS_DESCRIPTION
 from src.domains.agents.emails.message_finishing import finish_messages
 from src.domains.agents.emails.reply_drafting import draft_reply_body
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
-from src.domains.agents.tools.email_files import signed_body
+from src.domains.agents.tools.email_files import draft_files, signed_body
 from src.domains.agents.tools.mailbox_draft_base import (
     MAILBOX_REFUSALS,
     MailboxDraftTool,
@@ -189,6 +193,9 @@ class CreateMailboxDraftTool(MailboxDraftTool):
         """Save the draft as given; a draft may wait for its recipient or its words."""
         try:
             is_html = bool(kwargs.get("is_html", False))
+            files = await draft_files(
+                client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+            )
             draft = await client.create_draft(
                 to=str(kwargs.get("to") or ""),
                 subject=one_line(kwargs.get("subject")) or "",
@@ -196,6 +203,7 @@ class CreateMailboxDraftTool(MailboxDraftTool):
                 cc=kwargs.get("cc") or None,
                 bcc=kwargs.get("bcc") or None,
                 is_html=is_html,
+                attachments=files,
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)
@@ -227,6 +235,8 @@ async def create_mailbox_draft_tool(
     cc: Annotated[str | None, "Copies (optional, comma-separated)"] = None,
     bcc: Annotated[str | None, "Blind copies (optional, comma-separated)"] = None,
     is_html: Annotated[bool, "True if body is HTML (default False)"] = False,
+    file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
+    drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -243,6 +253,8 @@ async def create_mailbox_draft_tool(
         cc: Copies.
         bcc: Blind copies.
         is_html: Whether body is HTML.
+        file_names: Files LIA holds, by name, to attach.
+        drive_file_ids: Files of the person's drive, by id, to attach.
         runtime: Tool runtime (injected).
 
     Returns:
@@ -268,6 +280,8 @@ async def create_mailbox_draft_tool(
         cc=cc,
         bcc=bcc,
         is_html=is_html,
+        file_names=file_names,
+        drive_file_ids=drive_file_ids,
         user_timezone=user_timezone,
         locale=locale,
     )
@@ -280,6 +294,8 @@ async def create_mailbox_draft_tool(
 
 class CreateMailboxReplyDraftTool(MailboxDraftTool):
     """The reply to a received e-mail, saved as a draft in its thread."""
+
+    RECIPIENT_FIELDS = ("to", "cc")
 
     def __init__(self) -> None:
         """Initialise the reply draft tool."""
@@ -334,10 +350,16 @@ class CreateMailboxReplyDraftTool(MailboxDraftTool):
             )
             if isinstance(body, dict):
                 return body
+            files = await draft_files(
+                client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+            )
             draft = await client.create_reply_draft(
                 message_id,
                 await signed_body(user_id, str(body)),
                 reply_all=bool(kwargs.get("reply_all", False)),
+                to=kwargs.get("to") or None,
+                cc=kwargs.get("cc") or None,
+                attachments=files,
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)
@@ -362,6 +384,12 @@ async def create_mailbox_reply_draft_tool(
         str | None, "What the reply should say ('accept', 'ask for Friday'), for LIA to write it"
     ] = None,
     reply_all: Annotated[bool, "Answer every recipient of the e-mail (default False)"] = False,
+    to: Annotated[
+        str | None, "Who it reaches instead of the sender: addresses or contact names"
+    ] = None,
+    cc: Annotated[str | None, "Copies instead of those it would keep (comma-separated)"] = None,
+    file_names: Annotated[list[str] | None, MAIL_FILE_NAMES_DESCRIPTION] = None,
+    drive_file_ids: Annotated[list[str] | None, MAIL_DRIVE_FILES_DESCRIPTION] = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -375,6 +403,10 @@ async def create_mailbox_reply_draft_tool(
         body: The reply's text, as dictated.
         content_instruction: What the reply should say.
         reply_all: Answer every recipient.
+        to: Who it reaches instead of the sender.
+        cc: Copies instead of those it would keep.
+        file_names: Files LIA holds, by name, to attach.
+        drive_file_ids: Files of the person's drive, by id, to attach.
         runtime: Tool runtime (injected).
 
     Returns:
@@ -387,6 +419,10 @@ async def create_mailbox_reply_draft_tool(
         body=body,
         content_instruction=content_instruction,
         reply_all=reply_all,
+        to=to,
+        cc=cc,
+        file_names=file_names,
+        drive_file_ids=drive_file_ids,
         user_timezone=user_timezone,
         locale=locale,
     )
@@ -420,11 +456,15 @@ class CreateMailboxForwardDraftTool(MailboxDraftTool):
         if not message_id or not to:
             return refusal(ToolErrorCode.MISSING_REQUIRED_PARAM, "message_id and to are required.")
         try:
+            files = await draft_files(
+                client, user_id, kwargs.get("file_names"), kwargs.get("drive_file_ids")
+            )
             draft = await client.create_forward_draft(
                 message_id,
                 to,
                 body=await signed_body(user_id, str(kwargs.get("body") or "")) or None,
                 cc=kwargs.get("cc") or None,
+                attachments=files,
             )
         except MAILBOX_REFUSALS as error:
             return refusal_for(error)

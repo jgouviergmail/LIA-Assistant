@@ -1,0 +1,11 @@
+# One-line scaffolds of what LIA does from the Tools (ADR-372), `key|template` per line; blank lines
+# and #-comments are ignored (ADR-284: prose never lives in a .py).
+
+# What the reader wants of a file read by sight: a summary, not a transcription.
+file_question|what it is and what the reader needs from it, in a few short lines: the figures, dates, names, references and amounts that matter, as written; no full transcription; call it a document or an image, never an attachment
+
+# Told to the model when a document was cut at its bound.
+document_cut|The document below stops short: only its beginning was read.
+
+# Told to the model when a conversation was cut.
+conversation_cut|The conversation starts earlier than the messages below: only the latest were read.

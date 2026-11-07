@@ -12,17 +12,13 @@ import { Keyboard } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
+import { WORKBENCH_HEADER_ICON } from '@/lib/workbench/tools';
 
 import {
   useShortcutsEnabled,
@@ -30,6 +26,7 @@ import {
   writeShortcutsEnabled,
   type ToolShortcut,
 } from './useToolShortcuts';
+import { ToolDialogHeader } from './ToolForm';
 
 export interface ShortcutsHelpProps {
   lng: Language;
@@ -54,7 +51,7 @@ export function ShortcutsHelp({ lng, shortcuts }: ShortcutsHelpProps) {
       <Button
         variant="outline"
         size="icon"
-        className="hidden min-h-10 lg:inline-flex"
+        className={cn(WORKBENCH_HEADER_ICON, 'hidden lg:inline-flex')}
         aria-label={t('workbench.shortcuts.title')}
         onClick={() => setOpen(true)}
       >
@@ -62,10 +59,10 @@ export function ShortcutsHelp({ lng, shortcuts }: ShortcutsHelpProps) {
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle>{t('workbench.shortcuts.title')}</DialogTitle>
             <DialogDescription>{t('workbench.shortcuts.description')}</DialogDescription>
-          </DialogHeader>
+          </ToolDialogHeader>
           <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
             {keys.map(item => (
               <div key={item.key} className="contents">

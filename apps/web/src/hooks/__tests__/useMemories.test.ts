@@ -27,7 +27,14 @@ vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owned-memory-account' } }) }));
 
 import { useMemories, getEmotionalEmoji } from '../useMemories';
-import type { Memory, MemoryListResponse } from '@/hooks/useMemories';
+import type { Memory, MemoryLimits, MemoryListResponse } from '@/hooks/useMemories';
+
+const LIMITS: MemoryLimits = {
+  content_min_chars: 3,
+  content_max_chars: 500,
+  trigger_topic_max_chars: 100,
+  usage_nuance_max_chars: 300,
+};
 
 function memory(over: Partial<Memory> = {}): Memory {
   return {
@@ -61,6 +68,7 @@ function cache(over: Partial<MemoryListResponse> = {}): MemoryListResponse {
     items: [memory()],
     total: 1,
     by_category: { preference: 1 },
+    limits: LIMITS,
     ...over,
   };
 }
@@ -134,6 +142,18 @@ describe('useMemories — reading', () => {
     expect(result.current.memories).toEqual([]);
     expect(result.current.total).toBe(0);
     expect(result.current.byCategory).toEqual({});
+  });
+
+  it('hands over the bounds the API published with the list', () => {
+    const { result } = setup();
+
+    expect(result.current.limits).toEqual(LIMITS);
+  });
+
+  it('knows no bound before the list answers', () => {
+    const { result } = setupWith(undefined);
+
+    expect(result.current.limits).toBeUndefined();
   });
 
   it('asks for a single category once one is selected', () => {

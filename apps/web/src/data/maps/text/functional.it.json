@@ -157,9 +157,9 @@
     },
     "f.connectors": {
       "name": "Connettori e Strumenti",
-      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo percorso di consenso per fornitore, un fornitore attivo per categoria, file compresi: Google Drive o OneDrive. I servizi senza chiave sono attivati per tutti dall'amministratore. In Strumenti agisci tu, senza chiamare un'IA, su posta, calendario, attività, contatti, file e luci Hue: ogni schermata offre ciò che sa fare il suo fornitore, una ricerca le percorre tutte e i tuoi gesti restano fuori dai registri di LIA.",
+      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo percorso di consenso per fornitore, un fornitore attivo per categoria, file compresi: Google Drive o OneDrive. I servizi senza chiave sono attivati per tutti dall'amministratore. In Strumenti agisci tu, senza chiamare un'IA, su posta, calendario, attività, contatti, file e luci Hue: ogni schermata offre ciò che sa fare il suo fornitore, una ricerca le percorre tutte e i tuoi gesti restano fuori dai registri di LIA. Le stelle gialle chiedono altro: un clic, una chiamata a LIA, una proposta che finisci a mano, tracciata e fatturata come un atto di LIA.",
       "goal": "Collegare una volta i tuoi veri account, e che restino collegati.",
-      "src": "2893800457d4"
+      "src": "d1bf7424213a"
     },
     "f.mail": {
       "name": "E-mail",

@@ -40,7 +40,7 @@
 Langfuse Use Cases dans LIA
 
 1. Debugging Multi-Agent:
-   ✅ Trace complète Router → Planner → Domain Agents
+   ✅ Trace complète Router → Planner → Tools → Response
    ✅ Voir tous les appels LLM avec prompts et réponses
    ✅ Identifier les erreurs et hallucinations
 
@@ -124,10 +124,8 @@ Trace (top-level)
 │   └── Generation: LLM call (gpt-4.1-nano)
 ├── Span: Planner Node
 │   └── Generation: LLM call (gpt-4.1-mini)
-├── Span: Domain Agent (contacts)
-│   ├── Generation: LLM call (gpt-4.1-nano)
-│   └── Span: Tool Execution
-│       └── Event: search_contacts
+├── Span: Tool Execution
+│   └── Event: search_contacts
 └── Span: Response Node
     └── Generation: LLM call (gpt-4.1-mini)
 
@@ -136,7 +134,7 @@ Trace attributes:
 - name: "multi_agent_conversation"
 - user_id: User identifier (GDPR: hashed)
 - session_id: Conversation session
-- tags: ["production", "contacts_agent"]
+- tags: ["production", "multi_agent"]
 - metadata: {environment: "prod", version: "0.1.0"}
 - timestamp: ISO 8601
 """
@@ -359,7 +357,7 @@ def enrich_config_with_metadata(
       "statusMessage": "success",
       "metadata": {
         "node": "router",
-        "intention": "contacts_agent",
+        "intention": "action",
         "confidence": 0.95
       }
     },
@@ -373,13 +371,9 @@ def enrich_config_with_metadata(
       "totalTokens": 2550
     },
     {
-      "id": "gen_contacts_001",
-      "type": "generation",
-      "name": "contacts_agent_execution",
-      "model": "gpt-4.1-nano",
-      "promptTokens": 3200,
-      "completionTokens": 320,
-      "totalTokens": 3520
+      "id": "span_search_contacts_001",
+      "type": "span",
+      "name": "search_contacts_tool"
     },
     {
       "id": "gen_response_001",
@@ -391,9 +385,9 @@ def enrich_config_with_metadata(
       "totalTokens": 5180
     }
   ],
-  "totalPromptTokens": 11050,
-  "totalCompletionTokens": 1535,
-  "totalTokens": 12585,
+  "totalPromptTokens": 7850,
+  "totalCompletionTokens": 1215,
+  "totalTokens": 9065,
   "totalCost": 0.002456
 }
 ```

@@ -91,7 +91,7 @@ A command runs **offline by default**. One that must install a package or fetch 
 
 ## Rich outputs (frames + images)
 
-Since **v1.16.8**, skills can return interactive content beyond text by writing
+Skills can return interactive content beyond text by writing
 a JSON object on stdout matching the `SkillScriptOutput` contract:
 
 ```json
@@ -122,7 +122,7 @@ a JSON object on stdout matching the `SkillScriptOutput` contract:
 - All frames render inside an iframe sandbox without `allow-same-origin` —
   parent cookies and storage are unreachable.
 
-**Seven built-in rich skills** ship with v1.16.8: `interactive-map`,
+**Seven built-in rich skills** ship with LIA: `interactive-map`,
 `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`,
 `unit-converter`, `dice-roller`.
 

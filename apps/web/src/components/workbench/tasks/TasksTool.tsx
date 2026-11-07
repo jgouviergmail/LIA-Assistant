@@ -42,7 +42,6 @@ import { PaneSeparator } from '@/components/ui/pane-separator';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -51,6 +50,7 @@ import { useWorkbenchTaskActs, type WorkbenchTaskActs } from '@/hooks/useWorkben
 import { useWorkbenchTasks, type WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import type { WorkbenchHandoff } from '@/lib/workbench/handoff';
 import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import {
@@ -82,6 +82,7 @@ import {
   type WorkbenchPaneState,
 } from '../useWorkbenchPane';
 import { NewTaskListDialog, RenameTaskListDialog } from './NewTaskListDialog';
+import { useQuickAddAssist, useTaskAssist, type AddStep } from '../assist/useTaskAssist';
 import { TaskEditor } from './TaskEditor';
 import { TaskListsColumn, TaskListsSelect } from './TaskListsPane';
 import { TaskQuickAdd } from './TaskQuickAdd';
@@ -90,6 +91,7 @@ import { TaskSelectionBar } from './TaskSelectionBar';
 import { TaskViewPane } from './TaskViewPane';
 import { useTaskDoors, type TaskDoors } from './useTaskDoors';
 import { useTaskSelection, type TaskSelection } from './useTaskSelection';
+import { useToolConfirm } from '../ToolForm';
 
 const VIEW_PATH = '/workbench/tasks/view';
 
@@ -114,7 +116,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const { user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [showCompleted, setShowCompleted] = useState(false);
   const [newListOpen, setNewListOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -137,7 +139,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   const left = openCount(tasks.items, tasks.nextToken);
   const openList = lists.items.find(list => list.id === listId) ?? null;
   const managesLists = tool.features.includes('list_management');
-  const [handed, setHanded] = useState<{ title: string; notes: string } | null>(null);
+  const [handed, setHanded] = useState<HandedTask | null>(null);
   const { ask } = useToolBridges(lng);
   useHandoff('task', true, setHanded);
   useEffect(() => {
@@ -395,7 +397,7 @@ interface OpenListProps {
   doors: TaskDoors;
   quickAdd: RefObject<HTMLInputElement | null>;
   /** What another tool handed over, for the person to confirm. */
-  handed: { title: string; notes: string } | null;
+  handed: HandedTask | null;
   onHandedAdded: () => void;
   /** Runs an act and says its refusal. */
   act: (run: () => Promise<unknown>) => Promise<void>;
@@ -434,6 +436,10 @@ function OpenList({
 }: OpenListProps) {
   const { lists, tasks, listId } = state;
   const ids = tasks.items.map(item => item.id);
+  const quickAddAssist = useQuickAddAssist(
+    lng,
+    lists.items.map(list => list.title)
+  );
   const ticking: RowSelection | undefined = selection.selecting
     ? { selected: selection.selected, onToggle: task => selection.toggle(task.id) }
     : undefined;
@@ -475,9 +481,18 @@ function OpenList({
         placeholderKey="workbench.tasks.new_task_placeholder"
         maxLength={tool.bounds.title_max_chars}
         initialTitle={handed?.title}
-        onAdd={async (title, key) => {
-          const notes = handed?.notes || undefined;
-          await act(() => state.addTask({ title, notes, idempotency_key: key }));
+        assist={quickAddAssist}
+        onAdd={async (title, key, read) => {
+          const named = lists.items.find(list => list.title === read?.listName);
+          await act(() =>
+            state.addTask({
+              title,
+              notes: read?.notes ?? (handed?.notes || undefined),
+              due: read?.due ?? (handed?.due || undefined),
+              list_id: named?.id,
+              idempotency_key: key,
+            })
+          );
           onHandedAdded();
         }}
       />
@@ -517,6 +532,27 @@ interface OpenTaskPaneProps {
   onMove: (destination: string) => void;
 }
 
+/** What another tool handed the quick add, for the person to confirm. */
+type HandedTask = Omit<Extract<WorkbenchHandoff, { kind: 'task' }>, 'kind'>;
+
+/** What a step of the open task is, where its provider keeps some: To Do's own, or a subtask. */
+function stepAdder(
+  tool: WorkbenchToolAvailability,
+  task: WorkbenchTask,
+  state: WorkbenchTasksState,
+  acts: WorkbenchTaskActs,
+  act: (run: () => Promise<unknown>) => Promise<void>
+): AddStep | undefined {
+  if (tool.features.includes('task_steps')) {
+    return (title, key) => act(() => acts.addStep(task, title, key));
+  }
+  if (tool.features.includes('subtasks') && !task.parent) {
+    return (title, key) =>
+      act(() => state.addTask({ title, parent: task.id, idempotency_key: key }));
+  }
+  return undefined;
+}
+
 /** The open task's detail, its separator and what its acts reach. */
 function OpenTaskPane({
   lng,
@@ -534,6 +570,8 @@ function OpenTaskPane({
   onMove,
 }: OpenTaskPaneProps) {
   const { listId, lists, tasks } = state;
+  const addStep = stepAdder(tool, openTask, state, acts, act);
+  const { panel: assistPanel, ...assist } = useTaskAssist(lng, openTask, addStep);
   const quiet = (run: () => Promise<unknown>) => void act(run).catch(() => undefined);
   /** One place up or down among its siblings; nothing where it has nowhere to go. */
   const stepping = (by: -1 | 1) => {
@@ -568,6 +606,8 @@ function OpenTaskPane({
         focusOnOpen={!desktop}
         today={today}
         onAsk={onAsk}
+        assist={assist}
+        assistPanel={assistPanel}
         zone={timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
         moves={
           listId
@@ -620,7 +660,7 @@ function ListHead({
   const { t } = useTranslation(lng);
   const completedId = useId();
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+    <div className="flex flex-wrap items-center justify-center gap-3 border-b px-4 py-3 lg:justify-start">
       {/* Below lg the select above names the list: a second, truncated name helps nobody. */}
       <h2 className="hidden min-w-0 flex-1 truncate text-base font-semibold text-foreground lg:block">
         {title}

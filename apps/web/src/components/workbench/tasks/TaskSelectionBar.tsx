@@ -6,7 +6,6 @@
  * done leaves the selection, what could not be stays ticked. While an act runs the others wait.
  */
 import { Check, RotateCcw, Trash2 } from 'lucide-react';
-import { useId } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { SelectionBar } from '@/components/ui/selection-bar';
@@ -14,6 +13,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { PageSelectionState } from '@/lib/selection';
 import type { WorkbenchTaskList } from '@/lib/workbench/types';
+import { NativeSelect } from '@/components/ui/native-select';
 
 export interface TaskSelectionBarProps {
   lng: Language;
@@ -42,7 +42,6 @@ export function TaskSelectionBar({
   onMove,
 }: TaskSelectionBarProps) {
   const { t } = useTranslation(lng);
-  const moveId = useId();
   // A guard, not the attribute: `aria-disabled` keeps the focus where it is.
   const guarded = (act: () => void) => () => {
     if (!busy) act();
@@ -80,17 +79,14 @@ export function TaskSelectionBar({
         </Button>
         {others.length > 0 && (
           <>
-            <label htmlFor={moveId} className="sr-only">
-              {t('workbench.tasks.move_to_list')}
-            </label>
-            <select
-              id={moveId}
+            <NativeSelect
+              aria-label={t('workbench.tasks.move_to_list')}
               disabled={busy}
               value=""
               onChange={event => {
                 if (event.target.value) onMove(event.target.value);
               }}
-              className="h-9 max-w-44 rounded-lg border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 w-auto max-w-44 px-2"
             >
               <option value="">{t('workbench.tasks.move_to_list_pick')}</option>
               {others.map(list => (
@@ -98,7 +94,7 @@ export function TaskSelectionBar({
                   {list.title || t('workbench.tasks.untitled')}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </>
         )}
         <Button

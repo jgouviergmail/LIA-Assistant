@@ -14,6 +14,7 @@ The handle every draft tool takes is ``mailbox_draft_id``.
 from src.core.config import settings
 from src.core.constants import GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_QUERY
+from src.domains.agents.emails.catalogue_manifests import MAIL_FILE_PARAMETERS
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -249,6 +250,7 @@ create_mailbox_draft_catalogue_manifest = ToolManifest(
         "- `to` may be names of contacts, or empty: a draft may wait for its recipient\n"
         "- The person dictated the text → `body` (+ `subject`); they said what it should say → "
         "`content_instruction`; they asked for an empty draft → neither\n"
+        "- `file_names` and `drive_file_ids` attach files\n"
         "**RETURNS**: the saved draft, with its `mailbox_draft_id`."
     ),
     mutation_policy="reversible",
@@ -268,6 +270,7 @@ create_mailbox_draft_catalogue_manifest = ToolManifest(
         _recipients("cc", "Copies (optional)"),
         _recipients("bcc", "Blind copies (optional)"),
         ParameterSchema(name="is_html", type="boolean", required=False, description="HTML body"),
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=_SAVED_DRAFT_OUTPUTS,
     cost=_DRAFT_COST,
@@ -292,7 +295,8 @@ create_mailbox_reply_draft_catalogue_manifest = ToolManifest(
         "reply_email_tool.\n"
         "- Without `body`, LIA writes the reply from the received e-mail; `content_instruction` "
         "says what it should answer ('accept', 'ask for Friday')\n"
-        "- `reply_all` answers every recipient\n"
+        "- `reply_all` answers every recipient; `to` and `cc` replace who it would reach\n"
+        "- `file_names` and `drive_file_ids` attach files\n"
         "**RETURNS**: the saved draft, with its `mailbox_draft_id`."
     ),
     mutation_policy="reversible",
@@ -310,6 +314,9 @@ create_mailbox_reply_draft_catalogue_manifest = ToolManifest(
         ParameterSchema(
             name="reply_all", type="boolean", required=False, description="Answer every recipient"
         ),
+        _recipients("to", "Who it reaches instead of the sender (optional)"),
+        _recipients("cc", "Copies instead of those it would keep (optional)"),
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=_SAVED_DRAFT_OUTPUTS,
     cost=_DRAFT_COST,
@@ -331,6 +338,7 @@ create_mailbox_forward_draft_catalogue_manifest = ToolManifest(
         "a draft, with its files. Sends nothing, asks no confirmation.\n"
         "Use for 'prepare a forward of this e-mail to X'; for SENDING use forward_email_tool.\n"
         "- `to` is required (addresses or contact names); `body` is a note above the e-mail\n"
+        "- `file_names` and `drive_file_ids` attach files, after those of the original\n"
         "**RETURNS**: the saved draft, with its `mailbox_draft_id`."
     ),
     mutation_policy="reversible",
@@ -345,6 +353,7 @@ create_mailbox_forward_draft_catalogue_manifest = ToolManifest(
         _recipients("to", "Recipient(s): addresses or contact names", required=True),
         _text_param("body", "A note above the forwarded e-mail (optional)"),
         _recipients("cc", "Copies (optional)"),
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=_SAVED_DRAFT_OUTPUTS,
     cost=_DRAFT_COST,

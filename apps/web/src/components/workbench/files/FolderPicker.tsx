@@ -15,7 +15,7 @@ import { ArrowLeft, ChevronRight, Folder } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +26,7 @@ import type { Language } from '@/i18n/settings';
 import { folderOf, isOneName } from '@/lib/workbench/files';
 import { fileWord } from '@/lib/workbench/files-words';
 import type { WorkbenchDriveItem, WorkbenchFileAncestor } from '@/lib/workbench/types';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface FolderPickerProps {
   lng: Language;
@@ -57,7 +58,6 @@ export function FolderPicker({
   onClose,
   onPick,
 }: FolderPickerProps) {
-  const { t } = useTranslation(lng);
   const [trail, setTrail] = useState<readonly WorkbenchFileAncestor[]>(start);
   const [typed, setTyped] = useState(name?.initial ?? '');
   const [busy, setBusy] = useState(false);
@@ -79,9 +79,9 @@ export function FolderPicker({
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+        </ToolDialogHeader>
         {name && (
           <CopyName
             lng={lng}
@@ -103,14 +103,12 @@ export function FolderPicker({
           leaving={leaving}
           onEnter={folder => setTrail([...trail, folder])}
         />
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
+        <ToolActions>
+          <CancelButton lng={lng} onClick={onClose} />
           <Button isLoading={busy} disabled={unusable} onClick={() => void pick()}>
             {submitLabel}
           </Button>
-        </div>
+        </ToolActions>
       </DialogContent>
     </Dialog>
   );

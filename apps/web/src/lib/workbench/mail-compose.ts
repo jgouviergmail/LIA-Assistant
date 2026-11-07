@@ -62,7 +62,8 @@ export function recipientsOf(text: string): string[] {
 export type ComposerTarget =
   /** What the message opens on: an address another tool handed over, a list's request. */
   | { kind: 'new'; to?: string; subject?: string; body?: string; files?: AttachableFile[] }
-  | { kind: 'reply'; message: MailMessage; all: boolean }
+  /** `propose`: it opens with LIA's proposal on its way (ADR-372). */
+  | { kind: 'reply'; message: MailMessage; all: boolean; propose?: boolean }
   | { kind: 'forward'; message: MailMessage }
   | { kind: 'draft'; draft: MailDraft };
 
@@ -215,6 +216,44 @@ export function initialFields(target: ComposerTarget, signature = ''): ComposerF
 export function textToHtml(text: string): string {
   const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return escaped.replace(/\n/g, '<br>');
+}
+
+/**
+ * @param fields - What the composer holds.
+ * @param signature - What a body gains to carry the person's signature.
+ * @returns The body's words, the signature left out.
+ */
+export function ownWords(fields: ComposerFields, signature: string): string {
+  const signed = signature !== '' && fields.body.endsWith(signature);
+  return signed ? fields.body.slice(0, -signature.length) : fields.body;
+}
+
+/**
+ * LIA's words in the composer (ADR-372): the signature stays last, and what the person wrote stays
+ * unless they chose to replace it.
+ *
+ * @param fields - What the composer holds.
+ * @param signature - What a body gains to carry the person's signature.
+ * @param words - The proposal.
+ * @param use - Whether it replaces the person's words or follows them.
+ * @returns The change to the fields.
+ */
+export function withProposal(
+  fields: ComposerFields,
+  signature: string,
+  words: string,
+  use: 'replace' | 'add'
+): Pick<ComposerFields, 'body' | 'html'> {
+  const own = ownWords(fields, signature);
+  const kept = fields.body.slice(own.length);
+  const follows = use === 'add' && own.trim() !== '';
+  const body = follows ? `${own.trimEnd()}\n\n${words}${kept}` : `${words}${kept}`;
+  if (fields.html === null) return { body, html: null };
+  const signed = textToHtml(kept);
+  if (!follows || !fields.html.endsWith(signed)) return { body, html: textToHtml(body) };
+  // What the person formatted stays formatted: only LIA's words are plain.
+  const theirs = fields.html.slice(0, fields.html.length - signed.length);
+  return { body, html: `${theirs}<br><br>${textToHtml(words)}${signed}` };
 }
 
 const OWN_SCHEME = /^[a-z][a-z0-9+.-]*:/i;

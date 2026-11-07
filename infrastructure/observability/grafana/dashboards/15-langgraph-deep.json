@@ -279,7 +279,7 @@
           "placement": "bottom"
         }
       },
-      "description": "SubGraph invocations (contacts_agent, emails_agent, etc.)."
+      "description": "SubGraph invocations (browser_agent)."
     },
     {
       "id": 6,

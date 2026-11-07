@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-11-06
-**Aplicación**: LIA v4.4.0
+**Aplicación**: LIA v4.5.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ flowchart TD
     R -->|"acción, modo Pipeline"| P["Planificador"]
     P --> V["Validador semántico"]
     V --> O["Orquestador, pasos en paralelo"]
-    O --> A["Agentes de dominio"]
+    O --> A["Herramientas"]
     A --> S
     R -->|"acción, modo ReAct"| L["Bucle ReAct"]
     L -->|"herramienta, resultado, siguiente decisión"| L
@@ -102,7 +102,7 @@ En modo **Pipeline**, el modo por defecto, el planificador escribe antes de cual
 
 Mantuve los dos porque responden a dos necesidades. El Pipeline planifica, paraleliza, se controla y prevé su coste: una llamada al planificador y otra a la respuesta, frente a una llamada por iteración en ReAct, es decir, de 4 a 8 veces menos tokens. ReAct se adapta a cada resultado, lo que es mejor para una búsqueda exploratoria o una petición ambigua. Los dos modos comparten el registro de herramientas, las confirmaciones, el nodo de respuesta y la observabilidad.
 
-La elección de los dominios y de las herramientas pasa por un **enrutador semántico** basado en embeddings en lugar de por palabras clave o por el modelo solo: cuesta menos y se equivoca menos. Cada herramienta declara un manifiesto (parámetros, salidas, coste, permisos, palabras clave en varios idiomas) que leen el planificador, el enrutador y el constructor de agentes, y cada agente se declara una sola vez en un registro central. Unos Smart Services reducen aún más el consumo almacenando en caché el análisis de las peticiones y aprendiendo los planes que se repiten. Tras un turno con acción, un nodo de iniciativa mira, en solo lectura, lo que el resultado implica en otros ámbitos: una lluvia anunciada remite a las actividades al aire libre de tu agenda.
+La elección de los dominios y de las herramientas pasa por un **enrutador semántico** basado en embeddings en lugar de por palabras clave o por el modelo solo: cuesta menos y se equivoca menos. Cada herramienta declara un manifiesto (parámetros, salidas, coste, permisos, palabras clave en varios idiomas) que leen el planificador y el enrutador, y cada familia de herramientas se declara una sola vez en un registro central. Unos Smart Services reducen aún más el consumo almacenando en caché el análisis de las peticiones y aprendiendo los planes que se repiten. Tras un turno con acción, un nodo de iniciativa mira, en solo lectura, lo que el resultado implica en otros ámbitos: una lluvia anunciada remite a las actividades al aire libre de tu agenda.
 
 Unas pocas reglas mantienen honesto el conjunto. Una petición sin intención de actuar no puede producir un plan que modifique nada, y es una regla determinista, comprobada antes de cualquier llamada al modelo. Un plan de modificación que agota sus intentos de corrección no se ejecuta: LIA hace una pregunta en lugar de escribir un dato falso. Un rechazo o un fallo nunca se presenta como una acción realizada, y una vez ejecutado el plan, nada se repite a tus espaldas: la respuesta dice cada fallo, qué herramienta, por qué, y el total exacto. Para un modo que se corrige sobre la marcha, está ReAct.
 
@@ -237,7 +237,7 @@ Una precisión sobre el rendimiento: las latencias medidas son las de la infraes
 
 ## 12. Las interfaces
 
-El espacio **Herramientas** tiene sus propias rutas REST, fuera del grafo de conversación. Reutiliza los clientes de los conectores y publica sus controles y límites en la interfaz. Las sesiones de base de datos se cierran antes de llamar al proveedor; los envíos se protegen contra repeticiones y una respuesta perdida se declara como resultado desconocido. El HTML del correo queda en un marco aislado que bloquea contenido remoto. Así se distingue un gesto manual de una acción delegada a LIA.
+El espacio **Herramientas** tiene sus propias rutas REST, fuera del grafo de conversación. Reutiliza los clientes de los conectores y publica sus controles y límites en la interfaz. Las sesiones de base de datos se cierran antes de llamar al proveedor; los envíos se protegen contra repeticiones y una respuesta perdida se declara como resultado desconocido. El HTML del correo queda en un marco aislado que bloquea contenido remoto. Así se distingue un gesto manual de una acción delegada a LIA; lo que un clic le pide desde estas pantallas pasa por una puerta aparte, una llamada y una propuesta, nunca una escritura en el proveedor.
 
 La interfaz web es una aplicación Next.js que se instala como una aplicación (PWA). El chat actualiza la conversación sin recargar, muestra las fórmulas matemáticas y el código con colores, guarda un borrador por cuenta, y se puede buscar en él; los ajustes tienen su propia búsqueda, un tema negro absoluto para las pantallas OLED y un tamaño de texto ajustable.
 

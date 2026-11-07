@@ -12,6 +12,9 @@
  */
 import { useId, useRef, useState, type FormEvent } from 'react';
 
+import { FieldAssist } from '../assist/FieldAssist';
+import { SentenceAssist } from '../assist/SentenceAssist';
+import { useAssistBounds } from '../WorkbenchShell';
 import { EventRepeatField } from './EventRepeatField';
 
 import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';
@@ -21,8 +24,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -31,11 +32,13 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { ASSIST_PATHS, type EventAnswer } from '@/lib/workbench/assist';
 import {
   changeBody,
   endsAfterStart,
   editorFieldsOf,
   newEventBody,
+  withProposedEvent,
   type EventChangeBody,
   type EventFields,
   type NewEventBody,
@@ -49,6 +52,8 @@ import { workbenchRefusal } from '@/lib/workbench/errors';
 import { WORKBENCH_RECIPIENTS_PATH } from '@/lib/workbench/recipients';
 import type { CalendarEventDetail, WorkbenchCalendar } from '@/lib/workbench/types';
 import { generateUUID } from '@/lib/utils';
+import { NativeSelect } from '@/components/ui/native-select';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 /** What the editor was opened on. */
 export type EditorTarget =
@@ -77,6 +82,7 @@ const UNKNOWN = 'workbench.errors.outcome_unknown';
 export function EventEditor(props: EventEditorProps) {
   const { lng, target, zone, onClose } = props;
   const { t } = useTranslation(lng);
+  const assist = useAssistBounds();
   const [initial] = useState(() =>
     target.kind === 'new' ? target.fields : editorFieldsOf(target.event, zone)
   );
@@ -121,14 +127,25 @@ export function EventEditor(props: EventEditorProps) {
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:overflow-y-auto max-sm:rounded-none max-sm:border-0 sm:max-w-xl">
         <form onSubmit={save} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>{t(editorTitle(target))}</DialogTitle>
+          <ToolDialogHeader>
+            <div className="flex items-center gap-1">
+              <DialogTitle className="min-w-0">{t(editorTitle(target))}</DialogTitle>
+              {target.kind === 'new' && assist && (
+                <SentenceAssist<EventAnswer>
+                  lng={lng}
+                  label={t('workbench.assist.calendar.from_words')}
+                  path={ASSIST_PATHS.eventFromWords}
+                  maxInstruction={assist.instructionMax}
+                  onAnswer={answer => setFields(current => withProposedEvent(current, answer.event))}
+                />
+              )}
+            </div>
             <DialogDescription>
               {fields.zone
                 ? t('workbench.calendar.editor.own_zone', { zone: fields.zone })
                 : t('workbench.calendar.editor.zone', { zone })}
             </DialogDescription>
-          </DialogHeader>
+          </ToolDialogHeader>
           <EditorFields {...props} fields={fields} set={set} reversed={reversed} />
           {repeatable && (
             <EventRepeatField
@@ -158,10 +175,8 @@ export function EventEditor(props: EventEditorProps) {
               {status === 'unknown' ? t('workbench.calendar.editor.unknown') : problem}
             </p>
           )}
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={onClose} />
             <Button type="submit" isLoading={status === 'saving'} aria-disabled={held || undefined}>
               {t(
                 target.kind === 'new'
@@ -169,7 +184,7 @@ export function EventEditor(props: EventEditorProps) {
                   : 'workbench.calendar.editor.save'
               )}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -234,7 +249,6 @@ function EditorFields({
 }: EditorFieldsProps) {
   const { t } = useTranslation(lng);
   const allDayId = useId();
-  const calendarId = useId();
   const writable = calendars.filter(calendar => calendar.writable);
   return (
     <div className="space-y-3">
@@ -256,21 +270,17 @@ function EditorFields({
         suggestionsPath={WORKBENCH_RECIPIENTS_PATH}
       />
       {target.kind === 'new' && writable.length > 1 && (
-        <div className="space-y-1.5">
-          <Label htmlFor={calendarId}>{t('workbench.calendar.editor.calendar')}</Label>
-          <select
-            id={calendarId}
-            value={fields.calendarId}
-            onChange={event => set({ calendarId: event.target.value })}
-            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-          >
-            {writable.map(calendar => (
-              <option key={calendar.id} value={calendar.id}>
-                {calendar.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <NativeSelect
+          label={t('workbench.calendar.editor.calendar')}
+          value={fields.calendarId}
+          onChange={event => set({ calendarId: event.target.value })}
+        >
+          {writable.map(calendar => (
+            <option key={calendar.id} value={calendar.id}>
+              {calendar.name}
+            </option>
+          ))}
+        </NativeSelect>
       )}
       <div className="flex items-center gap-3">
         <Switch
@@ -293,6 +303,14 @@ function EditorFields({
       />
       <Textarea
         label={t('workbench.calendar.editor.description')}
+        labelEnd={
+          <FieldAssist
+            lng={lng}
+            kind="event_description"
+            value={fields.description}
+            onChange={description => set({ description })}
+          />
+        }
         value={fields.description}
         rows={4}
         maxLength={bounds.description_max_chars}
@@ -315,24 +333,19 @@ function ZoneField({
   set: (change: Partial<EventFields>) => void;
 }) {
   const { t } = useTranslation(lng);
-  const id = useId();
   const [choices] = useState(() => zoneChoices(zone, fields.zone));
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{t('workbench.calendar.editor.time_zone')}</Label>
-      <select
-        id={id}
-        value={fields.zone ?? zone}
-        onChange={event => set({ zone: event.target.value === zone ? null : event.target.value })}
-        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-      >
-        {choices.map(choice => (
-          <option key={choice} value={choice}>
-            {choice.replaceAll('_', ' ')}
-          </option>
-        ))}
-      </select>
-    </div>
+    <NativeSelect
+      label={t('workbench.calendar.editor.time_zone')}
+      value={fields.zone ?? zone}
+      onChange={event => set({ zone: event.target.value === zone ? null : event.target.value })}
+    >
+      {choices.map(choice => (
+        <option key={choice} value={choice}>
+          {choice.replaceAll('_', ' ')}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 
@@ -401,28 +414,23 @@ function EventOptionsFields({
   set: (change: Partial<EventFields>) => void;
 }) {
   const { t } = useTranslation(lng);
-  const reminderId = useId();
   return (
     <div className="space-y-2">
-      <div className="space-y-1">
-        <Label htmlFor={reminderId}>{t('workbench.calendar.editor.reminder')}</Label>
-        <select
-          id={reminderId}
-          value={fields.reminder ?? ''}
-          onChange={event =>
-            set({ reminder: event.target.value === '' ? null : Number(event.target.value) })
-          }
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">{t('workbench.calendar.editor.reminder_default')}</option>
-          <option value={NO_REMINDER}>{t('workbench.calendar.editor.reminder_none')}</option>
-          {REMINDER_CHOICES.map(minutes => (
-            <option key={minutes} value={minutes}>
-              {reminderLabel(minutes, t)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <NativeSelect
+        label={t('workbench.calendar.editor.reminder')}
+        value={fields.reminder ?? ''}
+        onChange={event =>
+          set({ reminder: event.target.value === '' ? null : Number(event.target.value) })
+        }
+      >
+        <option value="">{t('workbench.calendar.editor.reminder_default')}</option>
+        <option value={NO_REMINDER}>{t('workbench.calendar.editor.reminder_none')}</option>
+        {REMINDER_CHOICES.map(minutes => (
+          <option key={minutes} value={minutes}>
+            {reminderLabel(minutes, t)}
+          </option>
+        ))}
+      </NativeSelect>
       <CheckLine
         label={t('workbench.calendar.editor.busy')}
         checked={fields.busy}

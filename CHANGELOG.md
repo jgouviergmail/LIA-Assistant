@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-11-07
+
+**LIA, one click away.**
+The Tools learn to ask. Yellow stars mark where LIA can help on the screen you are on: it sums up a
+message, proposes a reply, turns a sentence into an event, reads a photographed card or weighs a page
+of mail. One click, one answer, and the answer is a proposal: nothing reaches your provider until you
+do it by hand, and what it cost stands beside it. Every form of the Tools now opens and ends the same
+way, an open item keeps its acts in its bar, and the public site opens on them.
+
+### Added
+
+- ✨ **LIA in the Tools** (ADR-372): yellow stars mark where LIA can help. Under the ones that end
+  every bar, LIA sums up, translates and reads aloud a message, sums up a conversation, a file, an
+  attachment or an image, proposes a reply, writes, rephrases and translates what you are writing,
+  and takes your dictation. A sentence becomes an event, a task, a search you can correct or a filter,
+  a photo of a business card a new contact, and a contact can be completed from their messages, each
+  value with the message that says it. **Sort** weighs the page of messages on screen. Nothing runs
+  without your click, nothing is written at your provider, and what it costs is said beside the
+  answer. No screen gains a control it had no room for. An administrator can switch it off; the
+  public demonstrator ships without it.
+- ✉️ **A reply or a forward kept as a draft**, in its thread, with its quote and its files, on Gmail,
+  Outlook and iCloud.
+- 📎 **The assistant's drafts carry files**: a new draft, a reply and a forward take files LIA holds
+  or files of your drive, and a reply draft can be sent to others than the sender. What the screens
+  gained reaches the assistant in the same release.
+- 🔔 **Within reach of every item**: **Remind me**, **Ticket for LIA**, **Keep in a space**, **Tell me
+  when they reply**, ready questions for the chat, and on an event **See the minutes** and **Record
+  this meeting**.
+- 🎞️ **Six new attentions on the « More » page**, each with its animation: the yellow stars, the
+  price beside the answer, a reply that can wait, a glance that marks nothing, the health dials and
+  the value that comes with its source.
+
+### Changed
+
+- 🧾 **One form for the Tools**: every form opens and ends the same way. Its title stands at the left,
+  **Cancel** looks like **Delete** on every screen, every list looks like a field, and on a phone each
+  button of a page's end takes a line of its own, a message's answers included. LIA stands at the end
+  of the label of the field it writes, and a message's row menu no longer repeats its subject on
+  every line.
+- 🧭 **Acts in the bar**: an open event, contact, file or task offers its acts as icons in its top
+  bar, as a message does, on a computer and on a phone, the less common ones behind **…**. Every bar
+  ends on **Delete**, then **Ask LIA**. An open event keeps all its acts there, **Move to…** listing
+  its calendars under its own icon; a message keeps **Archive**, **Move to…** and **Report as spam**
+  behind **…**, and a file brings **Move**, **Share** and **Send by e-mail** into its bar.
+- 📬 **The newest message at hand**: on a large screen the mailbox opens on your newest message, which
+  stays unread until you open it yourself.
+- 📱 **Tools on a phone**: the search and **Refresh** start their line and the act a tool leads with
+  ends it, as **New email** now does in words; a message offers its answers above its text too, and
+  its three views stand on one line. A mailbox's folders open in a list as wide as the screen, your
+  labels under their own title. In the calendar **Today** starts its line, the period ends it and the
+  search takes all the room left; a task list's head is centred.
+- 💡 **Lights**: a room's card starts where its title does, **Customize** holds a lamp's tone, a lamp
+  that does not answer has its name greyed, and **Ask LIA** stands right after the room's name. A room
+  or a lamp that is off stands apart from the page, a little darker in a light theme, a little lighter
+  in a dark one.
+- ✂️ **Fewer words on the buttons**: **Open**, **Delete**, **Completed**, **Folder**, **Show
+  original**. A task's detail closes like every other one, and the calendar no longer prints its time
+  zone.
+- ❤️ **The health card** draws each measure on a dial, today and its average side by side, and **Open
+  Chat** and **Services** share a line on a phone.
+- 🏠 **The landing opens on Tools**: a first chapter with its own capture and a card for each tool,
+  the other chapters moving down a number.
+- 🏷️ **Reference catalogue**: the pricing seeds follow production again and offer GPT-6.1 Terra and GPT
+  Image 2.6 Flare, and an upgraded instance receives them through a migration.
+- 📖 **FAQ**: an answer no longer says in which release a feature arrived; the release history keeps that.
+
+### Removed
+
+- 🧹 **Sixteen domain-agent slots** no turn called any more leave the LLM types configuration, with
+  their graph nodes, builders, prompts and saved rows (ADR-371). **Emails Agent** stays: it writes the
+  messages the mail tools send.
+- 🖼️ **The FAQ's old architecture picture**, whose figures no longer said anything true.
+
+### Fixed
+
+- 🧠 **Editing a memory**: its form now counts your characters and states the limit, where a text past
+  it only answered a bare error. Clearing a memory's nuance or trigger topic now really clears it, and
+  one memory past the limit can no longer take the whole list down.
+- 🔊 **A briefing read aloud** now answers to your usage ceilings before a paid voice speaks, a reading
+  that stops short says so, and what was said is billed even when you leave during it.
+- ⏳ **A late answer keeps its place**: words typed while LIA read a sentence are no longer replaced by
+  its answer, an event's title and repetition survive a sentence that named neither, and a panel you
+  leave no longer waits for ever when you come back to it.
+- 🧷 **Formatted words stay formatted** when LIA's text follows them, a subject you wrote stays unless
+  you replace your words, a date pressed while a task saves is saved too, and steps added after a
+  failure go on from where they stopped.
+- 📋 **Copying on a plain-HTTP instance**: the text of a lost message and every link now copy through
+  the page where a browser hides its clipboard, and dictation is no longer offered where no microphone
+  can be reached.
+- 🧾 **The consultation register** names each source an assist read, and only those: a contact with no
+  address no longer files its mail as read, and one lost message no longer files a page as failed.
+- 🎞️ **With less motion asked of your device**, a screen no longer shows its old layout for a frame:
+  closing a message left the list with no width at all until the next one.
+- 📱 **On an iPhone**, typing in a field no longer zooms the page and leaves its buttons out of sight,
+  and a date field no longer passes the edge of its panel.
+- ✍️ **Write with LIA** opens from an event's description: a list inside a dialog closed as it opened.
+- 💶 **A fresh install** no longer runs vision and the three discussion stages on models with no active
+  tariff, which counted their spend at zero, and a model the seed prices only in the past leaves the
+  catalogue instead of being offered at no cost.
+
+### Security
+
+- 📦 **Dependencies**: cbor2 6.2.1 and es-toolkit 1.53.2 close the advisories this release's watch
+  read, and three Next.js acceptances that no longer matched anything are gone (ADR-331).
+- 🗄️ **No transaction across an embedding**: a memory created or changed by LIA ends its read before
+  the network call (ADR-304).
+
+### Operations and documentation
+
+- 🗃️ **Migrations**: `b6d21f7e4a90` (the sixteen slots), `c8e4a1f27b53` (the `tool_assist` slot, on the
+  digest's row, else the response's) and `d2f6b8c4e1a7` (what the seeds gained: GPT-6.1 Terra, the two
+  Flare image models, and drama-3's price where LIA's placeholder still stands). No new Compose
+  service and no mandatory key.
+- ⚙️ **Settings**: new `TOOL_ASSIST*` keys and `MEMORY_CONTENT_MAX_CHARS`, all with defaults; the
+  demonstrator ships with `TOOL_ASSISTS_ENABLED=false`. `EMAILS_AGENT_PROMPT_VERSION` is gone, and a
+  leftover key is ignored.
+- 🪵 **A refused request leaves a trace**: `request_validation_failed` says how a field failed, never
+  its value.
+- 📈 **Observability**: `tool_assists_total` and `tool_assist_duration_seconds`, on the connectors
+  dashboard.
+- 📚 **Documentation**: ADR-371, ADR-372, amendments to ADR-043, 065, 184, 207, 244, 272 and 369,
+  `TOOL_ASSISTS.md`, a self-hosting note for this upgrade, the manual bootstrap rewritten from the
+  entrypoint, six-language FAQ and knowledge, public guides, settings search and the functional,
+  technical and decision maps.
+
 ## [4.4.0] - 2026-11-06
 
 **All your work, by hand or by asking.**

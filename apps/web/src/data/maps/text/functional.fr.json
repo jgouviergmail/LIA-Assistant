@@ -130,7 +130,7 @@
     },
     "f.connectors": {
       "name": "Connecteurs et Outils",
-      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie, fichiers compris : Google Drive ou OneDrive. Les services sans clé sont activés pour tout le monde par l'administrateur. Dans Outils, tu agis toi-même, sans appel à une IA, sur tes mails, ton agenda, tes tâches, tes contacts, tes fichiers et tes lumières Hue : chaque écran propose ce que sait faire son fournisseur, une recherche les parcourt tous, et tes gestes restent hors des registres de LIA.",
+      "role": "Google, Microsoft, Apple et les services à clé personnelle ; un seul parcours de consentement par fournisseur, un fournisseur actif par catégorie, fichiers compris : Google Drive ou OneDrive. Les services sans clé sont activés pour tout le monde par l'administrateur. Dans Outils, tu agis toi-même, sans appel à une IA, sur tes mails, ton agenda, tes tâches, tes contacts, tes fichiers et tes lumières Hue : chaque écran propose ce que sait faire son fournisseur, une recherche les parcourt tous, et tes gestes restent hors des registres de LIA. Les étoiles jaunes demandent autre chose : un clic, un appel à LIA, une proposition que tu termines à la main, tracée et facturée comme un acte de LIA.",
       "goal": "Brancher tes vrais comptes une fois, et qu'ils restent branchés."
     },
     "f.mail": {

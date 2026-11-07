@@ -227,7 +227,7 @@ The review checklists below are the **process** (what to verify on every plan/PR
   6. **Startup initialization** — Required services, caches, or registrations added to `main.py` lifespan context manager in correct order, with error handling and structured logging (step bodies live in `src/infrastructure/startup/` — ADR-123; the lifespan stays the single ordering point)
   7. **Scheduler registration** — Background jobs registered in `startup/schedulers.py::init_scheduler` (before `leader_elector.start()`) with correct trigger (cron/interval), job ID from constants, `replace_existing=True`, and feature-flag guard
   8. **Prompt files** — New prompts placed in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()`, prompt name added to `PromptName` Literal; every `{placeholder}` produced by the loader (guarded), one-line scaffolds in a `key|template` lines file read by `parse_prompt_sections`
-  9. **LangGraph wiring** — New agents registered via `registry.register_agent()` in `startup/agents.py::init_agent_registry`, tools using `@tool` + `ToolResponse`/`ToolErrorModel`, catalogue entries present
+  9. **LangGraph wiring** — New compiled agents registered via `registry.register_agent()` in `startup/agents.py::init_agent_registry`, a domain being its manifests (ADR-371), tools using `@tool` + `ToolResponse`/`ToolErrorModel`, catalogue entries present
   10. **Frontend API integration** — Hook created in `src/hooks/use{Feature}.ts` using `useApiQuery`/`useApiMutation`, component/page wired in App Router under `app/[lng]/`
   11. **Internationalization (6 languages)** — Translation keys added to all 6 locale files (en, fr, de, es, it, zh) in `apps/web/locales/`, backend i18n strings handled
   12. **Observability** — Structured logging via `structlog.get_logger(__name__)` (no `print()`), Prometheus metrics defined if domain-critical, error paths logged with context
@@ -480,7 +480,7 @@ Two execution modes are user-toggleable in the chat header (ADR-070):
 
 ```
 User Message → Router Node → (conversation → Response)
-                           → (actionable → Planner → Semantic Validator → Approval Gate → Task Orchestrator → Domain Agents → Response)
+                           → (actionable → Planner → Semantic Validator → Approval Gate → Task Orchestrator → Tools → Response)
 ```
 
 **ReAct mode** (autonomous, iterative — for exploratory or ambiguous queries):
@@ -624,7 +624,7 @@ Markdown rendered through `<GuideMarkdown>` (the HOW / WHY guides, `apps/web/src
 - **The confirmation card has ONE author, the renderer** (`render_confirmation_card`, streamed before the model's first token; the model only asks the question). The HITL preview speaks Markdown, a plain surface flattens through ONE door (`markdown_to_plain_text`, which only ever shortens), `drafts/summary_renderer.py` is a dispatch table with a boot assert, and the punctuation between a label and its value travels with the labels (ADR-276).
 - **Smart Services**: QueryAnalyzerService, SmartPlannerService, SmartCatalogueService use LRU caching and pattern learning to reduce LLM token usage.
 - **SSE Streaming**: Responses stream to the frontend via Server-Sent Events.
-- **Observability**: 658 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
+- **Observability**: 660 Prometheus metrics defined in `src/infrastructure/observability/`. Langfuse for LLM tracing.
 - **LLM Factory**: `src/infrastructure/llm/factory.py` provides multi-provider LLM instantiation (OpenAI, Anthropic, Google, DeepSeek, Ollama). Provider adapters in `src/infrastructure/llm/providers/`.
 
 ## Dev Container Pitfalls
@@ -669,7 +669,7 @@ Invariants, each backed by a measurement in `scripts/mobile-probe/`:
 ### Index and process
 
 - Full documentation index: `docs/INDEX.md`
-- ADR index (368 ADR files, ADR-370 latest — ADR-008 has no separate file and ADR-349 remains reserved): `docs/architecture/ADR_INDEX.md`
+- ADR index (370 ADR files, ADR-372 latest — ADR-008 has no separate file and ADR-349 remains reserved): `docs/architecture/ADR_INDEX.md`
 - Living maps (site `/maps` in six languages, French `docs/maps/`), from ONE set of data in `apps/web/src/data/maps/`: every commit keeps them true. A new ADR gets its entry and its words in the SIX languages, a new backend domain or infrastructure module is claimed by its brick, then `task docs:maps`; a changed French sentence stays STALE until translated and `--restamp`ed. `lint:docs` and `test_doc_maps_guard.py` refuse otherwise. Procedure: `docs/maps/README.md`.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
@@ -787,6 +787,7 @@ Invariants, each backed by a measurement in `scripts/mobile-probe/`:
 - **Password reset** (ADR-363): ONE decision (`auth/password_reset_policy.decide_reset`) at the request AND at the use; one budget per account; a link is bound to the stored hash, so a changed password retires it; a rate-limit `key_prefix` carries no address or id. Administrator's way back: `python -m scripts.data.set_password`.
 - **Turnstile** (ADR-364): `auth/turnstile_gate.py` guards the password doors after the per-IP limiter; with no usable answer from Cloudflare only the SIGN-IN proceeds, judged by the server's own view; off until the operator's widget.
 - **The person's own hands** (ADR-369, `docs/technical/WORKBENCH.md`): « Tools » acts with no model and no register row (`NOT_A_CAPABILITY_READ`); one door, one refusal seam, a provider descriptor; what a client gains reaches the assistant's tools in the same lot.
+- **What a click asks of LIA there** (ADR-372, `docs/technical/TOOL_ASSISTS.md`): `domains/tool_assists/`, one door (`run_assist`), a proposal and never a provider write; no control added to a screen with no room for one; a value citing a source is checked against it.
 - **Settings dock** (ADR-277): WHAT is pinned is the ACCOUNT's (`users.settings_shortcuts`, the list riding the profile), WHERE the dock sits the DEVICE's (`lia_shortcuts_dock_prefs`); the backend keeps the tokens' SHAPE, the vocabulary is `SettingsSectionToken`; ONE floating mechanic, `useFloatingDrag`.
 - **A page the model writes** (ADR-370, `docs/technical/INTERACTIVE_PAGES.md`): it runs in a `srcDoc` frame alone, `sandbox="allow-scripts allow-forms"`, the policy the document's prefix (`frame_policy.with_leading_policy`) and naming no host; the bridge hears a height and a failure; read back it waits for a click; the model reads its title, never the page. Making goes to the domain with no skill, using stays the skill (`effective_skill_name`).
 - **Document craft** (ADR-274): the renderer owns the form, the model the meaning: it says what a thing IS, the renderer draws it natively; nothing overflows by construction (`fit.py`, a full-width glyph is one em); every incoherence is repaired; ONE predicate switches contents, numbering and part breaks. Corpus: `task documents:corpus:measure`.

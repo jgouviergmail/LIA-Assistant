@@ -36,7 +36,7 @@ If you travel, LIA will offer to update your timezone when it detects a mismatch
 
 ## How do I manage my stored memories?
 
-You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk.
+You control your memories from **Settings › Memory**: read, edit, pin, export or delete them individually or in bulk. The form counts your characters and states each field's limit before you save, and clearing the **Usage nuance** or the **Trigger topic** removes it.
 
 **📌 Pinning:** a pinned memory is protected from automatic edits and cleanup. New **standing instructions** — how LIA should work for you — are pinned as soon as they are stored. You may edit them, unpin them or delete them yourself. Even when unpinned, an instruction is protected from automatic deletion; an automatic correction must preserve a successor.
 
@@ -349,7 +349,7 @@ When limits are configured, color-coded gauge bars show your consumption:
 - 🔴 Red: over 95%
 
 **🔒 When blocked:**
-If you reach a limit, the message input and voice are disabled and a red banner explains the situation. Contact your administrator to have limits adjusted.
+If you reach a limit, the message input and voice are disabled and a red banner explains the situation. In **Tools**, what you do by hand goes on; an assist is refused without calling LIA. Contact your administrator to have limits adjusted.
 
 **⚙️ Admin management:**
 Administrators manage limits in **Settings › Administration › Users & Access › Limits admin**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.

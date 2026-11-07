@@ -15,6 +15,17 @@ import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import {
+  boxOf,
+  expectInside,
+  expectLinesCentredIn,
+  expectNoZoomOnFocus,
+  expectOnOneLine,
+  expectSameEnd,
+  expectSameStart,
+  expectStackedWhole,
+  expectUnder,
+} from './phone-lines';
 
 const TODAY = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Paris',
@@ -65,6 +76,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -79,6 +92,16 @@ const CALENDARS = [
   },
   { id: 'team', name: 'Team', color: '#059669', primary: false, writable: true, manageable: true },
 ];
+
+/** A name as long as a person may give a calendar: what a list of places must hold. */
+const LONG_NAMED = {
+  id: 'club',
+  name: 'The neighbourhood sports association shared calendar for the whole season',
+  color: '#b45309',
+  primary: false,
+  writable: true,
+  manageable: true,
+};
 
 /** What an event says when it is read whole, beyond what a view draws. */
 const WHOLE = {
@@ -157,15 +180,23 @@ async function answer(route: Route): Promise<void> {
 
 async function playTheApi(
   mockApi: (routes: MockRoute[]) => Promise<void>,
-  extra: MockRoute[] = []
+  extra: MockRoute[] = [],
+  assists = false
 ) {
   await mockApi([
     {
       url: '**/api/v1/config',
       json: {
         ...appConfig,
-        features: { ...appConfig.features, workbench_enabled: true },
-        capabilities: { workbench: { enabled: true, family: 'work' } },
+        features: {
+          ...appConfig.features,
+          workbench_enabled: true,
+          tool_assists_enabled: assists,
+        },
+        capabilities: {
+          workbench: { enabled: true, family: 'work' },
+          tool_assists: { enabled: assists, family: 'work' },
+        },
       },
     },
     { url: '**/api/v1/workbench', json: RAIL },
@@ -524,6 +555,18 @@ test('a search takes the view’s place, and clearing it gives the view back', a
   await expect(page.getByRole('link').filter({ hasText: 'Weekly sync' }).first()).toBeVisible();
 });
 
+/** The move as the provider answers it, each request kept. */
+function movesInto(moves: Record<string, unknown>[]): MockRoute {
+  return {
+    url: '**/api/v1/workbench/calendar/events/move',
+    method: 'POST',
+    handler: async route => {
+      moves.push(route.request().postDataJSON());
+      await route.fulfill({ json: { ...EVENTS[0], ...WHOLE, calendar_id: 'team' } });
+    },
+  };
+}
+
 test('an event goes to another calendar from its detail', async ({
   page,
   authenticate,
@@ -532,30 +575,127 @@ test('an event goes to another calendar from its detail', async ({
   await page.setViewportSize({ width: 1280, height: 900 });
   await authenticate({ timezone: 'Europe/Paris' });
   const moves: Record<string, unknown>[] = [];
-  await playTheApi(mockApi, [
-    {
-      url: '**/api/v1/workbench/calendar/events/move',
-      method: 'POST',
-      handler: async route => {
-        moves.push(route.request().postDataJSON());
-        await route.fulfill({ json: { ...EVENTS[0], ...WHOLE, calendar_id: 'team' } });
-      },
-    },
-  ]);
+  await playTheApi(mockApi, [movesInto(moves)]);
 
   await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
   await waitForHydration(page, 'button');
   await page.getByRole('link').filter({ hasText: 'Committee review' }).first().click();
 
   const detail = page.getByRole('article', { name: 'Committee review' });
-  await detail.getByRole('button', { name: 'Move to' }).click();
-  await page.getByRole('menuitem', { name: 'Team' }).click();
+  await detail.getByRole('button', { name: 'Move to…' }).click();
+  expect(moves).toHaveLength(0);
+  await page.getByRole('menuitem', { name: 'Move to Team' }).click();
 
   await expect.poll(() => moves.length).toBe(1);
   expect(moves[0]).toEqual({ calendar_id: 'primary', event_id: 'e1', destination_id: 'team' });
   await expect(page.getByRole('article', { name: 'Committee review' })).toHaveCount(0);
   await expect(page.getByText('Moved to Team')).toBeVisible();
 });
+
+test('the keyboard moves an event from its bar, and Escape leaves it where it is', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  const moves: Record<string, unknown>[] = [];
+  await playTheApi(mockApi, [movesInto(moves)]);
+
+  await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+  await waitForHydration(page, 'button');
+  await page.getByRole('link').filter({ hasText: 'Committee review' }).first().click();
+
+  const move = page
+    .getByRole('article', { name: 'Committee review' })
+    .getByRole('button', { name: 'Move to…' });
+  const line = page.getByRole('menuitem', { name: 'Move to Team' });
+  await move.focus();
+  await page.keyboard.press('Enter');
+  await expect(line).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(move).toBeFocused();
+  expect(moves).toHaveLength(0);
+
+  await page.keyboard.press('Enter');
+  await expect(line).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect.poll(() => moves.length).toBe(1);
+  expect(moves[0]).toEqual({ calendar_id: 'primary', event_id: 'e1', destination_id: 'team' });
+});
+
+test('a very narrow phone keeps every act of an event whole at larger text', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+  await waitForHydration(page, 'button');
+  await page.getByRole('link').filter({ hasText: 'Committee review' }).first().click();
+
+  const detail = page.getByRole('article', { name: 'Committee review' });
+  const acts = detail.getByTestId('detail-acts').getByRole('button');
+  await expect(acts).toHaveCount(5);
+
+  // The tool's name gives way, then the icons take another line: an act is never cut.
+  for (const size of ['125%', '150%', '200%']) {
+    await page.evaluate(value => {
+      document.documentElement.style.fontSize = value;
+    }, size);
+    for (const act of await acts.all()) await expectInside(detail, act);
+    await expectInside(detail, detail.getByRole('button', { name: 'Calendar' }));
+  }
+});
+
+/* AN EVENT'S ACTS: all of them in its bar, on a computer and on a phone (owner, 2026-11-06). */
+for (const width of [390, 360, 320]) {
+  test(`an event keeps every act on one line at ${width}px, and its list on the screen`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, [
+      {
+        url: '**/api/v1/workbench/calendar/calendars',
+        method: 'GET',
+        json: { calendars: [...CALENDARS, LONG_NAMED] },
+      },
+    ]);
+
+    await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+    await waitForHydration(page, 'button');
+    await page.getByRole('link').filter({ hasText: 'Committee review' }).first().click();
+
+    const detail = page.getByRole('article', { name: 'Committee review' });
+    const move = detail.getByRole('button', { name: 'Move to…' });
+    const ask = detail.getByRole('button', { name: 'Ask LIA' });
+    await expectOnOneLine(
+      detail.getByRole('button', { name: 'Calendar' }),
+      detail.getByRole('button', { name: 'Edit', exact: true }),
+      detail.getByRole('button', { name: 'Duplicate' }),
+      move,
+      detail.getByRole('button', { name: 'Delete' }),
+      ask
+    );
+    await expectInside(detail, ask);
+    await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+    await expectNoOverflow(page, `the event's acts at ${width}px`);
+
+    await move.click();
+    await expect(page.getByRole('menuitem', { name: 'Move to Team' })).toBeVisible();
+    const longest = await boxOf(page.getByRole('menuitem', { name: /sports association/ }));
+    expect(longest.x, 'the list starts on the screen').toBeGreaterThanOrEqual(0);
+    expect(longest.x + longest.width, 'the list ends on the screen').toBeLessThanOrEqual(width);
+    await expectNoOverflow(page, `the calendars an event can go to at ${width}px`);
+  });
+}
 
 test('a phone manages its calendars from the menu: only the person’s own are listed', async ({
   page,
@@ -633,6 +773,91 @@ test('a dated task is drawn on its day and opens among the tasks', async ({
  * Owner request (2026-10-31): a guest is suggested from the account's contacts exactly as a
  * message's recipient is — the same field, the same door, picked with the keyboard.
  */
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test.skip(({ browserName }) => browserName === 'firefox', 'no mobile emulation');
+
+  /** Owner requests (2026-11-06): the head at the left, LIA beside it, one press per line. */
+  test('the editor starts at the left, and takes the thumb without zooming', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, [], true);
+    await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+    await waitForHydration(page, 'button');
+
+    await page.getByRole('button', { name: 'New event' }).first().click();
+    const editor = page.getByRole('dialog', { name: 'New event' });
+    const title = editor.getByRole('heading', { name: 'New event' });
+    const line = editor.getByText(/account's clock/);
+    await expectSameStart(title, line);
+    await expectSameStart(title, editor.getByLabel('Title'));
+    await expectOnOneLine(
+      title,
+      editor.getByRole('button', { name: 'Describe the event in a sentence' })
+    );
+    await expectStackedWhole(
+      editor.getByRole('button', { name: 'Create' }),
+      editor.getByRole('button', { name: 'Cancel' })
+    );
+    await expectNoZoomOnFocus(page);
+  });
+});
+
+/** Owner report (2026-11-06): the list and its dialog open over the editor's own dialog. */
+test('LIA writes a description from inside the editor, the person keeping the last word', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  const asked: unknown[] = [];
+  await playTheApi(
+    mockApi,
+    [
+      {
+        url: '**/api/v1/tool-assists/text/write',
+        method: 'POST',
+        handler: async route => {
+          asked.push(route.request().postDataJSON());
+          await route.fulfill({
+            json: { text: 'The committee reviews the agenda.', subject: null, cut: false, usage: null },
+          });
+        },
+      },
+    ],
+    true
+  );
+  await page.goto(`/en/dashboard/tools/calendar?view=week&day=${TODAY}`);
+  await waitForHydration(page, 'button');
+
+  await page.getByRole('button', { name: 'New event' }).first().click();
+  const editor = page.getByRole('dialog', { name: 'New event' });
+  await editor.getByRole('button', { name: 'Write with LIA' }).click();
+  await page.getByRole('menuitem', { name: 'Write from an instruction' }).click();
+  const writing = page.getByRole('dialog', { name: 'Write from an instruction' });
+  await writing.getByRole('textbox').fill('A short agenda');
+  await writing.getByRole('button', { name: 'Propose' }).click();
+
+  await expect(writing.getByText('The committee reviews the agenda.')).toBeVisible();
+  expect(asked).toEqual([{ kind: 'event_description', instruction: 'A short agenda' }]);
+  await writing.getByRole('button', { name: 'Use this text' }).click();
+  await expect(writing).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'New event' })).toBeVisible();
+  await expect(page.getByLabel('Description')).toHaveValue('The committee reviews the agenda.');
+  // Nothing of the list or its dialog stays over the form, nor once the form has gone.
+  await editor.getByLabel('Title').click();
+  await editor.getByLabel('Title').fill('Committee');
+  await expect(editor.getByLabel('Title')).toHaveValue('Committee');
+  await editor.getByRole('button', { name: 'Cancel' }).click();
+  await expect(editor).toHaveCount(0);
+  await page.getByRole('button', { name: 'New event' }).first().click();
+  await expect(page.getByRole('dialog', { name: 'New event' })).toBeVisible();
+});
+
 test('a guest is suggested from the contacts, as a message recipient is', async ({
   page,
   authenticate,
@@ -695,4 +920,91 @@ test('the keyboard opens an event and gets its link back when it closes', async 
   await page.keyboard.press('Enter');
 
   await expect(page.getByRole('link', { name: /Committee review/ })).toBeFocused();
+});
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+for (const width of [390, 360]) {
+  test(`a phone reads the calendar line by line at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+    await waitForHydration(page, 'button');
+    await expect(page.getByText('Weekly sync').first()).toBeVisible();
+    const tool = page.getByRole('region', { name: 'Calendar' });
+    const search = page.getByRole('button', { name: 'Search across your tools' });
+    const refresh = page.getByRole('button', { name: 'Refresh' });
+    const event = page.getByRole('button', { name: 'New event' }).first();
+    await expectOnOneLine(search, refresh, event);
+    await expectSameStart(search, tool);
+    await expectSameEnd(event, tool);
+    await expect(tool.getByText(/Europe\/Paris/)).toHaveCount(0);
+    // Today starts the line, what is shown ends it, and the search takes all the room it can.
+    const today = tool.getByRole('button', { name: 'Today' });
+    const shown = tool.getByRole('heading', { level: 2 });
+    const searching = tool.getByRole('search');
+    const calendars = tool.getByRole('button', { name: 'Calendars' });
+    await expectSameStart(today, searching);
+    await expectSameEnd(shown, calendars);
+    await expectOnOneLine(searching, calendars);
+    const box = await boxOf(tool.getByRole('searchbox'));
+    const field = await boxOf(searching);
+    expect(box.x, 'the field starts the search').toBeLessThanOrEqual(field.x + 1);
+    expect((await boxOf(calendars)).x - (field.x + field.width)).toBeLessThanOrEqual(9);
+    await expectLinesCentredIn(tool, tool.getByRole('group', { name: 'View' }));
+
+    await page.getByRole('link').filter({ hasText: 'Weekly sync' }).first().click();
+    const detail = page.getByRole('article', { name: 'Weekly sync' });
+    const edit = detail.getByRole('button', { name: 'Edit', exact: true });
+    const series = detail.getByRole('button', { name: 'Edit the series' });
+    const copy = detail.getByRole('button', { name: 'Duplicate' });
+    const remove = detail.getByRole('button', { name: 'Delete' });
+    const ask = detail.getByRole('button', { name: 'Ask LIA' });
+    await expectOnOneLine(
+      detail.getByRole('button', { name: 'Calendar' }),
+      edit,
+      series,
+      copy,
+      remove,
+      ask
+    );
+    await expectUnder(ask, detail.getByRole('heading', { level: 2 }));
+    await expectInside(detail, ask);
+    await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+    await expectNoOverflow(page, `the event's acts at ${width}px`);
+  });
+}
+
+test('beside the view an open event keeps its acts in the same bar', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto(`/en/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+  await waitForHydration(page, 'button');
+  await page.getByRole('link').filter({ hasText: 'Weekly sync' }).first().click();
+  const detail = page.getByRole('article', { name: 'Weekly sync' });
+
+  await expectOnOneLine(
+    detail.getByRole('button', { name: 'Close the event' }),
+    detail.getByRole('button', { name: 'Edit', exact: true }),
+    detail.getByRole('button', { name: 'Edit the series' }),
+    detail.getByRole('button', { name: 'Duplicate' }),
+    detail.getByRole('button', { name: 'Delete' }),
+    detail.getByRole('button', { name: 'Ask LIA' })
+  );
+
+  // The acts close the bar, however wide the pane.
+  const bar = await boxOf(detail.getByTestId('detail-bar'));
+  const ask = await boxOf(detail.getByRole('button', { name: 'Ask LIA' }));
+  expect(bar.x + bar.width - (ask.x + ask.width)).toBeLessThan(12);
 });

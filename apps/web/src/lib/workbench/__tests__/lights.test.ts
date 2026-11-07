@@ -16,8 +16,7 @@ import {
   roomMirek,
   lampsByAnswer,
   scenesOutsideRooms,
-  toneTitleKey,
-  unreachableCount,
+  offersTone,
 } from '../lights';
 
 const PLAIN_ROOM = {
@@ -71,11 +70,9 @@ describe('a room and a zone', () => {
     ).toEqual(['s2']);
   });
 
-  it("names a room's tone by what its lamps take", () => {
-    expect(toneTitleKey({ supports_color: true, mirek_min: 153, mirek_max: 500 })).toBe(
-      'workbench.lights.tone'
-    );
-    expect(toneTitleKey({ supports_color: false, mirek_min: null, mirek_max: null })).toBeNull();
+  it("offers a room's tone by what its lamps take", () => {
+    expect(offersTone({ supports_color: true, mirek_min: 153, mirek_max: 500 })).toBe(true);
+    expect(offersTone({ supports_color: false, mirek_min: null, mirek_max: null })).toBe(false);
   });
 });
 
@@ -92,19 +89,6 @@ describe('lampsByAnswer', () => {
 
     expect(answering.map(lamp => lamp.id)).toEqual(['b', 'c']);
     expect(silent.map(lamp => lamp.id)).toEqual(['a', 'd']);
-  });
-});
-
-describe('unreachableCount', () => {
-  it('counts the lamps the bridge says it cannot reach, and no others', () => {
-    const lights = [
-      light('a', { reachable: false }),
-      light('b', { reachable: true }),
-      light('c', { reachable: null }),
-      light('d', { reachable: false }),
-    ];
-
-    expect(unreachableCount(['a', 'b', 'c'], lights)).toBe(1);
   });
 });
 
@@ -193,16 +177,14 @@ describe('inNameOrder', () => {
   });
 });
 
-describe('toneTitleKey', () => {
-  it('names the folded section by what the lamp can take', () => {
-    expect(toneTitleKey(light('a', { supports_color: true, mirek_min: 153, mirek_max: 500 }))).toBe(
-      'workbench.lights.tone'
+describe('offersTone', () => {
+  it('opens a section for a lamp that takes a temperature, a colour, or both', () => {
+    expect(offersTone(light('a', { supports_color: true, mirek_min: 153, mirek_max: 500 }))).toBe(
+      true
     );
-    expect(toneTitleKey(light('b', { mirek_min: 153, mirek_max: 454 }))).toBe(
-      'workbench.lights.temperature'
-    );
-    expect(toneTitleKey(light('c', { supports_color: true }))).toBe('workbench.lights.colour');
-    expect(toneTitleKey(light('d'))).toBeNull();
+    expect(offersTone(light('b', { mirek_min: 153, mirek_max: 454 }))).toBe(true);
+    expect(offersTone(light('c', { supports_color: true }))).toBe(true);
+    expect(offersTone(light('d'))).toBe(false);
   });
 });
 

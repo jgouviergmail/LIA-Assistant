@@ -119,6 +119,8 @@ function rail(features: WorkbenchFeature[]): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -251,7 +253,7 @@ describe('CalendarTool — the week', () => {
       start: '2026-11-01',
       end: '2026-11-07',
     });
-    expect(screen.getByText('workbench.calendar.zone_note')).toBeInTheDocument();
+    expect(screen.queryByText('workbench.calendar.zone_note')).toBeNull();
   });
 
   it('re-reads what it shows when the person asks', async () => {
@@ -457,15 +459,18 @@ describe('CalendarTool — moving an event', () => {
     return screenOf();
   }
 
-  const menu = () => screen.findByRole('button', { name: 'workbench.calendar.move_to' });
+  const moveIcon = () => screen.findByRole('button', { name: 'workbench.calendar.move_to' });
+  const moving = () => screen.findByRole('menuitem', { name: 'workbench.calendar.move_to_name' });
   const edited = () => screen.findByRole('button', { name: 'workbench.calendar.edit' });
+  const series = () => screen.findByRole('button', { name: 'workbench.calendar.edit_series' });
+  const noMove = () => screen.queryByRole('button', { name: 'workbench.calendar.move_to' });
 
   it('sends the event to the calendar picked, closes it and says where it went', async () => {
     api.post.mockResolvedValue(DETAIL);
     const { user } = opened();
 
-    await user.click(await menu());
-    await user.click(await screen.findByRole('menuitem', { name: 'Family' }));
+    await user.click(await moveIcon());
+    await user.click(await moving());
 
     await waitFor(() => expect(api.post).toHaveBeenCalled());
     const [path, body] = api.post.mock.calls[0]!;
@@ -481,8 +486,8 @@ describe('CalendarTool — moving an event', () => {
     );
     const { user } = opened();
 
-    await user.click(await menu());
-    await user.click(await screen.findByRole('menuitem', { name: 'Family' }));
+    await user.click(await moveIcon());
+    await user.click(await moving());
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('workbench.errors.event_left_behind')
@@ -493,7 +498,7 @@ describe('CalendarTool — moving an event', () => {
   it('offers a whole series beside the occurrence, and opens on it', async () => {
     const { user } = opened({ recurring: true });
 
-    await user.click(await screen.findByRole('button', { name: 'workbench.calendar.edit_series' }));
+    await user.click(await series());
 
     expect(await screen.findByText('workbench.calendar.editor.title_series')).toBeInTheDocument();
     expect(screen.getByText('workbench.calendar.editor.repeat')).toBeInTheDocument();
@@ -503,7 +508,7 @@ describe('CalendarTool — moving an event', () => {
     features = ['all_day', 'event_move', 'calendar_management'];
     opened({ recurring: true });
 
-    await screen.findByRole('button', { name: 'workbench.calendar.edit_series' });
+    await series();
     expect(screen.queryByRole('button', { name: 'workbench.calendar.edit' })).toBeNull();
     expect(screen.getByRole('button', { name: 'workbench.calendar.delete' })).toBeInTheDocument();
   });
@@ -524,19 +529,15 @@ describe('CalendarTool — moving an event', () => {
   it('offers no series on an event that is none', async () => {
     opened({ recurring: false });
 
-    await edited();
-
+    await moveIcon();
     expect(screen.queryByRole('button', { name: 'workbench.calendar.edit_series' })).toBeNull();
   });
 
   it('offers no move of a series', async () => {
     opened({ recurring: true });
 
-    await edited();
-
-    expect(
-      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
-    ).not.toBeInTheDocument();
+    await series();
+    expect(noMove()).not.toBeInTheDocument();
   });
 
   it('offers no move of an invitation: the event is the organiser’s', async () => {
@@ -544,24 +545,20 @@ describe('CalendarTool — moving an event', () => {
 
     await edited();
 
-    expect(
-      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
-    ).not.toBeInTheDocument();
+    expect(noMove()).not.toBeInTheDocument();
   });
 
   it('moves an event with guests only where the provider moves rather than copies', async () => {
     const guests = [{ email: 'ana@example.org', name: null, response: 'accepted' as const }];
     const { unmount } = opened({ attendees: guests });
-    expect(await menu()).toBeInTheDocument();
+    expect(await moveIcon()).toBeInTheDocument();
     unmount();
 
     features = GRAPH;
     opened({ attendees: guests });
 
     await edited();
-    expect(
-      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
-    ).not.toBeInTheDocument();
+    expect(noMove()).not.toBeInTheDocument();
   });
 
   it('offers no move where nothing else can be written', async () => {
@@ -577,9 +574,7 @@ describe('CalendarTool — moving an event', () => {
 
     await edited();
 
-    expect(
-      screen.queryByRole('button', { name: 'workbench.calendar.move_to' })
-    ).not.toBeInTheDocument();
+    expect(noMove()).not.toBeInTheDocument();
   });
 });
 

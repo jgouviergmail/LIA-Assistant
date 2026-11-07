@@ -5,8 +5,8 @@
  *
  * The page's one h1, for the outline and the ear: the eye reads the open pill of
  * the rail, so nothing repeats it and the tool keeps that height. The tool's own
- * actions and « Refresh » sit at the end of the rail's row (`WorkbenchActionsSlot`,
- * filled by a portal), in the order the keyboard walks, with the tool's shortcuts
+ * actions and « Refresh » follow the rail (`WorkbenchActionsSlot`, filled by a
+ * portal), in the order the keyboard walks, with the tool's shortcuts
  * and their help where it has some (`ShortcutsHelp`). The rail is the way
  * between tools at every width, so no « all tools » link is needed. Opening a
  * tool moves focus to its heading — after a switch the reader lands on the screen
@@ -64,7 +64,7 @@ export function WorkbenchToolHeader({
         <Button
           variant="outline"
           size="sm"
-          className="min-h-10"
+          className="min-h-10 min-w-10 px-0 xl:px-3"
           isLoading={refreshing}
           onClick={() => void refresh()}
         >

@@ -17,6 +17,9 @@ import {
 } from '@/__tests__/test-utils';
 import type { WorkbenchFeature, WorkbenchTask } from '@/lib/workbench/types';
 
+const { width } = vi.hoisted(() => ({ width: { desktop: false } }));
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => width.desktop }));
+
 import { TaskEditor } from '../TaskEditor';
 
 const TASK: WorkbenchTask = {
@@ -106,6 +109,15 @@ function editor({
 const save = () => screen.getByRole('button', { name: 'common.save' });
 
 describe('TaskEditor — editing', () => {
+  it('draws the way back on a finished task, never the tick', () => {
+    editor({ task: { ...TASK, completed: true } });
+
+    const act = screen.getByRole('button', { name: 'workbench.tasks.reopen_action' });
+
+    expect(act.querySelector('.lucide-rotate-ccw')).not.toBeNull();
+    expect(act.querySelector('.lucide-check')).toBeNull();
+  });
+
   it('sends only what changed, the title trimmed', async () => {
     const { user, onSave } = editor();
     const title = screen.getByLabelText('workbench.tasks.title');
@@ -157,6 +169,7 @@ describe('TaskEditor — editing', () => {
     await user.click(save());
     fireEvent.submit(notes.closest('form') as HTMLFormElement);
     expect(onSave).toHaveBeenCalledTimes(1);
+    expect(save()).toHaveAttribute('aria-busy', 'true');
     refuse(new Error('refused'));
 
     await waitFor(() => expect(save()).not.toHaveAttribute('aria-busy'));
@@ -222,6 +235,37 @@ describe('TaskEditor — due dates at hand', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { due: '2026-11-05' }));
   });
 
+  it('saves a date pressed while the last change is on its way', async () => {
+    let answer: () => void = () => undefined;
+    const { onSave } = editor({ today: '2026-11-04' });
+    onSave.mockImplementationOnce(() => new Promise<void>(resolve => (answer = resolve)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_tomorrow' }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    answer();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave).toHaveBeenLastCalledWith(TASK, { title: 'Buy oat milk', due: '2026-11-05' });
+  });
+
+  it('asks once for one gesture: leaving a field by pressing « Save »', async () => {
+    let answer: () => void = () => undefined;
+    const { onSave } = editor({ today: '2026-11-04' });
+    onSave.mockImplementationOnce(() => new Promise<void>(resolve => (answer = resolve)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.click(save());
+    answer();
+
+    await waitFor(() => expect(screen.getByText('workbench.tasks.saved')).toBeInTheDocument());
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it('takes the date away', async () => {
     const { onSave } = editor({ today: '2026-11-04' });
 
@@ -263,14 +307,60 @@ describe('TaskEditor — acts', () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith(TASK));
   });
 
-  it('closes from either way out, and takes the focus when it replaces the list', async () => {
+  it('says where it goes back to, and takes the focus when it replaces the list', async () => {
     const { user, onClose } = editor({ focusOnOpen: true });
-    const back = screen.getByRole('button', { name: 'workbench.tasks.back_to_list' });
+    const back = screen.getByRole('button', { name: 'workbench.tools.tasks.label' });
 
     expect(back).toHaveFocus();
     await user.click(back);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes with a cross beside the list', async () => {
+    width.desktop = true;
+    const { user, onClose } = editor();
+
     await user.click(screen.getByRole('button', { name: 'workbench.tasks.close_detail' }));
-    expect(onClose).toHaveBeenCalledTimes(2);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    width.desktop = false;
+  });
+
+  it('offers its acts in its bar, as an open event does', () => {
+    editor();
+
+    const acts = within(screen.getByTestId('detail-acts'))
+      .getAllByRole('button')
+      .map(button => button.getAttribute('aria-label'));
+
+    expect(acts).toEqual([
+      'common.save',
+      'workbench.tasks.mark_done',
+      'common.delete',
+      'workbench.ask.label',
+    ]);
+    expect(screen.getByRole('button', { name: 'common.delete' })).toHaveClass('text-destructive');
+  });
+
+  it('submits the form from the bar it stands outside of', async () => {
+    const { user, onSave } = editor();
+    fireEvent.change(screen.getByLabelText('workbench.tasks.notes'), {
+      target: { value: 'Whole milk' },
+    });
+
+    await user.click(save());
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { notes: 'Whole milk' }));
+  });
+
+  it('holds its act back while the task is on its way', async () => {
+    const { user, onToggle } = editor({ pending: new Set(['t1']) });
+
+    const done = screen.getByRole('button', { name: 'workbench.tasks.mark_done' });
+    await user.click(done);
+
+    expect(done).toHaveAttribute('aria-disabled', 'true');
+    expect(onToggle).not.toHaveBeenCalled();
   });
 });
 

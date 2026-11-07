@@ -39,6 +39,12 @@ export const WORKBENCH_ERROR_CODES = [
   'not_an_image',
   'too_many_cards',
   'file_locked',
+  'assist_empty',
+  'assist_unreadable',
+  'assist_not_found',
+  'assist_quota',
+  'assist_paused',
+  'assist_failed',
 ] as const;
 
 export type WorkbenchErrorCode = (typeof WORKBENCH_ERROR_CODES)[number];

@@ -9,7 +9,13 @@
  * written. A new editor mints a new key, so a copy is an event of its own.
  */
 import type { CalendarEventDetail, WorkbenchCalendar } from '@/lib/workbench/types';
-import { allDayFields, duplicateFields, newEventFields } from '@/lib/workbench/calendar/editor';
+import type { ProposedEvent } from '@/lib/workbench/assist';
+import {
+  allDayFields,
+  duplicateFields,
+  newEventFields,
+  withProposedEvent,
+} from '@/lib/workbench/calendar/editor';
 import { instantToWall } from '@/lib/workbench/calendar/zoned';
 
 import type { EditorTarget } from './EventEditor';
@@ -36,8 +42,8 @@ export interface EventStarts {
   writable: boolean;
   /** « New event » on a day. */
   startOn: (day: string) => void;
-  /** A new event today, on words another tool handed over. */
-  startWith: (summary: string, description: string) => void;
+  /** A new event today, on words another tool handed over, or on what LIA read. */
+  startWith: (summary: string, description: string, proposal?: ProposedEvent) => void;
   /** Left out where nothing can be written: a slot of the grid (a null time: all day). */
   onSlot?: (day: string, time: string | null) => void;
   /** Left out where nothing can be written: an empty part of a month's day. */
@@ -63,10 +69,11 @@ export function eventStarts(
   return {
     writable: true,
     startOn,
-    startWith: (summary, description) => {
+    startWith: (summary, description, proposal) => {
       const at = startHour(today, today, zone);
-      const fields = newEventFields(into.id, at.day, at.time);
-      compose({ kind: 'new', fields: { ...fields, summary, description } });
+      const fields = { ...newEventFields(into.id, at.day, at.time), summary, description };
+      const filled = proposal ? withProposedEvent(fields, { ...proposal, description }) : fields;
+      compose({ kind: 'new', fields: filled });
     },
     onDay: startOn,
     onSlot: (day, time) =>

@@ -1,6 +1,6 @@
 # Architecture Diagrams
 
-> **Generated**: 2026-07-11 (PNG/SVG régénérés via `task docs:diagrams`)
+> **Generated**: 2026-11-07 (PNG/SVG régénérés via `task docs:diagrams`)
 > **Status**: ✅ Validated against codebase
 > **Sources**: `apps/api/src/domains/agents/` — les fichiers `.mmd` sont la source de vérité
 
@@ -20,7 +20,8 @@
 - Semantic Validator + Clarification Loop
 - Approval Gate (plan_approval — actuellement pass-through auto-approve)
 - Task Orchestrator avec exécution parallèle (asyncio.gather)
-- Nodes agents de domaine (contact, email, event, file, task, weather, wikipedia, perplexity, place, route, hue, browser conditionnel)
+- Outils appelés directement par `parallel_executor` (ADR-371) ; `browser_agent`, seul nœud agent, conditionnel
+- Désambiguïsation d'une référence avant le plan ou une action (`reference_disambiguation_node`, ADR-367)
 - HITL Dispatch (draft critique, self-loop replay-safe ADR-092) + for_each_confirm node
 - Initiative node (ADR-062) + boucle ReAct 5 nodes (setup → call_model ⇄ execute_tools → finalize, et `react_recovery` quand la réponse déclare un écart — ADR-310)
 - Délégation sub-agent one-shot (ADR-083)
@@ -31,7 +32,7 @@
 `compaction_node`, `router_node_v3`, `planner_node_v3`, `semantic_validator_node`,
 `clarification_node`, `approval_gate_node`, `task_orchestrator_node`,
 `hitl_dispatch_node`, `for_each_confirm_node`, `initiative_node`,
-`react_setup/call_model/execute_tools/finalize`, 11–12 nodes agents de domaine,
+`react_setup/call_model/execute_tools/recovery/finalize`, `reference_disambiguation_node`, `browser_agent` (conditionnel),
 `response_node`
 
 ---
@@ -158,7 +159,7 @@ Cette commande utilise `@mermaid-js/mermaid-cli` pour convertir chaque `.mmd` en
 
 ## Validation Code
 
-Tous les diagrammes ont été validés contre le code source en date du **2026-07-11**.
+Tous les diagrammes ont été validés contre le code source en date du **2026-11-07**.
 
 **Commandes de vérification** :
 ```bash
@@ -186,5 +187,5 @@ ls apps/api/src/domains/agents/services/hitl/*.py
 
 ---
 
-**Dernière mise à jour**: 2026-07-11
-**Validé contre**: `apps/api/src/domains/agents/` (main branch, v1.23.12)
+**Dernière mise à jour**: 2026-11-07
+**Validé contre**: `apps/api/src/domains/agents/` (main branch, v4.5.0)

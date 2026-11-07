@@ -18,7 +18,28 @@ import { describe, it, expect } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { Input } from '../input';
 
+describe('Input — a date or a time', () => {
+  it.each(['date', 'time', 'datetime-local', 'month', 'week'])(
+    'lays a %s out as a block of its box, which Safari on iOS respects',
+    type => {
+      renderWithProviders(<Input label="When" type={type} />);
+
+      const field = screen.getByLabelText('When');
+
+      expect(field).toHaveClass('block', 'w-full');
+      expect(field).not.toHaveClass('flex');
+    }
+  );
+});
+
 describe('Input — accessible name', () => {
+  it('sets what acts on the field at the end of its label, naming nothing else', () => {
+    renderWithProviders(<Input label="Subject" labelEnd={<button type="button">Help</button>} />);
+
+    expect(screen.getByRole('textbox', { name: 'Subject' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Help' })).toBeInTheDocument();
+  });
+
   it('names the field from the label prop', () => {
     renderWithProviders(<Input label="Email" />);
     expect(screen.getByRole('textbox', { name: 'Email' })).toBeInTheDocument();

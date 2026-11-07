@@ -121,6 +121,19 @@ TOO_MANY_CARDS: Final = "too_many_cards"
 #: Someone holds the file: nothing was written.
 FILE_LOCKED: Final = "file_locked"
 
+#: What LIA was asked to read holds nothing to read (ADR-372).
+ASSIST_EMPTY: Final = "assist_empty"
+#: LIA cannot read this kind of file.
+ASSIST_UNREADABLE: Final = "assist_unreadable"
+#: LIA read it and found nothing of the kind: no form opens on nothing.
+ASSIST_NOT_FOUND: Final = "assist_not_found"
+#: The account's own ceiling is spent: no model was asked.
+ASSIST_QUOTA: Final = "assist_quota"
+#: The instance's day is spent: no model was asked (``retry_after`` beside it).
+ASSIST_PAUSED: Final = "assist_paused"
+#: The model gave no usable answer: nothing is invented, and nothing is retried by itself.
+ASSIST_FAILED: Final = "assist_failed"
+
 #: What each refusal answers — and the one vocabulary the web app translates.
 _STATUSES: Final[dict[str, int]] = {
     NOT_CONNECTED: status.HTTP_409_CONFLICT,
@@ -147,6 +160,12 @@ _STATUSES: Final[dict[str, int]] = {
     NOT_AN_IMAGE: status.HTTP_422_UNPROCESSABLE_CONTENT,
     TOO_MANY_CARDS: status.HTTP_422_UNPROCESSABLE_CONTENT,
     FILE_LOCKED: status.HTTP_423_LOCKED,
+    ASSIST_EMPTY: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ASSIST_UNREADABLE: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ASSIST_NOT_FOUND: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ASSIST_QUOTA: status.HTTP_429_TOO_MANY_REQUESTS,
+    ASSIST_PAUSED: status.HTTP_429_TOO_MANY_REQUESTS,
+    ASSIST_FAILED: status.HTTP_502_BAD_GATEWAY,
 }
 WORKBENCH_CODES: Final[frozenset[str]] = frozenset(_STATUSES)
 
@@ -351,6 +370,12 @@ def _seconds(value: object) -> int | None:
 
 __all__ = [
     "ALREADY_SUBMITTED",
+    "ASSIST_EMPTY",
+    "ASSIST_FAILED",
+    "ASSIST_NOT_FOUND",
+    "ASSIST_PAUSED",
+    "ASSIST_QUOTA",
+    "ASSIST_UNREADABLE",
     "CONFLICT",
     "EVENT_LEFT_BEHIND",
     "TASK_LEFT_BEHIND",

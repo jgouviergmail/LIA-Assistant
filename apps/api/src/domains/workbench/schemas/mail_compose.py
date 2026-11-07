@@ -9,7 +9,7 @@ composer): it leaves once, whatever is clicked twice.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Final, Self
+from typing import Annotated, Final, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -160,11 +160,21 @@ class SentMessage(BaseModel):
     thread_id: str | None = Field(description="Its conversation's id, when named.")
 
 
+class DraftOrigin(BaseModel):
+    """The message a new draft answers: it keeps its thread, its quote and its files."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    message_id: ProviderId = Field(description="The message answered or forwarded.")
+    kind: Literal["reply", "reply_all", "forward"] = Field(description="What it does to it.")
+
+
 class DraftSave(_Outgoing):
     """A draft created (no ``draft_id``) or changed (a field left out is kept).
 
     The files named join it; those it already holds stay until ``removed_files`` says
-    otherwise, by name, the one handle that lasts on every provider.
+    otherwise, by name, the one handle that lasts on every provider. A first save may
+    answer a message (``origin``): recipients left out are then the provider's to compute.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -181,6 +191,9 @@ class DraftSave(_Outgoing):
     removed_files: Annotated[
         list[_HeldFileName], Field(max_length=WORKBENCH_MAIL_ATTACHMENTS_MAX)
     ] = Field(default_factory=list, description="The names of files it no longer carries.")
+    origin: DraftOrigin | None = Field(
+        default=None, description="The message a new draft answers or forwards, if any."
+    )
     idempotency_key: UUID | None = Field(
         default=None, description="The page's key for a creation (required for one)."
     )
@@ -191,6 +204,12 @@ class DraftSave(_Outgoing):
             raise ValueError("a change names the revision the editor holds")
         if self.draft_id is None and self.idempotency_key is None:
             raise ValueError("a creation carries the page's key for it")
+        if self.origin is not None and self.draft_id is not None:
+            raise ValueError("what a draft answers is named at its creation")
+        if self.origin is not None and self.origin.kind == "forward" and not self.to:
+            raise ValueError("a forward is addressed from its first save")
+        if self.origin is not None and (self.bcc or self.subject is not None):
+            raise ValueError("an answer has its message's subject and no blind copy")
         return self
 
 

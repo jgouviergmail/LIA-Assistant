@@ -6,12 +6,12 @@
  * Its name opens it (its scenes and lamps); its switch turns every lamp of it on or
  * off; its slider sets them all, sent on release, and its tone sets them too, each
  * lamp taking what it can of a colour. The line under the name is exact — the bridge
- * is read whole: how many lamps, how bright the ones that are on (or « off »), and
- * how many do not answer. Below `lg`, where the room is a screen away, its scenes
- * are on the card too.
+ * is read whole: how many lamps, and how bright the ones that are on (or « off »); a lamp
+ * that does not answer says so on its own card. Below `lg`, where the room is a screen
+ * away, its scenes are on the card too.
  */
 import Link from 'next/link';
-import { House, Layers, TriangleAlert } from 'lucide-react';
+import { House, Layers } from 'lucide-react';
 import { useState } from 'react';
 
 import { Switch } from '@/components/ui/switch';
@@ -19,13 +19,7 @@ import type { RoomChangeBody } from '@/hooks/useWorkbenchLights';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import {
-  UNLIT_CARD,
-  roomBrightness,
-  roomColour,
-  roomMirek,
-  unreachableCount,
-} from '@/lib/workbench/lights';
+import { UNLIT_CARD, roomBrightness, roomColour, roomMirek } from '@/lib/workbench/lights';
 import type { WorkbenchLight, WorkbenchRoom, WorkbenchScene } from '@/lib/workbench/types';
 
 import { CommitSlider } from './CommitSlider';
@@ -64,7 +58,6 @@ export function RoomCard({
   const on = onDraft ?? room.on;
   const brightness = roomBrightness(room.light_ids, lights);
   const count = room.light_ids.length;
-  const silent = unreachableCount(room.light_ids, lights);
   const Icon = room.kind === 'zone' ? Layers : House;
   const dimmable = lights.some(
     light => room.light_ids.includes(light.id) && light.brightness !== null
@@ -98,12 +91,6 @@ export function RoomCard({
               ? t('workbench.lights.room_dark', { count })
               : t('workbench.lights.room_lit', { count, brightness })}
           </span>
-          {silent > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
-              {t('workbench.lights.room_unreachable', { count: silent })}
-            </span>
-          )}
         </Link>
         <Switch
           checked={on}
@@ -118,7 +105,8 @@ export function RoomCard({
       </div>
       {dimmable && (
         <CommitSlider
-          label={t('workbench.lights.room_brightness', { room: room.name })}
+          label={t('workbench.lights.brightness')}
+          name={t('workbench.lights.room_brightness', { room: room.name })}
           value={brightness ?? 0}
           min={0}
           max={100}

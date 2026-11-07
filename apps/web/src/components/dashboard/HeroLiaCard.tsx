@@ -104,15 +104,15 @@ export function HeroLiaCard({
               ) : null}
             </div>
           </div>
-          <div className="flex w-full shrink-0 flex-col gap-2 lg:w-48">
-            <Button asChild className="h-auto min-h-11 whitespace-normal px-3 py-2">
+          <div className="flex w-full shrink-0 gap-2 lg:w-48 lg:flex-col">
+            <Button asChild className="h-auto min-h-11 flex-auto whitespace-normal px-3 py-2">
               <Link href={`/${lng}/dashboard/chat`}>
                 <Sparkles aria-hidden="true" />
                 {t('dashboard.actions.open_chat')}
                 <ArrowRight aria-hidden="true" />
               </Link>
             </Button>
-            <Button asChild className="h-auto min-h-11 whitespace-normal px-3 py-2">
+            <Button asChild className="h-auto min-h-11 flex-auto whitespace-normal px-3 py-2">
               <Link href={`/${lng}/dashboard/settings?section=connectors`}>
                 <Plug aria-hidden="true" />
                 {t('dashboard.actions.services')}

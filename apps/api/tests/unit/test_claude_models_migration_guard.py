@@ -23,6 +23,7 @@ from src.core.claude_surface import UNDECLARED_CLAUDE, claude_surface
 from src.core.config.llm import get_model_context_window
 from src.core.reasoning_profiles import resolve_reasoning_profile
 from tests.unit.infrastructure.llm.reasoning.test_family_coverage import _catalogue_rows
+from tests.unit.seed_extraction import retired_by_the_operator
 
 pytestmark = pytest.mark.unit
 
@@ -106,6 +107,7 @@ def test_every_migrated_catalogue_row_equals_its_seed_row() -> None:
             column: (value, seed_row[column])
             for column, value in row.items()
             if _as_seed_text(column, value) != seed_row[column]
+            and not retired_by_the_operator(row["model_name"], column)
         }
         assert mismatches == {}, f"{row['model_name']}: {mismatches}"
 
@@ -113,14 +115,11 @@ def test_every_migrated_catalogue_row_equals_its_seed_row() -> None:
 def test_every_tariff_is_the_published_price_in_both_sources() -> None:
     module = _load()
     seed = _SEED.read_text(encoding="utf-8")
-    active = {
-        m.group("model"): m for m in _SEED_TARIFF.finditer(seed) if m.group("active") == "true"
-    }
+    rows = {(m.group("model"), m.group("effective")): m for m in _SEED_TARIFF.finditer(seed)}
     for name, published in PUBLISHED_PRICES.items():
         assert module.TARIFFS[name] == published, name
-        bundle = active.get(name)
-        assert bundle is not None, f"{name} has no active tariff in the seed bundle"
-        assert bundle.group("effective") == module.EFFECTIVE_FROM, name
+        bundle = rows.get((name, module.EFFECTIVE_FROM))
+        assert bundle is not None, f"{name} has no tariff at the migration's date in the seed"
         assert bundle.group("unit") == module.PRICING_UNIT, name
         seeded = (
             float(bundle.group("input")),

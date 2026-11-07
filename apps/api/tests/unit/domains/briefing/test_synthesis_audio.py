@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.core.config import settings
+from src.core.exceptions_domains import UsageLimitExceededError
 from src.core.session_dependencies import get_current_active_session
 from src.domains.briefing.router import router
 
@@ -46,12 +47,29 @@ def _voice_service_mock() -> MagicMock:
             )
 
     service.stream_direct_tts = _stream
+    service.speaks_on_a_paid_engine = AsyncMock(return_value=False)
+    service.count_speakable_sentences = MagicMock(return_value=2)
     service.close = AsyncMock()
     return service
 
 
 @pytest.mark.unit
 class TestSynthesisAudio:
+    def test_a_closed_ceiling_is_a_refusal_never_an_internal_error(self, client: TestClient):
+        service = _voice_service_mock()
+        service.speaks_on_a_paid_engine = AsyncMock(return_value=True)
+        refused = UsageLimitExceededError(limit_name="cost", reason="spent")
+        with (
+            patch("src.domains.voice.text_readout.VoiceCommentService", return_value=service),
+            patch(
+                "src.domains.voice.text_readout.enforce_usage_limit",
+                AsyncMock(side_effect=refused),
+            ),
+        ):
+            resp = client.post("/briefing/synthesis/audio", json={"text": "Bonjour."})
+
+        assert resp.status_code == 429
+
     def test_streams_decoded_audio_bytes(self, client: TestClient):
         service = _voice_service_mock()
         with patch("src.domains.voice.text_readout.VoiceCommentService", return_value=service):

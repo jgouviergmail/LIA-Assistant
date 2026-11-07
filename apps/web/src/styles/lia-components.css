@@ -6364,7 +6364,10 @@ details.lia-collapsible > summary::marker {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    /* Zero, never a tiny duration: `transition-property` defaults to `all`, so any duration makes
+       every change of every element a transition, painted for a frame at its old value. Nothing
+       here waits for `transitionend`. */
+    transition-duration: 0s !important;
   }
 }
 

@@ -170,6 +170,30 @@ describe('useWorkbenchTasks', () => {
     );
   });
 
+  it('adds to the open list when no other is named, an empty key included', async () => {
+    const { result } = await rendered();
+    api.post.mockResolvedValueOnce(task('t2'));
+    api.get.mockResolvedValueOnce({ items: [task('t2')], next_page_token: null });
+
+    await act(async () => {
+      await result.current.addTask({ title: 't2', list_id: undefined, idempotency_key: 'key-1' });
+    });
+
+    expect(api.post.mock.calls[0]?.[1]).toMatchObject({ list_id: 'l1', title: 't2' });
+  });
+
+  it('adds to the list named, where one is', async () => {
+    const { result } = await rendered();
+    api.post.mockResolvedValueOnce(task('t2'));
+    api.get.mockResolvedValueOnce({ items: [task('t1')], next_page_token: null });
+
+    await act(async () => {
+      await result.current.addTask({ title: 't2', list_id: 'l2', idempotency_key: 'key-1' });
+    });
+
+    expect(api.post.mock.calls[0]?.[1]).toMatchObject({ list_id: 'l2' });
+  });
+
   it('re-reads the list after removing a task that had subtasks on screen', async () => {
     api.get.mockImplementation((path: string) =>
       Promise.resolve(

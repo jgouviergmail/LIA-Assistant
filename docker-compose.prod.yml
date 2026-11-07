@@ -180,7 +180,8 @@ services:
       # Docker socket, which only docker-compose.skill-sandbox.yml grants.
       - SKILLS_SCRIPTS_ENABLED=${SKILLS_SCRIPTS_ENABLED:-false}
       # Reference-content seeding, OFF unless explicitly requested for a fresh
-      # install (`APPLY_SEEDS=true docker compose -f docker-compose.prod.yml up -d`).
+      # install: the guided installer arms it, and docs/GETTING_STARTED.md gives the
+      # manual way, which also takes the bundle's digest (SEED_BUNDLE_SHA256).
       # Declared here rather than left to `env_file`, so the default is visible
       # and a stale value in .env cannot silently arm a destructive operation.
       - APPLY_SEEDS=${APPLY_SEEDS:-false}

@@ -6,7 +6,7 @@
  */
 import { toast } from 'sonner';
 
-import type { useConfirm } from '@/components/ui/use-confirm';
+import type { UseConfirmReturn } from '@/components/ui/use-confirm';
 import type { WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import type { WorkbenchTaskActs } from '@/hooks/useWorkbenchTaskActs';
 import type { WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
@@ -23,7 +23,7 @@ export interface TaskDoorsOptions {
   selection: TaskSelection;
   viewRead: WorkbenchItemState<DueTasks>;
   openList: WorkbenchTaskList | null;
-  confirm: ReturnType<typeof useConfirm>['confirm'];
+  confirm: UseConfirmReturn['confirm'];
   /** Says a refusal. */
   tell: (error: unknown) => void;
   /** Runs an act and says its refusal, then rethrows it. */

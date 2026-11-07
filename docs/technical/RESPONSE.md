@@ -575,8 +575,8 @@ def format_agent_results_for_prompt(
 **Format**: `"turn_id:agent_name"`
 
 **Exemples**:
-- `"3:contacts_agent"` → Turn 3, contacts agent
-- `"5:emails_agent"` → Turn 5, emails agent
+- `"3:contact_agent"` → Turn 3, contact agent
+- `"5:email_agent"` → Turn 5, email agent
 
 **Filtering**: Si `current_turn_id=3` fourni, ne garde que les résultats du turn 3.
 
@@ -608,7 +608,7 @@ def format_agent_results_for_prompt(
 
 **Output** (formatted text):
 ```
-✅ contacts_agent: Trouvé 2 contact(s)
+✅ contact_agent: Trouvé 2 contact(s)
 
 **Metadata de fraîcheur:**
 - Source: cache

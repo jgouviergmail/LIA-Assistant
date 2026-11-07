@@ -18,6 +18,13 @@ export const surfaceMemoryCategories = [
   'sensitivity',
   'procedural',
 ] as const;
+/** The bounds the list publishes (`MemoryLimits` in useMemories.ts). */
+export const surfaceMemoryLimits = {
+  content_min_chars: 3,
+  content_max_chars: 500,
+  trigger_topic_max_chars: 100,
+  usage_nuance_max_chars: 300,
+};
 /** Mirrors the pure MemoryListResponse wire fields in useMemories.ts. */
 const surfaceMemories = {
   items: surfaceMemoryCategories.map((category, index) => ({
@@ -31,6 +38,7 @@ const surfaceMemories = {
   })),
   total: surfaceMemoryCategories.length,
   by_category: Object.fromEntries(surfaceMemoryCategories.map(category => [category, 1])),
+  limits: surfaceMemoryLimits,
 };
 
 export const surfaceRoutes: MockRoute[] = [

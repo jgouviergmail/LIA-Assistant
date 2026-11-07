@@ -15,8 +15,9 @@ import type {
   WorkbenchToolId,
 } from '@/lib/workbench/types';
 
-const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+const { get, openChat } = vi.hoisted(() => ({ get: vi.fn(), openChat: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
+vi.mock('@/lib/chat-deep-link', () => ({ openChatDeepLink: openChat }));
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
   default: { get },
@@ -85,6 +86,8 @@ function rail(ready: readonly WorkbenchToolId[]): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 40,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -249,6 +252,34 @@ describe('WorkbenchSearch — asking', () => {
     await user.click(screen.getByRole('button', { name: 'workbench.search.go' }));
 
     await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('WorkbenchSearch — asking LIA instead', () => {
+  const askLia = () => screen.getByRole('button', { name: 'workbench.ask.label' });
+
+  beforeEach(() => window.localStorage.clear());
+
+  it('takes the words typed to the chat, unsent, and searches nothing', async () => {
+    const { user } = mount();
+
+    await user.click(opener());
+    await user.type(box(), 'what did Ana decide?');
+    await user.click(askLia());
+
+    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('what did Ana decide?');
+    expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('takes nothing there while nothing is typed: it keeps the focus and says it is held', async () => {
+    const { user } = mount();
+
+    await user.click(opener());
+    await user.click(askLia());
+
+    expect(askLia()).toHaveAttribute('aria-disabled', 'true');
+    expect(openChat).not.toHaveBeenCalled();
   });
 });
 

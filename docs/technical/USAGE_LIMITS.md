@@ -153,6 +153,10 @@ and its non-raising twin:
 | Request | `enforce_usage_limit` / `raise_for_blocked_verdict` | Raises — HTTP 429, a dedicated code, and a `Retry-After` naming when the pause lifts |
 | Background | `spend_blocked` | Degrades — the reminder still fires, the dashboard still renders, and it logs **skipped**, never *failed* |
 
+A click on the Tools (`tool_assist`, before anything is read) and a text read aloud on
+a paid voice (`text_readout`) are request paths; the first answers in the workbench's
+words (`assist_quota`, `assist_paused`).
+
 A quota refusal is not a generation failure, and reporting it as one sends an
 operator looking for a fault that does not exist.
 

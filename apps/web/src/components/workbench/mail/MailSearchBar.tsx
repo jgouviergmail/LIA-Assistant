@@ -11,19 +11,14 @@
  * where the provider can filter on it — the descriptor says), and a period of
  * the account's days (the last one included). Below `lg` they wait behind
  * « Filters », saying how many apply: on a phone the first message comes first.
+ * A sentence in the box can be read by LIA into those very criteria (ADR-372), and what
+ * the page weighs waits with the chips.
  */
 import { CalendarRange, ChevronDown, ListFilter, Paperclip, Search, X } from 'lucide-react';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,12 +33,15 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
-import type { MailPeriod, MailSearch } from '@/lib/workbench/mail';
+import { proposedMailSearch, type MailPeriod, type MailSearch } from '@/lib/workbench/mail';
 import { formatDay } from '@/lib/workbench/tasks';
+
+import { SearchWords } from '../assist/SearchWords';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 const PRESETS: readonly Exclude<MailPeriod, 'custom'>[] = ['any', 'week', 'month', 'year'];
 
-const CHIP =
+export const MAIL_CHIP =
   'h-9 rounded-full px-3 aria-pressed:border-primary/40 aria-pressed:bg-primary/10 aria-pressed:text-primary';
 
 export interface MailSearchBarProps {
@@ -54,6 +52,10 @@ export interface MailSearchBarProps {
   attachmentsOffered: boolean;
   /** The listing's published bound on the words. */
   maxChars: number | undefined;
+  /** What LIA adds to the chips. */
+  triage?: ReactNode;
+  /** It narrows or orders what is shown. */
+  triaged?: boolean;
 }
 
 export function MailSearchBar({
@@ -62,6 +64,8 @@ export function MailSearchBar({
   onChange,
   attachmentsOffered,
   maxChars,
+  triage,
+  triaged = false,
 }: MailSearchBarProps) {
   const { t } = useTranslation(lng);
   const [words, setWords] = useState(search.q);
@@ -69,7 +73,7 @@ export function MailSearchBar({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const fieldId = useId();
   const chipsId = useId();
-  const active = [search.unread, search.attachments, search.period !== 'any'].filter(
+  const active = [search.unread, search.attachments, search.period !== 'any', triaged].filter(
     Boolean
   ).length;
 
@@ -107,9 +111,20 @@ export function MailSearchBar({
             maxLength={maxChars}
             onChange={event => setWords(event.target.value)}
             placeholder={t('workbench.mail.search_placeholder')}
-            className="pl-9"
+            className="pl-9 pr-10"
             enterKeyHint="search"
           />
+          <span className="absolute right-1 top-1/2 -translate-y-1/2">
+            <SearchWords
+              lng={lng}
+              words={words}
+              onRead={proposal => {
+                const next = proposedMailSearch(proposal, attachmentsOffered);
+                setWords(next.q);
+                onChange(next);
+              }}
+            />
+          </span>
         </div>
         {words && (
           <Button
@@ -157,7 +172,7 @@ export function MailSearchBar({
           size="sm"
           aria-pressed={search.unread}
           onClick={() => onChange({ ...search, unread: !search.unread })}
-          className={CHIP}
+          className={MAIL_CHIP}
         >
           {t('workbench.mail.chip_unread')}
         </Button>
@@ -168,7 +183,7 @@ export function MailSearchBar({
             size="sm"
             aria-pressed={search.attachments}
             onClick={() => onChange({ ...search, attachments: !search.attachments })}
-            className={cn(CHIP, 'gap-1.5')}
+            className={cn(MAIL_CHIP, 'gap-1.5')}
           >
             <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
             {t('workbench.mail.chip_attachments')}
@@ -181,7 +196,7 @@ export function MailSearchBar({
               variant="outline"
               size="sm"
               aria-pressed={search.period !== 'any'}
-              className={cn(CHIP, 'gap-1.5')}
+              className={cn(MAIL_CHIP, 'gap-1.5')}
               aria-label={t('workbench.mail.period.chip', { period: periodLabel })}
             >
               <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
@@ -209,6 +224,7 @@ export function MailSearchBar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {triage}
       </div>
       <PeriodDialog
         // Each opening starts from the period on screen, not from the last draft.
@@ -252,10 +268,10 @@ function PeriodDialog({ lng, open, onOpenChange, initial, onApply }: PeriodDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form onSubmit={apply} className="space-y-4">
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle>{t('workbench.mail.period.dialog_title')}</DialogTitle>
             <DialogDescription>{t('workbench.mail.period.dialog_description')}</DialogDescription>
-          </DialogHeader>
+          </ToolDialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label id={`${fromId}-label`} htmlFor={fromId}>
@@ -284,14 +300,12 @@ function PeriodDialog({ lng, open, onOpenChange, initial, onApply }: PeriodDialo
               />
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={() => onOpenChange(false)} />
             <Button type="submit" aria-disabled={reversed || empty}>
               {t('workbench.mail.period.apply')}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>

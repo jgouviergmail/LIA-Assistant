@@ -127,7 +127,7 @@ class TestRealSchemas:
             ExtractedMemory(action="delete", memory_id="a"),
             ExtractedMemory(action="delete", memory_id="b"),
             ExtractedMemory(action="delete", memory_id="c"),
-            ExtractedMemory(action="create", content="x", category="preference"),
+            ExtractedMemory(action="create", content="A fact", category="preference"),
         ]
 
         kept = enforce_delete_cap(batch, kind="memory", cap=1)

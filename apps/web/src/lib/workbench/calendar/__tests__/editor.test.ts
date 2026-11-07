@@ -22,7 +22,9 @@ import {
   newEventBody,
   NO_REMINDER,
   newEventFields,
+  withProposedEvent,
 } from '../editor';
+import type { ProposedEvent } from '../../assist';
 
 const PARIS = 'Europe/Paris';
 const KEY = '11111111-1111-4111-8111-111111111111';
@@ -429,5 +431,133 @@ describe('a repeating event', () => {
 
     expect(change).not.toHaveProperty('recurrence');
     expect(change).not.toHaveProperty('scope');
+  });
+});
+
+describe('an event LIA read, in the form', () => {
+  const BASE = newEventFields('c1', '2026-11-04', '10:00');
+  const NOTHING: ProposedEvent = {
+    summary: 'Lunch',
+    start_date: null,
+    start_time: null,
+    end_date: null,
+    end_time: null,
+    all_day: false,
+    location: '',
+    description: '',
+    attendees: [],
+    repeat: 'none',
+  };
+
+  it('keeps the form’s day and hour where nothing was said', () => {
+    const fields = withProposedEvent(BASE, NOTHING);
+
+    expect(fields.summary).toBe('Lunch');
+    expect(fields.startDate).toBe('2026-11-04');
+    expect(fields.startTime).toBe('10:00');
+  });
+
+  it('takes the day and hour it read, an hour long when no end was said', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      start_date: '2026-11-05',
+      start_time: '12:30',
+    });
+
+    expect(fields.startDate).toBe('2026-11-05');
+    expect(fields.startTime).toBe('12:30');
+    expect(fields.endDate).toBe('2026-11-05');
+    expect(fields.endTime).toBe('13:30');
+  });
+
+  it('moves into the next day when an hour long crosses midnight', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      start_date: '2026-11-05',
+      start_time: '23:30',
+    });
+
+    expect(fields.endDate).toBe('2026-11-06');
+    expect(fields.endTime).toBe('00:30');
+  });
+
+  it('takes an end it read', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      start_date: '2026-11-05',
+      start_time: '09:00',
+      end_date: '2026-11-05',
+      end_time: '17:00',
+    });
+
+    expect(fields.endTime).toBe('17:00');
+  });
+
+  it('keeps the form’s hour on a day read alone', () => {
+    const fields = withProposedEvent(BASE, { ...NOTHING, start_date: '2026-11-05' });
+
+    expect(fields.startDate).toBe('2026-11-05');
+    expect(fields.startTime).toBe('10:00');
+    expect(fields.endDate).toBe('2026-11-05');
+  });
+
+  it('makes whole days of an all-day event, its last day kept', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      all_day: true,
+      start_date: '2026-11-05',
+      end_date: '2026-11-07',
+    });
+
+    expect(fields.allDay).toBe(true);
+    expect(fields.startDate).toBe('2026-11-05');
+    expect(fields.endDate).toBe('2026-11-07');
+  });
+
+  it('writes the guests as the field takes them', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      attendees: ['ana@example.org', 'paul@example.org'],
+    });
+
+    expect(fields.attendees).toBe('ana@example.org, paul@example.org');
+  });
+
+  it('keeps a title and a repetition the person chose where it read none', () => {
+    const typed = {
+      ...BASE,
+      summary: 'Mine',
+      repeat: withFreq(emptyRecurrence('2026-11-04'), 'weekly'),
+    };
+
+    const fields = withProposedEvent(typed, { ...NOTHING, summary: '', start_date: '2026-11-09' });
+
+    expect(fields.summary).toBe('Mine');
+    expect(fields.repeat.freq).toBe('weekly');
+    expect(fields.repeat.anchor_date).toBe('2026-11-09');
+  });
+
+  it('keeps what the person already typed where nothing was read', () => {
+    const typed = { ...BASE, location: 'Office', description: 'Mine' };
+
+    const fields = withProposedEvent(typed, NOTHING);
+
+    expect(fields.location).toBe('Office');
+    expect(fields.description).toBe('Mine');
+  });
+
+  it('repeats on the rule it read, from the event’s own day', () => {
+    const fields = withProposedEvent(BASE, {
+      ...NOTHING,
+      start_date: '2026-11-05',
+      repeat: 'weekly',
+    });
+
+    expect(fields.repeat.freq).toBe('weekly');
+    expect(fields.repeat.anchor_date).toBe('2026-11-05');
+  });
+
+  it('does not repeat where no rule was read', () => {
+    expect(withProposedEvent(BASE, NOTHING).repeat.freq).toBe('once');
   });
 });

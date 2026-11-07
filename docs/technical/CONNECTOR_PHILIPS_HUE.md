@@ -23,8 +23,6 @@ LIA Agent → hue_tools.py → PhilipsHueClient → Hue Bridge (local/remote)
 | `src/domains/connectors/clients/philips_hue_client.py` | API client (dual mode) |
 | `src/domains/agents/tools/hue_tools.py` | 6 LangChain tools |
 | `src/domains/agents/hue/catalogue_manifests.py` | Tool catalogue manifests |
-| `src/domains/agents/graphs/hue_agent_builder.py` | Agent builder |
-| `src/domains/agents/prompts/v1/hue_agent_prompt.txt` | Agent prompt |
 | `src/core/oauth/providers/hue.py` | OAuth provider (remote mode) |
 
 ### Tools

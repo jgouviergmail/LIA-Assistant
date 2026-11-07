@@ -112,6 +112,8 @@ class PlatformCapability(str, Enum):
     SKILL_LIBRARY = "skill_library"
     # ADR-369 — the person reads and acts on their connected services by hand.
     WORKBENCH = "workbench"
+    # ADR-372 — what LIA does from those same screens, one click at a time.
+    TOOL_ASSISTS = "tool_assists"
 
 
 @dataclass(frozen=True)
@@ -517,6 +519,15 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="work",
         env_flag="workbench_enabled",
         setting_key=SystemSettingKey.CAPABILITY_WORKBENCH_ENABLED,
+        route_enforced=True,
+    ),
+    # ADR-372 — the routes ARE the ability: a click that asks a model from the
+    # Tools. Off, the Tools stay whole, by hand, and spend nothing.
+    PlatformCapability.TOOL_ASSISTS: CapabilitySpec(
+        capability=PlatformCapability.TOOL_ASSISTS,
+        family="work",
+        env_flag="tool_assists_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_TOOL_ASSISTS_ENABLED,
         route_enforced=True,
     ),
 }

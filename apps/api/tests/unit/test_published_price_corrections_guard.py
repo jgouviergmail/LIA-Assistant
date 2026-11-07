@@ -83,13 +83,16 @@ PUBLISHED_IMAGES: dict[tuple[str, str], float] = {
 _IMAGE_SEED = _SEED.parent / "image_generation_pricing_seed.sql"
 _IMAGE_ROW = re.compile(
     r"'(?P<provider>[a-z]+)'::llm_provider_enum, '(?P<model>[^']+)', '(?P<quality>[a-z]+)', "
-    r"'(?P<size>[0-9x]+)', (?P<price>[0-9.]+), (?P<input>NULL|[0-9.]+), '(?P<effective>[^']+)'"
+    r"'(?P<size>[0-9x]+)', (?P<price>[0-9.]+), (?P<input>NULL|[0-9.]+), '(?P<effective>[^']+)', "
+    r"(?P<active>true|false)"
 )
 
 
 def _image_seed(model: str) -> dict[tuple[str, str], re.Match[str]]:
     rows = _IMAGE_ROW.finditer(_IMAGE_SEED.read_text(encoding="utf-8"))
-    return {(m["quality"], m["size"]): m for m in rows if m["model"] == model}
+    return {
+        (m["quality"], m["size"]): m for m in rows if m["model"] == model and m["active"] == "true"
+    }
 
 
 def _load() -> ModuleType:
@@ -120,13 +123,17 @@ def _windowed() -> dict[str, re.Match[str]]:
     return {m["model"]: m for m in _SEED_WINDOWED.finditer(_SEED.read_text(encoding="utf-8"))}
 
 
-def _seed_active_price(model: str) -> Price:
-    """What a fresh install bills: the windowed block when there is one, else the active row."""
+def _seed_price(model: str) -> Price:
+    """What the seed bills: the windowed block when there is one, else the model's latest row.
+
+    Its latest row, active or not: a model the operator retired keeps its published price in the
+    bundle, out of service.
+    """
     windowed = _windowed().get(model)
     if windowed is not None:
         return _price(windowed["input"], windowed["cached"], windowed["output"])
-    [active] = [m for m in _bundle_rows(model) if m["active"] == "true"]
-    return _price(active["input"], active["cached"], active["output"])
+    latest = max(_bundle_rows(model), key=lambda m: m["effective"])
+    return _price(latest["input"], latest["cached"], latest["output"])
 
 
 def test_the_migration_chains_after_the_claude_models_head() -> None:
@@ -141,17 +148,22 @@ def test_every_corrected_tariff_is_the_published_price_in_both_sources() -> None
     assert set(corrections) == set(PUBLISHED)
     for name, published in PUBLISHED.items():
         assert _price(*corrections[name].published) == published, name
-        assert _seed_active_price(name) == published, name
+        assert _seed_price(name) == published, name
 
 
 def test_the_migration_replaces_the_value_the_bundle_used_to_ship() -> None:
     """The row a correction retires is one LIA shipped -- never an administrator's.
 
     The bundle keeps what it superseded as an inactive row: the most recent of
-    them is the value an upgraded instance still holds.
+    them, dated before the audit, is the value an upgraded instance still holds.
     """
+    audit = _load().EFFECTIVE_FROM
     for correction in _load().CORRECTIONS:
-        superseded = [m for m in _bundle_rows(correction.model_name) if m["active"] == "false"]
+        superseded = [
+            m
+            for m in _bundle_rows(correction.model_name)
+            if m["active"] == "false" and m["effective"] < audit
+        ]
         assert superseded, correction.model_name
         last = superseded[-1]
         shipped = {_price(*value) for value in correction.shipped}
@@ -166,7 +178,7 @@ def test_the_legacy_deepseek_name_is_billed_like_the_model_that_serves_it() -> N
     legacy, current = windowed["deepseek-v4-flash"], windowed["deepseek-flash"]
     [correction] = [c for c in _load().CORRECTIONS if c.model_name == "deepseek-v4-flash"]
 
-    assert _seed_active_price("deepseek-v4-flash") == _seed_active_price("deepseek-flash")
+    assert _seed_price("deepseek-v4-flash") == _seed_price("deepseek-flash")
     assert json.loads(legacy["slots"]) == json.loads(current["slots"])
     assert correction.time_slots == json.loads(current["slots"])
 

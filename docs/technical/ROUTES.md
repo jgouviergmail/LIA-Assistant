@@ -252,13 +252,6 @@ origin = await resolve_location(
 GOOGLE_API_KEY=AIza...
 ```
 
-### LLM de l'agent
-
-L'agent routes est le poste `routes_agent` : ses valeurs par defaut sont dans
-`LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur
-les remplace dans Settings > Administration > LLM Configuration. Aucune variable
-d'environnement ne le configure.
-
 ### Variables d'Environnement - Limites API
 
 | Variable | Default | Description |

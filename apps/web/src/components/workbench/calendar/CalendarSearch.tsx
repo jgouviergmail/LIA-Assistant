@@ -59,8 +59,8 @@ export function CalendarSearchBox({
     searching.search(typed.trim());
   };
   return (
-    <form role="search" onSubmit={submit} className="flex items-center gap-1">
-      <div className="w-40 shrink-0">
+    <form role="search" onSubmit={submit} className="flex min-w-0 items-center gap-1 max-sm:flex-1">
+      <div className="min-w-0 max-sm:flex-1 sm:w-40 sm:shrink-0">
         <Input
           type="search"
           value={typed}

@@ -22,7 +22,6 @@ import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { PaneSeparator } from '@/components/ui/pane-separator';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -45,6 +44,7 @@ import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
 import { useListSelection } from '../useListSelection';
+import { useFileAssist } from '../assist/useFileAssist';
 import { useToolBridges } from '../useToolBridges';
 import { PANE_SEPARATOR_CLASS, useWorkbenchPane } from '../useWorkbenchPane';
 import { FileDetail } from './FileDetail';
@@ -52,6 +52,7 @@ import { FileOrganizer, type FileAct, type FilePlace } from './FileOrganizer';
 import { FilesColumn } from './FilesColumn';
 import { useFileTrash, type FileTrash } from './useFileTrash';
 import { useFilesScreen, type FilesScreen } from './useFilesScreen';
+import { useToolConfirm } from '../ToolForm';
 
 export function FilesTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -86,7 +87,7 @@ function ReadyFiles({
   viewsOffered: boolean;
 }) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
   const screen = useFilesScreen(lng, viewsOffered);
   const { address } = screen;
@@ -225,6 +226,7 @@ function FilePane({
   const { user } = useAuth();
   const { availability } = useWorkbench();
   const { ask, go, offers } = useToolBridges(lng);
+  const { panel: assistPanel, ...assist } = useFileAssist(lng, open.item);
   const { address, inTrash } = screen;
   if (!address.file) {
     return (
@@ -268,6 +270,8 @@ function FilePane({
         onCopyLink={copyLink}
         onEdited={onEdited}
         onAsk={file => ask(t('workbench.ask.file', { name: file.name }))}
+        assist={assist}
+        assistPanel={assistPanel}
       />
     </div>
   );

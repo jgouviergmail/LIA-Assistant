@@ -96,7 +96,7 @@ langfuse_trace_depth = Histogram(
     # Integration: src/infrastructure/llm/instrumentation.py::create_instrumented_config()
     # Dashboard: Panel 12 (Trace Depth Distribution)
     # Example labels:
-    #   depth_level: 0 (root graph), 1 (contacts_agent subgraph), 2 (nested subgraph)
+    #   depth_level: 0 (root graph), 1 (browser_agent subgraph), 2 (nested subgraph)
     # Cardinality: ~6 depth levels = 6 series
     # Useful for detecting:
     #   - Infinite recursion (depth > 5)
@@ -111,7 +111,7 @@ langfuse_subgraph_invocations = Counter(
     # Integration: src/infrastructure/llm/instrumentation.py::create_instrumented_config()
     # Dashboard: Panel 13 (Subgraph Invocation Rate)
     # Example labels:
-    #   subgraph_name: contacts_agent, emails_agent, calendar_agent
+    #   subgraph_name: browser_agent
     #   status: success, error
     # Cardinality: ~5 agents × 2 statuses = 10 series
     # Note: Complements langgraph_subgraph_invocations_total (framework-level)
@@ -134,8 +134,8 @@ langfuse_agent_handoffs = Counter(
     # Integration: src/infrastructure/llm/agent_handoff_tracing.py::trace_agent_handoff()
     # Dashboard: Panel 16 (Agent Handoff Flow - Table), Panel 18 (Conversation Flow Complexity)
     # Example labels:
-    #   source_agent: router, planner, orchestrator, contacts_agent, emails_agent (or None for root)
-    #   target_agent: router, planner, contacts_agent, emails_agent, response
+    #   source_agent: router, planner, orchestrator, browser_agent (or None for root)
+    #   target_agent: router, planner, browser_agent, response
     # Cardinality: ~7 agents × 7 agents = 49 series (but sparse matrix, ~15 actual transitions)
     # Use cases:
     #   - Visualize conversation flow patterns

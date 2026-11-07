@@ -4,8 +4,8 @@ Measured: the agent prompt said « max 20 / 50 », the catalogue manifest publis
 ``maximum=20/50`` to the planner (so the ADR-184 repair let 20 through), the tool
 docstring said « 1-10 » and the tool clamped to 10 in silence — a person asking for
 twenty results got ten and nobody said so. Brave's own API maxima are 20 (web) and
-50 (news); they are ONE constant each, read by the manifest, the tool, the parameter
-description and the prompt.
+50 (news); they are ONE constant each, read by the manifest, the tool and the parameter
+description.
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from src.domains.agents.brave.catalogue_manifests import (
     brave_news_catalogue_manifest,
     brave_search_catalogue_manifest,
 )
-from src.domains.agents.graphs.brave_agent_builder import render_brave_agent_prompt
 from src.domains.agents.tools import brave_tools
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.utils.rate_limiting import _rate_limit_tracker
@@ -51,12 +50,6 @@ class TestOneBoundPerEndpoint:
     def test_tool_description_does_not_contradict(self) -> None:
         assert "1-10" not in brave_tools.brave_search_tool.description
         assert "1-10" not in brave_tools.brave_news_tool.description
-
-    def test_agent_prompt_reads_the_same_numbers(self) -> None:
-        rendered = render_brave_agent_prompt()
-        assert f"web: max {BRAVE_WEB_SEARCH_MAX_COUNT}" in rendered
-        assert f"news: max {BRAVE_NEWS_SEARCH_MAX_COUNT}" in rendered
-        assert "{brave_web_max_count}" not in rendered and "{brave_news_max_count}" not in rendered
 
     @pytest.mark.parametrize(
         ("tool", "impl_name", "maximum"),

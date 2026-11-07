@@ -44,6 +44,13 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/agents/services/knowledge_enrichment_service.py": "in-turn",
     "domains/agents/services/planner/hue_discovery.py": "in-turn",
     "domains/briefing/fetchers.py": "briefing",
+    # What a click on a tool asked LIA to read (ADR-372): through the Tools' own door,
+    # filed by the assists' door, which the hand-made reads of the Tools never are.
+    "domains/tool_assists/actions.py": "tool_assist",
+    "domains/tool_assists/contact_card.py": "tool_assist",
+    "domains/tool_assists/files.py": "tool_assist",
+    "domains/tool_assists/mail.py": "tool_assist",
+    "domains/tool_assists/mail_triage.py": "tool_assist",
     # The push-driven drain of the Drive changes feed (ADR-304 moved it out
     # of ``drive_ingest``), under ``space_read``.
     "domains/rag_spaces/drive_provider.py": "space",

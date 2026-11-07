@@ -2808,6 +2808,75 @@
      }
     }
    ]
+  },
+  {
+    "id": 71,
+    "type": "timeseries",
+    "title": "Tools: what LIA was asked (by assist and outcome)",
+    "description": "Every assist asked from the Tools, by outcome: 'ok' answered, 'held' served from what was already held at no cost, 'quota' a ceiling refused it, 'refused' a refusal in the workbench's words, 'failed' no usable answer, 'abandoned' the person left.",
+    "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+    },
+    "fieldConfig": {
+      "defaults": {
+        "custom": {},
+        "noValue": "0"
+      },
+      "overrides": []
+    },
+    "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 0,
+      "y": 200
+    },
+    "targets": [
+      {
+        "expr": "sum by (assist, outcome) (rate(tool_assists_total[$__rate_interval])) or vector(0)",
+        "legendFormat": "{{assist}} · {{outcome}}",
+        "refId": "A",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        }
+      }
+    ]
+  },
+  {
+    "id": 72,
+    "type": "timeseries",
+    "title": "Tools: time a person waited for LIA p95 (by assist)",
+    "description": "How long a person waited for one assist, the read of its source included.",
+    "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+    },
+    "fieldConfig": {
+      "defaults": {
+        "custom": {},
+        "noValue": "0",
+        "unit": "s"
+      },
+      "overrides": []
+    },
+    "gridPos": {
+      "h": 8,
+      "w": 12,
+      "x": 12,
+      "y": 200
+    },
+    "targets": [
+      {
+        "expr": "histogram_quantile(0.95, sum by (assist, le) (rate(tool_assist_duration_seconds_bucket[$__rate_interval]))) or vector(0)",
+        "legendFormat": "{{assist}}",
+        "refId": "A",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        }
+      }
+    ]
   }
  ]
 }

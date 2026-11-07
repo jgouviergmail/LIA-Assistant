@@ -160,21 +160,16 @@ async def multiply_numbers(a: float, b: float) -> float:
 ### Étape 2 : Register Tool
 
 ```python
-# apps/api/src/domains/agents/registry/agent_registry.py
-from src.domains.agents.tools.calculator_tools import add_numbers, multiply_numbers
-
-# Register tools
-CALCULATOR_TOOLS = [
-    add_numbers,
-    multiply_numbers,
-]
-
-# Agent registry
-agent_registry.register_agent(
-    "calculator_agent",
-    tools=CALCULATOR_TOOLS,
-    description="Agent pour calculs mathématiques",
+# apps/api/src/domains/agents/registry/catalogue_loader.py, dans initialize_catalogue(registry)
+from src.domains.agents.calculator.catalogue_manifests import (
+    add_numbers_catalogue_manifest,
+    multiply_numbers_catalogue_manifest,
 )
+
+# Un domaine se déclare par ses manifestes : aucun agent à construire (ADR-371)
+registry.register_agent_manifest(CALCULATOR_AGENT_MANIFEST)
+registry.register_tool_manifest(add_numbers_catalogue_manifest)
+registry.register_tool_manifest(multiply_numbers_catalogue_manifest)
 ```
 
 ### Étape 3 : Test
@@ -372,24 +367,14 @@ class GetCurrentWeatherTool(ConnectorTool):
 #### 3. Register Tool
 
 ```python
-# apps/api/src/domains/agents/registry/agent_registry.py
-from src.domains.agents.tools.weather_tools import GetCurrentWeatherTool
-from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
-
-# Initialize client
-weather_client = OpenWeatherMapClient(api_key=settings.openweathermap_api_key)
-
-# Register tool
-weather_tool = GetCurrentWeatherTool(
-    runtime=ToolRuntime(client=weather_client, ...)
+# apps/api/src/domains/agents/registry/catalogue_loader.py, dans initialize_catalogue(registry)
+from src.domains.agents.weather.catalogue_manifests import (
+    get_current_weather_catalogue_manifest,
 )
 
-# Register agent
-agent_registry.register_agent(
-    "weather_agent",
-    tools=[weather_tool],
-    description="Agent météo",
-)
+# Un domaine se déclare par ses manifestes : aucun agent à construire (ADR-371)
+registry.register_agent_manifest(WEATHER_AGENT_MANIFEST)
+registry.register_tool_manifest(get_current_weather_catalogue_manifest)
 ```
 
 #### 4. Test
@@ -612,7 +597,7 @@ from src.domains.agents.tools.schemas import (
 SEARCH_CONTACTS_MANIFEST = ToolManifest(
     tool_name="search_contacts_tool",
     domain="contacts",
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     description="Search contacts by query string (name, email, phone)",
     parameters=[
         ParameterSchema(
@@ -1280,7 +1265,7 @@ PlanExecutionError: Tool 'my_tool' not found in agent registry
 ```
 
 **Causes** :
-1. Tool pas enregistré dans agent registry
+1. Manifeste de l'outil pas enregistré dans le catalogue (`catalogue_loader.py`)
 2. Typo dans tool_name
 3. Tool pas dans catalogue du domain détecté
 
@@ -1288,18 +1273,17 @@ PlanExecutionError: Tool 'my_tool' not found in agent registry
 
 ```python
 # ✅ Vérifier registration
-from src.domains.agents.registry import agent_registry
+from src.domains.agents.registry import get_global_registry
 
-# List all tools pour un agent
-agent = agent_registry.get_agent("my_agent")
-print(agent.tools)  # [my_tool, other_tool, ...]
+# Un domaine n'a pas d'agent construit : on lit le manifeste de l'outil
+manifest = get_global_registry().get_tool_manifest("my_tool")
+print(manifest.agent)  # L'agent de domaine qui le regroupe
 
 # ✅ Vérifier tool_name exact
 tool_name = "search_contacts_tool"  # Exact match required
 
-# ✅ Vérifier domain dans manifest
-manifest = get_manifest("my_tool")
-print(manifest.domain)  # Must match router detected domain
+# ✅ Vérifier le domaine : celui de cet agent, ou serves_domains, doit être détecté
+print(manifest.serves_domains)
 ```
 
 ### Problème 2 : OAuth Token Expired

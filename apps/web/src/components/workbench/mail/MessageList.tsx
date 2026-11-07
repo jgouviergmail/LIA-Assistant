@@ -33,6 +33,8 @@ export interface MessageListProps {
   messages: WorkbenchPageState<MailSummary>;
   /** What is loaded, as lines. */
   lines: readonly MailLine[];
+  /** What LIA says of a row's kind, sorted by kind. */
+  noteOf?: (message: MailSummary) => string | undefined;
   openId: string | null;
   selected: ReadonlySet<string>;
   selectable: boolean;
@@ -77,6 +79,7 @@ export function MessageList({
   lng,
   messages,
   lines,
+  noteOf,
   openId,
   selected,
   selectable,
@@ -134,6 +137,7 @@ export function MessageList({
             key={message.id}
             lng={lng}
             message={message}
+            note={noteOf?.(message)}
             when={whenOf(message)}
             open={members.some(member => member.id === openId)}
             selected={selected.has(message.id)}

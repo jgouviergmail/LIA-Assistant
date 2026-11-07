@@ -1252,7 +1252,7 @@ WIDGET_PERSIST_MAX_BYTES_DEFAULT = 1_048_576
 # ({emoji, i18n_key, category}), so the worst case stays under 8 kB per message.
 EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT = 100
 
-# ReAct Agent Context (for contacts_agent, emails_agent, etc.)
+# Compiled agents' context (browser, query)
 # OPTIMIZED 2025-12-24: Reduced from 50 → 30 (-40% tokens)
 # Agents have access to data registry and tool context, 30 messages is sufficient
 AGENT_HISTORY_KEEP_LAST_DEFAULT = 30  # Messages to keep in agent LLM input (includes ToolMessages)
@@ -2998,11 +2998,6 @@ MICROSOFT_ONEDRIVE_SCOPES: list[str] = [
 # v6: INTELLIA - Markdown Gold Grade (pure Markdown format)
 RESPONSE_PROMPT_VERSION_DEFAULT = "v1"
 
-# Contacts agent prompt version
-
-# Emails agent prompt version
-EMAILS_AGENT_PROMPT_VERSION_DEFAULT = "v1"
-
 # HITL classifier prompt version
 HITL_CLASSIFIER_PROMPT_VERSION_DEFAULT = "v1"
 
@@ -3145,6 +3140,12 @@ FOR_EACH_MUTATION_THRESHOLD_DEFAULT = 1
 MAX_CONTEXT_BATCH_SIZE_DEFAULT = 10
 MEMORY_MAX_RESULTS_DEFAULT = 25  # Aligned from .env.prod
 MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.70  # Calibrated for Gemini embedding-001 (2026-04-09)
+# A memory's text bounds, enforced at every write door and published to every producer:
+# the settings form through `MemoryLimits`, the extraction model through its prompt.
+MEMORY_CONTENT_MAX_CHARS_DEFAULT = 500  # `content` is a Text column: a setting can move it
+MEMORY_CONTENT_MIN_CHARS = 3
+MEMORY_TRIGGER_TOPIC_MAX_CHARS = 100  # The column's width: moving it takes a migration
+MEMORY_USAGE_NUANCE_MAX_CHARS = 300  # The column's width: moving it takes a migration
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
 MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT = 3000
 MEMORY_EXTRACTION_TOP_P_DEFAULT = 1.0
@@ -5103,6 +5104,45 @@ ONEDRIVE_REFUSED_NAME_CHARACTERS: Final = '"*:<>?|'
 #: The dated tasks a calendar draws: how many lists are read at once, and how many pages
 #: of each. A list longer than that is stated as read in part (ADR-185).
 WORKBENCH_DUE_TASKS_CONCURRENCY: Final = 4
+
+# --- What LIA can do from the Tools (ADR-372) -----------------------------------------
+#: The slot of the short helpers. A summary or a reply stays on the slot that writes it for
+#: the assistant: the same words, the same cache, the same administrator's choice.
+TOOL_ASSIST_LLM_TYPE: Final = "tool_assist"
+# What reads a picture for an assist: the assistant's own vision slot.
+TOOL_ASSIST_VISION_LLM_TYPE: Final = "vision_analysis"
+#: What an assist's spend and decision are filed under, and the surface of what it reads.
+TOOL_ASSIST_TASK_TYPE: Final = "tool_assist"
+#: The DEFAULT output cap of the slot: a rewrite is as long as the text it rewrites.
+TOOL_ASSIST_MAX_OUTPUT_TOKENS: Final = 4000
+TOOL_ASSIST_RATE_LIMIT_CALLS_DEFAULT = 30
+TOOL_ASSIST_RATE_LIMIT_WINDOW_SECONDS_DEFAULT = 60
+#: The longest words of the person's own a helper takes, and the longest instruction.
+TOOL_ASSIST_TEXT_MAX_CHARS_DEFAULT = 8000
+TOOL_ASSIST_INSTRUCTION_MAX_CHARS_DEFAULT = 500
+# What a model reads of a document or a conversation (about ten thousand tokens).
+TOOL_ASSIST_DOCUMENT_MAX_CHARS_DEFAULT = 40_000
+TOOL_ASSIST_CONVERSATION_MAX_MESSAGES_DEFAULT = 12
+# What a click reads aloud: a few minutes of a voice, and no more than a person waits for.
+TOOL_ASSIST_READOUT_MAX_CHARS_DEFAULT = 2000
+TOOL_ASSIST_READOUT_MAX_SENTENCES: Final = 60
+# How many messages of a page are read at once: a provider's patience, not a person's wait.
+TOOL_ASSIST_TRIAGE_READS_MAX: Final = 5
+# What a contact's card is completed from: their latest messages, each read up to its signature.
+TOOL_ASSIST_CONTACT_MESSAGES_MAX: Final = 5
+TOOL_ASSIST_CONTACT_MESSAGE_MAX_CHARS: Final = 3000
+# What is turned into text to get there: a mailer's markup outweighs its words many times over.
+TOOL_ASSIST_CONTACT_HTML_MAX_CHARS: Final = 200_000
+TOOL_ASSIST_CONTACT_VALUE_MAX_CHARS: Final = 200
+# A photographed card stays large enough to read, once redrawn.
+TOOL_ASSIST_CARD_MAX_SIDE: Final = 1600
+#: Who a message is for, as typed so far, and a language as a person names it.
+TOOL_ASSIST_RECIPIENT_MAX_CHARS: Final = 1000
+TOOL_ASSIST_LANGUAGE_MAX_CHARS: Final = 40
+#: The most steps a task is broken down into, and the lists a sentence may choose among.
+TOOL_ASSIST_STEPS_MAX: Final = 8
+TOOL_ASSIST_LISTS_MAX: Final = 50
+TOOL_ASSIST_LABELS_MAX: Final = 200
 WORKBENCH_DUE_TASKS_PAGES_MAX: Final = 5
 # Events one search answers, over every calendar asked.
 WORKBENCH_EVENT_SEARCH_MAX: Final = 50

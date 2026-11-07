@@ -43,7 +43,7 @@ class TestGetLLMConfigForAgent:
             "hitl_classifier",
             "response",
             "planner",
-            "contacts_agent",
+            "query_agent",
             "hitl_classifier",
             "hitl_question_generator",
         ],
@@ -66,11 +66,11 @@ class TestGetLLMConfigForAgent:
         with pytest.raises(ValueError, match="Unknown agent_type 'invalid'"):
             get_llm_config_for_agent(None, "invalid")
 
-    def test_alias_contact_agent(self):
-        """Test alias 'contact_agent' → 'contacts_agent'."""
-        config = get_llm_config_for_agent(None, "contact_agent")
-        expected = get_llm_config_for_agent(None, "contacts_agent")
-        assert config == expected
+    @pytest.mark.parametrize("agent_type", ["contact_agent", "contacts_agent", "sms_agent"])
+    def test_a_retired_domain_slot_is_refused(self, agent_type):
+        """Test a caller of a slot ADR-371 retired fails aloud, never on a neighbour's model."""
+        with pytest.raises(ValueError, match="Unknown agent_type"):
+            get_llm_config_for_agent(None, agent_type)
 
     def test_alias_email_agent(self):
         """Test alias 'email_agent' → 'emails_agent'."""

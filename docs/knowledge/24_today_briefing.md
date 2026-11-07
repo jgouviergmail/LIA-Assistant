@@ -63,7 +63,7 @@ The cards never wait for them. If the model is unavailable or a spending limit i
 
 Yes. The speaker button beside **LIA's briefing** reads it aloud in your language, with LIA's voice — the feminine or masculine one that follows the avatar you picked, as set in the voice mode settings. Press it again to stop, even while the audio is still being prepared.
 
-The reading uses the same speech engine as LIA's spoken replies and is billed like any reading, in your usage. If the speech service returns no audio, a message tells you so instead of leaving you with silence.
+The reading uses the same speech engine as LIA's spoken replies and is billed like any reading, in your usage. If your usage limit or the instance's daily budget is reached, no paid voice is called, and the refusal says so. If the speech service returns no audio, a message tells you so instead of leaving you with silence.
 
 ## Can I watch for a reply to a mail shown on the dashboard?
 
@@ -75,9 +75,11 @@ Yes. In the **More actions** menu (⋯) of a mail on the **Unread mail** card, *
 
 ## What do the two figures on the Health card mean?
 
-For each metric (steps, heart rate), the Health card shows two values side by side:
-• **Today** — today's value so far (the total for steps, the average for heart rate)
-• **Avg N d** — the daily average over the last few days; the number of days is set by your administrator
+Each metric (steps, heart rate) stands on its own dial, today's figure in its middle and the average under it:
+• **Today** — today's value so far (the total for steps, the average for heart rate). The mark on the dial shows where it stands, and the band it stands in is lit
+• **Avg N d** — the daily average over the last few days, the notch on the dial; the number of days is set by your administrator
+
+The three bands are the ones that colour the figure. A value past the end of the dial stays at its end, and the figure says the rest. A day with nothing read shows no mark, never a zero.
 
 The full charts and statistics live in the **Health data** section of the settings.
 

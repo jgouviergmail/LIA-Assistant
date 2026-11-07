@@ -1,7 +1,7 @@
 {
-  "version": "4.4.0",
-  "releaseDate": "2026-11-06",
-  "releases": 294,
+  "version": "4.5.0",
+  "releaseDate": "2026-11-07",
+  "releases": 295,
   "milestones": [
     {
       "version": "1.0.0",
@@ -274,9 +274,13 @@
     {
       "version": "4.4.0",
       "date": "2026-11-06"
+    },
+    {
+      "version": "4.5.0",
+      "date": "2026-11-07"
     }
   ],
-  "domains": 61,
+  "domains": 62,
   "infra": 55,
   "adrFiles": {
     "1": "ADR-001-LangGraph-Orchestration.md",
@@ -646,6 +650,8 @@
     "367": "ADR-367-Shown-Item-Designated-By-What-It-Is-Resolved-By-Code-Asked-When-Several-Fit.md",
     "368": "ADR-368-The-Person-Decides-When-LIA-Asks-Before-An-MCP-Tool.md",
     "369": "ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md",
-    "370": "ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md"
+    "370": "ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md",
+    "371": "ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md",
+    "372": "ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md"
   }
 }

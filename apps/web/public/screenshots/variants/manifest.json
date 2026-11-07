@@ -10,10 +10,6 @@
       "original": "/screenshots/dashboard-wide.png",
       "sha256": "380319fcf7f9191cbd796408383a5c859d146eed4b04d45c754167d51eeca1e7"
     },
-    "lia-world": {
-      "original": "/screenshots/proof/lia-world.jpg",
-      "sha256": "f5d7ac542d8135c9a81baca445787246fe4f568b5abfbe8f9e34702067f2bab6"
-    },
     "dossier": {
       "original": "/screenshots/proof/dossier.png",
       "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82"
@@ -124,7 +120,7 @@
     },
     "model-routing": {
       "original": "/screenshots/proof/model-routing.png",
-      "sha256": "3c84e2293878d650a25ce9112d00c52957df8a99213db2b493ef51f5a4cc9241"
+      "sha256": "8015c3e5445a67d1210cff104e96b5b49e6b1e2dc3bb62a3f0cef492e6aa25ce"
     },
     "consumption": {
       "original": "/screenshots/proof/consumption.png",
@@ -133,6 +129,14 @@
     "administration": {
       "original": "/screenshots/proof/administration.png",
       "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4"
+    },
+    "tools": {
+      "original": "/screenshots/proof/tools.png",
+      "sha256": "0799b5d5aff7de12c921090f2dfcfe9a590fa865879e5e1215b115625584295c"
+    },
+    "lia-world": {
+      "original": "/screenshots/proof/lia-world.jpg",
+      "sha256": "f5d7ac542d8135c9a81baca445787246fe4f568b5abfbe8f9e34702067f2bab6"
     },
     "grafana-overview": {
       "original": "/screenshots/proof/grafana-overview.png",

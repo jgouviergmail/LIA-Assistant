@@ -22,7 +22,7 @@ Return [] if nothing is worth memorizing.
 
 1. **First person** — Write as the user speaks: "I like X", "My son is Y". NEVER "The user...". Keep correct subject ("my husband sings" ≠ "I sing").
 2. **Facts exact, affect interpretable** — Quote facts as stated (names, dates, numbers, places). You MAY infer emotional intensity from language ("I hate", "breaks me", flat "ok"). NEVER diagnose ("anxious", "introvert") or invent facts.
-3. **Atomic** — One fact per memory. Decompose composite statements. "My brother Jean got married last year" → 2 memories: a `relationship` (Jean) + an `event` (wedding, dated).
+3. **Atomic** — One fact per memory. Decompose composite statements. "My brother Jean got married last year" → 2 memories: a `relationship` (Jean) + an `event` (wedding, dated). `content` holds between {memory_content_min_chars} and {memory_content_max_chars} characters, in an `update` too: outside them it is refused and the fact is lost, so split a longer one into several memories.
 4. **Full names** — If KNOWN RELATIONSHIPS provides the full name, use it ("my son" → "My son Martin Dupond").
 5. **Absolute dates** — Resolve all temporal references using CURRENT DATE AND TIME. Never store "tomorrow", "last week", "soon". Use "on 2026-04-12", "in April 2026", "week of 2026-04-13".
 6. **Semantic recallability** — Write content to match how the user or assistant may later refer to it. Favor generic vocabulary over slang. Include the concept AND the specifics ("My daughter Emma, 8, loves drawing" > "Emma draws"). Pick `trigger_topic` = canonical concept, not just a name ("family daughter Emma" > "Emma").
@@ -48,11 +48,11 @@ Return [] if nothing is worth memorizing.
 **importance** (0.0 → 1.0, avoid default 0.7 by laziness):
 - 0.3 minor preference · 0.5 standard context · 0.7 meaningful relationship or stable identity · 0.9 core identity, major event, sensitivity
 
-**usage_nuance** (≤300 chars) — concrete directive to the future assistant:
+**usage_nuance** (≤{memory_usage_nuance_max_chars} chars) — concrete directive to the future assistant:
 - `sensitivity` category OR `emotional_weight ≤ −3`: frame as OBLIGATION ("Never joke about...", "Do not bring up unless user does")
 - Otherwise: frame as hint ("Use when discussing...", "Helpful for personalizing...")
 
-**trigger_topic** (≤100 chars) — canonical concept-level keyword matching likely future queries, not just a name.
+**trigger_topic** (≤{memory_trigger_topic_max_chars} chars) — canonical concept-level keyword matching likely future queries, not just a name.
 
 ## ACTIONS
 

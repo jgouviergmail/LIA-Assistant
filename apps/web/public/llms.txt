@@ -16,7 +16,7 @@
 - **Psyche Engine**: dynamic emotional state — 14 moods, 22 emotions, Big Five personality traits, a relationship that deepens over time ("show, don't tell")
 - **Personal journals**: stratified introspection (observations → directives → patterns → portrait) with deferred self-evaluation and a compiled user-model portrait
 - **Connected services**: Google, Apple iCloud, and Microsoft 365 (email, calendar, contacts, tasks, files on Google Drive or OneDrive) — one active provider per category, interchangeable
-- **Tools workspace**: mail, calendar, tasks, contacts, files and Hue lights used directly on every provider, with no model call and no assistant-register entry
+- **Tools workspace**: mail, calendar, tasks, contacts, files and Hue lights used directly on every provider: by hand with no model call and no assistant-register entry, or one click asking LIA for a proposal to review, its cost shown
 - **Voice mode**: the wake word is detected 100% locally in the browser (a trained ONNX model per interface language) and speech is transcribed on your own server (sherpa-onnx offline Whisper, 99+ languages); TTS via Edge (free), OpenAI, ElevenLabs, Gemini or Fish Audio; live voice sessions on your own provider key
 - **Knowledge Spaces (RAG)**: upload documents in 15+ formats or sync Google Drive or OneDrive folders — hybrid semantic + keyword search with per-query cost transparency
 - **AI image generation & editing**: text-to-image and photo editing with cost tracking
@@ -36,21 +36,21 @@
 
 ## Architecture
 
-- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (61 bounded contexts)
+- **Backend**: Python 3.14 / FastAPI with Domain-Driven Design (62 bounded contexts)
 - **Frontend**: Next.js 16 / React 19 / TypeScript strict / TailwindCSS
 - **Orchestration**: LangGraph 1.x state machine — conditional routing, parallel execution waves, PostgreSQL checkpointing
 - **Database**: PostgreSQL 16 + pgvector (state, vectors) + Redis (cache, rate limiting, sessions)
-- **Observability**: 658 Prometheus metrics, 33 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
+- **Observability**: 660 Prometheus metrics, 33 Grafana dashboards, Loki logs, Tempo traces, Langfuse LLM tracing
 - **Security**: OAuth 2.1 with PKCE, BFF pattern (HTTP-only cookies), Fernet encryption, PII filtering, GDPR compliant
-- **Engineering**: 76,000+ automated tests, 368 Architecture Decision Records, 294 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
+- **Engineering**: 76,000+ automated tests, 370 Architecture Decision Records, 295 releases, 360° technical audit (7.9/10 across 24 areas, security assessed separately)
 - **Self-hosting**: multi-arch Docker images (amd64/arm64) — runs in production on a Raspberry Pi 5
 
 ## How It Works
 
 1. **Ask naturally** — text, voice, or attachments, in any language
-2. **LIA plans** — the orchestrator analyzes, identifies agents, builds an execution plan
+2. **LIA plans** — the orchestrator analyzes, identifies the tools it needs, builds an execution plan
 3. **You approve** — before any sensitive action, LIA shows a preview and waits for consent
-4. **LIA executes** — specialized agents run in parallel and deliver real-time results via SSE
+4. **LIA executes** — independent steps run in parallel and deliver real-time results via SSE
 
 ## Use Case Examples
 

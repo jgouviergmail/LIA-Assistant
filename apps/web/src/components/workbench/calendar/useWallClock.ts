@@ -11,8 +11,8 @@ import { instantToWall, type WallTime } from '@/lib/workbench/calendar/zoned';
 
 const MINUTE_MS = 60_000;
 
-/** @param zone - The account's zone. */
-export function useWallClock(zone: string): WallTime {
+/** @returns The instant, renewed at each minute's turn. */
+export function useMinuteClock(): Date {
   const [instant, setInstant] = useState(() => new Date());
   useEffect(() => {
     let timer = 0;
@@ -28,5 +28,10 @@ export function useWallClock(zone: string): WallTime {
     schedule();
     return () => window.clearTimeout(timer);
   }, []);
-  return instantToWall(instant, zone);
+  return instant;
+}
+
+/** @param zone - The account's zone. */
+export function useWallClock(zone: string): WallTime {
+  return instantToWall(useMinuteClock(), zone);
 }

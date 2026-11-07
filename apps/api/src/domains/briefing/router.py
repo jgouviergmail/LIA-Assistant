@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.dependencies import get_db
-from src.core.exceptions import raise_internal_error, raise_invalid_input
+from src.core.exceptions import BaseAPIException, raise_internal_error, raise_invalid_input
 from src.core.i18n import normalize_language
 from src.core.private_input_route import PrivateApplicationInputRoute
 from src.core.session_dependencies import get_current_active_session
@@ -257,7 +257,7 @@ async def synthesis_audio(
     errors instead of a broken stream.
     """
     try:
-        audio = await synthesize_user_text(
+        readout = await synthesize_user_text(
             user_id=current_user.id,
             user_language=normalize_language(current_user.language),
             text=payload.text,
@@ -265,6 +265,9 @@ async def synthesis_audio(
             max_sentences=settings.briefing_audio_max_sentences,
             run_prefix="briefing_audio",
         )
+    except BaseAPIException:
+        # A ceiling is a refusal of its own, never an internal error.
+        raise
     except Exception as exc:  # noqa: BLE001 - mapped to the API error contract
         raise_internal_error(f"briefing_audio_tts_failed: {type(exc).__name__}")
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=readout.audio, media_type="audio/mpeg")

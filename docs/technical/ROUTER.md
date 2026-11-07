@@ -37,7 +37,7 @@ Le **Router Node** est le **premier node** du graph LangGraph, exécuté à chaq
 ```mermaid
 graph LR
     A[User Query] --> B[Router Node]
-    B --> C[LLM<br/>router slot]
+    B --> C[LLM<br/>query_analyzer slot]
     C --> D[RouterOutput]
     D --> E{next_node?}
     E -->|response| F[Response Node<br/>Conversational]
@@ -193,7 +193,7 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
         # Phase 6: Pass config for token tracking + Langfuse context
         router_output = await _call_router_llm(
             messages=windowed_messages,
-            llm_type="router",
+            llm_type="query_analyzer",
             config=config,
         )
 
@@ -205,7 +205,7 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
 
             # Override router decision to force planner routing
             router_output = RouterOutput(
-                intention="complex_multi_step",
+                intention="action",
                 confidence=router_output.confidence,
                 context_label=router_output.context_label,
                 next_node="planner",
@@ -336,7 +336,7 @@ class RouterOutput(BaseModel):
     Ensures type-safe routing to prevent invalid next_node values.
 
     Attributes:
-        intention: Detected user intention (conversation, contacts_search, etc.).
+        intention: Detected user intention (action or conversation).
         confidence: Confidence score (0.0-1.0) for the routing decision.
         context_label: Context label for enrichment (general, contact, etc.).
         next_node: Next node to route to (validated by Literal).
@@ -345,7 +345,7 @@ class RouterOutput(BaseModel):
     """
 
     intention: str = Field(
-        description="Detected user intention (conversation, contacts_search, contacts_list, contacts_details)"
+        description="Detected user intention (action or conversation)"
     )
     confidence: float = Field(
         ge=0.0,
@@ -412,7 +412,7 @@ RouterOutput(
 **Actionnable Query** (Single Domain):
 ```python
 RouterOutput(
-    intention="contacts_search",
+    intention="action",
     confidence=0.92,
     context_label="contact",
     next_node="planner",
@@ -424,7 +424,7 @@ RouterOutput(
 **Actionnable Query** (Multi-Domain):
 ```python
 RouterOutput(
-    intention="complex_multi_step",
+    intention="action",
     confidence=0.88,
     context_label="contact",
     next_node="planner",
@@ -527,7 +527,7 @@ Avant de retourner ta réponse, effectue cette vérification:
 ```
 User: "recherche contacts avec critère X"
 Router v8: Analyse syntaxe → verbe "recherche" + entité "contacts"
-         → intention="actionnable" + confidence=0.90
+         → intention="action" + confidence=0.90
          → next_node="planner" ✅
 Planner: Appelle search_contacts_tool
 Tool: Retourne résultats réels (ou liste vide si aucun)
@@ -558,30 +558,24 @@ Rule 0: App Help Query Override
 
 ### Binary Routing Logic
 
-**Decision Tree**:
+**Decision Tree** (`RoutingDecider.decide`, the first match wins):
 ```
-User Query Analysis (Syntax-Based)
-├─ Rule 0: is_app_help_query? → next_node="response" (see above)
-│
-├─ Conversational? (greeting, thanks, question about assistant)
-│  └─ YES → intention="conversation" → next_node="response"
-│
-└─ NO → Contains action verb? (recherche, trouve, liste, affiche, montre, ajoute, modifie, supprime)
-   └─ YES → Detect domains (contacts, emails, calendar, tasks)
-      ├─ Single domain detected
-      │  └─ intention="[domain]_[action]" (e.g., "contacts_search")
-      │     confidence=0.85-0.95
-      │     next_node="planner"
-      │     domains=["contacts"]
-      │
-      ├─ Multiple domains detected
-      │  └─ intention="complex_multi_step"
-      │     confidence=0.75-0.90
-      │     next_node="planner"
-      │     domains=["contacts", "email"]
-      │
-      └─ No domain detected (ambiguous)
-         └─ confidence < 0.70 → Fallback to "response"
+Query analysis (QueryAnalyzerService)
+├─ Rule 0: is_app_help_query → route_to="response" (see above)
+├─ Rule 1: a skill identified → route_to="planner"
+├─ Rule 2: intent "chat" with no domain, or a weak semantic score → route_to="response"
+├─ Rule 3: a data intent (search, list, send, create, update, delete, detail) with domains
+│          → route_to="planner"
+├─ Rule 4: a high semantic score with domains → route_to="planner"
+├─ Rule 5: no domain → route_to="response"
+└─ Otherwise → route_to="planner"
+
+route_to="planner"  → intention="action", domains=[...] (one domain or several, same intention)
+route_to="response" → intention="conversation"
+
+route_from_router
+├─ confidence under router_confidence_low → "response", whatever the route
+└─ next_node="planner" → react_setup in ReAct mode (ADR-070)
 ```
 
 ---
@@ -616,7 +610,7 @@ Détecter les **domains** pertinents dans la requête utilisateur pour permettre
 **Single Domain**:
 ```json
 {
-  "intention": "contacts_search",
+  "intention": "action",
   "confidence": 0.92,
   "next_node": "planner",
   "domains": ["contacts"],  // ← Phase 3: Single domain
@@ -627,7 +621,7 @@ Détecter les **domains** pertinents dans la requête utilisateur pour permettre
 **Multi-Domain**:
 ```json
 {
-  "intention": "complex_multi_step",
+  "intention": "action",
   "confidence": 0.85,
   "next_node": "planner",
   "domains": ["contacts", "email"],  // ← Phase 3: Multiple domains
@@ -792,7 +786,7 @@ class ReferenceResolver:
 if turn_info.turn_type == TurnType.REFERENCE_PURE:
     # Force single domain from active context
     router_output = RouterOutput(
-        intention="context_reference",
+        intention="action",
         confidence=0.95,
         next_node="planner",
         domains=[turn_info.domain_hint],  # Ex: ["contacts"]
@@ -1111,7 +1105,7 @@ windowed_messages = get_router_windowed_messages(state[STATE_KEY_MESSAGES])
 # Call LLM with windowed messages
 router_output = await _call_router_llm(
     messages=windowed_messages,
-    llm_type="router",
+    llm_type="query_analyzer",
     config=config,
 )
 ```
@@ -1208,7 +1202,7 @@ agent_node_executions_total = Counter(
     "windowed_messages_count": 10
   },
   "output": {
-    "intention": "contacts_search",
+    "intention": "action",
     "confidence": 0.92,
     "next_node": "planner",
     "domains": ["contacts"],
@@ -1278,7 +1272,7 @@ async def test_router_node_actionnable_query_single_domain():
     config = {"metadata": {"run_id": "run_123"}}
 
     mock_router_output = RouterOutput(
-        intention="contacts_search",
+        intention="action",
         confidence=0.92,
         context_label="contact",
         next_node="planner",
@@ -1291,7 +1285,7 @@ async def test_router_node_actionnable_query_single_domain():
 
     # Assertions
     assert result["routing_history"][0].next_node == "planner"
-    assert result["routing_history"][0].intention == "contacts_search"
+    assert result["routing_history"][0].intention == "action"
     assert result["routing_history"][0].domains == ["contacts"]
     assert result["routing_history"][0].confidence >= 0.85
 

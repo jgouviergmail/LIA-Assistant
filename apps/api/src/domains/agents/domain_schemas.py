@@ -37,7 +37,7 @@ class RouterOutput(BaseModel):
     - graph.py (routing decisions)
 
     Attributes:
-        intention: Detected user intention (conversation, contacts_search, etc.).
+        intention: Detected user intention (action or conversation).
         confidence: Confidence score (0.0-1.0) for the routing decision.
         context_label: Context label for enrichment (general, unknown, contact, etc.).
         next_node: Next node to route to (validated by Literal).
@@ -47,12 +47,7 @@ class RouterOutput(BaseModel):
         reasoning: Optional debug/audit explanation of routing decision.
     """
 
-    intention: str = Field(
-        description=(
-            "Detected user intention (conversation, contacts_search, "
-            "contacts_list, contacts_details)"
-        )
-    )
+    intention: str = Field(description=("Detected user intention (action or conversation)"))
     confidence: float = Field(
         ge=0.0,
         le=1.0,

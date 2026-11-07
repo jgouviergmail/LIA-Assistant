@@ -947,7 +947,7 @@ google_contacts_api_latency = Histogram(
     buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0],
 )
 
-# Cache metrics (SPECIFIC to contacts_agent, NOT general Redis)
+# Cache metrics (SPECIFIC to contact_agent, NOT general Redis)
 google_contacts_cache_hits = Counter(
     "google_contacts_cache_hits_total",
     "Google Contacts cache hits",
@@ -1236,7 +1236,7 @@ cache_miss_total = Counter(
 ```python
 # GOOD: Limited label values
 router_decisions_total.labels(
-    intention="complex_multi_step",  # ~10 possible values
+    intention="action",              # A few possible values (action, conversation, unknown)
     confidence_bucket="high"         # 3 possible values (low/medium/high)
 ).inc()
 
@@ -1787,7 +1787,7 @@ Similaire à `@track_metrics`, mais adapté aux **LangChain Tools** :
 ```python
 @track_tool_metrics(
     tool_name="search_contacts",
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     duration_metric=agent_tool_duration_seconds,
     counter_metric=agent_tool_invocations,
 )
@@ -2446,7 +2446,7 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
 langgraph.node.router (5.2ms)
   ├─ langgraph.run_id: "abc123"
   ├─ langgraph.llm.model: "gpt-4.1-nano"
-  ├─ langgraph.router.intention: "complex_multi_step"
+  ├─ langgraph.router.intention: "action"
   ├─ langgraph.router.confidence: 0.92
   └─ langgraph.router.next_node: "planner"
 ```
@@ -2505,7 +2505,7 @@ def add_opentelemetry_context(
   "span_id": "5711c54d34d9db2b",
   "trace_flags": "01",
   "run_id": "abc123",
-  "intention": "complex_multi_step",
+  "intention": "action",
   "confidence": 0.92
 }
 ```
@@ -2697,9 +2697,9 @@ curl http://localhost:8000/metrics | grep -A 5 router_decisions_total
 ```
 # HELP router_decisions_total Total router decisions
 # TYPE router_decisions_total counter
-router_decisions_total{confidence_bucket="high",intention="complex_multi_step"} 15.0
+router_decisions_total{confidence_bucket="high",intention="action"} 15.0
 router_decisions_total{confidence_bucket="high",intention="conversation"} 42.0
-router_decisions_total{confidence_bucket="medium",intention="actionable_single_step"} 8.0
+router_decisions_total{confidence_bucket="medium",intention="action"} 8.0
 ```
 
 ### Vérifier les Targets Prometheus

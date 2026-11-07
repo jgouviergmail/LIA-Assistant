@@ -1942,6 +1942,16 @@
       "title": "Una pagina scritta dal modello gira nella chat, nel riquadro più rigoroso",
       "summary": "Chiedere un gioco o un piccolo strumento dà una pagina che gira nella conversazione, con il suo file; chiedere il codice dà il codice, e ciò che una persona scrive resta testo. La pagina gira isolata, senza accesso all’account né ad alcun sito di sua scelta, sotto una politica che non nomina alcun host. Riletta dalla cronologia aspetta un clic, perché un ciclo infinito bloccherebbe la scheda, e il modello ne legge solo il titolo.",
       "src": "ab92ef5e6f98"
+    },
+    "371": {
+      "title": "Gli slot degli agenti di dominio se ne vanno con i loro nodi",
+      "summary": "L'amministrazione proponeva di regolare sedici agenti che nessun turno chiamava più: un piano esegue direttamente gli strumenti e la produzione non ha contato un solo token su di loro. Slot, nodi e prompt sono stati rimossi; lo slot Emails resta, perché scrive i messaggi. Una nuova installazione parte ora su modelli che hanno una tariffa.",
+      "src": "3cfe6d5c67cc"
+    },
+    "372": {
+      "title": "Dagli Strumenti: un clic, una chiamata, una proposta",
+      "summary": "Riassumere un messaggio, proporre una risposta, leggere un biglietto da visita: un clic chiede una sola cosa a LIA e riceve una proposta che la persona legge, mai una scrittura presso il fornitore. L’atto viene tracciato e addebitato a chi ha cliccato, e nulla aggiunge un controllo a una schermata senza spazio: l’ultima icona di ogni barra apre l’elenco.",
+      "src": "357747655d68"
     }
   }
 }

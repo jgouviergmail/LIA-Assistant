@@ -4,7 +4,7 @@
 
 **Versión**: 7.0
 **Fecha**: 2026-11-06
-**Aplicación**: LIA v4.4.0
+**Aplicación**: LIA v4.5.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ El mecanismo se explica en [la guía técnica](/es/how). Cómo se escribió el c
 
 ## 2. Lo que LIA hace por ti
 
-Abre **Herramientas** cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.
+Abre **Herramientas** cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA, y las estrellas amarillas le piden a LIA que resuma o redacte cuando quieras, con el coste a la vista. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.
 
 Le hablas con normalidad, por escrito o de viva voz. La interfaz existe en seis idiomas (francés, inglés, alemán, español, italiano, chino) y tu dictado se transcribe en el idioma de tu cuenta. Una veintena de agentes especializados se reparten el trabajo: tus datos personales, la web, la creación, la casa conectada, la navegación por sitios web y la anticipación.
 

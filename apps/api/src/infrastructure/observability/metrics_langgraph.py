@@ -5,7 +5,7 @@ Implements comprehensive LangGraph-specific metrics beyond node-level tracking:
 - Graph execution lifecycle (start, completion, errors)
 - Node transitions and conditional routing decisions
 - State management (updates, payload sizes)
-- SubGraph invocations (contacts_agent, emails_agent)
+- SubGraph invocations (browser_agent)
 - Streaming event distribution
 
 Complements existing metrics_agents.py (node-level) with framework-level insights.
@@ -78,7 +78,7 @@ langgraph_conditional_edges_total = Counter(
     "Conditional edge routing decisions",
     ["edge_name", "decision"],
     # edge_name: route_from_router, route_from_planner, route_from_orchestrator
-    # decision: planner/response/task_orchestrator/contacts_agent/emails_agent
+    # decision: planner/response/task_orchestrator/browser_agent
     # Track routing logic: high confidence vs fallbacks
 )
 
@@ -135,8 +135,8 @@ langgraph_state_size_bytes = Histogram(
 
 langgraph_subgraph_invocations_total = Counter(
     "langgraph_subgraph_invocations_total",
-    "SubGraph invocations (contacts_agent, emails_agent, etc.)",
-    ["agent_name", "status"],  # agent_name: contacts_agent/emails_agent, status: success/error
+    "SubGraph invocations (browser_agent)",
+    ["agent_name", "status"],  # agent_name: browser_agent, status: success/error
     # Track specialized agent usage
     # Different from agent_node_executions_total (includes non-subgraph nodes like router)
 )
@@ -147,16 +147,13 @@ langgraph_subgraph_duration_seconds = Histogram(
     ["agent_name"],
     buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0],
     # Optimized for agent ReAct loops
-    # contacts_agent: P50 ~3s (search), P95 ~15s (complex filters)
-    # emails_agent: P50 ~5s (list), P95 ~20s (details fetching)
 )
 
 langgraph_subgraph_tool_calls_total = Counter(
     "langgraph_subgraph_tool_calls_total",
     "Tool calls within subgraphs (ReAct loop iterations)",
     ["agent_name", "tool_name"],
-    # agent_name: contacts_agent/emails_agent
-    # tool_name: google_contacts_search/google_gmail_list/etc.
+    # agent_name: browser_agent
     # Track ReAct loop behavior: average iterations before success
 )
 

@@ -64,6 +64,8 @@ export interface MessageRowProps {
   density: MailDensity;
   /** The row is narrowed by the reader beside it: its acts fold in a menu. */
   narrow: boolean;
+  /** A word on the row's kind, beside its labels. */
+  note?: string;
   /** A label's name, for the chips; undefined for one the pane does not list. */
   labelName: (labelId: string) => string | undefined;
   href: string;
@@ -105,6 +107,7 @@ export function isPlainClick(event: MouseEvent): boolean {
 export function MessageRow({
   lng,
   message,
+  note,
   when,
   open,
   selected,
@@ -178,7 +181,10 @@ export function MessageRow({
         ) : (
           <ComfortableLines
             shown={shown}
-            chips={chipsOf(message, labelName)}
+            chips={[
+              ...(note ? [{ id: 'lia-note', name: note }] : []),
+              ...chipsOf(message, labelName),
+            ]}
             narrow={narrow}
             marks={markCount(message, conversation)}
           />
@@ -297,6 +303,7 @@ function rowActions(
       label: said(
         message.is_read ? 'workbench.mail.row_mark_unread' : 'workbench.mail.row_mark_read'
       ),
+      menuText: t(message.is_read ? 'workbench.mail.mark_unread' : 'workbench.mail.mark_read'),
       icon: message.is_read ? Mail : MailOpen,
       onSelect: () => onRead(message, !message.is_read),
       on: true,
@@ -304,6 +311,7 @@ function rowActions(
     {
       key: 'star',
       label: said(message.is_starred ? 'workbench.mail.row_unstar' : 'workbench.mail.row_star'),
+      menuText: t(message.is_starred ? 'workbench.mail.unstar' : 'workbench.mail.star'),
       icon: Star,
       onSelect: () => onStar(message, !message.is_starred),
       iconClassName: message.is_starred ? '[&>svg]:fill-current text-primary' : undefined,
@@ -312,6 +320,7 @@ function rowActions(
     {
       key: 'archive',
       label: said('workbench.mail.row_archive'),
+      menuText: t('workbench.mail.archive'),
       icon: Archive,
       onSelect: () => onSend(message, 'archive'),
       on: moves.archive,
@@ -319,6 +328,7 @@ function rowActions(
     {
       key: 'restore',
       label: said('workbench.mail.row_restore'),
+      menuText: t('workbench.mail.restore'),
       icon: ArchiveRestore,
       onSelect: () => onSend(message, 'restore'),
       on: moves.restore,
@@ -326,6 +336,7 @@ function rowActions(
     {
       key: 'not_spam',
       label: said('workbench.mail.row_not_spam'),
+      menuText: t('workbench.mail.not_spam'),
       icon: Inbox,
       onSelect: () => onSend(message, 'not_spam'),
       on: moves.notSpam,
@@ -333,6 +344,7 @@ function rowActions(
     {
       key: 'move',
       label: said('workbench.mail.row_move'),
+      menuText: t('workbench.mail.move_to'),
       icon: FolderInput,
       onSelect: () => onMove(message),
       on: moves.move,
@@ -340,6 +352,7 @@ function rowActions(
     {
       key: 'spam',
       label: said('workbench.mail.row_report_spam'),
+      menuText: t('workbench.mail.report_spam'),
       icon: OctagonAlert,
       onSelect: () => onSend(message, 'spam'),
       on: moves.spam,
@@ -347,6 +360,7 @@ function rowActions(
     {
       key: 'forever',
       label: said('workbench.mail.row_delete_forever'),
+      menuText: t('workbench.mail.delete_forever'),
       icon: Trash2,
       tone: 'destructive',
       onSelect: () => onForever(message),
@@ -355,6 +369,7 @@ function rowActions(
     {
       key: 'trash',
       label: said('workbench.mail.row_trash'),
+      menuText: t('workbench.mail.trash'),
       icon: Trash2,
       tone: 'destructive',
       onSelect: () => onSend(message, 'trash'),

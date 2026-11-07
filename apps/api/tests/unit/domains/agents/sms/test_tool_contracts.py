@@ -1,4 +1,4 @@
-"""One SMS vocabulary across tools, plans, agent slots, trust and source policy."""
+"""One SMS vocabulary across tools, plans, trust and source policy."""
 
 import pytest
 from pydantic import ValidationError
@@ -12,7 +12,6 @@ from src.domains.agents.sms.catalogue_manifests import (
 from src.domains.agents.sms.schemas import SmsGetRequest, SmsListRequest, SmsSearchRequest
 from src.domains.agents.tools import sms_tools
 from src.domains.feature_switches.registry import CAPABILITY_SPECS, PlatformCapability
-from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_TYPES_REGISTRY
 
 
 @pytest.mark.parametrize("manifest", SMS_TOOL_MANIFESTS, ids=lambda value: value.name)
@@ -46,7 +45,6 @@ def test_tools_reject_ambiguous_or_unbounded_input(model, payload):
         model.model_validate(payload)
 
 
-def test_sms_agent_has_its_own_slot_and_exhaustive_source_mappings():
+def test_sms_domain_has_exhaustive_source_mappings():
     assert DOMAIN_REGISTRY["sms"].result_key == "sms_messages"
-    assert "sms_agent" in LLM_DEFAULTS and "sms_agent" in LLM_TYPES_REGISTRY
     assert "sms_agent" in CAPABILITY_SPECS[PlatformCapability.SMS].agents

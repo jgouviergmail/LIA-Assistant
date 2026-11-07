@@ -15,13 +15,7 @@
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +29,9 @@ import type { Language } from '@/i18n/settings';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { MailFolder, MailVacation, WorkbenchToolAvailability } from '@/lib/workbench/types';
 
+import { FieldAssist } from '../assist/FieldAssist';
 import { MailFilters } from './MailFilters';
+import { ToolDialogHeader } from '../ToolForm';
 
 export interface MailboxSettingsPanelProps {
   lng: Language;
@@ -73,10 +69,10 @@ export function MailboxSettingsPanel({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 sm:max-w-2xl">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{t('workbench.mail.settings_title')}</DialogTitle>
           <DialogDescription>{t('workbench.mail.settings.description')}</DialogDescription>
-        </DialogHeader>
+        </ToolDialogHeader>
         <Tabs defaultValue={firstTab(vacationOffered, filtersOffered)}>
           <TabsList>
             {vacationOffered && (
@@ -196,6 +192,7 @@ function SignatureForm({
     <form className="space-y-4" onSubmit={event => void submit(event)}>
       <Textarea
         label={t('workbench.mail.settings.signature_label')}
+        labelEnd={<FieldAssist lng={lng} kind="signature" value={text} onChange={setText} />}
         value={text}
         maxLength={maxLength}
         rows={6}
@@ -316,6 +313,7 @@ function VacationForm({ lng, vacation, subjectOffered, openEnd, onSave }: Vacati
           )}
           <Textarea
             label={t('workbench.mail.settings.vacation_text')}
+            labelEnd={<FieldAssist lng={lng} kind="auto_reply" value={body} onChange={setBody} />}
             value={body}
             rows={6}
             onChange={event => setBody(event.target.value)}

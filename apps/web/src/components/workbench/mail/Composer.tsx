@@ -18,10 +18,14 @@
  * words not sent nor saved asks first, and so does the browser leaving the page;
  * words a quiet composer saved by itself are in the drafts, and closing says so.
  * « Send » first holds the message for a moment, the composer aside and « Undo »
- * in its place (`useComposer`).
+ * in its place (`useComposer`). LIA writes from the end of the subject's label and of the
+ * message's: what it proposes changes nothing until the person says so. An answer is kept as a
+ * draft in its thread, and the composer closes on it. On a phone every button of the page's end
+ * stands on its own line, the whole width (owner, 2026-11-06).
  */
 import { Paperclip, Send, Type, Upload, X } from 'lucide-react';
 import {
+  type ReactNode,
   useEffect,
   useId,
   useRef,
@@ -36,8 +40,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LinkedText } from '@/components/ui/linked-text';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
-import { useConfirm } from '@/components/ui/use-confirm';
 import type { WorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -46,6 +50,7 @@ import { addressLabel, fileSize } from '@/lib/workbench/mail';
 import {
   senderShown,
   textToHtml,
+  withProposal,
   writes,
   type ComposeFailure,
   type ComposerFields,
@@ -60,7 +65,9 @@ import type {
   WorkbenchToolAvailability,
 } from '@/lib/workbench/types';
 
+import { ComposerAssist, type ComposerAssistProps } from '../assist/ComposerAssist';
 import { FileSendingLine, useFileDrop } from '../files/FileSending';
+import { CancelButton, ToolActions, useToolConfirm } from '../ToolForm';
 import { AttachablePicker } from './AttachablePicker';
 import { RichBody } from './RichBody';
 import { useComposer, type ComposerState } from './useComposer';
@@ -101,6 +108,8 @@ export interface ComposerProps {
   onLost?: (words: ComposerFields, failure: ComposeFailure) => void;
 }
 
+/** A small button that takes a line of its own on a phone, as the page's last ones do. */
+const WHOLE_ON_A_PHONE = 'max-sm:h-9 max-sm:w-full';
 /** The first field to write in: the recipients, or the words of a reply. */
 const FIRST_FIELD = 'input, textarea';
 /** Where the words are written, whichever the person chose. */
@@ -122,15 +131,20 @@ export function Composer({
   onLost,
 }: ComposerProps) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [picking, setPicking] = useState(false);
+  // The formatted field reads its words once: words LIA wrote open a new one.
+  const [edition, setEdition] = useState(0);
   const bounds = boundsOf(tool);
   const state = useComposer({
     target,
     writing,
     recipientsMax: bounds.recipientsMax,
     onSent,
-    onDraftSaved,
+    onDraftSaved: () => {
+      onDraftSaved();
+      if (target.kind === 'reply' || target.kind === 'forward') onClose();
+    },
     holdMs,
     autosaveMs: tool.features.includes('drafts') ? autosaveMs : 0,
     signatureBlock,
@@ -153,6 +167,21 @@ export function Composer({
   const drop = useFileDrop({ lng, enabled: offersFiles, onFiles: device.send });
   const uploading = device.now !== null;
   const context = contextOf(target, state.answered);
+  const assisted: Omit<ComposerAssistProps, 'field'> = {
+    lng,
+    target,
+    fields,
+    signature: signatureBlock,
+    writesSubject: parts.subject,
+    onBody: (answer, use) => {
+      // A subject the person wrote stays unless they chose to replace what they wrote.
+      const free = use === 'replace' || fields.subject.trim() === '';
+      const subject = parts.subject && answer.subject && free ? { subject: answer.subject } : {};
+      set({ ...withProposal(fields, signatureBlock, answer.text, use), ...subject });
+      setEdition(previous => previous + 1);
+    },
+    onSubject: subject => set({ subject }),
+  };
   const panel = useRef<HTMLElement>(null);
   const undo = useRef<HTMLButtonElement>(null);
   const wasHolding = useRef(false);
@@ -244,12 +273,19 @@ export function Composer({
           {parts.subject && (
             <Input
               label={t('workbench.mail.compose.subject')}
+              labelEnd={<ComposerAssist field="subject" {...assisted} />}
               value={fields.subject}
               maxLength={bounds.subjectMax}
               onChange={event => set({ subject: event.target.value })}
             />
           )}
-          <BodyField lng={lng} state={state} maxLength={bounds.bodyMax} />
+          <BodyField
+            lng={lng}
+            state={state}
+            maxLength={bounds.bodyMax}
+            edition={edition}
+            assist={<ComposerAssist field="body" {...assisted} />}
+          />
           <AnsweredMessage lng={lng} target={target} />
           {offersFiles && (
             <FilesField
@@ -268,7 +304,7 @@ export function Composer({
             lng={lng}
             state={state}
             uploading={uploading}
-            offersDrafts={parts.bcc && tool.features.includes('drafts')}
+            offersDrafts={tool.features.includes('drafts')}
             onCancel={() => void requestClose()}
           />
         </form>
@@ -296,21 +332,37 @@ function BodyField({
   lng,
   state,
   maxLength,
+  edition,
+  assist,
 }: {
   lng: Language;
   state: ComposerState;
   maxLength: number | undefined;
+  /** How many times LIA's words opened a new formatted field. */
+  edition: number;
+  /** Outside whichever field is drawn: a line asked at the opening is asked once. */
+  assist: ReactNode;
 }) {
   const { t } = useTranslation(lng);
   const { fields, set } = state;
   const formatted = fields.html !== null;
+  const fieldId = useId();
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={formatted ? undefined : fieldId}>{t('workbench.mail.compose.body')}</Label>
+        {assist}
+      </div>
       {fields.html !== null ? (
-        <RichBody lng={lng} html={fields.html} onChange={(html, body) => set({ html, body })} />
+        <RichBody
+          key={edition}
+          lng={lng}
+          html={fields.html}
+          onChange={(html, body) => set({ html, body })}
+        />
       ) : (
         <Textarea
-          label={t('workbench.mail.compose.body')}
+          id={fieldId}
           value={fields.body}
           maxLength={maxLength}
           rows={8}
@@ -321,9 +373,9 @@ function BodyField({
       <div className="flex justify-end">
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="gap-1.5"
+          className={cn('gap-1.5', WHOLE_ON_A_PHONE)}
           aria-pressed={formatted}
           onClick={() => set({ html: formatted ? null : textToHtml(fields.body) })}
         >
@@ -354,9 +406,13 @@ function HoldingNotice({
       <span role="status" className="text-sm">
         {t('workbench.mail.compose.holding')}
       </span>
-      <Button ref={undo} variant="outline" size="sm" onClick={onUndo}>
-        {t('workbench.mail.compose.undo')}
-      </Button>
+      <CancelButton
+        ref={undo}
+        lng={lng}
+        size="sm"
+        label={t('workbench.mail.compose.undo')}
+        onClick={onUndo}
+      />
     </div>
   );
 }
@@ -416,23 +472,18 @@ function SenderField({
   onChange: (address: string) => void;
 }) {
   const { t } = useTranslation(lng);
-  const fieldId = useId();
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={fieldId}>{t('workbench.mail.compose.from')}</Label>
-      <select
-        id={fieldId}
-        value={value}
-        onChange={event => onChange(event.target.value)}
-        className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-      >
-        {senders.map(sender => (
-          <option key={sender.address} value={sender.address}>
-            {sender.name ? `${sender.name} <${sender.address}>` : sender.address}
-          </option>
-        ))}
-      </select>
-    </div>
+    <NativeSelect
+      label={t('workbench.mail.compose.from')}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+    >
+      {senders.map(sender => (
+        <option key={sender.address} value={sender.address}>
+          {sender.name ? `${sender.name} <${sender.address}>` : sender.address}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 
@@ -466,10 +517,12 @@ function RecipientFields({ lng, target, state, senders, queryMin }: RecipientFie
         />
       )}
       {field('to', 'workbench.mail.compose.to')}
+      {/* Its word starts where the labels above it do: the padding hangs out to the left. */}
       <Button
         type="button"
         variant="ghost"
         size="sm"
+        className="-ml-3"
         onClick={() => setShown(open => !open)}
         aria-expanded={shown}
         aria-controls={copiesId}
@@ -515,14 +568,14 @@ interface ComposerFooterProps {
   onCancel: () => void;
 }
 
-/** Save as a draft (where the provider keeps drafts), cancel, send — held while busy. */
+/** Cancel, keep as a draft (where the provider keeps drafts), send — held while busy. */
 function ComposerFooter({ lng, state, uploading, offersDrafts, onCancel }: ComposerFooterProps) {
   const { t } = useTranslation(lng);
   const { status } = state;
   const settled = status === 'unknown';
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 max-sm:mt-auto">
-      <AutosaveLine lng={lng} state={state} />
+    <ToolActions className="max-sm:mt-auto">
+      <CancelButton lng={lng} onClick={onCancel} />
       {offersDrafts && (
         <Button
           type="button"
@@ -534,10 +587,6 @@ function ComposerFooter({ lng, state, uploading, offersDrafts, onCancel }: Compo
           {t('workbench.mail.compose.save_draft')}
         </Button>
       )}
-      <Button type="button" variant="ghost" onClick={onCancel}>
-        <X className="h-4 w-4" aria-hidden="true" />
-        {t('common.cancel')}
-      </Button>
       <Button
         type="submit"
         isLoading={status === 'sending'}
@@ -547,9 +596,13 @@ function ComposerFooter({ lng, state, uploading, offersDrafts, onCancel }: Compo
         <Send className="h-4 w-4" aria-hidden="true" />
         {t('workbench.mail.compose.send')}
       </Button>
-    </div>
+      <AutosaveLine lng={lng} state={state} />
+    </ToolActions>
   );
 }
+
+/** Above the buttons on a phone, where the column ends on the last one; before them beyond. */
+const AUTOSAVE_LINE = 'text-xs sm:order-first sm:mr-auto';
 
 /** What the composer's last save by itself came to, while it still holds. */
 function AutosaveLine({ lng, state }: { lng: Language; state: ComposerState }) {
@@ -557,14 +610,14 @@ function AutosaveLine({ lng, state }: { lng: Language; state: ComposerState }) {
   const { autosave, dirty } = state;
   if (autosave === 'failed') {
     return (
-      <span role="status" className="mr-auto text-xs text-destructive">
+      <span role="status" className={cn(AUTOSAVE_LINE, 'text-destructive')}>
         {t('workbench.mail.compose.autosave_failed')}
       </span>
     );
   }
   if (autosave !== 'saved' || dirty) return null;
   return (
-    <span role="status" className="mr-auto text-xs text-muted-foreground">
+    <span role="status" className={cn(AUTOSAVE_LINE, 'text-muted-foreground')}>
       {t('workbench.mail.compose.autosaved')}
     </span>
   );
@@ -692,7 +745,13 @@ function FilesField({
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onPick}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn('gap-1.5', WHOLE_ON_A_PHONE)}
+          onClick={onPick}
+        >
           <Paperclip className="h-4 w-4" aria-hidden="true" />
           {t('workbench.mail.files.add')}
         </Button>
@@ -700,7 +759,7 @@ function FilesField({
           type="button"
           variant="outline"
           size="sm"
-          className="gap-1.5"
+          className={cn('gap-1.5', WHOLE_ON_A_PHONE)}
           onClick={() => chooser.current?.click()}
         >
           <Upload className="h-4 w-4" aria-hidden="true" />

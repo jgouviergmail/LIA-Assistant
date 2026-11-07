@@ -26,6 +26,7 @@ from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, Str
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import MEMORY_TRIGGER_TOPIC_MAX_CHARS, MEMORY_USAGE_NUANCE_MAX_CHARS
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -89,7 +90,7 @@ class Memory(BaseModel):
 
     Attributes:
         user_id: Owner user (memories are per-user, isolated by FK)
-        content: Memory text in first person (max 500 chars, atomic fact)
+        content: Memory text in first person (atomic fact, MEMORY_CONTENT_MAX_CHARS at most)
         category: Classification type (preference, personal, relationship, etc.)
         emotional_weight: Emotional intensity (-10 trauma to +10 joy)
         trigger_topic: Keyword that activates this memory in search
@@ -111,7 +112,8 @@ class Memory(BaseModel):
         nullable=False,
     )
 
-    # Content (atomic fact, max 500 chars, first-person formulation)
+    # Content (atomic fact, first-person formulation). The column is unbounded on
+    # purpose: MEMORY_CONTENT_MAX_CHARS is a setting, enforced by the write schemas.
     content: Mapped[str] = mapped_column(
         Text(),
         nullable=False,
@@ -129,13 +131,13 @@ class Memory(BaseModel):
         server_default="0",
     )
     trigger_topic: Mapped[str] = mapped_column(
-        String(100),
+        String(MEMORY_TRIGGER_TOPIC_MAX_CHARS),
         nullable=False,
         default="",
         server_default="",
     )
     usage_nuance: Mapped[str] = mapped_column(
-        String(300),
+        String(MEMORY_USAGE_NUANCE_MAX_CHARS),
         nullable=False,
         default="",
         server_default="",

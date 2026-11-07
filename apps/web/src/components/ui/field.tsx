@@ -86,6 +86,8 @@ export function useFieldA11y({ id, error, describedBy }: UseFieldA11yOptions): F
 export interface FieldFrameProps {
   /** Visible label text; omitted when the caller names the control otherwise. */
   label?: string;
+  /** What acts on the field, at the end of the label's line: the field gains no height. */
+  labelEnd?: React.ReactNode;
   /** Id of the control the label points at. */
   fieldId: string;
   /** Error message to announce, if any. */
@@ -109,14 +111,27 @@ export interface FieldFrameProps {
  * Returns:
  *   The wrapped field.
  */
-export function FieldFrame({ label, fieldId, error, errorId, children }: FieldFrameProps) {
+export function FieldFrame({
+  label,
+  labelEnd,
+  fieldId,
+  error,
+  errorId,
+  children,
+}: FieldFrameProps) {
   return (
     // `space-y-3`: the app-wide label->control gap. Arbitrated on real
     // screenshots (2026-08-05) AFTER fixing the Label primitive to `block` —
     // with the default inline label, margins were computed but never rendered,
     // which is why earlier recalibrations were invisible on screen.
     <div className="w-full space-y-3">
-      {label && <Label htmlFor={fieldId}>{label}</Label>}
+      {label && !labelEnd && <Label htmlFor={fieldId}>{label}</Label>}
+      {label && labelEnd && (
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor={fieldId}>{label}</Label>
+          {labelEnd}
+        </div>
+      )}
       {children}
       {error && (
         // `role="alert"` so the reason surfaces the moment the field is

@@ -5,7 +5,7 @@ On a computer the recording button sits in the header, on the right; on a phone,
 
 When the meeting ends, press **Stop** in the banner or where you started. LIA transcribes the whole recording, writes the minutes and posts a card in the chat with the title, the summary and an **Open the minutes** button. Every recording also lives on the **Meetings** page of the header, between Relations and Alerts.
 
-**💡 Good to know:** the feature exists only where the administrator has enabled it, the engine that will transcribe — with its price per hour of audio — is shown before you start, and the banner lets you pick the minutes format while the meeting runs.
+**💡 Good to know:** the feature exists only where the administrator has enabled it, the engine that will transcribe — with its price per hour of audio — is shown before you start, and the banner lets you pick the minutes format while the meeting runs. From **Tools**, **Record this meeting** starts the recording as an event draws near.
 
 ## Can I turn an existing recording into minutes?
 Yes. On the **Meetings** page, **Import** — or **Import a meeting recording** in the chat's **+** — takes a WAV, MP3 or M4A file: a phone's voice memo, a dictaphone's file, a recording made elsewhere. Before you choose, LIA shows the largest file and the longest recording this instance accepts; it dates the meeting when the file began (the file's date minus its length — correct it if needed, it dates the minutes) and lets you pick the minutes format and the spoken language, exactly as for a recording.

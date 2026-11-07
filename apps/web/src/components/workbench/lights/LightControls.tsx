@@ -59,7 +59,14 @@ export function LightControls({ lng, light, onChange }: LightControlsProps) {
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{light.name}</p>
+          <p
+            className={cn(
+              'truncate text-sm font-semibold',
+              reachable ? 'text-foreground' : 'text-muted-foreground'
+            )}
+          >
+            {light.name}
+          </p>
           <p className="text-xs text-muted-foreground">
             {t(`workbench.lights.kinds.${lightKind(light)}`)}
           </p>

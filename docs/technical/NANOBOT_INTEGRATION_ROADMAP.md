@@ -2,6 +2,8 @@
 
 > Document de travail persistant pour l'implémentation itérative des fonctionnalités inspirées de [evolution](https://github.com/HKUDS/evolution).
 > Chaque conversation d'implémentation DOIT relire ce fichier en premier.
+>
+> Les conventions d'agent de ce document (builder, prompt, nœud, poste) précèdent [ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) : un domaine se déclare par ses manifestes, voir [GUIDE_AGENT_CREATION.md](../guides/GUIDE_AGENT_CREATION.md).
 
 **Version**: 1.1
 **Créé le**: 2026-02-28

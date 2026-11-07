@@ -208,7 +208,7 @@ def test_create_llm_deepseek_chat(mock_settings_module, mock_chat_deepseek, mock
         temperature=0.5,
         max_tokens=4000,
         streaming=False,
-        llm_type="contacts_agent",
+        llm_type="query_agent",
     )
 
     # Verify ChatDeepSeek was instantiated with correct parameters
@@ -242,7 +242,7 @@ def test_create_llm_deepseek_reasoner_validation(
             temperature=0.0,
             max_tokens=8000,
             streaming=False,
-            llm_type="contacts_agent",  # Requires tool support
+            llm_type="query_agent",  # Requires tool support
         )
 
 
@@ -473,7 +473,7 @@ def test_validate_provider_model_compatibility(
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
 
-    # Test 1: DeepSeek reasoner without tools should fail for contacts_agent
+    # Test 1: DeepSeek reasoner without tools should fail for query_agent
     with pytest.raises(ValueError, match="deepseek-reasoner does NOT support tools"):
         ProviderAdapter.create_llm(
             provider="deepseek",
@@ -481,10 +481,10 @@ def test_validate_provider_model_compatibility(
             temperature=0.0,
             max_tokens=8000,
             streaming=False,
-            llm_type="contacts_agent",
+            llm_type="query_agent",
         )
 
-    # Test 2: DeepSeek chat should work for contacts_agent (supports tools)
+    # Test 2: DeepSeek chat should work for query_agent (supports tools)
     mock_llm = MagicMock(spec=BaseChatModel)
     mock_create_deepseek.return_value = mock_llm
 
@@ -494,7 +494,7 @@ def test_validate_provider_model_compatibility(
         temperature=0.0,
         max_tokens=8000,
         streaming=False,
-        llm_type="contacts_agent",
+        llm_type="query_agent",
     )
     assert llm is not None
     mock_create_deepseek.assert_called_once()

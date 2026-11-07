@@ -24,7 +24,7 @@ graph TB
     ParallelExecutor --> CatalogueFilter[SmartCatalogueService<br/>Filter tools per agent<br/>96% token reduction]
     CatalogueFilter --> ProviderResolve[Provider Resolution<br/>Google / Apple / Microsoft]
 
-    ProviderResolve --> ContactsTool["contacts agent<br/>get_contacts_by_location"]
+    ProviderResolve --> ContactsTool["Tool step<br/>get_contacts_by_location"]
 
     ContactsTool --> ContactsResult["Results: 50 contacts<br/>UnifiedToolOutput"]
     ContactsResult --> Registry["Registry Update<br/>$steps.get_contacts.contacts"]

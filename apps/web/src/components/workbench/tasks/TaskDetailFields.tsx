@@ -10,12 +10,11 @@
  * list: on To Do it is a copy, so it keeps what it holds and takes another id.
  */
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type { TaskChangeBody } from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -30,9 +29,8 @@ import type {
 } from '@/lib/workbench/types';
 
 import { TaskQuickAdd } from './TaskQuickAdd';
+import { NativeSelect } from '@/components/ui/native-select';
 
-const FIELD =
-  'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
 const IMPORTANCES: readonly WorkbenchTaskImportance[] = ['low', 'normal', 'high'];
 const REPEATS: readonly WorkbenchTaskRepeat[] = ['daily', 'weekly', 'monthly', 'yearly'];
 
@@ -115,8 +113,6 @@ export interface TaskDetailsProps {
 /** How much it matters, when it reminds, how it repeats. */
 export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps) {
   const { t } = useTranslation(lng);
-  const importanceId = useId();
-  const repeatId = useId();
   const [reminder, setReminder] = useState(() => reminderInput(task.reminder, zone));
   const repeatable = due !== '' || task.repeat !== null;
   const leaveReminder = () => {
@@ -125,23 +121,17 @@ export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps
   };
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <Label htmlFor={importanceId}>{t('workbench.tasks.importance')}</Label>
-        <select
-          id={importanceId}
-          className={FIELD}
-          value={task.importance ?? 'normal'}
-          onChange={event =>
-            onChange({ importance: event.target.value as WorkbenchTaskImportance })
-          }
-        >
-          {IMPORTANCES.map(importance => (
-            <option key={importance} value={importance}>
-              {t(`workbench.tasks.importance_${importance}`)}
-            </option>
-          ))}
-        </select>
-      </div>
+      <NativeSelect
+        label={t('workbench.tasks.importance')}
+        value={task.importance ?? 'normal'}
+        onChange={event => onChange({ importance: event.target.value as WorkbenchTaskImportance })}
+      >
+        {IMPORTANCES.map(importance => (
+          <option key={importance} value={importance}>
+            {t(`workbench.tasks.importance_${importance}`)}
+          </option>
+        ))}
+      </NativeSelect>
       <Input
         type="datetime-local"
         label={t('workbench.tasks.reminder')}
@@ -150,10 +140,8 @@ export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps
         onBlur={leaveReminder}
       />
       <div className="space-y-1">
-        <Label htmlFor={repeatId}>{t('workbench.tasks.repeat')}</Label>
-        <select
-          id={repeatId}
-          className={FIELD}
+        <NativeSelect
+          label={t('workbench.tasks.repeat')}
           disabled={!repeatable}
           value={task.repeat ?? ''}
           onChange={event =>
@@ -171,7 +159,7 @@ export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps
               {t('workbench.tasks.repeat_custom')}
             </option>
           )}
-        </select>
+        </NativeSelect>
         {!repeatable && (
           <p className="text-xs text-muted-foreground">{t('workbench.tasks.repeat_needs_due')}</p>
         )}
@@ -195,29 +183,24 @@ export interface TaskMoveFieldProps extends TaskMoves {
 /** Another list for the task; a single list has nowhere to send it. */
 export function TaskMoveField({ lng, listId, lists, busy, onMove }: TaskMoveFieldProps) {
   const { t } = useTranslation(lng);
-  const id = useId();
   const others = lists.filter(list => list.id !== listId);
   if (others.length === 0) return null;
   return (
-    <div className="space-y-1">
-      <Label htmlFor={id}>{t('workbench.tasks.move_to_list')}</Label>
-      <select
-        id={id}
-        className={FIELD}
-        disabled={busy}
-        value=""
-        onChange={event => {
-          if (event.target.value) onMove(event.target.value);
-        }}
-      >
-        <option value="">{t('workbench.tasks.move_to_list_pick')}</option>
-        {others.map(list => (
-          <option key={list.id} value={list.id}>
-            {list.title || t('workbench.tasks.untitled')}
-          </option>
-        ))}
-      </select>
-    </div>
+    <NativeSelect
+      label={t('workbench.tasks.move_to_list')}
+      disabled={busy}
+      value=""
+      onChange={event => {
+        if (event.target.value) onMove(event.target.value);
+      }}
+    >
+      <option value="">{t('workbench.tasks.move_to_list_pick')}</option>
+      {others.map(list => (
+        <option key={list.id} value={list.id}>
+          {list.title || t('workbench.tasks.untitled')}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 

@@ -26,6 +26,25 @@ function slider(onCommit = vi.fn(() => Promise.resolve())) {
   return { range: screen.getByRole('slider', { name: 'Brightness' }), onCommit };
 }
 
+describe('CommitSlider — a word on the screen, more for the ear', () => {
+  it('shows the short word and names the room to the ear', () => {
+    renderWithProviders(
+      <CommitSlider
+        label="Brightness"
+        name="Brightness of Kitchen"
+        value={40}
+        min={0}
+        max={100}
+        format={value => `${value} %`}
+        onCommit={() => Promise.resolve()}
+      />
+    );
+
+    expect(screen.getByText('Brightness')).toBeVisible();
+    expect(screen.getByRole('slider', { name: 'Brightness of Kitchen' })).toBeInTheDocument();
+  });
+});
+
 describe('CommitSlider', () => {
   it('sends the released value once', () => {
     const { range, onCommit } = slider();

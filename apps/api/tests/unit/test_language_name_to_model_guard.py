@@ -74,6 +74,11 @@ ALLOWED: dict[tuple[str, str, str], tuple[int, str]] = {
         "the Wikipedia EDITION a tool message names (``fr`` for fr.wikipedia.org) — "
         "a host, not a language the model is asked to write in",
     ),
+    ("domains/tool_assists/text.py", "target_language", "target_language"): (
+        1,
+        "the language as the person names it, or a name from ``get_language_name``: "
+        "the assist's callers never pass a code",
+    ),
 }
 
 

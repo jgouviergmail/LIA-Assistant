@@ -253,7 +253,10 @@ docker exec lia-web-dev sh -c "rm -rf /app/.next" && docker restart lia-web-dev
 ```
 
 The config therefore pins `workers: 1` for non-managed (dev-server) runs; the
-CI managed server is a production build and runs 2 workers fine.
+CI managed server is a production build and runs 2 workers fine. The production
+bundle of the recipe above compiles nothing either, and the pin reaches it
+through `E2E_BASE_URL`: pass `--workers=4` there, or the whole suite takes over
+an hour on one worker.
 
 A second dev-server trap: a page can be **interactive before the app
 stylesheet is applied** (style chunks compile on demand). Scanning that
@@ -292,6 +295,8 @@ The README and landing share three application capture campaigns:
 `public/screenshots/manifest.json` (dashboard and general views),
 `public/screenshots/proof/manifest.json` (twelve advanced workflows), and
 `public/screenshots/proof/extended-manifest.json` (eighteen additional feature views).
+The landing's Tools chapter shows one capture of its own, taken by hand on the mail journey's
+fictional data, outside these campaigns (`public/screenshots/proof/tools-manifest.json`).
 The gallery's application views are inventoried in
 [`ScreenshotsSection.tsx`](../src/components/landing/ScreenshotsSection.tsx).
 The capture programs render the current Docker

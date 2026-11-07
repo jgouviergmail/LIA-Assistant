@@ -22,6 +22,18 @@ import { test, expect, waitForHydration } from '../fixtures';
 import type { MockRoute } from '../fixtures/api-mock';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import {
+  expectInside,
+  expectLinesCentredIn,
+  expectOnOneLine,
+  expectSameCentre,
+  expectSameEnd,
+  expectNoZoomOnFocus,
+  expectSameStart,
+  expectStackedWhole,
+  expectUnder,
+  wordStartOf,
+} from './phone-lines';
 
 const RAIL = {
   tools: ['mail', 'calendar', 'tasks', 'contacts', 'files', 'lights'].map(tool =>
@@ -44,6 +56,8 @@ const RAIL = {
           ],
           bounds: {
             search_max_chars: 500,
+            assist_text_max_chars: 8000,
+            assist_instruction_max_chars: 500,
             recipient_query_min_chars: 2,
             recipients_max: 100,
             recipient_max_chars: 320,
@@ -64,6 +78,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -172,6 +188,7 @@ async function playTheApi(
     autosaveSeconds?: number;
     rows?: typeof ROWS;
     conversation?: { items: typeof ROWS; truncated: boolean };
+    assists?: boolean;
   } = {}
 ): Promise<Played> {
   const played: Played = {
@@ -187,8 +204,15 @@ async function playTheApi(
       url: '**/api/v1/config',
       json: {
         ...appConfig,
-        features: { ...appConfig.features, workbench_enabled: true },
-        capabilities: { workbench: { enabled: true, family: 'work' } },
+        features: {
+          ...appConfig.features,
+          workbench_enabled: true,
+          tool_assists_enabled: options.assists ?? false,
+        },
+        capabilities: {
+          workbench: { enabled: true, family: 'work' },
+          tool_assists: { enabled: options.assists ?? false, family: 'work' },
+        },
       },
     },
     {
@@ -200,6 +224,8 @@ async function playTheApi(
           send_undo_seconds: options.undoSeconds ?? 0,
           draft_autosave_seconds: options.autosaveSeconds ?? 0,
           search_max_chars: 500,
+          assist_text_max_chars: 8000,
+          assist_instruction_max_chars: 500,
         },
         tools: RAIL.tools.map(tool =>
           tool.tool === 'mail' && options.html !== undefined
@@ -452,7 +478,8 @@ test('a remote image leaves only on the person’s click, and the screen offers 
 
   await expect.poll(() => requests.length).toBeGreaterThan(0);
   await expect.poll(drawnWidth).toBe(1);
-  await expect(page.getByRole('button', { name: 'Show the images' })).toHaveCount(0);
+  // The offer stays where it stood, greyed: the page does not jump, and it says it was taken.
+  await expect(page.getByRole('button', { name: 'Show the images' })).toBeDisabled();
   await expect(page.getByText(/Remote images are/)).toHaveCount(0);
   await expect(page.locator('iframe[sandbox]')).toBeFocused();
 });
@@ -603,7 +630,7 @@ test('a mail turns down with a dark theme, its picture keeping its colours', asy
   expect(red).toBeGreaterThan(2 * green);
   expect(red).toBeGreaterThan(2 * blue);
 
-  await page.getByRole('button', { name: 'Show the original colours' }).click();
+  await page.getByRole('button', { name: 'Show original' }).click();
   await expect(original.getByText('Readable original')).toBeVisible();
   await expect
     .poll(async () => lightOf(await paintOf(page, await frame.screenshot())))
@@ -614,6 +641,12 @@ test('a mail turns down with a dark theme, its picture keeping its colours', asy
     .poll(async () => lightOf(await paintOf(page, await frame.screenshot())))
     .toBeLessThan(0.3);
 });
+
+/** A large screen opens on the newest message: what follows reads the list alone. */
+async function closeTheFirstMessage(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Close the message' }).click();
+  await expect(page.getByRole('article')).toHaveCount(0);
+}
 
 type Box = { x: number; y: number; width: number; height: number };
 const middleOf = (box: Box) => box.y + box.height / 2;
@@ -641,6 +674,7 @@ test('a row’s acts start at its left, on the line of its checkbox, above the s
   await playTheApi(mockApi);
   await page.goto('/en/dashboard/tools/mail');
   await waitForHydration(page, 'a[data-mail-row]');
+  await closeTheFirstMessage(page);
 
   const row = rowOf(page, 'Committee agenda for Thursday');
   const tick = await boxOf(row.getByRole('checkbox'));
@@ -651,6 +685,51 @@ test('a row’s acts start at its left, on the line of its checkbox, above the s
   expect(act.x - (tick.x + tick.width)).toBeLessThanOrEqual(16);
   expect(act.y + act.height).toBeLessThanOrEqual(link.y + 1);
   expect((await boxOf(row.getByRole('img', { name: 'Has attachments' }))).x).toBeGreaterThan(act.x);
+});
+
+/** The list's width at every frame, until the reader has been gone for twenty of them. */
+function filmOfTheListWidth(page: Page): Promise<number[]> {
+  return page.evaluate(
+    () =>
+      new Promise<number[]>(resolve => {
+        const widths: number[] = [];
+        let framesWithoutTheReader = 0;
+        const frame = () => {
+          const list = document.querySelector('ul:has(a[data-mail-row])');
+          widths.push(list?.getBoundingClientRect().width ?? 0);
+          if (document.querySelector('article') === null) framesWithoutTheReader += 1;
+          if (framesWithoutTheReader < 20) requestAnimationFrame(frame);
+          else resolve(widths);
+        };
+        requestAnimationFrame(frame);
+      })
+  );
+}
+
+/**
+ * This suite runs as a person who asked for less motion, and that person gets the final layout at
+ * once. A transition of any duration, however short, paints a frame at the old value: the list at
+ * no width at all, once its reader closes.
+ */
+test('a closing reader gives the list its room in one step', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await expect(page.getByRole('article')).toHaveCount(1);
+
+  const film = filmOfTheListWidth(page);
+  await closeTheFirstMessage(page);
+  const widths = await film;
+
+  const [before, after] = [widths[0], widths[widths.length - 1]];
+  expect(after).toBeGreaterThan(before);
+  expect(Math.min(...widths)).toBeGreaterThanOrEqual(before);
 });
 
 /** Owner request (2026-11-05): the unread dot stands before the sender, whatever the width. */
@@ -721,6 +800,7 @@ for (const sample of [
     await playTheApi(mockApi);
     await page.goto(`/en/dashboard/tools/mail${sample.address}`);
     await waitForHydration(page, 'a[data-mail-row]');
+    if (sample.width >= 1280 && !sample.address) await closeTheFirstMessage(page);
 
     const row = rowOf(page, 'Committee agenda for Thursday');
     const mark = row.getByRole('img', { name: 'Starred' });
@@ -741,6 +821,7 @@ test('a selection is trashed and what could not be is said', async ({
 
   await page.goto('/en/dashboard/tools/mail');
   await waitForHydration(page, 'a[data-mail-row]');
+  await closeTheFirstMessage(page);
   await page
     .getByRole('checkbox', {
       name: 'Select the message from Camille Martin: Committee agenda for Thursday',
@@ -753,7 +834,7 @@ test('a selection is trashed and what could not be is said', async ({
     .check();
   const bar = page.getByRole('region', { name: 'Selected messages' });
   await expect(bar.getByText('2 selected')).toBeVisible();
-  await bar.getByRole('button', { name: 'Move to the trash' }).click();
+  await bar.getByRole('button', { name: 'Delete' }).click();
 
   await expect(page.getByText('Done for 1, not for 1: those stay listed.')).toBeVisible();
   await expect(page.getByText('Committee agenda for Thursday')).toHaveCount(0);
@@ -771,6 +852,7 @@ test('a message archived comes back by the toast, under the id it left with', as
 
   await page.goto('/en/dashboard/tools/mail');
   await waitForHydration(page, 'a[data-mail-row]');
+  await closeTheFirstMessage(page);
   await page.getByRole('button', { name: 'Archive “Your October statement is available”' }).click();
 
   await expect(page.getByText('1 message archived')).toBeVisible();
@@ -822,13 +904,107 @@ test('on a phone every act of the open message stays within reach', async ({
 
   await page.goto('/en/dashboard/tools/mail?id=m1');
   const reader = page.getByRole('article');
-  await expect(reader.getByRole('button', { name: 'Archive' })).toBeVisible();
+  await expect(reader.getByRole('button', { name: 'Ask LIA' })).toBeVisible();
 
   for (const button of await reader.getByRole('button').all()) {
     const box = await button.boundingBox();
     if (box) expect(box.x + box.width).toBeLessThanOrEqual(390);
   }
+  await reader.getByRole('button', { name: 'More actions' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Archive' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Move to…' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Report as spam' })).toBeVisible();
 });
+
+/* AN OPEN MESSAGE'S BAR: « … », then the trash, then the question (owner, 2026-11-06). */
+for (const width of [1280, 390]) {
+  test(`a message's bar ends on the trash and the question at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/mail?id=m1');
+    const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+    await expectOnOneLine(
+      reader.getByRole('button', { name: 'More actions' }),
+      reader.getByRole('button', { name: 'Delete' }),
+      reader.getByRole('button', { name: 'Ask LIA' })
+    );
+    await expect(reader.getByRole('button', { name: 'Archive' })).toHaveCount(0);
+    await expect(reader.getByRole('button', { name: 'Report as spam' })).toHaveCount(0);
+    await expect(reader.getByRole('button', { name: 'Move to…' })).toHaveCount(0);
+    await expectInside(reader, reader.getByRole('button', { name: 'Ask LIA' }));
+    await expectNoOverflow(page, `the message's bar at ${width}px`);
+  });
+}
+
+/* THE MAILBOX'S OPENING: on a large screen, its newest message (owner, 2026-11-06). */
+test('a large screen opens on the newest message, unread until the person opens it', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+  const marks: unknown[] = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/workbench/mail/read-state')) marks.push(request.postDataJSON());
+  });
+
+  await page.goto('/en/dashboard/tools/mail');
+  const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+  await expect(reader.getByText('Quarter review', { exact: false })).toBeVisible();
+
+  expect(new URL(page.url()).search).toBe('');
+  await page.waitForTimeout(1500);
+  expect(marks).toEqual([]);
+
+  await page.locator('a[data-mail-row]').first().click();
+  await expect.poll(() => new URL(page.url()).searchParams.get('id')).toBe('m1');
+  await expect.poll(() => marks.length, { timeout: 5000 }).toBe(1);
+});
+
+test('closing the message a large screen opened leaves the list alone, for the visit', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+  await expect(reader).toBeVisible();
+  await reader.getByRole('button', { name: 'Close the message' }).click();
+
+  await expect(page.getByRole('article')).toHaveCount(0);
+  await expect(page.locator('a[data-mail-row]').first()).toBeFocused();
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.getByRole('article')).toHaveCount(0);
+});
+
+for (const width of [1024, 390]) {
+  test(`at ${width}px the mailbox opens on its list, the folders still in reach`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/mail');
+    await waitForHydration(page, 'a[data-mail-row]');
+    await expect(page.locator('a[data-mail-row]').first()).toBeVisible();
+    await expect(page.getByRole('article')).toHaveCount(0);
+  });
+}
 
 test('the pane and the pill say what the mailbox leaves unread', async ({
   page,
@@ -916,9 +1092,9 @@ test('a message is sent once, and the composer closes saying it left', async ({
   await waitForHydration(page, 'a[data-mail-row]');
   await page
     .getByRole('navigation', { name: 'Folders' })
-    .getByRole('button', { name: 'New message' })
+    .getByRole('button', { name: 'New email' })
     .click();
-  const dialog = page.getByRole('dialog', { name: 'New message' });
+  const dialog = page.getByRole('dialog', { name: 'New email' });
   await dialog.getByRole('combobox', { name: 'To' }).fill('ana@example.org');
   await dialog.getByRole('textbox', { name: 'Subject' }).fill('Thursday');
   await dialog.getByRole('textbox', { name: 'Message' }).fill('See you there.');
@@ -945,9 +1121,9 @@ test('« Send » holds the message a moment, and « Undo » gives it back unsent
   await waitForHydration(page, 'a[data-mail-row]');
   await page
     .getByRole('navigation', { name: 'Folders' })
-    .getByRole('button', { name: 'New message' })
+    .getByRole('button', { name: 'New email' })
     .click();
-  const dialog = page.getByRole('dialog', { name: 'New message' });
+  const dialog = page.getByRole('dialog', { name: 'New email' });
   await dialog.getByRole('combobox', { name: 'To' }).fill('ana@example.org');
   await dialog.getByRole('textbox', { name: 'Message' }).fill('See you there.');
   await dialog.getByRole('button', { name: 'Send' }).click();
@@ -963,14 +1139,12 @@ test('« Send » holds the message a moment, and « Undo » gives it back unsent
 });
 
 /** Opens the composer on a new message, the mail screen read. */
-async function newMessage(page: Page) {
+async function newMessage(page: Page, width = 1280) {
   await page.goto('/en/dashboard/tools/mail');
   await waitForHydration(page, 'a[data-mail-row]');
-  await page
-    .getByRole('navigation', { name: 'Folders' })
-    .getByRole('button', { name: 'New message' })
-    .click();
-  return page.getByRole('dialog', { name: 'New message' });
+  const pane = width < 1024 ? page : page.getByRole('navigation', { name: 'Folders' });
+  await pane.getByRole('button', { name: 'New email' }).first().click();
+  return page.getByRole('dialog', { name: 'New email' });
 }
 
 test('words marked in the browser leave with their marks, and the dialog stays clean', async ({
@@ -1085,6 +1259,139 @@ test('a reply shows whom it reaches and leaves to whom the person left', async (
   expect(played.replies[0]).toMatchObject({ to: ['ana@example.org'], cc: [], body: 'Thanks' });
 });
 
+/** Owner question (2026-11-06): an answer can be kept for later, as a new message can. */
+test('a reply is kept as a draft of its thread, and the composer closes on it', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  const played = await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await page.locator('a[data-mail-row]').first().click();
+  await page.getByRole('button', { name: 'Reply', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Reply' });
+  await expect(dialog.getByRole('combobox', { name: 'To' })).toHaveValue('ana@example.org');
+  await dialog.getByRole('textbox', { name: 'Message' }).fill('Later');
+  await dialog.getByRole('button', { name: 'Draft' }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Draft saved')).toBeVisible();
+  expect(played.drafts).toHaveLength(1);
+  expect(played.drafts[0]).toMatchObject({
+    origin: { kind: 'reply' },
+    body: 'Later',
+    to: ['ana@example.org'],
+    cc: ['carl@example.org'],
+  });
+  expect(played.replies).toHaveLength(0);
+});
+
+test('a forward asks whom it goes to before it is kept', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  const played = await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await page.locator('a[data-mail-row]').first().click();
+  await page.getByRole('button', { name: 'Forward' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Forward' });
+  await dialog.getByRole('button', { name: 'Draft' }).click();
+
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  expect(played.drafts).toHaveLength(0);
+  await dialog.getByRole('combobox', { name: 'To' }).fill('ana@example.org');
+  await dialog.getByRole('button', { name: 'Draft' }).click();
+
+  await expect(dialog).toHaveCount(0);
+  expect(played.drafts[0]).toMatchObject({ origin: { kind: 'forward' }, to: ['ana@example.org'] });
+});
+
+/** Owner requests (2026-11-06): one column, its words at one edge, LIA at the other. */
+for (const width of [390, 1280]) {
+  test(`a new email lines its fields up at ${width}px`, async ({ page, authenticate, mockApi }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, { assists: true });
+
+    const dialog = await newMessage(page, width);
+    const copies = dialog.getByRole('button', { name: 'Cc / Bcc' });
+    const toLabel = dialog.getByText('To', { exact: true });
+    const toBox = await toLabel.boundingBox();
+    expect(Math.abs((await wordStartOf(copies)) - (toBox?.x ?? 0))).toBeLessThanOrEqual(1);
+
+    const subject = dialog.getByRole('textbox', { name: 'Subject' });
+    const body = dialog.getByRole('textbox', { name: 'Message' });
+    const writes = dialog.getByRole('button', { name: 'Write with LIA' });
+    await expect(writes).toHaveCount(2);
+    await expectSameEnd(writes.first().locator('svg'), subject);
+    await expectSameEnd(writes.last().locator('svg'), body);
+
+    const send = dialog.getByRole('button', { name: 'Send' });
+    const draft = dialog.getByRole('button', { name: 'Draft' });
+    const cancel = dialog.getByRole('button', { name: 'Cancel' });
+    if (width === 390) await expectStackedWhole(send, draft, cancel);
+    else await expectOnOneLine(cancel, draft, send);
+    await expectNoOverflow(page, `the composer at ${width}px`);
+  });
+}
+
+/** Owner request (2026-11-06): the menu names the acts; its trigger has named the message. */
+test('a row’s menu on a phone says what it does, not which message again', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  await page.getByRole('button', { name: 'Actions: Committee agenda for Thursday' }).click();
+
+  const lines = await page.getByRole('menuitem').allTextContents();
+  expect(lines).toContain('Delete');
+  expect(lines.filter(line => line.includes('Committee agenda'))).toEqual([]);
+});
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test.skip(({ browserName }) => browserName === 'firefox', 'no mobile emulation');
+
+  /** Owner report (2026-11-06): iOS zoomed into a small field and stayed there. */
+  test('no field of a message is one iOS would zoom into, plain or formatted', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/mail');
+    await waitForHydration(page, 'a[data-mail-row]');
+    await expectNoZoomOnFocus(page);
+    await page.getByRole('button', { name: 'New email' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'New email' });
+    await dialog.getByRole('button', { name: 'Cc / Bcc' }).click();
+    await expectNoZoomOnFocus(page);
+    await dialog.getByRole('button', { name: 'Formatting' }).click();
+    await expect(dialog.getByRole('textbox', { name: 'Message' })).toHaveAttribute(
+      'contenteditable',
+      'true'
+    );
+    await expectNoZoomOnFocus(page);
+  });
+});
+
 test('a file of the device leaves with the message, and nothing leaves before it arrives', async ({
   page,
   authenticate,
@@ -1095,9 +1402,9 @@ test('a file of the device leaves with the message, and nothing leaves before it
   const played = await playTheApi(mockApi);
 
   await page.goto('/en/dashboard/tools/mail');
-  await waitForHydration(page, 'select');
-  await page.getByRole('button', { name: 'New message' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'New message' });
+  await waitForHydration(page, 'a[data-mail-row]');
+  await page.getByRole('button', { name: 'New email' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'New email' });
   await dialog.getByRole('combobox', { name: 'To' }).fill('ana@example.org');
   await dialog.getByLabel('From this device').setInputFiles({
     name: 'notes.txt',
@@ -1149,11 +1456,11 @@ test('a signature written in the settings closes the next message', async ({
 
   await page
     .getByRole('navigation', { name: 'Folders' })
-    .getByRole('button', { name: 'New message' })
+    .getByRole('button', { name: 'New email' })
     .click();
 
   await expect(
-    page.getByRole('dialog', { name: 'New message' }).getByRole('textbox', { name: 'Message' })
+    page.getByRole('dialog', { name: 'New email' }).getByRole('textbox', { name: 'Message' })
   ).toHaveValue('\n\n-- \nAna Lima');
 });
 
@@ -1166,14 +1473,14 @@ test('the composer leaves the mail usable behind it', async ({ page, authenticat
   await waitForHydration(page, 'a[data-mail-row]');
   await page
     .getByRole('navigation', { name: 'Folders' })
-    .getByRole('button', { name: 'New message' })
+    .getByRole('button', { name: 'New email' })
     .click();
-  await expect(page.getByRole('dialog', { name: 'New message' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'New email' })).toBeVisible();
 
   await page.locator('a[data-mail-row]').first().click();
 
   await expect(page).toHaveURL(/id=/);
-  await expect(page.getByRole('dialog', { name: 'New message' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'New email' })).toBeVisible();
   const scan = await new AxeBuilder({ page }).include('main').analyze();
   expect(scan.violations).toEqual([]);
 });
@@ -1280,8 +1587,8 @@ test('when nobody knows whether it left, the words stay and Sent is named', asyn
 
   await page.goto('/en/dashboard/tools/mail');
   await waitForHydration(page, 'a[data-mail-row]');
-  await page.getByRole('button', { name: 'New message' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'New message' });
+  await page.getByRole('button', { name: 'New email' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'New email' });
   await dialog.getByRole('combobox', { name: 'To' }).fill('ana@example.org');
   await dialog.getByRole('textbox', { name: 'Message' }).fill('See you there.');
   await dialog.getByRole('button', { name: 'Send' }).click();
@@ -1375,7 +1682,7 @@ test('a list by conversation draws one line, acts on all of it and is remembered
   await page.getByRole('checkbox', { name: /Committee agenda/ }).click();
   await page
     .getByRole('region', { name: 'Selected messages' })
-    .getByRole('button', { name: /Move to the trash/ })
+    .getByRole('button', { name: 'Delete' })
     .click();
 
   await expect.poll(() => played.moves.at(-1)?.message_ids).toEqual(['m1', 'm4']);
@@ -1509,4 +1816,183 @@ test('the keyboard walks the list, opens a message and gets its row back on Esca
 
   await expect(page).toHaveURL(/\/en\/dashboard\/tools\/mail$/);
   await expect(page.getByRole('link', { name: /Committee agenda for Thursday/ })).toBeFocused();
+});
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+const LONG_LABEL = 'Clients and suppliers of the second half of the year, by region';
+
+for (const width of [390, 360]) {
+  test(`a phone reads the mail's header and its folders line by line at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+    await mockApi([
+      {
+        url: /\/api\/v1\/workbench\/mail\/folders$/,
+        json: {
+          folders: [
+            ...FOLDERS.folders,
+            { id: 'Label_9', kind: 'user', role: null, name: LONG_LABEL },
+          ],
+        },
+      },
+    ]);
+
+    await page.goto('/en/dashboard/tools/mail');
+    await waitForHydration(page, 'a[data-mail-row]');
+    const tool = page.getByRole('region', { name: 'Mail' });
+    const search = page.getByRole('button', { name: 'Search across your tools' });
+    const refresh = page.getByRole('button', { name: 'Refresh' });
+    const grouping = page.getByRole('button', { name: 'Group by conversation' });
+    const select = page.getByRole('button', { name: 'Select', exact: true });
+    const write = page.getByRole('button', { name: 'New email' }).first();
+    await expect(write).toHaveText('New email');
+    await expectOnOneLine(search, refresh, grouping, select, write);
+    await expectSameStart(search, tool);
+    await expectSameEnd(write, tool);
+    for (const square of [search, refresh, grouping, select]) {
+      await expect(square).toHaveCSS('width', '40px');
+      await expect(square).toHaveCSS('height', '40px');
+      await expect(square).toHaveCSS('border-top-width', '2px');
+    }
+    // On, the toggle says so to the eye: its ground is no longer the field's.
+    const off = await select.evaluate(element => getComputedStyle(element).backgroundColor);
+    await select.click();
+    await expect(select).toHaveAttribute('aria-pressed', 'true');
+    // Away from it: a pointer resting there would answer for the toggle.
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(() => select.evaluate(e => getComputedStyle(e).backgroundColor))
+      .not.toBe(off);
+
+    const list = page.getByRole('combobox', { name: 'Folder' });
+    // An open list hides the page from the tree: its trigger is measured before.
+    const trigger = await list.boundingBox();
+    await list.click();
+    const options = page.getByRole('listbox');
+    await expect(options).toBeVisible();
+    const opened = await options.boundingBox();
+    expect(
+      Math.abs((opened?.width ?? 0) - (trigger?.width ?? 0)),
+      'as wide as the pane'
+    ).toBeLessThanOrEqual(1);
+    const long = options.getByRole('option', { name: LONG_LABEL });
+    await long.scrollIntoViewIfNeeded();
+    await expect(long.getByText(LONG_LABEL).first()).toBeVisible();
+    expect(
+      await long.evaluate(option => option.scrollWidth <= option.clientWidth),
+      'a long label breaks on its lines and reads whole'
+    ).toBe(true);
+    await options.getByRole('option', { name: /^Sent/ }).click();
+    await expect(page).toHaveURL(/folder=/);
+    await expectNoOverflow(page, `the folders at ${width}px`);
+  });
+
+  test(`a phone reads a message line by line at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await prepareTheme(page, 'dark');
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, {
+      html: '<p>Readable original</p><img alt="far" src="https://images.example.org/p.png">',
+    });
+
+    await page.goto('/en/dashboard/tools/mail?id=m1');
+    const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+    await expect(page.frameLocator('iframe[sandbox]').getByText('Readable original')).toBeVisible();
+    const answers = reader.getByRole('group', { name: 'Answer the message' }).first();
+    const text = reader.getByRole('button', { name: 'Show the text' });
+    const images = reader.getByRole('button', { name: 'Show the images' });
+    const original = reader.getByRole('button', { name: 'Show original' });
+    await expectOnOneLine(
+      answers.getByRole('button', { name: 'Reply', exact: true }),
+      answers.getByRole('button', { name: 'Reply all' }),
+      answers.getByRole('button', { name: 'Forward' })
+    );
+    await expectOnOneLine(text, images, original);
+    const frame = page.locator('iframe[sandbox]');
+    await expectSameStart(text, frame);
+    await expectSameCentre(images, frame);
+    await expectSameEnd(original, frame);
+    await expectUnder(answers, text);
+    // Owner request (2026-11-06): where the page ends, one answer per line, the whole width.
+    const ending = reader.getByRole('group', { name: 'Answer the message' }).last();
+    await expectStackedWhole(
+      ending.getByRole('button', { name: 'Reply', exact: true }),
+      ending.getByRole('button', { name: 'Reply all' }),
+      ending.getByRole('button', { name: 'Forward' })
+    );
+    await expect(reader.getByRole('navigation', { name: 'Answer the message' })).toBeHidden();
+    await expectInside(reader, reader.getByRole('button', { name: 'More actions' }));
+    await expectNoOverflow(page, `the message at ${width}px`);
+  });
+}
+
+test('the phone’s list of folders answers the keyboard and gives the focus back', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail');
+  await waitForHydration(page, 'a[data-mail-row]');
+  const list = page.getByRole('combobox', { name: 'Folder' });
+  await list.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('option', { name: /^Inbox/ })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('option', { name: 'Starred' })).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page).toHaveURL(/folder=system%3Astarred/);
+  await expect(list).toBeFocused();
+  await expect(list).toHaveText(/Starred/);
+});
+
+test('on a computer the views of a message stand together in the middle', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepareTheme(page, 'dark');
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi, {
+    html: '<p>Readable original</p><img alt="far" src="https://images.example.org/p.png">',
+  });
+
+  await page.goto('/en/dashboard/tools/mail?id=m1');
+  const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+  await expect(page.frameLocator('iframe[sandbox]').getByText('Readable original')).toBeVisible();
+  const text = reader.getByRole('button', { name: 'Show the text' });
+  const images = reader.getByRole('button', { name: 'Show the images' });
+  const original = reader.getByRole('button', { name: 'Show original' });
+
+  await expectOnOneLine(text, images, original);
+  await expectLinesCentredIn(page.locator('iframe[sandbox]'), text, images, original);
+});
+
+test('from `lg` a message keeps its answers in one place', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi);
+
+  await page.goto('/en/dashboard/tools/mail?id=m1');
+  const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+  await expect(reader.getByRole('navigation', { name: 'Answer the message' })).toBeVisible();
+  await expect(reader.getByRole('group', { name: 'Answer the message' })).toBeHidden();
 });

@@ -481,8 +481,8 @@ apps/web/src/
 │   ├── RefreshAllButton.tsx   "Tout rafraîchir" header button
 │   └── UpdatedAtBadge.tsx     Relative timestamp + "updated ✨" badge
 │   └── cards/                 6 specific cards (Weather, Agenda, Mails, Birthdays,
-│                              Reminders, Health) — Health uses display:contents so the
-│                              today/average separators line up vertically across metrics.
+│                              Reminders, Health) — Health draws each measure on a dial
+│                              (`HealthDial`, `lib/health-dial.ts`), the two side by side.
 ├── hooks/useBriefing.ts       Two parallel useApiQuery calls (cards + synthesis) for
 │                              non-blocking progressive rendering
 ├── types/briefing.ts          Mirror of Pydantic schemas (LLMUsage, TextSection.usage)

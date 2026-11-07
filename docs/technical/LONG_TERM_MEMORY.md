@@ -135,7 +135,7 @@ class ExtractedMemory(BaseModel):
     memory_id: str | None          # requis pour update/delete
 
     # Contenu
-    content: str | None            # Le fait en une phrase concise
+    content: str | None            # Le fait en une phrase concise, borné (voir ci-dessous)
 
     # Classification — vocabulaire de MemoryCategory (voir ci-dessous)
     category: MemoryCategoryType | None
@@ -168,6 +168,44 @@ présente dans l'énumération et absente d'une restatement disparaît du produi
 en silence. C'est exactement ce qui est arrivé à `procedural` jusqu'au
 2026-08-28 — le parseur rejetait la catégorie que le prompt d'extraction
 demandait, et l'échec était journalisé en `debug`.
+
+### Les bornes du texte d'une mémoire (2026-11-06)
+
+Les bornes ne sont déclarées qu'une fois : le réglage `memory_content_max_chars`
+(`content` est une colonne `Text`), et dans `core/constants.py`
+`MEMORY_CONTENT_MIN_CHARS`, `MEMORY_TRIGGER_TOPIC_MAX_CHARS` et
+`MEMORY_USAGE_NUANCE_MAX_CHARS` (ces deux dernières sont la largeur de leur
+colonne : les déplacer demande une migration).
+
+| Qui | Ce qu'il en fait |
+|---|---|
+| `MemoryCreate`, `MemoryUpdate`, `ExtractedMemory` | Refusent tout texte nouveau hors bornes |
+| `GET /memories` (champ `limits`) | Les publie au formulaire |
+| Prompt d'extraction | Les reçoit en placeholders |
+| `MemoryFormFields.tsx` | Compte, nomme le dépassement et retient l'envoi |
+| `MemoryStored` (`MemoryResponse`, aperçu d'une modification) | N'applique pas celles de `content` |
+
+- **Une borne d'écriture ne refuse jamais une lecture.** `MemoryStored` porte chaque
+  ligne de la liste, de l'export et des aperçus de l'assistant : une seule ligne
+  refusée, et l'écran entier répond 500. Une telle ligne peut exister, il suffit de
+  baisser `MEMORY_CONTENT_MAX_CHARS`. Elle reste lisible, et le formulaire comme
+  l'assistant peuvent la raccourcir.
+- **Seul un texte qui serait stocké peut refuser une action.** Un `delete` ne lit que
+  son id, et un `update` au contenu vide garde son texte.
+- **Le formulaire compte ce que l'API compte** : un caractère par point de code.
+  `String.length` compte un emoji deux fois et bloquerait un texte que l'API accepte.
+  S'il n'a pas pu lire les bornes, le refus de l'API se dit quand même
+  (`memories.text_refused`), et le message reste stable pendant la frappe : une
+  alerte se ré-annonce à chaque changement de son texte.
+- **Un texte n'est jamais coupé.** Le formulaire n'utilise pas `maxLength`, qui
+  tronquerait un collage sans rien dire, et l'extraction refuse le fait trop long
+  au lieu de le tronquer : `memory_item_validation_failed` le dit
+  (`content:string_too_long`), et le prompt demande de le décomposer.
+- **Un refus laisse une ligne.** Un 422 est répondu avant tout gestionnaire et
+  `request_completed` reste sous le niveau de production :
+  `request_validation_failed` dit le type d'erreur, le champ quand le code a écrit
+  son nom (`<withheld>` sinon) et le nombre d'erreurs, jamais la valeur. Les routes
+  d'entrée privée gardent leur seul compteur.
 
 ### Une directive se corrige, elle ne se supprime pas (2026-09-10)
 
@@ -381,6 +419,11 @@ Fonctionnalités :
 
 #### Dialog d'Édition
 
+Les dialogues de création et de modification partagent
+`apps/web/src/components/settings/MemoryFormFields.tsx`. Chaque texte borné affiche
+son compteur, un dépassement est dit sous le champ, et `isMemoryTextSavable`
+(`apps/web/src/lib/memories/text-bounds.ts`) retient le bouton d'envoi.
+
 Champs éditables :
 - **Contenu** : Textarea
 - **Catégorie** : Select du vocabulaire de catégories déclaré
@@ -417,6 +460,7 @@ function useMemories() {
     memories,           // Liste des mémoires
     total,              // Nombre total
     byCategory,         // Comptage par catégorie
+    limits,             // Bornes publiées avec la liste
     categories,         // Info catégories
     loading, deleting,  // États de chargement
     updating,           // État mise à jour
@@ -452,8 +496,8 @@ Clés i18n pour les mémoires :
 
 `core/config/agents.py` déclare les paramètres de recherche et d'extraction,
 dont `memory_extraction_enabled`, `memory_max_results`,
-`memory_min_search_score`, `memory_dedup_search_limit` et
-`memory_dedup_min_score`. Les valeurs par défaut appartiennent à la
+`memory_content_max_chars`, `memory_min_search_score`,
+`memory_dedup_search_limit` et `memory_dedup_min_score`. Les valeurs par défaut appartiennent à la
 configuration et à ses constantes ; elles ne sont pas répétées ici.
 
 Le consentement personnel (`users.memory_enabled`) est indépendant du réglage
@@ -509,13 +553,19 @@ Liste les mémoires de l'utilisateur authentifié.
     "personal": 3,
     "relationship": 4,
     "sensitivity": 3
-  }
+  },
+  "limits": { "...": "les bornes du texte, voir ci-dessous" }
 }
 ```
 
+`limits` porte `content_min_chars`, `content_max_chars`,
+`trigger_topic_max_chars` et `usage_nuance_max_chars` : voir
+[Les bornes du texte d'une mémoire](#les-bornes-du-texte-dune-mémoire-2026-11-06).
+
 ### PATCH /api/v1/memories/{memory_id}
 
-Modifie une mémoire spécifique.
+Modifie une mémoire spécifique. Un champ absent reste inchangé, une chaîne vide
+efface `usage_nuance` ou `trigger_topic`, et un texte hors bornes répond 422.
 
 **Body** :
 ```json

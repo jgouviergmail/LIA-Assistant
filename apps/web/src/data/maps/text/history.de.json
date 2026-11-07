@@ -1942,6 +1942,16 @@
       "title": "Eine vom Modell geschriebene Seite läuft im Chat, im strengsten Rahmen",
       "summary": "Wer ein Spiel oder ein kleines Werkzeug verlangt, bekommt eine Seite, die in der Unterhaltung läuft, samt ihrer Datei; wer den Code verlangt, bekommt den Code, und was eine Person tippt, bleibt Text. Die Seite läuft isoliert, ohne Zugriff auf das Konto oder auf eine selbst gewählte Website, unter einer Richtlinie, die keinen Host nennt. Aus dem Verlauf geladen wartet sie auf einen Klick, denn eine Endlosschleife würde den Tab einfrieren, und das Modell liest von ihr nur den Titel.",
       "src": "ab92ef5e6f98"
+    },
+    "371": {
+      "title": "Die Plätze der Domänen-Agenten gehen mit ihren Knoten",
+      "summary": "Die Administration bot an, sechzehn Agenten einzustellen, die kein Durchlauf mehr aufrief: Ein Plan führt die Werkzeuge direkt aus, und die Produktion zählte bei ihnen kein einziges Token. Ihre Plätze, Knoten und Prompts sind entfernt; der Platz Emails bleibt, weil er die Nachrichten schreibt. Eine Neuinstallation startet jetzt auf Modellen mit einem Tarif.",
+      "src": "3cfe6d5c67cc"
+    },
+    "372": {
+      "title": "Aus den Werkzeugen: ein Klick, ein Aufruf, ein Vorschlag",
+      "summary": "Eine Nachricht zusammenfassen, eine Antwort vorschlagen, eine Visitenkarte lesen: Ein Klick bittet LIA um eine Sache und erhält einen Vorschlag, den die Person liest, niemals einen Schreibvorgang beim Anbieter. Der Vorgang wird nachverfolgt und dem Klickenden berechnet, und kein Bildschirm ohne Platz erhält ein weiteres Bedienelement: Das letzte Symbol jeder Leiste öffnet die Liste.",
+      "src": "357747655d68"
     }
   }
 }

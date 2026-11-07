@@ -13,11 +13,12 @@ import { Bold, Italic, Link2, List, ListOrdered, Underline, type LucideIcon } fr
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { linkOf } from '@/lib/workbench/mail-compose';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 /** What the toolbar asks of the browser, and how each is named. */
 const MARKS: readonly { command: string; icon: LucideIcon; label: string }[] = [
@@ -149,9 +150,9 @@ function LinkDialog({
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>{t('workbench.mail.compose.link_title')}</DialogTitle>
-        </DialogHeader>
+        </ToolDialogHeader>
         <form className="space-y-3" onSubmit={submit}>
           <Input
             label={t('workbench.mail.compose.link_label')}
@@ -162,12 +163,10 @@ function LinkDialog({
               setRefused(false);
             }}
           />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={onClose} />
             <Button type="submit">{t('workbench.mail.compose.link_add')}</Button>
-          </div>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>

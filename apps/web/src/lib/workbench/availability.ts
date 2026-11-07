@@ -11,7 +11,7 @@ import type { AppConfig } from '@/hooks/useAppConfig';
 import { capabilityEnabled } from '@/lib/capability-state';
 
 interface WorkbenchConfig {
-  features?: { workbench_enabled?: boolean };
+  features?: { workbench_enabled?: boolean; tool_assists_enabled?: boolean };
   capabilities?: AppConfig['capabilities'];
 }
 
@@ -21,4 +21,16 @@ interface WorkbenchConfig {
  */
 export function workbenchAvailable(config: WorkbenchConfig | null | undefined): boolean {
   return capabilityEnabled(config?.capabilities, 'workbench', config?.features?.workbench_enabled);
+}
+
+/**
+ * @param config - The app configuration, possibly not loaded.
+ * @returns Whether a click may ask a model from the Tools (ADR-372): off, they stay by hand.
+ */
+export function toolAssistsAvailable(config: WorkbenchConfig | null | undefined): boolean {
+  return capabilityEnabled(
+    config?.capabilities,
+    'tool_assists',
+    config?.features?.tool_assists_enabled
+  );
 }

@@ -150,6 +150,7 @@ report names every capability an install leaves without its key:
 | Premium voice output (TTS) and remote dictation | ElevenLabs | ElevenLabs speech and remote dictation are unavailable; Edge TTS and local dictation remain available |
 | Premium voice output, transcription and voice library | Fish Audio | Fish Audio speech, transcription and the voice library are unavailable; Edge TTS remains available |
 | MCP App interactive widgets | Anthropic | Widgets fall back to plain responses |
+| Proactive discussions | Qwen | The three seeded discussion slots cannot answer, so LIA opens no discussion until they have a key or another model |
 | Native bounded decisions | TypeSafe (JEV) | Each JEV use stays off; LIA keeps its existing decision paths |
 
 ---
@@ -686,6 +687,17 @@ no downgrade path.
 the Entra registration. An Outlook connection keeps working and asks to be reconnected
 once for its automatic replies and rules; OneDrive is connected from Settings > Connectors.
 
+**From a release before 4.5.0:** the migrations remove the sixteen domain-agent slots no
+turn read ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)),
+and any override on them leaves with its row. The `tool_assist` slot starts from your
+`email_digest` row with a larger output cap, else from your `response` row; with neither it
+stays on its code default, so choose its model in **LLM Configuration** after the upgrade. What LIA does from the Tools
+is on as soon as the new release runs, and each click spends on the instance's keys (see
+[Connected services](#connected-services-and-the-tools-workspace)): add
+`TOOL_ASSISTS_ENABLED=false` to your `.env` before step 6 to keep it off. The reference seeds
+are not replayed: your slots keep the models you chose, and a model the reference catalogue
+retired stays active and priced on your instance.
+
 #### 1. Back up — before anything else
 
 ```bash
@@ -748,8 +760,9 @@ cp -r ~/lia-upgrade/* /path/to/your/install/
 
 **Never overwrite** `.env`, `docker-compose.install.yml`,
 `infrastructure/caddy/Caddyfile`, or `.install-state.json` — those are yours.
-Compare `.env.min.prod.example` against your `.env` afterwards: a release that
-adds a setting adds it there first.
+Compare `.env.min.prod.example` against your `.env` afterwards: a setting a
+release makes mandatory appears there first, and an optional one runs on its
+default until you set it.
 
 #### 5. Re-pin the images to the new digests
 
@@ -916,12 +929,21 @@ sandbox, then asks Docker to validate the merged model.
 
 ## Connected services and the Tools workspace
 
-The **Tools** workspace reuses the person's existing connectors. It needs no new
-Compose service, provider key, reference seed or installer question. Its default
-availability is declared in `apps/api/src/core/config/workbench.py`; an instance
-can withhold it through the capability controls. Per-provider features remain
-conditional on the connected account and its permissions. See
+The **Tools** workspace reuses the person's existing connectors. By hand, it needs
+no new Compose service, provider key, reference seed or installer question. Its
+default availability is declared in `apps/api/src/core/config/workbench.py`; an
+instance can withhold it through the capability controls. Per-provider features
+remain conditional on the connected account and its permissions. See
 [the workspace reference](../technical/WORKBENCH.md).
+
+What a click asks of LIA from those screens (the yellow stars) is on by default,
+and it spends: it runs on the `tool_assist`, `email_digest`, `emails_agent` and
+`vision_analysis` slots, on the instance's keys, billed to whoever clicked. Each
+account is bounded by `TOOL_ASSIST_RATE_LIMIT_CALLS` per
+`TOOL_ASSIST_RATE_LIMIT_WINDOW_SECONDS`, then by its own ceiling and the
+instance's. `tool_assist` is seeded on a fresh install and starts from the
+`email_digest` row on an upgrade. `TOOL_ASSISTS_ENABLED=false` or the capability
+switch removes all of it. See [what LIA does from the Tools](../technical/TOOL_ASSISTS.md).
 
 MCP confirmation preferences and per-tool choices are created by Alembic during
 the normal migration phase. Existing accounts and servers inherit the instance

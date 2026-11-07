@@ -8,8 +8,14 @@ Supports GDPR compliance (export, delete all) and emotional profiling.
 from datetime import datetime
 from typing import Any, Literal, get_args
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from src.core.config import settings
+from src.core.constants import (
+    MEMORY_CONTENT_MIN_CHARS,
+    MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+    MEMORY_USAGE_NUANCE_MAX_CHARS,
+)
 from src.domains.memories.models import PurgeRiskLevel
 
 # DERIVED from the enum the database column stores — never restated. Two hand
@@ -67,8 +73,8 @@ class MemoryBase(BaseModel):
     content: str = Field(
         ...,
         description="The fact or piece of information, in one concise sentence",
-        min_length=3,
-        max_length=500,
+        min_length=MEMORY_CONTENT_MIN_CHARS,
+        max_length=settings.memory_content_max_chars,
     )
     category: MemoryCategoryType = Field(
         ...,
@@ -83,12 +89,12 @@ class MemoryBase(BaseModel):
     trigger_topic: str = Field(
         default="",
         description="Trigger keyword",
-        max_length=100,
+        max_length=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
     )
     usage_nuance: str = Field(
         default="",
         description="How to use this information",
-        max_length=300,
+        max_length=MEMORY_USAGE_NUANCE_MAX_CHARS,
     )
     importance: float = Field(
         default=0.7,
@@ -109,8 +115,8 @@ class MemoryUpdate(BaseModel):
 
     content: str | None = Field(
         default=None,
-        min_length=3,
-        max_length=500,
+        min_length=MEMORY_CONTENT_MIN_CHARS,
+        max_length=settings.memory_content_max_chars,
     )
     category: MemoryCategoryType | None = None
     emotional_weight: int | None = Field(
@@ -120,11 +126,11 @@ class MemoryUpdate(BaseModel):
     )
     trigger_topic: str | None = Field(
         default=None,
-        max_length=100,
+        max_length=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
     )
     usage_nuance: str | None = Field(
         default=None,
-        max_length=300,
+        max_length=MEMORY_USAGE_NUANCE_MAX_CHARS,
     )
     importance: float | None = Field(
         default=None,
@@ -133,7 +139,20 @@ class MemoryUpdate(BaseModel):
     )
 
 
-class MemoryResponse(MemoryBase):
+class MemoryStored(MemoryBase):
+    """A memory's fields as the database holds them: what every read projects.
+
+    ``content`` is declared again to shed the write bounds it inherits. A write bound
+    never refuses a read: this shape carries every row of the list, of the export and
+    of the assistant's previews, so one refused row is a screen nobody can open and a
+    memory nobody can correct. It is the one text no column bounds, and a lowered
+    ``MEMORY_CONTENT_MAX_CHARS`` leaves longer rows behind.
+    """
+
+    content: str = Field(description="The fact or piece of information, as stored")
+
+
+class MemoryResponse(MemoryStored):
     """Schema for memory in API responses."""
 
     id: str = Field(description="Unique memory identifier")
@@ -176,6 +195,31 @@ class MemoryResponse(MemoryBase):
     )
 
 
+class MemoryLimits(BaseModel):
+    """The bounds a memory's text is held to, published to the form that fills it (ADR-184).
+
+    Counted in characters as Pydantic counts them, one per code point, which is what the
+    form must count too: an emoji is two units of a JavaScript `String.length`.
+    """
+
+    content_min_chars: int = Field(
+        default=MEMORY_CONTENT_MIN_CHARS,
+        description="Shortest accepted content",
+    )
+    content_max_chars: int = Field(
+        default=settings.memory_content_max_chars,
+        description="Longest accepted content",
+    )
+    trigger_topic_max_chars: int = Field(
+        default=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+        description="Longest accepted trigger topic",
+    )
+    usage_nuance_max_chars: int = Field(
+        default=MEMORY_USAGE_NUANCE_MAX_CHARS,
+        description="Longest accepted usage nuance",
+    )
+
+
 class MemoryListResponse(BaseModel):
     """Response for listing memories."""
 
@@ -190,6 +234,10 @@ class MemoryListResponse(BaseModel):
     by_category: dict[str, int] = Field(
         default_factory=dict,
         description="Count of memories per category",
+    )
+    limits: MemoryLimits = Field(
+        default_factory=MemoryLimits,
+        description="The bounds a memory's text is held to on every write",
     )
 
 
@@ -261,6 +309,23 @@ class ExtractedMemory(BaseModel):
     before applying via MemoryService.
     """
 
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_text_nothing_will_store(cls, data: object) -> object:
+        """Let only a text that would be stored refuse an action.
+
+        A ``delete`` reads its id alone, and an ``update`` with a blank content keeps
+        the text it has: that one used to write an EMPTY successor, the fact gone.
+        Neither is a defect to refuse, whatever the model echoed there.
+        """
+        if not isinstance(data, dict):
+            return data
+        content = data.get("content")
+        blank = isinstance(content, str) and not content.strip()
+        if data.get("action") == "delete" or (data.get("action") == "update" and blank):
+            return {**data, "content": None}
+        return data
+
     action: Literal["create", "update", "delete"] = Field(
         default="create",
         description="Action type: create new, update existing, or delete existing.",
@@ -271,6 +336,8 @@ class ExtractedMemory(BaseModel):
     )
     content: str | None = Field(
         default=None,
+        min_length=MEMORY_CONTENT_MIN_CHARS,
+        max_length=settings.memory_content_max_chars,
         description="Memory content in first person (required for create, optional for update).",
     )
     category: MemoryCategoryType | None = Field(
@@ -285,12 +352,12 @@ class ExtractedMemory(BaseModel):
     )
     trigger_topic: str | None = Field(
         default=None,
-        max_length=100,
+        max_length=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
         description="Trigger keyword for this memory.",
     )
     usage_nuance: str | None = Field(
         default=None,
-        max_length=300,
+        max_length=MEMORY_USAGE_NUANCE_MAX_CHARS,
         description="How the assistant should use this information.",
     )
     importance: float | None = Field(

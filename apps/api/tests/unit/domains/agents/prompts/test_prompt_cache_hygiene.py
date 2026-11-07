@@ -61,6 +61,19 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "image_prompt_enhancement_prompt",
     # Mailbox drafts (ADR-344): the reply's rules first, the received e-mail in the tail
     "mailbox_reply_draft_prompt",
+    # The Tools (ADR-372): the rules first, the person's words in the tail
+    "tool_assist_rewrite_prompt",
+    "tool_assist_translate_prompt",
+    "tool_assist_write_prompt",
+    "tool_assist_event_prompt",
+    "tool_assist_task_prompt",
+    "tool_assist_steps_prompt",
+    "tool_assist_file_prompt",
+    "tool_assist_conversation_prompt",
+    "tool_assist_search_prompt",
+    "tool_assist_filter_prompt",
+    "tool_assist_contact_prompt",
+    "tool_assist_card_prompt",
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",
@@ -69,25 +82,9 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "initiative_prompt",
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",
-    # Domain agents (all share the <Context> tail pattern)
-    "brave_agent_prompt",
+    # Compiled agents (both share the <Context> tail pattern)
     "browser_agent_prompt",
-    "calendar_agent_prompt",
-    "contacts_agent_prompt",
-    "drive_agent_prompt",
-    "emails_agent_prompt",
-    "health_agent_prompt",
-    "hue_agent_prompt",
-    "perplexity_agent_prompt",
-    "places_agent_prompt",
     "query_agent_prompt",
-    "routes_agent_prompt",
-    "tasks_agent_prompt",
-    "weather_agent_prompt",
-    "web_fetch_agent_prompt",
-    "web_search_agent_prompt",
-    "wikipedia_agent_prompt",
-    "telephony_agent_prompt",
     # Personal radio (ADR-324): the station, its contract and bounds first — one
     # prefix for every segment of a listener — the segment's data below.
     "radio_writer_prompt",
@@ -112,6 +109,18 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # Brave API maxima — constants, invariant for a deployment (ADR-184: the
     # bound the tool enforces is the one the prompt publishes).
     "brave_agent_prompt": frozenset({"brave_web_max_count", "brave_news_max_count"}),
+    # The bounds the parser holds a memory to: one value per deployment, read at
+    # startup, never per request (ADR-184 amendment 2026-11-06).
+    "memory_extraction_prompt": frozenset(
+        {
+            "memory_content_min_chars",
+            "memory_content_max_chars",
+            "memory_trigger_topic_max_chars",
+            "memory_usage_nuance_max_chars",
+        }
+    ),
+    # The count the assist cuts to: a constant, the same in every request (ADR-184).
+    "tool_assist_steps_prompt": frozenset({"steps_max"}),
     # Expert identity must be established up front; stable per delegated task type.
     # The bound tools and the round budget (ADR-083 amendment 2026-10-13 b) come
     # from the whitelist and a setting: identical for every request of a deployment.
@@ -248,9 +257,9 @@ def test_no_unexpected_placeholder_before_marker(name: str) -> None:
 def test_every_marked_prompt_is_required() -> None:
     """A prompt that carries the marker is a cacheable prompt: it must be guarded.
 
-    ``telephony_agent_prompt`` carried the marker and sat outside this list
-    (prompt audit 2026-09-12): a placeholder sneaking before its marker would
-    have gone unnoticed.
+    One prompt carried the marker and sat outside this list (prompt audit
+    2026-09-12): a placeholder sneaking before its marker would have gone
+    unnoticed.
     """
     marked = {
         path.stem

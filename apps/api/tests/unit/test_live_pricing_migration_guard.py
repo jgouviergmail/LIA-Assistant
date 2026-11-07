@@ -18,6 +18,7 @@ import pytest
 
 from src.infrastructure.llm.catalogue.vendor_announcements import VENDOR_SHUTDOWNS
 from tests.unit.infrastructure.llm.reasoning.test_family_coverage import _catalogue_rows
+from tests.unit.seed_extraction import retired_by_the_operator
 
 pytestmark = pytest.mark.unit
 
@@ -117,9 +118,12 @@ def test_every_migrated_catalogue_row_equals_the_seed_row(file_name: str) -> Non
             **getattr(module, "CATALOGUE_OVERRIDES", {}).get(model_name, {}),
         }
         for column, value in declared.items():
-            if column == "is_active" and model_name in deactivated:
+            if column == "is_active" and (
+                model_name in deactivated or retired_by_the_operator(model_name, column)
+            ):
                 # A later migration took the row out of the catalogue on purpose
-                # (the agents platform is no model of ours); the seed says so.
+                # (the agents platform is no model of ours), or the operator did
+                # in production; the seed says so.
                 assert seed_row[column] == "false", model_name
                 continue
             expected = "NULL" if value is None else str(value).lower()
@@ -127,14 +131,13 @@ def test_every_migrated_catalogue_row_equals_the_seed_row(file_name: str) -> Non
 
 
 @migrated
-def test_every_migrated_tariff_equals_the_seed_bundles_active_row(file_name: str) -> None:
+def test_every_migrated_tariff_equals_the_seed_bundle_row_at_its_date(file_name: str) -> None:
     module = _load_migration(file_name)
-    active = {m.group("model"): m for m in _seed_tariffs() if m.group("active") == "true"}
+    rows = {(m.group("model"), m.group("effective")): m for m in _seed_tariffs()}
     for model_name, (_provider, tariff) in module.LIVE_MODELS.items():
         if model_name in _retired_by_a_later_migration(file_name):
             continue  # a later migration retired this row on purpose; its own history test holds it
-        bundle = active[model_name]
-        assert bundle.group("effective") == module.EFFECTIVE_FROM, model_name
+        bundle = rows[(model_name, module.EFFECTIVE_FROM)]
         assert bundle.group("unit") == tariff["unit"], model_name
         assert float(bundle.group("input")) == tariff["input"], model_name
         assert _decimal_or_none(bundle.group("cached")) == tariff["cached"], model_name

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useCallback, useId } from 'react';
-import Image from 'next/image';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import {
@@ -508,17 +507,6 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                       </div>
                     );
                   })}
-                </div>
-                {/* Architecture diagram */}
-                <div className="mt-6 rounded-lg overflow-hidden border bg-background relative">
-                  <Image
-                    src="/schema2.png"
-                    alt={t('faq.intro.diagram_alt')}
-                    width={1200}
-                    height={800}
-                    className="w-full h-auto"
-                    priority={false}
-                  />
                 </div>
               </div>
             )}

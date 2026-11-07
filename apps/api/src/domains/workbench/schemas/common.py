@@ -54,6 +54,12 @@ class WorkbenchLimits(BaseModel):
         description="How long a composer stays quiet before it saves a draft (0: never by itself)."
     )
     search_max_chars: int = Field(description="The longest words one search takes.")
+    assist_text_max_chars: int = Field(
+        description="The longest words of the person's own a writing helper takes (ADR-372)."
+    )
+    assist_instruction_max_chars: int = Field(
+        description="The longest instruction a person gives an assist (ADR-372)."
+    )
 
 
 class WorkbenchAvailability(BaseModel):

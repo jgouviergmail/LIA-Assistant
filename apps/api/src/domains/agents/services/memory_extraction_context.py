@@ -1,5 +1,6 @@
 """Prepare memory-extraction context without changing the source messages or memories."""
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -7,11 +8,52 @@ import structlog
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from src.core.config import settings
+from src.core.constants import (
+    MEMORY_CONTENT_MIN_CHARS,
+    MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+    MEMORY_USAGE_NUANCE_MAX_CHARS,
+)
+from src.domains.agents.prompts import load_prompt
 from src.domains.agents.sms.message_policy import is_sms_source_message
 from src.domains.shared.extraction_targets import is_synthetic_message
 
 if TYPE_CHECKING:
     from src.domains.memories.models import Memory
+
+
+def render_extraction_prompt(
+    *,
+    conversation: str,
+    existing_memories: str,
+    known_relationships: list[str],
+    health_context: str,
+) -> str:
+    """Fill the extraction prompt, with the bounds the parser will hold the model to.
+
+    Args:
+        conversation: The exchange to analyze, already formatted.
+        existing_memories: The candidates for update or delete, already formatted.
+        known_relationships: What is known of the person's relationships.
+        health_context: The opted-in health context, empty otherwise.
+
+    Returns:
+        The prompt, ready for the model.
+    """
+    return str(load_prompt("memory_extraction_prompt")).format(
+        conversation=conversation,
+        existing_memories=existing_memories,
+        current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
+        known_relationships=(
+            "\n".join(f"- {relationship}" for relationship in known_relationships)
+            if known_relationships
+            else "No known relationships"
+        ),
+        health_context=health_context,
+        memory_content_min_chars=MEMORY_CONTENT_MIN_CHARS,
+        memory_content_max_chars=settings.memory_content_max_chars,
+        memory_trigger_topic_max_chars=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+        memory_usage_nuance_max_chars=MEMORY_USAGE_NUANCE_MAX_CHARS,
+    )
 
 
 def format_messages_for_extraction(messages: list[BaseMessage]) -> str:

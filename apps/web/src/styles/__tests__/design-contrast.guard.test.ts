@@ -355,6 +355,46 @@ describe('design-system contrast guard (WCAG AA, all themes × modes)', () => {
   });
 
   /**
+   * The Tools' assist stars — the third fixed-palette chrome element (ADR-372).
+   *
+   * One sign of what LIA can do, so it follows no accent: resolved from the default palette of the
+   * mode and measured against the ACTIVE palette's grounds. Threshold 3:1: a graphical object
+   * (WCAG 1.4.11). The edge carries it, on every ground a star stands on: a page, a card, a list, a
+   * button under the pointer, and a chip pressed.
+   */
+  describe('assist stars (fixed palette, all themes x modes)', () => {
+    for (const [name, palette] of Object.entries(palettes)) {
+      const tones = name.endsWith('-light') ? palettes['default-light'] : palettes['default-dark'];
+
+      it(`${name}: the edge of a star clears 3:1 on every ground it stands on`, () => {
+        const ink = tones['assist-star'];
+        expect(ink, '--color-assist-star is not declared in globals.css').toBeDefined();
+        const grounds: Record<string, Rgb> = {
+          background: palette['background'],
+          card: palette['card'],
+          popover: palette['popover'],
+          hovered: palette['accent'],
+          pressed: blend(palette['primary'], palette['background'], 0.1),
+        };
+        const failures = Object.entries(grounds)
+          .map(([ground, rgb]) => [ground, contrast(ink, rgb)] as const)
+          .filter(([, ratio]) => ratio < NON_TEXT)
+          .map(([ground, ratio]) => `${ground}: ${ratio.toFixed(2)} < ${NON_TEXT}`);
+
+        expect(failures, `\n${name} assist-star failures:\n  ${failures.join('\n  ')}\n`).toEqual(
+          []
+        );
+      });
+    }
+
+    it('keeps its yellow in both modes', () => {
+      expect(palettes['default-light']['assist-star-fill']).toEqual(
+        palettes['default-dark']['assist-star']
+      );
+    });
+  });
+
+  /**
    * Settings group tones — the second fixed-palette chrome element.
    *
    * These deliberately do NOT follow the user's accent (see

@@ -5,7 +5,8 @@
  * shared with a connection, the
  * one-draft-at-a-time review, the network question a script asks before going
  * out, the four reactions under a discussion LIA opened, the
- * execution-trace backstage, and the notice that names a slow MCP server.
+ * execution-trace backstage, the notice that names a slow MCP server, and what
+ * a click asks of LIA from the Tools, with what it cost beside the answer.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -20,6 +21,7 @@ import {
   Check,
   ChevronRight,
   CirclePause,
+  Coins,
   Copy,
   Download,
   FileText,
@@ -39,12 +41,14 @@ import {
   TextSelect,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   User,
   Users,
   Volume2,
   Wrench,
 } from 'lucide-react';
 
+import { AssistStars } from '@/components/workbench/assist/AssistStars';
 import { cn } from '@/lib/utils';
 
 import {
@@ -1435,6 +1439,100 @@ function DiscussionReactionsScene({ active, labels }: SceneProps) {
   );
 }
 
+type AssistStarsPhase = 'bar' | 'pressed' | 'list';
+const ASSIST_STARS_STEPS: readonly TimelineStep<AssistStarsPhase>[] = [
+  { at: 0, state: 'bar' },
+  { at: 1000, state: 'pressed' },
+  { at: 1700, state: 'list' },
+];
+
+/**
+ * The yellow stars that end a bar open what LIA can do on what is on the screen: a list under a
+ * bar that kept its width. The resting frame is the list.
+ */
+function AssistStarsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(ASSIST_STARS_STEPS, { active });
+  const offers = [labels.sum_up, labels.translate, labels.read_aloud];
+  return (
+    <div className={cn(STAGE, 'justify-start gap-1.5 pt-3')}>
+      <div className="flex w-full max-w-[220px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 shadow-sm">
+        <SkeletonLine w="w-16" />
+        <span className="ml-auto flex items-center gap-2 text-muted-foreground">
+          <Reply className="h-3 w-3" aria-hidden="true" />
+          <Trash2 className="h-3 w-3" aria-hidden="true" />
+          <span
+            className={cn(
+              'flex h-5 w-5 items-center justify-center rounded-md transition-colors duration-300 motion-reduce:transition-none',
+              phase !== 'bar' && 'bg-muted'
+            )}
+          >
+            <AssistStars className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        </span>
+      </div>
+      <div
+        className={cn(
+          'w-full max-w-[220px] divide-y divide-border rounded-md border border-border bg-background text-px-10 shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          phase === 'list' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {offers.map(offer => (
+          <div key={offer} className="flex items-center gap-1.5 px-2 py-1">
+            <AssistStars className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="truncate text-foreground/80">{offer}</span>
+          </div>
+        ))}
+      </div>
+      <Cursor
+        className={cn('left-[76%] top-[24%]', phase === 'bar' ? 'opacity-0' : 'opacity-100')}
+      />
+    </div>
+  );
+}
+
+type PricedAnswerPhase = 'asking' | 'answered' | 'priced';
+const PRICED_ANSWER_STEPS: readonly TimelineStep<PricedAnswerPhase>[] = [
+  { at: 0, state: 'asking' },
+  { at: 1200, state: 'answered' },
+  { at: 2200, state: 'priced' },
+];
+
+/** What a click asked of LIA stands beside its answer with what it cost: the resting frame. */
+function PricedAnswerScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PRICED_ANSWER_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div className="w-full max-w-[220px] rounded-md border border-border bg-background px-2.5 py-2 shadow-sm">
+        <span className="flex items-center gap-1.5 text-px-10 font-medium text-foreground/80">
+          <AssistStars className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {labels.summary}
+        </span>
+        <div
+          className={cn(
+            'mt-2 space-y-1.5 transition-opacity duration-500 motion-reduce:transition-none',
+            phase === 'asking' ? 'opacity-0' : 'opacity-100'
+          )}
+        >
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-5/6" />
+          <SkeletonLine w="w-2/3" />
+        </div>
+      </div>
+      <div className="flex w-full max-w-[220px] justify-end">
+        <MiniChip
+          className={cn(
+            'transition-all duration-300 motion-reduce:transition-none',
+            phase === 'priced' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+          )}
+        >
+          <Coins className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+          {labels.cost}
+        </MiniChip>
+      </div>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   discussion_reactions: DiscussionReactionsScene,
   card_details: CardDetailsScene,
@@ -1460,4 +1558,6 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   peer_actions: PeerActionsScene,
   step_counts: StepCountsScene,
   named_wait: NamedWaitScene,
+  assist_stars: AssistStarsScene,
+  priced_answer: PricedAnswerScene,
 };

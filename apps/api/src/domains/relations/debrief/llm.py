@@ -34,14 +34,14 @@ from src.core.constants import (
 )
 from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.core.llm_usage import LLMBillingRecord, LLMUsage
+from src.core.llm_usage import LLMUsage
 from src.core.user_display import resolve_user_display_name
 from src.domains.relations.debrief.controls import check_debrief_boundary
 from src.domains.relations.debrief.prompts import load_debrief_prompt
 from src.domains.relations.debrief.schemas import DebriefBody, DebriefDraft
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output_with_retry
-from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.token_capture import TokenCaptureHandler, captured_usage
 from src.infrastructure.proactive.tracking import bill_captured_usage, capture_spend_on_failure
 
 if TYPE_CHECKING:
@@ -180,37 +180,4 @@ async def write_debrief(
     )
     # Repaired here, never refused above: a model one point over the published
     # bound must not cost the reader their debrief.
-    return draft.to_body(), _usage_of(capture, str(config.model))
-
-
-def _usage_of(capture: TokenCaptureHandler, model_name: str) -> LLMUsage:
-    """What this call consumed, priced — a DISPLAY summary, never an account.
-
-    The pricing lookup is best-effort on purpose: a cache that cannot price a
-    model must not cost the reader their debrief, and the authoritative record
-    of the spend is written separately into ``token_usage_logs``.
-
-    Args:
-        capture: The token counters this call accumulated.
-        model_name: The model the slot resolved to.
-
-    Returns:
-        The usage summary stored beside the words and shown under them.
-    """
-    cost_eur = 0.0
-    records: tuple[LLMBillingRecord, ...] = ()
-    try:
-        records = capture.get_billing_records(model_name)
-        cost_eur = sum(record.cost_eur for record in records)
-    except Exception as exc:  # noqa: BLE001 — a price is a nicety, never a blocker
-        logger.warning("relation_debrief_pricing_failed", error_type=type(exc).__name__)
-    return LLMUsage(
-        tokens_in=capture.tokens_in,
-        tokens_out=capture.tokens_out,
-        tokens_cache=capture.tokens_cache,
-        tokens_cache_write=capture.tokens_cache_write,
-        cost_eur=cost_eur,
-        model_name=records[-1].model_name if records else model_name,
-        billing_records=records,
-        accounting_handled=capture.accounting_handled,
-    )
+    return draft.to_body(), captured_usage(capture, str(config.model))

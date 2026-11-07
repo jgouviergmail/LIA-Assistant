@@ -78,9 +78,9 @@ async def test_current_datetime_is_rendered_per_invocation() -> None:
         return clock["value"]
 
     config = {
-        "agent_name": "contacts_agent",
+        "agent_name": "query_agent",
         "tools": [_noop_tool],
-        "system_prompt": "You are the contacts agent. Current datetime: {current_datetime}.",
+        "system_prompt": "You are the query agent. Current datetime: {current_datetime}.",
         "llm_config": {"model": "fake-model"},
         "enable_hitl": False,
         "datetime_generator": fake_datetime,

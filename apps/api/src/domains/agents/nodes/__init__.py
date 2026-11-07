@@ -3,11 +3,11 @@ LangGraph agent nodes.
 
 Architecture v3 - Intelligence, Autonomy, Relevance.
 
-Note: contacts_agent is now a compiled subgraph (not a node function).
-See src.domains.agents.graphs.contacts_agent_graph for the subgraph builder.
+Note: the plan executor calls the tools directly; the only compiled agent that is a
+graph node is the browser agent (ADR-371).
 
 Tool approval is handled via HumanInTheLoopMiddleware in the agent builder,
-not as a dedicated node. See src.domains.agents.graphs.contacts_agent_builder.
+not as a dedicated node. See src.domains.agents.graphs.base_agent_builder.
 """
 
 from src.domains.agents.nodes.approval_gate_node import approval_gate_node

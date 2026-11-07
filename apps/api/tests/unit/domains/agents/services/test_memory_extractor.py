@@ -20,7 +20,14 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from src.core.config import settings
+from src.core.constants import (
+    MEMORY_CONTENT_MIN_CHARS,
+    MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+    MEMORY_USAGE_NUANCE_MAX_CHARS,
+)
 from src.core.llm_agent_config import LLMAgentConfig
+from src.domains.agents.services.memory_extraction_context import render_extraction_prompt
 from src.domains.agents.services.memory_extraction_parsing import (
     parse_extraction_result,
 )
@@ -278,6 +285,19 @@ class TestRejectedEntryLoggingCarriesNoContent:
         )
         assert captured[0]["category"] == "imaginary"
 
+    def test_a_fact_past_the_ceiling_is_refused_and_says_so(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Nothing cuts a person's fact in half to fit: it is dropped, and the log says why."""
+        captured = self._capture(monkeypatch)
+        too_long = "Claire " * settings.memory_content_max_chars
+        kept = parse_extraction_result(
+            json.dumps([{"action": "create", "content": too_long, "category": "sensitivity"}])
+        )
+        assert kept == []
+        assert captured[0]["errors"] == ["content:string_too_long"]
+        assert "Claire" not in json.dumps(captured, default=str, ensure_ascii=False)
+
     def test_a_category_that_is_not_a_token_is_not_printed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -519,14 +539,33 @@ class TestMemoryExtractionPromptDoctrine:
 
     def test_prompt_formats_without_broken_placeholders(self):
         """The template must format with the extractor's exact kwargs."""
-        formatted = self._prompt().format(
+        assert "bonjour" in self._rendered()
+
+    @staticmethod
+    def _rendered() -> str:
+        return render_extraction_prompt(
             conversation="USER: bonjour",
             existing_memories="None",
-            current_datetime="23/07/2026 20:00",
-            known_relationships="No known relationships",
+            known_relationships=[],
             health_context="",
         )
-        assert "bonjour" in formatted
+
+    def test_every_bound_the_parser_enforces_is_published_to_the_model(self):
+        """The model reads the bound it is held to, from the placeholder, never from prose.
+
+        ``content`` had no bound here at all: the model could not know it was writing
+        495 characters of a 500-character field, and the only two numbers the prompt
+        did state were copies nothing tied to what the parser refuses.
+        """
+        rendered = self._rendered()
+        assert (
+            f"between {MEMORY_CONTENT_MIN_CHARS} and "
+            f"{settings.memory_content_max_chars} characters"
+        ) in rendered
+        assert f"(≤{MEMORY_USAGE_NUANCE_MAX_CHARS} chars)" in rendered
+        assert f"(≤{MEMORY_TRIGGER_TOPIC_MAX_CHARS} chars)" in rendered
+        template = self._prompt()
+        assert "≤300" not in template and "≤100" not in template
 
     def test_transient_logistics_are_excluded(self):
         """Scheduled slots (appointments/reservations) are excluded generically."""

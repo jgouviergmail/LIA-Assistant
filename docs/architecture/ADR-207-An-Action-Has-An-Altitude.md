@@ -87,3 +87,11 @@ repos suffit à la coder.
 
 - ADR-205 — un statut nomme un ton, il n'écrit pas ses couleurs
 - ADR-206 — une primitive porte son contrat
+
+## Amendement 2026-11-06 — « Annuler » dans les Outils
+
+La secondaire vraie garde `outline` partout sauf dans les Outils : `ToolForm` y donne à « Annuler » le
+style de « Supprimer » (`variant="destructive"`), confirmations comprises, et ce sont les mots et la
+place qui distinguent les deux boutons. C'est une décision du propriétaire, consignée dans
+[ADR-369](ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md) (amendement du 2026-11-06 sur les formulaires) pour que personne ne rétablisse la différence
+par réflexe. Le reste du point 4 est inchangé.

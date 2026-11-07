@@ -364,6 +364,11 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "nodes already draw: the « Tools » section keeps no state of its own "
         "(ADR-369), so a star for it could only ever be lit."
     ),
+    PlatformCapability.TOOL_ASSISTS: (
+        "An act on the screens of the Tools, not a thing to set up: a click asks, "
+        "the answer is a proposal, and nothing is kept (ADR-372). A star for it "
+        "could only ever be lit."
+    ),
 }
 
 

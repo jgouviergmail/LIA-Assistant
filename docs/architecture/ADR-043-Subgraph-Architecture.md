@@ -1,6 +1,6 @@
 # ADR-043: Subgraph Architecture
 
-**Status**: ✅ IMPLEMENTED (2025-12-21)
+**Status**: ✅ IMPLEMENTED (2025-12-21), sous-graphes de domaine retirés par [ADR-371](ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) (2026-11-06) : seul l'agent navigateur reste un nœud du graphe
 **Deciders**: Équipe architecture LIA
 **Technical Story**: LangGraph hierarchical agent orchestration with domain isolation
 **Related ADRs**: ADR-009, ADR-010, ADR-018, ADR-021

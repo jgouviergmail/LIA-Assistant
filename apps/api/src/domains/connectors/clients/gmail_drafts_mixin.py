@@ -103,6 +103,7 @@ class _GmailDraftsHost(Protocol):
         cc: str | None,
         is_html: bool,
         include_attachments: bool,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> ComposedForward: ...
 
     @staticmethod
@@ -278,6 +279,9 @@ class GmailDraftsMixin:
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save the reply to ``message_id`` as a draft, in its thread.
 
@@ -285,7 +289,13 @@ class GmailDraftsMixin:
         quote, same threading headers.
         """
         composed = await self._compose_reply(
-            message_id, body, reply_all=reply_all, is_html=is_html, to=None
+            message_id,
+            body,
+            reply_all=reply_all,
+            is_html=is_html,
+            to=to,
+            cc=cc,
+            attachments=attachments,
         )
         return await self._save_draft(composed.message, thread_id=composed.thread_id)
 
@@ -296,13 +306,20 @@ class GmailDraftsMixin:
         body: str | None = None,
         cc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save the forward of ``message_id`` as a draft, with its files.
 
         It is the message ``forward_email`` would send.
         """
         composed = await self._compose_forward(
-            message_id, to, body=body, cc=cc, is_html=is_html, include_attachments=True
+            message_id,
+            to,
+            body=body,
+            cc=cc,
+            is_html=is_html,
+            include_attachments=True,
+            attachments=attachments,
         )
         return await self._save_draft(composed.message, thread_id=None)
 

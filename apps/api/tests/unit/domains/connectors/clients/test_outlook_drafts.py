@@ -51,6 +51,8 @@ class FakeGraph:
         self.messages: dict[str, dict[str, Any]] = {}
         self.calls: list[dict[str, Any]] = []
         self.fail_patch = False
+        self.fail_attachment = False
+        self.fail_delete = False
         self._serial = 0
         self._clock = datetime(2026, 10, 13, 9, 0, tzinfo=UTC)
 
@@ -140,6 +142,10 @@ class FakeGraph:
         )
         files = re.fullmatch(r"/me/messages/([^/]+)/attachments(?:/([^/]+))?", endpoint)
         if files:
+            if self.fail_attachment and method == "POST":
+                raise ConnectorAPIError(
+                    connector_type="microsoft_outlook", status_code=413, detail="too large"
+                )
             return self._files(method, files[1], files[2], json_data)
         if method == "GET" and endpoint == "/me/mailFolders/drafts":
             return {"id": DRAFTS}
@@ -204,6 +210,10 @@ class FakeGraph:
             message["lastModifiedDateTime"] = self._stamp()
             return message
         if method == "DELETE" and endpoint.startswith("/me/messages/"):
+            if self.fail_delete:
+                raise ConnectorAPIError(
+                    connector_type="microsoft_outlook", status_code=503, detail="unavailable"
+                )
             self.messages.pop(endpoint.rsplit("/", 1)[1], None)
             return {}
         raise AssertionError(f"unexpected {method} {endpoint}")
@@ -310,6 +320,54 @@ class TestCreate:
             await client.create_reply_draft(original, "Validé.")
 
         assert not [m for m in graph.messages.values() if m["isDraft"]]
+
+    async def test_a_reply_draft_goes_to_those_the_person_chose_with_their_files(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        original = _original(graph)
+
+        draft = await client.create_reply_draft(
+            original, "Validé.", to="anne@example.com", cc="", attachments=(FILE,)
+        )
+
+        assert draft["to"] == "anne@example.com"
+        assert draft["cc"] == ""
+        (attached,) = _calls(graph, "POST", "/attachments")
+        assert attached["json"]["name"] == "note.txt"
+        assert attached["max_retries"] == 1
+
+    async def test_a_reply_draft_that_cannot_take_its_files_is_removed(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        original = _original(graph)
+        graph.fail_attachment = True
+
+        with pytest.raises(ConnectorAPIError):
+            await client.create_reply_draft(original, "Validé.", attachments=(FILE,))
+
+        assert not [m for m in graph.messages.values() if m["isDraft"]]
+
+    async def test_a_removal_that_fails_too_leaves_the_person_the_first_cause(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        original = _original(graph)
+        graph.fail_attachment = True
+        graph.fail_delete = True
+
+        with pytest.raises(ConnectorAPIError) as refused:
+            await client.create_reply_draft(original, "Validé.", attachments=(FILE,))
+
+        assert refused.value.status_code == 413
+
+    async def test_a_forward_draft_takes_the_persons_files(
+        self, client: MicrosoftOutlookClient, graph: FakeGraph
+    ) -> None:
+        original = _original(graph)
+
+        await client.create_forward_draft(original, "marie@example.com", attachments=(FILE,))
+
+        (attached,) = _calls(graph, "POST", "/attachments")
+        assert attached["json"]["name"] == "note.txt"
 
     async def test_a_forward_draft_names_its_recipients(
         self, client: MicrosoftOutlookClient, graph: FakeGraph

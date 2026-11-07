@@ -249,7 +249,7 @@ class ProviderAdapter:
             temperature: Temperature parameter (0.0-2.0)
             max_tokens: Maximum tokens to generate
             streaming: Enable streaming responses
-            llm_type: LLM type for context (router, response, contacts_agent, planner)
+            llm_type: LLM type for context (router, response, query_agent, planner)
             timeout_seconds: Per-attempt transport timeout applied to the
                 client (ADR-221). The ``timeout`` alias is accepted by all
                 installed SDKs (openai/deepseek ``request_timeout``,
@@ -1080,10 +1080,10 @@ class ProviderAdapter:
 
         Validation rules:
         - deepseek-reasoner: Does NOT support tools or structured output
-          → Reject for contacts_agent (requires tools)
+          → Reject for query_agent (requires tools)
           → Warn for router/planner (requires structured output or JSON mode)
         - Ollama/Perplexity: Model-dependent tool support
-          → Warn for contacts_agent
+          → Warn for query_agent
 
         Args:
             provider: Provider type
@@ -1093,29 +1093,8 @@ class ProviderAdapter:
         Raises:
             ValueError: If combination is incompatible
         """
-        # Tool-using agent names (includes new unified names and deprecated aliases)
-        tool_using_agents = {
-            # New unified names (domain_agent pattern)
-            "contact_agent",
-            "email_agent",
-            "event_agent",
-            "file_agent",
-            "task_agent",
-            "place_agent",
-            "route_agent",
-            "weather_agent",
-            "wikipedia_agent",
-            "perplexity_agent",
-            "query_agent",
-            # Deprecated aliases (for backward compatibility)
-            "contacts_agent",
-            "emails_agent",
-            "calendar_agent",
-            "drive_agent",
-            "tasks_agent",
-            "places_agent",
-            "routes_agent",
-        }
+        # The slots whose model is expected to call tools
+        tool_using_agents = {"email_agent", "emails_agent", "query_agent"}
 
         # DeepSeek-Reasoner validation
         if provider == "deepseek" and model == "deepseek-reasoner":

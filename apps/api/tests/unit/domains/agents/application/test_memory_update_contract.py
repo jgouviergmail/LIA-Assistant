@@ -9,11 +9,11 @@ from pydantic import ValidationError
 from src.core.i18n_drafts import get_draft_preview_labels
 from src.domains.agents.application.action_preparation import build_action_content
 from src.domains.agents.application.draft_rendering import render_application_preview
-from src.domains.agents.application.memory_create_schemas import MemoryCreateConfiguration
 from src.domains.agents.application.memory_pin_schemas import MemoryPinSnapshot
 from src.domains.agents.application.memory_spec import MEMORY_UPDATE_OPERATION
 from src.domains.agents.application.memory_update_schemas import (
     MemoryUpdateChanges,
+    MemoryUpdateConfiguration,
     MemoryUpdatePatch,
     MemoryUpdateValues,
 )
@@ -70,8 +70,8 @@ def test_complete_preview_and_editor_exclude_source_comparison_data(language: st
         updated_at=now,
         configuration_digest=secret_digest,
     )
-    configuration = MemoryCreateConfiguration.model_validate(
-        MemoryCreateConfiguration(
+    configuration = MemoryUpdateConfiguration.model_validate(
+        MemoryUpdateConfiguration(
             content=fact, category="personal", importance=0.8, usage_nuance="Nuance"
         ).model_dump()
     )

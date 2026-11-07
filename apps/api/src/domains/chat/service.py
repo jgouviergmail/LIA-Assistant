@@ -275,7 +275,7 @@ class TrackingContext:
         modern TokenTrackingCallback (without costs - calculates automatically).
 
         Args:
-            node_name: LangGraph node name (router, response, contacts_agent, etc.)
+            node_name: LangGraph node name (router, planner, response, etc.)
             model_name: LLM model used (gpt-4.1-mini, gpt-4-turbo, etc.)
             prompt_tokens: Number of input tokens
             completion_tokens: Number of output tokens

@@ -1554,6 +1554,14 @@
     "370": {
       "title": "Une page écrite par le modèle tourne dans le chat, dans le cadre le plus strict",
       "summary": "Demander un jeu ou un petit outil donne une page qui tourne dans la conversation, avec son fichier ; demander le code donne le code, et le texte d’une personne reste du texte. La page s’exécute isolée, sans accès au compte ni à aucun site de son choix, sous une politique qui ne nomme aucun hôte. Relue depuis l’historique, elle attend un clic, car une boucle sans fin figerait l’onglet, et le modèle n’en lit jamais que le titre."
+    },
+    "371": {
+      "title": "Les postes des agents de domaine partent avec leurs nœuds",
+      "summary": "L’administration proposait de régler seize agents qu’aucun tour n’appelait plus : un plan exécute les outils directement, et la production n’a compté aucun jeton sur eux. Leurs postes, leurs nœuds et leurs prompts sont retirés ; le poste Emails reste, car il rédige les messages. Une installation neuve démarre désormais sur des modèles qui ont un tarif."
+    },
+    "372": {
+      "title": "Depuis les Outils, un clic, un appel, une proposition",
+      "summary": "Résumer un message, proposer une réponse, lire une carte de visite : un clic demande une seule chose à LIA et reçoit une proposition que la personne relit, jamais une écriture chez son fournisseur. L’acte est tracé et facturé à qui a cliqué, et rien n’ajoute de contrôle à un écran qui n’a pas la place : la dernière icône de chaque barre ouvre la liste."
     }
   }
 }

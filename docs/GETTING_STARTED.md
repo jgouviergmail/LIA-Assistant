@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-11-01
-**Compatibility**: LIA v4.4.0
+**Compatibility**: LIA v4.5.0
 
 ## Table of Contents
 
@@ -30,11 +30,11 @@
 
 ## Project Overview
 
-**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 300+ exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
+**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 300+ exposed tools across 20+ domains: Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
 Two user-toggleable execution modes (switchable in the chat header):
 
-- **Pipeline mode** (default) — deterministic and economical: Router → Planner → Semantic Validator → Task Orchestrator → Domain Agents → Response. Roughly 4-8× fewer tokens than ReAct.
+- **Pipeline mode** (default) — deterministic and economical: Router → Planner → Semantic Validator → Task Orchestrator → Tools → Response. Roughly 4-8× fewer tokens than ReAct.
 - **ReAct mode** — autonomous iterative reasoning loop for exploratory or ambiguous queries.
 
 Both modes converge on the same streaming response (SSE) and the same HITL (Human-in-the-Loop) approval system.
@@ -70,15 +70,15 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 
 | | |
 |---|---|
-| Specialized agents | 20+ |
+| Tool domains | 20+ |
 | Tools | 311 (tool manifests registered at startup, measured 2026-10-19 on Docker dev) |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
-| Configurable model and decision slots | 95, including 23 native JEV usages (admin registry, measured 2026-11-06) |
+| Configurable model and decision slots | 80, including 23 native JEV usages (admin registry, measured 2026-11-06) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 658 |
+| Prometheus metrics | 660 |
 | Grafana dashboards | 33 |
-| Built-in FAQ knowledge base | 544 questions in six languages; the English help corpus is indexed at startup |
+| Built-in FAQ knowledge base | 549 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 
@@ -894,6 +894,7 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `PSYCHE_EFFICACY_COLLECTION_ENABLED` / `PSYCHE_EFFICACY_INFLUENCE_ENABLED` | Private efficacy evidence collected from final answers / its bounded verify-clarify-state-limit guidance; each also needs the Psyche capability and the owner's preference (ADR-348) | `true` / `true` |
 | `USAGE_LIMITS_ENABLED` | Per-user usage quotas | `true` |
 | `IMAGE_GENERATION_ENABLED` | AI image generation | `true` |
+| `TOOL_ASSISTS_ENABLED` | What LIA does from the Tools: a click asks a model on the instance's keys, billed to whoever clicked (ADR-372) | `true` |
 | `HEALTH_METRICS_ENABLED` | iPhone health metrics ingestion | `true` |
 | `HEARTBEAT_ENABLED` | Autonomous proactive notifications | `true` |
 | `PROACTIVE_DISCUSSIONS_ENABLED` | Personal discussions LIA may open, each person opting in; bounded by `DISCUSSION_RUN_BUDGET_USD`, `DISCUSSION_OWNER_DAILY_BUDGET_USD` and `DISCUSSION_INSTANCE_DAILY_BUDGET_USD` (ADR-358/359/360) | `true` |
@@ -1266,9 +1267,9 @@ Restore procedure: [runbooks/DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BAC
 
 ## LLM Configuration
 
-LIA declares **95 independently configurable model and decision slots** in
-`LLM_TYPES_REGISTRY` (72 static entries and 23 JEV usages). Pipeline nodes,
-domain agents and background tasks select their own provider and model; native
+LIA declares **80 independently configurable model and decision slots** in
+`LLM_TYPES_REGISTRY` (57 static entries and 23 JEV usages). Pipeline nodes,
+agent loops and background tasks select their own provider and model; native
 decision slots expose only the parameters their provider accepts. Configuration
 is resolved as **code defaults (`LLM_DEFAULTS`) → database overrides** (admin
 UI), applied to subsequent operations without restarting workers.
@@ -1277,7 +1278,7 @@ UI), applied to subsequent operations without restarting workers.
 - **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs, Fish Audio and Edge (voice; OpenAI and Gemini speak too). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.
 - Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
 
-The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model). `deepseek-v4-flash` in these tables is the **retired alias** of what the DeepSeek API now calls `deepseek-flash` (DeepSeek-V4.1-Flash, carried by the catalogue since v1.44.6): pick the current name when you reproduce them, and keep reasoning `off` on the slots the tables show `off` — on this family thinking is on by default and billed inside `max_tokens`.
+The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. A fresh install starts from the reference seed instead (`infrastructure/database/seeds/llm_config_seed.sql`). *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model). `deepseek-v4-flash` in these tables is the **retired alias** of what the DeepSeek API now calls `deepseek-flash` (DeepSeek-V4.1-Flash, carried by the catalogue since v1.44.6): pick the current name when you reproduce them, and keep reasoning `off` on the slots the tables show `off` — on this family thinking is on by default and billed inside `max_tokens`.
 
 #### Pipeline (Orchestration & Routing)
 
@@ -1285,32 +1286,16 @@ The tables below show the **effective production configuration** (code defaults 
 |------|----------|-------|------|------------|-----------|
 | `semantic_pivot` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
 | `query_analyzer` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
-| `router` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
 | `planner` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
 | `semantic_validator` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
-| `context_resolver` | DeepSeek | `deepseek-v4-flash` | 0.2 | 5 000 | off |
 | `compaction` | DeepSeek | `deepseek-v4-flash` | 0.5 | 50 000 | high |
 | `initiative` | DeepSeek | `deepseek-v4-flash` | 0.2 | 10 000 | off |
 
-#### Domain Agents (Tool-Calling)
+#### Agents
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `contacts_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
 | `emails_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `calendar_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `drive_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `tasks_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `weather_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 000 | — |
-| `wikipedia_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `perplexity_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 3 000 | — |
-| `brave_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `web_search_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 4 000 | — |
-| `web_fetch_agent` | OpenAI | `gpt-4.1-mini` | 0.3 | 3 000 | — |
-| `places_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `routes_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 2 000 | — |
-| `hue_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 000 | — |
-| `health_agent` | OpenAI | `gpt-4.1-mini` | 0.0 | 1 500 | — |
 | `browser_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 20 000 | off |
 | `react_agent` | DeepSeek | `deepseek-v4-flash` | 0.2 | 20 000 | off |
 | `mcp_react_agent` | DeepSeek | `deepseek-v4-flash` | 0.5 | 30 000 | off |
@@ -1353,9 +1338,10 @@ The tables below show the **effective production configuration** (code defaults 
 
 | Slot | Provider | Model | Temp | Max Tokens | Reasoning |
 |------|----------|-------|------|------------|-----------|
-| `vision_analysis` | Gemini | `gemini-3.5-flash` | 1.0 | 5 000 | — |
+| `vision_analysis` | Gemini | `gemini-3.8-flash` | 0.5 | 5 000 | low |
 | `image_generation` | OpenAI | `gpt-image-2` | — | — | — |
 | `interactive_page` (code default, as a document's) | OpenAI | `gpt-4.1` | 0.2 | 16 000 | — |
+| `tool_assist` | DeepSeek | `deepseek-flash` | 0.2 | 4 000 | off |
 | `voice_comment` | OpenAI | `gpt-5.4-mini` | 1.0 | 5 000 | none |
 | `voice_transcription` | ElevenLabs | `scribe_v2` | — | — | — |
 | `voice_tts` | ElevenLabs | `eleven_flash_v2_5` | — | — | — |
@@ -1367,11 +1353,11 @@ The tables below show the **effective production configuration** (code defaults 
 #### Design Principles of the Production Configuration
 
 1. **DeepSeek V4 Flash** carries the bulk of the pipeline (routing, planning, response, ReAct, HITL, heartbeat): near-frontier quality at a fraction of the cost, with thinking (`high`) enabled only where depth pays (compaction, journal consolidation, heartbeat) and disabled (`off`) on latency-sensitive nodes.
-2. **`gpt-4.1-mini`** powers the structured tool-calling domain agents — they need reliable function calling, not reasoning, and they represent the majority of calls for a tiny fraction of cost.
+2. **`gpt-4.1-mini`** writes the text of an e-mail (`emails_agent`): a short, well-framed job that needs no reasoning.
 3. **`gpt-5.2`** handles precision extraction (memory, journals, interests) where structured-output quality matters most.
-4. **`gemini-3.5-flash`** (vision), **`claude-opus-4-6`** (interactive MCP apps / diagram generation), **`gpt-image-2`** (images) and **ElevenLabs** (voice) cover the specialized slots.
+4. **`gemini-3.8-flash`** (vision), **`claude-opus-4-6`** (interactive MCP apps / diagram generation), **`gpt-image-2`** (images) and **ElevenLabs** (voice) cover the specialized slots.
 
-> **Cost tip**: the dominant cost drivers are `response`, `planner` and the ReAct/browser loops. The domain agents are almost free. Any slot can be repointed at runtime from the Admin UI — including to a local Ollama model — without restart.
+> **Cost tip**: the dominant cost drivers are `response`, `planner` and the ReAct/browser loops. Any slot can be repointed at runtime from the Admin UI — including to a local Ollama model — without restart.
 
 ---
 
@@ -1632,34 +1618,59 @@ task deploy:prepare        # prepare the PROD/ bundle only
 
 ### Reference Content on a Fresh Production Install
 
-A brand-new production database has **no assistant personalities and no LLM pricing table** — the assistant cannot take a personality, and cost tracking cannot price a single call. The reference content lives in `infrastructure/database/seeds/` and is mounted read-only into the API container.
+The migrations alone leave a brand-new production database with the default personalities and an **older, partial LLM catalogue**: a model only the reference content prices is billed by its provider and recorded at zero. The reference content lives in `infrastructure/database/seeds/` and is mounted read-only into the API container: five domain files (Google API pricing, image pricing, LLM configuration, LLM pricing, personalities) and a verification file that runs last.
 
-It is applied **only** when you ask for it, on a **fresh install or a restore onto an empty database**:
+The guided installer applies it for you. On the manual path it is applied **only** when you ask for it, on a **fresh install or a restore onto an empty database**, and the entrypoint needs the identity of the bundle as well as the intent. `docker-compose.prod.yml` declares `APPLY_SEEDS` alone, so both travel through a throwaway override, the way the installer's own does:
 
 ```bash
 # On the server, from the deployed directory (~/lia)
-APPLY_SEEDS=true docker compose -f docker-compose.prod.yml up -d --force-recreate api
 
-# Then remove the flag: the next normal deploy must NOT carry it
+# 1. The bundle digest: the six files in this order, as apply_reference_seeds.sh recomputes it
+#    (the Python twin is compute_seed_bundle_sha256 in scripts/install/seed_bundle.py)
+digest=$(
+  for name in google_api_pricing_seed.sql image_generation_pricing_seed.sql llm_config_seed.sql \
+              llm_pricing_seed.sql personalities_seed.sql verify_reference_seeds.sql; do
+    file="infrastructure/database/seeds/$name"
+    printf '%s\0%s\n' "$file" "$(sha256sum "$file" | cut -d' ' -f1)"
+  done | sha256sum | cut -d' ' -f1
+)
+
+# 2. One start carrying the intent and the digest
+cat > docker-compose.seed.yml <<EOF
+services:
+  api:
+    environment:
+      - APPLY_SEEDS=true
+      - SEED_BUNDLE_SHA256=$digest
+EOF
+docker compose -f docker-compose.prod.yml -f docker-compose.seed.yml up -d --force-recreate api
+
+# 3. Then remove the override: the next normal deploy must NOT carry it
+rm docker-compose.seed.yml
 docker compose -f docker-compose.prod.yml up -d --force-recreate api
 ```
 
-> **Warning — these files are destructive by design.** Each one empties its table before re-inserting the reference rows, and `personalities` cascades: `users.personality_id` is `ON DELETE SET NULL`, so applying the seeds to a **populated** database would reset the personality every user has chosen.
+> **Warning — this bundle is destructive by design.** `personalities_seed.sql`, `google_api_pricing_seed.sql` and `image_generation_pricing_seed.sql` empty their tables before re-inserting the reference rows; `llm_config_seed.sql` overwrites the slots it names and `llm_pricing_seed.sql` retires the tariffs it supersedes. `personalities` cascades: `users.personality_id` is `ON DELETE SET NULL`, so applying the seeds to a **populated** database would reset the personality every user has chosen.
 
-Two **independent** conditions must hold, and both fail closed:
+Four **independent** conditions must hold, and all of them fail closed:
 
 | Condition | Meaning | If it cannot be established |
 |-----------|---------|-----------------------------|
 | Intent | `APPLY_SEEDS=true` | absent by default → seeds skipped |
-| Target | the `personalities` table is verifiably **empty** | unreadable **or** non-empty → seeds refused |
+| Target | no row of `users` has a `personality_id`: **nobody has chosen a personality** | unreadable **or** non-zero → seeds refused |
+| Bundle | `system_settings` holds no `SELF_HOST_SEED_BUNDLE` marker: **no bundle has committed here** | unreadable **or** present → seeds refused |
+| Identity | `SEED_BUNDLE_SHA256` is set and equals the digest `apply_reference_seeds.sh` recomputes from the mounted files | unset → seeds refused; different → the API stops, nothing applied |
 
-The second one is what protects a live installation. `APPLY_SEEDS` is interpolated by Compose from the shell **and** from the project `.env`, so a value left behind in an env file would otherwise re-arm the deletion on every later deploy — the emptiness check makes that stale value harmless. The row count is used strictly as a **veto**: it used to be the *trigger* (`count == 0` meant "fresh install"), which also fired whenever the count could not be read, because a failed query yielded `0`.
+The target and the marker are what protect a live installation. `APPLY_SEEDS` is interpolated by Compose from the shell **and** from the project `.env`, so a value left behind in an env file would otherwise re-arm the deletion on every later deploy: these two checks make that stale value harmless. Both counts are used strictly as a **veto**, never as a trigger: an unreadable count refuses, exactly like a non-zero one.
 
-Verify afterwards — the deploy log prints one of three unambiguous lines:
+The application is atomic: one `psql` process runs the five domains and the verification file in a single transaction, an unmet postcondition rolls everything back, and the marker commits with the data or not at all.
 
-- `APPLY_SEEDS=true and database empty - applying SQL seeds ...` followed by one line per file, then the personalities appear in **Settings > Administration**;
-- `ERROR: APPLY_SEEDS=true but personalities already holds N row(s) - SQL seeds SKIPPED` — the database was not empty, nothing was touched;
-- `Skipping SQL seeds (set APPLY_SEEDS=true for a fresh install only)` — the normal line on every ordinary deploy.
+Verify afterwards — the deploy log prints one of four unambiguous outcomes:
+
+- `APPLY_SEEDS=true and nobody has chosen a personality - applying the seed bundle atomically ...` followed by `SQL seeds applied and verified successfully`: the bundle and its marker are committed;
+- `ERROR: APPLY_SEEDS=true but ... - SQL seeds SKIPPED`, the line naming the reason (a count that could not be read, `N user(s) already chose a personality`, a marker that already exists, `SEED_BUNDLE_SHA256 is not set`): nothing was touched and the API starts;
+- `ERROR: seed bundle application FAILED and was rolled back - the database is unchanged`: a digest mismatch or an unmet postcondition, and the API stops there;
+- `Skipping SQL seeds (set APPLY_SEEDS=true for a fresh install only)`: the normal line on every ordinary deploy.
 
 In development the equivalent is `task db:seed:sql` (or `task db:reset`), which targets the dev database directly and does not go through this gate.
 

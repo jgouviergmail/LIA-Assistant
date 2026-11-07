@@ -116,10 +116,7 @@ Response to User
 apps/api/src/domains/agents/
 ├── {domain}/                           # Nouveau domain
 │   ├── __init__.py
-│   ├── catalogue_manifests.py          # Tool manifests UNIQUEMENT
-│   └── prompts/
-│       └── v1/
-│           └── {domain}_agent_prompt.txt
+│   └── catalogue_manifests.py          # Tool manifests UNIQUEMENT
 │
 ├── tools/
 │   └── {domain}_tools.py               # Implémentation des tools
@@ -172,11 +169,11 @@ Avant de coder, répondre à ces questions :
 @dataclass(frozen=True)
 class DomainConfig:
     # OBLIGATOIRES
-    name: str                    # Identifiant interne (ex: "contacts", "emails")
+    name: str                    # Identifiant interne (ex: "contact", "email")
     display_name: str            # Nom affichable (ex: "Google Contacts")
     description: str             # Description courte des capacités
     keywords: list[str]          # Mots-clés pour détection par Router LLM
-    agent_names: list[str]       # Liste des agents (ex: ["contacts_agent"])
+    agent_names: list[str]       # Liste des agents (ex: ["contact_agent"])
 
     # OPTIONNELS
     related_domains: list[str]   # Domaines souvent utilisés ensemble
@@ -219,7 +216,7 @@ class DomainConfig:
 
 | Règle | Explication |
 |-------|-------------|
-| `name` doit correspondre au préfixe de `agent_names` | `name="emails"` → `agent_names=["emails_agent"]` |
+| `name` doit correspondre au préfixe de `agent_names` | `name="email"` → `agent_names=["email_agent"]` |
 | `keywords` doit être exhaustif | Inclure FR + EN + variations courantes |
 | `is_routable=False` pour domaines techniques | Ex: `context`, `query` |
 
@@ -1036,7 +1033,7 @@ await redis.setex(key, ttl, data)  # DataError!
 
 ### Après Création Domain Taxonomy
 
-- [ ] `name` correspond au préfixe de l'agent (`emails` → `emails_agent`)
+- [ ] `name` correspond au préfixe de l'agent (`email` → `email_agent`)
 - [ ] `keywords` exhaustifs (20+ mots FR+EN)
 - [ ] `agent_names` contient le bon nom d'agent
 - [ ] `is_routable=False` si domain technique
@@ -1114,15 +1111,15 @@ WARNING - domain_index_agent_unknown_domain - domain=emails
 
 ### Erreur #3 : Naming incohérent
 
-**Symptôme** : Router détecte `"email"` mais agent s'appelle `"emails_agent"`.
+**Symptôme** : Router détecte `"email"` mais l'agent est déclaré `"emails_agent"` au lieu de `"email_agent"`.
 
 **Cause** : Mismatch entre `domain_taxonomy.py`, `catalogue_loader.py` et router prompt.
 
 **Solution** : Cohérence stricte :
 ```
-Domain name:     emails
-Agent name:      emails_agent
-DomainConfig:    "emails"
+Domain name:     email
+Agent name:      email_agent
+DomainConfig:    "email"
 ```
 
 ---
@@ -1434,7 +1431,7 @@ from src.domains.agents.tools.decorators import connector_tool
 
 @connector_tool(
     name="search_contacts",
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     context_domain="contacts",
     category="read",  # Rate limit: 20 calls/min
 )
@@ -1467,7 +1464,7 @@ from src.domains.agents.tools.decorators import (
 # Preset read (20 calls/min)
 @read_tool(
     name="search_contacts",
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     context_domain="contacts",
 )
 async def search_contacts_tool(...): ...
@@ -1475,14 +1472,14 @@ async def search_contacts_tool(...): ...
 # Preset write (5 calls/min, no context save)
 @write_tool(
     name="send_email",
-    agent_name="emails_agent",
+    agent_name="email_agent",
 )
 async def send_email_tool(...): ...
 
 # Preset expensive (custom rate limit)
 @expensive_tool(
     name="export_contacts",
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     max_calls=1,
     window_seconds=3600,  # 1 call/hour
 )
@@ -2054,7 +2051,7 @@ Startup → MCPClientManager.initialize()
 | Manifests | Fichiers `catalogue_manifests.py` par domaine | Generes depuis le JSON Schema MCP (`json_schema_to_parameters()`) |
 | Semantic keywords | Definis manuellement dans les manifests | Extraits automatiquement de la description (`build_semantic_keywords_from_description()`) |
 | Lifecycle | Charges une fois au demarrage | Admin: charges au demarrage. User: crees a la volee par requete |
-| Nommage | `contacts_agent`, `email_agent` | `mcp_google_flights_agent`, `mcp_user_xx_tool_name` |
+| Nommage | `contact_agent`, `email_agent` | `mcp_google_flights_agent`, `mcp_user_xx_tool_name` |
 
 ### Routing semantique et agents MCP
 

@@ -3,7 +3,7 @@ FastAPI application entrypoint.
 Configures middleware, routes, observability and lifecycle events.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager, suppress
 
 import structlog
@@ -219,6 +219,30 @@ setup_middleware(app)
 app.add_middleware(PrometheusMiddleware)
 
 
+#: How many errors of one refused request are read: a huge body must not blow up the
+#: metric's cardinality, nor the log line.
+_REFUSED_ERRORS_READ = 10
+
+
+def _declared_field(location: Sequence[object], error_type: str) -> str:
+    """Name a refused field only when the code wrote that name (ADR-317).
+
+    `loc` also carries what a client typed: a key of a dict, an unknown key of a strict
+    body. One level under its source (`body`, `query`, `path`...) a name comes from a
+    declaration, and an `extra_forbidden` one never does.
+
+    Args:
+        location: The error's `loc`.
+        error_type: The error's `type`.
+
+    Returns:
+        The field's name, or `<withheld>`.
+    """
+    if error_type == "extra_forbidden" or len(location) > 2:
+        return "<withheld>"
+    return str(location[-1])[:40] if location else "unknown"
+
+
 # Pydantic / FastAPI request validation error metric (dashboard 16).
 # Counts 422 validation errors by field + error_type to surface bad-payload patterns.
 @app.exception_handler(RequestValidationError)
@@ -226,7 +250,12 @@ async def _validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
-    """Count validation errors then return FastAPI's default 422 response.
+    """Count and log validation errors, then return FastAPI's default 422 response.
+
+    A 422 is answered before any route handler runs and an ordinary access log stays
+    below the production level, so this line is the only trace of a refused request in
+    the logs. It says how a field failed, never the value, and how many errors there
+    were when it keeps fewer: `path` and `method` are already bound to the request.
 
     Args:
         request: Incoming request (unused — kept for signature compliance).
@@ -236,19 +265,28 @@ async def _validation_exception_handler(
         422 JSONResponse with the standard `detail` error structure.
     """
     del request  # unused
+    errors = exc.errors()
     # metrics must never break the handler
     with suppress(Exception):
         from src.infrastructure.observability.metrics_errors import (
             validation_errors_total,
         )
 
-        # Cap at 10 errors per request to avoid cardinality blow-up on huge bodies.
-        for err in exc.errors()[:10]:
+        for err in errors[:_REFUSED_ERRORS_READ]:
             field = ".".join(str(p) for p in err.get("loc", ())) or "unknown"
             # Keep only the leaf field name and truncate to bound cardinality.
             field_leaf = field.rsplit(".", 1)[-1][:40]
             error_type = err.get("type", "unknown")[:40]
             validation_errors_total.labels(field=field_leaf, error_type=error_type).inc()
+
+    logger.warning(
+        "request_validation_failed",
+        errors=[
+            f"{_declared_field(err.get('loc', ()), err.get('type', ''))}:{err.get('type', '')[:40]}"
+            for err in errors[:_REFUSED_ERRORS_READ]
+        ],
+        error_count=len(errors),
+    )
 
     # jsonable_encoder mirrors FastAPI's default handler: exc.errors() may
     # embed raw exception objects (ctx.error from field_validator ValueError),

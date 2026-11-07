@@ -4,7 +4,7 @@
 
 **Version**: 7.0
 **Datum**: 2026-11-06
-**Anwendung**: LIA v4.4.0
+**Anwendung**: LIA v4.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ Wie das funktioniert, erklärt [der technische Leitfaden](/de/how). Wie der Code
 
 ## 2. Was LIA für dich tut
 
-Öffne **Tools**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Dateien und Hue-Leuchten nutzen deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
+Öffne **Tools**, wenn du selbst handeln möchtest: E-Mails, Kalender, Aufgaben, Kontakte, Dateien und Hue-Leuchten nutzen deine verbundenen Dienste. Du klickst, bearbeitest und sendest direkt, ohne KI-Aufruf, und wenn du willst, lässt du LIA über die gelben Sterne etwas zusammenfassen oder schreiben, die Kosten stets sichtbar. Jeder Bildschirm bietet nur, was sein Anbieter unterstützt; Deine eigenen Handlungen erscheinen nicht in LIAs Aktivitätsregistern.
 
 Du sprichst ganz normal mit ihr, schriftlich oder mit der Stimme. Die Oberfläche gibt es in sechs Sprachen (Französisch, Englisch, Deutsch, Spanisch, Italienisch, Chinesisch), und dein Diktat wird in der Sprache deines Kontos transkribiert. Rund zwanzig spezialisierte Agenten teilen sich die Arbeit: deine persönlichen Daten, das Web, das kreative Schaffen, das vernetzte Zuhause, das Navigieren auf Websites und die Vorausschau.
 

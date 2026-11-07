@@ -32,6 +32,8 @@ const RAIL = {
     send_undo_seconds: 0,
     draft_autosave_seconds: 0,
     search_max_chars: 500,
+    assist_text_max_chars: 8000,
+    assist_instruction_max_chars: 500,
   },
 };
 
@@ -205,13 +207,28 @@ const tokenOf = (page: Page, name: string) =>
 const paintedOf = (target: Locator) =>
   target.evaluate(node => getComputedStyle(node).backgroundColor);
 
+/** How bright a token paints, read from a pixel: its computed colour's notation varies. */
+const brightnessOf = (page: Page, token: string) =>
+  page.evaluate(name => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = `var(--color-${name})`;
+    document.body.append(probe);
+    const canvas = document.createElement('canvas').getContext('2d');
+    if (!canvas) throw new Error('no canvas');
+    canvas.fillStyle = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    canvas.fillRect(0, 0, 1, 1);
+    const [red = 0, green = 0, blue = 0] = canvas.getImageData(0, 0, 1, 1).data;
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  }, token);
+
 /**
- * Owner request (2026-11-05): what is off recedes into the page and what is lit keeps the card's
- * material. A tint of the accent darkens in a light theme and lightens in a dark one; the page's
- * own background lies below the card in all three, down to the true black of OLED.
+ * Owner requests (2026-11-05, 2026-11-06): what is lit keeps the card's material, and what is off
+ * stands apart from the page: under it in a light theme, above it in a dark one, down to the true
+ * black of OLED, where it still never outshines what is lit.
  */
 for (const theme of ['light', 'dark', 'oled'] as const) {
-  test(`what is off recedes into the page, what is lit stays a card, in ${theme}`, async ({
+  test(`what is off stands apart from the page and from what is lit, in ${theme}`, async ({
     page,
     authenticate,
     mockApi,
@@ -225,17 +242,27 @@ for (const theme of ['light', 'dark', 'oled'] as const) {
     await waitForHydration(page, 'button[role="switch"]');
     const room = (name: string) =>
       page.locator('[data-lit]').filter({ has: page.getByRole('link', { name }) });
-    const receded = await tokenOf(page, 'background');
+    const unlit = await tokenOf(page, 'unlit');
     const card = await tokenOf(page, 'card');
-    expect(receded).not.toBe(card);
+    expect(unlit).not.toBe(card);
 
     await expect(room('Kitchen')).toHaveAttribute('data-lit', 'false');
-    expect(await paintedOf(room('Kitchen'))).toBe(receded);
+    expect(await paintedOf(room('Kitchen'))).toBe(unlit);
     expect(await paintedOf(room('Living room'))).toBe(card);
-    expect(await paintedOf(page.getByRole('group', { name: 'Pendant' }))).toBe(receded);
+    expect(await paintedOf(page.getByRole('group', { name: 'Pendant' }))).toBe(unlit);
 
     await page.getByRole('link', { name: /Living room/ }).click();
     expect(await paintedOf(page.getByRole('group', { name: 'Floor lamp' }))).toBe(card);
+
+    const ground = await brightnessOf(page, 'background');
+    const off = await brightnessOf(page, 'unlit');
+    const lit = await brightnessOf(page, 'card');
+    if (theme === 'light') {
+      expect(off, 'under the page').toBeLessThan(ground);
+    } else {
+      expect(off, 'above the page').toBeGreaterThan(ground);
+      expect(off, 'under what is lit').toBeLessThan(lit);
+    }
   });
 }
 
@@ -243,6 +270,50 @@ for (const theme of ['light', 'dark', 'oled'] as const) {
  * Owner requests (2026-10-31): rooms and lamps in alphabetical order — the room open by
  * default is the first of them — and a lamp's temperature and colour folded until opened.
  */
+/** Owner request (2026-11-06): the two columns start on one line. */
+test('from a large screen the first room’s card starts where the room’s title does', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await authenticate({ timezone: 'Europe/Paris' });
+  await playTheApi(mockApi, [], false, WHOLE_HOUSE);
+
+  await page.goto('/en/dashboard/tools/lights');
+  await waitForHydration(page, 'main');
+  const firstRoom = page.locator('[aria-current="true"][data-lit]').first();
+  const title = page.getByRole('heading', { name: 'Living room' });
+  await expect(title).toBeVisible();
+
+  const [room, name] = await Promise.all([firstRoom.boundingBox(), title.boundingBox()]);
+  expect(Math.abs((room?.y ?? 0) - (name?.y ?? 1))).toBeLessThanOrEqual(1);
+  await expect(page.getByText('Brightness', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('slider', { name: /Brightness of/ }).first()).toBeVisible();
+});
+
+/** Owner request (2026-11-06): the question stands right after the room's name, at any width. */
+for (const width of [390, 1280]) {
+  test(`asking LIA about a room stands beside its name at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi, [], false, WHOLE_HOUSE);
+
+    await page.goto('/en/dashboard/tools/lights?room=r1');
+    await waitForHydration(page, 'main');
+    const name = page.getByRole('heading', { name: 'Living room' });
+    const ask = page.getByRole('button', { name: 'Ask LIA' });
+    await expect(ask).toBeVisible();
+
+    const [title, act] = await Promise.all([name.boundingBox(), ask.boundingBox()]);
+    expect((act?.x ?? 0) - ((title?.x ?? 0) + (title?.width ?? 0))).toBeLessThanOrEqual(8);
+  });
+}
+
 test('a zone, a lamp that does not answer and a scene in motion hold on a phone', async ({
   page,
   authenticate,
@@ -257,14 +328,13 @@ test('a zone, a lamp that does not answer and a scene in motion hold on a phone'
   await waitForHydration(page, 'main');
   const zone = page.getByRole('link', { name: /Reading corner/ });
   await expect(zone).toContainText('Zone');
-  await expect(page.getByRole('link', { name: /Living room/ })).toContainText(
-    '1 light not answering'
-  );
+  // A lamp that does not answer says so on its own card, never on its room's.
+  await expect(page.getByRole('link', { name: /Living room/ })).not.toContainText('answering');
 
   await page.getByRole('switch', { name: 'Turn on “Reading corner”' }).click();
   await expect.poll(() => sent.at(-1)).toEqual({ room_id: 'z1', kind: 'zone', on: false });
 
-  await page.getByText('Temperature and colour').first().click();
+  await page.getByText('Customize').first().click();
   await expect(page.getByRole('slider', { name: 'Temperature' }).first()).toBeVisible();
   await expectNoOverflow(page, 'lights with a zone at 390px');
 
@@ -273,6 +343,14 @@ test('a zone, a lamp that does not answer and a scene in motion hold on a phone'
   const ceiling = page.getByRole('group', { name: 'Ceiling' });
   await expect(ceiling.getByText('This lamp is not answering')).toBeVisible();
   await expect(ceiling.getByRole('switch')).toBeDisabled();
+  const silentName = await ceiling
+    .getByText('Ceiling', { exact: true })
+    .evaluate(name => getComputedStyle(name).color);
+  const ground = await page
+    .getByRole('group', { name: 'Floor lamp' })
+    .getByText('Floor lamp', { exact: true })
+    .evaluate(name => getComputedStyle(name).color);
+  expect(silentName, 'the name of a lamp that does not answer is greyed').not.toBe(ground);
 
   await page.getByRole('button', { name: 'Play “Aurora” in motion' }).first().click();
   await expect.poll(() => sent.at(-1)).toEqual({ scene_id: 's1', play: true });
@@ -309,7 +387,7 @@ test('rooms and lamps come in alphabetical order, the tone folded until opened',
   );
 
   await expect(floor.getByRole('slider', { name: 'Temperature' })).toHaveCount(0);
-  await floor.getByText('Temperature and colour').click();
+  await floor.getByText('Customize').click();
   await expect(floor.getByRole('slider', { name: 'Temperature' })).toBeVisible();
   await expect(floor.getByLabel('Colour')).toHaveValue('#ffd59a');
 });

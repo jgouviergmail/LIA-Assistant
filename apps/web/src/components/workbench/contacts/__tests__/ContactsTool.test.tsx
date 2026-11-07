@@ -133,6 +133,8 @@ function rail(): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -174,6 +176,13 @@ function tool() {
 
 function screenOf() {
   return renderWithProviders(tool());
+}
+
+/** What the open contact offers in its bar, in the order it is drawn. */
+function barActs(): (string | null)[] {
+  return Array.from(screen.getByTestId('detail-acts').children).map(act =>
+    act.getAttribute('aria-label')
+  );
 }
 
 function listCalls(): Array<Record<string, unknown>> {
@@ -562,6 +571,7 @@ describe('ContactsTool — a contact met in mail', () => {
     const detail = await screen.findByRole('article', { name: 'Bea Costa' });
     expect(within(detail).queryByRole('button', { name: 'workbench.contacts.edit' })).toBeNull();
     expect(within(detail).queryByRole('button', { name: 'workbench.contacts.delete' })).toBeNull();
+    expect(barActs()).toEqual(['workbench.contacts.save_other', 'workbench.ask.label']);
   });
 
   it('says what to do when the address names one no search listed', async () => {
@@ -571,6 +581,25 @@ describe('ContactsTool — a contact met in mail', () => {
     expect(await screen.findByText('workbench.contacts.other_not_listed')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'workbench.states.retry' })).toBeNull();
     expect(api.get).not.toHaveBeenCalledWith('/workbench/contacts/contact', expect.anything());
+  });
+});
+
+describe('ContactsTool — what an open contact offers', () => {
+  it('changes, exports, deletes and asks from its bar', async () => {
+    nav.search = 'contact=people/c1';
+    screenOf();
+
+    await screen.findByRole('button', { name: 'workbench.contacts.edit' });
+
+    expect(barActs()).toEqual([
+      'workbench.contacts.edit',
+      'workbench.contacts.export_one',
+      'workbench.contacts.delete',
+      'workbench.ask.label',
+    ]);
+    expect(screen.getByRole('button', { name: 'workbench.contacts.delete' })).toHaveClass(
+      'text-destructive'
+    );
   });
 });
 
@@ -801,6 +830,23 @@ describe('ContactsTool — a contact met in mail', () => {
       )
     );
     expect(toast.success).toHaveBeenCalledWith('workbench.contacts.saved_other');
+  });
+
+  it('says it is on its way, and sends it once', async () => {
+    let answer: (contact: unknown) => void = () => undefined;
+    api.post.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
+    const { user } = await metInMail();
+    const save = screen.getByRole('button', { name: 'workbench.contacts.save_other' });
+
+    await user.click(save);
+    expect(save).toHaveAttribute('aria-busy', 'true');
+    await user.click(save);
+    expect(api.post).toHaveBeenCalledTimes(1);
+
+    answer({ ...ANA, id: 'people/c7' });
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('workbench.contacts.saved_other')
+    );
   });
 
   it('keeps its key when it is tried again after a failure', async () => {

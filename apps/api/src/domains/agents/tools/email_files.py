@@ -117,6 +117,30 @@ async def files_to_send(
     )
 
 
+async def draft_files(
+    client: EmailClientProtocol,
+    user_id: UUID,
+    names: Sequence[str] | None,
+    drive_ids: Sequence[str] | None,
+) -> tuple[OutgoingAttachment, ...]:
+    """What a mailbox draft carries: read whole now, a draft having no card to confirm.
+
+    Args:
+        client: The mailbox, whose bound the files must fit.
+        user_id: Whose files.
+        names: Files LIA holds, as the person knows them.
+        drive_ids: Files of the person's drive.
+
+    Returns:
+        The files, none when none was named.
+
+    Raises:
+        EmailValidationError: A file nothing answers to, or more than a message carries.
+    """
+    files = await card_files(client, user_id, names, drive_ids)
+    return await files_to_send({"files": files}, user_id, client)
+
+
 async def _held(user_id: UUID, names: Sequence[str]) -> list[dict[str, Any]]:
     """The newest live file each name designates, by the door the send reads through."""
     async with get_db_context() as db:

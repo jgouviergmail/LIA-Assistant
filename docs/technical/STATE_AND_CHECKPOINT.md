@@ -259,11 +259,11 @@ metadata = {
 ```python
 # Turn 1
 state["current_turn_id"] = 1
-state["agent_results"]["1:contacts_agent"] = {...}
+state["agent_results"]["1:contact_agent"] = {...}
 
 # Turn 2
 state["current_turn_id"] = 2
-state["agent_results"]["2:contacts_agent"] = {...}
+state["agent_results"]["2:contact_agent"] = {...}
 
 # Isolation: résultats turn 1 ne sont pas écrasés par turn 2
 ```
@@ -404,7 +404,7 @@ available_tools = [
 ```python
 routing_history = [
     RouterOutput(
-        intention="contacts_search",
+        intention="action",
         confidence=0.95,
         context_label="contact",
         next_node="planner",
@@ -542,7 +542,7 @@ planner_error = {
 **Exemple**:
 ```python
 agent_results = {
-    "1:contacts_agent": {
+    "1:contact_agent": {
         "status": "success",
         "data": {
             "contacts": [
@@ -553,7 +553,7 @@ agent_results = {
         "execution_time_ms": 450,
         "tokens_used": 1200
     },
-    "2:contacts_agent": {
+    "2:contact_agent": {
         "status": "success",
         "data": {
             "contact": {
@@ -1584,11 +1584,11 @@ else:
 ```python
 # Turn 1
 state["current_turn_id"] = 1
-state["agent_results"]["1:contacts_agent"] = result1
+state["agent_results"]["1:contact_agent"] = result1
 
 # Turn 2
 state["current_turn_id"] = 2
-state["agent_results"]["2:contacts_agent"] = result2
+state["agent_results"]["2:contact_agent"] = result2
 
 # Pas d'écrasement - clés différentes
 ```

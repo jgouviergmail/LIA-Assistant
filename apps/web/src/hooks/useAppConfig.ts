@@ -89,6 +89,9 @@ export interface AppConfig {
     // The « Tools » section (ADR-369) — the deployment ceiling of the header
     // destination and its pages; the effective state is `capabilities.workbench`.
     workbench_enabled?: boolean;
+    // What LIA does from the Tools (ADR-372) — the deployment ceiling; the effective
+    // state is `capabilities.tool_assists`.
+    tool_assists_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

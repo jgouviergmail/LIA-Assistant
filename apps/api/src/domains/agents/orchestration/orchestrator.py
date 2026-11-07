@@ -11,15 +11,10 @@ from src.core.field_names import FIELD_STATUS
 from src.domains.agents.constants import (
     # v3.2 naming: singular domain names
     AGENT_BROWSER,
-    AGENT_CONTACT,
     EXECUTION_MODE_SEQUENTIAL,
     INTENTION_BROWSER,
     INTENTION_BROWSER_INTERACT,
     INTENTION_BROWSER_NAVIGATE,
-    INTENTION_CONTACT,
-    INTENTION_CONTACT_DETAILS,
-    INTENTION_CONTACT_LIST,
-    INTENTION_CONTACT_SEARCH,
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_ORCHESTRATION_PLAN,
@@ -54,25 +49,20 @@ async def create_orchestration_plan(
 
     Example:
         >>> router_output = RouterOutput(
-        ...     intention="contacts_search",
+        ...     intention="browser",
         ...     confidence=0.9,
-        ...     context_label="contact",
+        ...     context_label="browser",
         ...     next_node="task_orchestrator"
         ... )
         >>> plan = await create_orchestration_plan(router_output, state)
-        >>> # plan.agents_to_call == ["contacts_agent"]
+        >>> # plan.agents_to_call == ["browser_agent"]
         >>> # plan.execution_mode == "sequential"
 
     """
 
     # V1: Simple intention-to-agent mapping (sequential only)
-    # Maps router intention (e.g., "contacts_search") to agents to execute
-    # v3.2 naming: singular domain names
+    # Maps router intention to agents to execute
     intention_to_agents: dict[str, list[str]] = {
-        INTENTION_CONTACT_SEARCH: [AGENT_CONTACT],
-        INTENTION_CONTACT_LIST: [AGENT_CONTACT],
-        INTENTION_CONTACT_DETAILS: [AGENT_CONTACT],
-        INTENTION_CONTACT: [AGENT_CONTACT],  # Fallback for old router outputs
         # Browser domain (F7)
         INTENTION_BROWSER: [AGENT_BROWSER],
         INTENTION_BROWSER_NAVIGATE: [AGENT_BROWSER],
@@ -124,10 +114,10 @@ def get_next_agent_from_plan(state: MessagesState) -> str | None:
         Next agent name to execute, or None if all agents completed.
 
     Example:
-        >>> # Assume plan has ["contacts_agent", "emails_agent"]
-        >>> # Turn 3: contacts_agent already executed (key "3:contacts_agent" exists)
+        >>> # Assume plan has ["browser_agent"]
+        >>> # Turn 3: browser_agent not executed yet (key "3:browser_agent" doesn't exist)
         >>> next_agent = get_next_agent_from_plan(state)
-        >>> # next_agent == "emails_agent" (key "3:emails_agent" doesn't exist yet)
+        >>> # next_agent == "browser_agent"
     """
     plan = state.get(STATE_KEY_ORCHESTRATION_PLAN)
     if not plan:

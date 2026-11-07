@@ -61,8 +61,17 @@ export const WORKBENCH_ROOT = '/dashboard/tools';
 /** The `lg` breakpoint: from here a list and its detail stand side by side. */
 export const WORKBENCH_DESKTOP = '(min-width: 1024px)';
 
+/** From here a detail stands beside what it came from, which stays whole (Tailwind `xl`). */
+export const WORKBENCH_SIDE_BY_SIDE = '(min-width: 1280px)';
+
 /** The `sm` breakpoint: below it a screen is read as a phone. */
 export const WORKBENCH_BEYOND_PHONE = '(min-width: 640px)';
+
+/** A square button of a tool's header row, whichever tool draws it. */
+export const WORKBENCH_HEADER_ICON = 'size-10 shrink-0';
+
+/** The act a tool leads with: last on the header row, as tall as the buttons beside it. */
+export const WORKBENCH_HEADER_PRIMARY = 'ml-auto min-h-10';
 
 /**
  * A tool's pane height from `lg`: the viewport less the header, the row of the
@@ -71,7 +80,7 @@ export const WORKBENCH_BEYOND_PHONE = '(min-width: 640px)';
  * every tool.
  */
 export const WORKBENCH_PANE_HEIGHT =
-  'lg:h-[calc(100dvh-12.75rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))]';
+  'lg:h-[calc(100dvh-14rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px)-var(--radio-banner-h,0px))]';
 
 /** How long a screen goes unread before coming back to it re-reads it. */
 export const WORKBENCH_RETURN_REREAD_MIN_MS = 60_000;

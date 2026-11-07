@@ -7,8 +7,9 @@
 **Updated**: Native tools and external MCP; the runtime catalogue is authoritative.
 
 The [Tools workspace](WORKBENCH.md) is a separate manual REST surface over the
-same connector clients. Its controls do not enter the assistant catalogue or
-its activity registers. Client improvements shared with assistant tools include
+same connector clients. Its hand-made controls do not enter the assistant
+catalogue or its activity registers; what a click asks of LIA from those screens
+is filed and billed as an act of LIA ([TOOL_ASSISTS.md](TOOL_ASSISTS.md)). Client improvements shared with assistant tools include
 provider-neutral mail read state, all-day calendar events and multi-valued
 contact updates. A scalar contact edit replaces the primary value while keeping
 the others; an explicit list replaces that list. See
@@ -1382,19 +1383,11 @@ def load_all_manifests() -> list[ToolManifest]:
     ]
 ```
 
-#### 4. Créer l'Agent (si nouveau domain)
+#### 4. Déclarer l'Agent (si nouveau domain)
 
-```python
-# apps/api/src/domains/agents/graphs/weather_agent_builder.py
-
-class WeatherAgentBuilder(BaseAgentBuilder):
-    """Builder pour weather agent."""
-
-    def build_agent(self) -> CompiledStateGraph:
-        """Build weather agent graph."""
-        # Similar to contacts_agent_builder
-        pass
-```
+Un domaine n'a pas de builder : un `AgentManifest` regroupe ses outils, et une étape de plan les
+appelle directement ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)). Voir
+[GUIDE_AGENT_CREATION.md](../guides/GUIDE_AGENT_CREATION.md).
 
 #### 5. Tester
 

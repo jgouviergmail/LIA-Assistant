@@ -25,6 +25,7 @@ import {
 } from '../fixtures/dashboard-home';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
+import { expectOnOneLine, expectUnder } from './phone-lines';
 import { scanPage } from '../a11y/scan';
 
 type Locale = 'fr' | 'de' | 'en';
@@ -491,6 +492,8 @@ interface MeasuredRect {
 }
 
 const healthVisibility = new WeakMap<Page, object[]>();
+/** What the ring of a dial leaves open, as a share of its width. */
+const DIAL_OPENING = 88 / 120;
 
 /** Read the values through their unit/period labels; colour never substitutes for data. */
 async function assertHealthReading(page: Page, locale: Locale, data: HealthData) {
@@ -652,9 +655,12 @@ async function assertHealthReading(page: Page, locale: Locale, data: HealthData)
         );
       }
     }
-    const separator = metric.locator(':scope > [aria-hidden="true"]');
-    await expect(separator).toHaveCount(1);
-    const painted = await Promise.all([box(today), box(average), box(separator)]);
+    const painted = await Promise.all([
+      box(today),
+      box(metric.getByText(todayLabel, { exact: true })),
+      box(average),
+      box(metric.getByText(averageLabel, { exact: true })),
+    ]);
     for (let first = 0; first < painted.length; first += 1) {
       for (let second = first + 1; second < painted.length; second += 1) {
         const a = painted[first],
@@ -663,10 +669,14 @@ async function assertHealthReading(page: Page, locale: Locale, data: HealthData)
         const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
         expect(
           overlapX > 1 && overlapY > 1,
-          `${item.kind}: today, average and separator do not overlap`
+          `${item.kind}: today, average and their words do not overlap`
         ).toBe(false);
       }
     }
+    const [figure, dial] = await Promise.all([box(today), box(metric.getByTestId('health-dial'))]);
+    expect(figure.width, `${item.kind}: the figure stays inside its ring`).toBeLessThanOrEqual(
+      dial.width * DIAL_OPENING
+    );
     const todayStyle = await today.evaluate(element => ({
       font: parseFloat(getComputedStyle(element).fontSize),
       color: getComputedStyle(element).color,
@@ -879,21 +889,26 @@ for (const sample of [
       box(radioFrame),
       box(main.getByRole('heading', { level: 1 })),
     ]);
-    expect(chatBox.y + chatBox.height).toBeLessThanOrEqual(servicesBox.y + 1);
+    // Owner request (2026-11-06): below `lg` the two doors share a line.
+    const sharing = sample.width < 1024;
+    if (sharing) {
+      expect(Math.abs(chatBox.y - servicesBox.y)).toBeLessThanOrEqual(1);
+      expect(chatBox.x + chatBox.width).toBeLessThanOrEqual(servicesBox.x + 1);
+    } else {
+      expect(chatBox.y + chatBox.height).toBeLessThanOrEqual(servicesBox.y + 1);
+    }
     expect(servicesBox.y + servicesBox.height).toBeLessThanOrEqual(shortcutsBox.y + 1);
     expect(dateBox.y + dateBox.height).toBeLessThanOrEqual(radioBox.y + 1);
     expect(servicesBox.y + servicesBox.height).toBeLessThanOrEqual(radioBox.y + 1);
     expect(radioBox.y + radioBox.height).toBeLessThanOrEqual(shortcutsBox.y + 1);
     const radioActionBox = await box(radioAction);
+    const doors = servicesBox.x + servicesBox.width - chatBox.x;
     expect(
-      Math.abs(radioActionBox.width - servicesBox.width),
-      'radio and Services have the same width'
-    ).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(radioActionBox.height - servicesBox.height),
-      'radio and Services have the same height'
+      Math.abs(radioActionBox.width - (sharing ? doors : servicesBox.width)),
+      'radio and the doors have the same width'
     ).toBeLessThanOrEqual(1);
     expect(radioActionBox.height).toBeGreaterThanOrEqual(44);
+    expect(servicesBox.height).toBeGreaterThanOrEqual(44);
     expect(
       await radioFrame.evaluate(
         (element, greeting) =>
@@ -902,10 +917,8 @@ for (const sample of [
       ),
       'the station sits immediately after the welcome message'
     ).toBe(true);
-    if (sample.width < 1024) {
-      expect(Math.abs(chatBox.x - servicesBox.x)).toBeLessThanOrEqual(1);
-      expect(Math.abs(chatBox.width - servicesBox.width)).toBeLessThanOrEqual(1);
-      expect(chatBox.width, 'both hero actions use the available mobile width').toBeGreaterThan(
+    if (sharing) {
+      expect(doors, 'both hero actions use the available mobile width').toBeGreaterThan(
         sample.width * 0.65
       );
     }
@@ -1721,3 +1734,53 @@ for (const sample of [
     await expectNoOverflow(page, `native home notification ${sample.width}px ${sample.locale}`);
   });
 }
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. */
+for (const width of [390, 360]) {
+  test(`a phone reads the home's two doors and both dials at once at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const user = await authenticate({ language: 'fr', timezone: HOME_TIMEZONE });
+    await mockApi(homeRoutes(user));
+    await readyHome(page, 'fr');
+
+    await expectOnOneLine(
+      page.getByRole('link', { name: 'Ouvrir le Chat' }),
+      page.getByRole('link', { name: 'Services', exact: true })
+    );
+
+    const card = briefingCard(page, 'health', 'fr');
+    await card.scrollIntoViewIfNeeded();
+    const dials = card.getByTestId('health-dial');
+    await expect(dials).toHaveCount(2);
+    await expectOnOneLine(dials.first(), dials.last());
+    const body = card.getByRole('group', {
+      name: translated('fr', 'dashboard.briefing.cards.health.title'),
+      exact: true,
+    });
+    expect(
+      await body.evaluate(element => element.scrollHeight <= element.clientHeight),
+      'the whole card reads without scrolling'
+    ).toBe(true);
+    await expectNoOverflow(page, `home ${width}px`);
+  });
+}
+
+test('the two doors stand one above the other beside the greeting from `lg`', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const user = await authenticate({ language: 'fr', timezone: HOME_TIMEZONE });
+  await mockApi(homeRoutes(user));
+  await readyHome(page, 'fr');
+
+  await expectUnder(
+    page.getByRole('link', { name: 'Ouvrir le Chat' }),
+    page.getByRole('link', { name: 'Services', exact: true })
+  );
+});

@@ -162,9 +162,11 @@ def _assert_effect_completeness(registry: Any) -> None:
     from src.domains.agents.effects.treatment_labels import (
         assert_treatment_domain_completeness,
     )
+    from src.domains.tool_assists.catalogue import assert_assist_registry_completeness
 
     guards: tuple[BootGuard, ...] = (
         ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
+        ("tool_assists_incomplete", "Tool assists", assert_assist_registry_completeness),
         (
             "effect_labels_incomplete",
             "Effect labels",
@@ -224,23 +226,7 @@ async def init_agent_registry(
     configure_channel_gateway(None)
     try:
         from src.domains.agents.context import get_tool_context_store
-        from src.domains.agents.graphs import (
-            build_brave_agent,
-            build_calendar_agent,
-            build_contacts_agent,
-            build_drive_agent,
-            build_emails_agent,
-            build_hue_agent,
-            build_perplexity_agent,
-            build_places_agent,
-            build_query_agent,
-            build_routes_agent,
-            build_tasks_agent,
-            build_weather_agent,
-            build_web_fetch_agent,
-            build_web_search_agent,
-            build_wikipedia_agent,
-        )
+        from src.domains.agents.graphs import build_query_agent
         from src.domains.agents.registry import set_global_registry
 
         # Get tool context store (AsyncPostgresStore for persistent contextual references)
@@ -291,47 +277,11 @@ async def init_agent_registry(
         _assert_effect_completeness(registry)
 
         # Register all available agents
-        # NAMING: domain=entity(singular), agent=domain+"_agent"
-        # OAuth agents (Google)
-        registry.register_agent("contact_agent", build_contacts_agent)
-        registry.register_agent("email_agent", build_emails_agent)
-        registry.register_agent("event_agent", build_calendar_agent)
-        registry.register_agent("file_agent", build_drive_agent)
-        registry.register_agent("task_agent", build_tasks_agent)
-        # API key agents
-        registry.register_agent("weather_agent", build_weather_agent)
-        registry.register_agent("wikipedia_agent", build_wikipedia_agent)
-        registry.register_agent("perplexity_agent", build_perplexity_agent)
-        registry.register_agent("brave_agent", build_brave_agent)
-        registry.register_agent("web_search_agent", build_web_search_agent)
-        registry.register_agent("web_fetch_agent", build_web_fetch_agent)
-        registry.register_agent("place_agent", build_places_agent)
-        registry.register_agent("route_agent", build_routes_agent)
-        # Smart Home agents
-        registry.register_agent("hue_agent", build_hue_agent)
-        # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
 
-        if settings.sms_enabled:
-            from src.domains.agents.graphs.sms_agent_builder import build_sms_agent
-
-            registry.register_agent("sms_agent", build_sms_agent)
-
-        # Health Metrics agent (v1.17.2) — gated on feature flag
-        if getattr(settings, "health_metrics_enabled", False):
-            from src.domains.agents.graphs import build_health_agent
-
-            registry.register_agent("health_agent", build_health_agent)
-            logger.info("health_agent_registered")
-
-        # Agentic telephony agent (ADR-127) — gated on feature flag, symmetric
-        # with the catalogue-manifest registration in catalogue_loader.py
+        # Agentic telephony (ADR-127) — gated on feature flag, symmetric with the
+        # catalogue-manifest registration in catalogue_loader.py
         if getattr(settings, "telephony_enabled", False):
-            from src.domains.agents.graphs import build_telephony_agent
-
-            registry.register_agent("telephony_agent", build_telephony_agent)
-            logger.info("telephony_agent_registered")
-
             # One agent, three mandates (phone-as-a-channel, lot 2): the dial
             # path indexes the mandate table without a fallback, so a call
             # kind nobody declared refuses the boot rather than running the

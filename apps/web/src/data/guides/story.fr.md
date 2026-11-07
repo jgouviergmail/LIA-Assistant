@@ -4,7 +4,7 @@
 
 **Version** : 3.0
 **Date** : 2026-11-06
-**Application** : LIA v4.4.0
+**Application** : LIA v4.5.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA. Mon travail a été de la
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA, dirigée, encadrée et contrôlée | **≈ 100 %** |
-| Lignes de source (hors tests), réparties en 61 paquets de domaines backend | **1 130 379** |
-| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **76 381** |
-| Décisions d'architecture documentées (ADR) | **368** |
-| Versions livrées à rythme régulier | **294** |
+| Lignes de source (hors tests), réparties en une soixantaine de paquets de domaines backend | **1 136 798** |
+| Tests automatisés inventoriés, en suites adaptées au commit et à la livraison | **77 162** |
+| Décisions d'architecture documentées (ADR) | **370** |
+| Versions livrées à rythme régulier | **295** |
 | Langues, avec une parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **7,9/10** |
 
@@ -62,9 +62,9 @@ Le monde partagé donne à l'assistante des lieux : une bibliothèque pour les c
 
 ## 4. Les arbitrages
 
-Je voulais aussi qu’un assistant laisse la place à ce que l’on fait soi-même. L’espace Outils utilise les mêmes services connectés, mais un clic n’y appelle aucun modèle et ne devient pas un acte de LIA. Déléguer et garder la main peuvent partager une interface, à condition de savoir qui a décidé, qui a agi et ce qui a été approuvé.
+Je voulais aussi qu’un assistant laisse la place à ce que l’on fait soi-même. L’espace Outils utilise les mêmes services connectés, mais un geste à la main n’y appelle aucun modèle et ne devient pas un acte de LIA ; ce qu’un clic lui demande reste une proposition, tracée et facturée à qui l’a demandée. Déléguer et garder la main peuvent partager une interface, à condition de savoir qui a décidé, qui a agi et ce qui a été approuvé.
 
-Voici trois décisions structurantes, parmi les 368 documentées.
+Voici trois décisions structurantes, parmi les 370 documentées.
 
 La première porte sur la **souveraineté** : je ne voulais aucune dépendance irréversible envers un fournisseur. Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity et des modèles locaux avec Ollama) passent tous par une même abstraction, si bien que chaque usage peut changer de fournisseur par simple configuration, coûts comparés. Côté services, Google, Apple et Microsoft sont interchangeables pour chaque catégorie, qu'il s'agisse de la messagerie, de l'agenda ou des contacts. L'auto-hébergement donne la maîtrise du serveur : les données du compte sont stockées sur l'instance et les identifiants des connecteurs sont chiffrés. Les services distants que la personne choisit reçoivent tout de même les données utiles à leur part de la demande.
 

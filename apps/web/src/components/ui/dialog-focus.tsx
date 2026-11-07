@@ -4,6 +4,9 @@ import { createContext, useContext, useRef } from 'react';
 
 export const DialogModalContext = createContext(true);
 
+/** Something renders inside a modal dialog, whose focus trap everything in it answers to. */
+export const InsideModalDialogContext = createContext(false);
+
 /** Manual modal openers have no Radix Trigger; non-modal outside focus stays untouched. */
 export function useDialogFocusReturn(
   onOpenAutoFocus?: (event: Event) => void,

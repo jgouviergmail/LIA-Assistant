@@ -49,30 +49,6 @@
   },
   {
     "kind": "advisory",
-    "subject": "npm:next@16.4.5",
-    "ref": "GHSA-mfr8-8qww-v76h",
-    "reason": "Needs a 'use cache' function called through unstable_cache; apps/web uses neither. The advisory names no patched version; re-read it when it does.",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
-    "subject": "npm:next@16.4.5",
-    "ref": "GHSA-pc58-hwjq-p385",
-    "reason": "Needs a route handler or the fetch cache returning a crafted upstream response unchanged, behind an HTTP/1.1 proxy that queues pipelined responses. apps/web's four route handlers answer JSON they build or relay the deployment's own API, no third party is an upstream, and the reference deployment sits behind Cloudflare's tunnel. The advisory names no patched version; re-read it when it does.",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
-    "subject": "npm:next@16.4.5",
-    "ref": "GHSA-vvgp-ww4w-46vf",
-    "reason": "Needs Cache Components; next.config.ts does not enable them and no fallback shell exists. The advisory names no patched version; re-read it when it does.",
-    "owner": "maintainer",
-    "review_by": "2026-11-30"
-  },
-  {
-    "kind": "advisory",
     "subject": "pip:aiohttp@3.14.4",
     "ref": "GHSA-9xw5-w5jj-pvcg",
     "reason": "The repository advisory contradicts itself: its range reads '>=2,<=3.14.4' while its patched version is 3.14.4. The 3.14.4 release notes carry the fix (multipart handling moved to spooled temporary files to bound the file descriptors), 3.14.5 adds no security change, and the seven sibling advisories published with 3.14.4 read '<=3.14.3'. LIA runs no aiohttp server. Lifted when the advisory's range is corrected, or by the next aiohttp floor.",

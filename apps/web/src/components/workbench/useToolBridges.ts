@@ -10,11 +10,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useEffectEvent } from 'react';
 
-import { useAuth } from '@/hooks/useAuth';
-import { seedInputDraft } from '@/hooks/useInputDraft';
 import type { Language } from '@/i18n/settings';
-import { chatDraftHref } from '@/lib/briefing-utils';
-import { openChatDeepLink } from '@/lib/chat-deep-link';
 import {
   handOff,
   takeHandoff,
@@ -26,6 +22,8 @@ import type { WorkbenchToolId } from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { useWorkbench } from './WorkbenchShell';
+import { useAskLia } from './assist/useAskLia';
+import type { AssistDoors } from './assist/useAssistHost';
 
 /** The tool each thing opens in. */
 const DESTINATIONS: Readonly<Record<HandoffKind, WorkbenchToolId>> = {
@@ -35,19 +33,21 @@ const DESTINATIONS: Readonly<Record<HandoffKind, WorkbenchToolId>> = {
   compose: 'mail',
 };
 
-export interface ToolBridges {
+export interface ToolBridges extends AssistDoors {
   /** Whether a thing of this kind has somewhere to go. */
   offers: (kind: HandoffKind) => boolean;
   /** Opens its tool on it. */
   go: (handoff: WorkbenchHandoff) => void;
   /** Opens the chat on these words, unsent. */
   ask: (words: string) => void;
+  /** A click may ask a model from here (ADR-372). */
+  assists: boolean;
 }
 
 export function useToolBridges(lng: Language): ToolBridges {
-  const { availability } = useWorkbench();
-  const { user } = useAuth();
+  const { availability, doors, assists } = useWorkbench();
   const router = useRouter();
+  const ask = useAskLia(lng);
   return {
     offers: kind =>
       availability.tools.some(item => item.tool === DESTINATIONS[kind] && item.state === 'ready'),
@@ -55,10 +55,9 @@ export function useToolBridges(lng: Language): ToolBridges {
       handOff(handoff);
       router.push(buildLocalizedPath(toolPath(DESTINATIONS[handoff.kind]), lng));
     },
-    ask: words => {
-      if (user) seedInputDraft(user.id, words);
-      openChatDeepLink(chatDraftHref(lng));
-    },
+    ask,
+    ...doors,
+    assists,
   };
 }
 

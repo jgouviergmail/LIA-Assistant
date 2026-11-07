@@ -355,3 +355,10 @@ call notification now leaves through one door that stamps the run id (ADR-290
 amendment 2026-10-24), and the Live closing card is restated once its learning
 spent (ADR-301 amendment 2026-10-24). Nothing new is recorded; what was recorded is
 now shown.
+
+## Amendment 2026-11-06 — a text read aloud answers before a paid voice speaks
+
+[ADR-372](ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md) reuses the readout behind the briefing, and that readout asked no ceiling.
+`synthesize_user_text` (`domains/voice/text_readout.py`) now asks both before a paid voice speaks,
+on every surface that reads a text aloud; a free engine answers to neither, since nothing is spent.
+A closed ceiling reaches the caller as a refusal, never as an internal error.

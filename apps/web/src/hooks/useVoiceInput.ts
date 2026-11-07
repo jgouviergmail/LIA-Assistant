@@ -84,6 +84,19 @@ export interface UseVoiceInputReturn {
 // Hook Implementation
 // ============================================================================
 
+/**
+ * @returns Whether this page can reach a microphone: a browser hides it on plain HTTP, the
+ *   address an instance on a local network opens on.
+ */
+export function canRecordVoice(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.mediaDevices !== 'undefined' &&
+    typeof navigator.mediaDevices.getUserMedia !== 'undefined' &&
+    typeof AudioContext !== 'undefined'
+  );
+}
+
 export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInputReturn {
   const { onTranscription, onError } = options;
 
@@ -115,11 +128,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
   const isProcessing = state === 'processing';
 
   // Check browser support
-  const isSupported =
-    typeof navigator !== 'undefined' &&
-    typeof navigator.mediaDevices !== 'undefined' &&
-    typeof navigator.mediaDevices.getUserMedia !== 'undefined' &&
-    typeof AudioContext !== 'undefined';
+  const isSupported = canRecordVoice();
 
   /**
    * Clean up audio resources.

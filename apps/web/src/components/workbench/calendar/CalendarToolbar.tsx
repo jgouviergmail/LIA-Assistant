@@ -3,8 +3,10 @@
 /**
  * CalendarToolbar — what moves the calendar's view (ADR-369, mock-up « Agenda »).
  *
- * Today, a step back and forward as far as the view reaches, what is shown and
- * on which wall, then the calendars (below `lg`) and the views.
+ * Today, a step back and forward as far as the view reaches, what is shown, then
+ * the calendars (below `lg`) and the views. A phone stacks them: today starts the first
+ * line and what is shown ends it, the search takes all the room the calendars leave it,
+ * and the views stand in the middle of theirs.
  */
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RefObject } from 'react';
@@ -36,7 +38,6 @@ function shownLabel(address: CalendarAddress, lng: Language): string {
 
 export interface CalendarToolbarProps {
   lng: Language;
-  zone: string;
   today: string;
   todayRef: RefObject<HTMLButtonElement | null>;
   address: CalendarAddress;
@@ -49,7 +50,6 @@ export interface CalendarToolbarProps {
 
 export function CalendarToolbar({
   lng,
-  zone,
   today,
   todayRef,
   address,
@@ -87,21 +87,20 @@ export function CalendarToolbar({
       >
         <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <h2 className="text-sm font-bold" aria-live="polite">
+      <h2 className="text-sm font-bold max-sm:ml-auto" aria-live="polite">
         {shownLabel(address, lng)}
       </h2>
-      <span className="text-xs text-muted-foreground">
-        {t('workbench.calendar.zone_note', { zone })}
-      </span>
-      <span className="ml-auto flex flex-wrap items-center gap-2">
-        <CalendarSearchBox lng={lng} searching={searching} />
-        <CalendarListMenu
-          lng={lng}
-          calendars={calendars}
-          hidden={hidden}
-          onToggle={onToggle}
-          onManage={onManage}
-        />
+      <span className="flex flex-wrap items-center justify-center gap-2 max-sm:w-full sm:ml-auto">
+        <span className="flex items-center gap-2 max-sm:w-full">
+          <CalendarSearchBox lng={lng} searching={searching} />
+          <CalendarListMenu
+            lng={lng}
+            calendars={calendars}
+            hidden={hidden}
+            onToggle={onToggle}
+            onManage={onManage}
+          />
+        </span>
         <span
           role="group"
           aria-label={t('workbench.calendar.view_label')}

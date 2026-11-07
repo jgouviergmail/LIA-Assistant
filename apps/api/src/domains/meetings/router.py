@@ -190,12 +190,15 @@ async def list_meetings(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None, max_length=200, pattern=r"^[^\x00]*$"),
+    calendar_event_id: str | None = Query(default=None, max_length=255, pattern=r"^[^\x00]*$"),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MeetingListResponse:
-    """Newest first, with the EXACT total (ADR-185)."""
+    """Newest first, with the EXACT total (ADR-185); one event's minutes when it is named."""
     service = MeetingService(db)
-    items, total = await service.list_meetings(user.id, limit=limit, offset=offset, query=q)
+    items, total = await service.list_meetings(
+        user.id, limit=limit, offset=offset, query=q, calendar_event_id=calendar_event_id
+    )
     return MeetingListResponse(
         items=[service.to_summary(m) for m in items],
         total=total,

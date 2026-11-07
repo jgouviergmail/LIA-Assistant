@@ -82,6 +82,8 @@ async def read_availability(user_id: UUID) -> WorkbenchAvailability:
             send_undo_seconds=settings.workbench_send_undo_seconds,
             draft_autosave_seconds=settings.workbench_draft_autosave_seconds,
             search_max_chars=WORKBENCH_MAIL_QUERY_MAX_CHARS,
+            assist_text_max_chars=settings.tool_assist_text_max_chars,
+            assist_instruction_max_chars=settings.tool_assist_instruction_max_chars,
         ),
     )
 

@@ -27,6 +27,7 @@ l'envoie par e-mail si demandé et le propose en PDF.
 |---|---|
 | `models.py` | `meetings` (la ligne EST le job durable, ADR-129), `meeting_templates`, `meeting_preferences` |
 | `repository.py` | chaque transition = un `UPDATE … WHERE status = …` atomique ; bail, heartbeat, tentatives |
+| `router.py` | routes du domaine ; `GET /meetings?calendar_event_id=…` : les comptes rendus d'un événement, ce que lit « Voir le compte rendu » depuis les Outils (ADR-372) |
 | `service.py` | démarrage (moteur résolu, bornes publiées), segments, arrêt (lacunes → 409 `segments_missing`), édition, livraison |
 | `audio_store.py` | un fichier par séquence (4 workers), assemblage puis normalisation Opus par ffmpeg sous le plafond distant |
 | `engine.py` | `resolve_engine` : slot admin → ordre de repli → moteur local ; rien ne touche le réseau |

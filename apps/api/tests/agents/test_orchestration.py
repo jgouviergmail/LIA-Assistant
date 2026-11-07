@@ -5,8 +5,8 @@ Tests for TaskOrchestrator and orchestration logic.
 import pytest
 
 from src.domains.agents.constants import (
-    AGENT_CONTACT,
-    INTENTION_CONTACT_SEARCH,
+    AGENT_BROWSER,
+    INTENTION_BROWSER_NAVIGATE,
     make_agent_result_key,
 )
 from src.domains.agents.domain_schemas import RouterOutput
@@ -19,15 +19,15 @@ from src.domains.agents.orchestration.schemas import AgentResult, OrchestratorPl
 
 
 @pytest.mark.asyncio
-async def test_create_orchestration_plan_contacts_search():
-    """Test orchestration plan creation for contacts search."""
+async def test_create_orchestration_plan_browser_navigate():
+    """Test orchestration plan creation for a page to open."""
     # Arrange — v3.2 vocabulary is SINGULAR; use the constants, never literals
     router_output = RouterOutput(
-        intention=INTENTION_CONTACT_SEARCH,
+        intention=INTENTION_BROWSER_NAVIGATE,
         confidence=0.9,
-        context_label="contact",
+        context_label="browser",
         next_node="task_orchestrator",
-        reasoning="User wants to search contacts",
+        reasoning="User wants to open a page",
     )
 
     state: MessagesState = {
@@ -43,10 +43,10 @@ async def test_create_orchestration_plan_contacts_search():
 
     # Assert
     assert isinstance(plan, OrchestratorPlan)
-    assert plan.agents_to_call == [AGENT_CONTACT]
+    assert plan.agents_to_call == [AGENT_BROWSER]
     assert plan.execution_mode == "sequential"
     assert plan.metadata["version"] == "v1_sequential"
-    assert plan.metadata["intention"] == INTENTION_CONTACT_SEARCH
+    assert plan.metadata["intention"] == INTENTION_BROWSER_NAVIGATE
     assert plan.metadata["confidence"] == 0.9
 
 

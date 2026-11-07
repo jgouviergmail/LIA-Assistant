@@ -159,22 +159,7 @@ PromptName = Literal[
     "interest_llm_reflection_prompt",
     "interest_subject_clustering_prompt",
     # Domain agent prompts
-    "agent_context_domain_instructions",
-    "brave_agent_prompt",
-    "calendar_agent_prompt",
-    "contacts_agent_prompt",
-    "drive_agent_prompt",
-    "emails_agent_prompt",
-    "places_agent_prompt",
     "query_agent_prompt",
-    "routes_agent_prompt",
-    "tasks_agent_prompt",
-    "weather_agent_prompt",
-    "web_fetch_agent_prompt",
-    "perplexity_agent_prompt",
-    "wikipedia_agent_prompt",
-    "web_search_agent_prompt",
-    "hue_agent_prompt",
     # Browser control (evolution F7 — Playwright)
     "browser_agent_prompt",
     # Heartbeat autonome (proactive notifications)
@@ -276,13 +261,10 @@ PromptName = Literal[
     "html_response_directive",
     "html_cards_response_directive",
     # Health Metrics — assistant agent (v1.17.2)
-    "health_agent_prompt",
-    "sms_agent_prompt",
     # Agentic telephony (ADR-127) — LIA-side domain agent prompt, plus the
     # ElevenLabs voice-agent and return-synthesis prompts. The two vendor-side
     # prompts are LOADED by telephony/prompts/loader.py (path-based read of
     # this store — no agents import, so the T2 cycle stays broken).
-    "telephony_agent_prompt",
     "telephony_agent_system_prompt",
     "telephony_synthesis_prompt",
     # Owner and verification mandates (lot 2): rendered server-side by
@@ -317,6 +299,20 @@ PromptName = Literal[
     # Interactive pages (ADR-370), read by path in `interactive_pages/prompts.py`.
     "interactive_page_prompt",
     "email_digest_prompt",
+    # What LIA writes from the Tools (ADR-372): the words stay data below the marker.
+    "tool_assist_rewrite_prompt",
+    "tool_assist_translate_prompt",
+    "tool_assist_write_prompt",
+    "tool_assist_event_prompt",
+    "tool_assist_task_prompt",
+    "tool_assist_steps_prompt",
+    "tool_assist_file_prompt",
+    "tool_assist_conversation_prompt",
+    "tool_assist_search_prompt",
+    "tool_assist_filter_prompt",
+    "tool_assist_contact_prompt",
+    "tool_assist_card_prompt",
+    "tool_assist_lines",
     # Image prompt enhancement — an optional rewrite before the image model (ADR-315)
     "image_prompt_enhancement_prompt",
     # One mail attachment read by the vision slot (image, scanned PDF).
@@ -541,7 +537,7 @@ def list_available_prompts(version: PromptVersion = "v1") -> list[str]:
     Example:
         >>> prompts = list_available_prompts("v1")
         >>> print(prompts)
-        ['router_system_prompt', 'response_system_prompt', 'contacts_agent_prompt']
+        ['router_system_prompt', 'response_system_prompt', 'query_agent_prompt']
     """
     # Validate version exists
     if version not in _AVAILABLE_VERSIONS:

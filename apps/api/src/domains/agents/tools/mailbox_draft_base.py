@@ -23,6 +23,7 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.common import ToolErrorCode
+from src.domains.agents.tools.exceptions import EmailValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import resolve_recipients_to_emails
@@ -54,6 +55,7 @@ MAILBOX_REFUSALS: Final = (
     MailboxFolderUnavailableError,
     MailboxOperationUnavailableError,
     ConnectorAPIError,
+    EmailValidationError,
     ValueError,
 )
 
@@ -162,6 +164,8 @@ def refusal_for(error: Exception) -> dict[str, Any]:
             "The mailbox server cannot safely remove only the requested messages. "
             "Nothing was changed; use the mailbox application for this operation.",
         )
+    if isinstance(error, EmailValidationError):
+        return refusal(ToolErrorCode.INVALID_PARAM_VALUE, str(error))
     if isinstance(error, ConnectorAPIError):
         if error.status_code != 404:
             raise error

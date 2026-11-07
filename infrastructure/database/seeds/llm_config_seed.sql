@@ -12,6 +12,10 @@
 -- presence_penalty, timeout_seconds and provider_config are carried too (the
 -- previous generation dropped them, losing the voice-TTS tuning and the
 -- per-type timeouts on fresh installs).
+-- Every slot of a fresh install runs on a model with an active tariff: the three
+-- discussion_* rows name a model and its provider, because the native default they inherit
+-- is retired from the catalogue, and every other value stays the slot's own
+-- (test_pricing_seed_extraction_guard.py).
 
 INSERT INTO llm_config_overrides (id, llm_type, provider, model, temperature, top_p, frequency_penalty, presence_penalty, max_tokens, timeout_seconds, reasoning_effort, provider_config, created_at, updated_at)
 VALUES
@@ -19,9 +23,13 @@ VALUES
     (gen_random_uuid(), 'broadcast_translator', NULL, 'gpt-5.6-luna', 0.5, NULL, NULL, NULL, NULL, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'browser_agent', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, 2, 20000, 300, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'compaction', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 50000, 250, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'discussion_context', 'qwen', 'qwen3.7-plus', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'discussion_decision', 'qwen', 'qwen3.7-plus', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'discussion_message', 'qwen', 'qwen3.7-plus', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'evaluator', NULL, NULL, NULL, NULL, NULL, NULL, 500, NULL, NULL, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'heartbeat_decision', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 10000, NULL, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'email_digest', 'deepseek', 'deepseek-flash', 0.2, NULL, NULL, NULL, 1000, 60, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'tool_assist', 'deepseek', 'deepseek-flash', 0.2, NULL, NULL, NULL, 4000, 60, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'heartbeat_message', 'deepseek', 'deepseek-flash', 0.3, NULL, NULL, NULL, 10000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'hitl_classifier', NULL, 'gpt-5.6-luna', 0.2, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'hitl_plan_approval_question_generator', 'deepseek', 'deepseek-flash', 0.3, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
@@ -52,10 +60,9 @@ VALUES
     (gen_random_uuid(), 'skill_description_translator', NULL, 'gpt-5.6-luna', 0.3, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'subagent', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, NULL, NULL, '{"level": "low", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'telephony_synthesis', NULL, 'gpt-5.6-luna', 0.2, NULL, NULL, NULL, NULL, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
-    (gen_random_uuid(), 'vision_analysis', 'gemini', 'gemini-3.7-flash', 0.5, NULL, NULL, NULL, NULL, NULL, '{"level": "low", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'vision_analysis', 'gemini', 'gemini-3.8-flash', 0.5, NULL, NULL, NULL, NULL, NULL, '{"level": "low", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'voice_comment', NULL, 'gpt-5.6-luna', 0.3, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
-    (gen_random_uuid(), 'voice_tts', 'elevenlabs', 'eleven_flash_v2_5', NULL, NULL, NULL, NULL, 10000, NULL, NULL, '{"output_format":"mp3_22050_32","voice_female":"MNKK2Wl2wbbsEPQTHZGt","voice_male":"CwhRBWXzGAHq8TQ4Fs17","voice_settings":{"similarity_boost":0.5,"stability":0.5,"style":0.5,"use_speaker_boost":true}}', NOW(), NOW()),
-    (gen_random_uuid(), 'web_search_agent', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW())
+    (gen_random_uuid(), 'voice_tts', 'elevenlabs', 'eleven_flash_v2_5', NULL, NULL, NULL, NULL, 10000, NULL, NULL, '{"output_format":"mp3_22050_32","voice_female":"MNKK2Wl2wbbsEPQTHZGt","voice_male":"CwhRBWXzGAHq8TQ4Fs17","voice_settings":{"similarity_boost":0.5,"stability":0.5,"style":0.5,"use_speaker_boost":true}}', NOW(), NOW())
 
 ON CONFLICT (llm_type) DO UPDATE SET
     provider = EXCLUDED.provider,

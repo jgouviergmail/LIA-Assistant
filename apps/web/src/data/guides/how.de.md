@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-11-06
-**Application**: LIA v4.4.0
+**Application**: LIA v4.5.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ flowchart TD
     R -->|"Aktion, Modus Pipeline"| P["Planer"]
     P --> V["Semantischer Validator"]
     V --> O["Orchestrator, Schritte parallel"]
-    O --> A["Domänen-Agenten"]
+    O --> A["Werkzeuge"]
     A --> S
     R -->|"Aktion, Modus ReAct"| L["ReAct-Schleife"]
     L -->|"Werkzeug, Ergebnis, nächste Entscheidung"| L
@@ -102,7 +102,7 @@ Im Modus **Pipeline**, dem Standardmodus, schreibt der Planer vor jeder Ausführ
 
 Ich habe beide behalten, weil sie zwei Bedürfnisse erfüllen. Die Pipeline plant, parallelisiert, kontrolliert sich selbst und sieht ihre Kosten voraus: ein Aufruf für den Planer und einer für die Antwort, gegenüber einem Aufruf pro Iteration bei ReAct, also 4- bis 8-mal weniger Tokens. ReAct passt sich jedem Ergebnis an, was für eine explorative Recherche oder eine mehrdeutige Anfrage besser ist. Beide Modi teilen sich die Werkzeug-Registry, die Bestätigungen, den Antwortknoten und die Observability.
 
-Die Wahl der Domänen und Werkzeuge läuft über einen **semantischen Router** mit Embeddings statt über Schlüsselwörter oder das Modell allein: Er ist günstiger und irrt sich seltener. Jedes Werkzeug deklariert ein Manifest (Parameter, Ausgaben, Kosten, Berechtigungen, Schlüsselwörter in mehreren Sprachen), das der Planer, der Router und der Agenten-Builder lesen, und jeder Agent wird ein einziges Mal in einer zentralen Registry deklariert. Smart Services senken den Verbrauch weiter, indem sie die Analyse der Anfragen cachen und wiederkehrende Pläne lernen. Nach einem Durchlauf mit Aktion schaut ein Initiativ-Knoten, nur lesend, was das Ergebnis anderswo bedeutet: Angekündigter Regen verweist auf die Aktivitäten im Freien in deinem Kalender.
+Die Wahl der Domänen und Werkzeuge läuft über einen **semantischen Router** mit Embeddings statt über Schlüsselwörter oder das Modell allein: Er ist günstiger und irrt sich seltener. Jedes Werkzeug deklariert ein Manifest (Parameter, Ausgaben, Kosten, Berechtigungen, Schlüsselwörter in mehreren Sprachen), das der Planer und der Router lesen, und jede Werkzeugfamilie wird ein einziges Mal in einer zentralen Registry deklariert. Smart Services senken den Verbrauch weiter, indem sie die Analyse der Anfragen cachen und wiederkehrende Pläne lernen. Nach einem Durchlauf mit Aktion schaut ein Initiativ-Knoten, nur lesend, was das Ergebnis anderswo bedeutet: Angekündigter Regen verweist auf die Aktivitäten im Freien in deinem Kalender.
 
 Ein paar Regeln halten das Ganze ehrlich. Eine Anfrage ohne Handlungsabsicht kann keinen Plan erzeugen, der irgendetwas ändert, und das ist eine deterministische Regel, geprüft vor jedem Modellaufruf. Ein Änderungsplan, der seine Korrekturversuche aufgebraucht hat, wird nicht ausgeführt: LIA stellt eine Frage, statt falsche Daten zu schreiben. Eine Ablehnung oder ein Fehlschlag wird nie als erledigte Aktion dargestellt, und sobald der Plan ausgeführt ist, wird nichts hinter deinem Rücken wiederholt: Die Antwort nennt jeden Fehlschlag, welches Werkzeug, warum, und die genaue Gesamtzahl. Für einen Modus, der sich unterwegs selbst korrigiert, gibt es ReAct.
 
@@ -139,7 +139,7 @@ Auch die Antwort selbst hat einen Rahmen: Das Modell schreibt nur auf Grundlage 
 
 ## 5. Gedächtnis und Kontext
 
-Wenn du ein Ergebnis nach Absender, Titel oder Position benennst, verwendet LIA zunächst die tatsächlich gezeigten Einträge. Passen mehrere, fragt sie nach. Auch eine geplante Suche, die den ersten von mehreren Treffern bearbeiten würde, wartet auf Deine Auswahl und arbeitet dann mit diesem Eintrag weiter.
+Wenn du ein Ergebnis nach Absender, Titel oder Position benennst, verwendet LIA zunächst die tatsächlich gezeigten Einträge. Passen mehrere, fragt sie nach. Auch eine geplante Suche, die den ersten von mehreren Treffern bearbeiten würde, wartet auf deine Auswahl und arbeitet dann mit diesem Eintrag weiter.
 
 Der Zustand eines Gesprächs ist ein `MessagesState`, den LangGraph nach jedem Knoten als Checkpoint in PostgreSQL speichert. Dadurch lässt sich ein Durchlauf nach einer Bestätigung fortsetzen, auch Stunden später. Die Ergebnisse der Werkzeuge liegen nicht im Nachrichtenverlauf, sondern in einer eigenen Daten-Registry, sodass sie erhalten bleiben, wenn der Verlauf gekürzt wird. Ab einer Schwelle werden ältere Austausche zusammengefasst; ein Badge zeigt, wie voll der Kontext ist, und `/resume` löst diese Zusammenfassung auf Wunsch aus. Im ReAct-Modus wird, was eine Schleife bereits gelesen hat, als Checkpoint gespeichert und im Durchlauf wiederverwendet; ein Abbruch vor diesem Checkpoint kann dazu führen, dass eine Quelle erneut gelesen wird.
 
@@ -237,7 +237,7 @@ Eine Klarstellung zur Performance: Die gemessenen Latenzen sind die der Infrastr
 
 ## 12. Die Oberflächen
 
-Der Bereich **Werkzeuge** besitzt eigene REST-Endpunkte außerhalb des Gesprächsgraphen. Er verwendet dieselben Connector-Clients und veröffentlicht deren Funktionen und Grenzen für die Oberfläche. Datenbanksitzungen schließen vor Anbieteraufrufen; Übermittlungen sind gegen Wiederholungen geschützt, verlorene Antworten erscheinen als unbekannter Ausgang. HTML-Mails bleiben in einem isolierten Rahmen, der entfernte Inhalte blockiert. So bleibt eine manuelle Handlung von einer an LIA delegierten Aktion getrennt.
+Der Bereich **Werkzeuge** besitzt eigene REST-Endpunkte außerhalb des Gesprächsgraphen. Er verwendet dieselben Connector-Clients und veröffentlicht deren Funktionen und Grenzen für die Oberfläche. Datenbanksitzungen schließen vor Anbieteraufrufen; Übermittlungen sind gegen Wiederholungen geschützt, verlorene Antworten erscheinen als unbekannter Ausgang. HTML-Mails bleiben in einem isolierten Rahmen, der entfernte Inhalte blockiert. So bleibt eine manuelle Handlung von einer an LIA delegierten Aktion getrennt; worum ein Klick LIA auf diesen Bildschirmen bittet, läuft durch eine eigene Tür: ein Aufruf und ein Vorschlag, nie ein Schreibvorgang beim Anbieter.
 
 Die Weboberfläche ist eine Next.js-Anwendung, die sich wie eine App installieren lässt (PWA). Der Chat aktualisiert das Gespräch ohne Neuladen, stellt mathematische Formeln und farbig hervorgehobenen Code dar, behält einen Entwurf pro Konto und lässt sich durchsuchen; die Einstellungen haben ihre eigene Suche, ein tiefschwarzes Design für OLED-Bildschirme und eine einstellbare Textgröße.
 

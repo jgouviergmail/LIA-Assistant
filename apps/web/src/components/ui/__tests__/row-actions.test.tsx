@@ -75,6 +75,24 @@ describe('RowActions', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it('says an act in its own word in the menu, the icon keeping the row’s name', async () => {
+    const user = userEvent.setup();
+    const [edit, remove] = makeActions();
+    renderWithProviders(
+      <RowActions
+        actions={[{ ...edit, menuText: 'Edit' }, remove]}
+        menuLabel="Actions — Standup"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Edit Standup', hidden: true })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions — Standup' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Edit Standup' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Delete Standup' })).toBeInTheDocument();
+  });
+
   it('keeps a loading action focusable but guards activation', async () => {
     const actions = [
       { key: 'edit', label: 'Edit', icon: Pencil, onSelect: vi.fn(), disabled: true },

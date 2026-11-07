@@ -11,6 +11,7 @@
  * goes on a new event or on a whole series, never on one occurrence.
  */
 import { emptyRecurrence, withFreq } from '@/lib/recurrence';
+import type { ProposedEvent } from '@/lib/workbench/assist';
 import type { CalendarEventDetail } from '@/lib/workbench/types';
 import type { RecurrenceSpec } from '@/types/recurrence';
 
@@ -132,6 +133,39 @@ export function newEventFields(calendarId: string, day: string, time: string): E
 /** @returns The fields of a new all-day event, one day long. */
 export function allDayFields(calendarId: string, day: string): EventFields {
   return { ...newEventFields(calendarId, day, '09:00'), allDay: true, endDate: day };
+}
+
+/**
+ * An event LIA read, in the form (ADR-372): the person checks it there and saves it, or not.
+ *
+ * What it could not read stays as the form holds it, so a day never turns into today by itself.
+ *
+ * @param fields - What the form holds.
+ * @param event - What was read.
+ * @returns The form, filled.
+ */
+export function withProposedEvent(fields: EventFields, event: ProposedEvent): EventFields {
+  const startDate = event.start_date ?? fields.startDate;
+  const startTime = event.start_time ?? fields.startTime;
+  const hourLong = newEventFields(fields.calendarId, startDate, startTime);
+  const timed = event.end_date !== null && event.end_time !== null;
+  const endDate = timed || event.all_day ? (event.end_date ?? startDate) : hourLong.endDate;
+  return {
+    ...fields,
+    summary: event.summary || fields.summary,
+    allDay: event.all_day,
+    startDate,
+    startTime,
+    endDate,
+    endTime: timed && event.end_time !== null ? event.end_time : hourLong.endTime,
+    location: event.location || fields.location,
+    description: event.description || fields.description,
+    attendees: event.attendees.join(', ') || fields.attendees,
+    repeat:
+      event.repeat === 'none'
+        ? { ...fields.repeat, anchor_date: startDate }
+        : withFreq(emptyRecurrence(startDate), event.repeat),
+  };
 }
 
 /** @returns The fields an existing event opens on, read on the account's wall. */

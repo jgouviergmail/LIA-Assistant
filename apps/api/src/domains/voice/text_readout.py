@@ -1,6 +1,7 @@
 """Read a user-visible text aloud, cost-tracked (Lot 4-A2, ADR-237).
 
-Owns the full readout unit: tracking context, voice service lifecycle
+Owns the full readout unit: both ceilings asked before a paid engine speaks
+(ADR-272), tracking context, voice service lifecycle
 (closed in ``finally`` — F005: the provider httpx client never leaks),
 sanitation, base64 decoding, and ONE container: the readout answers
 ``audio/mpeg``, and only MP3 sentences join byte to byte — an engine configured
@@ -13,21 +14,27 @@ cycle (F009 guard) when it lived in the briefing router.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import uuid
-from typing import Literal
+from dataclasses import dataclass
+from typing import Final, Literal
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import (
+    TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS,
     VOICE_READOUT_MP3_BITRATE_KBPS,
     VOICE_READOUT_PCM_SAMPLE_RATE,
     VOICE_READOUT_TRANSCODE_TIMEOUT_SECONDS,
 )
+from src.core.field_names import FIELD_TTS_COST_EUR
 from src.domains.chat.service import TrackingContext
 from src.domains.voice.service import VoiceCommentService
+from src.infrastructure.async_utils import write_through_cancellation
+from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.media.ffmpeg import transcode
 from src.infrastructure.media.pcm import wav_container
 
@@ -35,6 +42,24 @@ logger = structlog.get_logger(__name__)
 
 #: The container a readout answers in.
 _MP3_MIME = "audio/mpeg"
+#: Who asked, for the enforcement metric.
+_LAYER: Final = "text_readout"
+
+
+@dataclass(frozen=True, slots=True)
+class TextReadout:
+    """A text, heard.
+
+    Attributes:
+        audio: The MP3 bytes.
+        cost_eur: What the synthesis cost; nothing on a free engine.
+        cut: Fewer sentences were said than the text holds: a cap, or a sentence the
+            engine did not answer.
+    """
+
+    audio: bytes
+    cost_eur: float
+    cut: bool = False
 
 
 async def _as_one_mp3(parts: list[tuple[bytes, str]]) -> bytes:
@@ -75,7 +100,7 @@ async def synthesize_user_text(
     lia_gender: Literal["male", "female"] | None = None,
     max_sentences: int | None = None,
     run_prefix: str = "text_readout",
-) -> bytes:
+) -> TextReadout:
     """Synthesize ``text`` for the user and return the MP3 bytes (buffered).
 
     Args:
@@ -87,9 +112,11 @@ async def synthesize_user_text(
         run_prefix: Run-id prefix naming the calling surface.
 
     Returns:
-        The MP3 audio bytes: one file, whatever the engine's container.
+        The MP3 audio, one file whatever the engine's container, what it cost, and whether
+        it stops short of the text.
 
     Raises:
+        UsageLimitExceededError: A ceiling closed: no paid engine was asked.
         Exception: Any provider/synthesis or encoding failure — the caller maps
             it to its API error contract. The voice service is closed either way.
     """
@@ -111,9 +138,12 @@ async def synthesize_user_text(
         user_id=str(user_id),
     )
     chunks: list[tuple[bytes, str]] = []
+    spoken = _sanitize_text_for_tts(text)
     try:
+        if await voice_service.speaks_on_a_paid_engine():
+            await enforce_usage_limit(user_id, layer=_LAYER)
         async for chunk in voice_service.stream_direct_tts(
-            text=_sanitize_text_for_tts(text),
+            text=spoken,
             user_language=user_language,
             max_sentences=(
                 max_sentences
@@ -133,8 +163,17 @@ async def synthesize_user_text(
             )
         # Committed BEFORE the encoding: the sentences were synthesised, and
         # billed, whatever happens to the file built from them.
+        cost_eur = float(tracker.get_summary()[FIELD_TTS_COST_EUR])
         await tracker.commit()
         audio = await _as_one_mp3(chunks)
+    except asyncio.CancelledError:
+        # The person left: the sentences already said were billed all the same.
+        await write_through_cancellation(
+            tracker.commit,
+            attempts=TRACKER_COMMIT_CANCELLATION_GRACE_ATTEMPTS,
+            label="text_readout_commit",
+        )
+        raise
     finally:
         await voice_service.close()
     logger.info(
@@ -144,4 +183,5 @@ async def synthesize_user_text(
         characters=len(text),
         chunks=len(chunks),
     )
-    return audio
+    cut = len(chunks) < voice_service.count_speakable_sentences(spoken)
+    return TextReadout(audio=audio, cost_eur=cost_eur, cut=cut)

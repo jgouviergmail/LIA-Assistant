@@ -59,13 +59,9 @@ async def test_memory_creation_pays_only_after_hitl_and_rechecks_before_each_cal
     async def provider(text: str) -> None:
         context = get_embedding_context()
         assert context is not None and context.user_id == str(actor_id)
-        # NOWAIT in another transaction proves paid work does not hold the user lock.
-        async with AsyncSession(bind=async_session.bind) as observer:
-            observed = await observer.scalar(
-                select(User.id).where(User.id == actor_id).with_for_update(nowait=True)
-            )
-            assert observed == actor_id
-            await observer.rollback()
+        # A paid call holds no transaction, hence no lock (ADR-304). The fixture's connection is
+        # the only one that can see this user, so a second session would prove nothing here.
+        assert not async_session.in_transaction()
         calls.append(text)
         if intervention == "late_disabled":
             monkeypatch.setattr(settings, "application_tools_enabled", False)

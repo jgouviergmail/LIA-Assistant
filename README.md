@@ -26,7 +26,7 @@ The moment I wanted to improve is simple: **“I'm speaking with Claire. What di
 - **Pick up the relationship.** Open **Relations** for the recent exchanges, debrief and open commitments associated with a person.
 - **Prepare from your own material.** Ask LIA to bring together the project brief, recent emails and previous meeting notes. Inspect the sources and anything that conflicts.
 - **Choose what happens next.** Review the email draft before sending. Edit it, approve it or say no.
-- **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, files and Hue controls, with no model call. The connected provider determines the available controls.
+- **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, files and Hue controls: by hand with no model call, and yellow stars where one click asks LIA for a summary, a reply or a form to check. The connected provider determines the available controls.
 
 Try: *“Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”*
 
@@ -236,7 +236,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 544 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 549 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
@@ -281,11 +281,12 @@ Every capability below is documented in an architecture decision record (ADR) or
 #### Your own workspace
 
 **Tools** opens mail, calendar, tasks, contacts, files and Hue through the services
-you connected. Browse and act directly, without a model call or an entry in LIA's
+you connected. Browse and act directly, by hand, without a model call or an entry in LIA's
 activity registers, as in the provider's own application and on every provider:
 
 - **Mail** sorts (archive, move, star, spam, restore, Undo), composes with files, formatting,
-  a signature and a moment to take a message back, follows a conversation, and reads a
+  a signature and a moment to take a message back, keeps a reply or a forward as a draft in
+  its thread, follows a conversation, and reads a
   message in an isolated original layout. Outlook's automatic replies and rules stand beside
   Gmail's vacation and filters.
 - **Calendars** answer invitations, repeat events and change a whole series (RFC 5545 rules
@@ -294,6 +295,13 @@ activity registers, as in the provider's own application and on every provider:
   groups, vCard export and import, and your latest exchanges.
 - **Files** work on Google Drive and OneDrive, and documents read in the page: PDF, Word,
   Markdown, spreadsheets. **Ctrl+K** searches every tool at once.
+
+Yellow stars mark what LIA can do from these screens: one click, one call, one proposal. A
+summary, a translation, a reply to review, a form filled from a sentence or a business card,
+the messages of a page weighed. Nothing is sent or saved until you do it by hand, the cost
+stands beside the answer, and an administrator can switch it off
+([what a click asks of LIA](docs/technical/TOOL_ASSISTS.md),
+[ADR-372](docs/architecture/ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md)).
 
 What a provider's client gains reaches the assistant's tools in the same release, deleting for
 good excepted, so the same gesture can be asked in words, with a confirmation card when it
@@ -999,7 +1007,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### Observability
 
-- **Prometheus**: 658 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 660 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 33 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -1060,7 +1068,7 @@ graph TD
     E -->|replan| D
     E --> F{Approval Gate}
     F --> G[Task Orchestrator]
-    G --> H[Domain Agents + Tools]
+    G --> H[Tools]
     G -->|drafts| HD[HITL Dispatch]
     G -->|bulk action| FE[FOR_EACH Confirm]
     FE -->|approved| G
@@ -1303,7 +1311,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-368 ADR files (ADR-001 through ADR-370 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+370 ADR files (ADR-001 through ADR-372 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded
@@ -1327,10 +1335,10 @@ The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs a
 
 |                                |                                           |                                         |                                                                         |
 | ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **61** backend domain packages | **1,130,379** source lines (excl. tests) | **76,381** inventoried automated tests | **368** ADRs                                                            |
-| **294** versions shipped       | **6 languages**, parity enforced in CI    | **658** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
+| **62** backend domain packages | **1,136,798** source lines (excl. tests) | **77,162** inventoried automated tests | **370** ADRs                                                            |
+| **295** versions shipped       | **6 languages**, parity enforced in CI    | **660** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,130,379 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-06). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,136,798 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-07). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)
@@ -1338,10 +1346,10 @@ Source-line figure: 1,130,379 physical lines in Python, TypeScript, JavaScript a
 </details>
 
 <details>
-<summary><strong>Latest release — all your work, by hand or by asking</strong></summary>
+<summary><strong>Latest release — LIA, one click away</strong></summary>
 
 <p align="center">
-  <strong>Version 4.4.0</strong> — <strong>All your work, by hand or by asking.</strong> Tools becomes a place to work on every provider: mail that sorts, invitations, repeating events, contacts and files, and the assistant gains each gesture. OneDrive joins Google Drive everywhere, documents read in the page, and a game or a calculator asked of LIA runs in the conversation — 6 November 2026.
+  <strong>Version 4.5.0</strong> — <strong>LIA, one click away.</strong> Yellow stars mark where LIA can help on the screens of Tools: it sums up, translates, proposes a reply, fills a form from a sentence or a business card and weighs a page of mail. One click, one proposal to read, the cost beside it, nothing written at your provider. Every form of the Tools now opens and ends the same way — 7 November 2026.
 </p>
 
 [Full changelog](CHANGELOG.md)

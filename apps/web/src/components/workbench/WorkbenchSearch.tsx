@@ -8,20 +8,15 @@
  * four providers: it starts on Enter, never while the person types. Each tool that answered is
  * drawn under its name: a tool with nothing says so, a cut is said, and so is a mailbox searched
  * from its inbox alone; a tool that failed is named (ADR-292). A hit opens in its tool and closes
- * the dialog; the words and the answer wait for the person to come back.
+ * the dialog; the words and the answer wait for the person to come back. What is a question rather
+ * than words to find goes to LIA from the same line, unsent (`useAskLia`).
  */
 import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useEffectEvent, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +26,7 @@ import { getIntlLocale, type Language } from '@/i18n/settings';
 import { datedDay } from '@/lib/workbench/calendar/format';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import { hitHref, searchOffered, toolHref } from '@/lib/workbench/search';
-import { toolSpec } from '@/lib/workbench/tools';
+import { toolSpec, WORKBENCH_HEADER_ICON } from '@/lib/workbench/tools';
 import type {
   GlobalSearch,
   SearchableTool,
@@ -39,6 +34,10 @@ import type {
   ToolHits,
   WorkbenchAvailability,
 } from '@/lib/workbench/types';
+
+import { AssistStars } from './assist/AssistStars';
+import { useAskLia } from './assist/useAskLia';
+import { ToolDialogHeader } from './ToolForm';
 
 const SEARCH_PATH = '/workbench/search';
 const CHORD_LABEL = 'Ctrl/⌘ K';
@@ -89,6 +88,7 @@ export function WorkbenchSearch({ lng, availability }: WorkbenchSearchProps) {
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [asked, setAsked] = useState<string | null>(null);
+  const askLia = useAskLia(lng);
   const found = useWorkbenchItem<GlobalSearch>(asked ? SEARCH_PATH : null, {
     q: asked ?? undefined,
   });
@@ -107,7 +107,7 @@ export function WorkbenchSearch({ lng, availability }: WorkbenchSearchProps) {
       <Button
         variant="outline"
         size="icon"
-        className="min-h-10 shrink-0"
+        className={WORKBENCH_HEADER_ICON}
         aria-label={t('workbench.search.open')}
         aria-keyshortcuts="Control+K Meta+K"
         title={`${t('workbench.search.open')} (${CHORD_LABEL})`}
@@ -117,10 +117,10 @@ export function WorkbenchSearch({ lng, availability }: WorkbenchSearchProps) {
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-xl">
-          <DialogHeader>
+          <ToolDialogHeader>
             <DialogTitle>{t('workbench.search.title')}</DialogTitle>
             <DialogDescription>{t('workbench.search.description')}</DialogDescription>
-          </DialogHeader>
+          </ToolDialogHeader>
           <form role="search" className="flex gap-2" onSubmit={submit}>
             <Input
               type="search"
@@ -132,6 +132,20 @@ export function WorkbenchSearch({ lng, availability }: WorkbenchSearchProps) {
               onChange={event => setTyped(event.target.value)}
             />
             <Button type="submit">{t('workbench.search.go')}</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              aria-label={t('workbench.ask.label')}
+              aria-disabled={!typed.trim() || undefined}
+              title={t('workbench.ask.label')}
+              onClick={() => {
+                if (typed.trim()) askLia(typed.trim());
+              }}
+            >
+              <AssistStars className="h-4 w-4" aria-hidden="true" />
+            </Button>
           </form>
           {asked && <SearchAnswer lng={lng} found={found} onOpen={() => setOpen(false)} />}
         </DialogContent>

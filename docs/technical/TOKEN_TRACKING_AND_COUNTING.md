@@ -1049,7 +1049,7 @@ class TokenUsageLog(BaseModel):
     Attributes:
         user_id: User who triggered the LLM call
         run_id: LangGraph run ID (links to MessageTokenSummary for aggregation)
-        node_name: LangGraph node name (router, response, contacts_agent, etc.)
+        node_name: LangGraph node name (router, planner, response, etc.)
         model_name: LLM model used (gpt-4.1-mini, gpt-4-turbo, etc.)
         prompt_tokens: Number of input tokens
         completion_tokens: Number of output tokens
@@ -1108,7 +1108,7 @@ for row in results:
 # Output:
 # router: 0.0012€ (450+150 tokens)
 # planner: 0.0035€ (1200+400 tokens)
-# contacts_agent: 0.0028€ (800+350 tokens)
+# initiative: 0.0028€ (800+350 tokens)
 ```
 
 ### MessageTokenSummary (Per-Message Aggregation)
@@ -1610,7 +1610,7 @@ async def generate_user_token_report(db: AsyncSession, user_id: UUID):
 #     --------------------|-------|-------------|--------
 #     response            |   234 |      45,678 | 1.2345€
 #     planner             |   234 |      23,456 | 0.6789€
-#     contacts_agent      |   156 |      15,234 | 0.4321€
+#     initiative          |   156 |      15,234 | 0.4321€
 #     router              |   234 |       3,286 | 0.0987€
 #
 #     TOP 5 MOST EXPENSIVE MESSAGES (Last 30 days):

@@ -94,14 +94,9 @@ async def test_update_confirms_then_preserves_fresh_owned_fact_and_source_write(
             raise UsageLimitExceededError(limit_name="cycle_cost")
 
     async def provider(text: str) -> None:
-        async with AsyncSession(bind=async_session.bind) as observer:
-            assert (
-                await observer.scalar(
-                    select(User.id).where(User.id == owner).with_for_update(nowait=True)
-                )
-                == owner
-            )
-            await observer.rollback()
+        # A paid call holds no transaction, hence no lock (ADR-304). The fixture's connection is
+        # the only one that can see this user, so a second session would prove nothing here.
+        assert not async_session.in_transaction()
         calls.append(text)
         if scenario == "late_corrected" and len(calls) == 1:
             await async_session.execute(

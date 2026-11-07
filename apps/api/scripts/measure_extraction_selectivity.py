@@ -524,6 +524,10 @@ MEMORY_PLACEHOLDERS = {
     "current_datetime",
     "known_relationships",
     "health_context",
+    "memory_content_min_chars",
+    "memory_content_max_chars",
+    "memory_trigger_topic_max_chars",
+    "memory_usage_nuance_max_chars",
 }
 
 
@@ -577,6 +581,12 @@ def _render_interest_prompt(template: str, scenario: Scenario, now: str) -> str:
 
 def _render_memory_prompt(template: str, scenario: Scenario, now: str) -> str:
     """Render the memory prompt exactly as ``extract_memories_background`` does."""
+    from src.core.config import settings
+    from src.core.constants import (
+        MEMORY_CONTENT_MIN_CHARS,
+        MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+        MEMORY_USAGE_NUANCE_MAX_CHARS,
+    )
     from src.domains.agents.services.memory_extractor import (
         _format_messages_for_extraction as fmt,
     )
@@ -587,6 +597,10 @@ def _render_memory_prompt(template: str, scenario: Scenario, now: str) -> str:
         current_datetime=now,
         known_relationships=KNOWN_RELATIONSHIPS,
         health_context="",
+        memory_content_min_chars=MEMORY_CONTENT_MIN_CHARS,
+        memory_content_max_chars=settings.memory_content_max_chars,
+        memory_trigger_topic_max_chars=MEMORY_TRIGGER_TOPIC_MAX_CHARS,
+        memory_usage_nuance_max_chars=MEMORY_USAGE_NUANCE_MAX_CHARS,
     )
 
 

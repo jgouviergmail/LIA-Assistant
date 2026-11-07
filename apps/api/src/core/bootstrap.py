@@ -38,7 +38,6 @@ def validate_llm_configuration() -> None:
     required_llm_types = [
         "response",
         "planner",
-        "contacts_agent",
         "hitl_classifier",
         "hitl_question_generator",
     ]
@@ -57,7 +56,6 @@ def validate_llm_configuration() -> None:
         "llm_configuration_validated",
         response_model=LLM_DEFAULTS["response"].model,
         planner_model=LLM_DEFAULTS["planner"].model,
-        contacts_agent_model=LLM_DEFAULTS["contacts_agent"].model,
         hitl_classifier_model=LLM_DEFAULTS["hitl_classifier"].model,
         hitl_question_generator_model=LLM_DEFAULTS["hitl_question_generator"].model,
         total_llm_types=len(LLM_DEFAULTS),

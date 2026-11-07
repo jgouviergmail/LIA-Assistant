@@ -536,6 +536,56 @@ place holding the session. The web asks the shell what it can do (`capabilities`
 the server and the shell with the store. Measured on the real debug APK against a stand-in
 server. It reaches people with a store release, which is the owner's decision.
 
+Amendment 2026-11-06 (the owner's remarks on a phone): a phone reads a line at a time, so a line says
+what it holds. The actions of a tool leave the rail's row below `xl`, and on their own line the
+search and **Refresh** start it and the act the tool leads with ends it. A detail draws its acts
+as a message's reader does, at every width and a task's included: the way out, then icons at the
+end of one bar (`DetailBar`), what is less common behind « … ». A tool declares what it offers and
+in what order (`DetailAct`), the bar decides the drawing, so a « … » of one is never opened: its act
+stands in the bar. An open event keeps all its acts there, « Ask LIA » included, and « Move to… »
+opens the calendars it can go to under its own icon (`choices`), even for one: an icon names nothing
+on a phone, and a press never moves an event to a place the person has not read. Five icons leave a
+small phone little room: the tool's name gives way, and under larger text the icons take another
+line, so an act is never cut. Whatever order a tool declares, every bar ends on the deletion, then
+the question to LIA, « … » before them; a message's reader keeps that order, with archiving, moving
+and reporting spam behind « … », and a file brings moving, sharing and mailing into its bar. A task's
+« Save » stands outside its form and still submits it, through `form`.
+A phone's native list is as narrow as it likes and cuts a label, so the mailbox's folders leave
+`<select>` for the application's listbox, as wide as the pane, with what the column holds in its
+order. A message's answers stand above its text as well, a pane being taller than the screen. Its
+three views keep a place each on a phone's line, at the start, in the middle and at the end, and
+stand together in the middle from `sm`. On a phone a task list's head stands in the middle of its
+pane, and the calendar's toolbar starts on today, ends on the period, and gives its search all the
+room the calendars leave. A large screen opens the mailbox on the inbox's newest message: nobody
+opened it, so it rides no address and stays unread until the person opens it, since a tool does
+what is clicked and marking read writes to the mailbox; whatever the person does with the reader
+lets go of it for the visit. A room or a lamp that is off stands apart from the page, under it in a
+light theme and above it in a dark one, where it never outshines what is lit (`--color-unlit`). The
+calendar stops printing the
+account's zone at every width: the times were never in doubt, and a zone of its own is still said
+on the event. The labels are the owner's; each keeps its long form for the ear where the short one
+would lose it (« Open » tells which drive).
+
+Amendment 2026-11-06 (the owner's remarks on forms): a form opens and ends one way, whichever
+tool draws it. `ToolForm` holds that way: a head at the left at every width, acts that take a line
+each and the whole width on a phone, the act first, a « Cancel » in « Delete »'s style on every
+screen, confirmations included (`useToolConfirm`); `NativeSelect` draws a list as a field, keeping
+the platform's picker. `toolForm.guard.test.ts` refuses a tool's own head, end, question or list.
+In a confirmation the two buttons therefore look alike, and their words and places tell them
+apart: the owner's rule, recorded so nobody restores the difference by reflex. An answer is kept
+as a message is: `POST /mail/drafts` takes an `origin` at the first save, and the clients' reply and
+forward drafts keep the thread, the quote and the files on the three providers, the person's own
+recipients and files in the same act. The composer then closes, and an answer never saves itself: a
+later save would write the person's words over the whole message, the quote with it. A row's « ⋮ »
+says the act (`menuText`), its trigger having named the message. Two defects were the platform's,
+fixed there. A menu in a modal dialog closed as it opened, the dialog's focus trap taking back the
+focus the portal had received: inside one, a menu is modal itself, which is what let « Write with
+LIA » open on an event. And `transition-duration: 0.01ms` on `*` under reduced motion made every
+change of every element a transition, `transition-property` defaulting to `all`, painted for a
+frame at its old value: a list at no width when its reader closed; the duration is zero, nothing
+waiting for `transitionend`. A field under 16 px on a touch screen is one iOS zooms into and stays
+zoomed on, buttons out of sight: `globals.css` holds the rule for every screen, outside any layer.
+
 Amendment 2026-11-05 (phase 2, the owner's remarks): a document is read, not peeked at. One door
 serves the mail and the files (`previews`) and answers the best a file can be read as; its type
 names the viewer. A PDF travels whole and is read in the page by PDF.js: the page's policy admits no
@@ -616,5 +666,10 @@ unguarded submissions — counts and codes, never content.
   documented contracts, pinned by tests on recorded shapes.
 - Phase 2 — « ask LIA » from the same screens as a prefilled draft — needs no change of shape:
   every response already names its provider and its bounds.
+
+Amendment 2026-11-06 (owner): what a person does by hand still involves no model, and
+`domains/workbench/` still holds none. What a click asks of LIA from these screens is decided in
+[ADR-372](ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md): its own bounded context, a proposal the person finishes by hand, filed and billed
+as an act of LIA.
 
 Technical reference: [WORKBENCH.md](../technical/WORKBENCH.md).

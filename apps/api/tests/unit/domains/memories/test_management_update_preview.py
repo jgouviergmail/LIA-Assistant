@@ -6,6 +6,7 @@ import textwrap
 
 import pytest
 
+from src.core.config import settings
 from src.domains.memories.models import Memory
 from src.domains.memories.schemas import MemoryCreate, MemoryUpdate
 from src.domains.memories.service import MemoryService, preview_memory_update
@@ -29,6 +30,22 @@ def test_new_ui_fields_cannot_be_omitted_from_preview_or_source_write() -> None:
     ]
     assert len(writes) == 1
     assert {keyword.arg for keyword in writes[0].keywords} == fields
+
+
+def test_a_row_past_the_bound_is_previewed_not_refused() -> None:
+    """The assistant reads the row before it edits it, and a read knows no write bound."""
+    past = "x" * (settings.memory_content_max_chars + 1)
+    row = Memory(
+        content=past,
+        category="personal",
+        emotional_weight=0,
+        trigger_topic="",
+        usage_nuance="",
+        importance=0.7,
+    )
+    assert preview_memory_update(row, MemoryUpdate()).content == past
+    assert preview_memory_update(row, MemoryUpdate(importance=0.9)).importance == 0.9
+    assert preview_memory_update(row, MemoryUpdate(content="Within it")).content == "Within it"
 
 
 def test_sparse_preview_is_pure_and_preserves_source_clear_and_zero_semantics() -> None:

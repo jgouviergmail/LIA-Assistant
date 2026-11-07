@@ -1,0 +1,21 @@
+{
+  "revision": "0799b5d5aff7de12",
+  "capturedAt": "2026-11-07T01:47:31.000Z",
+  "locale": "en",
+  "theme": "light",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "data": "Real application route and controls with handwritten fictional demonstration data. No real account, backend, model, connector, billable call or external action was used.",
+  "sourceCommit": "503c4cbb4c3ee40ecd977889c24a4320194e0f71",
+  "sourceIncludesLocalChanges": true,
+  "images": [
+    {
+      "file": "tools.png",
+      "sha256": "0799b5d5aff7de12c921090f2dfcfe9a590fa865879e5e1215b115625584295c",
+      "width": 1600,
+      "height": 1000
+    }
+  ]
+}

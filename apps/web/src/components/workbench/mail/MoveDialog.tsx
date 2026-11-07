@@ -12,19 +12,14 @@ import { Folder, Inbox, Archive, Tag, type LucideIcon } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { folderTree, MAIL_SPAM, MAIL_TRASH, takesDrop } from '@/lib/workbench/mail';
 import type { MailFolder } from '@/lib/workbench/types';
 
 import { useFolderName } from './FolderPane';
+import { ToolDialogHeader } from '../ToolForm';
 
 export interface MoveDialogProps {
   lng: Language;
@@ -73,12 +68,12 @@ export function MoveDialog({
   return (
     <Dialog open={moving !== null} onOpenChange={open => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle>
             {t('workbench.mail.move_title', { count: moving?.length ?? 0 })}
           </DialogTitle>
           <DialogDescription>{t('workbench.mail.move_description')}</DialogDescription>
-        </DialogHeader>
+        </ToolDialogHeader>
         {destinations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('workbench.mail.move_nowhere')}</p>
         ) : (

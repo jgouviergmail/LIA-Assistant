@@ -6,6 +6,7 @@ Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload yo
 - Automatic chunking and indexing via Gemini embeddings
 - Hybrid search (semantic + BM25 keyword) for optimal relevance
 - Source citations in responses
+- From Tools, **Keep in a space** drops a file or an attachment there
 
 ## What file formats are supported?
 Knowledge Spaces accept **15+ formats**:
@@ -84,7 +85,7 @@ Administrators can manage system knowledge spaces in **Settings › Administrati
 • The corpus is checked at every start against both the source files and what is actually stored, so a corpus that has drifted is repaired rather than served
 • If a rebuild cannot run, the previous version keeps answering and the failure is reported instead of passing unnoticed
 
-## Can LIA search my documents on its own? (v1.25.13)
+## Can LIA search my documents on its own?
 Yes. Your document spaces are now an **active domain**: beyond the automatic context injection, the planner can decide to search them — with derived queries, several passes if needed, and combinations with other sources: « compare the PDF quote with what Paul sent by email » chains a document search and an email search.
 
 The « Documents » briefing card also shows your latest modified files, on Google Drive or OneDrive — one click to summarize in chat, or open directly in your drive.

@@ -42,7 +42,7 @@ _send_desc = "**Tool: send_email_tool** - Send new email. **REQUIRES HITL**. Irr
 #: What an e-mail may carry: read by the three writing tools' manifests and schemas alike.
 MAIL_FILE_NAMES_DESCRIPTION = "Files LIA holds (generated or uploaded), by name, to attach"
 MAIL_DRIVE_FILES_DESCRIPTION = "Files of the person's drive, by id, to attach"
-_MAIL_FILE_PARAMETERS = [
+MAIL_FILE_PARAMETERS = [
     ParameterSchema(
         name="file_names",
         type="array",
@@ -123,7 +123,7 @@ send_email_catalogue_manifest = ToolManifest(
             semantic_type="email_address",
         ),
         ParameterSchema(name="is_html", type="boolean", required=False, description="Is HTML body"),
-        *_MAIL_FILE_PARAMETERS,
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=[
         OutputFieldSchema(
@@ -191,7 +191,7 @@ reply_email_catalogue_manifest = ToolManifest(
             description="Reply All (def: false)",
             semantic_type="reply_all_flag",
         ),
-        *_MAIL_FILE_PARAMETERS,
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=[
         OutputFieldSchema(
@@ -263,7 +263,7 @@ forward_email_catalogue_manifest = ToolManifest(
             description="CC",
             semantic_type="email_address",
         ),
-        *_MAIL_FILE_PARAMETERS,
+        *MAIL_FILE_PARAMETERS,
     ],
     outputs=[
         OutputFieldSchema(

@@ -1942,6 +1942,16 @@
       "title": "A page the model writes runs in the chat, in the strictest frame",
       "summary": "Asking for a game or a small tool gives a page that runs in the conversation, with its file; asking for the code gives the code, and what a person types stays text. The page runs isolated, with no access to the account or to any site of its choosing, under a policy that names no host. Read back from history it waits for a click, because an endless loop would freeze the tab, and the model only ever reads its title.",
       "src": "ab92ef5e6f98"
+    },
+    "371": {
+      "title": "The domain agents' slots leave with their nodes",
+      "summary": "The administration offered to tune sixteen agents no turn called any more: a plan runs the tools directly, and production counted not one token on them. Their slots, nodes and prompts are gone; the Emails slot stays, because it writes the messages. A fresh install now starts on models that have a tariff.",
+      "src": "3cfe6d5c67cc"
+    },
+    "372": {
+      "title": "From the Tools: a click, a call, a proposal",
+      "summary": "Summing up a message, proposing a reply, reading a business card: a click asks LIA one thing and gets a proposal the person reads, never a write to their provider. The act is traced and billed to whoever clicked, and nothing adds a control to a screen with no room for one: the last icon of every bar opens the list.",
+      "src": "357747655d68"
     }
   }
 }

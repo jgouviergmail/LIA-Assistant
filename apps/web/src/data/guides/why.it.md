@@ -4,7 +4,7 @@
 
 **Versione**: 7.0
 **Data**: 2026-11-06
-**Applicazione**: LIA v4.4.0
+**Applicazione**: LIA v4.5.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ Il meccanismo è spiegato nella [guida tecnica](/it/how). Il modo in cui il codi
 
 ## 2. Cosa fa LIA per te
 
-Apri **Strumenti** quando vuoi fare da te: posta, calendario, attività, contatti, file e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.
+Apri **Strumenti** quando vuoi fare da te: posta, calendario, attività, contatti, file e luci Hue utilizzano i servizi che hai collegato. Fai clic, modifichi e invii direttamente, senza una chiamata IA, e le stelle gialle chiedono a LIA di riassumere o di scrivere quando vuoi, con il costo mostrato. Ogni schermata offre solo ciò che supporta il fornitore; i tuoi gesti non entrano nei registri di attività di LIA.
 
 Le parli normalmente, per iscritto o a voce. L'interfaccia esiste in sei lingue (francese, inglese, tedesco, spagnolo, italiano, cinese) e la tua dettatura viene trascritta nella lingua del tuo account. Una ventina di agenti specializzati si dividono il lavoro: i tuoi dati personali, il web, la creazione, la casa connessa, la navigazione sui siti e l'anticipazione.
 

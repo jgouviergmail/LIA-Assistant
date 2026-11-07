@@ -35,6 +35,8 @@ function availability(
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }

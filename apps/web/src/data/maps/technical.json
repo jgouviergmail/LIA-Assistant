@@ -506,10 +506,12 @@
         "apps/api/src/domains/connectors/clients",
         "apps/api/src/domains/connectors/active_client.py",
         "apps/api/src/domains/connectors/keyless.py",
+        "apps/api/src/domains/tool_assists",
         "apps/api/src/domains/workbench"
       ],
       "domains": [
         "connectors",
+        "tool_assists",
         "workbench"
       ],
       "deps": [

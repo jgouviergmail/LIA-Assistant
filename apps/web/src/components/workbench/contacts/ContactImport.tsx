@@ -12,20 +12,15 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { WORKBENCH_HEADER_ICON } from '@/lib/workbench/tools';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { ContactsImported } from '@/lib/workbench/types';
 import { generateUUID } from '@/lib/utils';
+import { ToolActions, ToolDialogHeader } from '../ToolForm';
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
@@ -94,6 +89,7 @@ export function ContactImport({ lng, maxBytes, onImported }: ContactImportProps)
       <Button
         variant="outline"
         size="icon"
+        className={WORKBENCH_HEADER_ICON}
         isLoading={busy}
         aria-label={t('workbench.contacts.import')}
         title={t('workbench.contacts.import')}
@@ -104,12 +100,12 @@ export function ContactImport({ lng, maxBytes, onImported }: ContactImportProps)
       {report && (
         <Dialog open onOpenChange={open => !open && setReport(null)}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader>
+            <ToolDialogHeader>
               <DialogTitle>{t('workbench.contacts.import_report_title')}</DialogTitle>
               <DialogDescription>
                 {t('workbench.contacts.imported', { count: report.done })}
               </DialogDescription>
-            </DialogHeader>
+            </ToolDialogHeader>
             <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
               {report.failed.map(card => (
                 <li key={card.position} className="break-words">
@@ -122,9 +118,9 @@ export function ContactImport({ lng, maxBytes, onImported }: ContactImportProps)
                 </li>
               ))}
             </ul>
-            <DialogFooter>
+            <ToolActions>
               <Button onClick={() => setReport(null)}>{t('common.close')}</Button>
-            </DialogFooter>
+            </ToolActions>
           </DialogContent>
         </Dialog>
       )}

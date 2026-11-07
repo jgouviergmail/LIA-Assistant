@@ -28,17 +28,6 @@ from src.core.constants import NODE_INITIATIVE
 from src.domains.agents.constants import (
     # Agent constants (v3.2 convention: singular domain names)
     AGENT_BROWSER,
-    AGENT_CONTACT,
-    AGENT_EMAIL,
-    AGENT_EVENT,
-    AGENT_FILE,
-    AGENT_HUE,
-    AGENT_PERPLEXITY,
-    AGENT_PLACE,
-    AGENT_ROUTE,
-    AGENT_TASK,
-    AGENT_WEATHER,
-    AGENT_WIKIPEDIA,
     NODE_APPROVAL_GATE,
     NODE_CLARIFICATION,
     NODE_COMPACTION,
@@ -445,7 +434,7 @@ async def build_graph(
     Example:
         >>> # Registry configured at startup (main.py)
         >>> registry = AgentRegistry(checkpointer=checkpointer, store=store)
-        >>> registry.register_agent("contact_agent", build_contacts_agent)
+        >>> registry.register_agent("query_agent", build_query_agent)
         >>> set_global_registry(registry)
         >>>
         >>> # Build graph (uses registry's checkpointer/store)
@@ -478,9 +467,6 @@ async def build_graph(
             - draft_critique uses interrupt() for HITL (confirm/edit/cancel)
             - After user decision, routes to response for synthesis
 
-        Simple queries (legacy):
-            compaction → router → task_orchestrator → contact_agent → response → END
-
         Conversation:
             compaction → router → response → END
 
@@ -502,7 +488,8 @@ async def build_graph(
         - Agents obtained via get_global_registry().get_agent(name)
         - Lazy initialization (built on first access)
         - Automatic dependency injection (checkpointer, store)
-        - Easy to add new agents (register in main.py, add node here)
+        - A compiled agent registers in startup/agents.py and gets its node here; a domain
+          is its manifests and calls its tools from the plan (ADR-371)
     """
     logger.info(
         "building_graph",
@@ -558,105 +545,6 @@ async def build_graph(
     # propagate to all LLM calls inside the agent subgraphs (ReAct loop)
     # NAMING: domain=entity(singular), agent=domain+"_agent"
     registry_for_wrapper = get_global_registry()
-
-    # Contact agent
-    contact_agent_runnable = registry_for_wrapper.get_agent("contact_agent")
-    contact_agent_node = build_agent_wrapper(
-        agent_runnable=contact_agent_runnable,
-        agent_name="contact_agent",
-        agent_constant=AGENT_CONTACT,
-    )
-    graph.add_node(AGENT_CONTACT, contact_agent_node)
-
-    # Email agent
-    email_agent_runnable = registry_for_wrapper.get_agent("email_agent")
-    email_agent_node = build_agent_wrapper(
-        agent_runnable=email_agent_runnable,
-        agent_name="email_agent",
-        agent_constant=AGENT_EMAIL,
-    )
-    graph.add_node(AGENT_EMAIL, email_agent_node)
-
-    # Event agent (Google Calendar)
-    event_agent_runnable = registry_for_wrapper.get_agent("event_agent")
-    event_agent_node = build_agent_wrapper(
-        agent_runnable=event_agent_runnable,
-        agent_name="event_agent",
-        agent_constant=AGENT_EVENT,
-    )
-    graph.add_node(AGENT_EVENT, event_agent_node)
-
-    # File agent (Google Drive)
-    file_agent_runnable = registry_for_wrapper.get_agent("file_agent")
-    file_agent_node = build_agent_wrapper(
-        agent_runnable=file_agent_runnable,
-        agent_name="file_agent",
-        agent_constant=AGENT_FILE,
-    )
-    graph.add_node(AGENT_FILE, file_agent_node)
-
-    # Task agent (Google Tasks)
-    task_agent_runnable = registry_for_wrapper.get_agent("task_agent")
-    task_agent_node = build_agent_wrapper(
-        agent_runnable=task_agent_runnable,
-        agent_name="task_agent",
-        agent_constant=AGENT_TASK,
-    )
-    graph.add_node(AGENT_TASK, task_agent_node)
-
-    # Weather agent
-    weather_agent_runnable = registry_for_wrapper.get_agent("weather_agent")
-    weather_agent_node = build_agent_wrapper(
-        agent_runnable=weather_agent_runnable,
-        agent_name="weather_agent",
-        agent_constant=AGENT_WEATHER,
-    )
-    graph.add_node(AGENT_WEATHER, weather_agent_node)
-
-    # Wikipedia agent
-    wikipedia_agent_runnable = registry_for_wrapper.get_agent("wikipedia_agent")
-    wikipedia_agent_node = build_agent_wrapper(
-        agent_runnable=wikipedia_agent_runnable,
-        agent_name="wikipedia_agent",
-        agent_constant=AGENT_WIKIPEDIA,
-    )
-    graph.add_node(AGENT_WIKIPEDIA, wikipedia_agent_node)
-
-    # Perplexity agent
-    perplexity_agent_runnable = registry_for_wrapper.get_agent("perplexity_agent")
-    perplexity_agent_node = build_agent_wrapper(
-        agent_runnable=perplexity_agent_runnable,
-        agent_name="perplexity_agent",
-        agent_constant=AGENT_PERPLEXITY,
-    )
-    graph.add_node(AGENT_PERPLEXITY, perplexity_agent_node)
-
-    # Place agent (Google Places)
-    place_agent_runnable = registry_for_wrapper.get_agent("place_agent")
-    place_agent_node = build_agent_wrapper(
-        agent_runnable=place_agent_runnable,
-        agent_name="place_agent",
-        agent_constant=AGENT_PLACE,
-    )
-    graph.add_node(AGENT_PLACE, place_agent_node)
-
-    # Route agent (Google Routes)
-    route_agent_runnable = registry_for_wrapper.get_agent("route_agent")
-    route_agent_node = build_agent_wrapper(
-        agent_runnable=route_agent_runnable,
-        agent_name="route_agent",
-        agent_constant=AGENT_ROUTE,
-    )
-    graph.add_node(AGENT_ROUTE, route_agent_node)
-
-    # Hue agent (Smart Home)
-    hue_agent_runnable = registry_for_wrapper.get_agent("hue_agent")
-    hue_agent_node = build_agent_wrapper(
-        agent_runnable=hue_agent_runnable,
-        agent_name="hue_agent",
-        agent_constant=AGENT_HUE,
-    )
-    graph.add_node(AGENT_HUE, hue_agent_node)
 
     # Browser agent (F7 - auto-detected, registered if Playwright available)
     _browser_registered = False
@@ -777,20 +665,6 @@ async def build_graph(
             NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # LOT 6: Draft HITL
             NODE_FOR_EACH_CONFIRM: NODE_FOR_EACH_CONFIRM,  # 2026-07: replay-safe bulk HITL
             NODE_REFERENCE_DISAMBIGUATION: NODE_REFERENCE_DISAMBIGUATION,  # ADR-367 amendment
-            # OAuth agents (Google) - v3.2 naming: singular domain names
-            AGENT_CONTACT: AGENT_CONTACT,
-            AGENT_EMAIL: AGENT_EMAIL,
-            AGENT_EVENT: AGENT_EVENT,
-            AGENT_FILE: AGENT_FILE,
-            AGENT_TASK: AGENT_TASK,
-            # API key agents (global key)
-            AGENT_WEATHER: AGENT_WEATHER,
-            AGENT_WIKIPEDIA: AGENT_WIKIPEDIA,
-            AGENT_PERPLEXITY: AGENT_PERPLEXITY,
-            AGENT_PLACE: AGENT_PLACE,
-            AGENT_ROUTE: AGENT_ROUTE,  # LOT 12: Google Routes directions
-            # Smart Home agents
-            AGENT_HUE: AGENT_HUE,
             # Browser agent (F7 - conditional)
             **({AGENT_BROWSER: AGENT_BROWSER} if _browser_registered else {}),
             # Terminal → initiative evaluation (ADR-062)
@@ -830,20 +704,7 @@ async def build_graph(
         },
     )
 
-    # All agents go to initiative for post-execution evaluation (ADR-062)
-    # OAuth agents (Google) - v3.2 naming: singular domain names
-    graph.add_edge(AGENT_CONTACT, NODE_INITIATIVE)
-    graph.add_edge(AGENT_EMAIL, NODE_INITIATIVE)
-    graph.add_edge(AGENT_EVENT, NODE_INITIATIVE)
-    graph.add_edge(AGENT_FILE, NODE_INITIATIVE)
-    graph.add_edge(AGENT_TASK, NODE_INITIATIVE)
-    # API key agents (global key)
-    graph.add_edge(AGENT_WEATHER, NODE_INITIATIVE)
-    graph.add_edge(AGENT_WIKIPEDIA, NODE_INITIATIVE)
-    graph.add_edge(AGENT_PERPLEXITY, NODE_INITIATIVE)
-    graph.add_edge(AGENT_PLACE, NODE_INITIATIVE)
-    graph.add_edge(AGENT_ROUTE, NODE_INITIATIVE)  # LOT 12: Google Routes
-    # Browser agent (F7 - conditional)
+    # The browser agent goes to initiative for post-execution evaluation (ADR-062)
     if _browser_registered:
         graph.add_edge(AGENT_BROWSER, NODE_INITIATIVE)
 

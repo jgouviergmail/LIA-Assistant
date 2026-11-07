@@ -11,13 +11,13 @@
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useWorkbenchItem } from '@/hooks/useWorkbenchItem';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { parseMailTo, type ComposerTarget } from '@/lib/workbench/mail-compose';
 import type { MailUnsubscribe } from '@/lib/workbench/types';
+import { useToolConfirm } from '../ToolForm';
 
 const WAYS_PATH = '/workbench/mail/message/unsubscribe';
 const LEAVE_PATH = '/workbench/mail/unsubscribe';
@@ -41,7 +41,7 @@ export function useLeaving(
   compose: (target: ComposerTarget) => void
 ): Leaving {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const read = useWorkbenchItem<MailUnsubscribe>(messageId ? WAYS_PATH : null, {
     id: messageId ?? undefined,
   });

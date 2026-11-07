@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-10-31
+**Dernière mise à jour**: 2026-11-07
 **Statut**: Complète (490+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 368 ADR files (ADR-370 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 370 ADR files (ADR-372 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
@@ -55,12 +55,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [WORLD_PROTOTYPE.md](./technical/WORLD_PROTOTYPE.md) | Monde isométrique natif (ADR-365) : admission et mouvements sous autorité Redis, panneaux privés, correspondance humaine et traduction consentie, présence entre pairs, bornes d’arcade sous autorité serveur, gestes, photos privées, tableau de bord à table ; activation et qualification matérielle séparées ([registre interactions et jeux](./superpowers/qualification/2026-10-27-world-interactions-and-play.md)) |
 | [BOOKMARKS.md](./technical/BOOKMARKS.md) | Les réponses qu'une personne conserve hors de ses conversations (ADR-282) : une copie, pas un pointeur ; l'onglet « Bookmarks » de « Mes fichiers générés » ; chaque réponse conservée projetée dans l'espace de connaissances « Réponses conservées » du compte, réclamée, comptée, retirée avec le bookmark (ADR-291) |
 | [PROACTIVE_DISCUSSIONS.md](./technical/PROACTIVE_DISCUSSIONS.md) | Les discussions proactives (ADR-358, ADR-359, ADR-360) : une exécution de bout en bout, et surtout le contexte — ce qui est lu, admis, interprété, gardé et oublié ; une reconstruction qui couvre tout ce qu'elle peut payer, la réservation dimensionnée à la marge du jour, la mesure sans écriture |
+| [TOOL_ASSISTS.md](./technical/TOOL_ASSISTS.md) | Ce que LIA fait depuis les Outils (ADR-372) : un clic, un appel, une proposition que la personne termine à la main ; une porte, le contexte borné `domains/tool_assists/`, les refus, les bornes, comment ajouter une assistance |
 | [WORKBENCH.md](./technical/WORKBENCH.md) | La section « Outils » (ADR-369) : la personne consulte et agit à la main sur son courrier, son agenda, ses tâches, ses contacts, ses fichiers (Google Drive ou OneDrive) et ses lampes Hue, sans modèle ; une porte, un vocabulaire de refus, un descripteur de ce que chaque fournisseur accepte, la parité qui atteint les outils de l'assistant, aucune ligne de registre ; routes, refus, métriques |
 | [INTERACTIVE_PAGES.md](./technical/INTERACTIVE_PAGES.md) | Les pages interactives (ADR-370) : un jeu, un quiz ou un petit outil écrit par le modèle et exécuté dans la conversation, dans un cadre isolé, avec son fichier `.html` |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (368 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (370 ADR files) |
 
 ### Pour les Product Managers
 
@@ -378,6 +379,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-372](./architecture/ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md) | **Ce que LIA fait depuis les Outils** : un clic, un appel, une proposition que la personne termine à la main ; rien d'écrit chez le fournisseur, lecture et dépense tracées | 2026-11 |
+| [ADR-371](./architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) | **Les postes des agents de domaine partent avec leurs nœuds** : seize postes qu'aucun tour n'appelait ; `emails_agent` reste | 2026-11 |
 | [ADR-365](./architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md) | **Monde isométrique et LIA privé** : autorité serveur, rendu navigateur, panneaux natifs, contextes personnels isolés et traduction consentie comptabilisée | 2026-10 |
 | [ADR-364](./architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md) | **Vérification anti-robot Turnstile aux portes du mot de passe** : l'inscription, la connexion et la demande de réinitialisation portent un jeton vérifié après le limiteur par IP, valable pour cette porte de cette instance ; sans réponse exploitable de Cloudflare, seule la connexion passe ; désactivée tant que l'opérateur n'apporte pas son widget | 2026-10 |
 | [ADR-363](./architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md) | **Réinitialisation bornée par compte et liée à lui** : une seule décision à la demande et à l'usage (rien pour un administrateur, un avis pour un compte Google sans mot de passe), un budget d'e-mails par compte quelle que soit l'adresse IP, un lien lié à l'empreinte du mot de passe, deux alertes ; la commande `set_password` pour l'administrateur | 2026-10 |

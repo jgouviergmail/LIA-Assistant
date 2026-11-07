@@ -5,9 +5,11 @@
  * variant that aligns an entry without an icon.
  */
 
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +40,23 @@ function Menu({ modal }: { modal?: boolean }) {
   );
 }
 
+/** A modal dialog holding a menu, and its way out. */
+function DialogWithMenu() {
+  const [open, setOpen] = useState(true);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogTitle>A form</DialogTitle>
+        <DialogDescription>Its fields</DialogDescription>
+        <Menu />
+        <button type="button" onClick={() => setOpen(false)}>
+          Leave
+        </button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 async function open(modal?: boolean): Promise<HTMLElement> {
   const { user } = renderWithProviders(<Menu modal={modal} />);
   await user.click(screen.getByRole('button', { name: 'Actions' }));
@@ -56,6 +75,43 @@ describe('DropdownMenu', () => {
     await open(true);
 
     expect(document.body).toHaveAttribute('data-scroll-locked');
+  });
+
+  it('stays open inside a modal dialog, whose focus trap would otherwise close it', async () => {
+    const { user } = renderWithProviders(<DialogWithMenu />);
+
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+
+    const line = await screen.findByRole('menuitem', { name: 'Plain' });
+    expect(line).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Actions', hidden: true })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+
+    await user.click(line);
+    await user.click(await screen.findByRole('button', { name: 'Leave' }));
+
+    // The page answers a pointer again: neither layer took that with it.
+    await waitFor(() => expect(document.body.style.pointerEvents).not.toBe('none'));
+    expect(document.body).not.toHaveAttribute('data-scroll-locked');
+  });
+
+  it('keeps the caller’s word inside a dialog', async () => {
+    const { user } = renderWithProviders(
+      <Dialog open modal={false}>
+        <DialogContent>
+          <DialogTitle>A panel</DialogTitle>
+          <DialogDescription>Beside the page</DialogDescription>
+          <Menu />
+        </DialogContent>
+      </Dialog>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Plain' })).toBeVisible();
+    expect(document.body).not.toHaveAttribute('data-scroll-locked');
   });
 
   it('indents an inset item, label and sub-trigger, and nothing else', async () => {

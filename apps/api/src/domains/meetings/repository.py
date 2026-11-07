@@ -93,10 +93,18 @@ class MeetingRepository(MeetingRegenerationRepositoryMixin, BaseRepository[Meeti
         return result.scalar_one_or_none()
 
     async def list_for_user(
-        self, user_id: UUID, *, limit: int, offset: int, query: str | None = None
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        offset: int,
+        query: str | None = None,
+        calendar_event_id: str | None = None,
     ) -> tuple[list[Meeting], int]:
         """A page of the user's meetings, newest first, with the EXACT total (ADR-185)."""
         filtered = select(Meeting.id, Meeting.started_at).where(Meeting.user_id == user_id)
+        if calendar_event_id is not None:
+            filtered = filtered.where(Meeting.calendar_event_id == calendar_event_id)
         needle = normalize_minutes_query((query or "").strip())
         if needle:
             filtered = filtered.where(minutes_search_predicate(needle))

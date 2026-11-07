@@ -659,6 +659,59 @@ describe('Composer — a signature', () => {
   });
 });
 
+describe('Composer — an answer kept for later', () => {
+  it('offers a draft on a reply and closes on it, the words safe in the mailbox', async () => {
+    const write = writing();
+    const { user, onClose, onDraftSaved } = composer(
+      { kind: 'reply', message: MESSAGE, all: false },
+      ['attachments', 'drafts'],
+      0,
+      write
+    );
+
+    await user.type(body(), 'Later');
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.compose.save_draft' }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(onDraftSaved).toHaveBeenCalledTimes(1);
+    expect(write.saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ origin: { message_id: 'm1', kind: 'reply' }, body: 'Later' })
+    );
+  });
+
+  it('stays open on a new message, which goes on being that draft', async () => {
+    const { user, onClose, onDraftSaved } = composer();
+
+    await user.type(body(), 'Later');
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.compose.save_draft' }));
+
+    await waitFor(() => expect(onDraftSaved).toHaveBeenCalledTimes(1));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('says whom a forward lacks, and keeps it open', async () => {
+    const write = writing();
+    const { user, onClose } = composer(
+      { kind: 'forward', message: MESSAGE },
+      ['attachments', 'drafts'],
+      0,
+      write
+    );
+
+    await user.click(screen.getByRole('button', { name: 'workbench.mail.compose.save_draft' }));
+
+    expect(await screen.findByText('workbench.mail.compose.no_recipient')).toBeInTheDocument();
+    expect(write.saveDraft).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('offers no draft where the provider keeps none', () => {
+    composer({ kind: 'reply', message: MESSAGE, all: false }, ['attachments']);
+
+    expect(screen.queryByRole('button', { name: 'workbench.mail.compose.save_draft' })).toBeNull();
+  });
+});
+
 describe('Composer — a draft saved by itself', () => {
   const QUIET_MS = 20;
 

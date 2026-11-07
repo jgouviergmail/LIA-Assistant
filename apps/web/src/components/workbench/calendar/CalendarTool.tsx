@@ -5,8 +5,8 @@
  * « Agenda »).
  *
  * The account's calendars, those this device hides left out; the week holding
- * the day the address names, as an agenda or as a grid, on the account's wall
- * (its zone is said); the open event beside it from `xl`, in its place below.
+ * the day the address names, as an agenda or as a grid, on the account's wall;
+ * the open event beside it from `xl`, in its place below.
  * A calendar that could not be read, one cut at the published bound, or events
  * whose times could not be read are SAID above the view — never an empty week
  * that looks quiet. Creating, changing and deleting are offered where the
@@ -51,7 +51,9 @@ import { dayIn } from '@/lib/workbench/tasks';
 import {
   WORKBENCH_BEYOND_PHONE,
   WORKBENCH_DESKTOP,
+  WORKBENCH_HEADER_PRIMARY,
   WORKBENCH_PANE_HEIGHT,
+  WORKBENCH_SIDE_BY_SIDE,
 } from '@/lib/workbench/tools';
 import type {
   CalendarEventDetail,
@@ -64,6 +66,7 @@ import type {
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
+import { useEventAssist } from '../assist/useEventAssist';
 import { useHandoff, useToolBridges } from '../useToolBridges';
 import type { ToolShortcut } from '../useToolShortcuts';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
@@ -92,8 +95,6 @@ import { eventStarts, type EventStarts } from './useEventStarts';
 import { WeekView } from './WeekView';
 
 const NO_CALENDARS: readonly WorkbenchCalendar[] = [];
-/** From here the event opens beside the view; below, in its place. */
-const SIDE_BY_SIDE = '(min-width: 1280px)';
 
 export function CalendarTool({ lng }: { lng: Language }) {
   const { availability } = useWorkbench();
@@ -132,7 +133,7 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   const { hidden, toggle } = useHiddenCalendars(user?.id ?? '');
   const [editor, setEditor] = useState<{ id: number; target: EditorTarget } | null>(null);
   const [deleting, setDeleting] = useState<CalendarEventDetail | null>(null);
-  const wide = useMediaQuery(SIDE_BY_SIDE);
+  const wide = useMediaQuery(WORKBENCH_SIDE_BY_SIDE);
   const closeRef = useRef<HTMLButtonElement>(null);
   const todayRef = useRef<HTMLButtonElement>(null);
   // Below xl the event takes the view's place: the focus follows it there and back.
@@ -198,7 +199,7 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   const [managing, setManaging] = useState(false);
   const manage = managingOffered(tool) ? () => setManaging(true) : undefined;
   useHandoff('event', starts.writable, handed =>
-    starts.startWith(handed.summary, handed.description)
+    starts.startWith(handed.summary, handed.description, handed.proposal)
   );
   const newEvent = (
     <NewEventButton
@@ -235,7 +236,9 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
           ]);
         }}
       >
-        <span className="lg:hidden">{newEvent}</span>
+        <span className={cn(WORKBENCH_HEADER_PRIMARY, 'lg:hidden [&>button]:min-h-10')}>
+          {newEvent}
+        </span>
       </WorkbenchToolHeader>
       <section
         aria-label={t('workbench.tools.calendar.label')}
@@ -275,7 +278,6 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
         <div className={cn('min-w-0 flex-1 flex-col', open ? 'hidden xl:flex' : 'flex')}>
           <CalendarToolbar
             lng={lng}
-            zone={zone}
             today={today}
             todayRef={todayRef}
             address={address}
@@ -457,6 +459,7 @@ function OpenEventPane({
   onAsk,
 }: OpenEventPaneProps) {
   const { item } = detail;
+  const assist = useEventAssist(lng, item, zone);
   return (
     <>
       <PaneSeparator {...pane.separator} className={cn(PANE_SEPARATOR_CLASS, 'hidden xl:flex')} />
@@ -483,6 +486,7 @@ function OpenEventPane({
           onDelete={() => item && onDelete(item)}
           onDuplicate={onDuplicate && (() => item && onDuplicate(item))}
           onAsk={() => item && onAsk(item)}
+          assist={assist}
           onAnswer={response => item && void answering.answer(item, response)}
           answering={answering.answering}
           destinations={item ? moveTargets(item, calendar, calendars, tool) : undefined}

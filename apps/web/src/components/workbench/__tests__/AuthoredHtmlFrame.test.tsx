@@ -177,11 +177,11 @@ describe('AuthoredHtmlFrame', () => {
       expect(document.activeElement).toBe(element);
     });
 
-    it('lets https and embedded images in once asked, with nothing left to say', () => {
+    it('lets https and embedded images in once asked, the offer greyed where it stood', () => {
       const element = draw(SENDER, true);
 
       expect(element.getAttribute('srcdoc')).toContain(POLICY_WITH_IMAGES);
-      expect(screen.queryByRole('button', { name: SHOW })).toBeNull();
+      expect(screen.getByRole('button', { name: SHOW })).toBeDisabled();
       expect(screen.queryByText(ABOUT_THE_IMAGES)).toBeNull();
     });
 
@@ -333,6 +333,50 @@ describe('AuthoredHtmlFrame', () => {
 
     expect(source).toContain(POLICY);
     expect(source.indexOf(POLICY)).toBeLessThan(source.indexOf('invert('));
+  });
+
+  it('holds what its reader adds on the line of its own offers, before them', () => {
+    scheme.resolved = 'dark';
+    renderWithProviders(
+      <AuthoredHtmlFrame
+        lng="en"
+        html={SENDER}
+        title="The frame"
+        onShowImages={vi.fn()}
+        lead={<button type="button">workbench.mail.show_text</button>}
+      />
+    );
+
+    const line = screen.getByRole('button', { name: 'workbench.mail.show_text' }).parentElement;
+
+    expect(Array.from(line?.children ?? []).map(offer => offer.textContent)).toEqual([
+      'workbench.mail.show_text',
+      SHOW,
+      'workbench.mail.colours_of_author',
+    ]);
+  });
+
+  it('keeps each offer at its own place on a phone, and all together further up', () => {
+    scheme.resolved = 'dark';
+    renderWithProviders(<AuthoredHtmlFrame lng="en" html="<p>Hello</p>" title="The frame" />);
+
+    expect(screen.getByRole('button', { name: 'workbench.mail.colours_of_author' })).toHaveClass(
+      'col-start-3',
+      'justify-self-end'
+    );
+  });
+
+  it('draws the line for what its reader adds even with no offer of its own', () => {
+    renderWithProviders(
+      <AuthoredHtmlFrame
+        lng="en"
+        html="<p>Hello</p>"
+        title="The frame"
+        lead={<button type="button">workbench.mail.show_text</button>}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'workbench.mail.show_text' })).toBeVisible();
   });
 
   it('gives the sender’s colours back on a click, and the theme on the next', () => {

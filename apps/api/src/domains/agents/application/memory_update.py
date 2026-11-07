@@ -12,9 +12,9 @@ from src.domains.agents.application.authorization import load_actor
 from src.domains.agents.application.availability import require_application_tools
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
-from src.domains.agents.application.memory_create_schemas import MemoryCreateConfiguration
 from src.domains.agents.application.memory_creation_embeddings import (
     prepare_memory_creation_embeddings,
+    released_after,
 )
 from src.domains.agents.application.memory_pin import (
     _memory_pin_fence,
@@ -23,6 +23,7 @@ from src.domains.agents.application.memory_pin import (
 )
 from src.domains.agents.application.memory_spec import MEMORY_UPDATE_OPERATION
 from src.domains.agents.application.memory_update_schemas import (
+    MemoryUpdateConfiguration,
     MemoryUpdatePatch,
     MemoryUpdateRequest,
     MemoryUpdateValues,
@@ -53,13 +54,13 @@ async def prepare_memory_update(
     previous = MemoryUpdateValues(
         expected=expected,
         changes=selected.changes,
-        configuration=MemoryCreateConfiguration.model_validate(
+        configuration=MemoryUpdateConfiguration.model_validate(
             preview_memory_update(row, MemoryUpdate()).model_dump()
         ),
     )
     desired = previous.model_copy(
         update={
-            "configuration": MemoryCreateConfiguration.model_validate(
+            "configuration": MemoryUpdateConfiguration.model_validate(
                 preview_memory_update(row, selected.changes).model_dump()
             )
         }
@@ -123,7 +124,7 @@ async def execute_memory_update(
             draft.command_id,
             desired.configuration.content,
             desired.configuration.trigger_topic,
-            guard,
+            released_after(db, guard),
         )
         if vector_change
         else None

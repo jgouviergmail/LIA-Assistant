@@ -11,6 +11,7 @@ import type {
 } from '../../src/types/briefing';
 import type { PsycheHistoryEntry, PsycheState } from '../../src/types/psyche';
 import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
+import { surfaceMemoryLimits } from '../fixtures/settings-surfaces';
 
 export const CAPTURE_TIME = '2026-10-12T07:30:00Z';
 const query = 'Help me prepare my day and show my next two appointments.';
@@ -290,8 +291,8 @@ const llmSlots = [
   ['query_analyzer', 'Query Analyzer', 'pipeline', 'openai', 'gpt-4.1-mini'],
   ['planner', 'Planner', 'pipeline', 'anthropic', 'claude-sonnet-4-6'],
   ['react_agent', 'ReAct Agent', 'pipeline', 'anthropic', 'claude-sonnet-4-6'],
-  ['contacts_agent', 'Contacts Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'],
-  ['calendar_agent', 'Calendar Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'],
+  ['emails_agent', 'Emails Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'],
+  ['browser_agent', 'Browser Agent', 'domain_agents', 'openai', 'gpt-4.1-mini'],
   ['response', 'Response', 'query_response', 'openai', 'gpt-4.1'],
 ].map(([llm_type, display_name, category, provider, model]) => {
   const config = {
@@ -662,6 +663,7 @@ export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
         items: memoryItems,
         total: memoryItems.length,
         by_category: { preference: 2, personal: 1, relationship: 1, event: 1, procedural: 1 },
+        limits: surfaceMemoryLimits,
       },
     },
     {

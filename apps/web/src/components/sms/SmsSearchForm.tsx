@@ -55,8 +55,8 @@ export function SmsSearchForm({
         </div>
         <Button type="submit">{t('sms.search_button')}</Button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="min-w-0 space-y-2">
           <Label htmlFor="sms-search-from">
             {t('sms.from')} · {timezone}
           </Label>
@@ -67,7 +67,7 @@ export function SmsSearchForm({
             onChange={event => setFrom(event.target.value)}
           />
         </div>
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <Label htmlFor="sms-search-to">
             {t('sms.to')} · {timezone}
           </Label>

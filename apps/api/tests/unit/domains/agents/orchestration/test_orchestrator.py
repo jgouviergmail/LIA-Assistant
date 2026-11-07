@@ -13,12 +13,12 @@ from unittest.mock import patch
 import pytest
 
 from src.domains.agents.constants import (
+    AGENT_BROWSER,
     AGENT_CONTACT,
     EXECUTION_MODE_SEQUENTIAL,
-    INTENTION_CONTACT,
-    INTENTION_CONTACT_DETAILS,
-    INTENTION_CONTACT_LIST,
-    INTENTION_CONTACT_SEARCH,
+    INTENTION_BROWSER,
+    INTENTION_BROWSER_INTERACT,
+    INTENTION_BROWSER_NAVIGATE,
     STATUS_ERROR,
     STATUS_SUCCESS,
     make_agent_result_key,
@@ -36,12 +36,12 @@ from src.domains.agents.orchestration.schemas import OrchestratorPlan
 def sample_router_output():
     """Create a sample RouterOutput for testing."""
     return RouterOutput(
-        intention=INTENTION_CONTACT_SEARCH,
+        intention=INTENTION_BROWSER_NAVIGATE,
         confidence=0.9,
-        context_label="contact",
+        context_label="browser",
         next_node="task_orchestrator",
-        domains=["contacts"],
-        reasoning="User wants to search contacts",
+        domains=["browser"],
+        reasoning="User wants to open a page",
     )
 
 
@@ -93,62 +93,47 @@ class TestCreateOrchestrationPlan:
     """Tests for create_orchestration_plan() function."""
 
     @pytest.mark.asyncio
-    async def test_create_plan_contacts_search(self, sample_router_output, empty_state):
-        """Test creating plan for contacts_search intention."""
+    async def test_create_plan_browser_navigate(self, sample_router_output, empty_state):
+        """Test creating plan for browser_navigate intention."""
         plan = await create_orchestration_plan(sample_router_output, empty_state)
 
         assert isinstance(plan, OrchestratorPlan)
-        assert plan.agents_to_call == [AGENT_CONTACT]
+        assert plan.agents_to_call == [AGENT_BROWSER]
         assert plan.execution_mode == EXECUTION_MODE_SEQUENTIAL
         assert plan.metadata["version"] == "v1_sequential"
-        assert plan.metadata["intention"] == INTENTION_CONTACT_SEARCH
+        assert plan.metadata["intention"] == INTENTION_BROWSER_NAVIGATE
         assert plan.metadata["confidence"] == 0.9
-        assert plan.metadata["context_label"] == "contact"
+        assert plan.metadata["context_label"] == "browser"
 
     @pytest.mark.asyncio
-    async def test_create_plan_contacts_list(self, empty_state):
-        """Test creating plan for contacts_list intention."""
+    @pytest.mark.parametrize("intention", [INTENTION_BROWSER, INTENTION_BROWSER_INTERACT])
+    async def test_create_plan_other_browser_intentions(self, intention, empty_state):
+        """Test the generic and the interact intentions reach the same agent."""
         router_output = RouterOutput(
-            intention=INTENTION_CONTACT_LIST,
+            intention=intention,
             confidence=0.85,
-            context_label="contact",
+            context_label="browser",
             next_node="task_orchestrator",
         )
 
         plan = await create_orchestration_plan(router_output, empty_state)
 
-        assert plan.agents_to_call == [AGENT_CONTACT]
-        assert plan.metadata["intention"] == INTENTION_CONTACT_LIST
+        assert plan.agents_to_call == [AGENT_BROWSER]
+        assert plan.metadata["intention"] == intention
 
     @pytest.mark.asyncio
-    async def test_create_plan_contacts_details(self, empty_state):
-        """Test creating plan for contacts_details intention."""
+    async def test_a_domain_intention_calls_no_agent(self, empty_state):
+        """A domain has no compiled agent (ADR-371): only a plan reaches its tools."""
         router_output = RouterOutput(
-            intention=INTENTION_CONTACT_DETAILS,
-            confidence=0.92,
+            intention="contact_search",
+            confidence=0.9,
             context_label="contact",
             next_node="task_orchestrator",
         )
 
         plan = await create_orchestration_plan(router_output, empty_state)
 
-        assert plan.agents_to_call == [AGENT_CONTACT]
-        assert plan.metadata["intention"] == INTENTION_CONTACT_DETAILS
-
-    @pytest.mark.asyncio
-    async def test_create_plan_contacts_fallback(self, empty_state):
-        """Test creating plan for generic 'contacts' intention (fallback)."""
-        router_output = RouterOutput(
-            intention=INTENTION_CONTACT,
-            confidence=0.8,
-            context_label="contact",
-            next_node="task_orchestrator",
-        )
-
-        plan = await create_orchestration_plan(router_output, empty_state)
-
-        assert plan.agents_to_call == [AGENT_CONTACT]
-        assert plan.metadata["intention"] == INTENTION_CONTACT
+        assert plan.agents_to_call == []
 
     @pytest.mark.asyncio
     async def test_create_plan_unknown_intention(self, empty_state):
@@ -170,16 +155,16 @@ class TestCreateOrchestrationPlan:
     async def test_create_plan_includes_reasoning(self, empty_state):
         """Test that reasoning is included in metadata when provided."""
         router_output = RouterOutput(
-            intention=INTENTION_CONTACT_SEARCH,
+            intention=INTENTION_BROWSER_NAVIGATE,
             confidence=0.9,
-            context_label="contact",
+            context_label="browser",
             next_node="task_orchestrator",
-            reasoning="User explicitly requested contact search",
+            reasoning="User explicitly requested a page",
         )
 
         plan = await create_orchestration_plan(router_output, empty_state)
 
-        assert plan.metadata["reasoning"] == "User explicitly requested contact search"
+        assert plan.metadata["reasoning"] == "User explicitly requested a page"
 
     @pytest.mark.asyncio
     async def test_create_plan_logs_creation(self, sample_router_output, empty_state):
@@ -190,10 +175,10 @@ class TestCreateOrchestrationPlan:
             mock_logger.info.assert_called_once()
             call_args = mock_logger.info.call_args
             assert call_args[0][0] == "orchestration_plan_created"
-            assert call_args[1]["intention"] == f"{INTENTION_CONTACT_SEARCH} -> contact"
+            assert call_args[1]["intention"] == f"{INTENTION_BROWSER_NAVIGATE} -> browser"
             assert call_args[1]["confidence"] == 0.9
             assert call_args[1]["agents_count"] == 1
-            assert call_args[1]["agents"] == [AGENT_CONTACT]
+            assert call_args[1]["agents"] == [AGENT_BROWSER]
 
     @pytest.mark.asyncio
     async def test_create_plan_hardcodes_sequential_mode(self, sample_router_output, empty_state):
@@ -542,7 +527,7 @@ class TestOrchestrationIntegration:
 
         # Step 3: Get next agent
         next_agent = get_next_agent_from_plan(state)
-        assert next_agent == AGENT_CONTACT
+        assert next_agent == AGENT_BROWSER
 
         # Step 5: Create new state with agent execution result
         state_with_result = MessagesState(
@@ -550,9 +535,9 @@ class TestOrchestrationIntegration:
             current_turn_id=1,
             orchestration_plan=plan,
             agent_results={
-                make_agent_result_key(1, AGENT_CONTACT): {
+                make_agent_result_key(1, AGENT_BROWSER): {
                     "status": STATUS_SUCCESS,
-                    "agent_name": AGENT_CONTACT,
+                    "agent_name": AGENT_BROWSER,
                 }
             },
         )

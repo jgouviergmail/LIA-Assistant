@@ -167,7 +167,7 @@ def enrich_config_with_node_metadata(
 
     Args:
         config: Original RunnableConfig from node (may be None)
-        node_name: Node identifier ("router", "response", "planner", "contacts_agent", etc.)
+        node_name: Node identifier ("router", "response", "planner", "query_agent", etc.)
 
     Returns:
         Enriched RunnableConfig with guaranteed metadata["langgraph_node"]

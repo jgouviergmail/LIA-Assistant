@@ -2,8 +2,9 @@
  * Scenes of section 05 — "Day to day": customizable briefing grid, the home
  * page filling in card by card, starter
  * checklist with its micro-celebration, empty-chat starters, PWA install, the
- * notice that names an SMS's sender while the phone's stays content-free, and a
- * ticket history naming both ends of every hand-over.
+ * notice that names an SMS's sender while the phone's stays content-free, a
+ * ticket history naming both ends of every hand-over, a first look that marks
+ * nothing read, and the home page's health dials.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -43,6 +44,7 @@ import {
   Users,
 } from 'lucide-react';
 
+import { HealthDial } from '@/components/dashboard/cards/HealthDial';
 import { cn } from '@/lib/utils';
 
 import {
@@ -1423,6 +1425,93 @@ function DragWithGuestsScene({ active, labels }: SceneProps) {
   );
 }
 
+type FirstLookPhase = 'list' | 'opened' | 'still_unread';
+const FIRST_LOOK_STEPS: readonly TimelineStep<FirstLookPhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 1000, state: 'opened' },
+  { at: 2100, state: 'still_unread' },
+];
+
+/**
+ * A large screen opens the mailbox on the newest message and leaves its dot: the resting frame
+ * says it is still unread, whatever the reader shows.
+ */
+function QuietFirstLookScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(FIRST_LOOK_STEPS, { active });
+  const opened = phase !== 'list';
+  return (
+    <div className={cn(STAGE, 'flex-row gap-2')}>
+      <div className="w-24 shrink-0 space-y-1">
+        {[0, 1, 2].map(row => (
+          <div
+            key={row}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md border border-border bg-background px-1.5 py-1.5 transition-shadow duration-300 motion-reduce:transition-none',
+              row === 0 && opened && 'ring-2 ring-primary/60'
+            )}
+          >
+            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', row === 0 && 'bg-primary')} />
+            <SkeletonLine w={row === 0 ? 'w-full' : 'w-2/3'} />
+          </div>
+        ))}
+      </div>
+      <div
+        className={cn(
+          'flex h-24 min-w-0 flex-1 flex-col gap-1.5 rounded-md border border-border bg-background p-2 shadow-sm transition-opacity duration-500 motion-reduce:transition-none',
+          opened ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <SkeletonLine w="w-2/3" />
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-5/6" />
+        <span
+          className={cn(
+            'mt-auto self-start rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-px-8 font-medium text-primary transition-opacity duration-300 motion-reduce:transition-none',
+            phase === 'still_unread' ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          {labels.unread}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+type HealthDialsPhase = 'empty' | 'today' | 'average';
+const HEALTH_DIALS_STEPS: readonly TimelineStep<HealthDialsPhase>[] = [
+  { at: 0, state: 'empty' },
+  { at: 900, state: 'today' },
+  { at: 2000, state: 'average' },
+];
+
+/**
+ * The home page's own dials, not a drawing of them: a day nothing was read lights nothing, then
+ * today's band and mark come up, then the notch of the average. The resting frame holds all three.
+ */
+function HealthDialsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(HEALTH_DIALS_STEPS, { active });
+  const read = phase !== 'empty';
+  const averaged = phase === 'average';
+  return (
+    <div className={cn(STAGE, 'flex-row gap-5')}>
+      <div className="w-20">
+        <HealthDial kind="steps" today={read ? 7400 : null} average={averaged ? 6200 : null}>
+          <span className="text-px-10 font-semibold text-foreground/80">
+            {read ? labels.steps : '—'}
+          </span>
+        </HealthDial>
+      </div>
+      <div className="w-20">
+        <HealthDial kind="heart_rate" today={read ? 64 : null} average={averaged ? 72 : null}>
+          <span className="text-px-10 font-semibold text-foreground/80">
+            {read ? labels.pulse : '—'}
+          </span>
+        </HealthDial>
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   sender_notice: SenderNoticeScene,
   alerts_hub: AlertsHubScene,
@@ -1449,4 +1538,6 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   voices_in_language: VoicesInLanguageScene,
   voice_sample: VoiceSampleScene,
   document_first_page: DocumentFirstPageScene,
+  quiet_first_look: QuietFirstLookScene,
+  health_dials: HealthDialsScene,
 };

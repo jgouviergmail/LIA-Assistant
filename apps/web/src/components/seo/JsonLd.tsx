@@ -131,7 +131,7 @@ export function SoftwareApplicationJsonLd({
       'Voice mode with speech synthesis',
       'Browser automation (Playwright)',
       'Knowledge Spaces (RAG)',
-      'Tools workspace: connected services used directly, with no model call',
+      'Tools workspace: connected services used by hand with no model call, and one-click help from LIA',
       'Interactive pages run in a sandboxed frame',
       'Extensible via MCP protocol',
     ],

@@ -20,20 +20,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { InfoBox } from '@/components/ui/info-box';
 import { RowActions } from '@/components/ui/row-actions';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -48,7 +37,12 @@ import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import {
-  MEMORY_CATEGORIES,
+  CATEGORY_ICONS,
+  EMPTY_MEMORY_FORM,
+  MemoryFormFields,
+  type MemoryFormData,
+} from '@/components/settings/MemoryFormFields';
+import {
   useMemories,
   getEmotionalEmoji,
   type MemoryCategory,
@@ -56,6 +50,7 @@ import {
 } from '@/hooks/useMemories';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
+import { isMemoryTextSavable, isRefusedInput } from '@/lib/memories/text-bounds';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -74,25 +69,6 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { BaseSettingsProps } from '@/types/settings';
-
-export const CATEGORY_ICONS: Record<MemoryCategory, string> = {
-  preference: '💡',
-  personal: '📋',
-  relationship: '👥',
-  event: '📅',
-  pattern: '🔄',
-  sensitivity: '⚠️',
-  procedural: '📌',
-};
-
-interface EditFormData {
-  content: string;
-  category: MemoryCategory;
-  usage_nuance: string;
-  emotional_weight: number;
-  importance: number;
-  trigger_topic: string;
-}
 
 /**
  * Format a date for display using the user's locale.
@@ -141,6 +117,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
   const {
     memories,
     total,
+    limits,
     loading,
     creating,
     deleting,
@@ -196,50 +173,22 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
 
   // Create dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<EditFormData>({
-    content: '',
-    category: 'personal',
-    usage_nuance: '',
-    emotional_weight: 0,
-    importance: 0.7,
-    trigger_topic: '',
-  });
+  const [createForm, setCreateForm] = useState<MemoryFormData>(EMPTY_MEMORY_FORM);
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditFormData>({
-    content: '',
-    category: 'personal',
-    usage_nuance: '',
-    emotional_weight: 0,
-    importance: 0.7,
-    trigger_topic: '',
-  });
+  const [editForm, setEditForm] = useState<MemoryFormData>(EMPTY_MEMORY_FORM);
 
   // Create dialog handlers
   const handleOpenCreate = () => {
-    setCreateForm({
-      content: '',
-      category: 'personal',
-      usage_nuance: '',
-      emotional_weight: 0,
-      importance: 0.7,
-      trigger_topic: '',
-    });
+    setCreateForm(EMPTY_MEMORY_FORM);
     setCreateDialogOpen(true);
   };
 
   const handleCloseCreate = () => {
     setCreateDialogOpen(false);
-    setCreateForm({
-      content: '',
-      category: 'personal',
-      usage_nuance: '',
-      emotional_weight: 0,
-      importance: 0.7,
-      trigger_topic: '',
-    });
+    setCreateForm(EMPTY_MEMORY_FORM);
   };
 
   const handleSaveCreate = async () => {
@@ -255,8 +204,8 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
       });
       toast.success(t('memories.create_success'));
       handleCloseCreate();
-    } catch {
-      toast.error(t('memories.create_error'));
+    } catch (error) {
+      toast.error(t(isRefusedInput(error) ? 'memories.text_refused' : 'memories.create_error'));
     }
   };
 
@@ -276,31 +225,17 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
   const handleCloseEdit = () => {
     setEditDialogOpen(false);
     setEditingMemoryId(null);
-    setEditForm({
-      content: '',
-      category: 'personal',
-      usage_nuance: '',
-      emotional_weight: 0,
-      importance: 0.7,
-      trigger_topic: '',
-    });
+    setEditForm(EMPTY_MEMORY_FORM);
   };
 
   const handleSaveEdit = async () => {
     if (!editingMemoryId) return;
     try {
-      await updateMemory(editingMemoryId, {
-        content: editForm.content,
-        category: editForm.category,
-        usage_nuance: editForm.usage_nuance || undefined,
-        emotional_weight: editForm.emotional_weight,
-        importance: editForm.importance,
-        trigger_topic: editForm.trigger_topic || undefined,
-      });
+      await updateMemory(editingMemoryId, editForm);
       toast.success(t('memories.update_success'));
       handleCloseEdit();
-    } catch {
-      toast.error(t('memories.update_error'));
+    } catch (error) {
+      toast.error(t(isRefusedInput(error) ? 'memories.text_refused' : 'memories.update_error'));
     }
   };
 
@@ -676,116 +611,24 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                 <DialogTitle>{t('memories.edit_title')}</DialogTitle>
                 <DialogDescription>{t('memories.edit_description')}</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                {/* Content */}
-                <div className="grid gap-3">
-                  <Label htmlFor="edit-content">{t('memories.field_content')}</Label>
-                  <Textarea
-                    id="edit-content"
-                    value={editForm.content}
-                    onChange={e => setEditForm({ ...editForm, content: e.target.value })}
-                    placeholder={t('memories.content_placeholder')}
-                    rows={3}
-                  />
-                </div>
-                {/* Category */}
-                <div className="grid gap-3">
-                  <Label htmlFor="edit-category">{t('memories.field_category')}</Label>
-                  <Select
-                    value={editForm.category}
-                    onValueChange={value =>
-                      setEditForm({ ...editForm, category: value as MemoryCategory })
-                    }
-                  >
-                    <SelectTrigger id="edit-category">
-                      <SelectValue placeholder={t('memories.select_category')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MEMORY_CATEGORIES.map(category => (
-                        <SelectItem key={category} value={category}>
-                          {CATEGORY_ICONS[category]} {getCategoryLabel(category)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Usage Nuance */}
-                <div className="grid gap-3">
-                  <Label htmlFor="edit-nuance">{t('memories.field_usage_nuance')}</Label>
-                  <Input
-                    id="edit-nuance"
-                    value={editForm.usage_nuance}
-                    onChange={e => setEditForm({ ...editForm, usage_nuance: e.target.value })}
-                    placeholder={t('memories.nuance_placeholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
-                </div>
-                {/* Trigger Topic */}
-                <div className="grid gap-3">
-                  <Label htmlFor="edit-trigger">{t('memories.field_trigger_topic')}</Label>
-                  <Input
-                    id="edit-trigger"
-                    value={editForm.trigger_topic}
-                    onChange={e => setEditForm({ ...editForm, trigger_topic: e.target.value })}
-                    placeholder={t('memories.trigger_placeholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('memories.trigger_help')}</p>
-                </div>
-                {/* Emotional Weight */}
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="edit-emotional">{t('memories.field_emotional_weight')}</Label>
-                    <span className="text-sm flex items-center gap-1">
-                      {getEmotionalEmoji(editForm.emotional_weight)} {editForm.emotional_weight}
-                    </span>
-                  </div>
-                  <Slider
-                    id="edit-emotional"
-                    aria-label={t('memories.field_emotional_weight')}
-                    min={-10}
-                    max={10}
-                    step={1}
-                    value={[editForm.emotional_weight]}
-                    onValueChange={(value: number[]) =>
-                      setEditForm({ ...editForm, emotional_weight: value[0] })
-                    }
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>-10 ({t('memories.emotional_negative')})</span>
-                    <span>+10 ({t('memories.emotional_positive')})</span>
-                  </div>
-                </div>
-                {/* Importance */}
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="edit-importance">{t('memories.field_importance')}</Label>
-                    <span className="text-sm">★ {(editForm.importance * 100).toFixed(0)}%</span>
-                  </div>
-                  <Slider
-                    id="edit-importance"
-                    aria-label={t('memories.field_importance')}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    value={[editForm.importance]}
-                    onValueChange={(value: number[]) =>
-                      setEditForm({ ...editForm, importance: value[0] })
-                    }
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0% ({t('memories.importance_low')})</span>
-                    <span>100% ({t('memories.importance_high')})</span>
-                  </div>
-                </div>
-              </div>
+              <MemoryFormFields
+                lng={lng}
+                idPrefix="edit"
+                form={editForm}
+                onChange={setEditForm}
+                limits={limits}
+                contentLabel={t('memories.field_content')}
+                categoryLabel={getCategoryLabel}
+              />
               <DialogFooter>
                 <Button variant="outline" onClick={handleCloseEdit} disabled={updating}>
                   <X className="h-4 w-4 mr-1" />
                   {t('common.cancel')}
                 </Button>
-                <Button onClick={handleSaveEdit} disabled={updating || !editForm.content.trim()}>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={updating || !isMemoryTextSavable(editForm, limits)}
+                >
                   {updating ? (
                     <LoadingSpinner size="default" className="mr-1" />
                   ) : (
@@ -804,111 +647,16 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                 <DialogTitle>{t('memories.create_title')}</DialogTitle>
                 <DialogDescription>{t('memories.create_description')}</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                {/* Content */}
-                <div className="grid gap-3">
-                  <Label htmlFor="create-content">{t('memories.field_content')} *</Label>
-                  <Textarea
-                    id="create-content"
-                    value={createForm.content}
-                    onChange={e => setCreateForm({ ...createForm, content: e.target.value })}
-                    placeholder={t('memories.content_placeholder')}
-                    rows={3}
-                    autoFocus
-                  />
-                </div>
-                {/* Category */}
-                <div className="grid gap-3">
-                  <Label htmlFor="create-category">{t('memories.field_category')}</Label>
-                  <Select
-                    value={createForm.category}
-                    onValueChange={value =>
-                      setCreateForm({ ...createForm, category: value as MemoryCategory })
-                    }
-                  >
-                    <SelectTrigger id="create-category">
-                      <SelectValue placeholder={t('memories.select_category')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MEMORY_CATEGORIES.map(category => (
-                        <SelectItem key={category} value={category}>
-                          {CATEGORY_ICONS[category]} {getCategoryLabel(category)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Usage Nuance */}
-                <div className="grid gap-3">
-                  <Label htmlFor="create-nuance">{t('memories.field_usage_nuance')}</Label>
-                  <Input
-                    id="create-nuance"
-                    value={createForm.usage_nuance}
-                    onChange={e => setCreateForm({ ...createForm, usage_nuance: e.target.value })}
-                    placeholder={t('memories.nuance_placeholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
-                </div>
-                {/* Trigger Topic */}
-                <div className="grid gap-3">
-                  <Label htmlFor="create-trigger">{t('memories.field_trigger_topic')}</Label>
-                  <Input
-                    id="create-trigger"
-                    value={createForm.trigger_topic}
-                    onChange={e => setCreateForm({ ...createForm, trigger_topic: e.target.value })}
-                    placeholder={t('memories.trigger_placeholder')}
-                  />
-                  <p className="text-xs text-muted-foreground">{t('memories.trigger_help')}</p>
-                </div>
-                {/* Emotional Weight */}
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="create-emotional">{t('memories.field_emotional_weight')}</Label>
-                    <span className="text-sm flex items-center gap-1">
-                      {getEmotionalEmoji(createForm.emotional_weight)} {createForm.emotional_weight}
-                    </span>
-                  </div>
-                  <Slider
-                    id="create-emotional"
-                    aria-label={t('memories.field_emotional_weight')}
-                    min={-10}
-                    max={10}
-                    step={1}
-                    value={[createForm.emotional_weight]}
-                    onValueChange={(value: number[]) =>
-                      setCreateForm({ ...createForm, emotional_weight: value[0] })
-                    }
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>-10 ({t('memories.emotional_negative')})</span>
-                    <span>+10 ({t('memories.emotional_positive')})</span>
-                  </div>
-                </div>
-                {/* Importance */}
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="create-importance">{t('memories.field_importance')}</Label>
-                    <span className="text-sm">★ {(createForm.importance * 100).toFixed(0)}%</span>
-                  </div>
-                  <Slider
-                    id="create-importance"
-                    aria-label={t('memories.field_importance')}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    value={[createForm.importance]}
-                    onValueChange={(value: number[]) =>
-                      setCreateForm({ ...createForm, importance: value[0] })
-                    }
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0% ({t('memories.importance_low')})</span>
-                    <span>100% ({t('memories.importance_high')})</span>
-                  </div>
-                </div>
-              </div>
+              <MemoryFormFields
+                lng={lng}
+                idPrefix="create"
+                form={createForm}
+                onChange={setCreateForm}
+                limits={limits}
+                contentLabel={`${t('memories.field_content')} *`}
+                categoryLabel={getCategoryLabel}
+                autoFocusContent
+              />
               <DialogFooter>
                 <Button variant="outline" onClick={handleCloseCreate} disabled={creating}>
                   <X className="h-4 w-4 mr-1" />
@@ -916,7 +664,7 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                 </Button>
                 <Button
                   onClick={handleSaveCreate}
-                  disabled={creating || !createForm.content.trim()}
+                  disabled={creating || !isMemoryTextSavable(createForm, limits)}
                 >
                   {creating ? (
                     <LoadingSpinner size="default" className="mr-1" />

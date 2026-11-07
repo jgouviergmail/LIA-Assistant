@@ -7,6 +7,11 @@ graph TB
     RouterDecision -->|"response"<br/>Conversational| ResponseNode[response_node]
     RouterDecision -->|"react"<br/>ADR-070 user-toggled| ReactSetup[react_setup_node]
     RouterDecision -->|"planner"<br/>Actionable| SkillCheck{Skill Match?}
+    RouterDecision -->|"Several shown items fit<br/>ADR-367"| ReferenceDisambiguation[reference_disambiguation_node<br/>asks which one, then resumes<br/>the route of the turn]
+    ReferenceDisambiguation --> PlannerNode
+    ReferenceDisambiguation --> ReactSetup
+    ReferenceDisambiguation --> ResponseNode
+    ReferenceDisambiguation -->|"A plan's choice"| TaskOrchestrator
 
     SkillCheck -->|"Yes — deterministic<br/>SkillBypassStrategy"| TaskOrchestrator
     SkillCheck -->|"No"| PlannerNode[planner_node_v3]
@@ -41,37 +46,17 @@ graph TB
     ForEachConfirm -->|Approved| TaskOrchestrator
     ForEachConfirm -->|Cancelled| Initiative
 
-    ExecutePlan --> DomainAgents
+    ExecutePlan -->|"Tool steps, called directly<br/>ADR-371"| ToolCalls[Tool functions]
     ExecutePlan --> SubAgentDelegation
+    TaskOrchestrator -.->|"legacy browser intention"| BrowserAgent["browser_agent<br/>F7, conditional"]
 
     subgraph SubAgentDelegation["Sub-Agent Delegation (ADR-083)"]
         direction TB
         DelegateTool["delegate_to_sub_agent_tool"] --> OneShot["One-shot expert LLM call<br/>persona + expertise written by<br/>the principal, all data inlined<br/>— no tools, no graph"]
     end
 
-    subgraph DomainAgents["Graph Domain Agent Nodes"]
-        direction LR
-        subgraph OAuthAgents["OAuth (Google / Apple / Microsoft)"]
-            ContactAgent[contact]
-            EmailAgent[email]
-            EventAgent[event]
-            FileAgent[file]
-            TaskAgent[task]
-        end
-        subgraph APIKeyAgents["API Key"]
-            WeatherAgent[weather]
-            WikiAgent[wikipedia]
-            PerplexityAgent[perplexity]
-            PlaceAgent[place]
-            RouteAgent[route]
-        end
-        subgraph SmartHome["Smart Home & Browser"]
-            HueAgent[hue]
-            BrowserAgent["browser (F7,<br/>conditional)"]
-        end
-    end
-
-    DomainAgents --> Initiative[initiative_node<br/>ADR-062: post-execution evaluation,<br/>optional read-only actions,<br/>ADR-091: response-context prefetch]
+    ToolCalls --> Initiative[initiative_node<br/>ADR-062: post-execution evaluation,<br/>optional read-only actions,<br/>ADR-091: response-context prefetch]
+    BrowserAgent --> Initiative
     SubAgentDelegation --> Initiative
 
     Initiative -->|Re-evaluate after actions| Initiative
@@ -83,6 +68,8 @@ graph TB
         ReactCallModel -->|Tool calls| ReactExecuteTools[react_execute_tools_node]
         ReactExecuteTools -->|Loop back| ReactCallModel
         ReactCallModel -->|Done| ReactFinalize[react_finalize_node]
+        ReactCallModel -->|"Declared gap<br/>ADR-310"| ReactRecovery[react_recovery_node]
+        ReactRecovery -->|Bounded pass| ReactCallModel
     end
 
     ReactExecuteTools -->|"Draft requiring confirmation<br/>(shared HITL dispatch)"| HITLDispatch
@@ -103,7 +90,8 @@ graph TB
     style TaskOrchestrator fill:#e1ffe1
     style HITLDispatch fill:#ffe1e1
     style ForEachConfirm fill:#ffe1e1
-    style DomainAgents fill:#f0e1ff
+    style ToolCalls fill:#f0e1ff
+    style BrowserAgent fill:#f0e1ff
     style SkillCheck fill:#fff9e1
     style SubAgentDelegation fill:#e1fff5
     style DelegateTool fill:#e1fff5

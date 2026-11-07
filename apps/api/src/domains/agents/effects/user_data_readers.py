@@ -64,6 +64,8 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     # The personal radio (ADR-324): shared source reads, its own readers and taste,
     # each gathering in a collector of the session's run.
     "radio": "domains/radio/consultations.py",
+    # What a click on a tool asked LIA to read (ADR-372): one door files them all.
+    "tool_assist": "domains/tool_assists/door.py",
 }
 
 #: Surfaces that spend out of turn WITHOUT opening the person's sources, and

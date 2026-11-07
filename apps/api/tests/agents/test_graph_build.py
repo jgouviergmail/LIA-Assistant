@@ -15,7 +15,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.config import Settings
-from src.domains.agents.constants import AGENT_CONTACT
+from src.domains.agents.constants import AGENT_BROWSER, ALL_AGENTS
 from src.domains.agents.graph import build_graph
 
 pytestmark = pytest.mark.unit
@@ -109,7 +109,6 @@ class TestGraphConstruction:
             "compaction",  # F4: Context compaction before router
             "router",
             "task_orchestrator",
-            AGENT_CONTACT,
             "response",
             "react_recovery",  # ADR-310: the recovery pass
             "__start__",  # LangGraph internal entry node
@@ -198,20 +197,15 @@ class TestGraphConstruction:
         # Note: Exact structure depends on LangGraph internal representation
         # Validation: graph should not raise errors during compilation
 
-    async def test_contact_agent_is_wrapper_node(self, test_settings):
+    async def test_a_domain_is_no_node(self, test_settings):
         """
         GIVEN a compiled graph
-        WHEN inspecting contact_agent node
-        THEN it should be a wrapper function node (not direct subgraph)
+        WHEN inspecting its nodes
+        THEN no domain agent is one: a plan calls the tools directly (ADR-371)
         """
         graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
-        # Contact agent should exist as a node
-        contacts_node = graph.nodes.get(AGENT_CONTACT)
-        assert contacts_node is not None
-
-        # Wrapper pattern: node should be a callable function
-        # Not a direct StateGraph (which would be problematic for HITL)
+        assert (set(graph.nodes) & set(ALL_AGENTS)) - {AGENT_BROWSER} == set()
 
     async def test_graph_ends_at_response_node(self, test_settings):
         """
@@ -259,12 +253,12 @@ class TestGraphV1Architecture:
         """
         GIVEN V1 architecture
         WHEN analyzing execution flow
-        THEN path should be: router → orchestrator → agent → response
+        THEN path should be: router → orchestrator → response
         """
         graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
         # Validate all V1 nodes exist
-        expected_v1_nodes = ["router", "task_orchestrator", AGENT_CONTACT, "response"]
+        expected_v1_nodes = ["router", "task_orchestrator", "response"]
         node_names = list(graph.nodes.keys())
 
         for node in expected_v1_nodes:
@@ -282,22 +276,3 @@ class TestGraphV1Architecture:
 
         # Graph should compile successfully with sequential-only logic
         assert isinstance(graph, CompiledStateGraph)
-
-    async def test_graph_supports_future_agents_roadmap(self, test_settings):
-        """
-        GIVEN V1 architecture
-        WHEN checking for future extensibility
-        THEN graph should be structured to add emails_agent, calendar_agent
-        """
-        # This is a structural validation
-        # V2 will add: emails_agent, calendar_agent
-        graph, _ = await build_graph(config=test_settings, checkpointer=None)
-
-        # Current V1 nodes
-        current_nodes = list(graph.nodes.keys())
-
-        # Future agents should NOT be present in V1
-        assert "emails_agent" not in current_nodes
-        assert "calendar_agent" not in current_nodes
-
-        # But structure should support adding them (validated by successful build)

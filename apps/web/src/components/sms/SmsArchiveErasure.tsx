@@ -49,8 +49,8 @@ export function SmsArchiveErasure({
             eraseRange();
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="sms-erase-from">
                 {t('sms.from')} · {timezone}
               </Label>
@@ -61,7 +61,7 @@ export function SmsArchiveErasure({
                 onChange={event => setFrom(event.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="sms-erase-to">
                 {t('sms.to')} · {timezone}
               </Label>

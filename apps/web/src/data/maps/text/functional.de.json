@@ -157,9 +157,9 @@
     },
     "f.connectors": {
       "name": "Konnektoren und Werkzeuge",
-      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein Zustimmungsweg je Anbieter, ein aktiver Anbieter je Kategorie, auch für Dateien: Google Drive oder OneDrive. Schlüssellose Dienste schaltet der Administrator für alle frei. In Tools handelst du selbst, ohne KI-Aufruf, bei Mails, Kalender, Aufgaben, Kontakten, Dateien und Hue-Lampen: Jeder Bildschirm bietet, was sein Anbieter kann, eine Suche durchläuft alle, und deine Handgriffe bleiben außerhalb der Register von LIA.",
+      "role": "Google, Microsoft, Apple und die Dienste mit persönlichem Schlüssel; ein Zustimmungsweg je Anbieter, ein aktiver Anbieter je Kategorie, auch für Dateien: Google Drive oder OneDrive. Schlüssellose Dienste schaltet der Administrator für alle frei. In Tools handelst du selbst, ohne KI-Aufruf, bei Mails, Kalender, Aufgaben, Kontakten, Dateien und Hue-Lampen: Jeder Bildschirm bietet, was sein Anbieter kann, eine Suche durchläuft alle, und deine Handgriffe bleiben außerhalb der Register von LIA. Die gelben Sterne verlangen etwas anderes: ein Klick, ein Aufruf an LIA, ein Vorschlag, den du von Hand abschließt, nachverfolgt und abgerechnet als Handlung von LIA.",
       "goal": "Deine echten Konten einmal verbinden, und sie bleiben verbunden.",
-      "src": "2893800457d4"
+      "src": "d1bf7424213a"
     },
     "f.mail": {
       "name": "E-Mails",

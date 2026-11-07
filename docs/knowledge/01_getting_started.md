@@ -290,7 +290,6 @@ Signing up creates your account, but an administrator has to **activate** it bef
 • **Nothing is lost in the meantime.** Your account already exists; activation only opens the door.
 • **If several days pass with no email**, contact the administrator of your organisation, who can activate the account directly.
 
-Before v1.27.14 this wait was invisible: the application loaded and then refused every screen, which looked like a breakdown rather than a pending step.
 
 ## What can I do in LIA World?
 

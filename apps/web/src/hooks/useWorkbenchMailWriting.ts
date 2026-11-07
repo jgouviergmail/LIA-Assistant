@@ -65,6 +65,12 @@ export interface MailForwardBody {
 }
 
 /** A draft created (no `draft_id`, a key) or changed against its revision. */
+/** The message a new draft answers: it keeps its thread, its quote and its files. */
+export interface MailDraftOrigin {
+  message_id: string;
+  kind: 'reply' | 'reply_all' | 'forward';
+}
+
 export interface MailDraftSaveBody {
   draft_id?: string;
   expected_revision?: string;
@@ -80,6 +86,7 @@ export interface MailDraftSaveBody {
   removed_files?: string[];
   send_as?: string;
   html?: string;
+  origin?: MailDraftOrigin;
   idempotency_key?: string;
 }
 

@@ -31,16 +31,9 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Canonical name mapping: aliases → canonical llm_type in LLM_DEFAULTS/LLM_TYPES_REGISTRY.
-# New unified names (contact_agent, email_agent, etc.) map to the canonical names
-# used in LLM_DEFAULTS (contacts_agent, emails_agent, etc.).
+# The domain's name (email_agent) maps to the slot's canonical name in LLM_DEFAULTS.
 _ALIAS_MAP: dict[str, str] = {
-    "contact_agent": "contacts_agent",
     "email_agent": "emails_agent",
-    "event_agent": "calendar_agent",
-    "file_agent": "drive_agent",
-    "task_agent": "tasks_agent",
-    "place_agent": "places_agent",
-    "route_agent": "routes_agent",
 }
 
 

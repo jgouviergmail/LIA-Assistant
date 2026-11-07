@@ -21,7 +21,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
-from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.token_capture import TokenCaptureHandler, captured_usage
 
 
 def _generation_with_usage(usage: dict | None) -> MagicMock:
@@ -265,3 +265,22 @@ class TestTokenCaptureHandler:
             record.cost_eur for record in handler.get_billing_records("synthetic-model")
         ) == pytest.approx(0.016)
         assert handler.claim_billing_records("synthetic-model") == ()
+
+
+@pytest.mark.unit
+def test_a_price_that_cannot_be_read_costs_the_reader_nothing(monkeypatch) -> None:
+    """The tokens stay said and the words stay served: the ledger is written apart."""
+    handler = TokenCaptureHandler("synthetic-model")
+    handler.tokens_in, handler.tokens_out = 12, 3
+
+    def unreadable(model_name: str) -> tuple[()]:
+        raise RuntimeError("no price for this model")
+
+    monkeypatch.setattr(handler, "get_billing_records", unreadable)
+
+    usage = captured_usage(handler, "synthetic-model")
+
+    assert (usage.tokens_in, usage.tokens_out) == (12, 3)
+    assert usage.cost_eur == 0.0
+    assert usage.model_name == "synthetic-model"
+    assert usage.billing_records == ()

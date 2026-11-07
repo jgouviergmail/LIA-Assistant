@@ -43,6 +43,7 @@ import { FileSendingLine, useFileDrop } from './FileSending';
 import type { FilesScreen } from './useFilesScreen';
 import { useFileSending } from './useFileSending';
 import type { FileTrash } from './useFileTrash';
+import { NativeSelect } from '@/components/ui/native-select';
 
 interface FilesColumnProps {
   lng: Language;
@@ -346,15 +347,21 @@ function FolderBar({
     event.target.value = '';
   };
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b px-3 py-1.5">
-      <Button variant="ghost" size="sm" className="gap-1.5" onClick={onNewFolder}>
+    <div className="flex items-center gap-1 border-b px-3 py-1.5">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="shrink-0 gap-1.5"
+        aria-label={t('workbench.files.new_folder')}
+        onClick={onNewFolder}
+      >
         <FolderPlus className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.files.new_folder')}
+        {t('workbench.files.folder_short')}
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        className="gap-1.5"
+        className="shrink-0 gap-1.5"
         onClick={() => chooser.current?.click()}
       >
         <Upload className="h-4 w-4" aria-hidden="true" />
@@ -368,18 +375,18 @@ function FolderBar({
         aria-label={t('workbench.files.send_files')}
         onChange={chosen}
       />
-      <select
+      <NativeSelect
         aria-label={t('workbench.files.sort_label')}
         value={order}
         onChange={event => onOrder(FILE_ORDERS.find(item => item === event.target.value) ?? 'name')}
-        className="ml-auto h-8 rounded-md border bg-background px-2 text-xs"
+        className="ml-auto h-8 w-auto min-w-0 px-2 text-xs md:text-xs"
       >
         {FILE_ORDERS.map(item => (
           <option key={item} value={item}>
             {t(`workbench.files.sort_${item}`)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </div>
   );
 }

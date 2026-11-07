@@ -26,7 +26,8 @@ What this module promises, and what the tests pin:
 
 The spend is the turn's (``LLM_SPEND_ROADS``: TURN) — the tool runs inside a
 turn whose ambient tracker records it, and the structured door is handed the
-account so both ceilings see it.
+account so both ceilings see it. The Tools' summary (ADR-372) hands it the
+callback of its own door through the same ``config``.
 """
 
 from __future__ import annotations
@@ -161,6 +162,34 @@ async def _read_many(redis: Any | None, keys: list[str]) -> list[str | None]:
         logger.warning("email_digest_cache_read_failed", error_type=type(exc).__name__)
         return [None] * len(keys)
     return values
+
+
+async def read_cached_digest(
+    user_id: str, provider: str, message_id: str, language: str
+) -> EmailDigest | None:
+    """The digest held for a message, if any: no mailbox and no model are reached.
+
+    For a caller that holds a message's id and not yet its body (ADR-372): a hit
+    spares it the read, and that read would have been filed as a consultation.
+
+    Args:
+        user_id: The account.
+        provider: The message's ``_provider`` word.
+        message_id: The message.
+        language: The language the digest is read in.
+
+    Returns:
+        The digest, or None for a miss, an unreadable value or an unreachable cache.
+    """
+    key = digest_cache_key(user_id, provider, message_id, language)
+    (cached,) = await _read_many(await _open_cache(), [key])
+    if not cached:
+        return None
+    try:
+        return EmailDigest.model_validate_json(cached)
+    except ValueError:
+        logger.debug("email_digest_cache_unreadable", key_suffix=key[-24:])
+        return None
 
 
 class EmailDigestService:
@@ -330,4 +359,5 @@ __all__ = [
     "EmailDigest",
     "EmailDigestService",
     "digest_cache_key",
+    "read_cached_digest",
 ]

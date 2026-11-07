@@ -354,7 +354,11 @@ class TestTheHtml:
         assert caught.value.detail["code"] == "item_gone"
 
     def test_no_tool_of_the_assistant_reads_it(self) -> None:
-        """Display only: the model reads text, never markup (ADR-287, D2)."""
+        """Display only: the model reads text, never markup (ADR-287, D2).
+
+        A contact's card is read from a message's whole text, its signature included, which the
+        assistant's own body leaves out: `html_to_text` turns it into words first (ADR-372).
+        """
         source = Path(mail_reading.__file__).parents[2]
         callers = sorted(
             str(path.relative_to(source)).replace("\\", "/")
@@ -362,4 +366,7 @@ class TestTheHtml:
             if ".get_message_html(" in path.read_text(encoding="utf-8")
         )
 
-        assert callers == ["domains/workbench/mail_reading.py"]
+        assert callers == [
+            "domains/tool_assists/contact_card.py",
+            "domains/workbench/mail_reading.py",
+        ]

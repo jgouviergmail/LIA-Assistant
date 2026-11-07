@@ -1942,6 +1942,16 @@
       "title": "Una página escrita por el modelo funciona en el chat, en el marco más estricto",
       "summary": "Pedir un juego o una pequeña herramienta da una página que funciona en la conversación, con su archivo; pedir el código da el código, y lo que una persona escribe sigue siendo texto. La página se ejecuta aislada, sin acceso a la cuenta ni a ningún sitio de su elección, bajo una política que no nombra ningún host. Releída desde el historial espera un clic, porque un bucle sin fin congelaría la pestaña, y el modelo solo lee su título.",
       "src": "ab92ef5e6f98"
+    },
+    "371": {
+      "title": "Los puestos de los agentes de dominio se van con sus nodos",
+      "summary": "La administración ofrecía ajustar dieciséis agentes a los que ya no llamaba ningún turno: un plan ejecuta las herramientas directamente, y la producción no contó ni un token en ellos. Sus puestos, nodos y prompts se han retirado; el puesto Emails se queda, porque redacta los mensajes. Una instalación nueva arranca ahora con modelos que tienen tarifa.",
+      "src": "3cfe6d5c67cc"
+    },
+    "372": {
+      "title": "Desde las Herramientas: un clic, una llamada, una propuesta",
+      "summary": "Resumir un mensaje, proponer una respuesta, leer una tarjeta de visita: un clic pide una sola cosa a LIA y recibe una propuesta que la persona lee, nunca una escritura en su proveedor. El acto se registra y se factura a quien hizo clic, y nada añade un control a una pantalla sin espacio: el último icono de cada barra abre la lista.",
+      "src": "357747655d68"
     }
   }
 }

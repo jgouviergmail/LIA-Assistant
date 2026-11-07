@@ -159,6 +159,8 @@ function rail(): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -221,6 +223,9 @@ function screenOf() {
     </WorkbenchShell>
   );
 }
+
+/** The door to what a file offers beyond its bar. */
+const MORE = 'common.more_actions';
 
 function listCalls(): Array<Record<string, unknown>> {
   return api.get.mock.calls
@@ -430,6 +435,83 @@ describe('FilesTool — the open file', () => {
     ).toHaveAttribute('href', 'https://data.example.org/set');
   });
 
+  it('holds what is used most in the bar and the rest behind « … »', async () => {
+    nav.search = 'file=p1';
+    const { user } = screenOf();
+
+    await screen.findByRole('link', { name: 'workbench.files.open_in_drive' });
+    const bar = within(screen.getByTestId('detail-acts'));
+
+    expect(
+      [...bar.getAllByRole('link'), ...bar.getAllByRole('button')].map(act =>
+        act.getAttribute('aria-label')
+      )
+    ).toEqual([
+      'workbench.files.open_in_drive',
+      'workbench.files.copy_link',
+      'workbench.files.move',
+      'workbench.files.share',
+      MORE,
+      'workbench.files.trash',
+      'workbench.ask.label',
+    ]);
+    expect(bar.getByRole('button', { name: 'workbench.files.trash' })).toHaveClass(
+      'text-destructive'
+    );
+    await user.click(bar.getByRole('button', { name: MORE }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.map(item => item.textContent)).toEqual([
+      'workbench.files.rename',
+      'workbench.files.copy',
+    ]);
+  });
+
+  it('stands sending by mail beside moving and sharing, where a mail can leave', async () => {
+    mailReady = true;
+    nav.search = 'file=p1';
+    screenOf();
+
+    const bar = within(await screen.findByTestId('detail-acts'));
+
+    expect(bar.getAllByRole('button').map(act => act.getAttribute('aria-label'))).toEqual([
+      'workbench.files.copy_link',
+      'workbench.files.move',
+      'workbench.files.share',
+      'workbench.files.send_by_mail',
+      MORE,
+      'workbench.files.trash',
+      'workbench.ask.label',
+    ]);
+  });
+
+  it('offers neither to open nor to copy a link the drive did not give', async () => {
+    details.p1 = detail({ web_url: null });
+    nav.search = 'file=p1';
+    screenOf();
+
+    const bar = within(await screen.findByTestId('detail-acts'));
+
+    expect(bar.queryByRole('link')).toBeNull();
+    expect(bar.getAllByRole('button').map(act => act.getAttribute('aria-label'))).toEqual([
+      'workbench.files.move',
+      'workbench.files.share',
+      MORE,
+      'workbench.files.trash',
+      'workbench.ask.label',
+    ]);
+  });
+
+  it('offers no copy of a folder', async () => {
+    nav.search = 'file=d2';
+    screenOf();
+
+    const bar = within(await screen.findByTestId('detail-acts'));
+
+    expect(bar.getByRole('button', { name: 'workbench.files.rename' })).toBeInTheDocument();
+    expect(bar.queryByRole('button', { name: 'workbench.files.copy' })).toBeNull();
+    expect(bar.queryByRole('button', { name: MORE })).toBeNull();
+  });
+
   it('opens Drive in a tab that cannot reach back', async () => {
     nav.search = 'file=p1';
     screenOf();
@@ -440,6 +522,14 @@ describe('FilesTool — the open file', () => {
       '_blank',
       'noopener noreferrer',
     ]);
+  });
+
+  it('says « folder » in the bar and tells a new folder whole', async () => {
+    screenOf();
+
+    const folder = await screen.findByRole('button', { name: 'workbench.files.new_folder' });
+
+    expect(folder).toHaveTextContent('workbench.files.folder_short');
   });
 
   it('trashes after a confirmation, then closes the file', async () => {
@@ -543,8 +633,12 @@ describe('FilesTool — a new folder', () => {
 
 describe('FilesTool — organising the open file', () => {
   const act = async (user: ReturnType<typeof screenOf>['user'], name: string) => {
-    await user.click(await screen.findByRole('button', { name: 'workbench.files.organise' }));
+    await user.click(await screen.findByRole('button', { name: MORE }));
     await user.click(await screen.findByRole('menuitem', { name }));
+    return screen.findByRole('dialog');
+  };
+  const moveDialog = async (user: ReturnType<typeof screenOf>['user']) => {
+    await user.click(await screen.findByRole('button', { name: 'workbench.files.move' }));
     return screen.findByRole('dialog');
   };
 
@@ -583,7 +677,7 @@ describe('FilesTool — organising the open file', () => {
 
   it('moves it to a folder walked to, offering folders alone', async () => {
     const { user } = screenOf();
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
     const walk = within(dialog);
 
     expect(await walk.findByRole('button', { name: 'Projects' })).toBeInTheDocument();
@@ -603,7 +697,7 @@ describe('FilesTool — organising the open file', () => {
   it('starts where the file sits, walks back up, and the top of the drive is a place', async () => {
     details.p1 = detail({ ancestors: [{ id: 'd2', name: 'Other' }] });
     const { user } = screenOf();
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
     const walk = within(dialog);
     await waitFor(() => expect(listCalls().at(-1)).toMatchObject({ folder_id: 'd2' }));
     expect(walk.getByRole('button', { name: 'workbench.files.move_here' })).toBeDisabled();
@@ -620,7 +714,7 @@ describe('FilesTool — organising the open file', () => {
 
   it('cannot move it where it already sits', async () => {
     const { user } = screenOf();
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
 
     expect(
       within(dialog).getByRole('button', { name: 'workbench.files.move_here' })
@@ -629,9 +723,9 @@ describe('FilesTool — organising the open file', () => {
 
   it('says a folder that cannot be read, and reads it again on demand', async () => {
     const { user } = screenOf();
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await screen.findByRole('button', { name: MORE });
     api.get.mockRejectedValueOnce(new ApiError('down', 502, { detail: {} }));
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
 
     await user.click(await within(dialog).findByRole('button', { name: 'workbench.states.retry' }));
 
@@ -641,7 +735,7 @@ describe('FilesTool — organising the open file', () => {
   it('says there is no folder here rather than an empty box', async () => {
     page = { items: [item({})], next_page_token: null };
     const { user } = screenOf();
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
 
     expect(await within(dialog).findByText('workbench.files.no_folders')).toBeInTheDocument();
   });
@@ -649,7 +743,7 @@ describe('FilesTool — organising the open file', () => {
   it('reads on for folders past the first page', async () => {
     page = { items: [item({})], next_page_token: 'next' };
     const { user } = screenOf();
-    const dialog = await act(user, 'workbench.files.move');
+    const dialog = await moveDialog(user);
     const more = await within(dialog).findByRole('button', { name: 'workbench.files.more' });
     expect(within(dialog).queryByText('workbench.files.no_folders')).toBeNull();
     page = {
@@ -1048,8 +1142,7 @@ describe('FilesTool — the quota', () => {
 
 describe('FilesTool — who a file is shared with', () => {
   const opened = async (user: ReturnType<typeof screenOf>['user']) => {
-    await user.click(await screen.findByRole('button', { name: 'workbench.files.organise' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'workbench.files.share' }));
+    await user.click(await screen.findByRole('button', { name: 'workbench.files.share' }));
     return screen.findByRole('dialog');
   };
 
@@ -1180,7 +1273,7 @@ describe('FilesTool — who a file is shared with', () => {
 
   it('says a sharing it cannot read, and offers to read it again', async () => {
     const { user } = screenOf();
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await screen.findByRole('button', { name: MORE });
     const reads = api.get.getMockImplementation();
     api.get.mockImplementation((path: string, options?: { params?: { id?: string } }) =>
       path === '/workbench/files/sharing'
@@ -1196,9 +1289,6 @@ describe('FilesTool — who a file is shared with', () => {
 });
 
 describe('FilesTool — a file going out by mail', () => {
-  const organise = async (user: ReturnType<typeof screenOf>['user']) =>
-    user.click(await screen.findByRole('button', { name: 'workbench.files.organise' }));
-
   beforeEach(() => {
     nav.search = 'file=p1';
     mailReady = true;
@@ -1206,9 +1296,8 @@ describe('FilesTool — a file going out by mail', () => {
 
   it('opens the mail with it, carried by the page', async () => {
     const { user } = screenOf();
-    await organise(user);
 
-    await user.click(await screen.findByRole('menuitem', { name: 'workbench.files.send_by_mail' }));
+    await user.click(await screen.findByRole('button', { name: 'workbench.files.send_by_mail' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/mail');
     expect(takeHandoff('compose')).toEqual({
@@ -1227,29 +1316,26 @@ describe('FilesTool — a file going out by mail', () => {
 
   it('is not offered without a mail to go to', async () => {
     mailReady = false;
-    const { user } = screenOf();
-    await organise(user);
+    screenOf();
 
-    await screen.findByRole('menuitem', { name: 'workbench.files.rename' });
-    expect(screen.queryByRole('menuitem', { name: 'workbench.files.send_by_mail' })).toBeNull();
+    await screen.findByRole('button', { name: 'workbench.files.share' });
+    expect(screen.queryByRole('button', { name: 'workbench.files.send_by_mail' })).toBeNull();
   });
 
   it('is not offered for what cannot be read', async () => {
     details.p1 = detail({ downloadable: false });
-    const { user } = screenOf();
-    await organise(user);
+    screenOf();
 
-    await screen.findByRole('menuitem', { name: 'workbench.files.rename' });
-    expect(screen.queryByRole('menuitem', { name: 'workbench.files.send_by_mail' })).toBeNull();
+    await screen.findByRole('button', { name: 'workbench.files.share' });
+    expect(screen.queryByRole('button', { name: 'workbench.files.send_by_mail' })).toBeNull();
   });
 
   it('is not offered past what can be read', async () => {
     details.p1 = detail({ size: CEILING + 1 });
-    const { user } = screenOf();
-    await organise(user);
+    screenOf();
 
-    await screen.findByRole('menuitem', { name: 'workbench.files.rename' });
-    expect(screen.queryByRole('menuitem', { name: 'workbench.files.send_by_mail' })).toBeNull();
+    await screen.findByRole('button', { name: 'workbench.files.share' });
+    expect(screen.queryByRole('button', { name: 'workbench.files.send_by_mail' })).toBeNull();
   });
 });
 
@@ -1300,7 +1386,7 @@ describe('FilesTool — a preview', () => {
   it('shows no preview when none can be made, and the file stays usable', async () => {
     screenOf();
 
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await screen.findByRole('button', { name: MORE });
     await waitFor(() => expect(api.getResponse).toHaveBeenCalled());
     expect(screen.queryByRole('img')).toBeNull();
     expect(toast.error).not.toHaveBeenCalled();
@@ -1384,7 +1470,7 @@ describe('FilesTool — a preview', () => {
   it('stays silent about a file there is nothing to show of: its downloads stay', async () => {
     screenOf();
 
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await screen.findByRole('button', { name: MORE });
 
     await waitFor(() => expect(api.getResponse).toHaveBeenCalled());
     expect(screen.queryByText('workbench.files.reading_failed')).toBeNull();
@@ -1395,7 +1481,7 @@ describe('FilesTool — a preview', () => {
     details.p1 = detail({ previewable: false });
     screenOf();
 
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await screen.findByRole('button', { name: MORE });
     expect(api.getResponse).not.toHaveBeenCalled();
   });
 
@@ -1620,8 +1706,11 @@ describe('FilesTool — the trash', () => {
       nav.search = 'view=trash&file=p1';
       const { user } = screenOf();
       const detail = await screen.findByRole('article');
-      expect(within(detail).queryByRole('button', { name: 'workbench.files.organise' })).toBeNull();
+      expect(within(detail).queryByRole('button', { name: MORE })).toBeNull();
       expect(within(detail).queryByRole('button', { name: 'workbench.files.trash' })).toBeNull();
+      expect(
+        within(detail).getByRole('button', { name: 'workbench.files.delete_forever' })
+      ).toHaveClass('text-destructive');
 
       await user.click(within(detail).getByRole('button', { name: 'workbench.files.restore' }));
 
@@ -1884,8 +1973,9 @@ describe('FilesTool — a text changed by hand', () => {
 
   const open = async () => {
     const rendered = screenOf();
+    await rendered.user.click(await screen.findByRole('button', { name: MORE }));
     await rendered.user.click(
-      await screen.findByRole('button', { name: 'workbench.files.edit_text' })
+      await screen.findByRole('menuitem', { name: 'workbench.files.edit_text' })
     );
     const field = await screen.findByRole('textbox', { name: 'workbench.files.text_field' });
     return { ...rendered, field };
@@ -1893,17 +1983,19 @@ describe('FilesTool — a text changed by hand', () => {
 
   it('offers nothing for what is no text held whole', async () => {
     details.p1 = detail({ editable: false, previewable: false });
-    screenOf();
+    const { user } = screenOf();
 
-    await screen.findByRole('button', { name: 'workbench.files.organise' });
+    await user.click(await screen.findByRole('button', { name: MORE }));
 
-    expect(screen.queryByRole('button', { name: 'workbench.files.edit_text' })).toBeNull();
+    await screen.findByRole('menuitem', { name: 'workbench.files.rename' });
+    expect(screen.queryByRole('menuitem', { name: 'workbench.files.edit_text' })).toBeNull();
   });
 
   it('asks the drive only once the person opens it', async () => {
-    screenOf();
+    const { user } = screenOf();
 
-    await screen.findByRole('button', { name: 'workbench.files.edit_text' });
+    await user.click(await screen.findByRole('button', { name: MORE }));
+    await screen.findByRole('menuitem', { name: 'workbench.files.edit_text' });
 
     expect(reads()).toEqual([]);
   });
@@ -1987,7 +2079,7 @@ describe('FilesTool — a text changed by hand', () => {
   it('leaves at once when nothing changed', async () => {
     const { user } = await open();
 
-    await user.click(screen.getByRole('button', { name: 'workbench.files.text_cancel' }));
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
 
     expect(screen.queryByRole('textbox', { name: 'workbench.files.text_field' })).toBeNull();
   });
@@ -1996,7 +2088,7 @@ describe('FilesTool — a text changed by hand', () => {
     const { user, field } = await open();
     await user.type(field, '!');
 
-    await user.click(screen.getByRole('button', { name: 'workbench.files.text_cancel' }));
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
     await answerConfirmDialog(user, false);
 
     expect(field).toHaveValue('Hello!');
@@ -2006,7 +2098,7 @@ describe('FilesTool — a text changed by hand', () => {
     const { user, field } = await open();
     await user.type(field, '!');
 
-    await user.click(screen.getByRole('button', { name: 'workbench.files.text_cancel' }));
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
     await answerConfirmDialog(user, true);
 
     await waitFor(() =>
@@ -2043,7 +2135,8 @@ describe('FilesTool — a text changed by hand', () => {
     );
     const { user } = screenOf();
 
-    await user.click(await screen.findByRole('button', { name: 'workbench.files.edit_text' }));
+    await user.click(await screen.findByRole('button', { name: MORE }));
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.files.edit_text' }));
 
     expect(await screen.findByText('workbench.files.text_read_failed')).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'workbench.files.text_field' })).toBeNull();

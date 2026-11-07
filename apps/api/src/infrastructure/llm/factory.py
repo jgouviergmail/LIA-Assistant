@@ -145,31 +145,12 @@ def clear_llm_instance_cache() -> None:
 
 LLMType = Literal[
     "response",
-    # New unified agent names (domain_agent pattern)
-    "contact_agent",
-    "email_agent",
-    "event_agent",
-    "file_agent",
-    "task_agent",
-    "weather_agent",
-    "wikipedia_agent",
-    "perplexity_agent",
-    "place_agent",
-    "route_agent",
+    # Compiled agents
     "query_agent",
-    "brave_agent",
-    "web_search_agent",
-    "web_fetch_agent",
     "browser_agent",
-    "sms_agent",
-    # Backward compatibility aliases (deprecated - will be removed in v4)
-    "contacts_agent",  # @deprecated: use contact_agent
-    "emails_agent",  # @deprecated: use email_agent
-    "calendar_agent",  # @deprecated: use event_agent
-    "drive_agent",  # @deprecated: use file_agent
-    "tasks_agent",  # @deprecated: use task_agent
-    "places_agent",  # @deprecated: use place_agent
-    "routes_agent",  # @deprecated: use route_agent
+    # The mail tools' writer, and the singular name they ask for it by
+    "emails_agent",
+    "email_agent",
     # System agents
     "query_analyzer",
     "planner",
@@ -215,14 +196,14 @@ LLMType = Literal[
     "briefing",
     # Agentic telephony — post-call return synthesis (tool-less)
     "telephony_synthesis",
-    # Agentic telephony — domain agent wrapping place_phone_call (ADR-127)
-    "telephony_agent",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation",
     # Interactive pages — dedicated whole-page writer (ADR-370)
     "interactive_page",
     # E-mail digest: one short structured call per message, cached (ADR-287)
     "email_digest",
+    # What LIA does from the Tools: one short structured call per click (ADR-372)
+    "tool_assist",
     # Image prompt enhancement: an optional rewrite before the image model (ADR-315)
     "image_prompt_enhancement",
     # Meeting minutes — structured synthesis of a transcribed recording (ADR-258)
@@ -287,7 +268,7 @@ def get_llm(
     - None: Uses centralized settings via get_llm_config_for_agent()
 
     Args:
-        llm_type: Type of LLM ("planner", "response", "contacts_agent", "hitl_classifier")
+        llm_type: Type of LLM ("planner", "response", "query_agent", "hitl_classifier")
         config_override: Optional LLM configuration override. Accepts:
             - LLMAgentConfig (Pydantic model, recommended)
             - TypedDict (backward compatible)
@@ -311,10 +292,10 @@ def get_llm(
         ...     temperature=0.9,
         ...     max_tokens=5000,
         ... )
-        >>> custom_llm = get_llm("contacts_agent", config_override=custom_config)
+        >>> custom_llm = get_llm("query_agent", config_override=custom_config)
 
         >>> # OLD pattern: TypedDict override (backward compatible)
-        >>> contacts_llm = get_llm("contacts_agent", config_override={"temperature": 0.8})
+        >>> query_llm = get_llm("query_agent", config_override={"temperature": 0.8})
     """
     logger.debug(
         "llm_factory_request",

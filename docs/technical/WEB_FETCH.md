@@ -108,17 +108,12 @@ URL utilisateur
 | `apps/api/src/domains/agents/tools/web_fetch_tools.py` | Outil principal (`fetch_web_page_tool`) |
 | `apps/api/src/domains/agents/web_fetch/url_validator.py` | Validation SSRF (DNS, IP, hostname) |
 | `apps/api/src/domains/agents/web_fetch/catalogue_manifests.py` | Manifeste ToolManifest pour le catalogue |
-| `apps/api/src/domains/agents/graphs/web_fetch_agent_builder.py` | Builder de l'agent LangChain |
-| `apps/api/src/domains/agents/prompts/v1/web_fetch_agent_prompt.txt` | Prompt systeme de l'agent |
 | `apps/api/src/core/constants.py` | Constantes `WEB_FETCH_*` |
-| `apps/api/src/domains/llm_config/constants.py` | Poste LLM `web_fetch_agent` (`LLM_DEFAULTS`) |
 
-### Agent Builder
+### Execution
 
-L'agent utilise le **generic agent builder** (`build_generic_agent`) avec :
-- Un seul outil : `fetch_web_page_tool`
-- Aucun outil de contexte (stateless)
-- Prompt versionne (`v1/web_fetch_agent_prompt.txt`)
+`fetch_web_page_tool` est appele directement : par une etape de plan (`parallel_executor`) ou par
+la boucle ReAct. Il n'a ni agent compile, ni poste LLM, ni prompt ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
 
 ---
 
@@ -178,13 +173,6 @@ Le corps n'est jamais lu par `aread()` : httpx decompresse un morceau brut entie
 ---
 
 ## Configuration
-
-### LLM de l'agent
-
-L'agent web fetch est le poste `web_fetch_agent` : ses valeurs par defaut sont dans
-`LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`) et un administrateur
-les remplace dans Settings > Administration > LLM Configuration. Aucune variable
-d'environnement ne le configure.
 
 ### Constantes (`core/constants.py`)
 

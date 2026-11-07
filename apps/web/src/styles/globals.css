@@ -108,6 +108,9 @@
   --color-muted: oklch(93% 0.008 80);
   --color-muted-foreground: oklch(51% 0.015 250);
 
+  /* What is off (a room, a lamp): under the page here, above it in a dark theme. */
+  --color-unlit: var(--color-muted);
+
   /* Accent - Subtle warm gray */
   --color-accent: oklch(93% 0.008 80);
   --color-accent-foreground: oklch(35% 0.02 250);
@@ -163,6 +166,12 @@
   --color-settings-personalization: oklch(55% 0.24 284); /* indigo */
   --color-settings-voice-media: oklch(55% 0.26 310); /* violet */
   --color-settings-users-access: oklch(55% 0.23 336); /* rose */
+
+  /* The Tools' assist stars (ADR-372): the third FIXED-palette chrome element, one sign of what LIA
+     can do whatever the accent. The fill is the yellow; the edge carries the contrast, a pure
+     yellow reading at 1.3:1 on these grounds. Both measured in `design-contrast.guard.test.ts`. */
+  --color-assist-star: oklch(58% 0.115 85);
+  --color-assist-star-fill: oklch(86% 0.17 95);
 }
 
 @layer theme {
@@ -170,6 +179,10 @@
     /* Dark Mode - Professional Theme (nearly achromatic backgrounds) */
     --color-background: oklch(18% 0.004 250);
     --color-foreground: oklch(95% 0.004 250);
+
+    /* Between the page and the card: `muted` lies above the card here, a lamp off would outshine a
+       lamp lit. From the two tokens, so that OLED and every accent keep the same place. */
+    --color-unlit: color-mix(in oklab, var(--color-background), var(--color-card));
 
     --color-card: oklch(22% 0.004 250);
     --color-card-foreground: oklch(95% 0.004 250);
@@ -225,6 +238,7 @@
      and blends each tone over its own 12% chip before measuring. Dark: the darkest
      that clears 3:1 for all twelve hues on the dark and OLED card. */
     --color-settings-security: oklch(72% 0.17 6); /* red — the one hue with a convention here */
+    --color-assist-star: oklch(86% 0.17 95); /* the assist stars: yellow carries itself here */
     --color-settings-automation-tracking: oklch(72% 0.16 32); /* amber */
     --color-settings-system: oklch(72% 0.17 52); /* ochre */
     --color-settings-content-extensions: oklch(72% 0.14 100); /* olive */
@@ -629,6 +643,23 @@
      browser's own size. The root rem is never touched (see the text scale). */
   body {
     font-size: calc(1rem * var(--lia-text-scale, 1));
+  }
+
+  /* A date or a time is a field of the page. Left to the platform, Safari on iOS lays it out by
+     rules of its own and it passes the edge of its panel (owner, 2026-11-06; no engine a test
+     can run does so). Bootstrap's recipe, measured by them on iOS and Android: no native
+     appearance, and a value that keeps a usable width and the height an empty field loses. */
+  input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week']) {
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  input::-webkit-date-and-time-value {
+    min-width: 5.3rem;
+    height: 1.5em;
+    margin: 0;
+    text-align: start;
   }
 
   /* Text selection follows the user's accent instead of the browser's own blue.
@@ -2894,6 +2925,26 @@ html:not(.dark) .cosmos.cosmos-calm {
 @media print {
   .lia-bg {
     display: none !important;
+  }
+}
+
+/* A field under 16 px on a touch screen: iOS zooms into it when it takes the focus and stays
+   zoomed, the page's edges and its buttons out of sight, with nothing telling the person to
+   pinch back (owner, 2026-11-06). A property of the field, not of a screen, so it is held here
+   for all of them. Outside any layer, it wins over the size a component asked for. */
+@media (pointer: coarse) {
+  input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='color'],
+    [type='file'],
+    [type='hidden']
+  ),
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: max(16px, 1em);
   }
 }
 

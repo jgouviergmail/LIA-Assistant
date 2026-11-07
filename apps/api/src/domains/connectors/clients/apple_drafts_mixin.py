@@ -393,11 +393,21 @@ class AppleDraftsMixin:
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save the reply to ``message_id`` as a draft — the reply ``reply_email`` sends."""
         original = await self.get_message(message_id)
         message = reply_message(
-            original, body, sender=self.credentials.apple_id, reply_all=reply_all, is_html=is_html
+            original,
+            body,
+            sender=self.credentials.apple_id,
+            reply_all=reply_all,
+            is_html=is_html,
+            override_to=to,
+            override_cc=cc,
+            attachments=attachments,
         )
         return await self._store_draft(message)
 
@@ -408,12 +418,13 @@ class AppleDraftsMixin:
         body: str | None = None,
         cc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
         """Save the forward of ``message_id`` as a draft, with its files."""
         original, files = await self._original_with_files(message_id, include_files=True)
         message = forward_message(
             original,
-            files,
+            [*files, *attachments],
             sender=self.credentials.apple_id,
             to=to,
             body=body,

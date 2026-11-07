@@ -251,6 +251,18 @@ class VoiceCommentService:
         """The configuration of the client that speaks (see :meth:`_serve_tts`)."""
         return (await self._serve_tts())[0]
 
+    def count_speakable_sentences(self, text: str) -> int:
+        """How many sentences of a text a voice would say, before any cap."""
+        return sum(
+            1
+            for sentence, is_complete in self._extract_sentences(text)
+            if (is_complete or sentence) and is_speakable(sentence)
+        )
+
+    async def speaks_on_a_paid_engine(self) -> bool:
+        """Whether what this service says is billed: a free engine answers to no ceiling."""
+        return (await self._get_tts_config()).is_paid
+
     def _load_prompt_template(self) -> str:
         """Load the voice comment prompt template from centralized prompts directory."""
         if self._prompt_template is None:

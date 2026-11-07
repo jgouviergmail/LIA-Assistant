@@ -24,7 +24,12 @@ from src.core.field_names import FIELD_MAILBOX_DRAFT_ID, FIELD_MAILBOX_DRAFT_REV
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.workbench import idempotency, mail_drafts
-from src.domains.workbench.schemas.mail_compose import DraftSave, DraftSelection, DraftSend
+from src.domains.workbench.schemas.mail_compose import (
+    DraftOrigin,
+    DraftSave,
+    DraftSelection,
+    DraftSend,
+)
 from src.infrastructure.email.outgoing import OutgoingAttachment
 from tests.unit.domains.workbench.fakes import FakeRedis
 
@@ -134,6 +139,113 @@ class TestSaving:
             DraftSave(draft_id="d1", body="x")
         with pytest.raises(ValidationError):
             DraftSave(subject="x")
+
+
+class TestAnAnswerKept:
+    """A reply or a forward kept for later stays one: its thread, its quote, its files."""
+
+    KEPT = OutgoingAttachment("note.txt", "text/plain", b"hello")
+
+    async def test_a_reply_lets_the_provider_say_whom_it_reaches(self) -> None:
+        client = MagicMock(create_reply_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(
+            body="Validé.",
+            origin=DraftOrigin(message_id="m1", kind="reply"),
+            idempotency_key=uuid4(),
+        )
+        with _door(client):
+            saved = await mail_drafts.save_draft(USER, request)
+
+        client.create_reply_draft.assert_awaited_once_with(
+            "m1", "Validé.", reply_all=False, is_html=False, to=None, cc=None, attachments=()
+        )
+        assert saved.id == "d1"
+
+    async def test_a_reply_to_all_goes_to_those_the_person_kept(self) -> None:
+        client = MagicMock(create_reply_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(
+            to=["ana@example.org"],
+            cc=[],
+            body="Validé.",
+            origin=DraftOrigin(message_id="m1", kind="reply_all"),
+            idempotency_key=uuid4(),
+        )
+        with _door(client):
+            await mail_drafts.save_draft(USER, request)
+
+        client.create_reply_draft.assert_awaited_once_with(
+            "m1",
+            "Validé.",
+            reply_all=True,
+            is_html=False,
+            to="ana@example.org",
+            cc="",
+            attachments=(),
+        )
+
+    async def test_a_forward_carries_the_files_the_person_chose(self) -> None:
+        client = MagicMock(
+            create_forward_draft=AsyncMock(return_value=_draft()), OUTGOING_FILE_MAX_BYTES=1000
+        )
+        request = DraftSave(
+            to=["ana@example.org"],
+            body="Pour info.",
+            attachment_ids=[uuid4()],
+            origin=DraftOrigin(message_id="m1", kind="forward"),
+            idempotency_key=uuid4(),
+        )
+        with (
+            _door(client),
+            patch.object(mail_drafts, "carried_files", AsyncMock(return_value=(self.KEPT,))),
+        ):
+            await mail_drafts.save_draft(USER, request)
+
+        client.create_forward_draft.assert_awaited_once_with(
+            "m1",
+            "ana@example.org",
+            body="Pour info.",
+            cc=None,
+            is_html=False,
+            attachments=(self.KEPT,),
+        )
+
+    async def test_it_is_created_once_per_submission(self) -> None:
+        client = MagicMock(create_reply_draft=AsyncMock(return_value=_draft()))
+        request = DraftSave(
+            body="Validé.",
+            origin=DraftOrigin(message_id="m1", kind="reply"),
+            idempotency_key=uuid4(),
+        )
+        with _door(client):
+            await mail_drafts.save_draft(USER, request)
+            with pytest.raises(BaseAPIException) as replayed:
+                await mail_drafts.save_draft(USER, request)
+
+        client.create_reply_draft.assert_awaited_once()
+        assert replayed.value.detail["code"] == "already_submitted"
+
+    def test_a_forward_is_addressed_from_its_first_save(self) -> None:
+        with pytest.raises(ValidationError):
+            DraftSave(origin=DraftOrigin(message_id="m1", kind="forward"), idempotency_key=uuid4())
+
+    @pytest.mark.parametrize("kept", [{"bcc": ["ana@example.org"]}, {"subject": "Mine"}])
+    def test_an_answer_carries_neither_its_own_subject_nor_a_blind_copy(
+        self, kept: dict[str, object]
+    ) -> None:
+        with pytest.raises(ValidationError):
+            DraftSave(
+                origin=DraftOrigin(message_id="m1", kind="reply"),
+                idempotency_key=uuid4(),
+                **kept,
+            )
+
+    def test_only_a_first_save_names_what_it_answers(self) -> None:
+        with pytest.raises(ValidationError):
+            DraftSave(
+                draft_id="d1",
+                expected_revision="r1",
+                origin=DraftOrigin(message_id="m1", kind="reply"),
+            )
 
 
 class TestFormattedWords:

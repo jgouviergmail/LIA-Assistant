@@ -23,6 +23,10 @@
  * stand then, never as they stood when it was pressed, or a file already on the
  * draft would join it a second time.
  *
+ * A reply or a forward is kept once, in its thread with its quote, and the composer closes: a
+ * later save would write the person's words over the whole message, the quote with it. The
+ * draft opens from the drafts with everything it holds, and it never saves itself for that reason.
+ *
  * A reply opens at once: who it reaches is read beside it, and from then on what
  * leaves is what the person sees. Nothing read, the provider computes it as the
  * line above the words says.
@@ -34,7 +38,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { WorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
+import type { MailDraftSaveBody, WorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
 import {
   composeFailure,
   filesToSend,
@@ -150,6 +154,21 @@ function draftSave(fields: ComposerFields, saved: ComposerFields) {
   };
 }
 
+/** A first save: an answer names what it answers, and whom only once the person sees it. */
+function firstSave(
+  target: ComposerTarget,
+  save: MailDraftSaveBody,
+  reachRead: boolean
+): MailDraftSaveBody {
+  if (target.kind !== 'reply' && target.kind !== 'forward') return save;
+  const answer = { ...save, bcc: undefined, subject: undefined };
+  const message_id = target.message.id;
+  if (target.kind === 'forward') return { ...answer, origin: { message_id, kind: 'forward' } };
+  const reach = reachRead ? {} : { to: undefined, cc: undefined };
+  const kind = target.all ? 'reply_all' : 'reply';
+  return { ...answer, ...reach, origin: { message_id, kind } };
+}
+
 export function useComposer({
   target,
   writing,
@@ -259,10 +278,13 @@ export function useComposer({
             expected_revision: handle.revision,
             ...save,
           })
-        : await saveToMailbox({ ...save, idempotency_key: draftKey });
+        : await saveToMailbox({
+            ...firstSave(target, save, answered),
+            idempotency_key: draftKey,
+          });
       keep(stored, words);
     },
-    [draftKey, keep, saveToMailbox]
+    [answered, draftKey, keep, saveToMailbox, target]
   );
 
   const quiet =
@@ -433,8 +455,12 @@ export function useComposer({
   }, []);
 
   const saveDraft = useCallback(async () => {
-    // A draft is written from a new message or a draft (Bcc and subject are theirs).
-    if (busy.current || !writes(target).bcc) return;
+    if (busy.current) return;
+    // A forward draft is addressed from the start: a provider refuses one that is not.
+    if (target.kind === 'forward' && recipientsOf(fieldsNow.current.to).length === 0) {
+      setProblem({ field: 'to', key: 'workbench.mail.compose.no_recipient' });
+      return;
+    }
     busy.current = true;
     setStatus('saving');
     setProblem(null);

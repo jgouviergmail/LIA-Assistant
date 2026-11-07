@@ -240,9 +240,9 @@
     },
     "t.connclients": {
       "name": "Clientes de conectores",
-      "role": "Un cliente por proveedor, una única puerta hacia el cliente activo de una categoría; nunca una transacción de base de datos abierta durante la llamada de red. El espacio Herramientas tiene sus propias rutas REST, fuera del grafo de conversación. Reutiliza los clientes de los conectores y publica sus controles y límites en la interfaz. Las sesiones de base de datos se cierran antes de llamar al proveedor; los envíos se protegen contra repeticiones y una respuesta perdida se declara como resultado desconocido. El HTML del correo queda en un marco aislado que bloquea contenido remoto. Así se distingue un gesto manual de una acción delegada a LIA.",
+      "role": "Un cliente por proveedor, una única puerta hacia el cliente activo de una categoría; nunca una transacción de base de datos abierta durante la llamada de red. El espacio Herramientas tiene sus propias rutas REST, fuera del grafo de conversación. Reutiliza los clientes de los conectores y publica sus controles y límites en la interfaz. Las sesiones de base de datos se cierran antes de llamar al proveedor; los envíos se protegen contra repeticiones y una respuesta perdida se declara como resultado desconocido. El HTML del correo queda en un marco aislado que bloquea contenido remoto. Así se distingue un gesto manual de una acción delegada a LIA. Lo que un clic pide a LIA desde estas pantallas pasa por un contexto delimitado vecino, con una sola puerta: los dos límites, el gasto facturado pase lo que pase, la lectura registrada, nada escrito en el proveedor.",
       "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipedia"],
-      "src": "1186b3b6ffa5"
+      "src": "aabad59a9764"
     },
     "t.mcp": {
       "name": "Cliente MCP",

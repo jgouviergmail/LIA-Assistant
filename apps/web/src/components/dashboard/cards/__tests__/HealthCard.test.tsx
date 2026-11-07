@@ -35,6 +35,90 @@ function renderMetric(kind: HealthSummaryItem['kind'], value: number | null) {
   return within(screen.getByRole('listitem'));
 }
 
+function section2(items: HealthSummaryItem[]): CardSection<HealthData> {
+  return { ...section(metric('steps', 1)), data: { items } };
+}
+
+describe('HealthCard dial', () => {
+  function lit(row: ReturnType<typeof renderMetric>): (string | null)[] {
+    return row
+      .getByTestId('health-dial')
+      .querySelectorAll('[data-lit="true"]')
+      .values()
+      .toArray()
+      .map(band => band.getAttribute('data-band'));
+  }
+
+  it.each([
+    { kind: 'steps', value: 4000, band: '0' },
+    { kind: 'steps', value: 8000, band: '1' },
+    { kind: 'steps', value: 12000, band: '2' },
+    { kind: 'heart_rate', value: 60, band: '0' },
+    { kind: 'heart_rate', value: 80, band: '1' },
+    { kind: 'heart_rate', value: 100, band: '2' },
+  ] satisfies { kind: HealthSummaryItem['kind']; value: number; band: string }[])(
+    'lights the band $kind=$value stands in, and no other',
+    ({ kind, value, band }) => {
+      const row = renderMetric(kind, value);
+
+      expect(lit(row)).toEqual([band]);
+      expect(row.getByTestId('health-dial-today')).toBeInTheDocument();
+    }
+  );
+
+  it('draws neither a mark nor a lit band for a day nothing was read', () => {
+    const row = renderMetric('steps', null);
+
+    expect(lit(row)).toEqual([]);
+    expect(row.queryByTestId('health-dial-today')).toBeNull();
+    expect(row.getByTestId('health-dial-average')).toBeInTheDocument();
+  });
+
+  it('draws no average where the window is empty', () => {
+    const item = { ...metric('steps', 4000), value_avg_window: null };
+    renderWithProviders(
+      <HealthCard section={section(item)} isRefreshing={false} onRefresh={() => {}} />
+    );
+
+    expect(screen.queryByTestId('health-dial-average')).toBeNull();
+    expect(screen.queryByTestId('health-average-key')).toBeNull();
+    expect(screen.getByTestId('health-dial-today')).toBeInTheDocument();
+  });
+
+  it('wears the notch of the dial beside the average it stands for', () => {
+    const row = renderMetric('steps', 4000);
+
+    expect(row.getByTestId('health-average-key').parentElement).toHaveTextContent('777');
+  });
+
+  it('keeps the dial out of the ear: the figures say it all', () => {
+    const row = renderMetric('steps', 4000);
+
+    expect(row.getByTestId('health-dial')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('sets two measures side by side, and one alone in the middle of the card', () => {
+    const { unmount } = renderWithProviders(
+      <HealthCard
+        section={section2([metric('steps', 1), metric('heart_rate', 60)])}
+        isRefreshing={false}
+        onRefresh={() => {}}
+      />
+    );
+    expect(screen.getByRole('list').className).toContain('grid-cols-2');
+    unmount();
+
+    renderWithProviders(
+      <HealthCard
+        section={section2([metric('steps', 1)])}
+        isRefreshing={false}
+        onRefresh={() => {}}
+      />
+    );
+    expect(screen.getByRole('list').className).not.toContain('grid-cols-2');
+  });
+});
+
 describe('HealthCard daily thresholds', () => {
   it.each([
     { kind: 'heart_rate', value: 69, ink: 'text-green-700' },

@@ -43,6 +43,8 @@ export interface NewTaskBody {
   due?: string;
   /** The task it is a subtask of (Google only). */
   parent?: string;
+  /** Another list than the one open, where LIA read that one was named. */
+  list_id?: string;
   /** One key per submission, kept by the caller until the act is done. */
   idempotency_key: string;
 }
@@ -178,7 +180,8 @@ export function useWorkbenchTasks(
     async (body: NewTaskBody) => {
       if (!listId) return;
       try {
-        await postTask(TASKS_PATH, { list_id: listId, ...body });
+        // After the spread: a body naming no list carries the key, empty, and must not erase it.
+        await postTask(TASKS_PATH, { ...body, list_id: body.list_id ?? listId });
       } catch (error: unknown) {
         if (isReplay(error)) void rereadTasks();
         throw error;

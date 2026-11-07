@@ -341,6 +341,15 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "commitments": "automation",
         },
     ),
+    # What LIA does from the Tools (ADR-372): a click asked it to read the thing open,
+    # so the read is at the person's request, and filed as theirs. What was already held
+    # opened nothing and files nothing; the hand-made reads of the Tools file nothing at all.
+    "tool_assist": ConsultationSurface(
+        key="tool_assist",
+        prefix="tool_assist:",
+        source="user",
+        domains={"mail": "email", "files": "file", "contacts": "contact"},
+    ),
     # Geocoding the address the person is setting: their own action, their own
     # data, and a paid Maps call on the deployment's key.
     "profile": ConsultationSurface(

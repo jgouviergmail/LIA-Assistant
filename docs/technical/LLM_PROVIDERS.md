@@ -23,7 +23,7 @@
 
 ## Vue d'ensemble
 
-Chaque composant LLM (planner, response, agents de domaine, services auxiliaires...) est un **poste** de `LLM_TYPES_REGISTRY`, configure independamment par un seul mecanisme :
+Chaque composant LLM (planner, response, boucles d'agents, services auxiliaires...) est un **poste** de `LLM_TYPES_REGISTRY`, configure independamment par un seul mecanisme :
 
 - **Valeurs par defaut** : `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`).
 - **Overrides** : Settings > Administration > LLM Configuration, stockes en base (`llm_config_overrides`) et appliques aux operations suivantes sans redemarrage. Voir [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md).
@@ -90,6 +90,7 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 | `gpt-6-sol` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
 | `gpt-6-luna` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
 | `gpt-6.1-sol` | 1,05M (922K en entrée) | 128K | **Reasoning** (`low`→`max`, pas de `none` : 400 mesuré) | Voir le seed de référence |
+| `gpt-6.1-terra` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
 | `o4-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
 | `o3` | 200K | 100K | **Reasoning** | $2.00 / $8.00 |
 | `o3-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
@@ -361,25 +362,14 @@ Chaque composant a son propre poste ; la liste complete est `LLM_TYPES_REGISTRY`
 | `query_agent` | Agent de requete generique | Oui | Non | 0.0 |
 | `evaluator` | Evaluation de la qualite | Non | Oui | 0.0 |
 
-### Agents domaine (tool-using)
+### Redaction des e-mails
 
 | Poste | Domaine | Temperature recommandee |
 |----------------------------|---------|:-:|
-| `contacts_agent` | Contacts | 0.0 |
 | `emails_agent` | E-mails | 0.0 |
-| `calendar_agent` | Agenda | 0.0 |
-| `drive_agent` | Drive | 0.0 |
-| `tasks_agent` | Taches | 0.0 |
-| `weather_agent` | Meteo | 0.0 |
-| `wikipedia_agent` | Wikipedia | 0.0 |
-| `perplexity_agent` | Recherche Perplexity | 0.0 |
-| `brave_agent` | Recherche Brave | 0.0 |
-| `web_search_agent` | Recherche web | 0.3 |
-| `web_fetch_agent` | Extraction web | 0.3 |
-| `places_agent` | Google Places | 0.0 |
-| `routes_agent` | Google Routes | 0.0 |
 
-> **Contrainte** : Les agents domaine utilisent des tools. Ils sont **incompatibles** avec `deepseek-reasoner`, les modeles Perplexity, et potentiellement certains modeles Ollama.
+> **Contrainte** : `emails_agent` et `query_agent` sont **refuses** sur `deepseek-reasoner`
+> (`_validate_provider_model`). Les autres domaines n'ont pas de poste ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
 
 ### Services auxiliaires
 
@@ -452,9 +442,9 @@ L'eligibilite est determinee par le pattern regex `^(gpt-4\.1|gpt-5|o[1-9])`, ce
 
 ### Regles de validation automatiques
 
-1. **`deepseek-reasoner`** + agent domaine -> **Erreur** (ValueError) : pas de tools
-2. **`deepseek-reasoner`** + router/planner -> **Warning** : pas de structured output
-3. **Ollama/Perplexity** + agent domaine -> **Warning** : support tools non garanti
+1. **`deepseek-reasoner`** + `emails_agent` ou `query_agent` -> **Erreur** (ValueError) : pas de tools
+2. **`deepseek-reasoner`** + `planner` -> **Warning** : pas de structured output
+3. **Ollama/Perplexity** + `emails_agent` ou `query_agent` -> **Warning** : support tools non garanti
 4. **Reasoning model OpenAI** + `temperature != 1.0` -> temperature **omis** automatiquement
 5. **Reasoning model OpenAI** + `top_p`/`frequency_penalty`/`presence_penalty` -> **retires** automatiquement
 6. **`gpt-5.4` et versions ulterieures** (`/v1/chat/completions`) + function tools -> `reasoning_effort` **omis** automatiquement par l'adapter. L'API OpenAI ne supporte pas `reasoning_effort` simultanement avec des function tools sur ces modeles. Les appels sans tools conservent `reasoning_effort` normalement.
@@ -471,7 +461,7 @@ Chaque exemple se regle poste par poste dans Settings > Administration > LLM Con
 |-------|----------|--------|:-:|:-:|
 | `planner` | openai | `gpt-4.1-mini` | 0.0 | 10 000 |
 | `response` | openai | `gpt-4.1-mini` | 0.7 | 8 000 |
-| agents de domaine | openai | `gpt-4.1-mini` | 0.0 | — |
+| `emails_agent` | openai | `gpt-4.1-mini` | 0.0 | — |
 
 ### Configuration hybride OpenAI + Anthropic
 
@@ -479,7 +469,7 @@ Chaque exemple se regle poste par poste dans Settings > Administration > LLM Con
 |-------|----------|--------|----------|
 | `planner` | anthropic | `claude-sonnet-4-5` | raisonnement complexe |
 | `response` | anthropic | `claude-sonnet-4-5` | qualite de redaction |
-| agents de domaine | openai | `gpt-4.1-mini` | cout |
+| `emails_agent` | openai | `gpt-4.1-mini` | cout |
 
 ### Configuration avec reasoning (GPT-5)
 
@@ -491,7 +481,7 @@ Chaque exemple se regle poste par poste dans Settings > Administration > LLM Con
 |-------|----------|--------|------|
 | `planner` | deepseek | `deepseek-chat` | pas `deepseek-reasoner` (pas de structured output) |
 | `response` | deepseek | `deepseek-chat` | |
-| agents de domaine | deepseek | `deepseek-chat` | obligatoirement : `deepseek-reasoner` n'a pas de tools |
+| `emails_agent` | deepseek | `deepseek-chat` | obligatoirement : `deepseek-reasoner` est refuse sur ce poste |
 
 ### Configuration Gemini (gratuit pour faible volume)
 

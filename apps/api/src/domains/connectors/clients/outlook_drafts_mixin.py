@@ -118,6 +118,15 @@ class _OutlookDraftsHost(Protocol):
         self, created: dict[str, Any], words: str | None, *, is_html: bool
     ) -> str: ...
 
+    async def _remove_unfinished(self, draft_id: str) -> None: ...
+
+    async def _finish_draft(
+        self,
+        draft_id: str,
+        changes: dict[str, Any],
+        attachments: Sequence[OutgoingAttachment],
+    ) -> None: ...
+
 
 def _checked(message_id: str) -> str:
     """The id itself, or not found when it cannot be a Graph message id."""
@@ -257,16 +266,37 @@ class OutlookDraftsMixin:
         try:
             await self._make_request("PATCH", f"/me/messages/{draft_id}", json_data={"body": body})
         except Exception:
-            try:
-                await self._make_request("DELETE", f"/me/messages/{draft_id}")
-            except Exception as cleanup:
-                logger.warning(
-                    "outlook_mailbox_draft_rollback_failed",
-                    user_id=str(self.user_id),
-                    error_type=type(cleanup).__name__,
-                )
+            await self._remove_unfinished(draft_id)
             raise
         return draft_id
+
+    async def _remove_unfinished(self: _OutlookDraftsHost, draft_id: str) -> None:
+        """Take away a draft Graph made and the person's words or files never reached."""
+        try:
+            await self._make_request("DELETE", f"/me/messages/{draft_id}")
+        except Exception as cleanup:
+            logger.warning(
+                "outlook_mailbox_draft_rollback_failed",
+                user_id=str(self.user_id),
+                error_type=type(cleanup).__name__,
+            )
+
+    async def _finish_draft(
+        self: _OutlookDraftsHost,
+        draft_id: str,
+        changes: dict[str, Any],
+        attachments: Sequence[OutgoingAttachment],
+    ) -> None:
+        """What Graph's creation cannot carry: those the person chose, then their files."""
+        try:
+            if changes:
+                await self._make_request(
+                    "PATCH", f"/me/messages/{draft_id}", json_data=changes, max_retries=1
+                )
+            await _move_files(self, draft_id, attachments, ())
+        except Exception:
+            await self._remove_unfinished(draft_id)
+            raise
 
     async def list_drafts(
         self: _OutlookDraftsHost,
@@ -349,13 +379,22 @@ class OutlookDraftsMixin:
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
-        """Save the reply to ``message_id`` as a draft, addressed by Graph itself."""
+        """Save the reply to ``message_id`` as a draft, addressed by Graph unless told otherwise."""
         action = "createReplyAll" if reply_all else "createReply"
         created = await self._make_request(
             "POST", f"/me/messages/{_checked(message_id)}/{action}", json_data={}, max_retries=1
         )
         draft_id = await self._write_words(created, body, is_html=is_html)
+        changes: dict[str, Any] = {}
+        if to:
+            changes["toRecipients"] = build_graph_recipients(to)
+        if cc is not None:
+            changes["ccRecipients"] = build_graph_recipients(cc)
+        await self._finish_draft(draft_id, changes, attachments)
         logger.info("outlook_mailbox_reply_draft_created", user_id=str(self.user_id))
         return _as_draft(await self._fetch_message(draft_id))
 
@@ -366,8 +405,9 @@ class OutlookDraftsMixin:
         body: str | None = None,
         cc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict[str, Any]:
-        """Save the forward of ``message_id`` as a draft; Graph carries the files.
+        """Save the forward of ``message_id`` as a draft; Graph carries the original's files.
 
         Raises:
             ValueError: An address that cannot be read.
@@ -382,6 +422,7 @@ class OutlookDraftsMixin:
             max_retries=1,
         )
         draft_id = await self._write_words(created, body, is_html=is_html)
+        await self._finish_draft(draft_id, {}, attachments)
         logger.info("outlook_mailbox_forward_draft_created", user_id=str(self.user_id))
         return _as_draft(await self._fetch_message(draft_id))
 

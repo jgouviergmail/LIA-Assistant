@@ -1,6 +1,6 @@
 # ADR-065: Legacy Domain Agent LangGraph Nodes — Dead Code Analysis
 
-**Status**: ✅ ACCEPTED
+**Status**: ✅ ACCEPTED — completed by [ADR-371](ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) (2026-11-06): Option 2 done.
 **Date**: 2026-03-26
 **Deciders**: JGO, Claude Code
 **Technical Story**: Debug panel investigation revealed domain agent LLM types are never invoked

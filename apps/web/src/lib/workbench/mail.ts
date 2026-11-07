@@ -13,6 +13,7 @@
 import { apiEndpointUrl, type QueryParamValue } from '@/lib/api-client';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 
+import type { ProposedSearch } from './assist';
 import { dayIn } from './tasks';
 import type {
   MailAddress,
@@ -53,6 +54,26 @@ export interface MailSearch {
   /** A chosen range's first and last days (`YYYY-MM-DD`, both included; '' = open). */
   from: string;
   to: string;
+}
+
+/**
+ * @param proposal - The criteria read from the person's sentence.
+ * @param attachmentsOffered - The provider filters on attachments.
+ * @returns The search they amount to: what a provider cannot carry is left off.
+ */
+export function proposedMailSearch(
+  proposal: ProposedSearch,
+  attachmentsOffered: boolean
+): MailSearch {
+  const dated = Boolean(proposal.first_day || proposal.last_day);
+  return {
+    q: proposal.words,
+    unread: proposal.unread,
+    attachments: proposal.attachments && attachmentsOffered,
+    period: dated ? 'custom' : 'any',
+    from: proposal.first_day ?? '',
+    to: proposal.last_day ?? '',
+  };
 }
 
 export const EMPTY_MAIL_SEARCH: MailSearch = {

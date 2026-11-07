@@ -6,6 +6,7 @@
  * or a size is still listed.
  */
 
+import { Sparkles } from 'lucide-react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
@@ -317,6 +318,66 @@ describe('AttachmentList — kept on the drive', () => {
     list([REPORT]);
 
     expect(screen.queryByRole('button', { name: /workbench\.mail\.keep_on_drive/ })).toBeNull();
+  });
+});
+
+describe('AttachmentList — what LIA can do on a file', () => {
+  const REPORT: MailAttachment = {
+    id: 'a2',
+    filename: 'r.pdf',
+    mime_type: 'application/pdf',
+    size: 2048,
+    previewable: true,
+  };
+  const read = vi.fn();
+  const lines = () => [{ label: 'Read it', icon: Sparkles, onSelect: read }];
+
+  function assisted(attachments = [REPORT], maxBytes = 25 * MB) {
+    return renderWithProviders(
+      <AttachmentList
+        lng="en"
+        messageId="m1"
+        attachments={attachments}
+        maxBytes={maxBytes}
+        drive={{ provider: 'google_drive' }}
+        lines={lines}
+      />
+    );
+  }
+
+  it('gains no control on a row: one icon stands where the drive’s did', () => {
+    assisted();
+
+    const row = screen.getByRole('listitem');
+    expect(within(row).getAllByRole('button')).toHaveLength(2);
+    expect(within(row).getAllByRole('link')).toHaveLength(1);
+    expect(
+      within(row).queryByRole('button', { name: /workbench\.mail\.keep_on_drive/ })
+    ).toBeNull();
+  });
+
+  it('lists what LIA does beside the drive, and runs nothing until a line is pressed', async () => {
+    const { user } = assisted();
+
+    await user.click(
+      screen.getByRole('button', { name: /workbench\.assist\.mail\.attachment_menu/ })
+    );
+    expect(read).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole('menuitem', { name: /workbench\.mail\.keep_on_drive/ })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('menuitem', { name: 'Read it' }));
+
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it('offers nothing of LIA on a file past the ceiling', () => {
+    assisted([{ ...REPORT, size: 2 * MB }], MB);
+
+    expect(
+      screen.queryByRole('button', { name: /workbench\.assist\.mail\.attachment_menu/ })
+    ).toBeNull();
   });
 });
 

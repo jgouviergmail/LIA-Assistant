@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-11-06
-**Applicazione**: LIA v4.4.0
+**Applicazione**: LIA v4.5.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -90,7 +90,7 @@ flowchart TD
     R -->|"azione, modalità Pipeline"| P["Pianificatore"]
     P --> V["Validatore semantico"]
     V --> O["Orchestratore, passaggi in parallelo"]
-    O --> A["Agenti di dominio"]
+    O --> A["Strumenti"]
     A --> S
     R -->|"azione, modalità ReAct"| L["Ciclo ReAct"]
     L -->|"strumento, risultato, decisione successiva"| L
@@ -102,7 +102,7 @@ In modalità **Pipeline**, quella predefinita, il pianificatore scrive prima di 
 
 Le ho tenute entrambe perché rispondono a due bisogni. La Pipeline pianifica, parallelizza, si controlla e prevede il suo costo: una chiamata al pianificatore e una alla risposta, contro una chiamata per iterazione per ReAct, ossia da 4 a 8 volte meno token. ReAct si adatta a ogni risultato, il che è meglio per una ricerca esplorativa o una richiesta ambigua. Le due modalità condividono il registro degli strumenti, le conferme, il nodo di risposta e l'osservabilità.
 
-La scelta dei domini e degli strumenti passa da un **router semantico** a embeddings anziché da parole chiave o dal solo modello: costa meno e sbaglia meno. Ogni strumento dichiara un manifesto (parametri, output, costo, permessi, parole chiave in più lingue) che leggono il pianificatore, il router e il costruttore di agenti, e ogni agente si dichiara una sola volta in un registro centrale. Gli Smart Services riducono ancora il consumo mettendo in cache l'analisi delle richieste e imparando i piani ricorrenti. Dopo un turno che richiede un'azione, un nodo di iniziativa guarda, in sola lettura, cosa implica il risultato altrove: una pioggia prevista rimanda alle attività all'aperto della tua agenda.
+La scelta dei domini e degli strumenti passa da un **router semantico** a embeddings anziché da parole chiave o dal solo modello: costa meno e sbaglia meno. Ogni strumento dichiara un manifesto (parametri, output, costo, permessi, parole chiave in più lingue) che leggono il pianificatore e il router, e ogni famiglia di strumenti si dichiara una sola volta in un registro centrale. Gli Smart Services riducono ancora il consumo mettendo in cache l'analisi delle richieste e imparando i piani ricorrenti. Dopo un turno che richiede un'azione, un nodo di iniziativa guarda, in sola lettura, cosa implica il risultato altrove: una pioggia prevista rimanda alle attività all'aperto della tua agenda.
 
 Alcune regole mantengono onesto l'insieme. Una richiesta senza intenzione di agire non può produrre un piano che modifichi alcunché, ed è una regola deterministica, verificata prima di qualsiasi chiamata al modello. Un piano di modifica che esaurisce i suoi tentativi di correzione non viene eseguito: LIA fa una domanda piuttosto che scrivere un dato sbagliato. Un rifiuto o un fallimento non viene mai presentato come un'azione compiuta, e una volta eseguito il piano, nulla viene rieseguito alle tue spalle: la risposta dice ogni fallimento, quale strumento, perché, e il totale esatto. Per una modalità che si corregge strada facendo, c'è ReAct.
 
@@ -237,7 +237,7 @@ Una precisazione sulle prestazioni: le latenze misurate sono quelle dell'infrast
 
 ## 12. Le interfacce
 
-Lo spazio **Strumenti** ha endpoint REST propri, esterni al grafo della conversazione. Riutilizza i client dei connettori e ne pubblica comandi e limiti nell’interfaccia. Le sessioni del database si chiudono prima delle chiamate al fornitore; gli invii sono protetti dalle ripetizioni e una risposta persa viene dichiarata come esito sconosciuto. L’HTML della posta resta in un riquadro isolato che blocca i contenuti remoti. Un gesto manuale rimane così distinto da un’azione delegata a LIA.
+Lo spazio **Strumenti** ha endpoint REST propri, esterni al grafo della conversazione. Riutilizza i client dei connettori e ne pubblica comandi e limiti nell’interfaccia. Le sessioni del database si chiudono prima delle chiamate al fornitore; gli invii sono protetti dalle ripetizioni e una risposta persa viene dichiarata come esito sconosciuto. L’HTML della posta resta in un riquadro isolato che blocca i contenuti remoti. Un gesto manuale rimane così distinto da un’azione delegata a LIA; ciò che un clic le chiede da queste schermate passa da una porta a parte, una chiamata e una proposta, mai una scrittura presso il fornitore.
 
 L'interfaccia web è un'applicazione Next.js che si installa come un'app (PWA). La chat aggiorna la conversazione senza ricaricare, visualizza le formule matematiche e il codice colorato, conserva una bozza per account, ed è ricercabile; le impostazioni hanno una propria ricerca, un tema nero assoluto per gli schermi OLED e una dimensione del testo regolabile.
 

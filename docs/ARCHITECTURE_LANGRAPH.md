@@ -46,7 +46,7 @@ graph TD
     E -->|replan| D
     E --> F{Approval Gate}
     F --> G[Task Orchestrator]
-    G --> H[Domain Agents + Tools]
+    G --> H[Tools]
     G -->|drafts| HD[HITL Dispatch]
     G -->|bulk action| FE[FOR_EACH Confirm]
     FE -->|approved| G
@@ -65,7 +65,7 @@ graph TD
 ```
 
 - **Entrée** : `compaction` puis `router`, qui choisit la réponse directe, le mode Pipeline ou le mode ReAct. Quand les mots de la personne désignent plusieurs des éléments qui viennent de lui être montrés, `reference_disambiguation` demande lequel avant toute planification (§2.1b).
-- **Pipeline** : `planner` → `semantic_validator` (→ `clarification` si la demande est ambiguë, → `planner` pour re-planifier) → `approval_gate` (pass-through) → `task_orchestrator` → agents de domaine.
+- **Pipeline** : `planner` → `semantic_validator` (→ `clarification` si la demande est ambiguë, → `planner` pour re-planifier) → `approval_gate` (pass-through) → `task_orchestrator` → outils, appelés directement ([ADR-371](architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
 - **ReAct** : `react_setup` → `react_call_model` ↔ `react_execute_tools`, `react_recovery` quand un fait est déclaré manquant, `react_finalize` (détail en §1b).
 - **Validation** : les brouillons des deux modes passent par `hitl_dispatch` ; un lot FOR_EACH par `for_each_confirm`.
 - **Sortie** : `initiative` peut enchaîner une action de suivi, puis `response` synthétise et diffuse en SSE.
@@ -358,14 +358,14 @@ planification.
 ├─────────────────────────────────────────────────────────────────┤
 │ INPUT                                                           │
 │   • execution_plan: Plan validé/approuvé                        │
-│   • Agent functions (contacts_agent, emails_agent, hue_agent, ...)│
+│   • Fonctions des outils (appelées directement, ADR-371)        │
 ├─────────────────────────────────────────────────────────────────┤
 │ TRAITEMENT                                                      │
 │   1. Dispatch vers parallel_executor                            │
 │   2. Calcul waves via DependencyGraph                           │
 │   3. asyncio.gather() par wave                                  │
 │   4. Résolution paramètres ($steps.X.field)                     │
-│   5. Exécution steps (TOOL → agents)                            │
+│   5. Exécution steps (TOOL → fonction de l'outil)               │
 │   6. Accumulation résultats + Data Registry                     │
 │   7. Détection requires_confirmation (drafts)                   │
 ├─────────────────────────────────────────────────────────────────┤
@@ -379,7 +379,7 @@ planification.
 │ ROUTING                                                         │
 │   • for_each_hitl_ctx (non approuvé) → for_each_confirm         │
 │   • un pending_* HITL en attente → hitl_dispatch_node           │
-│   • Plus d'agents à exécuter → agent node suivant               │
+│   • Plan d'intention navigateur → browser_agent (conditionnel)  │
 │   • Terminé → initiative_node                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```

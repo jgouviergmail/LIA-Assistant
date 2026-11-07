@@ -150,6 +150,8 @@ api:slo:availability:ratio_5m           # SLO availability 5min
 | Sub-agents (`subagent_*` — including `subagent_outcomes_total{agent_name, outcome}`: how each sub-loop ended — `answered`, `closed_on_budget`, `truncated`, `empty`, `error`, ADR-083 amendment 2026-10-13) | `metrics_subagent.py` |
 | Usage limits (`usage_limit_*`) | `metrics_usage_limits.py` |
 | ReAct (`react_*` — budgets, contexte délivré, plafond d'outils) | `metrics_react.py` |
+| Tools (`workbench_*`) | `metrics_workbench.py` |
+| LIA from the Tools (`tool_assists_total{assist, outcome}`, `tool_assist_duration_seconds{assist}`) | `metrics_tool_assists.py` |
 | Voice (`voice_*`, `stt_*`, `tts_*`, `websocket_*`) | `metrics_voice.py` |
 
 ---
@@ -944,7 +946,6 @@ sum(rate(conversation_id_cache_total[5m])) > 0.01
 - `router`: Router node
 - `planner`: Planner node
 - `task_orchestrator`: Task orchestrator (deprecated)
-- `contacts_agent`: Google Contacts agent
 - `response`: Response synthesis node
 - `approval_gate`: HITL approval gate (Phase 8)
 - `wave_aggregator`: Parallel wave aggregator (Phase 5.2B)
@@ -1291,14 +1292,14 @@ async def search_contacts_tool(...) -> dict:
         result = await _search_contacts(...)
         agent_tool_invocations.labels(
             tool_name="search_contacts_tool",
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             success="true"
         ).inc()
         return result
     except Exception:
         agent_tool_invocations.labels(
             tool_name="search_contacts_tool",
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             success="false"
         ).inc()
         raise
@@ -1329,7 +1330,7 @@ topk(10, sum by (tool_name) (increase(agent_tool_invocations_total[24h])))
 ```python
 with agent_tool_duration_seconds.labels(
     tool_name="search_contacts_tool",
-    agent_name="contacts_agent"
+    agent_name="contact_agent"
 ).time():
     result = await _search_contacts(...)
 ```
@@ -2540,7 +2541,7 @@ sum by (operation) (rate(rag_embedding_tokens_total[1h]))
 | Propriété | Valeur |
 |-----------|--------|
 | **Type** | Counter |
-| **Labels** | `layer` (router, service, llm_invoke, proactive), `limit_type` (cycle_tokens, cycle_messages, etc.) |
+| **Labels** | `layer` (la porte qui refuse : le paramètre de `enforce_usage_limit`), `limit_type` (cycle_tokens, cycle_messages, etc.) |
 | **Description** | Total enforcement actions (user blocked from performing an action) |
 | **Instrumenté dans** | `apps/api/src/domains/agents/api/router.py`, `service.py`, `invoke_helpers.py`, `runner.py` |
 

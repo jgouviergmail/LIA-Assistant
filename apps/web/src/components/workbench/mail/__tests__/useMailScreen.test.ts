@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@/__tests__/test-utils';
 import type { WorkbenchItemState } from '@/hooks/useWorkbenchItem';
-import { MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
+import { MAIL_INBOX, MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
 import type { MailMessage, MailSummary } from '@/lib/workbench/types';
 
 vi.mock('next/navigation', () => ({
@@ -23,7 +23,13 @@ vi.mock('@/lib/api-client', async importOriginal => ({
   default: api,
 }));
 
-import { useConversation, useFreshListing, useReadAfterLook } from '../useMailScreen';
+import {
+  useConversation,
+  useFirstLook,
+  useFreshListing,
+  useReadAfterLook,
+  type MailAddress,
+} from '../useMailScreen';
 
 describe('useConversation', () => {
   const landed = (id: string) => ({ id }) as MailMessage;
@@ -177,10 +183,127 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('useFirstLook', () => {
+  const summary = (id: string) => ({ id }) as MailSummary;
+  const NOTHING: readonly MailSummary[] = [];
+  const asked = (change: Partial<MailAddress> = {}): MailAddress => ({
+    folder: MAIL_INBOX,
+    openId: null,
+    folderHref: () => '',
+    messageHref: () => '',
+    openMessage: vi.fn(),
+    replaceMessage: vi.fn(),
+    closeMessage: vi.fn(),
+    pickFolder: vi.fn(),
+    ...change,
+  });
+  const inbox = asked();
+  const look = (
+    initial: { address?: MailAddress; rows?: readonly MailSummary[]; wide?: boolean } = {}
+  ) =>
+    renderHook(
+      ({ address, rows, wide }) => useFirstLook(address, rows, wide),
+      {
+        initialProps: {
+          address: initial.address ?? inbox,
+          rows: initial.rows ?? [summary('m1'), summary('m2')],
+          wide: initial.wide ?? true,
+        },
+      }
+    );
+
+  it('shows the first row once the listing lands', () => {
+    const { result, rerender } = look({ rows: NOTHING });
+    expect(result.current.openId).toBeNull();
+
+    rerender({ address: inbox, rows: [summary('m1'), summary('m2')], wide: true });
+
+    expect(result.current.openId).toBe('m1');
+  });
+
+  it('keeps what it shows when a message arrives', () => {
+    const { result, rerender } = look();
+
+    rerender({ address: inbox, rows: [summary('new'), summary('m1')], wide: true });
+
+    expect(result.current.openId).toBe('m1');
+  });
+
+  it('lets go of it for good when it is closed', () => {
+    const { result, rerender } = look();
+
+    act(() => result.current.closeMessage());
+    rerender({ address: inbox, rows: [summary('new'), summary('m1')], wide: true });
+
+    expect(result.current.openId).toBeNull();
+    expect(inbox.closeMessage).not.toHaveBeenCalled();
+  });
+
+  it('gives way to what the person opens, and stays gone when that closes', () => {
+    const { result, rerender } = look();
+
+    rerender({ address: asked({ openId: 'm2' }), rows: [summary('m1')], wide: true });
+    expect(result.current.openId).toBe('m2');
+    rerender({ address: inbox, rows: [summary('m1')], wide: true });
+
+    expect(result.current.openId).toBeNull();
+  });
+
+  it('stays gone once the person left the inbox and came back', () => {
+    const { result, rerender } = look();
+
+    rerender({ address: asked({ folder: 'system:sent' }), rows: [summary('s1')], wide: true });
+    expect(result.current.openId).toBeNull();
+    rerender({ address: inbox, rows: [summary('m1')], wide: true });
+
+    expect(result.current.openId).toBeNull();
+  });
+
+  it('shows nothing on a visit that started on a message or in another folder', () => {
+    expect(look({ address: asked({ openId: 'm2' }) }).result.current.openId).toBe('m2');
+    expect(look({ address: asked({ folder: 'system:sent' }) }).result.current.openId).toBeNull();
+  });
+
+  it('shows nothing where the reader takes the list’s place, and hands the address back', () => {
+    const { result, rerender } = look({ wide: false });
+    expect(result.current.openId).toBeNull();
+
+    rerender({ address: inbox, rows: [summary('m1')], wide: true });
+    expect(result.current.openId).toBe('m1');
+    rerender({ address: inbox, rows: [summary('m1')], wide: false });
+
+    expect(result.current.openId).toBeNull();
+  });
+
+  it('closes what the person opened through the address itself', () => {
+    const opened = asked({ openId: 'm2' });
+    const { result } = look({ address: opened });
+
+    act(() => result.current.closeMessage());
+
+    expect(opened.closeMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('useReadAfterLook', () => {
+  it('never marks what the person did not open, until they open it', () => {
+    const mark = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(
+      ({ asked }) => useReadAfterLook(shown('m1', false), mark, asked),
+      { initialProps: { asked: false } }
+    );
+    act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS * 3));
+    expect(mark).not.toHaveBeenCalled();
+
+    rerender({ asked: true });
+    act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS));
+
+    expect(mark).toHaveBeenCalledTimes(1);
+  });
+
   it('marks an unread message read after a look, not at a glance', () => {
     const mark = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useReadAfterLook(shown('m1', false), mark));
+    renderHook(() => useReadAfterLook(shown('m1', false), mark, true));
 
     act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS - 1));
     expect(mark).not.toHaveBeenCalled();
@@ -190,7 +313,7 @@ describe('useReadAfterLook', () => {
 
   it('never marks again over the person’s own « Mark as unread »', () => {
     const mark = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark), {
+    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark, true), {
       initialProps: { state: shown('m1', false) },
     });
     act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS));
@@ -205,7 +328,7 @@ describe('useReadAfterLook', () => {
   it('looks again when the same message is opened again after a glance', () => {
     const mark = vi.fn().mockResolvedValue(undefined);
     const closed: WorkbenchItemState<MailMessage> = { ...shown('m1', false), item: undefined };
-    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark), {
+    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark, true), {
       initialProps: { state: shown('m1', false) },
     });
     act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS / 2));
@@ -219,7 +342,7 @@ describe('useReadAfterLook', () => {
 
   it('looks again at another message', () => {
     const mark = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark), {
+    const { rerender } = renderHook(({ state }) => useReadAfterLook(state, mark, true), {
       initialProps: { state: shown('m1', false) },
     });
     act(() => vi.advanceTimersByTime(MAIL_READ_DWELL_MS));

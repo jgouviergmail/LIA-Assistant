@@ -482,3 +482,40 @@ test('a token requires explicit browser approval and is cleared without persiste
   await section.getByRole('button', { name: 'Fermer', exact: true }).click();
   await expect(section.locator('input[type="password"]')).toHaveCount(0);
 });
+
+/* PHONE LINES: the owner's remarks of 2026-11-06. An iPhone's own date control cannot run here:
+   what is held is the box it is given, and the display Safari on iOS respects. */
+test('the dates of a search stay inside their panel, as block fields', async ({
+  page,
+  authenticate,
+  mockApi,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await authenticate({ language: 'fr', timezone: 'Europe/Paris' });
+  await mockApi([
+    idleNotificationStream,
+    ...settingsRoutes,
+    {
+      url: '**/api/v1/config',
+      json: { ...appConfig, features: { ...appConfig.features, sms_enabled: true } },
+    },
+    {
+      url: '**/api/v1/sms/search',
+      json: { items: [], total: 0, revision: 1, as_of: sms.received_at, next_cursor: null },
+    },
+  ]);
+
+  await page.goto('/fr/dashboard/sms');
+  const form = page.getByRole('search');
+  await expect(form).toBeVisible();
+  const panel = await form.boundingBox();
+  for (const field of await form.locator('input[type="date"]').all()) {
+    const box = await field.boundingBox();
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+      (panel?.x ?? 0) + (panel?.width ?? 0)
+    );
+    await expect(field).toHaveCSS('display', 'block');
+    await expect(field).toHaveCSS('appearance', 'none');
+    await expect(field).toHaveCSS('height', '40px');
+  }
+});

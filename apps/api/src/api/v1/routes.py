@@ -268,6 +268,11 @@ if getattr(settings, "workbench_enabled", False):
     from src.domains.workbench.router import router as workbench_router
 
     api_router.include_router(workbench_router)
+# What LIA does from the Tools (ADR-372), apart from them: the Tools hold no model.
+if getattr(settings, "tool_assists_enabled", False):
+    from src.domains.tool_assists.router import router as tool_assists_router
+
+    api_router.include_router(tool_assists_router)
 # The personal radio (ADR-324): a station per listener, on demand.
 if getattr(settings, "radio_enabled", False):
     from src.domains.radio.router import router as radio_router
@@ -544,6 +549,9 @@ async def get_client_config() -> dict:
             # The « Tools » section (ADR-369): the deployment ceiling of the header
             # destination and its pages (the effective state is in `capabilities`).
             "workbench_enabled": getattr(settings, "workbench_enabled", False),
+            # What LIA does from the Tools (ADR-372): its deployment ceiling (the
+            # effective state is in `capabilities`).
+            "tool_assists_enabled": getattr(settings, "tool_assists_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

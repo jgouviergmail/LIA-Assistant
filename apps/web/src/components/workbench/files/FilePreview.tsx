@@ -12,19 +12,14 @@ import { Maximize2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useShownDocument } from '@/hooks/useShownDocument';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { WorkbenchFileDetail } from '@/lib/workbench/types';
 
 import { ShownReading } from '../ShownDocument';
+import { ToolDialogHeader } from '../ToolForm';
 
 const PREVIEW_PATH = '/workbench/files/preview';
 
@@ -48,12 +43,12 @@ export function FilePreview({ lng, file }: { lng: Language; file: WorkbenchFileD
       {large && seen && (
         <Dialog open onOpenChange={open => !open && setLarge(false)}>
           <DialogContent className="sm:max-w-5xl">
-            <DialogHeader>
+            <ToolDialogHeader>
               <DialogTitle className="truncate">{file.name}</DialogTitle>
               <DialogDescription className="sr-only">
                 {t('workbench.files.preview_enlarge')}
               </DialogDescription>
-            </DialogHeader>
+            </ToolDialogHeader>
             <ShownReading lng={lng} read={read} name={file.name} large />
           </DialogContent>
         </Dialog>

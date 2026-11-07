@@ -27,6 +27,24 @@ export interface ShownEvent extends CalendarEvent {
   href?: string;
 }
 
+/** How long before its start a meeting can be recorded from its page. */
+const RECORD_LEAD_MS = 15 * 60_000;
+
+/**
+ * A recording finds its event by its hours, so only one that overlaps them can be offered.
+ *
+ * @param event - The event.
+ * @param now - The instant, in milliseconds.
+ * @returns It is happening, or about to; an all-day event has no such hour.
+ */
+export function isRecordableNow(
+  event: Pick<CalendarEvent, 'all_day' | 'start' | 'end'>,
+  now: number
+): boolean {
+  if (event.all_day) return false;
+  return now >= Date.parse(event.start) - RECORD_LEAD_MS && now < Date.parse(event.end);
+}
+
 /** @returns The key of an event: its calendar and its id. */
 export function eventKey(event: Pick<CalendarEvent, 'calendar_id' | 'id'>): string {
   return `${event.calendar_id}|${event.id}`;

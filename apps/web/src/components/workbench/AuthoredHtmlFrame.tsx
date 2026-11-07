@@ -11,7 +11,7 @@
  * inline styles and embedded images, BEFORE the sender's first byte: no remote
  * image, font or stylesheet loads, so opening a message tells its sender nothing
  * (a parent policy and this one intersect, the stricter wins). Remote images load
- * on the reader's click alone, for this message. The images the message carries
+ * on the reader's click alone, for this message, and the offer stays, greyed, saying it was taken. The images the message carries
  * inside itself ask nobody for anything: they come as `data:` addresses, and only of
  * an image type. No referrer leaves from inside.
  *
@@ -27,7 +27,7 @@
  * the sender's own colours are one click away.
  */
 import { useTheme } from 'next-themes';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
@@ -76,6 +76,15 @@ function preamble(images: boolean, night: boolean): string {
 
 const NO_IMAGES: readonly MailInlineImage[] = [];
 
+/**
+ * The line above the frame. On a phone each offer keeps its own place, at the start, in the middle
+ * and at the end, whichever others stand there; a word that has no room breaks at a space. On a
+ * wider screen they stand together in the middle.
+ */
+const OFFERS =
+  'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 ' +
+  '[&>*]:whitespace-normal sm:flex sm:flex-wrap sm:justify-center sm:gap-x-4';
+
 export interface AuthoredHtmlFrameProps {
   lng: Language;
   /** The author's HTML, as it arrived. */
@@ -90,6 +99,8 @@ export interface AuthoredHtmlFrameProps {
   inline?: readonly MailInlineImage[];
   /** Its height, where the default does not suit. */
   className?: string;
+  /** What its reader offers of its own, first on the frame's line. */
+  lead?: ReactNode;
 }
 
 export function AuthoredHtmlFrame({
@@ -100,6 +111,7 @@ export function AuthoredHtmlFrame({
   onShowImages,
   inline = NO_IMAGES,
   className,
+  lead,
 }: AuthoredHtmlFrameProps) {
   const { t } = useTranslation(lng);
   const { resolvedTheme } = useTheme();
@@ -111,19 +123,21 @@ export function AuthoredHtmlFrame({
     () => isolatedMailDocument(html, images, inline, night),
     [html, images, inline, night]
   );
-  const offersImages = onShowImages !== undefined && mail.remoteImages && !images;
+  const offersImages = onShowImages !== undefined && mail.remoteImages;
   return (
     <>
-      {(offersImages || dark) && (
-        <div className="flex flex-wrap items-center gap-x-4">
+      {(lead || offersImages || dark) && (
+        <div className={OFFERS}>
+          {lead}
           {offersImages && (
             <Button
               variant="link"
               size="sm"
-              className="h-auto p-0 text-xs"
+              className="col-start-2 h-auto p-0 text-center text-xs"
+              disabled={images}
               onClick={() => {
                 onShowImages?.();
-                // The button leaves with the answer: the message it asked for takes the focus.
+                // Greyed, the button can hold no focus: the message it asked for takes it.
                 frame.current?.focus({ preventScroll: true });
               }}
             >
@@ -134,7 +148,7 @@ export function AuthoredHtmlFrame({
             <Button
               variant="link"
               size="sm"
-              className="h-auto p-0 text-xs"
+              className="col-start-3 h-auto justify-self-end p-0 text-right text-xs"
               onClick={() => setOwnColours(own => !own)}
             >
               {t(

@@ -11,19 +11,13 @@ import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { WorkbenchContactGroup } from '@/lib/workbench/types';
+import { CancelButton, ToolActions, ToolDialogHeader, useToolConfirm } from '../ToolForm';
 
 export interface ContactGroupActionsProps {
   lng: Language;
@@ -44,7 +38,7 @@ export function ContactGroupActions({
   onDeleted,
 }: ContactGroupActionsProps) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
   const [busy, setBusy] = useState(false);
@@ -113,9 +107,9 @@ export function ContactGroupActions({
         <Dialog open onOpenChange={open => !open && setRenaming(false)}>
           <DialogContent className="sm:max-w-sm">
             <form onSubmit={rename} className="space-y-4">
-              <DialogHeader>
+              <ToolDialogHeader>
                 <DialogTitle>{t('workbench.contacts.groups.rename')}</DialogTitle>
-              </DialogHeader>
+              </ToolDialogHeader>
               <Input
                 label={t('workbench.contacts.groups.name')}
                 value={name}
@@ -123,14 +117,12 @@ export function ContactGroupActions({
                 required
                 onChange={event => setName(event.target.value)}
               />
-              <DialogFooter className="gap-2">
-                <Button type="button" variant="outline" onClick={() => setRenaming(false)}>
-                  {t('common.cancel')}
-                </Button>
+              <ToolActions>
+                <CancelButton lng={lng} onClick={() => setRenaming(false)} />
                 <Button type="submit" isLoading={busy}>
                   {t('common.save')}
                 </Button>
-              </DialogFooter>
+              </ToolActions>
             </form>
           </DialogContent>
         </Dialog>

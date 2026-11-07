@@ -5,6 +5,8 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { InsideModalDialogContext } from './dialog-focus';
+
 /**
  * Non-modal by default — so the sticky header survives an open menu.
  *
@@ -27,14 +29,19 @@ import { cn } from '@/lib/utils';
  * also let the page scroll behind the menu — and it would have weakened the
  * lock for real dialogs, which legitimately need it.
  *
+ * Inside a modal dialog it is modal itself: the dialog's focus trap takes back the focus a
+ * non-modal menu receives, in its portal outside the dialog, and the menu closes as it opens. The
+ * dialog locks the page already, so nothing above applies there.
+ *
  * A caller can still pass `modal` explicitly to override this.
  */
 const DropdownMenu = ({
-  modal = false,
+  modal,
   ...props
-}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) => (
-  <DropdownMenuPrimitive.Root modal={modal} {...props} />
-);
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) => {
+  const insideModalDialog = React.useContext(InsideModalDialogContext);
+  return <DropdownMenuPrimitive.Root modal={modal ?? insideModalDialog} {...props} />;
+};
 DropdownMenu.displayName = 'DropdownMenu';
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;

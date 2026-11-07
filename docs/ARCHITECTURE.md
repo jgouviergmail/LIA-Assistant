@@ -86,7 +86,9 @@ page. Ce qu'un client gagne pour l'atelier, les outils de l'assistant le gagnent
 dans le même lot ; rien de ce que la personne fait à la main n'entre dans un
 registre. Voir
 [ADR-369](architecture/ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md)
-et [l'atelier](technical/WORKBENCH.md).
+et [l'atelier](technical/WORKBENCH.md). Ce qu'un clic demande à LIA depuis ces écrans passe par une
+autre porte, un contexte borné à part : un appel, une proposition, rien d'écrit chez le fournisseur
+([ADR-372](architecture/ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md), [TOOL_ASSISTS](technical/TOOL_ASSISTS.md)).
 
 ## 📋 Table des Matières
 
@@ -154,11 +156,11 @@ Ordres de grandeur mesurés le 2026-09-24 (`git ls-files`) ; les valeurs exactes
 | **Fichiers TypeScript** | 1 000+ hors tests (`apps/web/src`) |
 | **Tests** | 1 850+ fichiers pytest, 700+ fichiers vitest |
 | **Métriques Prometheus** | 580+ |
-| **Dashboards Grafana** | 30 |
+| **Dashboards Grafana** | 33 |
 | **Routes d'API** | 500+ |
 | **LLM Providers** | 7 (catalogue en base, ADR-244) |
-| **Agents** | 20 |
-| **Tools** | 124 exposés au catalogue |
+| **Domaines d'outils** | 20+ (deux agents compilés, ADR-371) |
+| **Tools** | 338 exposés au catalogue |
 | **Fichiers Prompts** | 150+ (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 
@@ -174,10 +176,11 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**23 domaines principaux** (sur **53 bounded contexts fonctionnels** que compte
-`apps/api/src/domains/`, hors `shared/` — la liste ci-dessous est une sélection
+**23 domaines principaux** (sur les bounded contexts fonctionnels que compte
+`apps/api/src/domains/`, hors `shared/`, dont le compte est dans
+`apps/web/src/data/maps/facts.json` — la liste ci-dessous est une sélection
 des plus structurants, pas un inventaire) :
-1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
+1. **agents** - Orchestration LangGraph, outils groupés par domaine dans les manifestes, deux agents compilés (ADR-371) (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
 4. **connectors** - Intégrations externes (Google, Apple iCloud, Microsoft 365, Philips Hue)
@@ -198,9 +201,9 @@ des plus structurants, pas un inventaire) :
 18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
 19. **journals** - Carnets de bord personnels (Personal Journals) : extraction post-conversation, consolidation périodique, injection sémantique
 20. **peers** - Connexions entre utilisateurs de l'instance (ADR-180) : découverte opt-in par nom exact, cycle de vie demande/acceptation/blocage silencieux, relais de messages assistant-à-assistant (draft HITL, coût imputé à l'émetteur), partages lecture seule par connexion (calendrier, tâches) avec journal d'accès — moteur de livraison dans `infrastructure/scheduler/` (frontière F009)
-21. **feature_switches** - Capacités de plateforme administrables (ADR-217)
+21. **feature_switches** - Capacités de plateforme administrables (ADR-217) : registre déclaratif des capacités non connecteur (`PlatformCapability`), deux bornes composées (déploiement ∧ opérateur, la plus petite gagne) et trois modes d'application déclarés — `agents` (exclusion du catalogue offert au planificateur), `route_enforced` (dépendance de routeur, code stable), `service_enforced` (point d'étranglement interne, pour les capacités sans route). Deux gardes de démarrage recalculent la déclaration contre le catalogue et les routeurs réels
 22. **live** - Le mode Live vocal (ADR-299, ADR-300) : une session parole à parole sur la clé de la personne (Gemini Live, GPT-Live, ElevenLabs Agents — catégorie de connecteur `live`, additive), la voix déléguant chaque demande au moteur du chat par une fonction déclarée, une session par compte, la carte de clôture aux chiffres exacts, une session directe qui tient les outils de lecture derrière une porte unique, la facture du fournisseur montrée et jamais enregistrée
-23. **voice_sessions** - Ce que les deux lignes vocales partagent (ADR-301) : `VoiceSession` à clé neutre au porteur, la transcription (échanges délégués marqués en entier), la projection vocale épinglée par un corpus partagé avec le navigateur, les requêtes de résumé et le bloc de délégation de chaque mandat — une politique par MODE (Live / Live direct), une clôture pour le téléphone et le navigateur (`infrastructure/scheduler/voice_session_closing.py`) : registre déclaratif de 10 capacités non connecteur (STT, TTS, images, téléversements, espaces documentaires, recherche web, navigation, compétences, MCP, téléphonie), deux bornes composées (déploiement ∧ opérateur, la plus petite gagne) et trois modes d'application déclarés — `agents` (exclusion du catalogue offert au planificateur), `route_enforced` (dépendance de routeur, code stable), `service_enforced` (point d'étranglement interne, pour les capacités sans route). Deux gardes de démarrage recalculent la déclaration contre le catalogue et les routeurs réels
+23. **voice_sessions** - Ce que les deux lignes vocales partagent (ADR-301) : `VoiceSession` à clé neutre au porteur, la transcription (échanges délégués marqués en entier), la projection vocale épinglée par un corpus partagé avec le navigateur, les requêtes de résumé et le bloc de délégation de chaque mandat — une politique par MODE (Live / Live direct), une clôture pour le téléphone et le navigateur (`infrastructure/scheduler/voice_session_closing.py`)
 
 ### 2. Async-First
 
@@ -446,8 +449,7 @@ apps/api/src/
 │   │   │   └── schemas.py
 │   │   ├── prompts/             # Versioned prompts (consolidated to v1)
 │   │   │   ├── prompt_loader.py # LRU cached loader
-│   │   │   └── v1/              # 202 prompt files (consolidated)
-│   │   │       └── fewshot/     # Dynamic few-shot examples (16 files)
+│   │   │   └── v1/              # Le Literal PromptName en tient la liste
 │   │   └── utils/               # Domain utilities
 │   │       ├── hitl_store.py
 │   │       ├── message_windowing.py
@@ -1377,13 +1379,13 @@ class ContactsEmailsResolver:
 ```python
 # Si 1 domaine échoue, les autres continuent
 try:
-    contacts = await contacts_agent.execute()
+    contacts = await execute_step(plan.step("contacts"))
 except Exception as e:
     logger.warning("contacts_domain_failed", error=str(e))
     contacts = []  # Continue avec emails uniquement
 
 try:
-    emails = await emails_agent.execute()
+    emails = await execute_step(plan.step("emails"))
 except Exception:
     emails = []
 
@@ -1632,7 +1634,7 @@ graph TD
     E -->|replan| D
     E --> F{Approval Gate}
     F --> G[Task Orchestrator]
-    G --> H[Domain Agents + Tools]
+    G --> H[Tools]
     G -->|drafts| HD[HITL Dispatch]
     G -->|bulk action| FE[FOR_EACH Confirm]
     FE -->|approved| G
@@ -1658,7 +1660,7 @@ graph TD
 | `semantic_validator`, `clarification` | Vérifie la couverture du plan ; pose une question quand la demande est ambiguë |
 | `approval_gate` | Pass-through : la validation porte sur chaque action sensible (HITL au niveau de l'outil) |
 | `task_orchestrator` | Exécute les étapes par vagues de dépendances, en parallèle |
-| agents de domaine | Contacts, e-mails, agenda, fichiers, tâches, météo, lieux, trajets, web, navigateur, domotique… |
+| `browser_agent` | La navigation web interactive. Les autres domaines n'ont pas de nœud : `task_orchestrator` appelle leurs outils ([ADR-371](architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)) |
 | `hitl_dispatch`, `for_each_confirm` | Présente les brouillons un par un ; confirme un lot FOR_EACH |
 | `initiative` | Décide d'une action de suivi après l'exécution |
 | `react_setup`, `react_call_model`, `react_execute_tools`, `react_recovery`, `react_finalize` | La boucle ReAct : un seul prédicat d'arrêt, une passe de rattrapage bornée quand un fait manque |
@@ -3178,7 +3180,7 @@ No special import ordering or patching is needed in `main.py` anymore.
 
 #### LLM Configuration Validation
 
-`validate_llm_configuration()` (`apps/api/src/core/bootstrap.py`) fails the boot when `LLM_DEFAULTS` lacks one of the critical slots (`response`, `planner`, `contacts_agent`, `hitl_classifier`, `hitl_question_generator`) and logs their effective models; `validate_llm_defaults_against_matrix()` then checks every default against the model catalogue. A slot's configuration is never read from environment variables (ADR-244).
+`validate_llm_configuration()` (`apps/api/src/core/bootstrap.py`) fails the boot when `LLM_DEFAULTS` lacks one of the critical slots (`response`, `planner`, `hitl_classifier`, `hitl_question_generator`) and logs their effective models; `validate_llm_defaults_against_matrix()` then checks every default against the model catalogue. A slot's configuration is never read from environment variables (ADR-244).
 
 #### Event Loop Configuration (Windows/psycopg Compatibility)
 

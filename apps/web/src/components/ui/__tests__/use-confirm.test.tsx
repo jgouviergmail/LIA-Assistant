@@ -21,6 +21,30 @@ import { useConfirm } from '../use-confirm';
  */
 const CANCEL = 'common.cancel';
 
+function Looked() {
+  const { confirm, confirmDialog } = useConfirm({
+    cancelVariant: 'destructive',
+    headerClassName: 'text-left',
+  });
+  return (
+    <div>
+      <button onClick={() => void confirm({ title: 'Sure?' })}>ask</button>
+      {confirmDialog}
+    </div>
+  );
+}
+
+describe('useConfirm — a family of screens', () => {
+  it('draws its « Cancel » and its head as that family does', async () => {
+    const { user } = renderWithProviders(<Looked />);
+
+    await user.click(screen.getByRole('button', { name: 'ask' }));
+
+    expect(await screen.findByRole('button', { name: CANCEL })).toHaveClass('bg-destructive');
+    expect(screen.getByText('Sure?').parentElement).toHaveClass('text-left');
+  });
+});
+
 /** A harness exposing the resolved value of the last ask. */
 function Harness({ onResult }: { onResult: (value: boolean) => void }) {
   const { confirm, confirmDialog } = useConfirm();

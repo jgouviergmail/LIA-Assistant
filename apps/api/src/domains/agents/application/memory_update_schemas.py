@@ -5,9 +5,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from src.domains.agents.application.memory_create_schemas import MemoryCreateConfiguration
 from src.domains.agents.application.memory_pin_schemas import MemoryPinSnapshot
-from src.domains.memories.schemas import MemoryUpdate
+from src.domains.memories.schemas import MemoryStored, MemoryUpdate
+
+
+class MemoryUpdateConfiguration(MemoryStored):
+    """A row as it stands, and as the edit would leave it: a read, built by the source.
+
+    The text an edit brings is held to the write bounds by ``MemoryUpdateChanges``.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
 
 class MemoryUpdateChanges(MemoryUpdate):
@@ -36,7 +44,7 @@ class MemoryUpdateRequest(BaseModel):
 class MemoryUpdateValues(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     expected: MemoryPinSnapshot
-    configuration: MemoryCreateConfiguration
+    configuration: MemoryUpdateConfiguration
     changes: MemoryUpdateChanges
 
 

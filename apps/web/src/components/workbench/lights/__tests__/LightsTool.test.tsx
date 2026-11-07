@@ -20,13 +20,15 @@ import type {
 
 type ShellConfig = Pick<AppConfig, 'capabilities'> & { features: { workbench_enabled?: boolean } };
 
-const { api, nav, toast, media } = vi.hoisted(() => ({
+const { api, nav, toast, media, openChat } = vi.hoisted(() => ({
   api: { get: vi.fn(), post: vi.fn() },
   nav: { search: '', push: vi.fn(), replace: vi.fn() },
   toast: { error: vi.fn(), success: vi.fn() },
   media: { desktop: true },
+  openChat: vi.fn(),
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
+vi.mock('@/lib/chat-deep-link', () => ({ openChatDeepLink: openChat }));
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
   default: api,
@@ -73,6 +75,8 @@ function rail(state: WorkbenchToolState = 'ready'): WorkbenchAvailability {
       send_undo_seconds: 0,
       draft_autosave_seconds: 0,
       search_max_chars: 500,
+      assist_text_max_chars: 8000,
+      assist_instruction_max_chars: 500,
     },
   };
 }
@@ -155,6 +159,31 @@ function lampCard(name: string): HTMLElement {
   const card = screen.getByRole('group', { name });
   return card;
 }
+
+describe('LightsTool — the question to LIA', () => {
+  it('ends the open room’s title, as every detail’s bar does, and sends nothing', async () => {
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.label' }));
+
+    expect(openChat).toHaveBeenCalledWith('/en/dashboard/chat');
+    expect(window.localStorage.getItem('lia.chatDraft.owner')).toBe('workbench.ask.lights');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('leaves the words of a schedule in the chat: routines are the assistant’s', async () => {
+    const { user } = screenOf();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'workbench.ask.ready.lights' }));
+
+    expect(window.localStorage.getItem('lia.chatDraft.owner')).toContain(
+      'workbench.ask.ready.lights_words'
+    );
+    expect(api.post).not.toHaveBeenCalled();
+  });
+});
 
 describe('LightsTool — everything off', () => {
   const allOff = () => screen.findByRole('button', { name: 'workbench.lights.all_off' });
@@ -358,11 +387,20 @@ describe('LightsTool — a lamp that does not answer', () => {
     expect(within(card).queryByRole('slider')).toBeNull();
   });
 
-  it("counts on its room's card", async () => {
+  it('greys its name, the one thing on its card that says so at a glance', async () => {
     bridgeIs(silent(false));
     screenOf();
 
-    expect(await screen.findByText('workbench.lights.room_unreachable')).toBeVisible();
+    const card = await screen.findByRole('group', { name: 'Sofa' });
+    expect(within(card).getByText('Sofa')).toHaveClass('text-muted-foreground');
+  });
+
+  it('keeps the name of a lamp that answers in the text colour', async () => {
+    bridgeIs(silent(true));
+    screenOf();
+
+    const card = await screen.findByRole('group', { name: 'Sofa' });
+    expect(within(card).getByText('Sofa')).toHaveClass('text-foreground');
   });
 
   it.each([true, null])('says nothing of a lamp reported as %s', async reachable => {
@@ -372,7 +410,6 @@ describe('LightsTool — a lamp that does not answer', () => {
     const card = await screen.findByRole('group', { name: 'Sofa' });
     expect(within(card).queryByText('workbench.lights.light_unreachable')).toBeNull();
     expect(within(card).getByRole('switch')).toBeEnabled();
-    expect(screen.queryByText('workbench.lights.room_unreachable')).toBeNull();
   });
 });
 
@@ -470,7 +507,7 @@ describe("LightsTool — a room's tone", () => {
     const { user } = screenOf();
 
     const card = await tone();
-    await user.click(card.getByText('workbench.lights.tone'));
+    await user.click(card.getByText('workbench.lights.customize'));
 
     const slider = card.getByRole('slider', { name: 'workbench.lights.temperature' });
     expect(slider).toHaveAttribute('min', '200');
@@ -482,7 +519,7 @@ describe("LightsTool — a room's tone", () => {
     const { user } = screenOf();
 
     const card = await tone();
-    await user.click(card.getByText('workbench.lights.tone'));
+    await user.click(card.getByText('workbench.lights.customize'));
     const slider = card.getByRole('slider', { name: 'workbench.lights.temperature' });
     fireEvent.input(slider, { target: { value: '300' } });
     fireEvent.change(slider, { target: { value: '300' } });
@@ -500,7 +537,7 @@ describe("LightsTool — a room's tone", () => {
     const { user } = screenOf();
 
     const card = await tone();
-    await user.click(card.getByText('workbench.lights.tone'));
+    await user.click(card.getByText('workbench.lights.customize'));
     const picker = card.getByLabelText<HTMLInputElement>('workbench.lights.colour');
     fireEvent.input(picker, { target: { value: '#00ff00' } });
     picker.dispatchEvent(new Event('change', { bubbles: true }));
@@ -521,7 +558,7 @@ describe("LightsTool — a room's tone", () => {
     screenOf();
 
     const card = await tone();
-    expect(card.queryByText('workbench.lights.tone')).toBeNull();
+    expect(card.queryByText('workbench.lights.customize')).toBeNull();
   });
 });
 
@@ -618,7 +655,7 @@ describe('LightsTool', () => {
 
     const sofa = lampCard('Sofa');
     expect(within(sofa).getByRole('slider', { name: 'workbench.lights.brightness' })).toBeVisible();
-    await user.click(within(sofa).getByText('workbench.lights.tone'));
+    await user.click(within(sofa).getByText('workbench.lights.customize'));
     const temperature = within(sofa).getByRole('slider', { name: 'workbench.lights.temperature' });
     // The colour is the lamp's current colour alone, its panel the choice (owner, 2026-10-31):
     // no row of swatches, and the temperature comes first.
@@ -647,14 +684,14 @@ describe('LightsTool', () => {
     expect(within(sofa).queryByRole('slider', { name: 'workbench.lights.temperature' })).toBeNull();
     expect(within(sofa).queryByLabelText('workbench.lights.colour')).toBeNull();
     // Folded, the section still says the tone: the temperature, and the colour as a dot.
-    const summary = within(sofa).getByText('workbench.lights.tone').closest('summary');
+    const summary = within(sofa).getByText('workbench.lights.customize').closest('summary');
     expect(summary).not.toBeNull();
     expect(within(summary as HTMLElement).getByText('workbench.lights.kelvin')).toBeVisible();
     expect(
       (summary as HTMLElement).querySelector('[data-tone-colour]')?.getAttribute('style')
     ).toContain('rgb(255, 59, 48)');
 
-    await user.click(within(sofa).getByText('workbench.lights.tone'));
+    await user.click(within(sofa).getByText('workbench.lights.customize'));
     expect(
       within(sofa).getByRole('slider', { name: 'workbench.lights.temperature' })
     ).toBeVisible();
@@ -724,7 +761,7 @@ describe('LightsTool', () => {
   it('sends a colour when its panel closes, never while it moves', async () => {
     const { user } = screenOf();
     await screen.findByRole('group', { name: 'Sofa' });
-    await user.click(within(lampCard('Sofa')).getByText('workbench.lights.tone'));
+    await user.click(within(lampCard('Sofa')).getByText('workbench.lights.customize'));
     const colour = within(lampCard('Sofa')).getByLabelText('workbench.lights.colour');
 
     fireEvent.input(colour, { target: { value: '#00ff00' } });

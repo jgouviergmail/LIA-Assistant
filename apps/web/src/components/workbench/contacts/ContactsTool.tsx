@@ -25,7 +25,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PaneSeparator } from '@/components/ui/pane-separator';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWorkbenchContacts, type ContactsListing } from '@/hooks/useWorkbenchContacts';
@@ -42,9 +41,16 @@ import {
   isOtherContact,
   type ContactFields,
 } from '@/lib/workbench/contacts';
+import type { ProposedValue } from '@/lib/workbench/assist';
 import { copyText } from '@/lib/workbench/copy';
 import { workbenchRefusal } from '@/lib/workbench/errors';
-import { toolPath, WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
+import {
+  toolPath,
+  WORKBENCH_DESKTOP,
+  WORKBENCH_HEADER_ICON,
+  WORKBENCH_HEADER_PRIMARY,
+  WORKBENCH_PANE_HEIGHT,
+} from '@/lib/workbench/tools';
 import type {
   WorkbenchContact,
   WorkbenchContactGroup,
@@ -56,12 +62,15 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
+import { useContactAssist } from '../assist/useContactAssist';
 import { useHandoff, useToolBridges } from '../useToolBridges';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { ContactDetail } from './ContactDetail';
 import { ContactEditor } from './ContactEditor';
 import { ContactGroupActions } from './ContactGroupActions';
 import { ContactImport } from './ContactImport';
+import { useToolConfirm } from '../ToolForm';
+import { NativeSelect } from '@/components/ui/native-select';
 
 const NO_PARAMS = {};
 const OTHER = 'other';
@@ -129,7 +138,7 @@ function useOpenContact(openId: string | null, rows: readonly WorkbenchContactSu
 
 function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailability }) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
+  const { confirm, confirmDialog } = useToolConfirm();
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
   const address = useContactAddress(lng);
   // On a large screen the person sizes the list beside the detail.
@@ -140,6 +149,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
     id: number;
     contact: WorkbenchContact | undefined;
     prefill?: Partial<ContactFields>;
+    found?: readonly ProposedValue[];
   } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -157,10 +167,19 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
     fallback: searchRef,
   });
 
-  const edit = (contact: WorkbenchContact | undefined, prefill?: Partial<ContactFields>) => {
-    setEditor(previous => ({ id: (previous?.id ?? 0) + 1, contact, prefill }));
+  const edit = (
+    contact: WorkbenchContact | undefined,
+    prefill?: Partial<ContactFields>,
+    found?: readonly ProposedValue[]
+  ) => {
+    setEditor(previous => ({ id: (previous?.id ?? 0) + 1, contact, prefill, found }));
   };
   const bridges = useToolBridges(lng);
+  const { panel: assistPanel, ...assist } = useContactAssist(
+    lng,
+    shown,
+    shown && !metInMail ? values => edit(shown, undefined, values) : undefined
+  );
   useHandoff('contact', true, handed =>
     edit(undefined, { name: handed.name, emails: [{ value: handed.email, type: null }] })
   );
@@ -228,7 +247,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           ]);
         }}
       >
-        <Button asChild variant="outline" size="icon">
+        <Button asChild variant="outline" size="icon" className={WORKBENCH_HEADER_ICON}>
           <a
             href={contactsExportUrl()}
             aria-label={t('workbench.contacts.export_all')}
@@ -244,7 +263,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           maxBytes={tool.bounds.import_max_bytes}
           onImported={state.list.refresh}
         />
-        <Button className="gap-1.5" onClick={() => edit(undefined)}>
+        <Button className={cn('gap-1.5', WORKBENCH_HEADER_PRIMARY)} onClick={() => edit(undefined)}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           {t('workbench.contacts.new_contact')}
         </Button>
@@ -333,6 +352,8 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
               onAsk={contact =>
                 bridges.ask(t('workbench.ask.contact', { name: contactName(contact) }))
               }
+              assist={assist}
+              assistPanel={assistPanel}
             />
           </div>
         ) : (
@@ -347,6 +368,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
           lng={lng}
           contact={editor.contact}
           prefill={editor.prefill}
+          found={editor.found}
           bounds={tool.bounds}
           onCreate={async body => {
             await state.create(body);
@@ -417,12 +439,11 @@ function ContactFinder({
         </Button>
       </form>
       {(groups || otherOffered) && (
-        <select
+        <NativeSelect
           id={filterId}
           aria-label={t('workbench.contacts.filter_label')}
           value={filter}
           onChange={event => onFilter(event.target.value)}
-          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
         >
           <option value="">{t('workbench.contacts.all')}</option>
           {groups?.map(group => (
@@ -431,7 +452,7 @@ function ContactFinder({
             </option>
           ))}
           {otherOffered && <option value={OTHER}>{t('workbench.contacts.other')}</option>}
-        </select>
+        </NativeSelect>
       )}
     </div>
   );

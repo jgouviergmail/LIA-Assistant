@@ -11,7 +11,8 @@
  * the list returns; opening pushes, closing replaces (the workboard's rule). A
  * refused change is said in the refusal's own words; « Refresh » re-reads the
  * bridge in place. « All off » switches off what is lit, room by room, and says
- * what stayed on; once nothing is lit it says « All on », and lights what has lamps.
+ * what stayed on; once nothing is lit it says « All on », and lights what has lamps. The open
+ * room's title ends on the question to LIA, as every detail's bar does.
  */
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -54,6 +55,9 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
+import { readyLine } from '../assist/lines';
+import { askAct, BarAct } from '../DetailBar';
+import { useToolBridges } from '../useToolBridges';
 import { LightControls } from './LightControls';
 import { RoomCard } from './RoomCard';
 import { ScenePicker, type SceneRecallAct } from './ScenePicker';
@@ -214,7 +218,7 @@ function AllSwitchButton({
     <Button
       variant="outline"
       size="sm"
-      className="min-h-10 gap-1.5"
+      className="min-h-10 min-w-10 gap-1.5 px-0 sm:px-3"
       isLoading={busy}
       onClick={() => void switchAll()}
       aria-label={t(`workbench.lights.${word}`)}
@@ -388,6 +392,7 @@ function RoomDetail({
   onRecall,
 }: RoomDetailProps) {
   const { t } = useTranslation(lng);
+  const { ask } = useToolBridges(lng);
   const title = selection.openRoom?.name ?? t('workbench.lights.other_lights');
   return (
     <section
@@ -404,7 +409,19 @@ function RoomDetail({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {t('workbench.lights.back_to_rooms')}
       </Link>
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <div className="flex items-center gap-1">
+        <h2 className="min-w-0 text-base font-semibold text-foreground">{title}</h2>
+        {/* Taller than the title: the margins keep the line the height the title gave it. */}
+        <span className="-my-2 shrink-0">
+          <BarAct
+            act={askAct(
+              t('workbench.ask.label'),
+              () => ask(t('workbench.ask.lights', { name: title })),
+              { lines: [readyLine(t, 'lights', { name: title }, ask)] }
+            )}
+          />
+        </span>
+      </div>
       <ScenePicker
         lng={lng}
         scenes={scenes.filter(scene => scene.room_id === selection.openRoom?.id)}

@@ -25,6 +25,7 @@ export const CAPTURE_CAMPAIGNS = {
   extended: { directory: '/screenshots/proof', extension: 'png' },
   monitoring: { directory: '/screenshots/proof', extension: 'png' },
   world: { directory: '/screenshots/proof', extension: 'jpg' },
+  tools: { directory: '/screenshots/proof', extension: 'png' },
 } as const;
 
 export type CaptureCampaign = keyof typeof CAPTURE_CAMPAIGNS;
@@ -80,6 +81,7 @@ export const MONITORING_VIEWS = [
 
 // Shown by their landing chapter alone, never repeated in the gallery.
 export const CHAPTER_VIEWS = [
+  { key: 'tools', file: 'tools', campaign: 'tools' },
   { key: 'world', file: 'lia-world', campaign: 'world' },
 ] as const satisfies readonly CaptureView[];
 

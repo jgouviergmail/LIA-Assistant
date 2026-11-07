@@ -7,13 +7,13 @@
  * its downloads —
  * a Google document once per format it exports to, any other file as itself,
  * none the provider says is past the published ceiling (said instead) —
- * « Open in Drive » (the drive's own page, in a new tab that cannot reach back: where an
- * Office file or a Google document is changed), its words changed here when it is a text
- * held whole, its link to copy, what organises it (renamed, moved, copied), and the trash.
+ * « Open » (the drive's own page, in a new tab that cannot reach back: where an Office file or
+ * a Google document is changed), its link to copy, what sends it elsewhere (moved, shared, mailed),
+ * the trash and the question to LIA stand in its bar; behind « … », its words changed here when it
+ * is a text held whole, its new name and its copy.
  * In the trash it comes back or leaves for good, and nothing else is offered.
  */
 import {
-  ChevronDown,
   Copy,
   Download,
   ExternalLink,
@@ -24,18 +24,11 @@ import {
   Pencil,
   RotateCcw,
   Share2,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useState, type ReactNode, type Ref } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LinkedText } from '@/components/ui/linked-text';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +40,7 @@ import { fileWord } from '@/lib/workbench/files-words';
 import { fileSize } from '@/lib/workbench/mail';
 import type { WorkbenchFileDetail } from '@/lib/workbench/types';
 
-import { DetailClose } from '../DetailClose';
+import { actIf, askAct, DetailBar, type AssistOffer, type DetailAct } from '../DetailBar';
 import { FilePreview } from './FilePreview';
 import { FileTextEditor } from './FileTextEditor';
 
@@ -78,14 +71,19 @@ export interface FileDetailProps {
   onCopyLink: (url: string) => void;
   /** Takes the file to LIA. */
   onAsk: (file: WorkbenchFileDetail) => void;
+  /** What LIA can do on it, under the question's icon. */
+  assist?: AssistOffer;
+  /** What LIA answered, above what the file shows. */
+  assistPanel?: ReactNode;
   /** Its words were changed here. */
   onEdited: () => void;
   closeRef?: Ref<HTMLButtonElement>;
 }
 
 export function FileDetail(props: FileDetailProps) {
-  const { lng, file, loading, error, onClose, onRetry, closeRef } = props;
+  const { lng, file, loading, error, onClose, onRetry, closeRef, inTrash } = props;
   const { t } = useTranslation(lng);
+  const [editing, setEditing] = useState(false);
   let content: ReactNode;
   if (file) content = <DetailBody {...props} file={file} />;
   else if (loading) {
@@ -109,77 +107,19 @@ export function FileDetail(props: FileDetailProps) {
       aria-label={file?.name || t('workbench.files.file_title')}
       className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
-      <div className="flex items-center border-b px-2 py-1.5">
-        <DetailClose
-          closeLabel={t('workbench.files.close_file')}
-          backLabel={t('workbench.tools.files.label')}
-          onClose={onClose}
-          buttonRef={closeRef}
-        />
-      </div>
+      <DetailBar
+        lng={lng}
+        closeLabel={t('workbench.files.close_file')}
+        backLabel={t('workbench.tools.files.label')}
+        onClose={onClose}
+        closeRef={closeRef}
+        acts={
+          file &&
+          (inTrash ? trashActs(props, file, t) : liveActs(props, file, () => setEditing(true), t))
+        }
+      />
       {content}
-    </article>
-  );
-}
-
-function TrashActions({
-  lng,
-  file,
-  onRestore,
-  onDeleteForever,
-}: Pick<FileDetailProps, 'lng' | 'onRestore' | 'onDeleteForever'> & {
-  file: WorkbenchFileDetail;
-}) {
-  const { t } = useTranslation(lng);
-  return (
-    <div className="flex flex-wrap justify-end gap-2 border-t p-3">
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onRestore(file)}>
-        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.files.restore')}
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1.5 text-destructive hover:text-destructive"
-        onClick={() => onDeleteForever(file)}
-      >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.files.delete_forever')}
-      </Button>
-    </div>
-  );
-}
-
-function DetailBody(props: FileDetailProps & { file: WorkbenchFileDetail }) {
-  const { lng, provider, file, zone, maxBytes, inTrash, onRestore, onDeleteForever } = props;
-  const { t } = useTranslation(lng);
-  const [editing, setEditing] = useState(false);
-  return (
-    <>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <h2 className="break-words text-lg font-bold">
-          {file.name || t('workbench.files.no_name')}
-        </h2>
-        <FilePreview key={`${file.id}:${file.modified_at}`} lng={lng} file={file} />
-        <FileFacts lng={lng} provider={provider} file={file} zone={zone} />
-        {file.description && (
-          <p className="whitespace-pre-wrap break-words text-sm">
-            <LinkedText text={file.description} />
-          </p>
-        )}
-        <Downloads lng={lng} provider={provider} file={file} maxBytes={maxBytes} />
-      </div>
-      {inTrash ? (
-        <TrashActions
-          lng={lng}
-          file={file}
-          onRestore={onRestore}
-          onDeleteForever={onDeleteForever}
-        />
-      ) : (
-        <LiveActions {...props} onEdit={() => setEditing(true)} />
-      )}
-      {editing && (
+      {editing && file && (
         <FileTextEditor
           lng={lng}
           file={file}
@@ -187,101 +127,107 @@ function DetailBody(props: FileDetailProps & { file: WorkbenchFileDetail }) {
           onSaved={props.onEdited}
         />
       )}
-    </>
+    </article>
   );
 }
 
-function LiveActions({
+type Say = (key: string) => string;
+
+/** What a file in the trash offers: it comes back or leaves for good. */
+function trashActs(
+  { onRestore, onDeleteForever }: FileDetailProps,
+  file: WorkbenchFileDetail,
+  t: Say
+): readonly DetailAct[] {
+  return [
+    {
+      label: t('workbench.files.restore'),
+      icon: RotateCcw,
+      onSelect: () => onRestore(file),
+    },
+    {
+      label: t('workbench.files.delete_forever'),
+      icon: Trash2,
+      danger: true,
+      onSelect: () => onDeleteForever(file),
+    },
+  ];
+}
+
+/** What a live file offers: what organises it in place waits behind « … », the rest in the bar. */
+function liveActs(
+  props: FileDetailProps,
+  file: WorkbenchFileDetail,
+  onEdit: () => void,
+  t: Say
+): readonly DetailAct[] {
+  const { provider, maxBytes, onTrash, onRename, onMove, onCopy, onShare, onMail } = props;
+  const { onCopyLink, onAsk, assist } = props;
+  const link = file.web_url;
+  const leaves = file.downloadable && !isTooLarge(file, maxBytes);
+  return [
+    ...actIf(Boolean(link), {
+      label: t(fileWord(provider, 'open_in_drive')),
+      icon: ExternalLink,
+      href: link ?? undefined,
+      external: true,
+    }),
+    ...actIf(Boolean(link), {
+      label: t('workbench.files.copy_link'),
+      icon: Link2,
+      onSelect: () => link && onCopyLink(link),
+    }),
+    { label: t('workbench.files.move'), icon: FolderInput, onSelect: () => onMove(file) },
+    { label: t('workbench.files.share'), icon: Share2, onSelect: () => onShare(file) },
+    ...actIf(Boolean(onMail) && leaves, {
+      label: t('workbench.files.send_by_mail'),
+      icon: Mail,
+      onSelect: () => onMail?.(file),
+    }),
+    ...actIf(file.editable, {
+      label: t('workbench.files.edit_text'),
+      icon: FilePenLine,
+      more: true,
+      onSelect: onEdit,
+    }),
+    {
+      label: t('workbench.files.rename'),
+      icon: Pencil,
+      more: true,
+      onSelect: () => onRename(file),
+    },
+    ...actIf(file.kind === 'file', {
+      label: t('workbench.files.copy'),
+      icon: Copy,
+      more: true,
+      onSelect: () => onCopy(file),
+    }),
+    { label: t('workbench.files.trash'), icon: Trash2, danger: true, onSelect: onTrash },
+    askAct(t('workbench.ask.label'), () => onAsk(file), assist),
+  ];
+}
+
+function DetailBody({
   lng,
   provider,
   file,
-  onTrash,
-  onRename,
-  onMove,
-  onCopy,
-  onShare,
-  onMail,
+  zone,
   maxBytes,
-  onCopyLink,
-  onAsk,
-  onEdit,
-}: FileDetailProps & { file: WorkbenchFileDetail; onEdit: () => void }) {
+  assistPanel,
+}: FileDetailProps & { file: WorkbenchFileDetail }) {
   const { t } = useTranslation(lng);
-  const leaves = file.downloadable && !isTooLarge(file, maxBytes);
   return (
-    <div className="flex flex-wrap justify-end gap-2 border-t p-3">
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAsk(file)}>
-        <Sparkles className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.ask.label')}
-      </Button>
-      {file.editable && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-          <FilePenLine className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.files.edit_text')}
-        </Button>
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <h2 className="break-words text-lg font-bold">{file.name || t('workbench.files.no_name')}</h2>
+      {assistPanel}
+      <FilePreview key={`${file.id}:${file.modified_at}`} lng={lng} file={file} />
+      <FileFacts lng={lng} provider={provider} file={file} zone={zone} />
+      {file.description && (
+        <p className="whitespace-pre-wrap break-words text-sm">
+          <LinkedText text={file.description} />
+        </p>
       )}
-      {file.web_url && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => file.web_url && onCopyLink(file.web_url)}
-          >
-            <Link2 className="h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.copy_link')}
-          </Button>
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <a href={file.web_url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              {t(fileWord(provider, 'open_in_drive'))}
-            </a>
-          </Button>
-        </>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            {t('workbench.files.organise')}
-            <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onRename(file)}>
-            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.rename')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onMove(file)}>
-            <FolderInput className="mr-2 h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.move')}
-          </DropdownMenuItem>
-          {file.kind === 'file' && (
-            <DropdownMenuItem onSelect={() => onCopy(file)}>
-              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t('workbench.files.copy')}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={() => onShare(file)}>
-            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            {t('workbench.files.share')}
-          </DropdownMenuItem>
-          {onMail && leaves && (
-            <DropdownMenuItem onSelect={() => onMail(file)}>
-              <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t('workbench.files.send_by_mail')}
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1.5 text-destructive hover:text-destructive"
-        onClick={onTrash}
-      >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.files.trash')}
-      </Button>
+      <Downloads lng={lng} provider={provider} file={file} maxBytes={maxBytes} />
     </div>
   );
 }

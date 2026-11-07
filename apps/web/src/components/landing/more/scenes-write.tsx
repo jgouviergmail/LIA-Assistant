@@ -1,6 +1,7 @@
 /**
  * Scenes of section 01 — "When you write": draft persistence, slash
- * commands, screenshot paste, drag-and-drop. Each scene is a looped,
+ * commands, screenshot paste, drag-and-drop, a reply kept for later. Each
+ * scene is a looped,
  * timer-driven micro-demo built from the shared primitives; the last phase
  * is the designed resting frame (shown under prefers-reduced-motion).
  */
@@ -17,6 +18,7 @@ import {
   Library,
   Paperclip,
   Plus,
+  Reply,
   RotateCw,
   Search,
   Settings,
@@ -26,7 +28,15 @@ import {
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, KeyCap, MiniComposer, MiniSettingRow, SkeletonLine, STAGE } from './primitives';
+import {
+  Cursor,
+  KeyCap,
+  MiniChip,
+  MiniComposer,
+  MiniSettingRow,
+  SkeletonLine,
+  STAGE,
+} from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -359,6 +369,57 @@ function SendUndoScene({ active, labels }: SceneProps) {
   );
 }
 
+type ReplyDraftPhase = 'writing' | 'kept' | 'thread';
+const REPLY_DRAFT_STEPS: readonly TimelineStep<ReplyDraftPhase>[] = [
+  { at: 0, state: 'writing' },
+  { at: 1500, state: 'kept' },
+  { at: 2300, state: 'thread' },
+];
+
+/**
+ * A reply set aside: « Draft » closes the composer, and the conversation keeps it under the
+ * message it answers, its quote and its file with it. The resting frame is that row.
+ */
+function ReplyAsDraftScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(REPLY_DRAFT_STEPS, { active });
+  const filed = phase === 'thread';
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div className="w-full max-w-[220px] space-y-1.5 rounded-md border border-border bg-background px-2.5 py-2 shadow-sm">
+        <SkeletonLine w="w-3/4" />
+        <SkeletonLine w="w-1/2" />
+      </div>
+      <div className="relative h-11 w-full max-w-[220px]">
+        <div
+          className={cn(
+            'absolute inset-0 flex items-center gap-2 rounded-md border border-border bg-background px-2.5 shadow-sm transition-opacity duration-300 motion-reduce:transition-none',
+            filed ? 'opacity-0' : 'opacity-100'
+          )}
+        >
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <SkeletonLine w="w-2/3" />
+            <SkeletonLine w="w-1/3" />
+          </div>
+          <MiniChip pressed={phase === 'kept'}>{labels.draft}</MiniChip>
+        </div>
+        <div
+          className={cn(
+            'absolute inset-0 flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-2.5 transition-opacity duration-300 motion-reduce:transition-none',
+            filed ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <Reply className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+          <SkeletonLine w="w-16" className="bg-primary/25" />
+          <span className="ml-auto flex shrink-0 items-center gap-1 text-px-10 font-medium text-primary">
+            <Paperclip className="h-3 w-3" aria-hidden="true" />
+            {labels.draft}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   draft_survives: DraftSurvivesScene,
   slash_commands: SlashCommandsScene,
@@ -367,4 +428,5 @@ export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   knowledge_pick: KnowledgePickScene,
   bring_back: BringBackScene,
   send_undo: SendUndoScene,
+  reply_as_draft: ReplyAsDraftScene,
 };

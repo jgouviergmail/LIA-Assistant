@@ -322,3 +322,52 @@ proposés sans leur connecteur ; leur échec est désormais typé
 `tests/unit/domains/agents/telephony/test_live_tools.py`,
 `test_live_tools_router.py`, `tests/unit/domains/live/test_direct_mode.py`,
 `tests/unit/domains/telephony/test_call_me_tool.py`.
+
+## Amendement 2026-11-06 — une borne se publie aussi à la personne, et ne refuse jamais une lecture
+
+**Constat** (production 2026-11-06). L'extracteur écrit une mémoire de 495
+caractères. Une personne y ajoute quelques mots dans ses réglages : cinq enregistrements répondent 422 (`content:string_too_long`), et
+l'écran ne dit que « Erreur lors de la mise à jour ». La chronologie montre le coût
+de ce silence : un désépinglage tenté à l'aveugle, une raison que rien n'avait donnée.
+
+- **Le formulaire** n'affichait ni limite ni motif.
+- **Le prompt d'extraction** ne disait rien de la borne, et `ExtractedMemory.content`
+  était le seul écrivain à ne pas l'appliquer : il acceptait 700 caractères, ou une
+  chaîne vide sur un `update`.
+- **Les journaux** ne disaient rien : un 422 est répondu avant tout gestionnaire, et
+  `request_completed` reste sous le niveau de production. Seul
+  `validation_errors_total` portait le fait.
+- **`MemoryResponse` héritait de la borne d'écriture.** Une seule ligne de 501
+  caractères levait à la projection, donc un 500 sur la liste entière et sur l'export.
+
+**Décision.**
+
+- **Le producteur d'une valeur peut être une personne.** Ce qu'un validateur refuse,
+  le formulaire qui remplit le champ le lit. `MemoryListResponse.limits` publie les
+  bornes, et `MemoryFormFields` compte, nomme le dépassement et retient l'envoi.
+- **Compter comme le validateur.** Pydantic compte des points de code, `String.length`
+  des unités UTF-16 : un compteur qui diffère refuse à tort, et un compte est exact ou
+  n'existe pas (ADR-185).
+- **Le prompt lit la borne qu'on lui applique** par placeholder, et `ExtractedMemory`
+  l'applique à son tour. Un fait trop long est refusé et dit
+  (`memory_item_validation_failed`) : le couper le déformerait, et rien ne le
+  répare sans inventer.
+- **Une borne d'écriture ne refuse jamais une lecture.** `MemoryResponse` déclare de
+  nouveau `content` sans ses bornes dans `MemoryStored`, que lisent aussi les aperçus
+  de l'assistant : ce que la base contient se montre et se corrige. Baisser
+  `MEMORY_CONTENT_MAX_CHARS` laisse des lignes plus longues derrière soi, et elles
+  restent lisibles.
+- **Seul un texte qui serait stocké peut refuser une action** : un `delete` ne lit que
+  son id, et un `update` au contenu vide garde son texte. Celui-ci écrivait un
+  successeur vide.
+- **Un refus laisse une ligne** : `request_validation_failed` dit le type d'erreur et le
+  nombre d'erreurs, jamais la valeur. Le champ n'est nommé que si le code a écrit ce
+  nom : à un niveau sous sa source, et jamais pour un `extra_forbidden`. Le reste sort
+  en `<withheld>`, car `loc` porte aussi ce qu'un client a tapé (ADR-317). Le formulaire
+  dit de même un refus qu'il n'a pas pu prévoir (`memories.text_refused`).
+
+**Preuves.** `tests/unit/domains/memories/test_text_bounds.py`,
+`tests/unit/test_request_validation_log.py`,
+`tests/integration/test_memory_management_update.py`,
+`apps/web/src/lib/memories/__tests__/text-bounds.test.ts`,
+`apps/web/e2e/smoke/settings-memory-bounds.spec.ts`.

@@ -4651,6 +4651,42 @@
         "t.skills",
         "t.response"
       ]
+    },
+    {
+      "adr": 371,
+      "date": "2026-11-06",
+      "theme": "orchestration",
+      "functional": [
+        "f.llmconfig",
+        "f.planning",
+        "f.costs"
+      ],
+      "technical": [
+        "t.langgraph",
+        "t.llmfactory",
+        "t.pricing"
+      ]
+    },
+    {
+      "adr": 372,
+      "date": "2026-11-06",
+      "theme": "connectors",
+      "functional": [
+        "f.connectors",
+        "f.mail",
+        "f.calendar",
+        "f.contacts",
+        "f.tasks",
+        "f.drive",
+        "f.costs"
+      ],
+      "technical": [
+        "t.connclients",
+        "t.llmfactory",
+        "t.pricing",
+        "t.registers",
+        "t.web"
+      ]
     }
   ]
 }

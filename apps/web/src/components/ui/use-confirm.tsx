@@ -52,6 +52,14 @@ export interface ConfirmOptions {
   destructive?: boolean;
 }
 
+/** How a family of screens draws its questions, where it differs from the app's. */
+export interface ConfirmLook {
+  /** The style of « Cancel »; left out, the dialog's own. */
+  cancelVariant?: React.ComponentProps<typeof AlertDialogCancel>['variant'];
+  /** The classes of the dialog's head. */
+  headerClassName?: string;
+}
+
 export interface UseConfirmReturn {
   /** Ask the user. Resolves true only on an explicit confirmation. */
   confirm: (options: ConfirmOptions) => Promise<boolean>;
@@ -59,7 +67,7 @@ export interface UseConfirmReturn {
   confirmDialog: React.ReactNode;
 }
 
-export function useConfirm(): UseConfirmReturn {
+export function useConfirm(look: ConfirmLook = {}): UseConfirmReturn {
   const { t } = useTranslation();
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   // The pending promise's resolver. A ref, not state: resolving must not wait
@@ -94,7 +102,7 @@ export function useConfirm(): UseConfirmReturn {
       }}
     >
       <AlertDialogContent>
-        <AlertDialogHeader>
+        <AlertDialogHeader className={look.headerClassName}>
           <AlertDialogTitle>{options?.title ?? ''}</AlertDialogTitle>
           {options?.description && (
             <AlertDialogDescription className="whitespace-pre-line">
@@ -103,7 +111,9 @@ export function useConfirm(): UseConfirmReturn {
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => settle(false)}>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogCancel variant={look.cancelVariant} onClick={() => settle(false)}>
+            {t('common.cancel')}
+          </AlertDialogCancel>
           {/* The variant, not a class rewrite: `AlertDialogAction` now resolves
               it through `buttonVariants`, so this button sits inside the
               design-system contrast guard like every other one. */}

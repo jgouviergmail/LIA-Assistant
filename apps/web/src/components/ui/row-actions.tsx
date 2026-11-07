@@ -37,8 +37,13 @@ import { cn } from '@/lib/utils';
 export interface RowAction {
   /** Stable identity of the action within the row. */
   key: string;
-  /** Already translated; becomes the accessible name on both renderings. */
+  /** Already translated; the name of its icon, which stands among the other rows' icons. */
   label: string;
+  /**
+   * Its word in the « ⋮ » menu, where `menuLabel` has named the row already: a list of acts that
+   * repeat a subject on every line reads as a list of subjects. Left out, the label.
+   */
+  menuText?: string;
   icon: LucideIcon;
   onSelect: () => void;
   /** `destructive` carries red at rest — never revealed by hover only. */
@@ -155,7 +160,7 @@ export function RowActions({ actions, menuLabel, compact, className }: RowAction
                 ) : (
                   <Icon aria-hidden="true" />
                 )}
-                {action.label}
+                {action.menuText ?? action.label}
               </>
             );
             const className = cn(

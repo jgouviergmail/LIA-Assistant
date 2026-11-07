@@ -13,7 +13,7 @@ import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +29,8 @@ import type {
   WorkbenchSharedPerson,
 } from '@/lib/workbench/types';
 import { generateUUID } from '@/lib/utils';
+import { ToolDialogHeader } from '../ToolForm';
+import { NativeSelect } from '@/components/ui/native-select';
 
 const SHARING_PATH = '/workbench/files/sharing';
 const ROLES = ['reader', 'writer'] as const;
@@ -92,11 +94,11 @@ export function FileShareDialog({ lng, file, onClose }: FileShareDialogProps) {
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-md">
-        <DialogHeader>
+        <ToolDialogHeader>
           <DialogTitle className="truncate">
             {t('workbench.files.share_title', { name: file.name })}
           </DialogTitle>
-        </DialogHeader>
+        </ToolDialogHeader>
         <form className="flex flex-wrap items-center gap-2" onSubmit={event => void share(event)}>
           <div className="min-w-0 flex-1 basis-40">
             <Input
@@ -109,18 +111,18 @@ export function FileShareDialog({ lng, file, onClose }: FileShareDialogProps) {
               placeholder={t('workbench.files.share_email')}
             />
           </div>
-          <select
+          <NativeSelect
             aria-label={t('workbench.files.share_role')}
             value={role}
             onChange={event => setRole(ROLES.find(item => item === event.target.value) ?? 'reader')}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-auto px-2"
           >
             {ROLES.map(item => (
               <option key={item} value={item}>
                 {t(`workbench.files.role_${item}`)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <Button type="submit" size="sm" className="gap-1.5" isLoading={busy}>
             <UserPlus className="h-4 w-4" aria-hidden="true" />
             {t('workbench.files.share_send')}

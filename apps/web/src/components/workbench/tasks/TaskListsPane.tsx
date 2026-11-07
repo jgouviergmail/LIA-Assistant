@@ -13,10 +13,8 @@
  */
 import Link from 'next/link';
 import { CalendarClock, ListChecks, Plus } from 'lucide-react';
-import { useId } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
@@ -25,6 +23,7 @@ import type { WorkbenchTaskList, WorkbenchTaskView } from '@/lib/workbench/types
 import type { WorkbenchPageState } from '@/hooks/useWorkbenchPage';
 
 import { paneWidth, type WorkbenchPaneState } from '../useWorkbenchPane';
+import { NativeSelect } from '@/components/ui/native-select';
 
 export interface TaskListsPaneProps {
   lng: Language;
@@ -142,20 +141,17 @@ export function TaskListsSelect({
   onPickView,
 }: TaskListsPaneProps) {
   const { t } = useTranslation(lng);
-  const id = useId();
   return (
     <div className="flex flex-wrap items-end gap-2 border-b px-4 py-3 lg:hidden">
       <div className="min-w-0 flex-1 space-y-3">
-        <Label htmlFor={id}>{t('workbench.tasks.list_label')}</Label>
-        <select
-          id={id}
+        <NativeSelect
+          aria-label={t('workbench.tasks.list_label')}
           value={view ? `${VIEW_OPTION}${view}` : (openId ?? '')}
           onChange={event => {
             const picked = TASK_VIEWS.find(item => `${VIEW_OPTION}${item}` === event.target.value);
             if (picked) onPickView(picked);
             else onPick(event.target.value);
           }}
-          className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <optgroup label={t('workbench.tasks.views_title')}>
             {TASK_VIEWS.map(item => (
@@ -171,7 +167,7 @@ export function TaskListsSelect({
               </option>
             ))}
           </optgroup>
-        </select>
+        </NativeSelect>
       </div>
       {lists.nextToken && (
         <Button

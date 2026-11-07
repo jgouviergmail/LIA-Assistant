@@ -114,6 +114,10 @@ export interface WorkbenchLimits {
   draft_autosave_seconds: number;
   /** The longest words one search takes. */
   search_max_chars: number;
+  /** The longest words of the person's own a writing helper takes (ADR-372). */
+  assist_text_max_chars: number;
+  /** The longest instruction a person gives an assist (ADR-372). */
+  assist_instruction_max_chars: number;
 }
 
 /** The rail: every tool in rail order, and the bounds. */

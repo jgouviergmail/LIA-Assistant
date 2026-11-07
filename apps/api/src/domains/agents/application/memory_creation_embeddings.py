@@ -3,6 +3,8 @@
 from collections.abc import Awaitable, Callable
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.domains.memories.prepared_embeddings import PreparedMemoryEmbeddings
 from src.domains.memories.service import _generate_document_embedding
 from src.infrastructure.llm.embedding_context import (
@@ -11,6 +13,29 @@ from src.infrastructure.llm.embedding_context import (
     set_embedding_context,
 )
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
+
+
+def released_after(
+    db: AsyncSession, guard: Callable[[], Awaitable[None]]
+) -> Callable[[], Awaitable[None]]:
+    """A fence that ends its read: an embedding is a network call (ADR-304).
+
+    Nothing is written before the embeddings, so ending the transaction loses nothing and the
+    write that follows reads again under its lock.
+
+    Args:
+        db: The session the fence reads on.
+        guard: The fence.
+
+    Returns:
+        The fence, leaving no transaction open.
+    """
+
+    async def fence() -> None:
+        await guard()
+        await db.rollback()
+
+    return fence
 
 
 async def prepare_memory_creation_embeddings(

@@ -32,6 +32,7 @@ import applicationProof from '../../../../public/screenshots/proof/manifest.json
 import extendedProof from '../../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../../public/screenshots/proof/grafana-manifest.json';
 import worldProof from '../../../../public/screenshots/proof/world-manifest.json';
+import toolsProof from '../../../../public/screenshots/proof/tools-manifest.json';
 
 /** Thumbnails are the only per-slide named controls: one per view. */
 function thumbnailNames(): string[] {
@@ -123,6 +124,21 @@ describe('ScreenshotsSection', () => {
     // The gallery uses the readable viewport capture and preserves its source in full screen.
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
+  });
+
+  it('shows the Tools capture in its chapter alone, at its own revision', () => {
+    const chapter = render(<ScreenshotsSection view="tools" />);
+
+    expectStageVariants(
+      screen.getByRole('img', { name: 'landing.screenshots.proof.tools' }),
+      'tools',
+      toolsProof.revision
+    );
+    expect(toolsProof.images[0]).toMatchObject({ file: 'tools.png', width: 1600, height: 1000 });
+    chapter.unmount();
+
+    render(<ScreenshotsSection />);
+    expect(thumbnailNames()).not.toContain('landing.screenshots.proof.tools');
   });
 
   it('opens the owner-supplied world JPEG at its original revision in full screen', async () => {

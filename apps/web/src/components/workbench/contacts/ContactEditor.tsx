@@ -9,19 +9,15 @@
  * (`lib/workbench/contacts`); a new contact carries ONE key for the life of
  * this form. A refusal is said in its own words — a list the provider cannot
  * hold names its bound. Each opening mounts a new editor. A birthday with no year
- * cannot sit in a date field: it is named beside it, and goes by its button.
+ * cannot sit in a date field: it is named beside it, and goes by its button. What LIA
+ * found opens filled in, changed from the card as it stands; a new contact can start from
+ * a photographed card (ADR-372). Either way the person saves it, or not.
  */
 import { Plus, X } from 'lucide-react';
 import { useId, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/i18n/client';
@@ -36,14 +32,21 @@ import {
   fullBirthday,
   newContactBody,
   valuesMax,
+  withCard,
+  withFoundValues,
   type ContactChangeBody,
   type ContactFields,
   type ContactList,
   type NewContactBody,
 } from '@/lib/workbench/contacts';
+import type { ProposedValue } from '@/lib/workbench/assist';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { WorkbenchContact } from '@/lib/workbench/types';
 import { generateUUID } from '@/lib/utils';
+
+import { CardAssist } from '../assist/CardAssist';
+import { NativeSelect } from '@/components/ui/native-select';
+import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface ContactEditorProps {
   lng: Language;
@@ -51,6 +54,8 @@ export interface ContactEditorProps {
   contact: WorkbenchContact | undefined;
   /** What a new contact opens on: another tool's words. */
   prefill?: Partial<ContactFields>;
+  /** What the person kept of what LIA found: the form opens with it, unsaved. */
+  found?: readonly ProposedValue[];
   bounds: Readonly<Record<string, number>>;
   onCreate: (body: NewContactBody) => Promise<unknown>;
   onUpdate: (body: ContactChangeBody) => Promise<unknown>;
@@ -61,6 +66,7 @@ export function ContactEditor({
   lng,
   contact,
   prefill,
+  found,
   bounds,
   onCreate,
   onUpdate,
@@ -70,7 +76,7 @@ export function ContactEditor({
   const [initial] = useState(() =>
     contact ? fieldsOfContact(contact) : { ...EMPTY_CONTACT, ...prefill }
   );
-  const [fields, setFields] = useState(initial);
+  const [fields, setFields] = useState(() => (found ? withFoundValues(initial, found) : initial));
   const [key] = useState(() => generateUUID());
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -104,15 +110,24 @@ export function ContactEditor({
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:overflow-y-auto max-sm:rounded-none max-sm:border-0 sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto">
         <form onSubmit={save} className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>
-              {t(
-                contact
-                  ? 'workbench.contacts.editor.title_edit'
-                  : 'workbench.contacts.editor.title_new'
+          <ToolDialogHeader>
+            <div className="flex items-center gap-1">
+              <DialogTitle>
+                {t(
+                  contact
+                    ? 'workbench.contacts.editor.title_edit'
+                    : 'workbench.contacts.editor.title_new'
+                )}
+              </DialogTitle>
+              {!contact && (
+                <CardAssist
+                  lng={lng}
+                  maxBytes={bounds.photo_max_bytes}
+                  onRead={card => setFields(current => withCard(current, card))}
+                />
               )}
-            </DialogTitle>
-          </DialogHeader>
+            </div>
+          </ToolDialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label={t('workbench.contacts.editor.given_name')}
@@ -178,10 +193,8 @@ export function ContactEditor({
               {problem}
             </p>
           )}
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t('common.cancel')}
-            </Button>
+          <ToolActions>
+            <CancelButton lng={lng} onClick={onClose} />
             <Button
               type="submit"
               isLoading={saving}
@@ -189,7 +202,7 @@ export function ContactEditor({
             >
               {t(contact ? 'workbench.contacts.editor.save' : 'workbench.contacts.editor.create')}
             </Button>
-          </DialogFooter>
+          </ToolActions>
         </form>
       </DialogContent>
     </Dialog>
@@ -288,18 +301,18 @@ function MultiValueField({ lng, list, fields, max, valueMax, onChange }: MultiVa
               onChange={event => at(index, { text: event.target.value })}
             />
           )}
-          <select
+          <NativeSelect
             aria-label={t('workbench.contacts.kind_label', { position: index + 1 })}
             value={row.type ?? 'other'}
             onChange={event => at(index, { type: event.target.value })}
-            className="h-10 shrink-0 rounded-md border bg-background px-2 text-sm"
+            className="w-auto shrink-0 px-2"
           >
             {[...new Set([...kinds, row.type ?? 'other'])].map(kind => (
               <option key={kind} value={kind}>
                 {kinds.includes(kind) ? t(`workbench.contacts.kinds.${kind}`) : kind}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <Button
             type="button"
             variant="ghost"

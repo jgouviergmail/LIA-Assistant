@@ -759,7 +759,7 @@ class TestLLMConfigE2E:
             max_tokens=10000,
         )
 
-        llm = get_llm("contacts_agent", config_override=custom_config)
+        llm = get_llm("query_agent", config_override=custom_config)
 
         # Then: LLM created with new pattern
         assert llm is not None

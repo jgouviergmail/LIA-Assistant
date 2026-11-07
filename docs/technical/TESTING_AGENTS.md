@@ -289,19 +289,20 @@ def test_agent_results_accumulation():
 #### Testing Node Registration
 
 ```python
-from src.domains.agents.graph import build_agent_graph
+from src.domains.agents.graph import build_graph
 
-def test_graph_nodes_registered():
+@pytest.mark.asyncio
+async def test_graph_nodes_registered(test_settings):
     """Test that all expected nodes are registered in graph."""
     # ACT
-    graph = build_agent_graph()
+    graph, _ = await build_graph(config=test_settings, checkpointer=None)
 
     # ASSERT
     expected_nodes = [
         "router",
+        "planner",
         "task_orchestrator",
-        "contacts_agent",
-        "emails_agent",
+        "initiative",
         "response",
     ]
 
@@ -319,8 +320,8 @@ def test_router_conditional_edge():
         "messages": [HumanMessage(content="Search my contacts")],
         "routing_history": [
             RouterOutput(
-                intention="contacts_search",
-                next_node="task_orchestrator",
+                intention="action",
+                next_node="planner",
                 confidence=0.9,
             )
         ],
@@ -328,10 +329,10 @@ def test_router_conditional_edge():
     }
 
     # ACT
-    next_node = decide_next_node(state)
+    next_node = route_from_router(state)
 
     # ASSERT
-    assert next_node == "task_orchestrator"
+    assert next_node == "planner"
 ```
 
 ### 4.3 Checkpointing Testing
@@ -344,7 +345,7 @@ async def test_checkpoint_saves_state():
     """Test that checkpointer persists state correctly."""
     # ARRANGE
     checkpointer = MemorySaver()
-    graph = build_agent_graph(checkpointer=checkpointer)
+    graph, _ = await build_graph(checkpointer=checkpointer)
 
     config = {"configurable": {"thread_id": "test-thread"}}
     initial_state = {"messages": [HumanMessage(content="Hello")]}
@@ -367,23 +368,22 @@ async def test_checkpoint_saves_state():
 ```python
 @pytest.mark.asyncio
 async def test_hitl_interrupt_before_tool_execution():
-    """Test that graph interrupts before tool execution for HITL."""
+    """Test that a pending draft stops the graph before the tool runs."""
     # ARRANGE
-    graph = build_agent_graph(interrupt_before=["contacts_agent"])
+    graph, _ = await build_graph(checkpointer=MemorySaver())
     config = {"configurable": {"thread_id": "test-thread"}}
 
     # ACT
     events = []
     async for event in graph.astream(
-        {"messages": [HumanMessage(content="Search contacts")]},
+        {"messages": [HumanMessage(content="Send an email to Marie")]},
         config,
     ):
         events.append(event)
 
     # ASSERT
-    # Should stop at interrupt, not execute tool
-    assert events[-1]["node"] == "__interrupt__"
-    assert "contacts_agent" in events[-1]["interrupts"]
+    # hitl_dispatch calls interrupt(): the stream stops there, the tool has not run
+    assert "__interrupt__" in events[-1]
 ```
 
 #### Testing Resume After HITL
@@ -393,27 +393,27 @@ async def test_hitl_interrupt_before_tool_execution():
 async def test_resume_after_hitl_approval():
     """Test graph resumes execution after HITL approval."""
     # ARRANGE
-    graph = build_agent_graph(interrupt_before=["contacts_agent"])
+    graph, _ = await build_graph(checkpointer=MemorySaver())
     config = {"configurable": {"thread_id": "test-thread"}}
 
     # Step 1: Run until interrupt
     async for event in graph.astream(
-        {"messages": [HumanMessage(content="Search contacts")]},
+        {"messages": [HumanMessage(content="Send an email to Marie")]},
         config,
     ):
         pass
 
     # Step 2: User approves
-    approval_update = {"hitl_decision": "APPROVE"}
+    approval = Command(resume={"decisions": [{"type": "approve"}]})
 
     # ACT - Resume execution
     events = []
-    async for event in graph.astream(approval_update, config):
+    async for event in graph.astream(approval, config):
         events.append(event)
 
     # ASSERT
     # Should complete execution after approval
-    assert events[-1]["node"] == "response"
+    assert "response" in events[-1]
 ```
 
 ---
@@ -633,19 +633,22 @@ async def test_stream_clarification_question():
 
 **File:** `test_orchestration.py`
 
-#### Testing Contacts Search Plan
+#### Testing a Browser Plan
+
+The legacy intention plan leads to the browser agent alone; a plan the planner wrote calls its tools
+directly ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)).
 
 ```python
 @pytest.mark.asyncio
-async def test_create_orchestration_plan_contacts_search():
-    """Test orchestration plan creation for contacts search."""
+async def test_create_orchestration_plan_browser_navigate():
+    """Test orchestration plan creation for a page to open."""
     # ARRANGE
     router_output = RouterOutput(
-        intention="contacts_search",
+        intention=INTENTION_BROWSER_NAVIGATE,
         confidence=0.9,
-        context_label="contact",
+        context_label="browser",
         next_node="task_orchestrator",
-        reasoning="User wants to search contacts",
+        reasoning="User wants to open a page",
     )
 
     state: MessagesState = {
@@ -661,31 +664,31 @@ async def test_create_orchestration_plan_contacts_search():
 
     # ASSERT
     assert isinstance(plan, OrchestratorPlan)
-    assert plan.agents_to_call == ["contacts_agent"]
+    assert plan.agents_to_call == [AGENT_BROWSER]
     assert plan.execution_mode == "sequential"
-    assert plan.metadata["intention"] == "contacts_search"
+    assert plan.metadata["intention"] == INTENTION_BROWSER_NAVIGATE
 ```
 
-#### Testing Multi-Agent Plan
+#### Testing a Plan With No Agent
 
 ```python
 @pytest.mark.asyncio
-async def test_create_orchestration_plan_multi_agent():
-    """Test plan with multiple agents in sequence."""
+async def test_create_orchestration_plan_conversation():
+    """Test orchestration plan for simple conversation (no agents)."""
     # ARRANGE
     router_output = RouterOutput(
-        intention="contacts_and_emails",
-        next_node="task_orchestrator",
-        confidence=0.85,
+        intention="conversation",
+        confidence=0.95,
+        context_label="general",
+        next_node="response",
+        reasoning="Simple greeting",
     )
 
     # ACT
     plan = await create_orchestration_plan(router_output, state)
 
     # ASSERT
-    assert len(plan.agents_to_call) == 2
-    assert "contacts_agent" in plan.agents_to_call
-    assert "emails_agent" in plan.agents_to_call
+    assert plan.agents_to_call == []  # No agents for conversation
     assert plan.execution_mode == "sequential"
 ```
 
@@ -1536,7 +1539,7 @@ async def test_orchestration_plan_creation():
     """Test creating orchestration plan from router output."""
     # ARRANGE
     router_output = RouterOutput(
-        intention="contacts_search",
+        intention=INTENTION_BROWSER_NAVIGATE,
         next_node="task_orchestrator",
         confidence=0.9,
     )
@@ -1551,7 +1554,7 @@ async def test_orchestration_plan_creation():
     plan = await create_orchestration_plan(router_output, state)
 
     # ASSERT
-    assert plan.agents_to_call == ["contacts_agent"]
+    assert plan.agents_to_call == [AGENT_BROWSER]
     assert plan.execution_mode == "sequential"
 ```
 

@@ -67,7 +67,9 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/services/query_analyzer_service.py": SpendRoad.TURN,
     "domains/agents/services/semantic_pivot_service.py": SpendRoad.TURN,
     "domains/agents/services/smart_planner_service.py": SpendRoad.TURN,
-    # The send tools' content generation, moved out of emails_tools (ADR-314).
+    # The send tools' content generation, moved out of emails_tools (ADR-314). This one and
+    # the three below it are also asked from the Tools (ADR-372): their door hands them its
+    # own accounted config, which reaches the ledger as the turn's tracker would.
     "domains/agents/emails/content_generation.py": SpendRoad.TURN,
     # The reply a mailbox draft holds, written in the turn (ADR-344).
     "domains/agents/emails/reply_drafting.py": SpendRoad.TURN,
@@ -115,6 +117,8 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/meetings/template_resolution.py": SpendRoad.CALLER,
     "domains/meetings/transcript_rewrite.py": SpendRoad.CALLER,
     "domains/relations/debrief/llm.py": SpendRoad.CALLER,
+    # What a click on a tool asks (ADR-372): one door bills every assist.
+    "domains/tool_assists/llm.py": SpendRoad.CALLER,
     # --- The instance pays; no account may be charged for it ---------------
     "domains/diagnostics/diagnosis.py": SpendRoad.INSTANCE,
     "domains/notifications/broadcast_service.py": SpendRoad.INSTANCE,
@@ -193,6 +197,7 @@ CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
     "domains/meetings/template_resolution.py": "infrastructure/proactive/tracking.py",
     "domains/meetings/transcript_rewrite.py": "infrastructure/proactive/tracking.py",
     "domains/relations/debrief/llm.py": "domains/relations/debrief/service.py",
+    "domains/tool_assists/llm.py": "infrastructure/proactive/tracking.py",
     "domains/telephony/return_synthesis.py": "domains/telephony/synthesis_usage.py",
     "infrastructure/scheduler/voice_relay.py": "domains/telephony/synthesis_usage.py",
 }

@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 118 cards in
+ * Single source of truth for the "/more" small-attentions page: 124 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (118 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (124 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -17,6 +17,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Accessibility,
+  Activity,
   ALargeSmall,
   AlertTriangle,
   AppWindow,
@@ -24,6 +25,8 @@ import {
   ArrowRightLeft,
   AtSign,
   AudioLines,
+  BadgeCheck,
+  BadgeEuro,
   BellRing,
   Bookmark,
   CalendarRange,
@@ -58,6 +61,7 @@ import {
   ListChecks,
   ListOrdered,
   ListTree,
+  MailCheck,
   MailPlus,
   Menu,
   MessageSquareCheck,
@@ -123,6 +127,8 @@ import {
   Timer,
 } from 'lucide-react';
 
+import { AssistStars } from '@/components/workbench/assist/AssistStars';
+
 export interface MoreSectionConfig {
   /** Stable section identifier (scene-file suffix + anchors). */
   id: 'write' | 'respond' | 'recover' | 'find' | 'daily' | 'unseen';
@@ -150,6 +156,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'knowledge_pick',
       'bring_back',
       'send_undo',
+      'reply_as_draft',
     ],
   },
   {
@@ -182,6 +189,8 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'backstage',
       'step_counts',
       'named_wait',
+      'assist_stars',
+      'priced_answer',
     ],
   },
   {
@@ -260,6 +269,8 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'wake_phrase',
       'voices_in_language',
       'voice_sample',
+      'quiet_first_look',
+      'health_dials',
       'live_band',
       'live_standby',
       'radio_companion',
@@ -301,6 +312,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'slide_never_overflows',
       'shared_with',
       'reading_width',
+      'value_with_source',
     ],
   },
 ] as const;
@@ -428,6 +440,12 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   drag_with_guests: CalendarClock,
   reading_width: StretchHorizontal,
   grouped_actions: Contact,
+  reply_as_draft: MailCheck,
+  assist_stars: AssistStars,
+  priced_answer: BadgeEuro,
+  quiet_first_look: MailOpen,
+  health_dials: Activity,
+  value_with_source: BadgeCheck,
 };
 
 /**
@@ -554,4 +572,10 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   drag_with_guests: ['notify', 'save'],
   reading_width: [],
   grouped_actions: ['home', 'work'],
+  reply_as_draft: ['draft'],
+  assist_stars: ['sum_up', 'translate', 'read_aloud'],
+  priced_answer: ['summary', 'cost'],
+  quiet_first_look: ['unread'],
+  health_dials: ['steps', 'pulse'],
+  value_with_source: ['value', 'source', 'quote'],
 };

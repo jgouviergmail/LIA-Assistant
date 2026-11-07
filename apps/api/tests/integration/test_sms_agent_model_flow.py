@@ -10,7 +10,6 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.store.memory import InMemoryStore
 
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
-from src.domains.agents.graphs.sms_agent_builder import build_sms_agent
 from src.domains.agents.registry import AgentRegistry
 from src.domains.agents.sms.catalogue_manifests import SMS_AGENT_MANIFEST as SMS_AGENT_MANIFEST
 from src.domains.sms.identity import IdentityBook
@@ -24,6 +23,7 @@ from tests.unit.domains.agents.graphs.test_base_agent_builder_invocation import 
     _captured_prompts,
     _CapturingChatModel,
 )
+from tests.unit.domains.agents.sms.sms_reader_agent import build_sms_reader
 
 pytestmark = pytest.mark.integration
 
@@ -88,7 +88,7 @@ async def test_actual_sms_tool_node_supplies_literal_body_to_domain_model(
             return_value=AgentRegistry(store=context.store),
         ),
     ):
-        agent = build_sms_agent()
+        agent = build_sms_reader()
     configured_key.assert_called_once_with("openai")
     summarizer.assert_called_once()
     await agent.ainvoke(

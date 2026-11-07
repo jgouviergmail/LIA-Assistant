@@ -20,6 +20,7 @@ import applicationProof from '../../../public/screenshots/proof/manifest.json';
 import extendedProof from '../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../public/screenshots/proof/grafana-manifest.json';
 import worldProof from '../../../public/screenshots/proof/world-manifest.json';
+import toolsProof from '../../../public/screenshots/proof/tools-manifest.json';
 
 /**
  * Real frontend views with fictional data, plus World and Grafana captures
@@ -40,6 +41,7 @@ const CAPTURE_MANIFESTS: Record<CaptureCampaign, CaptureManifest> = {
   extended: extendedProof,
   monitoring: monitoringProof,
   world: worldProof,
+  tools: toolsProof,
 };
 
 export function ScreenshotsSection({

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from src.core.constants import (
     EMAIL_DIGEST_MAX_OUTPUT_TOKENS,
     IMAGE_PROMPT_ENHANCEMENT_MAX_OUTPUT_TOKENS,
+    TOOL_ASSIST_MAX_OUTPUT_TOKENS,
 )
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.reasoning_intent import ReasoningIntent
@@ -120,91 +121,11 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         power_tier=POWER_TIER_MEDIUM,
     ),
     # --- Domain Agents ---
-    "contacts_agent": LLMTypeMetadata(
-        llm_type="contacts_agent",
-        display_name="Contacts Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.contacts_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
     "emails_agent": LLMTypeMetadata(
         llm_type="emails_agent",
         display_name="Emails Agent",
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.emails_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "calendar_agent": LLMTypeMetadata(
-        llm_type="calendar_agent",
-        display_name="Calendar Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.calendar_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "drive_agent": LLMTypeMetadata(
-        llm_type="drive_agent",
-        display_name="Drive Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.drive_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "tasks_agent": LLMTypeMetadata(
-        llm_type="tasks_agent",
-        display_name="Tasks Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.tasks_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "weather_agent": LLMTypeMetadata(
-        llm_type="weather_agent",
-        display_name="Weather Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.weather_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "wikipedia_agent": LLMTypeMetadata(
-        llm_type="wikipedia_agent",
-        display_name="Wikipedia Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.wikipedia_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "perplexity_agent": LLMTypeMetadata(
-        llm_type="perplexity_agent",
-        display_name="Perplexity Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.perplexity_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "brave_agent": LLMTypeMetadata(
-        llm_type="brave_agent",
-        display_name="Brave Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.brave_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "web_search_agent": LLMTypeMetadata(
-        llm_type="web_search_agent",
-        display_name="Web Search Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.web_search_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "web_fetch_agent": LLMTypeMetadata(
-        llm_type="web_fetch_agent",
-        display_name="Web Fetch Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.web_fetch_agent",
         required_capabilities=["tools"],
         power_tier=POWER_TIER_LOW,
     ),
@@ -215,46 +136,6 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.browser_agent",
         required_capabilities=["tools"],
         power_tier=POWER_TIER_HIGH,
-    ),
-    "hue_agent": LLMTypeMetadata(
-        llm_type="hue_agent",
-        display_name="Hue Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.hue_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "places_agent": LLMTypeMetadata(
-        llm_type="places_agent",
-        display_name="Places Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.places_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "routes_agent": LLMTypeMetadata(
-        llm_type="routes_agent",
-        display_name="Routes Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.routes_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "health_agent": LLMTypeMetadata(
-        llm_type="health_agent",
-        display_name="Health Metrics Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.health_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
-    ),
-    "telephony_agent": LLMTypeMetadata(
-        llm_type="telephony_agent",
-        display_name="Telephony Agent",
-        category=CATEGORY_DOMAIN_AGENTS,
-        description_key="settings.admin.llmConfig.types.telephony_agent",
-        required_capabilities=["tools"],
-        power_tier=POWER_TIER_LOW,
     ),
     # --- Query & Response ---
     "query_agent": LLMTypeMetadata(
@@ -570,8 +451,18 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["structured_output"],
         power_tier=POWER_TIER_LOW,
     ),
-    # AI Document Generation (ADR-226): writes whole structured documents
-    # (csv/xlsx/docx/pptx/pdf/md/txt) in one structured-output call.
+    # What LIA does from the Tools (ADR-372): one short structured call a click asks
+    # for: a rewrite, a translation, a date read from a sentence. A row of its own, so an
+    # administrator can size it apart from what the assistant writes.
+    "tool_assist": LLMTypeMetadata(
+        llm_type="tool_assist",
+        display_name="Tool Assist",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.tool_assist",
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
+    ),
     "document_generation": LLMTypeMetadata(
         llm_type="document_generation",
         display_name="Document Generation",
@@ -780,16 +671,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort=ReasoningIntent(level="minimal"),
     ),
     # --- Domain Agents ---
-    "brave_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
     "browser_agent": LLMAgentConfig(
         provider="qwen",
         model="qwen3.5-plus",
@@ -801,36 +682,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         timeout_seconds=120.0,
         reasoning_effort=ReasoningIntent(level="none"),
     ),
-    "calendar_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
-    "contacts_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
-    "drive_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
     "emails_agent": LLMAgentConfig(
         provider="openai",
         model="gpt-4.1-mini",
@@ -839,16 +690,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
-    "hue_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1000,
         timeout_seconds=30.0,
     ),
     "mcp_react_agent": LLMAgentConfig(
@@ -874,36 +715,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         timeout_seconds=120.0,
         reasoning_effort=ReasoningIntent(budget_tokens=16384),
     ),
-    "perplexity_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=3000,
-        timeout_seconds=30.0,
-    ),
-    "places_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
-    "routes_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
     "subagent": LLMAgentConfig(
         provider="qwen",
         model="qwen3.5-plus",
@@ -915,78 +726,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         timeout_seconds=60.0,
         reasoning_effort=ReasoningIntent(level="none"),
     ),
-    "tasks_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
-    "weather_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1000,
-        timeout_seconds=30.0,
-    ),
-    "health_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1500,
-        timeout_seconds=30.0,
-    ),
     # Telephony agent: a single draft-producing tool call (place_phone_call) —
     # small deterministic model, same profile as the other domain agents.
-    "telephony_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1000,
-        timeout_seconds=30.0,
-    ),
-    "web_fetch_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.3,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=3000,
-        timeout_seconds=30.0,
-    ),
-    "web_search_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.3,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=4000,
-        timeout_seconds=30.0,
-    ),
-    "wikipedia_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=2000,
-        timeout_seconds=30.0,
-    ),
     # --- Query & Response ---
     "query_agent": LLMAgentConfig(
         provider="qwen",
@@ -1334,6 +1075,21 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         timeout_seconds=60.0,
         reasoning_effort=ReasoningIntent(level="none"),
     ),
+    # What LIA does from the Tools (ADR-372): the digest's default, reached only by an
+    # instance with no row for this slot: the seed and the migration both give it one,
+    # because this default needs a key the installer never asks for. Someone is waiting
+    # on the page.
+    "tool_assist": LLMAgentConfig(
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=TOOL_ASSIST_MAX_OUTPUT_TOKENS,
+        timeout_seconds=60.0,
+        reasoning_effort=ReasoningIntent(level="none"),
+    ),
     # Meeting minutes (ADR-258) — gpt-4.1 like document generation: a 1M-token
     # window swallows a three-hour transcript, the pricing rows are active, and
     # structured output is native. Low temperature: minutes report, never invent.
@@ -1578,18 +1334,6 @@ for _slot, _name in (
     )
     LLM_DEFAULTS[_slot] = LLM_DEFAULTS["meeting_template_selection"].model_copy(deep=True)
 
-# Validate that REGISTRY and DEFAULTS are synchronized
-# SMS is an independent domain slot, initialized from the economical read-agent default.
-LLM_TYPES_REGISTRY["sms_agent"] = LLMTypeMetadata(
-    llm_type="sms_agent",
-    display_name="SMS Agent",
-    category=CATEGORY_DOMAIN_AGENTS,
-    description_key="settings.admin.llmConfig.types.sms_agent",
-    required_capabilities=["tools"],
-    power_tier=POWER_TIER_LOW,
-)
-LLM_DEFAULTS["sms_agent"] = LLM_DEFAULTS["health_agent"].model_copy(deep=True)
-
 # Independent discussion stages reuse native model defaults, never runtime heartbeat overrides.
 for _discussion_slot, _discussion_name, _discussion_capabilities, _discussion_output in (
     ("discussion_context", "Discussion Context", ["structured_output"], 1200),
@@ -1613,6 +1357,7 @@ for _discussion_slot, _discussion_name, _discussion_capabilities, _discussion_ou
         },
     )
 
+# Validate that REGISTRY and DEFAULTS are synchronized
 assert set(LLM_TYPES_REGISTRY.keys()) == set(LLM_DEFAULTS.keys()), (
     f"LLM_TYPES_REGISTRY and LLM_DEFAULTS keys mismatch: "
     f"registry_only={set(LLM_TYPES_REGISTRY.keys()) - set(LLM_DEFAULTS.keys())}, "

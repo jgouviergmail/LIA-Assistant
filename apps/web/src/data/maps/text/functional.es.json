@@ -157,9 +157,9 @@
     },
     "f.connectors": {
       "name": "Conectores y Herramientas",
-      "role": "Google, Microsoft, Apple y los servicios con clave personal; un solo recorrido de consentimiento por proveedor, un proveedor activo por categoría, archivos incluidos: Google Drive u OneDrive. Los servicios sin clave los activa el administrador para todos. En Herramientas actúas tú, sin llamar a una IA, sobre tu correo, agenda, tareas, contactos, archivos y luces Hue: cada pantalla ofrece lo que sabe hacer su proveedor, una búsqueda las recorre todas y tus gestos quedan fuera de los registros de LIA.",
+      "role": "Google, Microsoft, Apple y los servicios con clave personal; un solo recorrido de consentimiento por proveedor, un proveedor activo por categoría, archivos incluidos: Google Drive u OneDrive. Los servicios sin clave los activa el administrador para todos. En Herramientas actúas tú, sin llamar a una IA, sobre tu correo, agenda, tareas, contactos, archivos y luces Hue: cada pantalla ofrece lo que sabe hacer su proveedor, una búsqueda las recorre todas y tus gestos quedan fuera de los registros de LIA. Las estrellas amarillas piden otra cosa: un clic, una llamada a LIA, una propuesta que terminas a mano, registrada y facturada como un acto de LIA.",
       "goal": "Conectar tus cuentas reales una vez, y que sigan conectadas.",
-      "src": "2893800457d4"
+      "src": "d1bf7424213a"
     },
     "f.mail": {
       "name": "Correos electrónicos",

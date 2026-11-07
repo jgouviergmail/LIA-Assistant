@@ -8,6 +8,10 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.agents.application.memory_creation_embeddings import (
+    prepare_memory_creation_embeddings,
+    released_after,
+)
 from src.domains.agents.services.memory_embedding_preparation import prepare_memory_embeddings
 from src.domains.memories.prepared_embeddings import PreparedMemoryEmbeddings
 from src.domains.memories.schemas import ExtractedMemory
@@ -28,6 +32,35 @@ async def test_prepared_vectors_are_used_without_a_second_provider_request() -> 
         )
     assert memory.embedding == [0.1] and memory.keyword_embedding == [0.2]
     provider.assert_not_awaited()
+
+
+async def test_no_transaction_stays_open_across_an_embedding() -> None:
+    db = AsyncMock(spec=AsyncSession)
+    order: list[str] = []
+    db.rollback.side_effect = lambda: order.append("released")
+
+    async def fence() -> None:
+        order.append("fenced")
+
+    async def embedded(_text: str) -> list[float]:
+        order.append("embedded")
+        return [0.1]
+
+    with (
+        patch(
+            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            new=embedded,
+        ),
+        patch(
+            "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit",
+            new=AsyncMock(),
+        ),
+    ):
+        await prepare_memory_creation_embeddings(
+            uuid4(), uuid4(), "I like tea", "", released_after(db, fence)
+        )
+
+    assert order == ["fenced", "released", "embedded"]
 
 
 async def test_changed_write_inputs_fail_without_an_unapproved_provider_fallback() -> None:
@@ -55,8 +88,8 @@ async def test_revoked_consent_stops_new_embedding_work_between_actions() -> Non
 
     provider = AsyncMock(side_effect=embed)
     actions = [
-        ExtractedMemory(action="create", content="A", category="preference"),
-        ExtractedMemory(action="create", content="B", category="preference"),
+        ExtractedMemory(action="create", content="Fact A", category="preference"),
+        ExtractedMemory(action="create", content="Fact B", category="preference"),
     ]
     with (
         patch("src.domains.agents.services.memory_embedding_preparation.get_db_context", session),
@@ -71,4 +104,4 @@ async def test_revoked_consent_stops_new_embedding_work_between_actions() -> Non
     assert provider.await_count == 1
     assert consent.await_count == 2
     with pytest.raises(ValueError):
-        await prepared.resolve("A", "")
+        await prepared.resolve("Fact A", "")

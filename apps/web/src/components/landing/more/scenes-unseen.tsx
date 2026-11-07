@@ -4,7 +4,8 @@
  * pricing grid reviewed field by field before it is written, the acts LIA
  * files under her own initiative, a habit paused once and paused everywhere, and
  * the accessibility care (focus ring travelling on Tab), the reflow that keeps
- * a narrow screen readable, and the one neutral line every panel shares.
+ * a narrow screen readable, the one neutral line every panel shares, and the
+ * value LIA proposes for a contact, checked against the message that says it.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -26,9 +27,11 @@ import {
   Hourglass,
   Info,
   ListChecks,
+  Mail,
   Map as MapIcon,
   Mic,
   Pause,
+  Phone,
   Repeat,
   Send,
   Server,
@@ -1602,6 +1605,48 @@ function ReadingWidthScene({ active }: SceneProps) {
   );
 }
 
+type SourcedValuePhase = 'proposed' | 'quoted' | 'checked';
+const SOURCED_VALUE_STEPS: readonly TimelineStep<SourcedValuePhase>[] = [
+  { at: 0, state: 'proposed' },
+  { at: 1100, state: 'quoted' },
+  { at: 2100, state: 'checked' },
+];
+
+/**
+ * A value proposed for a contact names the message that says it, and the check is the code's:
+ * the resting frame is the value ticked under its source.
+ */
+function ValueWithSourceScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SOURCED_VALUE_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'gap-2')}>
+      <div className="flex w-full max-w-[220px] items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-px-10 shadow-sm">
+        <Phone className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate text-foreground/80">{labels.value}</span>
+        <CircleCheck
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 text-primary transition-all duration-300 motion-reduce:transition-none',
+            phase === 'checked' ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+          )}
+          aria-hidden="true"
+        />
+      </div>
+      <div
+        className={cn(
+          'w-full max-w-[220px] rounded-md border border-l-2 border-border border-l-primary/50 bg-background px-2.5 py-1.5 shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          phase === 'proposed' ? 'translate-y-1 opacity-0' : 'translate-y-0 opacity-100'
+        )}
+      >
+        <span className="flex items-center gap-1 text-px-8 text-muted-foreground">
+          <Mail className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+          {labels.source}
+        </span>
+        <span className="mt-1 block truncate text-px-10 text-foreground/80">{labels.quote}</span>
+      </div>
+    </div>
+  );
+}
+
 export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   one_line: OneLineScene,
   activity_timeline: ActivityTimelineScene,
@@ -1630,4 +1675,5 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   button_stays_itself: ButtonStaysItselfScene,
   shared_with: SharedWithScene,
   reading_width: ReadingWidthScene,
+  value_with_source: ValueWithSourceScene,
 };

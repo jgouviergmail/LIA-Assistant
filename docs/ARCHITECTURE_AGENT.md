@@ -107,7 +107,6 @@ est un bug à corriger dans la même livraison, pas une nuance à conserver.
 |-----------|----------|
 | **Client API** | `src/domains/connectors/clients/{nom}_client.py` |
 | **Tool** | `src/domains/agents/tools/{domain}_tools.py` |
-| **Agent Builder** | `src/domains/agents/graphs/{domain}_agent_builder.py` |
 | **Manifeste Agent** | `src/domains/agents/registry/catalogue_loader.py` |
 | **Manifeste Tool** | `src/domains/agents/{domain}/catalogue_manifests.py` |
 | **Enregistrement Executor** | `src/domains/agents/orchestration/parallel_executor.py` |
@@ -327,128 +326,19 @@ __all__ = [
 
 ### 3.1 Structure d'un Agent
 
-Un agent est composé de :
-1. **Agent Builder** - Construit le graphe LangChain avec les tools
-2. **Agent Manifest** - Décrit l'agent (nom, tools, description)
-3. **System Prompt** - un **fichier versionné** `prompts/v1/{domain}_agent_prompt.txt`,
-   chargé par `load_prompt()`. Jamais une chaîne dans le module Python : c'est
-   une règle systémique (voir [§12](#12-système-de-prompts-versionnés)), et les
-   six builders de production la respectent tous.
+Un agent de domaine est un **nom** qui regroupe des outils : il n'a ni graphe, ni nœud, ni poste
+LLM, ni prompt à lui ([ADR-371](architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) ; le domaine e-mail garde un poste, `emails_agent`, qui rédige les messages). Un plan appelle ses outils directement
+(`parallel_executor`) et la boucle ReAct les lie elle-même. Il se déclare par :
 
-### 3.2 Créer l'Agent Builder
+1. **Agent Manifest** - Décrit l'agent (nom, tools, description)
+2. **Tool Manifests** - Ce que lisent le planner et la boucle ReAct ([§6](#6-système-de-manifestes))
 
-**Fichier**: `src/domains/agents/graphs/{domain}_agent_builder.py`
+Seul un agent qui mène sa propre boucle a besoin d'un builder (`graphs/{nom}_agent_builder.py`,
+sur `build_generic_agent`), d'un poste LLM et d'un **fichier versionné**
+`prompts/v1/{nom}_agent_prompt.txt` chargé par `load_prompt()` (jamais une chaîne dans le module
+Python, voir [§12](#12-système-de-prompts-versionnés)) : aujourd'hui `browser_agent` et `query_agent`.
 
-```python
-"""
-{Domain} Agent Builder (LangChain v1.0) - Using Generic Template.
-
-Builds a compiled LangChain v1 agent for {Domain} operations using the
-generic agent builder template for consistency and maintainability.
-"""
-
-from typing import Any
-
-from src.core.time_utils import get_prompt_datetime_formatted
-from src.domains.agents.graphs.base_agent_builder import (
-    build_generic_agent,
-    create_agent_config_from_settings,
-    domain_context_instructions,
-)
-from src.domains.agents.prompts.prompt_loader import load_prompt
-from src.infrastructure.observability.logging import get_logger
-
-logger = get_logger(__name__)
-
-
-def build_{domain}_agent() -> Any:
-    """
-    Build and compile the {Domain} agent using the generic agent builder template.
-
-    Returns:
-        Compiled LangChain agent ready to be wrapped in a parent graph node.
-    """
-    logger.info("building_{domain}_agent_with_generic_template")
-
-    from typing import cast
-    from langchain_core.tools import BaseTool
-
-    # IMPORTER LES TOOLS DU DOMAINE
-    from src.domains.agents.tools.{domain}_tools import (
-        search_{domain}_tool,
-        get_{domain}_details_tool,
-        # ... autres tools
-    )
-
-    # IMPORTER LES TOOLS DE CONTEXTE (communs à tous les agents)
-    from src.domains.agents.tools.context_tools import (
-        get_context_list,
-        get_context_state,
-        list_active_domains,
-        resolve_reference,
-        set_current_item,
-    )
-
-    # LISTE DES TOOLS DISPONIBLES
-    tools: list[BaseTool] = cast(
-        list[BaseTool],
-        [
-            # Domain tools
-            search_{domain}_tool,
-            get_{domain}_details_tool,
-            # Context resolution tools (communs)
-            resolve_reference,
-            get_context_list,
-            set_current_item,
-            get_context_state,
-            list_active_domains,
-        ],
-    )
-
-    # Le prompt vit dans un FICHIER VERSIONNÉ, jamais dans ce module.
-    # `prompts/v1/{domain}_agent_prompt.txt` porte le texte ; le builder ne
-    # fait que le charger et injecter ses paramètres. C'est ce que font les six
-    # builders de production — aucun n'inline son prompt (règle systémique
-    # CLAUDE.md : « Prompt text […] lives in versioned files under prompts/v1/,
-    # loaded via load_prompt(). Never inline prompt fragments in .py »).
-    {domain}_agent_prompt_template = load_prompt("{domain}_agent_prompt", version="v1")
-
-    # Le bloc des outils de contexte : UN texte versionné pour tous les domaines
-    # (`prompts/v1/agent_context_domain_instructions.txt`), rendu pour celui-ci,
-    # comme le font les cinq builders de domaine (ADR-323).
-    context_instructions = domain_context_instructions("{domain}")
-
-    # `current_datetime` reste un placeholder : il est résolu à chaque tour par
-    # le builder générique, pas figé au démarrage.
-    system_prompt_template = {domain}_agent_prompt_template.format(
-        current_datetime="{current_datetime}",
-        context_instructions=context_instructions,
-    )
-
-    # Créer la config de l'agent
-    config = create_agent_config_from_settings(
-        agent_name="{domain}_agent",
-        tools=tools,
-        system_prompt=system_prompt_template,
-        datetime_generator=get_prompt_datetime_formatted,
-    )
-
-    # Construire l'agent
-    agent = build_generic_agent(config)
-
-    logger.info(
-        "{domain}_agent_built_successfully",
-        tools_count=len(tools),
-        llm_model=settings.{domain}_agent_llm_model,
-    )
-
-    return agent
-
-
-__all__ = ["build_{domain}_agent"]
-```
-
-### 3.3 Créer le Manifeste de l'Agent
+### 3.2 Créer le Manifeste de l'Agent
 
 **Fichier**: `src/domains/agents/registry/catalogue_loader.py`
 
@@ -483,7 +373,7 @@ Ajouter dans la section des manifestes d'agents :
 )
 ```
 
-### 3.4 Enregistrer l'Agent dans le Catalogue
+### 3.3 Enregistrer l'Agent dans le Catalogue
 
 Toujours dans `catalogue_loader.py`, dans la fonction `initialize_catalogue()` :
 
@@ -1601,10 +1491,7 @@ MAX_PREFERENCE_LENGTH = 100
 
 ### 10.2 Nouvel Agent
 
-- [ ] Créer `src/domains/agents/graphs/{domain}_agent_builder.py`
-- [ ] Définir le system prompt
-- [ ] Lister tous les tools dans `tools: list[BaseTool]`
-- [ ] Créer le `AgentManifest` dans `catalogue_loader.py`
+- [ ] Créer le `AgentManifest` dans `catalogue_loader.py`, avec tous ses tools dans `tools[]`
 - [ ] Enregistrer via `registry.register_agent_manifest()`
 
 ### 10.3 Nouveau Tool
@@ -1623,7 +1510,6 @@ MAX_PREFERENCE_LENGTH = 100
   - [ ] Ajouter à `OPTIONAL_PARAMS`
   - [ ] Import du tool
   - [ ] Ajouter à la liste `tools`
-- [ ] **Agent Builder**: Ajouter le tool dans la liste `tools`
 - [ ] **Agent Manifest**: Ajouter le nom du tool dans `tools[]`
 - [ ] **Exports**: Ajouter dans `__all__` des fichiers concernés
 - [ ] **Échec retourné, jamais levé — et lu par un seul prédicat** (ADR-303) : `ToolErrorModel.from_exception(...)` / `UnifiedToolOutput.failure(...)` avec un `ToolErrorCode` ; le succès se lit par `core/tool_outcome.explicit_success`, jamais par l'absence d'exception ; une erreur se classe par sa structure (statut HTTP via `__cause__`, code du fournisseur), jamais par les mots de son message (ratchet `test_no_message_substring_classification_guard.py`)
@@ -1751,7 +1637,8 @@ apps/api/src/domains/agents/prompts/
 │   ├── response_system_prompt_base.txt
 │   ├── hitl_classifier_prompt.txt
 │   ├── hitl_question_generator_prompt.txt
-│   ├── {domain}_agent_prompt.txt     # Prompts par agent
+│   ├── browser_agent_prompt.txt      # Agents compilés (ADR-371)
+│   ├── query_agent_prompt.txt
 │   └── hitl_classifier_examples.txt  # Few-shot sectionnés par action-type
 │       ├── contacts_search.txt
 │       ├── contacts_details.txt
@@ -2263,7 +2150,7 @@ async def list_calendars_tool(show_hidden=False, max_results=100, runtime=None):
 ```python
 list_calendars_catalogue_manifest = ToolManifest(
     name="list_calendars_tool",
-    agent="calendar_agent",
+    agent="event_agent",
     # ... parameters, outputs, cost, permissions
     context_key=None,  # PAS de contexte - données de référence
 )
@@ -2272,8 +2159,7 @@ list_calendars_catalogue_manifest = ToolManifest(
 **4. Enregistrements**:
 - `catalogue_loader.py`: Import + `register_tool_manifest()`
 - `parallel_executor.py`: Import + ajout à `OPTIONAL_PARAMS` + ajout à `tools`
-- `calendar_agent_builder.py`: Ajout dans la liste `tools`
-- `CALENDAR_AGENT_MANIFEST.tools`: Ajout du nom
+- `EVENT_AGENT_MANIFEST.tools`: Ajout du nom
 
 </details>
 
@@ -3972,8 +3858,8 @@ apps/api/src/
 │   │   │   └── ...
 │   │   ├── graphs/
 │   │   │   ├── base_agent_builder.py
-│   │   │   ├── {domain}_agent_builder.py
-│   │   │   └── ...
+│   │   │   ├── browser_agent_builder.py
+│   │   │   └── query_agent_builder.py
 │   │   ├── nodes/                   # Architecture v3
 │   │   │   ├── router_node_v3.py    # Query analysis + routing
 │   │   │   ├── planner_node_v3.py   # Smart planning

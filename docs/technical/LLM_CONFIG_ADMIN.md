@@ -292,7 +292,7 @@ await service.update_config(...)
 await LLMConfigOverrideCache.invalidate_and_reload(db)  # Automatique
 
 # Runtime (get_llm factory, sync)
-override = LLMConfigOverrideCache.get_override("router")  # Dict lookup
+override = LLMConfigOverrideCache.get_override("planner")  # Dict lookup
 api_key = LLMConfigOverrideCache.get_api_key("openai")     # Dict lookup
 ```
 
@@ -310,16 +310,15 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 | Catégorie | Types |
 |-----------|-------|
-| **Pipeline** | `semantic_pivot`, `query_analyzer`, `router`, `planner`, `semantic_validator`, `context_resolver` |
-| **Agents Domaine** | `contacts_agent`, `emails_agent`, `calendar_agent`, `drive_agent`, `tasks_agent`, `weather_agent`, `wikipedia_agent`, `perplexity_agent`, `brave_agent`, `web_search_agent`, `web_fetch_agent`, `places_agent`, `routes_agent` |
+| **Pipeline** | `semantic_pivot`, `query_analyzer`, `planner`, `semantic_validator`, `compaction`, `initiative`, `react_agent` |
+| **Agents Domaine** | `emails_agent`, `browser_agent`, `subagent`, `mcp_react_agent`, `mcp_app_react_agent` |
 | **Query & Response** | `query_agent`, `response` |
 | **HITL** | `hitl_classifier`, `hitl_question_generator`, `hitl_plan_approval_question_generator` |
 | **Memory** | `memory_extraction`, `memory_reference_extraction`, `memory_reference_resolution` |
 | **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator`, `personality_translation` |
-| **Initiative** | `initiative` — Post-execution cross-domain enrichment |
-| **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for regular MCP servers with `iterative_mode` |
-| **MCP App (ReAct)** | `mcp_app_react_agent` — Iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw). Auto-selected when `app_resource_uri` present. Defaults to Qwen 3.6-plus. |
-| **Specialized** | `voice_comment`, `mcp_description`, `evaluator` |
+| **Specialized** | `voice_comment`, `mcp_description`, `evaluator`, `tool_assist`, `email_digest`, `vision_analysis` |
+
+`mcp_app_react_agent` is the iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw), auto-selected when `app_resource_uri` is present.
 
 ---
 

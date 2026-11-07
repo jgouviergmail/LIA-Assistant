@@ -826,7 +826,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="search",
             step_type=StepType.TOOL,
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             tool_name="search_contacts_tool",
             parameters={"query": "Jean", "max_results": 10},
             description="Search for contact 'Jean'"
@@ -845,7 +845,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="search",
             step_type=StepType.TOOL,
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             tool_name="search_contacts_tool",
             parameters={"query": "Jean", "max_results": 5},
             description="Search for contact 'Jean'"
@@ -862,7 +862,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="get_details",
             step_type=StepType.TOOL,
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             tool_name="get_contact_details_tool",
             parameters={"resource_name": "$steps.search.contacts[0].resource_name"},
             depends_on=["search"],
@@ -871,7 +871,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="broader_search",
             step_type=StepType.TOOL,
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             tool_name="search_contacts_tool",
             parameters={"query": "J", "max_results": 10},
             description="Broader fallback search"
@@ -928,7 +928,7 @@ class ExecutionStep(BaseModel):
 ExecutionStep(
     step_id="get_contacts",
     step_type=StepType.TOOL,
-    agent_name="contacts_agent",
+    agent_name="contact_agent",
     tool_name="search_contacts_tool",
     parameters={"query": "Marketing", "max_results": 20}
 )
@@ -937,7 +937,7 @@ ExecutionStep(
 ExecutionStep(
     step_id="send_emails",
     step_type=StepType.TOOL,
-    agent_name="emails_agent",
+    agent_name="email_agent",
     tool_name="send_email_tool",
     for_each="$steps.get_contacts.contacts",  # Reference au provider
     for_each_max=10,  # Limite à 10 itérations
@@ -1019,7 +1019,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="get_rh_contacts",
             step_type=StepType.TOOL,
-            agent_name="contacts_agent",
+            agent_name="contact_agent",
             tool_name="search_contacts_tool",
             parameters={
                 "query": "RH",
@@ -1032,7 +1032,7 @@ plan = ExecutionPlan(
         ExecutionStep(
             step_id="send_reminder",
             step_type=StepType.TOOL,
-            agent_name="emails_agent",
+            agent_name="email_agent",
             tool_name="send_email_tool",
             for_each="$steps.get_rh_contacts.contacts",
             for_each_max=25,  # Limite sécurité
@@ -2300,7 +2300,7 @@ Response Node Receives:
     {
       "step_id": "search",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "jean", "max_results": 10},
       "description": "Search for contact 'jean'"
@@ -2336,7 +2336,7 @@ Response Node Receives:
     {
       "step_id": "search",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "Jean", "max_results": 5},
       "description": "Search for contact 'Jean'"
@@ -2353,7 +2353,7 @@ Response Node Receives:
     {
       "step_id": "get_details",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "get_contact_details_tool",
       "parameters": {"resource_name": "$steps.search.contacts[0].resource_name"},
       "depends_on": ["search"],
@@ -2362,7 +2362,7 @@ Response Node Receives:
     {
       "step_id": "broader_search",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "J", "max_results": 10},
       "description": "Broader fallback search"
@@ -2420,7 +2420,7 @@ Response Node Receives:
     {
       "step_id": "get_details",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "get_contact_details_tool",
       "parameters": {"resource_name": "$steps.resolve.resource_name"},
       "depends_on": ["resolve"],
@@ -2429,7 +2429,7 @@ Response Node Receives:
     {
       "step_id": "no_context_fallback",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "", "max_results": 10},
       "description": "Fallback if no context: show recent contacts"
@@ -2466,7 +2466,7 @@ Response Node Receives:
     {
       "step_id": "find_jean",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "jean dupond"},
       "description": "Find Jean Dupond"
@@ -2483,7 +2483,7 @@ Response Node Receives:
     {
       "step_id": "get_jean_details",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "get_contact_details_tool",
       "parameters": {"resource_name": "$steps.find_jean.contacts[0].resource_name"},
       "depends_on": ["find_jean"],
@@ -2492,7 +2492,7 @@ Response Node Receives:
     {
       "step_id": "search_dupond",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "dupond"},
       "depends_on": ["get_jean_details"],
@@ -2510,7 +2510,7 @@ Response Node Receives:
     {
       "step_id": "get_all_details",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "get_contact_details_tool",
       "parameters": {"resource_names": "$steps.search_dupond.contacts[*].resource_name"},
       "depends_on": ["search_dupond"],
@@ -2519,7 +2519,7 @@ Response Node Receives:
     {
       "step_id": "no_candidates",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": ""},
       "description": "Fallback: show all contacts"
@@ -2527,7 +2527,7 @@ Response Node Receives:
     {
       "step_id": "not_found",
       "step_type": "TOOL",
-      "agent_name": "contacts_agent",
+      "agent_name": "contact_agent",
       "tool_name": "search_contacts_tool",
       "parameters": {"query": "jean"},
       "description": "Fallback: broader search for 'jean'"
@@ -2737,7 +2737,7 @@ async def test_planner_node_simple_search():
           "steps": [{
             "step_id": "search",
             "step_type": "TOOL",
-            "agent_name": "contacts_agent",
+            "agent_name": "contact_agent",
             "tool_name": "search_contacts_tool",
             "parameters": {"query": "jean", "max_results": 10}
           }],
@@ -2830,7 +2830,7 @@ async def test_planner_node_domain_filtering():
     # Mock registry
     mock_registry = MagicMock()
     mock_registry.export_for_prompt_filtered.return_value = {
-        "agents": [{"name": "contacts_agent", "tools": [...]}],
+        "agents": [{"name": "contact_agent", "tools": [...]}],
         "filtering_applied": True,
         "domains_loaded": ["contacts"],
     }

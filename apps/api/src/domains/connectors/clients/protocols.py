@@ -238,10 +238,15 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
+        cc: str | None = None,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict:
         """Save the reply to ``message_id`` as a draft, in its thread.
 
-        Returns the saved draft, as ``get_draft`` reads it.
+        ``to`` and ``cc`` replace those the provider would answer, as in
+        ``reply_email``: None keeps them, an empty ``cc`` removes them. Returns the
+        saved draft, as ``get_draft`` reads it.
         """
         ...
 
@@ -252,10 +257,12 @@ class EmailClientProtocol(OutgoingCeiling, Protocol):
         body: str | None = None,
         cc: str | None = None,
         is_html: bool = False,
+        attachments: Sequence[OutgoingAttachment] = (),
     ) -> dict:
         """Save the forward of ``message_id`` as a draft, with its files.
 
         ``to`` is required: Graph refuses a forward draft without a recipient.
+        ``attachments`` are the person's own, after those of the original.
         Returns the saved draft, as ``get_draft`` reads it.
         """
         ...

@@ -13,7 +13,7 @@
 1. [Vue d'ensemble](#-vue-densemble)
 2. [Architecture Prompts](#-architecture-prompts)
 3. [Prompt Loader Avancé](#prompt-loader-avancé)
-4. [Domain Agent Prompts](#-domain-agent-prompts)
+4. [Prompts des agents compilés](#-prompts-des-agents-compilés)
 5. [Prompt Caching — la convention DYNAMIC CONTEXT](#-prompt-caching--la-convention-dynamic-context)
 6. [Voice & Memory Prompts](#-voice--memory-prompts)
 7. [Best Practices](#-best-practices)
@@ -32,7 +32,7 @@
 Tous les prompts vivent dans `apps/api/src/domains/agents/prompts/v1/*.txt` —
 **store unique** (règle du dépôt ; le nombre de fichiers est celui du `Literal`
 `PromptName` de `prompt_loader.py`, tenu en phase par un test de complétude). La téléphonie ne fait pas exception : ses
-prompts (`telephony_agent_prompt.txt`, `telephony_agent_system_prompt.txt`,
+prompts (`telephony_agent_system_prompt.txt`,
 `telephony_synthesis_prompt.txt`) sont dans ce même répertoire ; le domaine
 telephony a seulement son propre lecteur minimal `telephony/prompts/loader.py`
 qui les lit **par chemin filesystem** (pour ne pas importer le package `agents`
@@ -49,11 +49,12 @@ Grandes familles :
 |---------|----------|-------|
 | Pipeline core | `query_analyzer_prompt`, `smart_planner_prompt`, `response_system_prompt_base`, `semantic_validator_prompt`, `compaction_prompt` | Routing = QueryAnalyzer (l'ancien `router_system_prompt_template` a été supprimé, orphelin depuis l'optim R1) |
 | Boucles ReAct | `react_agent_prompt`, `subagent_react_prompt`, `skill_react_agent_prompt`, `mcp_react_agent_prompt` | ADR-070 / ADR-083 |
-| Agents domaine | `emails_agent_prompt`, `calendar_agent_prompt`, `browser_agent_prompt`, … (17) | Structure standard `<Role>/<StrictLogic>/<Strategies>/<Context>` |
+| Agents compilés | `browser_agent_prompt`, `query_agent_prompt` | Structure standard `<Role>/<StrictLogic>/<Strategies>/<Context>` |
 | HITL | `hitl_classifier_prompt` (+ `hitl_classifier_examples`), `hitl_question_generator_prompt`, `hitl_plan_approval_question_prompt`, `hitl_draft_critique_prompt` (+ fallback), `draft_modifier_prompt` | Les few-shot du classificateur sont sectionnés par action-type dans `hitl_classifier_examples.txt` et injectés via la sentinelle `[[EXAMPLES_PLACEHOLDER]]` (APRÈS `.format()` — les exemples contiennent des accolades) |
 | Mémoire & psyché | `memory_extraction_prompt`, `memory_reference_*`, `memory_danger_directive`/`memory_normal_directive` (scaffolding d'injection du profil), `psyche_*` | Le header de `memory_danger_directive` est une sentinelle matchée littéralement par `response_system_prompt_base` — verrouillé par `test_memory_directive_sentinel.py` |
 | Proactif & background | `heartbeat_*`, `initiative_prompt`, `interest_*`, `journal_*`, `briefing_*`, `reminder_prompt`, `voice_comment_prompt` | |
 | Directives injectées | `html_response_directive`, `psyche_usage_directive*`, `response_directive_*`, `skill_contract_prefix_prompt`, `initiative_suggestion_directive`, `proactive_findings_directive` | Fragments appendés à d'autres system prompts, pas des prompts autonomes |
+| Assistances des Outils | `tool_assist_*_prompt`, `tool_assist_lines` | ADR-372 ; une ligne `key\|template` par scaffold |
 | Traductions & divers | `broadcast_translation_prompt`, `personality_translation_prompt`, `skill_description_translation_prompt`, `mcp_description_prompt`, `app_identity_prompt`, `default_personality_prompt`, `fallback_response_prompt` | |
 ### Prompts Actifs par Node
 
@@ -62,15 +63,6 @@ Grandes familles :
 | **Router (QueryAnalyzer)** | query_analyzer_prompt.txt | Intent routing + domain detection + reference resolution |
 | **Planner** | smart_planner_prompt.txt | ExecutionPlan generation |
 | **Response** | response_system_prompt_base.txt | Conversational response (placeholder: `{app_knowledge_context}`) |
-| **Contacts Agent** | contacts_agent_prompt.txt | Google Contacts domain |
-| **Emails Agent** | emails_agent_prompt.txt | Gmail domain |
-| **Calendar Agent** | calendar_agent_prompt.txt | Google Calendar domain |
-| **Tasks Agent** | tasks_agent_prompt.txt | Google Tasks domain |
-| **Drive Agent** | drive_agent_prompt.txt | Google Drive domain |
-| **Places Agent** | places_agent_prompt.txt | Google Places domain |
-| **Weather Agent** | weather_agent_prompt.txt | OpenWeatherMap domain |
-| **Wikipedia Agent** | wikipedia_agent_prompt.txt | Wikipedia domain |
-| **Perplexity Agent** | perplexity_agent_prompt.txt | AI Web Search domain |
 | **Voice Comment** | voice_comment_prompt.txt | TTS comment generation |
 | **Semantic Validator** | semantic_validator_prompt.txt | Plan validation |
 | **Memory Extractor** | memory_extraction_prompt.txt | Long-term memory |
@@ -161,43 +153,11 @@ As of [ADR-105](../architecture/ADR-105-Psyche-Embodied-Expression.md) (embodied
 
 ---
 
-## 📁 Domain Agent Prompts
+## 📁 Prompts des agents compilés
 
-### Structure Standard
-
-Chaque domain agent a un prompt dédié suivant le pattern :
-
-```
-# {DOMAIN}_agent_prompt.txt
-
-Tu es un agent spécialisé pour le domaine {DOMAIN}.
-
-## Ton Rôle
-[Description du rôle]
-
-## Outils Disponibles
-[Liste des tools du domaine]
-
-## Règles de Formatage
-[Guidelines de formatage pour le LLM Response]
-
-## Exemples
-[Few-shot examples inline ou via fewshot loader]
-```
-
-### Domaines Couverts
-
-| Domaine | Prompt | Tools | API Backend |
-|---------|--------|-------|-------------|
-| **contacts** | contacts_agent_prompt.txt | search, get_details | Google People API |
-| **emails** | emails_agent_prompt.txt | search, get_details, send, reply | Gmail API |
-| **calendar** | calendar_agent_prompt.txt | search, create_event | Google Calendar API |
-| **tasks** | tasks_agent_prompt.txt | list, create, update, delete | Google Tasks API |
-| **drive** | drive_agent_prompt.txt | search, get_content | Google Drive API |
-| **places** | places_agent_prompt.txt | search_text, search_nearby, details | Google Places API |
-| **weather** | weather_agent_prompt.txt | current, forecast | OpenWeatherMap API |
-| **wikipedia** | wikipedia_agent_prompt.txt | search, article | Wikipedia API |
-| **perplexity** | perplexity_agent_prompt.txt | search | Perplexity Sonar API |
+Un domaine n'a pas de prompt : le planner et la boucle ReAct lisent ses manifestes, et une étape
+appelle l'outil directement ([ADR-371](../architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md)). Seuls les deux agents compilés ont un prompt
+de système, `browser_agent_prompt` et `query_agent_prompt`.
 
 ---
 

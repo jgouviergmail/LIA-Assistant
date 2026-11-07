@@ -1125,19 +1125,7 @@ def agent_registry():
             # agent_registry is already initialized
             graph, _ = await build_graph()
     """
-    from src.domains.agents.graphs import (
-        build_calendar_agent,
-        build_contacts_agent,
-        build_drive_agent,
-        build_emails_agent,
-        build_hue_agent,
-        build_perplexity_agent,
-        build_places_agent,
-        build_routes_agent,
-        build_tasks_agent,
-        build_weather_agent,
-        build_wikipedia_agent,
-    )
+    from src.domains.agents.graphs import build_query_agent
     from src.domains.agents.registry import (
         AgentRegistry,
         reset_global_registry,
@@ -1154,20 +1142,8 @@ def agent_registry():
     # Initialize catalogue (registers agent manifests for planner)
     initialize_catalogue(registry)
 
-    # Register agent builders under the SAME names as production (main.py):
-    # singular domain + "_agent". build_graph() looks these names up — a stale
-    # plural here fails every test that builds the real graph.
-    registry.register_agent("contact_agent", build_contacts_agent)
-    registry.register_agent("email_agent", build_emails_agent)
-    registry.register_agent("event_agent", build_calendar_agent)
-    registry.register_agent("file_agent", build_drive_agent)
-    registry.register_agent("task_agent", build_tasks_agent)
-    registry.register_agent("weather_agent", build_weather_agent)
-    registry.register_agent("wikipedia_agent", build_wikipedia_agent)
-    registry.register_agent("perplexity_agent", build_perplexity_agent)
-    registry.register_agent("place_agent", build_places_agent)
-    registry.register_agent("route_agent", build_routes_agent)
-    registry.register_agent("hue_agent", build_hue_agent)
+    # Register agent builders under the SAME names as production (startup/agents.py).
+    registry.register_agent("query_agent", build_query_agent)
 
     # Set as global singleton
     set_global_registry(registry)
@@ -1192,19 +1168,7 @@ async def agent_registry_with_store(async_session: AsyncSession):
     """
     from unittest.mock import AsyncMock
 
-    from src.domains.agents.graphs import (
-        build_calendar_agent,
-        build_contacts_agent,
-        build_drive_agent,
-        build_emails_agent,
-        build_hue_agent,
-        build_perplexity_agent,
-        build_places_agent,
-        build_routes_agent,
-        build_tasks_agent,
-        build_weather_agent,
-        build_wikipedia_agent,
-    )
+    from src.domains.agents.graphs import build_query_agent
     from src.domains.agents.registry import (
         AgentRegistry,
         reset_global_registry,
@@ -1226,19 +1190,8 @@ async def agent_registry_with_store(async_session: AsyncSession):
     # Initialize catalogue
     initialize_catalogue(registry)
 
-    # Register agent builders under the SAME names as production (main.py):
-    # singular domain + "_agent" (see agent_registry fixture above).
-    registry.register_agent("contact_agent", build_contacts_agent)
-    registry.register_agent("email_agent", build_emails_agent)
-    registry.register_agent("event_agent", build_calendar_agent)
-    registry.register_agent("file_agent", build_drive_agent)
-    registry.register_agent("task_agent", build_tasks_agent)
-    registry.register_agent("weather_agent", build_weather_agent)
-    registry.register_agent("wikipedia_agent", build_wikipedia_agent)
-    registry.register_agent("perplexity_agent", build_perplexity_agent)
-    registry.register_agent("place_agent", build_places_agent)
-    registry.register_agent("route_agent", build_routes_agent)
-    registry.register_agent("hue_agent", build_hue_agent)
+    # Register agent builders under the SAME names as production (startup/agents.py).
+    registry.register_agent("query_agent", build_query_agent)
 
     # Set as global singleton
     set_global_registry(registry)

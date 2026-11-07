@@ -277,7 +277,7 @@ def create_instrumented_config(
         llm.invoke(messages, config=create_instrumented_config(...))
 
     Args:
-        llm_type: LLM type identifier (e.g., "router", "planner", "contacts_agent")
+        llm_type: LLM type identifier (e.g., "router", "planner", "query_agent")
         session_id: Conversation/session identifier for grouping traces
         user_id: User identifier for user-level analytics
         tags: Additional tags beyond llm_type (auto-added: llm_type, provider, model)
@@ -325,7 +325,7 @@ def create_instrumented_config(
         ... )
         >>> # Subgraph invocation with parent context
         >>> subgraph_config = create_instrumented_config(
-        ...     llm_type="contacts_agent",
+        ...     llm_type="query_agent",
         ...     session_id="conv_123",
         ...     parent_trace_id=root_trace_id,
         ...     subgraph_name="contacts_subgraph",
@@ -557,7 +557,7 @@ def create_subgraph_config(
     Best Practice: Use this for all subgraph invocations to maintain trace hierarchy.
 
     Args:
-        llm_type: LLM type identifier for subgraph (e.g., "contacts_agent", "emails_agent")
+        llm_type: LLM type identifier for subgraph (e.g., "query_agent", "emails_agent")
         parent_config: Parent graph's RunnableConfig (contains parent context)
         subgraph_name: Human-readable subgraph identifier
         metadata: Additional subgraph-specific metadata
@@ -569,7 +569,7 @@ def create_subgraph_config(
         >>> # In orchestrator node invoking contacts subgraph
         >>> parent_config = config  # From orchestrator's invoke(state, config=config)
         >>> subgraph_config = create_subgraph_config(
-        ...     llm_type="contacts_agent",
+        ...     llm_type="query_agent",
         ...     parent_config=parent_config,
         ...     subgraph_name="contacts_search",
         ...     metadata={"query": "find john@example.com"}

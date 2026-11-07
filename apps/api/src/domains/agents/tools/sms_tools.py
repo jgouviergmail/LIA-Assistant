@@ -76,11 +76,11 @@ async def _read(
         return UnifiedToolOutput.failure(
             message="Authenticated context required.", error_code="FORBIDDEN"
         )
-    slot = "react_agent" if context.execution_mode == "react" else "sms_agent"
-    # The page reaches its domain/ReAct model and the final response model.
+    # The page reaches the final response model, and in ReAct the loop's model before it.
+    slots = ("react_agent", "response") if context.execution_mode == "react" else ("response",)
     budget = min(
         SMS_TOOL_TOKEN_BUDGET,
-        max(1, min(slot_tool_result_budget(slot), slot_tool_result_budget("response")) - 128),
+        max(1, min(slot_tool_result_budget(slot) for slot in slots) - 128),
     )
     try:
         selected = SMS_TOOL_MODELS[name].model_validate(request)

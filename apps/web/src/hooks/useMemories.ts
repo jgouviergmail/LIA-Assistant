@@ -70,12 +70,23 @@ export interface MemoryUpdate {
 }
 
 /**
+ * The bounds the API holds a memory's text to, in characters.
+ */
+export interface MemoryLimits {
+  content_min_chars: number;
+  content_max_chars: number;
+  trigger_topic_max_chars: number;
+  usage_nuance_max_chars: number;
+}
+
+/**
  * Memory list response from API.
  */
 export interface MemoryListResponse {
   items: Memory[];
   total: number;
   by_category: Record<string, number>;
+  limits: MemoryLimits;
 }
 
 /**
@@ -293,6 +304,7 @@ export function useMemories() {
     memories: memoriesData?.items ?? [],
     total: memoriesData?.total ?? 0,
     byCategory: memoriesData?.by_category ?? {},
+    limits: memoriesData?.limits,
     categories: categoriesData?.categories ?? [],
     loading: memoriesData === undefined && loading,
     error,

@@ -11,8 +11,10 @@
  * the only carrier), its notes. Changing and deleting are offered where the
  * calendar can be written and, for an occurrence of a series, where the
  * provider changes one occurrence alone; a copy wherever some calendar can be
- * written, since it touches nothing of the original. An event the person is invited
- * to asks for their answer, the current one stated, and says the organiser is told.
+ * written, since it touches nothing of the original. All of it stands in its bar with
+ * the question to LIA, moving opening the calendars it can go to under its own icon. An
+ * event the person is invited to asks for their answer, the current one stated, and says
+ * the organiser is told.
  */
 import {
   Bell,
@@ -28,19 +30,12 @@ import {
   MapPin,
   Pencil,
   Repeat,
-  Sparkles,
   Trash2,
   Video,
 } from 'lucide-react';
 import type { ReactNode, Ref } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LinkedText } from '@/components/ui/linked-text';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -55,7 +50,7 @@ import type {
   WorkbenchCalendar,
 } from '@/lib/workbench/types';
 
-import { DetailClose } from '../DetailClose';
+import { actIf, askAct, DetailBar, type AssistOffer, type DetailAct } from '../DetailBar';
 import { CalendarSwatch } from './EventChip';
 
 import { callHref } from '@/lib/workbench/calendar/events';
@@ -89,6 +84,8 @@ export interface EventDetailProps {
   onDuplicate?: () => void;
   /** Takes the event to LIA. */
   onAsk: () => void;
+  /** What LIA can do on it, under the question's icon. */
+  assist?: AssistOffer;
   /** Answers the invitation; absent where nothing can be answered. */
   onAnswer?: (response: EventAnswer) => void;
   /** The calendars it can go to; none, and no move is offered. */
@@ -122,34 +119,73 @@ export function EventDetail(props: EventDetailProps) {
       aria-label={event?.summary || t('workbench.calendar.event_title')}
       className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
-      <div className="flex items-center border-b px-2 py-1.5">
-        <DetailClose
-          closeLabel={t('workbench.calendar.close_event')}
-          backLabel={t('workbench.tools.calendar.label')}
-          onClose={onClose}
-          buttonRef={closeRef}
-        />
-      </div>
+      <DetailBar
+        lng={lng}
+        closeLabel={t('workbench.calendar.close_event')}
+        backLabel={t('workbench.tools.calendar.label')}
+        onClose={onClose}
+        closeRef={closeRef}
+        acts={event && eventActs(props, event, t)}
+      />
       {content}
     </article>
   );
 }
 
-function DetailBody(props: EventDetailProps & { event: CalendarEventDetail }) {
-  const { lng, event, calendar, occurrenceEdit } = props;
+/** What the event offers, all of it in the bar, ending on the deletion and the question to LIA. */
+function eventActs(
+  props: EventDetailProps,
+  event: CalendarEventDetail,
+  t: (key: string, values?: Record<string, string>) => string
+): readonly DetailAct[] {
+  const { calendar, occurrenceEdit, onEdit, onEditSeries, onDelete, onDuplicate, onAsk } = props;
+  const { destinations = [], onMove, assist } = props;
   const writable = calendar?.writable ?? false;
-  const changeable = writable && (!event.recurring || occurrenceEdit);
+  return [
+    ...actIf(writable && (!event.recurring || occurrenceEdit), {
+      label: t('workbench.calendar.edit'),
+      icon: Pencil,
+      onSelect: onEdit,
+    }),
+    ...actIf(writable && event.recurring, {
+      label: t('workbench.calendar.edit_series'),
+      icon: Repeat,
+      onSelect: onEditSeries,
+    }),
+    ...actIf(onDuplicate !== undefined, {
+      label: t('workbench.calendar.duplicate'),
+      icon: Copy,
+      onSelect: onDuplicate,
+    }),
+    ...actIf(destinations.length > 0, {
+      label: t('workbench.calendar.move_to'),
+      icon: CalendarArrowUp,
+      choices: destinations.map(destination => ({
+        label: t('workbench.calendar.move_to_name', { name: destination.name }),
+        icon: CalendarArrowUp,
+        onSelect: () => onMove?.(destination),
+      })),
+    }),
+    ...actIf(writable, {
+      label: t('workbench.calendar.delete'),
+      icon: Trash2,
+      danger: true,
+      onSelect: onDelete,
+    }),
+    askAct(t('workbench.ask.label'), onAsk, assist),
+  ];
+}
+
+function DetailBody(props: EventDetailProps & { event: CalendarEventDetail }) {
+  const { lng, event, occurrenceEdit } = props;
   return (
-    <>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        <DetailFacts {...props} />
-        <InvitationAnswers {...props} />
-        <DetailLinks lng={lng} event={event} occurrenceEdit={occurrenceEdit} />
-        <Attendees lng={lng} event={event} />
-        <DetailNotes lng={lng} event={event} />
-      </div>
-      <DetailActions {...props} changeable={changeable} writable={writable} />
-    </>
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <DetailFacts {...props} />
+      <InvitationAnswers {...props} />
+      <DetailLinks lng={lng} event={event} occurrenceEdit={occurrenceEdit} />
+      <Attendees lng={lng} event={event} />
+      <DetailNotes lng={lng} event={event} />
+    </div>
   );
 }
 
@@ -283,87 +319,6 @@ function DetailNotes({ lng, event }: { lng: Language; event: CalendarEventDetail
         <LinkedText text={event.description} />
       </p>
     </section>
-  );
-}
-
-/** The calendars the event can go to: none, and there is nothing to offer. */
-function MoveMenu({
-  lng,
-  destinations,
-  onMove,
-}: Pick<EventDetailProps, 'lng' | 'destinations' | 'onMove'>) {
-  const { t } = useTranslation(lng);
-  if (!onMove || !destinations || destinations.length === 0) return null;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <CalendarArrowUp className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.calendar.move_to')}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {destinations.map(calendar => (
-          <DropdownMenuItem key={calendar.id} onSelect={() => onMove(calendar)}>
-            {calendar.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function DetailActions({
-  lng,
-  changeable,
-  writable,
-  event,
-  onEdit,
-  onEditSeries,
-  onDelete,
-  onDuplicate,
-  onAsk,
-  destinations,
-  onMove,
-}: EventDetailProps & { changeable: boolean; writable: boolean; event: CalendarEventDetail }) {
-  const { t } = useTranslation(lng);
-  return (
-    <div className="flex flex-wrap justify-end gap-2 border-t p-3">
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={onAsk}>
-        <Sparkles className="h-4 w-4" aria-hidden="true" />
-        {t('workbench.ask.label')}
-      </Button>
-      {onDuplicate && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onDuplicate}>
-          <Copy className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.calendar.duplicate')}
-        </Button>
-      )}
-      <MoveMenu lng={lng} destinations={destinations} onMove={onMove} />
-      {changeable && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.calendar.edit')}
-        </Button>
-      )}
-      {writable && event.recurring && (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={onEditSeries}>
-          <Repeat className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.calendar.edit_series')}
-        </Button>
-      )}
-      {writable && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-destructive hover:text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-          {t('workbench.calendar.delete')}
-        </Button>
-      )}
-    </div>
   );
 }
 

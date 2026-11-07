@@ -22,6 +22,7 @@ from src.core.constants import (
     INTEREST_EXTRACTION_MIN_CONFIDENCE_DEFAULT,
 )
 from src.domains.agents.prompts import load_prompt
+from src.domains.agents.services.memory_extraction_context import render_extraction_prompt
 
 pytestmark = pytest.mark.unit
 
@@ -48,11 +49,6 @@ def memory_prompt() -> str:
 @pytest.fixture(scope="module")
 def interest_prompt_raw() -> str:
     return str(load_prompt("interest_extraction_prompt"))
-
-
-@pytest.fixture(scope="module")
-def memory_prompt_raw() -> str:
-    return str(load_prompt("memory_extraction_prompt"))
 
 
 # =============================================================================
@@ -146,12 +142,11 @@ class TestInterestAdmissionDoctrine:
 
 
 class TestMemoryAdmissionDoctrine:
-    def test_it_formats_with_the_extractors_exact_kwargs(self, memory_prompt_raw: str) -> None:
-        rendered = memory_prompt_raw.format(
+    def test_it_formats_with_the_extractors_exact_kwargs(self) -> None:
+        rendered = render_extraction_prompt(
             conversation="USER: bonjour",
             existing_memories="None",
-            current_datetime="27/07/2026 20:00",
-            known_relationships="No known relationships",
+            known_relationships=[],
             health_context="",
         )
 
