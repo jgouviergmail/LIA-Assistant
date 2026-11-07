@@ -91,12 +91,16 @@ interface TaskForm {
   due: string;
 }
 
-/** What the form changes, and nothing else. */
-function changeOf(task: WorkbenchTask, form: TaskForm): TaskChangeBody {
+function formOf(task: WorkbenchTask): TaskForm {
+  return { title: task.title, notes: task.notes ?? '', due: task.due ?? '' };
+}
+
+/** What the form changes from what the provider holds, and nothing else. */
+function changeOf(held: TaskForm, form: TaskForm): TaskChangeBody {
   const change: TaskChangeBody = {};
-  if (form.title.trim() !== task.title) change.title = form.title.trim();
-  if (form.notes !== (task.notes ?? '')) change.notes = form.notes;
-  if (form.due !== (task.due ?? '')) change.due = form.due || null;
+  if (form.title.trim() !== held.title) change.title = form.title.trim();
+  if (form.notes !== held.notes) change.notes = form.notes;
+  if (form.due !== held.due) change.due = form.due || null;
   return change;
 }
 
@@ -130,17 +134,16 @@ export function TaskEditor({
   const back = useRef<HTMLButtonElement>(null);
   const formId = useId();
   const { confirm, confirmDialog } = useToolConfirm();
-  const [form, setForm] = useState<TaskForm>({
-    title: task.title,
-    notes: task.notes ?? '',
-    due: task.due ?? '',
-  });
+  const [form, setForm] = useState<TaskForm>(() => formOf(task));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   // Set synchronously: leaving a field by pressing « Save » asks twice in one gesture.
   const saving = useRef(false);
   // What was asked while a save ran: it leaves after it, so nothing shown stays unsaved.
   const waiting = useRef<TaskForm | null>(null);
+  // What the provider holds as far as this form knows. Never `task`: a save on its way has not
+  // reached it, and a date undone meanwhile would read as nothing to do.
+  const held = useRef(form);
   const titleMissing = form.title.trim() === '';
   const links = useMemo(() => linksOf(form.notes), [form.notes]);
   const hasSubtasks = tool.features.includes('subtasks') && !task.parent;
@@ -150,17 +153,19 @@ export function TaskEditor({
   }, [focusOnOpen]);
 
   const commit = async (written: TaskForm): Promise<void> => {
-    const change = changeOf(task, written);
-    if (written.title.trim() === '' || Object.keys(change).length === 0) return;
+    if (written.title.trim() === '') return;
     if (saving.current) {
       waiting.current = written;
       return;
     }
+    const change = changeOf(held.current, written);
+    if (Object.keys(change).length === 0) return;
     saving.current = true;
     setBusy(true);
     setSaved(false);
     try {
       await onSave(task, change);
+      held.current = { ...written, title: written.title.trim() };
       setSaved(true);
     } catch {
       // Said by the caller; what was typed stays.

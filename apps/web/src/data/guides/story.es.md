@@ -18,8 +18,8 @@ Casi todo el código lo escribió una IA. Mi trabajo consistió en dirigirla: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA, dirigida, encuadrada y controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.136.798** |
-| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **77.162** |
+| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.136.803** |
+| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **77.168** |
 | Decisiones de arquitectura documentadas (ADR) | **370** |
 | Versiones entregadas a ritmo regular | **295** |
 | Idiomas, con una paridad verificada automáticamente | **6** |

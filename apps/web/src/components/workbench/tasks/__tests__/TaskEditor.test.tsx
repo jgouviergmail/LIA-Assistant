@@ -217,6 +217,87 @@ describe('TaskEditor — saved as it is written', () => {
 
     expect(onSave).not.toHaveBeenCalled();
   });
+
+  it('puts back a title restored while the new one is on its way', async () => {
+    let answer: () => void = () => undefined;
+    const { onSave } = editor();
+    onSave.mockImplementationOnce(() => new Promise<void>(resolve => (answer = resolve)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.change(title, { target: { value: 'Buy milk' } });
+    fireEvent.blur(title);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    answer();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave).toHaveBeenLastCalledWith(TASK, { title: 'Buy milk' });
+  });
+
+  it('measures a change against what it saved, however late the list follows', async () => {
+    const { onSave } = editor();
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    await screen.findByText('workbench.tasks.saved');
+    fireEvent.blur(title);
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('never asks again by itself for what was just refused', async () => {
+    let refuse: (reason: Error) => void = () => undefined;
+    const { onSave } = editor();
+    onSave.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.click(save());
+    refuse(new Error('refused'));
+
+    await waitFor(() => expect(save()).not.toHaveAttribute('aria-busy'));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(title).toHaveValue('Buy oat milk');
+  });
+
+  it('sends what a refusal left, with what was written behind it', async () => {
+    let refuse: (reason: Error) => void = () => undefined;
+    const { onSave } = editor();
+    onSave.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+    const notes = screen.getByLabelText('workbench.tasks.notes');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.change(notes, { target: { value: 'the blue one' } });
+    fireEvent.blur(notes);
+    refuse(new Error('refused'));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave).toHaveBeenLastCalledWith(TASK, {
+      title: 'Buy oat milk',
+      notes: 'the blue one',
+    });
+  });
+
+  it('sends nothing when what was refused is undone', async () => {
+    let refuse: (reason: Error) => void = () => undefined;
+    const { onSave } = editor();
+    onSave.mockImplementationOnce(() => new Promise<void>((_, reject) => (refuse = reject)));
+    const title = screen.getByLabelText('workbench.tasks.title');
+
+    fireEvent.change(title, { target: { value: 'Buy oat milk' } });
+    fireEvent.blur(title);
+    fireEvent.change(title, { target: { value: 'Buy milk' } });
+    fireEvent.blur(title);
+    refuse(new Error('refused'));
+
+    await waitFor(() => expect(save()).not.toHaveAttribute('aria-busy'));
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('TaskEditor — due dates at hand', () => {
@@ -248,7 +329,7 @@ describe('TaskEditor — due dates at hand', () => {
     answer();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
-    expect(onSave).toHaveBeenLastCalledWith(TASK, { title: 'Buy oat milk', due: '2026-11-05' });
+    expect(onSave).toHaveBeenLastCalledWith(TASK, { due: '2026-11-05' });
   });
 
   it('asks once for one gesture: leaving a field by pressing « Save »', async () => {
@@ -272,6 +353,22 @@ describe('TaskEditor — due dates at hand', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_none' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(TASK, { due: null }));
+  });
+
+  it('takes back a date undone while it is on its way', async () => {
+    let answer: () => void = () => undefined;
+    const undated = { ...TASK, due: null };
+    const { onSave } = editor({ task: undated, today: '2026-11-04' });
+    onSave.mockImplementationOnce(() => new Promise<void>(resolve => (answer = resolve)));
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_tomorrow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tasks.due_none' }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('workbench.tasks.due')).toHaveValue('');
+    answer();
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave).toHaveBeenLastCalledWith(undated, { due: null });
   });
 });
 
