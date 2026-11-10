@@ -7,7 +7,7 @@ ARG NPM_VERSION=12.2.1
 # =============================================================================
 # Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
 # =============================================================================
-FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS model-downloader
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58 AS model-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -53,7 +53,7 @@ RUN set -eu; \
 # =============================================================================
 # GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
 # =============================================================================
-FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS geoip-downloader
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58 AS geoip-downloader
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
@@ -86,7 +86,7 @@ RUN set -eu; \
 # =============================================================================
 # Development stage
 # =============================================================================
-FROM python:3.14.7-slim-trixie@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58
 ARG PIP_VERSION
 ARG PIP_WHEEL_SHA256
 ARG NPM_VERSION
