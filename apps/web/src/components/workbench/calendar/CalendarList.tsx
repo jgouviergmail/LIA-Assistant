@@ -7,7 +7,7 @@
  * a choice of THIS device (`lib/workbench/calendar/preferences`). From `lg` a
  * list beside the view; below, the same choices in a menu of the toolbar.
  */
-import { Layers, Settings2 } from 'lucide-react';
+import { Layers, Settings2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

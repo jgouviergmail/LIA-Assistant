@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CalendarDays, type LucideIcon } from 'lucide-react';
+import { CalendarDays, type LucideIcon } from '@/lib/icons';
 import { HeadingRule } from '@/components/ui/heading-rule';
 import { cn } from '@/lib/utils';
 
@@ -57,8 +57,8 @@ interface TimelineDayGroupProps extends Pick<
   dayNumber: string | null;
   month: string | null;
   /**
-   * The frame's ground. A day framed inside a card-coloured panel (an SMS
-   * sender's fold) takes the page's background so the two still alternate.
+   * The frame's ground. A day framed inside a card-coloured panel (the SMS
+   * archive's fold) takes the page's background so the two still alternate.
    */
   surface?: 'card' | 'background';
 }

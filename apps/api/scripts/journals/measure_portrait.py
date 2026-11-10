@@ -58,6 +58,7 @@ from src.core.llm_config_helper import get_llm_config_for_agent  # noqa: E402
 from src.domains.bookmarks.indexing import discard_index, unlink_quietly  # noqa: E402
 from src.domains.bookmarks.models import MessageBookmark  # noqa: E402
 from src.domains.habits.models import UserHabit, UserHabitProfile  # noqa: E402
+from src.domains.habits.needs import Need, need_payload  # noqa: E402
 from src.domains.habits.rhythm import ClaimedWindow, ClassRhythm, RhythmProfile  # noqa: E402
 from src.domains.interests.models import UserInterest  # noqa: E402
 from src.domains.journals.consolidation_output import (  # noqa: E402
@@ -223,16 +224,28 @@ async def seed(state_path: Path) -> None:
                     user_id=uid,
                     kind="recurring_request",
                     key=h["key"],
-                    payload={
-                        "shape": h["shape"],
-                        "trigger_hour": h["trigger_hour"],
-                        "usual_intent": h["usual_intent"],
-                    },
+                    # The ONE builder production writes with (ADR-375), so the
+                    # portrait reads the row the nightly recompute would write.
+                    payload=need_payload(
+                        Need(
+                            domain=h["key"],
+                            cadence=h["cadence"],
+                            weekday=h["weekday"],
+                            usual_hour=h["usual_hour"],
+                            prefill_hour=h["usual_hour"],
+                            part_of_day=h["part_of_day"],
+                            distinct_days=5,
+                            active_days=20,
+                            occurrences=5,
+                            at_automation_bar=True,
+                            last_day=now.date(),
+                        ),
+                        usual_intent=h["usual_intent"],
+                    ),
                     positive_signals=5,
                     negative_signals=0,
                     status="active",
                     last_observed_at=now,
-                    muted_until_reproof=False,
                 ),
             )
         for e in corpus["journal_entries"]:

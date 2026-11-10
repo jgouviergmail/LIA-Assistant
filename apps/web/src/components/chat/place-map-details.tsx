@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Route as RouteIcon,
   Star,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { AuthContext } from '@/lib/auth';
 import type { PlacePositionData } from '@/lib/place-position-data';

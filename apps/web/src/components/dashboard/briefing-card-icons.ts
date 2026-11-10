@@ -9,7 +9,7 @@
  * card chrome) reads, so the two can never drift.
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import {
   Bell,
   Cake,
@@ -22,7 +22,7 @@ import {
   Mail,
   MessageSquare,
   Sparkles,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import type { BriefingSection } from '@/types/briefing';
 

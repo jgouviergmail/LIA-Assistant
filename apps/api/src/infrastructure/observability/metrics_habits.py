@@ -1,4 +1,4 @@
-"""Prometheus metrics for the learned-habits subsystem (ADR-214).
+"""Prometheus metrics for the learned-habits subsystem (ADR-214, ADR-375).
 
 The nightly profile job and the habit-row sync are batch work: without
 metrics, a silently failing recompute would leave every profile stale and
@@ -34,29 +34,37 @@ user_habits_synced_total = Counter(
     # action: created | updated | blocked | removed
 )
 
-# ADR-214 amendment c (2026-09-11): the nightly sync owns the life of a
-# recurring-request habit (promotion, refresh, demotion, mute lift) — one
-# counter per action, ``skipped`` when the ledger could not be read and the
-# sync deliberately changed nothing (never demote on doubt).
+# ADR-375: the nightly sync owns the life of a recurring NEED (creation,
+# refresh, demotion) — one counter per action, ``skipped`` when the ledger
+# could not be read and the sync deliberately changed nothing.
 recurring_habits_synced_total = Counter(
     "recurring_habits_synced_total",
-    "Recurring-request habit sync actions performed by the nightly job.",
+    "Recurring-need habit sync actions performed by the nightly job.",
     ["action"],
-    # action: created | updated | kept | demoted | blocked | capped | skipped
+    # action: created | updated | demoted | blocked | capped | skipped
 )
 
-# What the decision did with the missed-routine candidate (2026-09-11): only a
-# DECLARED offer (rule 24) charges the day's offer budget; a bare HABITS label
-# is observed here so a model ignoring the rule is visible, never charged.
-heartbeat_habit_offers_total = Counter(
-    "heartbeat_habit_offers_total",
-    "What the decision did with the missed-routine candidate it was shown: "
-    "declared the offer (habit_offered=true — the only outcome that charges the "
-    "offer budget), labelled HABITS without declaring (observed, never charged), "
-    "or spoke about something else. A sustained label_only share means the model "
-    "ignores rule 24 and the budget is silently unbounded.",
-    ["outcome"],
-    # outcome: declared | label_only | none
+# ADR-375: every move of a proposal, by kind. ``opened``, ``refreshed``,
+# ``reopened`` and ``withdrawn`` are the nightly sync's; ``accepted``,
+# ``dismissed`` and ``refused`` are the person's; ``held`` counts a night a
+# kind could not be judged (an observation missing) and kept what was open;
+# ``shown_in_chat`` counts a proposal shown under a chat answer.
+habit_proposals_total = Counter(
+    "habit_proposals_total",
+    "Habit proposal transitions by kind: what the nightly sync opened, refreshed, "
+    "reopened, withdrew or held, what the person accepted, put off or refused, and "
+    "what a chat answer showed.",
+    ["kind", "transition"],
+)
+
+# ADR-375: an accepted proposal whose act could not be carried out — the
+# routine cap reached, a routine gone or changed, the settings changed since.
+# The proposal stays open and the person is told why (``ProposalRefusal``).
+habit_proposal_action_failures_total = Counter(
+    "habit_proposal_action_failures_total",
+    "Accepted habit proposals whose act was refused, by kind and reason.",
+    ["kind", "reason"],
+    # reason: routine_limit | routine_gone | routine_changed | settings_changed
 )
 
 # The deferral steps aside for an imminent appointment (2026-09-11): counted

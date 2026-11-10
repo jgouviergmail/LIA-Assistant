@@ -20,6 +20,7 @@ function space(over: Partial<RAGSpace> = {}): RAGSpace {
     name: 'Projets',
     description: null,
     is_active: true,
+    is_favorite: false,
     kind: null,
     document_count: 2,
     ready_document_count: 2,
@@ -31,12 +32,32 @@ function space(over: Partial<RAGSpace> = {}): RAGSpace {
 }
 
 function render(over: Partial<RAGSpace> = {}) {
-  const handlers = { onClick: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(), onToggle: vi.fn() };
+  const handlers = {
+    onClick: vi.fn(),
+    onEdit: vi.fn(),
+    onDelete: vi.fn(),
+    onToggle: vi.fn(),
+    onToggleFavorite: vi.fn(),
+  };
   const utils = renderWithProviders(<SpaceCard space={space(over)} {...handlers} />);
   return { ...utils, ...handlers };
 }
 
 describe('SpaceCard', () => {
+  it.each([false, true])(
+    'toggles favorite with the keyboard without opening the card (%s)',
+    async favorite => {
+      const { user, onClick, onToggleFavorite } = render({ is_favorite: favorite });
+      const star = screen.getByRole('button', {
+        name: favorite ? 'spaces.favorite_remove' : 'spaces.favorite_add',
+      });
+      expect(star).toHaveAttribute('aria-pressed', String(favorite));
+      star.focus();
+      await user.keyboard(' ');
+      expect(onToggleFavorite).toHaveBeenCalledOnce();
+      expect(onClick).not.toHaveBeenCalled();
+    }
+  );
   it('lets a space the person created be edited and deleted', async () => {
     const { user, onDelete } = render();
     await user.click(screen.getByTitle('common.delete'));

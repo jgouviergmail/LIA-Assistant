@@ -12,13 +12,18 @@ from src.domains.users.repository import UserRepository
 from src.infrastructure.observability.metrics_rag_spaces import rag_spaces_active_count
 
 
-def source_update_values(name: str | None, description: str | None) -> dict[str, str | None]:
-    validated = RAGSpaceUpdate(name=name, description=description)
-    result: dict[str, str | None] = {}
+def source_update_values(
+    name: str | None, description: str | None, *, is_favorite: bool | None = None
+) -> dict[str, str | bool | None]:
+    """Normalize sparse metadata and display preferences through the source schema."""
+    validated = RAGSpaceUpdate(name=name, description=description, is_favorite=is_favorite)
+    result: dict[str, str | bool | None] = {}
     if validated.name is not None:
         result["name"] = validated.name
     if validated.description is not None:
         result["description"] = validated.description.strip() or None
+    if validated.is_favorite is not None:
+        result["is_favorite"] = validated.is_favorite
     return result
 
 

@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { isThirdPartySkill, type Skill } from '@/hooks/useSkills';
 import type { SkillsTranslator } from '@/components/settings/SkillDetailModal';
 import { skillTraitTone } from '@/lib/status-tone';
-import { Send } from 'lucide-react';
+import { Send } from '@/lib/icons';
 import { RowActions } from '@/components/ui/row-actions';
 import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 

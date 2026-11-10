@@ -10,7 +10,7 @@
  * open the minutes.
  */
 
-import { ClipboardList, ExternalLink } from 'lucide-react';
+import { ClipboardList, ExternalLink } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';

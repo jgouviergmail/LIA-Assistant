@@ -5,7 +5,7 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
-import type { SmsPage, SmsQuery } from '@/types/sms';
+import type { SmsPage, SmsQuery, SmsDisplayOrder } from '@/types/sms';
 
 interface ReadResult {
   key: string;
@@ -13,6 +13,7 @@ interface ReadResult {
   page: SmsPage;
   /** When the read that produced it started: a change signalled later outdates it. */
   readAt: number;
+  cursor: string | undefined;
 }
 interface ReadFailure {
   key: string;
@@ -31,9 +32,11 @@ function projectRead(
   const current = result?.key === key;
   const error = failure?.key === key ? failure.error : null;
   const retained = retainPage && result?.criteria === criteria;
+  const accepted = current || retained ? result : null;
   return {
     // Retain only a page of the same query. Owner/source changes clear it.
-    data: result && (current || retained) ? result.page : null,
+    data: accepted?.page ?? null,
+    pageCursor: accepted?.cursor,
     error,
     loading: enabled && (loading || (!current && !error)),
   };
@@ -44,18 +47,35 @@ export function useSmsArchive(
   supplied: SmsQuery,
   enabled = true,
   resetCursor?: () => void,
-  retainPage = false
+  retainPage = false,
+  display?: SmsDisplayOrder
 ) {
   const { user } = useAuth();
   const ownerId = user?.id;
-  const { isCurrent, lifetime } = useApplicationAccountLifetime(ownerId);
+  const { isCurrent: isOwnerCurrent, lifetime } = useApplicationAccountLifetime(ownerId);
   const { query: text, sender_id, from_ts, to_ts, limit, cursor } = supplied;
+  const sort = display?.sort;
   const query = useMemo(
-    () => ({ query: text, sender_id, from_ts, to_ts, limit, cursor }),
-    [text, sender_id, from_ts, to_ts, limit, cursor]
+    () => ({ query: text, sender_id, from_ts, to_ts, limit, cursor, ...(sort ? { sort } : {}) }),
+    [text, sender_id, from_ts, to_ts, limit, cursor, sort]
   );
   const key = JSON.stringify(query);
-  const criteria = JSON.stringify({ text, sender_id, from_ts, to_ts, limit });
+  const criteria = JSON.stringify({ text, sender_id, from_ts, to_ts, limit, sort });
+  const generation = useMemo(
+    () => ({ criteria, enabled, lifetime }),
+    [criteria, enabled, lifetime]
+  );
+  const active = useRef<typeof generation | null>(generation);
+  useEffect(() => {
+    active.current = generation;
+    return () => {
+      active.current = null;
+    };
+  }, [generation]);
+  const isCurrent = useCallback(
+    () => isOwnerCurrent() && active.current === generation,
+    [isOwnerCurrent, generation]
+  );
   const [result, setResult] = useApplicationAccountState<ReadResult | null>(ownerId, null);
   const [failure, setFailure] = useApplicationAccountState<ReadFailure | null>(ownerId, null);
   const [loading, setLoading] = useApplicationAccountState(ownerId, false);
@@ -66,13 +86,13 @@ export function useSmsArchive(
   // When a change was last signalled — the page a failed re-read withdraws is
   // one read before it, never a page a failed page turn was leaving.
   const changedAt = useRef(0);
-  const { mutate } = useApiMutation<SmsQuery, SmsPage>({
+  const { mutate } = useApiMutation<SmsQuery & Partial<SmsDisplayOrder>, SmsPage>({
     method: 'POST',
     componentName: 'useSmsArchive',
     retainResponse: false,
   });
   const refresh = useCallback(async () => {
-    if (!isCurrent()) return;
+    if (!isCurrent() || !enabled) return;
     // Back to the first page — a cursor is bound to the data revision a
     // change just moved — while the page in view stays on screen.
     changedAt.current = performance.now();
@@ -80,8 +100,17 @@ export function useSmsArchive(
     resetCursor?.();
     setFailure(null);
     setRevision(value => value + 1);
-  }, [isCurrent, setFailure, setRefreshing, resetCursor]);
+  }, [isCurrent, enabled, setFailure, setRefreshing, resetCursor]);
   useApplicationResourceSync(enabled ? ownerId : undefined, 'sms', refresh);
+  const retry = useCallback(() => {
+    if (isCurrent() && enabled) setRevision(value => value + 1);
+  }, [isCurrent, enabled]);
+  useEffect(() => {
+    if (!enabled) {
+      setResult(null);
+      setFailure(null);
+    }
+  }, [enabled, setResult, setFailure]);
   useEffect(() => {
     if (!enabled || !ownerId) return;
     let current = true;
@@ -92,8 +121,10 @@ export function useSmsArchive(
       setLoading(true);
       setFailure(null);
       try {
-        const page = await mutate('/sms/search', query, { signal: controller.signal });
-        if (current && isCurrent() && page) setResult({ key, criteria, page, readAt });
+        const page = await mutate(sort ? '/sms/display-search' : '/sms/search', query, {
+          signal: controller.signal,
+        });
+        if (current && isCurrent() && page) setResult({ key, criteria, page, readAt, cursor });
       } catch (error) {
         if (current && isCurrent()) {
           setFailure({ key, error: error instanceof Error ? error : new Error('SMS read failed') });
@@ -120,6 +151,8 @@ export function useSmsArchive(
     ownerId,
     lifetime,
     query,
+    sort,
+    cursor,
     key,
     criteria,
     revision,
@@ -141,5 +174,6 @@ export function useSmsArchive(
       loading
     ),
     refresh,
+    retry,
   };
 }

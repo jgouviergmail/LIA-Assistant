@@ -11,8 +11,8 @@
  *   system in both themes.
  */
 
-import type { LucideIcon } from 'lucide-react';
-import { MousePointer2 } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
+import { MousePointer2 } from '@/lib/icons';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';

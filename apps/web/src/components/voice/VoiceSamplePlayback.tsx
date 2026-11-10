@@ -1,6 +1,6 @@
 'use client';
 
-import { Square, Volume2 } from 'lucide-react';
+import { Square, Volume2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import type { TtsVoiceSamplePlayback } from '@/hooks/useTtsVoiceSample';

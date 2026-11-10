@@ -306,7 +306,6 @@ class ChatStreamChunk(BaseModel):
         "execution_step",  # Phase 6: Execution step tracking (nodes/tools)
         # Data Registry: Registry-First Architecture (side-channel data)
         "registry_update",  # Data Registry: Registry items for frontend rendering (emitted BEFORE tokens)
-        "result_preview",  # Ephemeral qualified collection; final registry remains authoritative.
         "application_state_changed",  # Addressed hints; clients reread current authorized values.
         # Debug Panel: Scoring metrics for threshold tuning (only emitted when DEBUG=true)
         "debug_metrics",  # Debug: All scoring metrics with thresholds for debug panel

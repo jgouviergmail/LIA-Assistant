@@ -25,7 +25,7 @@
  * (the OpenLoops precedent); gated in `settings-search.ts` on the same flag.
  */
 
-import { Globe, KeyRound, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Globe, KeyRound, Plus, ShieldCheck, Trash2 } from '@/lib/icons';
 import { useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 

@@ -174,6 +174,8 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
             categoryLabel={t(`blog.categories.${article.category}`)}
             readTimeLabel={t('blog.read_time', { minutes: article.readTime })}
             backLabel={t('blog.back_to_list')}
+            previousLabel={t('blog.previous_article')}
+            nextLabel={t('blog.next_article')}
             prev={prev ? { slug: prev.slug, title: t(`blog.articles.${prev.slug}.title`) } : null}
             next={next ? { slug: next.slug, title: t(`blog.articles.${next.slug}.title`) } : null}
             lng={lng}

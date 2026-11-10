@@ -7,6 +7,9 @@
  * Markdown is laid out, a text is its words, tables come a sheet at a time; `large` lets it take a
  * window. Every part that scrolls is reachable by the keyboard, and a reading that stops before
  * the end says so. `ShownReading` adds what comes before: the wait, a refusal, the second try.
+ *
+ * DOM text in every viewer shares the application selection engine, including enlarged dialogs.
+ * Opaque frames and canvas-only pages remain outside DOM selection.
  */
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -135,20 +138,24 @@ function Words({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <figure className="min-w-0 space-y-1">
+    <figure data-selection-surface="document" className="min-w-0 space-y-1">
       {shown.kind === 'text' && (
-        <pre
-          tabIndex={0}
-          className={cn(
-            'overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/30 p-3 text-xs',
-            height
-          )}
-        >
-          {shown.text}
-        </pre>
+        <>
+          <pre
+            tabIndex={0}
+            className={cn(
+              'overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/30 p-3 text-xs',
+              height
+            )}
+          >
+            {shown.text}
+          </pre>
+        </>
       )}
       {shown.kind === 'markdown' && (
-        <MarkdownViewer text={shown.text} name={name} className={height} />
+        <>
+          <MarkdownViewer text={shown.text} name={name} className={height} />
+        </>
       )}
       {shown.kind === 'sheets' && (
         <Sheets lng={lng} sheets={shown.sheets} name={name} height={height} />

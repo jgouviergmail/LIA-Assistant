@@ -32,7 +32,7 @@ import {
   Clock,
   Mic,
   ImageIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 interface Page7ExamplesProps {
   lng: Language;

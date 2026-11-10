@@ -70,7 +70,6 @@ from src.domains.briefing.fetchers import (
     fetch_reminders,
     fetch_tasks,
     fetch_weather,
-    fetch_workboard,
 )
 from src.domains.briefing.llm import generate_greeting, generate_synthesis
 from src.domains.briefing.preferences import sanitize_briefing_preferences
@@ -101,6 +100,7 @@ from src.domains.briefing.sms_context import (
     read_prompt_sms,
     revalidate_sms_card,
 )
+from src.domains.briefing.workboard_card import fetch_workboard
 from src.domains.shared.consultation_sink import consultation_collector
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.observability.metrics_briefing import (

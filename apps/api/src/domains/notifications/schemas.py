@@ -196,30 +196,31 @@ class HubCountsResponse(BaseModel):
     """
 
     sms: int | None = Field(default=None, ge=0, description="Retained SMS, null when unavailable.")
-    discussions: int = Field(
+    discussions: int | None = Field(
         default=0,
         ge=0,
         description="Proactive discussion openings still shown in the conversation (ADR-358).",
     )
-    peer_messages: int = Field(ge=0, description="Relayed messages delivered, both directions.")
-    proactive: int = Field(ge=0, description="Proactive notifications ever sent.")
-    interests: int = Field(ge=0, description="Interest notifications ever sent.")
-    reminders: int = Field(
+    peer_messages: int | None = Field(
+        ge=0, description="Relayed messages delivered, both directions."
+    )
+    proactive: int | None = Field(ge=0, description="Proactive notifications ever sent.")
+    interests: int | None = Field(ge=0, description="Interest notifications ever sent.")
+    reminders: int | None = Field(
         ge=0,
         description=(
             "Reminders still WAITING. Not a history: a reminder is deleted the "
             "instant it fires, so this counts the future."
         ),
     )
-    scheduled: int = Field(ge=0, description="Scheduled routines the account owns.")
-    offers: int = Field(
+    scheduled: int | None = Field(ge=0, description="Scheduled routines the account owns.")
+    offers: int | None = Field(
         ge=0,
         description=(
-            "UNDECIDED missed-routine offers (Lot 5-C2). Like reminders, a "
-            "to-decide set, never a history."
+            "OPEN habit proposals (ADR-375). Like reminders, a " "to-decide set, never a history."
         ),
     )
-    workboard: int = Field(
+    workboard: int | None = Field(
         ge=0,
         description=(
             "Tickets that NEED the reader (ADR-276): a run stopped and waiting "

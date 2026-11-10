@@ -186,19 +186,17 @@ export function toneAmplitude(tone: ToneAnnotation): number {
 /**
  * The gesture an accent fires, if any.
  *
- * Every one of these is an EXISTING idle gesture, deliberately: the accent
- * vocabulary describes what the beat MEANS, and the rig already owns a tested
- * movement for each meaning. Inventing a fifth animation for "nod" when a
- * little hop already reads as acknowledgement would be a second mechanism
- * answering for one beat.
+ * Accents use the native gesture tapes. A nod and a thoughtful inclination
+ * are conversational cues only; idle life never chooses them. Shared facial
+ * cues such as a brow raise and a slow blink retain their existing tapes.
  *
  * `sparkle` is absent for the same reason, pointing the other way: it is an
  * accessory, not a movement, and it has its own channel.
  */
 const ACCENT_GESTURES: Partial<Record<ToneAccent, IdleGesture>> = {
   wink: 'brow', // an eyebrow raised on one side: the universal "between us"
-  nod: 'bounce', // a small hop — understood, agreed, done
-  tilt: 'tilt',
+  nod: 'nod', // one acknowledgement of the spoken meaning
+  tilt: 'consider',
   sigh: 'slow-blink',
 };
 

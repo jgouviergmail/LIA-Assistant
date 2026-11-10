@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { civilDateInstant } from '@/lib/civil-date-instant';

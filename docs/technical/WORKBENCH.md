@@ -6,6 +6,75 @@ The person's own door to their connected services: mail, calendar, tasks, contac
 the map of the code. What a click asks of LIA from these screens is another door, in another bounded
 context: [TOOL_ASSISTS.md](TOOL_ASSISTS.md).
 
+## Opening a record from an assistant card
+
+Decision record: [ADR-376](../architecture/ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md).
+
+The native email, event, calendar, contact, task, file and Hue cards open their record
+in Tools. The address is produced from the received provider identifier and its
+received scope, never from a provider URL, a registry-id suffix or the current default
+calendar/task list. An event needs its calendar; a task needs its list. A mail's
+provider handle remains intact, including Apple's folder and UIDVALIDITY scope. A
+file declares whether it is a folder. A Hue lamp's owner-device id is not a room id.
+
+`agents/display/card_navigation.py` stamps the actual answering client/provider at
+the common connector-tool boundary. Its signed envelope lives in `RegistryItemMeta.display`
+and in the card's `data-card-target` attribute, outside model-facing payloads. The
+signature binds the complete destination to the LIA account and the instance secret.
+`core/content_source.py` supplies the existing credential-source fingerprint: OAuth
+grant, Apple principal, or a known Hue bridge id. A bridge without that identity has
+no guessed replacement from its IP address, token or lamp name.
+
+The authenticated, capability-gated and read-rate-limited `POST /workbench/card-target`
+revalidates the signature and freshly resolves the active provider/source at the
+click. It fetches no record content and grants no mutation. A matching source returns
+only the typed native address (`card_targets.py`); a missing or invalid proof, changed
+source or unavailable connection returns an explicit refusal. Network errors and
+timeouts do not open a third-party site as a fallback. The browser keeps the same
+proof in the destination's `card_source` parameter. At request time,
+`lib/workbench/card-source.ts` forwards it only from the current Tools page to that
+same family's API routes: `apiClient` and XHR uploads use `X-LIA-Card-Source`, while
+`apiEndpointUrl` adds the query proof for direct file/attachment downloads, contact
+exports and multipart upload URLs. No third-party link receives it. CORS allows the
+header only for the application's already allowed web origins.
+
+The request-local `card_source.py` dependency accepts either transport; two present
+proofs must be identical. It checks the signature against the authenticated account,
+then `open_tool_client` checks the expected provider and source fingerprint on the
+client actually acquired, before that client can read or act. A replacement source
+returns HTTP409 `card_source_changed`, including a switch between admission and the
+actual request. The two strict download query variants in `schemas/card_queries.py`
+remove the transport proof before passing the unchanged business models to services.
+
+This is a source constraint, not an item permission or a session-wide lock. It applies
+only to the proof's family; auxiliary reads of another family keep their ordinary
+provider resolution. The native tool still owns authentication, provider grants,
+missing-item states and action validation. Requests without a proof remain ordinary
+Tools navigation, including the explicit unscoped-tool fallback; nothing stores the
+constraint globally after the source-bound page is left.
+
+Archived cards keep their original proof. Older archives without one remain readable
+but cannot target a record by guessing the current account; the interface explains
+that limit and may offer the tool itself. Reconnection to another OAuth grant,
+changing provider/Apple principal/Hue bridge cannot silently retarget the historical
+record. A different LIA account UUID or signing secret invalidates the proof; cloning
+both is not a separate identity boundary. Switching Tools off removes source actions
+and leaves source titles/previews noninteractive, while preserving their content.
+Unknown frontend availability offers no opening either. The API capability guard
+remains authoritative, and withdrawing the capability cancels a pending browser open.
+
+Source titles, file previews and explicit source actions use the same navigation
+door. Contextual links (meeting attendance, directions, telephone, email addresses,
+attachments and cited web sources) retain their separate meaning.
+
+Source identity also applies before publication: Google Contacts record caches are
+namespaced by the answering credential binding, and Apple's full contact book by its
+principal. Old unscoped entries are cache misses, never proof of the currently
+connected source; missing identity disables those record caches. Existing TTLs,
+registered cache families and user invalidation remain in force. Gmail already scopes
+its message cache by the OAuth grant; Apple's message cache and handles retain their
+principal/folder/generation scope.
+
 ## Where it lives
 
 | Layer | Path |
@@ -22,6 +91,11 @@ context: [TOOL_ASSISTS.md](TOOL_ASSISTS.md).
 
 ## The pieces every tool shares
 
+On narrow screens, Calendar keeps **New event** at the right of the same row as
+search and **Refresh**. On desktop it stays in the calendar sidebar, with its icon
+and label left-aligned. The existing calendar selection, permissions and creation
+form remain the same.
+
 | Module | Role |
 |---|---|
 | `availability.py` | `GET /workbench`: per tool `ready`, `not_connected`, `reconnect_required` or `unavailable`, the active provider, its features and bounds, and the section's `limits`. |
@@ -35,9 +109,10 @@ context: [TOOL_ASSISTS.md](TOOL_ASSISTS.md).
 | `downloads.py` | One transfer at a time per account (a preview waits its turn, `one_preview`), and the response a browser saves and never renders. |
 | `previews.py` | The best a document can be read as, for the mail and the files: its type names the page's viewer. |
 | `selection_acts.py` | An act on a selection, item by item, a few at a time, each answered (`ActOutcome`). |
+| `task_dates.py` | A task's due is a DAY: written as Google's date or To Do's local midnight with its zone named (`due_zone`), read back through `core/task_due`, the door every reader of a task's day shares. |
 
 Every form of the Tools opens and ends through `components/workbench/ToolForm.tsx`: a head at the
-left, acts that stack the whole width on a phone, one « Cancel » and one way of asking
+left, acts that stack the whole width on a phone, one neutral outlined « Cancel » and one way of asking
 (`useToolConfirm`); a list is `components/ui/native-select.tsx`. `toolForm.guard.test.ts` refuses a
 tool's own.
 
@@ -62,11 +137,27 @@ what is on screen when it fails.
 
 A tool's keys go through `useToolShortcuts`, declared with the header: never in a field or a
 dialog, never with Ctrl, Cmd or Alt, switched off per device (`ShortcutsHelp`, WCAG 2.1.4). One tool
-hands another what it starts through `lib/workbench/handoff`, held in the page and taken once, since
+hands another what it starts through `lib/workbench/handoff`, held in an account-owned, expiring observable store and taken once through `useHandoff`, since
 a subject has no place in an address a server logs; `useToolBridges` offers a way out only where its
-tool is ready, and `seedInputDraft` leaves words for the chat the same way, unsent.
+tool is ready, and `seedInputDraft` leaves words for the chat the same way, unsent. A task handed
+over opens the Tasks tool's « New task » form (`NewTaskDialog`), every value it carries shown, its
+list and, with To Do, its importance, reminder and repetition; the quick add stays for a title typed
+by hand. A message handed with `assisted` opens the composer on « Write from an instruction ». A
+contact handed with a `phone` (the home's SMS sender) opens the new-contact form on that number,
+and nothing empty is added beside it. Pending proposals never overwrite an open editor;
+a notice names the wait, and closing that editor presents the proposal. Logout/account
+change clears the handoff and native editor state. The same handoff serves application-wide
+selection actions, including the memory settings form; see [Tool assists](TOOL_ASSISTS.md).
 `useListSelection` is the selection every list shares: it belongs to one listing, and Shift ticks a
 range.
+
+The home opens its items here (owner, 2026-11-07, `docs/technical/BRIEFING_DOMAIN.md`), on the
+addresses the tools already read. Two of them name something the screen must find first: an event
+in the account's own calendar may come as `cal=primary`, the connector's alias, which
+`useOwnCalendarAlias` names again by that calendar's real id once the calendars are read; a task
+may sit past the pages the list read, so `useKeptTask` reads it alone and keeps it at the head of
+the list (`WorkbenchPageState.keepItem`), where every act reaches it, its own page putting it back
+in its place.
 
 A document is read through `useShownDocument`, which starts a read once the page has settled, and
 `ShownReading` (`components/workbench/ShownDocument.tsx`), which draws the wait, the refusal with
@@ -141,10 +232,11 @@ All under `/api/v1/workbench`, behind the capability guard and the session cooki
 | | `POST /tasks/place` | A task after a sibling, or first (`task_order`, Google) |
 | | `POST` `PATCH` `DELETE /tasks/steps` | A task's steps (`task_steps`, To Do) |
 | | `GET` `POST` `PATCH` `DELETE /tasks` | Tasks |
+| | `GET /tasks/task` | One task, whole: the home opens one past the pages read (`item_gone` when gone) |
 | | `GET /tasks/due` | The open tasks due over the days a calendar shows, every list read a few at a time (`failed`, `truncated`) |
 | Contacts | `GET` `POST` `PATCH` `DELETE /contacts` · `GET /contacts/contact` | Contacts (a list sent replaces that list) |
 | | `GET /contacts/groups` · `GET /contacts/other` | The account's groups, on the three providers · Google's « other contacts » (listed and searched; an act on one is refused unsent, the screen shows its row) |
-| | `GET /contacts/history` | The latest mail each way and meetings each organised, by address; each source says why it has nothing |
+| | `GET /contacts/history` | The latest mail each way and meetings each organised, by `address`; the calls LIA placed and the texts received, by `phone` (one of the two at least); each source says why it has nothing (`not_requested` when nothing was given to look under); `no-store` |
 | Files | `GET /files` · `GET /files/file` | A folder, a view (`file_views`) or a drive-wide search, by cursor, in the `order` asked (refused beside a search or a view) · one item and its breadcrumb |
 | | `GET /files/download` · `GET /files/preview` | A file, a Google document exported · the best it can be read as (`previews`, under the read window) |
 | | `GET` `PUT /files/text` | A plain text read whole with its version, written back on it (`editable`) |
@@ -181,7 +273,7 @@ and says the links open from the text only to one that cannot.
 
 Every refusal is a `detail.code` with a sentence in six languages on the page
 (`workbench.errors.*`): `not_connected`, `reconnect_required`, `provider_rate_limited` (with
-`retry_after`), `provider_unavailable`, `provider_refused`, `item_gone`, `stale_handle`, `conflict`,
+`retry_after`), `provider_unavailable`, `provider_refused`, `item_gone`, `card_source_changed`, `stale_handle`, `conflict`,
 `name_taken`, `name_refused`, `folder_not_empty`, `file_locked`, `too_large` (with `max_bytes`),
 `too_many_cards`, `not_a_contacts_file`, `not_an_image`, `invalid_recipient`, `invalid_request`,
 `event_left_behind`, `task_left_behind`, `event_start_outside_series`, `already_submitted` (with the

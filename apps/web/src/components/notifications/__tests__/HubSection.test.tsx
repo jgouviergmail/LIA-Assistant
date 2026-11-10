@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell } from '@/lib/icons';
 import { vi, it, expect } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { HubSection, type HubSectionProps } from '../HubSection';

@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 3.0
-**Fecha**: 2026-11-06
-**Aplicación**: LIA v4.5.0
+**Fecha**: 2026-11-10
+**Aplicación**: LIA v4.6.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Casi todo el código lo escribió una IA. Mi trabajo consistió en dirigirla: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA, dirigida, encuadrada y controlada | **≈ 100 %** |
-| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.136.803** |
-| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **77.168** |
-| Decisiones de arquitectura documentadas (ADR) | **370** |
-| Versiones entregadas a ritmo regular | **295** |
+| Líneas de código fuente (sin tests), repartidas en unos sesenta paquetes de dominio backend | **1.165.741** |
+| Pruebas automatizadas inventariadas, en suites adaptadas al commit y a la entrega | **81.253** |
+| Decisiones de arquitectura documentadas (ADR) | **375** |
+| Versiones entregadas a ritmo regular | **296** |
 | Idiomas, con una paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **7,9/10** |
 
@@ -64,7 +64,7 @@ El mundo compartido le da a la asistente lugares: una biblioteca para el conocim
 
 También quería que un asistente dejara espacio para hacer las cosas uno mismo. Herramientas utiliza los mismos servicios conectados, pero un gesto a mano no llama a ningún modelo ni se registra como un acto de LIA; lo que un clic le pide sigue siendo una propuesta, registrada y facturada a quien la pidió. Delegar y mantener el control pueden compartir interfaz si queda claro quién decidió, quién actuó y qué se aprobó.
 
-Estas son tres decisiones estructurantes, entre las 370 documentadas.
+Estas son tres decisiones estructurantes, entre las 375 documentadas.
 
 La primera trata de la **soberanía**: no quería ninguna dependencia irreversible de un proveedor. Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity y modelos locales con Ollama) pasan todos por una misma abstracción, de modo que cada uso puede cambiar de proveedor con un simple cambio de configuración, comparando costes. En cuanto a los servicios, Google, Apple y Microsoft son intercambiables en cada categoría, ya se trate del correo, de la agenda o de los contactos. El autoalojamiento da el control del servidor: los datos de la cuenta se guardan en la instancia y las credenciales de los conectores están cifradas. Aun así, los servicios remotos que la persona elige reciben los datos útiles para su parte de la petición.
 

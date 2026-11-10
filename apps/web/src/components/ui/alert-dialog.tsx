@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { SelectionHost } from '@/components/selection-assist/SelectionHost';
 import { Dialog } from './dialog';
 import { useDialogFocusReturn } from './dialog-focus';
 import { cn } from '@/lib/utils';
@@ -45,13 +46,15 @@ AlertDialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+>(({ className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  const selectionHost = React.useId();
   const focusReturn = useDialogFocusReturn(onOpenAutoFocus, onCloseAutoFocus);
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        data-selection-host={selectionHost}
         {...focusReturn}
         // This wrapper is built on `@radix-ui/react-dialog` rather than pulling
         // in `react-alert-dialog` — a deliberate dependency saving. The one
@@ -67,7 +70,10 @@ const AlertDialogContent = React.forwardRef<
           className
         )}
         {...props}
-      />
+      >
+        {children}
+        <SelectionHost id={selectionHost} />
+      </DialogPrimitive.Content>
     </AlertDialogPortal>
   );
 });

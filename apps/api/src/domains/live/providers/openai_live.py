@@ -57,6 +57,7 @@ from src.domains.live.schemas import (
     LiveVoice,
     LiveVoicesResponse,
 )
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
 from src.infrastructure.llm.providers.openai_live_listing import (
     auth_header,
     http_client,
@@ -152,6 +153,10 @@ class OpenAiLiveProvider:
     def capabilities_of(self, model: str) -> LiveModelCapabilities:
         """The documented row of the family; ``thinking`` is the ladder's word."""
         return replace(_CAPABILITIES, thinking=bool(self.thinking_levels_of(model)))
+
+    async def expression_dialect(self, api_key: str, model: str) -> CueDialect:
+        """Native audio: the delivery is said in words, no cue is offered (ADR-373)."""
+        return NO_CUES
 
     def build_setup(self, inputs: LiveSetupInputs) -> dict[str, Any]:
         """The ``session`` object of the offer exchange — the browser replays nothing.

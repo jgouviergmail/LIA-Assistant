@@ -33,6 +33,7 @@ from src.infrastructure.database.session import close_db
 if TYPE_CHECKING:
     from telegram import Bot
 
+    from src.domains.llm_config.jev_statistics_sink import JevStatisticsFlusher
     from src.infrastructure.mcp.client_manager import MCPClientManager
     from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 
@@ -56,6 +57,8 @@ class StartupHandles:
             (None if it never started).
         worker_memory_task: Per-worker resident memory sampler to cancel
             (None if it never started).
+        jev_statistics_flusher: This worker's JEV statistics writer, stopped after
+            its last flush (None if it never started).
     """
 
     leader_elector: SchedulerLeaderElector
@@ -64,6 +67,7 @@ class StartupHandles:
     lifetime_metrics_task: asyncio.Task[None] | None
     cache_invalidation_task: asyncio.Task[None] | None
     worker_memory_task: asyncio.Task[None] | None = None
+    jev_statistics_flusher: JevStatisticsFlusher | None = None
 
 
 async def stop_worker_memory_sampler(task: asyncio.Task[None] | None) -> None:
@@ -85,6 +89,25 @@ async def stop_worker_memory_sampler(task: asyncio.Task[None] | None) -> None:
         logger.warning("worker_memory_sampler_shutdown_failed", error=str(exc))
         return
     logger.info("worker_memory_sampler_stopped")
+
+
+async def stop_jev_statistics_flusher(flusher: JevStatisticsFlusher | None) -> None:
+    """Write this worker's last JEV statistics, then await the writer (ADR-374).
+
+    Args:
+        flusher: The writer started by ``observability.start_jev_statistics_flusher``,
+            or None when it never started.
+    """
+    if flusher is None:
+        return
+    try:
+        rows = await flusher.stop()
+    except Exception as exc:
+        # Statistics are best-effort: a writer that failed to stop must not abort the
+        # rest of the shutdown sequence (Langfuse flush, pools).
+        logger.warning("jev_statistics_flusher_shutdown_failed", error_type=type(exc).__name__)
+        return
+    logger.info("jev_statistics_flusher_stopped", rows=rows)
 
 
 async def stop_radio_loops(*, enabled: bool) -> None:
@@ -186,6 +209,10 @@ async def shutdown_application(handles: StartupHandles) -> None:
     from src.infrastructure.llm.jev_http import close_jev_http_client
 
     await close_jev_http_client()
+
+    # JEV's durable statistics (ADR-374): every caller is drained and the client is
+    # closed, so this worker's counts are final; written before the pools close.
+    await stop_jev_statistics_flusher(handles.jev_statistics_flusher)
 
     # Prometheus multiprocess: drop this worker's per-process metric files so its
     # contribution leaves the 'live*' gauges on exit. Counters/histograms persist

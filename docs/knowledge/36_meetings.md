@@ -43,11 +43,12 @@ Everything stays on **your** server. The audio is stored in segments while you r
 The transcript rests encrypted in the database and can be shown on the meeting page or deleted separately, keeping the minutes. Deleting a meeting removes its audio, its transcript, its minutes and the document that had been indexed in your knowledge space — nothing outlives it.
 
 ## Can I edit the minutes, send them, and ask LIA about my meetings later?
+
 Yes. On the meeting page you can **edit** every field — title, participant names and roles, each section in its own shape — and **restore** the version the model wrote at any time. **PDF** downloads the minutes as a document; **Email** sends them to your account's address from the application's own address — no connected mailbox needed — and Settings can do that automatically for every meeting.
 
 Every minutes are also indexed in a knowledge space named **Meetings**, created for you the first time. So you can simply ask: “what did we decide about the migration?”, “which actions are due this week?” — the assistant answers from your own meetings, sources cited.
 
-The meetings list accepts multiple selection: tick the ones that no longer serve and delete them at once. A meeting still recording or still being processed is left aside, and LIA tells you which one and why.
+Each row of the meetings list has a bin: one click deletes that meeting, with no dialog. A meeting still recording or still being processed is protected and stays in the list.
 
 ## Does LIA know who said what?
 When the engine separates the speakers, each voice gets a stable label — **S1, S2…** — throughout the transcript and the minutes. A **name** appears only when the recording itself establishes it: someone introduces themselves, is addressed by name, or the calendar event overlapping the meeting leaves no doubt. LIA never invents a name; an unnamed speaker stays S2, and you can name them yourself when editing the minutes.

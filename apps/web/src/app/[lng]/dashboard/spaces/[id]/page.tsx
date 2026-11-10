@@ -6,7 +6,7 @@ import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useSpaceDetail, useSpaces } from '@/hooks/useSpaces';
 import { useSpaceDocuments } from '@/hooks/useSpaceDocuments';
 import { useSpaceSources } from '@/hooks/useSpaceSources';
-import { ArrowLeft, Pencil, Trash2, Library } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Library } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -142,7 +142,8 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
     [uploadDocument, t]
   );
 
-  if (loading) {
+  // Polling keeps the mounted page, selection and focus until new data arrives.
+  if (loading && !space) {
     return (
       <div className="flex items-center justify-center py-20">
         <LoadingSpinner size="xl" />

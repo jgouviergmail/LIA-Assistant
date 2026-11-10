@@ -11,7 +11,7 @@
  * border, muted tone, a graduation-cap glyph, and an explicit label.
  */
 
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 export interface MissionDemoNoteProps {

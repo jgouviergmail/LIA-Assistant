@@ -7,7 +7,7 @@
  * along), move to another space, and the bulk delete solid red.
  */
 
-import { Download, FolderInput, Trash2 } from 'lucide-react';
+import { Download, FolderInput, Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

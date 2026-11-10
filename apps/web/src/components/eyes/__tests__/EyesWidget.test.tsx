@@ -585,11 +585,10 @@ describe('EyesWidget — expression wiring', () => {
 describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
   it('wanders the gaze with a saccade jump, holds, then eases back to center', () => {
     // Explicit rng sequence (mount order: blink delay, idle delay; tick
-    // order: silly roll, pick, pre-gaze blink roll, target x, target y, hold).
+    // order: pick, pre-gaze blink roll, target x, target y, hold).
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.9) // blink delay (far away)
       .mockReturnValueOnce(0) // idle delay → MIN
-      .mockReturnValueOnce(0.9) // silly roll → no
       .mockReturnValueOnce(0) // pick → saccade
       .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
       .mockReturnValueOnce(0) // target x → -0.35
@@ -614,7 +613,6 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.9) // blink delay (far away)
       .mockReturnValueOnce(0) // idle delay → MIN
-      .mockReturnValueOnce(0.9) // silly roll → no
       .mockReturnValueOnce(0) // pick → saccade
       .mockReturnValueOnce(0.9) // pre-gaze blink roll → no
       .mockReturnValueOnce(0) // target x → -0.35
@@ -636,8 +634,8 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     expect(eyesRoot().dataset.gazeX).toBe('0');
   });
 
-  it('plays a one-shot gesture class then clears it (rng → tilt on calm)', () => {
-    // Calm cumulative weights: 0.6 lands on 'tilt'.
+  it('plays a one-shot gesture class then clears it (rng → squint on calm)', () => {
+    // Calm cumulative weights: 0.6 lands on 'squint'.
     vi.spyOn(Math, 'random').mockReturnValue(0.6);
     renderWidget();
     expect(eyesRoot().dataset.gesture).toBeUndefined();
@@ -648,9 +646,9 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
           10
       );
     });
-    expect(eyesRoot().dataset.gesture).toBe('tilt');
+    expect(eyesRoot().dataset.gesture).toBe('squint');
     act(() => {
-      vi.advanceTimersByTime(GESTURE_DURATION_MS.tilt + 10);
+      vi.advanceTimersByTime(GESTURE_DURATION_MS.squint + 10);
     });
     expect(eyesRoot().dataset.gesture).toBeUndefined();
   });
@@ -762,7 +760,7 @@ describe('EyesWidget — touch toolbar (tap to summon)', () => {
   });
 });
 
-describe('EyesWidget — emotes & slapstick', () => {
+describe('EyesWidget — emotes and quiet presence', () => {
   it('a HITL question floats a "?" above the eyes, and it leaves on resolution', () => {
     const { rerender } = renderWidget({ hitlAwaiting: true });
     settleMask();
@@ -789,24 +787,18 @@ describe('EyesWidget — emotes & slapstick', () => {
     expect(document.querySelector('.lia-emote')?.getAttribute('data-emote')).toBe('z');
   });
 
-  it('a rare silly beat plays a slapstick gesture then clears (rng-forced swap)', () => {
-    // Consumption order at mount: blink delay, idle delay; at the idle tick:
-    // silly roll, silly pick. 0.01 < SILLY_PROBABILITY forces the beat.
+  it('a formerly silly RNG draw remains a gaze request, with no slapstick gesture', () => {
     vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.9) // blink delay (far away)
-      .mockReturnValueOnce(0) // idle delay → MIN
-      .mockReturnValueOnce(0.01) // silly roll → yes
-      .mockReturnValueOnce(0) // silly pick → swap
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.01)
       .mockReturnValue(0.9);
     renderWidget();
     act(() => {
       vi.advanceTimersByTime(IDLE_GESTURE_MIN_DELAY_MS + 10);
     });
-    expect(eyesRoot().dataset.gesture).toBe('swap');
-    act(() => {
-      vi.advanceTimersByTime(GESTURE_DURATION_MS.swap + 10);
-    });
     expect(eyesRoot().dataset.gesture).toBeUndefined();
+    expect(eyesRoot().dataset.gazeX).not.toBe('0');
   });
 });
 
@@ -823,7 +815,7 @@ describe('EyesWidget — character moments', () => {
 
   it('waking from DEEP sleep plays the full startle: jolt, look around, settle', () => {
     // 0.5 keeps the idle life benign across the long doze + settle window:
-    // silly roll declines (0.5 > SILLY_PROBABILITY) and every gesture pick
+    // every gesture pick
     // lands on saccade/glance/perk, none of which touch data-expression —
     // free RNG here let a flicker steal the frame right at the settle
     // assertion (seen only on CI runners).
@@ -1022,7 +1014,6 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.9) // blink delay (far away)
       .mockReturnValueOnce(0) // idle delay -> MIN
-      .mockReturnValueOnce(0.9) // silly roll -> no
       .mockReturnValueOnce(0) // pick -> saccade
       .mockReturnValueOnce(0) // pre-gaze blink roll -> YES
       .mockReturnValue(0.9);

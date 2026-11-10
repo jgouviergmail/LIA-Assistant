@@ -88,3 +88,27 @@ it('retains the verified condition throughout an answer and removes it when that
   rig.step(16);
   expect(rig.values().weatherHeat).toBe(0);
 });
+
+it('keeps a cold scarf still until a head turn and lets its free end settle again', () => {
+  const rig = createEyeRig();
+  rig.setContext({ ...NEUTRAL_CONTEXT, weather: 'cold' });
+  for (let frame = 0; frame < 180; frame++) {
+    rig.step(16);
+    expect(rig.values().scarfTrail).toBe(0);
+  }
+  rig.setGaze({ x: 1, y: 0 });
+  const trail = Array.from({ length: 180 }, () => {
+    rig.step(16);
+    return rig.values().scarfTrail;
+  });
+  expect(Math.min(...trail)).toBeLessThan(-0.08);
+  expect(Math.min(...trail)).toBeGreaterThanOrEqual(-0.3);
+  expect(Math.max(...trail)).toBe(0);
+  expect(trail.at(-1)).toBe(0);
+
+  rig.setGaze({ x: -1, y: 0 });
+  for (let frame = 0; frame < 18; frame++) rig.step(16);
+  expect(rig.values().scarfTrail).toBeGreaterThan(0.08);
+  rig.setReducedMotion(true);
+  expect(rig.values().scarfTrail).toBe(0);
+});

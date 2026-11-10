@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'next-themes';
@@ -141,7 +141,7 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
             <button
               type="button"
               onClick={handleCopy}
-              className="p-1 rounded hover:bg-muted transition-colors"
+              className="p-1 rounded hover:bg-muted transition-colors [&>.app-icon]:size-4 [&>.app-icon]:-m-0.5"
               aria-label={t('chat.code.copy')}
             >
               {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
@@ -168,7 +168,10 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
               // Follows the reader's text scale like every stylesheet size.
               fontSize: 'calc(0.875rem * var(--lia-text-scale, 1))',
             }}
-            codeTagProps={{ className: 'font-mono' }}
+            codeTagProps={{
+              // Keep the fallback's line boxes when lazy highlighting resolves.
+              className: 'text-sm font-mono block',
+            }}
           >
             {children}
           </SyntaxHighlighter>

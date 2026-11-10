@@ -97,3 +97,37 @@ live_sessions_standby = Gauge(
     "live_sessions_standby",
     "Live sessions currently on standby on this instance (pruned sorted set).",
 )
+
+# The person's ElevenLabs agent (ADR-373): its voice is the personality's, its
+# tools are LIA's referential.
+live_cue_palette_synced_total = Counter(
+    "live_cue_palette_synced_total",
+    "Cue palettes LIA wrote on a person's ElevenLabs agent (ADR-373), by surface (live: a "
+    "session's start or wake; phone: before a dial) and outcome: written, refused (the vendor "
+    "refused the write; the agent keeps the palette it held).",
+    ["surface", "outcome"],
+)
+
+live_agent_tools_swept_total = Counter(
+    "live_agent_tools_swept_total",
+    "Tools LIA left on a person's agent, released from the workspace WITHOUT force once "
+    "detached (ADR-373), by outcome: freed (deleted), in_use (another agent still uses it, "
+    "kept), refused (any other vendor answer, kept).",
+    ["outcome"],
+)
+
+# What a `cues` session's voice wrote inside its words (ADR-373), measured where
+# its turns are archived: nothing in LIA bounds the cues of a voice that speaks
+# straight to its engine, so an abuse is seen rather than guessed.
+live_voice_cues_per_turn = Histogram(
+    "live_voice_cues_per_turn",
+    "Cues an assistant turn of a `cues` live session carried, removed before it was archived "
+    "(ADR-373).",
+    buckets=(0.0, 1.0, 2.0, 3.0, 5.0, 8.0, 13.0),
+)
+
+live_voice_cues_invented_total = Counter(
+    "live_voice_cues_invented_total",
+    "Cues a `cues` live session's voice wrote outside the palette LIA offered (ADR-373), "
+    "removed like every other.",
+)

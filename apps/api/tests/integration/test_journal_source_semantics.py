@@ -116,30 +116,58 @@ async def test_identical_habit_profile_recompute_keeps_evidence_identity(
     assert await portrait_source_state(db, user) == before
 
 
-async def test_habit_offer_bookkeeping_preserves_identity_but_consumed_intent_changes_it(
+async def test_the_nightly_need_refresh_preserves_identity_but_a_read_descriptor_changes_it(
     async_session, monkeypatch
 ):
+    """ADR-375: the nightly refresh rewrites a need's counts every night; the
+    portrait reads its cadence, weekday, part of the day and intent only."""
     db = async_session
     user = await owner(db)
     authorize_source(monkeypatch, db, habits_source)
     now = datetime.now(UTC)
+    payload = {
+        "version": 2,
+        "domain": "event",
+        "cadence": "weekly",
+        "weekday": 6,
+        "usual_hour": 19.5,
+        "prefill_hour": 19.25,
+        "part_of_day": "evening",
+        "distinct_days": 4,
+        "active_days": 9,
+        "occurrences": 4,
+        "at_automation_bar": False,
+        "last_day": now.date().isoformat(),
+        "usual_intent": "search",
+    }
     habit = UserHabit(
         user_id=user.id,
         kind="recurring_request",
-        key="calendar",
-        payload={"shape": "weekly", "usual_intent": "Prepare next week's calendar"},
+        key="event",
+        payload=payload,
         last_observed_at=now,
     )
     db.add(habit)
     await db.flush()
     before = await portrait_source_state(db, user)
     repo = HabitsRepository(db)
-    await repo.touch_habit(habit, now + timedelta(hours=1))
-    await repo.record_feedback(habit.id, user.id, positive=True)
-    habit.payload = {**habit.payload, "last_offered_at": now.isoformat(), "ignored_offers": 1}
+    await repo.upsert_habit(
+        user_id=user.id,
+        kind="recurring_request",
+        key="event",
+        payload={**payload, "distinct_days": 6, "occurrences": 7, "usual_hour": 19.75},
+        last_observed_at=now + timedelta(days=1),
+    )
+    await repo.record_feedback(user.id, "recurring_request", "event", positive=True)
     await db.flush()
     assert await portrait_source_state(db, user) == before
-    habit.payload = {**habit.payload, "usual_intent": "Review completed calendar events"}
+    await repo.upsert_habit(
+        user_id=user.id,
+        kind="recurring_request",
+        key="event",
+        payload={**payload, "part_of_day": "night"},
+        last_observed_at=now + timedelta(days=2),
+    )
     await db.flush()
     assert await portrait_source_state(db, user) != before
 

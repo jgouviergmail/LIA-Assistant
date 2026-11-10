@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Check, ShieldOff, X } from 'lucide-react';
+import { Check, ShieldOff, X } from '@/lib/icons';
 import { Avatar } from '@/components/ui/avatar';
 
 import { Badge } from '@/components/ui/badge';

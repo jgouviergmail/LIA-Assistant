@@ -62,7 +62,7 @@ _CONTACT_SELECT_FIELDS = (
 
 #: What a directory entry needs of a Graph contact (``clients/contact_directory``).
 _DIRECTORY_SELECT_FIELDS = (
-    "id,displayName,givenName,surname,emailAddresses,homePhones,businessPhones,mobilePhone"
+    "id,displayName,givenName,surname,emailAddresses,homePhones,businessPhones,mobilePhone,birthday"
 )
 
 
@@ -211,7 +211,7 @@ class MicrosoftContactsClient(MicrosoftContactGroupsMixin, BaseMicrosoftClient):
                 (``cached_directory``); None for the shared entry.
 
         Returns:
-            The persons (names, addresses, numbers), and whether the book was cut.
+            The persons (names, addresses, numbers, birthdays), and whether the book was cut.
         """
         return await cached_directory(
             self.user_id,

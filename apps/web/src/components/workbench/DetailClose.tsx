@@ -9,7 +9,7 @@
  * at most and none of it at the least: a tool's name gives way before any act does, and the chevron
  * stays a target a finger can find.
  */
-import { ChevronLeft, X } from 'lucide-react';
+import { ChevronLeft, X } from '@/lib/icons';
 import type { Ref } from 'react';
 
 import { Button } from '@/components/ui/button';

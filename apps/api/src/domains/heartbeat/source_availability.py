@@ -110,8 +110,8 @@ async def _sms(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:
 
 
 async def _birthdays(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:
-    connector = await repo.get_by_user_and_type(user.id, ConnectorType.GOOGLE_CONTACTS)
-    return bool(connector and connector.status.value == "active")
+    # Read from the active contacts provider's book, whichever it is (2026-11-07).
+    return await _active_connector(repo, user.id, "contacts")
 
 
 async def _departure(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:

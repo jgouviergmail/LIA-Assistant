@@ -1,6 +1,6 @@
 'use client';
 import type { ComponentProps } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 
 export function WorldWidgetButton({

@@ -29,6 +29,7 @@ from src.core.time_utils import now_utc
 from src.domains.reminders.models import Reminder, ReminderStatus
 from src.domains.reminders.repository import ReminderRepository
 from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
+from src.domains.shared.display_query import DisplayQuery
 
 logger = structlog.get_logger(__name__)
 
@@ -351,12 +352,17 @@ class ReminderService:
         return await self.repository.get_pending_for_user(user_id)
 
     async def list_pending_page(
-        self, user_id: UUID, *, limit: int, offset: int
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        offset: int,
+        criteria: DisplayQuery | None = None,
     ) -> tuple[list[Reminder], int]:
         """One page of the reminders still waiting, and the exact total.
 
-        The rows and count use the same session. At READ COMMITTED they can
-        observe different committed instants when a scheduler fires meanwhile.
+        Display criteria use one statement for the rows and their count.
+        The management view retains the full detail reader.
 
         Read-only by design: a reminder is a temporary post-it, deleted once
         notified. This lists what is still COMING — it is not, and cannot
@@ -366,10 +372,15 @@ class ReminderService:
             user_id: Owner — scopes both reads.
             limit: Page size.
             offset: Page offset.
+            criteria: Optional thin hub display query.
 
         Returns:
             Tuple of (page, exact total).
         """
+        if criteria is not None:
+            return await self.repository.pending_page(
+                user_id, limit=limit, offset=offset, criteria=criteria
+            )
         reminders = await self.repository.get_pending_for_user(user_id, limit=limit, offset=offset)
         total = await self.repository.count_pending_for_user(user_id)
         return reminders, total

@@ -1,4 +1,4 @@
-"""The five totals the notifications hub badges, resolved in one pass.
+"""Exact per-section notification totals, with unknown counts on source failure.
 
 The hub stacks five folded sections, and each badge answers the question the
 reader actually asks before unfolding: *is there anything in there?* That total
@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+import structlog
 from sqlalchemy import func, select
 
 from src.core.config import settings
@@ -40,12 +41,11 @@ from src.domains.proactive_discussions.openings import count_openings
 from src.domains.sms.models import SmsMessage
 from src.domains.sms.reads import require_read
 from src.infrastructure.database.session import get_db_context
-from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, breaks an import cycle
     from src.domains.users.models import User
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -59,8 +59,8 @@ class HubCounts:
         reminders: Reminders still waiting — this one is the FUTURE, not a
             history: a reminder is deleted the instant it fires.
         scheduled: Scheduled routines the account owns.
-        offers: UNDECIDED missed-routine offers (Lot 5-C2) — like reminders,
-            this one is a to-decide set, not a history.
+        offers: OPEN habit proposals (ADR-375) — like reminders, this one is
+            a to-decide set, not a history.
         workboard: Tickets that NEED the reader — a run stopped and waiting for
             them, or something late on their board (ADR-276). A to-decide set
             like the two above, never a tally of everything they own.
@@ -69,14 +69,14 @@ class HubCounts:
         sms: Retained SMS, None when the source is unavailable.
     """
 
-    peer_messages: int
-    proactive: int
-    interests: int
-    reminders: int
-    scheduled: int
-    offers: int
-    workboard: int
-    discussions: int = 0
+    peer_messages: int | None
+    proactive: int | None
+    interests: int | None
+    reminders: int | None
+    scheduled: int | None
+    offers: int | None
+    workboard: int | None
+    discussions: int | None = 0
     sms: int | None = None
 
 
@@ -109,8 +109,8 @@ async def _safe_sms(user_id: UUID) -> int | None:
         return None
 
 
-async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int:
-    """Await one probe, degrading to 0 rather than failing the hub.
+async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int | None:
+    """Await one probe; an unreadable source has no count.
 
     Args:
         section: Which badge this counts, for the log line only.
@@ -118,13 +118,13 @@ async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int:
             handed to this function is always consumed, never dropped.
 
     Returns:
-        The count, or 0 when the read failed.
+        The exact count, or None when the read failed.
     """
     try:
         return await probe
     except Exception as exc:  # noqa: BLE001 — a probe degrades, it never fails
-        logger.debug("hub_count_probe_failed", section=section, error=str(exc))
-        return 0
+        logger.warning("hub_count_probe_failed", section=section, error_type=type(exc).__name__)
+        return None
 
 
 async def _peer_messages(user_id: UUID) -> int:
@@ -207,23 +207,23 @@ async def _discussions(user_id: UUID) -> int:
         return await count_openings(db, user_id)
 
 
-async def _offers(user_id: UUID) -> int:
-    """Open missed-routine offers — 0 without a query when heartbeat is off."""
-    if not settings.heartbeat_enabled:
+async def _offers(user: User) -> int:
+    """Open habit proposals (ADR-375) — 0 without a query when habits are off.
+
+    Args:
+        user: The authenticated user row (its own switch is read from it).
+
+    Returns:
+        The exact number of proposals waiting for the person's decision.
+    """
+    from src.domains.habits.capability import proposals_served
+
+    if not await proposals_served(user):
         return 0
-    from datetime import UTC, datetime, timedelta
-
     async with get_db_context() as db:
-        from sqlalchemy import func, select
+        from src.domains.habits.proposal_repository import HabitProposalRepository
 
-        from src.domains.heartbeat.repository import (
-            open_offers_stmt,
-        )
-
-        since = datetime.now(UTC) - timedelta(days=settings.heartbeat_offers_window_days)
-        stmt = open_offers_stmt(user_id, since, limit=1).order_by(None).limit(None)
-        result = await db.execute(select(func.count()).select_from(stmt.subquery()))
-        return int(result.scalar_one())
+        return await HabitProposalRepository(db).count_open(user.id)
 
 
 async def resolve_hub_counts(user: User) -> HubCounts:
@@ -243,7 +243,7 @@ async def resolve_hub_counts(user: User) -> HubCounts:
             _safe_count("interests", _interests(user_id)),
             _safe_count("reminders", _reminders(user_id)),
             _safe_count("scheduled", _scheduled(user_id)),
-            _safe_count("offers", _offers(user_id)),
+            _safe_count("offers", _offers(user)),
             _safe_count("workboard", _workboard(user_id)),
             _safe_count("discussions", _discussions(user_id)),
         ),

@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.constants import JEV_PARAMETER_KIND_MAX_VALUES, JEV_PARAMETER_KIND_MIN_CONFIDENCE
+from src.core.constants import JEV_PARAMETER_KIND_MAX_VALUES
 from src.core.context import current_tracker
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.registry.catalogue import (
@@ -24,6 +24,8 @@ from src.domains.agents.registry.catalogue import (
 )
 from src.domains.agents.semantic import jev_value_kind as module
 from src.domains.agents.semantic.param_guard import GUARDED_SEMANTIC_TYPES
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
 
@@ -160,7 +162,7 @@ async def test_a_failed_judgment_refuses_nothing(attempt: DecisionAttempt) -> No
 
 
 async def test_an_uncertain_judgment_refuses_nothing() -> None:
-    below = max(0.0, JEV_PARAMETER_KIND_MIN_CONFIDENCE - 0.01)
+    below = max(0.0, float(gate_defaults(JevUsage.PARAMETER_KIND)["kind"]) - 0.01)
     violation, _ = await _judge({"destination": "Sophie Martin"}, [_answer("person_name", below)])
     assert violation is None
 

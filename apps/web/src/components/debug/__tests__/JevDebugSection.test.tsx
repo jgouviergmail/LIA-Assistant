@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import apiClient from '@/lib/api-client';
 import type { JevCallTrace } from '@/types/jev';
 import { DebugPanel } from '../DebugPanel';
@@ -99,56 +99,6 @@ describe('JEV debug feed independent of chat turns', () => {
     );
   });
 
-  it('shows global collection coverage without treating unsubmitted candidates as unknown', async () => {
-    const coverage = {
-      candidate_count: 75,
-      evaluated_count: 14,
-      unevaluated_count: 61,
-      unknown_count: 14,
-      omitted_count: 0,
-      batch_count: 2,
-    };
-    vi.spyOn(apiClient, 'get').mockResolvedValue({
-      ...page,
-      calls: [1, 2].map(index => ({
-        ...trace,
-        id: `batch-${index}`,
-        usage: 'filter_event',
-        action: 'preview',
-        collection_coverage: { ...coverage, batch_index: index },
-      })),
-    });
-    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
-    await user.click(screen.getByRole('button', { name: key('title') }));
-    await screen.findAllByRole('heading', { name: key('coverageTitle') });
-    for (const article of screen.getAllByRole('article')) {
-      const query = within(article);
-      expect(query.getByText(key('coverageCandidates')).nextElementSibling).toHaveTextContent('75');
-      expect(query.getByText(key('coverageEvaluated')).nextElementSibling).toHaveTextContent('14');
-      expect(query.getByText(key('coverageUnevaluated')).nextElementSibling).toHaveTextContent(
-        '61'
-      );
-      expect(query.getByText(key('coverageUnknown')).nextElementSibling).toHaveTextContent('14');
-      expect(query.getByText(key('coverageOmitted')).nextElementSibling).toHaveTextContent('0');
-      expect(query.getByText(key('coverageBatch'))).toBeVisible();
-      expect(query.getByText(key('coverageSharedHelp'))).toBeVisible();
-    }
-    expect(screen.queryByText(key('coverageUnavailable'))).not.toBeInTheDocument();
-  });
-
-  it('keeps absent historical coverage unavailable rather than counting displayed answers', async () => {
-    vi.spyOn(apiClient, 'get').mockResolvedValue({
-      ...page,
-      calls: [{ ...trace, usage: 'filter_email', action: 'preview' }],
-    });
-    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
-    await user.click(screen.getByRole('button', { name: key('title') }));
-    expect(await screen.findByText(key('coverageUnavailable'))).toBeVisible();
-    expect(screen.queryByText(key('coverageCandidates'))).not.toBeInTheDocument();
-    expect(screen.queryByText(key('observedResultHelp'))).not.toBeInTheDocument();
-    expect(screen.queryByText(key('memoryEmptyProposal'))).not.toBeInTheDocument();
-  });
-
   it('distinguishes observation from action and exposes the bounded baseline proposal safely', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({
       ...page,
@@ -175,7 +125,7 @@ describe('JEV debug feed independent of chat turns', () => {
     expect(screen.getAllByText(key('contextDisplayHelp'))).toHaveLength(1);
     expect(screen.queryByText(key('actions.selected'))).not.toBeInTheDocument();
   });
-  it('names the source object and distinguishes JEV suggestion from LIA applied verdict', async () => {
+  it('names the source object of each batch answer', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({
       ...page,
       calls: [
@@ -186,7 +136,6 @@ describe('JEV debug feed independent of chat turns', () => {
           responses: {
             q0: { ...trace.response, choice: 'non_match', choice_label: 'Proposed exclusion' },
           },
-          applied_decisions: { q0: 'unknown' },
           decision_labels: { q0: 'Project meeting' },
         },
       ],
@@ -195,19 +144,7 @@ describe('JEV debug feed independent of chat turns', () => {
     await user.click(screen.getByRole('button', { name: key('title') }));
     expect(await screen.findByText('Project meeting')).toBeVisible();
     expect(screen.getByText('Proposed exclusion')).toBeVisible();
-    expect(screen.getByText(key('appliedDecision'))).toBeVisible();
     expect(screen.getByText(key('actions.preview'))).toBeVisible();
-  });
-  it('keeps a retained preview trace distinct from an applied action after an upgrade', async () => {
-    vi.spyOn(apiClient, 'get').mockResolvedValue({
-      ...page,
-      calls: [{ ...trace, action: 'selected', action_target: 'result_preview' }],
-    });
-    const { user } = renderWithProviders(<DebugPanel metrics={null} />);
-    await user.click(screen.getByRole('button', { name: key('title') }));
-    expect(await screen.findByText(key('actions.preview'))).toBeVisible();
-    expect(screen.getByText(key('actionHelp.preview'))).toBeVisible();
-    expect(screen.queryByText(key('actions.selected'))).not.toBeInTheDocument();
   });
   it('leads with the translated purpose and action, keeping technical identifiers in details', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue(page);

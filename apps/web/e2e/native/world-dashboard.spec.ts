@@ -2,7 +2,6 @@
 import { test, expect, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openNativeWorld, enterWorld, revealWorldControls } from '../fixtures/world-admission';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { homeBriefing, HOME_ORDER, HOME_STATISTICS } from '../fixtures/dashboard-home';
 import { worldProofUrl } from './world-route';
 import { parseWorldFrame, type WorldView } from '../../src/features/world/protocol';
@@ -122,7 +121,6 @@ for (const viewport of [
     try {
       await signIn(context, baseURL, 8);
       const page = await context.newPage();
-      await installOfflineFonts(page);
       const data = await dashboardData(page);
       const actor = observe(page);
       const errors: string[] = [];
@@ -224,7 +222,6 @@ test('an interrupted initial dashboard text requires explicit retry after reopen
   try {
     await signIn(context, baseURL, 8);
     const page = await context.newPage();
-    await installOfflineFonts(page);
     const data = await dashboardData(page, delayedText);
     await openNativeWorld(page, 'Interrupted dashboard visitor', worldProofUrl(baseURL, 'en'));
     await enterWorld(page);

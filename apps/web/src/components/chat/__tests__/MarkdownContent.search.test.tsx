@@ -55,8 +55,8 @@ describe('MarkdownContent — search highlight', () => {
   });
 
   it('never injects a mark inside a Material Symbols icon span (ADR-177)', () => {
-    // The icon text is a font LIGATURE name ("event", "mail") — a <mark> in
-    // the middle breaks the ligature and shows the raw word highlighted.
+    // The stored ligature selects trusted SVG artwork. A <mark> would split
+    // that marker, preventing icon replacement and exposing the raw name.
     const { container } = render(
       <MarkdownContent
         content={
@@ -71,11 +71,13 @@ describe('MarkdownContent — search highlight', () => {
     const icon = container.querySelector('.material-symbols-outlined');
     expect(icon).not.toBeNull();
     expect(icon?.querySelector('mark')).toBeNull();
-    expect(icon?.textContent).toBe('event');
+    expect(icon?.querySelector('svg')).toHaveAttribute('data-icon-name', 'Calendar');
+    expect(icon?.textContent).toBe('');
 
     // Control: the same word in prose IS highlighted.
     const marks = Array.from(container.querySelectorAll('mark.lia-search-mark'));
-    expect(marks.some(m => m.textContent?.toLowerCase() === 'event')).toBe(true);
+    expect(marks).toHaveLength(1);
+    expect(marks[0].textContent).toBe('event');
   });
 
   it('renders without any mark when the prop is absent or empty', () => {

@@ -274,6 +274,7 @@ class NeedsMePage(BaseModel):
     """Tickets waiting on the caller, and the exact total behind the page."""
 
     tickets: list[TicketRow]
+    as_of: datetime | None = Field(None, description="Server-bounded upper creation instant.")
     total: int = Field(ge=0)
 
 

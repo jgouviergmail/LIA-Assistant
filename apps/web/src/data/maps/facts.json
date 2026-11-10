@@ -1,7 +1,7 @@
 {
-  "version": "4.5.0",
-  "releaseDate": "2026-11-07",
-  "releases": 295,
+  "version": "4.6.0",
+  "releaseDate": "2026-11-10",
+  "releases": 296,
   "milestones": [
     {
       "version": "1.0.0",
@@ -278,6 +278,10 @@
     {
       "version": "4.5.0",
       "date": "2026-11-07"
+    },
+    {
+      "version": "4.6.0",
+      "date": "2026-11-10"
     }
   ],
   "domains": 62,
@@ -652,6 +656,11 @@
     "369": "ADR-369-Workbench-The-Persons-Own-Door-To-Their-Services.md",
     "370": "ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md",
     "371": "ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md",
-    "372": "ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md"
+    "372": "ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md",
+    "373": "ADR-373-The-Personality-Governs-The-Voice.md",
+    "374": "ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md",
+    "375": "ADR-375-Learned-Usage-Becomes-Proposals.md",
+    "376": "ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md",
+    "377": "ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md"
   }
 }

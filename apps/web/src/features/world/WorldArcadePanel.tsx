@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useMemo, useState } from 'react';
-import { BookOpen, LogOut } from 'lucide-react';
+import { BookOpen, LogOut } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useTranslation } from '@/i18n/client';

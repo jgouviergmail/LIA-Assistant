@@ -35,7 +35,7 @@ import {
   Pin,
   PinOff,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { BookmarkList } from '@/components/settings/generated-assets/BookmarkList';

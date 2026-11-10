@@ -761,6 +761,24 @@ export function ChatMessage({ message, isStreaming, onRetry }: any) {
 
 ---
 
+#### Dashboard headings and collection controls
+
+Relations, SMS, Meetings, Knowledge spaces and Alerts share the page pattern in
+`components/ui/section-header.tsx` and `components/ui/list-toolbar.tsx`: an icon and
+native H1 with its description, wrapping page actions, then search, labelled controls
+and a separate row of quick-filter chips. Settings and FAQ use the same H1. Reuse
+these primitives instead of choosing heading sizes or filter layouts per feature.
+
+Search applies automatically; each data source retains its own debounce and request
+contract. `ListField` puts its label before the control and aligns the control column
+on phones. `FilterChip` retains native button semantics and `aria-pressed`. Clearing
+with Escape only affects the focused search. Filters remain available for small or
+empty collections so the reader can recover from a filter with no matches.
+
+The hermetic journey `apps/web/e2e/smoke/dashboard-list-consistency.spec.ts` measures
+the actual headings, action targets and control alignment from phone to desktop.
+Feature journeys additionally cover filtering, persistence, failure and recovery.
+
 ## 🧪 Tests
 
 ### Structure Tests
@@ -1103,7 +1121,7 @@ après un local vert — d'où `ci:fast`.
 Gates bloquants sur `main` :
 
 - [ ] Toutes les suites passent (unit, agents, intégration, E2E)
-- [ ] Couverture backend >= **78 %** (source de vérité : `apps/api/pyproject.toml`)
+- [ ] Couverture backend >= **87 %** (source de vérité : `apps/api/pyproject.toml`)
 - [ ] Seuils de couverture frontend par fichier (`apps/web/vitest.config.mts`)
 - [ ] Ruff, Black, MyPy strict, ESLint, `tsc --noEmit` non incrémental
 - [ ] Ratchets shrink-only : a11y, react-hooks, complexité (front et back), dette MyPy, taille de fichiers

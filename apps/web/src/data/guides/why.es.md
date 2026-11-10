@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 7.0
-**Fecha**: 2026-11-06
-**Aplicación**: LIA v4.5.0
+**Fecha**: 2026-11-10
+**Aplicación**: LIA v4.6.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -33,7 +33,7 @@ El mecanismo se explica en [la guía técnica](/es/how). Cómo se escribió el c
 
 ## 2. Lo que LIA hace por ti
 
-Abre **Herramientas** cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA, y las estrellas amarillas le piden a LIA que resuma o redacte cuando quieras, con el coste a la vista. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.
+Abre **Herramientas** cuando quieras hacerlo tú: correo, calendario, tareas, contactos, archivos y luces Hue utilizan los servicios que conectaste. Haces clic, editas y envías directamente, sin llamar a una IA, y las estrellas amarillas le piden a LIA que resuma o redacte cuando quieras, con el coste a la vista; en cualquier parte de LIA, unas palabras seleccionadas se explican, se traducen o se convierten en una tarea o un evento. Cada pantalla ofrece solo lo que admite su proveedor; tus actos no se anotan en los registros de actividad de LIA.
 
 Le hablas con normalidad, por escrito o de viva voz. La interfaz existe en seis idiomas (francés, inglés, alemán, español, italiano, chino) y tu dictado se transcribe en el idioma de tu cuenta. Una veintena de agentes especializados se reparten el trabajo: tus datos personales, la web, la creación, la casa conectada, la navegación por sitios web y la anticipación.
 
@@ -51,7 +51,7 @@ Sin configurar nada, tienes Wikipedia, la lectura de páginas web, los lugares c
 
 Mantienes pulsado el micrófono, o dices «Dis LIA» para hablar con las manos libres. Esta palabra de activación se reconoce en tu dispositivo, no sale nada antes de que se oiga; por ahora solo existe en francés, en beta. «LIA, stop» corta su voz. Tu dictado se transcribe en tu servidor o mediante un motor remoto, según tu ajuste.
 
-El **modo Live** abre una conversación de voz en tiempo real con tu propia clave de Gemini Live, GPT-Live o ElevenLabs. La voz lleva la conversación y confía cada petición a LIA, que la trata como un mensaje normal; en Live directo, lee tus datos sin actuar. Un silencio pone la sesión en reposo sin facturar nada, y eres tú quien la termina. Un avatar parlante experimental puede acompañar la voz con tu propia clave de Simli; mientras su conexión siga abierta, los silencios también se facturan. Lo que funciona con tus propias claves se te muestra, pero LIA no lo registra ni lo contabiliza ([la voz](/es/faq#faq-voice_mode)).
+El **modo Live** abre una conversación de voz en tiempo real con tu propia clave de Gemini Live, GPT-Live o ElevenLabs. La voz lleva la conversación y confía cada petición a LIA, que la trata como un mensaje normal; en Live directo, lee tus datos sin actuar, y en ambos habla con la personalidad que elegiste. Un silencio pone la sesión en reposo sin facturar nada, y eres tú quien la termina. Un avatar parlante experimental puede acompañar la voz con tu propia clave de Simli; mientras su conexión siga abierta, los silencios también se facturan. Lo que funciona con tus propias claves se te muestra, pero LIA no lo registra ni lo contabiliza ([la voz](/es/faq#faq-voice_mode)).
 
 ### Crear y guardar
 
@@ -61,7 +61,7 @@ Lo que produce, lo guardas, lo envías por correo con un clic, compartes una ima
 
 ### Tomar la iniciativa
 
-Si se lo permites, LIA no se limita a esperar. Te escribe cuando tu agenda, el tiempo, tus tareas, tus correos o tus intereses lo justifican, y puede iniciar por sí misma una conversación personal. Al final de una reunión, te pregunta cómo ha ido. Cuando tu buzón o tu agenda se mueven, puede reaccionar en pocos minutos, y «Vigilar» está pendiente de un correo que esperas hasta que llega. Si se anuncia lluvia el sábado, revisa tus actividades al aire libre. Retiene lo que de verdad te importa, y un tema que rechazas no vuelve.
+Si se lo permites, LIA no se limita a esperar. Te escribe cuando tu agenda, el tiempo, tus tareas, tus correos o tus intereses lo justifican, y puede iniciar por sí misma una conversación personal. Al final de una reunión, te pregunta cómo ha ido. Cuando tu buzón o tu agenda se mueven, puede reaccionar en pocos minutos, y «Vigilar» está pendiente de un correo que esperas hasta que llega. Si se anuncia lluvia el sábado, revisa tus actividades al aire libre. Retiene lo que de verdad te importa, un tema que rechazas no vuelve, y lo que pides muchos días se convierte en una propuesta que aceptas con un clic, como una rutina lista antes de que la pidas.
 
 Le confías un ticket: lo toma a su ritmo y te devuelve un resultado para aceptar. Para una tarea compleja, delega en subagentes que trabajan en paralelo. Rutinas y recordatorios siguen ritmos ricos (un martes de cada dos, el segundo martes del mes, hasta una fecha), y una vista de la semana muestra lo que ha pasado de verdad ([la iniciativa](/es/how#proactivity)).
 
@@ -69,7 +69,7 @@ Le confías un ticket: lo toma a su ritmo y te devuelve un resultado para acepta
 
 LIA hace una llamada de verdad en tu lugar, al taller o a una amiga, y te trae un resumen escrito. Primero te dice a quién llama y por qué, y espera tu luz verde. Frente a otra persona, no acepta ningún compromiso en tu nombre, de tu agenda solo revela si estás libre, y solo guarda un resumen breve que caduca. También puede llamarte a ti, a un número que has verificado, y entonces nada está restringido: al otro lado de la línea tienes tus datos y todas sus funciones, y las acciones se siguen confirmando como en el chat. Este modo solo existe si el proveedor telefónico puede acceder a tu instancia ([telefonía](/es/faq#faq-telephony)).
 
-En una misma instancia, dos personas conectadas ven a sus asistentes hablar entre sí: tú validas el mensaje exacto, el otro asistente lo transmite con su personalidad, el tuyo confirma la entrega. Cada conexión solo abre lo que has elegido compartir, en solo lectura. Solo se encuentra a alguien por su identidad exacta, un bloqueo es silencioso (la otra persona recibe la misma respuesta que un desconocido), y los mensajes retransmitidos se borran a los treinta días. La página **Relaciones** reúne, para cada persona, los compromisos, las llamadas, los recuerdos y los mensajes, con una síntesis al principio, sin recoger nada nuevo. Eres tú quien fusiona dos identidades, por ejemplo «Papá» y un número, de forma reversible y sin escribir nada en tus fuentes.
+En una misma instancia, dos personas conectadas ven a sus asistentes hablar entre sí: lo pides con palabras y el mensaje sale, aunque un nombre que pueda designar a varias personas se pregunta antes, y luego el otro asistente lo transmite con su personalidad. Cada conexión solo abre lo que has elegido compartir, en solo lectura. Solo se encuentra a alguien por su identidad exacta, un bloqueo es silencioso (la otra persona recibe la misma respuesta que un desconocido), y los mensajes retransmitidos se borran a los treinta días. La página **Relaciones** reúne, para cada persona, los compromisos, las llamadas, los recuerdos y los mensajes, con una síntesis al principio, sin recoger nada nuevo. Eres tú quien fusiona dos identidades, por ejemplo «Papá» y un número, de forma reversible y sin escribir nada en tus fuentes.
 
 Tu teléfono se convierte también en una grabadora de reuniones. Al detenerla, LIA transcribe y redacta un acta en el formato adecuado, te dice cuál y por qué, y la envía al chat, en PDF y por correo, y luego la guarda en un espacio «Reuniones» donde encontrarás lo que se decidió. Un corte solo cuesta unos segundos de audio, una grabación hecha en otro lugar se puede importar, y la transcripción puede quedarse por completo en tu servidor.
 

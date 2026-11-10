@@ -45,7 +45,7 @@ export const PENDING_APPROVAL = {
 export const PROOF_SPACE: RAGSpaceDetail = {
   id: SPACE_ID, name: 'Project Atlas',
   description: 'Demo project: a shared context for the brief, emails and meeting decisions.',
-  is_active: true, kind: null, document_count: 4, ready_document_count: 4,
+  is_active: true, is_favorite: false, kind: null, document_count: 4, ready_document_count: 4,
   total_size: 724000, created_at: PROOF_TIME, updated_at: PROOF_TIME,
   documents: [
     { id: 'proof-doc-brief', original_filename: 'Launch plan.pdf', source_type: 'upload', content_type: 'application/pdf', file_size: 420000 },

@@ -12,10 +12,6 @@ from src.domains.agents.application.authorization import load_actor
 from src.domains.agents.application.availability import require_application_tools
 from src.domains.agents.application.command_service import CommandRejected
 from src.domains.agents.application.draft_models import ApplicationActionDraftContent
-from src.domains.agents.application.memory_creation_embeddings import (
-    prepare_memory_creation_embeddings,
-    released_after,
-)
 from src.domains.agents.application.memory_pin import (
     _memory_pin_fence,
     memory_pin_snapshot,
@@ -27,6 +23,10 @@ from src.domains.agents.application.memory_update_schemas import (
     MemoryUpdatePatch,
     MemoryUpdateRequest,
     MemoryUpdateValues,
+)
+from src.domains.memories.creation_embeddings import (
+    prepare_memory_creation_embeddings,
+    released_after,
 )
 from src.domains.memories.management_commands import (
     get_active_owned_memory,

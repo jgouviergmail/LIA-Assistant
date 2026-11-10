@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { SelectionHost } from '@/components/selection-assist/SelectionHost';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
@@ -33,12 +34,14 @@ export const OnboardingDialogContent = React.forwardRef<
   OnboardingDialogContentProps
 >(({ className, children, lng, ...props }, ref) => {
   const { t } = useTranslation(lng);
+  const selectionHost = React.useId();
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        data-selection-host={selectionHost}
         className={cn(
           // Base positioning
           'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
@@ -64,6 +67,7 @@ export const OnboardingDialogContent = React.forwardRef<
           {t('onboarding.dialog_description')}
         </DialogDescription>
         {children}
+        <SelectionHost id={selectionHost} />
         {/* No DialogPrimitive.Close here - users must use explicit buttons */}
       </DialogPrimitive.Content>
     </DialogPortal>

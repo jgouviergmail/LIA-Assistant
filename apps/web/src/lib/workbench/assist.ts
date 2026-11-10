@@ -5,6 +5,9 @@
  */
 import type { LLMUsage } from '@/types/llm-usage';
 
+/** Non-streaming assists stop before the web proxy's idle ceiling. */
+export const ASSIST_TIMEOUT_MS = 85_000;
+
 /** Where a click asks. */
 export const ASSIST_PATHS = {
   mailSummary: '/tool-assists/mail/summary',
@@ -15,6 +18,7 @@ export const ASSIST_PATHS = {
   textRewrite: '/tool-assists/text/rewrite',
   textTranslate: '/tool-assists/text/translate',
   textWrite: '/tool-assists/text/write',
+  textPassage: '/tool-assists/text/passage',
   mailSearch: '/tool-assists/mail/search',
   mailFilter: '/tool-assists/mail/filter',
   mailTriage: '/tool-assists/mail/triage',
@@ -28,6 +32,7 @@ export const ASSIST_PATHS = {
   taskSteps: '/tool-assists/tasks/steps',
   contactComplete: '/tool-assists/contacts/complete',
   contactFromCard: '/tool-assists/contacts/from-card',
+  contactFromWords: '/tool-assists/contacts/from-words',
   readAloud: '/tool-assists/read-aloud',
   keepFile: '/tool-assists/spaces/keep-file',
   keepAttachment: '/tool-assists/spaces/keep-attachment',
@@ -40,6 +45,7 @@ export type RewriteTone = 'fix' | 'shorter' | 'formal' | 'warm';
 export type WritingKind =
   | 'event_description'
   | 'task_notes'
+  | 'contact_notes'
   | 'auto_reply'
   | 'signature'
   | 'document';
@@ -68,6 +74,8 @@ export interface ProposedEvent {
   description: string;
   attendees: string[];
   repeat: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  /** A video call is to be made with it: the text asked for one and gave no link. */
+  conference: boolean;
 }
 
 /** A task as a form can take it. */
@@ -76,6 +84,8 @@ export interface ProposedTask {
   notes: string;
   due: string | null;
   list_name: string | null;
+  /** `high` when the text says it is urgent; else the provider's own. */
+  importance: 'high' | null;
 }
 
 export interface EventAnswer extends AssistAnswer {

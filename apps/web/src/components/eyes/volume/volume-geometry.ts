@@ -3,6 +3,10 @@ import type { ChannelValues } from '../rig/channels';
 import type { SpiritVariant } from '@/components/spirit/catalogue';
 import { alphaOutlineMesh } from './volume-outline';
 import { silhouetteDepth } from './volume-distance';
+import type { ScarfFit } from './scarf-fit';
+
+export const VOLUME_EXTENT = 1.7;
+export const VOLUME_BUFFER_MAX = 192;
 
 export const VOLUME_CHARACTERS = [
   'spirit',
@@ -29,6 +33,15 @@ export interface VolumePose {
 export interface VolumeMesh {
   vertices: Float32Array;
   indices: Uint16Array;
+  /** Prepared once in source coordinates; shared by the body hull and alpha fringe. */
+  skin?: VolumeSkin;
+}
+export interface VolumeSkin {
+  /** Joint indices, two weights, then their two spatial gradients. */
+  vertices: Float32Array;
+  /** Eight (pivot.x, pivot.y, angle, reserved) joint uniforms. */
+  joints: Float32Array;
+  limits: Float32Array;
 }
 export interface VolumeMask {
   width: number;
@@ -43,13 +56,9 @@ export interface VolumeLobe {
   depth: number;
   box?: boolean;
 }
-export interface CollarProfile {
-  centerY: number;
-  radiusX: number;
+export interface CollarProfile extends ScarfFit {
   radiusZ: number;
-  height: number;
   centerZ?: number;
-  conformSphereRadius?: number;
   tail?: boolean;
 }
 export interface VolumeProfile {
@@ -60,7 +69,7 @@ export interface VolumeProfile {
   collar: CollarProfile;
   alphaDistance?: { width: number; height: number; values: Float32Array };
 }
-const EM = 2.6;
+export const VOLUME_SOURCE_EM = 2.6;
 const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 
 function lobe(
@@ -71,7 +80,14 @@ function lobe(
   depth: number,
   box = false
 ): VolumeLobe {
-  return { x: (x - 0.5) * EM, y: (y - 0.5) * EM, rx: rx * EM, ry: ry * EM, depth, box };
+  return {
+    x: (x - 0.5) * VOLUME_SOURCE_EM,
+    y: (y - 0.5) * VOLUME_SOURCE_EM,
+    rx: rx * VOLUME_SOURCE_EM,
+    ry: ry * VOLUME_SOURCE_EM,
+    depth,
+    box,
+  };
 }
 
 function anatomy(character: VolumeCharacter, male: boolean): VolumeLobe[] {
@@ -150,56 +166,64 @@ function anatomy(character: VolumeCharacter, male: boolean): VolumeLobe[] {
 
 export function volumeProfile(character: VolumeCharacter, variant: SpiritVariant): VolumeProfile {
   const male = variant === 'male';
-  // Frontal cross sections measured on the published RGBA art at this y,
-  // including the113% body registration and .025em cloth clearance.
+  // Registered neck/body cross sections, followed by independent fabric
+  // thickness and tail drop. Body artwork is displayed at 113%.
   // The monitor has one shared body; its physical collar is shared too.
-  type CollarMeasurements = readonly [number, number, number, number];
+  type CollarMeasurements = readonly [number, number, number, number, number];
   const measurements: Record<VolumeCharacter, readonly [CollarMeasurements, CollarMeasurements]> = {
     spirit: [
-      [0.78, 0.851, 0.405, 0.175],
-      [0.775, 1.035, 0.44, 0.175],
+      [0.78, 0.851, 0.405, 0.22, 0.18],
+      [0.775, 1.035, 0.44, 0.23, 0.18],
     ],
     moss: [
-      [0.795, 0.851, 0.4, 0.17],
-      [0.78, 0.981, 0.43, 0.17],
+      [0.79, 0.851, 0.4, 0.21, 0.16],
+      [0.78, 0.981, 0.43, 0.22, 0.16],
     ],
     lumen: [
-      [0.78, 0.836, 0.415, 0.18],
-      [0.765, 0.997, 0.45, 0.18],
+      [0.77, 0.836, 0.415, 0.21, 0.16],
+      [0.755, 0.997, 0.45, 0.22, 0.16],
     ],
     nimbo: [
-      [0.805, 1.173, 0.43, 0.18],
-      [0.765, 1.203, 0.47, 0.18],
+      [0.69223, 1.29, 0.56, 0.34, 0.15],
+      [0.67323, 1.31, 0.59, 0.35, 0.15],
     ],
     orbit: [
-      [0.79, 0.805, 0.44, 0.18],
-      [0.755, 0.867, 0.48, 0.18],
+      [0.86, 0.64, 0.44, 0.17, 0.13],
+      [0.83, 0.72, 0.48, 0.18, 0.13],
     ],
     bip: [
-      [0.68, 0.714, 0.305, 0.15],
-      [0.67, 0.752, 0.33, 0.15],
+      [0.6385, 0.78, 0.53, 0.16, 0.14],
+      [0.6192, 0.86, 0.55, 0.17, 0.14],
     ],
     boulon: [
-      [0.7, 0.981, 0.315, 0.16],
-      [0.7, 1.05, 0.34, 0.16],
+      [0.73, 0.88, 0.315, 0.2, 0.16],
+      [0.73, 0.98, 0.34, 0.21, 0.16],
     ],
     oscar: [
-      [0.58, 0.262, 0.244, 0.14],
-      [0.59, 0.453, 0.265, 0.14],
+      [0.60769, 0.4, 0.32, 0.3, 0.14],
+      [0.60385, 0.5, 0.34, 0.31, 0.14],
     ],
     monitor: [
-      [0.79, 0.188, 0.156, 0.13],
-      [0.79, 0.188, 0.156, 0.13],
+      [0.78, 0.205, 0.156, 0.105, 0.1],
+      [0.78, 0.205, 0.156, 0.105, 0.1],
     ],
   };
-  const [y, radiusX, depth, height] = measurements[character][Number(male)];
+  const [y, radiusX, depth, height, tailDrop] = measurements[character][Number(male)];
   const collar: CollarProfile = {
-    centerY: (y - 0.5) * EM,
+    centerY: (y - 0.5) * VOLUME_SOURCE_EM,
     radiusX,
     radiusZ: depth,
     height,
+    tailDrop,
     tail: true,
   };
+  const wraps = {
+    bip: { power: 4, frontDrop: 0.18, knotScale: 1 },
+    oscar: { power: 2, frontDrop: 0.1, knotScale: 1.1 },
+    nimbo: { power: 2.4, frontDrop: 0.28, knotScale: 1.3 },
+  };
+  if (character === 'bip' || character === 'oscar' || character === 'nimbo')
+    collar.wrap = { ...wraps[character], radiusZ: depth };
   return {
     character,
     variant,
@@ -300,8 +324,8 @@ export function volumeMesh(profile: VolumeProfile, grid = 24): VolumeMesh {
       for (let col = 0; col < side; col++) {
         const u = col / grid,
           v = row / grid,
-          x = (u - 0.5) * EM * profile.scale,
-          y = (v - 0.5) * EM * profile.scale;
+          x = (u - 0.5) * VOLUME_SOURCE_EM * profile.scale,
+          y = (v - 0.5) * VOLUME_SOURCE_EM * profile.scale;
         const z = volumeDepth(profile, x, y) * (layer ? -1 : 1);
         const dx =
           (volumeDepth(profile, x + 0.002, y) - volumeDepth(profile, x - 0.002, y)) / 0.004;

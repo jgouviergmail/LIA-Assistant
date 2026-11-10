@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LockKeyhole } from 'lucide-react';
+import { LockKeyhole } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import apiClient, { ApiStepUpError } from '@/lib/api-client';

@@ -1,14 +1,16 @@
 /** Resource lifetime follows the native rig's visibility/motion owner, no second observer/clock. */
 import type { ChannelValues } from '../rig/channels';
-import { restChannelValues } from '../rig/channels';
+import { LIMB_CHANNELS, restChannelValues } from '../rig/channels';
 import type { SpiritVariant } from '@/components/spirit/catalogue';
 import {
   companionBodyAsset,
+  COMPANION_BODY_ALPHA_FLOOR,
   type CompanionCharacter,
 } from '@/components/spirit/companion-catalogue';
-import { createMeshGpu, type VolumeGraphics } from './mesh-gpu';
+import { createMeshGpu, type SurfaceMaterial, type VolumeGraphics } from './mesh-gpu';
 import {
   visibleVolumeMesh,
+  VOLUME_EXTENT,
   volumePose,
   volumeProfile,
   type VolumeCharacter,
@@ -17,10 +19,12 @@ import {
   type VolumeMesh,
 } from './volume-geometry';
 import { createClothGpu } from './cloth-gpu';
+import { scarfOpacity } from './scarf-fit';
 import { readVolumeMask } from './volume-mask';
 import { bodySurfaceProfile } from './volume-distance';
 import { releaseNativeContext } from './context-lifetime';
 import { volumeFringeMask, withSoftFringe } from './volume-fringe';
+import { withLimbSkin } from './limb-skin';
 
 interface VolumeBinding {
   paint(values: Readonly<ChannelValues>, force?: boolean): boolean;
@@ -28,6 +32,18 @@ interface VolumeBinding {
   motion(reduced: boolean): void;
   reset(): void;
 }
+const BODY_MATERIAL = {
+  spirit: 'soft',
+  moss: 'soft',
+  lumen: 'soft',
+  nimbo: 'soft',
+  orbit: 'hard',
+  bip: 'hard',
+  boulon: 'hard',
+  oscar: 'satin',
+  monitor: 'casing',
+} as const satisfies Record<VolumeCharacter, SurfaceMaterial>;
+
 const painters = new WeakMap<HTMLElement, VolumeBinding>();
 const snapshots = new WeakMap<HTMLElement, Readonly<ChannelValues>>();
 const projections = new WeakMap<HTMLElement, (values: Readonly<ChannelValues>) => void>();
@@ -95,9 +111,13 @@ export function bindBodyVolume(
     failed = false,
     loading = false,
     contextLost = false;
-  const last = new Float64Array(6).fill(NaN);
-  const ready = (value: boolean) => {
+  const last = new Float64Array(6 + LIMB_CHANNELS.length).fill(NaN);
+  const ready = (bodyReady: boolean, scarfReady = false, cold = 0) => {
+    const clothRequired = scarfOpacity(cold) > 0;
+    const value = bodyReady && (!clothRequired || scarfReady);
     root.dataset.volumeReady = String(value);
+    root.dataset.volumeScarfReady = String(value && scarfReady);
+    return value;
   };
   const stop = () => {
     gpu?.dispose();
@@ -105,20 +125,21 @@ export function bindBodyVolume(
     cloth?.dispose();
     cloth = null;
     ready(false);
-    root.dataset.volumeScarfReady = 'false';
     last.fill(NaN);
     projections.get(root)?.(snapshots.get(root) ?? restChannelValues());
   };
   const paint = (values: Readonly<ChannelValues>, force = false) => {
     if (!active || !visible || reduced || document.hidden || !gl || !gpu) return false;
     const pose = volumePose(values, character),
+      cold = scarfOpacity(values.weatherCold),
       current = [
         pose.yaw,
         pose.pitch,
         values.lightWarm,
         values.lightCool,
-        values.weatherCold,
-        values.weatherCold > 0.02 ? values.ambientSway : 0,
+        cold,
+        cold > 0 ? values.scarfTrail : 0,
+        ...LIMB_CHANNELS.map(channel => values[channel]),
       ];
     if (!force && current.every((value, index) => Math.abs(value - last[index]) < 0.0001))
       return root.dataset.volumeReady === 'true';
@@ -130,10 +151,9 @@ export function bindBodyVolume(
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const drawn = gpu.draw(pose, values.lightWarm, values.lightCool);
-    ready(drawn);
-    root.dataset.volumeScarfReady = String(drawn && (cloth?.draw(values, pose) ?? false));
-    return drawn;
+    const drawn = gpu.draw(pose, values.lightWarm, values.lightCool, 1, values);
+    const scarfReady = drawn && (cloth?.draw(values, pose) ?? false);
+    return ready(drawn, scarfReady, values.weatherCold);
   };
   const redraw = () => {
     const values = snapshots.get(root) ?? restChannelValues();
@@ -188,14 +208,23 @@ export function bindBodyVolume(
     if (!mesh) {
       const physical = visibleVolumeMesh(profile, mask);
       fringe = volumeFringeMask(physical, mask);
-      mesh = withSoftFringe(physical, profile);
+      mesh = withLimbSkin(withSoftFringe(physical, profile), profile);
     }
-    gpu = createMeshGpu(canvas, gl, mesh, false, 1.7, character === 'monitor');
+    gpu = createMeshGpu(
+      canvas,
+      gl,
+      mesh,
+      false,
+      VOLUME_EXTENT,
+      character === 'monitor',
+      character === 'monitor' ? 0 : COMPANION_BODY_ALPHA_FLOOR,
+      BODY_MATERIAL[character]
+    );
     if (!gpu) {
       failed = true;
       return;
     }
-    cloth = createClothGpu(canvas, gl, profile.collar, redraw, 1.7, profile);
+    cloth = createClothGpu(canvas, gl, profile.collar, redraw, VOLUME_EXTENT, profile);
     gpu.upload(image, fringe ?? undefined);
     redraw();
   };

@@ -121,9 +121,9 @@
     },
     "f.habits": {
       "name": "Gelernte Gewohnheiten",
-      "role": "Deterministische, erklärbare Statistiken darüber, wann du was tust; jede Gewohnheit lässt sich einsehen, korrigieren oder sperren, und ein einziger Schalter stoppt jedes Lernen.",
+      "role": "Deterministische, erklärbare Statistiken darüber, was du brauchst und wann; was sie finden, wird zu Vorschlägen, die du annimmst oder ablehnst, jede Gewohnheit lässt sich einsehen, korrigieren oder sperren, und ein einziger Schalter stoppt jedes Lernen.",
       "goal": "Vorausschauen, ohne zu raten, und ohne hinter deinem Rücken etwas zu lernen.",
-      "src": "6871ff106b3b"
+      "src": "bba7c2ac0b48"
     },
     "f.interests": {
       "name": "Interessen",
@@ -466,11 +466,11 @@
         "Du erwähnst, dass du gegen Nüsse allergisch bist.",
         "Der Fakt wird im Hintergrund extrahiert, eingeordnet und bleibt korrigierbar.",
         "Wiederkehrende Themen werden zu Interessen.",
-        "Die Zeitpunkte, zu denen du Dinge tust, werden zu Gewohnheiten, sichtbar und sperrbar.",
+        "Was du an vielen Tagen fragst, wird zu einer Gewohnheit, sichtbar und sperrbar, dann zu einem Vorschlag.",
         "LIA stellt dein Porträt zusammen und sagt, welche Quellen sie gelesen hat.",
         "Ihre Stimmung und ihr Ton passen sich der Beziehung an."
       ],
-      "src": "30baef5255f2"
+      "src": "6f0c9cec8e45"
     },
     "flow.knowledge": {
       "name": "Was du weißt, liest LIA",

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronDown, Lightbulb, Pause, Play, RotateCcw } from 'lucide-react';
+import { ChevronDown, Lightbulb, Pause, Play, RotateCcw } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

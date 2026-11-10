@@ -303,9 +303,8 @@ class PlaceCard(BaseComponent):
             addr_row = render_d_row(
                 Icons.LOCATION,
                 link,
-                icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
             )
-            address_html = f'<div style="margin-top:var(--lia-space-lg)">{addr_row}</div>'
+            address_html = f'<div class="lia-place__address">{addr_row}</div>'
 
         # --- Phone ---
         phone_html = ""
@@ -326,13 +325,14 @@ class PlaceCard(BaseComponent):
         if not summary_text:
             summary_text = scalar_text(data.get("description"))
         if summary_text:
-            editorial_html = f'<p class="lia-place__summary" style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);margin-top:var(--lia-space-xs);font-style:italic">{escape_html(summary_text)}</p>'
+            editorial_html = f'<p class="lia-place__summary">{escape_html(summary_text)}</p>'
 
         # --- Collapsible ---
         collapsible_html = self._render_collapsible_details_v4(data, ctx)
 
         return f"""<div class="lia-card lia-place {open_class} {nested_class}">
 {hero_html}
+<div class="lia-place__sheet">
 {card_top_html}
 {chip_row_1}
 {chip_row_3}
@@ -341,6 +341,7 @@ class PlaceCard(BaseComponent):
 {editorial_html}
 {collapsible_html}
 {place_source_without_photo(hero_html)}
+</div>
 </div>"""
 
     def _get_place_icon(self, types: list[str]) -> str:

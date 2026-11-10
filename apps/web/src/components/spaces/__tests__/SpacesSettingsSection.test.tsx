@@ -8,7 +8,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { makeUser } from '@/__tests__/factories';
+import type { useSpaces } from '@/hooks/useSpaces';
 import type { RAGSpace } from '@/types/rag-spaces';
+
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: makeUser() }) }));
 
 const hook = vi.hoisted(() => ({
   spaces: [] as RAGSpace[],
@@ -19,15 +23,20 @@ const hook = vi.hoisted(() => ({
   deleteSpace: vi.fn(),
 }));
 vi.mock('@/hooks/useSpaces', () => ({
-  useSpaces: () => ({
+  useSpaces: (): ReturnType<typeof useSpaces> => ({
     spaces: hook.spaces,
+    total: hook.spaces.length,
+    activeCount: hook.spaces.filter(space => space.is_active).length,
     loading: hook.loading,
+    error: null,
+    refetch: vi.fn(),
     toggleSpace: hook.toggleSpace,
     createSpace: hook.createSpace,
     updateSpace: hook.updateSpace,
     deleteSpace: hook.deleteSpace,
     creating: false,
     updating: false,
+    deleting: false,
     toggling: false,
   }),
 }));
@@ -49,6 +58,7 @@ function space(over: Partial<RAGSpace> = {}): RAGSpace {
     description: null,
     is_active: true,
     kind: null,
+    is_favorite: false,
     document_count: 2,
     ready_document_count: 2,
     total_size: 4096,
@@ -139,6 +149,13 @@ describe('SpacesSettingsSection', () => {
 });
 
 describe('SpacesPage', () => {
+  it('keeps one create action when the full page is empty', () => {
+    hook.spaces = [];
+    renderWithProviders(<SpacesPage />);
+    expect(screen.getByText('spaces.empty_title')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'spaces.create_button' })).toBeInTheDocument();
+  });
+
   it('mounts the same screen under the page title', () => {
     renderWithProviders(<SpacesPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'spaces.title' })).toBeInTheDocument();

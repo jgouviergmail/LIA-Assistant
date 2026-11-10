@@ -2,7 +2,7 @@
 
 /** Registry-driven, device-local appearance choices with interaction-only previews. */
 import { useId, useState, useSyncExternalStore } from 'react';
-import { Eye, Palette } from 'lucide-react';
+import { Eye, Palette } from '@/lib/icons';
 
 import { EyesFace } from '@/components/eyes/EyesFace';
 import { EYE_STYLE_IDS, isRigEyeStyle, type EyeStyleId } from '@/components/eyes/eye-styles';
@@ -34,7 +34,7 @@ function StylePreviews({
   maleLabel: string;
   large?: boolean;
 }) {
-  const hasGenderVariants = id === 'smiley' || !isRigEyeStyle(id);
+  const hasGenderVariants = !isRigEyeStyle(id);
   return (
     <div
       className={cn('flex min-h-20 items-center justify-center gap-3', large && 'min-h-28 gap-4')}

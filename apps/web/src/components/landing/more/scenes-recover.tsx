@@ -28,7 +28,7 @@ import {
   ScrollText,
   SearchX,
   CheckCircle2,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 

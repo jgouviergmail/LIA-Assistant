@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Link2, MessageCircleHeart, Brain, Bell, HelpCircle } from 'lucide-react';
+import { Link2, MessageCircleHeart, Brain, Bell, HelpCircle } from '@/lib/icons';
 
 interface Page1WelcomeProps {
   lng: Language;

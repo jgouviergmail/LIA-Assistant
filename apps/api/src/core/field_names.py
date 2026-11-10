@@ -230,6 +230,9 @@ FIELD_INJECTED_JOURNAL_REVISIONS = "injected_journal_revisions"
 # chips render live and survive a reload while the answer stays the latest.
 FIELD_FOLLOWUP_SUGGESTIONS = "followup_suggestions"
 FIELD_INITIATIVE_MOTIVATION = "initiative_motivation"
+# The habit proposal a chat answer shows (ADR-375): the proposal's FACTS, on the
+# same two roads as the chips, phrased by the card in the reader's language.
+FIELD_HABIT_PROPOSAL = "habit_proposal"
 
 # Data Registry & Correlation (Correlated Display)
 FIELD_REGISTRY_ID = "_registry_id"  # Internal registry item ID (enriched in structured_data)

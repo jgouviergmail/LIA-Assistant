@@ -8,7 +8,7 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';

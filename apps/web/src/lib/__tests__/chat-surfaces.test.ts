@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CHAT_SURFACES,
   hitlAwaitsUser,
+  surfaceIsBusy,
   visibleChatSurfaces,
   chatListActivity,
   type ChatSurface,
@@ -32,6 +33,7 @@ const ALL_ACTIVE: ChatSurfaceContext = {
   hitlAwaitingAction: true,
   hasConnectorNotices: true,
   wantsGeolocationPrompt: true,
+  hasProposal: true,
   hasFollowups: true,
 };
 
@@ -40,6 +42,7 @@ const NONE_ACTIVE: ChatSurfaceContext = {
   hitlAwaitingAction: false,
   hasConnectorNotices: false,
   wantsGeolocationPrompt: false,
+  hasProposal: false,
   hasFollowups: false,
 };
 
@@ -81,6 +84,22 @@ describe('hitlAwaitsUser — which card states owe the user an action', () => {
   });
 });
 
+describe('surfaceIsBusy — when the comfort surfaces wait', () => {
+  const idle = { isTyping: false, activeStreamId: null, historyView: false };
+
+  it('is idle when nothing streams and the history view is closed', () => {
+    expect(surfaceIsBusy(idle)).toBe(false);
+  });
+
+  it.each([
+    ['an answer being typed', { ...idle, isTyping: true }],
+    ['a stream still open', { ...idle, activeStreamId: 'stream-1' }],
+    ['the history view', { ...idle, historyView: true }],
+  ])('is busy during %s', (_label, live) => {
+    expect(surfaceIsBusy(live)).toBe(true);
+  });
+});
+
 describe('visibleChatSurfaces — nothing is invented', () => {
   it('shows nothing when nothing is active', () => {
     expect(visible()).toEqual([]);
@@ -94,6 +113,7 @@ describe('visibleChatSurfaces — nothing is invented', () => {
       hitl: 'hitlAwaitingAction',
       connector: 'hasConnectorNotices',
       geolocation: 'wantsGeolocationPrompt',
+      proposal: 'hasProposal',
       followups: 'hasFollowups',
     };
     context[trigger[surface]] = false;
@@ -156,8 +176,29 @@ describe('visibleChatSurfaces — comfort surfaces yield to a pending action', (
     ]);
   });
 
+  it('drops a habit proposal while a HITL card awaits an answer (ADR-375)', () => {
+    expect(visible({ hitlAwaitingAction: true, hasProposal: true })).toEqual(['hitl']);
+  });
+
+  it('drops a habit proposal while the quota blocks the composer', () => {
+    expect(visible({ usageBlocked: true, hasProposal: true })).toEqual(['usage']);
+  });
+
+  it('gives the comfort slot to a habit proposal before the chips', () => {
+    // One question at a time: the card asks for a decision, the chips offer a
+    // next request. The chips come back once the card is decided.
+    expect(visible({ hasProposal: true, hasFollowups: true })).toEqual(['proposal']);
+  });
+
+  it('keeps the geolocation prompt beside a proposal (its own trigger)', () => {
+    expect(visible({ hasProposal: true, wantsGeolocationPrompt: true })).toEqual([
+      'geolocation',
+      'proposal',
+    ]);
+  });
+
   it('reduces the pathological stack to the surfaces that carry meaning', () => {
-    // 5 candidate blocks → 3 rendered: the two blocking ones and the notice.
+    // 6 candidate blocks → 3 rendered: the two blocking ones and the notice.
     expect(visible(ALL_ACTIVE)).toEqual(['connector', 'hitl', 'usage']);
   });
 });
@@ -172,6 +213,7 @@ describe('visibleChatSurfaces — the rule table is exhaustive', () => {
         hitl: 'hitlAwaitingAction',
         connector: 'hasConnectorNotices',
         geolocation: 'wantsGeolocationPrompt',
+        proposal: 'hasProposal',
         followups: 'hasFollowups',
       };
       const alone = visibleChatSurfaces({ ...NONE_ACTIVE, [trigger[surface]]: true });

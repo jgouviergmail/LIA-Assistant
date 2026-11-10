@@ -31,9 +31,11 @@ from src.domains.proactive_discussions.openings import (
     OpeningView,
     apply_feedback,
     get_opening,
+    list_display_openings,
     list_openings,
 )
 from src.domains.proactive_discussions.settings_service import read_settings, update_settings
+from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 from src.infrastructure.proactive.discussion_activity import read_activity
 from src.infrastructure.proactive.discussion_rebuild import kick_context_rebuild
@@ -56,10 +58,20 @@ router = APIRouter(
 async def opening_history(
     limit: int = Query(default=30, ge=1, le=50),
     after_id: UUID | None = None,
+    offset: int | None = Query(None, ge=0),
+    criteria: DisplayQuery = Depends(display_query),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> OpeningPage:
-    """List the openings LIA made, newest first, with their exact total."""
+    """List visible openings; display offsets and legacy cursors never mix."""
+    if offset is not None:
+        if after_id is not None:
+            raise_unprocessable_entity("Display offsets cannot be combined with a cursor")
+        return await list_display_openings(
+            db, user.id, limit=limit, offset=offset, criteria=criteria
+        )
+    if criteria.q or criteria.sort is not None:
+        raise_unprocessable_entity("Display filters require offset pagination")
     return await list_openings(db, user.id, OpeningPageRequest(limit=limit, after_id=after_id))
 
 

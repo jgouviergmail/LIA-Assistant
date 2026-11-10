@@ -18,7 +18,7 @@ PREFERENCES_READ_MANIFEST = ToolManifest(
     agent="setting_agent",
     description=(
         "Read this user's saved LIA application preferences: interface font size, "
-        "font family, theme, language, timezone, personality and image defaults. "
+        "font family, theme, icon style, language, timezone, personality and image defaults. "
         "No mutation. Returns actual localized option labels with their accepted IDs; "
         "use those labels in answers and IDs in writes, never invent choices. "
         "Account values are distinct from an unsaved device preview."
@@ -54,6 +54,7 @@ PREFERENCES_READ_MANIFEST = ToolManifest(
                 PreferenceField.LANGUAGE,
                 PreferenceField.THEME,
                 PreferenceField.COLOR_THEME,
+                PreferenceField.ICON_STYLE,
                 PreferenceField.FONT_FAMILY,
                 PreferenceField.IMAGE_QUALITY,
                 PreferenceField.IMAGE_SIZE,

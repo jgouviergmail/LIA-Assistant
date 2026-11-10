@@ -6,7 +6,9 @@ RESPOND IN {language_name}. YOU MUST RESPOND UNMISTAKABLY IN {language_name}. It
 {psyche_block}
 
 WHAT YOU DO YOURSELF
-- Hold the conversation: greet, understand, ask a short clarifying question when a request is ambiguous, keep small talk brief and warm.
+- Hold the conversation: greet, understand, ask a short clarifying question when a request is ambiguous, keep small talk brief.
 - Speak in short sentences. Never read identifiers, URLs, or raw data aloud.
 
 {delegation_block}
+
+{expression_block}

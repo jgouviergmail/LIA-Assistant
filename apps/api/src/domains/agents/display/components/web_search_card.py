@@ -71,11 +71,8 @@ class WebSearchCard(BaseComponent):
                 + render_linked_title(wiki.get("title"), wiki.get("url"))
                 + render_folded_text(wiki.get("summary"), ctx, preview_chars=300)
             )
-        content.extend(
-            (
-                research_sources(data.get("citations"), ctx),
-                research_questions(data.get("related_questions"), ctx),
-            )
+        references = research_sources(data.get("citations"), ctx) + research_questions(
+            data.get("related_questions"), ctx
         )
         results = [
             f"<li>{research_result(result, ctx)}</li>"
@@ -87,7 +84,14 @@ class WebSearchCard(BaseComponent):
                 render_section_header(V3Messages.get_web_results(ctx.language), Icons.WEB, "indigo")
                 + render_research_list(results, ctx)
             )
-        card = f'<div class="lia-card lia-web-search {self._nested_class(ctx)}">{top}{"".join(content)}</div>'
+        references_html = (
+            f'<div class="lia-web-search__references">{references}</div>' if references else ""
+        )
+        card = (
+            f'<div class="lia-card lia-web-search {self._nested_class(ctx)}">{top}'
+            f'<div class="lia-web-search__brief"><div class="lia-web-search__reading">'
+            f'{"".join(content)}</div>{references_html}</div></div>'
+        )
         return wrap_with_response(
             card_html=card,
             domain="web_search",

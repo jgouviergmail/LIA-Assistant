@@ -1,9 +1,8 @@
 """Pure Routes response formatting and bounded model previews."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
-from zoneinfo import ZoneInfo
 
 import structlog
 
@@ -11,7 +10,6 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.core.i18n import _
-from src.core.time_utils import format_time_with_date_context, parse_datetime
 from src.domains.agents.display.urls import build_route_url
 from src.domains.agents.display.values import list_values, nonnegative_integer, scalar_text
 from src.domains.agents.tools.route_map_projection import route_map_data
@@ -27,6 +25,7 @@ from src.domains.agents.tools.routes_projection import (
 from src.domains.agents.tools.routes_projection import (
     duration_seconds as parse_route_duration,
 )
+from src.domains.agents.tools.routes_schedule import route_schedule
 from src.domains.agents.utils.polyline import simplify_polyline_for_static_map
 from src.domains.connectors.clients.google_routes_client import GoogleRoutesClient, TravelMode
 from src.domains.connectors.media_attribution import with_attribution
@@ -431,95 +430,15 @@ def _format_route_response(
         estimates[0] if estimates else None,
     )
 
-    # Calculate ETA (estimated time of arrival) in user's timezone
-    eta = None
-    eta_formatted = None
-    # New fields for arrival-based routing
-    target_arrival_time_iso = None
-    target_arrival_formatted = None
-    suggested_departure_time_iso = None
-    suggested_departure_formatted = None
-
-    if duration_seconds:
-        try:
-            tz = ZoneInfo(user_timezone)
-        except KeyError, ValueError:
-            tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
-
-        now = datetime.now(tz)
-
-        if is_arrival_based and arrival_time_target:
-            # Arrival-based calculation: user wants to ARRIVE at a specific time
-            # Calculate suggested departure time = arrival_time - duration
-            # Note: UTC-to-local conversion is done in get_route_tool BEFORE API call
-            parsed_arrival = parse_datetime(arrival_time_target)
-            if parsed_arrival is not None:
-                target_arrival_dt = parsed_arrival.astimezone(tz)
-            else:
-                target_arrival_dt = None
-
-            if target_arrival_dt is not None:
-
-                # Calculate suggested departure
-                suggested_departure_dt = target_arrival_dt - timedelta(seconds=duration_seconds)
-
-                # Store ISO formats
-                target_arrival_time_iso = target_arrival_dt.isoformat()
-                suggested_departure_time_iso = suggested_departure_dt.isoformat()
-
-                # Format times using centralized helper (handles today/tomorrow/date context)
-                target_arrival_formatted = format_time_with_date_context(
-                    target_arrival_dt, now, language
-                )
-                suggested_departure_formatted = format_time_with_date_context(
-                    suggested_departure_dt, now, language
-                )
-
-                # For arrival-based, ETA is the target arrival time
-                eta = target_arrival_time_iso
-                eta_formatted = target_arrival_formatted
-
-                logger.info(
-                    "route_arrival_based_calculation",
-                    target_arrival=target_arrival_time_iso,
-                    suggested_departure=suggested_departure_time_iso,
-                    duration_minutes=duration_minutes,
-                )
-            else:
-                logger.warning(
-                    "arrival_time_parse_failed",
-                    arrival_time_target=arrival_time_target,
-                )
-                # Fall back to standard ETA calculation
-                is_arrival_based = False
-
-        if not is_arrival_based:
-            # Standard ETA calculation (departure-based)
-            if departure_time:
-                parsed_departure = parse_datetime(departure_time)
-                if parsed_departure is not None:
-                    # Convert to user's timezone for display
-                    base_time = parsed_departure.astimezone(tz)
-                    logger.debug(
-                        "eta_using_departure_time",
-                        departure_time=departure_time,
-                        base_time=base_time.isoformat(),
-                        user_timezone=user_timezone,
-                    )
-                else:
-                    logger.warning(
-                        "departure_time_parse_failed",
-                        departure_time=departure_time,
-                    )
-                    base_time = now
-            else:
-                base_time = now
-
-            calculated_eta = base_time + timedelta(seconds=duration_seconds)
-            eta = calculated_eta.isoformat()
-
-            # Format ETA using centralized helper (handles today/tomorrow/date context)
-            eta_formatted = format_time_with_date_context(calculated_eta, now, language)
+    schedule = route_schedule(
+        duration_seconds,
+        datetime.now(UTC),
+        language,
+        user_timezone,
+        departure_time=departure_time,
+        arrival_time_target=arrival_time_target,
+        is_arrival_based=is_arrival_based,
+    )
 
     model_steps = _condense_route_steps(steps, settings.routes_max_steps) if steps else []
 
@@ -555,14 +474,7 @@ def _format_route_response(
                 "maps_url": maps_url,
                 "static_map_url": static_map_url,
                 "toll_info": toll_info,
-                "eta": eta,
-                "eta_formatted": eta_formatted,
-                # Arrival-based route fields
-                "is_arrival_based": is_arrival_based,
-                "target_arrival_time": target_arrival_time_iso,
-                "target_arrival_formatted": target_arrival_formatted,
-                "suggested_departure_time": suggested_departure_time_iso,
-                "suggested_departure_formatted": suggested_departure_formatted,
+                **schedule,
             },
             "alternatives_count": len(routes) - 1,
         },

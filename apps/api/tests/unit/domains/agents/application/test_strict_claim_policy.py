@@ -1,4 +1,4 @@
-"""Application mutations cannot spend a missing or changed human approval."""
+"""Strict draft families cannot spend a missing or changed human approval."""
 
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
@@ -12,8 +12,15 @@ from src.domains.agents.effects.scope import EffectScope, effect_scope
 pytestmark = pytest.mark.unit
 
 
+@pytest.fixture(params=["application_action", "peer_message"])
+def strict_family(request: pytest.FixtureRequest) -> str:
+    return str(request.param)
+
+
 @pytest.mark.parametrize("fault", ["absent", "unapproved", "digest", "reference", "kind"])
-async def test_invalid_approval_cannot_even_claim_the_mutation(fault: str) -> None:
+async def test_invalid_approval_cannot_even_claim_the_mutation(
+    fault: str, strict_family: str
+) -> None:
     content = {"command_id": str(uuid4()), "intent": {"font_size": 17}}
     scope = EffectScope(
         run_id="r-1",
@@ -25,7 +32,7 @@ async def test_invalid_approval_cannot_even_claim_the_mutation(fault: str) -> No
     )
     execute = AsyncMock(return_value={"success": True})
     ledger = AsyncMock()
-    gated = runtime.gated_executor("application_action", execute, strict=True)
+    gated = runtime.gated_executor(strict_family, execute)
     with (
         patch.object(runtime, "_LEDGER", ledger),
         patch.object(runtime, "current_scope", return_value=None if fault == "absent" else scope),
@@ -37,7 +44,7 @@ async def test_invalid_approval_cannot_even_claim_the_mutation(fault: str) -> No
     execute.assert_not_awaited()
 
 
-async def test_ledger_outage_never_allows_an_application_mutation() -> None:
+async def test_ledger_outage_never_allows_an_application_mutation(strict_family: str) -> None:
     content = {"command_id": str(uuid4())}
     scope = EffectScope(
         run_id="r-1",
@@ -50,7 +57,7 @@ async def test_ledger_outage_never_allows_an_application_mutation() -> None:
     execute = AsyncMock(return_value={"success": True})
     ledger = AsyncMock()
     ledger.claim.return_value = None
-    gated = runtime.gated_executor("application_action", execute, strict=True)
+    gated = runtime.gated_executor(strict_family, execute)
     with (
         effect_scope(scope),
         patch.object(runtime, "_LEDGER", ledger),
@@ -61,19 +68,21 @@ async def test_ledger_outage_never_allows_an_application_mutation() -> None:
     execute.assert_not_awaited()
 
 
-async def test_application_family_cannot_omit_or_disable_the_strict_policy() -> None:
+async def test_application_family_cannot_omit_or_disable_the_strict_policy(
+    strict_family: str,
+) -> None:
     execute = AsyncMock(return_value={"success": True})
     with patch.object(runtime, "current_scope", return_value=None):
-        result = await runtime.gated_executor("application_action", execute)({}, uuid4(), None)
+        result = await runtime.gated_executor(strict_family, execute)({}, uuid4(), None)
     assert result == {"success": False, "error_code": "CONFIRMATION_MISSING"}
     execute.assert_not_awaited()
 
 
-def test_a_legacy_gate_cannot_be_relabelled_as_an_application_executor() -> None:
+def test_a_legacy_gate_cannot_be_relabelled_as_an_application_executor(strict_family: str) -> None:
     execute = AsyncMock(return_value={"success": True})
     legacy = runtime.gated_executor("legacy", execute)
     with pytest.raises(ValueError):
-        runtime.gated_executor("application_action", legacy)
+        runtime.gated_executor(strict_family, legacy)
 
 
 async def test_default_policy_remains_compatible_with_the_existing_executor() -> None:

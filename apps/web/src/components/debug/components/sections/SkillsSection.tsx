@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { Puzzle } from 'lucide-react';
+import { Puzzle } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow } from '../shared';
 import type { DebugTone } from '../../utils/tones';
 import type { SkillsMetrics } from '@/types/chat';

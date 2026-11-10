@@ -57,7 +57,7 @@ def _redis_with(entries: dict[str, dict]) -> MagicMock:
 
 
 def _entry(days: dict[str, list[float]]) -> dict:
-    return {"days": days, "suggested_at": None}
+    return {"days": days}
 
 
 def _patch_redis(redis: MagicMock | None) -> object:

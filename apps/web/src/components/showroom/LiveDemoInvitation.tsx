@@ -13,7 +13,7 @@ import {
   PackageOpen,
   ShieldAlert,
   Timer,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { useEffect, useState } from 'react';
 

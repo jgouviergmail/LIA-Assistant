@@ -53,6 +53,7 @@ _SERVICES: dict[str, Any] = {
     "create_task_list": TaskList(id="l2", title="Trip"),
     "delete_task_list": None,
     "list_tasks": TasksPage(items=[_TASK], next_page_token="p2"),
+    "read_task": _TASK,
     "read_due_tasks": DueTasks(tasks=[], truncated=False, failed=[]),
     "read_task_view": DueTasks(tasks=[], truncated=False, failed=[]),
     "create_task": _TASK,
@@ -200,6 +201,14 @@ _ROUTES: list[tuple[str, str, dict[str, Any] | None, str, int, str]] = [
     ("GET", "/workbench/tasks?list_id=l1", None, "list_tasks", 200, "workbench_read"),
     (
         "GET",
+        "/workbench/tasks/task?list_id=l1&task_id=t1",
+        None,
+        "read_task",
+        200,
+        "workbench_read",
+    ),
+    (
+        "GET",
         "/workbench/tasks/due?start=2026-11-02&end=2026-11-08",
         None,
         "read_due_tasks",
@@ -263,6 +272,17 @@ async def test_the_zone_is_the_account_s(http: Any) -> None:
     args, kwargs = seams.list_tasks.await_args.args, seams.list_tasks.await_args.kwargs
     assert args[1] == ZoneInfo("America/New_York")
     assert kwargs == {"list_id": "l1", "show_completed": True, "page_token": "p2"}
+
+
+async def test_one_task_is_read_in_the_account_s_zone(http: Any) -> None:
+    """A task the open page does not hold is read alone (the home opens it, 2026-11-07)."""
+    client, seams = http
+    response = await client.get("/workbench/tasks/task?list_id=l1&task_id=t1")
+
+    assert response.json()["id"] == "t1"
+    args, kwargs = seams.read_task.await_args.args, seams.read_task.await_args.kwargs
+    assert args[1] == ZoneInfo("America/New_York")
+    assert kwargs == {"list_id": "l1", "task_id": "t1"}
 
 
 async def test_a_page_says_more_exists(http: Any) -> None:

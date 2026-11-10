@@ -27,7 +27,11 @@ export interface TestUser {
   onboarding_completed: boolean;
   language: string;
   /** Persisted display mode when a scenario exercises an account preference. */
-  theme?: 'light' | 'dark' | 'system' | 'oled';
+  theme?: 'light' | 'dark' | 'system' | 'oled' | 'auto';
+  theme_light_start_minute?: number;
+  theme_dark_start_minute?: number;
+  /** Account-owned artwork, including accounts created before the selector. */
+  icon_style: 'lucide' | 'fluent' | 'flex';
   timezone: string;
   /** Settings section tokens pinned to the floating dock (ADR-277). */
   settings_shortcuts: string[];
@@ -53,6 +57,7 @@ export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
     tokens_display_enabled: true,
     settings_shortcuts: [],
     font_size: 16,
+    icon_style: 'fluent',
     debug_panel_enabled: false,
     response_display_mode: 'default',
     onboarding_completed: true,

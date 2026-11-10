@@ -130,11 +130,11 @@ async def test_paid_preparation_has_no_user_lock_on_distinct_connections(
         receipt = PreferenceWriteReceipt()
         with (
             patch(
-                "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit",
+                "src.domains.memories.creation_embeddings.enforce_usage_limit",
                 AsyncMock(),
             ),
             patch(
-                "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+                "src.domains.memories.creation_embeddings._generate_document_embedding",
                 provider,
             ),
         ):

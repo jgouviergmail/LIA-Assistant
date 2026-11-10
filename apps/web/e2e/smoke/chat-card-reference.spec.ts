@@ -4,6 +4,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration } from '../fixtures';
 import { loadedChatRoutes } from '../fixtures/chat';
+import { appConfig } from '../fixtures/dashboard-shell';
 import { prepareTheme, awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 interface Reference {
@@ -14,11 +15,23 @@ interface Reference {
 
 const samples = [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ];
 
 test.use({ hasTouch: true });
+
+// Keep the production opening controls in the visual corpus, without changing other smoke fixtures.
+const nativeToolsConfig = {
+  url: '**/api/v1/config',
+  json: {
+    ...appConfig,
+    features: { ...appConfig.features, workbench_enabled: true },
+    capabilities: { workbench: { enabled: true, family: 'work' } },
+  },
+};
 
 const references: Reference[] = JSON.parse(
   readFileSync(
@@ -49,6 +62,7 @@ for (const sample of samples) {
     });
     await mockApi([
       ...loadedChatRoutes(),
+      nativeToolsConfig,
       {
         url: '**/api/v1/conversations/me/messages*',
         json: {
@@ -127,6 +141,7 @@ for (const sample of samples) {
     });
     await mockApi([
       ...loadedChatRoutes(),
+      nativeToolsConfig,
       {
         url: '**/api/v1/conversations/me/messages*',
         json: {
@@ -156,6 +171,12 @@ for (const sample of samples) {
     await expect(page.locator('.lia-hues')).toContainText('0%');
     await expect(page.locator('.lia-tickets')).toContainText('LIA');
     await expect(page.locator('.lia-card button')).toHaveCount(0);
+    await expect(
+      page.getByRole('button', {
+        name: sample.language === 'en' ? 'Open in Tools' : 'Ouvrir dans Outils',
+        exact: true,
+      })
+    ).toHaveCount(1);
     await expectNoOverflow(page, `snapshots ${sample.width} ${sample.theme}`);
     const accessibility = await new AxeBuilder({ page })
       .include('.lia-multi-domain')
@@ -188,6 +209,7 @@ for (const sample of samples) {
     });
     await mockApi([
       ...loadedChatRoutes(),
+      nativeToolsConfig,
       {
         url: '**/api/v1/conversations/me/messages*',
         json: {
@@ -280,6 +302,7 @@ for (const sample of samples) {
     });
     await mockApi([
       ...loadedChatRoutes(),
+      nativeToolsConfig,
       {
         url: '**/api/v1/conversations/me/messages*',
         json: {

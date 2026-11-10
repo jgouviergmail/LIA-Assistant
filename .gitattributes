@@ -136,4 +136,4 @@ docker-compose*.yml text eol=lf
 *.dylib binary
 
 # Preserve the upstream font license bytes and its documented SHA-256 on Windows.
-apps/web/e2e/fixtures/fonts/LICENSE text eol=lf
+apps/web/public/fonts/material-symbols/LICENSE text eol=lf

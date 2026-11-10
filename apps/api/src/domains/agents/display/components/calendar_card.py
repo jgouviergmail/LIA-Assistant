@@ -44,7 +44,7 @@ class CalendarCard(BaseComponent):
         chips: list[str] = []
         if data.get("primary") is True:
             chips.append(render_chip(card_label("primary", ctx.language), "purple", "star"))
-        role = data.get("access_role")
+        role = data.get("access_role", data.get("accessRole"))
         if is_calendar_access(role):
             chips.append(render_chip(card_label(role, ctx.language), "purple", "shield"))
         zone = data.get("time_zone") or data.get("timeZone")
@@ -61,7 +61,12 @@ class CalendarCard(BaseComponent):
             if data.get("description")
             else ""
         )
-        markup = f'<div class="lia-card lia-calendar {self._nested_class(ctx)}">{header}{render_chip_row(" ".join(chips))}{zone_html}{description}{render_calendar_details(data, ctx)}</div>'
+        access_html = (
+            f'<div class="lia-calendar__access">{render_chip_row(" ".join(chips))}</div>'
+            if chips
+            else ""
+        )
+        markup = f'<div class="lia-card lia-calendar {self._nested_class(ctx)}"><div class="lia-calendar__cover">{header}{zone_html}</div>{access_html}{description}{render_calendar_details(data, ctx)}</div>'
         if not with_wrapper:
             return markup
         return wrap_with_response(

@@ -41,7 +41,7 @@ CONFIG = DecisionConfiguration(
 
 
 async def test_captured_on_snapshot_retains_routing_and_charges_each_batch() -> None:
-    tracker = TrackingContext("collection-operation", uuid4(), "chat", None, auto_commit=False)
+    tracker = TrackingContext("classification-operation", uuid4(), "chat", None, auto_commit=False)
     snapshot = JevSnapshot(True, "ready", CONFIG)
     response = ChoiceBatchResult(
         CONFIG.model,
@@ -71,7 +71,7 @@ async def test_captured_on_snapshot_retains_routing_and_charges_each_batch() -> 
         ):
             for _ in range(2):
                 result = await module.choose_many_with_jev(
-                    usage=JevUsage.FILTER_EVENT,
+                    usage=JevUsage.EVENT_CLASSIFICATION,
                     user_id=tracker.user_id,
                     run_id=tracker.run_id,
                     state={"items": {"q0": {"summary": "Synthetic event"}}},
@@ -82,20 +82,22 @@ async def test_captured_on_snapshot_retains_routing_and_charges_each_batch() -> 
             current.assert_not_awaited()
             # The next operation observes the switched-off database value.
             result = await module.choose_many_with_jev(
-                usage=JevUsage.FILTER_EVENT,
+                usage=JevUsage.EVENT_CLASSIFICATION,
                 user_id=tracker.user_id,
                 run_id=tracker.run_id,
                 state={},
                 questions={"q0": QUESTION},
             )
         assert result.outcome == "disabled"
-        current.assert_awaited_once_with(JevUsage.FILTER_EVENT)
+        current.assert_awaited_once_with(JevUsage.EVENT_CLASSIFICATION)
         assert quota.await_count == provider.await_count == 2
         assert len(tracker._node_records) == 2
         assert sum(float(record.cost_usd) for record in tracker._node_records) == pytest.approx(
             0.000084
         )
-        assert all(record.llm_type == "jev_filter_event" for record in tracker._node_records)
+        assert all(
+            record.llm_type == "jev_event_classification" for record in tracker._node_records
+        )
     finally:
         current_tracker.reset(token)
 
@@ -109,7 +111,7 @@ async def test_captured_off_snapshot_remains_off_without_quota_or_provider() -> 
         ) as provider,
     ):
         result = await module.choose_many_with_jev(
-            usage=JevUsage.FILTER_EVENT,
+            usage=JevUsage.EVENT_CLASSIFICATION,
             user_id=uuid4(),
             run_id="off-operation",
             state={},

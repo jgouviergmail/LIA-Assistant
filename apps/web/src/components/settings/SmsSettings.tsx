@@ -1,5 +1,5 @@
 'use client';
-import { BarChart3, Bot, MessageSquareText, RefreshCw } from 'lucide-react';
+import { BarChart3, Bot, MessageSquareText, RefreshCw } from '@/lib/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useSmsSettings } from '@/hooks/useSmsSettings';

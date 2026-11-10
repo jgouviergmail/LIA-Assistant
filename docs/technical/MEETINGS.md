@@ -9,6 +9,14 @@ littéraux. La requête, la page et l'origine de navigation suivent l'URL et le
 retour depuis un détail. Voir [la normalisation](../../apps/api/src/domains/meetings/search.py)
 et [les tests PostgreSQL](../../apps/api/tests/integration/domains/meetings/test_minutes_search.py).
 
+La liste utilise l’en-tête commun avec icône et la recherche automatique. Elle
+n’affiche ni retour vers la page précédente, ni compteur global, ni sélection de
+réunions. Chaque ligne porte une corbeille : le clic supprime cette seule réunion,
+sans dialogue intermédiaire, par le contrat existant `POST /meetings/bulk-delete`
+avec un seul identifiant. Les captures et traitements en cours restent protégés.
+Un refus conserve la ligne ; un succès restaure le focus sur le titre si le bouton
+supprimé le détenait encore. Les réponses tardives d’un autre compte sont ignorées.
+
 > Décision : [ADR-258](../architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md).
 > Spécification et mesures : `docs/superpowers/specs/2026-09-02-meeting-recording-and-minutes-design.md`.
 
@@ -171,18 +179,19 @@ fournisseur ne le refuserait qu'après le téléversement entier.
 | Démarrer / arrêter : bascule dans l'en-tête sur ordinateur (`aria-pressed`, disque qui pulse), entrée dynamique du menu du logo sur téléphone dont le déclencheur pulse en rouge pendant la capture ; le « + » du composeur est redevenu un sélecteur de fichiers | `components/meetings/MeetingRecorderControl.tsx`, `components/dashboard/MobileNavMenu.tsx` (`action`, `live`) |
 | Format choisi pendant l'enregistrement (enregistré sur la réunion, mémorisé dans le store) | `MeetingRecordingBanner.tsx` (`FormatSelect`), `components/meetings/TemplateSelect.tsx` |
 | Destination « Réunions » de l'en-tête (entre Relations et Alertes, seulement si l'instance active la fonction) | `lib/dashboard-nav.ts` (`visibleDestinations`), `app/[lng]/dashboard/layout.tsx`, `components/dashboard/MobileNavMenu.tsx` |
-| Pages : liste (sélection + suppression groupée, barre d'outils Enregistrer / Modèles), détail (format, changement de format, comptes rendus dérivés), bibliothèque de modèles | `app/[lng]/dashboard/meetings/`, `[id]/`, `templates/` |
+| Pages : liste (suppression unitaire, recherche, Enregistrer / Importer), détail (format, changement de format, comptes rendus dérivés), bibliothèque de modèles | `app/[lng]/dashboard/meetings/`, `[id]/`, `templates/` |
 | Bibliothèque : « Mes modèles » puis « Modèles intégrés », catégories repliées par défaut avec leur icône, sélection et barre par section (ajouter à mes modèles / supprimer en lot), aperçu, formulaire (création, édition — jamais à la duplication) | `components/meetings/MeetingTemplateLibrary.tsx`, `templateCategoryIcons.tsx`, `MeetingTemplatePreview.tsx`, `MeetingTemplateForm.tsx`, `MeetingTemplateEditor.tsx`, `ui/selection-bar.tsx` |
 | Détail : « Changer le format… » (remplacer / nouveau compte rendu), panneau d'attente d'une ligne sans compte rendu, fait « Format » et liens de filiation | `components/meetings/ReformatDialog.tsx`, `MeetingPendingPanel.tsx`, `MeetingDetailLinks.tsx` |
 | Section de réglages (préférences dont le format par défaut, lien vers la bibliothèque, réunions récentes) | `components/settings/MeetingsSettings.tsx` (jeton `meetings`) |
 | Carte du chat « compte rendu prêt » | `components/meetings/MeetingMinutesCard.tsx` (`proactive_meeting`) |
 | Retour contextuel : la porte utilisée voyage en jeton dans l'URL (`?from=`) | `lib/back-origin.ts`, `hooks/useBackOrigin.ts`, `components/ui/back-link.tsx` |
 
-**La liste des réunions sait d'où on vient** (2026-09-10). Six portes y mènent —
+**Le contexte de navigation des réunions** (2026-09-10, ajusté le 2026-11-09). Six portes y mènent —
 l'en-tête, le menu du logo, une carte de compte rendu dans le chat, un toast du
 recorder, la section de réglages, la commande `/meetings` — et elle n'avait
 aucun retour ; le détail et la bibliothèque revenaient toujours à la liste,
-quelle que soit la porte. Trois décisions, dont la deuxième est une décision de
+quelle que soit la porte. La liste transmet encore l’origine à ses détails mais
+n’affiche plus de bouton de retour. Trois décisions, dont la deuxième est une décision de
 sécurité :
 
 - **L'historique du navigateur n'est pas la réponse.** Il meurt au
@@ -199,7 +208,7 @@ sécurité :
 
 Une destination déclare `carriesOrigin` pour être estampillée : une origine que
 personne ne lit serait un paramètre de requête sur toutes les URL de
-l'application, et seul un écran qui dessine un retour en a l'usage.
+l'application. La liste la transmet aux écrans qui dessinent encore ce retour.
 
 Le PWA : le verrou d'écran est demandé pendant la capture et la bannière rappelle de garder
 LIA au premier plan — un téléphone en arrière-plan coupe le micro sur les deux plateformes

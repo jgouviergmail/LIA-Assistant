@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { fallbackLng, isLanguage } from '@/i18n/settings';

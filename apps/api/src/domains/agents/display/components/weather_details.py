@@ -15,6 +15,11 @@ from src.domains.agents.display.icons import Icons
 from src.domains.agents.display.values import scalar_text
 
 
+def temperature_range(low: str, high: str) -> str:
+    """Keep each known bound in its position without inventing its counterpart."""
+    return f"{low or '—'} / {high or '—'}" if low or high else ""
+
+
 def weather_extra_rows(data: Mapping[str, object], ctx: RenderContext) -> list[str]:
     fields: list[tuple[str, CardLabel, str]] = [
         ("wind_gust", "weather_gust", Icons.WIND),

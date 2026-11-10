@@ -36,7 +36,7 @@ import {
   Paperclip,
   Star,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import type { CSSProperties, MouseEvent } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';

@@ -9,7 +9,7 @@
  * The focus stays where the person left it: the answer is announced, never imposed. Closing it
  * gives the focus back to the icon it was asked from: its button leaves with it.
  */
-import { X } from 'lucide-react';
+import { X } from '@/lib/icons';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,8 @@ import { formatEuro } from '@/lib/format';
 import type { ReadAloudAnswer } from '@/lib/workbench/assist';
 import type { LLMUsage } from '@/types/llm-usage';
 
-import { AssistStars } from './AssistStars';
-import type { AssistCall } from './useAssistCall';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
+import type { AssistCall } from '@/hooks/useAssistCall';
 
 export interface AssistPanelProps<T extends { usage: LLMUsage | null }> {
   lng: Language;
@@ -54,16 +54,23 @@ export function HeardWords({
   answer: ReadAloudAnswer;
 }) {
   const { t } = useTranslation(lng);
+  const audio = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const player = audio.current;
+    if (!player) return;
+    // Setup owns the resource too: React's Strict Mode replays this lifetime.
+    player.src = `data:audio/mpeg;base64,${answer.audio}`;
+    return () => {
+      if (!player.paused) player.pause();
+      player.removeAttribute('src');
+      if (player.readyState > 0 || player.networkState !== HTMLMediaElement.NETWORK_EMPTY)
+        player.load();
+    };
+  }, [answer.audio]);
   return (
     <>
       {/* A data: URL — the page's own bytes, no object URL to revoke (CSP media-src data:). */}
-      <audio
-        controls
-        autoPlay
-        aria-label={label}
-        className="w-full"
-        src={`data:audio/mpeg;base64,${answer.audio}`}
-      />
+      <audio ref={audio} controls autoPlay aria-label={label} className="w-full" />
       {answer.cut && (
         <p className="text-xs text-muted-foreground">{t('workbench.assist.voice.read_cut')}</p>
       )}

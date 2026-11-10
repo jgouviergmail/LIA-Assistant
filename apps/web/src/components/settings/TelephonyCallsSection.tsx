@@ -2,7 +2,7 @@
 
 /** Recent calls: a bounded chronological index, with factual times and reviewable chat drafts. */
 import { useId, useRef, useState } from 'react';
-import { PhoneCall, RefreshCw } from 'lucide-react';
+import { PhoneCall, RefreshCw } from '@/lib/icons';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/button';

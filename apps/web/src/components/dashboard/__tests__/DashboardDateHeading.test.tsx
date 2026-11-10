@@ -60,6 +60,7 @@ function view(lng: Language = 'en', user: User | null = account()) {
     initiateGoogleOAuth: vi.fn(),
     completeNativeSignIn: vi.fn(),
     refreshUser: vi.fn(),
+    applyUserUpdate: vi.fn(() => true),
   };
   return (
     <AuthContext.Provider value={auth}>

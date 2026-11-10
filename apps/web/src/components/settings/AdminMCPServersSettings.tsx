@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plug, ServerCog } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plug, ServerCog } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';

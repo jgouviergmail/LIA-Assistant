@@ -83,6 +83,13 @@ from src.domains.live.setup_render import render_setup_inputs
 from src.domains.live.standby import enter_standby, wake
 from src.domains.live.tool_door import run_session_tool
 from src.domains.users.models import User
+from src.domains.voice.expressive_cues import (
+    NO_CUES,
+    CueDialect,
+    dialect_named,
+    strip_transcript_cues,
+)
+from src.domains.voice_sessions.expression import expression_of, invented_cues
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.metrics_live import (
     live_mint_total,
@@ -90,6 +97,8 @@ from src.infrastructure.observability.metrics_live import (
     live_session_extensions_total,
     live_sessions_active,
     live_turns_archived_total,
+    live_voice_cues_invented_total,
+    live_voice_cues_per_turn,
 )
 from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
@@ -140,6 +149,19 @@ class LiveService:
         from src.domains.psyche.service import build_psyche_prompt_block
 
         return await build_psyche_prompt_block(user_id=user_id, user_timezone=timezone)
+
+    @staticmethod
+    async def _expression_of(provider: LiveProvider, api_key: str, model: str) -> CueDialect:
+        """What the session's engine performs — words alone when it cannot be read (ADR-373).
+
+        A cue LIA cannot prove the engine performs is never offered, and a read
+        that fails never refuses a start: the session then speaks in words.
+        """
+        try:
+            return await provider.expression_dialect(api_key, model)
+        except Exception as exc:  # noqa: BLE001 - expression is colour, never a gate
+            logger.warning("live_expression_unreadable", error_type=type(exc).__name__)
+            return NO_CUES
 
     async def _conversation_id(self, user_id: uuid.UUID, *, language: str) -> uuid.UUID:
         from src.domains.conversations.service import ConversationService
@@ -312,6 +334,11 @@ class LiveService:
         cap_minutes = chosen.session_max_minutes or settings.live_extension_minutes
         expires_at = now + timedelta(minutes=cap_minutes)
         session_id = uuid.uuid4().hex
+        api_key = await self.connectors.api_key_of(user.id, connector_type)
+        # The reads end before the vendor is asked (ADR-304): nothing is
+        # written yet, and the session does not expire what it loaded.
+        await self.db.commit()
+        cue_dialect = await self._expression_of(provider, api_key, chosen.model)
         inputs = await render_setup_inputs(
             self.connectors,
             provider,
@@ -324,13 +351,15 @@ class LiveService:
             now=now,
             personality=await self._personality_of(user.id),
             psyche_block=await self._inner_state_of(user.id, timezone),
+            cue_dialect=cue_dialect,
         )
         if provider.provider_id == "elevenlabs" and audio_transport == "webrtc":
             inputs = replace(inputs, audio_transport="webrtc")
-        api_key = await self.connectors.api_key_of(user.id, connector_type)
         # A provider whose sessions run on the person's AGENT prepares it for
         # THIS setup (the tools of the mode, the prompt permission) before
         # anything is claimed: a vendor refusal is a start that never happened.
+        # The render's reads end first (ADR-304).
+        await self.db.commit()
         await self._sync_agent(provider, connector, api_key, inputs, language=language)
         record = LiveSessionRecord(
             session_id=session_id,
@@ -404,6 +433,7 @@ class LiveService:
             model=chosen.model,
             run_id=record.run_id,
             mode=mode,
+            expression=expression_of(cue_dialect),
             expires_at=expires_at,
             session_max_minutes=chosen.session_max_minutes,
             idle_timeout_seconds=chosen.idle_timeout_seconds,
@@ -658,6 +688,9 @@ class LiveService:
         them, and answers no row ids.
         """
         record = await self._awake_record(user, session_id, language=language)
+        payload = payload.model_copy(
+            update={"assistant_text": _as_heard(record, payload.assistant_text)}
+        )
         if record.mode == "direct":
             # ADR-301: kept in the record until the end, when the exchanges
             # become the person's own turn — never archived one by one.
@@ -714,6 +747,26 @@ class LiveService:
     ) -> LiveEndResponse:
         """Close the books, then free the slot — ``session_end.end_session``."""
         return await end_session(self, user, session_id, payload, language=language)
+
+
+def _as_heard(record: LiveSessionRecord, text: str | None) -> str | None:
+    """The voice's turn as the person heard it; a ``cues`` session's tags counted (ADR-373).
+
+    Both modes pass here, so the archive AND a direct session's relayed words are
+    clean; a ``prose`` session's text is kept as transcribed — a bracket there
+    is words.
+    """
+    if not text:
+        return text
+    dialect = dialect_named(setup_inputs_from_dict(record.setup_inputs).cue_dialect)
+    if expression_of(dialect) != "cues":
+        return text
+    heard, tags = strip_transcript_cues(text)
+    live_voice_cues_per_turn.observe(len(tags))
+    invented = invented_cues(tags, dialect)
+    if invented:
+        live_voice_cues_invented_total.inc(invented)
+    return heard
 
 
 __all__ = ["LiveService", "live_session_run_id"]

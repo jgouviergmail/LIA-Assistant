@@ -7,7 +7,7 @@
  * own language. At the bound, the line says when the radio may play again. An
  * instance that sets no bound, or a figure not read yet, says nothing.
  */
-import { Wallet } from 'lucide-react';
+import { Wallet } from '@/lib/icons';
 
 import { Disclosure } from '@/components/ui/disclosure';
 import { useRadioBudget } from '@/hooks/useRadioBudget';

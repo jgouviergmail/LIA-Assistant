@@ -24,12 +24,16 @@ class FakeRequest {
   opened: [string, string] | null = null;
   body: unknown = null;
   aborted = false;
+  headers = new Headers();
 
   constructor() {
     FakeRequest.last = this;
   }
   open(method: string, url: string) {
     this.opened = [method, url];
+  }
+  setRequestHeader(name: string, value: string) {
+    this.headers.set(name, value);
   }
   send(body: unknown) {
     this.body = body;
@@ -46,6 +50,7 @@ class FakeRequest {
 }
 
 const form = new FormData();
+const originalUrl = window.location.href;
 
 function sent(onProgress = vi.fn(), signal = new AbortController().signal) {
   return sendFile<{ id: string }>('/workbench/files/upload', form, onProgress, signal);
@@ -56,10 +61,24 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  window.history.replaceState(null, '', originalUrl);
   vi.unstubAllGlobals();
 });
 
 describe('sendFile', () => {
+  it('guards an upload against a source replaced after the card opened', async () => {
+    window.history.replaceState(null, '', '/dashboard/tools/files?card_source=upload-proof');
+    const answer = sent();
+    expect(FakeRequest.last.headers.get('X-LIA-Card-Source')).toBe('upload-proof');
+    expect(
+      new URL(FakeRequest.last.opened![1], window.location.origin).searchParams.get('card_source')
+    ).toBe('upload-proof');
+    FakeRequest.last.answer(409, { detail: { code: 'card_source_changed' } });
+    await expect(answer).rejects.toMatchObject({
+      status: 409,
+      data: { detail: { code: 'card_source_changed' } },
+    });
+  });
   it('posts the form to the API with the session cookie, under a bound', () => {
     void sent();
 

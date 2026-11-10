@@ -4,7 +4,7 @@ import { useEffectRequest } from '@/hooks/useEffectRequest';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, Gauge, Search, Shield, ShieldOff } from 'lucide-react';
+import { ArrowDown, ArrowUp, Gauge, Search, Shield, ShieldOff } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { apiClient, ApiError } from '@/lib/api-client';

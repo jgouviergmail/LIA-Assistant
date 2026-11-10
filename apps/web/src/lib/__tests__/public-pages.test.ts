@@ -24,7 +24,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { languages } from '@/i18n/settings';
 
-import { NON_INDEXED_SEGMENTS, PUBLIC_PAGES, indexablePathsWithoutHome } from '../public-pages';
+import {
+  NON_INDEXED_SEGMENTS,
+  PUBLIC_PAGES,
+  indexablePathsWithoutHome,
+  isPublicContentPath,
+} from '../public-pages';
 import robots from '../../app/robots';
 import sitemap from '../../app/sitemap';
 
@@ -121,4 +126,28 @@ describe('public pages declaration', () => {
 
     expect(sitemap()).toEqual([]);
   });
+});
+
+describe('public content language boundary', () => {
+  it.each(languages)('classifies every declared %s page, including trailing slashes', language => {
+    for (const { path: route } of PUBLIC_PAGES) {
+      const expected = route !== '/login' && route !== '/register';
+      const prefixed = `/${language}${route === '/' ? '' : route}`;
+      expect(isPublicContentPath(route), route).toBe(expected);
+      expect(isPublicContentPath(prefixed), prefixed).toBe(expected);
+      expect(isPublicContentPath(`${prefixed}/`), prefixed).toBe(expected);
+    }
+    expect(isPublicContentPath(`/${language}/blog/google-workspace`)).toBe(true);
+    expect(isPublicContentPath(`/${language}/maps/functional`)).toBe(true);
+  });
+
+  it.each(['/dashboard', '/dashboard/chat', '/forgot-password', '/blogger', '/maps-private'])(
+    'keeps %s in the application boundary',
+    route => {
+      expect(isPublicContentPath(route)).toBe(false);
+      for (const language of languages) {
+        expect(isPublicContentPath(`/${language}${route}`)).toBe(false);
+      }
+    }
+  );
 });

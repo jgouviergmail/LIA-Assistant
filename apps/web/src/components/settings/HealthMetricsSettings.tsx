@@ -23,7 +23,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, BarChart3, Bot, HeartPulse, Key, Plus, Trash2 } from 'lucide-react';
+import { Activity, BarChart3, Bot, HeartPulse, Key, Plus, Trash2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { IngestionApiPanel } from '@/components/ingestion/IngestionApiPanel';

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SearchInput } from '@/components/ui/search-input';
 import { Pagination } from '@/components/ui/pagination';
 import { TableSkeleton } from '@/components/ui/skeleton';
-import { ShieldOff, Users, type LucideIcon } from 'lucide-react';
+import { ShieldOff, Users, type LucideIcon } from '@/lib/icons';
 import apiClient from '@/lib/api-client';
 import { ADMIN_USERS_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { logger } from '@/lib/logger';

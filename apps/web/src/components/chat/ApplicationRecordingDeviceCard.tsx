@@ -2,7 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useRef } from 'react';
-import { Mic } from 'lucide-react';
+import { Mic } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useApplicationDeviceCommand } from '@/hooks/useApplicationDeviceCommand';
 import type { useApplicationCommandStatus } from '@/hooks/useApplicationCommandStatus';

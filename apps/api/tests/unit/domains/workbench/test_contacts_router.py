@@ -101,24 +101,33 @@ async def http(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[AsyncClie
             yield client, SimpleNamespace(limiter=limiter, user=user, **services)
 
 
+_HISTORY = ContactHistory(
+    mail="used",
+    received=[],
+    sent=[],
+    calendar="disabled",
+    organized_by_them=[],
+    organized_by_you=[],
+    shared=[],
+    meetings_window_days=720,
+    meetings_cut=False,
+    telephony="not_requested",
+    calls=[],
+    calls_window=500,
+    calls_cut=False,
+    sms="not_requested",
+    texts=[],
+    texts_window=2000,
+    texts_cut=False,
+)
+
+
 class TestAHistory:
     async def test_it_is_read_by_each_address_on_the_person_s_clock(
         self, http: tuple[AsyncClient, Any]
     ) -> None:
         client, seams = http
-        read = AsyncMock(
-            return_value=ContactHistory(
-                mail="used",
-                received=[],
-                sent=[],
-                calendar="disabled",
-                organized_by_them=[],
-                organized_by_you=[],
-                shared=[],
-                meetings_window_days=720,
-                meetings_cut=False,
-            )
-        )
+        read = AsyncMock(return_value=_HISTORY)
 
         with patch.object(contacts_history, "contact_history", read):
             answer = await client.get(
@@ -138,7 +147,34 @@ class TestAHistory:
         keys = [call.kwargs["key"] for call in seams.limiter.acquire.await_args_list]
         assert [key.split(":")[1] for key in keys] == ["workbench_read"]
 
-    @pytest.mark.parametrize("url", ["", "?address=not-an-address", "?address=a@b.org&other=1"])
+    async def test_numbers_alone_are_read(self, http: tuple[AsyncClient, Any]) -> None:
+        client, _ = http
+        read = AsyncMock(return_value=_HISTORY)
+
+        with patch.object(contacts_history, "contact_history", read):
+            answer = await client.get(
+                "/workbench/contacts/history",
+                params=[("phone", "06 12 34 56 78"), ("phone", "+33 1 40 00 00 00")],
+            )
+
+        assert answer.status_code == 200
+        query = read.await_args.args[2]
+        assert (query.address, query.phone) == ([], ["06 12 34 56 78", "+33 1 40 00 00 00"])
+
+    async def test_what_it_answers_is_never_kept_by_a_cache(
+        self, http: tuple[AsyncClient, Any]
+    ) -> None:
+        client, _ = http
+
+        with patch.object(contacts_history, "contact_history", AsyncMock(return_value=_HISTORY)):
+            answer = await client.get("/workbench/contacts/history?phone=0612345678")
+
+        assert answer.headers["cache-control"] == "no-store"
+
+    @pytest.mark.parametrize(
+        "url",
+        ["", "?address=not-an-address", "?address=a@b.org&other=1", "?phone=%20%20"],
+    )
     async def test_an_odd_request_asks_nothing(
         self, http: tuple[AsyncClient, Any], url: str
     ) -> None:

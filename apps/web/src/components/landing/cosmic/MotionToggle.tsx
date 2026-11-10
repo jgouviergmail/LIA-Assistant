@@ -21,7 +21,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { isMotionPaused, setMotionPaused, subscribeMotion } from '@/lib/landing/motion-pause';
 import { cn } from '@/lib/utils';

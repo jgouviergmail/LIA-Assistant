@@ -4,7 +4,7 @@ User-to-user connections feature flag and policy thresholds. Every value is
 env-overridable (``PEERS_*``) so quotas and cadences can be tuned in
 production without a code change.
 
-Defaults are imported from ``src.core.constants`` (NOT from the domain — the
+Defaults are imported from ``src.core.constants`` (NOT from the domain â€” the
 config layer never imports domains, see ``briefing.py``'s rationale).
 
 Phase: peer-connections program, Lot 1
@@ -27,6 +27,7 @@ from src.core.constants import (
     PEERS_CAPABILITY_RECIPIENT_DAILY_LIMIT_DEFAULT,
     PEERS_CAPABILITY_RETRY_TTL_SECONDS_DEFAULT,
     PEERS_CAPABILITY_SENDER_DAILY_LIMIT_DEFAULT,
+    PEERS_DELIVERY_LEASE_SECONDS_DEFAULT,
     PEERS_DELIVERY_MAX_ATTEMPTS_DEFAULT,
     PEERS_DELIVERY_SWEEP_SECONDS_DEFAULT,
     PEERS_DISCOVERY_RATE_LIMIT_CALLS_DEFAULT,
@@ -87,7 +88,7 @@ class PeersSettings(BaseSettings):
             "relayed messages) about a connected user named in the turn. "
             "Database-only: no connector is called, so a turn that merely "
             "names someone never spends provider quota. Bounded by the user's "
-            "own 360° scope — a section unticked on the relationship card is "
+            "own 360Â° scope â€” a section unticked on the relationship card is "
             "not injected either. Off by default: it reads one relationship "
             "per turn that names a peer."
         ),
@@ -141,7 +142,7 @@ class PeersSettings(BaseSettings):
         description=(
             "Retention TTL (days) for relayed-message texts. The ledger row "
             "survives forever (audit, counts, timeline); the sender's directive "
-            "and the delivered text are purged past it — the same contract as "
+            "and the delivered text are purged past it â€” the same contract as "
             "telephony_call_retention_days."
         ),
     )
@@ -162,6 +163,12 @@ class PeersSettings(BaseSettings):
         ge=10,
         le=3600,
         description="Interval of the pending-message delivery sweep (Lot 4).",
+    )
+    peers_delivery_lease_seconds: int = Field(
+        default=PEERS_DELIVERY_LEASE_SECONDS_DEFAULT,
+        ge=30,
+        le=3600,
+        description="Renewable peer delivery lease; renewed every third of this interval, independently of model duration.",
     )
     peers_delivery_max_attempts: int = Field(
         default=PEERS_DELIVERY_MAX_ATTEMPTS_DEFAULT,

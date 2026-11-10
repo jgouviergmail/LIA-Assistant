@@ -62,7 +62,8 @@ const MODULES = readSources(file => /\.(tsx?|mdx?|json|html)$/.test(file.relativ
  */
 const ICON_CLASS_READERS: Record<string, string> = {
   'components/showroom/response-html.ts': 'draws SHOWROOM_DECISION_ICONS, read below',
-  'components/chat/markdown-card-actions.tsx': 'draws CARD_ACTION_ICONS, read below',
+  'components/chat/markdown-icon-span.tsx':
+    'enhances known ligatures; unknown historical names retain the font',
   'lib/html-markdown.ts': 'drops the icon while converting HTML, draws none',
   'lib/html-plain-text.ts': 'drops the icon while flattening HTML, draws none',
   'lib/rehype-search-highlight.ts': 'skips the icon while highlighting, draws none',

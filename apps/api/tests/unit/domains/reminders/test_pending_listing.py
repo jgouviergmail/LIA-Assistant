@@ -2,8 +2,8 @@
 
 The domain deliberately had no listing surface: a reminder is a temporary
 post-it, created by conversation and DELETED once notified
-(`reminder_notification.py` — there is no "sent" state to list). That design
-stands for everything it forbids: no editing, no snoozing, no acknowledgement.
+(`reminder_notification.py` — there is no "sent" state to list). The management surface also supports editing; snoozing and acknowledgement
+have no separate state.
 
 What the notifications hub adds is strictly a READ. It shows the reminders that
 are still coming, so the reader can see them next to everything else LIA holds
@@ -23,7 +23,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.reminders.models import Reminder, ReminderStatus
+from src.domains.reminders.read_models import PendingReminderPage
 from src.domains.reminders.router import list_pending_reminders
+from src.domains.shared.display_query import DisplayQuery
+from src.domains.users.models import User
 from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
@@ -40,13 +43,19 @@ def _reminder(minutes: int) -> Reminder:
     return reminder
 
 
-async def _call(*, rows: list[Reminder], total: int, limit: int = 10, offset: int = 0):
-    user = MagicMock()
-    user.id = uuid.uuid4()
-    user.timezone = "Europe/Paris"
+async def _call(
+    *, rows: list[Reminder], total: int, limit: int = 10, offset: int = 0
+) -> tuple[PendingReminderPage, MagicMock, User]:
+    user = User(id=uuid.uuid4(), timezone="Europe/Paris")
     with patch("src.domains.reminders.router.ReminderService") as service_cls:
         service_cls.return_value.list_pending_page = AsyncMock(return_value=(rows, total))
-        page = await list_pending_reminders(limit=limit, offset=offset, user=user, db=AsyncMock())
+        page = await list_pending_reminders(
+            limit=limit,
+            offset=offset,
+            criteria=DisplayQuery(q="plombier", sort="oldest"),
+            user=user,
+            db=AsyncMock(),
+        )
         return page, service_cls.return_value, user
 
 
@@ -60,7 +69,9 @@ class TestThePendingRemindersPage:
     async def test_the_window_reaches_the_service(self) -> None:
         _, service, user = await _call(rows=[], total=0, limit=25, offset=50)
 
-        service.list_pending_page.assert_awaited_once_with(user.id, limit=25, offset=50)
+        service.list_pending_page.assert_awaited_once_with(
+            user.id, limit=25, offset=50, criteria=DisplayQuery(q="plombier", sort="oldest")
+        )
 
     async def test_it_carries_what_the_reader_needs_to_recognise_the_reminder(self) -> None:
         row = _reminder(30)

@@ -1,7 +1,11 @@
 'use client';
 
 import { ReactNode, useEffect, useId, useRef, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/lib/icons';
+import {
+  ACTIVE_ICON_BUTTON_CLASS,
+  DARK_ICON_BUTTON_HOVER_CLASS,
+} from '@/components/ui/button-variants';
 import { useTranslation } from 'react-i18next';
 import { DOMAIN_CHIP_TONE, DOMAIN_ICON_TONE, type DomainTone } from '@/lib/domain-tone';
 import { cn } from '@/lib/utils';
@@ -277,12 +281,14 @@ export function BriefingCard<T extends SectionData>({
                 if (!isRefreshing) onRefresh();
               }}
               aria-disabled={isRefreshing}
+              aria-busy={isRefreshing}
               aria-label={t('dashboard.briefing.refresh_section', { section: titleLabel })}
               className={cn(
                 'flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card transition-colors duration-150 active:scale-[0.98]',
                 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
-                isRefreshing && 'cursor-wait text-primary'
+                DARK_ICON_BUTTON_HOVER_CLASS,
+                isRefreshing && ['cursor-wait text-primary', ACTIVE_ICON_BUTTON_CLASS]
               )}
             >
               <RefreshCw

@@ -1,13 +1,11 @@
 'use client';
 import { useTranslation } from 'react-i18next';
-import { z } from '@/lib/zod';
-import { ApiError } from '@/lib/api-client';
+import { smsReadErrorKey } from '@/lib/sms/read-error';
 import { Button } from '@/components/ui/button';
 import { SmsMessageList } from './SmsMessageList';
 import { SmsSearchGroups, SmsSenderThreads } from './SmsSenderThreads';
 import type { SmsPage, SmsSenderPage } from '@/types/sms';
 import type { Language } from '@/i18n/settings';
-const broadRefusal = z.object({ detail: z.object({ error_code: z.literal('QUERY_TOO_BROAD') }) });
 export function SmsArchiveResults({
   messages,
   senders,
@@ -32,17 +30,11 @@ export function SmsArchiveResults({
       {loading && !current && <p role="status">{t('common.loading')}</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
-          {t(
-            error instanceof ApiError &&
-              error.status === 409 &&
-              broadRefusal.safeParse(error.data).success
-              ? 'sms.too_broad'
-              : 'sms.unavailable'
-          )}
+          {t(smsReadErrorKey(error))}
         </p>
       )}
       {current?.total === 0 && (
-        <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">
+        <p className="rounded-lg border bg-background p-5 text-sm text-muted-foreground">
           {t('sms.empty')}
         </p>
       )}
@@ -50,7 +42,13 @@ export function SmsArchiveResults({
         (mode === 'sender' ? (
           <SmsSearchGroups messages={messages.items} lng={lng} timezone={timezone} />
         ) : (
-          <SmsMessageList messages={messages.items} lng={lng} timezone={timezone} eraseDays />
+          <SmsMessageList
+            messages={messages.items}
+            lng={lng}
+            timezone={timezone}
+            eraseDays
+            surface="background"
+          />
         ))}
       {senders && <SmsSenderThreads senders={senders.items} lng={lng} timezone={timezone} />}
     </>

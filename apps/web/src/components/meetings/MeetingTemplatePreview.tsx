@@ -7,7 +7,7 @@
  * built-in is added to « My templates » and edited there.
  */
 
-import { ArrowLeft, FolderPlus } from 'lucide-react';
+import { ArrowLeft, FolderPlus } from '@/lib/icons';
 
 import { TemplateCategoryGlyph } from '@/components/meetings/templateCategoryIcons';
 import { Badge } from '@/components/ui/badge';

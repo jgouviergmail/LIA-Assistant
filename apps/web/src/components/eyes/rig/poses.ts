@@ -150,7 +150,7 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
   /** A rising dome — round crown, flat base. The eye smiles. */
   joy: merge(JOY_DOME, brow(-0.05, -4, 4, 0.5), pupils(1.15), mouth(0.9, 1.15, 0.12, 0.18)),
 
-  /** A livelier dome, plus the bounce loop below. */
+  /** A livelier dome, carried by a fuller breath. */
   excited: merge(
     both('sy', 0.7),
     both('oy', 25),
@@ -341,7 +341,6 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
 
 export const STYLE_GEOMETRY: Record<RigEyeStyleId, PartialChannelValues> = {
   cozmo: {},
-  smiley: radii(0.3, 0.3, 0.3, 0.3),
   capsules: radii(0.5, 0.5, 0.5, 0.5),
   billes: radii(0.58, 0.58, 0.58, 0.58),
   amande: merge(radii(0.55, 0.42, 0.55, 0.42), pair('baseRot', -12, 12)),
@@ -355,44 +354,7 @@ export const STYLE_GEOMETRY: Record<RigEyeStyleId, PartialChannelValues> = {
 
 type StyleOverrides = Partial<Record<EyeExpression, PartialChannelValues>>;
 
-/** Sculpted eyes retain their iris proportions. Lids are measured on the
- * complete texture canvas, including its alpha margin; a weak sy remap only
- * cropped empty pixels and erased the distinction between joy and rest. */
-function smileyEyes(top: number, bottom: number, radius = 0.22): PartialChannelValues {
-  return merge(
-    both('sy', 1),
-    both('oy', 50),
-    both('lidTop', top),
-    both('lidBot', bottom),
-    both('lidR', radius)
-  );
-}
-
-const SMILEY_POSES: Record<EyeExpression, PartialChannelValues> = {
-  neutral: merge(smileyEyes(19, 10), brow(0.035, -2, 2, 0.32), pupils(0.98), mouth(0.36, 0.72)),
-  attentive: merge(smileyEyes(16, 10), pupils(1.03)),
-  joy: merge(smileyEyes(18, 42, 0.34), both('ty', -0.02)),
-  excited: merge(smileyEyes(14, 10), both('ty', -0.03)),
-  tender: merge(smileyEyes(30, 16, 0.28), brow(0.005, -8, 8, 0.45), pupils(1.12)),
-  surprise: smileyEyes(8, 8, 0.18),
-  fear: merge(smileyEyes(12, 12), pupils(0.72)),
-  anger: merge(smileyEyes(38, 12), pair('rot', 4, -4)),
-  sad: merge(smileyEyes(35, 12), pair('rot', -3, 3)),
-  worried: smileyEyes(31, 12),
-  question: merge(smileyEyes(16, 10), { lidTopR: 43, lidBotR: 12 }),
-  thinking: merge(smileyEyes(29, 10), { lidTopR: 45 }, pupils(0.94)),
-  searching: smileyEyes(26, 16),
-  focused: smileyEyes(38, 25, 0.24),
-  speaking: merge(smileyEyes(24, 13), brow(0.012, -2, 2, 0.32)),
-  bored: smileyEyes(51, 12),
-  tired: smileyEyes(44, 16),
-  sleepy: smileyEyes(62, 19),
-  sleep: merge(smileyEyes(50, 50), both('blink', 1)),
-  wink: merge(smileyEyes(18, 42, 0.34), both('ty', -0.02), { blinkR: 1 }),
-};
-
 export const STYLE_POSE_OVERRIDES: Partial<Record<RigEyeStyleId, StyleOverrides>> = {
-  smiley: SMILEY_POSES,
   /** Cozmo's screens re-shape their corners per emotion — a dome for joy,
    * a hard corner for the scowl, a lens for focus. */
   cozmo: {
@@ -470,7 +432,6 @@ export const STYLE_POSE_OVERRIDES: Partial<Record<RigEyeStyleId, StyleOverrides>
  */
 export const STYLE_LID_MODE: Record<RigEyeStyleId, 'clip' | 'squash'> = {
   cozmo: 'clip',
-  smiley: 'clip',
   capsules: 'clip',
   billes: 'clip',
   amande: 'clip',
@@ -737,20 +698,6 @@ const DRIFT_LOOPS: readonly LoopSpec[] = [
     phase: 0.13,
     waveform: 'sine',
   },
-  {
-    channel: 'rotL',
-    amplitude: 0.12,
-    periodMs: 7300,
-    phase: 0.2,
-    waveform: 'sine',
-  },
-  {
-    channel: 'rotR',
-    amplitude: 0.14,
-    periodMs: 8100,
-    phase: 0.66,
-    waveform: 'sine',
-  },
   // A resting MOUTH is never quite still either — the corners wander on
   // their own long clocks (its width breathes with the mass, above). Sized
   // to cross the pixel: 0.03 of curve was 0.23 px at the medium size, which
@@ -777,31 +724,19 @@ const SLEEP_BREATH_MS = 4200;
 /**
  * The loops an expression runs, paced by the mood family.
  *
- * Phase conventions: a negative amplitude on `ty` lifts (screen coordinates),
- * and the bounce lifts BEFORE it stretches — an eye that stretches on the way
- * down is an eye falling, which is a different beat entirely.
+ * Continuous motion carries breathing, ocular drift and the fear shiver.
+ * Intentional accents are tapes, so each has a beginning and an end.
  */
 export function resolveLoops(expression: EyeExpression, family: IdleMoodFamily): LoopSpec[] {
   switch (expression) {
     case 'excited':
-      return [
-        ...eyeLoop('ty', 0.055, 760, 0.5, { rightDelayMs: 90 }),
-        ...eyeLoop('sy', 0.03, 760, 0, { rightDelayMs: 90 }),
-      ];
-    case 'speaking':
-      // The eyes bob with the talk. The MOUTH is not a loop any more: speech
-      // is generated, syllable by syllable, as the state's pattern
-      // (`rig/speech.ts`) — sines only ever got louder and quieter.
-      return [
-        ...eyeLoop('ty', 0.014, 900, 0.5, {
-          rightPeriodMs: 980,
-          rightDelayMs: 120,
-        }),
-        ...eyeLoop('sy', 0.015, 900, 0, {
-          rightPeriodMs: 980,
-          rightDelayMs: 120,
-        }),
-      ];
+      return breathLoops(BREATH_BY_FAMILY.lively.periodMs, BREATH_BY_FAMILY.lively.scale);
+    case 'speaking': {
+      // Generated speech owns the accents. The face keeps breathing between
+      // phrases without an independent metronomic eye bounce.
+      const breath = BREATH_BY_FAMILY[family];
+      return breathLoops(breath.periodMs, breath.scale * 0.55);
+    }
     case 'fear':
       return [
         {

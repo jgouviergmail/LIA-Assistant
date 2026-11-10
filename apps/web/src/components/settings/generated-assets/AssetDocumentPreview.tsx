@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { documentTypeIcon } from '@/components/chat/document-card-icon';
 import { documentPreviewUrl, fetchDocumentPreview } from '@/lib/document-preview';

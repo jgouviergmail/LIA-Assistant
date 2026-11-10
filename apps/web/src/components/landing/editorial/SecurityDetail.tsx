@@ -7,7 +7,7 @@ import {
   Lock,
   PackageCheck,
   ShieldCheck,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 import type { Translate } from './FeatureCatalog';

@@ -45,6 +45,12 @@ export interface NewTaskBody {
   parent?: string;
   /** Another list than the one open, where LIA read that one was named. */
   list_id?: string;
+  /** How much it matters (To Do only). */
+  importance?: WorkbenchTaskImportance;
+  /** When it reminds, an instant (To Do only). */
+  reminder?: string;
+  /** How it repeats from its due day (To Do only). */
+  repeat?: WorkbenchTaskRepeat;
   /** One key per submission, kept by the caller until the act is done. */
   idempotency_key: string;
 }

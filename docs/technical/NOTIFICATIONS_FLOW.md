@@ -861,6 +861,29 @@ async def _send_channels(self, user_id, title, body, language):
 
 ## Related Documentation
 
+### Filtered display readers (2026-11-09)
+
+The native alerts hub keeps its received/upcoming rubrics and independent lazy
+sections. Search and category selection affect histories and upcoming items;
+habit proposals remain independent and appear below the search/filter toolbar.
+Ordering defaults to each section's established
+order, with explicit recent/oldest/name choices. Upcoming dates mean trigger/due
+dates, not an invented creation date; missing/disabled routine dates sort last.
+
+Every owning backend reader filters the full authorized set before pagination,
+counts that same set and ends ordering on an identifier. Name/body search sees
+only fields displayed to this account, including the correct side of peer messages
+and visible discussion openings. Shared Unicode normalization is applied to streamed
+thin projections; name ordering retains a bounded heap, not an entire content list.
+Routines alone filter client-side because their endpoint returns the whole collection.
+
+A source failure leaves its badge unknown. A folded filtered section has no count
+until read; it does not decrypt SMS or resolve contacts merely to display a badge.
+Account/filter lifetimes retire old requests and callbacks, retained rows keep their
+own page label, and later pages carry the first server creation cut. This cut excludes
+later inserts, not subsequent edits/deletes; refresh starts from the first page.
+SMS uses its separately bounded [native reader](SMS_INGESTION.md#native-alert-search-2026-11-09).
+
 - [ADR-051: Reminder & Notification System](../architecture/ADR-051-Reminder-Notification-System.md)
 - [ADR-046: Background Job Scheduling](../architecture/ADR-046-Background-Job-Scheduling.md)
 - [CHANNELS_INTEGRATION.md](./CHANNELS_INTEGRATION.md)

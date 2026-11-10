@@ -6,7 +6,7 @@ from src.core.i18n import resolve_language
 from src.core.i18n_types import Language
 
 ClassificationLabel = Literal[
-    "professional", "personal", "spam", "phishing_scam", "urgent", "critical"
+    "professional", "personal", "spam", "phishing_scam", "urgent", "critical", "reply_expected"
 ]
 _LABELS: dict[ClassificationLabel, dict[Language, str]] = {
     "professional": {
@@ -56,6 +56,14 @@ _LABELS: dict[ClassificationLabel, dict[Language, str]] = {
         "es": "Crítico",
         "it": "Critico",
         "zh-CN": "严重",
+    },
+    "reply_expected": {
+        "fr": "Réponse attendue",
+        "en": "Reply expected",
+        "de": "Antwort erwartet",
+        "es": "Respuesta esperada",
+        "it": "Risposta attesa",
+        "zh-CN": "需要回复",
     },
 }
 

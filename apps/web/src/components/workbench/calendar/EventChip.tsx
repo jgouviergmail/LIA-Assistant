@@ -11,7 +11,7 @@
  * event's, never inside it (a link holds no link). The frame around them takes
  * the place the view gives, and the drag where the view allows one.
  */
-import { Repeat, Video } from 'lucide-react';
+import { Repeat, Video } from '@/lib/icons';
 import Link from 'next/link';
 import type { CSSProperties, HTMLAttributes } from 'react';
 

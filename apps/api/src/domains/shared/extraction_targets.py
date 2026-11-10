@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import HumanMessage
 
+from src.core.constants import EXTRACTION_WINDOW_MESSAGES
+
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
@@ -67,3 +69,17 @@ def find_last_user_message(messages: list[BaseMessage]) -> tuple[HumanMessage | 
         if isinstance(candidate, HumanMessage) and not is_synthetic_message(candidate):
             return candidate, index
     return None, -1
+
+
+def extraction_window(messages: list[BaseMessage], last_user_index: int) -> list[BaseMessage]:
+    """The messages a turn-end extractor reads: the person's last one and those just before.
+
+    Args:
+        messages: Full conversation history, oldest first.
+        last_user_index: Index of the person's last message (``find_last_user_message``).
+
+    Returns:
+        At most ``EXTRACTION_WINDOW_MESSAGES`` messages, ending at the person's last one.
+    """
+    start = max(0, last_user_index - (EXTRACTION_WINDOW_MESSAGES - 1))
+    return messages[start : last_user_index + 1]

@@ -88,13 +88,14 @@ MutationPolicy = Literal[
     "read",  # acts on nothing: the explicit "no confirmation is owed"
     "draft",  # the tool returns a draft; the draft IS the confirmation
     "confirm",  # pre-execution confirmation card, in BOTH execution modes
+    "direct",  # explicitly permitted communication; requires a scoped durable claim
     "reversible",  # executes and is journaled; one call undoes it
     "artefact",  # produces a local artefact for the user, no third-party effect
     "sandboxed",  # runs inside the throwaway container (SEC-001)
 ]
 
 MUTATION_POLICIES: frozenset[str] = frozenset(
-    {"read", "draft", "confirm", "reversible", "artefact", "sandboxed"}
+    {"read", "draft", "confirm", "direct", "reversible", "artefact", "sandboxed"}
 )
 
 #: The policies of a tool that ACTS. ``read`` is the only value that claims the
@@ -108,8 +109,11 @@ ASKING_POLICIES: frozenset[str] = frozenset({"draft", "confirm"})
 
 #: Policies that EXEMPT an acting tool from a confirmation. ``draft`` and
 #: ``confirm`` ask the user, so they justify themselves; the other three must
-#: say in writing why the user is not asked.
-POLICIES_REQUIRING_REASON: frozenset[str] = frozenset({"reversible", "artefact", "sandboxed"})
+#: say in writing why the user is not asked. Direct communication is an explicit
+#: product exception, never an inference from MCP annotations or reversibility.
+POLICIES_REQUIRING_REASON: frozenset[str] = frozenset(
+    {"direct", "reversible", "artefact", "sandboxed"}
+)
 
 #: The ONLY category exempt from declaring a policy — and the exemption is
 #: measured, not comfortable. ``infer_tool_category`` assigns ``search`` only

@@ -1,6 +1,6 @@
 'use client';
 
-import { Laptop, LogOut, MonitorSmartphone, Smartphone } from 'lucide-react';
+import { Laptop, LogOut, MonitorSmartphone, Smartphone } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';

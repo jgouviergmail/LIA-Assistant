@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Expand } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Expand } from '@/lib/icons';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { CAROUSEL_SWIPE_THRESHOLD_PX } from '@/lib/constants';
 import { cn } from '@/lib/utils';

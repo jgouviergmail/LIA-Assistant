@@ -228,9 +228,9 @@ async def fetch_birthdays_context(
 ) -> list[dict[str, Any]] | None:
     """Fetch upcoming contact birthdays for the decision prompt.
 
-    Cache-first: the underlying Google People fetch is a full contacts
-    scan (up to 5 paginated calls), so results are cached in Redis until
-    the next LOCAL midnight (``days_until`` is pre-computed — the same
+    Cache-first: the underlying read is the active contacts provider's
+    whole book (``connectors.birthdays``), so results are cached in Redis
+    until the next LOCAL midnight (``days_until`` is pre-computed — the same
     rationale as the briefing birthdays card). An empty scan is cached
     too (the emptiness is what cost the scan); a not-configured
     connector is NOT cached (the credential lookup is cheap).

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Loader2, X, CheckCircle, XCircle } from 'lucide-react';
+import { Upload, Loader2, X, CheckCircle, XCircle } from '@/lib/icons';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

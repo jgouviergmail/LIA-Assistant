@@ -7,7 +7,7 @@
 
 'use client';
 
-import { Bell, Smartphone, Info } from 'lucide-react';
+import { Bell, Smartphone, Info } from '@/lib/icons';
 import { InfoBox } from '@/components/ui/info-box';
 import { Button } from '@/components/ui/button';
 import {

@@ -8,7 +8,7 @@
  * steps the browser performs.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -20,6 +20,7 @@ import {
 import { COLOR_THEMES, COLOR_THEME_STORAGE_KEY } from '@/lib/color-themes';
 import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
 import { ThemeInitScript } from '../theme-init-script';
+import { THEME_SCHEDULE_STORAGE_KEY } from '@/lib/theme-schedule';
 
 /** Put `<html>` back to what the server sends, before any script ran. */
 function resetRoot() {
@@ -52,6 +53,25 @@ beforeEach(() => {
 });
 
 const textScale = () => document.documentElement.style.getPropertyValue(FONT_SIZE_CSS_VAR);
+
+afterEach(() => vi.useRealTimers());
+
+it('resolves a cached automatic schedule before next-themes reads its rendered value', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-08T23:00:00Z'));
+  localStorage.setItem(
+    THEME_SCHEDULE_STORAGE_KEY,
+    JSON.stringify({
+      ownerId: 'owner',
+      timezone: 'UTC',
+      lightStartMinute: 420,
+      darkStartMinute: 1200,
+    })
+  );
+  runInitScript();
+  expect(localStorage.getItem('theme')).toBe('dark');
+  expect(document.documentElement).toHaveAttribute('data-oled');
+});
 
 describe('ThemeInitScript', () => {
   it('applies nothing when nothing is stored', () => {

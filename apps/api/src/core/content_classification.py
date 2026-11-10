@@ -17,8 +17,10 @@ EventCategory = Literal["unknown", "professional", "personal"]
 EvidenceScope = Literal["metadata", "snippet", "body", "summary", "partial_body", "event"]
 
 
-ClassificationVersion = Literal["email-event-v1-phishing"]
-CLASSIFICATION_VERSION: Final[ClassificationVersion] = "email-event-v1-phishing"
+# v2 adds whether an e-mail expects a reply (ADR-374); a v1 annotation is still read, an
+# archived one never re-classified, so both versions stay in the vocabulary.
+ClassificationVersion = Literal["email-event-v1-phishing", "email-event-v2-reply"]
+CLASSIFICATION_VERSION: Final[ClassificationVersion] = "email-event-v2-reply"
 
 
 class ClassificationStamp(BaseModel):
@@ -39,6 +41,8 @@ class EmailClassification(ClassificationStamp):
     kind: Literal["email"] = "email"
     category: EmailCategory = "unknown"
     priority: EmailPriority = "unknown"
+    # None: not judged, or not decided at the reply margin; False for spam and phishing.
+    reply_expected: bool | None = None
 
 
 class EventClassification(ClassificationStamp):

@@ -1,17 +1,21 @@
-"""Follow-up suggestion sanitization + metadata enrichment (UXR Lot 4, A2).
+"""What a turn hands its stream besides the answer, and how it is archived.
 
 The Initiative node (ADR-062) emits 0-3 tappable follow-up suggestions in the
-user's language. This module owns their normalization (defense in depth over
-the structured LLM output) and the branch-free enrichment of the archived
+user's language and a provenance line; the response node may add ONE habit
+proposal card (ADR-375). This module owns their normalization (defense in
+depth over the structured LLM output), the per-run handoff the stream pops
+ONCE (:func:`pop_turn_extras`), and the branch-free enrichment of the archived
 assistant message metadata — the same composable idiom as
 ``with_persisted_trace`` (``streaming/trace_capture.py``). The SSE ``done``
-chunk carries the same list under ``FIELD_FOLLOWUP_SUGGESTIONS`` so the chips
-render live and survive a reload while the answer stays the latest.
+chunk carries the same values so the chips and the card render live and
+survive a reload while the answer stays the latest.
 """
 
 from __future__ import annotations
 
 import time as _time
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from src.core.constants import (
@@ -21,6 +25,7 @@ from src.core.constants import (
 )
 from src.core.field_names import (
     FIELD_FOLLOWUP_SUGGESTIONS,
+    FIELD_HABIT_PROPOSAL,
     FIELD_INITIATIVE_MOTIVATION,
 )
 
@@ -60,14 +65,14 @@ def sanitize_followups(raw: list[str] | None) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Per-run handoff (initiative node → SSE generator)
+# Per-run handoff (graph nodes → SSE generator)
 # ---------------------------------------------------------------------------
 # The service's `state` variable is the PRE-RUN snapshot (loaded before the
 # graph streams — `agents/api/service.py` load_or_create_state) and is never
 # refreshed, so reading the state key there would surface the PREVIOUS turn's
-# chips. The node therefore pushes the sanitized list into this pop-once,
-# TTL-evicted, per-run cache (same pattern and same same-process guarantee as
-# `open_loop_extractor`'s debug cache).
+# chips. The nodes therefore push what they hand the stream into this
+# pop-once, TTL-evicted, per-run cache (same pattern and same same-process
+# guarantee as `open_loop_extractor`'s debug cache).
 
 _HANDOFF_MAX_AGE_SECONDS = 300.0
 
@@ -75,8 +80,9 @@ _HANDOFF_MAX_AGE_SECONDS = 300.0
 class PerRunHandoff[T]:
     """Pop-once, TTL-evicted, per-run in-process cache (node → SSE generator).
 
-    Factored out of the follow-ups handoff so every initiative artifact
-    (chips, motivation) crosses the node/generator seam the same audited way.
+    Factored out of the follow-ups handoff so every artifact a node hands the
+    stream (the chips, the motivation, the habit proposal card) crosses the
+    node/generator seam the same audited way.
     """
 
     def __init__(self) -> None:
@@ -106,6 +112,7 @@ class PerRunHandoff[T]:
 
 _followups_handoff: PerRunHandoff[list[str]] = PerRunHandoff()
 _motivation_handoff: PerRunHandoff[str] = PerRunHandoff()
+_proposal_handoff: PerRunHandoff[dict[str, Any]] = PerRunHandoff()
 
 
 def push_followups(run_id: str, suggestions: list[str]) -> None:
@@ -140,9 +147,50 @@ def pop_motivation(run_id: str) -> str | None:
     return _motivation_handoff.pop(run_id)
 
 
+@dataclass(frozen=True, slots=True)
+class TurnExtras:
+    """Everything a run handed its stream besides the answer, popped once.
+
+    Attributes:
+        followups: The initiative's sanitized follow-up chips.
+        motivation: The initiative's provenance line, when any.
+        habit_proposal: The habit proposal shown under the answer (ADR-375),
+            as its JSON projection, when any.
+    """
+
+    followups: tuple[str, ...] = ()
+    motivation: str | None = None
+    habit_proposal: dict[str, Any] | None = None
+
+
+#: A turn that hands nothing besides its answer.
+NO_TURN_EXTRAS = TurnExtras()
+
+
+def push_turn_proposal(run_id: str, proposal: dict[str, Any]) -> None:
+    """Store the habit proposal a run shows under its answer (last wins)."""
+    _proposal_handoff.push(run_id, proposal)
+
+
+def pop_turn_extras(run_id: str) -> TurnExtras:
+    """Pop every extra a run handed its stream, once, for the archive AND ``done``.
+
+    Args:
+        run_id: The run.
+
+    Returns:
+        The extras; :data:`NO_TURN_EXTRAS` when the run pushed none.
+    """
+    return TurnExtras(
+        followups=tuple(pop_followups(run_id)),
+        motivation=pop_motivation(run_id),
+        habit_proposal=_proposal_handoff.pop(run_id),
+    )
+
+
 def with_followup_suggestions(
     metadata: dict[str, Any],
-    suggestions: list[str],
+    suggestions: Sequence[str],
 ) -> dict[str, Any]:
     """Return metadata enriched with the follow-up suggestions (new dict).
 
@@ -174,3 +222,23 @@ def with_initiative_motivation(
     if not motivation:
         return metadata
     return {**metadata, FIELD_INITIATIVE_MOTIVATION: motivation}
+
+
+def with_habit_proposal(
+    metadata: dict[str, Any],
+    proposal: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return metadata enriched with the habit proposal card (new dict, ADR-375).
+
+    Branch-free at the call site: ``None`` returns the input untouched.
+
+    Args:
+        metadata: Assistant message metadata being assembled.
+        proposal: The proposal's JSON projection, when the answer shows one.
+
+    Returns:
+        The same dict when there is nothing to add, a new enriched dict else.
+    """
+    if not proposal:
+        return metadata
+    return {**metadata, FIELD_HABIT_PROPOSAL: proposal}

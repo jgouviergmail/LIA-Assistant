@@ -12,7 +12,6 @@ import { ChatStreamChunk, SSEChunkType } from '@/types/chat';
 import { noteChatFirstToken } from '@/lib/journey-timing';
 import { logger } from '@/lib/logger';
 import { SSEHandlerContext, SSEHandlerMap } from './types';
-import { handleResultPreview } from './result-preview';
 import { handleApplicationStateChanged } from './application-state';
 import {
   // Data handlers
@@ -66,7 +65,6 @@ export { getProgressMessage };
 const SSE_HANDLERS: SSEHandlerMap = {
   // Data events
   registry_update: handleRegistryUpdate,
-  result_preview: handleResultPreview,
   application_state_changed: handleApplicationStateChanged,
   debug_metrics: handleDebugMetrics,
   debug_metrics_update: handleDebugMetricsUpdate,

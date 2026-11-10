@@ -68,7 +68,7 @@ from src.domains.agents.nodes import (
 )
 from src.domains.agents.nodes.for_each_confirm_node import for_each_confirm_node
 from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
-from src.domains.agents.nodes.initiative_recurrence import initiative_node
+from src.domains.agents.nodes.initiative_node import initiative_node
 from src.domains.agents.nodes.plan_choice import pending_choice, plan_choice_of_turn
 from src.domains.agents.nodes.reference_disambiguation_node import (
     asks_which_item,

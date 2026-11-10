@@ -698,6 +698,20 @@ is on as soon as the new release runs, and each click spends on the instance's k
 are not replayed: your slots keep the models you chose, and a model the reference catalogue
 retired stays active and priced on your instance.
 
+**From a release before 4.6.0:** twelve migrations run at boot. Every account starts on the
+Fluent Color icon style (Lucide stays one click away in **Settings › Appearance**); the eight
+JEV collection previews and the initiative's JEV gate leave with their rows, and each JEV
+threshold keeps its qualified default until you move it
+([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)).
+Habit learning drops the « same request at the same hour » lock: recurring needs are rebuilt
+from the request ledger by the nightly job, and proposals appear in **Alerts › Proposals**
+([ADR-375](../architecture/ADR-375-Learned-Usage-Becomes-Proposals.md)). The `HABITS_DEVIATION_*`,
+`RECURRENCE_LOCK_*` and `HEARTBEAT_OFFERS_WINDOW_DAYS` keys are ignored if your `.env` still
+holds them; `RECURRENCE_DAY_HOURS_CAP` now counts the distinct hours of a day, so remove it or
+set it to `24` if it still carries the former template's `5`. The peer-delivery migration
+expects no delivery worker of the previous release to be running: step 3 already ensures it. The SMS display index is not backfilled: older texts stay searchable,
+checked one by one, within the published limits.
+
 #### 1. Back up — before anything else
 
 ```bash

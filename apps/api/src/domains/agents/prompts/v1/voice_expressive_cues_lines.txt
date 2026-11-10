@@ -4,7 +4,7 @@
 # engine performs at least one cue and the budget is above zero; the cue words
 # are LIA's canonical vocabulary (domains/voice/expressive_cues.py), spelled the
 # engine's way at synthesis, so the writer never learns an engine's syntax.
-# Each performed cue is listed with its `meaning.<cue>` row (measured 2026-10-17:
+# Each performed delivery and sound is listed with its `meaning.<cue>` row (measured 2026-10-17:
 # told the names alone, writers of two model families put a cue on most
 # comments, a failure included, and none ever laughed or sighed). A cue colours
 # the news, never the outcome of LIA's own act: told « an emotion for the
@@ -16,19 +16,34 @@
 # (ADR-284): {night} is `rules.night` when a cue whose meaning names the night is listed,
 # {news} the `rules.news.*` row of the kinds listed — an engine that performs a pause
 # alone is never told to open a sentence with a delivery it cannot perform.
+# The personality chooses its cues WITHIN the rules (ADR-373 § 8): measured 2026-11-07 on
+# four model families and six personalities, this frame with the persona cues (`persona`,
+# listed by their `sound.*` row, never by when) took the cynic's contrary cues (cheerful,
+# excited) from 22.9 % of its comments to 8.3 %; told « your personality decides » above
+# the rules, two families cued more of LIA's own acts than with the frame shipped before.
+# The example row says it shows where a cue goes, never which one.
+#
+# The `live.*` rows are a LIVE voice's block (ADR-373): a voice on an ElevenLabs
+# agent writes its cues itself, in its engine's spelling, so the block lists each
+# offered cue with its `sound.<cue>` row — what it SOUNDS like, never when: the
+# personality decides that (measured 2026-11-07, a description written as a
+# trigger was obeyed as one). The same `sound.<cue>` rows are the descriptions of
+# the palette LIA writes on the agent. A guard holds the `sound.*` rows equal to
+# the cues a palette can list.
 
 open|<expressive_cues>
-intro|The voice engine performs a few cues written in square brackets. They are the ONLY bracketed text allowed and are not spoken words (they do not count toward the word budget); every other rule above still applies.
+intro|The voice engine performs a few cues written in square brackets. They are the ONLY bracketed text allowed and are not spoken words (they do not count toward the word budget); every other rule above still applies. Within the rules below, your personality decides which of them you use and which you never use: a cue it would not use stays unused, whatever this list says of it.
 delivery|- How a sentence is said, at most one per sentence, placed at its very start:
+persona|- How your character sounds, in place of a cue above, at most one per sentence, placed at its very start:
 events|- A sound, placed where it happens in a sentence:
 cue|{cue} — {meaning}
-rules|- A cue colours the NEWS, never the outcome of your own act. What you did or could not do — a confirmation that it is done, a status, a failure to get the result, nothing found — is said plainly, with no cue at all, whatever your personality (Heuristic 9){night}. News that matters to the person — an approval, a cancellation, a risk, a surprise, something funny — may {news}, coloured by `<personality_profile>` and `<user_cognitive_state>`. At most {max_cues} in the whole comment; when in doubt, none.
+rules|- A cue colours the NEWS, never the outcome of your own act. What you did or could not do — a confirmation that it is done, a status, a failure to get the result, nothing found — is said with no cue at all, whatever your personality (Heuristic 9){night}. News that matters to the person — an approval, a cancellation, a risk, a surprise, something funny — may {news}. At most {max_cues} in the whole comment; when in doubt, none.
 rules.night|; only late at night may a cue meant for the night above soften it
-rules.news.delivery|open with the one cue whose meaning above fits it
+rules.news.delivery|open with the one cue above that fits it and your personality
 rules.news.sound|carry a sound where the moment has one
 rules.news.both|{delivery}, or {sound}
 never|- Never invent a cue, never translate a cue word, never place a cue inside a word.
-example|Example: {example}
+example|Example of where a cue goes, never of which one to use: {example}
 close|</expressive_cues>
 
 meaning.calm|steady and soothing: reassurance after a worry, or an answer late at night.
@@ -60,3 +75,36 @@ example.laughs|Twelve rescue cats join that yoga class [laughs] so expect compan
 example.chuckles|The plumber's company is called Leak Busters [chuckles] which sounds promising.
 example.sighs|Forty-three listings later [sighs] one flat finally matches everything.
 example.short_pause|The answer came in [short pause] you got the job.
+
+live.open|<voice_cues>
+live.intro|Your voice performs the cues below, written in square brackets inside what you say: the one exception to the rules on what your output may contain. They are the ONLY bracketed text allowed and are never spoken as words. Your personality decides which of them you use and which you never use: a cue it would not use stays unused, whatever this list offers.
+live.delivery|- How a sentence is said, at most one per sentence, at its very start:
+live.persona|- How your character sounds, at most one per sentence, at its very start:
+live.events|- A sound, placed where it happens in a sentence:
+live.cue|{cue} — {sound}
+live.rules|- Most sentences carry no cue. A cue colours the news, never the outcome of your own act: what you did or could not do — a confirmation, a status, a failure, nothing found — carries no cue. Never invent a cue, never translate one, never place one inside a word.
+live.close|</voice_cues>
+
+sound.calm|steady and soothing.
+sound.warm|kind and close.
+sound.cheerful|glad and bright.
+sound.excited|thrilled and energetic.
+sound.serious|grave and clear.
+sound.concerned|worried.
+sound.curious|intrigued, leaning in.
+sound.surprised|taken aback.
+sound.empathetic|understanding and gentle.
+sound.whispering|hushed, almost whispered.
+sound.laughs|a real laugh.
+sound.chuckles|a light laugh.
+sound.sighs|a sigh.
+sound.sarcastic|ironic: the words say the opposite of what is meant.
+sound.dismissive|offhand, brushing the matter aside.
+sound.cheeky|playfully insolent.
+sound.mischievous|sly, up to something.
+sound.annoyed|irritated, short-tempered.
+sound.weary|tired, low on energy.
+sound.soft|quiet and gentle.
+sound.slow|unhurried, drawn out.
+sound.rushed|hurried and fast.
+sound.booming|loud and grand.

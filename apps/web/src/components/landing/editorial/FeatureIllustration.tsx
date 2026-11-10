@@ -18,7 +18,7 @@ import {
   Sparkles,
   Sun,
   UserRound,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { FEATURE_SCENES, type FeatureScene } from './FeatureScenes';
 import worldProof from '../../../../public/screenshots/proof/world-manifest.json';
 

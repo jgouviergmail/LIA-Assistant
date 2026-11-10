@@ -34,13 +34,13 @@ afterEach(() => {
 });
 
 describe('ExpressiveEyes — declared state', () => {
-  it('keeps the native Smiley fallback when the selected avatar default is hybrid', () => {
+  it('keeps the native Cozmo fallback when the selected avatar default is hybrid', () => {
     const { container } = render(
       <ExpressiveEyes expression="neutral" gaze={null} size="sm" staticPose />
     );
     const root = eyesRoot(container);
-    expect(root.dataset.style).toBe('smiley');
-    const nativePose = resolvePose('neutral', 'smiley');
+    expect(root.dataset.style).toBe('cozmo');
+    const nativePose = resolvePose('neutral', 'cozmo');
     expect(root.style.getPropertyValue('--rig-r-top-l')).toBe(`${nativePose.rTopL}em`);
     expect(root.style.getPropertyValue('--rig-r-top-r')).toBe(`${nativePose.rTopR}em`);
     expect(container.querySelector('canvas')).toBeNull();
@@ -104,9 +104,9 @@ describe('ExpressiveEyes — declared state', () => {
 
   it('carries the idle gesture as a data attribute, absent when null', () => {
     const { container, rerender } = render(
-      <ExpressiveEyes expression="neutral" gaze={null} size="md" gesture="tilt" />
+      <ExpressiveEyes expression="neutral" gaze={null} size="md" gesture="consider" />
     );
-    expect(eyesRoot(container).dataset.gesture).toBe('tilt');
+    expect(eyesRoot(container).dataset.gesture).toBe('consider');
     rerender(<ExpressiveEyes expression="neutral" gaze={null} size="md" gesture={null} />);
     expect(eyesRoot(container).dataset.gesture).toBeUndefined();
   });

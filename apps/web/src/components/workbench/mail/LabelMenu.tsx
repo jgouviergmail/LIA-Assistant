@@ -8,7 +8,7 @@
  * every message carries it, mixed when some do — and a choice applies it to
  * all of them, or takes it off all of them when all carried it.
  */
-import { Tag } from 'lucide-react';
+import { Tag } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {

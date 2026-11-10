@@ -9,7 +9,7 @@
  * `aria-busy` — never an unmount.
  */
 
-import { Bookmark as BookmarkIcon } from 'lucide-react';
+import { Bookmark as BookmarkIcon } from '@/lib/icons';
 import { useState } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';

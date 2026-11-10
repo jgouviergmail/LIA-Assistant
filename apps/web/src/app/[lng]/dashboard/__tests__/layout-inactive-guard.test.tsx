@@ -33,7 +33,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { act, renderWithProviders, screen, within } from '@/__tests__/test-utils';
+import { act, fireEvent, renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import type { AppConfig } from '@/hooks/useAppConfig';
 import type { ConnectorHealthResponse, ConnectorHealthSettings } from '@/hooks/useConnectorHealth';
 import type { AvatarConfig } from '@/lib/avatars/types';
@@ -41,6 +41,7 @@ import type { PersonalityListResponse, UserPersonalityResponse } from '@/types/p
 import { usePersonalityStore } from '@/stores/personalityStore';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { ThemeModeProvider } from '@/lib/theme-preferences';
 
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
@@ -75,7 +76,7 @@ vi.mock('@/components/broadcast/BroadcastModal', () => ({
   },
 }));
 
-import DashboardLayout from '../layout';
+import DashboardLayout from '../DashboardLayoutClient';
 
 const { applicationEyesSpy } = vi.hoisted(() => ({ applicationEyesSpy: vi.fn() }));
 vi.mock('@/components/eyes/ApplicationEyes', () => ({
@@ -160,6 +161,7 @@ const responses = new Map<string, unknown>([
     } satisfies UserPersonalityResponse,
   ],
   ['/api/v1/agents/runs/active', { active: false }],
+  ['/api/v1/auth/me/onboarding-preference', {}],
 ]);
 
 class FakeEventSource extends EventTarget {
@@ -184,9 +186,11 @@ async function renderLayout() {
   // asserting that a redirect kept every stream-opening child unmounted.
   return act(async () =>
     renderWithProviders(
-      <DashboardLayout params={Promise.resolve({ lng: 'fr' })}>
-        <div data-testid={CHILD_MARKER} />
-      </DashboardLayout>
+      <ThemeModeProvider>
+        <DashboardLayout params={Promise.resolve({ lng: 'fr' })}>
+          <div data-testid={CHILD_MARKER} />
+        </DashboardLayout>
+      </ThemeModeProvider>
     )
   );
 }
@@ -242,6 +246,56 @@ describe('Dashboard shell — account awaiting activation', () => {
 });
 
 describe('Dashboard shell — active account', () => {
+  it('derives onboarding from the account and keeps confirmed completion scoped to its owner', async () => {
+    const newcomer = { ...ACTIVE_USER, onboarding_completed: false };
+    const auth = {
+      user: newcomer,
+      isLoading: false,
+      logout: vi.fn(),
+      refreshUser: vi.fn().mockResolvedValue(true),
+    };
+    useAuth.mockReturnValue(auth);
+    const view = await renderLayout();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'onboarding.skip' })));
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(
+          ([input, init]) =>
+            String(input).endsWith('/auth/me/onboarding-preference') && init?.method === 'PATCH'
+        )
+    ).toBe(true);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    const rerender = async () =>
+      act(async () =>
+        view.rerender(
+          <ThemeModeProvider>
+            <DashboardLayout params={Promise.resolve({ lng: 'fr' })}>
+              <div data-testid={CHILD_MARKER} />
+            </DashboardLayout>
+          </ThemeModeProvider>
+        )
+      );
+    // A stale profile refresh must not reopen a completion already confirmed.
+    useAuth.mockReturnValue({ ...auth, user: { ...newcomer } });
+    await rerender();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Another account has its own onboarding, even in the same mounted shell.
+    useAuth.mockReturnValue({ ...auth, user: { ...newcomer, id: 'another-account' } });
+    await rerender();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    useAuth.mockReturnValue({
+      ...auth,
+      user: { ...newcomer, id: 'another-account', onboarding_completed: true },
+    });
+    await rerender();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('releases the previous account mood even on pages without a psyche query', async () => {
     useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
     usePsycheStore.setState({ ownerId: 'previous-account', moodLabel: 'serene', enabled: true });
@@ -336,10 +390,55 @@ describe('Dashboard shell — active account', () => {
  * (`e2e/smoke/desktop-widths.spec.ts`, `e2e/smoke/workbench-matrix.spec.ts`). A
  * default-language address carries no prefix.
  */
+describe('Dashboard shell — active navigation across equivalent locale paths', () => {
+  it.each([
+    { pathname: '/dashboard', href: '/dashboard' },
+    { pathname: '/fr/dashboard', href: '/dashboard' },
+    { pathname: '/fr/dashboard/', href: '/dashboard' },
+    { pathname: '/dashboard/chat', href: '/dashboard/chat' },
+    { pathname: '/fr/dashboard/chat', href: '/dashboard/chat' },
+    { pathname: '/fr/dashboard/settings/profile', href: '/dashboard/settings' },
+    { pathname: '/en/dashboard/chat', href: '/en/dashboard/chat' },
+    { pathname: '/de/dashboard/settings/profile', href: '/de/dashboard/settings' },
+  ])(
+    'announces the same destination on desktop and mobile at $pathname',
+    async ({ pathname, href }) => {
+      useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+      address.pathname = pathname;
+      const { user } = await renderLayout();
+      const nav = within(screen.getByRole('banner')).getByRole('navigation');
+      const desktopCurrent = within(nav).getAllByRole('link', { current: 'page' });
+      expect(desktopCurrent).toHaveLength(1);
+      expect(desktopCurrent[0]).toHaveAttribute('href', href);
+
+      await user.click(screen.getByRole('button', { name: 'common.menu' }));
+      const menu = await screen.findByRole('menu');
+      const mobileCurrent = within(menu).getAllByRole('menuitem', { current: 'page' });
+      expect(mobileCurrent).toHaveLength(1);
+      expect(mobileCurrent[0]).toHaveAttribute('href', href);
+      expect(mobileCurrent[0]).toHaveAccessibleName(/\S+/);
+    }
+  );
+
+  it('does not mark a route whose name merely begins with a destination', async () => {
+    useAuth.mockReturnValue({ user: ACTIVE_USER, isLoading: false, logout: vi.fn() });
+    address.pathname = '/fr/dashboard/chatty';
+    const { user } = await renderLayout();
+    const nav = within(screen.getByRole('banner')).getByRole('navigation');
+    expect(within(nav).queryByRole('link', { current: 'page' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'common.menu' }));
+    expect(
+      within(await screen.findByRole('menu')).queryByRole('menuitem', { current: 'page' })
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('Dashboard shell — the frame of a page', () => {
   it.each([
     '/dashboard/tools',
     '/dashboard/tools/mail',
+    '/fr/dashboard/tools',
+    '/fr/dashboard/tools/mail',
     '/en/dashboard/tools',
     '/en/dashboard/tools/calendar',
     '/en/dashboard/tools/lights/',

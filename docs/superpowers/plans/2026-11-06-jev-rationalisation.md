@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Retirer les deux chaînes JEV sans lecteur (aperçus de collections, évaluateur d'initiative), déclarer les seuils JEV en un registre réglable depuis l'écran d'administration, écrire des statistiques durables par usage (jugements, issues, coût, accord des observateurs) et les afficher sur ce même écran, pour qu'un seuil se décide sur la distribution réelle et non sur un corpus.
+**Goal:** Retirer les chaînes JEV sans lecteur (aperçus de collections, porte JEV d'initiative), restreindre l'évaluateur d'initiative aux e-mails qui appellent une suite, déclarer les seuils JEV en un registre réglable depuis l'écran d'administration, écrire des statistiques durables par usage (jugements, issues, coût, accord des observateurs) et les afficher sur ce même écran, pour qu'un seuil se décide sur la distribution réelle et non sur un corpus.
 
 **Architecture :** une porte unique (`infrastructure/llm/jev_runtime.py`) écrit la distribution des jugements et l'issue de chaque tentative ; les consommateurs ne lisent plus une constante mais le seuil résolu que `DecisionAttempt` transporte ; les seuils vivent dans `system_settings` (une clé JSON par usage), lus dans la même requête que les interrupteurs, figés dans l'instantané par opération. Les suppressions sont des lots indépendants, chacun avec sa migration qui efface les lignes des clés et créneaux retirés (une clé inconnue lue sans filtre lève `LookupError`, reproduit le 06/11).
 
@@ -13,7 +13,7 @@
 ## Décisions (spec)
 
 1. **Les 8 aperçus de collections sont supprimés** (`filter_email`, `filter_event`, `filter_task`, `filter_file`, `filter_reminder`, `filter_ticket`, `filter_mcp`, `filter_document`). Qualité mesurée bonne (0 faux sur 122 éléments à 0,94), mais leur seul affichage, la fenêtre « Premiers résultats », a été masqué par le propriétaire le 2026-10-04 et `resultPreviews` n'est lu par aucun composant.
-2. **L'évaluateur d'initiative post-exécution est supprimé** (nœud `initiative`, ADR-062/ADR-070 ; sa porte JEV `initiative_utility` ; les puces de relance et la ligne de motivation qu'il seul produit). Diagnostic du 06/11 : 0 acte, 0 suggestion, 0 puce sur 89 évaluations en 7 jours de production, pour 8,24 € par mois et jusqu'à 2,9 s par tour outillé ; l'évaluateur répond et refuse conformément à ses règles (inter-domaines seulement, adresse vérifiée, retenue par défaut). **La suggestion de routine (ADR-140), qui voyageait dans son créneau, est conservée et déplacée** ; sa refonte appartient au programme « habitudes », pas à celui-ci.
+2. **L'évaluateur d'initiative post-exécution (nœud `initiative`, ADR-062/ADR-070) est gardé, mais restreint** : il n'est appelé que lorsque le tour a ramené un e-mail que la classification dit `urgent`, `critical` ou, après le lot F, `reply_expected`. Diagnostic du 06/11 : 0 acte sur 89 évaluations en 7 jours de production, pour 8,24 € par mois et jusqu'à 2,9 s par tour outillé ; rejoué sur douze états fidèles, il agit sur les quatre qui portent un tel e-mail (agenda du jour, créneau avant l'échéance) et sur aucune liste de rendez-vous. La porte est déterministe (les étiquettes existent déjà sur chaque élément du registre), coûte zéro, et ne peut que retirer des appels. **Sa porte JEV `initiative_utility` est supprimée** (p 0,67-0,77 là où l'évaluateur agit, 0,41-0,81 ailleurs : elle ne distingue rien). Les puces de relance, la motivation et la suggestion de routine (ADR-140) restent telles quelles. L'ADR-373 fixe le critère de suppression complète : quatre semaines où la porte ne passe jamais, ou où l'évaluateur n'agit jamais quand elle passe.
 3. **Les usages qualifiés mais éteints restent** (compte rendu, radio, consultations ×2, exclusions et refus HITL, références personnelles, 4 observateurs) : le propriétaire les rallume lui-même. **Paramètres protégés** reste : garde qui ne peut qu'ajouter un refus.
 4. **Les seuils deviennent des réglages** : un registre déclaratif (clé de question → nature du score, défaut, bornes, portée « chacun » ou « tous », option d'abstention), stocké dans `system_settings`, réglable depuis l'écran « Intégrations JEV », avec la mention « hors relevé qualifié » dès qu'une valeur s'écarte du défaut. Aucune valeur par défaut ne change dans ce plan (le seuil de priorité des e-mails à 0,50 ne gagne qu'un e-mail sur 134 au corpus indépendant : il reste réglable, pas modifié).
 5. **Statistiques durables** par usage : distribution des jugements au centième (écrite par le runtime, indépendante du seuil), issues des tentatives et des consommateurs (« a conclu », « incertain », « repli », « échec »), volume, coût et latence (lus dans `token_usage_logs`), **accord des observateurs** (verdict JEV contre ce que l'extracteur a proposé). Jamais d'écriture pour une issue `disabled`.
@@ -32,7 +32,7 @@
 ## Review Focus
 
 1. Un administrateur saisit un seuil hors bornes, non numérique ou pour une clé inconnue → 422, aucune écriture (lot C, tâche C3).
-2. Une instance dont la base garde une ligne `JEV_FILTER_EMAIL_ENABLED` ou un créneau `initiative` démarre un code qui ne connaît plus ces membres → la migration les efface avant le boot (lots A2, B2 ; test de rejeu de migration).
+2. Une instance dont la base garde une ligne `JEV_FILTER_EMAIL_ENABLED` ou un créneau `jev_initiative_utility` démarre un code qui ne connaît plus ces membres → la migration les efface avant le boot (lots A2, B2 ; test de rejeu de migration).
 3. Un seuil de classification abaissé par l'écran ne doit pas laisser vivre une étiquette publiée sous l'ancien seuil → l'empreinte de politique hache les seuils EFFECTIFS (lot C, tâche C2).
 4. Un onglet ouvert avant le déploiement reçoit encore `result_preview` ou `followups` dans un événement SSE → ignoré sans erreur (lots A3, B3 ; test de symétrie SSE).
 5. Un travailleur tué pendant un vidage de statistiques perd au plus un intervalle de comptes, jamais une ligne partielle → UPSERT trié et atomique (lot D, tâche D1).
@@ -66,7 +66,7 @@
 
 **Interfaces :** rien n'est produit ; le nœud de réponse perd deux tâches parallèles et le flux SSE un type d'événement.
 
-- [ ] **Step 1 :** écrire le test de garde `tests/unit/domains/agents/display/test_no_collection_preview_guard.py` : `grep` AST sur `apps/api/src` refusant tout import de `collection_preview`, `document_preview`, `jev_qualification` et tout littéral `"result_preview"`.
+- [ ] **Step 1 :** écrire le test de garde `tests/unit/domains/llm_config/test_retired_jev_usages_guard.py` : `grep` AST sur `apps/api/src` refusant tout import de `collection_preview`, `document_preview`, `jev_qualification` et tout littéral `"result_preview"` (le lot B y ajoute les siens).
 - [ ] **Step 2 :** le lancer → FAIL (les modules existent).
 - [ ] **Step 3 :** supprimer les fichiers, retirer les appels du nœud de réponse et l'événement SSE ; `tests/unit/domains/agents/nodes/test_response_node*.py` ne doivent plus patcher `CollectionPreview`.
 - [ ] **Step 4 :** `cd apps/api && .venv/Scripts/pytest tests/unit/domains/agents tests/unit/infrastructure/llm tests/agents -q` → vert ; la garde passe.
@@ -109,67 +109,45 @@
 
 ---
 
-## Lot B — Suppression de l'évaluateur d'initiative
+## Lot B — L'évaluateur d'initiative restreint aux e-mails qui appellent une suite
 
-### Task B.1 : la suggestion de routine survit au nœud
+**Pourquoi il reste.** Rejoué le 06/11 sur douze états fidèles, l'évaluateur a agi sur les quatre états portant un e-mail urgent ou une invitation attendant réponse (vérifier l'agenda du jour, proposer de bloquer un créneau avant l'échéance) et sur aucune des six listes de rendez-vous (ses règles : inter-domaines seulement, adresse vérifiée, visio exclue). Les e-mails sont classés AU MOMENT DE L'OUTIL (`tools/base.py:422`, `qualify_tool_output`) : chaque élément du registre porte déjà `payload["classification"]` quand le nœud s'exécute. Le nœud ne doit donc payer le modèle que lorsque le tour a ramené un e-mail que la classification dit `urgent`, `critical` ou, après le lot F, `reply_expected`. Tout le reste (recherche web, météo, contacts, listes d'agenda) ne l'appelle plus.
+
+### Task B.1 : la porte déterministe
 
 **Files:**
-- Create: `apps/api/src/domains/agents/nodes/recurrence_suggestion.py` (déplace `_resolve_recurrence_suggestion` de `nodes/initiative_recurrence.py`, sans son enveloppe de nœud)
-- Rename: `prompts/v1/initiative_suggestion_directive.txt` → `prompts/v1/recurrence_suggestion_directive.txt` ; `STATE_KEY_INITIATIVE_SUGGESTION` → `STATE_KEY_RECURRENCE_SUGGESTION` (`core/constants.py`), clé d'état `initiative_suggestion` → `recurrence_suggestion` (`domains/agents/models.py:560,784`)
-- Modify: `apps/api/src/domains/agents/nodes/response_node.py` (là où il lit la suggestion : appelle `resolve_recurrence_suggestion(state, config)` et rend la directive), `nodes/router_node_v3.py` (remise à zéro par tour), `prompts/prompt_loader.py` (`PromptName`), `nodes/post_response_extractions.py:516` (commentaire)
+- Modify: `apps/api/src/domains/agents/nodes/initiative_node.py` (après le pré-filtre structurel, avant le chargement du contexte : lignes ~578-600), `apps/api/src/core/config/agents.py` (réglage `initiative_email_gate_enabled: bool`, défaut `True`), `apps/api/src/core/constants.py` (`INITIATIVE_EMAIL_GATE_ENABLED_DEFAULT`, `INITIATIVE_ACTIONABLE_PRIORITIES = frozenset({"urgent", "critical"})`), `.env.example`, `.env.prod.example`, `.env.demo-instance.example`, `.env.demo-instance.prod.example`, les deux `.env` vivants du démonstrateur, `apps/api/src/infrastructure/observability/metrics_agents.py` (`initiative_gate_total{outcome}` : `passed` | `no_actionable_email`), `infrastructure/observability/grafana/dashboards/13-proactive-heartbeat.json` (un panneau sur le nouveau compteur, `or vector(0)`, `"noValue": "0"`)
+- Create: `apps/api/tests/unit/domains/agents/nodes/test_initiative_email_gate.py`
 
 **Interfaces :**
-- Produces: `async def resolve_recurrence_suggestion(state: MessagesState, config: RunnableConfig) -> str | None` dans `nodes/recurrence_suggestion.py` ; même texte, même garde `recurrence_evaluation_skipped_total`.
+- Produces: `def results_call_for_follow_through(registry: Mapping[str, Any], current_turn_id: int | None) -> bool` dans `initiative_node.py` : vrai si au moins un élément du tour courant est de type e-mail et porte une classification dont `priority` est dans `INITIATIVE_ACTIONABLE_PRIORITIES` ou dont `reply_expected` vaut `True` ; lit les deux formes du registre (dict et `RegistryItem`, comme `_format_execution_summary`) ; une classification absente, invalide ou `unknown` compte pour non.
+- Quand la porte refuse : `{STATE_KEY_INITIATIVE_SKIPPED_REASON: "no_actionable_email", STATE_KEY_INITIATIVE_ITERATION: iteration + 1}`, `logger.info("initiative_skipped", reason="no_actionable_email", run_id=…)`, compteur incrémenté ; aucun appel de modèle, aucune ligne de dépense.
 
-- [ ] **Step 1 :** adapter `tests/unit/domains/agents/nodes/test_recurrence_suggestion_wiring.py` au nouveau module ; ajouter `test_response_node_renders_recurrence_directive_without_initiative_node` (état avec suggestion → la directive est dans le prompt rendu).
-- [ ] **Step 2 :** lancer → FAIL (module absent).
-- [ ] **Step 3 :** créer le module, brancher le nœud de réponse, renommer la clé et la directive.
-- [ ] **Step 4 :** `pytest tests/unit/domains/agents/nodes -q -k "recurrence or response_node"` → vert ; `test_prompt_placeholders_are_produced.py` vert.
+- [ ] **Step 1 :** tests : e-mail `urgent` → vrai ; `critical` → vrai ; `normal` sans `reply_expected` → faux ; `reply_expected=True` et `normal` → vrai ; rendez-vous avec adresse mais aucun e-mail → faux ; élément d'un tour précédent → ignoré ; classification manquante → faux ; `initiative_email_gate_enabled=False` → le nœud appelle le modèle comme avant (le test patche `settings`, ne code aucune valeur en dur).
+- [ ] **Step 2 :** lancer → FAIL ; implémenter ; `pytest tests/unit/domains/agents/nodes -q -k initiative` → vert.
+- [ ] **Step 3 :** `test_env_template_parity_guard.py`, `test_metric_coverage_ratchet_guard.py` → verts.
 
-### Task B.2 : le nœud, sa porte JEV, ses réglages, ses créneaux
-
-**Files:**
-- Delete: `nodes/initiative_node.py`, `nodes/initiative_recurrence.py`, `nodes/initiative_plan.py`, `nodes/initiative_schemas.py`, `nodes/initiative_semantic_bridges.py`, `nodes/jev_initiative.py`, `nodes/jev_initiative_context.py`, `nodes/jev_initiative_evidence.py`, `prompts/v1/initiative_prompt.txt`, `prompts/v1/jev_initiative_question.txt`
-- Modify: `domains/agents/graph.py:71,82,371-372,672-718` (nœud et arêtes), `nodes/routing.py:698-841,1038-1060` (`route_from_initiative`, retours `"initiative"` → `"response"`), `domains/agents/models.py:555-561,781-785` (clés `initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, `initiative_followups`), `core/config/agents.py:3126-3182` (`initiative_enabled`, `initiative_max_iterations`, `initiative_max_actions`, `initiative_react_enabled` ; fusion de `response_context_prefetch_at_router_enabled` dans `response_context_prefetch_enabled`), `core/constants.py` (défauts `INITIATIVE_*`, `STATE_KEY_INITIATIVE_*`, `INITIATIVE_MEMORY_*`), `.env.example`, `.env.prod.example`, `.env.demo-instance.example`, `.env.demo-instance.prod.example` et les deux `.env` vivants du démonstrateur (lignes `INITIATIVE_*`, `RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED` ; `.env.min.prod` n'en porte aucune), `nodes/router_node_v3.py:188-194` (le préchargement devient inconditionnel sous `response_context_prefetch_enabled`), `services/response_context.py:10` (docstring), `infrastructure/llm/spend_roads.py` (route du module), `domains/llm_config/constants.py` (créneaux `initiative` et `jev_initiative_utility`), `infrastructure/llm/factory.py` (`LLM_TYPES_REGISTRY`), `domains/llm_config/jev_registry.py` (`INITIATIVE_UTILITY`), `domains/system_settings/{models,registry}.py` (`JEV_INITIATIVE_UTILITY_ENABLED`), `infrastructure/database/seeds/llm_config_seed.sql:38`, `domains/agents/registry/catalogue.py:736,1256-1290` (champ `initiative_eligible` et `is_initiative_eligible`), les ~130 manifestes qui déclarent `initiative_eligible=` (liste par `grep -rl initiative_eligible apps/api/src`), `domains/agents/registry/domain_taxonomy.py` et `semantic/type_registry.py` (ponts sémantiques du nœud), `services/turn_catalogue.py:5`, `services/planner_capability_filter.py:11`, `orchestration/mappers.py`, `api/service.py` (section initiative du panneau debug), `infrastructure/startup/agents.py:86` (commentaire), `infrastructure/observability/metrics_agents.py` (`initiative_evaluations_total`, `initiative_duration_seconds`, `initiative_followups_total`, `initiative_actions_executed_total`), `infrastructure/observability/grafana/dashboards/13-proactive-heartbeat.json` (4 panneaux), `apps/api/tests/unit/metric_coverage_baseline.json` (2 entrées : la ratchet ne fait que retirer)
-- Create: `apps/api/alembic/versions/<date>-<rev>_retire_initiative_evaluator.py` (efface `JEV_INITIATIVE_UTILITY_ENABLED` et les créneaux `initiative`, `jev_initiative_utility`)
-
-**Interfaces :**
-- Consumes: `resolve_recurrence_suggestion` (B.1).
-- Produces: un graphe où chaque arête qui menait à `initiative` mène à `response` ; `MessagesState` sans clé `initiative_*`.
-
-- [ ] **Step 1 :** garde `tests/unit/domains/agents/test_no_initiative_node_guard.py` : aucun module de `apps/api/src` n'importe `initiative_node`, `jev_initiative*`, ni ne nomme `NODE_INITIATIVE`, `initiative_eligible`, `is_initiative_eligible`.
-- [ ] **Step 2 :** lancer → FAIL.
-- [ ] **Step 3 :** retirer le nœud et ses arêtes ; supprimer `tests/unit/domains/agents/nodes/test_routing_initiative.py` et `test_routing_react_initiative.py`, et dans `test_routing_react.py` chaque test qui attendait `"initiative"` attend `"response"` ; les 20 fichiers de tests qui nomment le nœud ou ses puces (liste : `grep -rl "initiative_node\|NODE_INITIATIVE\|jev_initiative\|route_from_initiative\|push_followups" apps/api/tests`) sont supprimés ou réécrits.
-- [ ] **Step 4 :** retirer le champ des manifestes par édition mécanique (`initiative_eligible=…,` sur sa ligne), puis `task test:backend:agents` → vert ; `tests/unit/domains/agents/tools/test_tool_registry_smoke.py` vert.
-- [ ] **Step 5 :** migration + `task db:migrate:replay-check` → vert ; `tests/unit/test_env_template_parity_guard.py` vert ; `test_metric_coverage_ratchet_guard.py` vert après `task ratchet:metrics`.
-- [ ] **Step 6 :** `task test:backend:unit:fast` → vert ; `task lint:backend` → vert.
-
-### Task B.3 : puces de relance et motivation
+### Task B.2 : la porte JEV `initiative_utility` est retirée
 
 **Files:**
-- Delete: `apps/api/src/domains/agents/services/streaming/followup_metadata.py`, `apps/web/src/components/chat/FollowupChips.tsx` (+ test)
-- Modify: `services/streaming/done_metadata.py`, `services/streaming/service.py`, `services/streaming/voice_scope.py` (champs `followups`, `motivation` de l'événement de fin), `api/archive_metadata.py:4,59,193-220` (`with_initiative_motivation` retiré ; les métadonnées déjà archivées gardent leur clé, personne ne la lit), `apps/web/src/lib/chat-surfaces.ts:60,94,125` (surface `followups`), `apps/web/src/components/chat/ChatConditionalSurfaces.tsx:36,60-63`, `ChatWorkspace.tsx`, `SelectionActions.tsx`, `reducers/chat-reducer.ts`, `types/chat-state.ts`, `types/chat.ts`, `apps/web/locales/*/translation.json` (clés des puces et de la motivation), `apps/web/src/lib/sse-handlers/__tests__/sse-symmetry.test.ts`
+- Delete: `apps/api/src/domains/agents/nodes/jev_initiative.py`, `jev_initiative_context.py`, `jev_initiative_evidence.py`, `prompts/v1/jev_initiative_question.txt`, leurs tests (`grep -rl "jev_initiative" apps/api/tests`)
+- Modify: `nodes/initiative_node.py:609-666` (plus de `native_evidence`, de `canonical_initiative_context`, de `named_initiative_state`, de `choose_empty_initiative` : l'appel structuré est direct), `domains/llm_config/jev_registry.py` (`INITIATIVE_UTILITY`), `domains/system_settings/{models,registry}.py` (`JEV_INITIATIVE_UTILITY_ENABLED`), `domains/llm_config/constants.py` et `infrastructure/llm/factory.py` (créneau `jev_initiative_utility`), `prompts/prompt_loader.py` (`PromptName`), `apps/web/src/types/jev.ts`, `apps/web/locales/*/translation.json` (`settings.admin.jev.usages.initiative_utility`, `usageHelp.initiative_utility`, `settings.admin.llmConfig.types.jev_initiative_utility`), `apps/web/e2e/smoke/settings-jev.spec.ts`
+- Create: migration `<date>-<rev>_retire_jev_initiative_gate.py` (efface la clé et le créneau ; `downgrade` ré-insère la clé à `'false'`)
 
-- [ ] **Step 1 :** test vitest `apps/web/src/lib/__tests__/chat-surfaces.test.ts` : `CHAT_SURFACES` ne contient plus `'followups'` ; `sse-symmetry` : un événement de fin portant `followups` est accepté et le champ ignoré (Review Focus 4).
-- [ ] **Step 2 :** lancer → FAIL.
-- [ ] **Step 3 :** retirer la surface, le composant, les champs et les clés ; `tests/unit/domains/agents/api/test_archive_metadata.py` sans motivation.
-- [ ] **Step 4 :** `task test:frontend`, `task lint:frontend`, `pytest tests/unit/domains/agents/services/streaming tests/unit/domains/agents/api -q` → vert.
+- [ ] **Step 1 :** compléter `test_retired_jev_usages_guard.py` (lot A) : aucun import de `jev_initiative*`, aucun littéral `"initiative_utility"` hors des migrations.
+- [ ] **Step 2 :** lancer → FAIL ; retirer ; `task db:migrate:replay-check`, `pytest tests -q -k "jev or initiative"`, `task test:frontend`, `task lint:i18n` → verts.
 
-### Task B.4 : FAQ, guides, documentation, CLAUDE.md
+### Task B.3 : ce que l'écran et la FAQ disent
 
 **Files:**
-- Modify: `apps/web/locales/*/translation.json` (entrée `faq.intro.features.proactiveInitiative`, et `FAQContent.tsx:176,262`), `apps/web/src/data/guides/how.*.md` (le passage sur les puces de relance, s'il existe dans les six), `docs/ARCHITECTURE_LANGRAPH.md`, `docs/technical/REACT_EXECUTION_MODE.md`, `docs/technical/RESPONSE.md`, `docs/technical/ROUTER.md`, `docs/technical/STATE_AND_CHECKPOINT.md`, `docs/technical/AGENT_MANIFEST.md`, `docs/guides/GUIDE_TOOL_CREATION.md` (champ `initiative_eligible`), `docs/technical/MCP_INTEGRATION.md`, `docs/technical/VOICE.md`, `docs/technical/HEARTBEAT_AUTONOME.md`, `docs/GETTING_STARTED.md`, `docs/INDEX.md`, `CLAUDE.md` (deux phrases : « the initiative node is bounded by `is_initiative_eligible` » dans « Ephemeral Python » ; « the planner, the ReAct loop, the router, the initiative, a sub-agent » dans « What a turn may offer is filtered once »), `apps/web/src/data/maps/technical.json:388` et `functional.json`, `history.json`
-- Run: `task docs:sync-agents`, `task docs:maps`, `task docs:budget`
+- Modify: `apps/web/locales/*/translation.json` (`faq.intro.features.proactiveInitiative.description` : l'évaluateur regarde la suite à donner aux e-mails urgents ou attendant une réponse, plus « une connexion digne d'être mentionnée » en général), `docs/technical/JEV_INTEGRATION.md` (usage retiré), `docs/technical/RESPONSE.md` ou `docs/ARCHITECTURE_LANGRAPH.md` (la porte, en deux phrases), `docs/architecture/ADR-373-…md` (critère de retrait : si, sur quatre semaines de `initiative_gate_total`, la porte ne passe jamais ou l'évaluateur n'agit jamais quand elle passe, le nœud est supprimé en entier — lot B′ décrit dans l'ADR, non planifié ici)
 
-- [ ] **Step 1 :** `task lint:docs:preview` → liste.
-- [ ] **Step 2 :** corriger chaque document (le registre des initiatives de LIA, lui, reste décrit) ; la FAQ perd la fonctionnalité dans les six langues (parité stricte).
-- [ ] **Step 3 :** `task lint:docs:preview`, `task lint:i18n` → 0 constat ; `scripts/audit/claude_md_budget.py` vert.
+- [ ] **Step 1 :** `task lint:i18n`, `task lint:docs:preview` → 0 constat.
 
-### Task B.5 : preuve de bout en bout
+### Task B.4 : preuve
 
-- [ ] **Step 1 :** `task test:backend:unit:fast`, `task test:backend:agents`, `task test:frontend`, `task test:e2e` → verts.
-- [ ] **Step 2 :** `task ci:fast` → vert.
-- [ ] **Step 3 :** sur dev (`task dev:detach`), un tour outillé en ReAct et un en pipeline : la réponse arrive, le panneau debug n'a plus de section initiative, `token_usage_logs` ne porte aucune ligne `initiative` ni `jev_initiative_utility` pour ces tours.
+- [ ] **Step 1 :** `task test:backend:unit:fast`, `task test:backend:agents` → verts.
+- [ ] **Step 2 :** sur dev, un tour « mes e-mails non lus » dont un résultat est classé `urgent` : le panneau debug montre l'évaluation ; un tour « météo demain » : `initiative_skipped` avec `no_actionable_email`, aucune ligne `initiative` dans `token_usage_logs`.
 
 ---
 
@@ -379,7 +357,7 @@
 |---|---|---|---|
 | 1 | 0 — ADR | — | 2 h |
 | 2 | A — aperçus | 0 | 6-8 h |
-| 3 | B — évaluateur d'initiative | 0 (indépendant de A) | 14-18 h |
+| 3 | B — évaluateur d'initiative restreint, porte JEV retirée | 0 (indépendant de A) | 6-8 h |
 | 4 | E — corrections | — | 2-3 h |
 | 5 | C — seuils réglables | A, B (le registre ne déclare que les usages restants) | 10-12 h |
 | 6 | D — statistiques et accord | C | 12-16 h |
@@ -392,4 +370,5 @@ Après chaque lot : `task ci:fast` ; après A, B, C, D : `task test:backend:inte
 
 - Le motif `deep_dive` de l'extraction d'intérêts demande trois tours que la fenêtre de quatre messages ne peut montrer : à mesurer avec le vrai extracteur (appels génératifs).
 - Le tri des notifications proactives (2 638 appels, 1,91 €) et la question compagne des rendez-vous : non validés, non planifiés.
-- Le programme « habitudes » décidera du sort de la suggestion de routine ; ce plan la déplace sans la changer.
+- Le programme « habitudes » décidera du sort de la suggestion de routine et réutilisera les puces de relance ; ce plan ne les touche pas.
+- La suppression complète du nœud d'initiative (lot B′) n'est planifiée que si le critère de l'ADR-373 se réalise. Son périmètre, relevé le 06/11 pour ce cas : le nœud et ses huit modules `nodes/initiative_*`, les arêtes de `graph.py` et `routing.py`, les clés d'état `initiative_*`, les réglages `INITIATIVE_*`, le créneau `initiative`, le champ `initiative_eligible` sur ~130 manifestes, les puces de relance et la motivation (dos et web), quatre panneaux du tableau 13, l'entrée FAQ dans six langues, et le déplacement de la suggestion de routine vers le nœud de réponse.

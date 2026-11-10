@@ -52,7 +52,9 @@ class TestTheItemsSayWhatTheyAre:
 
     def test_a_task_carries_its_id(self) -> None:
         item = _task_to_item(
-            {"id": "t-9", "title": "Facture", "status": "needsAction"}, datetime.now(PARIS).date()
+            {"id": "t-9", "title": "Facture", "status": "needsAction"},
+            datetime.now(PARIS).date(),
+            zone=PARIS,
         )
 
         assert item is not None

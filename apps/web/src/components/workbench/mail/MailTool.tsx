@@ -17,7 +17,7 @@
  * person places themselves. A message can become a task, an event or a contact,
  * and go to LIA (`useToolBridges`), unsent, the words outside any address.
  */
-import { CheckSquare, MessagesSquare, Plus, Rows3, Rows4 } from 'lucide-react';
+import { CheckSquare, MessagesSquare, Plus, Rows3, Rows4 } from '@/lib/icons';
 import {
   useCallback,
   useMemo,
@@ -35,6 +35,7 @@ import { PaneSeparator } from '@/components/ui/pane-separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useDrillDownFocus } from '@/hooks/useDrillDownFocus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useTaskListNames } from '@/hooks/useTaskListNames';
 import { useWorkbenchItem, type WorkbenchItemState } from '@/hooks/useWorkbenchItem';
 import { useWorkbenchMail, type WorkbenchMailState } from '@/hooks/useWorkbenchMail';
 import { useWorkbenchMailDrafts } from '@/hooks/useWorkbenchMailDrafts';
@@ -93,7 +94,8 @@ import { printText } from '@/lib/workbench/print-text';
 import { useListSelection, type ListSelection } from '../useListSelection';
 import { useMailAssist } from '../assist/useMailAssist';
 import { useMailTriage } from '../assist/useMailTriage';
-import { useHandoff, useToolBridges, type ToolBridges } from '../useToolBridges';
+import { useHandoff } from '@/hooks/useHandoff';
+import { useToolBridges, type ToolBridges } from '../useToolBridges';
 import type { ToolShortcut } from '../useToolShortcuts';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { Composer } from './Composer';
@@ -259,8 +261,18 @@ function ReadyMail({ lng, tool, limits, drive }: ReadyMailProps) {
     sending,
     searchBox,
   });
-  useHandoff('compose', true, handed =>
-    slot.compose({ kind: 'new', to: handed.to, files: handed.file ? [handed.file] : undefined })
+  useHandoff(
+    'compose',
+    true,
+    handed =>
+      slot.compose({
+        kind: 'new',
+        to: handed.to,
+        subject: handed.subject,
+        files: handed.file ? [handed.file] : undefined,
+        assisted: handed.assisted,
+      }),
+    slot.composer !== null
   );
 
   const folderPane: FolderPaneProps = {
@@ -572,6 +584,8 @@ function messageBridges(
             title: task?.title || message.subject,
             notes: withLink(task?.notes, message),
             due: task?.due,
+            list_name: task?.list_name,
+            importance: task?.importance,
           })
       : undefined,
     toEvent: bridges.offers('event')
@@ -929,11 +943,13 @@ function ReaderPane({
   compose,
 }: ReaderPaneProps) {
   const { t } = useTranslation(lng);
+  const { assists } = useWorkbench();
   const folderName = useFolderName(lng);
   const shownId = reading ? address.openId : null;
   const leaving = useLeaving(lng, shownId, compose);
   const inline = useInlineImages(shownId, original.item?.html ?? null);
   const openFolder = folders?.find(item => item.id === address.folder);
+  const taskLists = useTaskListNames(bridges.toTask !== undefined);
   const {
     panel: assistPanel,
     attachmentLines,
@@ -941,10 +957,15 @@ function ReaderPane({
   } = useMailAssist(lng, open.item, {
     onPropose: message => compose({ kind: 'reply', message, all: false, propose: true }),
     onTask: bridges.toTask,
+    taskLists,
     onEvent: bridges.toEvent,
     sent: openFolder?.role === 'sent',
     said: conversation.rows.length,
+    zone,
   });
+  // What LIA reads into a task or an event is offered under « Ask LIA » alone (owner, 2026-11-07):
+  // « … » keeps them only where no model may be asked, as the one way left.
+  const readerBridges = assists ? { ...bridges, toTask: undefined, toEvent: undefined } : bridges;
   if (!reading) {
     return showPlaceholder ? (
       <div className="hidden min-w-0 flex-1 items-center justify-center border-l xl:flex">
@@ -981,7 +1002,7 @@ function ReaderPane({
         onMove={() => sending.startMove(openIds)}
         onForever={() => void sending.forever(openIds)}
         onLabels={(add, remove) => void acts.labelOpen(add, remove)}
-        bridges={bridges}
+        bridges={readerBridges}
         assist={assist}
         assistPanel={assistPanel}
         attachmentLines={attachmentLines}

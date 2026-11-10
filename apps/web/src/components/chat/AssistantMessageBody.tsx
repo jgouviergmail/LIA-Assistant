@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutList } from 'lucide-react';
+import { LayoutList } from '@/lib/icons';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 

@@ -10,7 +10,7 @@
  * pass one is said so, never silently dropped, what a draft already holds counting
  * too. Nothing is uploaded here.
  */
-import { Check, Paperclip, Search } from 'lucide-react';
+import { Check, Paperclip, Search } from '@/lib/icons';
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';

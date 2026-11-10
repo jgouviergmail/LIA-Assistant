@@ -1,4 +1,4 @@
-import { BellRing, CalendarCheck2, FileSearch, Handshake, PhoneCall, Radio } from 'lucide-react';
+import { BellRing, CalendarCheck2, FileSearch, Handshake, PhoneCall, Radio } from '@/lib/icons';
 
 /** One scene catalogue for the live demo and the chapter illustrations. */
 const SCENE_DEFINITIONS = [

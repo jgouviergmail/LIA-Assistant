@@ -51,8 +51,7 @@ def test_open_loop_tail_ignores_host_scaffold_and_proactive_proposals():
     )
 
 
-async def test_native_and_generative_initiative_share_the_actual_request():
-    native = AsyncMock(return_value=None)
+async def test_the_initiative_evaluator_reads_the_actual_request():
     generative = AsyncMock(
         return_value=InitiativeDecision(
             analysis="Complete", should_act=False, reasoning="No utility"
@@ -76,14 +75,11 @@ async def test_native_and_generative_initiative_share_the_actual_request():
         stack.enter_context(
             patch.object(initiative, "_load_user_interests", AsyncMock(return_value={}))
         )
-        stack.enter_context(patch.object(initiative, "choose_empty_initiative", native))
         stack.enter_context(patch.object(initiative, "get_structured_output", generative))
-        await initiative._initiative_core(
+        await initiative.initiative_node(
             {"messages": _history(), "initiative_iteration": 0, "current_turn_id": 1}, {}
         )
 
-    native_context = native.await_args.kwargs["state"]["context"]
-    assert native_context["original_query"] == ACTUAL_REQUEST
     prompt = "\n\n".join(message.text for message in generative.await_args.kwargs["messages"])
     assert ACTUAL_REQUEST in prompt
     assert "HOST_REFUSAL_SCAFFOLD" not in prompt

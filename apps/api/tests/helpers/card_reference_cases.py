@@ -1,6 +1,6 @@
 """Stable cross-runtime card fixtures: backend output, never hand-written HTML."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import TypedDict
 from unittest.mock import patch
 
@@ -20,6 +20,17 @@ from src.domains.agents.utils.polyline import encode_polyline
 from src.domains.connectors.clients.google_routes_client import TravelMode
 from tests.helpers.card_microsoft_reference import microsoft_reference_domains
 from tests.helpers.card_native_reference import native_detail_domains
+from tests.helpers.card_people_cases import people_density_domains
+from tests.helpers.card_reminder_reference import reminder_reference_domains
+
+#: The instant the corpus was written at. Relative date labels (« Aujourd'hui »,
+#: « Hier », a weekday) are part of the real renderer's output: built on the wall
+#: clock, the corpus went stale the day after it was written (2026-11-09).
+REFERENCE_NOW = datetime(2026, 11, 8, 12, tzinfo=UTC)
+
+
+def _reference_now(tz: tzinfo) -> datetime:
+    return REFERENCE_NOW.astimezone(tz)
 
 
 class CardReference(TypedDict):
@@ -203,6 +214,8 @@ def route_detail_domain(language: str) -> dict[str, dict[str, object]]:
             "stopDetails": {
                 "departureStop": {"name": "Bellecour"},
                 "arrivalStop": {"name": "Gare de Vaise"},
+                "departureTime": "2026-10-05T07:34:00Z",
+                "arrivalTime": "2026-10-05T07:41:00Z",
             },
             "stopCount": 5,
         },
@@ -389,6 +402,12 @@ REFERENCE_DOMAINS: dict[str, dict[str, object]] = {
                 "uv_index": 3,
                 "visibility": "10 km",
                 "clouds": 0,
+                "aqi_category": "Moyen",
+                "aqi_label": "IQA (FR)",
+                "pollen": [
+                    {"name": "Graminées", "category": "Élevé", "index": 4},
+                    {"name": "Ambroisie", "category": "Modéré", "index": 2},
+                ],
             }
         ],
     },
@@ -504,6 +523,23 @@ SNAPSHOT_REFERENCE_DOMAINS: dict[str, dict[str, object]] = {
     },
 }
 
+LOCATION_REFERENCE: dict[str, dict[str, object]] = {
+    "locations": {
+        "locations": [
+            {
+                "formatted_address": "Place Bellecour, 69002 Lyon",
+                "locality": "Lyon",
+                "country": "France",
+                "postal_code": "69002",
+                "latitude": 45.7578,
+                "longitude": 4.832,
+                "static_map_url": "/api/v1/connectors/google-location/static-map?lat=45.7578&lng=4.832",
+                "street_view_url": "/api/v1/connectors/street-view?location=45.7578,4.832",
+            }
+        ]
+    }
+}
+
 GALLERY_REFERENCE: dict[str, dict[str, object]] = {
     "places": {
         "places": [
@@ -530,10 +566,25 @@ GALLERY_REFERENCE: dict[str, dict[str, object]] = {
 
 
 def card_references() -> list[CardReference]:
+    """Every reference case, rendered on the corpus's own clock (``REFERENCE_NOW``)."""
+    with patch("src.domains.agents.display.components.base._now", side_effect=_reference_now):
+        return _render_references()
+
+
+def _render_references() -> list[CardReference]:
     renderer = HtmlRenderer()
     cases: list[CardReference] = []
     for language in ("fr", "en", "de", "es", "it", "zh-CN"):
         config = DisplayConfig(language=language, timezone="Europe/Paris")
+        people = people_density_domains(language)
+        cases.append(
+            {
+                "id": "enveloppes",
+                "language": language,
+                "domains": people,
+                "html": renderer.render_multi(people, config),
+            }
+        )
         mcp = mcp_detail_domain()
         cases.append(
             {
@@ -550,6 +601,15 @@ def card_references() -> list[CardReference]:
                 "language": language,
                 "domains": research,
                 "html": renderer.render_multi(research, config),
+            }
+        )
+        reminders = reminder_reference_domains(language)
+        cases.append(
+            {
+                "id": "reminders",
+                "language": language,
+                "domains": reminders,
+                "html": renderer.render_multi(reminders, config),
             }
         )
         weather_details = weather_detail_domain()
@@ -577,6 +637,14 @@ def card_references() -> list[CardReference]:
                 "language": language,
                 "domains": place_details,
                 "html": renderer.render_multi(place_details, config),
+            }
+        )
+        cases.append(
+            {
+                "id": "locations",
+                "language": language,
+                "domains": LOCATION_REFERENCE,
+                "html": renderer.render_multi(LOCATION_REFERENCE, config),
             }
         )
         cases.append(

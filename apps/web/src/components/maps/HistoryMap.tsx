@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUpRight, Filter, RotateCcw, Search, Tag, X } from 'lucide-react';
+import { ArrowUpRight, Filter, RotateCcw, Search, Tag, X } from '@/lib/icons';
 import { useEffect, useId, useMemo, useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
 

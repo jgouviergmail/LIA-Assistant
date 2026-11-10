@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef } from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { useTranslation } from 'react-i18next';
-import { MapPinned, LocateFixed } from 'lucide-react';
+import { MapPinned, LocateFixed } from '@/lib/icons';
 import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
 import { usePaidMap } from '@/hooks/usePaidMap';
 import { AuthContext } from '@/lib/auth';
@@ -71,7 +71,10 @@ function RouteMap({ data, children }: { data: RouteMapData; children: React.Reac
   const cost = mapOffer(config, i18n.language);
   return (
     <div className="lia-route-map__content">
-      <div className="lia-route-map__stage">
+      <div
+        className="lia-route-map__stage"
+        data-map-shown={state === 'loading' || state === 'ready'}
+      >
         <div
           className="lia-route-map__canvas"
           ref={element}

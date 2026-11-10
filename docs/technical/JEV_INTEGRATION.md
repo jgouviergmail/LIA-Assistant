@@ -17,24 +17,21 @@ Décision d'architecture : [ADR-325 — décisions bornées, bascules à chaud e
 Le lot 1 ajoute TypeSafe/Jev pour le choix automatique du modèle de compte rendu
 de réunion. L'activation est facultative et désactivée par défaut. La rédaction du
 compte rendu reste assurée par le modèle configuré dans `meeting_synthesis`.
-Le lot 2 ajoute des aperçus de pertinence pour les recherches et une alternative
-au vérificateur radio. Chaque usage possède son propre interrupteur OFF par défaut.
-Le lot 3 ajoute les consultations simples et la détection d'absence d'utilité de
-l'initiative. Les lots suivants ajoutent mesure, consultations bornées, observation
-des extractions, exclusions HITL et autres collections. Le
+Le lot 2 ajoute une alternative au vérificateur radio. Le lot 3 ajoute les
+consultations simples. Les lots suivants ajoutent mesure, consultations bornées,
+observation des extractions et exclusions HITL. Chaque usage possède son propre
+interrupteur OFF par défaut. Le
 [registre des usages](../../apps/api/src/domains/llm_config/jev_registry.py) définit
 les interrupteurs indépendants ; une bascule générale conserve leurs préférences.
 
-Depuis l’amendement du 4 octobre 2026, la fenêtre intermédiaire
-**Premiers résultats** est masquée dans la discussion. Tous les usages JEV
-référencés par le registre conservent leurs interrupteurs indépendants, leurs
-configurations, leur exécution et leur suivi dans le panneau debug administratif.
-Les qualifications de collections et les projections documentaires autorisées
-restent exécutées pendant la réponse ; leurs trames éphémères ne sont simplement
-plus affichées aux utilisateurs. Elles ne comptent donc plus comme premier
-résultat utile visible. Les résultats canoniques, le contexte de synthèse et les
-cartes finales sont préservés. Aucun gain de coût ou de latence de bout en bout
-n’est déduit du seul masquage de cette interface.
+Les huit aperçus de collections (`filter_email`, `filter_event`, `filter_task`,
+`filter_file`, `filter_reminder`, `filter_ticket`, `filter_mcp`, `filter_document`)
+sont retirés depuis le 8 novembre 2026
+([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)) :
+leur seule surface, la fenêtre **Premiers résultats**, était masquée depuis le
+4 octobre et rien d'autre ne lisait leurs verdicts. Leurs interrupteurs, postes de
+configuration et l'événement de flux `result_preview` sont partis avec eux ; une
+migration efface leurs lignes avant que le code qui ne les connaît plus démarre.
 
 Deux usages supplémentaires utilisent ce même mécanisme, sans changer les
 préférences existantes : **Présence de références personnelles** et **Refus complet
@@ -149,6 +146,73 @@ partagent un client à connexions persistantes, ouvert et fermé par le cycle de
 de l'application ([relevé](../superpowers/qualification/jev-audit-2026-10-25/README.md)).
 Un refus de quota est propagé, jamais contourné par le repli.
 
+## Seuils déclarés et réglables
+
+Depuis le 8 novembre 2026
+([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)),
+chaque seuil est déclaré une seule fois dans le
+[registre des portes](../../apps/api/src/domains/llm_config/jev_gates.py) : sa valeur
+par défaut (celle qualifiée sur jev-1.14.0), ses bornes, ce qu'il compare (la
+confiance d'un choix, la concentration bornée d'une classification ou la marge d'un
+Noul) et s'il juge chaque réponse seule ou toutes les réponses d'un même appel. Les
+consommateurs décident tous par `gate_passes`, avec les seuils figés dans
+l'instantané de l'opération (`DecisionAttempt.thresholds`) : un seuil changé
+s'applique à l'opération suivante, jamais à un appel déjà parti. Un garde de
+caractérisation rejoue les réponses enregistrées des corpus qualifiés et exige les
+mêmes prédictions aux seuils par défaut.
+
+L'écran « Intégrations JEV » publie chaque porte avec ses bornes ; l'administrateur
+la déplace au centième (`PATCH /admin/llm-config/jev/thresholds`, sérialisé avec les
+interrupteurs et audité). Seules les valeurs différentes du défaut sont stockées,
+dans `JEV_<USAGE>_THRESHOLDS` : une valeur illisible ou hors bornes est ignorée au
+profit du défaut et journalisée (`jev_threshold_ignored`). Dès qu'un seuil quitte son
+défaut, l'usage est marqué « hors relevé qualifié » : la valeur n'est plus couverte
+par la qualification, et un nouveau défaut demande une requalification payante.
+L'empreinte de politique des classifications inclut les seuils déplacés, si bien
+qu'un jugement rendu sous un autre seuil n'est jamais servi par le cache. Les quatre
+observateurs ne décident rien et n'ont aucun seuil.
+
+## Statistiques durables
+
+Trois compteurs journaliers (UTC) gardent ce que Prometheus ne garde qu'une semaine :
+`jev_judgement_daily` (chaque réponse jugée par une porte, rangée dans son compartiment au
+centième), `jev_outcome_daily` (l'issue de chaque opération) et
+`jev_observer_agreement_daily` (le verdict d'un observateur à côté de ce que son extracteur
+a proposé). Ils ne contiennent que des codes du registre et des comptes, aucune colonne
+utilisateur. Trois portes seulement y écrivent, dans
+[`jev_statistics_sink.py`](../../apps/api/src/domains/llm_config/jev_statistics_sink.py) :
+`count_jev_outcome` (le seul écrivain de `jev_decisions_total`, garde AST), appelée par
+chaque consommateur ; `record_judgements`, appelée par le moteur après chaque tentative
+payée réussie ; `record_observer_agreement`, appelée par l'observateur. Une issue
+`disabled` n'alimente que le compteur Prometheus.
+
+Une confiance est rangée à `floor(score × 100)`, lu sur sa valeur décimale ; le jugement
+d'une marge l'est à sa distance à une réponse certaine, `ceil(min(p, 1 − p) × 100)`. Avec
+ces compartiments, « conclut à ce seuil » se lit exactement : à partir du compartiment
+`t × 100` pour une confiance, jusqu'au compartiment `m × 100` pour une marge.
+
+Chaque worker agrège en mémoire et son propre vidangeur écrit, toutes les
+`JEV_STATISTICS_FLUSH_INTERVAL` secondes (30) puis une dernière fois à l'arrêt dans la
+borne `JEV_STATISTICS_FINAL_FLUSH_TIMEOUT`, un UPSERT trié et découpé : un worker tué perd
+au plus une période de comptes, jamais une ligne partielle, et huit écrivains concurrents
+ne s'interbloquent pas. Un vidage dont les instructions échouent garde son lot pour le
+suivant ; un vidage dont le commit échoue l'abandonne, son issue étant inconnue, plutôt que
+de le compter deux fois. `jev_statistics_rows_total` et
+`jev_statistics_flush_failures_total` sont tracés sur le tableau de bord des réunions, à
+côté des autres panneaux JEV.
+
+`GET /admin/llm-config/jev/statistics?days=30` (1 à 90 jours UTC, aujourd'hui compris)
+renvoie, pour chaque usage, les appels facturés, le coût et la latence médiane (un seul
+agrégat sur `token_usage_logs` par poste), les issues, les compartiments de chaque porte
+avec son seuil courant et, pour un observateur, son accord. L'écran « Intégrations JEV »
+affiche sous chaque curseur la part que sa position conclurait, recalculée à chaque
+mouvement, et la répartition en dix tranches. L'accord d'un observateur compare son verdict
+à ce que l'extracteur a lui-même proposé, tel que sa propre analyse l'a déclaré : une sortie
+illisible compte comme une proposition, un extracteur arrêté avant d'analyser ne laisse
+aucune ligne. Sauter un extracteur reste interdit tant qu'un amendement n'a pas lu, pour
+cet extracteur, aucun « vide » confiant contredit par une proposition sur au moins
+200 observations en quatre semaines (ADR-374, décision 7).
+
 ## Données, coûts et observation
 
 Lorsque l'usage est actif, TypeSafe reçoit l'extrait borné de transcription, le
@@ -237,10 +301,9 @@ identifiant lorsque le traitement appelant renseigne son action.
 Les observateurs montrent séparément leur décision native et la proposition du
 générateur d'extraction, avant validation métier. Un tableau vide de l'observateur
 mémoire ne décrit pas une recherche de souvenirs : il indique l'absence de
-nouvelles écritures proposées. Pour les collections, le panneau distingue les
-candidats évalués, inconnus et non soumis. Chaque lot porte les mêmes compteurs
-globaux ; ils ne s'additionnent pas. Une trace historique dépourvue de ces
-compteurs reste explicitement sans information de couverture.
+nouvelles écritures proposées. Une trace écrite par une version antérieure et
+devenue illisible (champ retiré, clé changée) est ignorée à la lecture ; elle ne
+fait jamais échouer le reste du flux.
 
 La collecte exige l'accès debug effectif du titulaire : drapeau administrateur,
 ou autorisation opérateur et préférence personnelle pour les autres comptes.
@@ -278,63 +341,10 @@ par le LLM existant : textes courts, booléens faux, dates imbriquées et tous l
 participants restent présents avec leurs relations. Les champs techniques sont
 exclus et la provenance externe est conservée. Les limites de longueur/profondeur
 sont signalées explicitement. Le sérialiseur vocal reste indépendant.
-Cette correction est indépendante des aperçus JEV du lot 2.
 La conservation de ces informations peut augmenter la taille du prompt du filtre
 existant. Il s'agit d'une correction de fidélité, sans gain de latence revendiqué.
 
-## Lot 2 : qualification des collections et vérification radio
-
-Les usages `filter_email`, `filter_event`, `filter_task` et `filter_file` qualifient
-les objets déjà récupérés, après autorisation et analyse de la requête en anglais.
-Ils qualifient un aperçu éphémère pendant la synthèse, sans fenêtre visible dans
-la discussion. Chaque objet est pertinent, hors sujet ou incertain ; ces décisions
-restent suivies dans le panneau debug administratif. Le nombre évalué concerne
-les objets récupérés, jamais le total chez le fournisseur.
-Les documents incluent les fichiers générés représentés par le type FILE.
-
-Le registre d'origine, le contexte du modèle final et son filtrage restent intacts.
-Une projection tronquée n'est pas évaluée ; les questions hors budget restent
-incertaines. Les opérations exactes (dates, nombres, agrégats, identités) restent
-du ressort de l'existant. Aucun objet distant n'est modifié. L'aperçu ne s'exécute
-que pour une recherche en navigateur, hors mutation, automatisation et voix.
-Sa tâche est annulée et rejointe avant la clôture de la réponse, son état disparaît
-à la fin du flux et ne rejoint aucun checkpoint ni historique local.
-
-La preuve JSON conserve les types, booléens, statuts normalisés des courriers et
-relations imbriquées. Le registre est copié profondément avant toute attente et
-avant programmation de l'aperçu ; un verdict reste associé à cette révision de
-preuve. Les champs réservés à l'affichage des cartes sont exclus du contexte du
-modèle. Les objets complets sont répartis sur plusieurs lots bornés, avec une
-configuration partagée par opération et une charge propre à chaque lot. Une
-collection active sans preuve éligible reçoit un diagnostic local sans appel API.
-
-La projection refuse les valeurs non finies, le texte UTF-8 invalide et les clés
-incompatibles avec une représentation JSON fidèle. Elle ne répare pas ces preuves
-en les remplaçant par `null`, une chaîne ou une clé susceptible d'en écraser une
-autre. Un candidat incompatible reste non évalué ; ses voisins valides peuvent
-être soumis et la source canonique reste intacte.
-
-Le calendrier reçoit des faits temporels calculés par le
-[helper déterministe](../../apps/api/src/domains/agents/display/jev_collection_time.py)
-avec l'instant et le fuseau capturés au début de l'opération. Les journées entières
-sont comparées en date civile ; une heure sans offset exige son fuseau source.
-Une heure ambiguë ou inexistante au changement d'heure reste inconnue. Ces faits
-n'inventent aucune borne de recherche ni précision horaire non disponible.
-Depuis le 26 octobre 2026, le code situe aussi le jour propre de chaque élément —
-début d'un événement, réception d'un e-mail (`internalDate`, commun aux trois
-fournisseurs) — par rapport à aujourd'hui : écart en jours et en semaines (lundi
-premier jour) et jour de la semaine, dans le fuseau du réglage de la personne, sans
-lequel aucun jour n'est énoncé. La question décide les jours relatifs de la requête
-(« demain », « cette semaine », « ce week-end ») sur ces seuls faits : sans eux, une
-seule des 51 décisions d'agenda datées du corpus de forme production atteignait un
-verdict au seuil livré, contre 35 avec eux, sans verdict faux.
-
-Ce choix conserve les diagnostics de pertinence. Il ajoute une décision
-payante et ne réduit ni le coût ni la latence de la synthèse finale. Une réponse
-déjà terminée annule la tâche d'aperçu encore en cours. Les limites d'une requête
-sont déclarées dans le client natif ; celles de parcours des lots, de concurrence
-et de présentation dans
-[jev_qualification.py](../../apps/api/src/domains/agents/display/jev_qualification.py).
+## Lot 2 : vérification radio
 
 L'usage `radio_verification` reçoit le script complet et tous ses faits cités.
 Chaque ligne sourcée possède son verdict ; les transitions restent dans le contexte.
@@ -357,7 +367,7 @@ documente les mesures et leur portée. La recette dev doit comparer OFF/ON pour
 chaque usage, y compris une requête sans résultat, un document incomplet, une panne
 du fournisseur et l'arrêt d'une radio. Aucune activation ni MEP n'est automatique.
 
-## Lot 3 : consultations et initiative
+## Lot 3 : consultations
 
 `consultation_path` intervient après l'analyse de requête et le filtrage normal du
 catalogue autorisé, uniquement en pipeline. Il choisit parmi les chemins fixes
@@ -374,33 +384,25 @@ existant. Une contrainte supplémentaire, même un nombre demandé, exige le rep
 Les séquences historiques dites « golden patterns » ne sont pas exécutées : elles
 ne contiennent pas un contrat de paramètres suffisamment précis pour ce raccourci.
 
-`initiative_utility` reçoit un état JSON nommé : politique exacte de l'évaluateur,
-résultats autorisés réellement récupérés, erreurs du tour, outils (nom, agent et
-description : leurs contrats complets faisaient 76 % de l'état et l'empêchaient de
-jamais tenir), souvenirs et intérêts chargés. Les limites de résumé du prompt génératif ne sont pas utilisées
-pour tronquer cet état natif. Les champs réservés aux cartes restent exclus.
-Le retrait de `meta.display` exige une enveloppe de registre identifiable ; les
-champs métier homonymes des sous-objets externes restent disponibles.
-Un état incomplet ou non sérialisable conserve l'évaluateur ; un état trop grand
-est refusé localement par le transport. Le prompt génératif existant garde son
-format et son rôle. JEV ne peut que proposer
-une décision entièrement vide, ou conserver l'évaluateur complet. L'utilité inclut
-les actions, les suggestions et les propositions de suivi. « Aucune action » ne
-suffit donc pas à éviter cet appel. Un contexte trop grand reste avec l'existant ;
-aucune réduction supplémentaire du contexte n'est appliquée pour gagner du temps.
+L'usage `initiative_utility` qui accompagnait la consultation au lot 3 est retiré
+depuis le 8 novembre 2026
+([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)) :
+sa question ne distinguait aucun état (0,67 à 0,77 là où l'évaluateur agit, 0,41 à
+0,81 ailleurs) et la production ne l'a jamais vue conclure « rien d'utile ».
+L'évaluateur génératif voit de nouveau chaque tour outillé éligible ; la porte
+« e-mail seulement » ajoutée le même jour a été retirée à la relecture, car le même
+appel produit l'enrichissement, la suggestion et les puces de relance de tous les
+autres tours.
 
-Les seuils propres à ces deux usages vivent dans leurs modules et proviennent de
-corpus distincts. Les mesures synthétiques ne garantissent pas l'absence d'erreur
-sémantique future. Les replis ajoutent le temps JEV au traitement existant ; le gain
-sur l'initiative est faible dans le corpus de contrôle. La consultation évite des
-appels de planification, mais aucun gain de latence de bout en bout n'est affirmé.
+Le seuil de la consultation provient de son propre corpus. Les mesures synthétiques
+ne garantissent pas l'absence d'erreur sémantique future. Un repli ajoute le temps
+JEV au traitement existant. La consultation évite des appels de planification,
+mais aucun gain de latence de bout en bout n'est affirmé.
 
 Recette dev : comparer une consultation simple à une demande avec filtre, date ou
 nombre précis ; vérifier le plan, les paramètres et la réponse finale en OFF/ON.
-Pour l'initiative, comparer un résultat clos et un cas nécessitant une suggestion
-ou un suivi, puis enchaîner un nouveau tour pour vérifier la remise à zéro de
-l'état. Les deux usages disposent du même diagnostic, des mêmes registres de
-dépenses et du même contrôle de quotas que les autres décisions natives.
+L'usage dispose du même diagnostic, des mêmes registres de dépenses et du même
+contrôle de quotas que les autres décisions natives.
 
 ## Provenance du modèle
 
@@ -420,17 +422,13 @@ décrit les extensions en cours et leurs critères de validation.
 ### Parcours complets et comparaison OFF/ON
 
 Le panneau présente d'abord l'usage et son effet dans LIA. Les identifiants et
-codes restent dans « Détails techniques ». Un aperçu de collection distingue la
-proposition du fournisseur du verdict réellement retenu après le seuil : un objet
-proposé hors sujet à faible confiance reste « À vérifier ». Son titre identifie
-la question. « Aperçu préparé » ne signifie pas que le modèle final a exclu un objet.
+codes restent dans « Détails techniques ».
 
 L'événement structuré `chat_delivery_completed` mesure, côté serveur et avec une
-horloge monotone, le délai avant le premier texte non vide, le premier aperçu
-contenant un objet visible et l'émission du `done` final. Il inclut donc l'attente
-des tâches arrière-plan et la comptabilisation finale, contrairement à la seule
-durée du graphe. Il ne mesure pas le transport réseau ni le premier rendu navigateur.
-Un statut, un aperçu vide ou entièrement hors sujet ne compte pas comme premier
+horloge monotone, le délai avant le premier texte non vide et l'émission du `done`
+final. Il inclut donc l'attente des tâches arrière-plan et la comptabilisation
+finale, contrairement à la seule durée du graphe. Il ne mesure pas le transport
+réseau ni le premier rendu navigateur. Un statut ne compte pas comme premier
 résultat. L'absence d'une mesure reste `null`. Un parcours interrompu avant `done`
 ne produit pas cet événement de succès.
 
@@ -536,33 +534,6 @@ obligatoire. La sélection JEV ne vaut jamais autorisation d'exécution. Le filt
 exige lui aussi un tableau JSON : ses explications libres et booléens ne peuvent
 pas devenir des indices d'exclusion. Une réponse hors contrat conserve la liste.
 
-## Autres collections et périmètre des preuves
-
-Les usages `filter_reminder` et `filter_ticket` reprennent les objets déjà récupérés
-sous leurs permissions existantes. `filter_mcp` accepte les résultats structurés
-par élément des serveurs MCP utilisateur, après leur retour. Il ne relance aucun
-outil et n'accorde aucune permission ; les annotations déclarées par le serveur
-ne peuvent pas retirer une confirmation. Les champs libres, y compris `metadata`
-et les champs préfixés `raw`, restent des preuves externes non fiables. Les
-wrappers scalaires, widgets interactifs et résultats MCP administrateur non
-structurés ne sont pas éligibles à cet aperçu.
-
-`filter_document` qualifie les extraits de la recherche RAG utilisateur déjà
-réalisée pour le contexte de réponse, sans seconde recherche. Les mêmes extraits
-et leurs espaces alimentent l'aperçu ; le contexte complet de synthèse est conservé.
-Un extrait ne permet pas de conclure qu'un fait est absent d'un document entier.
-La [projection documentaire](../../apps/api/src/domains/agents/display/document_preview.py)
-reste dans le bundle éphémère de réponse, sans nouveau type checkpointé. Les notes
-génériques et la documentation système ne sont pas éligibles. Les recherches
-documentaires actives dérivées qui ne produisent qu'un extrait tronqué dans
-`structured_data` ne deviennent pas artificiellement des preuves complètes.
-
-Tous ces aperçus conservent les objets hors sujet consultables et les objets
-incertains visibles dans le diagnostic administratif. Une preuve trop longue ou
-incompatible n'est pas classée.
-Les données de source, leurs statuts et la réponse finale ne sont jamais modifiés.
-Chaque usage est désactivé par défaut et utilise le diagnostic JEV commun.
-
 ## Valeurs de paramètres protégés
 
 L'usage `parameter_kind` (« Valeurs de paramètres protégés », désactivé par
@@ -582,7 +553,7 @@ salle) : une valeur que JEV ne range dans aucune nature connue n'est pas refusé
 Un paramètre email n'accepte qu'une adresse email.
 
 JEV peut seulement ajouter un refus. Interrupteur coupé, aucun suivi de dépense actif, demande
-absente, jugement sous `JEV_PARAMETER_KIND_MIN_CONFIDENCE`, délai, quota ou erreur :
+absente, jugement sous le seuil `parameter_kind.kind` ([jev_gates.py](../../apps/api/src/domains/llm_config/jev_gates.py)), délai, quota ou erreur :
 aucun refus, l'appel se poursuit comme avant. Une valeur prouvée par un champ
 canonique sélectionné n'est pas soumise, et au plus
 `JEV_PARAMETER_KIND_MAX_VALUES` valeurs d'un même appel le sont. Un refus est
@@ -606,8 +577,8 @@ interdisent à ce stade de supprimer les extractions automatiquement.
 
 Avant chaque MEP, activer un seul usage sur dev, comparer des lectures OFF/ON à
 contexte égal, vérifier qualité et repli dans le debug, puis valider coûts et délais
-avec le rapport de parcours. Les aperçus masqués fournissent un diagnostic de
-pertinence ; l'observation des extractions ne constitue pas une optimisation de latence.
+avec le rapport de parcours. L'observation des extractions ne constitue pas une
+optimisation de latence.
 
 ### Relevé synthétique du 4 octobre 2026
 
@@ -630,11 +601,12 @@ ne prouve ni la précision en production ni un gain de latence de bout en bout.
 Les 200 appels réussis de cette campagne ont coûté au total 0,012177060 USD,
 en incluant les reprises de langue et les expériences séparées. Les gardes étaient
 rejouées hors exécution : aucun e-mail ni enregistrement réel n'a été modifié.
-Les previews restent des qualifications diagnostiques des données canoniques ;
+Les previews restaient alors des qualifications diagnostiques des données canoniques ;
 les observateurs continuent à laisser fonctionner leur extracteur génératif.
 
 Le relevé agrégé de production du même jour, arrêté à 10:30:30 UTC, contient 29
 appels natifs : 28 succès et une réponse invalide comptabilisée. Les trois essais
-`initiative_utility` ont tous été suivis de l'évaluateur génératif ; aucune économie
-d'appel génératif d'initiative n'est donc observée dans ce relevé. Ce constat
+`initiative_utility` (usage retiré depuis, ADR-374) ont tous été suivis de
+l'évaluateur génératif ; aucune économie d'appel génératif d'initiative n'est donc
+observée dans ce relevé. Ce constat
 ne transforme ni un succès natif en décision acceptée, ni un diagnostic en travail évité.

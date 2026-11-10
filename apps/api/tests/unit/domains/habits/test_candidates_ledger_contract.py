@@ -1,11 +1,11 @@
-"""Key/storage contract between the habits candidates and the ledger.
+"""Key/storage contract between the habits candidates and the ledger writer.
 
-``habits/candidates.py`` rebuilds the recurrence ledger key from a literal,
-exactly like the heartbeat does (``test_habit_ledger_key_contract``): the
-agents domain already imports habits for promotion, so a habits→agents
-import would close the runtime cycle the coupling ratchet forbids. This
-test replaces the import: if the ledger changes its key format or per-day
-storage shape, THIS fails instead of the observation list silently reading
+The chat side writes the ledger (``agents.services.recurrence_ledger``) and
+habits reads it; both go through the shared storage module
+(``infrastructure.cache.recurrence_store``) because a habits→agents import
+would close the runtime cycle the coupling ratchet forbids. This test pins
+the end-to-end contract: what the writer's key and per-day shape hold, the
+observation list reads — or THIS fails instead of the list silently reading
 nothing forever.
 """
 
@@ -19,8 +19,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.agents.services.recurrence_ledger import _redis_key
 from src.domains.habits.candidates import list_recurrence_candidates
+from src.infrastructure.cache.recurrence_store import redis_key
 
 pytestmark = pytest.mark.unit
 
@@ -28,8 +28,8 @@ pytestmark = pytest.mark.unit
 async def test_candidates_scan_matches_the_exact_keys_the_ledger_writes() -> None:
     user_id = uuid4()
     signature = "email+contact"
-    ledger_key = _redis_key(str(user_id), signature)
-    stored = {"days": {date(2026, 8, 4).isoformat(): [9.0]}, "suggested_at": None}
+    ledger_key = redis_key(str(user_id), signature)
+    stored = {"days": {date(2026, 8, 4).isoformat(): [9.0]}}
 
     seen_patterns: list[str] = []
     redis = MagicMock()
@@ -42,11 +42,7 @@ async def test_candidates_scan_matches_the_exact_keys_the_ledger_writes() -> Non
     redis.scan_iter = _scan_iter
     redis.get = AsyncMock(return_value=json.dumps(stored))
 
-    stg = SimpleNamespace(
-        recurrence_suggestion_enabled=True,
-        recurrence_window_days=28,
-        recurrence_min_distinct_days=4,
-    )
+    stg = SimpleNamespace(recurrence_window_days=28, recurrence_min_distinct_days=4)
     with patch(
         "src.infrastructure.cache.redis.get_redis_cache",
         AsyncMock(return_value=redis),

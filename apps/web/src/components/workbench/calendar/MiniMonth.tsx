@@ -8,7 +8,7 @@
  * its own arrows page through months without moving the view; a day moves the
  * view to it. Walked with the keyboard like the month view (arrows, Home, End).
  */
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';

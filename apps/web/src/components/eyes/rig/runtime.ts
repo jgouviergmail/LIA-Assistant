@@ -43,7 +43,7 @@ import {
 } from './direction';
 import { loopValue, type LoopSpec } from '@/components/eyes/rig/loops';
 import { calibratedLoops, exaggeratePose, resolvePose } from '@/components/eyes/rig/poses';
-import { ambientMotion } from './ambient';
+import { ambientMotion, scarfTrail } from './ambient';
 import {
   isSpringAtRest,
   REST_EPSILON,
@@ -68,6 +68,7 @@ import {
 import { warpTapes } from '@/components/eyes/rig/choreo';
 import {
   armSketchClock,
+  isSketchName,
   createSketchClock,
   recordSketch,
   SKETCH_EXPRESSIONS,
@@ -85,6 +86,9 @@ import {
   type RigCharacterId,
 } from './acting-profile';
 import { actingSketchTapes, directActingTapes } from './acting-scenes';
+import { clampLimbOutput, isLimbChannel, limbLoops, limbPose } from './limbs';
+import { limbRestTapes } from './limb-rest';
+import { limbSpeechTapes } from './limb-speech';
 import { DEFAULT_RIG_EYE_STYLE, type RigEyeStyleId } from '@/components/eyes/eye-styles';
 import { clampGazeAxis } from '@/components/eyes/expression-engine';
 import type { EyeExpression, Gaze, IdleMoodFamily } from '@/components/eyes/expression-engine';
@@ -94,6 +98,9 @@ const CONTOUR_SPRING = { frequency: 1.2, damping: 1 };
 const HEAD_SPRING = { frequency: 1.35, damping: 1 };
 const AMBIENT_SPRING = { frequency: 0.85, damping: 1 };
 const BODY_HOME_SPRING = { frequency: 2.2, damping: 1 };
+/** Grounded acting leans at most 12 degrees. Beyond this margin the drawn sole
+ * cannot carry weight, including when a new scene interrupts a full turn. */
+const GROUND_CONTACT_MAX_ROLL_DEG = 15;
 
 export interface RigPose {
   readonly expression: EyeExpression;
@@ -400,14 +407,20 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       for (const key of CHANNEL_KEYS)
         target[key] = rest[key] + (target[key] - rest[key]) * Math.max(0, responseWeight);
     }
-    const available = nextStyle !== 'smiley' && !context.activity && !context.responding;
+    const available = !context.activity && !context.responding;
     const characterRest = characterNeutralPose(
       target,
       nextExpression,
       available ? characterId : undefined,
       context.pleasure
     );
-    return contextualPose(characterRest, nextExpression, context, nextStyle);
+    return limbPose(
+      contextualPose(characterRest, nextExpression, context),
+      nextExpression,
+      context,
+      characterId ?? nextStyle,
+      FAMILY_DYNAMICS[nextFamily].amplitude * nextEmphasis * responseWeight
+    );
   }
 
   let emphasis = pose.emphasis ?? 1;
@@ -417,7 +430,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     pose.family,
     emphasis
   );
-  let loops: LoopSpec[] = calibratedLoops(pose.expression, pose.family, idleScale);
+  let loops: LoopSpec[] = motionLoops(pose.expression, pose.family);
   let activeDynamics: Dynamics = scaleDynamics(
     DYNAMICS_FOR_EXPRESSION[pose.expression],
     pose.family
@@ -431,8 +444,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   const springs: Record<ChannelKey, SpringState> = {} as Record<ChannelKey, SpringState>;
   const output: ChannelValues = restChannelValues();
   for (const key of CHANNEL_KEYS) {
-    springs[key] = { value: poseTargets[key], velocity: 0 };
-    output[key] = poseTargets[key];
+    const value = reducedMotion && isLimbChannel(key) ? 0 : poseTargets[key];
+    springs[key] = { value, velocity: 0 };
+    output[key] = value;
   }
 
   // Indexed at construction too: a rig created on a breathing expression must
@@ -501,7 +515,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     if (!MOUTH_LIFE_EXPRESSIONS.has(expression)) return;
     const draw = drawMouthMimic(lifeRandom, lastMimic, context);
     lastMimic = draw.mimic;
-    const directed = directActingTapes(draw.tapes, acting, bodySpace);
+    const directed = directActingTapes(
+      [...draw.tapes, ...limbRestTapes(draw.tapes, acting.identity, draw.side, draw.mimic)],
+      acting,
+      bodySpace
+    );
     mouthBusyUntilMs = clockMs + Math.max(...directed.map(tapeDurationMs));
     for (const tape of directed) tapes.push({ tape, elapsedMs: 0 });
     lastSettling = true;
@@ -512,7 +530,6 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   function playSketch(list: readonly Tape[]): boolean {
     if (reducedMotion || context.activity || context.responding || list.length === 0) return false;
     if (lifePaused || clockMs < lifePausedUntilMs) return false;
-    normalizeBodyRoll();
     tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     sketch = list.map(tape => ({ tape, elapsedMs: 0 }));
     sketchUntilMs = clockMs + sketchDurationMs(list);
@@ -567,7 +584,13 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
         : next === 'thinking'
           ? thoughtPattern(patternRandom)
           : resolvePatterns(next, patternRandom);
-    return pattern.map(tape => ({ tape, elapsedMs }));
+    const limbs = next === 'speaking' ? limbSpeechTapes(pattern, acting.identity) : [];
+    return [...pattern, ...limbs].map(tape => ({ tape, elapsedMs }));
+  }
+
+  function motionLoops(next: EyeExpression, mood: IdleMoodFamily): LoopSpec[] {
+    const facial = calibratedLoops(next, mood, idleScale);
+    return [...facial, ...limbLoops(acting.identity, facial)];
   }
 
   /** Where a channel is heading right now: a playing tape wins, then the gaze
@@ -594,6 +617,14 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   }
 
   function targetFor(key: ChannelKey): number {
+    if (reducedMotion && isLimbChannel(key)) return 0;
+    if (
+      !reducedMotion &&
+      key === 'bodySupport' &&
+      Math.cos((springs.bodyRoll.value * Math.PI) / 180) <
+        Math.cos((GROUND_CONTACT_MAX_ROLL_DEG * Math.PI) / 180)
+    )
+      return 0;
     const beat = tapeTargetIn(tapes, key);
     if (beat !== null) return beat;
     const scene = tapeTargetIn(sketch, key);
@@ -766,9 +797,16 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * against one big one.
    */
   function writeDerived(): void {
+    clampLimbOutput(output, acting.identity, reducedMotion);
     Object.assign(output, ambientMotion(output, clockMs, reducedMotion));
+    output.scarfTrail = reducedMotion
+      ? 0
+      : scarfTrail(output.weatherCold, springs.headYaw.velocity, springs.bodyRoll.velocity);
     output.bodySx = Math.min(1.4, Math.max(0.25, output.bodySx));
     output.bodySy = Math.min(1.4, Math.max(0.25, output.bodySy));
+    output.bodySupport = Math.min(1, Math.max(0, output.bodySupport));
+    output.bodySupportSide = Math.min(1, Math.max(-1, output.bodySupportSide));
+    output.bodyShadowX = output.bodyX;
     output.bodyShadowScale = Math.max(0.35, Math.min(1, 1 + Math.min(0, output.bodyY) * 0.12));
     output.bodyShadowOpacity = Math.max(0, 1 - Math.hypot(output.bodyX, output.bodyY) * 0.25);
     const vx = springs.gazeX.velocity;
@@ -867,11 +905,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       tapes = tapes.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
     }
     if (sketch.length > 0) {
-      const hadRoll = sketch.some(active => active.tape.channel === 'bodyRoll');
       for (const active of sketch) active.elapsedMs += dtMs;
       sketch = sketch.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
-      if (hadRoll && !sketch.some(active => active.tape.channel === 'bodyRoll'))
-        normalizeBodyRoll();
       if (sketch.length === 0) {
         sketchUntilMs = 0;
         if (sketchClock.scene) sketchClock.completed += 1;
@@ -914,20 +949,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     }
   }
 
-  /** Equivalent angle on the return branch: preserve angular velocity and
-   * finish a revolution instead of unwinding it when its tape lets go. */
-  function normalizeBodyRoll(): void {
-    const state = springs.bodyRoll;
-    let phase = state.value % 360;
-    if (state.velocity > 0.01 && phase > 0) phase -= 360;
-    else if (state.velocity < -0.01 && phase < 0) phase += 360;
-    else if (phase > 180) phase -= 360;
-    else if (phase < -180) phase += 360;
-    springs.bodyRoll = { ...state, value: phase + 0 };
-  }
-
   function interruptPerformance(): void {
-    normalizeBodyRoll();
     tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     if (sketch.length && sketchClock.scene) sketchClock.interrupted += 1;
     sketchClock.scene = null;
@@ -1080,7 +1102,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       family = next.family;
       poseTargets = nextTargets;
       activeDynamics = scaleDynamics(DYNAMICS_FOR_EXPRESSION[expression], family);
-      loops = calibratedLoops(expression, family, idleScale);
+      loops = motionLoops(expression, family);
       loopsByChannel = indexLoops(loops);
     },
 
@@ -1103,6 +1125,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     playSketch,
 
     playScene(name) {
+      if (!isSketchName(name)) return;
       if (!SKETCH_EXPRESSIONS.has(expression)) return;
       if (!canPlaySketch(name, allowSleep)) return;
       if (
@@ -1120,6 +1143,9 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       interruptPerformance();
       acting = nextActing;
       poseTargets = computeTargets(expression, styleId, family, emphasis);
+      loops = motionLoops(expression, family);
+      loopsByChannel = indexLoops(loops);
+      patterns = startPatterns(expression);
       lastSettling = true;
     },
 
@@ -1205,7 +1231,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
 
     setIdleScale(scale) {
       idleScale = scale;
-      loops = calibratedLoops(expression, family, idleScale);
+      loops = motionLoops(expression, family);
       loopsByChannel = indexLoops(loops);
       writeOutput();
     },
@@ -1220,6 +1246,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       // `settle` dropped it, and without this a search that was interrupted by
       // the preference would stay still until the next expression change.
       patterns = startPatterns(expression);
+      lastSettling = true;
     },
   };
 }

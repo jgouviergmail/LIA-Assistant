@@ -9,8 +9,10 @@ guard short-circuits without dialing.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -20,9 +22,13 @@ import src.domains.telephony.service as svc
 from src.core.security import decrypt_data
 from src.domains.telephony.availability import AvailabilityRead
 from src.domains.telephony.client import ElevenLabsAgentsError
+from src.domains.telephony.mandates import third_party_manner
 from src.domains.telephony.models import CallKind, PhoneCallStatus
 from src.domains.telephony.schemas import OutboundCallResult
 from src.domains.telephony.service import TelephonyService
+from src.domains.voice.cue_prompt import live_cues_block, palette
+from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS, Cue
+from src.domains.voice_sessions.expression import PERSON_CUES, STRANGER_CUES
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +73,9 @@ def _install_fakes(
     vendor_conversation_status: str | object = "in-progress",
     close_zombie_result: bool = True,
     tool_ids_error: bool = False,
+    agent: dict[str, Any] | None = None,
+    agent_read_error: bool = False,
+    expression_error: bool = False,
 ) -> tuple[dict, object]:
     captured: dict = {}
     conn = (
@@ -148,6 +157,18 @@ def _install_fakes(
                 raise ElevenLabsAgentsError(500, "tools boom")
             captured.setdefault("tool_ids_patches", []).append((agent_id, list(tool_ids)))
 
+        async def get_agent(self, agent_id: str) -> dict[str, Any]:
+            captured.setdefault("agent_reads", []).append(agent_id)
+            if agent_read_error:
+                raise ElevenLabsAgentsError(500, "read boom")
+            # By default a v2-generation engine: words alone, nothing to write.
+            return agent or {"conversation_config": {"tts": {"model_id": "eleven_flash_v2_5"}}}
+
+        async def patch_agent(self, agent_id: str, body: dict[str, Any]) -> None:
+            if expression_error:
+                raise ElevenLabsAgentsError(422, "unsupported")
+            captured.setdefault("agent_patches", []).append((agent_id, body))
+
         async def get_conversation_status(self, conversation_id: str) -> str:
             captured["probed_conversation"] = conversation_id
             if isinstance(vendor_conversation_status, Exception):
@@ -204,9 +225,12 @@ async def test_the_dial_reads_the_assistant_s_personality_for_both_mandates(
     captured, factory = _install_fakes(monkeypatch)
     result = await _call(TelephonyService(db, client_factory=factory))
     assert result.status == "placed"
+    # A stranger hears LIA's cordial manner, never the person's personality
+    # (owner rule 2026-11-07).
     assert captured["call_kwargs"]["dynamic_variables"]["personality_profile"] == (
-        "Warm and playful."
+        third_party_manner()
     )
+    assert "Warm and playful." not in json.dumps(captured["call_kwargs"])
 
     captured, factory = _install_fakes(monkeypatch)
     result = await _owner_call(TelephonyService(db, client_factory=factory))
@@ -231,7 +255,18 @@ async def test_a_personality_that_cannot_be_read_never_blocks_a_call(
     captured, factory = _install_fakes(monkeypatch)
     result = await _call(TelephonyService(db, client_factory=factory))
     assert result.status == "placed"
-    assert captured["call_kwargs"]["dynamic_variables"]["personality_profile"] == ""
+    # A stranger hears the cordial manner whatever happened to the personality.
+    assert captured["call_kwargs"]["dynamic_variables"]["personality_profile"] == (
+        third_party_manner()
+    )
+    # The person's own call speaks LIA's default manner rather than not at all.
+    from src.domains.voice_sessions.mandate import voice_lines
+
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _owner_call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert voice_lines()["default_personality"] in prompt
 
 
 @pytest.mark.unit
@@ -918,3 +953,140 @@ async def test_no_vendor_or_calendar_call_runs_inside_the_dial_reads(
     names = [name for name, _ in open_at]
     assert {"get_conversation_status", "update_agent", "availability"} <= set(names)
     assert [name for name, was_open in open_at if was_open] == []
+
+
+# ---------------------------------------------------------------------------
+# The voice speaks the personality to the person, cordially to a stranger
+# (ADR-373): the agent's palette is written for the call it is about to make.
+# ---------------------------------------------------------------------------
+
+_V4_AGENT: dict[str, Any] = {"conversation_config": {"tts": {"model_id": "eleven_v4_turbo"}}}
+
+
+def _palettes(outcome: str) -> float:
+    from prometheus_client import REGISTRY
+
+    labels = {"surface": "phone", "outcome": outcome}
+    return REGISTRY.get_sample_value("live_cue_palette_synced_total", labels) or 0.0
+
+
+def _palette_patch(cues: frozenset[Cue]) -> tuple[str, dict[str, Any]]:
+    # The speaking block travels WHOLE, as stored: the engine survives the palette.
+    return (
+        "ag_1",
+        {
+            "conversation_config": {
+                "tts": {
+                    "model_id": "eleven_v4_turbo",
+                    "suggested_audio_tags": palette(ELEVENLABS_AGENT_TAGS, cues),
+                }
+            }
+        },
+    )
+
+
+async def _verification_call(service: TelephonyService) -> object:
+    return await service.initiate_call(
+        user_id=uuid4(),
+        callee_display="Alex",
+        callee_phone="+33612345678",
+        objective="",
+        date_window=None,
+        user_language="fr",
+        kind=CallKind.VERIFICATION,
+        verification_code="4719",
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("dial", "offered"),
+    [(_owner_call, PERSON_CUES), (_call, STRANGER_CUES), (_verification_call, STRANGER_CUES)],
+    ids=["the person", "a third party", "a verification"],
+)
+async def test_the_agent_carries_the_palette_of_the_call_it_is_about_to_make(
+    monkeypatch: pytest.MonkeyPatch, dial: Any, offered: frozenset[Cue]
+) -> None:
+    captured, factory = _install_fakes(monkeypatch, agent=_V4_AGENT)
+    written = _palettes("written")
+    result = await dial(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    assert captured["agent_patches"] == [_palette_patch(offered)]
+    assert _palettes("written") - written == 1.0
+
+
+@pytest.mark.unit
+async def test_the_persons_voice_survives_the_palette_written_before_a_dial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Whatever the vendor's merge, the voice, the engine and the switch are sent back."""
+    stored = {"model_id": "eleven_v3_conversational", "voice_id": "voice", "expressive_mode": True}
+    captured, factory = _install_fakes(
+        monkeypatch, agent={"conversation_config": {"tts": dict(stored)}}
+    )
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    [(_agent, body)] = captured["agent_patches"]
+    assert body["conversation_config"]["tts"] == {
+        **stored,
+        "suggested_audio_tags": palette(ELEVENLABS_AGENT_TAGS, STRANGER_CUES),
+    }
+
+
+@pytest.mark.unit
+async def test_a_palette_already_in_place_is_not_written_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settled = {
+        "conversation_config": {
+            "tts": {
+                "model_id": "eleven_v4_turbo",
+                "suggested_audio_tags": palette(ELEVENLABS_AGENT_TAGS, STRANGER_CUES),
+            }
+        }
+    }
+    captured, factory = _install_fakes(monkeypatch, agent=settled)
+    result = await _call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    assert "agent_patches" not in captured
+
+
+@pytest.mark.unit
+async def test_an_engine_that_performs_no_cue_gets_no_palette(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _owner_call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    assert "agent_patches" not in captured
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert "<voice_cues>" not in prompt
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("failure", ["agent_read_error", "expression_error"])
+async def test_an_agent_that_cannot_be_read_or_written_never_blocks_a_call(
+    monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """The palette is colour: a call beats no call, and the voice then speaks in words."""
+    captured, factory = _install_fakes(monkeypatch, agent=_V4_AGENT, **{failure: True})
+    refused = _palettes("refused")
+    result = await _owner_call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    # A write the vendor refused is counted; an agent never read wrote nothing.
+    assert _palettes("refused") - refused == (1.0 if failure == "expression_error" else 0.0)
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert "<voice_cues>" not in prompt
+
+
+@pytest.mark.unit
+async def test_the_owner_override_tells_the_voice_which_cues_its_engine_performs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured, factory = _install_fakes(monkeypatch, agent=_V4_AGENT)
+    result = await _owner_call(TelephonyService(_FakeDB(_user()), client_factory=factory))
+    assert result.status == "placed"
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES) in prompt
+    # After the output rules it is the one exception to.
+    assert prompt.index("</output_specifications>") < prompt.index("<voice_cues>")

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, type LucideIcon } from 'lucide-react';
+import { ChevronDown, type LucideIcon } from '@/lib/icons';
 import { useState, type ReactNode, type Ref } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -72,6 +72,8 @@ export interface DisclosureProps {
   summaryRef?: Ref<HTMLElement>;
   /** Open on arrival. Default false, deliberately. */
   defaultOpen?: boolean;
+  /** Controlled state when an action outside the disclosure must open its results. */
+  open?: boolean;
   /** Alternate neutral surface when this block sits inside a primary panel. */
   surface?: 'primary' | 'nested';
   /** Notified on every state change, so a caller can enable its query. */
@@ -91,12 +93,14 @@ export function Disclosure({
   titleClassName,
   summaryRef,
   defaultOpen = false,
+  open: controlledOpen,
   surface = 'primary',
   onOpenChange,
   className,
   children,
 }: DisclosureProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [localOpen, setOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? localOpen;
 
   return (
     <details

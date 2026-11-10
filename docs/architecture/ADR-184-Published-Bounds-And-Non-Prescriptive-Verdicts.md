@@ -362,8 +362,12 @@ de ce silence : un désépinglage tenté à l'aveugle, une raison que rien n'ava
   successeur vide.
 - **Un refus laisse une ligne** : `request_validation_failed` dit le type d'erreur et le
   nombre d'erreurs, jamais la valeur. Le champ n'est nommé que si le code a écrit ce
-  nom : à un niveau sous sa source, et jamais pour un `extra_forbidden`. Le reste sort
-  en `<withheld>`, car `loc` porte aussi ce qu'un client a tapé (ADR-317). Le formulaire
+  nom : à un niveau sous sa source, jamais pour un `extra_forbidden` ni pour un nombre
+  (la position d'un JSON mal formé, un index). Le reste sort en `<withheld>`, car `loc`
+  porte aussi ce qu'un client a tapé (ADR-317). La règle tient parce que tout corps de
+  requête est un modèle (`test_every_request_body_holds_declared_names`). Depuis le
+  2026-11-07, `validation_errors_total` lit les mêmes noms : il prenait la feuille de
+  `loc` telle quelle, et un libellé reste une série toute la rétention. Le formulaire
   dit de même un refus qu'il n'a pas pu prévoir (`memories.text_refused`).
 
 **Preuves.** `tests/unit/domains/memories/test_text_bounds.py`,

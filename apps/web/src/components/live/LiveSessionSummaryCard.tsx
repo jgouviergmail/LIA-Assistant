@@ -19,7 +19,7 @@
  * channel or an export); the bubble's meter line under it repeats the token
  * detail for a person who displays tokens.
  */
-import { AudioLines } from 'lucide-react';
+import { AudioLines } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { fallbackLng, type Language } from '@/i18n/settings';

@@ -80,6 +80,8 @@ PROVIDER_RATE_LIMITED: Final = "provider_rate_limited"
 PROVIDER_UNAVAILABLE: Final = "provider_unavailable"
 #: The item no longer exists (deleted, moved, sent) since it was listed.
 ITEM_GONE: Final = "item_gone"
+#: A card's source changed between navigation and the actual provider read.
+CARD_SOURCE_CHANGED: Final = "card_source_changed"
 #: An id the provider minted for one reading only has expired (re-list).
 STALE_HANDLE: Final = "stale_handle"
 #: The item changed since it was read (an etag, a draft revision).
@@ -141,6 +143,7 @@ _STATUSES: Final[dict[str, int]] = {
     PROVIDER_RATE_LIMITED: status.HTTP_429_TOO_MANY_REQUESTS,
     PROVIDER_UNAVAILABLE: status.HTTP_502_BAD_GATEWAY,
     ITEM_GONE: status.HTTP_404_NOT_FOUND,
+    CARD_SOURCE_CHANGED: status.HTTP_409_CONFLICT,
     STALE_HANDLE: status.HTTP_409_CONFLICT,
     CONFLICT: status.HTTP_409_CONFLICT,
     NAME_TAKEN: status.HTTP_409_CONFLICT,

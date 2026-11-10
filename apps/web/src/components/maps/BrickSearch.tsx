@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Search } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 /**

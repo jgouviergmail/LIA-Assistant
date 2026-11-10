@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Navigation, Home, MapPin, History, Info, Save, Trash2 } from 'lucide-react';
+import { Navigation, Home, MapPin, History, Info, Save, Trash2 } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useTranslation } from '@/i18n/client';

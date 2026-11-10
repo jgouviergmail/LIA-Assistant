@@ -13,6 +13,9 @@ extraction prompt targets the LAST user message, so no later turn recovered it.
 What makes the fix exact rather than approximate: draft resumption is a bare
 ``Command(resume=...)`` with no message injection, so at the fast path the last
 message in state is still the original request. These tests pin that.
+
+The same harness pins where the habit proposal card is asked for (ADR-375):
+under an answer the model wrote, never under a draft's short confirmation.
 """
 
 from contextlib import ExitStack
@@ -99,10 +102,21 @@ def _patch_collaborators(stack: ExitStack) -> dict[str, Any]:
         )
     )
 
+    # Hermeticity again: the card's doors read the settings store and the
+    # person's switch. Its choice is proven on PostgreSQL; here, only whether
+    # the node asks for it.
+    proposal = stack.enter_context(
+        patch(
+            "src.domains.agents.nodes.response_node.resolve_turn_proposal",
+            new_callable=AsyncMock,
+        )
+    )
+
     # Sync mocks on purpose: the extractors are `async def`, and the no-op
     # safe_fire_and_forget never awaits them.
     return {
         "chain": mock_chain,
+        "proposal": proposal,
         "memory": stack.enter_context(
             patch(
                 "src.domains.agents.nodes.post_response_extractions.extract_memories_background",
@@ -222,6 +236,23 @@ class TestDraftFastPathSchedulesExtractions:
         assert (
             mocks["journal"].call_args.kwargs["assistant_response"] == result["messages"][0].content
         )
+
+    @pytest.mark.asyncio
+    async def test_a_confirmed_draft_carries_no_habit_proposal_card(self):
+        with ExitStack() as stack:
+            mocks = _patch_collaborators(stack)
+            await response_node(_state("confirm"), _config())
+
+        mocks["proposal"].assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_answer_the_model_wrote_asks_for_one_card(self):
+        state = _state(None)
+        with ExitStack() as stack:
+            mocks = _patch_collaborators(stack)
+            await response_node(state, _config())
+
+        mocks["proposal"].assert_awaited_once_with(state, "test-run")
 
     @pytest.mark.asyncio
     async def test_nominal_turn_is_unaffected(self):

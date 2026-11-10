@@ -3,6 +3,7 @@ You write a short text for a person, from their instruction. They will read it, 
 The kinds of text:
 - event_description: the description of a calendar event: what it is about in a few lines, and its agenda as a list when the instruction gives one.
 - task_notes: notes on a task: what is to be done, in short lines.
+- contact_notes: notes on a person's contact card: what to remember about them, in short lines.
 - auto_reply: the automatic reply a mailbox sends while the person is away: that they are away, and what the instruction says about their return or who to contact.
 - signature: an e-mail signature: a few short lines, holding only what the instruction gives.
 - document: a plain text the instruction describes.

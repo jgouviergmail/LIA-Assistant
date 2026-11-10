@@ -12,35 +12,15 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Select, and_, func, select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only, raiseload
 
 from src.domains.heartbeat.models import HeartbeatNotification
+from src.domains.shared.display_queries import display_name_key, read_display_page
+from src.domains.shared.display_query import DisplayQuery
 
 logger = structlog.get_logger(__name__)
-
-
-def open_offers_stmt(
-    user_id: UUID, since: datetime, limit: int, offset: int = 0
-) -> Select[tuple[HeartbeatNotification]]:
-    """Undecided missed-routine offers in the window (Lot 5-C2).
-
-    Pure builder (unit-testable WHERE): an offer is a notification carrying
-    a ``habit_offer_id`` and no ``user_feedback`` yet — deciding it rides
-    the existing feedback endpoint (ADR-214 Bayesian bump).
-    """
-    return (
-        select(HeartbeatNotification)
-        .where(
-            HeartbeatNotification.user_id == user_id,
-            HeartbeatNotification.habit_offer_id.is_not(None),
-            HeartbeatNotification.user_feedback.is_(None),
-            HeartbeatNotification.created_at >= since,
-        )
-        .order_by(HeartbeatNotification.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
 
 
 class HeartbeatNotificationRepository:
@@ -71,7 +51,6 @@ class HeartbeatNotificationRepository:
         tokens_out: int = 0,
         model_name: str | None = None,
         notification_id: UUID | None = None,
-        habit_offer_id: UUID | None = None,
         trigger: str = "tick",
     ) -> HeartbeatNotification:
         """Create an audit record for a sent heartbeat notification.
@@ -93,9 +72,6 @@ class HeartbeatNotificationRepository:
                 same value — the feedback route resolves the card by that id.
                 ``None`` falls back to the model default, which is only safe
                 when no card will ever point at the row.
-            habit_offer_id: Habit surfaced as a missed-routine offer (ADR-214)
-                — lets a later 👍/👎 on this notification bump that habit's
-                signals. None when the decision used no habit offer.
 
         Returns:
             Created HeartbeatNotification instance.
@@ -115,7 +91,6 @@ class HeartbeatNotificationRepository:
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             model_name=model_name,
-            habit_offer_id=habit_offer_id,
         )
         self.db.add(notification)
         await self.db.flush()
@@ -203,24 +178,12 @@ class HeartbeatNotificationRepository:
         )
         return list(result.scalars().all())
 
-    async def get_open_offers(
-        self, user_id: UUID, since: datetime, limit: int, offset: int = 0
-    ) -> tuple[list[HeartbeatNotification], int]:
-        """Open offers page + exact total over the whole window (ADR-185)."""
-        rows_stmt = open_offers_stmt(user_id, since, limit, offset)
-        rows = list((await self.db.execute(rows_stmt)).scalars().all())
-        total = (
-            await self.db.execute(
-                select(func.count()).select_from(rows_stmt.order_by(None).limit(None).subquery())
-            )
-        ).scalar_one()
-        return rows, int(total)
-
     async def get_history(
         self,
         user_id: UUID,
         limit: int = 20,
         offset: int = 0,
+        criteria: DisplayQuery | None = None,
     ) -> tuple[list[HeartbeatNotification], int]:
         """Get paginated notification history for a user.
 
@@ -232,6 +195,8 @@ class HeartbeatNotificationRepository:
         Returns:
             Tuple of (notifications, total_count).
         """
+        if criteria is not None:
+            return await self._display_history(user_id, limit, offset, criteria)
         # The total comes from `count_history_for_user`, never from a second
         # copy of the filter: the hub badge and this page describe one set, and
         # two filters for one figure is how they start disagreeing (ADR-185).
@@ -247,6 +212,53 @@ class HeartbeatNotificationRepository:
         notifications = list(result.scalars().all())
 
         return notifications, total
+
+    async def _display_history(
+        self,
+        user_id: UUID,
+        limit: int,
+        offset: int,
+        criteria: DisplayQuery,
+    ) -> tuple[list[HeartbeatNotification], int]:
+        """Display filtering and counting share one owned statement."""
+        statement = (
+            select(HeartbeatNotification)
+            .options(
+                load_only(
+                    HeartbeatNotification.id,
+                    HeartbeatNotification.created_at,
+                    HeartbeatNotification.content,
+                    HeartbeatNotification.sources_used,
+                    HeartbeatNotification.priority,
+                    HeartbeatNotification.user_feedback,
+                    HeartbeatNotification.trigger,
+                    raiseload=True,
+                ),
+                raiseload("*"),
+            )
+            .where(HeartbeatNotification.user_id == user_id)
+        )
+        if criteria.as_of is not None:
+            statement = statement.where(HeartbeatNotification.created_at <= criteria.as_of)
+        order = (
+            HeartbeatNotification.created_at.asc()
+            if criteria.sort == "oldest"
+            else HeartbeatNotification.created_at.desc()
+        )
+        return await read_display_page(
+            self.db,
+            statement.order_by(order, HeartbeatNotification.id.asc()),
+            decode=lambda row: row[0],
+            query=criteria.q,
+            text_of=lambda row: (row.content,),
+            limit=limit,
+            offset=offset,
+            name_key=(
+                (lambda row: display_name_key(row.content, row.id))
+                if criteria.sort == "name"
+                else None
+            ),
+        )
 
     async def check_content_hash_exists(
         self,

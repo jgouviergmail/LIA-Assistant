@@ -11,6 +11,7 @@ import os
 import structlog
 
 from src.core.config import settings
+from src.domains.llm_config.jev_statistics_sink import JevStatisticsFlusher
 
 logger = structlog.get_logger(__name__)
 
@@ -121,3 +122,28 @@ def start_worker_memory_sampler() -> asyncio.Task[None] | None:
     except (RuntimeError, ImportError) as exc:
         logger.error("worker_memory_sampler_failed", error=str(exc), exc_info=True)
     return task
+
+
+def start_jev_statistics_flusher() -> JevStatisticsFlusher | None:
+    """Start this worker's writer of JEV's durable statistics (ADR-374).
+
+    One per worker process: each aggregates its own counts in memory and writes them
+    every ``jev_statistics_flush_interval`` seconds.
+
+    Returns:
+        The running writer (to stop at shutdown), or None when it could not start.
+    """
+    flusher = JevStatisticsFlusher(
+        interval_seconds=settings.jev_statistics_flush_interval,
+        final_timeout_seconds=settings.jev_statistics_final_flush_timeout,
+    )
+    try:
+        flusher.start()
+    except RuntimeError as exc:
+        logger.error("jev_statistics_flusher_failed", error_type=type(exc).__name__)
+        return None
+    logger.info(
+        "jev_statistics_flusher_started",
+        interval_seconds=settings.jev_statistics_flush_interval,
+    )
+    return flusher

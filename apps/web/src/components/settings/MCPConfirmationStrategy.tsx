@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { Layers, ListChecks, ShieldCheck } from 'lucide-react';
+import { Layers, ListChecks, ShieldCheck } from '@/lib/icons';
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';

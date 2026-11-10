@@ -20,12 +20,7 @@ import { EventRepeatField } from './EventRepeatField';
 import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -39,6 +34,7 @@ import {
   editorFieldsOf,
   newEventBody,
   withProposedEvent,
+  proposalUsesDateDefaults,
   type EventChangeBody,
   type EventFields,
   type NewEventBody,
@@ -51,13 +47,14 @@ import { recurrenceIsComplete } from '@/lib/recurrence';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import { WORKBENCH_RECIPIENTS_PATH } from '@/lib/workbench/recipients';
 import type { CalendarEventDetail, WorkbenchCalendar } from '@/lib/workbench/types';
-import { generateUUID } from '@/lib/utils';
+import { cn, generateUUID } from '@/lib/utils';
 import { NativeSelect } from '@/components/ui/native-select';
-import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
+import { CancelButton, TOOL_FORM_SCREEN, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 /** What the editor was opened on. */
 export type EditorTarget =
-  | { kind: 'new'; fields: EventFields }
+  /** `conference`: a video call is asked with it, where the provider makes one (LIA read it). */
+  | { kind: 'new'; fields: EventFields; conference?: boolean; reviewDefaults?: boolean }
   /**
    * `fields`: what the form opens on when a change is already asked (a drop on guests).
    * `series`: the whole series, rather than this occurrence.
@@ -89,8 +86,13 @@ export function EventEditor(props: EventEditorProps) {
   const [fields, setFields] = useState(() =>
     target.kind === 'edit' && target.fields ? target.fields : initial
   );
-  const [conference, setConference] = useState(false);
+  const [conference, setConference] = useState(
+    () => target.kind === 'new' && target.conference === true
+  );
   const [notify, setNotify] = useState(true);
+  const [reviewDefaults, setReviewDefaults] = useState(
+    target.kind === 'new' && target.reviewDefaults === true
+  );
   const [key] = useState(() => generateUUID());
   const [status, setStatus] = useState<'editing' | 'saving' | 'unknown'>('editing');
   const [problem, setProblem] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export function EventEditor(props: EventEditorProps) {
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:overflow-y-auto max-sm:rounded-none max-sm:border-0 sm:max-w-xl">
+      <DialogContent className={cn(TOOL_FORM_SCREEN, 'sm:max-w-xl')}>
         <form onSubmit={save} className="space-y-4">
           <ToolDialogHeader>
             <div className="flex items-center gap-1">
@@ -136,7 +138,10 @@ export function EventEditor(props: EventEditorProps) {
                   label={t('workbench.assist.calendar.from_words')}
                   path={ASSIST_PATHS.eventFromWords}
                   maxInstruction={assist.instructionMax}
-                  onAnswer={answer => setFields(current => withProposedEvent(current, answer.event))}
+                  onAnswer={answer => {
+                    setFields(current => withProposedEvent(current, answer.event));
+                    setReviewDefaults(proposalUsesDateDefaults(answer.event));
+                  }}
                 />
               )}
             </div>
@@ -146,6 +151,11 @@ export function EventEditor(props: EventEditorProps) {
                 : t('workbench.calendar.editor.zone', { zone })}
             </DialogDescription>
           </ToolDialogHeader>
+          {reviewDefaults && (
+            <p className="text-sm text-muted-foreground">
+              {t('workbench.calendar.editor.review_defaults')}
+            </p>
+          )}
           <EditorFields {...props} fields={fields} set={set} reversed={reversed} />
           {repeatable && (
             <EventRepeatField
@@ -156,7 +166,7 @@ export function EventEditor(props: EventEditorProps) {
             />
           )}
           <EventOptionsFields lng={props.lng} fields={fields} set={set} />
-          {props.conferenceOffered && (target.kind === 'new' || !target.event.conference_url) && (
+          {canAddConference(target, props.conferenceOffered) && (
             <CheckLine
               label={t('workbench.calendar.editor.conference')}
               checked={conference}
@@ -189,6 +199,11 @@ export function EventEditor(props: EventEditorProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** A provider may add a call only where the event does not already have one. */
+function canAddConference(target: EditorTarget, offered: boolean): boolean {
+  return offered && (target.kind === 'new' || !target.event.conference_url);
 }
 
 /** The form says what is missing: a title, an end after the start, a rule set to its end. */

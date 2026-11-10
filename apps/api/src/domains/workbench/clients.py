@@ -22,13 +22,18 @@ from src.domains.connectors.active_client import (
 from src.domains.connectors.preferences.owner_defaults import OwnerContainer
 from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.workbench.availability import broken_provider, connector_statuses
+from src.domains.workbench.card_source import expected_card_source, require_card_source
 from src.domains.workbench.errors import NOT_CONNECTED, RECONNECT_REQUIRED, refuse
 from src.domains.workbench.features import TOOL_CATEGORY, TOOL_SINGLE_TYPE, WorkbenchTool
 
 
 @asynccontextmanager
 async def open_tool_client(
-    tool: WorkbenchTool, user_id: UUID, *, container: OwnerContainer | None = None
+    tool: WorkbenchTool,
+    user_id: UUID,
+    *,
+    container: OwnerContainer | None = None,
+    fresh: bool = False,
 ) -> AsyncIterator[ActiveClient]:
     """The open client of ``tool`` for ``user_id``, closed on every path.
 
@@ -37,6 +42,7 @@ async def open_tool_client(
         user_id: Whose provider.
         container: The owner's default container to read with it, if any
             (a category's only: it travels as ``preferred_name``).
+        fresh: Re-read the active source for a source-bound navigation click.
 
     Yields:
         The open client and the connector type that answered.
@@ -45,14 +51,21 @@ async def open_tool_client(
         BaseAPIException: ``reconnect_required`` when the tool's provider broke,
             ``not_connected`` otherwise.
     """
+    expected = expected_card_source(tool, user_id)
+    fresh = fresh or expected is not None
     door = (
-        open_active_client(TOOL_CATEGORY[tool], user_id, container=container)
+        (
+            open_active_client(TOOL_CATEGORY[tool], user_id, container=container, fresh=True)
+            if fresh
+            else open_active_client(TOOL_CATEGORY[tool], user_id, container=container)
+        )
         if tool in TOOL_CATEGORY
         else open_client_by_type(TOOL_SINGLE_TYPE[tool], user_id)
     )
     async with door as opened:
         if isinstance(opened, ClientUnavailable):
             await _refuse_unavailable(tool, user_id)
+        require_card_source(expected, opened)
         yield opened
 
 

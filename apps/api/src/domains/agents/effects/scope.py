@@ -19,6 +19,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
+from typing import TypeGuard
 
 import structlog
 
@@ -57,6 +58,11 @@ class EffectScope:
 
 
 _CURRENT_SCOPE: ContextVar[EffectScope | None] = ContextVar("agent_effect_scope", default=None)
+
+
+def has_execution_identity(scope: EffectScope | None) -> TypeGuard[EffectScope]:
+    """Whether a caller published the identities required to own a direct act."""
+    return scope is not None and bool(scope.run_id.strip()) and bool(scope.idempotency_key.strip())
 
 
 def current_scope() -> EffectScope | None:

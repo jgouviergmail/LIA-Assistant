@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, TagsIcon } from 'lucide-react';
+import { Mail, TagsIcon } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { MailLabelPickerDialog } from '@/components/spaces/MailLabelPickerDialog';

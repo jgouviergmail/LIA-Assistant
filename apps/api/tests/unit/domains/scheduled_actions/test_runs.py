@@ -102,7 +102,14 @@ class TestTheRow:
             attempts=1,
             manual=False,
             error=None,
+            run_id=None,
         )
+
+    async def test_the_run_id_reaches_the_row(self) -> None:
+        """ADR-375: the row names the turn it ran, so its reads are found exactly."""
+        db, _ = _db()
+        _, record = await _record(db, _action(), run_id="run-42")
+        assert record.await_args.kwargs["run_id"] == "run-42"
 
     async def test_a_manual_run_after_the_slot_serves_the_day_slot(self) -> None:
         db, _ = _db()
@@ -169,6 +176,9 @@ class TestTheHistoryNeverGatesTheRoutine:
         log.warning.assert_called_once()
         assert log.warning.call_args.args[0] == "scheduled_action_run_record_failed"
         assert log.warning.call_args.kwargs["outcome"] == "success"
+        # ADR-317: a failure is logged by its facts, never by the text it quotes.
+        assert log.warning.call_args.kwargs["error_type"] == "RuntimeError"
+        assert "disk full" not in repr(log.warning.call_args)
 
 
 class TestAConditionRoutinesRun:

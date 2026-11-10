@@ -30,6 +30,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { openRecordingInputs } from '@/lib/audio/recording-inputs';
+import { claimVoiceInput, releaseVoiceInput } from '@/lib/audio/input-claim';
 import { logger } from '@/lib/logger';
 import { VoiceInputService } from '@/lib/voice-input-service';
 import { PCM_WORKLET_PROCESSOR_NAME, getPcmWorkletUrl } from '@/lib/audio/pcm-worklet';
@@ -101,6 +103,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
   const { onTranscription, onError } = options;
 
   // Service and audio refs
+  const captureOwner = useRef(Symbol('voice-input'));
+  const setupController = useRef<AbortController | null>(null);
   const serviceRef = useRef<VoiceInputService | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -134,6 +138,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    * Clean up audio resources.
    */
   const cleanupAudio = useCallback(() => {
+    cancelledRef.current = true;
+    setupController.current?.abort();
+    setupController.current = null;
+    releaseVoiceInput(captureOwner.current);
     // Disconnect nodes
     if (sourceNodeRef.current) {
       sourceNodeRef.current.disconnect();
@@ -183,7 +191,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       setDurationSeconds(duration);
       setState('idle');
 
-      // Clean up service after receiving transcription
+      // A terminal result owns teardown even if the server ends the capture first.
+      cleanupAudio();
       cleanupService();
 
       logger.info('voice_input_transcription_received', {
@@ -196,7 +205,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
       onTranscription?.(text, meta);
     },
-    [onTranscription, cleanupService]
+    [onTranscription, cleanupAudio, cleanupService]
   );
 
   /**
@@ -240,6 +249,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    */
   const handleError = useCallback(
     (err: Error) => {
+      cleanupAudio();
+      cleanupService();
       setError(err);
       setState('idle');
 
@@ -247,7 +258,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
       onError?.(err);
     },
-    [onError]
+    [onError, cleanupAudio, cleanupService]
   );
 
   /**
@@ -257,21 +268,10 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    * Supports cancellation via cancelledRef (set by stopRecording during 'connecting' state).
    */
   const startRecording = useCallback(async () => {
-    if (!isSupported) {
-      const err = new Error('Voice input is not supported in this browser');
-      handleError(err);
+    if (
+      !admitRecording(isSupported, isStartingRef.current, state, captureOwner.current, handleError)
+    )
       return;
-    }
-
-    // Guard against race conditions (double-click)
-    if (isStartingRef.current || state !== 'idle') {
-      logger.warn('voice_input_already_active', {
-        component: 'useVoiceInput',
-        state,
-        isStarting: isStartingRef.current,
-      });
-      return;
-    }
 
     isStartingRef.current = true;
     cancelledRef.current = false;
@@ -307,50 +307,24 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       }
       serviceRef.current = service;
 
-      // Step 2: Launch mic (+ WS if not pre-warmed) in parallel with timeout
-      const connectIfNeeded = service.isConnected ? Promise.resolve() : service.connect();
-
-      const setupPromise = Promise.allSettled([
-        navigator.mediaDevices.getUserMedia({
-          audio: {
-            sampleRate: VOICE_INPUT_SAMPLE_RATE,
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        }),
-        connectIfNeeded,
-      ]);
-
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error('Voice recording setup timed out')),
-          VOICE_RECORDING_SETUP_TIMEOUT_MS
-        );
-      });
-
-      const [streamResult, connectResult] = (await Promise.race([
-        setupPromise,
-        timeoutPromise,
-      ])) as [PromiseSettledResult<MediaStream>, PromiseSettledResult<void>];
-
-      // Handle partial failures - clean up whatever succeeded
-      if (streamResult.status === 'rejected' || connectResult.status === 'rejected') {
-        // Explicitly stop stream tracks if mic was obtained but WS failed
-        if (streamResult.status === 'fulfilled') {
-          streamResult.value.getTracks().forEach(track => track.stop());
-        }
-        // Service cleanup happens in outer catch via cleanupService()
-        const reason =
-          streamResult.status === 'rejected'
-            ? streamResult.reason
-            : (connectResult as PromiseRejectedResult).reason;
-        throw reason instanceof Error ? reason : new Error(String(reason));
-      }
-
-      // Both succeeded - assign refs
-      const stream = streamResult.value;
+      const controller = new AbortController();
+      setupController.current = controller;
+      const stream = await openRecordingInputs(
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            audio: {
+              sampleRate: VOICE_INPUT_SAMPLE_RATE,
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          }),
+        () => (service.isConnected ? Promise.resolve() : service.connect()),
+        controller.signal,
+        VOICE_RECORDING_SETUP_TIMEOUT_MS
+      );
+      setupController.current = null;
       mediaStreamRef.current = stream;
 
       logger.debug('voice_input_mic_and_ws_ready', { component: 'useVoiceInput' });
@@ -373,6 +347,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       // Step 3: Create AudioWorklet (uses cached blob URL)
       // Shared with the meeting recorder (ADR-258): one worklet source, cached per chunk size.
       await audioContext.audioWorklet.addModule(getPcmWorkletUrl(VOICE_INPUT_CHUNK_SIZE));
+      if (cancelledRef.current) {
+        cleanupAudio();
+        cleanupService();
+        return;
+      }
 
       const workletNode = new AudioWorkletNode(audioContext, PCM_WORKLET_PROCESSOR_NAME);
       workletNodeRef.current = workletNode;
@@ -398,6 +377,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       cleanupService();
 
       const error = err instanceof Error ? err : new Error(String(err));
+      if (error.name === 'AbortError') return;
 
       // Provide user-friendly error for permission denied
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -436,12 +416,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       logger.info('voice_input_recording_stopped', { component: 'useVoiceInput' });
     } else if (state === 'connecting') {
       // Cancel in-progress startup (user released button before recording started)
-      cancelledRef.current = true;
+      cleanupAudio();
+      cleanupService();
       setState('idle');
       logger.info('voice_input_startup_cancelled', { component: 'useVoiceInput' });
     }
     // 'idle' and 'processing' states: noop
-  }, [state, cleanupAudio]);
+  }, [state, cleanupAudio, cleanupService]);
 
   // Pre-warm WebSocket connection in background when idle.
   // This acquires a ticket and opens the WS ahead of time so that
@@ -460,13 +441,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       prewarmedServiceRef.current?.dispose();
       prewarmedServiceRef.current = null;
 
+      const warmService = new VoiceInputService({
+        onTranscription: () => {},
+        onConnectionChange: () => {},
+        onError: () => {},
+      });
       try {
-        const warmService = new VoiceInputService({
-          onTranscription: () => {},
-          onConnectionChange: () => {},
-          onError: () => {},
-        });
-
         await warmService.connect();
 
         if (isMounted) {
@@ -476,6 +456,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
           warmService.dispose();
         }
       } catch {
+        warmService.dispose();
         // Non-critical — startRecording will create its own connection
         logger.debug('voice_input_ws_prewarm_failed', { component: 'useVoiceInput' });
       }
@@ -512,4 +493,24 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     stopRecording,
     isSupported,
   };
+}
+
+/** Admission is synchronous: a second mounted field cannot race the first media request. */
+function admitRecording(
+  supported: boolean,
+  starting: boolean,
+  state: VoiceInputState,
+  owner: symbol,
+  refuse: (error: Error) => void
+): boolean {
+  if (starting || state !== 'idle') return false;
+  if (!supported) {
+    refuse(new Error('Voice input is not supported in this browser'));
+    return false;
+  }
+  if (!claimVoiceInput(owner)) {
+    refuse(new Error('Microphone is already in use'));
+    return false;
+  }
+  return true;
 }

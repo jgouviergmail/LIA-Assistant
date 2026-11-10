@@ -1,6 +1,6 @@
 /**
  * How every form of the Tools opens and ends (owner, 2026-11-06): the head at the left at every
- * width, « Cancel » in « Delete »'s style, confirmations included, the act last in reading order.
+ * width, a neutral « Cancel », confirmations included, the act last in reading order.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +9,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 
 import { CancelButton, ToolActions, ToolDialogHeader, useToolConfirm } from '../ToolForm';
 
-const DELETE_STYLE = buttonVariants({ variant: 'destructive' });
+const CANCEL_STYLE = buttonVariants({ variant: 'outline' });
 
 function Question() {
   const { confirm, confirmDialog } = useToolConfirm();
@@ -24,11 +24,11 @@ function Question() {
 }
 
 describe('CancelButton', () => {
-  it('wears the style of « Delete »', () => {
+  it('offers a neutral way out', () => {
     renderWithProviders(<CancelButton lng="en" />);
 
     const cancel = screen.getByRole('button', { name: 'common.cancel' });
-    for (const token of DELETE_STYLE.split(' ')) expect(cancel.className).toContain(token);
+    for (const token of CANCEL_STYLE.split(' ')) expect(cancel.className).toContain(token);
   });
 
   it('never submits the form it stands in', async () => {
@@ -79,7 +79,7 @@ describe('useToolConfirm', () => {
     await user.click(screen.getByRole('button', { name: 'ask' }));
 
     const cancel = await screen.findByRole('button', { name: 'common.cancel' });
-    for (const token of DELETE_STYLE.split(' ')) expect(cancel.className).toContain(token);
+    for (const token of CANCEL_STYLE.split(' ')) expect(cancel.className).toContain(token);
     expect(screen.getByText('Delete it?').parentElement).toHaveClass('text-left');
   });
 });

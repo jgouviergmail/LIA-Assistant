@@ -8,18 +8,19 @@
  * push, the assistant's access, the statistics) stays in Settings › SMS.
  *
  * Offered where the instance offers SMS now (`smsAvailable`, the operator's
- * switch included); elsewhere the page says so and reads nothing. Every change
- * is a reviewed command (`SmsConfirmation`), and the views re-read in place
- * when one lands (the source-owned `sms` resource).
+ * switch included); elsewhere the page says so and reads nothing. Changes use
+ * the existing command writer: one message is deleted by its explicit click,
+ * other scopes are reviewed in `SmsConfirmation`. Views re-read in place
+ * when a change lands (the source-owned `sms` resource).
  */
-import { MessageSquareText, RefreshCw } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 
 import { SmsArchiveErasure } from '@/components/sms/SmsArchiveErasure';
 import { SmsArchiveSection } from '@/components/sms/SmsArchiveSection';
+import { SmsArchiveActions } from '@/components/sms/SmsArchiveActions';
 import { SmsBlockedSenders } from '@/components/sms/SmsBlockedSenders';
 import { SmsConfirmation } from '@/components/sms/SmsConfirmation';
 import { SmsErasureProvider } from '@/components/sms/SmsErasure';
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
 import { useAppConfig } from '@/hooks/useAppConfig';
@@ -46,13 +47,9 @@ export function SmsWorkspace({ lng }: { lng: Language }) {
         description={t('sms.description')}
         actions={
           offered && owner ? (
-            <Button
-              variant="outline"
-              onClick={() => publishApplicationResources(owner, new Set(['sms']))}
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              {t('common.refresh')}
-            </Button>
+            <SmsArchiveActions
+              onRefresh={() => publishApplicationResources(owner, new Set(['sms']))}
+            />
           ) : null
         }
       />

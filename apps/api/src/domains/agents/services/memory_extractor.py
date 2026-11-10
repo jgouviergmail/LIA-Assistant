@@ -80,7 +80,7 @@ from src.domains.proactive_discussions.reply_receipts import (
     acknowledge_completed_reply,
     acknowledge_empty_reply,
 )
-from src.domains.shared.extraction_targets import find_last_user_message
+from src.domains.shared.extraction_targets import extraction_window, find_last_user_message
 from src.domains.shared.provenance_capture import record_origin
 from src.domains.users.extraction_consent import ExtractionKind, snapshot_extraction_consent
 from src.infrastructure.llm import get_llm
@@ -306,9 +306,7 @@ async def extract_memories_background(
                 )
             return 0
 
-        # Get context messages (last 4 before target)
-        context_start = max(0, last_human_index - 3)
-        context_messages = messages[context_start : last_human_index + 1]
+        context_messages = extraction_window(messages, last_human_index)
         conversation = _format_messages_for_extraction(context_messages)
 
         # ================================================================
@@ -441,6 +439,7 @@ async def extract_memories_background(
 
         # Parse result into actions
         actions = parse_extraction_result(result_content)
+        observation.set_proposals(len(actions))
 
         if not actions:
             await acknowledge_empty_reply(user_id, parent_run_id, result_content)

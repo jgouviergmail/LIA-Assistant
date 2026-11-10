@@ -4,6 +4,7 @@ import { AmbientAccessories } from '../AmbientAccessories';
 import { EyesFace } from '../EyesFace';
 import { activeFrameSubscribers } from '../rig/scheduler';
 import { installSpiritBrowser } from '@/components/spirit/__tests__/browser';
+import { SCARF_WRAP_SEGMENTS } from '../volume/scarf-wrap';
 
 beforeEach(() => installSpiritBrowser());
 afterEach(() => {
@@ -77,7 +78,39 @@ describe('offline weather decorations', () => {
         staticPose
       />
     );
-    expect(container.querySelectorAll('.lia-ambient-prop')).toHaveLength(12);
+    // Nimbo's halves have separate paint ownership beside the rotating head;
+    // all other weather props keep their original attachment inside the head.
+    const slots = [...container.querySelectorAll('.lia-ambient-weather')];
+    expect(
+      slots.map(slot => [...slot.classList].find(name => name.startsWith('lia-ambient-weather--')))
+    ).toEqual([
+      'lia-ambient-weather--cold',
+      'lia-ambient-weather--cold',
+      'lia-ambient-weather--rain',
+      'lia-ambient-weather--storm',
+      'lia-ambient-weather--freezing',
+      'lia-ambient-weather--snow',
+      'lia-ambient-weather--hot',
+      'lia-ambient-weather--heat',
+      'lia-ambient-weather--fog',
+      'lia-ambient-weather--wind',
+      'lia-ambient-weather--night',
+    ]);
+    const head = container.querySelector('.lia-head');
+    const cold = container.querySelectorAll('.lia-ambient-weather--cold');
+    expect(cold).toHaveLength(2);
+    for (const half of cold) {
+      expect(half).toHaveClass('lia-scarf-wrap');
+      expect(half).toHaveAttribute('aria-hidden', 'true');
+      expect(half.parentElement).toBe(head?.parentElement);
+      expect(half.querySelectorAll('.lia-scarf-wrap-facet')).toHaveLength(SCARF_WRAP_SEGMENTS / 2);
+      expect(half.querySelectorAll('.lia-scarf-wrap-layer')).toHaveLength(1);
+    }
+    expect(head?.querySelectorAll('.lia-ambient-weather')).toHaveLength(9);
+    expect(head?.querySelector('.lia-scarf-wrap')).toBeNull();
+    expect(container.querySelectorAll('.lia-scarf-wrap-knot')).toHaveLength(1);
+    expect(container.querySelectorAll('.lia-scarf-wrap-tail')).toHaveLength(1);
+    expect(container.querySelectorAll('.lia-ambient-prop')).toHaveLength(11);
     expect(container.querySelectorAll('img, canvas')).toHaveLength(0);
     expect(activeFrameSubscribers()).toBe(0);
   });

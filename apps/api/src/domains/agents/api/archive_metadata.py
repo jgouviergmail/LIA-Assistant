@@ -55,7 +55,9 @@ from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.expressivity.activity_summary import ActivitySnapshot
 from src.domains.agents.services.streaming.followup_metadata import (
+    TurnExtras,
     with_followup_suggestions,
+    with_habit_proposal,
     with_initiative_motivation,
 )
 from src.domains.agents.services.streaming.trace_capture import with_persisted_trace
@@ -189,8 +191,7 @@ def build_assistant_metadata(
     trace_capture: Any,
     duration_ms: int,
     run_id: str,
-    followup_suggestions: Any,
-    initiative_motivation: Any,
+    extras: TurnExtras,
     effects: list[dict[str, Any]] | None,
     expressivity: object = None,
     activity: ActivitySnapshot | None = None,
@@ -205,8 +206,8 @@ def build_assistant_metadata(
         trace_capture: The turn's ``TraceCapture`` (only ``snapshot()`` is read).
         duration_ms: Wall-clock duration of the turn.
         run_id: Correlates the emitted logs with the rest of the turn.
-        followup_suggestions: Tappable follow-up chips, when any.
-        initiative_motivation: Provenance line of a proactive turn, when any.
+        extras: What the run handed its stream besides the answer: the
+            follow-up chips, the provenance line, the habit proposal card.
         effects: What the turn performed (ADR-263), when anything.
 
     Returns:
@@ -216,8 +217,9 @@ def build_assistant_metadata(
     metadata = with_persisted_trace(
         metadata, trace_capture.snapshot(), duration_ms=duration_ms, run_id=run_id
     )
-    metadata = with_followup_suggestions(metadata, followup_suggestions)
-    metadata = with_initiative_motivation(metadata, initiative_motivation)
+    metadata = with_followup_suggestions(metadata, extras.followups)
+    metadata = with_initiative_motivation(metadata, extras.motivation)
+    metadata = with_habit_proposal(metadata, extras.habit_proposal)
     metadata = with_performed_effects(metadata, effects)
     metadata = with_companion_metadata(metadata, expressivity, activity)
     metadata = {**metadata, **(card_metadata or {}), **(efficacy_envelope or {})}

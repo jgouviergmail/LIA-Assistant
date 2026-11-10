@@ -27,7 +27,7 @@ from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
 
-NOW = datetime.now(UTC)
+NOW = datetime(2026, 11, 9, 8, tzinfo=UTC)
 
 
 async def _user(db: AsyncSession, name: str) -> User:
@@ -66,6 +66,11 @@ async def _action(
     elif outcome is EffectStatus.FAILED:
         await repository.close_failure(claimed.effect.id, claimed.claim_token, error_code="E1")
     await db.flush()
+    # Claims use the real clock; the report's fixture period is deliberately fixed.
+    # Explicitly date every action so collection/execution delays cannot age it out.
+    await db.execute(
+        update(AgentEffect).where(AgentEffect.id == claimed.effect.id).values(claimed_at=NOW)
+    )
     return claimed.effect
 
 

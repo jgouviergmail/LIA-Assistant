@@ -824,7 +824,12 @@ test('LIA writes a description from inside the editor, the person keeping the la
         handler: async route => {
           asked.push(route.request().postDataJSON());
           await route.fulfill({
-            json: { text: 'The committee reviews the agenda.', subject: null, cut: false, usage: null },
+            json: {
+              text: 'The committee reviews the agenda.',
+              subject: null,
+              cut: false,
+              usage: null,
+            },
           });
         },
       },
@@ -923,12 +928,12 @@ test('the keyboard opens an event and gets its link back when it closes', async 
 });
 
 /* PHONE LINES: the owner's remarks of 2026-11-06. */
-for (const width of [390, 360]) {
+for (const width of [390, 360, 320]) {
   test(`a phone reads the calendar line by line at ${width}px`, async ({
     page,
     authenticate,
     mockApi,
-  }) => {
+  }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await authenticate({ timezone: 'Europe/Paris' });
     await playTheApi(mockApi);
@@ -977,6 +982,22 @@ for (const width of [390, 360]) {
     await expectInside(detail, ask);
     await expect(detail.getByRole('button', { name: 'More actions' })).toHaveCount(0);
     await expectNoOverflow(page, `the event's acts at ${width}px`);
+
+    // The longer French label must keep the same header row on the smallest phone.
+    await page.goto(`/fr/dashboard/tools/calendar?view=agenda&day=${TODAY}`);
+    await waitForHydration(page, 'button');
+    const frenchTool = page.getByRole('region', { name: 'Agenda', exact: true });
+    const frenchSearch = page.getByRole('button', { name: 'Chercher dans tes outils' });
+    const frenchRefresh = page.getByRole('button', { name: 'Actualiser', exact: true });
+    const frenchEvent = page.getByRole('button', { name: 'Nouvel événement' }).first();
+    await expect(frenchEvent).toBeVisible();
+    await expectOnOneLine(frenchSearch, frenchRefresh, frenchEvent);
+    await expectSameStart(frenchSearch, frenchTool);
+    await expectSameEnd(frenchEvent, frenchTool);
+    await expectNoOverflow(page, `French calendar actions at ${width}px`);
+    await page.screenshot({ path: testInfo.outputPath(`calendar-actions-fr-${width}.png`) });
+    await frenchEvent.click();
+    await expect(page.getByRole('dialog', { name: 'Nouvel événement' })).toBeVisible();
   });
 }
 

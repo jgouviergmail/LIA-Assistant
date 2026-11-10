@@ -240,7 +240,7 @@ Services containers : PostgreSQL (pgvector) + Redis, sur les images exactes de l
 | Gate de couverture par markers (F006) | `task test:markers`               |
 
 Ce job mesure sans plancher : le plancher porte sur les deux suites ensemble,
-dans le job Backend Coverage (AC-030b). Le seuil de couverture est **78 %**, et il
+dans le job Backend Coverage (AC-030b). Le seuil de couverture est **87 %**, et il
 a **une seule source de verite** : `apps/api/pyproject.toml` (`--cov-fail-under`),
 dont le `Taskfile.yml` reprend la valeur dans la tâche qui l'applique
 (`test:backend:coverage`, `coverage report --fail-under`). Deux gardes la
@@ -433,10 +433,11 @@ qui survivent aux routes de page et au mode hors ligne de Chromium. Le document
 reste disponible pour les captures et traces d'échec ; les callbacks différés
 finissent dans leur test et les attentes externes sont annulables.
 
-La police Material Symbols est servie par la
-[fixture locale](../../apps/web/e2e/fixtures/fonts/README.md), épinglée avec sa
-provenance et sa licence. Les scans mesurent les vrais glyphes sans appeler le
-CDN. Le `postinstall` E2E applique un
+La police Material Symbols est [auto-hébergée par l’application](../../apps/web/public/fonts/material-symbols/README.md),
+épinglée avec sa provenance et sa licence. Les tests la chargent depuis le vrai
+serveur sans interception des fichiers, afin de détecter un asset absent de
+l’image déployée. Les scans mesurent les vrais glyphes sans appeler le CDN.
+Le `postinstall` E2E applique un
 [patch axe contrôlé](../../apps/web/e2e/scripts/patch-axe-transfer.cjs) aux exports
 CJS et ESM : blocs d’au plus 1 048 576 unités de code UTF-16, longueur et empreinte vérifiées avant
 assemblage, fermeture de la page même en cas d’échec. Une version ou source
@@ -836,7 +837,7 @@ from the file: rows missing, pins stale).
 | `katex`                                           | One KaTeX: `rehype-katex` rendered with 0.16 while the layout served the 0.18 stylesheet; exact because 0.18.11 is deprecated upstream                                                                                                                                           | dependency lot 1 (2026-10-02)             |
 | `@ungap/structured-clone`                         | 1.3.0 is deprecated upstream (« Potential CWE-502 »); production code through react-markdown and the rehype plugins                                                                                                                                                              | dependency lot 1 (2026-10-02)             |
 | `source-map-js`                                   | GHSA-68fv-2mgg-jv7q: indexed source-map offsets can block the event loop. The fixed patch applies to every consumer.                                                                                                                                                             | release v2.6.1                            |
-| `@tailwindcss/typography>postcss-selector-parser` | GHSA-rj75-hqrm-r3gf: flat selectors can exhaust CPU. The override is limited to typography; its parser API and compiled project styles are qualified before release.                                                                                                             | release v2.6.1                            |
+| `@tailwindcss/typography>postcss-selector-parser` | GHSA-rj75-hqrm-r3gf: flat selectors can exhaust CPU; then GHSA-67xj-gfww-g738 (quadratic selector parsing, 7.1.8, found by the dependency watch). The override is limited to typography; its parser API and compiled project styles are qualified before release. | release v2.6.1                            |
 | `re2js`                                           | GHSA-gg6h-894w-4m9c (high): quadratic-time lookbehind matching, found by the dependency watch. Reached through `firebase` → `@firebase/firestore`, which LIA never imports (only `firebase/app` and `firebase/messaging`); the patched line is inside Firestore's own `^2.8.3` range | release v3.2.0                            |
 | `es-toolkit`                                      | GHSA-9qjg-mfqr-5gqq and GHSA-mc5p-3gj7-h877 (high), GHSA-2h47-xrv3-xpjm and GHSA-hmqc-2jxx-4392: prototype pollution and code injection in its `compat` helpers, found by the dependency watch. Reached through `mermaid` and `recharts`, on the 1.x line both declare. |
 

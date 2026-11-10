@@ -48,6 +48,7 @@ const first: DiscussionOpeningPage = {
   items: [opening('a', 'pending'), opening('b', 'engaged')],
   total: 11,
   next_cursor: ID.b,
+  as_of: '2026-10-20T14:00:00Z',
 };
 
 beforeEach(() => {
@@ -69,25 +70,33 @@ it('badges the folded section with the hub count and reads no page until it open
   expect(get).not.toHaveBeenCalled();
   unfold('notifications_hub.sections.discussions.title');
   await waitFor(() => expect(get).toHaveBeenCalled());
-  expect(get.mock.lastCall?.[0]).toBe('/proactive-discussions/openings');
-  expect(get.mock.lastCall?.[1]?.params).toEqual({ limit: 10 });
+  expect(get.mock.lastCall?.[0]).toBe('/proactive-discussions/openings?limit=10&offset=0');
+  expect(get.mock.lastCall?.[1]?.params).toEqual({ q: '' });
 });
 
-it('lists each opening, without a state badge, and pages forward and back by cursor', async () => {
+it('lists each opening, without a state badge, and preserves the server cut on later pages', async () => {
   render(<DiscussionsHubSection total={11} locale="fr-FR" />);
   unfold('notifications_hub.sections.discussions.title');
   expect(await screen.findByText('A fictional opening a')).toBeVisible();
   // Owner request 2026-10-21: the date titles the row, the words follow.
   expect(screen.queryByText(/discussions\.states\./)).toBeNull();
-  get.mockResolvedValue({ items: [opening('c', 'engaged')], total: 11, next_cursor: null });
+  get.mockResolvedValue({
+    items: [opening('c', 'engaged')],
+    total: 11,
+    next_cursor: null,
+    as_of: first.as_of,
+  });
   fireEvent.click(screen.getByRole('button', { name: 'common.next' }));
   await waitFor(() =>
-    expect(get.mock.lastCall?.[1]?.params).toEqual({ limit: 10, after_id: ID.b })
+    expect(get.mock.lastCall?.[1]?.params).toEqual({ q: '', as_of: first.as_of })
   );
+  expect(get.mock.lastCall?.[0]).toBe('/proactive-discussions/openings?limit=10&offset=10');
   expect(await screen.findByText('A fictional opening c')).toBeVisible();
   get.mockResolvedValue(first);
   fireEvent.click(screen.getByRole('button', { name: 'common.previous' }));
-  await waitFor(() => expect(get.mock.lastCall?.[1]?.params).toEqual({ limit: 10 }));
+  await waitFor(() =>
+    expect(get.mock.lastCall?.[0]).toBe('/proactive-discussions/openings?limit=10&offset=0')
+  );
   expect(await screen.findByText('A fictional opening a')).toBeVisible();
 });
 

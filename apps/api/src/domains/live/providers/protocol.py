@@ -17,6 +17,7 @@ from typing import Any, Literal, Protocol, runtime_checkable
 from src.domains.connectors.models import ConnectorType
 from src.domains.live.preferences import LivePreferences, read_live_preferences
 from src.domains.live.schemas import LiveModel, LiveVendorBill, LiveVoicesResponse
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,9 @@ class LiveSetupInputs:
             on a DIRECT session, which delegates nothing.
         direct_tools: The read-only tools a DIRECT session declares (ADR-300
             wave 4), provider-neutral declarations; empty on a delegated one.
+        cue_dialect: The NAME of the dialect the session's engine performs
+            (ADR-373): decided at the start, frozen for the session's life —
+            a wake re-renders the mandate with it, never with a fresh read.
     """
 
     model: str
@@ -94,6 +98,7 @@ class LiveSetupInputs:
     target_tokens: int
     direct_tools: tuple[dict[str, Any], ...] = ()
     audio_transport: Literal["websocket", "webrtc"] = "websocket"
+    cue_dialect: str = NO_CUES.name
 
 
 def setup_inputs_to_dict(inputs: LiveSetupInputs) -> dict[str, Any]:
@@ -122,6 +127,8 @@ def setup_inputs_from_dict(record_inputs: dict[str, Any]) -> LiveSetupInputs:
         target_tokens=int(record_inputs["target_tokens"]),
         direct_tools=tuple(dict(tool) for tool in record_inputs.get("direct_tools") or ()),
         audio_transport=record_inputs.get("audio_transport", "websocket"),
+        # A record written before the wire existed is words alone.
+        cue_dialect=str(record_inputs.get("cue_dialect") or NO_CUES.name),
     )
 
 
@@ -178,6 +185,15 @@ class LiveProvider(Protocol):
 
     def build_setup(self, inputs: LiveSetupInputs) -> dict[str, Any]:
         """The setup message the browser sends first, as documented JSON."""
+        ...
+
+    async def expression_dialect(self, api_key: str, model: str) -> CueDialect:
+        """How the model's engine expresses itself (ADR-373): the cues it performs.
+
+        A native-audio model says its delivery in words (:data:`NO_CUES`); an
+        agent whose engine performs audio tags is offered LIA's cues. Read once,
+        at the start; the session keeps the answer for its life.
+        """
         ...
 
     async def mint(

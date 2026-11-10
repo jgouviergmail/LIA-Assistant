@@ -1,5 +1,6 @@
 /** Typed notification sources: strict API mocks, no real data or paid provider. */
 import type { Page } from '@playwright/test';
+import type { HabitProposal } from '../../src/hooks/useHabitProposals';
 import type { HeartbeatNotification } from '../../src/hooks/useHeartbeatHistory';
 import type { HubCounts } from '../../src/hooks/useHubCounts';
 import type { TicketRow } from '../../src/types/workboard';
@@ -197,7 +198,7 @@ const ticket: TicketRow = {
   updated_at: NOTIFICATIONS_NOW,
 };
 
-export const NOTIFICATION_COUNTS: HubCounts = {
+export const NOTIFICATION_COUNTS = {
   peer_messages: notificationPeers.length,
   proactive: notificationProactive.length,
   interests: notificationInterests.length,
@@ -205,7 +206,7 @@ export const NOTIFICATION_COUNTS: HubCounts = {
   scheduled: scheduled.length,
   offers: 0,
   workboard: 1,
-};
+} satisfies HubCounts;
 
 export interface NotificationRead {
   path: string;
@@ -216,9 +217,9 @@ export interface NotificationRead {
 interface NotificationRouteOptions {
   failInterestsOnce?: boolean;
   disableOptionalFeatures?: boolean;
-  includeOffer?: boolean;
-  offerDecisionGate?: Promise<void>;
-  offerDecisions?: string[];
+  includeProposal?: boolean;
+  proposalDecisionGate?: Promise<void>;
+  proposalDecisions?: string[];
 }
 
 /** Every data read has a bounded and exact query; wrong methods fall through to 501. */
@@ -227,7 +228,9 @@ function paged<T>(
   key: string,
   rows: readonly T[],
   reads: NotificationRead[],
-  failOnce = false
+  failOnce = false,
+  /** What the page says beyond its rows (`learning_enabled` for the proposals). */
+  extra: Record<string, unknown> = {}
 ): MockRoute {
   let pendingFailure = failOnce;
   return {
@@ -242,7 +245,8 @@ function paged<T>(
         !query.has('offset') ||
         !Number.isInteger(offset) ||
         offset < 0 ||
-        [...query.keys()].some(name => name !== 'limit' && name !== 'offset')
+        [...query.keys()].some(name => !['limit', 'offset', 'q', 'as_of'].includes(name)) ||
+        Boolean(query.get('q'))
       ) {
         throw new Error(`Unexpected notification query for ${path}: ${query.toString()}`);
       }
@@ -255,7 +259,7 @@ function paged<T>(
         body: JSON.stringify(
           status === 503
             ? { detail: 'Temporary notification source failure' }
-            : { [key]: rows.slice(offset, offset + limit), total: rows.length }
+            : { [key]: rows.slice(offset, offset + limit), total: rows.length, ...extra }
         ),
       });
     },
@@ -268,17 +272,25 @@ export function notificationsRoutes(
   options: NotificationRouteOptions = {}
 ): MockRoute[] {
   const enabled = !options.disableOptionalFeatures;
-  const offerRows: HeartbeatNotification[] = options.includeOffer
+  const proposalRows: HabitProposal[] = options.includeProposal
     ? [
         {
           id: id(95),
-          created_at: '2026-10-15T10:00:00Z',
-          content:
-            'Souhaites-tu préparer le prochain rendez-vous avec les équipes internationales ? Rien ne sera envoyé sans ta validation.',
-          sources_used: ['MISSED_ROUTINE'],
-          priority: 'medium',
-          user_feedback: null,
-          trigger: 'tick',
+          kind: 'automate_need',
+          key: 'weather',
+          facts: {
+            domain: 'weather',
+            cadence: 'weekdays',
+            weekday: null,
+            hour: 7,
+            minute: 30,
+            distinct_days: 14,
+            active_days: 22,
+            part_of_day: 'morning',
+            existing_routine: null,
+          },
+          created_at: '2026-10-15T03:00:00Z',
+          updated_at: '2026-10-15T03:00:00Z',
         },
       ]
     : [];
@@ -298,6 +310,7 @@ export function notificationsRoutes(
           peers_enabled: enabled,
           heartbeat_enabled: enabled,
           workboard_enabled: enabled,
+          habits_enabled: enabled,
           activity_timeline_enabled: enabled,
         },
       },
@@ -310,34 +323,30 @@ export function notificationsRoutes(
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ ...NOTIFICATION_COUNTS, offers: offerRows.length }),
+          body: JSON.stringify({ ...NOTIFICATION_COUNTS, offers: proposalRows.length }),
         });
       },
     },
-    paged('/heartbeat/offers', 'notifications', offerRows, reads),
+    paged('/habits/proposals', 'proposals', proposalRows, reads, false, {
+      learning_enabled: true,
+    }),
     {
-      url: new RegExp('/api/v1/heartbeat/notifications/' + id(95) + '/feedback' + '$'),
-      method: 'PATCH',
+      url: new RegExp('/api/v1/habits/proposals/' + id(95) + '/(accept|dismiss|refuse)$'),
+      method: 'POST',
       handler: async (route, signal) => {
-        const payload: unknown = route.request().postDataJSON();
+        const verdict = new URL(route.request().url()).pathname.split('/').pop() ?? '';
+        options.proposalDecisions?.push(verdict);
         if (
-          !payload ||
-          typeof payload !== 'object' ||
-          !('feedback' in payload) ||
-          (payload.feedback !== 'thumbs_up' && payload.feedback !== 'thumbs_down')
-        )
-          throw new Error('Invalid offer feedback payload');
-        options.offerDecisions?.push(payload.feedback);
-        if (
-          options.offerDecisionGate &&
-          !(await waitForMockGate(options.offerDecisionGate, signal))
+          options.proposalDecisionGate &&
+          !(await waitForMockGate(options.proposalDecisionGate, signal))
         )
           return;
-        offerRows.splice(0);
+        proposalRows.splice(0);
+        const status = { accept: 'accepted', dismiss: 'dismissed', refuse: 'refused' }[verdict];
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true }),
+          body: JSON.stringify({ id: id(95), kind: 'automate_need', status, routine_id: null }),
         });
       },
     },

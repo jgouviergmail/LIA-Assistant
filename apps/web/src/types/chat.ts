@@ -153,7 +153,6 @@ export type SSEChunkType =
   | 'execution_step'
   // LARS: Registry-First Architecture (side-channel data)
   | 'registry_update'
-  | 'result_preview'
   | 'application_state_changed'
   // Debug Panel: Scoring metrics for threshold tuning (DEBUG=true only)
   | 'debug_metrics'
@@ -203,6 +202,9 @@ export interface DoneMetadata {
   // Lot 1-A3: provenance line of the chips — the initiative's own stated
   // trigger, persisted in the archived message_metadata like the chips.
   initiative_motivation?: string;
+  // ADR-375: the habit proposal this answer shows, as facts; untyped on
+  // purpose, read through `habitProposalOf` like the archived row.
+  habit_proposal?: unknown;
   // Token tracking metadata
   tokens_in?: number;
   tokens_out?: number;

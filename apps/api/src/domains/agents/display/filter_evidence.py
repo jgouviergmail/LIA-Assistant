@@ -38,11 +38,9 @@ class FilterEvidence:
     data: JsonValue = None
 
 
-def project_filter_evidence(
-    payload: Mapping[str, object], *, preserve_fields: bool = False
-) -> FilterEvidence:
+def project_filter_evidence(payload: Mapping[str, object]) -> FilterEvidence:
     omissions: list[bool] = []
-    data = _project(payload, set(), omissions, preserve_fields)
+    data = _project(payload, set(), omissions)
     return FilterEvidence(_text(data), not omissions, data)
 
 
@@ -60,9 +58,7 @@ def is_utf8_text(value: str) -> bool:
     return True
 
 
-def _project(
-    value: object, ancestors: set[int], omissions: list[bool], preserve_fields: bool
-) -> JsonValue:
+def _project(value: object, ancestors: set[int], omissions: list[bool]) -> JsonValue:
     if value is None:
         return None
     if isinstance(value, str):
@@ -96,12 +92,12 @@ def _project(
         return "[depth limit: nested evidence omitted]"
     parents = ancestors | {id(value)}
     if isinstance(value, Mapping):
-        return _project_fields(value, parents, omissions, preserve_fields)
-    return [_project(child, parents, omissions, preserve_fields) for child in value]
+        return _project_fields(value, parents, omissions)
+    return [_project(child, parents, omissions) for child in value]
 
 
 def _project_fields(
-    value: Mapping[object, object], parents: set[int], omissions: list[bool], preserve_fields: bool
+    value: Mapping[object, object], parents: set[int], omissions: list[bool]
 ) -> dict[str, JsonValue]:
     """Keep field names attached to their evidence, excluding transport metadata."""
     fields: dict[str, JsonValue] = {}
@@ -109,18 +105,18 @@ def _project_fields(
         if not isinstance(key, str) or not is_utf8_text(key):
             omissions.append(True)
             continue
-        if key == FIELD_DISPLAY_ONLY or (not preserve_fields and _is_transport_field(key)):
+        if key == FIELD_DISPLAY_ONLY or _is_transport_field(key):
             continue
         if key == CLASSIFICATION_KEY and (view := classification_view(child)) is not None:
             labels: dict[str, JsonValue] = dict(view)
             fields[key] = labels
             continue
-        fields[key] = _project(child, parents, omissions, preserve_fields)
+        fields[key] = _project(child, parents, omissions)
     return fields
 
 
 def _text(value: JsonValue) -> str:
-    """Retain the existing text seam; native decisions receive the typed tree."""
+    """Render the projected tree as the text the response's data block reads."""
     if value is None:
         return "null"
     if isinstance(value, dict):

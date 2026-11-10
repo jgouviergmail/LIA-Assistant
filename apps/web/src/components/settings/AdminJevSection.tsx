@@ -2,20 +2,34 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Workflow } from 'lucide-react';
+import { SlidersHorizontal, Workflow } from '@/lib/icons';
+import { JevGateThresholds } from '@/components/settings/JevGateThresholds';
+import { JevUsageStatisticsPanel } from '@/components/settings/JevUsageStatisticsPanel';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { JEV_STATISTICS_WINDOW_DAYS, useJevStatistics } from '@/hooks/useJevStatistics';
 import { useTranslation } from '@/i18n/client';
+import type { Language } from '@/i18n/settings';
 import { settingsSectionHref } from '@/lib/settings-sections';
-import type { JevSettings, JevToggleUpdate, JevUsage } from '@/types/jev';
+import type {
+  JevSettings,
+  JevThresholdUpdate,
+  JevToggleUpdate,
+  JevUsage,
+  JevUsageStatistics,
+  JevUsageStatus,
+} from '@/types/jev';
 import type { BaseSettingsProps } from '@/types/settings';
 
 const ENDPOINT = '/admin/llm-config/jev';
+const THRESHOLDS_ENDPOINT = `${ENDPOINT}/thresholds`;
 const PREFIX = 'settings.admin.jev';
 
 function RoutingSwitch({
@@ -57,6 +71,80 @@ function RoutingSwitch({
   );
 }
 
+/** One usage: its switch, what it does, its thresholds and its window of statistics. */
+function JevUsageBlock({
+  lng,
+  item,
+  busy,
+  statistics,
+  statisticsFailed,
+  onToggle,
+  onMoveThresholds,
+}: {
+  lng: Language;
+  item: JevUsageStatus;
+  busy: boolean;
+  statistics: JevUsageStatistics | undefined;
+  statisticsFailed: boolean;
+  onToggle: (usage: JevUsage, enabled: boolean) => void;
+  onMoveThresholds: (usage: JevUsage, values: Record<string, number>) => Promise<void>;
+}) {
+  const { t } = useTranslation(lng, 'translation');
+  const usageLabel = t(item.label_key);
+  return (
+    <div className="space-y-2">
+      <RoutingSwitch
+        id={`jev-${item.usage}`}
+        label={usageLabel}
+        checked={item.enabled}
+        description={t(`${PREFIX}.${item.effective ? 'active' : 'existing'}`)}
+        busy={busy}
+        onChange={enabled => onToggle(item.usage, enabled)}
+      />
+      <p className="px-1 text-sm text-muted-foreground">{t(`${PREFIX}.usageHelp.${item.usage}`)}</p>
+      {item.readiness !== 'ready' && (
+        <p className="px-1 text-sm text-muted-foreground">
+          {t(`${PREFIX}.readiness.${item.readiness}`)}
+        </p>
+      )}
+      {item.gates.length > 0 && (
+        <Disclosure
+          icon={SlidersHorizontal}
+          title={t(`${PREFIX}.thresholds.toggle`, { usage: usageLabel })}
+          titleClassName="whitespace-normal break-words"
+          meta={
+            item.qualified ? undefined : (
+              <Badge variant="warning">{t(`${PREFIX}.thresholds.outsideRecord`)}</Badge>
+            )
+          }
+          surface="nested"
+        >
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t(`${PREFIX}.thresholds.help`)}
+            </p>
+            <JevGateThresholds
+              lng={lng}
+              usage={item.usage}
+              gates={item.gates}
+              statistics={statistics?.gates}
+              busy={busy}
+              onCommit={values => onMoveThresholds(item.usage, values)}
+            />
+          </div>
+        </Disclosure>
+      )}
+      <JevUsageStatisticsPanel
+        lng={lng}
+        usageLabel={usageLabel}
+        days={JEV_STATISTICS_WINDOW_DAYS}
+        statistics={statistics}
+        failed={statisticsFailed}
+      />
+    </div>
+  );
+}
+
 export default function AdminJevSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
   const { data, loading, error, setData, refetch } = useApiQuery<JevSettings>(ENDPOINT, {
@@ -66,18 +154,24 @@ export default function AdminJevSection({ lng }: BaseSettingsProps) {
     method: 'PATCH',
     componentName: 'AdminJevSection',
   });
+  const { mutate: mutateThresholds, loading: savingThresholds } = useApiMutation<
+    JevThresholdUpdate,
+    JevSettings
+  >({ method: 'PATCH', componentName: 'AdminJevSection' });
+  const statistics = useJevStatistics();
   const inFlight = useRef(false);
   const [saveError, setSaveError] = useState(false);
   const [saved, setSaved] = useState(false);
-  const busy = saving || loading;
+  const busy = saving || savingThresholds || loading;
 
-  const toggle = async (usage: JevUsage | null, enabled: boolean) => {
+  /** One write at a time, whichever control asked: the server serializes them too. */
+  const save = async (send: () => Promise<JevSettings | undefined>) => {
     if (inFlight.current || busy) return;
     inFlight.current = true;
     setSaveError(false);
     setSaved(false);
     try {
-      const response = await mutate(ENDPOINT, { usage, enabled });
+      const response = await send();
       if (response) {
         setData(response);
         setSaved(true);
@@ -90,6 +184,10 @@ export default function AdminJevSection({ lng }: BaseSettingsProps) {
       inFlight.current = false;
     }
   };
+  const toggle = (usage: JevUsage | null, enabled: boolean) =>
+    save(() => mutate(ENDPOINT, { usage, enabled }));
+  const moveThresholds = (usage: JevUsage, values: Record<string, number>) =>
+    save(() => mutateThresholds(THRESHOLDS_ENDPOINT, { usage, values }));
 
   return (
     <SettingsSection
@@ -125,24 +223,16 @@ export default function AdminJevSection({ lng }: BaseSettingsProps) {
               onChange={enabled => void toggle(null, enabled)}
             />
             {data.usages.map(item => (
-              <div key={item.usage} className="space-y-2">
-                <RoutingSwitch
-                  id={`jev-${item.usage}`}
-                  label={t(item.label_key)}
-                  checked={item.enabled}
-                  description={t(`${PREFIX}.${item.effective ? 'active' : 'existing'}`)}
-                  busy={busy}
-                  onChange={enabled => void toggle(item.usage, enabled)}
-                />
-                <p className="px-1 text-sm text-muted-foreground">
-                  {t(`${PREFIX}.usageHelp.${item.usage}`)}
-                </p>
-                {item.readiness !== 'ready' && (
-                  <p className="px-1 text-sm text-muted-foreground">
-                    {t(`${PREFIX}.readiness.${item.readiness}`)}
-                  </p>
-                )}
-              </div>
+              <JevUsageBlock
+                key={item.usage}
+                lng={lng}
+                item={item}
+                busy={busy}
+                statistics={statistics.data?.usages.find(entry => entry.usage === item.usage)}
+                statisticsFailed={Boolean(statistics.error)}
+                onToggle={(usage, enabled) => void toggle(usage, enabled)}
+                onMoveThresholds={moveThresholds}
+              />
             ))}
             <InfoBox className="text-sm text-muted-foreground">
               {t(`${PREFIX}.fallbackHelp`)}
@@ -159,7 +249,9 @@ export default function AdminJevSection({ lng }: BaseSettingsProps) {
             variant="ghost"
             aria-disabled={busy}
             onClick={() => {
-              if (!busy) void refetch();
+              if (busy) return;
+              void refetch();
+              void statistics.refetch();
             }}
           >
             {t(`${PREFIX}.refresh`)}

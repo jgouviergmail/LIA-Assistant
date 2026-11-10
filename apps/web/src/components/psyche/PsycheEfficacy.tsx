@@ -10,7 +10,7 @@ import {
   Wrench,
   Users,
   ListChecks,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { Disclosure } from '@/components/ui/disclosure';
 import { useTranslation } from '@/i18n/client';

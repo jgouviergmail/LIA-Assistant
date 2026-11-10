@@ -29,6 +29,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.core.time_utils import now_utc
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 from src.domains.workboard.assignment_notifications import dispatch_committed_assignment_notices
 from src.domains.workboard.board_queries import BoardFilters
@@ -140,6 +141,7 @@ async def list_board(
 async def needs_me(
     limit: int = Query(default=20, ge=1, le=100, description="Page size."),
     offset: int = Query(default=0, ge=0, description="Page offset."),
+    criteria: DisplayQuery = Depends(display_query),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> NeedsMePage:
@@ -154,8 +156,12 @@ async def needs_me(
     Returns:
         The page and the exact total behind it.
     """
-    rows, total = await WorkboardService(db).needs_me(user, limit=limit, offset=offset)
-    return NeedsMePage(tickets=[TicketRow.model_validate(row) for row in rows], total=total)
+    rows, total = await WorkboardService(db).needs_me(
+        user, limit=limit, offset=offset, criteria=criteria
+    )
+    return NeedsMePage(
+        tickets=[TicketRow.model_validate(row) for row in rows], total=total, as_of=criteria.as_of
+    )
 
 
 @router.get(

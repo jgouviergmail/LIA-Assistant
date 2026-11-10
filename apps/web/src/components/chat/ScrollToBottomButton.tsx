@@ -15,7 +15,7 @@
  * parent owns positioning (sticky wrapper) and the aria-live announcement.
  */
 
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 export interface ScrollToBottomButtonProps {

@@ -18,6 +18,10 @@ from src.domains.live.mandate import (
     render_live_mandate,
     tone_lines,
 )
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS, NO_CUES
+from src.domains.voice_sessions.expression import PERSON_CUES
+from src.domains.voice_sessions.mandate import personality_block
 
 pytestmark = pytest.mark.unit
 
@@ -77,12 +81,12 @@ def test_native_delegation_names_no_function_and_says_delegate() -> None:
     assert not re.search(r"(?<!\{)\{[a-z_]+\}(?!\})", text)
 
 
-def test_personality_line_only_when_given() -> None:
+def test_the_personality_block_holds_the_configured_text_or_the_default_manner() -> None:
     without = render_live_mandate(_inputs())
-    with_it = render_live_mandate(_inputs(personality="Warm and brief."))
-    assert "Warm and brief." in with_it
-    assert live_lines()["no_personality"] in without
-    assert live_lines()["no_personality"] not in with_it
+    with_it = render_live_mandate(_inputs(personality="Dry and brief."))
+    assert personality_block("Dry and brief.", user_name="Alex") in with_it
+    assert live_lines()["default_personality"] in without
+    assert live_lines()["default_personality"] not in with_it
 
 
 def test_inner_state_and_tone_notes_are_said_only_when_they_exist() -> None:
@@ -133,3 +137,12 @@ def test_no_french_and_no_doubled_braces_in_the_prompt_files(name: str) -> None:
     text = read_prompt_file(name)
     assert not any(ch in text for ch in "àâéèêîôûç"), name
     assert "{{" not in text, name
+
+
+def test_the_cue_block_is_rendered_only_for_an_engine_that_performs_cues() -> None:
+    """ADR-373: a voice whose engine performs cues is told which, the personality choosing."""
+    cues = render_live_mandate(_inputs(cue_dialect=ELEVENLABS_AGENT_TAGS))
+    words = render_live_mandate(_inputs(cue_dialect=NO_CUES))
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES) in cues
+    assert "<voice_cues>" not in words
+    assert "\n\n\n" not in words and "\n\n\n" not in cues

@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Volume2 } from 'lucide-react';
+import { Volume2 } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { formatCost, formatDuration } from '../../utils/formatters';
 import type { VoiceMetrics } from '@/types/chat';

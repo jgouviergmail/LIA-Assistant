@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 interface UsageBlockedBannerProps {

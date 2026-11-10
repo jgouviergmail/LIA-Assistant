@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import SMS_DISPLAY_INDEX_VERSION
 from src.core.exceptions import AuthorizationError, raise_bearer_auth_failed, raise_invalid_input
 from src.core.security.utils import encrypt_data
 from src.domains.feature_switches.guard import require_capability_fresh
@@ -28,11 +29,12 @@ from src.domains.ingestion.models import (
 from src.domains.ingestion.principal import IngestionPrincipal
 from src.domains.ingestion.registry import IngestionResource, policy_for
 from src.domains.ingestion.token_auth import hash_token
+from src.domains.sms.index_projection import SmsIndexProjection, prepare_index_projection
 from src.domains.sms.models import SmsMessage, SmsSearchTerm, SmsSenderBlock
 from src.domains.sms.preferences import SmsPreferences
 from src.domains.sms.relation_invalidation import invalidate_sms_debriefs
 from src.domains.sms.schemas import IngestItemReceipt, SmsIngestItem, SmsIngestResponse, Verdict
-from src.domains.sms.search import blind_digest, blind_terms
+from src.domains.sms.search import blind_digest
 from src.domains.sms.sender_policy import normalize_sender
 from src.domains.sms.sensitive_filter import FILTER_VERSION, contains_access_secret
 from src.domains.users.models import User
@@ -162,9 +164,12 @@ class SmsIngestionService:
             principal.user_id, "sender", normalize_sender(item.sender), key=key
         )
         verdict = self._verdict(item.body, sender_hash in blocked)
-        terms = blind_terms(principal.user_id, item.body, key=key) if verdict == "stored" else ()
-        index_bytes = sum(len(term) // 2 for term in terms[: settings.sms_max_index_terms])
-        size = len(item.sender.encode()) + len(item.body.encode()) + index_bytes
+        projection = (
+            await prepare_index_projection(principal.user_id, item.sender, item.body, key=key)
+            if verdict == "stored"
+            else None
+        )
+        size = projection.logical_bytes if projection is not None else 0
         if verdict == "stored" and size > budget.available_bytes:
             return IngestItemReceipt(index=index, verdict="storage_full")
         receipt = IngestionReceipt(
@@ -179,10 +184,10 @@ class SmsIngestionService:
         self.db.add(receipt)
         await self.db.flush()
         budget.consume(size if verdict == "stored" else 0)
-        if verdict != "stored":
+        if projection is None:
             return IngestItemReceipt(index=index, verdict=verdict)
         message_id = await self._store(
-            principal.user_id, receipt.id, item, sender_hash, size, push, terms=terms
+            principal.user_id, receipt.id, item, sender_hash, push, projection=projection
         )
         return IngestItemReceipt(index=index, verdict="stored", message_id=message_id)
 
@@ -198,10 +203,9 @@ class SmsIngestionService:
         receipt_id: UUID,
         item: SmsIngestItem,
         sender_hash: str,
-        size: int,
         push: bool,
         *,
-        terms: tuple[str, ...],
+        projection: SmsIndexProjection,
     ) -> UUID:
         message = SmsMessage(
             id=uuid4(),
@@ -213,8 +217,8 @@ class SmsIngestionService:
             origin=item.o,
             received_at=item.date,
             date_kind=item.date_kind,
-            logical_bytes=size,
-            search_complete=len(terms) <= settings.sms_max_index_terms,
+            logical_bytes=projection.logical_bytes,
+            search_complete=projection.complete,
         )
         self.db.add(message)
         await self.db.flush()
@@ -222,7 +226,10 @@ class SmsIngestionService:
             SmsSearchTerm(
                 user_id=owner,
                 message_id=message.id,
-                term_hashes=[bytes.fromhex(term) for term in terms[: settings.sms_max_index_terms]],
+                term_hashes=list(projection.terms),
+                display_hashes=list(projection.display_terms),
+                display_version=SMS_DISPLAY_INDEX_VERSION,
+                display_complete=projection.display_complete,
             )
         )
         if push:

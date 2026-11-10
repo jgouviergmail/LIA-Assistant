@@ -130,14 +130,9 @@ if (['capture', 'typecheck'].includes(mode)) {
     pathToFileURL(path.join(output, 'compiled/e2e/capture/public-screenshots.js')).href
   );
   const program = path.join(output, 'capture.js');
-  const fontCss = fs.readFileSync(
-    path.join(repo, 'apps/web/e2e/fixtures/fonts/material-symbols.css'),
-    'utf8'
-  );
-  const fontPath = path.join(repo, 'apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2');
   fs.writeFileSync(
     program,
-    createCaptureCode(baseUrl, output, skillFrame, nativeCards.publicAgendaHtml, fontCss, fontPath)
+    createCaptureCode(baseUrl, output, skillFrame, nativeCards.publicAgendaHtml)
   );
   const { createApiNetworkGuard } = await import(
     pathToFileURL(path.join(output, 'compiled/e2e/fixtures/api-network-guard.js')).href

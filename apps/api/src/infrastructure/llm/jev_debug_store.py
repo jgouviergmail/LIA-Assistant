@@ -17,11 +17,9 @@ from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.jev_debug_models import (
     TRACE_LIMIT,
     TRACE_TTL_SECONDS,
-    AppliedVerdict,
     ContextPreview,
     JevAction,
     JevCallTrace,
-    JevCollectionCoverage,
     JevTracePage,
     context_preview,
     decision_preview,
@@ -118,9 +116,20 @@ async def read_traces(user_id: UUID) -> JevTracePage:
         datetime.now(UTC).timestamp() - TRACE_TTL_SECONDS,
         TRACE_LIMIT,
     )
-    return JevTracePage(
-        calls=[JevCallTrace.model_validate_json(decrypt_data(value)) for value in values]
-    )
+    return JevTracePage(calls=[call for value in values if (call := _readable(value)) is not None])
+
+
+def _readable(value: str) -> JevCallTrace | None:
+    """One stored trace, or ``None`` when another version wrote it (or its key changed).
+
+    A trace lives an hour across deployments: a field a release retires, or a
+    rotated key, must cost that one trace, never the whole page.
+    """
+    try:
+        return JevCallTrace.model_validate_json(decrypt_data(value))
+    except ValueError as exc:  # pydantic's ValidationError is a ValueError, as is decryption's
+        logger.debug("jev_debug_trace_unreadable", error_type=type(exc).__name__)
+        return None
 
 
 async def begin_trace(
@@ -180,10 +189,8 @@ async def record_action(
     action: JevAction,
     outcome: str,
     target: str | None = None,
-    applied_decisions: dict[str, AppliedVerdict] | None = None,
     decision_labels: dict[str, str] | None = None,
     observed_result: ContextPreview | None = None,
-    collection_coverage: JevCollectionCoverage | None = None,
 ) -> None:
     if trace is not None:
         await save_trace(
@@ -194,8 +201,6 @@ async def record_action(
                     "outcome": outcome,
                     "action_target": target[:240] if target else None,
                     "observed_result": observed_result,
-                    "collection_coverage": collection_coverage or trace.collection_coverage,
-                    "applied_decisions": applied_decisions or {},
                     "decision_labels": {
                         key[:100]: value[:180]
                         for key, value in list((decision_labels or {}).items())[:24]

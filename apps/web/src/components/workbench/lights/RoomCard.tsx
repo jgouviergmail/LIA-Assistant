@@ -11,7 +11,7 @@
  * away, its scenes are on the card too.
  */
 import Link from 'next/link';
-import { House, Layers } from 'lucide-react';
+import { House, Layers } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Switch } from '@/components/ui/switch';

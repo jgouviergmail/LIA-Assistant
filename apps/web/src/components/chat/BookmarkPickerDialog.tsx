@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bookmark as BookmarkIcon, MessageSquareText } from 'lucide-react';
+import { Bookmark as BookmarkIcon, MessageSquareText } from '@/lib/icons';
 
 import { AttachSourcePickerDialog, type PickerWords } from './AttachSourcePickerDialog';
 import type { AddServerAttachmentOutcome, ServerAttachmentMeta } from '@/hooks/useFileUpload';

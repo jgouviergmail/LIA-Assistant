@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Map as MapIcon, UsersRound } from 'lucide-react';
+import { Map as MapIcon, UsersRound } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';

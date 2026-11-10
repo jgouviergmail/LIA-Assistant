@@ -60,6 +60,14 @@ The SMS themselves have their own destination, **SMS** in the header right after
 
 SMS reading initially selects **By sender**. A red icon below a message's date deletes that one message without a confirmation dialog. Its explicit browser click reuses the existing command preparation/confirmation transaction, accepting only the same single ID, no sender/date/all scope and at most one affected row. It retains owner lifetime, expiry, duplicate-click and uncertain-acknowledgement guards; agent commands and bulk deletion still present their approval UI. Search results do not silently narrow a sender-wide deletion. Day scopes use two civil midnights, including daylight-saving transitions. The bulk dialog stays open while confirmation is pending and a removed direct-action trigger restores focus to a surviving disclosure. The visible capture-time disclaimer is omitted; source timestamp provenance remains in the data and assistant contracts. The interface calls these retained messages SMS, with no separate archived state.
 
+The search and inclusive-from/exclusive-to date fields sit above the reading
+disclosure, using the shared dashboard search style. Date labels sit before their
+inputs on the same line and omit the timezone; dates still use the account's civil
+midnights. Search applies after the shared typing delay and valid date changes apply
+immediately, without a submit button. Editing these controls reopens the reading
+disclosure. Invalid periods leave the previously applied query intact. Day/sender
+chips sit below the fields; refresh and name resolution sit beside the page title.
+
 Relationships expose exact SMS totals and a bounded list, immediately above exchanged provider emails on both desktop and mobile. Explicitly SMS-derived debriefs are invalidated when their source changes; SMS does not silently expand an existing debrief scope or become a portrait source.
 
 The home card shows exact SMS counts and the latest retained messages as bounded personal previews, using the same row primitive as Mails. `BRIEFING_MAX_SMS_ITEMS` controls their number; its default and bounds live in [BriefingSettings](../../apps/api/src/core/config/briefing.py). Selection spans all retained messages, in descending source-date order, independently of the recent-count window. Each row opens its message directly on the SMS page; there is no additional section footer link. Display uses the account timezone and preserves captured/unknown timestamp provenance.
@@ -79,6 +87,38 @@ The owner's phone and shared direct-Live host expose the same read-only source t
 An SMS in view is personal data like a mail: proactive content it informed has no private mode of its own (ADR-357 amendment 2026-10-23). Its push shows the words, external channels receive it, Radio may come back to it, continuity memory stores it and the next decision window reads it — the anti-repetition guard depends on that last point. Only the reception push stays content-free. The separately authorized direct Radio/phone/Live readers above grant no unrelated peer/routine access.
 
 ## Lifecycle and extension
+
+### Native alert search (2026-11-09)
+
+The alerts hub uses `POST /sms/display-search`: literal fragments in the displayed
+sender name OR body, before pagination. The existing `/sms/search` and assistant
+tools retain their lexical contract. Queries stay in POST bodies. The display
+reader uses the same session, capability, ownership and publication fences.
+
+A separate purpose/version of blind trigrams narrows body candidates. Exact
+decrypted matching remains mandatory: missing, outdated or incomplete projections
+remain candidates, and a short fragment narrows nothing. Exceeding the verification,
+SQL-time or distinct-sender allowance returns `QUERY_TOO_BROAD`; no partial count
+is presented as exact. The always-visible period controls allow narrowing and
+retrying even when a section has no result. Defaults and limits are owned by
+[IngestionSettings](../../apps/api/src/core/config/ingestion.py).
+
+Name sorting resolves distinct senders outside the caller's transaction, validates
+that resolution again, and passes ephemeral numeric ranks to SQL. It does not
+decrypt every body or persist an index of names. The encrypted native continuation
+binds owner, criteria, ordering, creation cut, erasure revision and the current
+identity mapping; a contact refresh or local relation rename invalidates it.
+An unavailable identity remains explicitly qualified by the existing identity
+contract. Legacy assistant cursors are unchanged.
+
+Ingestion and rebuild share the same projection and logical-byte accounting,
+including both stored binary indexes. CPU hashing runs off the API event loop.
+The rebuild validates capacity and catches concurrent receipts before swapping;
+failure keeps the previous index. Migration `c83a51f09d62` is additive and does
+not backfill during deployment. Until an explicit rebuild, old messages remain
+readable/searchable under the same verification limits. Its downgrade subtracts
+the removed projection's logical charge. Logical bytes remain distinct from
+physical database size; see the [qualification measurements](SMS_QUALIFICATION.md).
 
 Personal export includes readable SMS and user-owned metadata in bounded streams; encrypted internals and HMAC/search material are excluded. The structured JSON preserves source text; the readable Markdown quotes it literally so supplied HTML, image or formatting syntax cannot become active content. Hosted archives become unavailable after a source erasure that invalidates their snapshot. A downloaded copy, an earlier chat/phone answer, already delivered Radio audio or a memory retained under the existing conversation preferences is not recalled by deleting the source SMS.
 

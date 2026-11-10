@@ -9,7 +9,7 @@
  * that could not be read is said, and so is a cut (ADR-185). With no calendar shown
  * nothing is asked: there is nowhere to look, which is no failure.
  */
-import { Search, X } from 'lucide-react';
+import { Search, X } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, type FormEvent, type ReactNode } from 'react';
 

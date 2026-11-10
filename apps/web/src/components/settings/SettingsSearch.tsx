@@ -26,7 +26,7 @@
  * visually-hidden live region — the popup itself is not a status.
  */
 
-import { Search, X } from 'lucide-react';
+import { Search, X } from '@/lib/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useTranslation } from '@/i18n/client';

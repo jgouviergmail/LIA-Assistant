@@ -10,7 +10,7 @@
  */
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { BookOpenText, PackageSearch } from 'lucide-react';
+import { BookOpenText, PackageSearch } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

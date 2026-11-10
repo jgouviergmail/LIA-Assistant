@@ -16,30 +16,26 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.habits.models import HabitKind
-from src.domains.habits.recurrence_sync import RecurringSyncOutcome
 from src.domains.habits.rhythm import PROFILE_PAYLOAD_VERSION
 from src.domains.habits.service import HabitsService, part_of_day
 
 
 @pytest.fixture(autouse=True)
 def _ledger_side_neutralised():
-    """The ledger seed and the recurring sync have their own suites
-    (``test_ledger_seed``, ``test_recurrence_sync``) and read Redis: here
-    they are steps the orchestration must CALL, nothing more. Left real,
-    the sync reached the dev Redis from a host run (loopback is not
-    « external » to the network guard) and then the stub repository — an
-    environment-dependent verdict — and the seed, now ahead of every skip,
-    synthesised un-awaited coroutines on an ``AsyncMock`` session. A test
-    asserting either call nests its own patch, which wins."""
+    """The ledger seed and the usage refresh have their own suites
+    (``test_ledger_seed``, ``test_usage_refresh``) and read Redis: here they
+    are steps the orchestration must CALL, nothing more. Left real, they
+    reached the dev Redis from a host run (loopback is not « external » to
+    the network guard) — an environment-dependent verdict — and the seed,
+    ahead of every skip, synthesised un-awaited coroutines on an
+    ``AsyncMock`` session. A test asserting either call nests its own patch,
+    which wins."""
     with (
         patch(
             "src.domains.habits.service.seed_ledger_from_outcomes",
             AsyncMock(return_value=0),
         ),
-        patch(
-            "src.domains.habits.service.sync_recurring_habits",
-            AsyncMock(return_value=RecurringSyncOutcome()),
-        ),
+        patch("src.domains.habits.service.refresh_usage", AsyncMock(return_value=None)),
     ):
         yield
 
@@ -140,21 +136,19 @@ class TestRecompute:
         assert outcome == "skipped_no_activity"
         assert repo.upserted_profiles == []
 
-    async def test_the_recurring_sync_runs_for_a_silent_account_too(self) -> None:
-        """The sync follows the LEDGER, not the activity sources: an account
+    async def test_the_usage_refresh_runs_for_a_silent_account_too(self) -> None:
+        """The refresh follows the LEDGER, not the activity sources: an account
         that reset its conversations and went quiet past the rollup window
         has no timestamped source left, yet its ledger may have expired —
         the one case a demotion exists for (cold review, 2026-09-11)."""
         repo = _StubRepo()
         service = _service_with(repo)
-        with patch(
-            "src.domains.habits.service.sync_recurring_habits",
-            AsyncMock(return_value=RecurringSyncOutcome(demoted=1)),
-        ) as sync:
-            outcome = await service.recompute_user_profile(_user())
+        user = _user()
+        with patch("src.domains.habits.service.refresh_usage", AsyncMock()) as refresh:
+            outcome = await service.recompute_user_profile(user)
         assert outcome == "skipped_no_activity"
-        sync.assert_awaited_once()
-        assert sync.await_args.args[0] is repo
+        refresh.assert_awaited_once()
+        assert refresh.await_args.args[1] is user
 
     async def test_computes_and_syncs_window_habits(self) -> None:
         repo = _StubRepo()
@@ -304,7 +298,6 @@ class TestRepositoryUpsertHabit:
         # JSONB rule: a NEW dict object, never the same reference mutated.
         assert row.payload == {"new": True}
         assert row.payload is not new_payload
-        assert row.muted_until_reproof is False
 
     async def test_missing_row_created(self) -> None:
         repo, db = self._repo_with_row(None)
@@ -636,12 +629,8 @@ class TestRecurringSyncWiring:
             patch(
                 "src.domains.habits.service.seed_ledger_from_outcomes", AsyncMock(return_value=0)
             ),
-            patch(
-                "src.domains.habits.service.sync_recurring_habits",
-                AsyncMock(return_value=RecurringSyncOutcome(created=1, demoted=2)),
-            ) as sync,
+            patch("src.domains.habits.service.refresh_usage", AsyncMock()) as refresh,
         ):
             outcome = await service.recompute_user_profile(_user())
         assert outcome == "skipped_no_delta"
-        sync.assert_awaited_once()
-        assert sync.await_args.args[0] is repo
+        refresh.assert_awaited_once()

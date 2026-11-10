@@ -7,7 +7,7 @@
 
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
@@ -17,7 +17,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { LanguageFlag } from '@/components/icons/LanguageFlag';
-import { languages, languageNames, setLocaleCookie, type Language } from '@/i18n/settings';
+import {
+  languages,
+  languageNames,
+  getLocaleCookie,
+  setLocaleCookie,
+  type Language,
+} from '@/i18n/settings';
 import { switchLanguageInPath } from '@/utils/i18n-path-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { frontendToBackendLocale } from '@/utils/locale-mapping';
@@ -40,14 +46,11 @@ interface LanguageSelectorProps {
  * @param props - Component props
  */
 export function LanguageSelector({ currentLocale, className }: LanguageSelectorProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const { user, refreshUser } = useAuth();
   const { t } = useTranslation();
 
   const handleLanguageChange = async (newLang: Language) => {
-    if (newLang === currentLocale) return;
-
     // Convert frontend locale to backend language code
     const backendLanguage = frontendToBackendLocale(newLang);
 
@@ -75,11 +78,15 @@ export function LanguageSelector({ currentLocale, className }: LanguageSelectorP
       }
     }
 
-    // Update locale cookie for next-i18n-router
+    // An editorial URL can display a different language from the saved preference,
+    // so selecting the displayed language must persist it too.
+    const needsNavigation = newLang !== currentLocale || getLocaleCookie() !== newLang;
     setLocaleCookie(newLang);
 
-    // Navigate to the same page with new language
-    router.push(switchLanguageInPath(pathname, newLang));
+    // Next's refresh invalidates segment data, but retains route-cache redirects.
+    // A prefetched /login may therefore still point to the previous language.
+    // A document navigation clears that cache after the explicit preference change.
+    if (needsNavigation) window.location.assign(switchLanguageInPath(pathname, newLang));
   };
 
   const selectorLabel = t('settings.language.selector_label', {

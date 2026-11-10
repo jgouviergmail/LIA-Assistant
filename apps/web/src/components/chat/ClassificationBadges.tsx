@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ComponentPropsWithoutRef } from 'react';
 import { useCallback, useSyncExternalStore } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { readClassification } from '@/lib/content-classification';
 import { classificationTone } from '@/lib/status-tone';
@@ -53,6 +53,9 @@ export function ClassificationBadges({ value }: { value: unknown }) {
     annotation.priority !== 'normal'
   )
     labels.push(annotation.priority);
+  // Only an expected reply is shown: « no reply » and « undecided » say nothing.
+  if (annotation.kind === 'email' && annotation.reply_expected === true)
+    labels.push('reply_expected');
   if (!labels.length) return null;
   return (
     <span className="inline-flex max-w-full flex-wrap gap-1.5">

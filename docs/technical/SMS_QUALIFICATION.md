@@ -54,6 +54,31 @@ The export volume probe exercises the production writer and SMS renderer with a 
 
 ## Software validation record
 
+### Native display reader, 2026-11-09
+
+`tests/integration/test_sms_display_qualification.py` fills a disposable PostgreSQL
+archive up to the configured logical ceiling by cloning a real admitted encrypted
+row, with independent receipt/message identifiers. This measures archive reads,
+not ingestion throughput. The long, diverse synthetic body deliberately leaves
+every display projection incomplete; repetitions exercise the adverse case in
+which a broad fragment cannot narrow the candidates. The fixture releases all data.
+
+The measured corpus held 10,963 messages and 1,073,705,257 logical bytes; the two
+search projections occupied 1,142,489,088 physical bytes. The exact first name page
+took 0.195 seconds with a traced Python allocation peak of 1,490,675 bytes (not an
+OS-wide resident-memory peak). A subsequent page had no duplicate identifier;
+another identical ingestion was refused at capacity; a broad body search returned
+`QUERY_TOO_BROAD`, and narrowing the period returned the exact matching body.
+The emitted JSON includes `EXPLAIN (ANALYZE, BUFFERS)` and the active ceiling.
+These are local observations, not new thresholds or production latency guarantees.
+
+Independent connections additionally prove that erasure during contact resolution
+prevents publication, local relation renaming invalidates a continuation, SQL
+timeout is a typed refusal, and cancellation rolls back without masking its signal.
+The migration test keeps a real message through downgrade/upgrade and checks the
+removed projection's logical accounting. The unit corpus proves that literal
+matching fragments are never excluded by a complete blind projection.
+
 The broad backend run executed the Taskfile's serial CI selection and its unchanged coverage floor in a disposable Linux checkout. The original worktree, index, Git configuration and object store were not modified by the test harness. PostgreSQL and Redis belonged to this qualification; external transport/model seams were simulated.
 
 | Verification | Observed result |

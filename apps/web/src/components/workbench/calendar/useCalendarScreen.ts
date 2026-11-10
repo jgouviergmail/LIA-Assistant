@@ -10,10 +10,12 @@
  *   account hides here (`lib/workbench/calendar/preferences`);
  * - the WINDOW: the day alone, the week holding it, the six weeks of its month,
  *   or in the agenda the next `AGENDA_DAYS` from it — a week and a month from the
- *   locale's first weekday.
+ *   locale's first weekday;
+ * - the ALIAS: the home names the account's own calendar `primary` when no default
+ *   was chosen (2026-11-07); the address takes its real id once the calendars are read.
  */
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import { getIntlLocale, type Language } from '@/i18n/settings';
 import { eventKey } from '@/lib/workbench/calendar/events';
@@ -36,7 +38,7 @@ import {
   weekStart,
 } from '@/lib/workbench/calendar/zoned';
 import { toolPath } from '@/lib/workbench/tools';
-import type { CalendarEvent } from '@/lib/workbench/types';
+import type { CalendarEvent, WorkbenchCalendar } from '@/lib/workbench/types';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 const WEEK = 7;
@@ -44,6 +46,8 @@ const WEEK = 7;
 export const AGENDA_DAYS = 30;
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const NO_STORED = () => null;
+/** What the providers and the home call the account's own calendar (the connector's fallback). */
+export const OWN_CALENDAR_ALIAS = 'primary';
 
 type Query = Partial<Record<'view' | 'day' | 'cal' | 'event', string | null>>;
 
@@ -53,12 +57,16 @@ export interface CalendarAddress {
   day: string;
   open: { calendarId: string; eventId: string } | null;
   openKey: string | null;
+  /** A card may name a calendar alone, without an event to open. */
+  selectedCalendarId: string | null;
   /** The days the view shows. */
   days: string[];
   eventHref: (event: Pick<CalendarEvent, 'calendar_id' | 'id'>) => string;
   agendaHref: (day: string) => string;
   /** Moves the view (its day or its kind), keeping no event open. */
   move: (query: Query) => void;
+  /** Names the open event anew, in place of the address that named it. */
+  reopen: (event: Pick<CalendarEvent, 'calendar_id' | 'id'>) => void;
   close: () => void;
 }
 
@@ -116,17 +124,63 @@ export function useCalendarAddress(
     router.replace(hrefOf({ view, day, ...query, cal: null, event: null }), { scroll: false });
   };
   const close = () => router.replace(hrefOf({ view, day }), { scroll: false });
+  const reopen = (event: Pick<CalendarEvent, 'calendar_id' | 'id'>) =>
+    router.replace(eventHref(event), { scroll: false });
   return {
     view,
     day,
     open,
     openKey: open ? eventKey({ calendar_id: open.calendarId, id: open.eventId }) : null,
+    selectedCalendarId: calendarId && !eventId ? calendarId : null,
     days: daysOf(view, day, firstDay),
     eventHref,
     agendaHref,
     move,
+    reopen,
     close,
   };
+}
+
+/** Temporarily reveal a card's calendar while preserving the device's hidden set. */
+export function calendarSelection(
+  address: CalendarAddress,
+  calendars: readonly WorkbenchCalendar[],
+  preferences: HiddenCalendars
+): HiddenCalendars & { target: WorkbenchCalendar | undefined } {
+  const wanted = address.selectedCalendarId;
+  const target = calendars.find(calendar =>
+    wanted === OWN_CALENDAR_ALIAS ? calendar.primary : calendar.id === wanted
+  );
+  const hidden = new Set(preferences.hidden);
+  if (target) hidden.delete(target.id);
+  return {
+    target,
+    hidden,
+    toggle: id => {
+      // Hiding an already hidden, temporarily revealed target only closes that reveal.
+      if (id !== target?.id || !preferences.hidden.has(id)) preferences.toggle(id);
+      if (id === target?.id) address.close();
+    },
+  };
+}
+
+/**
+ * An event named in the account's own calendar by its alias is named again by that calendar's
+ * real id, once the calendars are read: the list, the colour and every act read the real one.
+ *
+ * @param address - The screen's address.
+ * @param calendars - The account's calendars, as read (empty while they are not).
+ */
+export function useOwnCalendarAlias(
+  address: CalendarAddress,
+  calendars: readonly WorkbenchCalendar[]
+): void {
+  const { open, reopen } = address;
+  const own = calendars.find(calendar => calendar.primary)?.id;
+  const aliased = open?.calendarId === OWN_CALENDAR_ALIAS ? open.eventId : null;
+  useEffect(() => {
+    if (aliased && own && own !== OWN_CALENDAR_ALIAS) reopen({ calendar_id: own, id: aliased });
+  }, [aliased, own, reopen]);
 }
 
 /** @returns The day a step moves the view to: as far as the view reaches. */

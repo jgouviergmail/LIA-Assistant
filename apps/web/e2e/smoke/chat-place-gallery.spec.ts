@@ -22,6 +22,8 @@ const references: Reference[] = JSON.parse(
 );
 const samples = [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ];
@@ -72,7 +74,7 @@ for (const sample of samples) {
         contentType: failed ? 'application/json' : 'image/svg+xml',
         body: failed ? '{"detail":"quota"}' : image,
         headers: {
-          'Access-Control-Allow-Origin': 'https://localhost:3000',
+          'Access-Control-Allow-Origin': new URL(page.url()).origin,
           'Access-Control-Allow-Credentials': 'true',
           'Cache-Control': 'private, max-age=86400',
         },

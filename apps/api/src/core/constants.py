@@ -154,12 +154,17 @@ OFFICE_PARSE_SLOTS = 2
 DRIVE_TEXT_MAX_BYTES: Final = 256 * 1024
 # A drive's word for a version: Graph's eTag and Drive's revision are well under this.
 WORKBENCH_FILE_TAG_MAX_CHARS: Final = 512
-# A contact's history: what each list shows, how many of its addresses are asked, and the walk
-# back through a calendar, which answers a window oldest first.
+#: Source proof carried from a native card to same-family Tools requests (ADR-332).
+WORKBENCH_CARD_SOURCE_HEADER: Final = "X-LIA-Card-Source"
+# A contact's history: what each list shows, how many of its addresses and numbers are asked, the
+# walk back through a calendar, which answers a window oldest first, and how many of LIA's latest
+# calls are read for its numbers (a number is stored encrypted: it is matched, never looked up).
 WORKBENCH_CONTACT_HISTORY_ITEMS: Final = 5
 WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES: Final = 3
+WORKBENCH_CONTACT_HISTORY_MAX_PHONES: Final = 5
 WORKBENCH_CONTACT_HISTORY_SPAN_DAYS: Final = 90
 WORKBENCH_CONTACT_HISTORY_SPANS: Final = 8
+WORKBENCH_CONTACT_HISTORY_CALLS_SCAN: Final = 500
 # What a person consulting a workbook or a CSV reads of it: the cut is said.
 WORKBENCH_READING_MAX_SHEETS: Final = 12
 WORKBENCH_READING_MAX_ROWS: Final = 200
@@ -517,6 +522,13 @@ MICROSOFT_MAIL_FOLDERS_PAGE_SIZE = 100
 # How long a second worker waits for the first one's cold directory read
 # before reading the provider itself (shared_flight).
 CONTACTS_DIRECTORY_SHARED_WAIT_SECONDS = 10
+# The shape of a cached directory's persons, named in its key: « v2 » added the
+# birthday's day and the contact's id (2026-11-07), so a book cached in the
+# shape before is never read as one that carries them.
+CONTACTS_DIRECTORY_SHAPE: Final = "v2"
+# How much of the address book the birthdays are read in: the five pages of a
+# thousand the People scan read before it joined the shared directory.
+CONTACTS_BIRTHDAYS_DIRECTORY_MAX: Final = 5_000
 
 # Minimal preview for listing contacts (4 fields, ~110 tokens/contact)
 # Use case: "list my contacts" - quick overview like a phone book
@@ -2047,6 +2059,9 @@ REDIS_KEY_RUN_CANCEL_PREFIX = "chat:cancel:"
 # Case-insensitive ILIKE substring match on ConversationMessage.content.
 CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
 CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
+DISPLAY_SEARCH_MAX_LENGTH = 256  # Literal metadata search in application lists
+DISPLAY_READ_BATCH_ROWS = 128  # Bound memory while matching complete display-text streams
+ACTIVITY_TIMELINE_PAGE_SIZE_MAX = 100
 
 # Response feedback (QW-5, ADR-138)
 RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH = 500  # One-line "what went wrong" — not an essay
@@ -2221,6 +2236,9 @@ MICROSOFT_GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 # Query truncation length for semantic search (characters)
 # Longer queries are truncated to avoid excessive embedding computation
 MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
+# The turn-end extractors (memory, interests) read the person's last message and
+# the three before it; a measurement that renders more measures another prompt.
+EXTRACTION_WINDOW_MESSAGES = 4
 
 # Deduplication search parameters
 # Used to find existing similar memories before storing new ones.
@@ -2584,43 +2602,25 @@ OPEN_LOOPS_NUDGE_COOLDOWN_DAYS_DEFAULT = 3
 OPEN_LOOPS_EXPIRY_DAYS_DEFAULT = 21
 
 # ---------------------------------------------------------------------------
-# Recurrence detection — automation suggestion (P12, ADR-140; v2 ADR-214)
+# Request ledger and recurring needs (ADR-140, ADR-214; needs ADR-375)
 # ---------------------------------------------------------------------------
-# v2 (ADR-214): the 14-day window could mathematically never contain the 3
-# same-weekday occurrences a weekly habit needs — measured 0% weekly
-# detection. The ledger now stores PER-DAY entries (the 20-occurrence cap
-# kept only ~7 days of history for a multi-daily domain, making the
-# spread>=10d lock unreachable), and a user-facing suggestion fires only
-# when a shape LOCK holds (0% false suggestions measured on spread/sporadic
-# usage — simulation harness of the habits plan §4.2).
-RECURRENCE_WINDOW_DAYS_DEFAULT = 35  # 5 weekly slots: one missed week no longer kills the lock
+# The ledger stores PER-DAY entries (the v1 20-occurrence cap kept only ~7 days
+# of history for a multi-daily domain). A recurring NEED is a domain asked on
+# enough distinct days; the hour is a descriptor, never a condition — the
+# ADR-214 shape locks are retired (ADR-375). Calibrated by
+# scripts/habits/measure_proposals.py.
+RECURRENCE_WINDOW_DAYS_DEFAULT = 35  # 5 weekly slots: one missed week keeps a weekly need
 RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT = 4
-RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT = 30
 RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 35  # day entries (= window days)
-RECURRENCE_DAY_HOURS_CAP_DEFAULT = 5
-RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT = 6
-RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT = 10
-RECURRENCE_LOCK_R_MIN_DEFAULT = 0.8
-RECURRENCE_LOCK_HALF_R_MIN_DEFAULT = 0.7
-RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT = 2.0
-# Calendar SPAN (first to last occurrence day) before a time lock is LABELED.
-# Renamed from RECURRENCE_SHAPE_MIN_DAYS on 2026-09-11 when the rule moved
-# from distinct days to span: a changed meaning gets a new name, so a
-# deployment still carrying the old key feeds nothing into the new rule.
-RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT = 10
-RECURRENCE_WEEKEND_TOLERANCE_DEFAULT = 1
-RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT = 4
-RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT = 0.75
-# Distinct-day density (over the ELIGIBLE calendar span) below which a proven
-# time lock is labeled "intermittent" instead of daily/workdays — measured
-# 2026-09-11: daily at 80 % presence sits at ~0.8, a 3x/week user at ~0.43.
-RECURRENCE_DAILY_DENSITY_MIN_DEFAULT = 0.6
-# R required to LABEL a lock "intermittent" (an hour promised without a
-# calendar): waking-arc uniform hours (8-22h) sit at R~0.53 intrinsically
-# and reach the 0.8 gate by luck 3 % of the time at light volumes
-# (measured 2026-09-11, 300 trials) — a tighter hour kills that residual
-# while a real steady hour (sigma 0.75 h) sits at R~0.98.
-RECURRENCE_INTERMITTENT_R_MIN_DEFAULT = 0.9
+RECURRENCE_DAY_HOURS_CAP_DEFAULT = 24  # one hour per clock hour (ADR-375)
+RECURRENCE_NEED_MIN_WEEKS_DEFAULT = 2  # distinct ISO weeks the days span
+RECURRENCE_NEED_RECENT_DAYS_DEFAULT = 14  # the latest ask is at most this old
+RECURRENCE_AUTOMATE_SHARE_DEFAULT = 0.4  # need days / active days before automating
+RECURRENCE_AUTOMATE_MIN_DAYS_DEFAULT = 12  # ... and at least this many need days
+RECURRENCE_PART_OF_DAY_SHARE_DEFAULT = 0.6  # share of asks naming a part of the day
+RECURRENCE_WEEKEND_TOLERANCE_DEFAULT = 1  # weekend days a « weekdays » cadence tolerates
+RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT = 4  # same-weekday days for a weekly cadence
+RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT = 0.75  # ... holding this share of the need's days
 
 # ---------------------------------------------------------------------------
 # Habits — learned user rhythm and recurring requests (ADR-214)
@@ -2657,13 +2657,26 @@ HABITS_CANDIDATES_DISPLAY_MAX_DEFAULT = 5
 # Nightly profile job (leader-elected; per-user delta skip).
 HABITS_PROFILE_JOB_HOUR_UTC_DEFAULT = 4
 SCHEDULER_JOB_ID_HABIT_PROFILE = "habit_profile_recompute"
-# Deviation offers (missed locked routine — plan §5.4). The k rule is
-# shape-aware: a daily habit needs 2 consecutive missed scheduled days
-# (k=1 at p̂=0.85 would produce ~1 false remark/week), a weekly habit
-# offers on the first miss (the offer at the slot has immediate value).
-HABITS_DEVIATION_OFFER_COOLDOWN_DAYS_DEFAULT = 7
-HABITS_DEVIATION_STOP_AFTER_IGNORED_DEFAULT = 2
-HABITS_DEVIATION_GRACE_HOURS_DEFAULT = 1.0
+# Usage proposals (ADR-375): what LIA offers from what it observed. Every bar
+# is a fact the person can check on the card (days, hours, counts).
+HABITS_PROPOSAL_ROUTINE_GAP_HOURS_DEFAULT = (
+    2.0  # an hour this far from a routine's is not served by it
+)
+HABITS_PROPOSAL_MANUAL_MIN_RUNS_DEFAULT = 3  # manual launches before proposing to move a routine
+HABITS_PROPOSAL_MANUAL_MIN_DAYS_DEFAULT = 3  # ... on at least this many distinct days
+HABITS_PROPOSAL_FAILURE_STREAK_DEFAULT = 3  # consecutive failures before proposing a look
+HABITS_PROPOSAL_WINDOW_MIN_DAYS_DEFAULT = 5  # days present outside the notification hours
+HABITS_PROPOSAL_WINDOW_MIN_CELLS_DEFAULT = 8  # present hours outside, over the window
+HABITS_PROPOSAL_WINDOW_MIN_SHARE_DEFAULT = 0.25  # share of present hours falling outside
+HABITS_PROPOSAL_WINDOW_MAX_EXTENSION_HOURS_DEFAULT = 3  # per side, contiguous hours only
+HABITS_PROPOSAL_SILENT_MIN_NOTIFICATIONS_DEFAULT = 20  # sent without a reaction before asking
+HABITS_PROPOSAL_CONNECTOR_MIN_DAYS_DEFAULT = 3  # days a domain was asked with no connector
+HABITS_PROPOSAL_MUTE_AFTER_REFUSALS_DEFAULT = 3  # refusals of one kind that silence the kind
+HABITS_PROPOSAL_SNOOZE_DAYS_DEFAULT = 14  # « later » reopens after this, if still true
+HABITS_PROPOSAL_RESURFACE_DAYS_DEFAULT = 90  # an accepted proposal may come back after this
+HABITS_PROPOSAL_CHAT_GAP_HOURS_DEFAULT = 24  # at most one proposal under a chat answer per gap
+HABITS_PROPOSAL_CHAT_REPEAT_DAYS_DEFAULT = 7  # one proposal again under an answer after this
+HABITS_PROPOSALS_PAGE_MAX = 100  # largest page of open proposals one read returns (API bound)
 # Return-after-absence (type 3) is RELATIVE to the user's own typical gap
 # (derived from their active-day fraction) — an occasional user must never
 # get a patronizing "welcome back" for a perfectly normal interval.
@@ -2758,6 +2771,7 @@ PROACTIVE_NOTIFICATION_MAX_LENGTH_DEFAULT = 150
 # thinking inside ``max_tokens`` -- measured 2026-09-12 on deepseek-flash --
 # 150 tokens buys 150 tokens of chain of thought and no answer at all.
 REMINDER_MESSAGE_MAX_TOKENS = 150
+REMINDER_CONTENT_MAX_CHARS = 2000
 # Reminders notified per scheduler tick, each claimed on its own (ADR-304).
 REMINDER_NOTIFICATION_BATCH_LIMIT = 100
 # A reminder PROCESSING for longer is a claim a crash abandoned: released to
@@ -3407,6 +3421,12 @@ LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT = 30  # DB->Prometheus gauge sy
 # per period per worker. 15 s matches the Prometheus scrape interval so every
 # scrape sees a fresh figure without reading the file more often than it is used.
 WORKER_MEMORY_SAMPLE_INTERVAL_SECONDS_DEFAULT = 15
+# JEV's durable statistics (ADR-374): each worker writes its pending counts this often;
+# a crash loses at most one period of them.
+JEV_STATISTICS_FLUSH_INTERVAL_SECONDS_DEFAULT = 30
+# The last flush at shutdown waits this long at most, so a slow database cannot hold a
+# stopping worker past its grace period.
+JEV_STATISTICS_FINAL_FLUSH_TIMEOUT_SECONDS_DEFAULT = 5.0
 # Label of `pipeline_step_failures_total` for a failed step whose code is no
 # ToolErrorCode member (a tool's free-form code, or none): the label set stays
 # bounded by the taxonomy, whatever a tool invents (ADR-346).
@@ -3634,12 +3654,18 @@ INITIATIVE_ENABLED_DEFAULT = True
 INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 # ReAct-mode Initiative (ADR-070): gate the nominal ReAct path through the
-# Initiative node independently of the pipeline. Default off -> ship dark; the
-# ReAct draft path (already wired to initiative) is unaffected by this flag.
+# Initiative node independently of the pipeline. On by default; the ReAct draft
+# path (already wired to initiative) is unaffected by this flag.
 INITIATIVE_REACT_ENABLED_DEFAULT = True
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
 INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
+# What the evaluator's execution summary keeps of the turn's results (ADR-062).
+INITIATIVE_SUMMARY_MAX_FIELDS = 8  # Readable payload fields per registry item
+INITIATIVE_SUMMARY_MAX_STEPS = 5  # Step results when the registry is empty
+INITIATIVE_SUMMARY_TEXT_MAX_CHARS = 150  # A text field, then an ellipsis
+INITIATIVE_SUMMARY_LIST_ITEM_MAX_CHARS = 80  # The first item of a list field
+INITIATIVE_SUMMARY_STEP_RESULT_MAX_CHARS = 200  # A step result without a message
 
 # Token-tracking run-record dicts (chat/service.py): bound the number of
 # run_ids kept in memory. Runs that never reach cleanup_run_records (errors,
@@ -3737,7 +3763,6 @@ BRIEFING_AUDIO_MAX_SENTENCES_DEFAULT = 12
 
 # Missed-routine offers inbox (Lot 5-C2): how far back an UNDECIDED offer
 # stays listed. Old offers age out silently — a stale proposal is noise.
-HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT = 7
 
 # Adaptive ReAct budget (Lot 5-C4, ADR-238): iteration budget grows with the
 # query's domain span; react_agent_max_iterations stays the hard ceiling.
@@ -3835,41 +3860,35 @@ RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT = 5
 RELATION_DEBRIEF_MAX_NOTABLE_FACTS_DEFAULT = 5
 
 # ============================================================================
-# MEMORY REFERENCE EXTRACTION (3-Phase Resolution Pipeline)
+# JEV NATIVE DECISIONS (ADR-325, ADR-374)
 # ============================================================================
-# Phase 1: LLM nano extracts personal references from query (e.g., "my wife").
-# Absence-only native gate, evaluated on independent multilingual queries; kept on
-# jev-1.14.0 (2026-10-26): 25 of 26 absences admitted, no false skip at any level.
-JEV_MEMORY_REFERENCE_MIN_CONFIDENCE = 0.99
-# Re-chosen on jev-1.14.0 (2026-10-26) on two fresh corpora of replies (50 cases, 20
-# total refusals, 30 traps: a no then a correction, a partial refusal, a « yes, delete
-# it » that approves a deletion, an injection): no wrong shortcut at any level; 0.80
-# keeps 19 of 20 refusals where 0.99 kept 4. Margin above the first safe level
-# because this gate cancels the proposed actions.
-JEV_HITL_REJECTION_MIN_CONFIDENCE = 0.80
-# Guarded parameter values (ADR-120 amendment 2026-10-11): a value's judged
-# kind refuses a call only at this confidence or above, and at most this many
-# values of one call are judged (one request each). Calibrated on the version 2
-# qualification (docs/technical/JEV_SEMANTIC_QUALIFICATION.md): no compatible
-# value refused on its calibration or its independent cases.
-JEV_PARAMETER_KIND_MIN_CONFIDENCE = 0.30
+# Every JEV threshold is declared, with its reason, in domains/llm_config/jev_gates.py
+# (ADR-374); what remains here bounds when and how JEV is called.
+# A consultation is offered to JEV only when the query analyzer is this sure of an
+# immediate search; the analyzer's own score, not a JEV gate, so not on the screen.
+JEV_CONSULTATION_ANALYZER_CONFIDENCE_MIN = 0.9
+# Guarded parameter values: at most this many values of one call are judged
+# (one request each).
 JEV_PARAMETER_KIND_MAX_VALUES = 8
+# A JEV call waits as long as its slot says; this only stands in for a slot with none.
+JEV_DEFAULT_TIMEOUT_SECONDS = 2.0
+# The administration screen's statistics window (ADR-374), in whole UTC days.
+JEV_STATISTICS_DAYS_DEFAULT = 30
+JEV_STATISTICS_DAYS_MAX = 90
 
-# Advisory source classifications: conservative gates, not accuracy guarantees.
-# Re-chosen on jev-1.14.0 (2026-10-25, docs/superpowers/qualification/jev-audit-2026-10-25):
-# no wrong accepted label on the three frozen corpora at ANY level from 0.50 (both
-# layouts, 1.13 and 1.14) except one-request-per-item at 0.50-0.60; the first safe
-# level is 0.70, plus one 0.10 step of margin. At the former 0.95 / 0.99 the
-# production-shaped corpus kept 2 of 6 phishing messages and 62 % of its labels.
-JEV_CLASSIFICATION_MIN_CONFIDENCE = 0.80
-JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE = 0.80
+# Advisory source classifications (their gates: jev_gates.py): how long a label lives,
+# how many items one operation labels.
 JEV_CLASSIFICATION_EMAIL_TTL_SECONDS = 300
 JEV_CLASSIFICATION_EVENT_TTL_SECONDS = 3600
 JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS = 30
 JEV_CLASSIFICATION_MAX_ITEMS = 48
-# One operation classifies every listed item (48 emails pack into about 8 shared
-# batches of at most JEV_SHARED_STATE_BATCH_BYTES); it used to stop at 16 000
-# tokens, so the items past the first three or four batches were never labelled.
+# One operation classifies the listed items within these bounds; it used to stop at
+# 16 000 tokens, so the items past the first three or four batches were never labelled.
+# Measured 2026-11-08 with the reply question (three per e-mail): 48 e-mails of up to
+# 400 characters of evidence fill the 12 batches and are all labelled; at 800 and more,
+# 36 of 48 are, the rest carrying no badge (the advisory « unknown »). Raising the
+# batch ceiling adds a fourth wave of JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES calls
+# under JEV_CLASSIFICATION_TIMEOUT_SECONDS, which bounds the whole operation.
 JEV_CLASSIFICATION_MAX_BATCHES = 12
 JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES = 4
 JEV_CLASSIFICATION_TOTAL_REQUEST_BYTES = 400_000
@@ -3891,9 +3910,9 @@ JEV_CLASSIFICATION_TIMEOUT_SECONDS = 5.0
 JEV_CLASSIFICATION_CACHE_TIMEOUT_SECONDS = 0.25
 JEV_CLASSIFICATION_CLAIM_TTL_SECONDS = 7
 JEV_CLASSIFICATION_CLAIM_POLL_SECONDS = 0.02
-# The batch shape the shared-state usages (classification, collection previews,
-# radio verification) were measured with: several items in ONE state, each
-# question naming its own. A larger state is more distraction for every question,
+# The batch shape the shared-state usages (classification and radio verification;
+# the collection previews too, before ADR-374 retired them) were measured with:
+# several items in ONE state, each question naming its own. A larger state is more distraction for every question,
 # so a multi-item batch stays within it even though the transport admits more.
 JEV_SHARED_STATE_BATCH_BYTES = 32_000
 # One keep-alive client per serving loop (ADR-325 amendment 2026-10-25): every
@@ -3940,6 +3959,15 @@ USER_PREFERENCES_CACHE_MAX_ENTRIES = 10_000
 USER_FONT_SIZE_MIN_PX = 14
 USER_FONT_SIZE_MAX_PX = 20
 USER_FONT_SIZE_DEFAULT_PX = 16
+USER_THEME_LIGHT_START_MINUTE = 7 * 60
+USER_THEME_DARK_START_MINUTE = 20 * 60
+USER_THEME_MINUTE_MAX = 24 * 60 - 1
+
+# The icon family follows the account on every interface surface. Adding a
+# non-null column with this default also opts every existing account into Fluent.
+IconStyle = Literal["lucide", "fluent", "flex"]
+USER_ICON_STYLE_DEFAULT: IconStyle = "fluent"
+USER_ICON_STYLES: tuple[str, ...] = get_args(IconStyle)
 
 # ============================================================================
 # ARCHITECTURE V3 - Intelligence, Autonomy, Relevance (NOW DEFAULT)
@@ -4042,6 +4070,9 @@ V3_DISPLAY_ENABLED = True
 
 # Max items per domain in multi-domain responses
 V3_DISPLAY_MAX_ITEMS_PER_DOMAIN = 10
+# The approved invitation presents five participants before its local disclosure.
+HTML_EVENT_VISIBLE_PARTICIPANTS: Final = 5
+HTML_EMAIL_VISIBLE_MESSAGES: Final = 3
 
 # Viewport breakpoint for responsive formatting (must match .env value)
 V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH = 430  # <= 430px is mobile, > 430px is desktop
@@ -5093,6 +5124,9 @@ WORKBENCH_EVENT_SERIES_MAX_COUNT: Final = 730
 #: What one search across the tools shows of each: enough to recognise, not to read through.
 WORKBENCH_SEARCH_HITS_PER_TOOL: Final = 5
 WORKBENCH_EVENT_ATTENDEES_MAX: Final = 100
+#: How much of a message's To or Cc a model reads for a form: room for an event's every guest at a
+#: generous 64 characters a name and address, never a mailing list's thousand (cut at an address).
+EMAIL_RECIPIENTS_READ_MAX_CHARS: Final = WORKBENCH_EVENT_ATTENDEES_MAX * 64
 # The furthest ahead a reminder is set: four weeks, Google's own bound.
 WORKBENCH_EVENT_REMINDER_MAX_MINUTES: Final = 40_320
 #: How long a calendar's name may be: Graph's own bound on a folder's, the strictest of the three.
@@ -5139,6 +5173,8 @@ TOOL_ASSIST_CARD_MAX_SIDE: Final = 1600
 #: Who a message is for, as typed so far, and a language as a person names it.
 TOOL_ASSIST_RECIPIENT_MAX_CHARS: Final = 1000
 TOOL_ASSIST_LANGUAGE_MAX_CHARS: Final = 40
+TOOL_ASSIST_SEARCH_RESULTS_MAX: Final = 5
+TOOL_ASSIST_SEARCH_SOURCES_MAX: Final = 100
 #: The most steps a task is broken down into, and the lists a sentence may choose among.
 TOOL_ASSIST_STEPS_MAX: Final = 8
 TOOL_ASSIST_LISTS_MAX: Final = 50
@@ -6827,6 +6863,10 @@ PEERS_REQUEST_COOLDOWN_DAYS_DEFAULT = 7
 PEERS_REQUEST_EXPIRY_DAYS_DEFAULT = 30
 PEERS_DELIVERY_SWEEP_SECONDS_DEFAULT = 60
 PEERS_DELIVERY_MAX_ATTEMPTS_DEFAULT = 5
+PEERS_DELIVERY_LEASE_SECONDS_DEFAULT = 120
+PEERS_DELIVERY_BATCH_SIZE = 10
+PEERS_DELIVERY_RENEWAL_DIVISOR = 3
+PEERS_DELIVERY_CANCELLATION_GRACE_ATTEMPTS = 3
 PEERS_ACCESS_LOG_RETENTION_DAYS_DEFAULT = 90
 SCHEDULER_JOB_PEERS_DELIVERY_SWEEP = "peers_delivery_sweep"
 # Hard cap on the optional context note attached to a connection request.
@@ -7459,18 +7499,26 @@ ELEVENLABS_LIVE_SAMPLE_RATE: int = 16_000
 ELEVENLABS_LIVE_SIGNED_URL_TTL_SECONDS: int = 15 * 60
 ELEVENLABS_LIVE_WS_SUBPROTOCOL: str = "convai"
 ELEVENLABS_LIVE_AGENTS_PAGE_SIZE: int = 100
-#: The connector metadata keys of what LIA holds on the person's agent: the
-#: client tools it created in their workspace (by fingerprint of the
-#: declarations) and the agents whose prompt-override permission it granted.
+#: The connector metadata key of the client tools LIA created in the person's
+#: workspace, by fingerprint of the declarations.
 ELEVENLABS_LIVE_TOOLS_METADATA_KEY: str = "elevenlabs_live_tools"
 #: Which fingerprint each KIND of set (the delegation function, the direct
 #: tools) currently holds: a new fingerprint of a kind retires the old set of
 #: that kind — the phone's own rule on drift — so at most one set per kind
 #: lives in the person's workspace.
 ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY: str = "elevenlabs_live_tool_kinds"
+#: RETIRED marker (ADR-373): the agents whose prompt override LIA once granted.
+#: The permission is now read on the agent itself at every sync — a marker the
+#: portal could contradict said « granted » about an agent that refused the
+#: frame — so the sync drops the key from the connector it finds it on.
 ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY: str = "elevenlabs_live_override_granted"
 #: How long the agent waits for a client tool's result before giving up on it.
 ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS: int = 120
+#: The workspace's tool listing (``GET /v1/convai/tools``, ADR-373): the vendor's
+#: largest page, and a bound on the pages read — a cursor that never ends cannot
+#: hold a session start.
+ELEVENLABS_TOOLS_PAGE_SIZE: int = 100
+ELEVENLABS_TOOLS_LIST_MAX_PAGES: int = 20
 #: How long the activation probe keeps the conversation open AFTER the metadata:
 #: measured 2026-09-19, the provider answers the metadata FIRST and closes 1008
 #: on a refused initiation only afterwards — a probe that returns on the
@@ -7723,6 +7771,10 @@ SMS_SUMMARY_WINDOW_HOURS_DEFAULT = 24
 SMS_CONTEXT_MAX_ITEMS_DEFAULT = 3
 SMS_CONTEXT_TOKEN_BUDGET_DEFAULT = 1024
 SMS_CONTEXT_EXCERPT_CHARS_DEFAULT = 192
+SMS_DISPLAY_INDEX_VERSION = 1
+SMS_DISPLAY_GRAM_CHARS = 3
+SMS_DISPLAY_MAX_INDEX_TERMS_DEFAULT = 2048
+SMS_DISPLAY_MAX_SENDERS_DEFAULT = 2000
 
 # Shared world: opt-in until its launch qualification has passed.
 WORLD_ENABLED_DEFAULT = False
@@ -7777,3 +7829,6 @@ WORLD_SOCKET_CLOSE_UPGRADE_REQUIRED = 4426
 REDIS_KEY_WORLD_RUNTIME_PREFIX = "world:runtime:"
 REDIS_KEY_WORLD_TICKET_PREFIX = "world:ticket:"
 REDIS_KEY_WORLD_MESSAGE_PREFIX = "world:message:"
+
+# Selection assists: schema/message framing reserve, never provider-billed tokens.
+TOOL_ASSIST_PROMPT_OVERHEAD_TOKENS = 256

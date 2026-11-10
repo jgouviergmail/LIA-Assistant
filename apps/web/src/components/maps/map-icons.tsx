@@ -1,5 +1,5 @@
 /**
- * The icons the living maps' DATA names, resolved to Lucide components.
+ * The icons the living maps' DATA names, resolved through the account-style facade.
  *
  * `src/data/maps/*.json` names icons in Lucide's own kebab-case vocabulary (the
  * French documents of `docs/maps` vendor the same geometry). The registry is
@@ -108,7 +108,7 @@ import {
   Wrench,
   Zap,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 

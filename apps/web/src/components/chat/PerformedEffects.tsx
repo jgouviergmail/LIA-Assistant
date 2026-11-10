@@ -15,7 +15,7 @@
  * A key with no translation renders nothing rather than its own name.
  */
 
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';

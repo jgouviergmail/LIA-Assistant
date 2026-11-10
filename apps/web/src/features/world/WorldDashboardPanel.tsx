@@ -1,7 +1,7 @@
 'use client';
 import type { RefObject } from 'react';
 import dynamic from 'next/dynamic';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard } from '@/lib/icons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FeatureErrorBoundary } from '@/components/errors';
 import { useTranslation } from '@/i18n/client';

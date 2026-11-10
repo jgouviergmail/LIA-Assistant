@@ -14,10 +14,9 @@
  * with a button; below, it replaces the list and says where it goes back to. Its acts
  * stand in its bar, « Save » submitting the form from there.
  */
-import { Check, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { Check, RotateCcw, Save, Trash2 } from '@/lib/icons';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { OutboundLink } from '@/components/ui/linked-text';
@@ -27,7 +26,6 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { linksOf } from '@/lib/text-links';
 import { cn } from '@/lib/utils';
-import { addDays } from '@/lib/workbench/calendar/zoned';
 import type { WorkbenchTask, WorkbenchToolAvailability } from '@/lib/workbench/types';
 
 import { FieldAssist } from '../assist/FieldAssist';
@@ -40,6 +38,7 @@ import {
   type TaskOrderActs,
   type TaskStepActs,
 } from './TaskDetailFields';
+import { TaskDueField } from './TaskDueField';
 import { TaskQuickAdd } from './TaskQuickAdd';
 import { useToolConfirm } from '../ToolForm';
 
@@ -77,13 +76,6 @@ export interface TaskEditorProps {
   /** Takes it one place up or down; absent at either end. */
   order?: TaskOrderActs;
 }
-
-/** The dates at hand: their words and how far from today. */
-const QUICK_DUES: readonly (readonly [string, number])[] = [
-  ['workbench.tasks.due_today', 0],
-  ['workbench.tasks.due_tomorrow', 1],
-  ['workbench.tasks.due_next_week', 7],
-];
 
 interface TaskForm {
   title: string;
@@ -270,43 +262,15 @@ export function TaskEditor({
               ))}
             </ul>
           )}
-          <div className="space-y-1">
-            <Input
-              type="date"
-              label={t('workbench.tasks.due')}
-              value={form.due}
-              onChange={event => setForm(previous => ({ ...previous, due: event.target.value }))}
-              onBlur={() => void commit(form)}
-            />
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {QUICK_DUES.map(([key, days]) => (
-                <Button
-                  key={key}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs"
-                  onClick={() => pickDue(addDays(today, days))}
-                >
-                  {t(key)}
-                </Button>
-              ))}
-              {form.due && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs"
-                  onClick={() => pickDue('')}
-                >
-                  {t('workbench.tasks.due_none')}
-                </Button>
-              )}
-            </div>
-            {tool.features.includes('due_date_only') && (
-              <p className="text-xs text-muted-foreground">{t('workbench.tasks.due_date_only')}</p>
-            )}
-          </div>
+          <TaskDueField
+            lng={lng}
+            value={form.due}
+            today={today}
+            dateOnly={tool.features.includes('due_date_only')}
+            onType={due => setForm(previous => ({ ...previous, due }))}
+            onPick={pickDue}
+            onBlur={() => void commit(form)}
+          />
           <TaskExtras
             lng={lng}
             task={task}

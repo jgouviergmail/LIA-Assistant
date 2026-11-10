@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -73,6 +74,13 @@ class SmsSearchTerm(BaseModel):
         Integer, default=SMS_SEARCH_INDEX_VERSION, server_default=text("1"), nullable=False
     )
     term_hashes: Mapped[list[bytes]] = mapped_column(ARRAY(LargeBinary(32)), nullable=False)
+    display_hashes: Mapped[list[bytes] | None] = mapped_column(
+        ARRAY(LargeBinary(32)), nullable=True
+    )
+    display_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    display_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
     __table_args__ = (
         ForeignKeyConstraint(
             ["user_id", "message_id"],
@@ -82,6 +90,7 @@ class SmsSearchTerm(BaseModel):
         UniqueConstraint("message_id", name="uq_sms_index_message"),
         Index("ix_sms_index_owner_message", "user_id", "message_id"),
         Index("ix_sms_terms_gin", "term_hashes", postgresql_using="gin"),
+        Index("ix_sms_display_terms_gin", "display_hashes", postgresql_using="gin"),
     )
 
 

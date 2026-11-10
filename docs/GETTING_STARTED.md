@@ -6,7 +6,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-11-01
-**Compatibility**: LIA v4.5.0
+**Compatibility**: LIA v4.6.0
 
 ## Table of Contents
 
@@ -76,9 +76,9 @@ For ElevenLabs and Fish Audio speech, `ELEVENLABS_TTS_MAX_CONCURRENCY` and `FISH
 | Voice providers | ElevenLabs (STT/TTS), Fish Audio (STT/TTS), Edge TTS (free), OpenAI (STT/TTS), Gemini TTS + local Whisper STT |
 | Configurable model and decision slots | 80, including 23 native JEV usages (admin registry, measured 2026-11-06) |
 | UI languages | 6 — fr, en, es, de, it, zh |
-| Prometheus metrics | 660 |
+| Prometheus metrics | 666 |
 | Grafana dashboards | 33 |
-| Built-in FAQ knowledge base | 549 questions in six languages; the English help corpus is indexed at startup |
+| Built-in FAQ knowledge base | 553 questions in six languages; the English help corpus is indexed at startup |
 
 ### Technical Architecture
 

@@ -55,6 +55,7 @@ const auth = {
   initiateGoogleOAuth: vi.fn(),
   completeNativeSignIn: vi.fn(),
   refreshUser: vi.fn(),
+  applyUserUpdate: vi.fn(() => true),
 };
 
 async function view(language: string, route = idle, selected = place) {

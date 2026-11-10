@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { formatCost, formatDuration } from '../../utils/formatters';
 import type { ImageGenerationCall, ImageGenerationSummary } from '@/types/chat';

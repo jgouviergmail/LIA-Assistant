@@ -13,7 +13,7 @@ import {
   MessageSquareReply,
   ScrollText,
   Volume2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useState, type ReactNode } from 'react';
 
 import { useMailWatch } from '@/hooks/useMailWatch';
@@ -30,7 +30,7 @@ import {
   type TaskAnswer,
   type TextAnswer,
 } from '@/lib/workbench/assist';
-import { addressLabel } from '@/lib/workbench/mail';
+import { addressLabel, receivedFull } from '@/lib/workbench/mail';
 import type { MailAttachment, MailMessage } from '@/lib/workbench/types';
 
 import type { AssistOffer, DetailDeed } from '../DetailBar';
@@ -40,7 +40,7 @@ import { AssistPanel, HeardWords, ReadWords, VoiceCost } from './AssistPanel';
 import { confideLine, keepLine, lineIf, readLine, readyLine, remindLine, type Say } from './lines';
 import { MailSummaryView } from './MailSummaryView';
 import { tellCost } from './tellings';
-import { useAssistCall, type AssistCall } from './useAssistCall';
+import { useAssistCall, type AssistCall } from '@/hooks/useAssistCall';
 
 export interface MailAssist extends AssistOffer {
   /** The answer, where the reader draws it. */
@@ -52,17 +52,18 @@ export interface MailAssist extends AssistOffer {
 export interface MailAssistDoors {
   /** Opens the answer to the message with a proposal on its way. */
   onPropose: (message: MailMessage) => void;
-  /** Makes a task of what the message asks; left out without a tasks tool. */
-  onTask?: (
-    message: MailMessage,
-    task: Pick<ProposedTask, 'title'> & Partial<ProposedTask>
-  ) => void;
+  /** Opens the form of the task LIA read in the message; left out without a tasks tool. */
+  onTask?: (message: MailMessage, task: ProposedTask) => void;
+  /** The names of the person's task lists, which the message is read against. */
+  taskLists?: () => Promise<string[]>;
   /** Opens the editor on the event it describes; left out without a calendar. */
   onEvent?: (message: MailMessage, event: ProposedEvent) => void;
   /** It is read among what the person sent: its answer comes from whom it went to. */
   sent?: boolean;
   /** How many messages its conversation shows: one alone has nothing to sum up. */
   said?: number;
+  /** The account's zone: the day and hour a ticket names are the ones the reader reads. */
+  zone?: string;
 }
 
 /** Every call a message can be the subject of, one panel each. */
@@ -91,6 +92,7 @@ function useMailCalls(scope: string | null): MailCalls {
 /** What a line of this message needs. */
 interface MailContext {
   t: Say;
+  lng: Language;
   message: MailMessage;
   calls: MailCalls;
   doors: MailAssistDoors;
@@ -130,22 +132,47 @@ function readAloudLine(context: MailContext, bounds: AssistBounds): DetailDeed {
   };
 }
 
+/**
+ * The task the message leaves, or the one an act it names asks for, read against the person's
+ * lists; its form opens elsewhere, so the cost is said here.
+ *
+ * @param focus - The act chosen (a line of its summary): the task read is that one.
+ */
+async function askTask({ message, calls, doors }: MailContext, focus?: string): Promise<void> {
+  const lists = (await doors.taskLists?.()) ?? [];
+  const answer = await calls.task.run(ASSIST_PATHS.mailTask, {
+    message_id: message.id,
+    lists,
+    ...(focus ? { focus } : {}),
+  });
+  if (!answer) return;
+  tellCost(answer.usage);
+  doors.onTask?.(message, answer.task);
+}
+
+/**
+ * The event the message describes; its editor opens elsewhere, so the cost is said here.
+ */
+async function askEvent({ message, calls, doors }: MailContext): Promise<void> {
+  const answer = await calls.event.run(ASSIST_PATHS.mailEvent, {
+    message_id: message.id,
+  });
+  if (!answer) return;
+  tellCost(answer.usage);
+  doors.onEvent?.(message, answer.event);
+}
+
 /** What an extraction opens: the cost is said here, its page going on elsewhere. */
-function formLines({ t, message, calls, doors, quiet }: MailContext): readonly DetailDeed[] {
+function formLines(context: MailContext): readonly DetailDeed[] {
+  const { t, doors, quiet } = context;
   const { onEvent, onTask } = doors;
   const toEvent = async () => {
     quiet();
-    const answer = await calls.event.run(ASSIST_PATHS.mailEvent, { message_id: message.id });
-    if (!answer) return;
-    tellCost(answer.usage);
-    onEvent?.(message, answer.event);
+    await askEvent(context);
   };
   const toTask = async () => {
     quiet();
-    const answer = await calls.task.run(ASSIST_PATHS.mailTask, { message_id: message.id });
-    if (!answer) return;
-    tellCost(answer.usage);
-    onTask?.(message, answer.task);
+    await askTask(context);
   };
   return [
     ...lineIf(Boolean(onEvent), {
@@ -221,6 +248,14 @@ function watchLine(
   });
 }
 
+/** What a ticket tells LIA of the mail: whose, which, and when it came, so its run finds that one. */
+function mailBrief({ t, lng, message, doors }: MailContext, sender: string, subject: string) {
+  const when = receivedFull(message.received_at, doors.zone, lng);
+  return when
+    ? t('workbench.assist.confide.brief_mail_on', { sender, subject, when })
+    : t('workbench.assist.confide.brief_mail', { sender, subject });
+}
+
 /** What the person leaves for later, or to someone else. */
 function laterLines(
   context: MailContext,
@@ -233,12 +268,7 @@ function laterLines(
   return [
     remindLine(t, t('workbench.assist.remind.words.mail', { sender, subject }), bridges.remind),
     ...watchLine(context, watch),
-    ...confideLine(
-      t,
-      subject,
-      t('workbench.assist.confide.brief_mail', { sender, subject }),
-      bridges.confide
-    ),
+    ...confideLine(t, subject, mailBrief(context, sender, subject), bridges.confide),
     readyLine(t, 'mail', { sender, subject }, bridges.ask),
   ];
 }
@@ -246,16 +276,15 @@ function laterLines(
 /** Where every answer lands, in the order they are read. */
 function MailPanels({
   lng,
-  message,
   calls,
   attachmentRead,
-  onTask,
+  onAction,
 }: {
   lng: Language;
-  message: MailMessage;
   calls: MailCalls;
   attachmentRead: string;
-  onTask: MailAssistDoors['onTask'];
+  /** Makes a whole task of an action the summary found; left out without a tasks tool. */
+  onAction?: (action: string) => void;
 }) {
   const { t } = useTranslation(lng);
   const { summary, translation, conversation, heard, attachment, event, task } = calls;
@@ -263,13 +292,7 @@ function MailPanels({
   return (
     <>
       <AssistPanel lng={lng} title={t('workbench.assist.mail.summary_title')} call={summary}>
-        {answer => (
-          <MailSummaryView
-            lng={lng}
-            answer={answer}
-            onTask={onTask && (title => onTask(message, { title }))}
-          />
-        )}
+        {answer => <MailSummaryView lng={lng} answer={answer} onTask={onAction} />}
       </AssistPanel>
       <AssistPanel
         lng={lng}
@@ -341,7 +364,7 @@ export function useMailAssist(
   if (!message) return { lines: [], panel: null, attachmentLines: () => [] };
   const each = Object.values(calls);
   const quiet = () => each.forEach(call => call.stop());
-  const context: MailContext = { t, message, calls, doors, quiet };
+  const context: MailContext = { t, lng, message, calls, doors, quiet };
   const attachmentLines = (file: MailAttachment, name: string): readonly DetailDeed[] => {
     const handle = { message_id: message.id, attachment_id: file.id };
     const read = () => {
@@ -371,10 +394,10 @@ export function useMailAssist(
     panel: (
       <MailPanels
         lng={lng}
-        message={message}
         calls={calls}
         attachmentRead={attachmentRead}
-        onTask={doors.onTask}
+        // The summary stays where it is: only the task's own call starts.
+        onAction={doors.onTask && (action => void askTask(context, action))}
       />
     ),
   };

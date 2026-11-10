@@ -8,7 +8,7 @@
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 
 import { CommitSlider } from '../CommitSlider';
 
@@ -46,7 +46,7 @@ describe('CommitSlider — a word on the screen, more for the ear', () => {
 });
 
 describe('CommitSlider', () => {
-  it('sends the released value once', () => {
+  it('sends the released value once', async () => {
     const { range, onCommit } = slider();
 
     fireEvent.input(range, { target: { value: '40' } });
@@ -55,9 +55,10 @@ describe('CommitSlider', () => {
 
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith(40);
+    await waitFor(() => expect(range).toHaveValue('50'));
   });
 
-  it('sends a key held down once, when the key is released', () => {
+  it('sends a key held down once, when the key is released', async () => {
     const { range, onCommit } = slider();
 
     fireEvent.keyDown(range, { key: 'ArrowRight' });
@@ -69,6 +70,7 @@ describe('CommitSlider', () => {
 
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith(53);
+    await waitFor(() => expect(range).toHaveValue('50'));
   });
 
   it('sends nothing for a key that moved nothing', () => {

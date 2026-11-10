@@ -6,7 +6,7 @@ import type { VariantProps } from 'class-variance-authority';
 import { buttonVariants } from './button-variants';
 
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/lib/icons';
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {

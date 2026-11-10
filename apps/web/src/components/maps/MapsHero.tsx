@@ -1,4 +1,4 @@
-import { GitCommitHorizontal } from 'lucide-react';
+import { GitCommitHorizontal } from '@/lib/icons';
 
 /** The product name inside a translated title, drawn in the brand gradient. */
 const PRODUCT_NAME = 'LIA';

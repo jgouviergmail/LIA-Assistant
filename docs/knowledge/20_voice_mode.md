@@ -48,7 +48,7 @@ the voice holds the conversation; every request for data or action is handed to 
 
 **🎧 Live session** — the voice delegates: each thing you ask becomes a chat turn of yours, run by LIA while you speak, with confirmations for anything that acts and every answer drawn in the thread. This is the mode that can DO things.
 
-**🎯 Direct live session** — the voice reads your data itself, without going through the chat: your agenda, mails, contacts, tasks, places, the weather, what LIA remembers — the domains you allow in **Settings → My phone**, the same switches as the phone. It acts on nothing: a request is noted, and at the end everything you said is relayed to the conversation as a message from you, which LIA answers. It buys latency, not economy: the tools' declarations are re-billed on every turn by the provider, about nine times the text prompt of a delegated session in our measurement. Offered only where the model's wire carries a tool schema (an ElevenLabs agent does not).
+**🎯 Direct live session** — the voice reads your data itself, without going through the chat: your agenda, mails, contacts, tasks, places, the weather, what LIA remembers — the domains you allow in **Settings → My phone**, the same switches as the phone. It acts on nothing: a request is noted, and at the end everything you said is relayed to the conversation as a message from you, which LIA answers. It buys latency, not economy: the tools' declarations are re-billed on every turn by the provider, about nine times the text prompt of a delegated session in our measurement. Offered only where the model's wire carries a tool schema (GPT-Live does not).
 
 ## What does a Live session cost, and who pays?
 
@@ -101,3 +101,17 @@ If the avatar is unavailable, the existing text and voice paths remain usable. S
 **Privacy:** enabling it sends LIA's spoken output to Simli to generate the face. It does not send your microphone audio to Simli; the voice provider's own processing still applies.
 
 The “Stop avatar session” button remains available in the window and shows whether closure is confirmed or still pending. If it remains pending, wait and try again; unconfirmed closure is not proof that Simli has stopped billing. The avatar, companion and shortcuts stay within the visible area when the mobile keyboard opens, you rotate the screen or zoom; your preferred position returns afterwards without these adjustments overwriting it.
+
+## Does LIA's personality also shape its voice in a Live session?
+
+Yes — what the voice says, and how it sounds. The personality chosen in **LIA Style** governs how the voice addresses you, its words and turns of phrase, its humour, how it announces a lookup and reports what it found, and how it says goodbye, on every provider, in Live as in Live direct. Facts never bend to it: a result, a date or a failure stays exactly what it is.
+
+**🎭 With an ElevenLabs agent:**
+when the agent's voice performs expression tags (an Eleven v3 or v4 voice, or a realtime model), LIA writes on the agent, at every session, the palette of tags the voice may use — sarcastic, weary, soft, cheerful and others — and switches off the vendor's default persona; your personality decides which tags fit, and the tags never appear in the conversation. The portal's canned greeting is no longer heard: the voice's first words come from LIA. The voice, the language and the turn-taking stay those set on the ElevenLabs portal.
+
+## Do LIA's spoken comments follow its personality too?
+
+Yes. When voice mode is on and LIA uses a tool, it speaks a short comment on what the answer kept. That comment is written in the personality chosen in **LIA Style**, from the facts of the answer and in your language: the way it addresses you, its words, its humour, how it reports what was found. An answer read aloud is the written answer itself, already in your personality.
+
+**🎭 Its tone:**
+with a voice engine that performs expressions — ElevenLabs v3 and v4, Fish Audio S2, Gemini 3.8 — the personality also picks how a sentence sounds: sarcastic, weary, soft, hurried, cheerful and others. The other engines carry it in the words alone. How strongly it comes through also depends on the model your instance uses to write the comment.

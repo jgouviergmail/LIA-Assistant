@@ -35,11 +35,11 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Ban, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Ban, ThumbsDown, ThumbsUp } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ActionChipButton } from '@/components/chat/ActionChipButton';
 import { useApiMutation } from '@/hooks/useApiMutation';
 
 /* A failed submission never surfaces an error toast (owner arbitration
@@ -181,23 +181,18 @@ export function ProactiveFeedbackButtons({
         const decided = submittedVerdict !== undefined;
         const chosen = submittedVerdict === verdict;
         return (
-          <Tooltip key={verdict}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => handleFeedback(verdict)}
-                disabled={isSubmitting || decided}
-                aria-label={label}
-                aria-pressed={decided ? chosen : undefined}
-                className={`rounded-md border border-border/30 bg-background/80 p-1.5 transition-colors ${
-                  chosen ? activeClassName : 'text-muted-foreground'
-                } ${decided ? 'disabled:opacity-100' : `hover:bg-background ${className}`}`}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{label}</TooltipContent>
-          </Tooltip>
+          <ActionChipButton
+            key={verdict}
+            onClick={() => handleFeedback(verdict)}
+            disabled={isSubmitting || decided}
+            label={label}
+            aria-pressed={decided ? chosen : undefined}
+            className={`${chosen ? activeClassName : 'text-muted-foreground'} ${
+              decided ? 'disabled:opacity-100' : className
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+          </ActionChipButton>
         );
       })}
     </>

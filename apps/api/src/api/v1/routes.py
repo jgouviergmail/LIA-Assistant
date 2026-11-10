@@ -163,9 +163,11 @@ if getattr(settings, "open_loops_enabled", False):
     api_router.include_router(open_loops_router)
 
 if getattr(settings, "habits_enabled", False):
+    from src.domains.habits.proposals_router import router as habit_proposals_router
     from src.domains.habits.router import router as habits_router
 
     api_router.include_router(habits_router)  # Learned habits control surface (ADR-214)
+    api_router.include_router(habit_proposals_router)  # What LIA proposes from them (ADR-375)
 
 if getattr(settings, "activity_timeline_enabled", False):
     from src.domains.activity.router import router as activity_router

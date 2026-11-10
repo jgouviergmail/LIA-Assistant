@@ -1,7 +1,7 @@
 /** The backend reference contract survives the real Markdown sanitizer. */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MarkdownContent } from '../MarkdownContent';
 
@@ -28,11 +28,13 @@ const domainFacts: Record<string, string[]> = {
   emails: ['Votre réservation est confirmée.'],
   routes: ['Gare de Lyon Part-Dieu'],
   places: ['Le Jardin des Saveurs'],
+  locations: ['Place Bellecour, 69002 Lyon', '45.7578', '4.832'],
   tasks: ['Dernière note : billets et confirmation.', 'Étape 13'],
   contacts: ['camille4@example.test'],
   events: ['participant13@example.test'],
   files: ["Dernière ligne : rendez-vous à l'accueil."],
   calendars: ['Voyage à Lyon'],
+  reminders: ['REMINDER_COMPLETE_CONTENT', '2027', 'Europe/Paris'],
   hues: ['Lampe du bureau', '0%'],
   tickets: ['Préparer la visite', 'LIA'],
   wikipedia: ['LAST_ARTICLE_FACT', 'Category 6', 'Last supplied section'],
@@ -56,7 +58,28 @@ function expectedDomains(id: string): string[] {
   return [id];
 }
 
+function assertEnvelopeFacts(container: HTMLElement) {
+  expect(container.querySelectorAll('.lia-email')).toHaveLength(3);
+  const collection = container.querySelector('details.lia-card-collection');
+  if (!(collection instanceof HTMLDetailsElement)) throw new Error('Missing email disclosure');
+  expect(collection.querySelector('summary')).toHaveTextContent('(7)');
+  act(() => {
+    collection.open = true;
+    fireEvent(collection, new Event('toggle'));
+  });
+  expect(container.querySelectorAll('.lia-email')).toHaveLength(10);
+  for (let index = 1; index <= 10; index++) {
+    expect(container).toHaveTextContent(`EMAIL_COMPLETE_BODY_${index}`);
+  }
+  expect(container.querySelectorAll('.lia-event__participant')).toHaveLength(7);
+  expect(container).toHaveTextContent('EVENT_COMPLETE_DESCRIPTION');
+}
+
 function assertDomainFacts(reference: Reference, container: HTMLElement) {
+  if (reference.id === 'enveloppes') {
+    assertEnvelopeFacts(container);
+    return;
+  }
   const domains = expectedDomains(reference.id);
   expect(container.querySelectorAll('.lia-card')).toHaveLength(domains.length);
   const text = container.textContent ?? '';
@@ -94,10 +117,13 @@ function assertDomainFacts(reference: Reference, container: HTMLElement) {
       'Visite du jardin',
       '12',
       'Calendrier de l’équipe',
+      'Accès vérifiés',
+      'Prévenir les bénévoles',
     ]) {
       expect(text).toContain(fact);
     }
-    expect(container.querySelector('progress')).toBeNull();
+    expect(container.querySelector('progress')).toHaveAttribute('value', '1');
+    expect(container.querySelector('progress')).toHaveAttribute('max', '2');
     return;
   }
   for (const domain of domains) {

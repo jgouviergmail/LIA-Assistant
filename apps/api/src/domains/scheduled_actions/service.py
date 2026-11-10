@@ -25,7 +25,7 @@ from src.core.exceptions import (
 )
 from src.core.recurrence import RecurrenceError, RecurrenceSpec
 from src.core.time_utils import now_utc
-from src.domains.scheduled_actions.errors import refuse_mcp_preapproval
+from src.domains.scheduled_actions.errors import RoutineLimitError, refuse_mcp_preapproval
 from src.domains.scheduled_actions.models import (
     ScheduledAction,
     ScheduledActionStatus,
@@ -287,14 +287,15 @@ class ScheduledActionService:
         here because a condition routine's checks are phased by it.
 
         Raises:
-            ValidationError: If user has reached the maximum limit, or a watch
-                is set to end on a day already over.
+            RoutineLimitError: If the user has reached the maximum limit (a
+                ``ValidationError``).
+            ValidationError: If a watch is set to end on a day already over.
         """
         # UI and assistant creations serialize on the same owner row.
         await self.repository.lock_creation_owner(user_id)
         count = await self.repository.count_for_user(user_id)
         if count >= SCHEDULED_ACTIONS_MAX_PER_USER:
-            raise ValidationError(
+            raise RoutineLimitError(
                 f"Maximum of {SCHEDULED_ACTIONS_MAX_PER_USER} scheduled actions per user"
             )
 

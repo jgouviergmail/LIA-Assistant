@@ -15,7 +15,7 @@
  * What LIA can do on a file joins that act under one icon of the same width: a phone's
  * row gains no control (ADR-372).
  */
-import { Download, Eye, FileText, HardDriveUpload } from 'lucide-react';
+import { Download, Eye, FileText, HardDriveUpload } from '@/lib/icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -31,7 +31,7 @@ import { workbenchRefusal } from '@/lib/workbench/errors';
 import { attachmentUrl, fileSize } from '@/lib/workbench/mail';
 import type { MailAttachment } from '@/lib/workbench/types';
 
-import { AssistStars } from '../assist/AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { BarAct, type DetailDeed } from '../DetailBar';
 import { FolderPicker } from '../files/FolderPicker';
 import { ToolDialogHeader } from '../ToolForm';

@@ -9,7 +9,7 @@
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { Bell } from 'lucide-react';
+import { Bell } from '@/lib/icons';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AnimationPauseToggle, MoreAnimationProvider } from '../animation-context';

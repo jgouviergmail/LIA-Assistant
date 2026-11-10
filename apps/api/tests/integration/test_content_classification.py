@@ -87,9 +87,11 @@ async def test_overlapping_workers_recheck_the_cache_under_the_source_claim(
     left, right = await asyncio.gather(first, second)
     assert set(left) == {"private-0", "private-1"}
     assert set(right) == {"private-1", "private-2"}
-    assert counts == [4, 2]  # Three observations, two independent email questions each.
+    # Three observations, three independent email questions each: category, priority and
+    # the expected reply (ADR-374); the shared one is asked once.
+    assert counts == [6, 3]
     await run([0, 1, 2])
-    assert counts == [4, 2]
+    assert counts == [6, 3]
     assert not [
         key
         async for key in redis.scan_iter(match=f"shared_flight:content_classification:{owner}:*")
@@ -110,6 +112,8 @@ async def test_negative_cache_is_short_and_a_changed_grant_never_reuses_it(
     redis, owner = cache_owner
 
     async def uncertain(**kwargs: object) -> DecisionAttempt:
+        # Every question asked is answered, as the native runtime does: the choices are
+        # unsure, the reply probabilities travel unchanged.
         result = await successful(**kwargs)
         return DecisionAttempt(
             outcome="success",
@@ -117,6 +121,7 @@ async def test_negative_cache_is_short_and_a_changed_grant_never_reuses_it(
                 key: answer.model_copy(update={"confidence": 0.1})
                 for key, answer in result.answers.items()
             },
+            nouls=result.nouls,
         )
 
     native = AsyncMock(side_effect=uncertain)
@@ -134,8 +139,12 @@ async def test_negative_cache_is_short_and_a_changed_grant_never_reuses_it(
 
     result = await run("first-grant")
     assert result["private-1"].category == "unknown"
-    await run("first-grant")
+    # A confident reply reading never stands beside an undecided category (ADR-374),
+    # neither fresh nor read back from the negative cache.
+    assert result["private-1"].reply_expected is None
+    cached = await run("first-grant")
     assert native.await_count == 1
+    assert cached["private-1"].reply_expected is None
     keys = [key async for key in redis.scan_iter(match=f"content:classification:{owner}:*")]
     assert len(keys) == 1
     assert 0 < await redis.ttl(keys[0]) <= JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS

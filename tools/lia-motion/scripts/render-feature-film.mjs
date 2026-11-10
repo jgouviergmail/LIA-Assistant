@@ -51,7 +51,7 @@ if (mode === 'assemble') { await assemble(); process.exit(0); }
 await mkdir(path.join(project, 'public/film'), { recursive: true });
 await copyFile(path.join(root, 'apps/web/public/icon.svg'), path.join(project, 'public/film/icon.svg'));
 await copyFile(path.join(root, 'apps/web/public/avatars/bip/v1/male/body.webp'), path.join(project, 'public/film/bip-body.webp'));
-await copyFile(path.join(root, 'apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2'), path.join(project, 'public/film/MaterialSymbolsOutlined.woff2'));
+await copyFile(path.join(root, 'apps/web/public/fonts/material-symbols/MaterialSymbolsOutlined.woff2'), path.join(project, 'public/film/MaterialSymbolsOutlined.woff2'));
 for (const asset of ['eye.webp', 'eye-right.webp', 'iris.webp', 'sclera-mask.webp', 'sclera-mask-right.webp']) {
   await copyFile(path.join(root, 'apps/web/public/avatars/spirit/v1/male', asset), path.join(project, 'public/film', asset));
 }

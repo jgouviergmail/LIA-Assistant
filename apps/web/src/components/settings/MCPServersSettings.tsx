@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
-import { Plug, Plus, Server } from 'lucide-react';
+import { Plug, Plus, Server } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import {

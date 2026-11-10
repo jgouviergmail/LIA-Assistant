@@ -2,14 +2,12 @@ import { test, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes } from '../fixtures/api-mock';
 import { dashboardShellMocks } from '../fixtures/dashboard-shell';
 import { makeTestUser } from '../fixtures/test-user';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { installInertWorldAdmission } from '../fixtures/world-session';
 import { enterWorld } from '../fixtures/world-admission';
 import { WORLD, onSite } from '../../src/features/world/definition';
 
 for (const phase of ['day', 'night'] as const)
   test('world finishing review ' + phase, async ({ page }, info) => {
-    await installOfflineFonts(page);
     await installApiCatchAll(page);
     const user = makeTestUser();
     await registerRoutes(page, [...dashboardShellMocks, { url: '**/api/v1/auth/me', json: user }]);

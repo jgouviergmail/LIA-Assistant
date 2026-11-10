@@ -1,7 +1,7 @@
 'use client';
 
-import { CheckCircle2, ListTodo, Sparkles, Zap } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CheckCircle2, ListTodo, Sparkles, Zap } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { HeadingRule } from '@/components/ui/heading-rule';

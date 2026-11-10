@@ -153,7 +153,7 @@ class TestTheFlagsThisGuardMakesIrrelevant:
         self, declarations: list[tuple[str, str, str | None, str | None, str]]
     ) -> None:
         by_name = {name: policy for _, name, _, policy, _ in declarations}
-        assert by_name.get("send_peer_message_tool") == "draft"
+        assert by_name.get("send_peer_message_tool") == "direct"
         for reader in (
             "list_peer_connections_tool",
             "get_peer_availability_tool",

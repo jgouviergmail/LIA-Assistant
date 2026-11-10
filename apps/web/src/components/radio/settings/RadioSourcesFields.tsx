@@ -12,7 +12,7 @@
  * Ticking a base source saves the settings, then reads the newsroom again: the
  * totals move with the choice.
  */
-import { Eraser, Library, Newspaper } from 'lucide-react';
+import { Eraser, Library, Newspaper } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';

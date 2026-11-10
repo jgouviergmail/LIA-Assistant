@@ -1,4 +1,4 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from '@/lib/icons';
 
 import type { LandingVideoDescriptor } from '@/lib/landing/media';
 

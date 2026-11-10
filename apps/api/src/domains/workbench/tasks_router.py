@@ -217,6 +217,23 @@ async def delete_task_step(
 
 
 @router.get(
+    "/task",
+    response_model=Task,
+    summary="One task, whole",
+    dependencies=[Depends(rate_limit_read)],
+)
+async def get_task(
+    list_id: _ListId,
+    task_id: Annotated[ProviderId, Query(description="The task.")],
+    user: _Account,
+) -> Task:
+    """Read one task, in the account's zone."""
+    return await tasks_service.read_task(
+        user.id, resolve_user_timezone(user), list_id=list_id, task_id=task_id
+    )
+
+
+@router.get(
     "",
     response_model=TasksPage,
     summary="One page of a list's tasks",

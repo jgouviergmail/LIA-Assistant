@@ -7,7 +7,7 @@
  * the group, on every provider, because an empty group would exist on one and vanish on another.
  * Each group the contact is in can be left. What a provider keeps for itself is never shown here.
  */
-import { X } from 'lucide-react';
+import { X } from '@/lib/icons';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 

@@ -48,13 +48,9 @@ import {
   SHORT_NAP_MS,
   WAKE_SHORT_PERFORMANCE,
   shouldBlinkBeforeGaze,
-  isSillyTime,
-  pickSillyGesture,
   pickIdleFlicker,
   IDLE_FLICKERS,
   emoteForExpression,
-  SILLY_GESTURES,
-  SILLY_PROBABILITY,
   GESTURE_DURATION_MS,
   IDLE_GESTURE_MIN_DELAY_MS,
   IDLE_GESTURE_MAX_DELAY_MS,
@@ -418,7 +414,7 @@ describe('idle gesture scheduling', () => {
       seen.calm.add(pickIdleGesture(() => r, 'calm'));
       seen.drowsy.add(pickIdleGesture(() => r, 'drowsy'));
     }
-    expect(seen.lively.has('bounce')).toBe(true);
+    expect(seen.lively.has('perk')).toBe(true);
     expect(seen.lively.has('slow-blink')).toBe(false);
     expect(seen.calm.has('bounce')).toBe(false);
     expect(seen.drowsy.has('slow-blink')).toBe(true);
@@ -510,7 +506,6 @@ describe('idle gesture scheduling', () => {
       'corner-tug',
       'perk',
       'squint',
-      'tilt',
     ]);
     for (const family of ['lively', 'calm'] as const) {
       let face = 0;
@@ -531,30 +526,11 @@ describe('idle gesture scheduling', () => {
     }
   });
 
-  it('keeps the calm picks the widget tests pin — the weights sum to one and stay ordered', () => {
-    // The widget specs drive the idle life with a pinned RNG and read the
-    // gesture back from the DOM: 0.6 must stay a tilt and 0.95 a flicker, or
-    // a weight edit here fails a test three files away for no visible reason.
+  it('keeps gaze dominant and makes the deterministic calm beat a squint', () => {
     expect(pickIdleGesture(() => 0, 'calm')).toBe('saccade');
     expect(pickIdleGesture(() => 0.5, 'calm')).toBe('glance');
-    expect(pickIdleGesture(() => 0.6, 'calm')).toBe('tilt');
-    expect(pickIdleGesture(() => 0.7, 'calm')).toBe('squint');
-    expect(pickIdleGesture(() => 0.9, 'calm')).toBe('flicker');
+    expect(pickIdleGesture(() => 0.6, 'calm')).toBe('squint');
     expect(pickIdleGesture(() => 0.95, 'calm')).toBe('flicker');
-    expect(pickIdleGesture(() => 0, 'lively')).toBe('saccade');
-  });
-
-  it('silly beats are rare, RNG-gated, and picked from the whole silly set', () => {
-    expect(isSillyTime(() => 0)).toBe(true);
-    expect(isSillyTime(() => SILLY_PROBABILITY)).toBe(false);
-    const seen = new Set<string>();
-    for (let r = 0; r < 1; r += 0.01) seen.add(pickSillyGesture(() => r));
-    expect(seen).toEqual(new Set(SILLY_GESTURES));
-    expect(pickSillyGesture(() => 0)).toBe('swap');
-    for (const silly of SILLY_GESTURES) {
-      expect(GESTURE_DURATION_MS[silly]).toBeGreaterThan(800);
-      expect(GESTURE_DURATION_MS[silly]).toBeLessThan(2500);
-    }
   });
 
   it('emotes map the explicit expressions only', () => {
@@ -592,8 +568,8 @@ describe('idle gesture scheduling', () => {
       'slow-blink',
       'half-blink',
       'squint',
-      'tilt',
-      'bounce',
+      'nod',
+      'consider',
       'perk',
       'brow',
     ] as const) {

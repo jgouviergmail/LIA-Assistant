@@ -15,7 +15,7 @@
  * screen and says it is busy; only the FIRST load draws a placeholder. The dialogs any tool can
  * open (`useAssistHost`) are held here once.
  */
-import { Wrench } from 'lucide-react';
+import { Wrench } from '@/lib/icons';
 import { usePathname } from 'next/navigation';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
@@ -23,6 +23,7 @@ import { HeadingRule } from '@/components/ui/heading-rule';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useAuth } from '@/hooks/useAuth';
 import {
   useWorkbenchAvailability,
   type WorkbenchAvailabilityState,
@@ -95,6 +96,15 @@ export interface WorkbenchShellProps {
 }
 
 export function WorkbenchShell({ lng, children }: WorkbenchShellProps) {
+  const { user } = useAuth();
+  return (
+    <AccountWorkbenchShell key={user?.id ?? 'signed-out'} lng={lng}>
+      {children}
+    </AccountWorkbenchShell>
+  );
+}
+
+function AccountWorkbenchShell({ lng, children }: WorkbenchShellProps) {
   const { t } = useTranslation(lng);
   const { config } = useAppConfig();
   const offered = workbenchAvailable(config);

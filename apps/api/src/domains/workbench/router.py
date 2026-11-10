@@ -20,6 +20,8 @@ from src.domains.users.models import User
 from src.domains.workbench import search
 from src.domains.workbench.availability import read_availability
 from src.domains.workbench.calendar_router import router as calendar_router
+from src.domains.workbench.card_router import router as card_router
+from src.domains.workbench.card_source import card_source_scope
 from src.domains.workbench.contacts_router import router as contacts_router
 from src.domains.workbench.files_router import router as files_router
 from src.domains.workbench.lights_router import router as lights_router
@@ -34,7 +36,10 @@ from src.domains.workbench.tasks_router import router as tasks_router
 router = APIRouter(
     prefix="/workbench",
     tags=["Workbench"],
-    dependencies=capability_dependencies(PlatformCapability.WORKBENCH),
+    dependencies=[
+        *capability_dependencies(PlatformCapability.WORKBENCH),
+        Depends(card_source_scope),
+    ],
 )
 router.include_router(mail_router)
 router.include_router(mail_compose_router)
@@ -44,6 +49,7 @@ router.include_router(contacts_router)
 router.include_router(files_router)
 router.include_router(tasks_router)
 router.include_router(lights_router)
+router.include_router(card_router)
 
 
 @router.get(

@@ -88,3 +88,13 @@ sinon (règle commune `shared/name_resolution`, détaillée dans l'amendement du
 2026-10-24 de l'ADR-182). La découverte reste une recherche par nom complet
 exact : elle parcourt les comptes de l'instance, où un préfixe ou un prénom
 ouvrirait l'énumération que cet ADR refuse.
+
+
+## Amendment 2026-11-09 — requested messages are direct
+
+The draft-first admission described above is superseded for new messages by
+[ADR-263's direct communication policy](ADR-263-Execution-Authority-Chain-And-Effect-Register.md).
+Unique-recipient resolution, current pair authority, both sender quotas and the
+durable effect claim remain mandatory. Historical cards retain exact confirmation.
+Queue admission is not delivery. The renewable delivery claim and atomic archive
+are specified in the [ADR-186 amendment](ADR-186-Relayed-Message-Retention.md).

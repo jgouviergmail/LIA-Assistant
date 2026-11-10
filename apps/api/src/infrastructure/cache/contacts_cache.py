@@ -16,6 +16,7 @@ import redis.asyncio as aioredis
 import structlog
 
 from src.core.config import get_settings
+from src.core.constants import CONTACTS_DIRECTORY_SHAPE
 
 from .base import (
     create_cache_entry,
@@ -44,18 +45,28 @@ class ContactsCache:
     - Automatic TTL expiration
     """
 
-    def __init__(self, redis_client: aioredis.Redis) -> None:
+    def __init__(self, redis_client: aioredis.Redis, *, source_binding: str | None = None) -> None:
         """
         Initialize contacts cache.
 
         Args:
             redis_client: Redis async client.
+            source_binding: Opaque provider account; empty disables record caches.
         """
         self.redis = redis_client
+        self._source_binding = source_binding
+
+    def for_source(self, binding: str) -> ContactsCache:
+        """A view sharing the pool but never another provider account's records."""
+        return ContactsCache(self.redis, source_binding=binding)
+
+    def _source_key(self, key: str) -> str:
+        """Keep the registered family and account prefix for purge/invalidation."""
+        return f"{key}:source:{self._source_binding}" if self._source_binding is not None else key
 
     def _make_list_key(self, user_id: UUID) -> str:
         """Generate cache key for list_contacts."""
-        return make_user_key("contacts_list", user_id)
+        return self._source_key(make_user_key("contacts_list", user_id))
 
     def _make_search_key(self, user_id: UUID, query: str) -> str:
         """
@@ -68,19 +79,31 @@ class ContactsCache:
         Returns:
             Cache key with query hash.
         """
-        return make_search_key("contacts_search", user_id, query)
+        return self._source_key(make_search_key("contacts_search", user_id, query))
 
     def _make_details_key(self, user_id: UUID, resource_name: str) -> str:
         """Generate cache key for get_contact_details."""
-        return make_resource_key("contacts_details", user_id, resource_name)
+        return self._source_key(make_resource_key("contacts_details", user_id, resource_name))
 
     def _make_directory_key(self, user_id: UUID, provider: str, max_contacts: int) -> str:
-        """Generate cache key for the whole directory (``clients/contact_directory``)."""
-        return make_resource_key("contacts_directory", user_id, f"{provider}:{max_contacts}")
+        """Generate cache key for the whole directory (``clients/contact_directory``).
+
+        The key names the shape of the persons it holds: a book cached in an older shape is
+        never read as one in the current shape.
+        """
+        return make_resource_key(
+            "contacts_directory",
+            user_id,
+            f"{provider}:{max_contacts}:{CONTACTS_DIRECTORY_SHAPE}",
+        )
 
     def _make_directory_stamp_key(self, user_id: UUID, provider: str, max_contacts: int) -> str:
         """The small key beside the directory: its version and cut, never its persons."""
-        return make_resource_key("contacts_directory", user_id, f"{provider}:{max_contacts}:stamp")
+        return make_resource_key(
+            "contacts_directory",
+            user_id,
+            f"{provider}:{max_contacts}:{CONTACTS_DIRECTORY_SHAPE}:stamp",
+        )
 
     async def get_directory_stamp(
         self, user_id: UUID, provider: str, max_contacts: int
@@ -196,6 +219,8 @@ class ContactsCache:
             >>> if from_cache:
             >>>     print(f"Cache hit (age: {age}s)")
         """
+        if self._source_binding == "":
+            return None, False, None, None
         key = self._make_list_key(user_id)
         try:
             cached = await self.redis.get(key)
@@ -237,6 +262,8 @@ class ContactsCache:
         if ttl_seconds is None:
             ttl_seconds = settings.contacts_cache_list_ttl_seconds
 
+        if self._source_binding == "":
+            return
         key = self._make_list_key(user_id)
         try:
             cache_entry = create_cache_entry(data, ttl_seconds)
@@ -269,6 +296,8 @@ class ContactsCache:
         Returns:
             Tuple of (data, from_cache, cached_at, cache_age_seconds).
         """
+        if self._source_binding == "":
+            return None, False, None, None
         key = self._make_search_key(user_id, query)
         try:
             cached = await self.redis.get(key)
@@ -321,6 +350,8 @@ class ContactsCache:
         if ttl_seconds is None:
             ttl_seconds = settings.contacts_cache_search_ttl_seconds
 
+        if self._source_binding == "":
+            return
         key = self._make_search_key(user_id, query)
         try:
             cache_entry = create_cache_entry(data, ttl_seconds)
@@ -354,6 +385,8 @@ class ContactsCache:
         Returns:
             Tuple of (data, from_cache, cached_at, cache_age_seconds).
         """
+        if self._source_binding == "":
+            return None, False, None, None
         key = self._make_details_key(user_id, resource_name)
         try:
             cached = await self.redis.get(key)
@@ -410,6 +443,8 @@ class ContactsCache:
         if ttl_seconds is None:
             ttl_seconds = settings.contacts_cache_details_ttl_seconds
 
+        if self._source_binding == "":
+            return
         key = self._make_details_key(user_id, resource_name)
         try:
             cache_entry = create_cache_entry(data, ttl_seconds)
@@ -442,6 +477,7 @@ class ContactsCache:
         """
         patterns = [
             f"contacts_list:{user_id}",
+            f"contacts_list:{user_id}:*",
             f"contacts_search:{user_id}:*",
             f"contacts_details:{user_id}:*",
             f"contacts_directory:{user_id}:*",

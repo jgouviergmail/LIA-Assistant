@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { Gamepad2, LayoutGrid } from 'lucide-react';
+import { Gamepad2, LayoutGrid } from '@/lib/icons';
 import type { WorldActivityEntry } from './useWorldActivityState';
 import type { WorldGameClient } from './game-client';
 import { CABINET_GAMES } from './game-catalogue';

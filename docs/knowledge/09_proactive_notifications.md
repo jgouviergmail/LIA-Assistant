@@ -32,46 +32,25 @@ Weather while you travel is set under **Settings › Preferences › Location**.
 **💡 Delivery:** notifications reach your devices once **Push Notifications** are on (Settings › Preferences), and Telegram if you linked it — no separate switch per feature. Every message is also kept in the conversation, so you will find it at your next visit either way.
 
 ## What data sources are used?
+
 LIA aggregates **fourteen sources** in parallel to decide whether to notify you. Each has its own switch, and the settings panel says for each one whether it is connected:
 
 **📅 Calendar** — upcoming events (next few hours); needs an active calendar connector (Google, Apple or Microsoft)
-
 **📧 Emails** — today's unread, urgent or actionable emails; needs an active email connector
-
 **✅ Tasks** — pending or overdue tasks; needs Google Tasks or Microsoft To Do
-
-**🌤️ Weather** — current conditions and transitions (rain starting or stopping, a temperature drop or rise for tomorrow compared on daily averages, strong wind); uses your own OpenWeatherMap connector if you set one up, otherwise the Google Weather service your instance provides, and needs a home address
-• **Travel-aware location (opt-in)** — with **Remember my last position** on in **Settings › Preferences › Location**, a recent position far enough from home replaces your home address, and the notification names the city (see "How do weather alerts work when I'm travelling?").
-
+**🌤️ Weather** — current conditions and transitions (rain starting or stopping, a temperature drop or rise for tomorrow compared on daily averages, strong wind); uses your own OpenWeatherMap connector if you set one up, otherwise the Google Weather service your instance provides, and needs a home address — or your current position when you opted in while travelling (see the dedicated question below)
 **⭐ Interests** — a varied sample of your active interests, one per theme, least recently covered first
-
 **🧠 Memories** — relevant facts from your memories
-
 **📓 Journals** — relevant entries from the assistant's personal journals, when journals are enabled
-• Journals are fetched in a **second pass** — LIA builds a dynamic query from the aggregated context (calendar, weather, emails, etc.) to find the most relevant journal entries
-• In addition to the dynamic-query entries, the **brief of the compiled user-model portrait** (two or three sentences) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
-
 **❤️ Health signals** — when health metrics are enabled for your account
-
 **💬 My SMS** — recent messages your phone relayed that LIA has not mentioned yet; needs the assistant's access to your SMS
-
-**🎂 Birthdays** — from your Google contacts
-
+**🎂 Birthdays** — from your address book; needs an active contacts connector (Google, Apple or Microsoft)
 **🧵 Open loops** — the unfinished threads LIA keeps track of
-
 **🚗 Departure** — when to leave for a meeting, from your calendar
-
 **🧭 Habits** — a learned routine whose usual time passed without your asking, once a habit profile exists
-
 **📋 Workboard** — the tickets LIA holds for you
 
-**📊 Indicators:**
-The Settings section shows a **green badge** for each connected source and a **gray badge** with a note for the others; a source that depends on another says which one you switched off.
-
-**🩺 When a source cannot answer:**
-• Every source is optional and independently failable — a slow or unavailable one never blocks the notification
-• A source that drops out is recorded rather than silently missing, so a degraded notification can be noticed and fixed
-• Health indicators in particular are read as per-day aggregates, light enough to always make it into the notification when you have opted in
+**📊 Indicators:** a **green badge** for each connected source, a **grey badge** with a note for the others; a source that depends on another says which one you switched off.
 
 ## How do weather alerts work when I'm travelling?
 
@@ -181,13 +160,16 @@ systematically served last, however many users the instance hosts.
 
 ## Where do I find LIA's proposals, and what happens when I accept one?
 
-When a proactive notification offers to run a request you usually make, the offer also waits in **Alerts › Proposals** until you decide — for a few days, a window your administrator sets. The section's counter tells you how many are waiting.
+In **Alerts › Proposals**, at the top of the page — and, at most once a day, under one of LIA’s answers in the chat, with the same buttons. The section’s counter says how many proposals await your decision; each one says, with numbers, what LIA observed and what she proposes to do about it:
 
-**Two buttons:**
-• **I'm on it — open the chat**: the offer is counted as useful and the chat opens with the proposal's text in the composer. **Nothing is sent** until you send it yourself, and any confirmation the request needs is still asked
-• **Not now**: the offer is counted as not useful and leaves the list
+• **automate a need** — a routine that has it ready before you ask
+• **move a routine** — one you run yourself at another time than planned
+• **look at a failing routine** — or one the system paused
+• **extend your notification hours** — when you are often around outside them
+• **pause proactive notifications** — when none has had a reaction for a long while
+• **connect a source** — when you ask for a domain with no account connected
 
-Both are the same answer as a 👍 or a 👎 on the notification: they teach LIA about the habit itself, and a habit refused often enough stops being offered.
+**Accepting acts at once**: the routine is created or moved, your hours are changed — or the relevant screen opens, for a routine to fix or an account to connect. If things changed since the proposal (routine deleted, hours already changed, maximum number of routines reached), nothing is modified, the proposal stays and LIA tells you why. **Later** sets it aside for two weeks; **Never** removes it for good. A proposal that is no longer true disappears on its own the next night.
 
 ## How can I see what LIA has been doing in the background?
 
@@ -226,17 +208,11 @@ Yes, with **anticipated moments**: shortly after an important meeting ends, LIA 
 
 **Where to control it:** **Settings › Features › Proactive notifications** › **Anticipated moments**, shown once proactive notifications are on. Each kind has its own switch (**After a meeting** needs a connected calendar), and your administrator can switch the whole capability off.
 
-## Can LIA offer to run a request I usually make and forgot today?
-Yes, once it has learned the habit. When a request you make regularly — say your e-mail review every weekday around 8:30 — has not been made by the time its usual slot passes, the next proactive pass may offer to run it, naming it: "shall I run your usual e-mail review?"
+## Do proactive notifications still offer to run a request I usually make?
 
-**What it needs:**
-• habit learning on for your account, and a recurring request recognised in the habits panel (the row reads what and when, e.g. "Search · E-mails — every day ~08:30")
-• a habit that is neither paused nor blocked — a status you set holds everywhere
-• the proactive pass itself: your hours and pauses still apply, and a person in a meeting is not interrupted
+No. That “missed routine” offer waited for the same request at the same hour and has been retired: it was wrong as soon as you asked earlier or later one day. LIA no longer nudges you about a forgotten request; she proposes instead to have it ready *before* you ask, as a routine, in **Alerts › Proposals** — see “Will LIA suggest automating a request I make regularly?” in the Habits section.
 
-**How to answer:** a 👍 or a 👎 on the notification is an answer about the habit itself; a habit refused often enough stops being offered.
-
-**What it never does:** run the request on its own — an offer is a question. And an offer is counted against the day only when LIA actually made one, not when a notification merely mentioned your habits.
+Proactive notifications still take your rhythm into account to choose their moment, without ever widening the hours you configured.
 
 ## What does a proactive pass write in my registers?
 Every proactive pass files what it consulted — the sources it aggregated and the calendar check that decides whether you are in a meeting — under its own run in the **Registers** (the **Consultations** list and the **LIA's own initiative** tab), exactly as a conversation turn does. A source answered from cache was not opened and is not filed; a source that failed to answer is filed as failed rather than read as silence. Interest notifications stand aside during a meeting and respect your learned rhythm like the heartbeat does, and a wake triggered by a new mail skips the rhythm but never a meeting.

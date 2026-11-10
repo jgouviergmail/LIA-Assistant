@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import type { Page, Route } from '@playwright/test';
 
 import { scanPage } from '../a11y/scan';
-import { test, expect } from '../fixtures';
+import { test, expect, waitForHydration } from '../fixtures';
 
 import { awaitStyledPage } from './overflow-report';
 
@@ -43,6 +43,17 @@ const SECOND = {
 
 /** A beat map, whichever video it is asked for (`?video=N`). */
 const BEATS_URL = /\/api\/landing-media\/beats(\?|$)/;
+
+/** Own rejection immediately, but report it only when the journey reaches its wait. */
+function observePendingRequest(request: Promise<unknown>): { wait: () => Promise<void> } {
+  const outcome = Promise.allSettled([request]);
+  return {
+    wait: async () => {
+      const [result] = await outcome;
+      if (result.status === 'rejected') throw result.reason;
+    },
+  };
+}
 
 /**
  * Serve a fixture the way a media host does: Chromium's media pipeline asks
@@ -154,6 +165,7 @@ test('the complete presentation recovers on explicit refresh and restores its op
   });
   await page.goto('/fr');
   await awaitStyledPage(page, 'landing presentation before recovery');
+  await waitForHydration(page, '[data-testid="hero-cta-presentation"]');
   const opener = page.getByTestId('hero-cta-presentation').first();
   await expect(opener).toHaveAccessibleName('Présentation');
   await opener.click();
@@ -269,9 +281,9 @@ test.describe('landing video — configured, motion allowed, the browser wants a
 
     const sound = page.getByTestId('landing-video-sound');
     await expect(sound).toHaveAttribute('aria-pressed', 'false');
-    const beats = page.waitForRequest(BEATS_URL);
+    const beats = observePendingRequest(page.waitForRequest(BEATS_URL));
     await sound.click();
-    await beats;
+    await beats.wait();
     expect(await isMuted(page)).toBe(false);
     await expect(sound).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => beating(page)).not.toBeNull();
@@ -307,7 +319,7 @@ test.describe('landing video — configured, motion allowed, the browser allows 
     page,
   }) => {
     await mockMedia(page, DESCRIPTOR);
-    const beats = page.waitForRequest(BEATS_URL);
+    const beats = observePendingRequest(page.waitForRequest(BEATS_URL));
     await page.goto('/fr');
     await awaitStyledPage(page, 'landing with video, sound allowed');
     await section(page).scrollIntoViewIfNeeded();
@@ -316,7 +328,7 @@ test.describe('landing video — configured, motion allowed, the browser allows 
     expect(await isMuted(page)).toBe(false);
     const sound = page.getByTestId('landing-video-sound');
     await expect(sound).toHaveAttribute('aria-pressed', 'true');
-    await beats;
+    await beats.wait();
     await expect.poll(() => beating(page)).not.toBeNull();
 
     // The hero title beats too — its lines, since the entrance animation owns
@@ -403,7 +415,9 @@ test.describe('landing video — a playlist of two', () => {
     page,
   }) => {
     await mockMedia(page, DESCRIPTOR, [SECOND]);
-    const secondBeats = page.waitForRequest(request => request.url().endsWith('/beats?video=1'));
+    const secondBeats = observePendingRequest(
+      page.waitForRequest(request => request.url().endsWith('/beats?video=1'))
+    );
     await page.goto('/fr');
     await awaitStyledPage(page, 'landing with a playlist');
     await section(page).scrollIntoViewIfNeeded();
@@ -423,7 +437,7 @@ test.describe('landing video — a playlist of two', () => {
       'https://example.org/second'
     );
     await expect(section(page).getByRole('link', { name: /@fixture/ })).toHaveCount(0);
-    await secondBeats;
+    await secondBeats.wait();
     await expect.poll(() => beating(page)).not.toBeNull();
 
     // After the last one, the first comes back.

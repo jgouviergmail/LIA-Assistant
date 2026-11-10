@@ -40,7 +40,7 @@ import {
   Square,
   Timer,
   X,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';

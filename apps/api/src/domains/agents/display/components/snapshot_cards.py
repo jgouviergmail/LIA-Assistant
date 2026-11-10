@@ -88,10 +88,16 @@ class HueLightCard(SnapshotCard):
                 render_chip(f'{card_label("brightness", ctx.language)} {brightness:g}%', "amber")
             )
         # The current tool's room is an opaque resource id, not a room label.
+        scene_state = ("on" if state else "off") if isinstance(state, bool) else "unknown"
         return (
-            render_chip_row(" ".join(chips))
+            '<div class="lia-hues__composition">'
+            f'<div class="lia-hues__scene lia-hues__scene--{scene_state}" aria-hidden="true">'
+            '<span class="lia-hues__shade"></span><span class="lia-hues__stem"></span>'
+            '<span class="lia-hues__foot"></span></div><div class="lia-hues__reading">'
+            + render_chip_row(" ".join(chips))
             + render_light_level(brightness, ctx)
             + render_light_details(data, ctx)
+            + "</div></div>"
         )
 
 

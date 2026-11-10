@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import en from '../../../../locales/en/translation.json';
 import fr from '../../../../locales/fr/translation.json';
+import { DEFAULT_ICON_STYLE, ICON_STYLES, type IconStyle } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 import type { AgendaData, CardSection } from '@/types/briefing';
 import { BriefingCard, type BriefingCardProps } from '../BriefingCard';
 
@@ -60,7 +62,11 @@ function props(
   };
 }
 
-async function renderCard(cardProps: BriefingCardProps<AgendaData>, language: 'en' | 'fr' = 'en') {
+async function renderCard(
+  cardProps: BriefingCardProps<AgendaData>,
+  language: 'en' | 'fr' = 'en',
+  iconStyle: IconStyle = DEFAULT_ICON_STYLE
+) {
   const i18n = createInstance();
   await i18n.init({
     lng: language,
@@ -68,7 +74,9 @@ async function renderCard(cardProps: BriefingCardProps<AgendaData>, language: 'e
   });
   const card = (nextProps: BriefingCardProps<AgendaData>) => (
     <I18nextProvider i18n={i18n}>
-      <BriefingCard {...nextProps} />
+      <IconStyleContext.Provider value={iconStyle}>
+        <BriefingCard {...nextProps} />
+      </IconStyleContext.Provider>
     </I18nextProvider>
   );
   const result = render(card(cardProps));
@@ -91,28 +99,62 @@ describe('BriefingCard content and refresh', () => {
     expect(within(content).getByText('Meeting 17')).toBeVisible();
   });
 
-  it('keeps refresh focused and keyboard reachable while preventing duplicate refreshes', async () => {
-    const cardProps = props();
-    const { user, rerenderCard } = await renderCard(cardProps);
-    const refresh = screen.getByRole('button', { name: 'Refresh Agenda' });
-    await user.tab();
-    await user.keyboard('{Enter}');
-    expect(cardProps.onRefresh).toHaveBeenCalledTimes(1);
+  it.each(ICON_STYLES)(
+    'keeps refresh visible without motion, focused and guarded with %s icons',
+    async style => {
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const media = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+        ...mediaQuery,
+        media: query,
+        matches: query === '(prefers-reduced-motion: reduce)',
+      }));
+      try {
+        const cardProps = props();
+        const { user, rerenderCard } = await renderCard(cardProps, 'en', style);
+        const refresh = screen.getByRole('button', { name: 'Refresh Agenda' });
+        expect(refresh).toHaveAttribute('aria-busy', 'false');
+        expect(refresh).not.toHaveClass('border-primary', 'bg-primary/10');
+        expect(refresh.querySelector('svg')).toHaveAttribute('data-icon-style', style);
+        await user.hover(refresh);
+        expect(refresh).toHaveClass(
+          'hover:bg-muted/60',
+          'dark:hover:bg-[color-mix(in_srgb,var(--color-card)_75%,black)]'
+        );
+        expect(cardProps.onRefresh).not.toHaveBeenCalled();
+        await user.tab();
+        expect(refresh).toHaveFocus();
+        await user.keyboard('{Enter}');
+        expect(cardProps.onRefresh).toHaveBeenCalledTimes(1);
 
-    rerenderCard({ ...cardProps, isRefreshing: true });
-    expect(refresh).toHaveFocus();
-    expect(refresh).toHaveAttribute('aria-disabled', 'true');
-    expect(refresh).not.toBeDisabled();
-    expect(screen.getByRole('region', { name: 'Agenda' })).toHaveAttribute('aria-busy', 'true');
-    await user.keyboard('{Enter} ');
-    await user.click(refresh);
-    expect(cardProps.onRefresh).toHaveBeenCalledTimes(1);
+        rerenderCard({ ...cardProps, isRefreshing: true });
+        expect(refresh).toHaveFocus();
+        expect(refresh).toHaveAttribute('aria-disabled', 'true');
+        expect(refresh).toHaveAttribute('aria-busy', 'true');
+        expect(refresh).toHaveClass(
+          'border-primary',
+          'bg-primary/10',
+          'dark:bg-[color-mix(in_srgb,var(--color-card)_75%,black)]'
+        );
+        expect(refresh).not.toBeDisabled();
+        expect(screen.getByRole('region', { name: 'Agenda' })).toHaveAttribute('aria-busy', 'true');
+        await user.keyboard('{Enter} ');
+        await user.click(refresh);
+        expect(cardProps.onRefresh).toHaveBeenCalledTimes(1);
 
-    rerenderCard({ ...cardProps, isRefreshing: false });
-    expect(refresh).toHaveFocus();
-    await user.keyboard('{Enter}');
-    expect(cardProps.onRefresh).toHaveBeenCalledTimes(2);
-  });
+        rerenderCard({ ...cardProps, isRefreshing: false });
+        expect(refresh).toHaveFocus();
+        expect(refresh).toHaveAttribute('aria-busy', 'false');
+        expect(refresh).not.toHaveClass('border-primary', 'bg-primary/10');
+        expect(refresh).toHaveClass(
+          'dark:hover:bg-[color-mix(in_srgb,var(--color-card)_75%,black)]'
+        );
+        await user.keyboard('{Enter}');
+        expect(cardProps.onRefresh).toHaveBeenCalledTimes(2);
+      } finally {
+        media.mockRestore();
+      }
+    }
+  );
 
   it('retains the mounted content, its draft and its position during a refresh', async () => {
     const cardProps = props();

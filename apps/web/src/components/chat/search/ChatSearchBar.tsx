@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { History, Loader2, Search, X } from 'lucide-react';
+import { History, Loader2, Search, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { ConversationMessage } from '@/hooks/useConversation';

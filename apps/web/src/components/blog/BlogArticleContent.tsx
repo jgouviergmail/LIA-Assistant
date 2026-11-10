@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { preload } from 'react-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import {
   ARTICLE_HERO_SIZES,
@@ -26,6 +26,8 @@ interface BlogArticleContentProps {
   categoryLabel: string;
   readTimeLabel: string;
   backLabel: string;
+  previousLabel: string;
+  nextLabel: string;
   prev?: { slug: string; title: string } | null;
   next?: { slug: string; title: string } | null;
   lng: string;
@@ -42,6 +44,8 @@ export function BlogArticleContent({
   categoryLabel,
   readTimeLabel,
   backLabel,
+  previousLabel,
+  nextLabel,
   prev,
   next,
   lng,
@@ -137,7 +141,7 @@ export function BlogArticleContent({
             >
               <span className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                 <ChevronLeft className="w-3 h-3 transition-transform group-hover:-translate-x-0.5" />
-                Previous
+                {previousLabel}
               </span>
               <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
                 {prev.title}
@@ -152,7 +156,7 @@ export function BlogArticleContent({
               className="group rounded-lg border border-border/50 p-4 hover:border-primary/30 hover:bg-primary/5 transition-all text-right"
             >
               <span className="flex items-center justify-end gap-1 text-xs text-muted-foreground mb-1">
-                Next
+                {nextLabel}
                 <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
               </span>
               <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, XCircle, Loader2, RefreshCw, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, RefreshCw, Clock } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import type { RAGDocumentStatus } from '@/types/rag-spaces';
 import { lifecycleTone } from '@/lib/status-tone';

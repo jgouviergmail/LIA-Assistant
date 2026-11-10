@@ -1,4 +1,4 @@
-import { Compass, Network, ShieldCheck } from 'lucide-react';
+import { Compass, Network, ShieldCheck } from '@/lib/icons';
 import { initI18next } from '@/i18n';
 import { FadeInOnScroll } from '../FadeInOnScroll';
 

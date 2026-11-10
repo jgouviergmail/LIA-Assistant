@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes } from '../fixtures/api-mock';
 import { dashboardShellMocks } from '../fixtures/dashboard-shell';
 import { makeTestUser } from '../fixtures/test-user';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { installInertWorldAdmission } from '../fixtures/world-session';
 import { enterWorld } from '../fixtures/world-admission';
 import { installAudioProbe } from '../fixtures/world-sound';
@@ -18,7 +17,6 @@ for (const width of [390, 1440])
     async ({ page }, info) => {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       await installAudioProbe(page);
-      await installOfflineFonts(page);
       await installApiCatchAll(page);
       const user = makeTestUser();
       await registerRoutes(page, [

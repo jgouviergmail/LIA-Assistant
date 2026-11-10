@@ -7,7 +7,7 @@
  * 2026-11-06). The temperature comes before the colour. A colour is drawn as what the lamp shows
  * now, one swatch whose press opens the platform's choice panel, sent when the panel closes.
  */
-import { Palette, Thermometer } from 'lucide-react';
+import { Palette, Thermometer } from '@/lib/icons';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Disclosure } from '@/components/ui/disclosure';

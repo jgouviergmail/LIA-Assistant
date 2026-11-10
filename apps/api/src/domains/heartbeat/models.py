@@ -115,10 +115,11 @@ class HeartbeatNotification(Base, UUIDMixin):
         comment="tick | push — what triggered this decision.",
     )
 
-    # ADR-214 — the learned habit whose missed-routine offer this notification
-    # carried, if any. Closes the feedback loop: a 👍/👎 on the notification
-    # bumps the habit's Bayesian signals. SET NULL keeps the audit row honest
-    # when the habit is later deleted (tombstone doctrine).
+    # ADR-214 — the learned habit a past missed-routine offer carried. The
+    # offer is retired (ADR-375): nothing writes or reads this column any
+    # more; it stays as the record of what earlier notifications offered (a
+    # removal takes the capability, never the record — ADR-280). SET NULL
+    # keeps the row honest when the habit is deleted.
     habit_offer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("user_habits.id", ondelete="SET NULL"),

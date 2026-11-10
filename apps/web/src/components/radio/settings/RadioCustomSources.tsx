@@ -14,7 +14,7 @@
  * The check button keeps its focus while it works (`aria-disabled` and a guard,
  * never `disabled` on the control just activated — apps/web CLAUDE.md).
  */
-import { Globe, Pencil, Trash2 } from 'lucide-react';
+import { Globe, Pencil, Trash2 } from '@/lib/icons';
 import { type FormEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
 

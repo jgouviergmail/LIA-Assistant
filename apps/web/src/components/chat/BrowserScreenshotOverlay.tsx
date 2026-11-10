@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe } from 'lucide-react';
+import { Globe } from '@/lib/icons';
 import { BrowserScreenshotData } from '@/types/chat';
 import { useTranslation } from 'react-i18next';
 

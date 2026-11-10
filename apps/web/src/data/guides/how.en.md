@@ -3,8 +3,8 @@
 > How LIA is built, in broad strokes. The details are in the code, the ADRs and the repository's documentation.
 
 **Version**: 6.0
-**Date**: 2026-11-06
-**Application**: LIA v4.5.0
+**Date**: 2026-11-10
+**Application**: LIA v4.6.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -102,7 +102,7 @@ In **Pipeline** mode, the default, the planner writes an `ExecutionPlan` before 
 
 I kept both because they meet two needs. The Pipeline plans, parallelizes, checks itself and forecasts its cost: one call to the planner and one for the response, against one call per iteration for ReAct, which means 4 to 8 times fewer tokens. ReAct adapts to each result, which is better for an exploratory search or an ambiguous request. Both modes share the tool registry, the confirmations, the response node and the observability.
 
-Domains and tools are chosen by an embedding-based **semantic router** rather than by keywords or by the model alone: it costs less and makes fewer mistakes. Each tool declares a manifest (parameters, outputs, cost, permissions, keywords in several languages) read by the planner and the router, and each family of tools declares itself once in a central registry. Smart Services cut consumption further by caching query analysis and learning the plans that come back. After an actionable turn, an initiative node looks, read-only, at what the result implies elsewhere: forecast rain points to the outdoor activities in your calendar.
+Domains and tools are chosen by an embedding-based **semantic router** rather than by keywords or by the model alone: it costs less and makes fewer mistakes. Each tool declares a manifest (parameters, outputs, cost, permissions, keywords in several languages) read by the planner and the router, and each family of tools declares itself once in a central registry. Smart Services cut consumption further by caching query analysis and learning the plans that come back. After an actionable turn, an initiative node looks, read-only, at what the result implies elsewhere: forecast rain points to the outdoor activities in your calendar. Any other turn skips it and costs nothing.
 
 A few rules keep the whole thing honest. A request with no intent to act cannot produce a plan that changes anything, and that is a deterministic rule, checked before any call to the model. A modification plan that runs out of correction attempts is not executed: LIA asks a question rather than write wrong data. A refusal or a failure is never presented as a completed action, and once the plan has run, nothing is replayed behind your back: the answer states each failure, which tool, why, and the exact total. For a mode that corrects itself along the way, there is ReAct.
 
@@ -239,7 +239,7 @@ A note on performance: the measured latencies are the infrastructure's. The resp
 
 The **Tools** workspace has its own REST endpoints, outside the conversation graph. It reuses the connector clients and publishes their supported controls and limits to the interface. Database sessions close before provider calls; submissions carry replay protection, and a lost answer is shown as an unknown outcome. HTML mail stays inside an isolated frame, with remote content blocked. This keeps a manual gesture separate from an action delegated to LIA; what a click asks of it from these screens goes through a door of its own, one call and one proposal, never a write at the provider.
 
-The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per account, and can be searched; the settings have their own search, a pure black theme for OLED screens and an adjustable text size.
+The web interface is a Next.js application that installs like an app (PWA). The chat updates the conversation without reloading, renders math formulas and syntax-highlighted code, keeps one draft per account, and can be searched; the settings have their own search, a pure black theme for OLED screens that can follow your hours, three icon styles and an adjustable text size. One selection layer serves every screen: selected text is explained, translated or handed to the usual form, never to a second one, and a replacement keeps the browser's undo.
 
 In the cards display, one of three modes to choose from along with plain HTML and Markdown, an answer that carries data is not formatted by the model: the server renders it as deterministic HTML **cards**, independent of the model and the mode, archived with the message. A card shows a received fact in full and invents nothing, and an action from a card prepares a request instead of acting. To keep the interface consistent, I wrote rules that tests check: a status takes its tone from a single table, an action has a level of importance, and a list row exposes its actions in a single way. Browser and accessibility tests target WCAG level AA, without certifying the rendering on a physical device or the accuracy of the translations.
 

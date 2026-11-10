@@ -40,12 +40,16 @@ class ToolAssist(str, Enum):
     MAIL_TRIAGE = "mail_triage"
     CONTACT_COMPLETE = "contact_complete"
     CONTACT_FROM_CARD = "contact_from_card"
+    CONTACT_FROM_WORDS = "contact_from_words"
     EVENT_FROM_WORDS = "event_from_words"
     TASK_FROM_WORDS = "task_from_words"
     TASK_STEPS = "task_steps"
     TEXT_REWRITE = "text_rewrite"
     TEXT_TRANSLATE = "text_translate"
     TEXT_WRITE = "text_write"
+    TEXT_PASSAGE = "text_passage"
+    SELECTION = "selection"
+    SELECTION_INTERNET = "selection_internet"
     READ_ALOUD = "read_aloud"
 
 
@@ -83,12 +87,19 @@ ASSISTS: Final[dict[ToolAssist, AssistSpec]] = {
         slot=TOOL_ASSIST_LLM_TYPE, sections=(SECTION_CONTACTS, SECTION_MAIL)
     ),
     ToolAssist.CONTACT_FROM_CARD: AssistSpec(slot=TOOL_ASSIST_VISION_LLM_TYPE),
+    ToolAssist.CONTACT_FROM_WORDS: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.EVENT_FROM_WORDS: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.TASK_FROM_WORDS: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.TASK_STEPS: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.TEXT_REWRITE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.TEXT_TRANSLATE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
     ToolAssist.TEXT_WRITE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
+    # The page sends the passage it shows: nothing is read from a provider.
+    ToolAssist.TEXT_PASSAGE: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
+    ToolAssist.SELECTION: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE),
+    ToolAssist.SELECTION_INTERNET: AssistSpec(
+        slot=TOOL_ASSIST_LLM_TYPE, sections=("brave", "perplexity", "wikipedia")
+    ),
     # No model: the voice bills on its own run, and the slot here prices nothing.
     ToolAssist.READ_ALOUD: AssistSpec(slot=TOOL_ASSIST_LLM_TYPE, asks_a_model=False),
 }

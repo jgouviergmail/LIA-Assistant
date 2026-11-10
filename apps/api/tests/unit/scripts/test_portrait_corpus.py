@@ -56,3 +56,33 @@ def test_the_corpus_names_people_by_a_first_name_alone_and_carries_no_contact_de
     assert "@" not in text
     assert re.search(r"\b\d{5}\b", text) is None  # a postcode
     assert re.search(r"(?:\+|\b0)\d[\d .-]{8,}\d", text) is None  # a phone number
+
+
+def test_the_recurring_needs_are_what_the_nightly_recompute_writes() -> None:
+    """ADR-375: the seeded rows go through ``need_payload`` and must read back
+    under the v2 contract, on a registered domain, with an analyzer intent —
+    a persona the producer could never write measures nothing."""
+    from datetime import date
+
+    from src.domains.agents.analysis.query_intelligence import IMMEDIATE_INTENTS
+    from src.domains.habits.discussion_projection import RecurringPayload
+    from src.domains.habits.need_domains import NEED_DOMAINS
+    from src.domains.habits.needs import Need, need_payload
+
+    for entry in _corpus()["habits"]["recurring"]:
+        assert entry["key"] in NEED_DOMAINS
+        assert entry["usual_intent"] in IMMEDIATE_INTENTS
+        need = Need(
+            domain=entry["key"],
+            cadence=entry["cadence"],
+            weekday=entry["weekday"],
+            usual_hour=entry["usual_hour"],
+            prefill_hour=entry["usual_hour"],
+            part_of_day=entry["part_of_day"],
+            distinct_days=5,
+            active_days=20,
+            occurrences=5,
+            at_automation_bar=True,
+            last_day=date(2026, 11, 8),
+        )
+        RecurringPayload.model_validate(need_payload(need, usual_intent=entry["usual_intent"]))

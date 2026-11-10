@@ -204,8 +204,10 @@ colonne : les déplacer demande une migration).
 - **Un refus laisse une ligne.** Un 422 est répondu avant tout gestionnaire et
   `request_completed` reste sous le niveau de production :
   `request_validation_failed` dit le type d'erreur, le champ quand le code a écrit
-  son nom (`<withheld>` sinon) et le nombre d'erreurs, jamais la valeur. Les routes
-  d'entrée privée gardent leur seul compteur.
+  son nom (`<withheld>` sinon, une position dans un JSON mal formé comprise) et le
+  nombre d'erreurs, jamais la valeur. `validation_errors_total` porte les mêmes noms :
+  un libellé reste une série toute la rétention. Les routes d'entrée privée gardent
+  leur seul compteur.
 
 ### Une directive se corrige, elle ne se supprime pas (2026-09-10)
 
@@ -330,6 +332,13 @@ validées par `MemoryService`, dont les protections d'épinglage. Un changement
 survenu entre-temps abandonne l'ancien travail ; il ne suffit pas que le modèle
 ait déjà proposé une action. Une attente fournisseur ne conserve pas ce verrou.
 Les sources automatisées restent exclues du déclenchement post-réponse.
+
+Une création ou une modification depuis l'écran (`POST /memories`,
+`PATCH /memories/{id}`) ne garde rien non plus pendant l'appel au fournisseur : la
+route valide d'abord ce que l'authentification a lu. La création calcule ses vecteurs
+avant sa première écriture ; la modification les prépare (`prepare_update_embeddings`),
+puis écrit dans une transaction à part. Les textes qu'une modification vectorise sont
+décidés par une seule règle, `embedding_texts`, que le service lit aussi (ADR-304).
 
 ### 4. Prompts Externalisés
 

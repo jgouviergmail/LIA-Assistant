@@ -181,13 +181,14 @@ async def delete_photo(contact_id: _ContactId, user: _Account) -> Response:
 @router.get(
     "/history",
     response_model=ContactHistory,
-    summary="The latest mail and meetings with a contact",
+    summary="The latest mail, meetings, calls and texts with a contact",
     dependencies=[Depends(rate_limit_read)],
 )
 async def get_history(
-    query: Annotated[ContactHistoryQuery, Query()], user: _Account
+    query: Annotated[ContactHistoryQuery, Query()], user: _Account, response: Response
 ) -> ContactHistory:
-    """Read what a contact and the person exchanged."""
+    """Read what a contact and the person exchanged; texts make the answer private."""
+    response.headers["Cache-Control"] = "no-store"
     zone = resolve_user_timezone(user.timezone)
     return await contacts_history.contact_history(user.id, zone, query, datetime.now(UTC))
 

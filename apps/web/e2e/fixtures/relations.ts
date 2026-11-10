@@ -319,8 +319,9 @@ export const relationsData: MockRoute[] = [
   },
   {
     // The address-book actions read the account's connectors: a call is
-    // offered only on a number and an ACTIVE telephony connector (owner
-    // request 2026-10-21). None here, so the card offers no call.
+    // offered only on a number, an ACTIVE telephony connector (owner request
+    // 2026-10-21) and an instance offering telephony (owner D2 2026-11-07).
+    // No connector here, so the card offers no call.
     url: /\/api\/v1\/connectors\?fresh=true$/,
     json: { connectors: [] },
   },

@@ -42,7 +42,7 @@ import {
   Users,
   Workflow,
   Zap,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { priorityInk } from '@/lib/status-tone';
 import { cn } from '@/lib/utils';

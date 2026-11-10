@@ -123,6 +123,10 @@ export interface AgendaEventItem {
   /** Date-first interval; absent on cached payloads predating the presentation. */
   time_range_local?: string | null;
   location: string | null;
+  /** The calendar it was read from (`primary` is an alias the Tools resolve); absent before 2026-11-07. */
+  calendar_id?: string | null;
+  /** The video call's web address, when the event holds one. */
+  conference_url?: string | null;
 }
 
 export interface AgendaData {
@@ -135,6 +139,8 @@ export interface MailItem {
   sender_email: string | null;
   subject: string;
   received_local: string;
+  /** The provider's message id; absent on payloads cached before it was sent. */
+  id?: string | null;
 }
 
 export interface MailsData {
@@ -149,6 +155,11 @@ export interface BirthdayItem {
   days_until: number;
   /** Age the contact will turn at the upcoming birthday (null if birth year unknown) */
   age_at_next: number | null;
+  /** The contact in its provider's book; absent before 2026-11-07. */
+  contact_id?: string | null;
+  /** Its first address and first number, to write to or call them. */
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface BirthdaysData {
@@ -239,6 +250,10 @@ export interface TaskItem {
   /** Days from the user's local today to the due day (negative = overdue) */
   days_until_due: number | null;
   overdue: boolean;
+  /** The provider's task id; absent on payloads cached before it was sent. */
+  id?: string | null;
+  /** Its list, by its real id (never an alias); null when it could not be read. */
+  list_id?: string | null;
 }
 
 export interface TasksData {
@@ -254,6 +269,8 @@ export interface DocumentItem {
   mime_type: string | null;
   /** Its folders from the top of the drive, empty at the top; null when unknown. */
   path: string | null;
+  /** The drive's file id; absent on payloads cached before it was sent. */
+  id?: string | null;
 }
 
 export interface DocumentsData {

@@ -2,11 +2,13 @@
 
 import { ExpressiveEyes, type ExpressiveEyesProps } from '@/components/eyes/ExpressiveEyes';
 import { cn } from '@/lib/utils';
-import type { CSSProperties } from 'react';
+import { useId, type CSSProperties } from 'react';
 import type { SpiritVariant } from './catalogue';
 import { avatarLayoutProfile } from '@/components/eyes/layout-profiles';
+import { sourceAlphaTransfer } from '@/components/eyes/volume/source-alpha';
 import {
   companionBodyAsset,
+  COMPANION_BODY_ALPHA_FLOOR,
   COMPANION_FACE_STYLES,
   type CompanionCharacter,
 } from './companion-catalogue';
@@ -25,9 +27,15 @@ export function SpiritCompanion({
   className,
   ...props
 }: SpiritCompanionProps) {
+  const alphaId = `${useId()}-body-alpha`;
+  const alpha = sourceAlphaTransfer(COMPANION_BODY_ALPHA_FLOOR);
   const faceStyle = COMPANION_FACE_STYLES[character];
-  const bodyStyle: CSSProperties & { '--spirit-body-url': string } = {
+  const bodyStyle: CSSProperties & {
+    '--spirit-body-url': string;
+    '--spirit-body-alpha-filter': string;
+  } = {
     '--spirit-body-url': `url('${companionBodyAsset(character, variant)}')`,
+    '--spirit-body-alpha-filter': `url("#${alphaId}")`,
   };
   return (
     <span
@@ -39,6 +47,15 @@ export function SpiritCompanion({
       className={cn('lia-spirit-companion', className)}
       style={bodyStyle}
     >
+      <svg width="0" height="0" focusable="false" style={{ position: 'absolute' }}>
+        <defs>
+          <filter id={alphaId} colorInterpolationFilters="sRGB">
+            <feComponentTransfer>
+              <feFuncA type="linear" slope={alpha.slope} intercept={alpha.intercept} />
+            </feComponentTransfer>
+          </filter>
+        </defs>
+      </svg>
       <ExpressiveEyes
         {...props}
         styleId={faceStyle}

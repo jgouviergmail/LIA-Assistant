@@ -11,6 +11,8 @@ import pytest
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
 
@@ -225,7 +227,7 @@ async def test_the_question_reads_the_request_alone_never_the_analyzer_interpret
 @pytest.mark.parametrize(("offset", "selected"), [(0.0, True), (-0.001, False)])
 async def test_one_threshold_serves_both_selectors(offset: float, selected: bool) -> None:
     module = importlib.import_module("src.domains.agents.services.planner.jev_consultation")
-    confidence = module.MIN_CONFIDENCE + offset
+    confidence = float(gate_defaults(JevUsage.CONSULTATION_PATH)["path"]) + offset
     result, _ = await invoke(module, intelligence(), attempt("email_unread", confidence))
     assert (result is not None) is selected
 

@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { Link2, ShieldAlert } from 'lucide-react';
+import { Link2, ShieldAlert } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

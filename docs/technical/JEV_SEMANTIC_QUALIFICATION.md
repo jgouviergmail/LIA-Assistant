@@ -158,6 +158,12 @@ meeting (0.85) thresholds were re-chosen, the others kept — the
 [ADR-325 amendment of 2026-10-26](../architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md)
 and its [record](../superpowers/qualification/jev-audit-2026-10-25/README.md).
 
+Two rows of this table no longer ship. The collection qualification was retired on
+2026-11-08 with its previews, which nothing displayed any more; the initiative utility
+gate with it, after production showed it told no state apart
+([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)).
+Their measurements stay here as the record they were.
+
 **Order bias.** Reversing the options changed 0 to 3.8 % of the answers; one
 reversed HITL exclusion took a wrong shortcut. The bias exists and is small at the
 shipped thresholds.

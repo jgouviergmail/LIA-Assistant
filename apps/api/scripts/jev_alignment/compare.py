@@ -145,78 +145,6 @@ def hitl_rejection() -> list[Item]:
     ]
 
 
-async def initiative() -> list[Item]:
-    from scripts.measure_jev_gates import initiative_prompt
-    from src.domains.agents.nodes import jev_initiative
-
-    items = []
-    for split, name in (
-        ("calibration", "jev_gate_cases.json"),
-        ("holdout", "jev_gate_holdout.json"),
-    ):
-        for case in _load(FIXTURES / name)["initiative"]:
-            capture = Capture()
-            with (
-                patch.object(jev_initiative, "choose_with_jev", capture.one),
-                patch.object(jev_initiative, "_incomplete_attempt", capture.one),
-                patch.object(jev_initiative, "record_action", _noop),
-            ):
-                await jev_initiative.choose_empty_initiative(
-                    initiative_prompt(case), str(OWNER), "alignment"
-                )
-            call = capture.calls[0]
-            items.append(
-                Item(
-                    "initiative",
-                    f"{split}:{case['id']}",
-                    split,
-                    call["state"],
-                    {k: _dump(q) for k, q in call["questions"].items()},
-                    cand.initiative(),
-                    gold={"utility": bool(case["utility"])},
-                )
-            )
-    return items
-
-
-def initiative_structured() -> list[Item]:
-    """The production state shape (`initiative_policy` + `context`), one split only.
-
-    The 30 structured cases were built for an earlier format study and carry no
-    calibration split of their own; with the 4 canonical states (the exact shape
-    `named_initiative_state` produces), they VERIFY the threshold chosen on the
-    legacy-shape calibration, they never choose one.
-    """
-    from src.domains.agents.prompts.prompt_loader import load_prompt
-
-    current = {"selection": json.loads(load_prompt("jev_initiative_question", version="v1"))}
-    items = [
-        Item(
-            "initiative",
-            f"structured:{case['id']}",
-            "holdout",
-            case["candidate_state"],
-            current,
-            cand.initiative(),
-            gold={"utility": case["expected_answers"]["selection"] != "no_utility"},
-        )
-        for case in _load(CORPORA / "jev-initiative-structured-cases.json")["cases"]
-    ]
-    items += [
-        Item(
-            "initiative",
-            f"canonical:{case['id']}",
-            "holdout",
-            case["native_state"],
-            current,
-            cand.initiative(),
-            gold={"utility": bool(case["useful"])},
-        )
-        for case in _load(CORPORA / "jev-initiative-canonical-cases.json")["cases"]
-    ]
-    return items
-
-
 async def consultation() -> list[Item]:
     from src.core.time_utils import now_utc
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
@@ -348,62 +276,6 @@ def radio() -> list[Item]:
     return items
 
 
-async def collections() -> list[Item]:
-    from src.domains.agents.data_registry.models import (
-        RegistryItem,
-        RegistryItemMeta,
-        RegistryItemType,
-    )
-    from src.domains.agents.display import jev_qualification
-
-    items = []
-    corpora = (
-        ("calibration", "jev_collection_cases.json"),
-        ("calibration", "jev_extra_collection_cases.json"),
-        ("holdout", "jev_extra_collection_holdout.json"),
-    )
-    gold_map = {"no_match": "non_match", "insufficient": "unknown"}
-    for split, name in corpora:
-        for case in _load(FIXTURES / name):
-            registry = [
-                RegistryItem(
-                    id=item["id"],
-                    type=RegistryItemType(item["type"]),
-                    payload=item["payload"],
-                    meta=RegistryItemMeta(source=item.get("source", "synthetic"), domain="test"),
-                )
-                for item in case["items"]
-            ]
-            capture = Capture()
-            with patch.object(jev_qualification, "choose_many_with_jev", capture.many):
-                await jev_qualification.qualify_collection(
-                    user_id=OWNER, run_id="alignment", query=case["query"], items=registry
-                )
-            for batch_index, call in enumerate(capture.calls):
-                keys = list(call["questions"])
-                document = any(
-                    "document_excerpt" in json.dumps(q.instructions)
-                    for q in call["questions"].values()
-                )
-                items.append(
-                    Item(
-                        "collections",
-                        f"{name}:{case['id']}:{batch_index}",
-                        split,
-                        call["state"],
-                        {k: _dump(q) for k, q in call["questions"].items()},
-                        cand.collection(keys, document),
-                        gold={
-                            k: gold_map.get(
-                                case["items"][int(k[1:])]["gold"], case["items"][int(k[1:])]["gold"]
-                            )
-                            for k in keys
-                        },
-                    )
-                )
-    return items
-
-
 async def hitl_exclusion() -> list[Item]:
     from src.domains.agents.services.hitl import jev_item_filter as module
 
@@ -475,11 +347,8 @@ async def hitl_exclusion() -> list[Item]:
 ADAPTERS: dict[str, Callable[[], Any]] = {
     "memory_presence": memory_presence,
     "hitl_rejection": hitl_rejection,
-    "initiative": initiative,
-    "initiative_structured": initiative_structured,
     "consultation": consultation,
     "radio": radio,
-    "collections": collections,
     "hitl_exclusion": hitl_exclusion,
 }
 

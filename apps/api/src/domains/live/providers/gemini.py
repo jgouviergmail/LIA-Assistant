@@ -47,6 +47,7 @@ from src.domains.live.schemas import (
     LiveVoice,
     LiveVoicesResponse,
 )
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
 from src.domains.voice.gemini_tts_client import GeminiTTSClient
 from src.infrastructure.llm.providers.gemini_live_listing import (
     gemini_client_of,
@@ -262,6 +263,10 @@ class GeminiLiveProvider:
         # Every Gemini live model reads function declarations: the direct
         # session (ADR-300 wave 4) runs on any of them.
         return replace(row, thinking=bool(self.thinking_levels_of(model)), direct_tools=True)
+
+    async def expression_dialect(self, api_key: str, model: str) -> CueDialect:
+        """Native audio: the delivery is said in words, no cue is offered (ADR-373)."""
+        return NO_CUES
 
     def build_setup(self, inputs: LiveSetupInputs) -> dict[str, Any]:
         """The ``setup`` message the browser sends first, as documented JSON.

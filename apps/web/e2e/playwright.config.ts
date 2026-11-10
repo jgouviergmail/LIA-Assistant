@@ -20,6 +20,16 @@ import { defineConfig, devices } from '@playwright/test';
 // Match the managed server's IPv4 HTTP contract, also used for local proofs.
 const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000';
 const useManagedServer = process.env.E2E_MANAGED_SERVER === '1';
+// Linux WebKit's headless presentation can suspend RAF/IntersectionObserver and
+// native-input acknowledgements even while the document is visible and JS runs.
+// The same pinned engine presents these operations correctly under Xvfb. Choose
+// that mode before running; never retry a failed case with different semantics.
+const usePresentedWebKit = process.platform === 'linux';
+if (usePresentedWebKit && process.env.E2E_ALL_BROWSERS === '1' && !process.env.DISPLAY?.trim()) {
+  throw new Error(
+    'The Linux WebKit matrix requires DISPLAY. Run through scripts/browser/run-native-media.sh (Xvfb).'
+  );
+}
 
 export default defineConfig({
   testDir: '.',
@@ -84,11 +94,23 @@ export default defineConfig({
   projects: [
     // The full bundled renderer uses Chrome's supported new headless mode.
     // It stays on Playwright's pinned revision and retains every audit rule.
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chromium',
+        // Native form prediction otherwise calls Google's autofill service
+        // outside page routing. Keep the strict network guard unchanged.
+        launchOptions: { args: ['--disable-features=AutofillServerCommunication'] },
+      },
+    },
     ...(process.env.E2E_ALL_BROWSERS === '1'
       ? [
           { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'], headless: !usePresentedWebKit },
+          },
         ]
       : []),
   ],

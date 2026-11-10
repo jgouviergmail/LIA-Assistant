@@ -6,7 +6,7 @@
  * said), when it stops on its own, and whether nothing personal airs
  * (listening in company).
  */
-import { Headphones } from 'lucide-react';
+import { Headphones } from '@/lib/icons';
 
 import { Disclosure } from '@/components/ui/disclosure';
 import { Label } from '@/components/ui/label';

@@ -18,7 +18,7 @@
 
 import { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Mail, Paperclip } from 'lucide-react';
+import { Loader2, Mail, Paperclip } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { RecipientCombobox } from '@/components/email-share/RecipientCombobox';

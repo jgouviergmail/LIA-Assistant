@@ -9,6 +9,7 @@
  * browser, which the unit tests (a mocked hook, no layout) cannot see.
  */
 import { test, expect, loadedChatRoutes } from '../fixtures';
+import fr from '../../locales/fr/translation.json';
 
 test.use({
   launchOptions: {
@@ -36,7 +37,10 @@ test('a click turns hands-free mode back on right after a long press turned it o
   await page.goto('/fr/dashboard/chat');
   await page.locator('textarea').first().waitFor({ state: 'visible' });
 
-  const badge = page.locator('button[aria-pressed]').first();
+  // Its name follows the voice phase. Its own tooltip keeps the turn-off instruction.
+  const badge = page
+    .getByRole('button', { name: fr.chat.voice_mode.enable, exact: true })
+    .or(page.getByTitle(fr.chat.voice_mode.hold_to_disable, { exact: false }));
   await expect(badge).toHaveAttribute('aria-pressed', 'false');
 
   await badge.click();

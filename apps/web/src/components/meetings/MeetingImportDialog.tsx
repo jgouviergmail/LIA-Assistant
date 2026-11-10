@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { FileAudio, Loader2, Upload } from 'lucide-react';
+import { FileAudio, Loader2, Upload } from '@/lib/icons';
 
 import { TemplateSelect } from '@/components/meetings/TemplateSelect';
 import { Button } from '@/components/ui/button';

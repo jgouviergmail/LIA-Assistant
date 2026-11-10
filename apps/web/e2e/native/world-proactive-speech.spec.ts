@@ -4,7 +4,6 @@ import { worldProofUrl } from './world-route';
 import { test, expect } from './fixtures';
 import { randomUUID } from 'node:crypto';
 import fr from '../../locales/fr/translation.json';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { enterWorld } from '../fixtures/world-admission';
 
 test('LIA approaches for an owner-only native proactive opening, waits for the panel and expires', async ({
@@ -69,7 +68,6 @@ test('LIA approaches for an owner-only native proactive opening, waits for the p
         data: { index },
       });
       expect(signed.status()).toBe(200);
-      await installOfflineFonts(p);
       await p.goto(worldProofUrl(baseURL, 'fr').href);
       await enterWorld(p);
       await expect(p.locator('.world-prototype')).toHaveAttribute('data-world-status', 'shared');

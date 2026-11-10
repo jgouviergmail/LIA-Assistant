@@ -93,42 +93,80 @@
       "slate": "薰衣草"
     }
   },
+  "icon_style": {
+    "fr": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    },
+    "en": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    },
+    "de": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    },
+    "es": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    },
+    "it": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    },
+    "zh-CN": {
+      "lucide": "Lucide",
+      "fluent": "Fluent Color",
+      "flex": "Streamline Flex"
+    }
+  },
   "theme": {
     "fr": {
       "light": "Clair",
       "dark": "Sombre",
       "system": "Système",
-      "oled": "Noir absolu"
+      "oled": "Noir absolu",
+      "auto": "Automatique"
     },
     "en": {
       "light": "Light",
       "dark": "Dark",
       "system": "System",
-      "oled": "Absolute black"
+      "oled": "Absolute black",
+      "auto": "Automatic"
     },
     "de": {
       "light": "Hell",
       "dark": "Dunkel",
       "system": "System",
-      "oled": "Absolutes Schwarz"
+      "oled": "Absolutes Schwarz",
+      "auto": "Automatisch"
     },
     "es": {
       "light": "Claro",
       "dark": "Oscuro",
       "system": "Sistema",
-      "oled": "Negro absoluto"
+      "oled": "Negro absoluto",
+      "auto": "Automático"
     },
     "it": {
       "light": "Chiaro",
       "dark": "Scuro",
       "system": "Sistema",
-      "oled": "Nero assoluto"
+      "oled": "Nero assoluto",
+      "auto": "Automatico"
     },
     "zh-CN": {
       "light": "浅色",
       "dark": "深色",
       "system": "系统",
-      "oled": "纯黑"
+      "oled": "纯黑",
+      "auto": "自动"
     }
   },
   "font_family": {

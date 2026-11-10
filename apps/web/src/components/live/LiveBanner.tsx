@@ -46,7 +46,7 @@ import {
   PhoneOff,
   Square,
   Sun,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

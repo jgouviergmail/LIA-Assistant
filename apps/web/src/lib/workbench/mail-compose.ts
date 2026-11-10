@@ -60,8 +60,18 @@ export function recipientsOf(text: string): string[] {
 
 /** What a composer was opened on. */
 export type ComposerTarget =
-  /** What the message opens on: an address another tool handed over, a list's request. */
-  | { kind: 'new'; to?: string; subject?: string; body?: string; files?: AttachableFile[] }
+  /**
+   * What the message opens on: an address another tool handed over, a list's request.
+   * `assisted`: it opens on « Write from an instruction », as the tool that asked wanted (ADR-372).
+   */
+  | {
+      kind: 'new';
+      to?: string;
+      subject?: string;
+      body?: string;
+      files?: AttachableFile[];
+      assisted?: boolean;
+    }
   /** `propose`: it opens with LIA's proposal on its way (ADR-372). */
   | { kind: 'reply'; message: MailMessage; all: boolean; propose?: boolean }
   | { kind: 'forward'; message: MailMessage }
@@ -94,6 +104,26 @@ export interface ComposerWrites {
 
 /** What a file handed from the drive declares: it is read there when the message leaves. */
 export const DRIVE_ORIGIN = 'drive';
+
+/**
+ * @param file - A drive file: its id, name, type and, when the drive said it, its size.
+ * @returns It as a new message carries it, read on the drive when the message leaves.
+ */
+export function driveAttachment(file: {
+  id: string;
+  name: string;
+  mime_type: string;
+  size?: number | null;
+}): AttachableFile {
+  return {
+    id: file.id,
+    filename: file.name,
+    mime_type: file.mime_type,
+    size: file.size ?? 0,
+    origin: DRIVE_ORIGIN,
+    expires_at: null,
+  };
+}
 
 /** The files a message carries, as the send names them. */
 export function filesToSend(files: readonly AttachableFile[]): {

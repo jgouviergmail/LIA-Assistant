@@ -11,8 +11,8 @@
  * overlaid on the card (a button inside a button is invalid HTML and a
  * keyboard trap).
  *
- * Past a dozen people a toolbar appears — name search, ordering, and two
- * quick filters. All of it is client-side over rows already fetched: an
+ * The toolbar stays visible — name search, ordering, and two quick filters.
+ * All of it is client-side over rows already fetched: an
  * ordering preference is not worth a server round-trip, and the server's own
  * ranking stays the default so the page opens on what matters most.
  *
@@ -22,7 +22,7 @@
 
 import { useState } from 'react';
 import { RelationActivityBadges } from './RelationActivityBadges';
-import { Handshake, Moon, Search, Star, Users } from 'lucide-react';
+import { Handshake, Moon, Star, Users } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { cn, normalizeSearchText } from '@/lib/utils';
@@ -31,9 +31,8 @@ import { RelationAvatar } from '@/components/relations/RelationAvatar';
 import type { RelationSummary } from '@/hooks/useRelations';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HeadingRule } from '@/components/ui/heading-rule';
-
-/** Show the toolbar once the list stops fitting one glance. */
-const FILTER_THRESHOLD = 9;
+import { FilterChip } from '@/components/ui/filter-chip';
+import { ListToolbar } from '@/components/ui/list-toolbar';
 
 /** Past this silence, a relationship is worth noticing again. */
 const DORMANT_AFTER_DAYS = 90;
@@ -183,41 +182,11 @@ function Band({
   );
 }
 
-/** A toggle chip — a real button with `aria-pressed`, never a styled div. */
-function FilterChip({
-  active,
-  label,
-  icon: Icon,
-  onToggle,
-}: {
-  active: boolean;
-  label: string;
-  icon: typeof Users;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active
-          ? 'border-primary/40 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:bg-muted/60'
-      )}
-    >
-      <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}
-    </button>
-  );
-}
-
 /**
  * Name search, ordering and quick filters — all client-side.
  *
- * Native `<select>` on purpose: a Radix Select is untestable in jsdom, and the
- * codebase already made that call for the peers calendar level.
+ * The shared toolbar keeps the same search, native choices and chip layout
+ * as the other dashboard lists.
  */
 function Toolbar({
   filter,
@@ -240,50 +209,34 @@ function Toolbar({
 }) {
   const { t } = useTranslation();
   return (
-    // The search on its own line, the ordering and the filters under it
-    // (owner request 2026-10-21).
-    <div className="space-y-2">
-      <div className="relative w-full max-w-md">
-        <Search
-          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          value={filter}
-          onChange={event => onFilter(event.target.value)}
-          placeholder={t('relations.filter_placeholder')}
-          aria-label={t('relations.filter_placeholder')}
-          className="h-11 w-full rounded-full border border-border bg-background pl-8 pr-3 text-base focus:outline-none focus:ring-1 focus:ring-ring sm:h-9 sm:text-sm"
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {t('relations.sort_label')}
-          <select
-            value={sort}
-            onChange={event => onSort(event.target.value as SortMode)}
-            className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="recent">{t('relations.sort_recent')}</option>
-            <option value="name">{t('relations.sort_name')}</option>
-            <option value="volume">{t('relations.sort_volume')}</option>
-          </select>
-        </label>
-        <FilterChip
-          active={onlyPeers}
-          label={t('relations.only_peers')}
-          icon={Handshake}
-          onToggle={onTogglePeers}
-        />
-        <FilterChip
-          active={onlyDormant}
-          label={t('relations.only_dormant')}
-          icon={Moon}
-          onToggle={onToggleDormant}
-        />
-      </div>
-    </div>
+    <ListToolbar<SortMode>
+      query={filter}
+      onQuery={onFilter}
+      searchLabel={t('relations.filter_placeholder')}
+      sort={sort}
+      onSort={onSort}
+      sortLabel={t('relations.sort_label')}
+      sortOptions={(['recent', 'name', 'volume'] as const).map(value => ({
+        value,
+        label: t(`relations.sort_${value}`),
+      }))}
+      chips={
+        <>
+          <FilterChip
+            active={onlyPeers}
+            label={t('relations.only_peers')}
+            icon={Handshake}
+            onToggle={onTogglePeers}
+          />
+          <FilterChip
+            active={onlyDormant}
+            label={t('relations.only_dormant')}
+            icon={Moon}
+            onToggle={onToggleDormant}
+          />
+        </>
+      }
+    />
   );
 }
 
@@ -311,10 +264,6 @@ export function RelationCardList({
     setOnlyPeers(false);
     setOnlyDormant(false);
   };
-  if (relations.length === 0 && !hasFilter) {
-    return <EmptyState icon={Users} description={t('relations.empty')} />;
-  }
-
   const needle = normalizeSearchText(filter.trim());
   const matching = relations.filter(
     relation =>
@@ -328,18 +277,16 @@ export function RelationCardList({
 
   return (
     <div className="space-y-7">
-      {(relations.length >= FILTER_THRESHOLD || hasFilter) && (
-        <Toolbar
-          filter={filter}
-          onFilter={setFilter}
-          sort={sort}
-          onSort={setSort}
-          onlyPeers={onlyPeers}
-          onTogglePeers={() => setOnlyPeers(value => !value)}
-          onlyDormant={onlyDormant}
-          onToggleDormant={() => setOnlyDormant(value => !value)}
-        />
-      )}
+      <Toolbar
+        filter={filter}
+        onFilter={setFilter}
+        sort={sort}
+        onSort={setSort}
+        onlyPeers={onlyPeers}
+        onTogglePeers={() => setOnlyPeers(value => !value)}
+        onlyDormant={onlyDormant}
+        onToggleDormant={() => setOnlyDormant(value => !value)}
+      />
 
       {typeof relationsTotal === 'number' && relationsTotal > relations.length && (
         <p className="text-xs text-muted-foreground">
@@ -347,7 +294,9 @@ export function RelationCardList({
         </p>
       )}
 
-      {visible.length === 0 ? (
+      {relations.length === 0 && !hasFilter ? (
+        <EmptyState icon={Users} description={t('relations.empty')} />
+      ) : visible.length === 0 ? (
         <EmptyState
           reason="no-match"
           description={t('relations.filter_no_match')}

@@ -4,7 +4,7 @@
  * no drift between the two surfaces.
  */
 
-import { FileSpreadsheet, FileText, Presentation, type LucideIcon } from 'lucide-react';
+import { FileSpreadsheet, FileText, Presentation, type LucideIcon } from '@/lib/icons';
 
 export function documentTypeIcon(docType: string): LucideIcon {
   switch (docType) {

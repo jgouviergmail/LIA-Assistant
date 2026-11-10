@@ -20,6 +20,7 @@ from src.core.constants import TOOL_ASSIST_LLM_TYPE, TOOL_ASSIST_VISION_LLM_TYPE
 from src.core.llm_config_helper import get_llm_config_for_agent, short_answer_config
 from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.domains.tool_assists.budget import require_prompt_room
 from src.domains.tool_assists.door import AssistRun
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
@@ -51,6 +52,7 @@ async def ask_slot[T: BaseModel](run: AssistRun, rendered_prompt: str, schema: t
         StructuredOutputError: No usable answer came; the door tells it.
         UsageLimitExceededError: A ceiling closed; the door tells it.
     """
+    require_prompt_room(TOOL_ASSIST_LLM_TYPE, rendered_prompt, schema)
     llm = get_llm(TOOL_ASSIST_LLM_TYPE, config_override=short_answer_config(TOOL_ASSIST_LLM_TYPE))
     provider = get_llm_config_for_agent(settings, TOOL_ASSIST_LLM_TYPE).provider
     return await get_structured_output(

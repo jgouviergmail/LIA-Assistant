@@ -115,10 +115,11 @@ In **Settings › Preferences › Personalization › Display Mode**, pick one o
 
 A **Preview** beside the list draws an illustrative answer in the chosen mode, without your account data. Your choice applies to LIA's new replies.
 
+**Cards:**
+each card takes the shape of its content — an envelope for a mail, an invitation for an event, a folder for files, a research with its sources in the margin — in your theme's colours, light, dark or absolute black. A card showing an e-mail, an event, a contact, a task, a file or a light opens it in **Tools** when your instance offers them, checked against the account that answered; if that account changed or its connection is off, the card says so instead of opening something else.
+
 You can also ask in the chat:
 • *Switch my answers to HTML + cards*
-
-**💡 Good to know:** in every mode, copying a message gives you clean readable text — HTML answers are flattened automatically, and paste as rich text where the target supports it.
 
 ## Which languages are supported for voice transcription?
 LIA transcribes your dictation in **your account's language**, one of the six languages of the interface: French, English, German, Spanish, Italian or Chinese.
@@ -178,6 +179,7 @@ Both methods sync your preference. The language is saved in your profile.
 Notification emails will also use this language.
 
 ## How do I customize appearance (themes)?
+
 Customize LIA's appearance to your taste:
 
 **5 themes available:**
@@ -188,10 +190,15 @@ Customize LIA's appearance to your taste:
 • 💜 **Lavender**: soft lavender, refined and creative
 
 **Light, dark, absolute black:**
-Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you pick the mode directly among four: **Light**, **Dark**, **Absolute black** and **System** (follow your device).
+Each theme exists in a light and a dark version, and dark has two depths — ordinary dark, and **absolute black** for OLED screens, where those pixels really switch off. The button in the title bar cycles through the three, and its icon shows where the next press goes. In **Settings › Appearance** you pick the mode directly from the available modes: **Light**, **Dark**, **Absolute black** and **System** (follow your device).
 
 **To change theme:**
 Go to **Settings** (⚙️ icon), **Appearance** section.
+
+**Automatic** switches between light and absolute black at the times you choose, in your account timezone. Save the two times together. Choosing a manual mode leaves automatic mode.
+
+**Icon style:**
+In **Settings › Appearance**, choose how icons are drawn: **Fluent Color** (the default), **Streamline Flex** or **Lucide**, the original line icons. The colour styles keep each symbol's meaning — a filled star stays filled, a cancelled event stays cancelled — and where a collection has no drawing for a concept, LIA completes it in the same spirit. Your system's high-contrast mode keeps its own colours.
 
 ## How do I update my profile?
 Manage your personal information:
@@ -200,7 +207,7 @@ Manage your personal information:
 • ✏️ **Full name**: your name displayed in the app
 • 🌍 **Timezone**: for date display
 • 🌐 **Language**: interface language
-• 🎨 **Theme**: color theme and display mode (light, dark, absolute black, or system)
+• 🎨 **Theme**: color theme and display mode (light, dark, absolute black, system, or automatic with custom times)
 • 🔤 **Font**: choose from 9 font families (System, Noto Sans, Plus Jakarta Sans, IBM Plex Sans, Geist, Source Sans Pro, Merriweather, Libre Baskerville, Fira Code)
 • 🔠 **Font size**: make the interface text a little smaller or noticeably larger than the default, with a live preview. Only the text changes size: panels, spacing and icons keep their dimensions
 
@@ -487,35 +494,11 @@ they have data — recent calls, strong authentication, the data export. Rather
 than leaving you in front of a page that did not move, LIA tells you the section
 is not showing here.
 
-## Where can I see everything LIA sent me?
-The **Alerts** destination in the navigation bar gathers in one screen the
-streams your instance offers:
+## Where can I see everything LIA sent me, without digging through settings?
 
-• **Proposals** LIA made that wait for your decision
-• **Relayed messages** exchanged with your accepted peers
-• **Proactive notifications** LIA sent on its own initiative
-• **Interest notifications** about the subjects you follow
-• **Pending reminders** — what is still to come
-• **Scheduled routines** and their next runs, each marked **Enabled** in green or
-  **Disabled** in grey
-• **Workboard tickets** that need you — a run waiting for your answer, or something overdue
-• **Proactive discussions** LIA opened with you, and whether you answered
-• **My SMS** — the messages your phone relayed to LIA
+The **Alerts** destination in the navigation bar gathers in one screen the streams your instance offers: LIA's proposals, relayed peer messages, proactive notifications, the proactive discussions LIA opened, interest notifications, received SMS, pending reminders, scheduled routines and Workboard tickets. Each section arrives folded **already showing its exact count** — you choose what to open without having to open it to find out — and paginates by ten. No list is fetched until something is unfolded: only the counts are, in a single read. The settings panels remain the detailed configuration for each of those streams, and every link you had saved keeps working. Beside the title on a computer, under it on a phone, three buttons of one height: **Activity timeline** (when your instance offers it), **Action journal** and **Refresh**, which re-reads the counts and every open section — the Activity page carries the same ones in the same place, with **Received / To follow up** to come back here. Each scheduled routine shows **Enabled** in green or **Disabled** in grey. You can search the text displayed in the activity timeline, filter by category and sort from newest to oldest or oldest to newest. Days and times use your account timezone; omitted results and unavailable sources are stated.
 
-Each section arrives folded, **already showing its exact total**, and
-paginates by ten — so you choose what to open rather than opening it to find
-out. No list is fetched until something is unfolded: only the counts are,
-in a single read, and opening a section costs exactly one more.
-
-Under the title sit three buttons of one height: **Activity timeline** (when
-your instance offers it), **Action journal** and **Refresh**, which re-reads the
-counts and every open section. The **Activity** page carries the same ones in
-the same place, with **Received / To follow up** to come back here.
-
-The settings panels remain the detailed configuration for each of those
-streams, and every deep link you had saved keeps working. Reminders are the one
-section that can never be a history: a reminder leaves it once it fires,
-and a repeating one comes back at its next occurrence.
+In **Received / Upcoming**, search the displayed text, choose a category and sort each section by newest, oldest or name. The default preserves its usual order. Proposals remain independent. A closed section does not read its content to count filtered results. SMS search matches the displayed sender or a message fragment; narrow the period if the search is too broad. A name or archive change may require restarting from the first page.
 
 ## Where do I see what LIA can do for me?
 
@@ -602,6 +585,8 @@ The history shows, for each announcement, its audience, the exact number of peop
 Yes, in **Settings › Administration › JEV integrations**: a general switch, **Enable JEV**, and one switch per usage, each independent — turning the general switch off keeps their individual choices. Everything is off by default, and a usage only works once a TypeSafe API key, an active decision model (in **LLM Configuration**) and its tariff (in **LLM Text Pricing**) are in place.
 
 The model helps classify a value or choose within a declared scope; compatibility rules, permissions and execution stay in code. An uncertain, unavailable or disabled judgement falls back to the existing processing. For example, **Guarded parameter values** — which judges, before a tool call, whether an address, a place or an e-mail value really is one — can refuse a value of another kind only when it is confident, and can never accept a value the existing guard refuses.
+
+Each usage that decides folds its **decision thresholds**: each one moves within the bounds the server publishes, at the hundredth. A threshold set away from its qualified default marks the usage **Outside the qualified record**, and one click restores the default. Every usage also folds its **statistics over the last 30 days**: billed calls, cost, how the operations ended, the share of judgements each slider position concludes and, for an observer, its verdicts beside what the extractor proposed.
 
 A change applies to new operations; work in progress keeps its initial choice. A paid call that fails and its fallback both count. While your debug panel is on, it lists your own account's JEV calls for a short, bounded time. Test-corpus results do not promise the same benefit on all your requests.
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FileText } from 'lucide-react';
+import { FileText } from '@/lib/icons';
 import { ArticleIllustration } from '@/components/blog/ArticleIllustration';
 import { LANDING_CARD_SIZES } from '@/lib/blog/article-images';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

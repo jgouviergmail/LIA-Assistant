@@ -6,7 +6,7 @@
     "domains/agents/api/router.py": 768,
     "domains/agents/api/service.py": 982,
     "domains/agents/display/components/base.py": 881,
-    "domains/agents/drafts/service.py": 780,
+    "domains/agents/drafts/service.py": 705,
     "domains/agents/nodes/response_node.py": 2153,
     "domains/agents/orchestration/parallel_executor.py": 1947,
     "domains/agents/orchestration/semantic_validator.py": 832,
@@ -19,16 +19,16 @@
     "domains/agents/services/query_analyzer_service.py": 950,
     "domains/agents/services/smart_planner_service.py": 1051,
     "domains/agents/services/streaming/debug_metrics_builder.py": 651,
-    "domains/agents/services/streaming/service.py": 1245,
-    "domains/agents/tools/calendar_tools.py": 1134,
+    "domains/agents/services/streaming/service.py": 1244,
+    "domains/agents/tools/calendar_tools.py": 1054,
     "domains/agents/tools/drive_tools.py": 788,
     "domains/agents/tools/emails_tools.py": 908,
-    "domains/agents/tools/google_contacts_tools.py": 1233,
+    "domains/agents/tools/google_contacts_tools.py": 1183,
     "domains/agents/tools/labels_tools.py": 631,
     "domains/agents/tools/mixins.py": 668,
     "domains/agents/tools/places_tools.py": 921,
     "domains/agents/tools/routes_tools.py": 898,
-    "domains/agents/tools/tasks_tools.py": 827,
+    "domains/agents/tools/tasks_tools.py": 784,
     "domains/agents/tools/weather_tools.py": 716,
     "domains/auth/router.py": 727,
     "domains/chat/service.py": 778,
@@ -41,6 +41,6 @@
     "domains/interests/services/extraction_service.py": 681,
     "domains/psyche/engine.py": 874,
     "domains/psyche/service.py": 913,
-    "infrastructure/observability/metrics_agents.py": 798
+    "infrastructure/observability/metrics_agents.py": 784
   }
 }

@@ -10,7 +10,6 @@ import { test as base, expect } from '@playwright/test';
 import { installApiCatchAll, registerRoutes, stopApiRequests, type MockRoute } from './api-mock';
 import { createApiNetworkGuard, type ApiNetworkGuard } from './api-network-guard';
 import { minimizeCompanionOnPhones } from './companion';
-import { installOfflineFonts } from './offline-fonts';
 import { dashboardShellMocks } from './dashboard-shell';
 import { makeTestUser, type TestUser } from './test-user';
 import { installDevHmr } from './dev-hmr';
@@ -48,7 +47,6 @@ export const test = base.extend<Fixtures>({
     async ({ page, apiNetworkGuard, baseURL }, provide) => {
       const stopHmr = await installDevHmr(page, baseURL);
       try {
-        await installOfflineFonts(page);
         await installApiCatchAll(page);
         await provide();
       } finally {

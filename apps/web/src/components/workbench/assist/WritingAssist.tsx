@@ -9,7 +9,7 @@
  * to by their choice alone. Leaving stops what is on its way. A proposal is plain text: what a model
  * wrote never becomes markup here.
  */
-import { Mic, type LucideIcon } from 'lucide-react';
+import { Mic, type LucideIcon } from '@/lib/icons';
 import { useEffect, useEffectEvent, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -22,9 +22,10 @@ import type { Language } from '@/i18n/settings';
 import type { TextAnswer } from '@/lib/workbench/assist';
 
 import { BarAct } from '../DetailBar';
-import { AssistStars } from './AssistStars';
-import { DictationAct } from './DictationAct';
-import { useAssistCall, type AssistCall, type AssistState } from './useAssistCall';
+import { useAssistBounds } from '../WorkbenchShell';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
+import { DictationAct } from '@/components/selection-assist/DictationAct';
+import { useAssistCall, type AssistCall, type AssistState } from '@/hooks/useAssistCall';
 import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 /** How a proposal joins what the field holds. */
@@ -97,7 +98,8 @@ export function WritingAssist({
     const line = lines.find(item => item.key === key);
     if (!line) return;
     setOpen(line);
-    ask(line, '');
+    // A line that needs the person's words waits for them: nothing would be asked of a model.
+    if (line.instruction !== 'required') ask(line, '');
   });
   useEffect(() => {
     if (!startWith) return undefined;
@@ -190,6 +192,7 @@ export function InstructionForm({
   lng,
   required,
   label: named,
+  submitLabel,
   suggestions,
   words,
   maxLength,
@@ -202,6 +205,8 @@ export function InstructionForm({
   required: boolean;
   /** What the words are, where they are not an instruction. */
   label?: string;
+  /** What sending them does, where it is not a proposal (a question asked). */
+  submitLabel?: string;
   suggestions?: readonly string[];
   words: string;
   maxLength: number | undefined;
@@ -241,17 +246,66 @@ export function InstructionForm({
             {suggestion}
           </Button>
         ))}
-        <Button
-          type="submit"
-          size="sm"
-          className="ml-auto"
-          isLoading={running}
-          aria-disabled={held || undefined}
-        >
-          {t('workbench.assist.writing.ask')}
-        </Button>
+        <span className="ml-auto flex items-center gap-1.5">
+          <SaidInstead lng={lng} words={words} maxLength={maxLength} onWords={onWords} />
+          <Button type="submit" size="sm" isLoading={running} aria-disabled={held || undefined}>
+            {submitLabel ?? t('workbench.assist.writing.ask')}
+          </Button>
+        </span>
       </div>
     </form>
+  );
+}
+
+/** What is typed, then what was said after it, under the field's bound. */
+function joinedInstruction(typed: string, said: string, maxLength: number | undefined): string {
+  const joined = [typed.trimEnd(), said].filter(Boolean).join(' ');
+  return maxLength === undefined ? joined : joined.slice(0, maxLength);
+}
+
+/**
+ * An instruction said rather than typed (owner, 2026-11-07): the microphone stands beside
+ * « Propose » where words can be heard, the recorder in its place while it listens. The words join
+ * what is typed; nothing is asked until the person presses « Propose ».
+ */
+function SaidInstead({
+  lng,
+  words,
+  maxLength,
+  onWords,
+}: {
+  lng: Language;
+  words: string;
+  maxLength: number | undefined;
+  onWords: (words: string) => void;
+}) {
+  const { t } = useTranslation(lng);
+  const bounds = useAssistBounds();
+  const [listening, setListening] = useState(false);
+  if (!bounds?.dictates) return null;
+  if (listening) {
+    return (
+      <DictationAct
+        lng={lng}
+        compact
+        onWords={said => onWords(joinedInstruction(words, said, maxLength))}
+        onEnd={() => setListening(false)}
+      />
+    );
+  }
+  const label = t('workbench.assist.voice.dictate');
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8"
+      aria-label={label}
+      title={label}
+      onClick={() => setListening(true)}
+    >
+      <Mic className="h-4 w-4" aria-hidden="true" />
+    </Button>
   );
 }
 

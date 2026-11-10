@@ -2164,6 +2164,10 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ Pattern réutilisable pour tout futur sub-agent ReAct
 - ✅ Feature flags (defaut: off) — zero impact sur le comportement existant
 
+**Amendement 2026-11-08 (ADR-374)** : la porte JEV placée devant l'évaluateur (`initiative_utility`) est retirée ; l'évaluateur voit tout tour outillé éligible.
+
+**Amendement 2026-11-08 (b)** : le prompt de l'évaluateur retrouve son rôle d'enrichissement, que la réécriture du 2026-09-15 avait réduit aux seules frictions opérationnelles : météo d'un itinéraire à son heure, trajet d'un rendez-vous demandé avec son début comme heure d'arrivée pour dire quand partir, agenda d'un jour proposé. Les puces sont proposées qu'il agisse ou non ; mémoire et intérêts ordonnent, sans conditionner ; le budget d'actions publié est appliqué par le code (`over_cap`).
+
 ---
 
 ### ADR-063: Cross-Worker Cache Invalidation via Redis Pub/Sub
@@ -3867,6 +3871,8 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 **Décision** : LIA n'a aucune représentation apprise du *quand* de son utilisateur (le heartbeat décide sur « dernier message il y a N heures » ; le détecteur de récurrence d'ADR-140 est éphémère et **mathématiquement aveugle aux habitudes hebdomadaires** — fenêtre 14 j < 3 lundis). Le programme Habitudes (plan : `docs/plans/2026-08-05-habitudes-utilisateur-programme.md`) apprend le rythme d'activité et les demandes récurrentes verrouillées par **statistiques déterministes calibrées par simulation** — pas de ML entraîné (RPi5, explicabilité doctrine intérêts, volumes faibles) ; l'unité statistique du rythme est **le jour**, jamais le message (comptage par message = FP 83-100 % mesurés). **Zéro écriture hot-path** : job nightly leader-elected + ledger ADR-140 réutilisé ; les deux seams du Lot 0 sont fermés — `product_outcomes.domain` capturé au streaming du tour COURANT (gaté sur `routing_history_changed` : le premier chunk values rejoue le checkpoint du tour précédent, l'enregistrer serait une donnée fausse), et `is_automated_source` stampé sur la ligne user archivée (`archive_first.py`, extrait de `AgentService` — sans marqueur, une action programmée quotidienne apprendrait « utilisateur actif à 7 h » : LIA apprendrait de ses propres automatisations). **Le contrôle précède l'exploitation** : bounded context `domains/habits/`, flag `HABITS_ENABLED` défaut OFF, réglages complets (consultation, formule expliquée, provenance, blocage, suppression, export, purge GDPR) livrés avant toute consommation ; le rythme appris **priorise à l'intérieur** des bornes utilisateur, jamais au-delà (invariant anti-famine du `min_per_day` testé) ; remarques d'écart bornées (budgets, cooldown, k par forme, règle d'arrêt à 2 non-adhésions) et tout commentaire de surveillance interdit.
 
+**Amendement 2026-11-08 (ADR-375)** : le verrou « même demande à la même heure » et ses huit réglages sont retirés, avec l'offre de routine manquée du heartbeat et la suggestion textuelle du chat ; un besoin récurrent (quatre jours, deux semaines, un récent) le remplace, l'heure n'étant plus qu'un descripteur.
+
 ### ADR-215 : installateur self-host — local d'abord, prebuilt gaté par digests, secrets stdin
 
 **Statut**: ✅ ACCEPTED (2026-08-06)
@@ -4270,6 +4276,8 @@ graph TD
 **Fichier**: `docs/architecture/ADR-238-proposals-inbox-adaptive-react.md`
 
 **Décision** : **C2** — l'inbox de propositions est une VUE sur l'existant, jamais une seconde autorité : une proposition ouverte EST une notification heartbeat à `habit_offer_id` sans `user_feedback` dans la fenêtre `HEARTBEAT_OFFERS_WINDOW_DAYS` ; `GET /heartbeat/offers` (builder pur testé au SQL, total exact ADR-185) ; décider passe par le endpoint feedback EXISTANT (accepter = 👍 puis chat PRÉREMPLI — rien ne s'envoie seul, HITL intact ; refuser = 👎), les signaux bayésiens ADR-214 continuent d'apprendre ; 6ᵉ section du hub EN TÊTE (un ensemble à décider prime sur les historiques — à montrer au propriétaire) + 6ᵉ badge dans la lecture unique des compteurs ; PULL pur donc aucune garde d'éligibilité. **C4** — budget d'itérations ReAct adaptatif (flag OFF par défaut) : le max configuré devient PLAFOND, budget par tour = base + (domaines−1)×pas depuis l'analyse, calculé au setup dans la clé d'état DÉCLARÉE `react_max_iterations_effective` ; complexité inconnue ⇒ plafond (on n'économise que sur le prouvé-simple, on ne sous-budgète jamais un dur). **B3 intra-run** : le message du garde de répétition exige désormais UNE phrase de diagnostic avant la prochaine action (pas Reflexion au coût zéro — aucun appel LLM ajouté sur chemin d'erreur) ; les leçons inter-sessions restent sur l'extraction `procedural` (ADR-236).
+
+**Amendement 2026-11-08 (ADR-375)** : l'inbox lit `habit_proposals` (`GET /habits/proposals`) et `/heartbeat/offers` est retiré ; accepter exécute la proposition (routine créée ou déplacée, heures de notification élargies, notifications en pause) ou ouvre l'écran voulu ; « Plus tard » et « Jamais » remplacent les pouces.
 
 ---
 
@@ -5064,6 +5072,8 @@ graph TD
 
 **Décision** : TypeSafe/Jev devient un fournisseur natif de décisions, avec modèle et tarification dédiés. Chaque usage possède son poste de configuration et son interrupteur administratif à chaud, derrière une bascule générale ; tous sont désactivés par défaut. Les choix portent sur les modèles de compte rendu, les consultations prédéfinies, la pertinence des collections et extraits, la vérification radio, l’utilité de l’initiative et les exclusions HITL. Les observateurs de mémoire, intérêts, journal et boucles ouvertes conservent les extractions existantes. Une réponse incertaine ou invalide déclenche le repli, jamais une autorisation ou une suppression de résultat canonique. Chaque appel payant, y compris un échec suivi de son repli, rejoint la comptabilité du bon utilisateur et du bon run. Le debug distingue proposition, application et demande de repli ; son contexte borné est chiffré, réservé au compte autorisé et expire sans être prolongé par une mise à jour. Les mesures séparent inférence, premier résultat utile et réponse complète : les corpus et simulations ne constituent pas une promesse de gain global. Activation après recette dev, retour opérationnel à l’existant par les interrupteurs.
 
+**Amendement 2026-11-08 (ADR-374)** : les huit aperçus de collections et la porte d'utilité de l'initiative sont retirés avec leurs interrupteurs, postes et événement de flux ; chaque seuil est déclaré avec son défaut et ses bornes (`jev_gates.py`), stocké par usage dans `system_settings` et porté par la tentative ; chaque jugement payé est compté en agrégats journaliers, et l'observation, qui mesure désormais son accord avec l'extracteur, ne supprime toujours aucune écriture.
+
 ---
 
 ### ADR-326 : les aplatisseurs de texte sont linéaires par construction, une URL validée est lue à l'adresse que le contrôle a vue
@@ -5461,3 +5471,44 @@ graph TD
 **Status**: Accepted, 2026-11-06. Amends ADR-369 (what a click asks of LIA lives beside the hand-made Tools) and ADR-272 (a text readout answers to both ceilings).
 
 **Decision**: A click on a screen of the Tools asks LIA once and gets a proposal back: words to read or a form to check, never a write to a provider. `domains/tool_assists/` is a bounded context of its own, reached through one door (`run_assist`): both ceilings, the spend billed whatever happens, the read filed, an outcome in the workbench's words, nothing retried. The assistant's own writers answer where they exist. Discretion is a rule: no control is added to a screen with no room for one, the last icon of every bar opens the list, and a panel takes no room until it is asked for. What a model answers is held to what the screen can take, and a value claiming a source is checked against it.
+
+### ADR-373: The personality governs the voice
+
+**File**: [ADR-373-The-Personality-Governs-The-Voice.md](ADR-373-The-Personality-Governs-The-Voice.md)
+
+**Status**: Accepted, 2026-11-07. Amends ADR-299 and ADR-301 (one personality block with an order of precedence, no tone of the frame's own), ADR-300 (on an ElevenLabs agent LIA writes the palette, the default persona, the greeting and the tool list), ADR-290 (a third party hears a cordial manner) and ADR-345 (persona cues, for a live voice and, where its engine performs them, the spoken comment).
+
+**Decision**: Every voice of the person — Live, Live direct, the phone, on every provider, and the chat's spoken comment — speaks in the personality configured in LIA, substance first: one block in the four owner mandates puts facts and acts first and the personality over every other word and the delivery. A session's expression wire (`prose` or `cues`) is decided at its start by the provider and frozen on the record. On an ElevenLabs agent LIA writes, where it drifted, the permission for its frame, the vendor's default persona off, a palette of cues described by their sound, an empty greeting, and exactly its tool set, LIA's stale copies deleted without force. A stranger on the phone hears a cordial manner. No cue reaches the conversation. The spoken comment's frame takes the same order, the language a fact, and is offered persona cues only on an engine measured to perform them (§ 8).
+
+### ADR-374: JEV keeps what someone reads, declares its thresholds and counts its judgements
+
+**File**: [ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md](ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)
+
+**Status**: Accepted, 2026-11-08. Amends ADR-325 (previews and the initiative utility gate retired; thresholds declared, stored and carried by the attempt; judgements counted; observers' agreement measured) and ADR-062 (the JEV gate in front of the initiative evaluator retired; an e-mail-only gate added the same day was withdrawn on review).
+
+**Decision**: The eight collection previews leave with their switches, slots and stream event: their only surface was hidden on 2026-10-04. The initiative's JEV gate, which told no state apart, leaves; the evaluator runs on every eligible tool turn as before (an e-mail-only gate, adopted then withdrawn on review, would have taken the enrichment, the suggestion and the follow-up chips from every other turn). The e-mail classification learns whether a reply is expected. Every JEV threshold is declared with its default and bounds in `jev_gates.py`, stored per usage in `system_settings`, compared exactly and adjustable from the « JEV integrations » screen, which names a value outside the qualified record; the classification fingerprint hashes the effective thresholds. Every paid judgement lands in daily aggregates (the score at the hundredth, the outcome, the observers' agreement), flushed by a sorted atomic UPSERT, never for a disabled usage. No default moves.
+
+### ADR-375: Learned usage becomes proposals, decided in one click
+
+**File**: [ADR-375-Learned-Usage-Becomes-Proposals.md](ADR-375-Learned-Usage-Becomes-Proposals.md)
+
+**Status**: Accepted, 2026-11-08. Amends ADR-214 (the hour describes a recurring need, it never conditions it; the shape locks, the heartbeat's missed-routine offer and the chat's text suggestion retire) and ADR-238 (the inbox reads `habit_proposals`; accepting carries a proposal out; `/heartbeat/offers` retires).
+
+**Decision**: A recurring need is a domain asked on four distinct days over two weeks, one of them recent; its hour describes it and pre-fills a routine, never decides. Six kinds of proposal open from what LIA already records — automate a need (waiting for its connector, citing a routine that already reads it), move a routine relaunched by hand, look at a failing one, widen the notification hours, ask about notifications met with silence, connect a source — one row per (person, kind, key), facts only, phrased by the reader. Accepting is one transaction: the person's row, a conditional claim, the act, one commit; a refused act rolls back with a stable reason, two clicks create one routine, and no register row is written. The chat shows at most one under an answer, chosen by code (the turn's own domain first, one a day, the same one at most weekly), claimed under a lock it never waits for. Measured on 13 personas × 100 seeds: expected proposals 70-100 %, false positives at most 3 %.
+
+
+### ADR-376: A card opens its record in the Tools, on a signed proof of its source
+
+**File**: [ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md](ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md)
+
+**Status**: Accepted, 2026-11-09. Amends ADR-332 (a card's source title, preview and actions open the native record) and ADR-369 (the Tools accept an optional proof of source).
+
+**Decision**: The connector-tool boundary stamps each native card (e-mail, event, calendar, contact, task, file, Hue light) with a typed destination built from the received identifier and scope, naming the answering provider and the credential source fingerprint, signed with HMAC-SHA256 over the instance secret and the account, kept outside every model-facing payload. `POST /workbench/card-target` re-checks the signature and the live source at the click and answers only the native address; the Tools page forwards the proof to its own family (`X-LIA-Card-Source` or `card_source`), and the acquired client is checked before it reads or acts (`409 card_source_changed`). A constraint, never a permission; older cards without a proof stay readable and open nothing by guessing.
+
+### ADR-377: The account chooses how the interface is drawn: one icon door, three styles, and hours for black
+
+**File**: [ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md](ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md)
+
+**Status**: Accepted, 2026-11-09. Amends ADR-207 (a selected or busy control keeps a visible state whatever its icon's colours) and ADR-332 (card icon markers follow the account's style).
+
+**Decision**: Every icon is imported from one generated facade, the only importer of the vendor's line artwork (check mode refuses another); `users.icon_style` holds `lucide`, `fluent` or `flex` (CHECK + closed API vocabulary), Fluent Color for every account. A correspondence keeps the object, action, direction and state; a missing concept gets an attributed LIA complement, never a silent monochrome fallback; vendor inputs are pinned by digest with their licences credited; forced colours draw the line glyph. The theme gains `auto`: two civil minutes in the account's zone bound a light interval that may cross midnight, merged under a row lock and bounded by constraints; one browser provider owns the clock, and a tick changes the rendering only, never the profile.

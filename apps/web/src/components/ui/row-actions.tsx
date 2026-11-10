@@ -21,8 +21,8 @@
  * because on a list every anonymous "⋮" reads the same to a screen reader.
  */
 
-import type { LucideIcon } from 'lucide-react';
-import { MoreVertical } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
+import { MoreVertical } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {

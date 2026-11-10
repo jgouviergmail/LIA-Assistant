@@ -9,7 +9,7 @@
  * reads and writes on the account's clock, whatever the browser's. Any task can go to another
  * list: on To Do it is a copy, so it keeps what it holds and takes another id.
  */
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, X } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -100,30 +100,39 @@ export function TaskSteps({ lng, task, tool, onAdd, onToggle, onRemove }: TaskSt
   );
 }
 
+/** What a task holds beyond its words: what `TaskDetails` reads and changes. */
+export type TaskDetailValues = Pick<WorkbenchTask, 'importance' | 'reminder' | 'repeat'>;
+
 export interface TaskDetailsProps {
   lng: Language;
-  task: WorkbenchTask;
+  /** The task's, or a task's not made yet. */
+  details: TaskDetailValues;
   /** The account's zone: a reminder reads on its clock. */
   zone: string;
   /** The due day the form holds: a repetition starts on it. */
   due: string;
   onChange: (change: TaskChangeBody) => void;
+  /**
+   * Its values leave with the form, never field by field: a reminder is told as it is typed, so a
+   * form sent with Enter before the field was left keeps it.
+   */
+  live?: boolean;
 }
 
 /** How much it matters, when it reminds, how it repeats. */
-export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps) {
+export function TaskDetails({ lng, details, zone, due, onChange, live = false }: TaskDetailsProps) {
   const { t } = useTranslation(lng);
-  const [reminder, setReminder] = useState(() => reminderInput(task.reminder, zone));
-  const repeatable = due !== '' || task.repeat !== null;
+  const [reminder, setReminder] = useState(() => reminderInput(details.reminder, zone));
+  const repeatable = due !== '' || details.repeat !== null;
   const leaveReminder = () => {
     const instant = reminderInstant(reminder, zone);
-    if (instant !== task.reminder) onChange({ reminder: instant });
+    if (instant !== details.reminder) onChange({ reminder: instant });
   };
   return (
     <div className="space-y-4">
       <NativeSelect
         label={t('workbench.tasks.importance')}
-        value={task.importance ?? 'normal'}
+        value={details.importance ?? 'normal'}
         onChange={event => onChange({ importance: event.target.value as WorkbenchTaskImportance })}
       >
         {IMPORTANCES.map(importance => (
@@ -136,14 +145,17 @@ export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps
         type="datetime-local"
         label={t('workbench.tasks.reminder')}
         value={reminder}
-        onChange={event => setReminder(event.target.value)}
+        onChange={event => {
+          setReminder(event.target.value);
+          if (live) onChange({ reminder: reminderInstant(event.target.value, zone) });
+        }}
         onBlur={leaveReminder}
       />
       <div className="space-y-1">
         <NativeSelect
           label={t('workbench.tasks.repeat')}
           disabled={!repeatable}
-          value={task.repeat ?? ''}
+          value={details.repeat ?? ''}
           onChange={event =>
             onChange({ repeat: (event.target.value || null) as WorkbenchTaskRepeat | null })
           }
@@ -154,7 +166,7 @@ export function TaskDetails({ lng, task, zone, due, onChange }: TaskDetailsProps
               {t(`workbench.tasks.repeat_${repeat}`)}
             </option>
           ))}
-          {task.repeat === 'custom' && (
+          {details.repeat === 'custom' && (
             <option value="custom" disabled>
               {t('workbench.tasks.repeat_custom')}
             </option>
@@ -269,7 +281,7 @@ export function TaskExtras({
   return (
     <>
       {tool.features.includes('task_details') && (
-        <TaskDetails lng={lng} task={task} zone={zone} due={due} onChange={onChange} />
+        <TaskDetails lng={lng} details={task} zone={zone} due={due} onChange={onChange} />
       )}
       {moves && <TaskMoveField lng={lng} {...moves} />}
       {tool.features.includes('task_order') && order && <TaskOrder lng={lng} {...order} />}

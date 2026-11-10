@@ -23,6 +23,8 @@ const references: Reference[] = JSON.parse(
 
 for (const sample of [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ] as const) {
@@ -79,9 +81,17 @@ for (const sample of [
     await expect(html).toHaveCSS('color-scheme', dark ? 'dark' : 'light');
     await expect(page.locator('html[data-oled]')).toHaveCount(sample.theme === 'oled' ? 1 : 0);
     const card = page.locator('.lia-card.lia-route');
-    await expect(card.locator('.lia-card-image-fallback')).toBeVisible();
+    const fallback = card.locator('.lia-card-image-fallback');
+    await expect(fallback).toBeVisible();
+    // A refused static image remains a compact notice, not an empty map-sized frame.
+    const fallbackBox = await fallback.boundingBox();
+    const stageBox = await card.locator('.lia-route-map__stage').boundingBox();
+    if (!fallbackBox || !stageBox) throw new Error('Missing failed-map geometry');
+    expect(stageBox.height).toBeLessThanOrEqual(fallbackBox.height + 1);
     expect(mapRequests).toBe(1);
     await expect(card).toContainText('Place Bellecour');
+    await expect(card.getByText(/(?:Departure|Départ).*09:30/)).toBeVisible();
+    await expect(card.getByText(/(?:Arrival|Arrivée).*09:43/)).toBeVisible();
     for (const summary of await card.locator('summary').all()) {
       await summary.focus();
       await summary.press('Enter');
@@ -89,6 +99,8 @@ for (const sample of [
       expect((await summary.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
     await expect(card.getByText('M D', { exact: true })).toBeVisible();
+    await expect(card.getByText(/(?:Departure|Départ).*(?:09:34|9:34 AM)/)).toBeVisible();
+    await expect(card.getByText(/(?:Arrival|Arrivée).*(?:09:41|9:41 AM)/)).toBeVisible();
     await expect(card.getByText('OTHER_RECEIVED_JOURNEY', { exact: true })).toBeVisible();
     await expect(card.getByText('350 m · 4 min', { exact: true })).toBeVisible();
     await expect(page.locator('.lia-action-btn[href*="travelmode=transit"]').first()).toBeVisible();

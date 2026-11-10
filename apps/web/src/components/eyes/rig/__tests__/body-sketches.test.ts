@@ -10,10 +10,19 @@ import { SKETCHES, sketchDurationMs, sketchTapes } from '@/components/eyes/rig/s
 import { createEyeRig } from '@/components/eyes/rig/runtime';
 import { springStep } from '@/components/eyes/rig/spring';
 import { tapeTargetAt, type Tape } from '@/components/eyes/rig/tape';
+import { CHANNELS } from '../channels';
 
 const ROOM: BodyMotionSpace = { minX: -4, maxX: 3, minY: -3, maxY: 0.4, roaming: true };
 const EDGE: BodyMotionSpace = { minX: -0.08, maxX: 0.02, minY: 0, maxY: 0.04, roaming: true };
-const BODY_CHANNELS = ['bodyX', 'bodyY', 'bodyRoll', 'bodySx', 'bodySy'] as const;
+const BODY_CHANNELS = [
+  'bodyX',
+  'bodyY',
+  'bodyRoll',
+  'bodySx',
+  'bodySy',
+  'bodySupport',
+  'bodySupportSide',
+] as const;
 
 function channel(tapes: Tape[], name: (typeof BODY_CHANNELS)[number]): Tape {
   const tape = tapes.find(candidate => candidate.channel === name);
@@ -23,7 +32,7 @@ function channel(tapes: Tape[], name: (typeof BODY_CHANNELS)[number]): Tape {
 
 /** The actual analytic spring follows the planned targets, not a linear keyframe oracle. */
 function samples(tape: Tape): number[] {
-  let state = { value: tape.channel.startsWith('bodyS') ? 1 : 0, velocity: 0 };
+  let state = { value: CHANNELS[tape.channel].rest, velocity: 0 };
   const values: number[] = [];
   for (let time = 0; time <= (tape.durationMs ?? 0); time += 16) {
     state = springStep(state, tapeTargetAt(tape, time) ?? state.value, tape.spring!, 16);
@@ -37,12 +46,22 @@ function extremes(tape: Tape): { min: number; max: number } {
   return { min: Math.min(...values), max: Math.max(...values) };
 }
 
-function sequence(draws: readonly number[]): () => number {
-  let index = 0;
-  return () => draws[index++ % draws.length];
-}
-
 describe('whole-body scenes', () => {
+  it('keeps the retained performances upright for either direction', () => {
+    expect(
+      SKETCHES.filter(name => /^(body-roll|body-somersault|body-jig|dizzy|brow-groove)$/.test(name))
+    ).toEqual([]);
+    for (const name of BODY_SKETCHES) {
+      for (const draw of [0.2, 0.8]) {
+        const roll = channel(
+          bodySketchTapes(name, ROOM, () => draw),
+          'bodyRoll'
+        );
+        expect(samples(roll).every(value => Math.abs(value) <= 12)).toBe(true);
+      }
+    }
+  });
+
   it.each(BODY_SKETCHES)(
     '%s carries the face with a weighted head, then brings the head home',
     name => {
@@ -60,15 +79,12 @@ describe('whole-body scenes', () => {
       expect(rig.values().headPitch).toBe(0);
     }
   );
-  it('registers the eight acrobatics and a courteous bow on the existing catalogue and routes host entropy', () => {
+  it('registers the retained body performances on the existing catalogue and routes host entropy', () => {
     expect(BODY_SKETCHES).toEqual([
       'body-hops',
-      'body-roll',
-      'body-somersault',
       'body-doze',
       'body-sneeze',
       'body-balloon',
-      'body-jig',
       'body-startle',
       'body-bow',
     ]);
@@ -125,53 +141,46 @@ describe('whole-body scenes', () => {
     }
   });
 
-  it('lands and settles at its exact anchor, with complete revolutions handed to runtime normalization', () => {
+  it('lands and settles at its exact anchor', () => {
     for (const name of BODY_SKETCHES) {
       const tapes = bodySketchTapes(name, ROOM);
       for (const axis of BODY_CHANNELS) {
         const tape = channel(tapes, axis);
-        const rest = axis.startsWith('bodyS') ? 1 : 0;
+        const rest = CHANNELS[axis].rest;
         const home = tape.keys.at(-1)!.value;
-        expect(axis === 'bodyRoll' ? home % 360 : home).toBe(rest);
+        expect(home).toBe(rest);
         expect(tape.keys.at(-1)!.atMs).toBeLessThanOrEqual(sketchDurationMs(tapes) - 600);
         expect(Math.abs(samples(tape).at(-1)! - home)).toBeLessThan(0.01);
       }
     }
   });
 
-  it('makes rolls and somersaults complete forward turns instead of undoing them to reach zero', () => {
-    for (const name of ['body-roll', 'body-somersault'] satisfies BodySketchName[]) {
-      for (const random of [() => 0.2, () => 0.8]) {
-        const tape = channel(bodySketchTapes(name, ROOM, random), 'bodyRoll');
-        const direction = Math.sign(tape.keys.at(-1)!.value);
-        const committed = tape.keys
-          .filter(key => key.atMs >= 500)
-          .map(key => key.value * direction);
-        expect(committed.at(-1)).toBe(360);
-        expect(
-          committed.every((value, index) => index === 0 || value >= committed[index - 1])
-        ).toBe(true);
-      }
-    }
-  });
-
   it('anticipates a hop, stretches in the air, then compresses on landing before settling', () => {
     const tapes = bodySketchTapes('body-hops', ROOM);
-    expect(tapeTargetAt(channel(tapes, 'bodyY'), 200)).toBeGreaterThan(0);
+    expect(tapeTargetAt(channel(tapes, 'bodyY'), 200)).toBe(0);
+    expect(tapeTargetAt(channel(tapes, 'bodySupport'), 200)).toBe(1);
+    expect(tapeTargetAt(channel(tapes, 'bodySy'), 200)).toBeLessThan(1);
     expect(tapeTargetAt(channel(tapes, 'bodyY'), 600)).toBeLessThan(-0.3);
     expect(tapeTargetAt(channel(tapes, 'bodySy'), 600)).toBeGreaterThan(1);
     expect(tapeTargetAt(channel(tapes, 'bodySy'), 1050)).toBeLessThan(1);
     expect(tapeTargetAt(channel(tapes, 'bodySy'), 3500)).toBe(1);
-    // With no room above, the visible anticipation still falls then rebounds to the anchor.
+    // With no room above, grounded compression replaces an impossible jump.
     const edgeY = channel(bodySketchTapes('body-hops', EDGE), 'bodyY');
-    expect(tapeTargetAt(edgeY, 200)).toBeGreaterThan(0);
+    expect(tapeTargetAt(edgeY, 200)).toBe(0);
     expect(tapeTargetAt(edgeY, 600)).toBe(0);
   });
 
-  it('lies down long enough to read as sleep and reopens both eyes when it wakes', () => {
+  it('holds a grounded sleepy lean and reopens both eyes when it wakes', () => {
     const tapes = bodySketchTapes('body-doze', ROOM);
-    expect(tapeTargetAt(channel(tapes, 'bodyRoll'), 2100)).toBe(90);
-    expect(tapeTargetAt(channel(tapes, 'bodyRoll'), 3000)).toBe(90);
+    expect(tapeTargetAt(channel(tapes, 'bodyRoll'), 2100)).toBe(7);
+    expect(tapeTargetAt(channel(tapes, 'bodyRoll'), 3000)).toBe(7);
+    expect(samples(channel(tapes, 'bodySupport')).every(value => value === 1)).toBe(true);
+    expect(samples(channel(tapes, 'bodyY')).every(value => value === 0)).toBe(true);
+    expect(
+      tapes
+        .filter(tape => /^(foot|leg)/.test(tape.channel))
+        .every(tape => samples(tape).every(value => value === 0))
+    ).toBe(true);
     for (const side of ['L', 'R']) {
       const blink = tapes.find(tape => tape.channel === `blink${side}`)!;
       expect(tapeTargetAt(blink, 2100)).toBe(1);
@@ -180,79 +189,57 @@ describe('whole-body scenes', () => {
     }
   });
 
-  it('makes a visible upward leap from a temporary lower floor when the widget starts at the top', () => {
+  it('keeps the floor fixed and performs grounded anticipation when no upward room exists', () => {
     const top: BodyMotionSpace = { minX: -1, maxX: 1, minY: 0, maxY: 1.2, roaming: true };
-    for (const name of [
-      'body-hops',
-      'body-somersault',
-      'body-startle',
-    ] satisfies BodySketchName[]) {
-      const tape = channel(bodySketchTapes(name, top), 'bodyY');
+    for (const name of ['body-hops', 'body-startle'] satisfies BodySketchName[]) {
+      const tapes = bodySketchTapes(name, top);
+      const tape = channel(tapes, 'bodyY');
       const values = samples(tape);
-      expect(Math.max(...values)).toBeGreaterThan(0.45);
-      expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
-      expect(values.at(-1)).toBeLessThan(0.001);
-      const launch = tape.keys.find(key => key.atMs >= 300 && key.atMs <= 600)!;
-      const preparation = tape.keys.find(key => key.atMs > 0 && key.atMs < 300)!;
-      expect(preparation.value - launch.value).toBeGreaterThanOrEqual(0.55);
+      expect(values.every(value => value === 0)).toBe(true);
+      expect(samples(channel(tapes, 'bodySupport')).every(value => value === 1)).toBe(true);
+      expect(extremes(channel(tapes, 'bodySy')).min).toBeLessThan(0.95);
+      expect(samples(channel(tapes, 'bodyRoll')).every(value => Math.abs(value) <= 12)).toBe(true);
+      expect(
+        tapes
+          .filter(tape => /^(foot|leg)/.test(tape.channel))
+          .every(tape => samples(tape).every(value => value === 0))
+      ).toBe(true);
     }
   });
 
-  it('deflates, flies through roaming space, returns home and reinflates; previews stay local', () => {
+  it('makes a single upright rise, holds the look at its apex, then lands and recovers', () => {
     const roaming = bodySketchTapes('body-balloon', ROOM, () => 0.2);
     const local = bodySketchTapes('body-balloon', { ...ROOM, roaming: false }, () => 0.2);
-    expect(tapeTargetAt(channel(roaming, 'bodySx'), 800)).toBeLessThan(0.6);
-    expect(tapeTargetAt(channel(roaming, 'bodySy'), 800)).toBeLessThan(0.6);
-    expect(Math.max(...samples(channel(roaming, 'bodyX')).map(Math.abs))).toBeGreaterThan(1);
-    expect(Math.max(...samples(channel(local, 'bodyX')).map(Math.abs))).toBeLessThanOrEqual(0.45);
-    expect(Math.max(...samples(channel(local, 'bodyY')).map(Math.abs))).toBeLessThanOrEqual(0.45);
-    expect(tapeTargetAt(channel(roaming, 'bodyX'), 3700)).toBe(0);
-    expect(tapeTargetAt(channel(roaming, 'bodySx'), 3900)).toBeGreaterThan(1);
-    expect(tapeTargetAt(channel(roaming, 'bodySx'), 4700)).toBe(1);
-    expect(bodySketchTapes('body-balloon', ROOM, () => 0.8)).not.toEqual(roaming);
+    const mirrored = bodySketchTapes('body-balloon', ROOM, () => 0.8);
+    const y = channel(roaming, 'bodyY');
+    expect(tapeTargetAt(y, 310)).toBe(0);
+    expect(tapeTargetAt(y, 1450)).toBeLessThan(-0.7);
+    expect(tapeTargetAt(y, 2000)).toBe(tapeTargetAt(y, 1450));
+    expect(tapeTargetAt(channel(roaming, 'bodySupport'), 2000)).toBe(0);
+    const height = samples(y);
+    const contact = samples(channel(roaming, 'bodySupport'));
+    height.forEach((value, frame) => {
+      if (value < -0.3) expect(contact[frame]).toBeLessThan(0.1);
+    });
+    expect(tapeTargetAt(y, 3250)).toBe(0);
+    expect(tapeTargetAt(channel(roaming, 'bodySupport'), 3250)).toBe(1);
+    expect(tapeTargetAt(channel(roaming, 'bodySx'), 4600)).toBe(1);
+    expect(samples(channel(roaming, 'bodyRoll')).every(value => value === 0)).toBe(true);
+    expect(extremes(channel(roaming, 'bodyX')).min).toBeLessThan(-0.6);
+    expect(extremes(channel(mirrored, 'bodyX')).max).toBeGreaterThan(0.6);
+    expect(extremes(channel(local, 'bodyX')).min).toBeGreaterThanOrEqual(-0.45);
+    expect(extremes(channel(local, 'bodyY')).min).toBeGreaterThanOrEqual(-0.45);
   });
 
-  it('plans distinct seeded flight points even when the two balloons turn in the same direction', () => {
-    const firstSeed = [0.2, 0.1, 0.25, 0.8, 0.7, 0.9, 0.2, 0.2, 0.9];
-    const secondSeed = [0.2, 0.8, 0.7, 0.2, 0.3, 0.1, 0.8, 0.9, 0.1];
-    const first = bodySketchTapes('body-balloon', ROOM, sequence(firstSeed));
-    const second = bodySketchTapes('body-balloon', ROOM, sequence(secondSeed));
-    expect(channel(first, 'bodyRoll').keys).toEqual(channel(second, 'bodyRoll').keys);
-    for (const axis of ['bodyX', 'bodyY'] as const) {
-      const firstPoints = channel(first, axis).keys.filter(
-        key => key.atMs >= 900 && key.atMs < 3480
-      );
-      const secondPoints = channel(second, axis).keys.filter(
-        key => key.atMs >= 900 && key.atMs < 3480
-      );
-      expect(firstPoints).toHaveLength(4);
-      expect(firstPoints).not.toEqual(secondPoints);
-      expect(firstPoints.map(key => Math.abs(key.value))).not.toEqual(
-        secondPoints.map(key => Math.abs(key.value))
-      );
-    }
-    expect(bodySketchTapes('body-balloon', ROOM, sequence(firstSeed))).toEqual(first);
-  });
-
-  it('flies into the room below a top-edge anchor and consumes entropy only when planning', () => {
+  it('does not fake lift or release support with no headroom', () => {
     const top: BodyMotionSpace = { minX: -2, maxX: 2, minY: 0, maxY: 4, roaming: true };
-    let draws = 0;
-    const random = () => {
-      draws += 1;
-      return 0.2;
-    };
-    const tapes = bodySketchTapes('body-balloon', top, random);
-    const plannedDraws = draws;
-    const y = channel(tapes, 'bodyY');
-    expect(tapeTargetAt(y, 400)).toBeGreaterThan(0);
-    expect(tapeTargetAt(y, 1200)).toBeGreaterThan(0.6);
-    expect(plannedDraws).toBeGreaterThan(4);
-    const range = extremes(y);
-    expect(range.min).toBeGreaterThanOrEqual(0);
-    expect(range.max).toBeLessThanOrEqual(4);
-    expect(tapeTargetAt(y, 3700)).toBe(0);
-    expect(samples(y).at(-1)).toBeLessThan(0.001);
-    expect(draws).toBe(plannedDraws);
+    const tapes = bodySketchTapes('body-balloon', top, () => 0.2);
+    for (const axis of ['bodyX', 'bodyY'] as const)
+      expect(samples(channel(tapes, axis)).every(value => value === 0)).toBe(true);
+    expect(samples(channel(tapes, 'bodySupport')).every(value => value === 1)).toBe(true);
+    expect(tapes.find(tape => tape.channel === 'gazeX')?.keys.some(key => key.value !== 0)).toBe(
+      true
+    );
   });
 
   it('handles a tiny viewport without moving out of its zero room or collapsing into negative scale', () => {
@@ -269,13 +256,13 @@ describe('whole-body scenes', () => {
   it('plays through the native owner with paced travel and returns all five channels to rest', () => {
     for (const name of BODY_SKETCHES) {
       const rig = createEyeRig({
-        initial: { expression: 'neutral', styleId: 'smiley', family: 'calm' },
+        initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
       });
       rig.setBodySpace(ROOM);
       rig.playScene(name);
       expect(rig.isPerforming()).toBe(true);
       expect(rig.sketchClock().scene).toBe(name);
-      let deformation = 0;
+      let acting = 0;
       for (let time = 0; time < 7200; time += 16) {
         rig.step(16);
         const value = rig.values();
@@ -283,12 +270,17 @@ describe('whole-body scenes', () => {
         expect(value.bodyX).toBeLessThanOrEqual(ROOM.maxX + 0.001);
         expect(value.bodyY).toBeGreaterThanOrEqual(ROOM.minY - 0.001);
         expect(value.bodyY).toBeLessThanOrEqual(ROOM.maxY + 0.001);
-        deformation = Math.max(deformation, Math.abs(value.bodySx - 1), Math.abs(value.bodySy - 1));
+        acting = Math.max(
+          acting,
+          Math.abs(value.bodyRoll) / 10,
+          Math.abs(value.headPitch),
+          Math.abs(value.bodyY)
+        );
       }
-      expect(deformation).toBeGreaterThan(0.05);
+      expect(acting).toBeGreaterThan(0.2);
       expect(rig.isPerforming()).toBe(false);
       for (const key of BODY_CHANNELS) {
-        expect(rig.values()[key]).toBeCloseTo(key.startsWith('bodyS') ? 1 : 0, 2);
+        expect(rig.values()[key]).toBeCloseTo(CHANNELS[key].rest, 2);
       }
     }
   });

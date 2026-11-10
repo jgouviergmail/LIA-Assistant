@@ -7,6 +7,12 @@ if [[ $# -eq 0 ]]; then
   echo 'usage: run-native-media.sh <command> [arguments...]' >&2
   exit 2
 fi
+# The Linux matrix presents WebKit on an X display. Fail before provisioning
+# media services when neither an existing display nor the Xvfb owner is present.
+if [[ $(uname -s) == Linux && -z "${DISPLAY:-}" ]] && ! command -v xvfb-run >/dev/null; then
+  echo 'The Linux browser matrix requires DISPLAY or xvfb-run (provided in the Playwright image).' >&2
+  exit 2
+fi
 if ! command -v pulseaudio >/dev/null || ! command -v turnserver >/dev/null; then
   if [[ -f /.dockerenv && $(id -u) -eq 0 ]]; then
     apt-get update -qq
@@ -84,8 +90,12 @@ echo 'Native-media matrix ready: virtual audio sink and local STUN.'
 # Headless Firefox creates no WebGL context without a display ("Exhausted GL
 # driver options", measured 2026-10-13 in the Playwright image): the native
 # companion volume then never paints. Under Xvfb it gets Mesa's llvmpipe, the
-# software renderer Chromium's SwiftShader stands in for; the browsers stay
-# headless. Not exec'd: the EXIT trap above still owns the audio and STUN daemons.
+# software renderer Chromium's SwiftShader stands in for. Linux WebKit is
+# presented on this display: its headless presentation can suspend RAF and input
+# acknowledgements while JavaScript remains responsive. Chromium/Firefox retain
+# their configured modes. An existing DISPLAY is validated by the native browser
+# opening it; an invalid server fails explicitly, with no headless fallback.
+# Not exec'd: the EXIT trap still owns the audio and STUN daemons.
 if [[ -z "${DISPLAY:-}" ]] && command -v xvfb-run >/dev/null; then
   xvfb-run -a --server-args='-screen 0 1920x1080x24' "$@"
 else

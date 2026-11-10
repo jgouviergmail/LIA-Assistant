@@ -29,6 +29,7 @@ from src.domains.agents.api.run_origin import (
     record_refusal,
     with_origin_stamp,
 )
+from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS
 
 pytestmark = pytest.mark.unit
 
@@ -194,8 +195,7 @@ class TestTheEnrichersReadIt:
                 trace_capture=MagicMock(snapshot=MagicMock(return_value=None)),
                 duration_ms=10,
                 run_id="r-1",
-                followup_suggestions=None,
-                initiative_motivation=None,
+                extras=NO_TURN_EXTRAS,
                 effects=None,
             )
         finally:
@@ -245,8 +245,7 @@ class TestTheEnrichersReadIt:
             trace_capture=MagicMock(snapshot=MagicMock(return_value=None)),
             duration_ms=10,
             run_id="r-1",
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=None,
         )
         assert "hidden" not in metadata

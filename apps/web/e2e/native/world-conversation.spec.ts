@@ -3,7 +3,6 @@ import { openNativeWorld } from '../fixtures/world-admission';
 import { test, expect, type Browser, type BrowserContext, type Page } from './fixtures';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { worldTransportFault } from './transport';
 
@@ -35,7 +34,6 @@ async function signIn(context: BrowserContext, baseURL: string, index: number) {
 }
 async function enter(page: Page, lng: string, alias: string, baseURL: string) {
   const t = labels(lng);
-  await installOfflineFonts(page);
   await openNativeWorld(page, alias, worldProofUrl(baseURL, lng));
   if (await page.locator('input[name="world-presence-consent"]').isVisible())
     await page.locator('input[name="world-presence-consent"]').check();

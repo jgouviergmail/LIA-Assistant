@@ -8,7 +8,7 @@
  */
 
 import { useId, useState } from 'react';
-import { FolderInput } from 'lucide-react';
+import { FolderInput } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

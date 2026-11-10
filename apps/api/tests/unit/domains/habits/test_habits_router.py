@@ -345,7 +345,7 @@ def test_explanation_thresholds_match_the_kind(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A recurring habit was explained with the RHYTHM thresholds — numbers
-    the lock evaluation never applies (ADR-184 violation surfaced by the
+    the need detector never applies (ADR-184 violation surfaced by the
     provenance UI, code-review catch): each kind publishes ITS detector's
     thresholds, never the other's."""
     import src.domains.habits.management_explanation as explanation_module
@@ -358,26 +358,21 @@ def test_explanation_thresholds_match_the_kind(
     row.key = "email"
     _StubRepo.owned = row
     thresholds = client.get(f"/habits/{row.id}/explanation").json()["thresholds"]
-    # Every bar ``evaluate_locks`` applies — the labeling ones included since
-    # 2026-09-11 (span, density, the intermittent R bar): a threshold the
-    # evaluator enforces and the reader cannot see is exactly the trap.
-    for key in (
+    # Every bar ``needs.detect_need`` applies (ADR-375), cadence and automation
+    # included: a threshold the detector enforces and the reader cannot see is
+    # exactly the trap. No locked-hour bar survives.
+    assert set(thresholds) == {
         "min_distinct_days",
-        "lock_min_occurrences",
-        "lock_min_spread_days",
-        "lock_r_min",
-        "lock_half_r_min",
-        "lock_half_agree_hours",
+        "need_min_weeks",
+        "need_recent_days",
+        "automate_share",
+        "automate_min_days",
         "weekly_min_same_dow",
         "weekly_dow_fraction",
-        "shape_min_span_days",
-        "daily_density_min",
-        "intermittent_r_min",
         "weekend_tolerance",
+        "part_of_day_share",
         "window_days",
-    ):
-        assert key in thresholds, key
-    assert "presence_min" not in thresholds  # rhythm numbers never leak here
+    }
 
 
 def test_foreign_habit_is_404(client: TestClient) -> None:

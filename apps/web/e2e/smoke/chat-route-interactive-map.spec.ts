@@ -27,6 +27,8 @@ const sdk = `(() => {
 
 for (const sample of [
   { width: 1280, theme: 'light', retry: false },
+  { width: 1280, theme: 'dark', retry: false },
+  { width: 390, theme: 'light', retry: false },
   { width: 390, theme: 'dark', retry: false },
   { width: 320, theme: 'oled', retry: false },
   { width: 320, theme: 'dark', retry: true },
@@ -114,7 +116,13 @@ for (const sample of [
     }, sample.theme);
     const card = page.locator('.lia-card.lia-route');
     const activate = card.getByRole('button', { name: 'Explorer la carte' });
+    const stage = card.locator('.lia-route-map__stage');
+    const source = card.getByRole('link', { name: 'SOURCE_MAP' });
     await expect(activate).toBeVisible();
+    const sourceBox = await source.boundingBox();
+    const idleBox = await stage.boundingBox();
+    if (!sourceBox || !idleBox) throw new Error('Missing idle-map geometry');
+    expect(idleBox.height).toBeLessThanOrEqual(sourceBox.height + 8);
     expect(scripts).toBe(0);
     expect(admissions).toBe(0);
     await activate.focus();
@@ -122,7 +130,10 @@ for (const sample of [
     if (sample.retry) {
       await expect(card.getByRole('alert')).toContainText('La carte est indisponible');
       await expect(activate).toBeFocused();
-      await expect(card.getByRole('link', { name: 'SOURCE_MAP' })).toBeVisible();
+      await expect(source).toBeVisible();
+      const errorBox = await stage.boundingBox();
+      if (!errorBox) throw new Error('Missing failed-map geometry');
+      expect(errorBox.height).toBeLessThanOrEqual(sourceBox.height + 8);
       expect(reports).toBe(0);
       await activate.press('Enter');
     }

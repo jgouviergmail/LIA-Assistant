@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload } from 'lucide-react';
+import { Upload } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { PluginImportReportDetails } from '@/components/settings/PluginImportReportDetails';
 import { ApplicationFileUploadControls } from './ApplicationFileUploadControls';

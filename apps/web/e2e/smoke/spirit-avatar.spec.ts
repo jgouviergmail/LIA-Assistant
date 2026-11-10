@@ -10,7 +10,6 @@ import {
   waitForClockedHydration,
   type MockRoute,
 } from '../fixtures';
-import { expectSmileyProjection } from '../fixtures/smiley-projection';
 import { expectVolumeProjection } from '../fixtures/volume-projection';
 import type { PsycheStateSummary } from '../../src/types/psyche';
 import { companionBodyAsset } from '../../src/components/spirit/companion-catalogue';
@@ -144,7 +143,7 @@ async function preparePreference(
   baseURL: string | undefined,
   variant: Variant,
   theme: Theme,
-  style: 'spirit' | 'smiley' | MonitorStyle = 'spirit'
+  style: 'spirit' | MonitorStyle = 'spirit'
 ) {
   if (!baseURL) throw new Error('The hermetic app origin is required');
   await page.context().addCookies([{ name: 'lia_gender', value: variant, url: baseURL }]);
@@ -251,9 +250,7 @@ async function faceProjection(face: Locator) {
     const value = (key: string) =>
       Number.parseFloat((root as HTMLElement).style.getPropertyValue(`--rig-${key}`));
     return {
-      sphere: root.classList.contains('lia-smiley'),
       volume: root.getAttribute('data-volume-ready') === 'true',
-      sphereReady: root.querySelector('.lia-avatar-body')?.getAttribute('data-sphere-ready'),
       gazeX: value('gaze-x'),
       gazeY: value('gaze-y'),
       yaw: value('head-yaw'),
@@ -282,12 +279,7 @@ async function expectSharedProjection(face: Locator, raster: boolean) {
   expect(view.boundary.mouthInside).toBe(true);
   expect(view.boundary.browsOutside).toBe(true);
   if (raster) {
-    if (view.sphere) {
-      expect(view.sphereReady).toBe('true');
-      expect(view.boundary.mask).toBe('none');
-      expect(['circle(49%)', 'circle(49% at 50% 50%)']).toContain(view.boundary.clip);
-      await expectSmileyProjection(face);
-    } else if (view.volume) {
+    if (view.volume) {
       expect(view.boundary.mask).toBe('none');
       expect(view.boundary.clip).toMatch(/^polygon\(/);
       await expectVolumeProjection(face);
@@ -333,53 +325,13 @@ async function captureCornerGazes(
     expect(view.gazeY * directionY).toBeGreaterThan(0.05);
     expect(view.yaw * directionX).toBeGreaterThan(0.05);
     expect(view.pitch * directionY).toBeGreaterThan(0.02);
-    if (!view.sphere) await expectVolumeProjection(face);
+    await expectVolumeProjection(face);
     await captureDetail(page, face, testInfo, `${name}-gaze-${corner}-192`);
     await testInfo.attach(`${name}-gaze-${corner}-projection`, {
       body: JSON.stringify(view),
       contentType: 'application/json',
     });
   }
-}
-
-async function captureSmileyBlink(page: Page, face: Locator, testInfo: TestInfo, elapsed: number) {
-  const box = await face.boundingBox();
-  if (!box) throw new Error('The actual Smiley must be visible');
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.clock.runFor(160);
-  await page.clock.runFor(Math.max(0, 4600 - elapsed - 160));
-  const phases = new Set<string>();
-  let previous = 0;
-  for (let frame = 0; frame < 64; frame++) {
-    await page.clock.runFor(16);
-    const state = await blinkState(face);
-    // Three dimensional iris artwork is clipped, never vertically crushed.
-    expect(state.lidTransforms).toEqual(['none', 'none']);
-    let phase: string | null = null;
-    if (state.left > previous + 0.02 && state.left > 0.1 && state.left < 0.5)
-      phase = 'closing-quarter';
-    if (state.left > previous + 0.02 && state.left >= 0.5 && state.left < 0.94)
-      phase = 'closing-half';
-    if (state.left > 0.94) phase = 'closed-left';
-    if (state.right > 0.94 && phases.has('closed-left')) phase = 'closed-right';
-    if (state.left < previous - 0.02 && state.left > 0.1 && state.left < 0.8)
-      phase = 'reopening-half';
-    if (phase && !phases.has(phase)) {
-      phases.add(phase);
-      await expectSharedProjection(face, true);
-      await captureBlink(page, face, testInfo, `smiley-blink-${phase}-192`);
-    }
-    previous = state.left;
-  }
-  expect(phases.has('closing-quarter')).toBe(true);
-  expect(phases.has('closing-half')).toBe(true);
-  expect(phases.has('closed-left')).toBe(true);
-  expect(phases.has('closed-right')).toBe(true);
-  expect(phases.has('reopening-half')).toBe(true);
-  const reopened = await blinkState(face);
-  expect(Math.abs(reopened.left)).toBeLessThan(0.05);
-  expect(Math.abs(reopened.right)).toBeLessThan(0.05);
-  await captureBlink(page, face, testInfo, 'smiley-blink-reopened-192');
 }
 
 async function expectSpiritTextures(face: Locator, variant: Variant) {
@@ -744,85 +696,3 @@ for (const style of MONITOR_STYLES) {
     await captureCornerGazes(page, face, testInfo, `monitor-${style}`, false);
   });
 }
-
-test('smiley projects its original sphere and keeps facial organs within the body', async ({
-  page,
-  authenticate,
-  mockApi,
-  baseURL,
-}, testInfo) => {
-  await authenticate();
-  await preparePreference(page, baseURL, 'female', 'light', 'smiley');
-  await mockApi(chatRoutes([]));
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.addInitScript(() => {
-    let randomState = 0x12345678;
-    Math.random = () => {
-      randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
-      return 0.99 + (randomState / 0x100000000) * 0.009;
-    };
-  });
-  await page.clock.install({ time: new Date('2026-10-07T12:00:00Z') });
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
-  await page.goto('/en/dashboard/chat');
-  const face = companion(page).locator('.lia-eyes[data-style="smiley"]');
-  await settleClockedFace(page, face);
-  await waitForHydration(page, '.lia-eyes[data-style="smiley"]');
-  for (
-    let frame = 0;
-    frame < 20 &&
-    (await face.locator('.lia-avatar-body').getAttribute('data-sphere-ready')) !== 'true';
-    frame++
-  ) {
-    await page.clock.runFor(32);
-  }
-  await expect(face.locator('.lia-avatar-body')).toHaveAttribute('data-sphere-ready', 'true');
-  await expect(face).toHaveAttribute('data-smiley-variant', 'female');
-  const assets = await face.evaluate(async root => {
-    const urls = new Set<string>();
-    for (const node of [root, ...root.querySelectorAll('*')]) {
-      for (const pseudo of [null, '::before', '::after']) {
-        const css = getComputedStyle(node, pseudo);
-        for (const paint of [css.backgroundImage, css.maskImage]) {
-          for (const match of paint.matchAll(/url\(["']?(.*?)["']?\)/g)) {
-            if (new URL(match[1]).pathname.startsWith('/avatars/smiley/v1/')) urls.add(match[1]);
-          }
-        }
-      }
-    }
-    return Promise.all(
-      [...urls].map(async source => {
-        const image = new Image();
-        image.src = source;
-        await image.decode();
-        return {
-          url: new URL(source).pathname,
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-        };
-      })
-    );
-  });
-  expect(assets.map(asset => asset.url).sort()).toEqual([
-    '/avatars/smiley/v1/body.webp',
-    '/avatars/smiley/v1/bow.webp',
-    '/avatars/smiley/v1/eye.webp',
-    '/avatars/smiley/v1/iris.webp',
-    '/avatars/smiley/v1/sclera-mask.webp',
-  ]);
-  expect(assets.find(asset => asset.url.endsWith('/body.webp'))).toMatchObject({
-    width: 192,
-    height: 192,
-  });
-  for (const organ of assets.filter(asset => !asset.url.endsWith('/body.webp')))
-    expect(organ).toMatchObject({ width: 128, height: 128 });
-  await expect(face.locator('.lia-eye-pupil-clip')).toHaveCount(2);
-  await expect(face.locator('[data-rig-mouth]')).toHaveCount(1);
-  await expect(face.locator('[data-rig-brow-shape="sculpted"]')).toHaveCount(2);
-  await expectSharedProjection(face, true);
-  await captureDetail(page, face, testInfo, 'smiley-neutral-192');
-  const gazeBegan = await page.evaluate(() => Date.now());
-  await captureCornerGazes(page, face, testInfo, 'smiley', true);
-  const elapsed = (await page.evaluate(() => Date.now())) - gazeBegan;
-  await captureSmileyBlink(page, face, testInfo, elapsed);
-});

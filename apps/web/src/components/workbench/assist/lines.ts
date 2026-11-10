@@ -6,7 +6,7 @@
  * group set apart. A ready-made question is words the person reads in the chat before sending them:
  * it runs nothing by itself, and costs nothing until they send it.
  */
-import { Bell, Bot, Library, MessageCircleQuestion, ScrollText } from 'lucide-react';
+import { Bell, Bot, Library, MessageCircleQuestion, ScrollText } from '@/lib/icons';
 
 import type { DetailDeed } from '../DetailBar';
 import type { Keeping } from './KeepDialog';

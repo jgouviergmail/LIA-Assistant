@@ -21,6 +21,54 @@ beforeEach(() => {
   vi.clearAllMocks();
   useAuth.mockReturnValue({ user: { id: 'owner' } });
 });
+it('retires retry and refresh callbacks after filter or closing lifetimes, including A → B → A', async () => {
+  post.mockResolvedValue(page);
+  const reset = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ query, enabled }) => useSmsArchive({ query }, enabled, reset),
+    { initialProps: { query: 'A', enabled: true } }
+  );
+  await waitFor(() => expect(result.current.data).toEqual(page));
+  const old = result.current;
+  rerender({ query: 'B', enabled: true });
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+  rerender({ query: 'A', enabled: true });
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(3));
+  await act(async () => {
+    old.retry();
+    await old.refresh();
+  });
+  expect(post).toHaveBeenCalledTimes(3);
+  expect(reset).not.toHaveBeenCalled();
+  const beforeClose = result.current;
+  rerender({ query: 'A', enabled: false });
+  rerender({ query: 'A', enabled: true });
+  await waitFor(() => expect(post).toHaveBeenCalledTimes(4));
+  await act(async () => {
+    beforeClose.retry();
+    await beforeClose.refresh();
+  });
+  expect(post).toHaveBeenCalledTimes(4);
+});
+it('keeps native display search separate and withdraws pages when sorting changes', async () => {
+  post.mockResolvedValue(page);
+  const { result, rerender } = renderHook(
+    ({ sort }: { sort: 'name' | 'oldest' }) =>
+      useSmsArchive({ query: 'Élodie' }, true, undefined, true, { sort }),
+    { initialProps: { sort: 'name' } }
+  );
+  await waitFor(() => expect(result.current.data?.total).toBe(8));
+  expect(post.mock.calls[0].slice(0, 2)).toEqual([
+    '/sms/display-search',
+    { query: 'Élodie', sort: 'name' },
+  ]);
+  const pending = Promise.withResolvers<SmsPage>();
+  post.mockReturnValueOnce(pending.promise);
+  rerender({ sort: 'oldest' });
+  expect(result.current.data).toBeNull();
+  await act(async () => pending.resolve({ ...page, total: 3 }));
+  await waitFor(() => expect(result.current.data?.total).toBe(3));
+});
 it('sends private search terms in a POST body and keeps exact total and opaque cursor', async () => {
   post.mockResolvedValue(page);
   const { result } = renderHook(() => useSmsArchive({ query: 'private medicine', limit: 20 }));

@@ -4,9 +4,11 @@
  * MailSummaryView — what a message says and asks, as the panel draws it (ADR-372).
  *
  * Plain text: what a model read in a stranger's message never becomes a link or markup here. An
- * action it found is one press from a task, which opens filled in its tool and saves nothing.
+ * action it found is one press from a task: LIA reads the message again for that action alone, so
+ * the task carries its notes, its day and its list, and the form opens filled in its tool, saving
+ * nothing (owner, 2026-11-07).
  */
-import { ListPlus } from 'lucide-react';
+import { ListPlus } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
@@ -16,7 +18,7 @@ import type { MailSummaryAnswer } from '@/lib/workbench/assist';
 export interface MailSummaryViewProps {
   lng: Language;
   answer: MailSummaryAnswer;
-  /** Makes a task of an action; left out without a tasks tool. */
+  /** Makes a whole task of an action, read for it; left out without a tasks tool. */
   onTask?: (title: string) => void;
 }
 

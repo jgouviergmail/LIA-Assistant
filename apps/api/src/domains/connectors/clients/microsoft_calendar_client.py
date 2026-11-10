@@ -52,11 +52,14 @@ def _segment(provider_id: str) -> str:
 
 
 # Default fields for event queries (performance optimization)
+# Graph answers only what ``$select`` names: the online meeting carries the Teams join link the
+# normaliser turns into the Google conference shape (2026-11-07).
 _EVENT_SELECT_FIELDS = (
     "id,subject,bodyPreview,body,start,end,location,attendees,organizer,"
     "recurrence,isAllDay,isCancelled,showAs,webLink,createdDateTime,"
     "lastModifiedDateTime,iCalUId,seriesMasterId,type,originalStart,originalStartTimeZone,"
-    "responseStatus,isOrganizer,isReminderOn,reminderMinutesBeforeStart,sensitivity"
+    "responseStatus,isOrganizer,isReminderOn,reminderMinutesBeforeStart,sensitivity,"
+    "isOnlineMeeting,onlineMeeting"
 )
 
 _CALENDAR_SELECT_FIELDS = "id,name,color,isDefaultCalendar,canEdit,isRemovable"

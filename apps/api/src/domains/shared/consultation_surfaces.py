@@ -348,7 +348,14 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         key="tool_assist",
         prefix="tool_assist:",
         source="user",
-        domains={"mail": "email", "files": "file", "contacts": "contact"},
+        domains={
+            "mail": "email",
+            "files": "file",
+            "contacts": "contact",
+            "brave": "brave",
+            "perplexity": "perplexity",
+            "wikipedia": "wikipedia",
+        },
     ),
     # Geocoding the address the person is setting: their own action, their own
     # data, and a paid Maps call on the deployment's key.

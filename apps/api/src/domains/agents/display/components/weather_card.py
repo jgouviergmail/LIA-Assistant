@@ -38,6 +38,7 @@ from src.domains.agents.display.components.environment_row import (
 from src.domains.agents.display.components.source_attribution import weather_attribution
 from src.domains.agents.display.components.weather_collection import prepare_weather_items
 from src.domains.agents.display.components.weather_details import (
+    temperature_range,
     weather_extra_rows,
     weather_sun_rows,
 )
@@ -281,7 +282,7 @@ class WeatherCard(BaseComponent):
             first_stat_label = V3Messages.get_temp_range(ctx.language)
             temp_min = self._format_temperature(data.get("temp_min", ""))
             temp_max = self._format_temperature(data.get("temp_max", ""))
-            first_stat_value = f"{temp_min} / {temp_max}" if temp_min and temp_max else "-"
+            first_stat_value = escape_html(temperature_range(temp_min, temp_max)) or "-"
             first_stat_icon = Icons.TEMPERATURE
         else:
             first_stat_label = V3Messages.get_feels_like(ctx.language)
@@ -316,6 +317,7 @@ class WeatherCard(BaseComponent):
 <div class="lia-weather__right">
 {date_html}
 {location_html}
+{self._environment_strip(data, ctx)}
 </div>
 </div>
 <div class="lia-weather__stats">
@@ -348,7 +350,6 @@ class WeatherCard(BaseComponent):
         pressure_label = V3Messages.get_pressure(ctx.language)
         visibility_label = V3Messages.get_visibility(ctx.language)
         cloud_cover_label = V3Messages.get_cloud_cover(ctx.language)
-        air_quality_label = V3Messages.get_air_quality(ctx.language)
         precipitation_label = V3Messages.get_precipitation(ctx.language)
         labelled = partial(_add_labelled_row, detail_sections, label_separator(ctx.language))
 
@@ -357,8 +358,7 @@ class WeatherCard(BaseComponent):
         if not is_forecast:
             temp_min = self._format_temperature(data.get("temp_min", ""))
             temp_max = self._format_temperature(data.get("temp_max", ""))
-            if temp_min and temp_max:
-                temp_range = f"{escape_html(temp_min)} / {escape_html(temp_max)}"
+            if temp_range := escape_html(temperature_range(temp_min, temp_max)):
                 labelled(Icons.TEMPERATURE, V3Messages.get_temp_range(ctx.language), temp_range)
 
         # UV Index
@@ -380,23 +380,6 @@ class WeatherCard(BaseComponent):
             labelled(Icons.CLOUD_COVER, cloud_cover_label, f"{escape_html(str(clouds))}%")
 
         detail_sections.extend(weather_sun_rows(data, ctx))
-
-        # Air quality. Two shapes coexist:
-        #  - environment enrichment (2026-08): the API's own localized
-        #    category WINS — Google's universal index is inverted vs EPA
-        #    (100 = excellent), so a label is never re-derived from a number.
-        #    The national index often ships a category with NO number at all
-        #    (measured in prod), hence rendering on the category, not the value;
-        #  - legacy numeric payloads: EPA table, unchanged.
-        aqi_row = self._air_quality_row(data, air_quality_label, ctx.language)
-        if aqi_row:
-            detail_sections.append(render_d_item(Icons.WIND, aqi_row))
-
-        # In-season pollen (environment enrichment): one line per active type,
-        # the API's localized category verbatim — an honest, verifiable signal.
-        pollen_row = self._pollen_row(data, ctx.language)
-        if pollen_row:
-            detail_sections.append(render_d_item("allergy", pollen_row))
 
         # Precipitation probability
         precip = scalar_text(first_present(data, "precipitation_probability", "pop"))
@@ -440,6 +423,7 @@ class WeatherCard(BaseComponent):
             format_temperature=self._format_temperature,
             visual=self._visual_for_reading,
             render_detail=partial(self._render_current, panel=True),
+            environment_html=self._environment_strip(data, ctx),
         )
 
     # Generic location names to filter out (not useful to display)
@@ -689,23 +673,17 @@ class WeatherCard(BaseComponent):
         return pollen_text(data, language)
 
     def _environment_strip(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Compact air-quality/pollen strip for cards without a details section.
-
-        The forecast and hourly layouts have no collapsible block, but the
-        signal that decides an outdoor plan ("can I run tomorrow?") belongs
-        there too — rendered inline, and only when the enrichment produced
-        something.
-        """
+        """Show supplied air quality and pollen without opening extra details."""
         rows = [
-            self._air_quality_row(data, V3Messages.get_air_quality(ctx.language), ctx.language),
-            self._pollen_row(data, ctx.language),
+            (Icons.WIND, self._air_quality_row(data, ctx.language)),
+            ("allergy", self._pollen_row(data, ctx.language)),
         ]
-        items = "\n".join(render_d_item(Icons.WIND, row) for row in rows if row)
+        items = "\n".join(render_d_item(symbol, row) for symbol, row in rows if row)
         if not items:
             return ""
         return f'<div class="lia-weather__environment">{items}</div>'
 
-    def _air_quality_row(self, data: dict[str, Any], label: str, language: str) -> str:
+    def _air_quality_row(self, data: dict[str, Any], language: str) -> str:
         """Air-quality detail line (shared renderer + the legacy EPA table).
 
         ``_get_aqi_label`` stays the fallback for LEGACY numeric payloads that

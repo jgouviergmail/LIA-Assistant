@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import apiClient from '@/lib/api-client';
 import { getApiErrorDetail } from '@/lib/api-error';
 import { logger } from '@/lib/logger';
-import { KeyRound, Lightbulb, Phone, Plug, Save } from 'lucide-react';
+import { KeyRound, Lightbulb, Phone, Plug, Save } from '@/lib/icons';
 import { AppleMark, GoogleMark, MicrosoftMark } from '@/components/icons/BrandMarks';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';

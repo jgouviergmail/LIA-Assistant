@@ -1,6 +1,6 @@
 'use client';
 import { useId, type ReactNode } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 import { TimelineDayGroup } from '@/components/ui/timeline-group';
 import { projectSmsDays } from '@/lib/sms/timeline';
 import { cn } from '@/lib/utils';

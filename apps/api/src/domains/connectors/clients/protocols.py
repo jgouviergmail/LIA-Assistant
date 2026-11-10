@@ -798,8 +798,13 @@ class TasksClientProtocol(Protocol):
         *,
         details: TaskDetails | None = None,
         steps: Sequence[str] = (),
+        due_zone: str | None = None,
     ) -> dict:
-        """``details`` and ``steps`` are To Do's alone: Google refuses them (``task_details``)."""
+        """``details`` and ``steps`` are To Do's alone: Google refuses them (``task_details``).
+
+        ``due_zone`` names the zone ``due`` is a wall time in: To Do keeps local midnight only when it
+        is named (``core/task_due``); Google keeps a date and takes none.
+        """
         ...
 
     async def update_task(
@@ -813,6 +818,7 @@ class TasksClientProtocol(Protocol):
         *,
         clear_due: bool = False,
         details: TaskDetails | None = None,
+        due_zone: str | None = None,
     ) -> dict:
         """``None`` keeps a field; ``clear_due`` removes the due date (never with ``due``)."""
         ...

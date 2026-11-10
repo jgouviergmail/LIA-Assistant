@@ -1,23 +1,17 @@
-"""
-EmailCard Component - Modern Email Preview (v3.1).
+"""Compact envelope previews with complete, local message disclosures.
 
-Renders email as a premium Gmail-style card with:
-- Clear unread indicator (sidebar + badge + bold text + background)
-- Clean sender avatar with initials
-- Subject and date in header
-- Sender/recipients display
-- Thread count and attachment badges
-- Collapsible body with proper formatting
-- Responsive design (mobile/tablet/desktop)
-
-Architecture v3.1 - Gmail-inspired modern design.
+Identity, subject, date and state remain visible; recipients, digest, body and
+attachments stay reachable without another fetch. Collection presentation folds
+after the shared email limit without removing any selected message.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from src.core.i18n_cards import card_label
+from src.core.constants import HTML_EMAIL_VISIBLE_MESSAGES
+from src.core.i18n_cards import CardLabel, card_label
+from src.core.i18n_drafts import get_draft_preview_labels
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import (
     BaseComponent,
@@ -25,13 +19,13 @@ from src.domains.agents.display.components.base import (
     compact_html,
     escape_html,
     format_date,
+    format_email_body,
     render_attachments,
     render_chip,
     render_chip_row,
     render_collapsible,
     render_d_row,
     render_desc_block,
-    render_part_list,
     render_section_header,
     truncate,
     wrap_with_response,
@@ -42,22 +36,19 @@ from src.domains.agents.display.components.card_content import (
 )
 from src.domains.agents.display.components.classification_badges import classification_badges
 from src.domains.agents.display.components.email_body import render_email_body
+from src.domains.agents.display.components.email_parties import render_email_parties
 from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.mailbox_draft import is_mailbox_draft
-from src.domains.agents.display.values import scalar_text
+from src.domains.agents.display.values import list_values, nonnegative_integer, scalar_text
 from src.infrastructure.email.recipients import read_recipients
 
 
 class EmailCard(BaseComponent):
     """
-    Modern email preview card (v3.1 - Gmail-inspired).
-
-    Design principles:
-    - Immediate scanability: unread state obvious at a glance
-    - Visual hierarchy: subject > sender > recipients > body
-    - Clean typography: proper spacing and line heights
-    - Domain-specific accent: Gmail red theme
+    Compact envelope with visible source identity and complete local disclosures.
     """
+
+    collection_initial_limit = HTML_EMAIL_VISIBLE_MESSAGES
 
     def render(
         self,
@@ -85,7 +76,7 @@ class EmailCard(BaseComponent):
             HTML string
         """
         # Extract data with safe defaults
-        subject = data.get("subject") or V3Messages.get_no_subject(ctx.language)
+        subject = scalar_text(data.get("subject")) or V3Messages.get_no_subject(ctx.language)
         is_draft = is_mailbox_draft(data)
         # A draft's sender is always the person: it is headed by its recipients.
         sender_name, sender_email = (
@@ -94,12 +85,16 @@ class EmailCard(BaseComponent):
             else (self._get_sender(data), self._get_sender_email(data))
         )
         date_raw = data.get("date") or data.get("internalDate", "")
-        snippet = data.get("snippet", "")
+        snippet = scalar_text(data.get("snippet"))
         is_unread = self._is_unread(data)
-        has_attachments = bool(data.get("attachments") or data.get("hasAttachment"))
-        is_important = data.get("isImportant", False) or "IMPORTANT" in data.get("labelIds", [])
-        thread_count = data.get("threadCount", 1)
-        attachments = data.get("attachments", [])
+        attachments = [
+            item for item in list_values(data.get("attachments")) if isinstance(item, dict)
+        ]
+        has_attachments = bool(attachments) or data.get("hasAttachment") is True
+        is_important = data.get("isImportant") is True or "IMPORTANT" in list_values(
+            data.get("labelIds")
+        )
+        thread_count = nonnegative_integer(data.get("threadCount")) or 1
 
         # Build email web URL (provider-aware: Gmail has per-message URLs, Apple does not)
         url = self._build_email_web_url(data)
@@ -236,14 +231,19 @@ class EmailCard(BaseComponent):
             if is_mailbox_draft(data)
             else []
         )
+        chips.extend(self._source_state_chips(data, ctx))
         # Labels first
-        user_labels = self._get_user_label_names(data.get("labelIds", []))
+        user_labels = self._get_user_label_names(data.get("labelIds"))
         for label in user_labels:
             chips.append(render_chip(label, "indigo"))
         # Then attachments
         if has_attachments:
-            att_count = len(attachments) or 1
-            chips.append(render_chip(f"{att_count}", "attach", Icons.ATTACHMENT))
+            attachment_label = (
+                str(len(attachments))
+                if attachments
+                else card_label("attachments_unlisted", ctx.language)
+            )
+            chips.append(render_chip(attachment_label, "attach", Icons.ATTACHMENT))
         # Then thread count
         if thread_count > 1:
             chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
@@ -260,21 +260,51 @@ class EmailCard(BaseComponent):
         # --- Digest (detail=summary, ADR-287): drawn instead of a body ---
         digest_html = self._render_digest(data, ctx)
 
-        # --- Collapsible body (recipients + content + attachments) ---
-        body_html = self._render_body_v4(data, ctx)
-        collapsible_attachments = self._render_collapsible_details(attachments, ctx)
+        # One local disclosure keeps the complete received message accessible.
+        details = digest_html + self._render_body_content(data, ctx)
+        if attachments:
+            details += render_section_header(
+                V3Messages.get_see_attachments(ctx.language, len(attachments)),
+                Icons.ATTACHMENT,
+                "indigo",
+            ) + render_attachments(attachments, max_attachments=len(attachments))
+        body_html = (
+            render_collapsible(
+                trigger_text=V3Messages.get_see_more(ctx.language),
+                content_html=details,
+                initially_open=False,
+                with_separator=False,
+            )
+            if details
+            else ""
+        )
 
         return compact_html(f"""
             <div class="lia-card lia-email {unread_class} {important_class} {nested_class}">
-                {card_top_html}
-                {chip_row_html}
-                {subject_html}
-                {snippet_html}
-                {digest_html}
+                <div class="lia-email__overview">
+                    {card_top_html}
+                    {subject_html}
+                    {chip_row_html}
+                    {snippet_html}
+                </div>
                 {body_html}
-                {collapsible_attachments}
             </div>
         """)
+
+    def _source_state_chips(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
+        """Keep received mailbox states distinct from the importance advisory."""
+        labels = list_values(data.get("labelIds"))
+        states: tuple[tuple[str, CardLabel, str, str], ...] = (
+            ("STARRED", "email_starred", "amber", Icons.STAR),
+            ("SENT", "email_sent", "", "send"),
+            ("TRASH", "email_trash", "gray", Icons.DELETE),
+            ("SPAM", "email_spam", "amber", "report"),
+        )
+        return [
+            render_chip(card_label(label, ctx.language), tone, symbol)
+            for source, label, tone, symbol in states
+            if source in labels
+        ]
 
     def _render_digest(self, data: dict[str, Any], ctx: RenderContext) -> str:
         """Draw the digest a condensed message carries: gist, key points, actions.
@@ -283,56 +313,54 @@ class EmailCard(BaseComponent):
         instead of a body (ADR-287). Empty lists draw no row; a message with no
         digest draws nothing.
         """
-        gist = str(data.get("gist") or "").strip()
-        if not gist:
-            return ""
-        parts: list[str] = [
-            render_section_header(
-                V3Messages.get_digest(ctx.language), Icons.NOTE, "indigo", first=True
-            ),
-            render_desc_block(escape_html(gist), with_border=False),
-        ]
+        gist = scalar_text(data.get("gist")).strip()
+        parts: list[str] = (
+            [
+                render_section_header(
+                    V3Messages.get_digest(ctx.language), Icons.NOTE, "indigo", first=True
+                ),
+                render_desc_block(escape_html(gist), with_border=False),
+            ]
+            if gist
+            else []
+        )
         for label, icon_name, key in (
             (V3Messages.get_key_points(ctx.language), Icons.CHECKLIST, "key_points"),
             (V3Messages.get_actions(ctx.language), Icons.TASK, "actions"),
         ):
-            items = [str(item).strip() for item in (data.get(key) or []) if str(item).strip()]
+            items = [
+                text for item in list_values(data.get(key)) if (text := scalar_text(item).strip())
+            ]
             if not items:
                 continue
             parts.append(render_section_header(label, icon_name, "indigo"))
             parts.extend(render_d_row(icon_name, escape_html(item)) for item in items)
         return "".join(parts)
 
-    def _render_body_v4(
+    def _render_body_content(
         self,
         data: dict[str, Any],
         ctx: RenderContext,
     ) -> str:
-        """Render email body in collapsible with v4 components.
+        """Render complete parties and body for the message disclosure.
 
-        Includes recipients (To/Cc) with name+email per line,
+        Includes received To/Cc/Bcc/Reply-To with name+email per line,
         then body content without blue left border.
         """
         content_parts: list[str] = []
 
-        # To recipients section
-        to_recipients = data.get("to", [])
-        if to_recipients:
-            to_label = V3Messages.get_to(ctx.language)
-            content_parts.append(
-                render_section_header(to_label, Icons.PERSON, "indigo", first=True)
-            )
-            # Build participant-like list from recipients
-            part_data = self._recipients_to_part_data(to_recipients)
-            content_parts.append(render_part_list(part_data, max_shown=len(part_data)))
-
-        # Cc recipients section
-        cc_recipients = data.get("cc", [])
-        if cc_recipients:
-            cc_label = V3Messages.get_cc(ctx.language)
-            content_parts.append(render_section_header(cc_label, Icons.GROUP, "indigo"))
-            part_data = self._recipients_to_part_data(cc_recipients)
-            content_parts.append(render_part_list(part_data, max_shown=len(part_data)))
+        parties = (
+            ("to", V3Messages.get_to(ctx.language), Icons.PERSON),
+            ("cc", V3Messages.get_cc(ctx.language), Icons.GROUP),
+            ("bcc", get_draft_preview_labels(ctx.language)["bcc"], Icons.GROUP),
+            ("reply_to", card_label("email_reply_to", ctx.language), Icons.REPLY),
+        )
+        for field, label, symbol in parties:
+            rows = render_email_parties(data.get(field))
+            if rows:
+                content_parts.append(
+                    render_section_header(label, symbol, "indigo", first=not content_parts) + rows
+                )
 
         # Body content
         body = scalar_text(data.get("body") or data.get("bodyPreview"))
@@ -342,64 +370,19 @@ class EmailCard(BaseComponent):
                 render_section_header(email_content_label, Icons.DESCRIPTION, "indigo")
             )
             content_parts.append(render_email_body(body, ctx))
-        else:
-            snippet = scalar_text(data.get("snippet"))
-            if len(snippet) > 200:
-                content_parts.append(
-                    render_section_header(
-                        card_label("excerpt", ctx.language), Icons.DESCRIPTION, "indigo"
-                    )
+        # The compact excerpt can be visually clamped at any length. Only omit its
+        # full disclosure when the complete formatted body already contains it.
+        snippet = scalar_text(data.get("snippet"))
+        complete_body, _ = format_email_body(body, max_length=None, preserve_links=True)
+        if snippet and snippet not in complete_body:
+            content_parts.append(
+                render_section_header(
+                    card_label("excerpt", ctx.language), Icons.DESCRIPTION, "indigo"
                 )
-                content_parts.append(render_text_content(snippet))
-
-        if content_parts:
-            return render_collapsible(
-                trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html="".join(content_parts),
-                initially_open=False,
-                with_separator=False,
             )
+            content_parts.append(render_text_content(snippet))
 
-        # No body: the card already drew the snippet above, once (the fallback
-        # used to draw it a second time here — measured on a digested message).
-        return ""
-
-    def _recipients_to_part_data(self, recipients: list[Any] | Any) -> list[dict[str, Any]]:
-        """Convert email recipients to participant-list compatible format.
-
-        Args:
-            recipients: List of recipient dicts or strings
-
-        Returns:
-            List of dicts with displayName and email keys
-        """
-        if not isinstance(recipients, list):
-            recipients = [recipients]
-
-        result = []
-        for r in recipients:
-            if isinstance(r, dict):
-                name = r.get("name") or r.get("email", "")
-                email = r.get("email", "")
-            else:
-                r_str = str(r)
-                if "<" in r_str:
-                    name = r_str.split("<")[0].strip().strip('"')
-                    email = r_str.split("<")[1].rstrip(">").strip()
-                elif "@" in r_str:
-                    name = r_str
-                    email = r_str
-                else:
-                    name = r_str
-                    email = ""
-            result.append(
-                {
-                    "displayName": name,
-                    "email": email,
-                    "responseStatus": "accepted",  # No status for email recipients
-                }
-            )
-        return result
+        return "".join(content_parts)
 
     # =========================================================================
     # Rendering Helpers
@@ -483,7 +466,7 @@ class EmailCard(BaseComponent):
         ]
         return f'<div class="lia-email__labels">{" ".join(labels_parts)}</div>'
 
-    def _get_user_label_names(self, label_ids: list[str]) -> list[str]:
+    def _get_user_label_names(self, label_ids: object) -> list[str]:
         """Extract user-defined Gmail label names (excluding system labels)."""
         if not label_ids:
             return []
@@ -504,27 +487,11 @@ class EmailCard(BaseComponent):
         }
         return [
             label.replace("/", " › ")
-            for label in label_ids
-            if label not in system_labels and not label.startswith("CATEGORY_")
+            for label in list_values(label_ids)
+            if isinstance(label, str)
+            and label not in system_labels
+            and not label.startswith("CATEGORY_")
         ]
-
-    def _render_collapsible_details(
-        self,
-        attachments: list[dict[str, Any]],
-        ctx: RenderContext,
-    ) -> str:
-        """Render collapsible section with attachments."""
-        if not attachments:
-            return ""
-
-        content_html = render_attachments(attachments, max_attachments=len(attachments))
-        trigger_text = V3Messages.get_see_attachments(ctx.language, len(attachments))
-
-        return render_collapsible(
-            trigger_text=trigger_text,
-            content_html=content_html,
-            initially_open=False,
-        )
 
     def _format_recipients_list(self, recipients: list[Any] | Any) -> str:
         """Format list of recipients as comma-separated string."""
@@ -638,5 +605,5 @@ class EmailCard(BaseComponent):
         """Check if email is unread."""
         if data.get("unread"):
             return True
-        labels = data.get("labelIds", [])
+        labels = list_values(data.get("labelIds"))
         return "UNREAD" in labels

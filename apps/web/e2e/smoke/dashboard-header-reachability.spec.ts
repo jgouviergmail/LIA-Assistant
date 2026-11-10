@@ -25,9 +25,11 @@
  * the six locales stay, so a label that comes back is measured where it hurts.
  */
 import type { Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 import { test, expect, type MockRoute } from '../fixtures';
 import { probeControls, waitForStableControls } from './control-probe';
+import { prepareTheme } from './overflow-report';
 
 /** Widths that matter: the reflow floor, a common phone, and the tablet/split
  *  band where the nav and the control labels are shown SIMULTANEOUSLY, and
@@ -110,6 +112,47 @@ const EVERY_CONTROL: MockRoute = {
 };
 
 test.describe('dashboard header reachability', () => {
+  test.describe('French phone navigation', () => {
+    // The real browser locale governs the first unprefixed document request.
+    test.use({ locale: 'fr-FR' });
+    for (const theme of ['light', 'dark'] as const) {
+      for (const entryPath of ['/dashboard/chat', '/fr/dashboard/chat']) {
+        test(`phone LIA menu names and illustrates every destination in ${theme} from ${entryPath}`, async ({
+          page,
+          authenticate,
+          mockApi,
+        }) => {
+          await page.setViewportSize({ width: 390, height: 900 });
+          await prepareTheme(page, theme);
+          await authenticate({ language: 'fr', theme });
+          await mockApi([...ROUTES, EVERY_CONTROL]);
+          await page.goto(entryPath);
+          await waitForStableControls(page, 'dashboard-header');
+          const trigger = page.locator('header').getByRole('button', { name: 'Menu', exact: true });
+          await trigger.click();
+          const menu = page.getByRole('menu');
+          const destinations = menu.locator('a[role="menuitem"]');
+          await expect(destinations).toHaveCount(10);
+          for (const destination of await destinations.all()) {
+            await expect(destination).toHaveAccessibleName(/\S+/);
+            await expect(destination.locator('svg[aria-hidden="true"]')).toBeVisible();
+            expect((await destination.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+          }
+          await expect(menu.locator('[aria-current="page"]')).toHaveAttribute(
+            'href',
+            '/dashboard/chat'
+          );
+          const scan = await new AxeBuilder({ page }).include('[role="menu"]').analyze();
+          expect(scan.violations).toEqual([]);
+          await menu.screenshot({ path: test.info().outputPath(`lia-menu-${theme}.png`) });
+          await page.keyboard.press('Escape');
+          await expect(menu).not.toBeVisible();
+          await expect(trigger).toBeFocused();
+        });
+      }
+    }
+  });
+
   for (const locale of ['fr', 'de']) {
     test(`enlarged text keeps every header control reachable @ ${locale}`, async ({
       page,

@@ -2,7 +2,6 @@
 import { test, expect, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openNativeWorld, enterWorld, revealWorldControls } from '../fixtures/world-admission';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { signIn } from './world-arcade-helpers';
 import en from '../../locales/en/translation.json';
@@ -38,7 +37,6 @@ async function enter(
   await signIn(context, baseURL, index);
   const page = await context.newPage();
   observe(page, receipts, sent);
-  await installOfflineFonts(page);
   await openNativeWorld(page, 'Gesture visitor', worldProofUrl(baseURL, 'en'));
   await enterWorld(page);
   await expect(page.locator('.world-admission')).not.toBeVisible();

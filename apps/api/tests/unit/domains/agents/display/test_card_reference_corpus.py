@@ -1,8 +1,9 @@
 """Frontend/browser proof must exercise the exact backend card contract."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -18,6 +19,19 @@ def test_browser_reference_corpus_matches_real_backend_rendering() -> None:
         Path(__file__).with_name("card_reference_corpus.json").read_text(encoding="utf-8")
     )
     assert corpus == card_references()
+
+
+def test_the_corpus_is_built_on_its_own_clock_whatever_day_it_runs() -> None:
+    """An e-mail card says « Hier » or a weekday: built on the wall clock, the
+    corpus went red the day after it was written (2026-11-09)."""
+
+    def years_later(tz: tzinfo) -> datetime:
+        return datetime(2030, 1, 1, 12, tzinfo=UTC).astimezone(tz)
+
+    with patch("src.domains.agents.display.components.base._now", side_effect=years_later):
+        built_another_day = card_references()
+
+    assert built_another_day == card_references()
 
 
 def test_browser_composition_corpus_matches_native_rendering_and_projection() -> None:

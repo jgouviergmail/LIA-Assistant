@@ -23,7 +23,7 @@
  * surfaces that quote a release enforce the same rules with one implementation.
  */
 
-import { ChevronDown, Tag } from 'lucide-react';
+import { ChevronDown, Tag } from '@/lib/icons';
 
 import { initI18next } from '@/i18n';
 import {

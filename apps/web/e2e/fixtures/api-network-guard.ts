@@ -2,22 +2,69 @@
 import { createServer, request as forwardHttp, type ClientRequest } from 'node:http';
 import type { Socket } from 'node:net';
 import { pipeline, type Duplex } from 'node:stream';
+import {
+  createMultipartCapture,
+  type MultipartCapture,
+  type MultipartCaptureOptions,
+  type OwnedMultipartCapture,
+} from './multipart-upload';
 
 export interface ApiNetworkGuard {
   proxy: { server: string; bypass: string };
   blockedRequests: string[];
+  /** Receive one exact native upload on this guard's same-origin front door. */
+  captureMultipartUpload: (options: MultipartCaptureOptions) => MultipartCapture;
   quarantine: () => void;
   close: () => Promise<void>;
+}
+
+function isApiPath(pathname: string): boolean {
+  try {
+    return /^\/api(?:\/|$)/i.test(decodeURIComponent(pathname));
+  } catch {
+    return true;
+  }
+}
+
+function mustRefuse(
+  url: URL,
+  method: string | undefined,
+  quarantined: boolean,
+  origin: string,
+  owned: OwnedMultipartCapture | undefined
+): boolean {
+  if (quarantined || url.protocol !== 'http:' || url.pathname.startsWith('/api/v1/')) return true;
+  if (url.origin !== origin) return false;
+  return !owned || !['GET', 'HEAD'].includes(method ?? '') || isApiPath(url.pathname);
 }
 
 export async function createApiNetworkGuard(): Promise<ApiNetworkGuard> {
   let quarantined = false;
   const blockedRequests: string[] = [];
   const forwards = new Set<ClientRequest>();
+  const receptions = new Set<Promise<void>>();
   const sockets = new Set<Socket>();
+  let origin = 'http://invalid-proxy-request';
+  let upload: OwnedMultipartCapture | undefined;
   const server = createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://invalid-proxy-request');
-    if (quarantined || url.protocol !== 'http:' || url.pathname.startsWith('/api/v1/')) {
+    const url = new URL(request.url ?? '/', origin);
+    const owned = upload && url.origin === origin ? upload : undefined;
+    if (
+      !quarantined &&
+      owned &&
+      request.method === 'POST' &&
+      url.pathname === owned.pathname &&
+      !url.search
+    ) {
+      const receiving = owned.receive(request, response).catch((error: unknown) => {
+        owned.capture.errors.push(error instanceof Error ? error.message : String(error));
+        response.destroy();
+      });
+      receptions.add(receiving);
+      void receiving.then(() => receptions.delete(receiving));
+      return;
+    }
+    if (mustRefuse(url, request.method, quarantined, origin, owned)) {
       blockedRequests.push(`${request.method} ${url.href}`);
       response
         .writeHead(501, { 'Content-Type': 'application/json', Connection: 'close' })
@@ -27,7 +74,8 @@ export async function createApiNetworkGuard(): Promise<ApiNetworkGuard> {
     const headers = { ...request.headers };
     delete headers['proxy-connection'];
     delete headers['proxy-authorization'];
-    const forwarded = forwardHttp(url, { method: request.method, headers }, upstream => {
+    const destination = owned ? new URL(url.pathname + url.search, owned.upstream) : url;
+    const forwarded = forwardHttp(destination, { method: request.method, headers }, upstream => {
       response.writeHead(upstream.statusCode ?? 502, upstream.headers);
       pipeline(upstream, response, error => {
         if (error) response.destroy();
@@ -68,14 +116,20 @@ export async function createApiNetworkGuard(): Promise<ApiNetworkGuard> {
   });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Expected proxy TCP address');
+  origin = `http://127.0.0.1:${address.port}`;
   const quarantine = () => {
     quarantined = true;
     for (const forward of forwards) forward.destroy();
   };
   return {
     // Chromium bypasses loopback unless the implicit bypass is explicitly removed.
-    proxy: { server: `http://127.0.0.1:${address.port}`, bypass: '<-loopback>' },
+    proxy: { server: origin, bypass: '<-loopback>' },
     blockedRequests,
+    captureMultipartUpload: options => {
+      if (quarantined || upload) throw new Error('Upload capture is closed or already registered');
+      upload = createMultipartCapture(origin, options);
+      return upload.capture;
+    },
     quarantine,
     close: async () => {
       quarantine();
@@ -83,6 +137,7 @@ export async function createApiNetworkGuard(): Promise<ApiNetworkGuard> {
       await new Promise<void>((resolve, reject) => {
         server.close(error => (error ? reject(error) : resolve()));
       });
+      await Promise.all(receptions);
     },
   };
 }

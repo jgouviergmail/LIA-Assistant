@@ -149,6 +149,17 @@ reverts both and reports `document_move_failed` for that document only. It is
 refused wholesale while a reindex runs, and Drive-synced or meeting-owned
 documents stay where their owner put them.
 
+### Meeting list actions (owner decision, 2026-11-09)
+
+The meeting list uses one direct trash action per row, without an intermediate
+confirmation, matching the personal SMS list. It sends only that row's id through
+the existing deletion endpoint and reads the explicit deleted/skipped result.
+The global count, previous-page link and selection controls leave this list;
+`MeetingSelectionBar` is removed. The template library retains its separate bulk
+selection. Pending clicks are guarded, in-flight rows stay protected, and removing
+a focused row restores the page heading without taking focus from another control.
+Account changes invalidate pending feedback and refreshes.
+
 ## Consequences
 
 - Six new migration columns and one dropped (`is_default`), no data

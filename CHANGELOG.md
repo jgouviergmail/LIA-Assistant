@@ -5,6 +5,140 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0] - 2026-11-10
+
+**Everywhere, your way.**
+Select words anywhere in LIA, the chat included, and a small menu explains, translates, searches the
+web or turns them into a task, an event, a reminder or a memory, through the form you already know. A
+card in the chat opens its message, event or file in the Tools. What LIA learns from your use becomes
+proposals you accept in one click, the voice speaks in the personality you chose, and the screens
+follow your style: the icons you prefer, light by day and absolute black at night.
+
+### Added
+
+- ✍️ **Text menus throughout LIA** (ADR-372 amendment): select readable text anywhere, the chat
+  included, for **Read, Question, Explain, Summarize, Simplify, Translate, Internet, Task, Event,
+  Reminder, Ticket, Remember** or **LIA**. Answers and audio stay in a compact bubble; a creation opens
+  the usual form already filled, saved by your own click; **LIA** opens the chat on an unsent draft.
+  While you write, a selection offers **Translate, Correct, Format, Shorten, More formal** and
+  **Warmer**, a replacement keeps the browser's undo, and a focused field has its own **Dictate**.
+  **Internet** names the service it asked (Brave, Perplexity or Wikipedia) and its sources. Passwords,
+  security codes and isolated frames are left out, and each answer shows its cost.
+- 💡 **What LIA learns becomes proposals** (ADR-375): a recurring need is recognised by the days it
+  comes back, never by its hour. Six kinds of proposal wait in **Alerts › Proposals**: automate a need,
+  move a routine you run by hand at another time, look at a failing routine, widen your notification
+  hours, pause proactive notifications nobody reacts to, connect a source you keep asking for.
+  **Accept** carries it out at once, **Later** brings it back in two weeks if it still holds, **Never**
+  closes it, and the chat shows at most one a day under an answer. The Habits panel says what was
+  learned, why, and what came of it.
+- 🎭 **The personality governs the voice** (ADR-373): Live, Live direct, a call with you and the spoken
+  comment of the chat speak in the personality chosen in **LIA Style**, facts untouched. On an
+  ElevenLabs agent LIA writes the expression palette that fits, its own greeting and exactly the tools
+  of the session; the tags never reach the conversation. A call to someone else stays cordial.
+- 🧭 **A card opens its record in the Tools** (ADR-376): an e-mail, an event, a contact, a task, a
+  file or a light shown in the chat opens there, checked against the account that answered. A changed
+  account or a disconnected source says so instead of opening something else.
+- 🌗 **Automatic appearance**: light during the hours you choose, absolute black the rest of the time,
+  in your account's time zone.
+- 🎨 **Three icon styles** (ADR-377): Lucide, Fluent Color and Streamline Flex, in **Settings › Appearance**.
+  Fluent Color becomes everyone's default; the colour styles keep each symbol's meaning, and the
+  system's high-contrast mode keeps its own colours.
+- ✉️ **Enveloppes**: the chat's data cards take a shape that suits their content (an envelope for a
+  mail, an invitation for an event, a folder for files, research with its sources in the margin) in
+  your palette, light, dark or OLED, on a computer and on a phone. A location card can open an
+  interactive map once its cost is announced, the air quality and pollen join the weather reading,
+  and a long list of mails or guests folds after its first items.
+- 🔎 **Find and sort**: knowledge spaces search by space or file name, sort by name, recency, number
+  of files or activity, keep favourites in their own group and sit right after Meetings in the menu.
+  The activity timeline and every section of **Alerts** search the text they show, filter by category
+  and sort; received SMS are searched by sender or words.
+- 🏠 **From the home to the Tools**: where the Tools are offered, a click on an item opens it in its
+  tool; **More actions** holds up to five, the direct ones first (mark read, archive, done, postpone,
+  download). A **Workboard** card joins the home, and birthdays come from Google, Apple or Microsoft.
+- 👤 **Contacts with LIA**: write a new contact from a sentence or a card, a writing helper for the
+  notes, **Call** (LIA asks before it dials), **Write to … with LIA**, and the calls LIA placed and the
+  texts they sent in **Latest exchanges**. From a message, a task or an event keeps its whole notes,
+  its list and its guests; an event offers **Write to the guests with LIA**, a task **Block a slot in
+  the calendar**, a file **Send by mail with LIA**.
+- 🤝 **A message to a connection leaves directly**: asked in words, it is queued without a
+  confirmation card, then delivered once by the recipient's assistant; an ambiguous name still asks.
+- 🏷️ **Reply expected**: a mail that explicitly asks for an answer or an action can carry that badge
+  when the administrator enables it; spam and phishing never do.
+- 🦾 **Companions that move**: arms, wrists, legs and feet follow listening, thought and speech where a
+  design has them, scenes prepare, act and settle, and winter scarves fit every silhouette.
+
+### Changed
+
+- ⚙️ **JEV, for administrators** (ADR-374): each decision threshold can be set within its published
+  bounds, a moved one marks the usage **Outside the qualified record**, and thirty days of counted
+  judgements show what each threshold really does. Eight previews no screen showed and the
+  initiative's JEV gate are gone, so the initiative looks at every tool turn.
+- 🧾 **Shared screen layout**: Relations, SMS, Meetings, spaces and Alerts share one heading, a search
+  that applies as you type and aligned filters on a computer and a phone. A meeting is deleted from its
+  row, and in the Tools **Cancel** takes a neutral outlined look.
+- 📸 **A business card, from the camera or the library**: a new contact asks first whether to take
+  a photo or choose one, and on a phone **New event** sits beside the calendar's search and
+  **Refresh**.
+- 🌐 **Public pages keep their language**: an address without a language prefix is French, visiting a
+  public page no longer changes your saved language, and an article links to the previous and next.
+- 🏠 **The landing** says plainly that LIA is free and open source, and that hosting and connected
+  services may cost.
+- 🔔 **No more « missed routine » nudges**: the offer that waited for the same request at the same hour
+  is replaced by the proposals above.
+
+### Removed
+
+- 😶 **Smiley** leaves the companion catalogue; a saved choice falls back to the default companion,
+  keeping its size and place.
+- 🧹 **Eight JEV collection previews** and the initiative's JEV gate, with their prompts and debug
+  panel blocks (ADR-374).
+
+### Fixed
+
+- 📅 **A Microsoft To Do task due today** no longer shows as late on the home or in the Tools east of
+  Greenwich: its day is written as midnight in your zone, and every reader reads it there.
+- 📚 **A space may hold up to 10,000 documents**: a production setting above 200 stopped the API at
+  boot.
+- 📞 **A call to someone else** no longer receives your personality, and an ElevenLabs agent no longer
+  keeps tools a past session left on it.
+- 📼 **An answering machine** now hears the message set on the ElevenLabs portal, once, instead of a
+  second one LIA composed; a call nobody answered is told in your language, never with the provider's
+  raw summary, and a verification code is never read to a voicemail.
+- 🔗 **A failed query** no longer writes its search parameters or the provider's error words in the
+  browser's console: only the screen, the status and how many parameters it had.
+
+### Security
+
+- 🗄️ **No transaction across an embedding**: creating or editing a memory from its screen computes its
+  vectors with nothing held in the database (ADR-304).
+- 🧮 **A refused field is counted under its declared name**, never under a key a request invented.
+- 📦 **Dependencies**: postcss-selector-parser 7.1.8 closes the advisory this release's watch read
+  (quadratic selector parsing, a build-time tool, ADR-331); `pnpm audit` and `pip-audit` read clean.
+
+### Operations and documentation
+
+- 🗃️ **Migrations**: `9f4f6c3bb223` (previews retired), `2bd1b9347e2c` (initiative gate retired),
+  `77a44a46135f` (JEV thresholds), `c2b92b47d7f5` (JEV statistics), `a4c92e7b6d81` (icon style),
+  `962ddad22cf1` (a routine's run id), `e09361bae915` (habit proposals), `5f4ae86b5823` (recurring
+  needs), `b74d02e6a193` (appearance schedule), `c83a51f09d62` (SMS display index, no backfill),
+  `d94b62a10e73` (peer delivery claims: stop the old workers before migrating, as a deploy does) and
+  `ea21f834b670` (space favourites). No new Compose service and no mandatory key.
+- ⚙️ **Settings**: new `HABITS_PROPOSAL_*`, `RECURRENCE_NEED_*`, `RECURRENCE_AUTOMATE_*`,
+  `JEV_STATISTICS_*`, `PEERS_DELIVERY_LEASE_SECONDS` and `SMS_DISPLAY_*`, all with defaults;
+  `RECURRENCE_DAY_HOURS_CAP` now counts distinct hours (24). The `HABITS_DEVIATION_*` and
+  `RECURRENCE_LOCK_*` keys, the other hour-lock `RECURRENCE_*` keys and `HEARTBEAT_OFFERS_WINDOW_DAYS`
+  are gone, and a leftover is ignored; the self-hosting guide has a note for this upgrade.
+- 📈 **Observability**: `habit_proposals_total`, `habit_proposal_action_failures_total`,
+  `jev_statistics_rows_total`, `jev_statistics_flush_failures_total`, `live_cue_palette_synced_total`,
+  `live_agent_tools_swept_total`, `live_voice_cues_per_turn` and `live_voice_cues_invented_total`, each
+  read by a dashboard or an alert; `heartbeat_habit_offers_total` and `recurrence_evaluation_skipped_total` leave with
+  their offer.
+- 📚 **Documentation**: ADR-373, ADR-374, ADR-375, ADR-376 (a card's signed way to the Tools), ADR-377
+  (icon styles and automatic appearance), amendments to ADR-024, 062, 077, 180, 186, 214, 234,
+  238, 259, 263, 290, 294, 299, 300, 301, 304, 325, 332, 340, 345, 357, 369 and 372, `ICON_STYLES.md`,
+  `DISPLAY_PREFERENCES.md`, six-language FAQ and knowledge, public guides, settings search and the
+  functional, technical and decision maps.
+
 ## [4.5.0] - 2026-11-07
 
 **LIA, one click away.**

@@ -12,7 +12,7 @@
  * is a message, or a conversation under its newest one (`mailLines`): it is the
  * open line whichever of its messages is open, and its link gets the focus back.
  */
-import { Inbox, SearchX } from 'lucide-react';
+import { Inbox, SearchX } from '@/lib/icons';
 import type { KeyboardEvent } from 'react';
 
 import { Button } from '@/components/ui/button';

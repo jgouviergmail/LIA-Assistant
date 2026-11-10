@@ -15,8 +15,13 @@ from uuid import uuid4
 
 import pytest
 from langchain_core.runnables import RunnableConfig
+from pydantic import ValidationError
 
-from src.core.constants import DYNAMIC_CONTEXT_MARKER, WORKBENCH_TASK_TITLE_MAX_CHARS
+from src.core.constants import (
+    DYNAMIC_CONTEXT_MARKER,
+    EXTERNAL_CONTENT_OPEN_TAG,
+    WORKBENCH_TASK_TITLE_MAX_CHARS,
+)
 from src.core.exceptions import BaseAPIException
 from src.domains.connectors.models import ConnectorType
 from src.domains.tool_assists import actions
@@ -34,6 +39,7 @@ from src.domains.tool_assists.actions import (
     task_from_sentence,
 )
 from src.domains.tool_assists.door import AssistRun
+from src.domains.tool_assists.llm import assist_line
 from src.domains.workbench.features import WorkbenchTool
 
 pytestmark = pytest.mark.unit
@@ -42,9 +48,12 @@ CLOCK = AssistClock(today=date(2026, 11, 4), zone="Europe/Paris")
 MESSAGE = {
     "id": "m1",
     "from": "ana@example.org",
+    "to": "Jean Dupont <jean@example.org>",
+    "cc": "Carol <carol@example.org>",
     "date": "2026-11-03T10:00:00Z",
     "subject": "Lunch",
     "body": "Shall we meet Thursday at noon?",
+    "attachments": [{"filename": "menu.pdf", "mimeType": "application/pdf"}],
 }
 
 
@@ -172,12 +181,42 @@ class TestWhatAFormCanTake:
         assert proposed_task(draft, ["Home", "Work"]).list_name == "Work"
         assert proposed_task(draft, ["Home"]).list_name is None
 
+    @pytest.mark.parametrize(
+        ("said", "kept"),
+        [("high", "high"), (" HIGH ", "high"), ("urgent", None), ("normal", None), ("", None)],
+    )
+    def test_a_task_matters_more_only_when_the_text_says_it_is_urgent(
+        self, said: str, kept: str | None
+    ) -> None:
+        task = proposed_task(TaskDraft(found=True, title="Pay", importance=said), [])
+
+        assert task.importance == kept
+
+    def test_a_video_call_asked_for_without_a_link_is_proposed(self) -> None:
+        asked = proposed_event(EventDraft(found=True, summary="Call", conference=True))
+        quiet = proposed_event(EventDraft(found=True, summary="Call"))
+
+        assert asked.conference is True
+        assert quiet.conference is False
+
+    def test_a_video_call_that_already_has_its_link_is_not_made_twice(self) -> None:
+        event = proposed_event(
+            EventDraft(
+                found=True,
+                summary="Call",
+                location="https://meet.example.org/abc-defg",
+                conference=True,
+            )
+        )
+
+        assert event.location == "https://meet.example.org/abc-defg"
+        assert event.conference is False
+
     def test_a_title_is_held_to_what_the_provider_takes(self) -> None:
         long = "x" * (WORKBENCH_TASK_TITLE_MAX_CHARS + 5)
 
-        assert len(proposed_task(TaskDraft(found=True, title=long), []).title) == (
-            WORKBENCH_TASK_TITLE_MAX_CHARS
-        )
+        with pytest.raises(ValidationError):
+            TaskDraft(found=True, title=long)
 
 
 @pytest.fixture
@@ -207,6 +246,10 @@ def mailbox(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             reads.append(message_id)
             return MESSAGE
 
+        async def get_own_address(self) -> str | None:
+            reads.append("own address")
+            return "jean@example.org"
+
     class _Opened:
         client = _Client()
         connector_type = ConnectorType.GOOGLE_GMAIL
@@ -229,15 +272,58 @@ async def test_an_event_is_read_from_the_message_as_it_stands(
 ) -> None:
     run = _run()
 
-    event = await event_from_message(run, "m1", CLOCK)
+    event = await event_from_message(run, "m1", CLOCK, None)
 
     assert event.summary == "Lunch"
-    assert mailbox == ["m1"]
+    assert mailbox == ["m1", "own address"]
     assert run.opened is True
     data = _data(asked[0])
     assert "Shall we meet Thursday at noon?" in data
     assert "2026-11-04" in data and "Europe/Paris" in data
     assert "external_content" in data, "a stranger's words are marked as what they are"
+
+
+async def test_an_event_never_invites_the_reader_s_own_mailbox(
+    monkeypatch: pytest.MonkeyPatch, mailbox: list[str]
+) -> None:
+    async def guests(run: AssistRun, rendered: str, schema: type[Any]) -> EventDraft:
+        attendees = ["ana@example.org", "JEAN@example.org", "carol@example.org"]
+        return EventDraft(found=True, summary="Lunch", attendees=attendees)
+
+    monkeypatch.setattr(actions, "ask_slot", guests)
+
+    event = await event_from_message(_run(), "m1", CLOCK, None)
+
+    assert event.attendees == ["ana@example.org", "carol@example.org"]
+
+
+async def test_an_event_is_still_read_when_the_mailbox_cannot_say_its_own_address(
+    monkeypatch: pytest.MonkeyPatch, mailbox: list[str]
+) -> None:
+    async def guests(run: AssistRun, rendered: str, schema: type[Any]) -> EventDraft:
+        return EventDraft(found=True, summary="Lunch", attendees=["ana@example.org"])
+
+    class _Mute:
+        async def get_message(self, message_id: str, *, use_cache: bool) -> dict[str, Any]:
+            return MESSAGE
+
+        async def get_own_address(self) -> str | None:
+            raise RuntimeError("profile unreadable")
+
+    class _Opened:
+        client = _Mute()
+        connector_type = ConnectorType.GOOGLE_GMAIL
+
+    @asynccontextmanager
+    async def opening(tool: WorkbenchTool, user_id: object) -> AsyncIterator[_Opened]:
+        yield _Opened()
+
+    monkeypatch.setattr(actions, "ask_slot", guests)
+    monkeypatch.setattr(actions, "open_tool_client", opening)
+
+    event = await event_from_message(_run(), "m1", CLOCK, None)
+
+    assert event.attendees == ["ana@example.org"], "the form shows the guests, unfiltered"
 
 
 async def test_a_sentence_is_the_person_s_own_and_reads_no_source(
@@ -261,10 +347,59 @@ async def test_the_day_of_the_week_is_told_so_a_relative_date_can_be_read(
 
 
 async def test_a_task_is_read_from_the_message(asked: list[str], mailbox: list[str]) -> None:
-    task = await task_from_message(_run(), "m1", CLOCK)
+    task = await task_from_message(_run(), "m1", CLOCK, [], None)
 
     assert task.title == "Pay"
     assert mailbox == ["m1"]
+
+
+async def test_a_form_reads_whom_the_message_went_to_and_what_it_carries(
+    asked: list[str], mailbox: list[str]
+) -> None:
+    await event_from_message(_run(), "m1", CLOCK, None)
+
+    data = _data(asked[0])
+    assert "From: ana@example.org" in data
+    assert "To: Jean Dupont <jean@example.org>" in data
+    assert "Cc: Carol <carol@example.org>" in data
+    assert "menu.pdf" in data
+
+
+async def test_a_task_from_a_message_is_read_against_the_person_s_lists(
+    asked: list[str], mailbox: list[str]
+) -> None:
+    await task_from_message(_run(), "m1", CLOCK, ["Home", "Work"], None)
+
+    data = _data(asked[0])
+    assert "Home" in data
+    assert "Work" in data
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [
+        lambda run, focus: task_from_message(run, "m1", CLOCK, [], focus),
+        lambda run, focus: event_from_message(run, "m1", CLOCK, focus),
+    ],
+    ids=["task", "event"],
+)
+async def test_a_focus_names_the_one_act_to_read_as_words_of_the_message(
+    asked: list[str], mailbox: list[str], ask: Any
+) -> None:
+    await ask(_run(), "Send the signed lease by Friday")
+
+    data = _data(asked[0])
+    assert "Send the signed lease by Friday" in data
+    assert assist_line("form_focus") in data
+    assert data.count(EXTERNAL_CONTENT_OPEN_TAG) == 2, "the focus is the message's words too"
+
+
+async def test_no_focus_says_nothing_of_one(asked: list[str], mailbox: list[str]) -> None:
+    await task_from_message(_run(), "m1", CLOCK, [], None)
+
+    data = _data(asked[0])
+    assert assist_line("form_focus") not in data
+    assert data.count(EXTERNAL_CONTENT_OPEN_TAG) == 1
 
 
 async def test_a_sentence_can_name_one_of_the_person_s_lists(asked: list[str]) -> None:

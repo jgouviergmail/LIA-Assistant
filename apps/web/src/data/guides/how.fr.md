@@ -3,8 +3,8 @@
 > Comment LIA est construite, dans les grandes lignes. Le détail est dans le code, les ADR et la documentation du dépôt.
 
 **Version** : 6.0
-**Date** : 2026-11-06
-**Application** : LIA v4.5.0
+**Date** : 2026-11-10
+**Application** : LIA v4.6.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -102,7 +102,7 @@ En mode **Pipeline**, le mode par défaut, le planificateur écrit avant toute e
 
 J'ai gardé les deux parce qu'ils répondent à deux besoins. Le Pipeline planifie, parallélise, se contrôle et prévoit son coût : un appel au planificateur et un à la réponse, contre un appel par itération pour ReAct, soit 4 à 8 fois moins de tokens. ReAct s'adapte à chaque résultat, ce qui vaut mieux pour une recherche exploratoire ou une demande ambiguë. Les deux modes partagent le registre d'outils, les confirmations, le nœud de réponse et l'observabilité.
 
-Le choix des domaines et des outils passe par un **routeur sémantique** à embeddings plutôt que par des mots-clés ou par le modèle seul : il coûte moins cher et se trompe moins. Chaque outil déclare un manifeste (paramètres, sorties, coût, permissions, mots-clés dans plusieurs langues) que lisent le planificateur et le routeur, et chaque famille d'outils se déclare une seule fois dans un registre central. Des Smart Services réduisent encore la consommation en mettant en cache l'analyse des requêtes et en apprenant les plans qui reviennent. Après un tour actionnable, un nœud d'initiative regarde, en lecture seule, ce que le résultat implique ailleurs : une pluie annoncée renvoie aux activités en extérieur de ton agenda.
+Le choix des domaines et des outils passe par un **routeur sémantique** à embeddings plutôt que par des mots-clés ou par le modèle seul : il coûte moins cher et se trompe moins. Chaque outil déclare un manifeste (paramètres, sorties, coût, permissions, mots-clés dans plusieurs langues) que lisent le planificateur et le routeur, et chaque famille d'outils se déclare une seule fois dans un registre central. Des Smart Services réduisent encore la consommation en mettant en cache l'analyse des requêtes et en apprenant les plans qui reviennent. Après un tour actionnable, un nœud d'initiative regarde, en lecture seule, ce que le résultat implique ailleurs : une pluie annoncée renvoie aux activités en extérieur de ton agenda. Les autres tours s'en passent et ne coûtent rien de plus.
 
 Quelques règles tiennent l'ensemble honnête. Une demande sans intention d'agir ne peut pas produire un plan qui modifie quoi que ce soit, et c'est une règle déterministe, vérifiée avant tout appel au modèle. Un plan de modification qui épuise ses tentatives de correction n'est pas exécuté : LIA pose une question plutôt que d'écrire une donnée fausse. Un refus ou un échec n'est jamais présenté comme une action accomplie, et une fois le plan exécuté, rien n'est rejoué dans ton dos : la réponse dit chaque échec, quel outil, pourquoi, et le total exact. Pour un mode qui se corrige en cours de route, il y a ReAct.
 
@@ -239,7 +239,7 @@ Une précision sur la performance : les latences mesurées sont celles de l'infr
 
 L’espace **Outils** possède ses propres routes REST, en dehors du graphe de conversation. Il réutilise les clients des connecteurs et publie leurs commandes et limites dans l’interface. Les sessions de base se ferment avant les appels aux fournisseurs ; les soumissions sont protégées contre les répétitions et une réponse perdue laisse un résultat déclaré inconnu. Le HTML d’un mail reste dans un cadre isolé qui bloque les contenus distants. Un geste manuel reste ainsi distinct d’une action confiée à LIA ; ce qu’un clic lui demande depuis ces écrans passe par une porte à part, un appel et une proposition, jamais une écriture chez le fournisseur.
 
-L'interface web est une application Next.js qui s'installe comme une application (PWA). Le chat met à jour la conversation sans rechargement, rend les formules mathématiques et le code coloré, garde un brouillon par compte, et se cherche ; les réglages ont leur propre recherche, un thème noir absolu pour les écrans OLED et une taille de texte réglable.
+L'interface web est une application Next.js qui s'installe comme une application (PWA). Le chat met à jour la conversation sans rechargement, rend les formules mathématiques et le code coloré, garde un brouillon par compte, et se cherche ; les réglages ont leur propre recherche, un thème noir absolu pour les écrans OLED qui peut suivre tes horaires, trois styles d'icônes et une taille de texte réglable. Une seule couche de sélection sert tous les écrans : un texte sélectionné s'explique, se traduit ou part vers le formulaire habituel, jamais vers un second, et un remplacement garde l'annulation du navigateur.
 
 Dans l'affichage en cartes, l'un des trois modes au choix avec le HTML simple et le Markdown, une réponse porteuse de données n'est pas mise en forme par le modèle : le serveur la rend en **cartes** HTML déterministes, indépendantes du modèle et du mode, archivées avec le message. Une carte montre un fait reçu en entier et n'invente rien, et une action depuis une carte prépare une demande au lieu d'agir. Pour garder l'interface cohérente, j'ai écrit des règles que des tests vérifient : un statut prend son ton dans une table unique, une action a un niveau d'importance, et une ligne de liste expose ses actions d'une seule façon. Les tests de navigateur et d'accessibilité visent le niveau WCAG AA, sans certifier le rendu sur un appareil physique ni la fidélité des traductions.
 

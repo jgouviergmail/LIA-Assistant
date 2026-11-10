@@ -7,13 +7,17 @@ import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import CheckConstraint, inspect
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.infrastructure.database.session import Base
 
 pytestmark = pytest.mark.integration
 
 
-async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine):
+async def test_sms_migration_round_trip_matches_columns_and_indexes(
+    async_engine: AsyncEngine,
+) -> None:
     path = (
         Path(__file__).resolve().parents[2]
         / "alembic/versions/2026_10_19_2000-1c294a7e820f_phone_ingestion_sms.py"
@@ -35,6 +39,11 @@ async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine
     assert marker_spec and marker_spec.loader
     marker_drop = importlib.util.module_from_spec(marker_spec)
     marker_spec.loader.exec_module(marker_drop)
+    display_path = path.parent / "2026_11_09_0400-c83a51f09d62_sms_display_index.py"
+    display_spec = importlib.util.spec_from_file_location("sms_display_index", display_path)
+    assert display_spec and display_spec.loader
+    display_index = importlib.util.module_from_spec(display_spec)
+    display_spec.loader.exec_module(display_index)
     names = {
         "ingestion_sources",
         "ingestion_tokens",
@@ -45,8 +54,9 @@ async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine
         "sms_sender_blocks",
     }
 
-    def cycle(connection):
+    def cycle(connection: Connection) -> None:
         with Operations.context(MigrationContext.configure(connection)):
+            display_index.downgrade()
             marker_drop.downgrade()
             proactive.downgrade()
             migration.downgrade()
@@ -54,6 +64,7 @@ async def test_sms_migration_round_trip_matches_columns_and_indexes(async_engine
             migration.upgrade()
             proactive.upgrade()
             marker_drop.upgrade()
+            display_index.upgrade()
         reflection = inspect(connection)
         assert {
             column["name"] for column in reflection.get_columns("heartbeat_notifications")

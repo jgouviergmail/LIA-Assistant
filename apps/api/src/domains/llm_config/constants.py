@@ -1296,14 +1296,10 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
 # user-facing Preferences via ``GET /image-generation/options``.
 
 
-# Native collection judgments share transport capabilities, while each owns its
-# saved configuration and hot switch. The meeting slot supplies the same pinned
+# Native decisions share transport capabilities, while each owns its saved
+# configuration and hot switch. The meeting slot supplies the same pinned
 # provider defaults; copies prevent one slot's configuration mutating another.
 for _slot, _name in (
-    ("jev_filter_email", "Email qualification (Jev)"),
-    ("jev_filter_event", "Event qualification (Jev)"),
-    ("jev_filter_task", "Task qualification (Jev)"),
-    ("jev_filter_file", "Document qualification (Jev)"),
     ("jev_radio_verification", "Radio verification (Jev)"),
     ("jev_consultation_path", "Known consultation paths (Jev)"),
     ("jev_consultation_bounded", "Bounded consultations (Jev)"),
@@ -1312,15 +1308,10 @@ for _slot, _name in (
     ("jev_observe_journal", "Journal extraction observation (Jev)"),
     ("jev_observe_open_loops", "Open-loop extraction observation (Jev)"),
     ("jev_hitl_exclusion", "HITL item exclusions (Jev)"),
-    ("jev_filter_reminder", "Reminder qualification (Jev)"),
-    ("jev_filter_ticket", "Ticket qualification (Jev)"),
-    ("jev_filter_mcp", "Mcp qualification (Jev)"),
-    ("jev_filter_document", "Document qualification (Jev)"),
-    ("jev_initiative_utility", "Initiative utility (Jev)"),
     ("jev_memory_reference_presence", "Memory reference presence (Jev)"),
     ("jev_hitl_rejection", "Complete HITL rejection (Jev)"),
     ("jev_parameter_kind", "Guarded parameter values (Jev)"),
-    ("jev_email_classification", "Email category and priority (Jev)"),
+    ("jev_email_classification", "Email category, priority and expected reply (Jev)"),
     ("jev_event_classification", "Appointment category (Jev)"),
 ):
     LLM_TYPES_REGISTRY[_slot] = LLMTypeMetadata(

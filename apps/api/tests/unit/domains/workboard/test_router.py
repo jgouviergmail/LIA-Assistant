@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.core.exceptions import ResourceNotFoundError
+from src.domains.shared.display_query import DisplayQuery
 from src.domains.workboard.router import (
     add_comment,
     board_summary,
@@ -394,7 +395,12 @@ class TestNeedsMe:
             service_cls.return_value.needs_me = AsyncMock(
                 return_value=([_row(status="waiting")], 4)
             )
-            page = await needs_me(limit=20, offset=0, user=_user(), db=db)
+            user = _user()
+            criteria = DisplayQuery(q="ticket", sort="name")
+            page = await needs_me(limit=20, offset=0, criteria=criteria, user=user, db=db)
+        service_cls.return_value.needs_me.assert_awaited_once_with(
+            user, limit=20, offset=0, criteria=criteria
+        )
         assert page.total == 4
         assert len(page.tickets) == 1
         db.commit.assert_not_awaited()

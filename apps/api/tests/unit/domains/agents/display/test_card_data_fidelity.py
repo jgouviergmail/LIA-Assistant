@@ -4,6 +4,7 @@ import json
 from html.parser import HTMLParser
 
 import pytest
+from bs4 import BeautifulSoup
 
 from src.core.field_names import FIELD_DISPLAY_ONLY
 from src.core.i18n_v3 import V3Messages
@@ -72,8 +73,11 @@ def test_zero_temperature_is_a_value_not_a_missing_measurement(temperature_key: 
         RenderContext(language="en"),
         with_wrapper=False,
     )
-    assert "0°C" in TextReader(markup).text
-    assert "12°C" not in TextReader(markup).text
+    primary = BeautifulSoup(markup, "html.parser").select_one(".lia-weather__temp")
+    assert primary is not None
+    assert primary.get_text() == "0°C"
+    # The known maximum belongs to the range, never in place of the current zero.
+    assert "— / 12°C" in TextReader(markup).text
 
 
 @pytest.mark.parametrize(

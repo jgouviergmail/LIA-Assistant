@@ -39,7 +39,7 @@ async def test_creation_edit_retains_identity_without_write_or_embedding(
         patch("src.domains.agents.tools.application_memory_tools.get_db_context", session),
         patch("src.domains.agents.application.draft_editing.get_db_context", session),
         patch(
-            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            "src.domains.memories.creation_embeddings._generate_document_embedding",
             provider,
         ),
     ):

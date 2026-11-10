@@ -67,6 +67,22 @@ describe('SearchInput — clear affordances', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith('');
   });
 
+  it('clears only the focused search when a page has multiple search fields', async () => {
+    const { user } = renderWithProviders(
+      <>
+        <SearchInput placeholder="First search" onSearchChange={vi.fn()} />
+        <SearchInput placeholder="Second search" onSearchChange={vi.fn()} />
+      </>
+    );
+    const first = screen.getByRole('searchbox', { name: 'First search' });
+    const second = screen.getByRole('searchbox', { name: 'Second search' });
+    await user.type(first, 'Alice');
+    await user.type(second, 'Camille{Escape}');
+    expect(first).toHaveValue('Alice');
+    expect(second).toHaveValue('');
+    expect(second).toHaveFocus();
+  });
+
   it('hides the clear button and does not render it when clearable is false', async () => {
     const { user } = renderWithProviders(
       <SearchInput onSearchChange={vi.fn()} clearable={false} />

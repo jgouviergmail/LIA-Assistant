@@ -26,6 +26,11 @@ declares each shared user-schema field's reviewed surface and writability.
 Adding a user field requires declaring its owner. Private authentication input
 belongs in its secure form, not a widened model-visible preference schema.
 
+Knowledge-space metadata includes the owner's favorite preference. The existing
+space update command previews and writes its absolute state through the same
+source service as the space list. Favoriting does not activate retrieval; an
+intervening preference change invalidates a pending exact approval.
+
 ## MCP confirmation settings
 
 The conversational write path can strengthen MCP confirmations only: the account

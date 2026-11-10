@@ -20,6 +20,25 @@ from __future__ import annotations
 
 import unicodedata
 
+_SEARCH_TYPOGRAPHY = str.maketrans({"‘": "'", "’": "'", "ʼ": "'", "\u00a0": " ", "\u202f": " "})
+
+
+def normalize_search_text(text: str) -> str:
+    """Match displayed text using the browser's literal substring vocabulary.
+
+    Args:
+        text: Displayed text or a search needle, never an identity key.
+
+    Returns:
+        Lowercase NFD text without U+0300–U+036F marks, with typography folded.
+        Compatibility characters, sharp s and whitespace width are preserved.
+    """
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFD", text.lower())
+        if not "\u0300" <= char <= "\u036f"
+    ).translate(_SEARCH_TYPOGRAPHY)
+
 
 def fold_name(name: str) -> str:
     """Fold a display name for exact-match comparison and grouping.

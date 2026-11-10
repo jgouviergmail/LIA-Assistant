@@ -4,7 +4,6 @@ import { test, expect, type BrowserContext, type Page, type Response } from './f
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { cssPixels } from './layout';
 import { worldTransportFault } from './transport';
@@ -93,7 +92,6 @@ test('native functions: private memory read/pin, denied peer mutation and embedd
     const transport = worldTransportFault();
     await transport.install(page);
     activePage = page;
-    await installOfflineFonts(page);
     const sends: string[] = [],
       errors: string[] = [];
     page.on('pageerror', error => errors.push(error.name));

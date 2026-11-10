@@ -153,31 +153,8 @@ class TestSystemSpaceProtection:
         assert "upload" in exc_info.value.detail.lower()
 
 
-# ============================================================================
-# TestListSpacesExcludesSystem
-# ============================================================================
-
-
-@pytest.mark.unit
-class TestListSpacesExcludesSystem:
-    """list_spaces should not return system spaces."""
-
-    @pytest.mark.asyncio
-    async def test_system_spaces_filtered_out(self, service, user_space, system_space) -> None:
-        """System spaces should be excluded from user listing."""
-        service.space_repo.get_all_for_user = AsyncMock(return_value=[user_space, system_space])
-        service.doc_repo.get_space_stats = AsyncMock(
-            return_value={
-                "document_count": 0,
-                "total_size": 0,
-                "ready_document_count": 0,
-            }
-        )
-
-        result = await service.list_spaces(user_space.user_id)
-
-        assert len(result) == 1
-        assert result[0]["name"] == "My Notes"
+# Listing, isolation and exact aggregates are proved on real PostgreSQL in
+# tests/integration/test_space_listing.py; no fabricated per-space stats.
 
 
 # ============================================================================

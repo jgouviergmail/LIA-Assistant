@@ -1,72 +1,34 @@
-"""Recurrence ledger — detect repeated same-shape requests (P12, ADR-140; v2 ADR-214).
+"""Recurrence ledger — record what a person asks, day by day (ADR-140, ADR-214, ADR-375).
 
-A user asking the same kind of actionable thing with a stable temporal shape
-is a candidate for a recurring automation. v2 changes (habits program):
-
-- :func:`build_signature` — the shape is the DOMAINS ONLY; the hour is now a
-  MEASURE, no longer part of the key (the fixed 4h bucket split habits
-  straddling a boundary and could never see weekly rhythms).
-- Storage is PER LOCAL DAY (``{"days": {iso_date: [hours]}, ...}``), capped
-  in day entries: the historical 20-occurrence cap kept only ~7 days for a
-  multi-daily domain, making the spread lock unreachable (counter-review
-  finding of the habits plan).
-- :func:`evaluate_suggestion` fires ONLY when a shape LOCK holds (daily /
-  workdays / weekly with a learned hour) — measured 0% false suggestions on
-  spread/sporadic usage. On lock it promotes a persisted ``UserHabit``
-  (fire-and-forget) and returns a localized suggestion carrying the learned
-  schedule.
+The chat side of the ledger is a WRITER only: each actionable human turn
+appends its local hour to the day of its domain (``record_occurrence``). What
+the ledger means — the recurring needs and the proposals they open — is read
+by the habits domain's nightly recompute (``habits.needs``,
+``habits.proposal_rules``). The lock this module used to evaluate on every
+turn, the suggestion text it injected into the answer and the promotion it ran
+from the chat are gone (ADR-375): the hour is a descriptor, never a condition,
+and a proposal is shown by the code, never left for a model to repeat.
 
 No new table for the ledger itself: it is advisory, losing it on Redis flush
-is harmless — the PROMOTED habits live in PostgreSQL, and an empty ledger is
-reseeded from durable ``product_outcomes`` by the habits recompute
-(``domains.habits.ledger_seed``, storage format shared through
-``infrastructure.cache.recurrence_store``).
+is harmless — an empty ledger is reseeded from durable ``product_outcomes`` by
+the habits recompute (``domains.habits.ledger_seed``, storage format shared
+through ``infrastructure.cache.recurrence_store``).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from typing import Any
 
 import structlog
 
-from src.core.i18n_automation import get_recurrence_schedule_suggestion_text
-
-# The lock SEMANTICS live in the habits domain since 2026-09-11 (the nightly
-# sync evaluates every signature there); this module keeps the chat-side
-# behaviour and re-exports every historical name.
-from src.domains.habits.recurrence_locks import (
-    RECURRENCE_SHAPES,
-    SHAPE_DAILY,
-    SHAPE_INTERMITTENT,
-    SHAPE_WEEKLY,
-    SHAPE_WORKDAYS,
-    SLOTTED_SHAPES,
-    RecurrenceLock,
-    circular_hour_dist,
-    circular_r,
-    evaluate_locks,
-)
 from src.infrastructure.cache import recurrence_store
 from src.infrastructure.observability.metrics_agents import recurrence_ledger_writes_total
 
 logger = structlog.get_logger(__name__)
 
-#: Historical surface of this module: the lock vocabulary and evaluation now
-#: owned by ``habits.recurrence_locks`` stay importable from here.
 __all__ = [
-    "RECURRENCE_SHAPES",
-    "SHAPE_DAILY",
-    "SHAPE_INTERMITTENT",
-    "SHAPE_WEEKLY",
-    "SHAPE_WORKDAYS",
-    "SLOTTED_SHAPES",
-    "RecurrenceLock",
     "build_signature",
-    "circular_hour_dist",
-    "circular_r",
-    "evaluate_locks",
-    "evaluate_suggestion",
     "record_occurrence",
     "record_occurrence_if_allowed",
 ]
@@ -83,18 +45,9 @@ WRITE_USER_DISABLED = "user_disabled"
 WRITE_FEATURE_DISABLED = "feature_disabled"
 
 
-# Storage format extracted to infrastructure (three domains share the keys);
-# thin aliases keep this module the semantic API and the existing contract
-# tests meaningful. ``build_signature`` lives there too: the seed (habits)
-# needs it and habits importing agents would close the cycle the coupling
-# ratchet forbids.
+# The key's tail has ONE producer, shared with the nightly seed (habits): the
+# storage module owns it, this module re-exports it as its historical name.
 build_signature = recurrence_store.build_signature
-_redis_key = recurrence_store.redis_key
-_convert_legacy = recurrence_store.convert_legacy
-_load = recurrence_store.load
-_store = recurrence_store.store
-_trim = recurrence_store.trim
-_parse_days = recurrence_store.parse_days
 
 
 async def record_occurrence(
@@ -129,21 +82,25 @@ async def record_occurrence(
         if not redis:
             recurrence_ledger_writes_total.labels(outcome=WRITE_REDIS_UNAVAILABLE).inc()
             return
-        key = _redis_key(user_id, signature)
-        data = await _load(redis, key)
-        hours = data["days"].setdefault(local_date.isoformat(), [])
-        if len(hours) < settings.recurrence_day_hours_cap:
-            hours.append(round(float(local_hour), 2))
+        key = recurrence_store.redis_key(user_id, signature)
+        data = await recurrence_store.load(redis, key)
+        recurrence_store.add_day_hour(
+            data,
+            local_date.isoformat(),
+            local_hour,
+            cap=int(settings.recurrence_day_hours_cap),
+        )
         recurrence_store.record_intent(data, intent)
         # A live turn is direct evidence: the payload's provenance becomes
         # ``live`` even when the seed first rebuilt it (ADR-214 amendment).
         data["origin"] = recurrence_store.ORIGIN_LIVE
-        _trim(data, settings.recurrence_ledger_max_entries)
-        await _store(redis, key, data, settings.recurrence_window_days)
+        recurrence_store.trim(data, settings.recurrence_ledger_max_entries)
+        await recurrence_store.store(redis, key, data, settings.recurrence_window_days)
         recurrence_ledger_writes_total.labels(outcome=WRITE_WRITTEN).inc()
     except Exception as exc:  # noqa: BLE001 — advisory ledger, never blocks
         recurrence_ledger_writes_total.labels(outcome=WRITE_FAILED).inc()
-        logger.warning("recurrence_record_failed", error=str(exc), error_type=type(exc).__name__)
+        # Facts only (ADR-317): the exception text may quote the payload.
+        logger.warning("recurrence_record_failed", error_type=type(exc).__name__)
 
 
 async def record_occurrence_if_allowed(
@@ -189,155 +146,3 @@ async def record_occurrence_if_allowed(
         settings=settings,
         intent=intent,
     )
-
-
-async def _promote_recurring_habit(
-    user_id: str,
-    signature: str,
-    lock: RecurrenceLock,
-    *,
-    usual_intent: str | None = None,
-) -> None:
-    """Persist the locked recurrence as a user-controllable habit row.
-
-    Own session, best-effort: promotion failing must never affect the turn.
-    Respects the user's habits preference and BLOCKED tombstones (repository
-    contract).
-
-    Args:
-        user_id: Owner (string form).
-        signature: The locked signature.
-        lock: The proven lock.
-        usual_intent: The ledger's dominant intent, carried into the row so
-            the panel and the heartbeat name the request (Q4); None when
-            nothing usable was recorded.
-    """
-    try:
-        from uuid import UUID
-
-        from src.core.config import settings as app_settings
-        from src.domains.habits.capability import habits_capability_enabled
-        from src.infrastructure.database import get_db_context
-
-        if not await habits_capability_enabled():
-            return
-        async with get_db_context() as db:
-            from src.domains.habits.models import HabitKind
-            from src.domains.habits.repository import HabitsRepository
-            from src.domains.users.models import User
-
-            uid = UUID(user_id)
-            user = await db.get(User, uid)
-            if user is None or not user.habits_enabled:
-                return
-            repo = HabitsRepository(db)
-            # Per-kind cap (published setting — a declared bound must be
-            # enforced): a NEW signature beyond the cap is dropped with a log;
-            # an existing one keeps updating.
-            existing = await repo.list_habits(uid, HabitKind.RECURRING_REQUEST.value)
-            if signature not in {h.key for h in existing} and len(existing) >= int(
-                app_settings.habits_max_habits_per_kind
-            ):
-                logger.info(
-                    "recurring_habit_promotion_capped",
-                    user_id=user_id,
-                    signature=signature,
-                    cap=app_settings.habits_max_habits_per_kind,
-                )
-                return
-            from src.domains.habits.recurrence_sync import lock_payload
-
-            # The same payload the nightly sync writes (one builder), and a
-            # live turn IS a fresh occurrence: the stop-rule mute may lift.
-            outcome = await repo.upsert_habit(
-                user_id=uid,
-                kind=HabitKind.RECURRING_REQUEST.value,
-                key=signature,
-                payload=lock_payload(lock, usual_intent=usual_intent),
-                last_observed_at=datetime.now(UTC),
-                reset_mute=True,
-            )
-            await db.commit()
-            logger.info(
-                "recurring_habit_promoted",
-                user_id=user_id,
-                signature=signature,
-                shape=lock.shape,
-                outcome=outcome,
-            )
-    except Exception as exc:  # noqa: BLE001 — best-effort persistence
-        logger.warning("recurring_habit_promotion_failed", error=str(exc))
-
-
-async def evaluate_suggestion(
-    user_id: str,
-    signature: str,
-    *,
-    language: str,
-    local_today: date,
-    settings: Any,
-) -> str | None:
-    """Return the localized automation suggestion when a shape lock is proven.
-
-    Fires ONCE per cooldown; on fire, the locked habit is promoted to a
-    persisted ``UserHabit`` (fire-and-forget) and the returned text carries
-    the LEARNED schedule so the assistant can propose a prefilled automation.
-
-    Args:
-        user_id: Owner user id (string form).
-        signature: Output of :func:`build_signature`.
-        language: User language for the suggestion text.
-        local_today: The user's local calendar date (window anchor).
-        settings: Settings view (flag + thresholds).
-
-    Returns:
-        Localized suggestion text, or None (no lock / cooldown / off).
-    """
-    if not getattr(settings, "recurrence_suggestion_enabled", False):
-        return None
-    try:
-        from src.infrastructure.cache.redis import get_redis_cache
-
-        redis = await get_redis_cache()
-        if not redis:
-            return None
-        key = _redis_key(user_id, signature)
-        data = await _load(redis, key)
-
-        now = datetime.now(UTC)
-        suggested_at = data.get("suggested_at")
-        if suggested_at is not None:
-            cooldown_start = now - timedelta(days=settings.recurrence_suggestion_cooldown_days)
-            if datetime.fromtimestamp(int(suggested_at), tz=UTC) > cooldown_start:
-                return None
-
-        lock = evaluate_locks(_parse_days(data), local_today, settings)
-        if lock is None:
-            return None
-
-        data["suggested_at"] = int(now.timestamp())
-        await _store(redis, key, data, settings.recurrence_window_days)
-
-        from src.infrastructure.async_utils import safe_fire_and_forget
-
-        safe_fire_and_forget(
-            _promote_recurring_habit(
-                user_id,
-                signature,
-                lock,
-                usual_intent=recurrence_store.dominant_intent(data),
-            ),
-            name=f"recurring_habit_promotion_{user_id}",
-        )
-
-        logger.info(
-            "recurrence_suggestion_fired",
-            user_id=user_id,
-            signature=signature,
-            shape=lock.shape,
-            distinct_days=lock.distinct_days,
-        )
-        return get_recurrence_schedule_suggestion_text(language, lock)
-    except Exception as exc:  # noqa: BLE001 — advisory, never blocks the turn
-        logger.debug("recurrence_evaluate_failed", error=str(exc))
-        return None

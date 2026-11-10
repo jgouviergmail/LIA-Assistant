@@ -518,6 +518,7 @@ async def extract_journal_entry_background(
 
         # Parse result
         actions = _parse_extraction_output(result_content, max_entry_chars=max_entry_chars)
+        observation.set_proposals(len(actions))
         # Funnel: signals counted BEFORE the hallucinated-id filter below, so
         # a dropped signal stays visible as a signaled-vs-applied gap.
         count_evidence_signals(actions)

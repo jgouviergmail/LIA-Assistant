@@ -11,7 +11,7 @@
  * the dialog; the words and the answer wait for the person to come back. What is a question rather
  * than words to find goes to LIA from the same line, unsent (`useAskLia`).
  */
-import { Search } from 'lucide-react';
+import { Search } from '@/lib/icons';
 import Link from 'next/link';
 import { useEffect, useEffectEvent, useState, type FormEvent } from 'react';
 
@@ -35,7 +35,7 @@ import type {
   WorkbenchAvailability,
 } from '@/lib/workbench/types';
 
-import { AssistStars } from './assist/AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { useAskLia } from './assist/useAskLia';
 import { ToolDialogHeader } from './ToolForm';
 

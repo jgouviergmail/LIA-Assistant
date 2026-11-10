@@ -36,7 +36,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { AudioLines, Mic, MicOff, Loader2 } from 'lucide-react';
+import { AudioLines, Mic, MicOff, Loader2 } from '@/lib/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

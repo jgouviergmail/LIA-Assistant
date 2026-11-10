@@ -10,7 +10,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, CheckCircle, Clock, Loader2, RefreshCw, Unlink } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, Loader2, RefreshCw, Unlink } from '@/lib/icons';
 import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';

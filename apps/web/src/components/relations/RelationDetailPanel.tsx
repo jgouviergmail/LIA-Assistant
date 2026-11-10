@@ -40,7 +40,7 @@ import {
   Send,
   Star,
   StickyNote,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { Children, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -87,7 +87,7 @@ import { RelationTimelineSection } from '@/components/relations/RelationTimeline
 import { RelationMergePanel } from '@/components/relations/RelationMergePanel';
 import { RelationScopeSection, useScopeDraft } from '@/components/relations/RelationScopeSection';
 import { RelationWhen } from '@/components/relations/RelationWhen';
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import {
   useRelationMerge,
@@ -107,9 +107,7 @@ import {
   type ContactActionGroup,
   type QuickAction,
 } from '@/lib/relations/contact-actions';
-import { useApplicationConnectors } from '@/hooks/useApplicationConnectors';
-import { TELEPHONY_CONNECTOR_TYPES } from '@/components/settings/connectors/constants';
-import { isConnectorActive } from '@/components/settings/connectors/types';
+import { useTelephonyCallable } from '@/hooks/useTelephonyCallable';
 
 /** Items a section shows before the reader asks for more. */
 const SECTION_PREVIEW_COUNT = 10;
@@ -508,16 +506,10 @@ function QuickActions({
 }) {
   const { t } = useTranslation();
   const name = detail.display_name;
-  // The connectors page's own predicate: a call needs the account's ACTIVE
-  // telephony connector, and an unanswered read offers none rather than one
-  // nothing could place.
-  const { data: connectorList } = useApplicationConnectors();
-  const telephony = (connectorList?.connectors ?? []).some(
-    connector =>
-      TELEPHONY_CONNECTOR_TYPES.includes(
-        connector.connector_type.toLowerCase() as (typeof TELEPHONY_CONNECTOR_TYPES)[number]
-      ) && isConnectorActive(connector)
-  );
+  // A call needs the instance to offer telephony and the account's ACTIVE
+  // telephony connector (D2, 2026-11-07): an unanswered read offers none
+  // rather than one nothing could place.
+  const telephony = useTelephonyCallable();
 
   const actions: QuickAction[] = [
     ...(detail.is_peer

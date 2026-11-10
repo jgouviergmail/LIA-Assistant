@@ -1,5 +1,43 @@
 # Deterministic HTML cards in assistant answers
 
+## Account icon styles
+
+Known `material-symbols-outlined` markers are rendered by the frontend's
+`MarkdownIconSpan` / `MaterialSymbol` through the shared account icon facade.
+This applies to archived cards as well as newly received ones, without rewriting
+stored messages. Unknown historical names retain their existing font glyph,
+with a multicolour palette in both colour styles and system colours in
+forced-colours mode.
+The HTML sanitizer is unchanged: message content never supplies SVG artwork,
+and plain-text export still strips icon markers. See [icon styles](ICON_STYLES.md)
+for preference persistence, artwork attribution and historical glyph handling.
+
+## Native record navigation
+
+Decision record: [ADR-376](../architecture/ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md).
+
+Cards representing a record available in LIA's Tools open that record there:
+email, event/calendar, contact, task, file/folder and Hue light. Their source titles,
+file previews and source-detail actions share the typed, signed navigation contract
+described in [WORKBENCH.md](WORKBENCH.md#opening-a-record-from-an-assistant-card).
+The envelope is display-only metadata, preserved by registry serialization and
+archived HTML, and revalidated against the current connected source on explicit
+click. The resulting Tools page carries the same proof to its own family's requests;
+the acquired provider client is checked again before each read or mutation. Fetch
+and XHR use `X-LIA-Card-Source`; direct downloads, attachment downloads and contact
+exports carry `card_source` in their URL. Contradictory header/query proofs are
+refused. Rendering the navigation control fetches no provider record.
+
+Historical cards without source proof, changed accounts, inactive/disconnected
+connectors and failed requests never silently open a third-party site or guess a
+current record with the same identifier. Their content stays readable, and an
+attempted opening explains its limitation. When Tools is disabled or its availability
+is unknown, source actions are removed and titles/previews remain noninteractive;
+the API also enforces the capability. The proof constrains a source, grants no
+permission and triggers no provider mutation. Contextual links, map activation,
+meeting links, attachment previews and generated-file lifetime controls retain
+their own contracts.
+
 ## Selected Google Places and advisory qualifications
 
 Answers with selected native Google Places start with one Position card in every
@@ -92,11 +130,40 @@ The response path is tool output → typed registry → selected card payload �
 | Chat markup allowlist | [markdown-sanitize-schema.ts](../../apps/web/src/lib/markdown-sanitize-schema.ts) |
 | Frontend enhancement entry point | [MarkdownContent.tsx](../../apps/web/src/components/chat/MarkdownContent.tsx) |
 
-Cards inherit the application's foreground, surfaces, borders and font through the versioned response wrapper. Their domain colors retain their semantic role. The stylesheet isolates the new presentation from historical markup and HITL/widget surfaces. It supports light, dark and OLED themes, narrow phones, long untranslated source strings and enlarged text. Motion communicates disclosure or image state, respects reduced-motion preferences and does not cause cards to shift on hover. Native details retain keyboard operation and readable fallback content without JavaScript. Labels use the shared locale separator, including French no-break spacing and Chinese full-width punctuation.
+Cards inherit the account's palette and the application's light, dark or OLED appearance. The shared craft layer derives paper, ink, border and accent tokens from the existing theme; it declares the editorial heading font while body text and scaled text sizes retain the application's settings. Domain states keep their semantic meaning. Native details retain keyboard operation and readable fallback content without JavaScript. Labels use the shared locale separator, including French no-break spacing and Chinese full-width punctuation. The theme authorities remain [color-themes.ts](../../apps/web/src/lib/color-themes.ts), [theme-mode.ts](../../apps/web/src/lib/theme-mode.ts) and [globals.css](../../apps/web/src/styles/globals.css), not a second palette catalogue in the cards.
 
 **The answer's cards fold under one « Show details » disclosure** (closed by default). The response node appends the card block after the model's words, and the message is stored that way, so the fold is decided in the chat bubble and applies to a reloaded history too: [trailing-cards.ts](../../apps/web/src/lib/trailing-cards.ts) recognises a tail made only of the renderer's top-level roots (`lia-card-binding`, `lia-multi-domain`, `lia-correlated`, `lia-nested-list`, `lia-empty`, `lia-response-wrapper` and its separator, `lia-card-collection`), and [AssistantMessageBody.tsx](../../apps/web/src/components/chat/AssistantMessageBody.tsx) renders the words, then the cards inside the shared `Disclosure`. The split is conservative: an answer of cards alone, a HITL draft card (`lia-draft`, `lia-draft-result`), an interactive widget after the cards or any tail it cannot balance renders unchanged; widgets placed before the cards stay outside the fold, and a history-search match inside the cards opens it.
 
 When adding a domain, register its aliases once, use the shared title/text/detail primitives and test the actual producer through registry JSON serialization. Do not add a generic dump of provider transport objects to a domain card. Rich optional fields belong in a cohesive details helper; the recurring canonical context remains intentional.
+
+### Enveloppes compositions and collection density
+
+Enveloppes changes the reading composition by family while retaining the deterministic renderers, sanitizer, archived message and existing React enhancements. The styles are imported after the shared card rules in [globals.css](../../apps/web/src/styles/globals.css):
+
+| Stylesheet | Responsibility |
+|---|---|
+| [lia-cards-craft.css](../../apps/web/src/styles/lia-cards-craft.css) | Shared material, editorial headings, application-derived colors and native disclosure treatment |
+| [lia-cards-people.css](../../apps/web/src/styles/lia-cards-people.css) | Email envelopes, contact directories, event invitations, calendar resources, task/checklist, reminder, SMS and ticket compositions |
+| [lia-cards-world.css](../../apps/web/src/styles/lia-cards-world.css) | Place sheets, journey presentation and condition-led weather, preserving their specialized media and controls |
+| [lia-cards-knowledge.css](../../apps/web/src/styles/lia-cards-knowledge.css) | File folders, article reading spreads, search clippings, web research with a source margin, MCP receipts, known-state lamp illustration, generated-document previews and distinct proposal/result paper |
+| [lia-cards-location.css](../../apps/web/src/styles/lia-cards-location.css) | Postal-style location identity, supplied map/Street View media and the optional interactive address map |
+
+The phone uses the same HTML and React components. Container queries recompose the content at the card's available width; there is no separate native presentation or mobile data model. Useful facts and actual supplied media stay available as the layout changes. Full received text and secondary fields may remain inside named native disclosures; a folder or illustration never substitutes for an available image, map module or format-specific document preview. The generated-document surface keeps its owner/expiry checks and existing open, download, share, retry and lightbox controls.
+
+Qualifiers follow the fact they describe. Contact type badges share the value's
+wrapping text flow, including older archived markup at enlarged text sizes;
+they are not aligned to the opposite edge of the card. Email tags and attachment
+indicators share one compact metadata row when space permits.
+
+Email subjects and attachment names wrap completely on narrow screens. Only the
+overview excerpt stays visually compact: its full text is available in the message
+disclosure whenever the complete formatted body does not already contain it.
+
+Email collections use the initial slice declared by `HTML_EMAIL_VISIBLE_MESSAGES` in [core/constants.py](../../apps/api/src/core/constants.py), attached to [EmailCard.collection_initial_limit](../../apps/api/src/domains/agents/display/components/email_card.py). [fold_card_collection](../../apps/api/src/domains/agents/display/card_collection.py) combines it with the existing display limit and folds the exact remaining selected records; it does not truncate the selected set or claim a mailbox-wide total. This collection fold is separate from the answer-level fold described above. Opening it reveals already rendered cards without another provider or model request; existing lazy media loading retains its own lifecycle.
+
+The invitation's initial participant list is governed by `HTML_EVENT_VISIBLE_PARTICIPANTS` in the same [constants module](../../apps/api/src/core/constants.py). [event_presentation.py](../../apps/api/src/domains/agents/display/components/event_presentation.py) keeps each supplied identity/email and known response, with an exact local remainder disclosure. A missing or pending RSVP is not acceptance. Calendar event status and the reader's own response remain separate facts. A lamp's decorative scene likewise distinguishes explicit on/off from unknown; the existing brightness meter remains read-only, including a zero reading.
+
+HITL proposals and execution results receive distinct visual treatment from the same [CardSpec and ResultSpec descriptions](../../apps/api/src/domains/agents/drafts/card_spec.py), drawn by [card_html.py](../../apps/api/src/domains/agents/drafts/card_html.py). Their confirmation sequence, targets, actions and plain-channel form are unchanged. MCP retains its initially closed result disclosure and application-authored identity above it; an explicit display-limit notice stays visible outside the fold. A receipt is a presentation of received data, not evidence that an action succeeded.
 
 ## Data fidelity and interaction policy
 
@@ -104,13 +171,13 @@ A missing measurement, zero and false are different states. A renderer does not 
 
 | Domain | Presentation and useful detail |
 |---|---|
-| Email | Complete body, parties, attachments and source link; authorized reply/forward/deletion composition where the source account can be verified |
+| Email | Complete body, parties, attachments, known mailbox states and native source navigation; authorized reply/forward/deletion composition where the source account can be verified |
 | Contacts | Received names and pronunciation, every organization with supplied civil employment dates/current state, phones, addresses, birthdays, notes and source links |
 | Calendars/events | Visible calendar alias and original name, access including restricted private details, received owner/location/notification preferences, known selection/hidden states, reminder methods, source-aware clocks, civil all-day dates, attendees, every supported conference join point and recurrence facts |
 | Tasks/reminders | Full notes, received subtasks and completion, explicit provider state, stored reminder recurrence and owner's source timezone |
 | Files | Full description, owners, permission roles/identities, supplied availability/sharing/version/download facts and supplied thumbnail previews |
 | Places | Received photos with attribution, keyboard/touch gallery and fullscreen, full reviews, service flags, opening periods and source timezone |
-| Routes | Whole journey, legs, steps, transit and supplied alternatives, tolls/waypoints and complete Maps destinations |
+| Routes | Departure and arrival clocks, whole journey, legs, steps, transit stop clocks and supplied alternatives, tolls/waypoints and complete Maps destinations; rejected malformed steps do not inflate displayed counts |
 | Weather | Received forecast slots, comparison controls, finite measurements, source condition icons and source time; attribution is preserved |
 | Research | Complete received extracts, article sections/categories, sources and citation ordinals tied to their original valid destinations |
 | Hue | Read-only state and brightness meter, valid supplied color temperature/device range and exact CIE coordinates |
@@ -132,13 +199,32 @@ code shares the fog family. Localized descriptions are a legacy fallback; unknow
 conditions keep a neutral default rather than inventing a sunny reading. This
 applies to current and individual forecast readings without changing their facts.
 
+Supplied air quality and pollen appear in the main weather reading below its place
+and date, without opening **See more**. The same block keeps provider categories,
+index names and every supplied pollen type intact; missing enrichment adds no empty
+row. Slot-specific readings stay attached to their own slot. Other extended weather
+measurements remain available in the disclosure.
+
 Generated documents use a small read-only preview through the attachment owner/status/expiry checks. PDF previews contain the first page and can expand in the shared keyboard-accessible lightbox. CSV shows a bounded table excerpt and Excel the opening rows of its first sheet; text and Markdown show literal source text; Word shows opening paragraphs and PowerPoint its cover slide. Excerpts are explicitly named as such, and the original opening/download actions remain available. Preview errors never remove those actions.
 
 The preview service reads only known generated formats, confines disk paths to the storage root, limits source/output/XML/archive sizes, caps parser concurrency and applies the existing per-user HTTP limiter. Text reads begin near the viewport and abort on unmount or timeout. Office XML uses the existing protected parser without evaluating formulas or external entities. MuPDF runs in a separate process with a hard timeout and resource bounds because [PyMuPDF does not support threaded use](https://pymupdf.readthedocs.io/en/latest/recipes-multiprocessing.html). Preview responses are private and not cached; preview bytes never enter model history, registries or prompts. No model or paid provider call is introduced.
 
 Preview reads follow the original document's access even when uploads are disabled, including the demonstrator. They do not enable uploads or document generation. Credentialed text reads use the shared API client and its error/cancellation rules; only the truncation boolean is exposed across origins. A late thumbnail failure keeps an open PDF lightbox and preserves focus on its retry control when the reader closes it.
 
+### Interactive address map on a LOCATION card
+
+A LOCATION card can enhance its existing static map with one interactive marker for its received address. It remains distinct from the aggregate Position card for selected Places: it creates no PLACE registry record and offers no route computation. [location_map.py](../../apps/api/src/domains/agents/display/components/location_map.py) writes a bounded typed display projection only for finite, in-range coordinates, including valid zero coordinates. Missing or malformed coordinates retain the existing static/text fallback; neither geocoding nor a new location read fills them.
+
+The browser validates that projection again in [location-map-data.ts](../../apps/web/src/lib/location-map-data.ts). [markdown-location-map.tsx](../../apps/web/src/components/chat/markdown-location-map.tsx) preserves the static fallback and requires explicit activation with the estimated cost before loading the interactive map. It uses [usePaidMap](../../apps/web/src/hooks/usePaidMap.ts) and the existing [Google place-map controller](../../apps/web/src/lib/google-place-map.ts) for authenticated admission, map ownership, reporting and cleanup; it does not create a parallel billing or SDK path.
+
+Selecting the address marker opens only the supplied address, coordinates and source Maps link through the shared [MapDetailsPopup](../../apps/web/src/components/chat/map-details-popup.tsx). Its desktop anchored presentation and phone dialog share the same content and controller. No geocoding, Places lookup, GPS request or route call occurs when opening this address detail. Invalid archived projections and unavailable SDK/network paths keep the ordinary card readable; a report retry reuses its existing admission instead of constructing another map.
+
 ### Interactive route maps
+
+Static map and Street View previews reserve their initial image proportions
+while lazy-loading, including archived markup without dimension attributes.
+Decoded images retain their own intrinsic proportions. A refused image becomes
+a compact named notice without retrying or leaving an empty map-sized frame.
 
 The provider's exact polylines and original route identities travel only in the
 bounded `meta.display.route_map` projection, never in planner bindings or model

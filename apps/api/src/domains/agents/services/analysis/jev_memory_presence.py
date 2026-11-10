@@ -4,17 +4,17 @@ from time import perf_counter
 
 import structlog
 
-from src.core.constants import JEV_MEMORY_REFERENCE_MIN_CONFIDENCE
 from src.core.context import current_tracker
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.llm_config.jev_gates import gate_passes
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_with_jev
 from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
-    jev_decisions_total,
 )
 
 logger = structlog.get_logger(__name__)
@@ -25,7 +25,9 @@ def _presence_outcome(attempt: DecisionAttempt) -> str:
     if attempt.outcome != "success":
         return attempt.outcome
     answer = attempt.answer
-    if answer is None or answer.confidence < JEV_MEMORY_REFERENCE_MIN_CONFIDENCE:
+    if answer is None or not gate_passes(
+        attempt.thresholds, JevUsage.MEMORY_REFERENCE_PRESENCE, "absence", answer.confidence
+    ):
         return "uncertain"
     return {"absent": "no_references", "preserve": "references_preserved"}.get(
         answer.choice, "uncertain"
@@ -65,7 +67,7 @@ async def choose_no_memory_references(query: str) -> bool:
         outcome=outcome,
         target="memory_reference_extraction_skipped" if absent else "memory_reference_extraction",
     )
-    jev_decisions_total.labels(usage=JevUsage.MEMORY_REFERENCE_PRESENCE, outcome=outcome).inc()
+    count_jev_outcome(JevUsage.MEMORY_REFERENCE_PRESENCE, outcome)
     jev_decision_duration_seconds.labels(
         usage=JevUsage.MEMORY_REFERENCE_PRESENCE, outcome=outcome
     ).observe(perf_counter() - started)

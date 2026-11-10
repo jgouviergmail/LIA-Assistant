@@ -15,7 +15,7 @@
 
 import { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

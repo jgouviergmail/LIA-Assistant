@@ -1,9 +1,16 @@
-"""One bounded directory read, exact sender aggregates, fresh publication."""
+"""One bounded directory read, exact sender aggregates, fresh publication.
+
+A person's texts are read by their NAME for Relations, and by their NUMBERS for the contacts tool's
+« Latest exchanges » (2026-11-07, ``texts_from_lines``): a digest keys one spelling, so the senders
+are read newest first under the directory's bound and matched by ``sent_from_lines``, the rule the
+SMS page names a sender with. A bound that hid older senders is said.
+"""
 
 import asyncio
 import hashlib
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import perf_counter
 from uuid import UUID
@@ -17,7 +24,7 @@ from src.domains.shared.aggregates import NameActivity
 from src.domains.shared.relation_sms import PersonalSms, RelationSmsPage, RelationSmsProof
 from src.domains.sms.content import read_sms_content
 from src.domains.sms.facade import resolved_view
-from src.domains.sms.identity import IdentityBook, SenderIdentity
+from src.domains.sms.identity import IdentityBook, SenderIdentity, sent_from_lines
 from src.domains.sms.identity_resolution import resolve_senders
 from src.domains.sms.identity_store import ResolutionScope, validate_resolutions
 from src.domains.sms.models import SmsMessage
@@ -170,3 +177,93 @@ class SmsRelationReader:
     ) -> None:
         if revision != proof.revision or await source_stamp(db, owner) != proof.stamp:
             raise ResourceConflictError("sms", detail={"error_code": "STALE_STATE"})
+
+
+@dataclass(frozen=True, slots=True)
+class LineText:
+    """A text a person's number sent, as a list of exchanges shows it: never who sent it."""
+
+    id: UUID
+    at: datetime
+    body: str
+
+
+@dataclass(frozen=True, slots=True)
+class LineTexts:
+    """The latest texts a person's numbers sent, and whether the bound hid older senders."""
+
+    texts: list[LineText]
+    cut: bool
+
+
+async def texts_from_lines(
+    db: AsyncSession, owner: UUID, numbers: Sequence[str], *, limit: int
+) -> LineTexts | None:
+    """The latest texts any of these numbers sent the person.
+
+    Args:
+        db: A session the caller owns; nothing here waits on the network.
+        owner: The account.
+        numbers: The person's numbers, written however they were saved.
+        limit: How many texts the list holds.
+
+    Returns:
+        The texts, newest first, with ``cut`` when the archive holds more senders than the
+        directory's bound reads; None when it holds no text at all.
+
+    Raises:
+        AuthorizationError: SMS are switched off (``CAPABILITY_DISABLED``), as the SMS page
+            refuses them.
+        ResourceConflictError: The senders could not be read within their time budget.
+        ExternalServiceError: A stored text cannot be read.
+    """
+    await require_read(db, owner)
+    await db.execute(
+        select(func.set_config("statement_timeout", str(settings.sms_search_timeout_ms), True))
+    )
+    bound = settings.sms_directory_max_contacts
+    senders = (
+        await db.execute(
+            select(SmsMessage.sender_hash, func.min(SmsMessage.sender_encrypted))
+            .where(SmsMessage.user_id == owner)
+            .group_by(SmsMessage.sender_hash)
+            .order_by(func.max(SmsMessage.received_at).desc(), SmsMessage.sender_hash)
+            .limit(bound + 1)
+        )
+    ).all()
+    if not senders:
+        return None
+    hashes = await _on_lines([(row[0], row[1]) for row in senders[:bound]], numbers)
+    rows = (
+        list(
+            (
+                await db.scalars(
+                    select(SmsMessage)
+                    .where(SmsMessage.user_id == owner, SmsMessage.sender_hash.in_(hashes))
+                    .order_by(SmsMessage.received_at.desc(), SmsMessage.id.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+        if hashes
+        else []
+    )
+    texts = [
+        LineText(id=row.id, at=row.received_at, body=read_sms_content(row.body_encrypted))
+        for row in rows
+    ]
+    return LineTexts(texts=texts, cut=len(senders) > bound)
+
+
+async def _on_lines(senders: list[tuple[str, str]], numbers: Sequence[str]) -> list[str]:
+    """The digests of the senders written on one of the lines, within the identity budget."""
+    deadline = perf_counter() + settings.sms_identity_timeout_seconds
+    found = []
+    for index, (digest, encrypted) in enumerate(senders):
+        if perf_counter() > deadline:
+            raise ResourceConflictError("sms", detail={"error_code": "QUERY_TOO_BROAD"})
+        if index % 16 == 0:
+            await asyncio.sleep(0)
+        if sent_from_lines(read_sms_content(encrypted), numbers):
+            found.append(digest)
+    return found

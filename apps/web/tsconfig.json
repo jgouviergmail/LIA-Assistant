@@ -53,17 +53,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-e2e/types/**/*.ts",
-    ".next-e2e/dev/types/**/*.ts",
-    ".next-e2e-diag/types/**/*.ts",
-    ".next-e2e-diag/dev/types/**/*.ts",
-    ".next-e2e-simli-fix/types/**/*.ts",
-    ".next-e2e-simli-fix/dev/types/**/*.ts",
-    ".next-x4-e2e/types/**/*.ts",
-    ".next-x4-e2e/dev/types/**/*.ts",
-    ".next-x4-linux/types/**/*.ts",
-    ".next-x4-linux/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

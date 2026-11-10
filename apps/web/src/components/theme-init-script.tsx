@@ -9,6 +9,7 @@ import {
 } from '@/constants/fonts';
 import { COLOR_THEMES, COLOR_THEME_STORAGE_KEY, DEFAULT_COLOR_THEME } from '@/lib/color-themes';
 import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
+import { automaticThemeAt, THEME_SCHEDULE_STORAGE_KEY } from '@/lib/theme-schedule';
 
 /**
  * Applies `data-oled`, `data-theme`, `data-font` and the text size to `<html>`
@@ -25,10 +26,9 @@ import { OLED_STORAGE_KEY } from '@/lib/theme-mode';
  * for the same reason.
  *
  * `.dark` itself is NOT set here: `next-themes` owns it and ships its own
- * blocking script. Duplicating that decision would mean two implementations of
- * "is it dark", free to disagree. The consequence is bounded — at worst one
- * frame of ordinary dark before OLED lands, never a light flash — because the
- * OLED selector requires `.dark` anyway.
+ * blocking script. For automatic mode, the shared civil-time resolver updates
+ * the rendered storage value before that script reads it. The preference intent
+ * stays in its own cache; the runtime uses the very same resolver.
  *
  * The CSP allows this: `script-src` carries `'unsafe-inline'` (see `csp.ts`,
  * static headers leave no room for a per-request nonce). The whole body is
@@ -43,6 +43,11 @@ export function ThemeInitScript() {
     FONT_SIZE_STEPS.map(px => [String(px), String(fontSizeScale(px))])
   );
   const script = `(function(){try{var d=document.documentElement;
+try{var a=JSON.parse(localStorage.getItem(${JSON.stringify(THEME_SCHEDULE_STORAGE_KEY)})||'null');
+if(a&&typeof a.ownerId==='string'&&typeof a.timezone==='string'){
+var r=(${automaticThemeAt.toString()})(Date.now(),a.timezone,a.lightStartMinute,a.darkStartMinute);
+localStorage.setItem('theme',r.mode);localStorage.setItem(${JSON.stringify(OLED_STORAGE_KEY)},r.oled?'1':'0');
+}}catch(e){}
 if(localStorage.getItem(${JSON.stringify(OLED_STORAGE_KEY)})==='1')d.setAttribute('data-oled','');
 var c=localStorage.getItem(${JSON.stringify(COLOR_THEME_STORAGE_KEY)});
 if(${JSON.stringify(accents)}.indexOf(c)>=0)d.setAttribute('data-theme',c);

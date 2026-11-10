@@ -13,13 +13,16 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import userEvent from '@testing-library/user-event';
 
 const { useActivityTimeline } = vi.hoisted(() => ({ useActivityTimeline: vi.fn() }));
 vi.mock('@/hooks/useActivityTimeline', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useActivityTimeline')>()),
   useActivityTimeline,
+}));
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'owner', timezone: 'Pacific/Auckland' } }),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -45,7 +48,9 @@ function event(over: Partial<ActivityEvent> = {}): ActivityEvent {
   };
 }
 
-function hookState(over: Record<string, unknown> = {}) {
+function hookState(
+  over: Partial<ReturnType<typeof import('@/hooks/useActivityTimeline').useActivityTimeline>> = {}
+) {
   useActivityTimeline.mockReturnValue({
     events: [],
     totals: [],
@@ -66,6 +71,52 @@ beforeEach(() => {
 });
 
 describe('ActivityTimeline', () => {
+  it('filters without replacing the current rubrics and clears a no-match query', async () => {
+    hookState();
+    const { user } = renderWithProviders(<ActivityTimeline lng="fr" />);
+    await user.type(screen.getByRole('searchbox', { name: 'activity.filter.search' }), 'Été');
+    await waitFor(() =>
+      expect(useActivityTimeline).toHaveBeenLastCalledWith({ q: 'Été', kind: '', sort: 'recent' })
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'activity.filter.category' }),
+      'journal_entry'
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'activity.filter.sort' }),
+      'oldest'
+    );
+    expect(useActivityTimeline).toHaveBeenLastCalledWith({
+      q: 'Été',
+      kind: 'journal_entry',
+      sort: 'oldest',
+    });
+    expect(screen.queryByRole('link', { name: 'activity.empty_action' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'activity.filter.clear' }));
+    await waitFor(() =>
+      expect(useActivityTimeline).toHaveBeenLastCalledWith({ q: '', kind: '', sort: 'recent' })
+    );
+  });
+
+  it('groups and formats dates in the account timezone, including a year boundary', () => {
+    hookState({
+      events: [
+        event({ occurred_at: '2026-12-31T11:30:00Z', text: 'new-year' }),
+        event({ occurred_at: '2026-12-31T09:30:00Z', text: 'previous-day' }),
+      ],
+    });
+    renderWithProviders(<ActivityTimeline lng="fr" />);
+    expect(screen.getAllByRole('list')).toHaveLength(2);
+    expect(screen.getByText('00:30')).toBeInTheDocument();
+    expect(screen.getByText(/janvier 2027/)).toBeInTheDocument();
+  });
+
+  it('states a failed refresh while retaining the last successful feed', () => {
+    hookState({ events: [event({ text: 'kept' })], error: new Error('offline') });
+    renderWithProviders(<ActivityTimeline lng="fr" />);
+    expect(screen.getByText('kept')).toBeInTheDocument();
+    expect(screen.getByText('activity.refresh_error')).toBeInTheDocument();
+  });
   it('shows the skeleton geometry on first load, without the list', () => {
     hookState({ events: undefined, firstLoad: true, loading: true });
 
@@ -90,9 +141,13 @@ describe('ActivityTimeline', () => {
 
     renderWithProviders(<ActivityTimeline lng="fr" />);
 
-    expect(screen.getByText('activity.rows.heartbeat_notification')).toBeInTheDocument();
+    expect(
+      screen.getByText('activity.rows.heartbeat_notification', { selector: 'span' })
+    ).toBeInTheDocument();
     expect(screen.getByText('Il pleut demain')).toBeInTheDocument();
-    expect(screen.getByText('activity.rows.open_loop_closed')).toBeInTheDocument();
+    expect(
+      screen.getByText('activity.rows.open_loop_closed', { selector: 'span' })
+    ).toBeInTheDocument();
     // Two different local days → two day group headings.
     expect(screen.getAllByRole('list')).toHaveLength(2);
   });

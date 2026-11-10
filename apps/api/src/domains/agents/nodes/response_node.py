@@ -92,7 +92,6 @@ from src.domains.agents.display.binding_filter import strip_card_bindings
 from src.domains.agents.display.card_actions import with_card_actions
 
 # V3 Display Architecture imports
-from src.domains.agents.display.collection_preview import CollectionPreview
 from src.domains.agents.display.config import config_for_viewport
 
 # ResponseFormatter removed - pure HTML mode only
@@ -127,6 +126,7 @@ from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
 )
 from src.domains.agents.nodes.response_skill_runner import run_and_settle
+from src.domains.agents.nodes.turn_proposal import resolve_turn_proposal
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.orchestration.tool_data_projection import (
     merge_react_synthesis_result,
@@ -2899,8 +2899,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
     """
     state = await guard_sms_state(state)
     run_id = run_id_of(config, "unknown")
-    collection_preview = CollectionPreview()
-    document_preview = CollectionPreview()
 
     logger.info(
         "response_node_started",
@@ -2940,7 +2938,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             override_action,
             personality_instruction,
         ) = _prepare_turn_registry(state, run_id, agent_results_raw)
-        collection_preview.start(state, current_turn_registry, run_id)
         # Registry items produced by the skill ReAct sub-agent (persisted via the
         # merge_registry reducer in state_update, not by in-place mutation — F5).
         skill_registry_updates: dict[str, Any] | None = None
@@ -2977,7 +2974,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         psychological_profile = context_bundle.psychological_profile
         rag_context = context_bundle.rag_context
-        document_preview.start(state, context_bundle.rag_preview_items, run_id)
         app_knowledge_context = context_bundle.app_knowledge_context
         if context_bundle.system_rag_deferred:
             # Latency lot R2: the router-entry prefetch could not evaluate the
@@ -3454,11 +3450,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             previous_journal_injected_revisions=previous_journal_injected_revisions,
             psyche_appraisal=psyche_appraisal,
         )
+        # ADR-375: at most one habit proposal under the answer, chosen by code.
+        await resolve_turn_proposal(state, run_id)
 
         # Return updated messages (will be merged by add_messages_with_truncate reducer)
         return state_update
 
     except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
         return _response_error_fallback(state, run_id, e)
-    finally:
-        await asyncio.gather(collection_preview.close(), document_preview.close())

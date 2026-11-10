@@ -4,7 +4,6 @@ import { enterWorld } from '../fixtures/world-admission';
 /** Native admission and rendering; no socket/API mocks or provider calls. */
 import { test, expect } from './fixtures';
 import fr from '../../locales/fr/translation.json';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 
 test('mobile HUD unfolds, joystick releases and private panels retain the same scene cadence', async ({
   browser,
@@ -59,7 +58,6 @@ test('mobile HUD unfolds, joystick releases and private panels retain the same s
   page.on('pageerror', error => errors.push(error.message));
   try {
     await signIn(context, baseURL, 1);
-    await installOfflineFonts(page);
     await page.goto(worldProofUrl(baseURL, 'fr').href);
     await enterWorld(page);
     const scene = page.locator('.world-prototype');

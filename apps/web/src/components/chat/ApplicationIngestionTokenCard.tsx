@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Key } from 'lucide-react';
+import { Copy, Key } from '@/lib/icons';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -161,6 +161,7 @@ export function ApplicationIngestionTokenCard({ status, checkResult, readError }
           <div className="flex min-w-0 gap-2">
             <Input
               ref={secretInput}
+              data-selection-assist="off"
               id={inputId}
               value={secret}
               readOnly

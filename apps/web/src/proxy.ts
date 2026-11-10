@@ -1,7 +1,12 @@
 /**
  * Next.js middleware for i18n routing
  *
- * Language detection priority:
+ * Public content URLs declare their language: unprefixed URLs are French,
+ * regardless of cookies or browser preferences. Reading any route never changes
+ * the saved preference. An actual application mount synchronizes its language
+ * separately, so speculative route fetches cannot change it.
+ *
+ * Application and authentication language detection priority:
  * 1. URL path (e.g., /fr/dashboard)
  * 2. Cookie (NEXT_LOCALE) - User's explicit choice, takes absolute priority
  * 3. Accept-Language header - Only used on first visit before user selects
@@ -13,8 +18,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { i18nRouter } from 'next-i18n-router';
-import { languages, fallbackLng, cookieName } from './i18n/settings';
+import { languages, fallbackLng, cookieName, isLanguage } from './i18n/settings';
 import type { Language } from './i18n/settings';
+import { isPublicContentPath } from './lib/public-pages';
 
 /** Type for i18n router config passed to localeDetector */
 interface I18nConfig {
@@ -26,7 +32,7 @@ interface I18nConfig {
  * Check if a value is a valid supported language
  */
 function isValidLanguage(value: string | undefined): value is Language {
-  return value !== undefined && languages.includes(value as Language);
+  return value !== undefined && isLanguage(value);
 }
 
 /**
@@ -108,25 +114,36 @@ const i18nConfig = {
   defaultLocale: fallbackLng,
   prefixDefault: false,
   localeDetector,
+  // Reading a route, including a Link prefetch, must not save a preference.
+  // With serverSetCookie alone set to 'never', the router redirects an explicit
+  // URL to its cookie locale. Disable that automatic read too: localeDetector
+  // still reads the request cookie when an unprefixed application URL negotiates.
+  localeCookie: '',
+  serverSetCookie: 'never' as const,
+};
+
+const publicI18nConfig = {
+  ...i18nConfig,
+  // Editorial URLs never negotiate, including on a real navigation.
+  localeDetector: false as const,
 };
 
 export function proxy(request: NextRequest) {
-  const response = i18nRouter(request, i18nConfig);
+  const isPublicContent = isPublicContentPath(request.nextUrl.pathname);
+  const applicationConfig = {
+    ...i18nConfig,
+    // An explicit /fr application URL must stay French. Removing its prefix
+    // would make the next unprefixed request negotiate a conflicting cookie.
+    // Unprefixed application URLs retain their usual language negotiation.
+    prefixDefault: request.nextUrl.pathname.split('/')[1] === fallbackLng,
+  };
+  const response = i18nRouter(request, isPublicContent ? publicI18nConfig : applicationConfig);
 
-  // Force 301 (permanent) instead of 307 (temporary) for SEO.
-  // next-i18n-router uses NextResponse.redirect() without status,
-  // which defaults to 307. Google does not consolidate ranking signals
-  // with temporary redirects, causing "duplicate without canonical" issues.
-  if (response.status === 307) {
-    const location = response.headers.get('location');
-    if (location) {
-      const permanentResponse = NextResponse.redirect(new URL(location, request.url), 301);
-      // Preserve cookies set by i18nRouter
-      for (const cookie of response.cookies.getAll()) {
-        permanentResponse.cookies.set(cookie);
-      }
-      return permanentResponse;
-    }
+  // With negotiation off, the public router redirects only to remove /fr.
+  // That URL normalization is permanent; preference-dependent redirects in
+  // the application remain temporary. Preserve the router's locale headers.
+  if (isPublicContent && response.status === 307) {
+    return new NextResponse(response.body, { status: 301, headers: response.headers });
   }
 
   return response;

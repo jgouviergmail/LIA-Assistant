@@ -129,13 +129,19 @@ class TestTheFiveSourcesThatWereNeverAvailable:
             available = await compute_available_sources(_user(), MagicMock())
         assert not {"workboard", "open_loops"} & set(available)
 
-    async def test_birthdays_needs_the_contacts_connector(self) -> None:
+    @pytest.mark.parametrize(
+        "provider", ["GOOGLE_CONTACTS", "APPLE_CONTACTS", "MICROSOFT_CONTACTS"]
+    )
+    async def test_birthdays_needs_the_contacts_connector_whichever_provider(
+        self, provider: str
+    ) -> None:
+        """The birthdays are read from the ACTIVE contacts provider, whichever it is."""
         from src.domains.connectors.models import ConnectorType
 
         repo = MagicMock()
 
         async def _get(user_id: Any, ct: Any) -> Any:
-            if ct == ConnectorType.GOOGLE_CONTACTS:
+            if ct == ConnectorType[provider]:
                 return SimpleNamespace(status=SimpleNamespace(value="active"))
             return None
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, CalendarClock, CheckCircle2, Database } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, Database } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Disclosure } from '@/components/ui/disclosure';

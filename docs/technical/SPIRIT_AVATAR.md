@@ -89,7 +89,8 @@ response emphasis, emotes and accessories. The hybrid explicitly composes a
 real native skin; it has no dummy geometry in the native pose tables.
 The rig remains the single facial motion owner and suspends its shared frame
 subscription outside the viewport or hidden document. Reduced motion snaps to
-the current pose. Preview cards use the local `motionEnabled` gate, then wake
+the current facial pose and retains the original limb pose. Preview cards use
+the local `motionEnabled` gate, then wake
 only on hover or keyboard focus; `life=false` alone would still permit breathing.
 New device preferences select `bip` at the largest preset; existing saved
 styles and sizes are preserved. The public landing explicitly presents the
@@ -159,7 +160,7 @@ sculpts have broader shoulders, a stockier body and a lower crest. The
 shared facial anchors retain the same native reactions in both variants.
 
 The original ocular layers and native facial rig are shared. Eye style cards
-show both genders for every hybrid character and Smiley; the chosen assistant gender
+show both genders for every hybrid character; the chosen assistant gender
 still selects the floating companion's variant. Hover/focus alone wakes the
 card previews. Selecting a new character retains the existing size, visibility
 and position preferences and introduces no clip decoding or motion clock.
@@ -194,70 +195,21 @@ the eye graphics and mouth; eyebrows remain in a separate layer. The monitor
 retains the same native rig, with a decorative phosphor display paused by the
 rig's viewport/document visibility marker, local preview gate and reduced motion.
 
-## Original golden Smiley
+## Shared facial anatomy and catalogue preferences
 
-The `smiley` style retains original offline ocular sculpts authored in
-[`render_smiley_avatar.py`](../../scripts/assets/render_smiley_avatar.py).
-The fallback body and ocular textures live at
-`/avatars/smiley/v1/{body|eye|iris|sclera-mask|bow}.webp`; their dimensions, measured
-bytes and hashes are recorded in the shipped manifest. These are transparent
-stills, with no clip playback or runtime Blender dependency.
-
-The live body is an analytic sphere, rendered by a small native WebGL port
-through [SmileySphere](../../apps/web/src/components/eyes/smiley/SmileySphere.tsx).
-Its [shader](../../apps/web/src/components/eyes/smiley/sphere-shaders.ts) intersects
-orthographic rays with a sphere and derives lighting from the resulting surface
-normal. Yaw and pitch turn its material and facial anchors without compressing
-the silhouette into a rotated disc. There is no 3D engine dependency, scene
-asset download or second animation clock.
-
-The [surface writer](../../apps/web/src/components/eyes/smiley/sphere-writer.ts)
-projects each eye, its eyebrow anchor and the mouth onto the same spherical
-surface, retaining their native continuous contours and independent pupil
-motion. The [geometry](../../apps/web/src/components/eyes/smiley/sphere-geometry.ts)
-owns the bounded buffer resolution; useful changes alone request a GPU draw.
-The [binding](../../apps/web/src/components/eyes/smiley/sphere-binding.ts) releases
-GPU resources and listeners on canvas replacement/unmount and uses the original
-round still when WebGL is unavailable or its context is lost. Browser context
-restoration repaints the latest native pose, without an allocation retry timer.
-A calibrated circular material remains underneath both renderers, so image
-decoding, canvas initialization or context changes cannot leave floating facial
-organs without their body.
-
-The feminine variant adds softly rosy cheeks in the spherical material,
-long upper [lashes](../../apps/web/src/components/eyes/smiley/SmileyLashes.tsx)
-following the [original upper eye rim](../../apps/web/src/components/eyes/smiley/lash-geometry.ts)
-and native lids, plus a small pink ribbon centered on the crown of the globe.
-The masculine variant retains the same ocular artwork without those additions.
-Changing the selected gender wakes the existing rig to update its appearance;
-it does not create a second motion subscription.
-
-[`ExpressiveEyes`](../../apps/web/src/components/eyes/ExpressiveEyes.tsx) places
-the two actual eye graphics and mouth inside the sphere's stationary circular
-boundary. Sculpted eyebrows remain in a sibling layer, so closing the lids or
-moving the jaw does not clip them. A separate stationary sclera mask contains
-the moving iris. The common native head carries the body and facial layers
-through tilt and breathing; yaw/pitch use their actual surface projection.
-The boundary clips the face to the globe while preserving the far-side eye.
-
-The existing rig still owns expressions, gaze, blink tapes, mouth, gestures,
-life and accessory signals. The same viewport/document, preview and reduced
-motion gates apply. The `smiley` style remains selectable and compatible with
-stored preferences. Delivery budgets are owned by the offline
-source and the real-file [asset guard](../../apps/web/src/components/eyes/__tests__/smiley-asset.test.ts);
-[Smiley face tests](../../apps/web/src/components/eyes/__tests__/SmileyCompanion.test.tsx)
-exercise the actual masked DOM and native channel parity.
-
-Smiley's [mouth contours](../../apps/web/src/components/eyes/rig/sculpted-mouth.ts)
+The companion [mouth contours](../../apps/web/src/components/eyes/rig/sculpted-mouth.ts)
 project the native signed smile and jaw channels into a continuous cavity,
 curved teeth and tongue. The current cavity clips the inner anatomy, then the
-body mask contains the complete face. The hybrid characters reuse this anatomy
-while Bip and the monitor skins retain their digital mouth projection. The sculpted eye artwork keeps
-its proportions; expression lids and blinks cover it through the same native rig.
+body mask contains the complete face. BIP and the monitor skins retain their
+digital mouth projection. The sculpted eye artwork keeps its proportions;
+expression lids and blinks cover it through the same native rig.
 
-The [rest-mouth projection](../../apps/web/src/components/eyes/smiley/rest-mouth.ts)
-keeps a compact, slightly open resting smile in both variants. Smiling and speech retain
-their full expressive width, including closed pauses between spoken words.
+Smiley was retired at the owner's request. It is no longer offered or rendered.
+Previously stored selections resolve through the validated style-preference
+reader to the current default without resetting size, position or visibility.
+Its dedicated sphere implementation and assets are removed; shared facial
+anatomy remains available to the companions. Chat mood emoji are a separate
+surface and are unchanged.
 
 The existing [`useEyesBehavior`](../../apps/web/src/components/eyes/useEyesBehavior.ts)
 selects the companion's expression and reactions. Its `speaking` state comes
@@ -275,8 +227,8 @@ Display geometry is owned by
 [`eyes.css`](../../apps/web/src/styles/eyes.css) and the
 [size presets](../../apps/web/src/stores/eyesWidgetStore.ts). Frozen message
 portraits use the same native geometry in their compact frame; companion
-presets share the renderer at their own display size. The Smiley drawing
-buffer remains independently bounded by its geometry module. Download size,
+presets share the renderer at their own display size. The drawing buffer
+remains independently bounded by its geometry module. Download size,
 decoded memory and real-device smoothness must be measured on the actual delivery.
 
 ## Native anatomical volume and layout
@@ -301,6 +253,36 @@ behind the relief. This preserves fine hair and silhouette details that the
 physical mesh approximates. Side materials are identified at their vertices;
 interpolating front and back normals cannot create an opaque fringe.
 
+The existing rig also articulates the drawn appendages through
+[`limb acting`](../../apps/web/src/components/eyes/rig/limbs.ts) and
+source-specific [joint profiles](../../apps/web/src/components/eyes/volume/limb-profiles.ts).
+Spirit and Nimbo use their lateral appendages; Mousse and Lumo use arms and
+feet; BIP, Boulon and Oscar use arms, wrists, legs and feet. Orbit's ring stays
+rigid, and the monitor and eye-only styles gain no limbs. Both variants
+retain their own anatomical profiles and the same native motion owner.
+
+Quiet settling, occasional facial-life beats, attentive opening, one-sided
+thoughts and phrase-aligned speech gestures use the existing springs and clock.
+Body scenes share authored preparation, action and recovery phases across body,
+face and joints; wrists trail the gesture and the material bounds deformation.
+Registered support points ground stage scale/roll before viewport containment;
+interruptions release continuously. Quiet arms follow breathing, while planted
+feet remain still between purposeful stance changes.
+The current repertoire retires full spins, somersaults and the repetitive jig.
+Breathing and purposeful reactions remain, with a single jump and landing,
+an upright floating hold, and a readable bow. Random head rocking and eye
+hops are absent; acknowledgement and thoughtful inclination are explicit
+conversation cues. The [finishing specification](../superpowers/specs/2026-11-08-avatar-finishing.md)
+and its linked implementation plan describe this bounded refinement.
+The physical surface and fine alpha fringe share prepared source-space weights,
+and the shader transforms normals with the deformation's spatial Jacobian.
+This preserves the original textures without inventing fingers or texture detail.
+Turned surfaces receive a bounded material-specific light response while the
+neutral artwork stays unchanged. Cold scarves keep the fitted band and upper
+knot attached; only their free end trails real lateral movement and settles
+at rest. The [native volume guide](NATIVE_AVATAR_VOLUME.md#local-limb-articulation)
+owns the rendering contracts and links their behavioral and anatomical tests.
+
 The existing rig's writer drives
 [`volume-writer`](../../apps/web/src/components/eyes/volume/volume-writer.ts)
 with the same head and facial channels. Eyes, eyebrows and mouth retain their
@@ -309,8 +291,8 @@ its complete screen and separate brow layer together, retaining the rounded
 screen clip. The live hybrid face clip follows the projected body contour;
 its stationary iris masks still contain independent pupil travel.
 [`physical-prop-writer`](../../apps/web/src/components/eyes/volume/physical-prop-writer.ts)
-projects the worn freezing laurel and temple/eye drops on the same surface,
-including Smiley's analytic sphere. Floating environmental motifs retain their
+projects the worn freezing laurel and temple/eye drops on the same surface.
+Floating environmental motifs retain their
 own stage anchors. Layout landmarks calibrate each character and variant.
 
 [`volume-binding`](../../apps/web/src/components/eyes/volume/volume-binding.ts)
@@ -322,12 +304,26 @@ retain that fallback. Unmounting or replacing size/identity releases the old
 graphics resources. Layout-time binding resets readiness before a replacement
 canvas can suppress its fallback. The framing and independently bounded drawing
 buffer are owned by the renderer sources, not the displayed size preference.
+Joint angles participate in redraw invalidation, so independent limb motion
+reaches the GPU even when head pose and lighting stay unchanged. The same
+visibility, reduced-motion and context-loss gates stop that drawing work.
 
 [`layout-profiles`](../../apps/web/src/components/eyes/layout-profiles.ts)
 publishes static landmarks for each complete avatar and gender. Crown and face
 landmarks position emotes and contextual props; the eye span follows the skin's
 actual width and spacing. Neck position and scarf width come from the same
 collar geometry used by the live surface, avoiding separate fallback measurements.
+The shared scarf fit independently maps band thickness and tail length, including
+the CSS material used when graphics are unavailable. BIP, Oscar and Nimbo have
+closed collars with lateral returns; prepared facets feed the GPU and fallback.
+Their band follows the body while the free knot/end sways on the existing clock.
+The fallback composites each projected front/rear group before applying the
+weather fade, preserving continuous textile edges. Its two stages sit beside the
+head, with explicit rear/head/front order and the same head origin and motion;
+each facet composes its source basis and head projection before the opacity
+boundary, retaining source depth across browser compositors. When cold cloth is loading
+or unavailable, the whole avatar keeps that coherent fallback until all required
+live layers are ready; warming can immediately reuse its prepared live body.
 Bare `ExpressiveEyes` consumers retain their existing layout and screen tokens.
 These landmarks add no state subscription or frame work.
 
@@ -343,16 +339,16 @@ checks exact inventory, dimensions, WebP alpha declarations, hashes and delivery
 budgets against the actual files, including the wider scarf canvas.
 
 The current cold scarf has its own versioned delivery under
-`/avatars/scarf/v1/`. Its transparent `front.webp` supplies both the curved
-native cloth patch and the front-band fallback. `knit.webp` remains an offline
+`/avatars/scarf/v1/`. Its transparent `front.webp` supplies the native garments
+and their fitted fallback. `knit.webp` remains an offline
 authoring material; the live surface does not request it. The old context pack
 remains immutable.
 [`cloth-geometry`](../../apps/web/src/components/eyes/volume/cloth-geometry.ts)
-places the authored band, knot and hanging end over the character's calibrated
-neck, following its surface depth and head pose in the same graphics context.
-This front patch is painted ahead of the body so differing mesh subdivisions
-cannot cut holes into the cloth. Smiley shares its analytic sphere context on
-depth-capable drivers; without that capability the front-band fallback remains. The
+places the band, knot and hanging end at the character's calibrated attachment,
+following its head pose in the same graphics context. Closed collars on BIP,
+Oscar and Nimbo pass behind the body; other front patches are composited ahead
+of its coarse subdivisions. Without usable graphics the shared fitted fallback
+remains. The
 [scarf guard](../../apps/web/src/components/eyes/__tests__/scarf-assets.test.ts)
 checks both actual textures, manifest hashes, alpha declarations and pack budget.
 
@@ -363,8 +359,8 @@ edge slots `a`, `b` and `c` under a single native fall wrapper; the face centre
 remains free. Fan, sweat and snow motion use the existing ambient channels,
 not timers or a second frame loop. These slots are decorative, ignore pointer
 input and are omitted when `life=false`, including historical portraits.
-The cold front band uses the calibrated neck and width tokens until the native
-cloth surface is ready; the live material is not a second canvas or clock.
+The cold fallback uses the calibrated garment declaration until all required
+live layers are ready; the live material is not a second canvas or clock.
 
 The props consume the existing
 [`companion environment`](../../apps/web/src/components/eyes/useCompanionEnvironment.ts)
@@ -414,7 +410,7 @@ Context props follow the same reviewed-image and offline WebP delivery principle
 their manifest and guard own the non-square canvas and per-prop dimensions.
 
 The procedural sources below remain available for the original Spirit ocular
-layers and legacy portrait clips, Smiley and the monitor.
+layers, legacy portrait clips and the monitor.
 Use an existing portable Blender executable; these commands do not install one.
 Run from the repository root. Begin with one bounded expression before omitting
 `--expressions` to render the complete vocabulary:
@@ -450,21 +446,6 @@ actual asset sizes. Source/behavior tests establish motion, fallback and
 preference contracts, not visual fidelity or real-device performance.
 Documentation checks use the Git index: use `task lint:docs:preview` while new
 files are unstaged.
-
-Regenerate Smiley into a temporary authoring directory, then copy only the
-delivery files. The renderer also writes intermediate PNGs, which stay outside
-the public application directory:
-
-```powershell
-& $blenderExe --background --factory-startup --threads 2 --python scripts/assets/render_smiley_avatar.py -- --output .tmp/smiley-avatar/layers --samples 64
-New-Item -ItemType Directory -Force apps/web/public/avatars/smiley/v1
-Copy-Item .tmp/smiley-avatar/layers/*.webp apps/web/public/avatars/smiley/v1/
-Copy-Item .tmp/smiley-avatar/layers/manifest.json apps/web/public/avatars/smiley/v1/
-```
-
-Review the golden material, alpha boundaries and ocular proportions before
-replacing cached delivery artwork. These checks do not establish a frame-rate
-or decoded-memory guarantee on user devices.
 
 Regenerate the original procedural Mousse and Lumo artwork into a temporary directory with their dedicated
 offline renderer. Its `--portraits` flag adds neutral PNG art references for

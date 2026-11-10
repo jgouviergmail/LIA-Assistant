@@ -433,46 +433,21 @@ export function isDoubleBlink(rng: Rng): boolean {
 export const IDLE_GESTURE_MIN_DELAY_MS = 1900;
 export const IDLE_GESTURE_MAX_DELAY_MS = 5600;
 
-/** Rare slapstick beats — comedy, not physiology. Awake families only. */
-export type SillyGesture =
-  | 'swap' // the eyes trade places in a little circus arc, then trade back
-  | 'bump' // drift apart, rush together, CLACK with a squash, rebound
-  | 'spin' // quick 360° pirouette, right eye trailing
-  | 'jelly'; // wobbly jello shudder that settles
-
+/** Quiet spontaneous beats plus host-only conversational accents. */
 export type IdleGesture =
-  | 'saccade' // quick small gaze jump (dominant — real eyes never sit still)
-  | 'glance' // wide gaze excursion, held, then back to center
-  | 'slow-blink' // languid blink (drowsy signature)
-  | 'half-blink' // partial lid drop
-  | 'squint' // brief squint-and-release
-  | 'tilt' // small head-tilt wobble
-  | 'bounce' // happy little hop (lively signature)
-  | 'perk' // quick attention scale-flick
-  | 'brow' // asymmetric single-brow raise (awake families only)
-  | 'lip-press' // the lips pull in for a beat — a thought swallowed ("hm")
-  | 'corner-tug' // one corner of the mouth flickers, the brow above it agrees
-  | 'brow-twitch' // both brows lift and arch for a beat — something crossed the mind
-  | 'flicker' // a mini mood scene (ponder, interest, daydream — see IDLE_FLICKERS)
-  | SillyGesture;
-
-export const SILLY_GESTURES: readonly SillyGesture[] = ['swap', 'bump', 'spin', 'jelly'];
-
-/** Chance that an idle tick plays a slapstick beat instead of a normal one —
- * roughly one per minute of quiet idling. Rarity IS the joke. */
-export const SILLY_PROBABILITY = 0.06;
-
-/** Whether this idle tick goes slapstick. */
-export function isSillyTime(rng: Rng): boolean {
-  return rng() < SILLY_PROBABILITY;
-}
-
-/** Pick one slapstick beat, uniformly. */
-export function pickSillyGesture(rng: Rng): SillyGesture {
-  return SILLY_GESTURES[
-    Math.min(SILLY_GESTURES.length - 1, Math.floor(rng() * SILLY_GESTURES.length))
-  ];
-}
+  | 'saccade'
+  | 'glance'
+  | 'slow-blink'
+  | 'half-blink'
+  | 'squint'
+  | 'perk'
+  | 'brow'
+  | 'lip-press'
+  | 'corner-tug'
+  | 'brow-twitch'
+  | 'flicker'
+  | 'nod' // explicit acknowledgement; never selected by idle life
+  | 'consider'; // explicit thoughtful inclination; never selected by idle life
 
 /** Expressions that run the idle-life loop at all. */
 export const IDLE_LIFE_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
@@ -501,24 +476,15 @@ export function idleFamilyFor(expression: EyeExpression): IdleMoodFamily {
 
 /** Per-family gesture weights — the personality table. */
 const FAMILY_GESTURE_WEIGHTS: Record<IdleMoodFamily, ReadonlyArray<[IdleGesture, number]>> = {
-  // Each family sums to 1, and the ORDER is load-bearing: the widget tests
-  // drive the idle life with a pinned RNG and read the pick back from the
-  // DOM (0.6 is a tilt, 0.95 a flicker on `calm`). A weight moved here is a
-  // test failing three files away — the engine test pins those picks.
-  // Owner feedback 2026-09-05 on the running widget: the eyes played a beat
-  // every few seconds while the mouth and the brows only breathed. Roughly a
-  // third of every awake family's picks now carry the FACE — either a beat of
-  // its own (brow, brow-twitch, lip-press, corner-tug) or an eye beat with
-  // secondary action on the brows and the mouth (perk, squint, tilt).
+  // Gaze and lids dominate. Facial beats have an intention; whole-head
+  // accents belong to the conversational host, not to a random idle tick.
   lively: [
-    ['saccade', 0.24],
-    ['glance', 0.12],
+    ['saccade', 0.3],
+    ['glance', 0.18],
     ['perk', 0.1],
-    ['bounce', 0.1],
-    ['half-blink', 0.06],
-    ['tilt', 0.08],
-    ['squint', 0.06],
-    ['brow', 0.06],
+    ['half-blink', 0.08],
+    ['squint', 0.08],
+    ['brow', 0.08],
     ['lip-press', 0.02],
     ['corner-tug', 0.04],
     ['flicker', 0.08],
@@ -528,13 +494,12 @@ const FAMILY_GESTURE_WEIGHTS: Record<IdleMoodFamily, ReadonlyArray<[IdleGesture,
     ['saccade', 0.3],
     ['glance', 0.21],
     ['half-blink', 0.06],
-    ['tilt', 0.1],
-    ['squint', 0.05],
+    ['squint', 0.1],
     ['slow-blink', 0.06],
-    ['perk', 0.04],
-    ['brow', 0.04],
+    ['perk', 0.06],
+    ['brow', 0.06],
     ['lip-press', 0.01],
-    ['corner-tug', 0.02],
+    ['corner-tug', 0.03],
     ['flicker', 0.07],
     ['brow-twitch', 0.04],
   ],
@@ -578,8 +543,7 @@ export function pickIdleGesture(rng: Rng, family: IdleMoodFamily): IdleGesture {
   return weights[weights.length - 1][0];
 }
 
-/** How long a one-shot gesture holds its class — covers the CSS animation
- * (right-eye delays included) so clearing never snaps mid-motion. */
+/** Host hold covers the complete rig tape, including the trailing eye. */
 export const GESTURE_DURATION_MS: Record<
   Exclude<IdleGesture, 'saccade' | 'glance' | 'flicker'>,
   number
@@ -587,17 +551,13 @@ export const GESTURE_DURATION_MS: Record<
   'slow-blink': 1000,
   'half-blink': 420,
   squint: 800,
-  tilt: 1000,
-  bounce: 780,
+  consider: 1200,
+  nod: 1100,
   perk: 600,
   brow: 700,
   'lip-press': 420,
   'corner-tug': 640,
   'brow-twitch': 560,
-  swap: 1800,
-  bump: 1550,
-  spin: 1200,
-  jelly: 1250,
 };
 
 /** Gaze travel times: a saccade is quick (but readable), a glance sweeps. */

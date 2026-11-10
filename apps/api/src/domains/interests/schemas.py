@@ -307,6 +307,7 @@ class InterestNotificationHistoryResponse(BaseModel):
     """A page of interest notifications, with the EXACT total behind it."""
 
     notifications: list[InterestNotificationHistoryItem] = Field(default_factory=list)
+    as_of: datetime | None = Field(None, description="Server-bounded upper creation instant.")
     total: int = Field(
         description=(
             "Exact count over the whole set, never the page length (ADR-185): "

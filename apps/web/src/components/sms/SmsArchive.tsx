@@ -1,23 +1,25 @@
 'use client';
-import { useCallback, useState } from 'react';
-import { MessageSquareText, RefreshCw } from 'lucide-react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { CalendarDays, MessageSquareText, Users } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useSmsArchive } from '@/hooks/useSmsArchive';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useApplicationResourceSync } from '@/hooks/useApplicationResourceSync';
-import { Button } from '@/components/ui/button';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SmsSearchForm } from './SmsSearchForm';
-import { SmsIdentityRefresh } from './SmsIdentityRefresh';
+import { SmsArchiveActions } from './SmsArchiveActions';
 import { SmsArchiveResults, SmsArchivePager } from './SmsArchiveResults';
 import type { SmsQuery, SmsSenderPage } from '@/types/sms';
 import type { Language } from '@/i18n/settings';
-import { cn } from '@/lib/utils';
 interface Props {
   lng: Language;
   heading?: boolean;
   limit?: number;
+  enabled?: boolean;
+  renderResults?: (content: ReactNode) => ReactNode;
+  onFiltersChange?: () => void;
 }
 export function SmsArchive(props: Props) {
   const { user } = useAuth();
@@ -44,10 +46,9 @@ function archiveProjection(
     senders: senders.data,
   };
 }
-function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
-  const { t } = useTranslation();
+/** Own filters, cursor invalidation and the mutually exclusive archive queries. */
+function useArchiveState(limit: number, enabled: boolean) {
   const { user } = useAuth();
-  const timezone = user?.timezone || 'Europe/Paris';
   const [mode, setMode] = useState<'day' | 'sender'>('sender');
   const [filters, setFilters] = useState<SmsQuery>({});
   const [trail, setTrail] = useState<string[]>([]);
@@ -55,11 +56,11 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
   const filtered = !!(filters.query || filters.from_ts || filters.to_ts);
   const queryMessages = mode === 'day' || filtered;
   const resetCursor = useCallback(() => setTrail([]), []);
-  const list = useSmsArchive({ ...filters, cursor, limit }, queryMessages, resetCursor);
+  const list = useSmsArchive({ ...filters, cursor, limit }, enabled && queryMessages, resetCursor);
   const senders = useApplicationAccountQuery<SmsSenderPage>(
     '/sms/senders',
     'SmsArchive',
-    !queryMessages,
+    enabled && !queryMessages,
     undefined,
     { params: { limit, cursor } }
   );
@@ -69,7 +70,7 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
   // sender and dropped the focus a deletion meant to restore (owner rule
   // 2026-10-21). Back to the first page: a cursor is bound to the revision.
   const refreshSenders = useCallback(async () => {
-    if (queryMessages) return;
+    if (queryMessages || !enabled) return;
     setTrail([]);
     if (cursor) return;
     try {
@@ -79,13 +80,58 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
       acceptData(undefined);
       throw error;
     }
-  }, [queryMessages, refetch, acceptData, cursor]);
+  }, [queryMessages, refetch, acceptData, cursor, enabled]);
   useApplicationResourceSync(user?.id, 'sms', refreshSenders);
-  const { current, loading, ...content } = archiveProjection(queryMessages, list, senders);
-  const changeFilters = (query: SmsQuery) => {
-    setFilters(query);
-    setTrail([]);
+  return {
+    projection: archiveProjection(queryMessages, list, senders),
+    mode,
+    filtered,
+    hasPrevious: trail.length > 0,
+    changeFilters: (query: SmsQuery) => {
+      setFilters(query);
+      setTrail([]);
+    },
+    changeMode: (value: 'day' | 'sender') => {
+      setMode(value);
+      setTrail([]);
+    },
+    previous: () => setTrail(value => value.slice(0, -1)),
+    next: (cursor: string) => setTrail(value => [...value, cursor]),
+    refresh: queryMessages ? list.refresh : refreshSenders,
   };
+}
+
+function AccountSmsArchive({
+  lng,
+  heading = true,
+  limit = 20,
+  enabled = true,
+  renderResults,
+  onFiltersChange,
+}: Props) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const timezone = user?.timezone || 'Europe/Paris';
+  const archive = useArchiveState(limit, enabled);
+  const { current, loading, ...content } = archive.projection;
+  const results = (
+    <>
+      <SmsArchiveResults
+        {...content}
+        mode={archive.mode}
+        loading={loading}
+        lng={lng}
+        timezone={timezone}
+      />
+      <SmsArchivePager
+        loading={loading}
+        hasPrevious={archive.hasPrevious}
+        nextCursor={current?.next_cursor}
+        onPrevious={archive.previous}
+        onNext={archive.next}
+      />
+    </>
+  );
   return (
     <section className="min-w-0 space-y-5" aria-label={t('sms.title')} aria-busy={loading}>
       {heading && (
@@ -94,6 +140,12 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
           description={t('sms.description')}
           icon={MessageSquareText}
           level={1}
+          actions={
+            <SmsArchiveActions
+              refreshing={loading}
+              onRefresh={() => void archive.refresh().catch(() => {})}
+            />
+          }
           accessory={
             current ? (
               <span className="text-sm text-muted-foreground">
@@ -103,43 +155,27 @@ function AccountSmsArchive({ lng, heading = true, limit = 20 }: Props) {
           }
         />
       )}
-      <SmsSearchForm timezone={timezone} filtered={filtered} onChange={changeFilters} />
-      <div className="flex flex-wrap gap-2">
-        {(['day', 'sender'] as const).map(value => (
-          <Button
+      <SmsSearchForm
+        timezone={timezone}
+        filtered={archive.filtered}
+        onChange={query => {
+          archive.changeFilters(query);
+          onFiltersChange?.();
+        }}
+        chips={(['day', 'sender'] as const).map(value => (
+          <FilterChip
             key={value}
-            variant={mode === value ? 'default' : 'outline'}
-            aria-pressed={mode === value}
-            onClick={() => {
-              setMode(value);
-              setTrail([]);
+            active={archive.mode === value}
+            label={t(`sms.by_${value}`)}
+            icon={value === 'day' ? CalendarDays : Users}
+            onToggle={() => {
+              archive.changeMode(value);
+              onFiltersChange?.();
             }}
-          >
-            {t(`sms.by_${value}`)}
-          </Button>
-        ))}
-        <Button
-          variant="outline"
-          onClick={() => {
-            void (queryMessages ? list.refresh() : refreshSenders()).catch(() => {});
-          }}
-        >
-          <RefreshCw
-            className={cn('h-4 w-4', loading && 'motion-safe:animate-spin')}
-            aria-hidden="true"
           />
-          {t('common.refresh')}
-        </Button>
-        <SmsIdentityRefresh />
-      </div>
-      <SmsArchiveResults {...content} mode={mode} loading={loading} lng={lng} timezone={timezone} />
-      <SmsArchivePager
-        loading={loading}
-        hasPrevious={trail.length > 0}
-        nextCursor={current?.next_cursor}
-        onPrevious={() => setTrail(value => value.slice(0, -1))}
-        onNext={next => setTrail(value => [...value, next])}
+        ))}
       />
+      {renderResults ? renderResults(results) : results}
     </section>
   );
 }

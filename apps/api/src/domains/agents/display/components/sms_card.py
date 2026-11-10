@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from src.core.i18n import resolve_language
 from src.core.i18n_sms import SMS_CARD_LABELS
@@ -27,6 +27,9 @@ class SmsCardData(BaseModel):
     received_at: datetime
     date_kind: str
     next_body_offset: int | None = None
+    body_offset: int = Field(
+        default=0, ge=0, description="Start offset of the supplied body excerpt."
+    )
 
 
 class SmsCard(BaseComponent):
@@ -49,7 +52,7 @@ class SmsCard(BaseComponent):
         title = f'<a href="{url}">{escape_html(message.display_name)}</a>'
         header = render_card_top("sms", "blue", title)
         raw = (
-            f'<div class="lia-secondary">{escape_html(message.sender)}</div>'
+            f'<div class="lia-secondary lia-sms__sender">{escape_html(message.sender)}</div>'
             if message.sender != message.display_name
             else ""
         )
@@ -61,11 +64,11 @@ class SmsCard(BaseComponent):
         )
         more = (
             f'<div class="lia-secondary">{escape_html(labels["more"])}</div>'
-            if message.next_body_offset is not None
+            if message.next_body_offset is not None or message.body_offset > 0
             else ""
         )
         body = escape_html(message.body).replace("\n", "<br>")
-        card = f'<div class="lia-card lia-sms">{header}{raw}<div class="lia-secondary">{stamp}{date_note}</div><div class="lia-card-content">{body}</div>{more}</div>'
+        card = f'<div class="lia-card lia-sms">{header}{raw}<div class="lia-card-content">{body}</div><div class="lia-secondary lia-sms__stamp">{stamp}{date_note}</div>{more}</div>'
         return wrap_with_response(
             card_html=card,
             domain="sms_messages",

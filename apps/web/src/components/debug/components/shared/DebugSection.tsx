@@ -2,13 +2,13 @@
  * DebugSection — the single section wrapper of the debug panel.
  *
  * Standardizes the Accordion structure for every section: themed title icon
- * (title-icon doctrine: lucide, `text-primary`, never grey), badge slot,
+ * (account icon style; `text-primary` in Lucide mode), badge slot,
  * and an optional anomaly indicator surfaced on the trigger so a section
  * carrying an error is visible without unfolding it.
  */
 
 import React from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 
 export interface DebugSectionProps {

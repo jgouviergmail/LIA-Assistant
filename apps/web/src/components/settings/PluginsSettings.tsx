@@ -5,7 +5,7 @@ import { PluginImportReportDetails } from './PluginImportReportDetails';
 import { useRef } from 'react';
 import { useApplicationAccountState } from '@/hooks/useApplicationAccountState';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
-import { Puzzle, Trash2, Link2, Upload, Blocks, Server, Send } from 'lucide-react';
+import { Puzzle, Trash2, Link2, Upload, Blocks, Server, Send } from '@/lib/icons';
 import { RowActions, type RowAction } from '@/components/ui/row-actions';
 import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 import { CapabilitySharingDialog } from '@/components/peers/CapabilitySharingDialog';

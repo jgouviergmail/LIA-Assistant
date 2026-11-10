@@ -77,6 +77,7 @@ const START: LiveSessionStart = {
   delegation_timeout_seconds: 90,
   delegation_result_max_tokens: 600,
   turn_text_max_chars: 4000,
+  expression: 'prose',
   rates: {
     pricing_unit: 'per_1m_tokens',
     input_unit_price: 0.75,
@@ -580,6 +581,49 @@ describe('LiveSessionController', () => {
       expect.objectContaining({ user_text: 'hello', assistant_text: 'one moment done' })
     );
     expect(useLiveStore.getState().voiceState).toBe('idle');
+  });
+
+  it('shows a cues session without its tags and lets the server count them (ADR-373)', async () => {
+    const post = vi.fn(async (url: string, _body?: unknown): Promise<unknown> => {
+      if (url === '/live/sessions') return { ...START, expression: 'cues' };
+      if (url.endsWith('/turns')) return { user_message_id: 'u1', assistant_message_id: 'a1' };
+      return {};
+    });
+    const h = build({ api: fakeApi(post) });
+    await h.controller.start();
+    h.transport.events.onTranscript?.('user', 'any plans [for] me?');
+    // A tag split across two fragments never shows, even half-way.
+    h.transport.events.onTranscript?.('assistant', '[sarcas');
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['any plans [for] me?', '']);
+    h.transport.events.onTranscript?.('assistant', 'tically] Oh, a meeting [sighs].');
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual([
+      'any plans [for] me?',
+      'Oh, a meeting.',
+    ]);
+    h.transport.events.onTurnComplete?.();
+    await vi.advanceTimersByTimeAsync(10);
+    // The server hears what was transcribed — it removes and counts the tags —
+    // and the person's own words are never touched.
+    expect(post).toHaveBeenCalledWith(
+      `/live/sessions/${SESSION}/turns`,
+      expect.objectContaining({
+        user_text: 'any plans [for] me?',
+        assistant_text: '[sarcastically] Oh, a meeting [sighs].',
+      })
+    );
+    // The row the chat shows at once is the one the archive holds.
+    expect(h.chat.appendMessage.mock.calls[1][0]).toMatchObject({
+      id: 'a1',
+      role: 'assistant',
+      content: 'Oh, a meeting.',
+    });
+  });
+
+  it('shows a prose session as transcribed: a bracket there is words', async () => {
+    const h = build();
+    await h.controller.start();
+    h.transport.events.onTranscript?.('assistant', 'Press [Enter] to go on.');
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['Press [Enter] to go on.']);
   });
 
   it('hands the microphone stream to a transport that owns the audio natively', async () => {

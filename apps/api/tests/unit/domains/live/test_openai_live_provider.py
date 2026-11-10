@@ -269,3 +269,10 @@ async def test_sample_voice_refuses_a_silent_stream() -> None:
         pytest.raises(ValueError, match="no audio"),
     ):
         await OpenAiLiveProvider().sample_voice("sk-test", "quartz", "Hello")
+
+
+async def test_the_native_voice_is_offered_no_cue() -> None:
+    """Native audio: the delivery is said in words, read without the network (ADR-373)."""
+    from src.domains.voice.expressive_cues import NO_CUES
+
+    assert await OpenAiLiveProvider().expression_dialect("k", "any-live-model") is NO_CUES

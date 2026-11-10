@@ -1,0 +1,177 @@
+/* A received address keeps its static preview until explicit paid activation. */
+.lia-location-map .lia-route-map__stage:not([data-map-shown='true']) {
+  min-height: 0;
+}
+
+.lia-location-map .lia-route-map__stage {
+  overflow: hidden;
+  border-radius: var(--lia-radius-lg);
+}
+
+.lia-location-map .lia-route-map__choices > button:first-child {
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+/* A postal label gives the address its own identity, with the received town
+   as the typographic anchor. The map and Street View keep their real media. */
+.lia-response-wrapper[data-card-version='2'] .lia-location {
+  padding: 0;
+  border-radius: 1rem;
+
+  .lia-route__map,
+  .lia-route__map-link {
+    margin: 0;
+    border-radius: 0.875rem 0.875rem 0 0;
+  }
+
+  .lia-route-map__stage {
+    border-radius: 0.875rem 0.875rem 0 0;
+  }
+
+  .lia-route-map__toolbar,
+  .lia-route-map__choices,
+  .lia-route-map__notice {
+    margin-inline: 1rem;
+  }
+
+  .lia-location__label {
+    position: relative;
+    padding: 1.75rem 1.5rem 0;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--lia-craft-paper);
+  }
+
+  .lia-location__label::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 0.375rem;
+    background: repeating-linear-gradient(
+      125deg,
+      var(--lia-craft-accent) 0 1.25rem,
+      var(--lia-craft-paper) 1.25rem 1.75rem,
+      var(--lia-craft-tint) 1.75rem 3rem,
+      var(--lia-craft-paper) 3rem 3.5rem
+    );
+  }
+
+  .lia-card-top {
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0;
+    margin-bottom: 1rem;
+    border: 0;
+  }
+
+  .lia-card-top__info {
+    flex: 1;
+  }
+
+  .lia-card-top__title {
+    margin: 0;
+    font-size: calc(2.5rem * var(--lia-text-scale, 1));
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .lia-card-top > .lia-illus {
+    flex: 0 0 3rem;
+    width: 3rem;
+    height: 3.5rem;
+    min-width: 0;
+    margin: 0;
+    border: 1px dashed var(--lia-craft-line);
+    border-radius: 0.125rem;
+    background: var(--lia-craft-tint);
+  }
+
+  .lia-location__address {
+    margin-block: 0 1rem;
+    font-size: var(--lia-text-base);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .lia-chip-row {
+    padding-block: 0 1.25rem;
+    margin: 0;
+    border: 0;
+    gap: 0.75rem;
+  }
+
+  .lia-location__coordinates {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--lia-craft-line);
+    padding-block: 1rem 1.25rem;
+  }
+
+  .lia-location__coordinates dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2.5rem;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .lia-location__coordinates dt {
+    color: var(--lia-craft-muted);
+    font-size: var(--lia-text-sm);
+    line-height: 1.5;
+  }
+
+  .lia-location__coordinates dd {
+    margin: 0;
+    font-size: var(--lia-text-base);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .lia-location__coordinates > .material-symbols-outlined {
+    flex: none;
+    color: var(--lia-craft-muted);
+    font-size: 1.75rem;
+  }
+}
+
+@container card (max-width: 430px) {
+  .lia-response-wrapper[data-card-version='2'] .lia-location {
+    .lia-location__label {
+      padding: 1.5rem 1rem 0;
+    }
+
+    .lia-card-top {
+      gap: 0.75rem;
+    }
+
+    .lia-card-top__title {
+      font-size: calc(2rem * var(--lia-text-scale, 1));
+    }
+
+    .lia-card-top > .lia-illus {
+      flex-basis: 2.25rem;
+      width: 2.25rem;
+      height: 2.75rem;
+    }
+
+    .lia-location__coordinates dl {
+      gap: 0.75rem 1.5rem;
+    }
+
+    .lia-location__coordinates > .material-symbols-outlined {
+      display: none;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .lia-response-wrapper[data-card-version='2'] .lia-location__label {
+    border-top: 0.375rem solid Highlight;
+  }
+}

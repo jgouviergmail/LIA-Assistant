@@ -14,6 +14,8 @@
  */
 import type { Language } from '@/i18n/settings';
 import { apiEndpointUrl } from '@/lib/api-client';
+import { settingsSectionHref } from '@/lib/settings-sections';
+import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { MAIL_INBOX, MAIL_SENT, receivedLabel } from './mail';
 import { hitHref } from './search';
@@ -41,6 +43,16 @@ const HISTORY_HIT: Omit<SearchHit, 'id'> = {
 export function historyMailHref(id: string, sent: boolean, lng: Language): string {
   const mail_folder = sent ? MAIL_SENT : MAIL_INBOX;
   return hitHref('mail', { ...HISTORY_HIT, id, mail_folder }, lng);
+}
+
+/** @returns Where a call LIA placed to a contact opens: in the calls list, as Relations opens it. */
+export function historyCallHref(id: string, lng: Language): string {
+  return `${settingsSectionHref(lng, 'telephony-calls')}&call=${encodeURIComponent(id)}`;
+}
+
+/** @returns Where a text a contact sent opens: on the SMS page, as the home card opens it. */
+export function historyTextHref(id: string, lng: Language): string {
+  return buildLocalizedPath(`/dashboard/sms?message=${encodeURIComponent(id)}`, lng);
 }
 
 /** @returns Where a meeting with a contact opens: on its day, in its calendar. */

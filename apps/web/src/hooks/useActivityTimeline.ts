@@ -1,110 +1,132 @@
 'use client';
 
-/**
- * useActivityTimeline — accumulating feed of "what LIA did for you".
- *
- * A chronological feed loads more, it does not paginate: pages accumulate
- * keyed by their echoed `offset`, an offset-0 payload RESETS the feed (a
- * refetch is a fresh feed, never a duplicate), and rows arriving twice
- * across pages — the set shifted server-side between two requests — are
- * deduplicated by (kind, ref_id) so React keys stay unique.
- *
- * `firstLoad` is derived from the ABSENCE of data, never from `error`
- * (the PeerConnectionsSettings defect, 2026-07-31). Page accumulation is
- * adjusted DURING RENDER — the official React pattern for state that
- * depends on the latest payload — never in an effect.
- */
-
 import { useCallback, useMemo, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
+import type {
+  ActivityEvent,
+  ActivityKindTotal,
+  ActivityQuery,
+  ActivityTimelineResponse,
+} from '@/types/activity';
 
-import { useApiQuery } from '@/hooks/useApiQuery';
-import type { ActivityEvent, ActivityKindTotal, ActivityTimelineResponse } from '@/types/activity';
-
-/** Rows per request — one number, one reading rhythm for the feed. */
 export const ACTIVITY_PAGE_SIZE = 25;
+export const DEFAULT_ACTIVITY_QUERY: ActivityQuery = { q: '', kind: '', sort: 'recent' };
 
 export interface UseActivityTimelineResult {
-  /** Accumulated feed, newest first. `undefined` before the first payload. */
   events: ActivityEvent[] | undefined;
-  /** Exact per-kind totals over the window, from the LATEST payload. */
   totals: ActivityKindTotal[];
-  /** Kinds whose source failed — the UI states partial data explicitly. */
   failedKinds: string[];
-  /** Look-back window (days) the backend aggregated over. */
   windowDays: number | undefined;
-  /** True when rows exist beyond what is accumulated. */
   hasMore: boolean;
-  /** True only before the first payload — never on a refetch. */
   firstLoad: boolean;
   loading: boolean;
   error: Error | null;
-  /** Fetch the next page (no-op while loading or when nothing more exists). */
   loadMore: () => void;
-  /** Refetch from scratch (offset 0 — the feed resets on arrival). */
   refetch: () => void;
 }
 
-export function useActivityTimeline(): UseActivityTimelineResult {
-  const [offset, setOffset] = useState(0);
-  const [pages, setPages] = useState<ReadonlyMap<number, ActivityEvent[]>>(new Map());
+interface Feed {
+  key: string;
+  generation: { readonly key: string };
+  offset: number;
+  asOf?: string;
+  pages: ReadonlyMap<number, ActivityEvent[]>;
+  latest?: ActivityTimelineResponse;
+}
 
-  const { data, loading, error, refetch } = useApiQuery<ActivityTimelineResponse>(
-    `/activity/timeline?offset=${offset}&limit=${ACTIVITY_PAGE_SIZE}`,
-    { componentName: 'useActivityTimeline' }
+function emptyFeed(key: string): Feed {
+  return { key, generation: { key }, offset: 0, pages: new Map() };
+}
+
+/** A mutable source can shift on deletion; keep each event once across its pages. */
+function flattenPages(pages: Feed['pages']): ActivityEvent[] | undefined {
+  if (!pages.size) return undefined;
+  const events = new Map<string, ActivityEvent>();
+  for (const offset of [...pages.keys()].sort((a, b) => a - b)) {
+    for (const item of pages.get(offset) ?? []) events.set(`${item.kind}:${item.ref_id}`, item);
+  }
+  return [...events.values()];
+}
+
+/** The account and criteria own every page; only an explicit refresh changes the cut. */
+export function useActivityTimeline(criteria = DEFAULT_ACTIVITY_QUERY): UseActivityTimelineResult {
+  const { user } = useAuth();
+  const key = JSON.stringify([user?.id, criteria.q, criteria.kind, criteria.sort]);
+  const [feed, setFeed] = useState(() => emptyFeed(key));
+  if (feed.key !== key) setFeed(emptyFeed(key));
+
+  const accept = useCallback(
+    (data: ActivityTimelineResponse) => {
+      setFeed(current => {
+        if (current.key !== key || data.offset !== current.offset) return current;
+        if (current.asOf && data.criteria.as_of !== current.asOf) return current;
+        const pages = new Map(data.offset === 0 ? [] : current.pages);
+        pages.set(data.offset, data.events);
+        return { ...current, pages, latest: data };
+      });
+    },
+    [key]
   );
 
-  // Adjust accumulation during render: an offset-0 payload starts a fresh
-  // feed, any other offset adds its page. Reference equality on the events
-  // array makes the adjustment idempotent across re-renders.
-  if (data && pages.get(data.offset) !== data.events) {
-    const next = new Map(data.offset === 0 ? [] : pages);
-    next.set(data.offset, data.events);
-    setPages(next);
-  }
-
-  const events = useMemo(() => {
-    if (pages.size === 0) return undefined;
-    const seen = new Set<string>();
-    const merged: ActivityEvent[] = [];
-    for (const pageOffset of [...pages.keys()].sort((a, b) => a - b)) {
-      for (const item of pages.get(pageOffset) ?? []) {
-        const key = `${item.kind}:${item.ref_id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(item);
-        }
+  const { loading, error, isCurrent, refetchVerified } =
+    useApplicationAccountQuery<ActivityTimelineResponse>(
+      '/activity/timeline',
+      'ActivityTimeline',
+      true,
+      accept,
+      {
+        params: {
+          q: criteria.q,
+          kinds: criteria.kind ? [criteria.kind] : [],
+          sort: criteria.sort,
+          offset: feed.offset,
+          limit: ACTIVITY_PAGE_SIZE,
+          as_of: feed.asOf,
+        },
       }
-    }
-    return merged;
-  }, [pages]);
-
-  const hasMore = data?.has_more ?? false;
+    );
+  const events = useMemo(() => flattenPages(feed.pages), [feed.pages]);
+  const latest = feed.latest;
+  const generation = feed.generation;
+  const hasMore = latest?.has_more ?? false;
 
   const loadMore = useCallback(() => {
-    if (!loading && hasMore) {
-      setOffset(current => current + ACTIVITY_PAGE_SIZE);
+    if (!isCurrent() || loading || !latest?.has_more) return;
+    if (latest.offset !== feed.offset) {
+      void refetchVerified(); // Retry the failed page, never skip over it.
+      return;
     }
-  }, [loading, hasMore]);
+    setFeed(current =>
+      current.generation !== generation
+        ? current
+        : {
+            ...current,
+            offset: latest.offset + latest.limit,
+            asOf: latest.criteria.as_of,
+          }
+    );
+  }, [isCurrent, loading, latest, feed.offset, refetchVerified, generation]);
 
-  const refetchFromScratch = useCallback(() => {
-    if (offset === 0) {
-      void refetch();
-    } else {
-      // Endpoint change triggers the fetch; the offset-0 payload resets.
-      setOffset(0);
-    }
-  }, [offset, refetch]);
+  const refetch = useCallback(() => {
+    if (!isCurrent()) return;
+    if (feed.offset === 0 && !feed.asOf) void refetchVerified();
+    else
+      setFeed(current =>
+        current.generation !== generation ? current : { ...current, offset: 0, asOf: undefined }
+      );
+  }, [isCurrent, feed.offset, feed.asOf, refetchVerified, generation]);
 
   return {
     events,
-    totals: data?.totals ?? [],
-    failedKinds: data?.failed_kinds ?? [],
-    windowDays: data?.window_days,
+    totals: latest?.totals ?? [],
+    failedKinds: latest?.failed_kinds ?? [],
+    windowDays: latest?.window_days,
     hasMore,
-    firstLoad: events === undefined && data === undefined,
+    firstLoad: events === undefined,
     loading,
     error,
     loadMore,
-    refetch: refetchFromScratch,
+    refetch,
   };
 }

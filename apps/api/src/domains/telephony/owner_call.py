@@ -20,8 +20,9 @@ Order, and why:
    archived and the closing card drawn, the browser's own closing;
 3. a DIRECT call synthesises BEFORE the claim, like its sibling: a duplicated
    webhook may synthesize twice, only one claim wins;
-4. the claim arms the FALLBACK notification (the reason « failed » plus the
-   recap): it is what the sweep sends when nothing settles the row;
+4. the claim arms a localized FALLBACK notification for the known outcome
+   (or « failed » while the relay is pending), without raw vendor prose: it
+   is what the sweep sends when nothing settles the row;
 5. the live tools (or the delegation tool) come off the agent (lot 7,
    best-effort — the dial path detaches again before the next stranger's
    call if this fails);
@@ -47,7 +48,6 @@ from src.domains.telephony.models import (
     PhoneCallOutcome,
     PhoneCallStatus,
 )
-from src.domains.telephony.payload import extract_transcript_summary
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import SelfCallRelay
 from src.domains.telephony.spend import phone_call_run_id
@@ -96,7 +96,7 @@ async def _synthesize(
 
     Returns:
         ``(relay, usage, synthesized)`` — ``synthesized`` False means the
-        fallback relay (vendor summary, nothing to relay) is in hand.
+        relay is empty: no owner confirmation or localized recap was obtained.
     """
     try:
         relay, usage = await synthesize_relay(
@@ -114,12 +114,14 @@ async def _synthesize(
         )
         return relay, usage, True
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
-        logger.warning("telephony_relay_synthesis_failed", call_id=str(call.id), error=str(exc))
+        logger.warning(
+            "telephony_relay_synthesis_failed", call_id=str(call.id), error_type=type(exc).__name__
+        )
         return (
             SelfCallRelay(
-                owner_confirmed=True,
+                owner_confirmed=False,
                 relay_message="",
-                summary=extract_transcript_summary(payload),
+                summary="",
             ),
             None,
             False,
@@ -219,19 +221,21 @@ async def _claim_relaying(
     language: str,
     status: PhoneCallStatus,
     call_seconds: Decimal | None,
+    fallback_outcome: RelayOutcome,
 ) -> bool:
     """Close the row ``RELAYING``, the fallback armed; False when a duplicated webhook won."""
+    content = fallback_text(relay, fallback_outcome, language)
     return await repo.mark_completed(
         call.id,
         status=status,
         call_seconds=call_seconds,
-        summary=relay.summary,
+        summary=relay.summary or content,
         structured_data=collected_of_payload(payload).model_dump(exclude_none=True),
         debrief=None,
         outcome=_outcome_of(relay, status),
         completed_at=datetime.now(UTC),
         # The FALLBACK the stale-relay sweep sends if nothing settles the row.
-        notification_content=fallback_text(relay, RelayOutcome.FAILED, language),
+        notification_content=content,
         notification_title=get_return_phrases(language)["self_call_title"],
         notification_status=NotificationStatus.RELAYING,
     )
@@ -256,9 +260,7 @@ async def _close_unanswered_call(
     the routine that planned the call) reads « nobody answered » or « the
     line failed » rather than nothing.
     """
-    relay = SelfCallRelay(
-        owner_confirmed=False, relay_message="", summary=extract_transcript_summary(payload)
-    )
+    relay = SelfCallRelay(owner_confirmed=False, relay_message="", summary="")
     if not await _claim_relaying(
         repo=repo,
         call=call,
@@ -267,6 +269,7 @@ async def _close_unanswered_call(
         language=language,
         status=status,
         call_seconds=call_seconds,
+        fallback_outcome=_SILENT_OUTCOMES[status],
     ):
         return  # a duplicated webhook lost the race
     _count_call(status, call_seconds)
@@ -306,6 +309,7 @@ async def _close_direct_owner_call(
         language=language,
         status=status,
         call_seconds=call_seconds,
+        fallback_outcome=RelayOutcome.FAILED,
     ):
         return  # a duplicated webhook lost the race: the winner relays
     await track_synthesis_usage(usage, call_id=call.id, user_id=call.user_id)

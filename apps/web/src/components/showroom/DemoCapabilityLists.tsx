@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { CircleCheck, CircleOff, CloudOff, ListChecks } from 'lucide-react';
+import { CircleCheck, CircleOff, CloudOff, ListChecks } from '@/lib/icons';
 
 import type { PublicCapabilities } from '@/lib/demo-capabilities';
 

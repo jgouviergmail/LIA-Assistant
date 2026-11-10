@@ -110,7 +110,7 @@ export function usePlugins() {
 
   /**
    * Install/update a plugin via FormData upload.
-   * Raw fetch because apiClient forces Content-Type: application/json.
+   * Credentialed multipart fetch; the browser supplies the content-type boundary.
    */
   const importPlugin = useCallback(
     async (file: File): Promise<PluginImportReport> => {

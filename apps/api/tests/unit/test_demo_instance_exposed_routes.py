@@ -180,6 +180,12 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "DELETE /api/v1/habits/{habit_id}",
         "GET /api/v1/habits/{habit_id}/explanation",
         "POST /api/v1/habits/{habit_id}/status",
+        # The habit proposals (ADR-375, 2026-11-08): the visitor's OWN, read and
+        # decided. Accepting acts on their account alone — a routine created or
+        # moved, as POST /scheduled-actions already allows, or a screen opened;
+        # the heartbeat kinds never open there, the family being switched off.
+        "GET /api/v1/habits/proposals",
+        "POST /api/v1/habits/proposals/{proposal_id}/{verdict}",
         "GET /api/v1/health-metrics/aggregate",
         "DELETE /api/v1/health-metrics/all",
         "GET /api/v1/health-metrics/tokens",

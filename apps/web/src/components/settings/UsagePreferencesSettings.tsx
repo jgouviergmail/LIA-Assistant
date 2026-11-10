@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageSquare, MessagesSquare, UserCog } from 'lucide-react';
+import { MessageSquare, MessagesSquare, UserCog } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';

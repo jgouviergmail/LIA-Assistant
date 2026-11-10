@@ -44,7 +44,7 @@ import {
   UserRound,
   CalendarDays,
   FileText,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
@@ -1296,6 +1296,61 @@ function SearchEverywhereScene({ active, labels }: SceneProps) {
   );
 }
 
+type SpaceFavoritePhase = 'list' | 'starred' | 'grouped';
+const SPACE_FAVORITE_STEPS: readonly TimelineStep<SpaceFavoritePhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 1100, state: 'starred' },
+  { at: 2000, state: 'grouped' },
+];
+
+/** One knowledge-space row; a named row carries the star being pressed. */
+function SpaceRow({ name, starred }: { name?: string; starred: boolean }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-0.5">
+      <FolderTree className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+      {name ? (
+        <span className="truncate text-px-10 text-foreground">{name}</span>
+      ) : (
+        <SkeletonLine w="w-16" />
+      )}
+      <Star
+        className={cn(
+          'ml-auto h-3 w-3 shrink-0 transition-colors',
+          starred ? 'fill-primary text-primary' : 'text-muted-foreground'
+        )}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
+/**
+ * A star on the third space moves it to a group of its own at the top. The
+ * other rows keep their order: a favourite changes the list, never what the
+ * assistant searches.
+ */
+function SpaceFavoritesScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SPACE_FAVORITE_STEPS, { active });
+  const starred = phase !== 'list';
+  const grouped = phase === 'grouped';
+  return (
+    <div className={STAGE}>
+      <div className="flex w-full max-w-[220px] flex-col gap-1">
+        {grouped && (
+          <>
+            <span className="text-px-10 font-semibold text-primary">{labels.favorites}</span>
+            <SpaceRow name={labels.space} starred />
+            <span className="text-px-10 font-semibold text-muted-foreground">{labels.others}</span>
+          </>
+        )}
+        <SpaceRow starred={false} />
+        <SpaceRow starred={false} />
+        {!grouped && <SpaceRow name={labels.space} starred={starred} />}
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   place_numbers: PlaceNumbersScene,
   dated_rows: DatedRowsScene,
@@ -1318,4 +1373,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   network_grants: NetworkGrantsScene,
   skill_library: SkillLibraryScene,
   back_where_you_were: BackWhereYouWereScene,
+  space_favorites: SpaceFavoritesScene,
 };

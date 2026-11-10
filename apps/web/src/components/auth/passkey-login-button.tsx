@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { KeyRound } from 'lucide-react';
+import { KeyRound } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';

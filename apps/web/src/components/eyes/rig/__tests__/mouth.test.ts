@@ -145,19 +145,12 @@ describe('speaking', () => {
     expect(Math.max(...opening) - Math.min(...opening)).toBeGreaterThan(0.15);
   });
 
-  it('is GENERATED speech, not a loop: the mouth is the state pattern and the loops only bob the eyes', () => {
-    // Sines on a mouth get louder and quieter; they never say a word. The
-    // opening, the shape and the brows are keyed syllable by syllable in
-    // `rig/speech.ts`; what is left to loop is the eyes' bob.
-    resolveLoops('speaking', 'calm').forEach(loop =>
-      expect({
-        channel: loop.channel,
-        eyes: /^(ty|sy)[LR]$/.test(loop.channel),
-      }).toEqual({
-        channel: loop.channel,
-        eyes: true,
-      })
-    );
+  it('generates speech by phrase while continuous motion carries only the slow breath', () => {
+    const loops = resolveLoops('speaking', 'calm');
+    expect(loops.some(loop => loop.channel === 'mass' && loop.amplitude > 0)).toBe(true);
+    expect(loops.some(loop => loop.channel === 'mouthOpen')).toBe(false);
+    expect(loops.some(loop => /^(ty|sy)[LR]$/.test(loop.channel))).toBe(false);
+    loops.forEach(loop => expect(loop.periodMs).toBeGreaterThan(3000));
     const pattern = resolvePatterns('speaking').map(tape => tape.channel);
     expect(pattern).toEqual(
       expect.arrayContaining(['mouthOpen', 'mouthW', 'mouthCurve', 'mouthSkew'])

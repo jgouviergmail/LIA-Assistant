@@ -473,7 +473,7 @@ class TestAttention:
         assert len(figures.needs_me_first) == 2, "a page of the set, never its size"
         assert figures.needs_me_first[0].title == "late", "earliest due first"
 
-        from src.domains.briefing.fetchers import _workboard_item
+        from src.domains.briefing.workboard_card import _workboard_item
 
         assert set(figures.previews) == {
             "needs_me",

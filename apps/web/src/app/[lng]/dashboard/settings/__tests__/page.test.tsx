@@ -17,6 +17,7 @@ import SettingsPage from '../page';
 import apiClient from '@/lib/api-client';
 import { LIA_VOICES_ENDPOINT } from '@/hooks/useLiaVoices';
 import type { LiaVoices } from '@/types/lia-voices';
+import { ThemeModeProvider } from '@/lib/theme-preferences';
 
 const LIA_VOICES: LiaVoices = {
   available: true,
@@ -83,7 +84,11 @@ vi.mock('@/hooks/useAppConfig', () => ({
 }));
 
 function renderPage() {
-  return renderWithProviders(<SettingsPage params={Promise.resolve({ lng: 'en' })} />);
+  return renderWithProviders(
+    <ThemeModeProvider>
+      <SettingsPage params={Promise.resolve({ lng: 'en' })} />
+    </ThemeModeProvider>
+  );
 }
 
 describe('Settings page — master-detail shell', () => {

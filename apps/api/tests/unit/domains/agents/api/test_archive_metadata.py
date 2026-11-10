@@ -19,10 +19,12 @@ from typing import Any
 
 import pytest
 
+from src.core.field_names import FIELD_HABIT_PROPOSAL
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     with_archived_message_ids,
 )
+from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS, TurnExtras
 
 pytestmark = [pytest.mark.unit]
 
@@ -92,8 +94,7 @@ class TestTheChainIsUnchanged:
             trace_capture=_Capture(steps),
             duration_ms=1234,
             run_id="run-1",
-            followup_suggestions=followups,
-            initiative_motivation=motivation,
+            extras=TurnExtras(followups=tuple(followups or ()), motivation=motivation),
             effects=None,
         )
 
@@ -108,8 +109,7 @@ class TestTheChainIsUnchanged:
             trace_capture=_Capture([{"emoji": "🔍", "i18n_key": "k", "category": "search"}]),
             duration_ms=10,
             run_id="run-1",
-            followup_suggestions=["a"],
-            initiative_motivation="m",
+            extras=TurnExtras(followups=("a",), motivation="m"),
             effects=None,
         )
         assert base == {"llm_calls": 2}
@@ -126,8 +126,7 @@ class TestTheFifthEnricher:
             trace_capture=_Capture([]),
             duration_ms=1,
             run_id="run-1",
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=[],
         )
         assert "performed_effects" not in produced
@@ -144,8 +143,7 @@ class TestTheFifthEnricher:
             trace_capture=_Capture([]),
             duration_ms=1,
             run_id="run-1",
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=[
                 {
                     "label_key": "effects.labels.send_email_tool",
@@ -218,8 +216,7 @@ def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_ch
         trace_capture=_Capture([]),
         duration_ms=1,
         run_id="current",
-        followup_suggestions=None,
-        initiative_motivation=None,
+        extras=NO_TURN_EXTRAS,
         effects=None,
         card_metadata=card,
     )
@@ -227,10 +224,9 @@ def test_completed_archive_and_done_share_the_delivered_card_snapshot_without_ch
         base,
         user_message_id=None,
         assistant_message_id=None,
-        followup_suggestions=None,
+        extras=NO_TURN_EXTRAS,
         effects=None,
         card_metadata=card,
-        initiative_motivation=None,
     )
     assert archived["lia_card_actions"] == done["lia_card_actions"] == card["lia_card_actions"]
     assert archived["run_id"] == done["run_id"] == "current"
@@ -247,10 +243,37 @@ def test_final_evidence_survives_canonical_archive_chain_without_mutating_base()
         trace_capture=_Capture([]),
         duration_ms=1,
         run_id="turn",
-        followup_suggestions=None,
-        initiative_motivation=None,
+        extras=NO_TURN_EXTRAS,
         effects=None,
         efficacy_envelope=proof,
     )
     assert archived["psyche_efficacy"] == {"version": 1, "observations": []}
     assert base == {"run_id": "turn"}
+
+
+def test_the_habit_proposal_card_travels_with_the_answer_and_its_done_chunk():
+    """ADR-375: archived so it survives a reload, carried live in ``done``."""
+    from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
+
+    card = {"id": "p-1", "kind": "automate_need", "facts": {"domain": "weather"}}
+    extras = TurnExtras(followups=("Et demain ?",), motivation=None, habit_proposal=card)
+    archived = build_assistant_metadata(
+        {"run_id": "turn"},
+        widgets=None,
+        trace_capture=_Capture([]),
+        duration_ms=1,
+        run_id="turn",
+        extras=extras,
+        effects=None,
+    )
+    done = with_done_enrichments(
+        {"tokens_in": 3},
+        user_message_id=None,
+        assistant_message_id=None,
+        extras=extras,
+        effects=None,
+        card_metadata={},
+    )
+
+    assert archived[FIELD_HABIT_PROPOSAL] == done[FIELD_HABIT_PROPOSAL] == card
+    assert archived["followup_suggestions"] == done["followup_suggestions"] == ["Et demain ?"]

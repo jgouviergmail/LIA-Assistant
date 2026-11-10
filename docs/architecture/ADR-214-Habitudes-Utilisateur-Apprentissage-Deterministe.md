@@ -534,3 +534,21 @@ ADR-281) mais s'écarte pour une réunion.
 Le heartbeat n'a plus de min/max par jour : au §4, ses bornes explicites se
 réduisent à la fenêtre horaire, que le rythme appris continue de ne jamais
 élargir. Les centres d'intérêt gardent leurs bornes quotidiennes.
+
+## Amendement 2026-11-08 — l'heure décrit, elle ne conditionne plus (ADR-375)
+
+Le verrou « même demande à la même heure » (longueur résultante R ≥ 0,8, accord des
+moitiés, empan, densité) n'avait jamais ouvert une offre en production : une personne réelle
+demande son agenda à 7 h un jour, à 13 h le lendemain. Il est retiré avec ses huit réglages,
+et avec lui ses deux lecteurs : l'offre de routine manquée du heartbeat (contexte, section du
+prompt, champ de décision, métrique) et la suggestion textuelle du chat.
+
+Un **besoin récurrent** le remplace : un domaine demandé sur au moins quatre jours distincts,
+sur au moins deux semaines, dont un récent, dans la fenêtre de 35 jours ; l'heure habituelle
+(médiane) et l'heure de préparation (premier quartile, au quart d'heure inférieur) sont des
+DESCRIPTEURS, lus à travers minuit. Les lignes `recurring_request` portent la charge utile v2 ;
+la colonne `muted_until_reproof` est supprimée ; le ledger garde une heure par heure d'horloge.
+Ce que l'apprentissage propose, et comment la personne en décide, est l'objet d'ADR-375.
+
+Ce qui ne change pas : le rythme d'activité (§ 1, § 4), le contrôle de la personne (§ 3),
+l'interrupteur « Apprendre mes habitudes » qui ferme toutes les portes, et « Tout oublier ».

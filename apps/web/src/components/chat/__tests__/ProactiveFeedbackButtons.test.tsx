@@ -10,6 +10,10 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
+import userEvent from '@testing-library/user-event';
+import { ICON_STYLES, type IconStyle } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 
 const mutateMock = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useApiMutation', () => ({
@@ -28,7 +32,27 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ProactiveFeedbackButtons } from '../ProactiveFeedbackButtons';
+import {
+  ProactiveFeedbackButtons,
+  type ProactiveFeedbackVerdict,
+} from '../ProactiveFeedbackButtons';
+
+function FeedbackHarness({ style }: { style: IconStyle }) {
+  const [verdict, setVerdict] = useState<ProactiveFeedbackVerdict>();
+  return (
+    <TooltipProvider>
+      <IconStyleContext.Provider value={style}>
+        <ProactiveFeedbackButtons
+          kind="heartbeat"
+          targetId="11111111-1111-4111-8111-111111111111"
+          onFeedbackSubmitted={setVerdict}
+          submittedVerdict={verdict}
+        />
+        <button type="button">Next action</button>
+      </IconStyleContext.Provider>
+    </TooltipProvider>
+  );
+}
 
 function renderChips(onFeedbackSubmitted = vi.fn()) {
   render(
@@ -49,6 +73,33 @@ describe('ProactiveFeedbackButtons', () => {
     toastMock.success.mockClear();
     toastMock.info.mockClear();
     toastMock.error.mockClear();
+  });
+
+  it.each(ICON_STYLES)('keeps the final keyboard verdict visible with %s icons', async style => {
+    mutateMock.mockResolvedValue(undefined);
+    const keyboard = userEvent.setup();
+    render(<FeedbackHarness style={style} />);
+    const like = screen.getByRole('button', { name: 'heartbeat.feedback.like' });
+    const dislike = screen.getByRole('button', { name: 'heartbeat.feedback.dislike' });
+    expect(like).not.toHaveClass('border-primary', 'bg-primary/10');
+    expect(like.querySelector('svg')).toHaveAttribute('data-icon-name', 'ThumbsUp');
+    expect(dislike.querySelector('svg')).toHaveAttribute('data-icon-name', 'ThumbsDown');
+    expect(like.querySelector('svg')).toHaveAttribute('data-icon-style', style);
+    await keyboard.tab();
+    expect(like).toHaveFocus();
+    expect(like).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
+    await keyboard.keyboard('{Enter}');
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledOnce());
+    expect(like).toHaveAttribute('aria-pressed', 'true');
+    expect(like).toHaveClass('border-primary', 'bg-primary/10', 'dark:bg-primary/15');
+    expect(dislike).toHaveAttribute('aria-pressed', 'false');
+    expect(dislike).not.toHaveClass('border-primary', 'bg-primary/10');
+    expect(like).toBeDisabled();
+    expect(dislike).toBeDisabled();
+    await keyboard.tab();
+    expect(screen.getByRole('button', { name: 'Next action' })).toHaveFocus();
+    fireEvent.click(dislike);
+    expect(mutateMock).toHaveBeenCalledOnce();
   });
 
   it('acknowledges the vote optimistically and submits it', async () => {
@@ -95,5 +146,6 @@ describe('ProactiveFeedbackButtons', () => {
     const like = screen.getByRole('button', { name: 'heartbeat.feedback.like' });
     expect(like).toBeDisabled();
     expect(like).toHaveAttribute('aria-pressed', 'true');
+    expect(like).toHaveClass('border-primary', 'bg-primary/10');
   });
 });

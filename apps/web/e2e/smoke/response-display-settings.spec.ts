@@ -103,7 +103,7 @@ async function assertMode(page: Page, mode: DisplayMode): Promise<void> {
   await expect(settings(page).locator('button[aria-pressed="true"]')).toHaveCount(1);
   await expect(
     settings(page).locator(
-      'button[aria-pressed] svg.lucide-check, button[aria-pressed] svg.lucide-circle-check'
+      'button[aria-pressed] svg[data-icon-name="Check"], button[aria-pressed] svg[data-icon-name="CircleCheck"]'
     )
   ).toHaveCount(0);
   const example = preview(page);

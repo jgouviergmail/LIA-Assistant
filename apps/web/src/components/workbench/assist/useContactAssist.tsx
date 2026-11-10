@@ -4,26 +4,32 @@
  * What LIA can do on an open contact (ADR-372): the list under its bar's last icon, and the answer's
  * place in the detail. What the latest messages say comes with the message that says it: the person
  * ticks what they keep, and the editor opens on it. Nothing reaches the card by itself.
+ *
+ * Since 2026-11-07 the list also calls the contact through LIA — one line per number, its kind
+ * named, where the instance offers telephony and the account's connector is active: the chat opens
+ * on the words, unsent, and its own card places the call — and writes to them with LIA, a new
+ * message opening on « Write from an instruction ».
  */
-import { UserRoundSearch } from 'lucide-react';
+import { PenLine, Phone, UserRoundSearch } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
+import { useTelephonyCallable } from '@/hooks/useTelephonyCallable';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { ASSIST_PATHS, type ContactValuesAnswer, type ProposedValue } from '@/lib/workbench/assist';
-import { contactName, historyMailHref } from '@/lib/workbench/contacts';
+import { CONTACT_KINDS, contactName, historyMailHref } from '@/lib/workbench/contacts';
 import { dayIn, formatDay } from '@/lib/workbench/tasks';
-import type { WorkbenchContact } from '@/lib/workbench/types';
+import type { ContactValue, WorkbenchContact } from '@/lib/workbench/types';
 
-import type { AssistOffer } from '../DetailBar';
+import type { AssistOffer, DetailDeed } from '../DetailBar';
 import { useToolBridges } from '../useToolBridges';
 import { AssistPanel } from './AssistPanel';
 import { readyLine, remindLine } from './lines';
-import { useAssistCall } from './useAssistCall';
+import { useAssistCall } from '@/hooks/useAssistCall';
 
 export interface ContactAssist extends AssistOffer {
   /** The answer, first in the detail. */
@@ -31,6 +37,30 @@ export interface ContactAssist extends AssistOffer {
 }
 
 /** The values found, each with the message that says it. */
+interface NumberToCall {
+  value: string;
+  /** Its kind, when it names this number alone; else the number names itself. */
+  kind: string | null;
+}
+
+/** A contact's numbers, each once, named by their kind unless another number shares it. */
+function numbersToCall(phones: readonly ContactValue[]): NumberToCall[] {
+  const once: ContactValue[] = [];
+  for (const phone of phones) {
+    if (!once.some(kept => kept.value === phone.value)) once.push(phone);
+  }
+  const kinds = once.map(phone =>
+    phone.type && phone.type !== 'other' && CONTACT_KINDS.phones.includes(phone.type)
+      ? phone.type
+      : null
+  );
+  return once.map((phone, index) => {
+    const kind = kinds[index];
+    const alone = kind !== null && kinds.filter(other => other === kind).length === 1;
+    return { value: phone.value, kind: alone ? kind : null };
+  });
+}
+
 function FoundValues({
   lng,
   values,
@@ -103,13 +133,38 @@ export function useContactAssist(
   onFound?: (values: readonly ProposedValue[]) => void
 ): ContactAssist {
   const { t } = useTranslation(lng);
-  const { ask, remind, assists } = useToolBridges(lng);
+  const { ask, remind, assists, offers, go } = useToolBridges(lng);
+  const callable = useTelephonyCallable();
   const completion = useAssistCall<ContactValuesAnswer>(contact?.id ?? null);
   if (!contact) return { lines: [], panel: null };
   const name = contactName(contact) || t('workbench.contacts.no_name');
   const completes = assists && onFound !== undefined && contact.emails.length > 0;
+  const address = contact.emails[0]?.value;
+  const calls: DetailDeed[] = callable
+    ? numbersToCall(contact.phones).map(({ value, kind }) => ({
+        label: t('workbench.assist.contacts.call', {
+          name,
+          which: kind ? t(`workbench.contacts.kinds.${kind}`) : value,
+        }),
+        icon: Phone,
+        asks: true,
+        onSelect: () => ask(t('workbench.assist.contacts.call_words', { name, number: value })),
+      }))
+    : [];
+  const writes: DetailDeed[] =
+    assists && address && offers('compose')
+      ? [
+          {
+            label: t('workbench.assist.contacts.write_to', { name }),
+            icon: PenLine,
+            onSelect: () => go({ kind: 'compose', to: address, assisted: true }),
+          },
+        ]
+      : [];
   return {
     lines: [
+      ...writes,
+      ...calls,
       ...(completes
         ? [
             {

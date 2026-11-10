@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, MessageSquareText, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MessageSquareText, Sparkles } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { FEATURE_ICONS } from './chapters-data';
 

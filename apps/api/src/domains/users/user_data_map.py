@@ -18,6 +18,7 @@ cohesive table family moves to a module of its own (as the ``users`` columns
 did, 2026-09-30).
 """
 
+from src.domains.users.user_data_map_global import GLOBAL_TABLE_RULES
 from src.domains.users.user_data_types import (
     ExportPolicy as ExportPolicy,
 )
@@ -259,6 +260,10 @@ TABLE_RULES: dict[str, TableRule] = {
     # Per-day hour counts only (no content) — survives conversation resets
     # by design, purged with the account and by "forget everything".
     "user_activity_days": _PURGED_FULL,
+    # Proposals (ADR-375): facts only (days, hours, counts, ids) and the
+    # person's decision — survives conversation resets, purged with the
+    # account and by "forget everything".
+    "habit_proposals": _PURGED_FULL,
     "heartbeat_notifications": _PURGED_FULL,
     # Proactive discussions (ADR-358, ADR-359): everything a discussion rests on
     # leaves in the archive — the context and its evidence, the runs, the
@@ -595,103 +600,6 @@ TABLE_RULES: dict[str, TableRule] = {
         export=ExportPolicy.FULL,
         reason="Google API usage/costs — retained for dispute resolution.",
     ),
-    # ------------------------------------------------------------------
     # Global (non-user) tables: config, pricing, catalogs, admin records.
-    # ------------------------------------------------------------------
-    "admin_audit_log": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Admin accountability record — not user-owned data; references "
-        "users but documents admin actions.",
-    ),
-    "admin_broadcasts": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Admin-authored announcements, not user data.",
-    ),
-    "system_settings": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Instance-wide configuration.",
-    ),
-    "health_snapshots": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Platform self-check results (spec 2026-08-27) — no user data, "
-        "pruned by the diagnostics job's own retention.",
-    ),
-    "incidents": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Platform incident memory (spec 2026-08-27) — alert labels and "
-        "check evidence only, admin-facing, never user-owned.",
-    ),
-    "instance_daily_budget": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="One aggregate row per UTC day for the whole instance: no user "
-        "column, no per-user attribution, nothing to purge or export.",
-    ),
-    "personalities": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Shared personality catalog.",
-    ),
-    "personality_translations": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Translations of the shared personality catalog.",
-    ),
-    "llm_models": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="LLM catalog.",
-    ),
-    "llm_model_pricing": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Pricing reference data.",
-    ),
-    "currency_exchange_rates": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Exchange-rate reference data.",
-    ),
-    "google_api_pricing": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Pricing reference data.",
-    ),
-    "image_generation_pricing": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Pricing reference data.",
-    ),
-    "provider_api_keys": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Admin-managed provider API keys (encrypted) — instance secrets.",
-    ),
-    "llm_config_overrides": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Admin-managed LLM configuration overrides.",
-    ),
-    "fishaudio_pinned_voices": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Public Fish Audio voices the instance offers every voice slot (ADR-345) — "
-        "admin-managed configuration; the attestation behind a pin is the audit log's record.",
-    ),
-    "fishaudio_catalogue_revisions": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Instance voice-library coordination: catalogue generation and pending "
-        "removal tokens, independent of personal voice preferences (ADR-345).",
-    ),
-    "connector_global_config": TableRule(
-        data_class=TableDataClass.GLOBAL,
-        export=ExportPolicy.EXCLUDED,
-        reason="Admin-managed connector configuration.",
-    ),
+    **GLOBAL_TABLE_RULES,
 }

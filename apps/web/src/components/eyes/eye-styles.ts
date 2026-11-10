@@ -16,7 +16,6 @@ export const RIG_EYE_STYLE_IDS = [
   'amande',
   'traits',
   'anneaux',
-  'smiley',
 ] as const;
 
 export type RigEyeStyleId = (typeof RIG_EYE_STYLE_IDS)[number];
@@ -33,7 +32,6 @@ export const EYE_STYLE_RENDERERS = {
   amande: 'rig',
   traits: 'rig',
   anneaux: 'rig',
-  smiley: 'rig',
   spirit: 'hybrid',
   moss: 'hybrid',
   lumen: 'hybrid',
@@ -48,7 +46,7 @@ export const EYE_STYLE_RENDERERS = {
 export const DEFAULT_EYE_STYLE: EyeStyleId = 'bip';
 
 /** Raw rig hosts require native geometry. Hybrid selections route through EyesFace. */
-export const DEFAULT_RIG_EYE_STYLE: RigEyeStyleId = 'smiley';
+export const DEFAULT_RIG_EYE_STYLE: RigEyeStyleId = 'cozmo';
 
 /** Geometry boundary: the hybrid renderer explicitly selects a real native skin. */
 export function isRigEyeStyle(value: EyeStyleId): value is RigEyeStyleId {

@@ -28,7 +28,7 @@
  * « Keep <file> » in both states — the state is announced, not the label.
  */
 
-import { Download, Pin, Trash2 } from 'lucide-react';
+import { Download, Pin, Trash2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

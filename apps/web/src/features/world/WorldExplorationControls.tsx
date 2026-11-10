@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Footprints } from 'lucide-react';
+import { Footprints } from '@/lib/icons';
 import { WorldWidgetButton } from './WorldWidgetButton';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';

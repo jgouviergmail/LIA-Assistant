@@ -22,6 +22,7 @@ import {
 import type { Route } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, waitForHydration, waitForMockGate } from '../fixtures';
+import { prepareTheme } from './overflow-report';
 
 /** Pending egress question (ADR-298): a script asks to reach a host nobody
  * permitted yet; the card offers THREE answers and names what would travel. */
@@ -359,14 +360,20 @@ const PENDING_MAILBOX_DRAFT_SEND = {
 };
 
 test.describe('chat HITL mailbox draft send (ADR-344)', () => {
-  for (const width of [1280, 390]) {
-    test(`shows the draft and sends the confirmation verbatim at ${width}px`, async ({
+  for (const { width, theme } of [
+    { width: 1280, theme: 'light' },
+    { width: 1280, theme: 'dark' },
+    { width: 390, theme: 'light' },
+    { width: 390, theme: 'dark' },
+  ] as const) {
+    test(`shows the draft and sends the confirmation verbatim at ${width}px ${theme}`, async ({
       page,
       authenticate,
       mockApi,
     }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
-      await authenticate();
+      await prepareTheme(page, theme);
+      await authenticate({ theme });
       const decisions: Array<{ message_id?: string; action?: string }> = [];
       const routes = baseRoutes(PENDING_MAILBOX_DRAFT_SEND, sseDone).map(route =>
         route.url === '**/api/v1/agents/chat/stream'

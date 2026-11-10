@@ -3,8 +3,10 @@
 /**
  * What LIA can do on a task (ADR-372): the list under its bar's last icon, the steps it proposes,
  * and the sentence it reads inside the quick add. Nothing exists until the person says so.
+ * A slot can be blocked for it in the calendar (2026-11-07), the person's own act, no model: the
+ * editor opens on its title and notes, on its day at nine when that day is still to come.
  */
-import { ListChecks } from 'lucide-react';
+import { CalendarClock, ListChecks } from '@/lib/icons';
 import { useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -18,18 +20,20 @@ import {
   type TaskAnswer,
 } from '@/lib/workbench/assist';
 import { datedDay } from '@/lib/workbench/calendar/format';
+import type { WorkbenchHandoff } from '@/lib/workbench/handoff';
+import { dayIn } from '@/lib/workbench/tasks';
 import type { WorkbenchTask } from '@/lib/workbench/types';
 import type { LLMUsage } from '@/types/llm-usage';
 
-import type { AssistOffer } from '../DetailBar';
+import type { AssistOffer, DetailDeed } from '../DetailBar';
 import type { QuickAddAssist } from '../tasks/TaskQuickAdd';
 import { useToolBridges } from '../useToolBridges';
 import { useAssistBounds } from '../WorkbenchShell';
-import { AssistStars } from './AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { AssistPanel } from './AssistPanel';
-import { confideLine, readyLine, remindLine } from './lines';
+import { confideLine, readyLine, remindLine, type Say } from './lines';
 import { tellCost, useToldFailure } from './tellings';
-import { useAssistCall, useLatest } from './useAssistCall';
+import { useAssistCall, useLatest } from '@/hooks/useAssistCall';
 
 export interface TaskAssist extends AssistOffer {
   /** The answer, first in the detail. */
@@ -39,15 +43,53 @@ export interface TaskAssist extends AssistOffer {
 /** Adds one step to the open task, under its own key. */
 export type AddStep = (title: string, key: string) => Promise<void>;
 
+/** The hour a slot blocked on a day still to come starts at, as a new event's does. */
+const SLOT_HOUR = '09:00';
+
+/**
+ * The event a slot for a task opens on: its day at nine when that day is still to come, else today
+ * at the calendar's next hour.
+ */
+function slotFor(task: WorkbenchTask, today: string): WorkbenchHandoff {
+  const description = task.notes ?? '';
+  if (!task.due || task.due <= today) {
+    return { kind: 'event', summary: task.title, description };
+  }
+  return {
+    kind: 'event',
+    summary: task.title,
+    description,
+    proposal: {
+      summary: task.title,
+      start_date: task.due,
+      start_time: SLOT_HOUR,
+      end_date: null,
+      end_time: null,
+      all_day: false,
+      location: '',
+      description,
+      attendees: [],
+      repeat: 'none',
+      conference: false,
+    },
+  };
+}
+
 /**
  * @param lng - The reader's language.
  * @param task - The task open.
  * @param addStep - Adds a step where its provider keeps some.
+ * @param zone - The account's zone, which « today » is read in.
  * @returns The offer of its bar, and the answer's place.
  */
-export function useTaskAssist(lng: Language, task: WorkbenchTask, addStep?: AddStep): TaskAssist {
+export function useTaskAssist(
+  lng: Language,
+  task: WorkbenchTask,
+  addStep?: AddStep,
+  zone?: string
+): TaskAssist {
   const { t } = useTranslation(lng);
-  const { ask, remind, confide } = useToolBridges(lng);
+  const { ask, remind, confide, offers, go } = useToolBridges(lng);
   const bounds = useAssistBounds();
   const steps = useAssistCall<StepsAnswer>(task.id);
   const title = task.title || t('workbench.tasks.untitled');
@@ -68,6 +110,7 @@ export function useTaskAssist(lng: Language, task: WorkbenchTask, addStep?: AddS
             },
           ]
         : []),
+      ...slotLine(t, task, offers('event'), () => go(slotFor(task, dayIn(zone, new Date())))),
       remindLine(t, title, remind),
       ...confideLine(t, title, task.notes ?? '', confide),
       readyLine(t, 'task', { title }, ask),
@@ -81,6 +124,17 @@ export function useTaskAssist(lng: Language, task: WorkbenchTask, addStep?: AddS
       </AssistPanel>
     ),
   };
+}
+
+/** A slot in the calendar, for a task still to do with a title, where a calendar is ready. */
+function slotLine(
+  t: Say,
+  task: WorkbenchTask,
+  ready: boolean,
+  onSelect: () => void
+): readonly DetailDeed[] {
+  if (!ready || task.completed || !task.title) return [];
+  return [{ label: t('workbench.assist.tasks.block_slot'), icon: CalendarClock, onSelect }];
 }
 
 /**

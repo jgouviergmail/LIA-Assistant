@@ -1,3 +1,4 @@
+import { SelectionAssistProvider } from '@/components/selection-assist/SelectionAssistProvider';
 /**
  * Language-specific layout
  *
@@ -16,12 +17,15 @@ import { TelemetryBootstrap } from '@/components/telemetry/TelemetryBootstrap';
 import { QueryProvider } from '@/lib/query-client';
 import { LoggingProvider } from '@/lib/logging-context';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeModeProvider } from '@/lib/theme-preferences';
 import { ThemeInitScript } from '@/components/theme-init-script';
 import { ColorThemeProvider } from '@/lib/theme-context';
+import { IconStyleProvider } from '@/components/settings/IconStyleProvider';
 import { FontProvider } from '@/lib/font-context';
 import { FontPreferencesSync } from '@/components/settings/FontPreferencesSync';
 import { ColorPreferencesSync } from '@/components/settings/ColorPreferencesSync';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
+import { ApplicationLocaleSync } from '@/components/ApplicationLocaleSync';
 import { fontVariables } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -114,15 +118,6 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
         {/* SEO: Structured data (JSON-LD) */}
         <WebSiteJsonLd />
         <OrganizationJsonLd />
-        {/* Material Symbols - Google's modern icon font (intentionally loaded via link for icon font) */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-          crossOrigin="anonymous"
-        />
       </head>
       <body className="antialiased">
         <ThemeProvider
@@ -135,23 +130,32 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
             <FontProvider>
               <SnowfallEffect />
               <TranslationsProvider locale={lng} namespaces={['translation']} resources={resources}>
+                <ApplicationLocaleSync locale={lng} />
                 <QueryProvider>
                   <AuthProvider>
-                    <LoggingProvider>
-                      <TooltipProvider delayDuration={300}>
-                        <ServiceWorkerRegistration />
-                        <TelemetryBootstrap />
-                        <PresencePing />
-                        <FontPreferencesSync />
-                        <ColorPreferencesSync />
-                        {/* The landing video's one element for the whole
+                    <ThemeModeProvider>
+                      <IconStyleProvider>
+                        <LoggingProvider>
+                          <TooltipProvider delayDuration={300}>
+                            <ServiceWorkerRegistration />
+                            <TelemetryBootstrap />
+                            <PresencePing />
+                            <FontPreferencesSync />
+                            <ColorPreferencesSync />
+                            {/* The landing video's one element for the whole
                             visit (ADR-330, amended): framed on the landing,
                             docked on the other public pages, gone on sign-in
                             and in the dashboard. */}
-                        <LandingVideoHostSection lng={lng}>{children}</LandingVideoHostSection>
-                        <Toaster />
-                      </TooltipProvider>
-                    </LoggingProvider>
+                            <SelectionAssistProvider lng={lng}>
+                              <LandingVideoHostSection lng={lng}>
+                                {children}
+                              </LandingVideoHostSection>
+                            </SelectionAssistProvider>
+                            <Toaster />
+                          </TooltipProvider>
+                        </LoggingProvider>
+                      </IconStyleProvider>
+                    </ThemeModeProvider>
                   </AuthProvider>
                 </QueryProvider>
               </TranslationsProvider>

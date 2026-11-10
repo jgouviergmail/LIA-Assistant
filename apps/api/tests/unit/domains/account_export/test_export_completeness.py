@@ -203,6 +203,11 @@ class TestSideScopedSerialization:
                 "recipient_id": recipient_id,
                 "content": "Dis-lui que je serai en retard",
                 "delivered_text": "Marie vous fait dire qu'elle sera en retard.",
+                "prepared_text_encrypted": "internal rendition",
+                "claim_token": uuid4(),
+                "claim_generation": 2,
+                "lease_expires_at": None,
+                "generation_started": True,
                 "status": "delivered",
             }
         )
@@ -224,6 +229,23 @@ class TestSideScopedSerialization:
     def test_a_table_without_a_rule_is_untouched(self) -> None:
         row = _row_to_dict("memories", SimpleNamespace(_mapping={"content": "x"}), uuid4())
         assert row == {"content": "x"}
+
+    @pytest.mark.parametrize("side", ["sender", "recipient"])
+    def test_delivery_checkpoint_and_ownership_never_leave_the_server(self, side: str) -> None:
+        sender, recipient = uuid4(), uuid4()
+        row = _row_to_dict(
+            "peer_messages", self._row(sender, recipient), sender if side == "sender" else recipient
+        )
+        assert (
+            not {
+                "prepared_text_encrypted",
+                "claim_token",
+                "claim_generation",
+                "lease_expires_at",
+                "generation_started",
+            }
+            & row.keys()
+        )
 
 
 @pytest.mark.unit

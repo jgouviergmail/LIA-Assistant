@@ -1,242 +1,198 @@
-"""Peers tools tests (Lot 4) — draft gate, quotas, executor revalidation."""
+"""Peer adapters preserve disambiguation and share one admission command."""
 
-from __future__ import annotations
-
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from langgraph.store.memory import InMemoryStore
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.domains.agents.tools import peers_tools
-from src.domains.peers.models import PeerConnectionStatus
+from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.peers.message_command import PeerMessageReceipt, PeerMessageRefusal
+from src.domains.peers.models import PeerConnection
+from tests.helpers.runtime_context import make_tool_runtime
 
-USER_ID = uuid4()
-PEER_ID = uuid4()
-CONNECTION_ID = uuid4()
-
-
-def _connection(status=PeerConnectionStatus.ACCEPTED.value):
-    user_a, user_b = sorted([USER_ID, PEER_ID])
-    return SimpleNamespace(id=CONNECTION_ID, user_a_id=user_a, user_b_id=user_b, status=status)
+pytestmark = pytest.mark.unit
+USER_ID, PEER_ID, CONNECTION_ID = uuid4(), uuid4(), uuid4()
 
 
-def _patch_db(repo):
-    @asynccontextmanager
-    async def _ctx():
-        db = MagicMock()
-        db.commit = AsyncMock()
-        yield db
-
-    return (
-        patch("src.domains.agents.tools.peers_tools.get_db_context", _ctx),
-        patch("src.domains.agents.tools.peers_tools.PeersRepository", return_value=repo),
-    )
-
-
-def _patch_runtime():
-    return patch(
-        "src.domains.agents.tools.peers_tools.validate_runtime_config",
-        return_value=SimpleNamespace(user_id=str(USER_ID)),
-    )
-
-
-def _repo(connections=None, today=0, pair_today=0):
-    repo = AsyncMock()
-    repo.list_accepted_for_user.return_value = connections or []
-    repo.count_messages_today.return_value = today
-    repo.count_messages_today_for_pair.return_value = pair_today
-    repo.has_block_between.return_value = False
-    repo.get_by_id.return_value = _connection()
-    repo.db = MagicMock()
-    repo.db.execute = AsyncMock(
-        return_value=MagicMock(all=MagicMock(return_value=[(PEER_ID, "Marie Dupont")]))
-    )
-    repo.db.commit = AsyncMock()
-    return repo
-
-
-@pytest.fixture(autouse=True)
-def _relationship_list_empty():
-    """Never the real relationship list: it opens sessions of its own."""
-    with patch(
-        "src.domains.agents.peer.name_directory.RelationsService",
-        return_value=SimpleNamespace(directory=AsyncMock(return_value=[])),
-    ):
-        yield
+def _connection() -> PeerConnection:
+    first, second = sorted([USER_ID, PEER_ID])
+    return PeerConnection(id=CONNECTION_ID, user_a_id=first, user_b_id=second, status="accepted")
 
 
 @pytest.fixture
-def sender_not_blocked():
-    with patch(
-        "src.domains.usage_limits.service.UsageLimitService.is_user_blocked_for_llm",
-        new=AsyncMock(return_value=False),
+def repository() -> Iterator[MagicMock]:
+    db = MagicMock(spec=AsyncSession)
+    db.commit = AsyncMock()
+    db.execute = AsyncMock(
+        return_value=MagicMock(all=MagicMock(return_value=[(PEER_ID, "Marie Dupont")]))
+    )
+    repo = MagicMock()
+    repo.db = db
+    repo.list_accepted_for_user = AsyncMock(return_value=[_connection()])
+
+    @asynccontextmanager
+    async def database() -> AsyncIterator[AsyncSession]:
+        yield db
+
+    with (
+        patch.object(peers_tools, "get_db_context", database),
+        patch.object(peers_tools, "PeersRepository", return_value=repo),
+        patch("src.domains.agents.peer.name_directory.RelationsService") as relations,
     ):
-        yield
+        relations.return_value.directory = AsyncMock(return_value=[])
+        yield repo
 
 
-@pytest.mark.unit
-class TestSendPeerMessageTool:
-    async def test_unknown_recipient_lists_candidates(self, sender_not_blocked):
-        repo = _repo(connections=[_connection()])
-        db_patch, repo_patch = _patch_db(repo)
-        with db_patch, repo_patch, _patch_runtime():
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Inconnu Total", message="salut", runtime=MagicMock()
-            )
-        assert output.success is False
-        assert output.error_code == "NOT_FOUND"
-        assert "Marie Dupont" in output.message
+async def _send(name: str, message: str = "Bonjour") -> UnifiedToolOutput:
+    coroutine = peers_tools.send_peer_message_tool.coroutine
+    assert coroutine is not None
+    result = await coroutine(
+        recipient_name=name,
+        message=message,
+        runtime=make_tool_runtime(user_id=USER_ID, store=InMemoryStore()),
+    )
+    assert isinstance(result, UnifiedToolOutput)
+    return result
 
-    async def test_daily_quota_blocks_the_send(self, sender_not_blocked):
-        repo = _repo(connections=[_connection()], today=settings.peers_message_max_per_day)
-        db_patch, repo_patch = _patch_db(repo)
-        with db_patch, repo_patch, _patch_runtime():
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Marie Dupont", message="salut", runtime=MagicMock()
-            )
-        assert output.success is False
-        assert output.error_code == "RATE_LIMITED"
 
-    async def test_happy_path_returns_a_peer_message_draft(self, sender_not_blocked):
-        repo = _repo(connections=[_connection()])
-        db_patch, repo_patch = _patch_db(repo)
-        draft_service = MagicMock()
-        draft_service.create_draft.return_value = "DRAFT_OUTPUT"
-        with (
-            db_patch,
-            repo_patch,
-            _patch_runtime(),
-            patch(
-                "src.domains.agents.tools.peers_tools.DraftService",
-                return_value=draft_service,
-            ),
-        ):
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="marie dupont",  # folded match — case-insensitive
-                message="Demande-lui comment il va",
-                runtime=MagicMock(),
-            )
-        assert output == "DRAFT_OUTPUT"
-        content = draft_service.create_draft.call_args.kwargs["content"]
-        assert content["recipient_name"] == "Marie Dupont"
-        assert content["message"] == "Demande-lui comment il va"
-        assert content["connection_id"] == str(CONNECTION_ID)
+@pytest.mark.parametrize("name", ["marie dupont", "Marie"])
+async def test_direct_send_returns_queue_receipt_without_card(
+    repository: MagicMock, name: str
+) -> None:
+    receipt = PeerMessageReceipt(uuid4(), "Marie Dupont")
+    with (
+        patch.object(
+            peers_tools, "enqueue_peer_message", new_callable=AsyncMock, return_value=receipt
+        ) as enqueue,
+        patch.object(peers_tools, "_kick_delivery") as kick,
+    ):
+        output = await _send(name)
+    enqueue.assert_awaited_once_with(USER_ID, CONNECTION_ID, PEER_ID, "Bonjour")
+    assert output.success
+    assert output.structured_data == {
+        "message_id": str(receipt.message_id),
+        "recipient_name": receipt.recipient_name,
+        "status": "pending",
+    }
+    assert "draft_id" not in output.model_dump()
+    assert "not yet been delivered" in output.message
+    kick.assert_called_once()
 
-    async def test_a_unique_first_name_drafts_for_the_full_name(self, sender_not_blocked):
-        repo = _repo(connections=[_connection()])
-        db_patch, repo_patch = _patch_db(repo)
-        draft_service = MagicMock()
-        draft_service.create_draft.return_value = "DRAFT_OUTPUT"
-        with (
-            db_patch,
-            repo_patch,
-            _patch_runtime(),
-            patch("src.domains.agents.tools.peers_tools.DraftService", return_value=draft_service),
-        ):
-            await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Marie", message="Bonne journée", runtime=MagicMock()
-            )
-        # The card the person confirms names who will receive it.
-        content = draft_service.create_draft.call_args.kwargs["content"]
-        assert content["recipient_name"] == "Marie Dupont"
-        assert content["recipient_id"] == str(PEER_ID)
 
-    async def test_a_first_name_two_connections_share_is_asked_about(self, sender_not_blocked):
-        other_id = uuid4()
-        other = SimpleNamespace(
-            id=uuid4(), user_a_id=USER_ID, user_b_id=other_id, status="accepted"
+@pytest.mark.parametrize(
+    "refusal,code",
+    [
+        (PeerMessageRefusal.QUOTA_REACHED, "RATE_LIMIT_EXCEEDED"),
+        (PeerMessageRefusal.NOT_CONNECTED, "NOT_FOUND"),
+        (PeerMessageRefusal.DISABLED, "CONFIGURATION_ERROR"),
+    ],
+)
+async def test_current_admission_refusal_reaches_the_tool(
+    repository: MagicMock, refusal: PeerMessageRefusal, code: str
+) -> None:
+    with (
+        patch.object(
+            peers_tools, "enqueue_peer_message", new_callable=AsyncMock, return_value=refusal
+        ),
+        patch.object(peers_tools, "_kick_delivery") as kick,
+    ):
+        output = await _send("Marie")
+    assert not output.success and output.error_code == code
+    kick.assert_not_called()
+
+
+async def test_unknown_recipient_lists_candidates_without_enqueuing(repository: MagicMock) -> None:
+    with patch.object(peers_tools, "enqueue_peer_message", new_callable=AsyncMock) as enqueue:
+        output = await _send("Inconnu Total")
+    assert not output.success and output.error_code == "NOT_FOUND"
+    assert "Marie Dupont" in output.message
+    enqueue.assert_not_awaited()
+
+
+async def test_ambiguous_first_name_asks_without_enqueuing(repository: MagicMock) -> None:
+    other_id = uuid4()
+    other = PeerConnection(id=uuid4(), user_a_id=USER_ID, user_b_id=other_id, status="accepted")
+    repository.list_accepted_for_user.return_value.append(other)
+    repository.db.execute.return_value.all.return_value.append((other_id, "Marie Lin"))
+    with patch.object(peers_tools, "enqueue_peer_message", new_callable=AsyncMock) as enqueue:
+        output = await _send("Marie")
+    assert not output.success and output.error_code == "DISAMBIGUATION_REQUIRED"
+    assert output.metadata["candidates"] == ["Marie Dupont", "Marie Lin"]
+    enqueue.assert_not_awaited()
+
+
+async def test_reads_end_before_relationship_directory_provider_wait(repository: MagicMock) -> None:
+    order: list[str] = []
+    repository.db.commit.side_effect = lambda: order.append("commit")
+    with patch("src.domains.agents.peer.name_directory.RelationsService") as relations:
+        relations.return_value.directory = AsyncMock(
+            side_effect=lambda: order.append("directory") or []
         )
-        repo = _repo(connections=[_connection(), other])
-        repo.db.execute = AsyncMock(
-            return_value=MagicMock(
-                all=MagicMock(return_value=[(PEER_ID, "Marie Dupont"), (other_id, "Marie Lin")])
-            )
+        output = await _send("Paul")
+    assert output.error_code == "NOT_FOUND"
+    assert order[0:2] == ["commit", "directory"]
+
+
+@pytest.mark.parametrize("message", [" ", "x" * (settings.peers_message_max_chars + 1)])
+async def test_invalid_message_refused_before_any_io(message: str) -> None:
+    with patch.object(peers_tools, "get_db_context") as database:
+        output = await _send("Marie", message)
+    assert not output.success and output.error_code == "INVALID_INPUT"
+    database.assert_not_called()
+
+
+def _content() -> dict[str, object]:
+    return {
+        "connection_id": str(CONNECTION_ID),
+        "recipient_id": str(PEER_ID),
+        "recipient_name": "Old name",
+        "message": "Bonjour",
+    }
+
+
+async def test_historical_card_revalidates_through_common_command() -> None:
+    with patch.object(
+        peers_tools,
+        "enqueue_peer_message",
+        new_callable=AsyncMock,
+        return_value=PeerMessageRefusal.NOT_CONNECTED,
+    ) as enqueue:
+        result = await peers_tools.execute_peer_message_draft(_content(), USER_ID, None)
+    assert result == {"success": False, "error": "peers_not_connected"}
+    enqueue.assert_awaited_once_with(USER_ID, CONNECTION_ID, PEER_ID, "Bonjour")
+
+
+async def test_historical_card_receipt_uses_current_recipient_name() -> None:
+    receipt = PeerMessageReceipt(uuid4(), "Current name")
+    with (
+        patch.object(
+            peers_tools, "enqueue_peer_message", new_callable=AsyncMock, return_value=receipt
+        ),
+        patch.object(peers_tools, "_kick_delivery") as kick,
+    ):
+        result = await peers_tools.execute_peer_message_draft(_content(), USER_ID, None)
+    assert result == {
+        "success": True,
+        "message_id": str(receipt.message_id),
+        "recipient_name": "Current name",
+        "status": "pending",
+    }
+    kick.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "field,value", [("recipient_id", "bad uuid"), ("connection_id", None), ("message", 7)]
+)
+async def test_malformed_historical_card_never_enqueues(field: str, value: object) -> None:
+    with patch.object(peers_tools, "enqueue_peer_message", new_callable=AsyncMock) as enqueue:
+        result = await peers_tools.execute_peer_message_draft(
+            {**_content(), field: value}, USER_ID, None
         )
-        db_patch, repo_patch = _patch_db(repo)
-        draft_service = MagicMock()
-        with (
-            db_patch,
-            repo_patch,
-            _patch_runtime(),
-            patch("src.domains.agents.tools.peers_tools.DraftService", return_value=draft_service),
-        ):
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Marie", message="salut", runtime=MagicMock()
-            )
-        assert output.success is False
-        assert output.error_code == "DISAMBIGUATION_REQUIRED"
-        assert output.metadata["candidates"] == ["Marie Dupont", "Marie Lin"]
-        draft_service.create_draft.assert_not_called()
-
-    async def test_the_reads_end_before_the_relationship_list_is_read(self, sender_not_blocked):
-        # A partial name reads the relationship list, whose SMS senders can
-        # ask the contacts provider: no transaction waits on it (ADR-304).
-        order: list[str] = []
-        repo = _repo(connections=[_connection()])
-        repo.db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
-        directory = AsyncMock(side_effect=lambda: order.append("directory") or [])
-        db_patch, repo_patch = _patch_db(repo)
-        with (
-            db_patch,
-            repo_patch,
-            _patch_runtime(),
-            patch(
-                "src.domains.agents.peer.name_directory.RelationsService",
-                return_value=SimpleNamespace(directory=directory),
-            ),
-        ):
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Paul", message="salut", runtime=MagicMock()
-            )
-        assert output.error_code == "NOT_FOUND"
-        assert order == ["commit", "directory"]
-
-    async def test_empty_message_rejected_before_any_io(self):
-        with _patch_runtime():
-            output = await peers_tools.send_peer_message_tool.coroutine(  # type: ignore[misc]
-                recipient_name="Marie", message="   ", runtime=MagicMock()
-            )
-        assert output.success is False
-        assert output.error_code == "INVALID_INPUT"
-
-
-@pytest.mark.unit
-class TestExecutePeerMessageDraft:
-    def _content(self):
-        return {
-            "connection_id": str(CONNECTION_ID),
-            "recipient_id": str(PEER_ID),
-            "recipient_name": "Marie Dupont",
-            "message": "salut",
-        }
-
-    async def test_removed_connection_refuses_at_confirmation_time(self, sender_not_blocked):
-        repo = _repo()
-        repo.get_by_id.return_value = _connection(PeerConnectionStatus.REMOVED.value)
-        db_patch, repo_patch = _patch_db(repo)
-        with db_patch, repo_patch:
-            result = await peers_tools.execute_peer_message_draft(
-                self._content(), USER_ID, deps=None
-            )
-        assert result == {"success": False, "error": "peers_not_connected"}
-        repo.enqueue_message.assert_not_awaited()
-
-    async def test_success_enqueues_and_kicks_delivery(self, sender_not_blocked):
-        repo = _repo()
-        repo.enqueue_message.return_value = SimpleNamespace(id=uuid4())
-        db_patch, repo_patch = _patch_db(repo)
-        kick = MagicMock()
-        with (
-            db_patch,
-            repo_patch,
-            patch("src.infrastructure.scheduler.peer_message_delivery.kick_delivery_soon", kick),
-        ):
-            result = await peers_tools.execute_peer_message_draft(
-                self._content(), USER_ID, deps=None
-            )
-        assert result["success"] is True
-        repo.enqueue_message.assert_awaited_once_with(CONNECTION_ID, USER_ID, PEER_ID, "salut")
-        kick.assert_called_once()
+    assert result["success"] is False
+    enqueue.assert_not_awaited()

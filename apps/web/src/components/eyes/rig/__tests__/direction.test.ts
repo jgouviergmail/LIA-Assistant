@@ -2,12 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createEyeRig } from '../runtime';
 import { createLifeRandom } from '../life';
-import { contextualPose, NEUTRAL_CONTEXT } from '../direction';
+import { NEUTRAL_CONTEXT } from '../direction';
 import { RIG_EYE_STYLE_IDS } from '../../eye-styles';
 import { ACTIVITY_FAMILIES } from '../../activity';
 import { CHANNEL_KEYS } from '../channels';
 import { pickMimic, type MouthMimic } from '../life';
-import { resolvePose } from '../poses';
 
 describe('one character, three timescales', () => {
   it.each(ACTIVITY_FAMILIES)(
@@ -15,7 +14,7 @@ describe('one character, three timescales', () => {
     activity => {
       for (const hz of [30, 60, 120]) {
         const rig = createEyeRig({
-          initial: { expression: 'attentive', styleId: 'smiley', family: 'calm' },
+          initial: { expression: 'attentive', styleId: 'billes', family: 'calm' },
           lifeRandom: createLifeRandom(42),
         });
         rig.setContext({ ...NEUTRAL_CONTEXT, activity });
@@ -99,10 +98,7 @@ describe('one character, three timescales', () => {
       neutral.step(16);
       thinking.step(16);
       const pose = thinking.values();
-      const eyeAsymmetry =
-        styleId === 'smiley'
-          ? Math.abs(pose.lidTopR + pose.lidBotR - pose.lidTopL - pose.lidBotL) / 100
-          : pose.syL - pose.syR;
+      const eyeAsymmetry = pose.syL - pose.syR;
       expect(eyeAsymmetry).toBeGreaterThan(0.12);
       expect(Math.abs(pose.browYL - pose.browYR)).toBeGreaterThan(0.05);
       expect(pose.mouthW).toBeLessThan(neutral.values().mouthW * 0.85);
@@ -133,7 +129,7 @@ describe('one character, three timescales', () => {
   it('keeps amplified background joy subordinate to an actual task and an answer', () => {
     for (const task of [{ activity: 'communicating' as const }, { responding: true }]) {
       const rig = createEyeRig({
-        initial: { expression: 'attentive', styleId: 'smiley', family: 'calm' },
+        initial: { expression: 'attentive', styleId: 'billes', family: 'calm' },
         reducedMotion: true,
       });
       rig.setContext({ ...NEUTRAL_CONTEXT, pleasure: 1, ...task });
@@ -160,35 +156,9 @@ describe('one character, three timescales', () => {
     expect(previous).toBeLessThan(-0.3);
   });
 
-  it('lets a courteous Smiley rest yield to genuine sadness without changing other skins', () => {
-    const context = { ...NEUTRAL_CONTEXT, pleasure: -0.8 };
-    for (const styleId of RIG_EYE_STYLE_IDS) {
-      const pose = resolvePose('neutral', styleId);
-      const acting = contextualPose(pose, 'neutral', context, styleId);
-      if (styleId === 'smiley') {
-        expect(acting.mouthCurve).toBeLessThan(-0.35);
-        expect(contextualPose(pose, 'neutral', NEUTRAL_CONTEXT, styleId).mouthCurve).toBe(
-          pose.mouthCurve
-        );
-        expect(
-          contextualPose(pose, 'neutral', { ...NEUTRAL_CONTEXT, pleasure: 0.8 }, styleId).mouthCurve
-        ).toBeGreaterThan(0.55);
-        for (const pleasure of [-1, 1]) {
-          const extreme = { ...NEUTRAL_CONTEXT, pleasure };
-          expect(contextualPose(pose, 'neutral', extreme, styleId).mouthCurve).toBeCloseTo(
-            contextualPose(resolvePose('neutral', 'cozmo'), 'neutral', extreme, 'cozmo').mouthCurve,
-            8
-          );
-        }
-      } else {
-        expect(acting.mouthCurve).toBeCloseTo(pose.mouthCurve - 0.8 * 0.7, 8);
-      }
-    }
-  });
-
   it('interrupts a scene when execution starts without changing the expression', () => {
     const rig = createEyeRig({
-      initial: { expression: 'attentive', styleId: 'smiley', family: 'calm' },
+      initial: { expression: 'attentive', styleId: 'billes', family: 'calm' },
     });
     rig.playSketch([{ channel: 'mouthOpen', keys: [{ atMs: 0, value: 0.7 }], durationMs: 5000 }]);
     rig.step(16);

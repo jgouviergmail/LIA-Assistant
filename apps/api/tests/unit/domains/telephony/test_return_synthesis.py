@@ -13,6 +13,7 @@ from langchain_core.outputs import ChatGeneration, LLMResult
 
 import src.domains.telephony.payload as payload_mod
 import src.domains.telephony.return_synthesis as rs
+from src.core.i18n_telephony import get_return_phrases
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
 from tests.helpers.notifications import ScriptedChannels, scripted_dispatcher, sse_only
@@ -476,8 +477,10 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
 
     monkeypatch.setattr(rs, "synthesize_return", _boom)
     await rs.process_completed_call(call.id, _payload())
-    # Still delivers something (the raw ElevenLabs summary as fallback).
-    assert captured["channels"].sent[0].content == "she agreed"
+    # A failed synthesis delivers the account's localized notice, never vendor prose.
+    expected = get_return_phrases("fr")["fallback"]
+    assert captured["channels"].sent[0].content == expected
+    assert captured["mark"]["summary"] == expected
     # No usage on the failure path → nothing tracked.
     assert "track" not in captured
 
@@ -559,3 +562,20 @@ async def test_verification_call_is_closed_without_synthesis_or_notification(mon
     closed = captured["closed_silently"]
     assert closed["status"] == PhoneCallStatus.COMPLETED
     assert closed["call_seconds"] == Decimal("30")
+
+
+@pytest.mark.unit
+def test_the_synthesis_reads_the_agent_as_heard_and_the_person_verbatim() -> None:
+    """ADR-373: the audio tags the agent's engine performed are no words of the call."""
+    payload = {
+        "data": {
+            "transcript": [
+                {"role": "agent", "message": "[calm] Good evening, a table for two?"},
+                {"role": "user", "message": "Yes [two], at eight."},
+                {"role": "agent", "message": "[sighs]"},
+            ]
+        }
+    }
+    assert payload_mod.extract_transcript_text(payload) == (
+        "agent: Good evening, a table for two?\nuser: Yes [two], at eight."
+    )

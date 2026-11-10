@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { MonitorDown, X } from 'lucide-react';
+import { MonitorDown, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import {

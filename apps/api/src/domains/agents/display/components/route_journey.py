@@ -5,12 +5,16 @@ from math import isfinite
 
 from src.core.i18n_cards import card_label
 from src.core.i18n_v3 import V3Messages
+from src.core.time_parsing import parse_rfc3339
+from src.core.time_utils import format_datetime_for_display
 from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
+    render_chip,
+    render_chip_row,
     render_collapsible,
 )
-from src.domains.agents.display.icons import get_travel_mode_icon, icon
+from src.domains.agents.display.icons import Icons, get_travel_mode_icon, icon
 from src.domains.agents.display.urls import build_route_url, safe_css_color, safe_url
 from src.domains.agents.display.values import (
     list_values,
@@ -76,6 +80,43 @@ def route_summary(data: Mapping[str, object], duration: str, ctx: RenderContext)
     )
 
 
+def _clock_text(
+    data: Mapping[str, object], formatted_key: str, instant_key: str, ctx: RenderContext
+) -> str:
+    """Keep archived labels or format a received instant; never reconstruct a clock."""
+    formatted = scalar_text(data.get(formatted_key))
+    if formatted:
+        return formatted
+    parsed = parse_rfc3339(data.get(instant_key))
+    return (
+        format_datetime_for_display(parsed, ctx.timezone, ctx.language, include_day_name=False)
+        if parsed is not None
+        else ""
+    )
+
+
+def render_route_clocks(data: Mapping[str, object], ctx: RenderContext) -> str:
+    """Show the known departure and arrival while preserving arrival-target semantics."""
+    suggested = data.get("is_arrival_based") is True
+    departure_key = "suggested_departure" if suggested else "departure"
+    departure = _clock_text(data, f"{departure_key}_formatted", f"{departure_key}_time", ctx)
+    arrival = _clock_text(data, "eta_formatted", "eta", ctx)
+    departure_label = (
+        V3Messages.get_suggested_departure(ctx.language)
+        if suggested
+        else card_label("route_departure", ctx.language)
+    )
+    chips = [
+        render_chip(f"{label} {clock}", variant, Icons.SCHEDULE)
+        for label, clock, variant in (
+            (departure_label, departure, "amber"),
+            (V3Messages.get_arrival_time(ctx.language), arrival, "indigo"),
+        )
+        if clock
+    ]
+    return render_chip_row(" ".join(chips)) if chips else ""
+
+
 def _step(value: object) -> Mapping[str, object]:
     if isinstance(value, str):
         return {"instruction": value}
@@ -109,7 +150,23 @@ def _transit(data: Mapping[str, object], ctx: RenderContext) -> str:
     content = "".join(
         f"<p>{escape_html(text)}</p>" for text in (mode, headsign, stops, count_text) if text
     )
-    return badge + content
+    return badge + content + _transit_clocks(data, ctx)
+
+
+def _transit_clocks(data: Mapping[str, object], ctx: RenderContext) -> str:
+    """Render each supplied stop instant in the reader's zone, including its date."""
+    clocks = []
+    for key, label in (
+        ("departure_time", card_label("route_departure", ctx.language)),
+        ("arrival_time", V3Messages.get_arrival_time(ctx.language)),
+    ):
+        parsed = parse_rfc3339(data.get(key))
+        if parsed is not None:
+            clock = format_datetime_for_display(
+                parsed, ctx.timezone, ctx.language, include_day_name=False
+            )
+            clocks.append(f"<p>{escape_html(label)} · {escape_html(clock)}</p>")
+    return "".join(clocks)
 
 
 def _render_step(value: Mapping[str, object], index: int, ctx: RenderContext) -> str:
@@ -134,21 +191,23 @@ def _render_step(value: Mapping[str, object], index: int, ctx: RenderContext) ->
     )
 
 
-def _step_list(value: object, ctx: RenderContext) -> str:
+def _step_list(value: object, ctx: RenderContext) -> tuple[str, int]:
+    """Render and count the same accepted steps, including archived string forms."""
     steps = [step for value in list_values(value) if (step := _step(value))]
-    return (
+    content = (
         '<ol class="lia-route__steps">'
         + "".join(_render_step(step, index, ctx) for index, step in enumerate(steps, 1))
         + "</ol>"
         if steps
         else ""
     )
+    return content, len(steps)
 
 
 def render_route_steps(value: object, ctx: RenderContext) -> str:
-    content = _step_list(value, ctx)
+    content, count = _step_list(value, ctx)
     return render_collapsible(
-        f"{V3Messages.get_route_steps(ctx.language)} ({len(list_values(value))})",
+        f"{V3Messages.get_route_steps(ctx.language)} ({count})",
         content,
         with_separator=False,
     )
@@ -159,7 +218,7 @@ def render_route_details(data: Mapping[str, object], ctx: RenderContext) -> str:
     if not legs:
         return render_route_steps(data.get("steps"), ctx)
     content = "".join(
-        f'<section class="lia-route-leg"><p class="lia-route-leg__heading">{escape_html(card_label("route_leg", ctx.language))} {index} · {escape_html(journey_measurements(leg))}</p>{_leg_map(leg, ctx)}{_step_list(leg.get("steps"), ctx)}</section>'
+        f'<section class="lia-route-leg"><p class="lia-route-leg__heading">{escape_html(card_label("route_leg", ctx.language))} {index} · {escape_html(journey_measurements(leg))}</p>{_leg_map(leg, ctx)}{_step_list(leg.get("steps"), ctx)[0]}</section>'
         for index, leg in enumerate(legs, 1)
     )
     return render_collapsible(
@@ -196,7 +255,7 @@ def render_route_alternatives(value: object, ctx: RenderContext) -> str:
 
 def _alternative_steps(data: Mapping[str, object], ctx: RenderContext) -> str:
     legs = [leg for leg in list_values(data.get("legs")) if isinstance(leg, dict)]
-    return "".join(_leg_map(leg, ctx) + _step_list(leg.get("steps"), ctx) for leg in legs)
+    return "".join(_leg_map(leg, ctx) + _step_list(leg.get("steps"), ctx)[0] for leg in legs)
 
 
 def _leg_map(data: Mapping[str, object], ctx: RenderContext) -> str:

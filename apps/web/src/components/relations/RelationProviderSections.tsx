@@ -22,7 +22,7 @@ import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
  */
 
 import { useState } from 'react';
-import { CalendarDays, Contact, Mail, Sparkles } from 'lucide-react';
+import { CalendarDays, Contact, Mail, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,7 @@ import {
 } from '@/components/relations/CollapsibleSection';
 import { ContactCardBody } from '@/components/relations/ContactCardBody';
 import { RelationWhen } from '@/components/relations/RelationWhen';
-import { chatIntentHref } from '@/lib/briefing-utils';
+import { chatIntentHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type {
   ContactCard,

@@ -111,13 +111,14 @@ named; the end response carries it as `vendor_bill`, the banner tells it
 ONCE and it is recorded nowhere) and **`AgentSyncing`** (a provider whose sessions run
 on an AGENT of the person's prepares it before the mint: the prompt-override
 permission merged into the agent's own overrides block, LIA's client tools
-created once per fingerprint of the declarations and attached beside the
-person's own, the other set of LIA's detached — what LIA holds is kept on the
-connector's metadata, a NEW dict). **At most one set per KIND lives in the
+created once per fingerprint of the declarations and attached as EXACTLY the
+session's set — the person's own tools and the other set of LIA's detached,
+never deleted (ADR-373) — what LIA holds is kept on the connector's metadata,
+a NEW dict). **At most one set per KIND lives in the
 workspace** (review 2026-09-20): a new fingerprint of the delegation set or
 of the direct set — a renamed description, a tool a release added — retires
-the set that kind held before, taken off the agent then deleted (forced, best
-effort), the phone's own rule on drift; the sets used to accumulate for ever,
+the set that kind held before, taken off the agent then released without
+force (ADR-373's sweep, below), the phone's own rule on drift; the sets used to accumulate for ever,
 fifty-odd tools per change, which is the orphan problem in another form. And a
 set is named by the metadata only once the sync RETURNS: a vendor refusal on
 the agent patch deletes the set this very call created and re-raises, else
@@ -291,6 +292,85 @@ times the text prompt per turn for the latency it saves. Read-only, by
 construction: HITL, mutations and the registers come free with delegation
 (spec B1).
 
+## The personality governs the voice (ADR-373)
+
+Every voice of the person speaks in the personality configured in LIA, the
+substance first: the four owner mandates (this page's two, the phone's two)
+render ONE block, `voice_sessions/mandate.personality_block`
+(`prompts/v1/voice_personality_block.txt`), which states the order it applies
+in — facts and acts exactly as they are; the personality over every other word
+(the address, the comments, the jokes, how a lookup is announced and reported,
+how each fact is read back, the goodbye) and over the delivery; an inner state
+as a shade; the frame's length rules as bounds, never a style. No frame carries
+a tone of its own (the « warm » small talk is gone), and the examples say they
+show what to do, never how to sound.
+
+**The expression wire.** A session's engine says its delivery in words alone
+(`prose`) or performs cues written inside its words (`cues`). The provider
+answers at the start through `expression_dialect(api_key, model)`: Gemini Live
+and GPT-Live answer `NO_CUES` without the network; an ElevenLabs agent is read
+(`voice_sessions/expression.agent_dialect`: a realtime model, or a v3/v4 voice
+whose expressive mode is on, performs tags). The answer is frozen on the record
+(`LiveSetupInputs.cue_dialect`, by name) and a wake re-renders with it; a door
+that fails degrades to words alone and never refuses the start. The start
+response says `expression`.
+
+**The cues a live voice is offered.** On `cues`, the mandate lists the
+vocabulary's cues in the ENGINE's spelling (`cue_prompt.live_cues_block`), each
+with what it sounds like (`sound.<cue>` in `voice_expressive_cues_lines.txt`),
+never when: the personality chooses. The ten persona cues (sarcastic,
+dismissive, cheeky, mischievous, annoyed, weary, soft, slow, rushed, booming)
+exist for this voice only — the comment and radio writers never see them. No
+count is published: nothing between the voice and its engine could enforce one.
+
+**What LIA writes on an ElevenLabs agent** (`sync_agent`, start and wake, one
+read of the agent, a write only where it drifted): the override permission for
+the frame's prompt and greeting, merged with the person's own (refused: the
+start is refused); `ignore_default_personality` and, on `cues`, the palette
+`tts.suggested_audio_tags` = `cue_prompt.palette(dialect, PERSON_CUES)`, inside
+the agent's whole `tts` block sent back as stored
+(`voice_sessions.expression.palette_block`: the vendor's merge of that block
+was never measured, and a partial one could reset the voice) — two best-effort
+writes, a refusal costing its part, never the session. The frame empties the
+greeting (`first_message: ""`; the WebRTC transport forwards it as
+`firstMessage`), and activation's probe grants the same permission before it
+opens. The vendor reads `{{name}}` in a prompt as a dynamic variable it must be
+given at the start; the frame's prompt is LIA's, rendered whole on the server,
+so a doubled brace in it can only come from a value (a personality, a memory,
+the context) and is neutralised by the phone's own rule
+(`voice_sessions.mandate.neutralise_vendor_syntax`). The voice, the language, the model and the turn-taking stay the
+portal's. Every palette write is counted
+(`live_cue_palette_synced_total{surface, outcome}`, the phone's included).
+
+**The agent's tools are LIA's** (ADR-373 § 6): `tool_ids` is EXACTLY the
+session's set. What LIA left on this agent — the set a new fingerprint
+retired, and every client tool bearing one of LIA's live tool names that the
+agent carried outside LIA's current sets (an earlier copy, a sibling
+instance's) — is released WITHOUT force once detached (`_sweep` →
+`client.release_tool`): a tool another agent still holds answers 409 and is
+kept; `live_agent_tools_swept_total{outcome}` counts freed, in_use and refused.
+Scoped to what the agent carried, never a workspace scan by name, which would
+free the set a sibling instance on the same key holds detached. The workspace
+is listed (`client.list_tools`: client tools, paginated, bounded by
+`ELEVENLABS_TOOLS_LIST_MAX_PAGES`) only when something was left, and an
+unreadable one skips the sweep, never the session. An attach refused because
+the workspace lost a tool of the set (a portal deletion, a sibling's sweep, a
+hand cleanup) is healed once (`_attach`): the lost tools are re-created in
+their place and the attach retried; any other refusal still refuses the start,
+the set the call created removed first.
+
+**No cue reaches the conversation** (ADR-373 § 7). The vendor keeps in its
+transcript the tags its model wrote, unspoken. On a `cues` session
+`expressive_cues.strip_transcript_cues` removes every bounded bracketed span of
+the voice's text (and a tag cut at its end) where `archive_turn` receives it —
+both modes, so a direct session's relayed words are clean — and measures there:
+`live_voice_cues_per_turn`, and `live_voice_cues_invented_total` for the tags
+outside the person's palette. The browser's twin (`lib/live/cue-strip.ts`, one
+corpus with the server's) re-shows a caption line from everything it heard, so a
+tag split across fragments never shows, and shows at once the row the archive
+holds; the archive request carries the turn as transcribed, for the server to
+count. The person's words, and a `prose` session's, are kept as transcribed.
+
 ## The voice sessions' bounded context (ADR-301)
 
 The phone's Live mode (ADR-301) gave the browser's live mode a sibling on
@@ -361,11 +441,11 @@ stateDiagram-v2
 | `model_settings.py` | **A connector remembers EVERY model it was set up on** (owner decision 2026-09-19): `connector_metadata = {model, models: {name: {voice, thinking_level, idle_timeout_seconds, session_max_minutes}}}`, read through `read_models` (the previous top-level shape still read, never written), written through `write_models` as a NEW dict. A model switched to comes back with its own voice and durations; the two durations are per model, `0` = no limit, within bounds shared with the instance settings (`LIVE_SESSION_MAX_MINUTES_MIN/MAX`, `LIVE_IDLE_TIMEOUT_SECONDS_MIN/MAX`, ADR-184: the schema refuses the gap between « no limit » and the minimum, 422). **The spend ceiling is the CONNECTOR's** (wave 3, owner decision: provider granularity): `session_budget_eur`, optional, beside the models (`read_session_budget` / `write_session_budget`), bounded by `LIVE_SESSION_BUDGET_EUR_MAX` (published as `session_budget_eur_max`), published by the start and enforced by the browser's meter (outcome `budget_reached`). |
 | `pricing.py` | **A live model of a `tariff`-billed provider is offered and started only when the tariff table declares it** (wave 3, owner rule 2026-09-19; a `vendor`-billed provider's models — ElevenLabs agents — are outside this rule, offered whatever the table holds, started with `rates` null): `rates_for(model)` reads the pricing cache (`get_cached_model_price`, exact name then normalised, the ADR-228 rule) into `LiveRates` — text rates, the audio pair, the USD→EUR rate — published by `POST /live/sessions`; `split_priced` partitions a key's discovered models into `models` (offered) and `unpriced` (named in the listing, never offered; the connector form says so instead of « invalid key »); `_check_choice` and the start refuse an undeclared model with `model_unpriced` (409). **« Declared » means the tariff can price a LIVE session**: a per-minute/hour unit, or a token-billed tariff WITH its audio pair — the text rates alone would leave every turn's cost unavailable and a spend ceiling unenforceable, so such a row does not declare a live model (the sentence names the rule). The tariff table gained `audio_input_unit_price` / `audio_output_unit_price` (migration `f1a3c5e7b9d2`, the seed's live rows, the admin form and the workbook — schema v3): a speech-to-speech model bills its audio beside its text, both or neither, `per_1m_tokens` only; a minute-billed model (`gpt-live-1`, `per_audio_minute`) declares none. The vendors' published rates, read 2026-09-19: Gemini 3.8 Live / Extended Thinking / 3.1 Flash Live text 0.75 / 4.50, audio 3.00 / 12.00 USD per 1M; Gemini 2.5 Flash native audio text 0.50 / 2.00, audio 3.00 / 12.00; GPT-Live 0.05 USD per minute, transcripts included. |
 | `service.py` | `LiveService`: the session lifecycle — the session claim (Redis owner token, instance cap, mint rate limit; a new start by the same account SUPERSEDES the session it holds), the mint with the rendered mandate (a nonce kept on the record for an `offer` connection; LIA's inner state read through the psyche engine's own block), credential renewal for the SAME record, the offer exchange (nonce consumed BEFORE the provider is asked), the extension (re-mint on `token` only), turn archiving, the closing card with EXACT figures, the decision row, the learning pass. **The cap is the MODEL's** (`session_max_minutes`), and `0` means the cap ROLLS: the credential and the record still carry one (a slice of `LIVE_EXTENSION_MINUTES` — a provider token cannot outlive its expiry, and a key with no TTL is never written) that the client renews in silence; the record says so (`unlimited_cap`), a renewal is never counted as the person's extension (the card would say « extended 5 times » about a session nobody prolonged) and the metric names the kind (`live_session_extensions_total{kind=explicit|rolling}`). The start hands the client the model's `idle_timeout_seconds` (`0`: no silence clock at all). |
-| `mandate.py` | The live system prompt (`prompts/v1/live_system_prompt.txt`) rendered with the person's name, language, local time, personality, **LIA's inner state** (`{psyche_block}`: the psyche engine's own `<InnerVoice>` block, the one the reminders and the proactive messages carry — placed verbatim when the engine hands one, nothing said otherwise) and ONE delegation verb per wire (`delegate_by_call` / `delegate_native`, `live_lines.txt`); the delegation block per wire and capability; the **delivery-note rule** (`tone_note_call` / `tone_note_native`, emitted only under `EXPRESSIVITY_ENABLED`); the `send_to_lia` declaration (`NON_BLOCKING`); the bridge lines; the **tone lines** (`live_tone_lines.txt`, one per register of `TONE_REGISTERS`, a guard holds the file complete and closed); the sample's greeting. |
+| `mandate.py` | The live system prompt (`prompts/v1/live_system_prompt.txt`) rendered with the person's name, language, local time, the voice sessions' **personality block** (ADR-373), the **cue block** of a `cues` session, **LIA's inner state** (`{psyche_block}`: the psyche engine's own `<InnerVoice>` block, the one the reminders and the proactive messages carry — placed verbatim when the engine hands one, nothing said otherwise) and ONE delegation verb per wire (`delegate_by_call` / `delegate_native`, `live_lines.txt`); the delegation block per wire and capability; the **delivery-note rule** (`tone_note_call` / `tone_note_native`, emitted only under `EXPRESSIVITY_ENABLED`); the `send_to_lia` declaration (`NON_BLOCKING`); the bridge lines; the **tone lines** (`live_tone_lines.txt`, one per register of `TONE_REGISTERS`, a guard holds the file complete and closed); the sample's greeting. |
 | `providers/protocol.py` | `LiveProvider` (`connection`, `delegation_wire`, `billing` — `tariff` or `vendor` —, `default_model`, models, voices, `knows_voice`, `thinking_levels_of`, `capabilities_of`, `build_setup`, `mint`, `sample_voice`, `probe`), `OfferExchanging` (`exchange_offer`) for `offer` connections, `VendorBilling` (`conversation_bill`) for a `vendor`-billed provider, `AgentSyncing` (`sync_agent`) for a provider whose sessions run on the person's agent, and the setup-inputs pair (`setup_inputs_to_dict` / `setup_inputs_from_dict`, pinned by a round-trip equality test — a DIRECT session keeps `direct_tools` and no `tool_declaration`). `LiveModelCapabilities` gained `direct_tools` and `portal_voice` (wave 4), then `vendor_billed` (2026-09-20). |
 | `providers/gemini.py` | Gemini: the ephemeral token (`uses=1`, constrained), the documented capability rows per family, the vendored voices, the TTS sample. The listing lives in `infrastructure/llm/providers/gemini_live_listing.py`, shared with the API-key verifier so `connectors` never imports `live`. **No `enableAffectiveDialog`, on purpose** (measured 2026-09-19, see below; a negative test pins it). |
 | `providers/openai_live.py`, `providers/openai_live_socket.py` | GPT-Live: the `session` object with `delegation: {type: client}`, the nonce as credential, the offer exchange (`POST /v1/live/sessions`), the twelve vendored voices, the probe and the sample over a server-side WebSocket (input silence at real-time pace, the sentence through an instruction append, the continuous output trimmed by `infrastructure/media/pcm.py`). The listing lives in `infrastructure/llm/providers/openai_live_listing.py` (a transcription model under the live prefix is dropped). |
-| `providers/elevenlabs_live.py` | ElevenLabs Agents (wave 4): the agents as models (`label` = the agent's name; the listing in `infrastructure/llm/providers/elevenlabs_live_listing.py`, shared with the key verifier so `connectors` imports neither `live` nor `telephony`), the initiation frame with the prompt alone, the signed URL as credential, `sync_agent` (permission merged, client tools by fingerprint, `tool_ids` = the person's own + this session's set), the probe over aiohttp, no sample (`portal_voice`). The agent doors it needs (`get_agent`, `signed_url`, `patch_agent`, `create_tool`, `set_agent_tool_ids`) are the phone's `telephony/client.py`. |
+| `providers/elevenlabs_live.py` | ElevenLabs Agents (wave 4): the agents as models (`label` = the agent's name; the listing in `infrastructure/llm/providers/elevenlabs_live_listing.py`, shared with the key verifier so `connectors` imports neither `live` nor `telephony`), the initiation frame with the prompt and an empty greeting, the signed URL as credential, `expression_dialect` (the agent's speaking engine), `sync_agent` (the frame's permission merged, the default persona off and the palette where they drifted, client tools by fingerprint, `tool_ids` = EXACTLY this session's set, what LIA left released without force, a lost set healed once), the probe over aiohttp after granting the frame's permission, no sample (`portal_voice`). The agent doors it needs (`get_agent`, `signed_url`, `patch_agent`, `create_tool`, `set_agent_tool_ids`, `list_tools`, `release_tool`) are the phone's `telephony/client.py`. |
 | `direct_mandate.py`, `tool_door.py` | The DIRECT session (wave 4, above): the mandate, the declarations, the context block; the tool door. |
 | `session_store.py` | `LiveSessionRecord` (claim + record, `live:session`, USER_RUNTIME; TTL = cap + `LIVE_SESSION_RECORD_GRACE_SECONDS` awake, the standby bound + the same grace asleep — `life_seconds`; `nonce` / `nonce_until` for an offer connection; `mode`; the standby fields `standby_since`, `awake_since`, `awake_seconds`, `standbys`, `provider_conversation_ids`, pinned by the round-trip test; `rewrite` under the claim), the active set (`live:active`, GLOBAL), the standby set (`live:standby`, GLOBAL, the gauge's source), the lookup budget of a direct session (`live_tools:<session>`, USER_RUNTIME), a direct session's kept turns (drained atomically at a standby) and the fates of its standby relays (a list of its own). |
 | `standby.py`, `session_end.py`, `setup_render.py` | The standby and the wake (ADR-329, above); the end, measured on the time awake with the sleeps named; the setup rendered at an instant, ONE function for the start and every wake. Extracted from `service.py`, which only routes to them. |

@@ -3,8 +3,7 @@
  *
  * Unit tests cover the aggregation service and the presentational components.
  * The browser proves the doors and the journey: Relations holds a first-class
- * NAV slot since 2026-07-30 (it took the `spaces` slot — the chat indicator
- * keeps spaces one click away), the overview renders, the star moves a card
+ * NAV slot, the overview renders, the star moves a card
  * into the Favorites band, a card opens the 360° detail (client-state, no
  * route change), and "prepare a 360° point" deep-links the chat with a
  * `?intent=` (ADR-173).
@@ -209,6 +208,59 @@ async function openSection(page: import('@playwright/test').Page, title: string)
 }
 
 test.describe('relations CRM (N-09)', () => {
+  for (const width of [390, 1280]) {
+    test(`keeps search, sort and quick filters usable with two relations at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await authenticate({ language: 'fr' });
+      await mockApi(
+        buildRoutes([
+          {
+            ...OVERVIEW.relations[0],
+            display_name: 'Zoé',
+            last_interaction_at: new Date().toISOString(),
+          },
+          {
+            ...OVERVIEW.relations[1],
+            display_name: 'Alice',
+            last_interaction_at: '2025-01-01T12:00:00Z',
+          },
+        ])
+      );
+      await page.goto('/fr/dashboard/relations');
+      const search = page.getByRole('searchbox', { name: 'Filtrer par nom…' });
+      const sort = page.getByRole('combobox', { name: 'Trier par' });
+      const peers = page.getByRole('button', { name: 'Sur LIA', exact: true });
+      const dormant = page.getByRole('button', { name: 'En sommeil', exact: true });
+      await expect(search).toBeVisible();
+      await expect(sort).toBeVisible();
+      await expect(peers).toBeVisible();
+      await expect(dormant).toBeVisible();
+      await sort.selectOption('name');
+      await expect(page.locator('main ul[role="list"] > li').first()).toContainText('Alice');
+      await peers.click();
+      await expect(page.getByText('Zoé', { exact: true })).toBeVisible();
+      await expect(page.getByText('Alice', { exact: true })).toHaveCount(0);
+      await dormant.click();
+      await expect(peers).toHaveAttribute('aria-pressed', 'true');
+      await expect(dormant).toHaveAttribute('aria-pressed', 'true');
+      await page.getByRole('button', { name: 'Effacer les filtres', exact: true }).click();
+      await search.fill('Alice');
+      await expect(page.getByText('Alice', { exact: true })).toBeVisible();
+      await expect(page.getByText('Zoé', { exact: true })).toHaveCount(0);
+      await search.fill('');
+      await expect(page.getByText('Zoé', { exact: true })).toBeVisible();
+      await expect(sort).toHaveValue('name');
+      await page.screenshot({
+        path: testInfo.outputPath(`relations-controls-${width}.png`),
+        fullPage: true,
+      });
+    });
+  }
+
   test('is reached from the navigation bar', async ({ page, authenticate, mockApi }) => {
     await authenticate({ language: 'fr' });
     await mockApi(buildRoutes());
@@ -266,8 +318,7 @@ test.describe('relations CRM (N-09)', () => {
     await page.goto('/fr/dashboard/relations');
     await expect(page.getByText(NAME)).toBeVisible({ timeout: 30_000 });
 
-    // The toolbar only appears past the volumetry threshold — hence 11 rows.
-    // `searchbox`, not `textbox`: the field is a native `input type="search"`.
+    // The search field remains a native `input type="search"`.
     const filterBox = page.getByRole('searchbox', { name: 'Filtrer par nom…' });
     await expect(filterBox).toBeVisible();
     await filterBox.fill('Numero 3');

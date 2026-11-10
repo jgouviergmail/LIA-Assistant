@@ -692,6 +692,7 @@ async def _run_pipeline(
         outcome=outcome,
         attempts=result.attempts,
         error=error_msg,
+        run_id=run_id,
     )
     return result.text
 

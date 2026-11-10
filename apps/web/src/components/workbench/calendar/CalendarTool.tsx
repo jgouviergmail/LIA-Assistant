@@ -15,7 +15,7 @@
  * there, and from `lg` an event is dragged or stretched in the grid
  * (`useEventDrop`); a phone reads the month as dots above the picked day.
  */
-import { Plus } from 'lucide-react';
+import { Plus } from '@/lib/icons';
 import { useCallback, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { toast } from 'sonner';
 
@@ -67,7 +67,8 @@ import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
 import { useEventAssist } from '../assist/useEventAssist';
-import { useHandoff, useToolBridges } from '../useToolBridges';
+import { useHandoff } from '@/hooks/useHandoff';
+import { useToolBridges } from '../useToolBridges';
 import type { ToolShortcut } from '../useToolShortcuts';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { LabelsManager } from '../mail/LabelsManager';
@@ -76,6 +77,7 @@ import type { EventDrag } from './CalendarDrag';
 import { CalendarList } from './CalendarList';
 import { SearchOrView, useCalendarSearch } from './CalendarSearch';
 import { CalendarToolbar } from './CalendarToolbar';
+import { CalendarTarget } from './CalendarTarget';
 import { EventDeleteDialog } from './EventDeleteDialog';
 import { EventDetail } from './EventDetail';
 import { EventEditor, type EditorTarget } from './EventEditor';
@@ -85,7 +87,9 @@ import { MonthView } from './MonthView';
 import {
   stepDay,
   useCalendarAddress,
+  useOwnCalendarAlias,
   useHiddenCalendars,
+  calendarSelection,
   type CalendarAddress,
 } from './useCalendarScreen';
 import { useEventDrop, type MovedEvent } from './useEventDrop';
@@ -130,7 +134,7 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   const today = dayIn(zone, new Date());
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
   const address = useCalendarAddress(lng, today, desktop ? 'week' : 'agenda');
-  const { hidden, toggle } = useHiddenCalendars(user?.id ?? '');
+  const preferences = useHiddenCalendars(user?.id ?? '');
   const [editor, setEditor] = useState<{ id: number; target: EditorTarget } | null>(null);
   const [deleting, setDeleting] = useState<CalendarEventDetail | null>(null);
   const wide = useMediaQuery(WORKBENCH_SIDE_BY_SIDE);
@@ -144,6 +148,8 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   });
   const calendarsRead = useWorkbenchCalendars();
   const calendars = calendarsRead.item?.calendars ?? NO_CALENDARS;
+  const { hidden, toggle, target } = calendarSelection(address, calendars, preferences);
+  useOwnCalendarAlias(address, calendars);
   const shownIds = calendars
     .filter(calendar => !hidden.has(calendar.id))
     .map(calendar => calendar.id);
@@ -198,8 +204,11 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
   );
   const [managing, setManaging] = useState(false);
   const manage = managingOffered(tool) ? () => setManaging(true) : undefined;
-  useHandoff('event', starts.writable, handed =>
-    starts.startWith(handed.summary, handed.description, handed.proposal)
+  useHandoff(
+    'event',
+    starts.writable,
+    handed => starts.startWith(handed.summary, handed.description, handed.proposal),
+    editor !== null
   );
   const newEvent = (
     <NewEventButton
@@ -240,6 +249,13 @@ function ReadyCalendar({ lng, tool, limits, tasksReady }: ReadyCalendarProps) {
           {newEvent}
         </span>
       </WorkbenchToolHeader>
+      <CalendarTarget
+        lng={lng}
+        requested={address.selectedCalendarId}
+        target={target}
+        loading={calendarsRead.loading}
+        failed={Boolean(calendarsRead.error)}
+      />
       <section
         aria-label={t('workbench.tools.calendar.label')}
         onKeyDown={onKeyDown}
@@ -566,7 +582,11 @@ function NewEventButton({
 }) {
   const { t } = useTranslation(lng);
   return (
-    <Button className="gap-1.5" onClick={onClick} aria-disabled={!writable || undefined}>
+    <Button
+      className="justify-start gap-1.5"
+      onClick={onClick}
+      aria-disabled={!writable || undefined}
+    >
       <Plus className="h-4 w-4" aria-hidden="true" />
       {t('workbench.calendar.new_event')}
     </Button>

@@ -7,9 +7,14 @@ import {
 } from '../volume-binding';
 import * as masks from '../volume-mask';
 import * as fringe from '../volume-fringe';
-import { restChannelValues } from '../../rig/channels';
-import { smileyClothGraphics } from '../../__tests__/smiley-cloth-graphics';
+import { LIMB_CHANNELS, restChannelValues } from '../../rig/channels';
+import { volumeGraphics } from '../../__tests__/volume-graphics';
 import { createVolumeSurfaceWriter } from '../volume-writer';
+import {
+  COMPANION_BODY_ALPHA_FLOOR,
+  COMPANION_CHARACTERS,
+} from '@/components/spirit/companion-catalogue';
+import { sourceAlphaTransfer } from '../source-alpha';
 
 class BodyImage {
   static instances: BodyImage[] = [];
@@ -45,9 +50,50 @@ function host(visible = true) {
   return { root, canvas };
 }
 describe('the rig alone owns volume visibility, playback and bounded resources', () => {
+  it.each([...COMPANION_CHARACTERS, 'monitor'] as const)(
+    '%s binds only its declared source-alpha correction',
+    character => {
+      const { root, canvas } = host(),
+        gl = volumeGraphics();
+      const uniforms = new Map<string, WebGLUniformLocation>();
+      gl.getUniformLocation.mockImplementation((_program, name) => {
+        const location = {};
+        uniforms.set(name, location);
+        return location;
+      });
+      const dispose = bindBodyVolume(canvas, root, character, 'female', gl);
+      BodyImage.instances[0].load();
+      const transfer = sourceAlphaTransfer(
+        character === 'monitor' ? 0 : COMPANION_BODY_ALPHA_FLOOR
+      );
+      const values = gl.uniform2fv.mock.calls.find(
+        ([location]) => location === uniforms.get('u_alpha_transfer')
+      )?.[1];
+      expect([...values]).toEqual([...new Float32Array([transfer.slope, transfer.intercept])]);
+      expect(gl.uniform1f).toHaveBeenCalledWith(uniforms.get('u_alpha_cutoff'), transfer.cutoff);
+      dispose();
+    }
+  );
+
+  it('redraws a limb-only change with a stationary head without reuploading geometry', () => {
+    const { root, canvas } = host(),
+      gl = volumeGraphics();
+    const dispose = bindBodyVolume(canvas, root, 'bip', 'female', gl);
+    BodyImage.instances[0].load();
+    const uploads = gl.bufferData.mock.calls.length;
+    const rest = restChannelValues();
+    for (const [index, channel] of LIMB_CHANNELS.entries()) {
+      paintBodyVolume(root, { ...rest, [channel]: 8 });
+      expect(gl.drawElements).toHaveBeenCalledTimes(index + 2);
+      paintBodyVolume(root, { ...rest, [channel]: 8 });
+      expect(gl.drawElements).toHaveBeenCalledTimes(index + 2);
+    }
+    expect(gl.bufferData).toHaveBeenCalledTimes(uploads);
+    dispose();
+  });
   it('uploads the supplied fringe mask once per GPU lifetime and releases both textures', () => {
     const { root, canvas } = host();
-    const gl = smileyClothGraphics();
+    const gl = volumeGraphics();
     const fringeMask = document.createElement('canvas');
     fringeMask.width = fringeMask.height = 192;
     vi.mocked(fringe.volumeFringeMask).mockReturnValue(fringeMask);
@@ -74,7 +120,7 @@ describe('the rig alone owns volume visibility, playback and bounded resources',
   });
   it('confines the live organs with the loaded material contour, caches a stationary head and clears every projection on fallback', () => {
     const { root, canvas } = host(),
-      gl = smileyClothGraphics();
+      gl = volumeGraphics();
     root.dataset.style = 'billes';
     root.dataset.volumeCharacter = 'spirit';
     root.dataset.volumeVariant = 'female';
@@ -115,7 +161,7 @@ describe('the rig alone owns volume visibility, playback and bounded resources',
   });
   it('allocates nothing while hidden or reduced, reads alpha once, caches mouth-only frames and releases every GPU object', () => {
     const { root, canvas } = host(false),
-      gl = smileyClothGraphics(),
+      gl = volumeGraphics(),
       raf = vi.spyOn(window, 'requestAnimationFrame');
     const dispose = bindBodyVolume(canvas, root, 'oscar', 'female', gl);
     expect(BodyImage.instances).toHaveLength(0);
@@ -150,7 +196,7 @@ describe('the rig alone owns volume visibility, playback and bounded resources',
   });
   it('keeps the baked body on an unavailable alpha reader or failed link without a retry clock', () => {
     const { root, canvas } = host(),
-      gl = smileyClothGraphics();
+      gl = volumeGraphics();
     vi.mocked(masks.readVolumeMask).mockReturnValue(null);
     const dispose = bindBodyVolume(canvas, root, 'moss', 'male', gl);
     BodyImage.instances[0].load();
@@ -166,17 +212,18 @@ describe('the rig alone owns volume visibility, playback and bounded resources',
   });
   it('reconstructs from the latest native snapshot after context loss and cancels late material callbacks on disposal', () => {
     const { root, canvas } = host(),
-      gl = smileyClothGraphics();
-    const dispose = bindBodyVolume(canvas, root, 'orbit', 'male', gl);
+      gl = volumeGraphics();
+    const dispose = bindBodyVolume(canvas, root, 'bip', 'male', gl);
     BodyImage.instances[0].load();
     const loss = new Event('webglcontextlost', { cancelable: true });
     canvas.dispatchEvent(loss);
     expect(loss.defaultPrevented).toBe(true);
     expect(root.dataset.volumeReady).toBe('false');
-    paintBodyVolume(root, { ...restChannelValues(), headYaw: -1 });
+    paintBodyVolume(root, { ...restChannelValues(), headYaw: -1, armL: 7 });
     canvas.dispatchEvent(new Event('webglcontextrestored'));
     expect(root.dataset.volumeReady).toBe('true');
     expect(gl.drawElements).toHaveBeenCalledTimes(2);
+    expect(gl.uniform4fv.mock.calls.at(-1)?.[1][2]).toBeCloseTo((7 * Math.PI) / 180);
     dispose();
     expect(BodyImage.instances[0].onload).toBeNull();
     canvas.dispatchEvent(new Event('webglcontextrestored'));

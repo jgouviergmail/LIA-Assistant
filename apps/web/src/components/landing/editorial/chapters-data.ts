@@ -18,7 +18,7 @@
  * of the contract, never an accidental omission.
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import type { ProductSceneId } from '../demo/scenes';
 import {
   CloudSun,
@@ -56,6 +56,7 @@ import {
   UserCheck,
   Workflow,
   Wrench,
+  TextSelect,
   KeyRound,
   FileOutput,
   ImagePlus,
@@ -90,7 +91,7 @@ import {
   Search,
   ClipboardList,
   SquareKanban,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 export type ChapterId =
   | 'tools'
@@ -131,6 +132,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     benefits: 3,
     catalog: [
       'workbench',
+      'text_menus',
       'tools_mail',
       'tools_calendar',
       'tools_tasks',
@@ -327,6 +329,7 @@ export const BASICS_CHIPS: readonly { emoji: string; key: string }[] = [
 export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   // the tools, by hand
   'workbench',
+  'text_menus',
   'tools_mail',
   'tools_calendar',
   'tools_tasks',
@@ -429,6 +432,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
 /** Icon per feature card, inherited from the former features wall. */
 export const FEATURE_ICONS: Record<string, LucideIcon> = {
   workbench: Wrench,
+  text_menus: TextSelect,
   tools_mail: Mail,
   tools_calendar: CalendarClock,
   tools_tasks: ListChecks,

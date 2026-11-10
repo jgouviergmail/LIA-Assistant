@@ -45,7 +45,6 @@ HeartbeatSourceLabel = Literal[
     "UPCOMING_BIRTHDAYS",
     "OPEN_LOOPS",
     "DEPARTURE_ADVICE",
-    "HABITS",
     "WORKBOARD",
     "ANTICIPATED_MOMENT",
 ]
@@ -57,7 +56,9 @@ as the schema's enum, and what comes back is held to it by REPAIR, never by
 refusal (``HeartbeatDecision.keep_canonical_source_labels``): refusing cost the
 whole decision — production 2026-10-17, three ticks of five for one account;
 replayed on five model families, 6 calls of 120 cited a section that has no
-label (``USER RHYTHM``, the recent notifications)."""
+label (``USER RHYTHM``, the recent notifications). ``HABITS`` labelled the
+missed-routine section ADR-375 retired: notifications written before it keep
+the label in their history, a new decision is no longer offered it."""
 
 _SOURCE_LABELS: frozenset[str] = frozenset(get_args(HeartbeatSourceLabel))
 
@@ -111,20 +112,6 @@ class HeartbeatDecision(BaseModel):
             "the notification centers on that interest; null otherwise."
         ),
     )
-    # ADR-214: the offer bookkeeping (≤ 1 offer per day, 7-day cooldown, mute
-    # after 2 ignored offers) used to key on ``"HABITS" in sources_used`` —
-    # a label the model chose freely: measured 2026-09-11, an offer about the
-    # learned « email » routine was labelled UNREAD_EMAILS and the budget was
-    # never charged. The offer is now DECLARED, on its own field, and the
-    # source label stays what it is: an audit trail.
-    habit_offered: bool = Field(
-        default=False,
-        description=(
-            "true ONLY when message_draft offers to run the learned routine "
-            "listed under MISSED ROUTINE; false otherwise."
-        ),
-    )
-
     sms_actionable: bool = Field(
         default=False,
         description="True only for a concrete useful action or fact from an offered SMS, never receipt alone.",
@@ -144,11 +131,10 @@ class HeartbeatDecision(BaseModel):
     def keep_canonical_source_labels(cls, value: Any) -> Any:
         """Repair a label's spelling and drop a label that names no source.
 
-        The labels are an audit trail (an offer is declared by
-        ``habit_offered``): a word outside the vocabulary must never cost the
-        decision it annotates. A section the prompt shows without a label of
-        its own is dropped, never mapped — ``USER RHYTHM`` is context, and
-        filing it as ``HABITS`` would read as an offer nobody declared.
+        The labels are an audit trail: a word outside the vocabulary must never
+        cost the decision it annotates. A section the prompt shows without a
+        label of its own is dropped, never mapped — ``USER RHYTHM`` is context,
+        not a source of news.
 
         Args:
             value: What the model wrote for the field.
@@ -266,10 +252,9 @@ class HeartbeatContext:
     # ADR-276 D14: tickets overdue, due soon, or waiting on the person.
     workboard: list[dict[str, Any]] | None = None
 
-    # Learned habits block (ADR-214) — {"rhythm": {class: [window labels]},
-    # "missed_routine": {habit_id, signature, shape, trigger_label, weekday}}.
-    # The habit_id travels to proactive_task for the post-notification offer
-    # bookkeeping (cooldown + stop rule), open_loops precedent.
+    # Learned rhythm (ADR-214) — {"rhythm": {class: [window labels]}}. The
+    # missed-routine offer it used to carry is retired (ADR-375): proposals
+    # are shown by the code, in the chat and in Alertes › Propositions.
     habits: dict[str, Any] | None = None
 
     # Activity
@@ -312,9 +297,6 @@ class HeartbeatContext:
                 self.open_loops,
                 self.workboard,
                 self.departure_advice,
-                # Rhythm alone is context, not news: only a missed routine
-                # makes the habits block a reason to notify by itself.
-                (self.habits or {}).get("missed_routine"),
                 # A moment IS the reason this decision is being taken now: it
                 # must never be dropped by the « nothing to say » shortcut.
                 self.moment,
@@ -525,6 +507,7 @@ class HeartbeatHistoryResponse(BaseModel):
 
     notifications: list[HeartbeatNotificationResponse]
     total: int
+    as_of: datetime | None = Field(default=None, description="Upper creation instant for this list")
 
 
 class HeartbeatFeedbackRequest(BaseModel):

@@ -1,17 +1,24 @@
 'use client';
 
-import { CalendarClock, Check, ListTodo } from 'lucide-react';
+import { BellPlus, CalendarClock, Check, ListTodo, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
+import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { homeActs, useHomeAct, useHomeReminder } from './useHomeActs';
+import { useHomeTools } from '../HomeTools';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
+import { homeLanguage, postponedDay, taskHref } from '@/lib/briefing-tools';
 import { useDashboardChat } from '../DashboardNavigation';
+import type { Language } from '@/i18n/settings';
 import type { CardSection, TaskItem, TasksData } from '@/types/briefing';
 
 interface TasksCardProps {
   section: CardSection<TasksData>;
   isRefreshing: boolean;
   onRefresh: () => void;
+  /** Reload after a direct act, independently of manual refresh feedback. */
+  onInvalidate?: () => void;
   staggerIndex?: number;
 }
 
@@ -19,14 +26,23 @@ interface TasksCardProps {
  * Tasks card (P15 extension, 2026-07-22).
  *
  * Strictly pending/overdue tasks from the active provider (Google Tasks /
- * Microsoft To Do). Overdue rows lead with a rose accent; every row is a
- * button opening the chat prefilled with a direction-aware intent (QW-9
- * `?draft=` pattern — reschedule for overdue, progress for pending).
+ * Microsoft To Do). Overdue rows lead with a rose accent. Where the instance
+ * offers the « Tools », a task opens in its own list there, and « done » and
+ * « tomorrow » are one press each through the Tools' routes, the card read again
+ * after (owner, 2026-11-07); a task whose list could not be read, or an instance
+ * that keeps the chat, asks LIA instead (ADR-173), prefilled or executed.
  */
-export function TasksCard({ section, isRefreshing, onRefresh, staggerIndex }: TasksCardProps) {
+export function TasksCard({
+  section,
+  isRefreshing,
+  onRefresh,
+  onInvalidate,
+  staggerIndex,
+}: TasksCardProps) {
   const { i18n } = useTranslation();
   const openChat = useDashboardChat();
-  const lng = (i18n.language || 'fr').split('-')[0];
+  const lng = homeLanguage(i18n.language);
+  const { offered, zone } = useHomeTools();
   return (
     <BriefingCard<TasksData>
       titleKey="dashboard.briefing.cards.tasks.title"
@@ -39,13 +55,22 @@ export function TasksCard({ section, isRefreshing, onRefresh, staggerIndex }: Ta
       renderContent={data => (
         <TasksContent
           data={data}
+          lng={lng}
+          opensTools={offered}
+          zone={zone}
           onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
           onExecute={intent => openChat(chatIntentHref(lng, intent))}
+          onActed={onInvalidate ?? onRefresh}
         />
       )}
       staggerIndex={staggerIndex}
     />
   );
+}
+
+/** « Tomorrow » postpones only what is due by today: a task due later would be brought forward. */
+function dueByToday(task: TaskItem): boolean {
+  return task.days_until_due !== null && task.days_until_due <= 0;
 }
 
 function DueBadge({ task }: { task: TaskItem }) {
@@ -78,71 +103,134 @@ function DueBadge({ task }: { task: TaskItem }) {
 
 function TasksContent({
   data,
+  lng,
+  opensTools,
+  zone,
   onOpenChat,
   onExecute,
+  onActed,
 }: {
   data: TasksData;
+  lng: Language;
+  /** The instance offers the Tools: a task opens there, and « done » acts directly. */
+  opensTools: boolean;
+  /** The account's zone: « tomorrow » is its day. */
+  zone: string | undefined;
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
+  onActed: () => void;
 }) {
   const { t } = useTranslation();
+  const { busy, run, list } = useHomeAct(onActed);
+  const { remind, dialog } = useHomeReminder(lng);
+
+  /**
+   * Direct first — the Tools' routes where the task's own list is known, then a reminder — and
+   * LIA's acts after: « done » and « tomorrow » are LIA's where the Tools cannot do them.
+   */
+  const actsOf = (task: TaskItem): CardItemAction[] => {
+    const subject = { subject: task.title };
+    const { id, list_id: listId } = task;
+    const remindAct: CardItemAction = {
+      icon: BellPlus,
+      label: t('dashboard.briefing.home_acts.remind'),
+      onSelect: () => remind(task.title),
+    };
+    const help = t('dashboard.briefing.intents_exec.task_help', subject);
+    const helpAct: CardItemAction = {
+      icon: Sparkles,
+      label: help,
+      opensChat: true,
+      onSelect: () => onExecute(help),
+    };
+    if (opensTools && id && listId) {
+      const postponeAct: CardItemAction = {
+        icon: CalendarClock,
+        label: t('dashboard.briefing.home_acts.postpone'),
+        busy: busy === id,
+        onSelect: () =>
+          void run(
+            id,
+            () => homeActs.postpone(listId, id, postponedDay(zone, new Date())),
+            'dashboard.briefing.home_acts_done.postponed'
+          ),
+      };
+      return [
+        {
+          icon: Check,
+          label: t('dashboard.briefing.home_acts.done'),
+          busy: busy === id,
+          onSelect: () =>
+            void run(
+              id,
+              () => homeActs.complete(listId, id),
+              'dashboard.briefing.home_acts_done.done'
+            ),
+        },
+        ...(dueByToday(task) ? [postponeAct] : []),
+        remindAct,
+        helpAct,
+      ];
+    }
+    // "Terminé" is an external write — the pipeline's task_update HITL draft
+    // still gates the actual provider call (ADR-173).
+    const complete = t('dashboard.briefing.intents_exec.task_complete', subject);
+    const postpone = t('dashboard.briefing.intents_exec.task_postpone', subject);
+    return [
+      remindAct,
+      { icon: Check, label: complete, opensChat: true, onSelect: () => onExecute(complete) },
+      {
+        icon: CalendarClock,
+        label: postpone,
+        opensChat: true,
+        onSelect: () => onExecute(postpone),
+      },
+      helpAct,
+    ];
+  };
+
   return (
-    <ul className="space-y-0.5" role="list">
-      {data.items.map((task, index) => {
-        const intent = t(
-          task.overdue
-            ? 'dashboard.briefing.intents.task_reschedule'
-            : 'dashboard.briefing.intents.task_progress',
-          { subject: task.title }
-        );
-        const completeIntent = t('dashboard.briefing.intents_exec.task_complete', {
-          subject: task.title,
-        });
-        const postponeIntent = t('dashboard.briefing.intents_exec.task_postpone', {
-          subject: task.title,
-        });
-        return (
-          // "Terminé" is an external write — the pipeline's task_update HITL
-          // draft still gates the actual provider call (ADR-173).
-          <CardItemRow
-            key={index}
-            ariaLabel={intent}
-            tooltip={task.title}
-            onSelect={() => onOpenChat(intent)}
-            contentClassName="flex flex-col gap-1.5 leading-snug"
-            actions={[
-              {
-                icon: Check,
-                label: completeIntent,
-                opensChat: true,
-                onSelect: () => onExecute(completeIntent),
-              },
-              {
-                icon: CalendarClock,
-                label: postponeIntent,
-                opensChat: true,
-                onSelect: () => onExecute(postponeIntent),
-              },
-            ]}
-          >
-            {task.days_until_due !== null && (
-              <span className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300">
-                <ListTodo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <DueBadge task={task} />
-              </span>
-            )}
-            <span
-              className={
-                task.overdue
-                  ? 'line-clamp-2 break-words text-sm font-semibold text-rose-600 dark:text-rose-300'
-                  : 'line-clamp-2 break-words text-sm font-semibold text-foreground/90'
-              }
+    <>
+      {dialog}
+      <ul ref={list} className="space-y-0.5" role="list">
+        {data.items.map((task, index) => {
+          const intent = t(
+            task.overdue
+              ? 'dashboard.briefing.intents.task_reschedule'
+              : 'dashboard.briefing.intents.task_progress',
+            { subject: task.title }
+          );
+          const href = opensTools ? taskHref(task, lng) : null;
+          const target = href
+            ? { href, ariaLabel: t('dashboard.briefing.open_in.task', { subject: task.title }) }
+            : { onSelect: () => onOpenChat(intent), ariaLabel: intent };
+          return (
+            <CardItemRow
+              key={task.id ?? index}
+              {...target}
+              tooltip={task.title}
+              contentClassName="flex flex-col gap-1.5 leading-snug"
+              actions={actsOf(task)}
             >
-              {task.title}
-            </span>
-          </CardItemRow>
-        );
-      })}
-    </ul>
+              {task.days_until_due !== null && (
+                <span className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300">
+                  <ListTodo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <DueBadge task={task} />
+                </span>
+              )}
+              <span
+                className={
+                  task.overdue
+                    ? 'line-clamp-2 break-words text-sm font-semibold text-rose-600 dark:text-rose-300'
+                    : 'line-clamp-2 break-words text-sm font-semibold text-foreground/90'
+                }
+              >
+                {task.title}
+              </span>
+            </CardItemRow>
+          );
+        })}
+      </ul>
+    </>
   );
 }

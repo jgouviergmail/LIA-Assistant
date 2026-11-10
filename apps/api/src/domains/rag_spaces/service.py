@@ -31,6 +31,7 @@ from src.domains.rag_spaces.document_access import (
 )
 from src.domains.rag_spaces.document_deletion import delete_selected_document_rows
 from src.domains.rag_spaces.drive_provider import active_drive_provider
+from src.domains.rag_spaces.listing import SpaceListingRepository
 from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentStatus,
@@ -45,6 +46,7 @@ from src.domains.rag_spaces.repository import (
     RAGMailSourceRepository,
     RAGSpaceRepository,
 )
+from src.domains.rag_spaces.schemas import RAGSpaceListQuery, RAGSpaceResponse
 from src.domains.rag_spaces.space_creation import SpaceCreationScope
 from src.domains.rag_spaces.space_mutation import publish_activation, source_update_values
 from src.domains.rag_spaces.upload_storage import prepare_space_directory, write_uploaded_file
@@ -183,20 +185,13 @@ class RAGSpaceService:
     # Space CRUD
     # ========================================================================
 
-    async def list_spaces(self, user_id: uuid.UUID) -> list[dict]:
-        """List all user-owned spaces with computed stats (excludes system spaces)."""
-        spaces = await self.space_repo.get_all_for_user(user_id)
-        spaces = [s for s in spaces if not s.is_system]
-        result = []
-        for space in spaces:
-            stats = await self.doc_repo.get_space_stats(space.id)
-            result.append(
-                {
-                    **space.dict(),
-                    **stats,
-                }
-            )
-        return result
+    async def list_spaces(
+        self, user_id: uuid.UUID, criteria: RAGSpaceListQuery | None = None
+    ) -> list[RAGSpaceResponse]:
+        """List every matching owned space and its statistics in one SQL snapshot."""
+        return await SpaceListingRepository(self.db).list_metadata(
+            user_id, criteria or RAGSpaceListQuery()
+        )
 
     async def lock_creation_owner(self, user_id: uuid.UUID) -> None:
         """All source creators serialize the account quota with current active ownership."""
@@ -294,13 +289,14 @@ class RAGSpaceService:
         description: str | None = None,
         *,
         commit: bool = True,
+        is_favorite: bool | None = None,
     ) -> RAGSpace:
         """Update a space (partial update)."""
         space = await self.get_space(space_id, user_id, for_update=True)
         if space.is_system:
             raise_system_space_protected(space_id, "update")
 
-        update_data = source_update_values(name, description)
+        update_data = source_update_values(name, description, is_favorite=is_favorite)
 
         if update_data:
             try:
@@ -330,9 +326,13 @@ class RAGSpaceService:
         user_id: uuid.UUID,
         name: str | None = None,
         description: str | None = None,
+        *,
+        is_favorite: bool | None = None,
     ) -> dict:
         """Update a space and return it with computed stats."""
-        space = await self.update_space(space_id, user_id, name, description)
+        space = await self.update_space(
+            space_id, user_id, name, description, is_favorite=is_favorite
+        )
         stats = await self.doc_repo.get_space_stats(space_id)
         return {**space.dict(), **stats}
 

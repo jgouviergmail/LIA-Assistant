@@ -17,8 +17,9 @@ interests_item|- {topic} ({category}{subject}; weight {weight}; last mentioned {
 habits_header|## LEARNED HABITS (deterministic detectors, consumable windows only)
 habits_rhythm|- Usual activity: {windows}; active on {active_pct}% of observed days{sparse}
 habits_rhythm_sparse|(occasional use: no window claimed)
-habits_recurring|- Recurring request: {key} — {shape}{hour}{intent}
-habits_recurring_hour|around {hour}
+habits_recurring|- Recurring need: {key} — {cadence}{part}{intent}
+habits_recurring_weekly|weekly, on {weekday}
+habits_recurring_part|mostly in the {part}
 habits_recurring_intent|({intent})
 debriefs_header|## RELATIONSHIP DEBRIEFS (dated syntheses LIA wrote; {shown} of {total}, newest first)
 debriefs_item|- {person} (written {date}): {headline} — {where_we_stand}{open_points}

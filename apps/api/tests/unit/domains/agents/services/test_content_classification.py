@@ -3,12 +3,18 @@
 import json
 import re
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 
 from src.core.constants import (
     JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS,
     JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
+)
+from src.core.content_classification import (
+    CLASSIFICATION_VERSION,
+    EmailClassification,
+    EventClassification,
 )
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.qualification.contracts import (
@@ -18,7 +24,9 @@ from src.domains.agents.services.qualification.policy import (
     accepted_choice,
     classify_answers,
 )
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer
 
 pytestmark = pytest.mark.unit
 
@@ -190,3 +198,77 @@ def test_the_question_names_exactly_the_provider_labels_the_rule_reads() -> None
     assert named == JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS | {
         JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL
     }
+
+
+def reply(probability: float) -> NoulAnswer:
+    return NoulAnswer(type="noul", noul=probability)
+
+
+@pytest.mark.parametrize(
+    ("category", "probability", "expected"),
+    [
+        ("professional", 0.9, True),
+        ("personal", 0.1, False),
+        ("professional", 0.5, None),
+        ("professional", 0.7, True),
+        ("personal", 0.3, False),
+        # Spam and phishing expect no legitimate reply, whatever the question reads.
+        ("spam", 0.95, False),
+        ("phishing_scam", 0.95, False),
+        # Without an accepted category nothing says the sender is legitimate.
+        ("unknown", 0.95, None),
+    ],
+)
+def test_a_reply_is_expected_only_where_a_legitimate_message_asks_for_one(
+    category: str, probability: float, expected: bool | None
+) -> None:
+    result = classify_answers(
+        observation(),
+        category=answer(category, EMAIL),
+        priority=answer("normal", PRIORITY),
+        reply=reply(probability),
+        now=datetime.now(UTC),
+    )
+    assert isinstance(result, EmailClassification)
+    assert result.reply_expected is expected
+
+
+def test_no_reply_answer_publishes_no_reply_claim() -> None:
+    result = classify_answers(
+        observation(),
+        category=answer("professional", EMAIL),
+        priority=answer("normal", PRIORITY),
+        now=datetime.now(UTC),
+    )
+    assert isinstance(result, EmailClassification) and result.reply_expected is None
+
+
+def test_the_reply_margin_is_the_operation_s() -> None:
+    thresholds = {
+        **gate_defaults(JevUsage.EMAIL_CLASSIFICATION),
+        "reply_expected": Decimal("0.45"),
+    }
+    result = classify_answers(
+        observation(),
+        category=answer("professional", EMAIL),
+        priority=answer("normal", PRIORITY),
+        reply=reply(0.6),
+        now=datetime.now(UTC),
+        thresholds=thresholds,
+    )
+    assert isinstance(result, EmailClassification) and result.reply_expected is True
+
+
+def test_an_annotation_of_the_former_version_is_still_read() -> None:
+    stamp = {
+        "evidence_scope": "snippet",
+        "evaluated_at": "2026-11-01T10:00:00+00:00",
+        "valid_until": "2026-11-01T10:05:00+00:00",
+    }
+    former = EmailClassification.model_validate(
+        {**stamp, "version": "email-event-v1-phishing", "category": "personal"}
+    )
+    assert former.reply_expected is None
+    assert CLASSIFICATION_VERSION == "email-event-v2-reply"
+    assert EventClassification.model_validate(stamp).version == CLASSIFICATION_VERSION
+    assert not hasattr(EventClassification.model_validate(stamp), "reply_expected")

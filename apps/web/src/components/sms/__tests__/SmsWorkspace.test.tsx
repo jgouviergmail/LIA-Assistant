@@ -3,8 +3,9 @@
  * their received SMS — consult them, block a sender, erase — on a page of their
  * own behind the header's « SMS », drawn like the other destinations (no
  * settings panel behind them). The page reads what it shows and nothing of the
- * settings' own (the ingestion tokens, the statistics); every change goes
- * through the reviewed confirmation; a focused notification message opens in
+ * settings' own (the ingestion tokens, the statistics); bulk changes go
+ * through reviewed confirmation, a single deletion through its explicit click;
+ * a focused notification message opens in
  * place; SMS switched off on the instance is said, and nothing is read.
  */
 
@@ -113,11 +114,15 @@ async function open(language: 'en' | 'fr') {
     resources: { en: { translation: en }, fr: { translation: fr } },
     interpolation: { escapeValue: false },
   });
-  return render(
-    <I18nextProvider i18n={i18n}>
-      <SmsWorkspace lng={language} />
-    </I18nextProvider>
-  );
+  // Mounting starts the archive reads. Settle their immediate mock responses
+  // inside React's async boundary before the person starts interacting.
+  await act(async () => {
+    render(
+      <I18nextProvider i18n={i18n}>
+        <SmsWorkspace lng={language} />
+      </I18nextProvider>
+    );
+  });
 }
 
 function fold(title: string): HTMLDetailsElement {
@@ -125,6 +130,37 @@ function fold(title: string): HTMLDetailsElement {
   if (!details) throw new Error(`Missing disclosure: ${title}`);
   return details;
 }
+
+it('automatically opens results from the external search and applies dates in the account timezone', async () => {
+  await open('fr');
+  await screen.findByText('Camille');
+  const form = screen.getByRole('search');
+  expect(form.closest('details')).toBeNull();
+  const from = within(form).getByLabelText('Du (inclus)', { exact: true });
+  const to = within(form).getByLabelText('Au (exclus)', { exact: true });
+  expect(form).not.toHaveTextContent('Europe/Paris');
+  const archive = fold('Consulter mes SMS');
+  archive.open = false;
+  fireEvent(archive, new Event('toggle'));
+  await waitFor(() => expect(screen.queryByText('Camille')).not.toBeInTheDocument());
+  fireEvent.change(within(form).getByRole('searchbox'), { target: { value: 'dîner' } });
+  fireEvent.change(from, { target: { value: '2026-10-25' } });
+  fireEvent.change(to, { target: { value: '2026-10-26' } });
+  expect(form).toBeVisible();
+  expect(within(form).queryByRole('button', { name: 'Rechercher' })).toBeNull();
+  await waitFor(() => expect(archive).toHaveAttribute('open'));
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith(
+      '/sms/search',
+      expect.objectContaining({
+        query: 'dîner',
+        from_ts: '2026-10-24T22:00:00.000Z',
+        to_ts: '2026-10-25T23:00:00.000Z',
+      }),
+      expect.anything()
+    )
+  );
+});
 
 function unfold(title: string): HTMLDetailsElement {
   const details = fold(title);
@@ -144,7 +180,8 @@ it.each(['en', 'fr'] as const)(
     expect(screen.getByRole('heading', { level: 1, name: copy.sms.title })).toBeVisible();
     const archive = fold(copy.sms.archive);
     expect(archive).toHaveAttribute('open');
-    expect(within(archive).getByRole('searchbox', { name: copy.sms.search })).toBeVisible();
+    expect(screen.getByRole('searchbox', { name: copy.sms.search })).toBeVisible();
+    expect(within(archive).queryByRole('searchbox')).not.toBeInTheDocument();
     expect(await within(archive).findByText(message.display_name)).toBeVisible();
     expect(fold(copy.sms.blocked)).not.toHaveAttribute('open');
     expect(fold(copy.sms.management)).not.toHaveAttribute('open');
@@ -200,8 +237,8 @@ it('proposes erasing a period in the account’s days, and refuses one that ends
   await open('en');
   const management = unfold(en.sms.management);
   // Each day field names the zone its days are read in.
-  const from = within(management).getByLabelText(`${en.sms.from} · Europe/Paris`);
-  const to = within(management).getByLabelText(`${en.sms.to} · Europe/Paris`);
+  const from = within(management).getByLabelText(en.sms.from);
+  const to = within(management).getByLabelText(en.sms.to);
 
   fireEvent.change(from, { target: { value: '2026-10-10' } });
   fireEvent.change(to, { target: { value: '2026-10-01' } });
@@ -263,7 +300,13 @@ it('erases one SMS without a visible reload: the sender stays open and takes the
       return { outcome: { success: true, committed: true, phase: 'committed' }, secret: null };
     }
     if (erased) return freshPage.promise;
-    return { items: [message], total: 1, revision: 1, as_of: message.received_at, next_cursor: null };
+    return {
+      items: [message],
+      total: 1,
+      revision: 1,
+      as_of: message.received_at,
+      next_cursor: null,
+    };
   });
   const served = get.getMockImplementation();
   get.mockImplementation(async (path: string) =>
@@ -317,4 +360,52 @@ it('says SMS are not offered when the instance switched them off, and reads noth
   });
   expect(get).not.toHaveBeenCalled();
   expect(post).not.toHaveBeenCalled();
+});
+
+/** The frame a message's day is drawn in (the focused message has its own, focusable). */
+function dayFrames(body: string): HTMLElement[] {
+  return screen
+    .getAllByText(body)
+    .map(text => text.closest('div.rounded-xl:not([tabindex])'))
+    .filter((frame): frame is HTMLElement => frame instanceof HTMLElement);
+}
+
+it('alternates its grounds: a fold is the card, what it holds the page, a fold within the card', async () => {
+  // Charter « Grounds alternate » (owner remark 2026-11-08 on this page).
+  location.search = `message=${message.id}`;
+  await open('fr');
+  expect(fold(fr.sms.archive)).toHaveClass('bg-card');
+
+  // What the archive holds stands on the page's background…
+  const focused = await screen.findByLabelText(fr.sms.title, { selector: 'div[tabindex="-1"]' });
+  expect(focused).toHaveClass('bg-background');
+  await screen.findByText(message.display_name, { selector: 'summary span' });
+  const sender = fold(message.display_name);
+  expect(sender).toHaveClass('bg-background');
+
+  // …and a fold within it holds the card again.
+  unfold(message.display_name);
+  await within(sender).findByText(message.body);
+  expect(within(sender).getByText(message.body).closest('div.rounded-xl')).toHaveClass('bg-card');
+
+  // The « by day » view sets its days straight in the archive: the page's background.
+  fireEvent.click(screen.getByRole('button', { name: fr.sms.by_day }));
+  await waitFor(() => expect(dayFrames(message.body)).toHaveLength(1));
+  expect(dayFrames(message.body)[0]).toHaveClass('bg-background');
+
+  // Each blocked sender is a record on the page's background.
+  const blocked = unfold(fr.sms.blocked);
+  const record = (await within(blocked).findByText('+33 6 00 00 00 00')).closest('li');
+  expect(record).toHaveClass('bg-background');
+});
+
+it('draws an empty archive on the page’s background', async () => {
+  const served = get.getMockImplementation();
+  get.mockImplementation(async (path: string) =>
+    path === '/sms/senders'
+      ? { items: [], total: 0, as_of: '2026-10-19T13:00:00Z', revision: 1, next_cursor: null }
+      : served?.(path)
+  );
+  await open('fr');
+  expect((await screen.findByText(fr.sms.empty)).closest('p')).toHaveClass('bg-background');
 });

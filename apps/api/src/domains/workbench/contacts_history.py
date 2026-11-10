@@ -8,6 +8,10 @@ never takes: nothing here reaches a model or a register (D5).
 A calendar answers a window oldest first, so a long read would hand back the oldest meetings and
 cut the latest: the window walks back from now and stops once both lists are full. How far it
 looked is stated. Each source says why it has nothing: « I could not look » is never « nothing ».
+
+Since 2026-11-07 the contact's NUMBERS are asked too: the calls LIA placed to them and the texts
+they sent (``contacts_lines``). A contact with numbers alone has exchanges, its mailbox and
+calendar ``not_requested``, and one with addresses alone asks no phone record.
 """
 
 from __future__ import annotations
@@ -42,6 +46,7 @@ from src.domains.relations.providers.schemas import ExchangedEmail
 from src.domains.shared.text_normalization import fold_email
 from src.domains.workbench.calls import provider_call
 from src.domains.workbench.clients import open_tool_client
+from src.domains.workbench.contacts_lines import phone_history
 from src.domains.workbench.errors import NOT_CONNECTED, refusal_code_of
 from src.domains.workbench.features import WorkbenchTool
 from src.domains.workbench.schemas.contacts import (
@@ -89,16 +94,22 @@ async def contact_history(
     Args:
         user_id: The account.
         zone: The person's, which a meeting's day is read on.
-        query: The contact's addresses.
+        query: The contact's addresses and numbers.
         now: What « latest » is measured from.
 
     Returns:
         What each source found, each saying why it has nothing.
     """
     addresses = list(dict.fromkeys(str(address) for address in query.address))
-    (mail, mail_source), (meetings, calendar_source) = await asyncio.gather(
-        _sourced(_mail_with(user_id, addresses), _Mail()),
-        _sourced(_meetings_with(user_id, zone, addresses, now), _Meetings()),
+    phones = list(dict.fromkeys(query.phone))
+    (mail, mail_source), (meetings, calendar_source), phone = await asyncio.gather(
+        _sourced(_mail_with(user_id, addresses), _Mail()) if addresses else _unasked(_Mail()),
+        (
+            _sourced(_meetings_with(user_id, zone, addresses, now), _Meetings())
+            if addresses
+            else _unasked(_Meetings())
+        ),
+        phone_history(user_id, phones),
     )
     return ContactHistory(
         mail=mail_source,
@@ -110,7 +121,20 @@ async def contact_history(
         shared=_latest(meetings.shared),
         meetings_window_days=WORKBENCH_CONTACT_HISTORY_SPAN_DAYS * WORKBENCH_CONTACT_HISTORY_SPANS,
         meetings_cut=meetings.cut,
+        telephony=phone.telephony,
+        calls=phone.calls,
+        calls_window=phone.calls_window,
+        calls_cut=phone.calls_cut,
+        sms=phone.sms,
+        texts=phone.texts,
+        texts_window=phone.texts_window,
+        texts_cut=phone.texts_cut,
     )
+
+
+async def _unasked[T](nothing: T) -> tuple[T, HistorySource]:
+    """A source the contact gives nothing to look under: never read, never « nothing found »."""
+    return nothing, "not_requested"
 
 
 def _latest(meetings: list[HistoryMeeting]) -> list[HistoryMeeting]:

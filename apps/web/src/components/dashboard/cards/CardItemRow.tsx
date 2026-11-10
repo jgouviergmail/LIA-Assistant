@@ -17,15 +17,23 @@
  * Radix's tooltip opens on hover AND on keyboard focus, and wires itself as
  * `aria-describedby`, so the item's own words become reachable by both routes.
  * It portals to the body, so the card's `overflow-y-auto` never clips it.
+ *
+ * **An item that opens in its tool is a link** (2026-11-07): opening something elsewhere is
+ * navigation, so the row keeps the browser's middle-click, context menu and status-bar preview,
+ * and an embedded dashboard still opens it through its own navigation (`DashboardLink`).
  */
 
 import type { ReactNode } from 'react';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { DashboardLink } from '../DashboardNavigation';
 import { CardItemActions, type CardItemAction } from './CardItemActions';
 
-export interface CardItemRowProps {
+/** What the row does: run a handler (the chat), or open an address (the item in its tool). */
+type RowTarget = { onSelect: () => void; href?: never } | { href: string; onSelect?: never };
+
+export type CardItemRowProps = RowTarget & {
   /** What the CLICK does — the row's accessible name. */
   ariaLabel: string;
   /**
@@ -37,7 +45,6 @@ export interface CardItemRowProps {
    * always does.
    */
   tooltip: string;
-  onSelect: () => void;
   actions?: readonly CardItemAction[];
   /** `items-start` for multi-line items, `items-center` for single-line ones. */
   align?: 'start' | 'center';
@@ -46,18 +53,24 @@ export interface CardItemRowProps {
   /** Card-specific timeline geometry; actions remain siblings of the button. */
   className?: string;
   children: ReactNode;
-}
+};
 
 export function CardItemRow({
   ariaLabel,
   tooltip,
   onSelect,
+  href,
   actions = [],
   align = 'start',
   contentClassName,
   className,
   children,
 }: CardItemRowProps) {
+  const itemClass = cn(
+    'min-w-0 flex-1 rounded-md px-1.5 py-1 -mx-1.5 text-left',
+    'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    contentClassName
+  );
   return (
     <li
       className={cn(
@@ -68,18 +81,15 @@ export function CardItemRow({
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={onSelect}
-            aria-label={ariaLabel}
-            className={cn(
-              'min-w-0 flex-1 rounded-md px-1.5 py-1 -mx-1.5 text-left',
-              'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              contentClassName
-            )}
-          >
-            {children}
-          </button>
+          {href !== undefined ? (
+            <DashboardLink href={href} aria-label={ariaLabel} className={itemClass}>
+              {children}
+            </DashboardLink>
+          ) : (
+            <button type="button" onClick={onSelect} aria-label={ariaLabel} className={itemClass}>
+              {children}
+            </button>
+          )}
         </TooltipTrigger>
         {/* `collisionPadding`: rows sit at the very edge of a grid column, and
             an unpadded bubble was clipped by the viewport on a phone. */}

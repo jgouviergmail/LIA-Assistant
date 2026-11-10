@@ -12,6 +12,7 @@ import { MAIL_INBOX, MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
 import type { MailMessage, MailSummary } from '@/lib/workbench/types';
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/en/dashboard/tools/mail',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -201,16 +202,13 @@ describe('useFirstLook', () => {
   const look = (
     initial: { address?: MailAddress; rows?: readonly MailSummary[]; wide?: boolean } = {}
   ) =>
-    renderHook(
-      ({ address, rows, wide }) => useFirstLook(address, rows, wide),
-      {
-        initialProps: {
-          address: initial.address ?? inbox,
-          rows: initial.rows ?? [summary('m1'), summary('m2')],
-          wide: initial.wide ?? true,
-        },
-      }
-    );
+    renderHook(({ address, rows, wide }) => useFirstLook(address, rows, wide), {
+      initialProps: {
+        address: initial.address ?? inbox,
+        rows: initial.rows ?? [summary('m1'), summary('m2')],
+        wide: initial.wide ?? true,
+      },
+    });
 
   it('shows the first row once the listing lands', () => {
     const { result, rerender } = look({ rows: NOTHING });

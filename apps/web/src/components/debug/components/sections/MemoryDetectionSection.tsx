@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { BrainCog } from 'lucide-react';
+import { BrainCog } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import {
   ActionBadge,

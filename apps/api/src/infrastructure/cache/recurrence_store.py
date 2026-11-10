@@ -1,29 +1,27 @@
-"""Redis storage format of the recurrence ledger (ADR-140 v2, ADR-214).
+"""Redis storage format of the recurrence ledger (ADR-140 v2, ADR-214, ADR-375).
 
 The STORAGE layer only — key shape (signature included, since 2026-09-11:
 the seed produces keys too and must produce the SAME ones), per-day payload,
-caps, TTL. The SEMANTICS (shape locks, suggestion, promotion) stay in
-``domains.agents.services.recurrence_ledger``. Extracted here because three
-domains touch the same keys and duplicating the literal in each of them was
-the previous, weaker contract (pinned by tests instead of shared code):
+caps, TTL. Extracted here because two domains touch the same keys and
+duplicating the literal in each of them was the previous, weaker contract
+(pinned by tests instead of shared code):
 
-- agents: records occurrences and evaluates locks (owner of the semantics);
-- heartbeat: reads occurrence days for missed-routine detection;
-- habits: lists candidates under observation, seeds the ledger back from
-  ``product_outcomes`` after a Redis flush (ADR-214 rebuild lot).
+- agents: records the occurrences of a human turn (``recurrence_ledger``);
+- habits: seeds the ledger back from ``product_outcomes`` after a Redis flush,
+  reads it nightly to learn the person's recurring needs (``usage_observations``),
+  lists the candidates under observation and forgets it on request.
 
 ``infrastructure`` imports no domain, so every consumer can import this
-module without creating the agents↔habits cycle the coupling ratchet
-forbids (agents already imports habits for the promotion path).
+module without creating the agents↔habits cycle the coupling ratchet forbids.
 
-Payload shape: ``{"days": {iso_date: [local_hours]}, "suggested_at": ts,
-"origin": "live" | "seed", "intents": {intent: count}}`` — ``origin`` defaults
-to ``live`` on read so pre-amendment payloads keep their meaning, and
-``intents`` is the request DESCRIPTOR (Q4, 2026-09-11): what the person
-usually asks for on that domain, kept as a bounded histogram of the
-analyzer's ``immediate_intent`` so a missed-routine offer has an object
-(« your usual email search ») without composing anything into the KEY —
-which would fragment every ledger and push the locks out of reach.
+Payload shape: ``{"days": {iso_date: [local_hours]}, "origin": "live" |
+"seed", "intents": {intent: count}}`` — ``origin`` defaults to ``live`` on read
+so pre-amendment payloads keep their meaning, and ``intents`` is the request
+DESCRIPTOR (Q4, 2026-09-11): what the person usually asks for on that domain,
+kept as a bounded histogram of the analyzer's ``immediate_intent`` so a need
+has an object (« your usual email search ») without composing anything into
+the KEY — which would fragment every ledger. The ``suggested_at`` stamp of the
+retired chat suggestion is dropped on read (ADR-375: what is stored is read).
 """
 
 from __future__ import annotations
@@ -123,29 +121,29 @@ def convert_legacy(data: dict[str, Any]) -> dict[str, Any]:
     for ts in data.get("ts") or []:
         moment = datetime.fromtimestamp(int(ts), tz=UTC)
         days.setdefault(moment.date().isoformat(), []).append(moment.hour + moment.minute / 60.0)
-    return {
-        "days": days,
-        "suggested_at": data.get("suggested_at"),
-        "origin": ORIGIN_LIVE,
-        "intents": {},
-    }
+    return {"days": days, "origin": ORIGIN_LIVE, "intents": {}}
+
+
+def _empty() -> dict[str, Any]:
+    """The shape a missing or unreadable key reads as — a caller appends to it."""
+    return {"days": {}, "origin": ORIGIN_LIVE, "intents": {}}
 
 
 async def load(redis: Any, key: str) -> dict[str, Any]:
-    """The stored payload for a key — empty shape on missing/bad data."""
+    """The stored payload for a key — the empty shape on missing/bad data."""
     raw = await redis.get(key)
     if not raw:
-        return {"days": {}, "suggested_at": None}
+        return _empty()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError, TypeError:
-        return {"days": {}, "suggested_at": None}
+        return _empty()
     if not isinstance(data, dict):
-        return {"days": {}, "suggested_at": None}
+        return _empty()
     if "days" not in data and "ts" in data:
         return convert_legacy(data)
+    data.pop("suggested_at", None)
     data.setdefault("days", {})
-    data.setdefault("suggested_at", None)
     data.setdefault("origin", ORIGIN_LIVE)
     if not isinstance(data.get("intents"), dict):
         data["intents"] = {}
@@ -227,6 +225,33 @@ def dominant_intent(data: dict[str, Any]) -> str | None:
     if not counted:
         return None
     return sorted(counted, key=lambda item: (-item[1], item[0]))[0][0]
+
+
+def add_day_hour(data: dict[str, Any], iso_day: str, hour: float, *, cap: int) -> bool:
+    """Record one occurrence hour on a day — the ONE append rule (in place).
+
+    A day keeps one hour per clock hour: a second ask inside an hour already
+    recorded that day adds nothing, so the cap bounds DISTINCT hours. Before
+    ADR-375 the first ``cap`` asks of a busy day filled it, and every hour
+    descriptor read from the ledger leaned toward the morning (measured
+    2026-11-06: 39 % of one account's agenda occurrences truncated).
+
+    Args:
+        data: A loaded payload (``days`` is created when missing).
+        iso_day: The person's LOCAL date, ISO form.
+        hour: Local hour of the occurrence (fractional).
+        cap: Most distinct hours a day may hold.
+
+    Returns:
+        True when the hour was stored.
+    """
+    days = data.setdefault("days", {})
+    hours = days.setdefault(iso_day, [])
+    value = round(float(hour), 2)
+    if len(hours) >= cap or int(value) in {int(known) for known in hours}:
+        return False
+    hours.append(value)
+    return True
 
 
 def trim(data: dict[str, Any], max_day_entries: int) -> None:

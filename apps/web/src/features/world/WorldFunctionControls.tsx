@@ -2,7 +2,7 @@
 
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import dynamic from 'next/dynamic';
-import { BookOpen, Bot, LayoutGrid, Settings2, UsersRound } from 'lucide-react';
+import { BookOpen, Bot, LayoutGrid, Settings2, UsersRound } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

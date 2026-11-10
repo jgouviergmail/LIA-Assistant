@@ -14,7 +14,7 @@ import {
   Sparkles,
   Users,
   Wrench,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import type { TemplateCategory } from '@/types/meetings';
 

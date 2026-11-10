@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import { BellRing, LayoutGrid } from 'lucide-react';
+import { BellRing, LayoutGrid } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 

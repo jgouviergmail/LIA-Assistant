@@ -185,6 +185,21 @@ describe('useWorkbenchPage', () => {
     expect(get).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps an item a link named at the head of the list, once (2026-11-07)', async () => {
+    get.mockResolvedValueOnce(page(['m1', 'm2'], 't2')).mockResolvedValueOnce(page(['m9', 'm3']));
+    const { result } = renderHook(() => useWorkbenchPage<Row>('/workbench/mail/messages', {}));
+    await waitFor(() => expect(result.current.nextToken).toBe('t2'));
+
+    act(() => result.current.keepItem({ id: 'm9', title: 'kept' }));
+    act(() => result.current.keepItem({ id: 'm1', title: 'already there' }));
+    expect(ids(result.current.items)).toEqual(['m9', 'm1', 'm2']);
+    expect(result.current.items[1]?.title).not.toBe('already there');
+
+    // Its own page landing puts it back in its place: never twice.
+    await act(() => result.current.loadMore());
+    expect(ids(result.current.items)).toEqual(['m1', 'm2', 'm9', 'm3']);
+  });
+
   it('says why the first read failed, and shows nothing', async () => {
     const refused = new Error('down');
     get.mockRejectedValueOnce(refused);

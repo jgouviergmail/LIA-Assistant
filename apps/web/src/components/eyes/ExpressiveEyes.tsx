@@ -41,17 +41,11 @@ import { strokeContours } from '@/components/eyes/rig/stroke-geometry';
 import { resolvePose } from '@/components/eyes/rig/poses';
 import { restChannelValues } from '@/components/eyes/rig/channels';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
-import { AmbientAccessories } from './AmbientAccessories';
+import { AmbientAccessories, WrappedScarf } from './AmbientAccessories';
 import { useId, type CSSProperties, type ReactNode } from 'react';
-import { SmileySphere } from './smiley/SmileySphere';
-import { SmileyLashes } from './smiley/SmileyLashes';
 import { BodyVolume } from './volume/BodyVolume';
 import type { VolumeCharacter } from './volume/volume-geometry';
-import {
-  avatarLayoutProfile,
-  avatarLayoutStyle,
-  type AvatarLayoutProfile,
-} from './layout-profiles';
+import { avatarLayoutStyle, type AvatarLayoutProfile } from './layout-profiles';
 import type { SpiritVariant } from '@/components/spirit/catalogue';
 
 /** A fixed image's screen projection, in fractions of its complete canvas. */
@@ -108,8 +102,6 @@ export interface ExpressiveEyesProps {
   faceMask?: boolean;
   /** Physical characters reuse the continuous sculpted brow and mouth anatomy. */
   sculptedFace?: boolean;
-  /** Smiley identity follows the existing model choice; standalone faces default masculine. */
-  smileyVariant?: SpiritVariant;
   /** Anatomical body projection shares the native head and its existing clock. */
   volumeCharacter?: VolumeCharacter;
   volumeVariant?: SpiritVariant;
@@ -129,7 +121,7 @@ export interface ExpressiveEyesProps {
  *         .lia-eye-pupil dilation and its own deeper gaze parallax
  */
 const REST_FACE = restChannelValues();
-const SMILEY_REST_MOUTH = sculptedMouthContours(resolvePose('neutral', 'smiley'));
+const SCULPTED_REST_MOUTH = sculptedMouthContours(REST_FACE);
 
 function EyeBrow({ side, sculpted = false }: { side: 'L' | 'R'; sculpted?: boolean }) {
   return (
@@ -150,20 +142,17 @@ function Eye({
   styleId,
   showBrow = true,
   pupilClip = false,
-  femaleLashes = false,
 }: {
   side: 'left' | 'right';
   styleId: RigEyeStyleId;
   showBrow?: boolean;
   pupilClip?: boolean;
-  femaleLashes?: boolean;
 }) {
   const rigSide = side === 'left' ? 'L' : 'R';
   const stroke = strokeContours(resolvePose('neutral', styleId), rigSide);
   return (
     <span className={`lia-eye lia-eye--${side}`}>
-      {showBrow ? <EyeBrow side={rigSide} sculpted={styleId === 'smiley'} /> : null}
-      {femaleLashes ? <SmileyLashes side={rigSide} /> : null}
+      {showBrow ? <EyeBrow side={rigSide} /> : null}
       <span className="lia-eye-blink">
         <span className="lia-eye-shape">
           <svg
@@ -197,47 +186,31 @@ function EyePair({
   styleId,
   showBrow = true,
   pupilClip = false,
-  femaleLashes = false,
   volume = false,
 }: {
   styleId: RigEyeStyleId;
   showBrow?: boolean;
   pupilClip?: boolean;
-  femaleLashes?: boolean;
   volume?: boolean;
 }) {
   return (
     <span className="lia-eyes-gaze">
-      <SmileySurface styleId={styleId} kind="left" volume={volume}>
-        <Eye
-          side="left"
-          styleId={styleId}
-          showBrow={showBrow}
-          pupilClip={pupilClip}
-          femaleLashes={femaleLashes}
-        />
-      </SmileySurface>
-      <SmileySurface styleId={styleId} kind="right" volume={volume}>
-        <Eye
-          side="right"
-          styleId={styleId}
-          showBrow={showBrow}
-          pupilClip={pupilClip}
-          femaleLashes={femaleLashes}
-        />
-      </SmileySurface>
+      <OrganSurface kind="left" volume={volume}>
+        <Eye side="left" styleId={styleId} showBrow={showBrow} pupilClip={pupilClip} />
+      </OrganSurface>
+      <OrganSurface kind="right" volume={volume}>
+        <Eye side="right" styleId={styleId} showBrow={showBrow} pupilClip={pupilClip} />
+      </OrganSurface>
     </span>
   );
 }
 
 /** Each native organ retains its own layers inside a projected surface tangent. */
-function SmileySurface({
-  styleId,
+function OrganSurface({
   kind,
   children,
   volume = false,
 }: {
-  styleId: RigEyeStyleId;
   kind: 'left' | 'right' | 'mouth';
   children: ReactNode;
   volume?: boolean;
@@ -248,12 +221,7 @@ function SmileySurface({
         {children}
       </span>
     );
-  if (styleId !== 'smiley') return children;
-  return (
-    <span className={`lia-smiley-surface lia-smiley-surface--${kind}`} data-smiley-surface={kind}>
-      {children}
-    </span>
-  );
+  return children;
 }
 
 function Mouth({ sculpted = false }: { sculpted?: boolean }) {
@@ -291,15 +259,19 @@ function Mouth({ sculpted = false }: { sculpted?: boolean }) {
           id={`${id}-mouth-ink`}
           data-rig-mouth=""
           data-rig-mouth-shape={sculpted ? 'sculpted' : undefined}
-          d={sculpted ? SMILEY_REST_MOUTH.cavity : mouthPath(REST_FACE)}
+          d={sculpted ? SCULPTED_REST_MOUTH.cavity : mouthPath(REST_FACE)}
           fill={sculpted ? `url(#${id}-cavity)` : undefined}
         />
         {sculpted ? (
           <g clipPath={`url(#${id}-mouth-window)`}>
-            <path data-rig-mouth-teeth="" d={SMILEY_REST_MOUTH.teeth} fill={`url(#${id}-teeth)`} />
+            <path
+              data-rig-mouth-teeth=""
+              d={SCULPTED_REST_MOUTH.teeth}
+              fill={`url(#${id}-teeth)`}
+            />
             <path
               data-rig-mouth-tongue=""
-              d={SMILEY_REST_MOUTH.tongue}
+              d={SCULPTED_REST_MOUTH.tongue}
               fill={`url(#${id}-tongue)`}
             />
           </g>
@@ -314,7 +286,6 @@ function FaceOrgans({
   screen,
   pupilClip,
   faceMask,
-  femaleLashes,
   sculpted,
   volume,
 }: {
@@ -322,7 +293,6 @@ function FaceOrgans({
   screen: boolean;
   pupilClip?: boolean;
   faceMask?: boolean;
-  femaleLashes?: boolean;
   sculpted: boolean;
   volume: boolean;
 }) {
@@ -330,29 +300,23 @@ function FaceOrgans({
     return (
       <>
         <span className="lia-raster-face-mask">
-          <EyePair
-            styleId={styleId}
-            showBrow={false}
-            pupilClip={pupilClip}
-            femaleLashes={femaleLashes}
-            volume={volume}
-          />
-          <SmileySurface styleId={styleId} kind="mouth" volume={volume}>
+          <EyePair styleId={styleId} showBrow={false} pupilClip={pupilClip} volume={volume} />
+          <OrganSurface kind="mouth" volume={volume}>
             <Mouth sculpted={sculpted} />
-          </SmileySurface>
+          </OrganSurface>
         </span>
         <span className="lia-raster-brows">
           <span className="lia-eyes-gaze">
-            <SmileySurface styleId={styleId} kind="left" volume={volume}>
+            <OrganSurface kind="left" volume={volume}>
               <span className="lia-eye lia-eye--left">
                 <EyeBrow side="L" sculpted={sculpted} />
               </span>
-            </SmileySurface>
-            <SmileySurface styleId={styleId} kind="right" volume={volume}>
+            </OrganSurface>
+            <OrganSurface kind="right" volume={volume}>
               <span className="lia-eye lia-eye--right">
                 <EyeBrow side="R" sculpted={sculpted} />
               </span>
-            </SmileySurface>
+            </OrganSurface>
           </span>
         </span>
       </>
@@ -361,9 +325,9 @@ function FaceOrgans({
     return (
       <>
         <EyePair styleId={styleId} pupilClip={pupilClip} volume={volume} />
-        <SmileySurface styleId={styleId} kind="mouth" volume={volume}>
-          <Mouth sculpted={styleId === 'smiley'} />
-        </SmileySurface>
+        <OrganSurface kind="mouth" volume={volume}>
+          <Mouth sculpted={sculpted} />
+        </OrganSurface>
       </>
     );
   return (
@@ -371,24 +335,24 @@ function FaceOrgans({
       <span className="lia-monitor-screen">
         <span className="lia-monitor-face-content">
           <EyePair styleId={styleId} showBrow={false} pupilClip={pupilClip} volume={volume} />
-          <SmileySurface styleId={styleId} kind="mouth" volume={volume}>
+          <OrganSurface kind="mouth" volume={volume}>
             <Mouth />
-          </SmileySurface>
+          </OrganSurface>
         </span>
       </span>
       <span className="lia-monitor-brows">
         <span className="lia-monitor-face-content">
           <span className="lia-eyes-gaze">
-            <SmileySurface styleId={styleId} kind="left" volume={volume}>
+            <OrganSurface kind="left" volume={volume}>
               <span className="lia-eye lia-eye--left">
                 <EyeBrow side="L" sculpted />
               </span>
-            </SmileySurface>
-            <SmileySurface styleId={styleId} kind="right" volume={volume}>
+            </OrganSurface>
+            <OrganSurface kind="right" volume={volume}>
               <span className="lia-eye lia-eye--right">
                 <EyeBrow side="R" sculpted />
               </span>
-            </SmileySurface>
+            </OrganSurface>
           </span>
         </span>
       </span>
@@ -409,12 +373,8 @@ function screenStyle(bounds?: EyesScreenBounds): ScreenStyle | undefined {
   };
 }
 
-function avatarPresentation(props: ExpressiveEyesProps, smileyVariant?: SpiritVariant) {
-  const profile =
-    props.volumeCharacter || smileyVariant
-      ? (props.layoutProfile ??
-        (smileyVariant ? avatarLayoutProfile('smiley', smileyVariant) : undefined))
-      : undefined;
+function avatarPresentation(props: ExpressiveEyesProps) {
+  const profile = props.volumeCharacter ? props.layoutProfile : undefined;
   const screen = screenStyle(props.screenBounds);
   return {
     family: profile?.family,
@@ -433,41 +393,8 @@ function EyesEmote({ emote, leaving }: { emote: string | null; leaving: boolean 
   );
 }
 
-/** Optional physical layers share the same native head; they own no animation. */
-function SmileyLayers({
-  variant,
-  size,
-  enabled,
-}: {
-  variant?: SpiritVariant;
-  size: EyesSize;
-  enabled: boolean;
-}) {
-  if (!variant) return null;
-  return (
-    <>
-      <SmileySphere size={size} variant={variant} enabled={enabled} />
-      {variant === 'female' ? (
-        <span className="lia-smiley-surface lia-smiley-ribbon" data-smiley-surface="bow" />
-      ) : null}
-    </>
-  );
-}
-
-/** Only this skin presents the optional model identity and its material. */
-function smileyPresentation(styleId: RigEyeStyleId, variant: SpiritVariant, sculptedFace = false) {
-  const smiley = styleId === 'smiley';
-  return {
-    smiley,
-    variant: smiley ? variant : undefined,
-    className: smiley ? 'lia-smiley' : undefined,
-    female: smiley && variant === 'female',
-    sculpted: smiley || sculptedFace,
-  };
-}
-
 /** Appearance changes wake the same writer; inactive previews keep their bake. */
-function volumePresentation(props: ExpressiveEyesProps, smileyVariant?: SpiritVariant) {
+function volumePresentation(props: ExpressiveEyesProps) {
   const {
     volumeCharacter: character,
     volumeVariant: variant = 'male',
@@ -480,7 +407,7 @@ function volumePresentation(props: ExpressiveEyesProps, smileyVariant?: SpiritVa
     attributeVariant: character ? variant : undefined,
     ready: character ? 'false' : undefined,
     enabled: motionEnabled && !staticPose,
-    appearanceKey: character ? variant : smileyVariant,
+    appearanceKey: character ? variant : undefined,
   };
 }
 
@@ -532,10 +459,9 @@ function resolved(props: ExpressiveEyesProps) {
 export function ExpressiveEyes(props: ExpressiveEyesProps) {
   const { expression, gaze, size, gazeDurationMs, className } = props;
   const view = resolved(props);
-  const smileyVariant = props.smileyVariant ?? 'male';
-  const skin = smileyPresentation(view.styleId, smileyVariant, props.sculptedFace);
-  const volume = volumePresentation(props, skin.variant);
-  const avatar = avatarPresentation(props, skin.variant);
+  const volume = volumePresentation(props);
+  const avatar = avatarPresentation(props);
+  const scarfFit = props.volumeCharacter ? props.layoutProfile?.scarf : undefined;
   const rootRef = useEyesRig({
     expression,
     styleId: view.styleId,
@@ -562,7 +488,6 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       aria-hidden="true"
       data-expression={expression}
       data-style={view.styleId}
-      data-smiley-variant={skin.variant}
       data-volume-character={volume.character}
       data-volume-variant={volume.attributeVariant}
       data-volume-ready={volume.ready}
@@ -577,15 +502,15 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       data-gaze-ms={gazeDurationMs}
       data-life={view.life ? undefined : 'off'}
       data-motion={props.motionEnabled === false ? 'off' : undefined}
-      className={cn('lia-eyes', `lia-eyes--${size}`, skin.className, className)}
+      className={cn('lia-eyes', `lia-eyes--${size}`, className)}
       style={avatar.style}
     >
       <span className="lia-head-shadow" />
       <span className="lia-body-motion">
         <EyesEmote emote={view.emote} leaving={view.emoteLeaving} />
+        {view.life ? <WrappedScarf fit={scarfFit} /> : null}
         <span className="lia-head">
-          {view.life ? <AmbientAccessories /> : null}
-          <SmileyLayers variant={skin.variant} size={size} enabled={volume.enabled} />
+          {view.life ? <AmbientAccessories fit={scarfFit} /> : null}
           <VolumeLayers appearance={volume} size={size} />
           {view.accessory ? (
             <span className="lia-accessory" data-accessory={view.accessory} />
@@ -595,10 +520,9 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
           <FaceOrgans
             styleId={view.styleId}
             screen={Boolean(props.screenBounds)}
-            pupilClip={skin.smiley || props.pupilClip}
-            faceMask={skin.smiley || props.faceMask}
-            femaleLashes={skin.female}
-            sculpted={skin.sculpted}
+            pupilClip={props.pupilClip}
+            faceMask={props.faceMask}
+            sculpted={Boolean(props.sculptedFace)}
             volume={Boolean(volume.character)}
           />
         </span>

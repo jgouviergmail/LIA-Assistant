@@ -6,7 +6,7 @@ import {
   BellRing,
   Settings2,
   ShieldCheck,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { initI18next } from '@/i18n';
 
 const CONTEXT_SOURCES = [

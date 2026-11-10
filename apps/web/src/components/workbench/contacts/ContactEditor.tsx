@@ -11,9 +11,10 @@
  * hold names its bound. Each opening mounts a new editor. A birthday with no year
  * cannot sit in a date field: it is named beside it, and goes by its button. What LIA
  * found opens filled in, changed from the card as it stands; a new contact can start from
- * a photographed card (ADR-372). Either way the person saves it, or not.
+ * a photographed card or a sentence, typed or dictated, and its notes are written with LIA
+ * (ADR-372, 2026-11-07). Either way the person saves it, or not.
  */
-import { Plus, X } from 'lucide-react';
+import { Plus, X } from '@/lib/icons';
 import { useId, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -42,11 +43,12 @@ import {
 import type { ProposedValue } from '@/lib/workbench/assist';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { WorkbenchContact } from '@/lib/workbench/types';
-import { generateUUID } from '@/lib/utils';
+import { cn, generateUUID } from '@/lib/utils';
 
-import { CardAssist } from '../assist/CardAssist';
+import { FieldAssist } from '../assist/FieldAssist';
+import { NewContactAssist } from '../assist/NewContactAssist';
 import { NativeSelect } from '@/components/ui/native-select';
-import { CancelButton, ToolActions, ToolDialogHeader } from '../ToolForm';
+import { CancelButton, TOOL_FORM_SCREEN, ToolActions, ToolDialogHeader } from '../ToolForm';
 
 export interface ContactEditorProps {
   lng: Language;
@@ -108,7 +110,9 @@ export function ContactEditor({
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:overflow-y-auto max-sm:rounded-none max-sm:border-0 sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto">
+      <DialogContent
+        className={cn(TOOL_FORM_SCREEN, 'sm:max-h-[90dvh] sm:max-w-xl sm:overflow-y-auto')}
+      >
         <form onSubmit={save} className="space-y-4">
           <ToolDialogHeader>
             <div className="flex items-center gap-1">
@@ -120,7 +124,7 @@ export function ContactEditor({
                 )}
               </DialogTitle>
               {!contact && (
-                <CardAssist
+                <NewContactAssist
                   lng={lng}
                   maxBytes={bounds.photo_max_bytes}
                   onRead={card => setFields(current => withCard(current, card))}
@@ -183,6 +187,14 @@ export function ContactEditor({
           <BirthdayField lng={lng} fields={fields} onChange={set} />
           <Textarea
             label={t('workbench.contacts.editor.notes')}
+            labelEnd={
+              <FieldAssist
+                lng={lng}
+                kind="contact_notes"
+                value={fields.notes}
+                onChange={notes => set({ notes })}
+              />
+            }
             value={fields.notes}
             rows={3}
             maxLength={bounds.notes_max_chars}

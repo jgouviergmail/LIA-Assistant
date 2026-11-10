@@ -1,5 +1,6 @@
-"""Whole bounded observations and two/one native questions; no hidden body evidence."""
+"""Whole bounded observations and three/one native questions; no hidden body evidence."""
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -12,6 +13,8 @@ from src.domains.agents.services.qualification.contracts import (
 from src.infrastructure.llm.typesafe_client import (
     MAX_QUESTION_TOKENS,
     MAX_QUESTIONS,
+    ChoiceQuestion,
+    NoulQuestion,
     encode_decision_request,
 )
 
@@ -35,7 +38,7 @@ def observed(
     )
 
 
-@pytest.mark.parametrize("kind,questions_per_item", [("email", 2), ("event", 1)])
+@pytest.mark.parametrize("kind,questions_per_item", [("email", 3), ("event", 1)])
 def test_every_whole_item_has_exactly_the_native_questions_for_its_kind(
     kind: str, questions_per_item: int
 ) -> None:
@@ -49,7 +52,10 @@ def test_every_whole_item_has_exactly_the_native_questions_for_its_kind(
         assert len(batch.questions) == len(batch.members) * questions_per_item
         assert b"private-" not in body
         for question in batch.questions.values():
-            assert next(iter(question.criteria)) == "unknown"
+            if isinstance(question, ChoiceQuestion):
+                assert next(iter(question.criteria)) == "unknown"
+            else:
+                assert set(question.criteria.model_dump()) == {"true", "false"}
         seen.extend(member.identity for member in batch.members)
     assert seen and len(set(seen)) == len(seen)
 
@@ -62,7 +68,10 @@ def test_oversized_multibyte_evidence_is_skipped_whole_and_never_silently_cut() 
 
 def test_email_category_contains_phishing_instead_of_an_additional_question() -> None:
     batch = build_batches([observed(1)], model="a-model", now=datetime.now(UTC), timezone="UTC")[0]
-    assert len(batch.questions) == 2
+    # Category (phishing included), priority, and whether a reply is expected (lot F).
+    assert len(batch.questions) == 3
+    assert isinstance(batch.questions["i0_reply"], NoulQuestion)
+    assert "items.i0.evidence" in json.dumps(batch.questions["i0_reply"].instructions)
     assert set(batch.questions["i0_category"].criteria) == {
         "unknown",
         "professional",

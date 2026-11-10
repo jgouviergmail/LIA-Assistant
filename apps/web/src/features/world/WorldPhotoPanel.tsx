@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import Image from 'next/image';
-import { Download, Loader2, RotateCcw, Share2 } from 'lucide-react';
+import { Download, Loader2, RotateCcw, Share2 } from '@/lib/icons';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

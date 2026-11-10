@@ -5,7 +5,6 @@ import { test, expect, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -71,7 +70,6 @@ test('direct text stays private, translates before display, handles failure with
       await page.bringToFront();
       const t = labels(lng);
       visitors.push({ context, page, t });
-      await installOfflineFonts(page);
       await context.route('**/*', route => {
         const url = new URL(route.request().url());
         if (url.origin === origin) return route.continue();

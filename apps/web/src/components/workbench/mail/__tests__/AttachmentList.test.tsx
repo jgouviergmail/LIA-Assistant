@@ -6,7 +6,7 @@
  * or a size is still listed.
  */
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';

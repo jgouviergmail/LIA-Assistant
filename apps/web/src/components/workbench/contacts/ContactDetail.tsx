@@ -11,8 +11,8 @@
  * EXACTLY to a known relation's: both keys are folded by the API (`fold_name`,
  * folding has one implementation), the page compares them and infers nothing.
  * A contact met in mail is read-only, and says so: Google changes none of them.
- * What the two exchanged (`ContactHistory`), by its addresses, stands beside the card
- * where the panel has the room, and under it elsewhere.
+ * What the two exchanged (`ContactHistory`), by its addresses and its numbers, stands beside
+ * the card where the panel has the room, and under it elsewhere.
  */
 import {
   Building2,
@@ -29,7 +29,7 @@ import {
   Trash2,
   UserPlus,
   Users,
-} from 'lucide-react';
+} from '@/lib/icons';
 import Link from 'next/link';
 import { useState, type ReactNode, type Ref } from 'react';
 
@@ -67,6 +67,8 @@ export interface ContactDetailProps {
   photoMaxBytes: number;
   /** How many of its addresses its history is asked by. */
   historyAddresses: number | undefined;
+  /** How many of its numbers its history is asked by. */
+  historyPhones: number | undefined;
   /** Where the provider holds groups: the account's, and how the list reads a change. */
   groups?: {
     known: readonly WorkbenchContactGroup[];
@@ -180,6 +182,7 @@ function DetailBody({
   assistPanel,
   photoMaxBytes,
   historyAddresses,
+  historyPhones,
   groups,
   relationHref,
   onCopy,
@@ -333,6 +336,7 @@ function DetailBody({
             lng={lng}
             name={contactName(contact)}
             addresses={contact.emails.slice(0, historyAddresses).map(item => item.value)}
+            phones={contact.phones.slice(0, historyPhones).map(item => item.value)}
           />
         </div>
       </div>

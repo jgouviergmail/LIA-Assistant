@@ -100,41 +100,8 @@ def sample_document(user_id, space_id):
     return doc
 
 
-# ============================================================================
-# TestListSpaces
-# ============================================================================
-
-
-@pytest.mark.unit
-class TestListSpaces:
-    """Tests for listing user spaces with computed stats."""
-
-    @pytest.mark.asyncio
-    async def test_list_spaces_returns_spaces_with_stats(
-        self, service, user_id, sample_space
-    ) -> None:
-        """Should return spaces merged with document stats."""
-        stats = {"document_count": 3, "total_size": 4096, "ready_document_count": 2}
-        service.space_repo.get_all_for_user = AsyncMock(return_value=[sample_space])
-        service.doc_repo.get_space_stats = AsyncMock(return_value=stats)
-
-        result = await service.list_spaces(user_id)
-
-        assert len(result) == 1
-        assert result[0]["name"] == "Test Space"
-        assert result[0]["document_count"] == 3
-        assert result[0]["total_size"] == 4096
-        assert result[0]["ready_document_count"] == 2
-        service.space_repo.get_all_for_user.assert_awaited_once_with(user_id)
-
-    @pytest.mark.asyncio
-    async def test_list_spaces_empty(self, service, user_id) -> None:
-        """Should return empty list when user has no spaces."""
-        service.space_repo.get_all_for_user = AsyncMock(return_value=[])
-
-        result = await service.list_spaces(user_id)
-
-        assert result == []
+# Listing, isolation and exact aggregates are proved on real PostgreSQL in
+# tests/integration/test_space_listing.py; no fabricated per-space stats.
 
 
 # ============================================================================

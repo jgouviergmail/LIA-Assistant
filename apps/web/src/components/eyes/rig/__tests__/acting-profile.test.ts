@@ -7,7 +7,7 @@ const SIGNATURES = {
   nimbo: 'body-sneeze',
   orbit: 'body-balloon',
   bip: 'body-hops',
-  boulon: 'body-roll',
+  boulon: 'body-startle',
   oscar: 'body-bow',
 } as const;
 

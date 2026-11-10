@@ -19,6 +19,19 @@ export const ACTIVITY_KINDS = [
 
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 
+export interface ActivityQuery {
+  q: string;
+  kind: ActivityKind | '';
+  sort: 'recent' | 'oldest';
+}
+
+export interface ActivityCriteria {
+  q: string;
+  kinds: ActivityKind[];
+  sort: ActivityQuery['sort'];
+  as_of: string;
+}
+
 export interface ActivityEvent {
   kind: string;
   ref_id: string;
@@ -30,13 +43,14 @@ export interface ActivityEvent {
 
 export interface ActivityKindTotal {
   kind: string;
-  /** Exact COUNT(*) over the whole window (ADR-185: exact or absent). */
+  /** Exact matching count over the whole window (ADR-185: exact or absent). */
   total: number;
   /** True when the per-source cap dropped rows from the pageable pool. */
   truncated: boolean;
 }
 
 export interface ActivityTimelineResponse {
+  criteria: ActivityCriteria;
   events: ActivityEvent[];
   totals: ActivityKindTotal[];
   has_more: boolean;

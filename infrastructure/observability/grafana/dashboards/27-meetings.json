@@ -600,6 +600,47 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 106,
+      "title": "Jev statistics written and failed flushes (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Rows the per-worker flush wrote to JEV's daily statistics (ADR-374), and the flushes that failed: statements keeps its batch for the next flush, commit (outcome unknown) drops it rather than count it twice.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(jev_statistics_rows_total[24h]))",
+          "legendFormat": "rows written",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (stage) (increase(jev_statistics_flush_failures_total[24h])) or vector(0)",
+          "legendFormat": "failed: {{stage}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }

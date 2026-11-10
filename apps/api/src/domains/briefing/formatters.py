@@ -20,6 +20,7 @@ from src.core.classification_projection import (
 from src.core.geo_utils import wind_deg_to_cardinal
 from src.core.i18n import resolve_language
 from src.core.i18n_v3 import V3Messages
+from src.core.task_due import task_due_day
 from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.constants import BRIEFING_FORECAST_ALERT_HORIZON_HOURS
 from src.domains.briefing.daily_strip import (
@@ -40,12 +41,13 @@ from src.domains.briefing.schemas import (
     TaskItem,
     WeatherData,
 )
-
-# Moved to the neutral connectors home (P7) — re-exported for the
-# historical briefing import surface (fetchers + tests).
 from src.domains.connectors.birthdays import (
     upcoming_birthdays_from_connections as upcoming_birthdays_from_connections,
 )
+
+# Moved to the neutral connectors home (P7) — re-exported for the
+# historical briefing import surface (fetchers + tests).
+from src.domains.connectors.clients.normalizers.calendar_links import conference_url
 from src.domains.reminders.models import Reminder
 
 # Map OpenWeatherMap notable "main" condition codes to ForecastAlertKind enum
@@ -426,7 +428,11 @@ def event_instant(dt_field: object, user_tz: tzinfo) -> datetime | None:
 
 
 def format_agenda_event(
-    raw_event: dict[str, Any], user_tz: ZoneInfo, language: str
+    raw_event: dict[str, Any],
+    user_tz: ZoneInfo,
+    language: str,
+    *,
+    calendar_id: str | None = None,
 ) -> AgendaEventItem:
     """Convert a Google/Apple/Microsoft event dict to UI item.
 
@@ -435,7 +441,9 @@ def format_agenda_event(
     end are formatted; end is None if missing or formatting fails. The
     ``language`` argument drives the locale-aware date / "tomorrow" / "all
     day" rendering. The provider id and the start instant travel beside the
-    display strings, for a reader that must know WHICH event this is (ADR-322).
+    display strings, for a reader that must know WHICH event this is (ADR-322),
+    and with ``calendar_id`` the card says where the Tools open it, with the
+    video call the event holds (2026-11-07).
     """
     title = raw_event.get("summary") or V3Messages.get_untitled_event(language)
     location = raw_event.get("location")
@@ -460,6 +468,8 @@ def format_agenda_event(
         time_range_local=agenda_time_range(
             raw_event, user_tz, language, reference=datetime.now(user_tz)
         ),
+        calendar_id=calendar_id,
+        conference_url=conference_url(raw_event),
     )
 
 
@@ -841,28 +851,31 @@ def extract_today_value_from_summary(
         return None
 
 
-def format_task_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
+def format_task_item(
+    task: dict[str, Any], today_local: date, *, zone: tzinfo, list_id: str | None = None
+) -> TaskItem | None:
     """Map one provider-normalized task to a TaskItem (None if not pending).
 
     Due semantics are DATE-ONLY in the user's local frame (birthdays
     doctrine): a task due today is on time — never "overdue" merely because
-    00:00 UTC has passed.
+    00:00 UTC has passed. The day is read through the one door
+    (``core/task_due``): a Google due is the date it names, a To Do due
+    its local midnight read in ``zone``. ``list_id`` is the list's real id,
+    where the Tools open the task.
     """
     if task.get("status") != "needsAction":
         return None
     due_date_iso: str | None = None
     days_until: int | None = None
-    raw_due = task.get("due")
-    if raw_due:
-        try:
-            due_date = datetime.fromisoformat(str(raw_due).replace("Z", "+00:00")).date()
-            due_date_iso = due_date.isoformat()
-            days_until = (due_date - today_local).days
-        except ValueError, TypeError:
-            # Provider sent an unparseable due — keep the task, undated.
-            structlog.get_logger(__name__).debug(
-                "briefing_task_due_unparseable", raw_due=str(raw_due)[:40]
-            )
+    due_date = task_due_day(task, zone)
+    if due_date is not None:
+        due_date_iso = due_date.isoformat()
+        days_until = (due_date - today_local).days
+    elif task.get("due"):
+        # Provider sent an unreadable due — keep the task, undated.
+        structlog.get_logger(__name__).debug(
+            "briefing_task_due_unparseable", raw_due=str(task.get("due"))[:40]
+        )
     task_id = task.get("id")
     return TaskItem(
         title=task.get("title") or "Untitled",
@@ -870,4 +883,5 @@ def format_task_item(task: dict[str, Any], today_local: date) -> TaskItem | None
         days_until_due=days_until,
         overdue=days_until is not None and days_until < 0,
         id=str(task_id) if task_id else None,
+        list_id=list_id,
     )

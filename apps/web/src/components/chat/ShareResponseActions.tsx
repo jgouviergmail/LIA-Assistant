@@ -28,7 +28,7 @@
  */
 
 import { useCallback, useState, type ReactNode } from 'react';
-import { Download, Share2, Users } from 'lucide-react';
+import { Download, Share2, Users } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 

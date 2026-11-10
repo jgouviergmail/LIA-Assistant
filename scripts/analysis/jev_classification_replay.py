@@ -180,6 +180,7 @@ async def replay(args: argparse.Namespace) -> None:
                             charge=attempt.charge,
                             members=[value.identity for value in batch.members],
                             answers=attempt.answers,
+                            nouls=attempt.nouls,
                         )
                     )
                     _save_report(report, args.output)
@@ -191,6 +192,7 @@ async def replay(args: argparse.Namespace) -> None:
                             value,
                             category=attempt.answers.get(f"i{index}_category"),
                             priority=attempt.answers.get(f"i{index}_priority"),
+                            reply=attempt.nouls.get(f"i{index}_reply"),
                             now=corpus.reference_time,
                         )
         finally:

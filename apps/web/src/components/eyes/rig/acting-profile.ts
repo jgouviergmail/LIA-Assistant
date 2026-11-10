@@ -17,37 +17,65 @@ export type RigCharacterId =
 export interface ActingProfile {
   readonly identity: RigCharacterId;
   readonly signature: SketchName;
+  readonly repertoire: readonly SketchName[];
   readonly pace: number;
   readonly bodyAmplitude: number;
   readonly faceAmplitude: number;
+  /** Compression is material-specific, independently from root travel. */
+  readonly elasticity: number;
 }
+
+const CASING_ELASTICITY = 0.12;
+const QUIET = ['double-take', 'suspicious'] as const;
+const ALERT = ['double-take', 'body-startle'] as const;
+const SOFT = ['fly', 'body-doze', 'body-balloon'] as const;
+const DELIBERATE = ['suspicious', 'body-bow'] as const;
 
 function profile(
   identity: RigCharacterId,
   signature: SketchName,
+  repertoire: readonly SketchName[],
   pace = 1,
   bodyAmplitude = 1,
-  faceAmplitude = 1
+  faceAmplitude = 1,
+  elasticity = CASING_ELASTICITY
 ): ActingProfile {
-  return { identity, signature, pace, bodyAmplitude, faceAmplitude };
+  return { identity, signature, repertoire, pace, bodyAmplitude, faceAmplitude, elasticity };
 }
 const PROFILES = {
-  cozmo: profile('cozmo', 'double-take', 0.98),
-  capsules: profile('capsules', 'body-doze', 1.02, 0.94),
-  billes: profile('billes', 'body-balloon'),
-  amande: profile('amande', 'brow-groove', 1.02, 0.92),
-  traits: profile('traits', 'body-jig', 0.98),
-  anneaux: profile('anneaux', 'dizzy'),
-  smiley: profile('smiley', 'body-hops'),
-  spirit: profile('spirit', 'fly', 1.02, 0.96, 0.98),
-  moss: profile('moss', 'body-doze', 1.02, 0.92, 0.94),
-  lumen: profile('lumen', 'body-jig', 0.98, 0.98, 1.02),
-  nimbo: profile('nimbo', 'body-sneeze', 1, 0.96, 1.04),
-  orbit: profile('orbit', 'body-balloon', 1.02, 0.96),
-  bip: profile('bip', 'body-hops', 1, 0.98, 1.04),
-  boulon: profile('boulon', 'body-roll', 1, 0.94, 1.04),
-  oscar: profile('oscar', 'body-bow', 1.02, 0.9, 0.94),
+  cozmo: profile('cozmo', 'double-take', ALERT, 0.94, 0.7),
+  capsules: profile('capsules', 'body-doze', QUIET, 1.04, 0.62),
+  billes: profile('billes', 'body-balloon', SOFT, 1.02, 0.82),
+  amande: profile('amande', 'suspicious', DELIBERATE, 1.08, 0.58),
+  traits: profile('traits', 'double-take', QUIET, 0.96, 0.55, 0.9),
+  anneaux: profile('anneaux', 'fly', QUIET, 1, 0.62),
+  spirit: profile('spirit', 'fly', SOFT, 1.04, 0.92, 0.98, 0.65),
+  moss: profile('moss', 'body-doze', SOFT, 1.08, 0.78, 0.94, 0.65),
+  lumen: profile('lumen', 'body-balloon', SOFT, 1.02, 0.88, 1.02, 0.65),
+  nimbo: profile('nimbo', 'body-sneeze', SOFT, 1.03, 0.92, 1.04, 1),
+  orbit: profile('orbit', 'body-balloon', QUIET, 1.06, 0.86, 1, 0.15),
+  bip: profile('bip', 'body-hops', ALERT, 0.97, 0.94, 1.04),
+  boulon: profile('boulon', 'body-startle', ALERT, 0.91, 0.74, 1.04, 0.14),
+  oscar: profile('oscar', 'body-bow', DELIBERATE, 1.12, 0.65, 0.94, 0.09),
 } satisfies Record<RigCharacterId, ActingProfile>;
+
+interface LimbArticulation {
+  readonly accent: number;
+  readonly wristLag: number;
+  readonly recovery: number;
+}
+
+const SOFT_HAND: LimbArticulation = { accent: 0.9, wristLag: 105, recovery: 1.08 };
+const LIMB_ARTICULATION: Partial<Record<RigCharacterId, LimbArticulation>> = {
+  bip: { accent: 1, wristLag: 75, recovery: 0.94 },
+  boulon: { accent: 0.84, wristLag: 42, recovery: 0.8 },
+  oscar: { accent: 0.73, wristLag: 135, recovery: 1.16 },
+};
+
+/** Delays are part of the authored beat on the existing native clock. */
+export function limbArticulation(identity?: RigCharacterId): LimbArticulation {
+  return (identity && LIMB_ARTICULATION[identity]) || SOFT_HAND;
+}
 
 export function resolveActingProfile(
   characterId: RigCharacterId | undefined,
@@ -104,7 +132,10 @@ export function pickActingSketch(
   const catalogue = SKETCHES.filter(name => canPlaySketch(name, allowSleep));
   const available = catalogue.filter(name => !recent.includes(name));
   const pool = available.length ? available : catalogue;
-  const weight = (name: SketchName) => (name === profile.signature ? 6 : 1);
+  const weight = (name: SketchName) => {
+    if (name === profile.signature) return 8;
+    return profile.repertoire.includes(name) ? 3 : 1;
+  };
   const draw = random();
   let cursor =
     (Number.isFinite(draw) ? Math.max(0, Math.min(1, draw)) : 0) *

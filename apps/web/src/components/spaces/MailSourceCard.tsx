@@ -7,7 +7,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Mail } from 'lucide-react';
+import { Mail } from '@/lib/icons';
 
 import { SourceSyncCard } from '@/components/spaces/SourceSyncCard';
 import type { RAGMailSource, RAGSourceSyncStatus } from '@/types/rag-spaces';

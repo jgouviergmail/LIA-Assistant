@@ -42,12 +42,14 @@ person, for information.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 
+import httpx
 import structlog
 
 from src.core.config import settings
@@ -63,6 +65,7 @@ from src.core.constants import (
     ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS,
     ELEVENLABS_LIVE_TOOLS_METADATA_KEY,
     ELEVENLABS_LIVE_WS_SUBPROTOCOL,
+    LIVE_DELEGATION_TOOL_NAME,
 )
 from src.domains.connectors.models import ConnectorType
 from src.domains.live.providers.protocol import (
@@ -82,9 +85,23 @@ from src.domains.live.schemas import (
 from src.domains.telephony.client import (
     ElevenLabsAgentsClient,
     ElevenLabsAgentsError,
+    ToolRelease,
     first_refusal,
 )
+from src.domains.voice.cue_prompt import palette
+from src.domains.voice.expressive_cues import CueDialect, dialect_named
+from src.domains.voice_sessions.expression import (
+    PERSON_CUES,
+    agent_dialect,
+    expression_of,
+    palette_block,
+)
+from src.domains.voice_sessions.mandate import neutralise_vendor_syntax
 from src.infrastructure.llm.providers.elevenlabs_live_listing import list_agents
+from src.infrastructure.observability.metrics_live import (
+    live_agent_tools_swept_total,
+    live_cue_palette_synced_total,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -379,21 +396,42 @@ class ElevenLabsLiveProvider:
         """The one documented row of the provider."""
         return replace(_CAPABILITIES)
 
+    async def expression_dialect(self, api_key: str, model: str) -> CueDialect:
+        """The cues the AGENT's speaking engine performs, read from its stored config.
+
+        ``model`` is the agent's id. A realtime model, or a v3/v4 TTS whose
+        expressive mode is on, performs audio tags (ADR-373); anything else
+        speaks words alone.
+        """
+        return agent_dialect(await self._client(api_key).get_agent(model))
+
     def build_setup(self, inputs: LiveSetupInputs) -> dict[str, Any]:
-        """The initiation frame: LIA's prompt over the agent's, nothing else overridden.
+        """The initiation frame: LIA's prompt over the agent's, and an empty greeting.
 
         The tools are not here — they are attached to the agent by
-        :meth:`sync_agent` (the vendor refuses ``tool_ids`` in an override).
-        The greeting, the language, the voice and the reflexes stay the portal's.
+        :meth:`sync_agent` (the vendor refuses ``tool_ids`` in an override),
+        which also grants the two overrides this frame carries. The language,
+        the voice and the reflexes stay the portal's.
         No ``source_info``: measured 2026-09-19 on the owner's agent, the field
         is validated against the vendor's OWN SDK names (``js_sdk`` …) and any
         other word closes the conversation 1008 — AFTER the metadata, so the
         session opened and died at once; omitted, the conversation stays open.
+        The vendor reads ``{{name}}`` in a prompt as a dynamic variable it must be
+        given: LIA renders the whole prompt itself, so a doubled brace in it can
+        only come from a value (a personality, a memory, the context) and is
+        neutralised, as on the phone.
         """
         return {
             "type": INITIATION_TYPE,
             "conversation_config_override": {
-                "agent": {"prompt": {"prompt": inputs.system_instruction}}
+                # An EMPTY greeting (ADR-373): the portal's canned first sentence is
+                # the one a personality could never reach; empty, the agent lets the
+                # person speak first (the vendor's override contract), and every word
+                # it says comes from the mandate.
+                "agent": {
+                    "prompt": {"prompt": neutralise_vendor_syntax(inputs.system_instruction)},
+                    "first_message": "",
+                }
             },
         }
 
@@ -426,22 +464,30 @@ class ElevenLabsLiveProvider:
     async def sync_agent(
         self, api_key: str, metadata: dict[str, Any], inputs: LiveSetupInputs
     ) -> dict[str, Any]:
-        """Prepare the person's agent for this session: the override permission, the tools.
+        """Prepare the person's agent for this session: permissions, expression, tools.
 
-        Idempotent by what the metadata holds: the permission is granted once
-        per agent (merged into the agent's OWN overrides block, never
-        replacing it — the vendor replaces omitted booleans with false), the
-        client tools are created once per fingerprint of the declarations,
-        and the agent's ``tool_ids`` are set to the person's own tools plus
-        THIS session's set (the other set of LIA's is detached, so a
-        delegated session never sees the read-only tools and vice versa).
-        A new fingerprint of a KIND (a renamed description, a tool a release
-        added) retires the set that kind held before — taken off the agent,
-        then deleted from the workspace (forced, best effort) — so at most one
-        set per kind lives there: the phone's own rule on drift, where every
-        change used to leave a whole set orphaned for ever. A patch the vendor
-        refuses deletes the set this call created (the metadata naming it is
-        stored by the caller, once this returns) and re-raises.
+        Idempotent by what the AGENT holds, read once: the two overrides the
+        frame carries (the prompt and the greeting) are granted when the agent
+        does not allow them — merged into the agent's OWN overrides block,
+        never replacing it, the vendor replacing omitted booleans with false —
+        and a refusal there refuses the start (the vendor would refuse the
+        frame). The expression LIA owns (ADR-373) is written when it drifted —
+        the vendor's default persona dropped, and on an engine that performs
+        cues, LIA's palette — best effort, part by part: a refusal costs that
+        part, never the session.
+
+        The agent's tools are LIA's referential (ADR-373): its ``tool_ids``
+        are set to EXACTLY this session's set, created once per fingerprint of
+        the declarations — the person's own tools and LIA's other set are
+        detached, never deleted (a delegated session never sees the read-only
+        tools, and vice versa). A new fingerprint of a KIND (a renamed
+        description, a tool a release added) retires the set that kind held
+        before, so at most one set per kind lives in the workspace. Once
+        detached, what LIA left on this agent is released without force
+        (:func:`_sweep`). An attach refused because the workspace lost a tool
+        of the set is healed once (:func:`_attach`); any other refusal deletes
+        the set this call created (the metadata naming it is stored by the
+        caller, once this returns) and re-raises.
 
         Args:
             api_key: The person's key.
@@ -453,32 +499,30 @@ class ElevenLabsLiveProvider:
         """
         client = self._client(api_key)
         agent_id = inputs.model
-        updated: dict[str, Any] = dict(metadata)
-        granted = list(updated.get(ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY) or [])
+        # The retired « granted » marker is dropped: the agent itself is read.
+        updated: dict[str, Any] = {
+            key: value
+            for key, value in metadata.items()
+            if key != ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY
+        }
         agent = await client.get_agent(agent_id)
-        if agent_id not in granted:
-            await client.patch_agent(agent_id, _grant_prompt_override(agent))
-            granted.append(agent_id)
-            updated[ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY] = granted
+        await _grant_overrides(client, agent_id, agent)
+        await _write_expression(client, agent_id, agent, dialect_named(inputs.cue_dialect))
         declarations = declarations_of(inputs)
         fingerprint = tools_fingerprint(declarations)
         held, kinds = _held_sets(updated)
         fresh = fingerprint not in held
         if fresh:
             held[fingerprint] = await _create_set(client, inputs, declarations)
-        # The set this kind held before, when it is another one: retired
+        # The set this kind held before, when it is another one: released
         # below, once the agent no longer names it.
         retired_ids = _retire_previous(held, kinds, set_kind_of(inputs), fingerprint)
-        updated[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] = held
-        updated[ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY] = kinds
-        # The person's own tools stay; LIA's other sets — the retired one
-        # included — are detached for this session.
-        current = _agent_tool_ids(agent)
-        mine = _lia_tool_ids(updated) | set(retired_ids)
-        wanted = [tool_id for tool_id in current if tool_id not in mine] + held[fingerprint]
-        if wanted != current:
+        carried = _agent_tool_ids(agent)
+        if held[fingerprint] != carried:
             try:
-                await client.set_agent_tool_ids(agent_id, wanted)
+                held[fingerprint] = await _attach(
+                    client, agent_id, inputs, declarations, held[fingerprint], may_heal=not fresh
+                )
             except ElevenLabsAgentsError:
                 # The caller stores the metadata only once this returns: a set
                 # created by THIS call would be named by nothing, and the next
@@ -487,10 +531,18 @@ class ElevenLabsLiveProvider:
                     for tool_id in held[fingerprint]:
                         await client.delete_tool(tool_id)
                 raise
-        for tool_id in retired_ids:
-            await client.delete_tool(tool_id)
-        if retired_ids:
-            logger.info("elevenlabs_live_tools_retired", tool_count=len(retired_ids))
+        updated[ELEVENLABS_LIVE_TOOLS_METADATA_KEY] = held
+        updated[ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY] = kinds
+        current = _lia_tool_ids(updated)
+        await _sweep(
+            client,
+            [
+                tool_id
+                for tool_id in dict.fromkeys([*carried, *retired_ids])
+                if tool_id not in current
+            ],
+            recorded=set(retired_ids),
+        )
         return updated
 
     async def sample_voice(self, api_key: str, voice: str, text: str) -> bytes:
@@ -508,7 +560,11 @@ class ElevenLabsLiveProvider:
         refused here, in words, rather than heard as noise.
         """
         try:
-            url = await self._client(api_key).signed_url(inputs.model)
+            client = self._client(api_key)
+            # The frame replayed is the REAL one: the agent must allow what it
+            # overrides before the conversation opens, or the vendor refuses it.
+            await _grant_overrides(client, inputs.model, await client.get_agent(inputs.model))
+            url = await client.signed_url(inputs.model)
             metadata = await self._initiate(url, self.build_setup(inputs), timeout=timeout)
         except ElevenLabsLiveRefused as exc:
             return False, f"{exc.code}: {exc.message}"
@@ -529,8 +585,6 @@ class ElevenLabsLiveProvider:
         ``ELEVENLABS_LIVE_PROBE_SETTLE_SECONDS`` after the metadata — a close
         or an ``error`` in that window is the refusal, a ping is not.
         """
-        import asyncio
-
         session, ws = await self._open_socket(url, timeout=timeout)
         try:
             await ws.send_str(json.dumps(frame))
@@ -609,8 +663,6 @@ async def _create_client_tools(
     (« dictionary changed size during iteration ») and every tool created
     after it was an orphan nobody recorded.
     """
-    import asyncio
-
     from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
 
     created: dict[int, str] = {}
@@ -635,6 +687,155 @@ async def _create_client_tools(
     return [created[i] for i in range(len(bodies))]
 
 
+async def _attach(
+    client: ElevenLabsAgentsClient,
+    agent_id: str,
+    inputs: LiveSetupInputs,
+    declarations: list[dict[str, Any]],
+    ids: list[str],
+    *,
+    may_heal: bool,
+) -> list[str]:
+    """Make the agent carry EXACTLY ``ids``; heal, once, a set the workspace lost.
+
+    A portal deletion, a sibling instance's sweep or a hand cleanup leaves the
+    metadata naming a tool the vendor no longer holds, and the vendor refuses
+    to attach it — before this, a session refused for ever. A refused attach
+    is read against the workspace: the lost tools are re-created in their
+    place and the attach retried once. A refusal no lost tool explains is
+    raised as is, and a set this very call created (``may_heal`` false) cannot
+    have lost one.
+
+    Returns:
+        The ids the agent now carries: ``ids``, or the healed set.
+
+    Raises:
+        ElevenLabsAgentsError: The refusal, when no lost tool explains it, or
+            the retry's — the tools the heal created removed first.
+    """
+    try:
+        await client.set_agent_tool_ids(agent_id, ids)
+        return ids
+    except ElevenLabsAgentsError:
+        lost = await _lost_ids(client, ids) if may_heal else []
+        if not lost:
+            raise
+    healed, created = await _recreate(client, inputs, declarations, ids, lost)
+    try:
+        await client.set_agent_tool_ids(agent_id, healed)
+    except ElevenLabsAgentsError:
+        for tool_id in created:
+            await client.delete_tool(tool_id)
+        raise
+    logger.info("elevenlabs_live_tools_healed", tool_count=len(created))
+    return healed
+
+
+async def _lost_ids(client: ElevenLabsAgentsClient, ids: list[str]) -> list[str]:
+    """The ids of ``ids`` the workspace no longer holds; none when it cannot be read."""
+    try:
+        alive = {str(tool["id"]) for tool in await client.list_tools()}
+    except (ElevenLabsAgentsError, httpx.RequestError) as exc:
+        logger.warning("elevenlabs_live_tools_unlisted", error_type=type(exc).__name__)
+        return []
+    return [tool_id for tool_id in ids if tool_id not in alive]
+
+
+async def _recreate(
+    client: ElevenLabsAgentsClient,
+    inputs: LiveSetupInputs,
+    declarations: list[dict[str, Any]],
+    ids: list[str],
+    lost: list[str],
+) -> tuple[list[str], list[str]]:
+    """``ids`` with each lost tool re-created in its place, and the ids created.
+
+    The set is held in the declarations' order; a set that does not match
+    them is re-created whole.
+    """
+    if len(ids) != len(declarations):
+        created = await _create_set(client, inputs, declarations)
+        return created, created
+    missing = set(lost)
+    positions = [index for index, tool_id in enumerate(ids) if tool_id in missing]
+    created = await _create_set(client, inputs, [declarations[index] for index in positions])
+    healed = list(ids)
+    for index, tool_id in zip(positions, created, strict=True):
+        healed[index] = tool_id
+    return healed, created
+
+
+def _lia_tool_names() -> frozenset[str]:
+    """The names LIA gives the client tools it creates: the delegation, every live lookup."""
+    from src.domains.agents.telephony.live_tools import live_tool_specs
+
+    return frozenset({LIVE_DELEGATION_TOOL_NAME, *(spec.name for spec in live_tool_specs())})
+
+
+def _named_as_lia(tool: dict[str, Any], names: frozenset[str]) -> bool:
+    """Whether a workspace tool is a CLIENT tool named as one of LIA's."""
+    config = _mapping(tool.get("tool_config"))
+    return config.get("type") == "client" and config.get("name") in names
+
+
+async def _sweep(
+    client: ElevenLabsAgentsClient, candidates: list[str], *, recorded: set[str]
+) -> None:
+    """Release from the workspace what LIA left on this agent, never what another agent uses.
+
+    ``candidates`` are detached by now: the ids the agent carried outside
+    LIA's current sets, and the set this call retired. One is LIA's when LIA
+    recorded it, or when its workspace tool is a CLIENT tool named as one of
+    LIA's — an orphan of an earlier release, or of a sibling instance on the
+    same key; the person's own tools stay in their workspace. Each is deleted
+    WITHOUT force: a tool another agent still uses is kept and counted. Scoped
+    to this agent — a workspace-wide scan by name would free the set a
+    sibling instance holds detached. Best effort: an unreadable workspace
+    skips the sweep, never the session.
+    """
+    if not candidates:
+        return
+    try:
+        listing = {str(tool["id"]): tool for tool in await client.list_tools()}
+    except (ElevenLabsAgentsError, httpx.RequestError) as exc:
+        logger.warning("elevenlabs_live_tool_sweep_skipped", error_type=type(exc).__name__)
+        return
+    names = _lia_tool_names()
+    doomed = [
+        tool_id
+        for tool_id in candidates
+        if tool_id in listing and (tool_id in recorded or _named_as_lia(listing[tool_id], names))
+    ]
+    outcomes = await _release_all(client, doomed)
+    for outcome in outcomes:
+        live_agent_tools_swept_total.labels(outcome=outcome).inc()
+    if doomed:
+        logger.info(
+            "elevenlabs_live_tools_swept",
+            freed=outcomes.count("freed"),
+            in_use=outcomes.count("in_use"),
+            refused=outcomes.count("refused"),
+            left=len(candidates) - len(doomed),
+        )
+
+
+async def _release_all(client: ElevenLabsAgentsClient, tool_ids: list[str]) -> list[ToolRelease]:
+    """Release each tool, concurrently under the provisioning bound, outcomes in order."""
+    from src.domains.agents.telephony.live_tools import LIVE_TOOL_PROVISIONING_CONCURRENCY
+
+    outcomes: dict[int, ToolRelease] = {}
+    gate = asyncio.Semaphore(LIVE_TOOL_PROVISIONING_CONCURRENCY)
+
+    async def _release(index: int, tool_id: str) -> None:
+        async with gate:
+            outcomes[index] = await client.release_tool(tool_id)
+
+    async with asyncio.TaskGroup() as group:
+        for index, tool_id in enumerate(tool_ids):
+            group.create_task(_release(index, tool_id))
+    return [outcomes[index] for index in range(len(tool_ids))]
+
+
 def _agent_tool_ids(agent: dict[str, Any]) -> list[str]:
     """The tool ids the agent holds, as the vendor serves them."""
     prompt = ((agent.get("conversation_config") or {}).get("agent") or {}).get("prompt") or {}
@@ -642,27 +843,92 @@ def _agent_tool_ids(agent: dict[str, Any]) -> list[str]:
     return [str(tool_id) for tool_id in ids if isinstance(tool_id, str)]
 
 
-def _grant_prompt_override(agent: dict[str, Any]) -> dict[str, Any]:
-    """The PATCH granting the prompt override, MERGED into the agent's own overrides.
+def _child(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    """``parent[key]`` as a dict, created (or replaced, when not a dict) in place."""
+    value = parent.get(key)
+    if not isinstance(value, dict):
+        value = parent[key] = {}
+    return value
 
-    The vendor replaces every omitted boolean of the block with false
-    (measured on the phone, 2026-09-16), so the block is read from the agent
-    and sent back whole with the one field LIA needs set — the person's own
-    permissions survive.
+
+def _override_grant(agent: dict[str, Any]) -> dict[str, Any] | None:
+    """The PATCH granting the two overrides LIA's frame carries, or None when both are allowed.
+
+    The prompt and the greeting (``build_setup``). The vendor replaces every
+    omitted boolean of the block with false (measured on the phone,
+    2026-09-16), so the block is read from the agent and sent back whole with
+    the two fields LIA needs set — the person's own permissions survive.
     """
-    stored = ((agent.get("platform_settings") or {}).get("overrides")) or {}
+    stored = _mapping(_mapping(agent.get("platform_settings")).get("overrides"))
+    allowed = _mapping(_mapping(stored.get("conversation_config_override")).get("agent"))
+    if (
+        _mapping(allowed.get("prompt")).get("prompt") is True
+        and allowed.get("first_message") is True
+    ):
+        return None
     overrides: dict[str, Any] = json.loads(json.dumps(stored))  # a deep copy
-    config = overrides.setdefault("conversation_config_override", {})
-    if not isinstance(config, dict):
-        config = overrides["conversation_config_override"] = {}
-    agent_block = config.setdefault("agent", {})
-    if not isinstance(agent_block, dict):
-        agent_block = config["agent"] = {}
-    prompt_block = agent_block.setdefault("prompt", {})
-    if not isinstance(prompt_block, dict):
-        prompt_block = agent_block["prompt"] = {}
-    prompt_block["prompt"] = True
+    agent_block = _child(_child(overrides, "conversation_config_override"), "agent")
+    _child(agent_block, "prompt")["prompt"] = True
+    agent_block["first_message"] = True
     return {"platform_settings": {"overrides": overrides}}
+
+
+async def _grant_overrides(
+    client: ElevenLabsAgentsClient, agent_id: str, agent: dict[str, Any]
+) -> None:
+    """Allow what the frame overrides; a refusal propagates (the frame would be refused)."""
+    grant = _override_grant(agent)
+    if grant is not None:
+        await client.patch_agent(agent_id, grant)
+
+
+def _expression_patches(
+    agent: dict[str, Any], dialect: CueDialect
+) -> list[tuple[str, dict[str, Any]]]:
+    """What LIA writes so the agent's voice is the personality's (ADR-373), part by part.
+
+    The vendor's default persona is dropped (``ignore_default_personality``),
+    whatever the engine: its « helpful » lines would fight the personality
+    the prompt carries. On an engine that performs cues, LIA's palette
+    replaces the agent's: each tag described by what it sounds like — a
+    description written as a trigger was obeyed as one (measured
+    2026-11-07). Nothing LIA does not own changes: the speaking block
+    travels whole, as stored (:func:`palette_block`).
+
+    Returns:
+        ``(part, conversation_config PATCH)`` for each part that drifted — the
+        persona, then the palette: two writes, so a vendor refusing the
+        speaking block never costs the persona.
+    """
+    patches: list[tuple[str, dict[str, Any]]] = []
+    config = _mapping(agent.get("conversation_config"))
+    prompt = _mapping(_mapping(config.get("agent")).get("prompt"))
+    if prompt.get("ignore_default_personality") is not True:
+        persona = {"agent": {"prompt": {"ignore_default_personality": True}}}
+        patches.append(("persona", {"conversation_config": persona}))
+    if expression_of(dialect) == "cues":
+        tts = palette_block(agent, palette(dialect, PERSON_CUES))
+        if tts is not None:
+            patches.append(("palette", {"conversation_config": {"tts": tts}}))
+    return patches
+
+
+async def _write_expression(
+    client: ElevenLabsAgentsClient, agent_id: str, agent: dict[str, Any], dialect: CueDialect
+) -> None:
+    """Write :func:`_expression_patches`, best effort: a refusal costs its part, never the session."""
+    for part, body in _expression_patches(agent, dialect):
+        try:
+            await client.patch_agent(agent_id, body)
+        except ElevenLabsAgentsError as exc:
+            logger.warning(
+                "elevenlabs_live_expression_sync_failed", part=part, status_code=exc.status_code
+            )
+            outcome = "refused"
+        else:
+            outcome = "written"
+        if part == "palette":
+            live_cue_palette_synced_total.labels(surface="live", outcome=outcome).inc()
 
 
 def _formats_verdict(metadata: dict[str, Any]) -> tuple[bool, str]:

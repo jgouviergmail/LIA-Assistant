@@ -3,7 +3,7 @@
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
 **Version**: 7.12
-**Dernière mise à jour**: 2026-11-07
+**Dernière mise à jour**: 2026-11-08
 **Statut**: Complète (490+ documents)
 
 ---
@@ -18,13 +18,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 48 |
-| ADRs | 370 ADR files (ADR-372 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
+| ADRs | 375 ADR files (ADR-377 latest — ADR-008 n'a pas de fichier séparé ; le numéro 349 reste réservé à un chantier distinct) |
 | Fiches knowledge (RAG système) | [Fichiers de la FAQ système](knowledge/) |
 
 ---
 
 ## Par Où Commencer ?
 
+- [Ajustements transverses : analyse préalable](./superpowers/plans/2026-11-08-cross-app-adjustments-analysis.md), [plan TDD](./superpowers/plans/2026-11-08-cross-app-adjustments-plan.md) et [preuves de livraison](./superpowers/plans/2026-11-09-cross-app-adjustments-progress.md) — messages peer directs, thème automatique personnalisable, filtres des espaces/alertes et menus de sélection IA communs.
 - [Monde LIA : fonctions natives et espace partagé](./technical/WORLD_PROTOTYPE.md) — accès dans l'application, activation, commandes, architecture et limites de qualification.
 - [Monde LIA V1 : plan](./superpowers/plans/2026-10-23-lia-world-v1.md) et [preuves par lot](./superpowers/qualification/2026-10-23-world-v1-ledger.md) — périmètre accepté, aperçus et qualification.
 
@@ -61,7 +62,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (370 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (375 ADR files) |
 
 ### Pour les Product Managers
 
@@ -110,9 +111,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [Addendum audit installateur](./superpowers/specs/2026-08-05-self-host-installer-audit-addendum.md) | 15 bloqueurs + gates G0-G6 du self-host (ADR-215 réservé) | ✅ |
 | [Plan d'activation installateur](./superpowers/plans/2026-08-05-self-host-installer-activation.md) | Exécution TDD de l'installateur (B01-B15) | ✅ |
 | [Serveurs de modèles locaux](./superpowers/plans/2026-10-06-openai-compatible-servers.md) | Analyse et plan TDD : oMLX, llama.cpp, LM Studio et Ollama natif ; coûts locaux zéro et preuves des sondes API stables | Proposition + qualification |
+| [Discussions annexes : analyse](./superpowers/plans/2026-11-09-secondary-conversations-analysis.md) | Principale permanente, historiques isolés, apprentissages partagés : preuves, arbitrages, impacts, risques et matrice de tests | Proposition, sans implémentation métier |
+| [Discussions annexes : plan TDD](./superpowers/plans/2026-11-09-secondary-conversations-plan.md) | Lots ordonnés : identité/runtime, routage, fichiers, nettoyage, mémoire, Live, frontend et qualification | Prêt pour revue |
+| [Discussions annexes : contre-revue](./superpowers/plans/2026-11-09-secondary-conversations-counter-review.md) | Alternatives éprouvées, concurrence et volume, clôture des écritures et reprise du nettoyage ; preuves et limites | Conception révisée, sans code métier |
 | [Ajustements des interfaces : spécification](./superpowers/specs/2026-10-16-ajustements-interfaces-design.md) | Matrice des demandes, alternance des fonds, comportements et suggestions UX | Implémentée (R00–R30), livrée en v3.1.0 |
 | [Ajustements des interfaces : plan](./superpowers/plans/2026-10-16-ajustements-interfaces.md) | Lots par composants, sauvegarde avatar, aperçus et validations | Exécuté et qualifié (Chromium), livré en v3.1.0 |
 | [Réanalyse de l'expérience UI](./superpowers/specs/2026-10-16-experience-ui-review.md) | Cohérence visuelle et comportementale, continuité de navigation et observation mobile | Axes acceptés implémentés en v3.1.0 |
+| [Living avatar limbs](./superpowers/specs/2026-11-07-avatar-limb-animation-design.md) and [implementation plan](./superpowers/plans/2026-11-07-avatar-limb-animation.md) | Articulation adapted to each companion, contextual and resting motion, material refinement and visual acceptance | Implemented locally; qualification in execution record |
 | [Application tools design](./superpowers/specs/2026-10-06-lia-application-tools-design.md) | Source-backed application parity, mandatory HITL, administrative authority and device interactions | Proposed |
 | [Application tools TDD plan](./superpowers/plans/2026-10-06-lia-application-tools.md) | Sequenced implementation and qualification of the application tools | Proposed |
 | [LIA isometric world analysis](./superpowers/specs/2026-10-09-lia-isometric-world-analysis.md) | Source-backed functional/technical design, one common world, five-to-ten admission, privacy, 2.5D rendering and TDD qualification | Proposed |
@@ -186,7 +191,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [SMS_INGESTION_RECOVERY.md](./runbooks/SMS_INGESTION_RECOVERY.md) | Operator recovery, stable tenant material and restore reconciliation | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [CARD_SYSTEM.md](./technical/CARD_SYSTEM.md) | Système de cartes HTML riches dans le chat (Design System v4) | ✅ |
-| [HTML_CARDS.md](./technical/HTML_CARDS.md) | Cartes déterministes du chat : données, interactions, mémoire, sécurité et validation | ✅ |
+| [HTML_CARDS.md](./technical/HTML_CARDS.md) | Deterministic Enveloppes chat cards: domain compositions, responsive themes, complete received facts, admitted maps and interaction contracts | ✅ |
+| [ICON_STYLES.md](./technical/ICON_STYLES.md) | Account icon styles, shared SVG rendering, vendor artwork and attributed multicolour LIA complements | ✅ |
 | [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
 | [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) ; le signal de synchronisation de la discussion après chaque validation et la fusion côté client (ADR-320) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
@@ -379,6 +385,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| [ADR-377](./architecture/ADR-377-The-Account-Chooses-How-The-Interface-Is-Drawn.md) | **Le compte choisit comment l'interface est dessinée** : une seule porte pour les icônes, trois styles (Lucide, Fluent Color, Streamline Flex) au sens préservé, et le noir absolu aux heures choisies | 2026-11 |
+| [ADR-376](./architecture/ADR-376-A-Card-Opens-Its-Record-In-The-Tools-On-A-Signed-Proof-Of-Its-Source.md) | **Une carte ouvre sa fiche dans les Outils** : destination signée, liée au compte et à la source, revérifiée au clic ; une contrainte, jamais une permission | 2026-11 |
+| [ADR-375](./architecture/ADR-375-Learned-Usage-Becomes-Proposals.md) | **Ce que LIA apprend de l'usage devient des propositions** : un besoin se reconnaît aux jours où il revient, l'heure ne fait que décrire ; six sortes de propositions acceptées, reportées ou refusées d'un clic | 2026-11 |
+| [ADR-374](./architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md) | **JEV garde ce que quelqu'un lit** : aperçus et porte d'initiative retirés, seuils déclarés et réglables, jugements comptés dans la durée | 2026-11 |
+| [ADR-373](./architecture/ADR-373-The-Personality-Governs-The-Voice.md) | **La personnalité gouverne la voix** : Live, Live direct, l'appel avec la personne et le commentaire vocal parlent dans la personnalité choisie, faits intacts ; un tiers entend la courtoisie | 2026-11 |
 | [ADR-372](./architecture/ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md) | **Ce que LIA fait depuis les Outils** : un clic, un appel, une proposition que la personne termine à la main ; rien d'écrit chez le fournisseur, lecture et dépense tracées | 2026-11 |
 | [ADR-371](./architecture/ADR-371-Domain-Agent-Slots-Leave-With-Their-Nodes.md) | **Les postes des agents de domaine partent avec leurs nœuds** : seize postes qu'aucun tour n'appelait ; `emails_agent` reste | 2026-11 |
 | [ADR-365](./architecture/ADR-365-Private-Native-LIA-In-An-Authoritative-Isometric-World.md) | **Monde isométrique et LIA privé** : autorité serveur, rendu navigateur, panneaux natifs, contextes personnels isolés et traduction consentie comptabilisée | 2026-10 |
@@ -795,3 +806,5 @@ Questions ou suggestions ? Créer une issue GitHub avec le label `documentation`
 <p align="center">
   <a href="#vue-densemble">⬆️ Retour en haut</a>
 </p>
+
+- [Display preferences](technical/DISPLAY_PREFERENCES.md) — account display modes and automatic civil-time scheduling.

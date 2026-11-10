@@ -149,19 +149,20 @@ describe('agenda actions (QW-24)', () => {
     expect(lastUrl().startsWith('/fr/dashboard/chat?intent=')).toBe(true);
   });
 
-  it('offers the route only for the event that HAS a location', async () => {
+  it('offers the way only for the event that HAS a location', async () => {
+    // Since 2026-11-07 the way is a map's own link (no model): direct acts lead the menu.
     const { user } = renderWithProviders(<AgendaCard {...cardProps} section={AGENDA_SECTION} />);
 
-    // First row (located): the route is there.
+    // First row (located): the way is there, as a link a map opens.
     await openCardActions(user, 0);
-    const route = screen.getByRole('menuitem', { name: /intents_exec\.event_route/ });
-    await user.click(route);
-    expect(decodeURIComponent(lastUrl())).toContain('location=Salle B');
+    const route = screen.getByRole('menuitem', { name: /home_acts\.route\|location=Salle B/ });
+    expect(route.getAttribute('href')).toContain('https://www.google.com/maps/dir/');
+    await user.keyboard('{Escape}');
 
-    // Second row (no location): the menu holds "prepare" and nothing else —
-    // an action that cannot be honoured is absent, never disabled.
+    // Second row (no location): no way — an action that cannot be honoured is
+    // absent, never disabled — and the preparation is still there.
     await openCardActions(user, 1);
-    expect(screen.queryByRole('menuitem', { name: /intents_exec\.event_route/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /home_acts\.route/ })).toBeNull();
     expect(
       screen.getByRole('menuitem', { name: /intents_exec\.event_prepare/ })
     ).toBeInTheDocument();

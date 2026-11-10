@@ -22,7 +22,7 @@
  *   sentence, not a void.
  */
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bar,
@@ -99,7 +99,14 @@ export interface SeriesChartProps {
   renderLabel?: (label: string) => string;
   /** Palette index, so neighbouring cards do not share a colour. */
   tone?: 'primary' | 'success' | 'warning' | 'destructive';
+  /**
+   * Width of the label axis, in pixels. The default fits the register's names;
+   * a series of short, bounded labels passes less so its bars keep the room.
+   */
+  categoryWidth?: number;
 }
+
+const CATEGORY_AXIS_WIDTH = 128;
 
 const TONES: Record<NonNullable<SeriesChartProps['tone']>, string> = {
   primary: 'var(--color-primary)',
@@ -118,8 +125,10 @@ export function SeriesChart({
   unit,
   renderLabel,
   tone = 'primary',
+  categoryWidth = CATEGORY_AXIS_WIDTH,
 }: SeriesChartProps) {
   const { t } = useTranslation();
+  const titleId = useId();
   const otherLabel = t('registers.charts.other');
   const rows = useMemo(
     () =>
@@ -143,11 +152,14 @@ export function SeriesChart({
     });
 
   return (
-    <Card className="min-w-0">
+    // A figure named by its title: among several charts, a reader finds this one.
+    <Card className="min-w-0" role="figure" aria-labelledby={titleId}>
       <CardContent className="space-y-3 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
-            <h3 className="text-sm font-medium">{title}</h3>
+            <h3 id={titleId} className="text-sm font-medium">
+              {title}
+            </h3>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
           {series !== undefined && (
@@ -177,7 +189,7 @@ export function SeriesChart({
                 <YAxis
                   type="category"
                   dataKey="label"
-                  width={128}
+                  width={categoryWidth}
                   tick={{ fontSize: 11 }}
                   stroke="var(--color-muted-foreground)"
                   interval={0}

@@ -7,7 +7,7 @@
  * the page. A contact holding none keeps its initials, without a word. The person changes it or
  * takes it off here; the API redraws whatever is picked. A contact met in mail has none to read.
  */
-import { Camera, Trash2 } from 'lucide-react';
+import { Camera, Trash2 } from '@/lib/icons';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 

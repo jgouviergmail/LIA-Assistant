@@ -1388,47 +1388,6 @@
       "description": "Seconds between the push notification and the served decision."
     },
     {
-      "id": 31,
-      "title": "Recurrence evaluations skipped (24h)",
-      "type": "timeseries",
-      "datasource": "$datasource",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 55
-      },
-      "targets": [
-        {
-          "expr": "sum by (reason) (increase(recurrence_evaluation_skipped_total[24h])) or vector(0)",
-          "legendFormat": "{{reason}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "noValue": "0",
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 60
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "description": "Automated runs refused by the recurrence evaluation guard (a scheduled run never proposes to automate itself)."
-    },
-    {
       "id": 40,
       "title": "Anticipated moments (ADR-281)",
       "type": "row",
@@ -1780,7 +1739,7 @@
     },
     {
       "id": 55,
-      "title": "Recurring rows synced (24h)",
+      "title": "Recurring needs synced (24h)",
       "type": "timeseries",
       "datasource": "$datasource",
       "gridPos": {
@@ -1817,7 +1776,7 @@
           "mode": "multi"
         }
       },
-      "description": "The nightly sync owns the life of a recurring-request habit (ADR-214 amendment c): created, updated, kept (lock wavered, evidence remains), demoted (the request stopped), blocked, capped, skipped (ledger unreadable: nothing changed)."
+      "description": "The nightly sync owns the life of a recurring need (ADR-375): created, updated, demoted (the need lapsed), blocked (the person's tombstone kept it out), capped (the per-kind cap), skipped (ledger unreadable: nothing changed)."
     },
     {
       "id": 56,
@@ -1903,7 +1862,7 @@
     },
     {
       "id": 58,
-      "title": "Habit offers — declared vs labelled only (24h)",
+      "title": "Habit proposals by kind and transition (24h)",
       "type": "timeseries",
       "datasource": "$datasource",
       "gridPos": {
@@ -1914,8 +1873,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (outcome) (increase(heartbeat_habit_offers_total[24h])) or vector(0)",
-          "legendFormat": "{{outcome}}",
+          "expr": "sum by (kind, transition) (increase(habit_proposals_total[24h])) or vector(0)",
+          "legendFormat": "{{kind}} · {{transition}}",
           "refId": "A"
         }
       ],
@@ -1940,7 +1899,7 @@
           "mode": "multi"
         }
       },
-      "description": "What the decision did with the missed-routine candidate it was shown. Only a DECLARED offer (habit_offered=true, rule 24) charges the offer budget; a HABITS label without the declaration is observed here and never charged. A sustained label_only share means the model ignores the rule (ADR-214 amendment c)."
+      "description": "Every move of each kind of proposal (ADR-375). The nightly sync's: opened, refreshed, reopened (a put-off proposal whose date passed), withdrawn (its rule stopped holding), held (an observation was missing: doubt never withdraws). The person's: accepted, dismissed (later), refused. And shown_in_chat: a proposal shown under a chat answer, at most one per HABITS_PROPOSAL_CHAT_GAP_HOURS. A kind that never opens on an instance with active users is a silent rule."
     },
     {
       "id": 59,
@@ -1984,6 +1943,47 @@
       "description": "Every run of the proactive discussions producer (ADR-358), an opening run or a rebuild the person asked for. completed published (or rebuilt); skipped abstained or deferred on a backoff; failed and error need a look; controls_over_budget means the person's rules or recent replies cannot be read whole, so the run defers (ADR-359) until the reply guards lapse or memory acknowledges them. A run that never started names why (ADR-358 amendment 2026-10-23 b): the first attention hold met (recent_turn, pending_opening — an opening still awaiting a reply —, recent_alert, recent_opening, reminder_due, turn_streaming, approval_pending), capability_disabled, claim_refused (window, pause, daily maximum, a deferral, a live lease), stale_claim, budget_exhausted or usage_limit_reached."
     },
     {
+      "id": 63,
+      "title": "Accepted habit proposals whose act was refused (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 105
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind, reason) (increase(habit_proposal_action_failures_total[24h])) or vector(0)",
+          "legendFormat": "{{kind}} · {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "An accepted proposal whose act no longer matched what the person was shown (ADR-375): routine_limit (the routine cap reached), routine_gone, routine_changed, settings_changed. Nothing is written, the proposal stays open and the card says why. A sustained reason for one kind points at a handler or a rule out of step with the data."
+    },
+    {
       "id": 60,
       "title": "Proactive discussions — execution tables (AC-034)",
       "type": "row",
@@ -1992,7 +1992,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 105
+        "y": 113
       },
       "panels": []
     },
@@ -2005,7 +2005,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 106
+        "y": 114
       },
       "targets": [
         {
@@ -2041,7 +2041,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 106
+        "y": 114
       },
       "targets": [
         {

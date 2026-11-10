@@ -12,7 +12,7 @@
 
 'use client';
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { FadeInOnScroll } from '@/components/landing/FadeInOnScroll';

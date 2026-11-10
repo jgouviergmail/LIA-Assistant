@@ -9,7 +9,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { seedInputDraft } from '@/hooks/useInputDraft';
 import type { Language } from '@/i18n/settings';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 
 /** @returns What opens the chat on words: the person reads them and goes on from there. */

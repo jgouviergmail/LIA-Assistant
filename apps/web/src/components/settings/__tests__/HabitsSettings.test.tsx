@@ -172,65 +172,71 @@ describe('HabitsSettings', () => {
     expect(screen.getByText('settings.habits.verdict.none')).toBeInTheDocument();
   });
 
-  it('an intermittent recurring habit promises the hour, never a calendar', () => {
-    // ADR-214 (2026-09-11): a steady hour proven a few times a week is
-    // labeled `intermittent` — the row must say "several times a week",
-    // never fall into the weekly branch (`days_of_week` is empty) nor
-    // default to "every day".
-    state.overview = overview({
-      habits: [
-        habit({
-          kind: 'recurring_request',
-          key: 'email',
-          payload: { version: 1, shape: 'intermittent', trigger_hour: 9, days_of_week: [] },
-        }),
-      ],
+  /** A recurring need as the nightly sync writes it (payload v2, ADR-375). */
+  function need(payload: Record<string, unknown> = {}): Habit {
+    return habit({
+      kind: 'recurring_request',
+      key: 'email',
+      payload: {
+        version: 2,
+        domain: 'email',
+        cadence: 'weekdays',
+        weekday: null,
+        usual_hour: 8.5,
+        prefill_hour: 8.25,
+        part_of_day: 'morning',
+        distinct_days: 14,
+        active_days: 22,
+        occurrences: 16,
+        at_automation_bar: true,
+        last_day: '2026-11-07',
+        ...payload,
+      },
     });
+  }
+
+  it('a recurring need says on which days it is asked, never a locked hour', () => {
+    // ADR-375: the hour describes a need, it never conditions it — the row
+    // names its days and the caption its basis and its part of the day.
+    state.overview = overview({ habits: [need()] });
     renderSection();
-    expect(screen.getByText('settings.habits.row.recurring_request')).toBeInTheDocument();
-    expect(tCalls).toContain('settings.habits.shape.intermittent');
-    expect(tCalls).not.toContain('settings.habits.shape.weekly');
-    expect(tCalls).not.toContain('settings.habits.shape.daily');
+    expect(screen.getByText('settings.habits.row.recurring_need')).toBeInTheDocument();
+    expect(tCalls).toContain('settings.habits.cadence.weekdays');
+    expect(
+      screen.getByText('settings.habits.need_caption · settings.habits.usually.morning')
+    ).toBeInTheDocument();
   });
 
-  it('a recurring habit names the usual request when the ledger learned one', () => {
+  it('a weekly need names its weekday', () => {
+    state.overview = overview({ habits: [need({ cadence: 'weekly', weekday: 6 })] });
+    renderSection();
+    expect(tCalls).toContain('settings.habits.cadence.weekly');
+    expect(tCalls).not.toContain('settings.habits.cadence.weekdays');
+    expect(tCalls).not.toContain('settings.habits.cadence.daily');
+  });
+
+  it('a need asked at any time of day claims no part of it', () => {
+    state.overview = overview({ habits: [need({ cadence: 'daily', part_of_day: 'any' })] });
+    renderSection();
+    expect(tCalls).toContain('settings.habits.cadence.daily');
+    expect(screen.getByText('settings.habits.need_caption')).toBeInTheDocument();
+    expect(tCalls.some(key => key.startsWith('settings.habits.usually.'))).toBe(false);
+  });
+
+  it('a recurring need names the usual request when the ledger learned one', () => {
     // Q4 (2026-09-11): the descriptor is DATA on the row payload; the row
     // opens with it through the closed intent vocabulary, and a row that
     // carries none keeps the plain wording rather than an empty slot.
-    state.overview = overview({
-      habits: [
-        habit({
-          kind: 'recurring_request',
-          key: 'email',
-          payload: {
-            version: 1,
-            shape: 'daily',
-            trigger_hour: 8.5,
-            days_of_week: [],
-            usual_intent: 'search',
-          },
-        }),
-      ],
-    });
+    state.overview = overview({ habits: [need({ usual_intent: 'search' })] });
     renderSection();
-    expect(
-      screen.getByText('settings.habits.row.recurring_request_with_intent')
-    ).toBeInTheDocument();
+    expect(screen.getByText('settings.habits.row.recurring_need_with_intent')).toBeInTheDocument();
     expect(tCalls).toContain('settings.habits.intent.search');
   });
 
   it('a request outside the intent vocabulary never reaches the row raw', () => {
-    state.overview = overview({
-      habits: [
-        habit({
-          kind: 'recurring_request',
-          key: 'email',
-          payload: { version: 1, shape: 'daily', trigger_hour: 8, usual_intent: 'frobnicate' },
-        }),
-      ],
-    });
+    state.overview = overview({ habits: [need({ usual_intent: 'frobnicate' })] });
     renderSection();
-    expect(screen.getByText('settings.habits.row.recurring_request')).toBeInTheDocument();
+    expect(screen.getByText('settings.habits.row.recurring_need')).toBeInTheDocument();
     expect(tCalls.some(key => key.startsWith('settings.habits.intent.'))).toBe(false);
   });
 

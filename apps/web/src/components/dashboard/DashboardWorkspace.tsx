@@ -14,6 +14,7 @@ import { TodayBriefing } from './TodayBriefing';
 import { ResultsSummary } from './ResultsSummary';
 import { UsageStatistics } from './UsageStatistics';
 import { DashboardNavigationProvider, type DashboardNavigate } from './DashboardNavigation';
+import { HomeToolsProvider } from './HomeTools';
 import { MeetingNavigationProvider } from '@/components/meetings/MeetingNavigation';
 
 /** One full native dashboard; Activity preserves edits while disconnecting hidden effects. */
@@ -71,10 +72,12 @@ function DashboardBody({ lng, briefing }: { lng: Language; briefing: UseBriefing
   return (
     <FeatureErrorBoundary feature="dashboard">
       <div className="dashboard-home space-y-10 sm:space-y-12">
-        <TodayBriefing
-          briefing={briefing}
-          aboveBriefing={<RadioDashboardCard lng={lng} enabled={radioAvailable(config)} />}
-        />
+        <HomeToolsProvider lng={lng} config={config}>
+          <TodayBriefing
+            briefing={briefing}
+            aboveBriefing={<RadioDashboardCard lng={lng} enabled={radioAvailable(config)} />}
+          />
+        </HomeToolsProvider>
         <ResultsSummary
           results={results}
           firstLoad={firstLoad}

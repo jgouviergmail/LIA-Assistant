@@ -115,7 +115,9 @@ vi.mock('next-themes', () => ({
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(query => ({
+    // Keep the initial implementation through resetAllMocks; browser APIs must
+    // still return their declared shape after a suite resets its own spies.
+    value: vi.fn((query: string) => ({
       matches: false,
       media: query,
       onchange: null,

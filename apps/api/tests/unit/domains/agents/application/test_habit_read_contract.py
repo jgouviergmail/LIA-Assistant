@@ -45,10 +45,7 @@ def test_habit_reads_refuse_excessive_pages_effects_and_selected_accounts(
 def test_habit_reader_keeps_the_complete_public_source_projection() -> None:
     assert set(HabitProjection.model_fields) == set(HabitResponse.model_fields)
     assert set(HabitsOverviewResponse.model_fields) <= set(HabitsProjection.model_fields)
-    assert (
-        "user_id" not in HabitProjection.model_fields
-        and "muted_until_reproof" not in HabitProjection.model_fields
-    )
+    assert "user_id" not in HabitProjection.model_fields
     assert set(HabitExplanationResponse.model_fields) <= set(HabitDetailProjection.model_fields)
     assert set(HabitKind) == {
         HabitKind.ACTIVE_WINDOW,

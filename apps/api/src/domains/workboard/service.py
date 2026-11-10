@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input, raise_not_found_or_unauthorized
 from src.core.time_utils import now_utc
+from src.domains.shared.display_query import DisplayQuery
 from src.domains.shared.name_resolution import ResolutionStatus, resolve_name
 from src.domains.users.models import User
 from src.domains.workboard.answers import Answer, classify_answer
@@ -513,7 +514,12 @@ class WorkboardService:
         return rows, total, await self.repo.counts_by_status(actor.id, filters)
 
     async def needs_me(
-        self, actor: User, *, limit: int, offset: int
+        self,
+        actor: User,
+        *,
+        limit: int,
+        offset: int,
+        criteria: DisplayQuery | None = None,
     ) -> tuple[list[WorkboardTicket], int]:
         """Tickets waiting on this account, plus the late ones on its board.
 
@@ -525,7 +531,9 @@ class WorkboardService:
         Returns:
             The page and the exact total.
         """
-        return await self.repo.needs_me(actor.id, now_utc(), limit=limit, offset=offset)
+        return await self.repo.needs_me(
+            actor.id, now_utc(), limit=limit, offset=offset, criteria=criteria
+        )
 
     async def summary(self, actor: User) -> BoardSummary:
         """The board at a glance, with the caps this instance enforces (lot 18).

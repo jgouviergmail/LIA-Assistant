@@ -6,7 +6,7 @@
  * Deleting a group never deletes its contacts, and the person is told so before they answer. A
  * group a provider keeps for itself offers neither.
  */
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from '@/lib/icons';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 

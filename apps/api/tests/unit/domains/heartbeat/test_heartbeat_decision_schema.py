@@ -57,10 +57,10 @@ class TestExtendedDecision:
         assert decision.sources_used == ["UNREAD_EMAILS"]
 
     def test_a_single_label_and_null_are_read_as_lists(self) -> None:
-        single = HeartbeatDecision(action="skip", reason="r", sources_used="HABITS")
+        single = HeartbeatDecision(action="skip", reason="r", sources_used="WORKBOARD")
         null = HeartbeatDecision(action="skip", reason="r", sources_used=None)
 
-        assert single.sources_used == ["HABITS"]
+        assert single.sources_used == ["WORKBOARD"]
         assert null.sources_used == []
 
     def test_a_wrong_type_stays_an_error(self) -> None:
@@ -73,6 +73,9 @@ class TestExtendedDecision:
 
         assert "UNREAD_EMAILS" in items["enum"]
         assert "USER_RHYTHM" not in items["enum"]
+        # ADR-375: HABITS labelled the retired missed-routine section; no
+        # section carries it, so the model is no longer offered it.
+        assert "HABITS" not in items["enum"]
 
     async def test_the_auto_tool_door_keeps_the_decision(self) -> None:
         """The incident, replayed on the door a model that refuses a forced tool takes."""

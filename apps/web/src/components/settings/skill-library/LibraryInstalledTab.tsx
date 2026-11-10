@@ -9,7 +9,7 @@
  * gallery, like every other skill.
  */
 import type { TFunction } from 'i18next';
-import { FolderGit2, RefreshCw, Sparkles } from 'lucide-react';
+import { FolderGit2, RefreshCw, Sparkles } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

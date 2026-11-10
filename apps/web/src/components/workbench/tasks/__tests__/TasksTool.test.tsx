@@ -5,7 +5,7 @@
  * once and, refused, is rolled back with the refusal's own sentence.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
 import {
   act,
@@ -64,7 +64,7 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
-import { handOff } from '@/lib/workbench/handoff';
+import { handOff, setHandoffOwner } from '@/lib/workbench/handoff';
 
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { TasksTool } from '../TasksTool';
@@ -122,6 +122,7 @@ let viewAnswer: DueTasks | Error;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  nav.replace.mockReset();
   instance.assists = false;
   nav.search = '';
   media.desktop = true;
@@ -374,19 +375,62 @@ describe('TasksTool — the steps LIA proposes', () => {
 });
 
 describe('TasksTool — what another tool hands it', () => {
-  it('holds the title for the person to confirm, and sends the notes with it', async () => {
-    handOff({ kind: 'task', title: 'Answer Ana', notes: 'https://lia.example/mail?id=m1' });
+  const HANDED = {
+    kind: 'task',
+    title: 'Answer Ana',
+    notes: 'Ana asks for the budget.\nhttps://lia.example/mail?id=m1',
+    due: '2026-11-13',
+    list_name: 'trip',
+    importance: 'high',
+  } as const;
+
+  it('opens a form on everything handed, and adds it to the list LIA named', async () => {
+    handOff('owner', HANDED);
+    api.post.mockResolvedValue(task('t9'));
     const { user } = screenOf();
 
-    const field = await screen.findByRole('textbox', { name: 'workbench.tasks.new_task' });
-    expect(field).toHaveValue('Answer Ana');
-    await user.type(field, '{Enter}');
+    const form = await screen.findByRole('dialog', { name: 'workbench.tasks.new_task' });
+    expect(within(form).getByLabelText('workbench.tasks.title')).toHaveValue('Answer Ana');
+    expect(within(form).getByLabelText('workbench.tasks.notes')).toHaveValue(HANDED.notes);
+    await user.click(within(form).getByRole('button', { name: 'workbench.tasks.add' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalled());
-    expect(api.post.mock.calls[0][1]).toMatchObject({
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const body = api.post.mock.calls[0][1];
+    expect(body).toMatchObject({
       title: 'Answer Ana',
-      notes: 'https://lia.example/mail?id=m1',
+      notes: HANDED.notes,
+      due: '2026-11-13',
+      list_id: 'l2',
     });
+    expect(body).not.toHaveProperty('importance');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(toast.success).toHaveBeenCalledWith('workbench.tasks.added_to');
+    expect(screen.getByRole('textbox', { name: 'workbench.tasks.new_task' })).toHaveValue('');
+  });
+
+  it('keeps what To Do keeps: the importance LIA read', async () => {
+    features = TO_DO;
+    handOff('owner', { ...HANDED, list_name: null });
+    api.post.mockResolvedValue(task('t9'));
+    const { user } = screenOf();
+
+    const form = await screen.findByRole('dialog', { name: 'workbench.tasks.new_task' });
+    await user.click(within(form).getByRole('button', { name: 'workbench.tasks.add' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post.mock.calls[0][1]).toMatchObject({ list_id: 'l1', importance: 'high' });
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('makes nothing when the person cancels', async () => {
+    handOff('owner', HANDED);
+    const { user } = screenOf();
+
+    const form = await screen.findByRole('dialog', { name: 'workbench.tasks.new_task' });
+    await user.click(within(form).getByRole('button', { name: 'common.cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(api.post).not.toHaveBeenCalled();
   });
 });
 
@@ -1001,22 +1045,44 @@ describe('TasksTool — what the provider keeps', () => {
   });
 
   it('sends a task to another list and closes it', async () => {
-    api.post.mockResolvedValue({ done: ['t1'], failed: [], moved: [{ id: 't1', new_id: 't1' }] });
-    const { user } = opened();
+    await nav.replace.withImplementation(
+      (href: string) => {
+        // Closing the detail must update the URL that useSearchParams reads.
+        nav.search = new URL(href, window.location.origin).searchParams.toString();
+      },
+      async () => {
+        api.post.mockResolvedValue({
+          done: ['t1'],
+          failed: [],
+          moved: [{ id: 't1', new_id: 't1' }],
+        });
+        const { user } = opened();
 
-    await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'workbench.tasks.move_to_list' }),
-      'l2'
-    );
+        await user.selectOptions(
+          await screen.findByRole('combobox', { name: 'workbench.tasks.move_to_list' }),
+          'l2'
+        );
 
-    await waitFor(() =>
-      expect(posted('/workbench/tasks/selection/move')?.[1]).toEqual({
-        list_id: 'l1',
-        task_ids: ['t1'],
-        destination_list_id: 'l2',
-      })
+        await waitFor(() =>
+          expect(posted('/workbench/tasks/selection/move')?.[1]).toEqual({
+            list_id: 'l1',
+            task_ids: ['t1'],
+            destination_list_id: 'l2',
+          })
+        );
+        await waitFor(() =>
+          expect(nav.replace).toHaveBeenCalledWith('/en/dashboard/tools/tasks?list=l1', {
+            scroll: false,
+          })
+        );
+        expect(
+          screen.queryByRole('complementary', { name: 'workbench.tasks.detail_title' })
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /Task t1/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Task t2/ })).toBeInTheDocument();
+        expect(api.get).not.toHaveBeenCalledWith('/workbench/tasks/task', expect.anything());
+      }
     );
-    await waitFor(() => expect(nav.replace).toHaveBeenCalled());
   });
 });
 
@@ -1033,3 +1099,63 @@ describe('TasksTool — panes sized by hand', () => {
     expect(pane?.style.getPropertyValue('--pane-w')).toBe('');
   });
 });
+
+describe('TasksTool — a task the home opens (2026-11-07)', () => {
+  /** The list read as usual; the one task its first page does not hold, read alone. */
+  function aloneAnswers(answer: () => Promise<unknown>) {
+    const listed = api.get.getMockImplementation()!;
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/tasks/task' ? answer() : listed(path, options)
+    );
+  }
+
+  it('opens a task its list’s first page does not hold, and an act reaches it', async () => {
+    nav.search = 'list=l1&task=t9';
+    aloneAnswers(() => Promise.resolve(task('t9', { title: 'Pay rent' })));
+    api.patch.mockResolvedValue(task('t9', { title: 'Pay rent', completed: true }));
+    const { user } = screenOf();
+
+    const detail = await screen.findByRole('complementary', {
+      name: 'workbench.tasks.detail_title',
+    });
+    expect(within(detail).getByDisplayValue('Pay rent')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith(
+      '/workbench/tasks/task',
+      expect.objectContaining({ params: { list_id: 'l1', task_id: 't9' } })
+    );
+    // Kept with the list's own tasks: done from its row like any other.
+    const row = screen.getByRole('link', { name: /Pay rent/ }).closest('li')!;
+    await user.click(within(row).getByRole('checkbox', { name: 'workbench.tasks.complete' }));
+    await waitFor(() =>
+      expect(patched('/workbench/tasks')).toEqual({ list_id: 'l1', task_id: 't9', completed: true })
+    );
+  });
+
+  it('says a task that is gone, and opens nothing', async () => {
+    nav.search = 'list=l1&task=gone';
+    aloneAnswers(() =>
+      Promise.reject(new ApiError('gone', 404, { detail: { code: 'item_gone' } }))
+    );
+    screenOf();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('workbench.errors.item_gone'));
+    expect(
+      screen.queryByRole('complementary', { name: 'workbench.tasks.detail_title' })
+    ).toBeNull();
+  });
+
+  it('reads nothing alone for a task the page holds', async () => {
+    nav.search = 'list=l1&task=t1';
+    screenOf();
+
+    await screen.findByRole('complementary', { name: 'workbench.tasks.detail_title' });
+    expect(api.get).not.toHaveBeenCalledWith('/workbench/tasks/task', expect.anything());
+  });
+});
+
+beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
+});
+
+afterEach(() => setHandoffOwner(null));

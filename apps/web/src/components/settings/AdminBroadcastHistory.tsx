@@ -15,7 +15,7 @@
  */
 
 import { useId, useState, type ReactNode } from 'react';
-import { History, RotateCcw, UserCheck, Users } from 'lucide-react';
+import { History, RotateCcw, UserCheck, Users } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

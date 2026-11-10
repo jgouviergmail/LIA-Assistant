@@ -10,7 +10,7 @@ import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { TypingIndicator } from './TypingIndicator';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { useLiaGender } from '@/hooks/useLiaGender';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { usePsyche } from '@/hooks/usePsyche';
 import {

@@ -44,6 +44,7 @@ def import_all_models() -> None:
     import src.domains.journals.evidence_models  # noqa: F401
     import src.domains.journals.models  # noqa: F401
     import src.domains.llm.models  # noqa: F401
+    import src.domains.llm_config.jev_statistics_models  # noqa: F401
     import src.domains.llm_config.models  # noqa: F401
     import src.domains.meetings.models  # noqa: F401
     import src.domains.memories.models  # noqa: F401

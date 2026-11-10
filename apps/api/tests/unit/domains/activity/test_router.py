@@ -12,9 +12,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.core.config import settings
+from src.core.constants import ACTIVITY_TIMELINE_PAGE_SIZE_MAX, DISPLAY_SEARCH_MAX_LENGTH
 from src.core.session_dependencies import get_current_active_session
 from src.domains.activity.router import router
-from src.domains.activity.schemas import ActivityTimelineResponse
+from src.domains.activity.schemas import ActivityCriteria, ActivityTimelineResponse
 
 USER_ID = uuid.uuid4()
 
@@ -22,6 +23,7 @@ USER_ID = uuid.uuid4()
 def _response(**overrides: object) -> ActivityTimelineResponse:
     base = ActivityTimelineResponse(
         events=[],
+        criteria=ActivityCriteria(),
         totals=[],
         has_more=False,
         offset=0,
@@ -55,24 +57,73 @@ class TestTimelineEndpoint:
         assert body["window_days"] == settings.activity_timeline_window_days
         # The service is bound to the AUTHENTICATED user, never a query param.
         service_cls.assert_called_once_with(USER_ID)
-        build.assert_awaited_once_with(offset=0, limit=settings.activity_timeline_page_size)
+        build.assert_awaited_once_with(
+            offset=0, limit=settings.activity_timeline_page_size, criteria=ActivityCriteria()
+        )
 
     def test_paging_params_flow_through(self, client: TestClient):
-        build = AsyncMock(return_value=_response(offset=10, limit=5))
+        build = AsyncMock(return_value=_response(offset=10, limit=5, criteria=ActivityCriteria()))
         with patch("src.domains.activity.router.ActivityService") as service_cls:
             service_cls.return_value.build_timeline = build
 
             resp = client.get("/activity/timeline?offset=10&limit=5")
 
         assert resp.status_code == 200
-        build.assert_awaited_once_with(offset=10, limit=5)
+        build.assert_awaited_once_with(offset=10, limit=5, criteria=ActivityCriteria())
 
     def test_negative_offset_is_rejected(self, client: TestClient):
         assert client.get("/activity/timeline?offset=-1").status_code == 422
 
     def test_limit_bounds_are_enforced(self, client: TestClient):
         assert client.get("/activity/timeline?limit=0").status_code == 422
-        assert client.get("/activity/timeline?limit=101").status_code == 422
+        assert (
+            client.get(
+                f"/activity/timeline?limit={ACTIVITY_TIMELINE_PAGE_SIZE_MAX + 1}"
+            ).status_code
+            == 422
+        )
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"kinds": "unknown"},
+            {"sort": "name"},
+            {"q": "x" * (DISPLAY_SEARCH_MAX_LENGTH + 1)},
+            {"as_of": "2026-11-01T00:00:00"},
+            {"as_of": "nonsense"},
+            {"user_id": str(USER_ID)},
+        ],
+    )
+    def test_invalid_criteria_never_reach_a_source(
+        self, client: TestClient, params: dict[str, str]
+    ) -> None:
+        with patch("src.domains.activity.router.ActivityService") as service:
+            assert client.get("/activity/timeline", params=params).status_code == 422
+        service.assert_not_called()
+
+    def test_repeatable_kinds_are_validated_and_canonicalized(self, client: TestClient) -> None:
+        build = AsyncMock(return_value=_response())
+        with patch("src.domains.activity.router.ActivityService") as service:
+            service.return_value.build_timeline = build
+            response = client.get(
+                "/activity/timeline",
+                params=[
+                    ("kinds", "open_loop_closed"),
+                    ("kinds", "habit_detected"),
+                    ("kinds", "habit_detected"),
+                    ("q", "Été 100%_"),
+                    ("sort", "oldest"),
+                    ("as_of", "2026-11-01T00:00:00Z"),
+                ],
+            )
+        assert response.status_code == 200
+        criteria = build.await_args.kwargs["criteria"]
+        assert criteria == ActivityCriteria(
+            q="Été 100%_",
+            kinds=("habit_detected", "open_loop_closed"),
+            sort="oldest",
+            as_of=datetime(2026, 11, 1, tzinfo=UTC),
+        )
 
     def test_events_serialize_with_utc_timestamps(self, client: TestClient):
         from src.domains.activity.schemas import ActivityEvent

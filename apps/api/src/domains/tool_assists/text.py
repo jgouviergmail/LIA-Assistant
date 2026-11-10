@@ -26,6 +26,7 @@ class RewriteTone(str, Enum):
     SHORTER = "shorter"
     FORMAL = "formal"
     WARM = "warm"
+    FORMAT = "format"
 
 
 class WritingKind(str, Enum):
@@ -33,6 +34,7 @@ class WritingKind(str, Enum):
 
     EVENT_DESCRIPTION = "event_description"
     TASK_NOTES = "task_notes"
+    CONTACT_NOTES = "contact_notes"
     AUTO_REPLY = "auto_reply"
     SIGNATURE = "signature"
     DOCUMENT = "document"
@@ -44,8 +46,18 @@ class WrittenText(BaseModel):
     text: str = Field(description="The text alone, plain, ready to use.")
 
 
-def _proposal(answer: WrittenText) -> str:
-    """The words of an answer; an empty one is no proposal."""
+def written_words(answer: WrittenText) -> str:
+    """The words of an answer; an empty one is no proposal.
+
+    Args:
+        answer: What the model answered.
+
+    Returns:
+        Its words, trimmed.
+
+    Raises:
+        BaseAPIException: The answer holds no words (``assist_failed``).
+    """
     words = answer.text.strip()
     if not words:
         refuse(ASSIST_FAILED)
@@ -64,7 +76,7 @@ async def rewrite_text(run: AssistRun, text: str, tone: RewriteTone) -> str:
         The words proposed.
     """
     prompt = load_prompt("tool_assist_rewrite_prompt").format(tone=tone.value, text=text)
-    return _proposal(await ask_slot(run, prompt, WrittenText))
+    return written_words(await ask_slot(run, prompt, WrittenText))
 
 
 async def translate_text(run: AssistRun, text: str, target_language: str) -> str:
@@ -81,7 +93,7 @@ async def translate_text(run: AssistRun, text: str, target_language: str) -> str
     prompt = load_prompt("tool_assist_translate_prompt").format(
         target_language=target_language, text=text
     )
-    return _proposal(await ask_slot(run, prompt, WrittenText))
+    return written_words(await ask_slot(run, prompt, WrittenText))
 
 
 async def write_text(run: AssistRun, kind: WritingKind, instruction: str) -> str:
@@ -98,4 +110,4 @@ async def write_text(run: AssistRun, kind: WritingKind, instruction: str) -> str
     prompt = load_prompt("tool_assist_write_prompt").format(
         language_name=get_language_name(run.language), kind=kind.value, instruction=instruction
     )
-    return _proposal(await ask_slot(run, prompt, WrittenText))
+    return written_words(await ask_slot(run, prompt, WrittenText))

@@ -14,22 +14,33 @@ import structlog
 
 from src.core.context import current_tracker
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.llm_config.jev_statistics_sink import (
+    count_jev_outcome,
+    record_observer_agreement,
+)
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_models import ContextPreview, context_preview
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_with_jev
-from src.infrastructure.llm.typesafe_client import ChoiceQuestion
-from src.infrastructure.observability.metrics_jev import jev_decisions_total
+from src.infrastructure.llm.typesafe_client import ChoiceQuestion, choice_confidence
 
 logger = structlog.get_logger(__name__)
 
 
 @dataclass
 class ExtractionObservation:
-    """Bounded comparison with the existing model's proposal, before write validation."""
+    """Bounded comparison with the existing model's proposal, before write validation.
+
+    ``proposals`` is what the extractor's OWN parse kept, reported right after it parsed
+    (``set_proposals``): the observer never re-implements four parsers. ``None`` means
+    the extractor stopped before parsing, and no agreement can be stated (ADR-374).
+    """
 
     result: ContextPreview | None = None
+    output: str | None = None
+    proposals: int | None = None
     usage: JevUsage | None = None
     owner: UUID | None = None
     run_id: str = ""
@@ -40,11 +51,16 @@ class ExtractionObservation:
             self.task = asyncio.create_task(_request(self.usage, self.owner, self.run_id, prompt))
 
     def set_output(self, output: str) -> None:
+        self.output = output
         try:
             value = json.loads(output)
             self.result = context_preview(value)
         except ValueError, TypeError, RecursionError:
             self.result = context_preview(output)
+
+    def set_proposals(self, count: int) -> None:
+        """Report how many proposals the extractor's own parse kept from its output."""
+        self.proposals = count
 
 
 async def _request(usage: JevUsage, owner: UUID, run_id: str, prompt: str) -> DecisionAttempt:
@@ -69,6 +85,23 @@ async def _request(usage: JevUsage, owner: UUID, run_id: str, prompt: str) -> De
         current_tracker.reset(token)
 
 
+def _proposed_anything(observed: ExtractionObservation) -> bool | None:
+    """Whether the extractor proposed anything, as its own parse read its output.
+
+    ``None`` when it never reported (it stopped before parsing). An output it kept
+    nothing from counts as proposing unless it is readable JSON: a failure is never
+    read as « nothing to extract ».
+    """
+    if observed.proposals is None:
+        return None
+    if observed.proposals > 0 or observed.output is None:
+        return True
+    readable = extract_json_from_llm_response(
+        observed.output, expected_type=object, context="jev_observation"
+    ).success
+    return not readable
+
+
 async def _record(
     owner: UUID, usage: JevUsage, attempt: DecisionAttempt, observed: ExtractionObservation
 ) -> None:
@@ -81,9 +114,16 @@ async def _record(
             target="existing_extraction_unchanged",
             observed_result=observed.result,
         )
-        jev_decisions_total.labels(
-            usage=usage, outcome="observed" if attempt.answer is not None else attempt.outcome
-        ).inc()
+        count_jev_outcome(usage, "observed" if attempt.answer is not None else attempt.outcome)
+        proposed = _proposed_anything(observed)
+        score = choice_confidence(attempt.answer) if attempt.answer is not None else None
+        if (
+            attempt.outcome == "success"
+            and attempt.answer
+            and score is not None
+            and proposed is not None
+        ):
+            record_observer_agreement(usage, attempt.answer.choice, score, proposed)
     except Exception as exc:
         logger.warning(
             "jev_observation_record_failed", usage=usage.value, error_type=type(exc).__name__

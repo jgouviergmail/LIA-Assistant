@@ -11,6 +11,7 @@ from uuid import uuid4
 import pytest
 
 import src.domains.telephony.owner_call as oc
+from src.core.i18n_telephony import get_return_phrases
 from src.domains.telephony.models import (
     CallKind,
     NotificationStatus,
@@ -157,7 +158,7 @@ async def test_a_lost_claim_relays_nothing(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.unit
-async def test_a_failed_synthesis_settles_as_failed_with_the_vendor_summary(
+async def test_a_failed_synthesis_settles_as_failed_with_a_localized_notice(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured = _install(monkeypatch, relay=RuntimeError("provider down"))
@@ -176,10 +177,12 @@ async def test_a_failed_synthesis_settles_as_failed_with_the_vendor_summary(
         call_seconds=None,
     )
     _, kwargs = repo.calls[0]
-    assert kwargs["summary"] == "vendor summary"
+    assert kwargs["summary"] == get_return_phrases("fr")["relay_failed"]
     assert kwargs["outcome"] is PhoneCallOutcome.PARTIAL
     assert "relay_request" not in captured  # no words to relay
     assert captured["settle"]["outcome"] is RelayOutcome.FAILED
+    assert captured["settle"]["relay"].owner_confirmed is False
+    assert captured["settle"]["relay"].summary == ""
 
 
 @pytest.mark.unit

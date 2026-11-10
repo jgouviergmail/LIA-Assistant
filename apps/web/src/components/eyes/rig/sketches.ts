@@ -22,7 +22,15 @@
  * the face is exactly where it was when the curtain falls.
  */
 
-import { absolute, bothSides, mirrored, relative, type Keys } from '@/components/eyes/rig/choreo';
+import {
+  absolute,
+  bothSides,
+  HEAD_FOLLOW_X_EM,
+  HEAD_FOLLOW_Y_EM,
+  mirrored,
+  relative,
+  type Keys,
+} from '@/components/eyes/rig/choreo';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
@@ -73,17 +81,6 @@ export const SKETCH_FIRST_MAX_DELAY_MS = 40_000;
  * in the catalogue, the same sneeze twice in a row is the whole thing read
  * as a loop. */
 export const SKETCH_HISTORY = 3;
-
-/**
- * How far the HEAD follows the gaze in a scene, in em per gaze unit.
- *
- * The eyes alone travel 0.14 em per unit — six pixels at the large size —
- * and a scene that lived in the gaze (the fly, the dizzy roll, the groove)
- * read as one more idle glance. The whole face turning after the eyes, on
- * its own slower spring, is what makes it a scene.
- */
-export const HEAD_FOLLOW_X_EM = 0.08;
-export const HEAD_FOLLOW_Y_EM = 0.06;
 
 /**
  * The sketch clock — what the host keeps between two mounts of the face.
@@ -189,21 +186,6 @@ function blinkAt(atMs: number, holdMs = 130, closure = 1, spring: SpringConfig =
   ];
 }
 
-/** Gaze keys tracing `turns` circles of radius `amp`, one key per `stepMs`. */
-function circle(fromMs: number, turns: number, periodMs: number, amp: number, stepMs: number) {
-  const x: (readonly [number, number])[] = [];
-  const y: (readonly [number, number])[] = [];
-  const total = turns * periodMs;
-  for (let t = 0; t <= total; t += stepMs) {
-    const angle = (2 * Math.PI * t) / periodMs;
-    x.push([fromMs + t, +(amp * Math.cos(angle)).toFixed(3)]);
-    y.push([fromMs + t, +(amp * Math.sin(angle)).toFixed(3)]);
-  }
-  x.push([fromMs + total + 200, 0]);
-  y.push([fromMs + total + 200, 0]);
-  return { x, y };
-}
-
 type FacialSketchName =
   | 'fly'
   | 'double-take'
@@ -211,9 +193,7 @@ type FacialSketchName =
   | 'yawn-stretch'
   | 'hiccups'
   | 'peekaboo'
-  | 'dizzy'
   | 'doze-and-snap'
-  | 'brow-groove'
   | 'suspicious';
 
 export type SketchName = FacialSketchName | BodySketchName;
@@ -225,12 +205,14 @@ export const SKETCHES: readonly SketchName[] = [
   'yawn-stretch',
   'hiccups',
   'peekaboo',
-  'dizzy',
   'doze-and-snap',
-  'brow-groove',
   'suspicious',
   ...BODY_SKETCHES,
 ];
+
+export function isSketchName(name: string): name is SketchName {
+  return SKETCHES.some(candidate => candidate === name);
+}
 
 /**
  * The catalogue. Read each one as a scene with beats — the key times ARE the
@@ -642,68 +624,6 @@ function facialSketchTapes(name: FacialSketchName): Tape[] {
         relative('mouthOpen', [[2400, 0.3]], 3300, PUNCH),
         relative('mass', [[2400, 0.06]], 3300, PUNCH),
       ];
-    case 'dizzy': {
-      // The eyes roll around twice, then the head wobbles, half-lidded and
-      // wavy-mouthed, until a quick shake and a blink clear it.
-      const roll = circle(0, 2, 1200, 0.8, 200);
-      return [
-        ...look(roll.x, roll.y, 2700, EASE),
-        absolute(
-          'tilt',
-          [
-            [2600, 6],
-            [2900, -6],
-            [3200, 5],
-            [3500, -4],
-            [3800, 2],
-            [4100, 0],
-          ],
-          4300,
-          EASE
-        ),
-        ...bothSides('sy', [[2600, -0.3]], 4000, EASE),
-        // The brows sag with the lids and roll with the head, out of step
-        // with each other: a dizzy face has no two things agreeing.
-        ...bothSides('browY', [[2600, 0.02]], 4000, EASE),
-        ...mirrored(
-          'browRot',
-          [
-            [2600, 5],
-            [2900, -4],
-            [3200, 4],
-            [3500, -3],
-            [3800, 0],
-          ],
-          4000,
-          EASE
-        ),
-        relative(
-          'mouthSkew',
-          [
-            [2600, 0.3],
-            [2900, -0.3],
-            [3200, 0.25],
-            [3500, -0.2],
-          ],
-          4000,
-          EASE
-        ),
-        relative('mouthCurve', [[2600, -0.15]], 4000, EASE),
-        relative('mouthOpen', [[2600, 0.1]], 4000, EASE),
-        absolute(
-          'tilt',
-          [
-            [4100, -5],
-            [4250, 5],
-            [4400, 0],
-          ],
-          4600,
-          PUNCH
-        ),
-        ...blinkAt(4300),
-        ...bothSides('sy', [[4200, 0.1]], 4600, PUNCH),
-      ];
-    }
     case 'doze-and-snap':
       // The eyes droop by degrees, the head tips, the mouth slackens — then
       // a jolt: eyes wide, brows up, a dart left and right, and a sheepish
@@ -802,122 +722,6 @@ function facialSketchTapes(name: FacialSketchName): Tape[] {
         ...bothSides('sy', [[3900, -0.15]], 4950, EASE),
         ...mirrored('browRot', [[3900, -6]], 4950, EASE),
         ...blinkAt(4300),
-      ];
-    case 'brow-groove':
-      // A little groove: the brows take turns, the head bobs off the beat,
-      // the mouth wiggles in time, the gaze sways — and it ends on both
-      // brows up and a grin.
-      return [
-        relative(
-          'browYL',
-          [
-            [0, -0.06],
-            [300, 0],
-            [600, -0.06],
-            [900, 0],
-            [1250, -0.06],
-            [1550, 0],
-            [1900, -0.06],
-          ],
-          2200,
-          PUNCH
-        ),
-        relative(
-          'browYR',
-          [
-            [300, -0.06],
-            [600, 0],
-            [900, -0.06],
-            [1250, 0],
-            [1550, -0.06],
-            [1900, 0],
-            [2200, -0.06],
-          ],
-          2500,
-          PUNCH
-        ),
-        relative(
-          'browArcL',
-          [
-            [0, 0.3],
-            [300, 0],
-            [600, 0.3],
-            [900, 0],
-            [1250, 0.3],
-            [1550, 0],
-            [1900, 0.3],
-          ],
-          2200,
-          PUNCH
-        ),
-        relative(
-          'browArcR',
-          [
-            [300, 0.3],
-            [600, 0],
-            [900, 0.3],
-            [1250, 0],
-            [1550, 0.3],
-            [1900, 0],
-            [2200, 0.3],
-          ],
-          2500,
-          PUNCH
-        ),
-        relative(
-          'massY',
-          [
-            [150, 0.02],
-            [450, 0],
-            [750, 0.02],
-            [1050, 0],
-            [1400, 0.02],
-            [1700, 0],
-            [2050, 0.02],
-          ],
-          2350,
-          PUNCH
-        ),
-        relative(
-          'mouthSkew',
-          [
-            [0, 0.25],
-            [300, -0.25],
-            [600, 0.25],
-            [900, -0.25],
-            [1250, 0.25],
-            [1550, -0.25],
-            [1900, 0.25],
-            [2200, -0.25],
-          ],
-          2500,
-          PUNCH
-        ),
-        relative('mouthCurve', [[0, 0.3]], 2800, EASE),
-        ...look(
-          [
-            [0, -0.3],
-            [600, 0.3],
-            [1250, -0.3],
-            [1900, 0.3],
-            [2500, 0],
-          ],
-          [
-            [0, 0.05],
-            [600, 0.05],
-            [1250, 0.05],
-            [1900, 0.05],
-            [2500, 0],
-          ],
-          2800,
-          EASE
-        ),
-        ...bothSides('browY', [[2800, -0.08]], 3800, PUNCH),
-        ...bothSides('browArc', [[2800, 0.5]], 3800, PUNCH),
-        relative('mouthCurve', [[2800, 0.8]], 3800, PUNCH),
-        relative('mouthW', [[2800, 0.3]], 3800, PUNCH),
-        relative('mouthOpen', [[2800, 0.12]], 3800, PUNCH),
-        ...bothSides('sy', [[2800, -0.4]], 3800, PUNCH),
       ];
     case 'suspicious':
       // Narrowed eyes slide slowly left, then right — what are you up to? —

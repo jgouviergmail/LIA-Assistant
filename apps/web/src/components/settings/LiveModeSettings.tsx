@@ -16,7 +16,7 @@
  * refusal is shown in its own words, in a `role="alert"`.
  */
 
-import { AudioLines, Plug, SlidersHorizontal, Volume2 } from 'lucide-react';
+import { AudioLines, Plug, SlidersHorizontal, Volume2 } from '@/lib/icons';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';

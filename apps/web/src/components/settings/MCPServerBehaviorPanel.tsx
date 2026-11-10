@@ -2,7 +2,7 @@
 
 import { useId } from 'react';
 import type { TFunction } from 'i18next';
-import { AlertTriangle, Info, ScanSearch } from 'lucide-react';
+import { AlertTriangle, Info, ScanSearch } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';

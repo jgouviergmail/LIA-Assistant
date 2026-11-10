@@ -192,3 +192,23 @@ def test_voice_only_turns_group_into_exchanges_opened_by_the_person() -> None:
         ["Thanks"],
     ]
     assert VoiceTranscript(turns=()).voice_only_exchanges() == ()
+
+
+def test_the_agents_turns_are_read_as_heard_never_the_persons() -> None:
+    """ADR-373: the vendor keeps in its transcript the audio tags its model wrote,
+    unspoken; the person's own words are never touched — a bracket there is words."""
+    payload = _payload(
+        [
+            {"role": "agent", "message": "[cheerfully] Hello, am I speaking with Alex?"},
+            {"role": "user", "message": "Yes [laughs], it's me."},
+            {"role": "agent", "message": "[sighs]"},
+            {"role": "agent", "message": "Great [chuckles]. What can I do?"},
+        ]
+    )
+    transcript = VoiceTranscript.from_vendor_payload(payload, delegation_tool=_DELEGATION_TOOL)
+    assert [(turn.role, turn.text) for turn in transcript.turns] == [
+        ("assistant", "Hello, am I speaking with Alex?"),
+        ("user", "Yes [laughs], it's me."),
+        # A turn that was only a cue said nothing.
+        ("assistant", "Great. What can I do?"),
+    ]

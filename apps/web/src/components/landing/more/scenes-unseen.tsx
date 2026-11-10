@@ -15,6 +15,7 @@ import {
   BellRing,
   Blocks,
   Brain,
+  CalendarDays,
   Check,
   ChevronDown,
   CircleCheck,
@@ -35,6 +36,7 @@ import {
   Repeat,
   Send,
   Server,
+  Star,
   Sun,
   Sunrise,
   User,
@@ -42,14 +44,17 @@ import {
   Wind,
   type LucideIcon,
   Loader2,
-} from 'lucide-react';
+} from '@/lib/icons';
 
+import { ICON_STYLES, type IconStyle } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 import { cn } from '@/lib/utils';
 
 import {
   Cursor,
   KeyCap,
   MiniBubble,
+  MiniChip,
   MiniToast,
   PhoneFrame,
   SkeletonLine,
@@ -1083,6 +1088,76 @@ function OledBlackScene({ active }: SceneProps) {
   );
 }
 
+type AutoAppearancePhase = 'day' | 'evening' | 'night';
+const AUTO_APPEARANCE_STEPS: readonly TimelineStep<AutoAppearancePhase>[] = [
+  { at: 0, state: 'day' },
+  { at: 1400, state: 'evening' },
+  { at: 2200, state: 'night' },
+];
+
+/**
+ * The schedule, not the button: the account's clock reads the morning hour
+ * over a light screen, turns to the evening hour, and the same growing circle
+ * as the manual cycle paints the screen absolute black. Nobody presses
+ * anything, which is the whole point of the card.
+ */
+function AutoAppearanceScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(AUTO_APPEARANCE_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'flex-row gap-3')}>
+      <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-0.5 text-px-10 tabular-nums text-foreground/80">
+        <Clock className="h-3 w-3 text-primary" aria-hidden="true" />
+        {phase === 'day' ? labels.morning : labels.evening}
+      </span>
+      <div className="relative w-full max-w-[160px] overflow-hidden rounded-xl border border-border">
+        <OledFrame ground="bg-background" surface="bg-card" dark={false} />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 transition-[clip-path] duration-700 ease-out motion-reduce:transition-none"
+          style={{
+            clipPath: phase === 'night' ? 'circle(140% at 86% 16%)' : 'circle(0% at 86% 16%)',
+          }}
+        >
+          <OledFrame ground="bg-black" surface="bg-neutral-950" dark />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ICON_STYLE_STEPS: readonly TimelineStep<IconStyle>[] = [
+  { at: 0, state: 'lucide' },
+  { at: 1300, state: 'fluent' },
+  { at: 2600, state: 'flex' },
+];
+
+/**
+ * The same three symbols drawn by each style in turn, through the very
+ * context the account preference feeds: a calendar, a mail and a filled star
+ * keep their meaning while only the drawing changes.
+ */
+function IconStylesScene({ active, labels }: SceneProps) {
+  const style = useLoopedTimeline(ICON_STYLE_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'gap-3')}>
+      <IconStyleContext.Provider value={style}>
+        <span className="flex items-center gap-4 text-primary" aria-hidden="true">
+          <CalendarDays className="h-7 w-7" />
+          <Mail className="h-7 w-7" />
+          <Star className="h-7 w-7 fill-current" />
+        </span>
+      </IconStyleContext.Provider>
+      <span className="flex flex-wrap justify-center gap-1.5">
+        {ICON_STYLES.map(option => (
+          <MiniChip key={option} pressed={style === option}>
+            {labels[option]}
+          </MiniChip>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 /**
  * The text grows, the room does not. The frame, its rail and the slider track
  * keep their exact size through the whole loop; only the two lines of text
@@ -1654,6 +1729,8 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   claim_before_effect: ClaimBeforeEffectScene,
   readable_at_a_glance: ReadableAtAGlanceScene,
   oled_black: OledBlackScene,
+  auto_appearance: AutoAppearanceScene,
+  icon_styles: IconStylesScene,
   text_size: TextSizeScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,

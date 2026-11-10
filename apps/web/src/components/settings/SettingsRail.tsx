@@ -16,8 +16,8 @@
  * landmark and the lists.
  */
 
-import { Puzzle, Settings, Shield } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Puzzle, Settings, Shield } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

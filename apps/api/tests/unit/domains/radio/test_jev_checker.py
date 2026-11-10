@@ -9,6 +9,8 @@ from uuid import uuid4
 import pytest
 
 from src.core.constants import JEV_SHARED_STATE_BATCH_BYTES
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import RadioFormat, RadioRole
 from src.domains.radio.script import LineKind, RadioDelivery, ScriptPart
@@ -107,7 +109,7 @@ async def test_unrepresentable_script_uses_whole_original_without_native_spend(r
     fallback.unsupported.return_value = None
     with (
         patch.object(module, "choose_many_with_jev", AsyncMock()) as native,
-        patch.object(module, "jev_decisions_total") as counted,
+        patch.object(module, "count_jev_outcome") as counted,
     ):
         checker = module.JevLineChecker(
             fallback, user_id=uuid4(), run_id="radio", station_name="Radio 42"
@@ -116,7 +118,7 @@ async def test_unrepresentable_script_uses_whole_original_without_native_spend(r
     native.assert_not_awaited()
     fallback.unsupported.assert_awaited_once_with(lines, PACK)
     # A script handed back before any call is counted under its closed reason.
-    counted.labels.assert_called_once_with(usage=module.JevUsage.RADIO_VERIFICATION, outcome=reason)
+    counted.assert_called_once_with(module.JevUsage.RADIO_VERIFICATION, reason)
 
 
 @pytest.mark.parametrize(
@@ -208,7 +210,7 @@ async def test_native_verdict_flows_through_the_existing_deterministic_editor() 
 
 async def test_a_line_exactly_at_the_margin_is_decided_and_just_past_it_is_not() -> None:
     module = importlib.import_module("src.domains.radio.jev_checker")
-    margin = module.DECISION_MARGIN
+    margin = float(gate_defaults(JevUsage.RADIO_VERIFICATION)["line_margin"])
 
     async def judged(first: float, second: float) -> frozenset[int] | None:
         fallback = AsyncMock()

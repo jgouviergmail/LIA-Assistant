@@ -1,6 +1,6 @@
-/** Smiley-only continuous mouth anatomy. The native rig still owns all acting. */
+/** Companion continuous mouth anatomy. The native rig still owns all acting. */
 import type { ChannelValues } from './channels';
-import { smileyRestInfluence } from '../smiley/rest-mouth';
+import { sculptedRestInfluence } from './sculpted-rest-mouth';
 
 export interface SculptedMouthContours {
   cavity: string;
@@ -150,7 +150,7 @@ export function sculptedMouthContours(values: Readonly<ChannelValues>): Sculpted
   const skew = bounded(values.mouthSkew, -1, 1);
   const profile = lipProfile(curve, open, skew);
   const teeth = toothProfile(profile, curve, open);
-  const influence = smileyRestInfluence(values);
+  const influence = sculptedRestInfluence(values);
   // A symmetric baseline leaves the native mouth skew intact in the drawing.
   const closed = influence ? lipProfile(curve, 0, 0) : profile;
   const bowl = bounded((curve - 0.4) / 0.6, 0, 1);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, RefreshCw } from 'lucide-react';
+import { BarChart3, RefreshCw } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { DashboardTile } from '@/components/dashboard/DashboardTile';

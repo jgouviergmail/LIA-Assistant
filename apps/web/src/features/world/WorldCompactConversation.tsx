@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { WorldPrivateActivity } from './WorldAccountGuard';
-import { ChevronDown, ChevronUp, Languages, Maximize2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Languages, Maximize2, X } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

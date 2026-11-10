@@ -1,6 +1,6 @@
 import { type Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, History, LayoutGrid, Network, ShieldCheck } from 'lucide-react';
+import { ArrowRight, History, LayoutGrid, Network, ShieldCheck } from '@/lib/icons';
 
 import { MapsHero } from '@/components/maps/MapsHero';
 import { MapsShell } from '@/components/maps/MapsShell';

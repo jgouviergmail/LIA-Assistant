@@ -75,14 +75,13 @@ beforeEach(() => {
     next_cursor: null,
   });
 });
-it('reads day view, submits a private search, and keeps grouping usable without issuing mutations', async () => {
+it('reads day view, searches automatically, and keeps grouping usable without issuing mutations', async () => {
   render(<SmsArchive lng="en" />);
   fireEvent.click(screen.getByRole('button', { name: 'sms.by_day' }));
   await screen.findByText('Dinner tomorrow');
   fireEvent.change(screen.getByRole('searchbox', { name: 'sms.search' }), {
     target: { value: 'private words' },
   });
-  fireEvent.submit(screen.getByRole('search'));
   await waitFor(() =>
     expect(post.mock.calls.some(call => call[1]?.query === 'private words')).toBe(true)
   );

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.agents.effects import runtime as gate_runtime
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
@@ -131,8 +132,7 @@ class TestTheWholeChain:
             trace_capture=_Capture(),
             duration_ms=1234,
             run_id=run_id,
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=entries,
         )
 
@@ -178,8 +178,7 @@ class TestTheWholeChain:
             trace_capture=_Capture(),
             duration_ms=1,
             run_id="run-empty",
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=entries,
         )
         assert "performed_effects" not in metadata

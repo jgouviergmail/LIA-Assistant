@@ -1952,6 +1952,31 @@
       "title": "Aus den Werkzeugen: ein Klick, ein Aufruf, ein Vorschlag",
       "summary": "Eine Nachricht zusammenfassen, eine Antwort vorschlagen, eine Visitenkarte lesen: Ein Klick bittet LIA um eine Sache und erhält einen Vorschlag, den die Person liest, niemals einen Schreibvorgang beim Anbieter. Der Vorgang wird nachverfolgt und dem Klickenden berechnet, und kein Bildschirm ohne Platz erhält ein weiteres Bedienelement: Das letzte Symbol jeder Leiste öffnet die Liste.",
       "src": "357747655d68"
+    },
+    "373": {
+      "title": "Die Persönlichkeit bestimmt die Stimme",
+      "summary": "Eine ElevenLabs-Sprachsitzung mit zynischer Persönlichkeit sprach wie ein fröhlicher Assistent: Die Ausdrucks-Tags des Portals schrieben Begeisterung vor, und LIAs eigene Rahmen verlangten Wärme. Jetzt spricht jede Stimme der Person — Live, Live direkt, Telefon und der gesprochene Kommentar im Chat — in der gewählten Persönlichkeit, der Inhalt zuerst, die Fakten unangetastet; LIA schreibt selbst die Tag-Palette, die Begrüßung und ihre Werkzeuge auf den Agenten. Ein Anruf bei Dritten bleibt freundlich.",
+      "src": "e1614a8b7a92"
+    },
+    "374": {
+      "title": "JEV behält, was jemand liest, und seine Schwellen werden Einstellungen",
+      "summary": "Die Ergebnisvorschauen, die kein Bildschirm mehr zeigte, und das JEV-Tor der Initiative, das nichts unterschied, sind entfernt, während der Initiativ-Bewerter weiterhin jeden Durchlauf mit Werkzeugen sieht. Jede JEV-Schwelle wird zu einer begrenzten Einstellung, die sich im Verwaltungsbildschirm ändern lässt, und jedes bezahlte Urteil wird dauerhaft gezählt, damit eine Schwelle nach dem entschieden wird, was wirklich geschieht, und nicht nach einem Korpus.",
+      "src": "40543eabe9e3"
+    },
+    "375": {
+      "title": "Was LIA aus der Nutzung lernt, wird zu Vorschlägen",
+      "summary": "Eine Uhrzeit bedingt keine wiederkehrende Anfrage mehr: Ein Bedürfnis erkennt man an den Tagen, an denen es wiederkehrt, und die Uhrzeit füllt nur vor. Sechs Arten von Vorschlägen entstehen aus dem, was LIA ohnehin aufzeichnet — ein Bedürfnis automatisieren, eine von Hand neu gestartete Routine verschieben, die Benachrichtigungszeiten erweitern, eine Quelle verbinden … —, und ein Klick nimmt sie an und führt sie aus. Der Chat zeigt höchstens einen unter einer Antwort, vom Code gewählt.",
+      "src": "de653a14795d"
+    },
+    "376": {
+      "title": "Eine Karte öffnet ihren Eintrag in den Tools, auf einen signierten Nachweis ihrer Quelle",
+      "summary": "Eine E-Mail, ein Termin, ein Kontakt, eine Aufgabe, eine Datei oder eine Lampe aus dem Chat öffnet sich in den Tools. Die Karte trägt ein signiertes Ziel, gebunden an das Konto und die Quelle, die geantwortet hat; beim Klick prüft der Server diese Quelle erneut und lehnt mit Begründung ab, wenn sich das Konto geändert hat, statt einen anderen Eintrag mit derselben Kennung zu öffnen.",
+      "src": "97a376cbbd7b"
+    },
+    "377": {
+      "title": "Das Konto wählt, wie die Oberfläche gezeichnet wird",
+      "summary": "Jedes Symbol geht durch eine einzige Tür, die den vom Konto gewählten Stil zeichnet, Lucide, Fluent Color oder Streamline Flex, ohne die Bedeutung eines Symbols zu ändern, und der Hochkontrast des Systems behält seine Farben. Das Design kann außerdem zu den gewählten Uhrzeiten nach der Uhr des Kontos von selbst von hell zu absolutem Schwarz wechseln, ohne dass je ein Zeitgeber das Profil schreibt.",
+      "src": "961a36d2c764"
     }
   }
 }

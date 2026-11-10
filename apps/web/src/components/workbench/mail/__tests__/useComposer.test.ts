@@ -7,7 +7,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { act, renderHook } from '@/__tests__/test-utils';
+import { act, renderHook, waitFor } from '@/__tests__/test-utils';
 import type { WorkbenchMailWriting } from '@/hooks/useWorkbenchMailWriting';
 import { ApiError } from '@/lib/api-client';
 import type { ComposerTarget } from '@/lib/workbench/mail-compose';
@@ -438,8 +438,12 @@ describe('useComposer — a draft’s files', () => {
     const saveDraft = vi.fn(() => new Promise<MailDraft>(resolve => (answer = resolve)));
     const { result } = composer({ kind: 'new' }, writing({ saveDraft }));
     act(() => result.current.set({ to: 'ana@example.org', files: [FILE] }));
-    const saving = result.current.saveDraft();
-    await act(async () => undefined);
+    let saving: Promise<void> = Promise.resolve();
+    act(() => {
+      saving = result.current.saveDraft();
+    });
+    expect(result.current.status).toBe('saving');
+    await waitFor(() => expect(saveDraft).toHaveBeenCalledOnce());
     act(() => result.current.addFile(DRIVE_FILE));
 
     await act(async () => {
@@ -449,6 +453,7 @@ describe('useComposer — a draft’s files', () => {
 
     expect(result.current.fields.files).toEqual([DRIVE_FILE]);
     expect(result.current.dirty).toBe(true);
+    expect(result.current.status).toBe('editing');
   });
 
   it('opens a draft on the files it holds', () => {

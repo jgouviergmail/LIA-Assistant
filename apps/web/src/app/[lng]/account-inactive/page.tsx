@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Info, MailWarning } from 'lucide-react';
+import { AlertTriangle, Info, MailWarning } from '@/lib/icons';
 
 /**
  * Page displayed when a user logs in with a deactivated account.

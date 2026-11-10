@@ -7,7 +7,8 @@ is a proposal, and carries what it cost, or nothing when it was already held.
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Callable
+from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import (
@@ -16,7 +17,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
-    field_validator,
+    model_validator,
 )
 
 from src.core.config import settings
@@ -32,6 +33,7 @@ from src.domains.tool_assists.actions import ProposedEvent, ProposedTask
 from src.domains.tool_assists.contact_card import ProposedContact, ProposedValue
 from src.domains.tool_assists.mail_triage import TriagedMessage
 from src.domains.tool_assists.mail_words import ProposedFilter, ProposedSearch
+from src.domains.tool_assists.passage import PassageAct, PassageOrigin
 from src.domains.tool_assists.text import RewriteTone, WritingKind
 from src.domains.workbench.ids import ProviderId
 from src.domains.workbench.schemas.mail import AttachmentRequest
@@ -60,6 +62,21 @@ class MessageAssist(BaseModel):
     message_id: ProviderId = Field(description="The message, as the listing named it.")
 
 
+#: A passage of a message, or one act read in it: the person's choice of what to read it for.
+OptionalPassage = Annotated[
+    str | None,
+    StringConstraints(min_length=1, max_length=settings.tool_assist_text_max_chars),
+]
+
+
+class FocusedMessageAssist(MessageAssist):
+    """A form read in one message, for the passage or the act the person chose in it, if any."""
+
+    focus: OptionalPassage = Field(
+        default=None, description="The passage or act chosen in the message; none for all of it."
+    )
+
+
 class ReplyAssist(MessageAssist):
     """A reply to write."""
 
@@ -78,6 +95,21 @@ OptionalWords = Annotated[
 ]
 #: A list as the person named it.
 ListName = Annotated[str, StringConstraints(max_length=WORKBENCH_TASK_TITLE_MAX_CHARS)]
+
+
+def _first(bound: int) -> Callable[[object], object]:
+    """More names than words are read against: the first ones stand for them, none is refused."""
+
+    def kept(names: object) -> object:
+        return names[:bound] if isinstance(names, list) else names
+
+    return kept
+
+
+#: The person's task lists, as words or a message are read against them.
+PersonLists = Annotated[list[ListName], BeforeValidator(_first(TOOL_ASSIST_LISTS_MAX))]
+#: The person's labels, as a filter's sentence is read against them.
+PersonLabels = Annotated[list[ListName], BeforeValidator(_first(TOOL_ASSIST_LABELS_MAX))]
 
 
 def _typed_so_far(recipient: object) -> object:
@@ -111,6 +143,23 @@ class TranslateAssist(BaseModel):
     language: LanguageName = Field(description="The language asked, as the person names it.")
 
 
+class PassageAssist(BaseModel):
+    """A passage the person selected in what they read, and what they ask of it."""
+
+    passage: PersonWords = Field(description="The passage, as the page shows it.")
+    act: PassageAct = Field(description="What the person asks of it.")
+    question: OptionalInstruction = Field(
+        default=None, description="The person's question; for « ask » alone, which needs one."
+    )
+    origin: PassageOrigin = Field(description="Where it was read: a message or a file.")
+
+    @model_validator(mode="after")
+    def _a_question_for_ask_alone(self) -> Self:
+        if (self.act is PassageAct.ASK) != (self.question is not None):
+            raise ValueError("a question goes with « ask », and with it alone")
+        return self
+
+
 class WriteAssist(BaseModel):
     """A text to write from the person's words."""
 
@@ -141,29 +190,25 @@ class SentenceAssist(BaseModel):
 class TaskSentenceAssist(SentenceAssist):
     """A task said in a sentence, which may name one of the person's lists."""
 
-    lists: list[ListName] = Field(
+    lists: PersonLists = Field(
         default_factory=list, max_length=TOOL_ASSIST_LISTS_MAX, description="The lists' names."
     )
 
-    @field_validator("lists", mode="before")
-    @classmethod
-    def _first_lists(cls, lists: object) -> object:
-        """More lists than a sentence is read against: the first ones stand for them."""
-        return lists[:TOOL_ASSIST_LISTS_MAX] if isinstance(lists, list) else lists
+
+class MailTaskAssist(FocusedMessageAssist):
+    """The task a message leaves, which may belong to one of the person's lists."""
+
+    lists: PersonLists = Field(
+        default_factory=list, max_length=TOOL_ASSIST_LISTS_MAX, description="The lists' names."
+    )
 
 
 class FilterSentenceAssist(SentenceAssist):
     """A filter said in a sentence, which may name one of the person's labels."""
 
-    labels: list[ListName] = Field(
+    labels: PersonLabels = Field(
         default_factory=list, max_length=TOOL_ASSIST_LABELS_MAX, description="Their names."
     )
-
-    @field_validator("labels", mode="before")
-    @classmethod
-    def _first_labels(cls, labels: object) -> object:
-        """More labels than a sentence is read against: the first ones stand for them."""
-        return labels[:TOOL_ASSIST_LABELS_MAX] if isinstance(labels, list) else labels
 
 
 class TriageAssist(BaseModel):

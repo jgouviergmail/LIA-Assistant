@@ -70,7 +70,7 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
-import { handOff } from '@/lib/workbench/handoff';
+import { handOff, setHandoffOwner } from '@/lib/workbench/handoff';
 
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { CalendarTool } from '../CalendarTool';
@@ -243,6 +243,76 @@ function windowCalls(): Array<Record<string, unknown>> {
 }
 
 describe('CalendarTool — the week', () => {
+  it('opens a card calendar despite its hidden preference, without changing that preference', async () => {
+    nav.search += '&cal=family';
+    window.localStorage.setItem('lia_workbench_calendar_hidden:owner', '["family"]');
+    screenOf();
+
+    const target = await screen.findByRole('status', { name: 'Family' });
+    await waitFor(() => expect(target).toHaveFocus());
+    expect(windowCalls().at(-1)?.calendar_ids).toContain('family');
+    expect(screen.getByRole('checkbox', { name: 'Family' })).toBeChecked();
+    expect(window.localStorage.getItem('lia_workbench_calendar_hidden:owner')).toBe('["family"]');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('says when the calendar named by a card is no longer present', async () => {
+    nav.search += '&cal=missing';
+    screenOf();
+
+    expect(await screen.findByText('workbench.states.calendar_target_missing')).toBeInTheDocument();
+    expect(api.get.mock.calls.some(([path]) => path === '/workbench/calendar/event')).toBe(false);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('lets the reader hide a temporarily revealed calendar without changing its stored choice', async () => {
+    nav.search += '&cal=family';
+    window.localStorage.setItem('lia_workbench_calendar_hidden:owner', '["family"]');
+    const { user } = screenOf();
+    await screen.findByRole('status', { name: 'Family' });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Family' }));
+    expect(nav.replace).toHaveBeenCalledWith(
+      '/en/dashboard/tools/calendar?view=week&day=2026-11-04',
+      { scroll: false }
+    );
+    expect(window.localStorage.getItem('lia_workbench_calendar_hidden:owner')).toBe('["family"]');
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('does not confuse a failed calendar lookup with a missing target', async () => {
+    nav.search += '&cal=family';
+    const get = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/calendars'
+        ? Promise.reject(new Error('network'))
+        : get?.(path, options)
+    );
+    screenOf();
+
+    expect(await screen.findByText('workbench.calendar.failed')).toBeInTheDocument();
+    expect(screen.queryByText('workbench.states.calendar_target_missing')).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('resolves the own-calendar alias to the actual loaded id on a phone', async () => {
+    nav.search += '&cal=primary';
+    media.phone = true;
+    const get = api.get.getMockImplementation();
+    api.get.mockImplementation((path: string, options?: unknown) =>
+      path === '/workbench/calendar/calendars'
+        ? Promise.resolve({ calendars: [{ ...CALENDARS[0], id: 'owner@example.test' }] })
+        : get?.(path, options)
+    );
+    screenOf();
+
+    const target = await screen.findByRole('status', { name: 'Work' });
+    await waitFor(() => expect(target).toHaveFocus());
+    expect(windowCalls().at(-1)?.calendar_ids).toEqual(['owner@example.test']);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('reads the week holding the day, from the locale’s first weekday, every calendar shown', async () => {
     screenOf();
 
@@ -409,6 +479,35 @@ describe('CalendarTool — the month', () => {
 describe('CalendarTool — the open event', () => {
   beforeEach(() => {
     nav.search = 'day=2026-11-04&view=week&cal=primary&event=e1';
+  });
+
+  it('names the account’s own calendar by its real id when the home named it by its alias', async () => {
+    // The home's agenda reads the calendar the settings chose, else `primary` (2026-11-07): an
+    // alias the provider understands, the calendars list does not.
+    const own = { ...CALENDARS[0], id: 'me@example.org' };
+    api.get.mockImplementation((path: string) => {
+      if (path === '/workbench') return Promise.resolve(rail(features));
+      if (path === '/workbench/calendar/calendars')
+        return Promise.resolve({ calendars: [own, CALENDARS[1]] });
+      if (path === '/workbench/calendar/events') return Promise.resolve(windowAnswer);
+      if (path === '/workbench/calendar/event') return Promise.resolve(DETAIL);
+      return Promise.resolve({});
+    });
+    screenOf();
+
+    await waitFor(() =>
+      expect(nav.replace).toHaveBeenCalledWith(
+        '/en/dashboard/tools/calendar?view=week&day=2026-11-04&cal=me%40example.org&event=e1',
+        { scroll: false }
+      )
+    );
+  });
+
+  it('keeps a calendar whose real id is the alias itself', async () => {
+    screenOf();
+
+    await screen.findByRole('article', { name: 'Budget review' });
+    expect(nav.replace).not.toHaveBeenCalled();
   });
 
   it('shows who answered what by an icon and a word, never by colour alone', async () => {
@@ -1175,7 +1274,7 @@ describe('CalendarTool — its keys', () => {
 
 describe('CalendarTool — what another tool hands it', () => {
   it('opens a new event holding what it was given', async () => {
-    handOff({ kind: 'event', summary: 'Budget', description: 'From a message' });
+    handOff('owner', { kind: 'event', summary: 'Budget', description: 'From a message' });
     screenOf();
 
     expect(await screen.findByLabelText('workbench.calendar.editor.summary')).toHaveValue('Budget');
@@ -1183,11 +1282,36 @@ describe('CalendarTool — what another tool hands it', () => {
       'From a message'
     );
   });
+
+  it('opens with the video call ticked where LIA read one asked for and no link given', async () => {
+    handOff('owner', {
+      kind: 'event',
+      summary: 'Call with Ana',
+      description: 'From a message',
+      proposal: {
+        summary: 'Call with Ana',
+        start_date: '2026-11-12',
+        start_time: '10:00',
+        end_date: null,
+        end_time: null,
+        all_day: false,
+        location: '',
+        description: 'From a message',
+        attendees: ['ana@example.org'],
+        repeat: 'none',
+        conference: true,
+      },
+    });
+    screenOf();
+
+    expect(await screen.findByLabelText('workbench.calendar.editor.conference')).toBeChecked();
+  });
 });
 
 describe('CalendarTool — panes sized by hand', () => {
   it('names its separator and drives the pane it sits beside, back to the layout on Enter', async () => {
     screenOf();
+    await screen.findByRole('link', { name: /Budget review/ });
     const separator = await screen.findByRole('separator', {
       name: 'workbench.panes.calendar_calendars',
     });
@@ -1199,4 +1323,9 @@ describe('CalendarTool — panes sized by hand', () => {
     fireEvent.keyDown(separator, { key: 'Enter' });
     expect(pane?.style.getPropertyValue('--pane-w')).toBe('');
   });
+});
+
+beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
 });

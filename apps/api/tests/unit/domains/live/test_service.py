@@ -36,6 +36,9 @@ from src.domains.live.schemas import (
 from src.domains.live.service import LiveService
 from src.domains.live.session_store import LiveSessionRecord
 from src.domains.users.models import User
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS, NO_CUES
+from src.domains.voice_sessions.expression import PERSON_CUES
 from tests.unit.domains.live.conftest import CLOSING_ARCHIVE as _CLOSING_ARCHIVE
 
 
@@ -268,6 +271,8 @@ def _fake_provider(credential_name: str = "auth_tokens/t") -> MagicMock:
         )
     )
     provider.build_setup = MagicMock(return_value={"model": "models/gemini-3.8-live"})
+    # A native-audio engine: words alone, read without the network.
+    provider.expression_dialect = AsyncMock(return_value=NO_CUES)
     return provider
 
 
@@ -689,6 +694,12 @@ def test_setup_inputs_round_trip_is_equality_over_every_field() -> None:
     assert setup_inputs_from_dict(setup_inputs_to_dict(direct)) == direct
     webrtc = replace(direct, audio_transport="webrtc")
     assert setup_inputs_from_dict(setup_inputs_to_dict(webrtc)) == webrtc
+    cues = replace(webrtc, cue_dialect=ELEVENLABS_AGENT_TAGS.name)
+    assert setup_inputs_from_dict(setup_inputs_to_dict(cues)) == cues
+    # A record written before the wire existed reads as words alone.
+    legacy = setup_inputs_to_dict(delegated)
+    del legacy["cue_dialect"]
+    assert setup_inputs_from_dict(legacy).cue_dialect == NO_CUES.name
 
 
 # -- voice sample ----------------------------------------------------------------
@@ -1151,6 +1162,78 @@ async def test_a_turn_archives_one_row_per_role_bounded() -> None:
     assert archive.call_args_list[0].kwargs["metadata"]["type"] == "live_turn"
 
 
+def _cues(outcome: str = "") -> float:
+    from prometheus_client import REGISTRY
+
+    name = "live_voice_cues_invented_total" if outcome else "live_voice_cues_per_turn_sum"
+    return REGISTRY.get_sample_value(name) or 0.0
+
+
+async def test_a_cues_turn_is_archived_as_heard_and_its_cues_counted() -> None:
+    """ADR-373: the vendor keeps the tags its model wrote in its transcript; the
+    archive holds what the person heard, and the tags are measured here."""
+    record = _record(USER.id)
+    record = replace(
+        record,
+        setup_inputs={**record.setup_inputs, "cue_dialect": ELEVENLABS_AGENT_TAGS.name},
+    )
+    service, _, archive = _service(_connector(), record=record)
+    observed, invented = _cues(), _cues("invented")
+    await service.archive_turn(
+        USER,
+        "s" * 32,
+        LiveTurnRequest(
+            user_text="any plans [for] me?",
+            assistant_text="[sarcastically] Oh, a meeting [laughs harder].",
+            started_at=_now(),
+            ended_at=_now(),
+        ),
+        language="fr",
+    )
+    contents = [call.kwargs["content"] for call in archive.call_args_list]
+    # The person's own words are never touched: a bracket there is words.
+    assert contents == ["any plans [for] me?", "Oh, a meeting."]
+    assert _cues() - observed == 2.0
+    # « laughs harder » is no cue LIA offered: counted as invented.
+    assert _cues("invented") - invented == 1.0
+
+
+async def test_a_prose_turn_is_archived_as_transcribed() -> None:
+    service, _, archive = _service(_connector(), record=_record(USER.id))
+    observed = _cues()
+    await service.archive_turn(
+        USER,
+        "s" * 32,
+        LiveTurnRequest(
+            assistant_text="Press [Enter] to go on.", started_at=_now(), ended_at=_now()
+        ),
+        language="fr",
+    )
+    assert [call.kwargs["content"] for call in archive.call_args_list] == [
+        "Press [Enter] to go on."
+    ]
+    assert _cues() == observed
+
+
+async def test_a_turn_that_was_only_a_cue_archives_no_row_for_the_voice() -> None:
+    record = _record(USER.id)
+    record = replace(
+        record,
+        setup_inputs={**record.setup_inputs, "cue_dialect": ELEVENLABS_AGENT_TAGS.name},
+    )
+    service, _, archive = _service(_connector(), record=record)
+    response = await service.archive_turn(
+        USER,
+        "s" * 32,
+        LiveTurnRequest(
+            user_text="hello", assistant_text="[laughs]", started_at=_now(), ended_at=_now()
+        ),
+        language="fr",
+    )
+    assert [call.kwargs["role"] for call in archive.call_args_list] == ["user"]
+    assert response.assistant_message_id is None
+
+
 async def test_end_archives_a_summary_releases_records_and_learns() -> None:
     record = _record(USER.id)
     service, store, archive = _service(_connector(), record=record)
@@ -1233,3 +1316,50 @@ async def test_end_twice_is_not_found_the_second_time() -> None:
     # Coded and translated like every other refusal: the client reads the code.
     assert refusal.value.status_code == 404 and refusal.value.code == "session_not_found"
     assert refusal.value.detail["message"] == get_live_phrases("fr")["session_not_found"]
+
+
+async def test_start_asks_how_the_engine_expresses_itself_and_freezes_it_on_the_record() -> None:
+    service, store, _ = _service(_connector())
+    provider = _fake_provider()
+    provider.expression_dialect = AsyncMock(return_value=ELEVENLABS_AGENT_TAGS)
+    with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
+        response = await service.start(
+            USER, language="fr", timezone="Europe/Paris", display_name="Alex"
+        )
+    provider.expression_dialect.assert_awaited_once_with("k", "gemini-3.8-live")
+    inputs = provider.mint.call_args.args[1]
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES) in inputs.system_instruction
+    assert store.claim.call_args.args[0].setup_inputs["cue_dialect"] == ELEVENLABS_AGENT_TAGS.name
+    assert response.expression == "cues"
+
+
+async def test_an_engine_that_cannot_be_read_speaks_in_words_alone() -> None:
+    """A cue LIA cannot prove the engine performs is never offered — never a refused start."""
+    service, store, _ = _service(_connector())
+    provider = _fake_provider()
+    provider.expression_dialect = AsyncMock(side_effect=RuntimeError("vendor down"))
+    with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
+        response = await service.start(
+            USER, language="fr", timezone="Europe/Paris", display_name="Alex"
+        )
+    inputs = provider.mint.call_args.args[1]
+    assert "<voice_cues>" not in inputs.system_instruction
+    assert store.claim.call_args.args[0].setup_inputs["cue_dialect"] == NO_CUES.name
+    assert response.expression == "prose"
+
+
+async def test_no_vendor_is_asked_while_the_start_s_reads_hold_a_transaction() -> None:
+    """ADR-304: the reads end before the vendor is asked — the engine read included."""
+    service, _, _ = _service(_connector())
+    provider = _fake_provider()
+    order: list[str] = []
+    service.db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+
+    async def _expression(api_key: str, model: str) -> object:
+        order.append("vendor")
+        return NO_CUES
+
+    provider.expression_dialect = _expression
+    with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
+        await service.start(USER, language="fr", timezone="Europe/Paris", display_name="Alex")
+    assert order[:2] == ["commit", "vendor"]

@@ -120,6 +120,30 @@ class TestOutcomeColumn:
         await db_session.rollback()
 
 
+class TestRunId:
+    async def test_the_run_id_is_kept_with_the_row(self, db_session: AsyncSession) -> None:
+        """ADR-375: a run row names the turn it ran; absent for a run that never started."""
+        user_id = await _make_user(db_session)
+        action_id = await _make_action(db_session, user_id)
+        repo = ScheduledActionRunRepository(db_session)
+        ran = await repo.record(
+            scheduled_action_id=action_id,
+            user_id=user_id,
+            slot_at=T0,
+            started_at=T0,
+            ended_at=T0 + timedelta(seconds=30),
+            outcome=ScheduledRunOutcome.SUCCESS,
+            attempts=1,
+            manual=False,
+            run_id="5f0c6b7e-0000-4000-8000-00000000abcd",
+        )
+        never = await _record(db_session, action_id, user_id, started=T0 + timedelta(days=1))
+        await db_session.refresh(ran)
+        await db_session.refresh(never)
+        assert ran.run_id == "5f0c6b7e-0000-4000-8000-00000000abcd"
+        assert never.run_id is None
+
+
 class TestCascades:
     async def test_deleting_the_routine_removes_its_runs(self, db_session: AsyncSession) -> None:
         user_id = await _make_user(db_session)

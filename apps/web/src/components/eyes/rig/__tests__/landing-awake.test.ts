@@ -52,7 +52,7 @@ describe('the landing rig stays awake without losing its comic life', () => {
       if (clock.scene) seen.add(clock.scene);
     }
     expect(seen).toContain('body-hops');
-    expect(seen).toContain('body-roll');
+    expect(seen).toContain('body-bow');
     expect(seen).toContain('fly');
   });
 
@@ -66,15 +66,10 @@ describe('the landing rig stays awake without losing its comic life', () => {
         'sneeze',
         'hiccups',
         'peekaboo',
-        'dizzy',
-        'brow-groove',
         'suspicious',
         'body-hops',
-        'body-roll',
-        'body-somersault',
         'body-sneeze',
         'body-balloon',
-        'body-jig',
         'body-startle',
         'body-bow',
       ];

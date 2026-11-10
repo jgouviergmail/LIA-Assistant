@@ -18,8 +18,8 @@
  * the only thing they genuinely do differently.
  */
 
-import { RefreshCw } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { RefreshCw } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 
 import { RegisterExportButton } from '@/components/effects/RegisterExportButton';
 import type { RegisterExportKind } from '@/components/effects/RegisterExportButton';

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { History, LayoutGrid, Map as MapGlyph, Network } from 'lucide-react';
+import { History, LayoutGrid, Map as MapGlyph, Network } from '@/lib/icons';
 
 import type { Language } from '@/i18n/settings';
 import { MAPS_HOME_PATH, mapPageHref } from '@/lib/maps/links';

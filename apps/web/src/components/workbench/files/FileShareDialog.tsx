@@ -8,7 +8,7 @@
  * never. A refusal is said in its own words and keeps what was typed, its key too, so
  * a lost answer pressed again is told what became of the first.
  */
-import { Link2, Trash2, UserPlus } from 'lucide-react';
+import { Link2, Trash2, UserPlus } from '@/lib/icons';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 

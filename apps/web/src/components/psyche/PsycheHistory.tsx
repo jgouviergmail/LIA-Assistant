@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Activity, CalendarDays, Heart, RotateCw, Sparkles, TrendingUp } from 'lucide-react';
+import { Activity, CalendarDays, Heart, RotateCw, Sparkles, TrendingUp } from '@/lib/icons';
 import {
   Area,
   AreaChart,

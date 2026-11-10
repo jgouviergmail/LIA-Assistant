@@ -15,8 +15,12 @@ import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
-from src.core.constants import EXTERNAL_CONTENT_OPEN_TAG
-from src.domains.agents.emails.reply_drafting import DraftedReply, draft_reply_body
+from src.core.constants import EMAIL_RECIPIENTS_READ_MAX_CHARS, EXTERNAL_CONTENT_OPEN_TAG
+from src.domains.agents.emails.reply_drafting import (
+    DraftedReply,
+    draft_reply_body,
+    received_as_external,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -72,3 +76,33 @@ async def test_the_reply_comes_back_trimmed() -> None:
     body, _seen = await _draft()
 
     assert body == "Hi Paul,\n\nFriday works."
+
+
+class TestWhomItWentTo:
+    """What a form reads of a message's recipients (owner, 2026-11-07)."""
+
+    def test_a_reply_reads_no_recipient_and_a_form_reads_them_all(self) -> None:
+        mail = {**ORIGINAL, "to": "Ana <ana@example.com>", "cc": "carl@example.com"}
+        mail["attachments"] = [{"filename": "agenda.pdf"}, {"filename": ""}, "broken"]
+
+        plain = received_as_external(mail)
+        read = received_as_external(mail, recipients=True)
+
+        assert "To:" not in plain and "Cc:" not in plain
+        assert "To: Ana <ana@example.com>" in read
+        assert "Cc: carl@example.com" in read
+        assert "Attachments: agenda.pdf\n" in read
+
+    def test_a_list_of_recipients_is_cut_at_an_address_and_says_so(self) -> None:
+        crowd = ", ".join(f"Person {n} <person{n}@example.com>" for n in range(400))
+        mail = {**ORIGINAL, "to": crowd}
+
+        line = next(
+            row
+            for row in received_as_external(mail, recipients=True).splitlines()
+            if row.startswith("To: ")
+        )
+
+        assert len(line) <= len("To: ") + EMAIL_RECIPIENTS_READ_MAX_CHARS + len(", …")
+        assert line.endswith(", …")
+        assert line[: -len(", …")].endswith(">"), "never half an address"

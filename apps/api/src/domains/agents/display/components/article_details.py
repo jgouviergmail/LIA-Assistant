@@ -16,7 +16,10 @@ from src.domains.agents.display.values import list_values, nonnegative_integer, 
 
 
 def article_metadata(data: Mapping[str, object], ctx: RenderContext) -> str:
-    fields: list[tuple[CardLabel, str]] = [("article_language", scalar_text(data.get("language")))]
+    fields: list[tuple[CardLabel, str]] = [
+        ("article_language", scalar_text(data.get("language"))),
+        ("article_related_from", scalar_text(data.get("source_article"))),
+    ]
     keys: list[tuple[str, CardLabel]] = [
         ("page_id", "article_page"),
         ("content_length", "article_length"),

@@ -585,3 +585,11 @@ Fish; `None` where none is known), `families.dialogue_voice_limit` reads it, and
 Over 20 000 seeded scripts the plan is unchanged wherever no take passed the limit,
 and for every engine that declares none; the debate, replayed for real, aired as
 three takes. Not measured: `drama-3`'s own limit (the family's applies to it).
+
+## Amendment 2026-11-07 — persona cues, for a live voice only ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md))
+
+`Cue` gains ten persona cues spelled by `ELEVENLABS_AGENT_TAGS` alone: no speech engine of the comment and radio paths spells one, so the writers measured on 2026-10-17 are unchanged. A live voice writes cues in its engine's spelling (`cue_prompt.live_cues_block`), each described by its sound (`sound.<cue>`); `meaning.<cue>` and `example.<cue>` stay the comment writer's.
+
+## Amendment 2026-11-07 (b) — persona cues for the comment writer too ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md) § 8)
+
+The comment writer is offered the persona cues on the engines measured to perform them, none read aloud in a transcript of every clip: ElevenLabs v3 and v4 (`ELEVENLABS_AUDIO_TAGS`, the agent's one table), Fish Audio's S2 models (`FISH_S2_CUES`: the vendor's word where its emotions page lists one, LIA's plain word otherwise), Gemini 3.8 as the sentence's style (`GEMINI_VOCAL_TAGS.styles`, a style being how a whole sentence is said). `_bracketed` still spells the deliveries and the sounds alone, so `drama-3` gets none; `s1` and the earlier ElevenLabs models neither. The block lists them by their `sound.<cue>` row after the deliveries, keeps the deliveries' and the sounds' `meaning.<cue>` rows, lets the personality choose « within the rules below », and its example says it shows where a cue goes, never which one. The radio writes no persona cue.

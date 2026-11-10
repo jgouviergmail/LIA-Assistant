@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { ExternalLink, Signpost } from 'lucide-react';
+import { ExternalLink, Signpost } from '@/lib/icons';
 
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';

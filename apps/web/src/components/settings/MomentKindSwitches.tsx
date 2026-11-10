@@ -1,7 +1,7 @@
 'use client';
 
-import { CalendarCheck, CalendarClock } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CalendarCheck, CalendarClock } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Disclosure } from '@/components/ui/disclosure';

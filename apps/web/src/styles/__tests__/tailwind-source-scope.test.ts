@@ -70,12 +70,14 @@ describe('tailwind source scope', () => {
     expect(dependencies.length).toBeGreaterThan(800);
     expect(dependencies.length).toBeLessThan(MAX_SCANNED_FILES);
 
-    // Tailwind's own entry stylesheet is a legitimate rebuild dependency; any
-    // OTHER path outside `src/` means the scan has escaped the sources again.
-    const strays = dependencies.filter(
+    // The explicitly imported, self-hosted icon stylesheet must invalidate a
+    // build when edited. It is a CSS dependency, not a new utility scan root.
+    // Keep this exact: no other public asset, fixture or generated tree belongs
+    // here. Tailwind's own entry stylesheet is also a rebuild dependency.
+    const outsideSources = dependencies.filter(
       file => !file.startsWith('src/') && !file.includes('node_modules/')
     );
-    expect(strays).toEqual([]);
+    expect(outsideSources).toEqual(['public/fonts/material-symbols/material-symbols.css']);
 
     expect(dependencies.filter(isTestFile)).toEqual([]);
   });

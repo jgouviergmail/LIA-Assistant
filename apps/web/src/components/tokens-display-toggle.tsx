@@ -3,8 +3,9 @@
 import { useHydrated } from '@/hooks/useHydrated';
 
 import * as React from 'react';
-import { CircleDollarSign } from 'lucide-react';
+import { CircleDollarSign } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
+import { ACTIVE_ICON_BUTTON_CLASS } from '@/components/ui/button-variants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
@@ -20,7 +21,7 @@ interface TokensDisplayToggleProps {
   className?: string;
 }
 
-const BOX = 'w-11 h-11 px-0 max-[380px]:w-9 max-[380px]:h-9';
+const BOX = 'w-11 h-11 px-0 border border-transparent max-[380px]:w-9 max-[380px]:h-9';
 
 export function TokensDisplayToggle({ lng = 'fr', className }: TokensDisplayToggleProps) {
   const { user, refreshUser } = useAuth();
@@ -73,9 +74,10 @@ export function TokensDisplayToggle({ lng = 'fr', className }: TokensDisplayTogg
     <Button
       variant="ghost"
       size="sm"
-      className={cn(BOX, className)}
+      className={cn(BOX, className, isEnabled && ACTIVE_ICON_BUTTON_CLASS)}
       onClick={handleToggle}
       disabled={isLoading || !user}
+      aria-pressed={isEnabled}
       aria-label={
         isEnabled ? t('tokens_display.toggle.disable') : t('tokens_display.toggle.enable')
       }

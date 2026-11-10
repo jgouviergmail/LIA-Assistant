@@ -14,7 +14,7 @@
  * unmount; a failed source → a stated partial-data warning, never silence.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -25,22 +25,23 @@ import {
   History,
   Repeat,
   Sparkles,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { AlertsViewActions } from '@/components/notifications/AlertsViewActions';
 import { Alert } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { HeadingRule } from '@/components/ui/heading-rule';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useActivityTimeline } from '@/hooks/useActivityTimeline';
+import { DEFAULT_ACTIVITY_QUERY, useActivityTimeline } from '@/hooks/useActivityTimeline';
+import { useAuth } from '@/hooks/useAuth';
+import { useDebounce } from '@/hooks/useDebounce';
+import { ActivityListToolbar } from './ActivityListToolbar';
+import { ActivityEmptyState, ActivityTotals } from './ActivityStatus';
 import { getIntlLocale, type Language } from '@/i18n/settings';
-import { settingsSectionHref } from '@/lib/settings-sections';
 import type { ActivityEvent } from '@/types/activity';
 
 /** Decorative glyph per kind — the label carries the meaning. */
@@ -62,12 +63,15 @@ export interface ActivityTimelineProps {
 /** Events grouped by LOCAL day, insertion order preserved (newest first). */
 function groupByLocalDay(
   events: ActivityEvent[],
-  locale: string
+  locale: string,
+  timeZone: string | undefined
 ): { day: string; items: ActivityEvent[] }[] {
   const dayFormat = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+    year: 'numeric',
+    timeZone,
   });
   const groups: { day: string; items: ActivityEvent[] }[] = [];
   for (const item of events) {
@@ -83,7 +87,16 @@ function groupByLocalDay(
 }
 
 export function ActivityTimeline({ lng }: ActivityTimelineProps) {
+  const { user } = useAuth();
+  return <OwnedActivityTimeline key={user?.id ?? ''} lng={lng} />;
+}
+
+function OwnedActivityTimeline({ lng }: ActivityTimelineProps) {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const timeZone = user?.timezone;
+  const [criteria, setCriteria] = useState(DEFAULT_ACTIVITY_QUERY);
+  const q = useDebounce(criteria.q, 300);
   const {
     events,
     totals,
@@ -95,16 +108,23 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
     error,
     loadMore,
     refetch,
-  } = useActivityTimeline();
+  } = useActivityTimeline({ ...criteria, q });
+  const filtered = !!(q.trim() || criteria.kind);
 
   const locale = getIntlLocale(i18n.language as Language);
   const timeFormat = useMemo(
-    () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
-    [locale]
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone,
+      }),
+    [locale, timeZone]
   );
-  const groups = useMemo(() => (events ? groupByLocalDay(events, locale) : []), [events, locale]);
-  const visibleTotals = totals.filter(item => item.total > 0);
-  const anyTruncated = visibleTotals.some(item => item.truncated);
+  const groups = useMemo(
+    () => (events ? groupByLocalDay(events, locale, timeZone) : []),
+    [events, locale, timeZone]
+  );
 
   return (
     <section className="space-y-6">
@@ -128,6 +148,8 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
         }
       />
 
+      <ActivityListToolbar value={criteria} onChange={setCriteria} />
+
       {error && events === undefined ? (
         <Alert variant="error">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -147,36 +169,20 @@ export function ActivityTimeline({ lng }: ActivityTimelineProps) {
         </div>
       ) : (
         <div aria-busy={loading || undefined} className="space-y-6">
+          {error && <Alert variant="warning">{t('activity.refresh_error')}</Alert>}
           {failedKinds.length > 0 && (
             <Alert variant="warning">{t('activity.partial_warning')}</Alert>
           )}
 
-          {visibleTotals.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {visibleTotals.map(item => (
-                <Badge key={item.kind} variant="default">
-                  {t(`activity.kinds.${item.kind}`, { count: item.total })}
-                </Badge>
-              ))}
-              {anyTruncated && (
-                <span className="text-xs text-muted-foreground">
-                  {t('activity.truncated_hint')}
-                </span>
-              )}
-            </div>
-          )}
+          <ActivityTotals totals={totals} />
 
           {events !== undefined && events.length === 0 ? (
-            <EmptyState
-              variant="page"
-              icon={History}
-              title={t('activity.empty_title')}
-              description={t('activity.empty_description')}
-              reason="no-data"
-              action={{
-                label: t('activity.empty_action'),
-                href: settingsSectionHref(lng, 'heartbeat'),
-              }}
+            <ActivityEmptyState
+              lng={lng}
+              filtered={filtered}
+              failed={failedKinds.length > 0}
+              retry={refetch}
+              clear={() => setCriteria(DEFAULT_ACTIVITY_QUERY)}
             />
           ) : (
             <div className="space-y-6">

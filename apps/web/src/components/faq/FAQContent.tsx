@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/accordion';
 import { normalizeSearchText } from '@/lib/utils';
 import { highlightText, stripHtml } from '@/lib/faq-search';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { FaqAnswer } from './FaqAnswer';
 import { Card } from '@/components/ui/card';
@@ -86,7 +86,7 @@ import {
   ClipboardList,
   ScrollText,
   SquareKanban,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 interface FAQContentProps {
   lng: Language;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Megaphone } from 'lucide-react';
+import { Megaphone } from '@/lib/icons';
 import {
   Dialog,
   DialogContent,

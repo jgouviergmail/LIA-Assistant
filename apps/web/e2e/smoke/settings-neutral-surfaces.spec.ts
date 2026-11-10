@@ -27,10 +27,6 @@ function label(key: string, french = false): string {
   if (typeof value !== 'string') throw new Error(`Missing label ${key}`);
   return value;
 }
-const artifacts = path.resolve(
-  __dirname,
-  '../../../../.tmp/codex-ui-interface-polish/screenshots/surfaces'
-);
 const variants = [
   { theme: 'light', width: 1440, font: 16 },
   { theme: 'dark', width: 1280, font: 16 },
@@ -320,7 +316,12 @@ async function assertCategoryGeometry(section: Locator, names: readonly string[]
   }
 }
 
-async function captureFrenchFinal(page: Page, panel: 'psyche' | 'journals', width: number) {
+async function captureFrenchFinal(
+  page: Page,
+  panel: 'psyche' | 'journals',
+  width: number,
+  artifacts: string
+) {
   await page.goto(`/fr/dashboard/settings?section=${panel}`);
   await awaitStyledPage(page, `${panel} final French capture`);
   const section = page.locator(`#settings-section-${panel}`);
@@ -414,12 +415,14 @@ async function captureFrenchFinal(page: Page, panel: 'psyche' | 'journals', widt
         button: node.getBoundingClientRect().toJSON(),
         row: node.parentElement!.parentElement!.getBoundingClientRect().toJSON(),
       }));
+      // Use millipixel precision for fractional rect coordinates, as in venue
+      // geometry: Firefox may add a 0.000061 px remainder to an aligned edge.
       expect
-        .soft(bounds.button.left, `${key} starts within its row`)
-        .toBeGreaterThanOrEqual(bounds.row.left);
+        .soft(Math.round(bounds.button.left * 1000), `${key} starts within its row`)
+        .toBeGreaterThanOrEqual(Math.round(bounds.row.left * 1000));
       expect
-        .soft(bounds.button.right, `${key} ends within its row`)
-        .toBeLessThanOrEqual(bounds.row.right);
+        .soft(Math.round(bounds.button.right * 1000), `${key} ends within its row`)
+        .toBeLessThanOrEqual(Math.round(bounds.row.right * 1000));
     }
     const category = section.getByRole('button', {
       name: new RegExp(label('journals.themes.self_reflection', true)),
@@ -523,7 +526,8 @@ for (const variant of variants)
       page,
       authenticate,
       mockApi,
-    }) => {
+    }, testInfo) => {
+      const artifacts = testInfo.outputPath('surfaces');
       await page.setViewportSize({ width: variant.width, height: 1000 });
       const user = await authenticate({
         language: 'en',
@@ -581,7 +585,7 @@ for (const variant of variants)
         animations: 'disabled',
       });
       if ((panel === 'psyche' || panel === 'journals') && variant.theme !== 'dark')
-        await captureFrenchFinal(page, panel, variant.width);
+        await captureFrenchFinal(page, panel, variant.width, artifacts);
       if (panel === 'journals' && variant.width === 360) {
         await page.goto('/fr/dashboard/settings?section=memories');
         await awaitStyledPage(page, 'Memory categories at 200% text');

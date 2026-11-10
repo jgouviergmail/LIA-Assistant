@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Square, ImageUp } from 'lucide-react';
+import { Send, Mic, Square, ImageUp } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -236,12 +236,14 @@ function ComposerButtonIcon({
   animating: boolean;
   onTakeoffEnd: () => void;
 }) {
-  if (showMic) return <Mic className="h-4 w-4" />;
+  const iconSize = 'size-4 [&.app-icon]:size-6';
+  if (showMic) return <Mic className={iconSize} />;
   return (
     <Send
       onAnimationEnd={onTakeoffEnd}
       className={cn(
-        'h-4 w-4 transition-opacity',
+        iconSize,
+        'chat-send-icon transition-opacity',
         dimmed && 'opacity-30',
         animating && 'animate-send-takeoff'
       )}
@@ -912,6 +914,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <SlashCommandMenu menu={slashMenu} />
             <textarea
               ref={textareaRef}
+              // Where a surface that leaves the band hands the focus back.
+              data-chat-composer
               value={message}
               onChange={e => {
                 const newValue = e.target.value;
@@ -972,7 +976,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   // width for typing; wider screens keep the labelled button.
                   'gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-5 mobile:px-8',
                   'touch-manipulation select-none [-webkit-touch-callout:none]',
-                  isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
+                  isRecording &&
+                    'bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
                 )}
                 // Handlers always attached to prevent race conditions when showSendMode
                 // changes during a touch event. Guards inside handlers filter non-PTT calls.

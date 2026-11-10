@@ -27,7 +27,7 @@
       witness.sizes.push({
         width: box.width,
         height: box.height,
-        stageHidden: element.closest('.lia-place-position__stage').hidden,
+        stageHidden: element.closest('.lia-route-map__stage').hidden,
       });
       if (box.width < 50 || box.height < 100) throw Error('collapsed');
       element.innerHTML =

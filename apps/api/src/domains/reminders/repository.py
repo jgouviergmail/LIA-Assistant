@@ -14,10 +14,13 @@ import structlog
 from sqlalchemy import func, select, update
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only, raiseload
 
 from src.core.repository import BaseRepository
 from src.domains.reminders.models import Reminder, ReminderStatus
 from src.domains.reminders.queries import pending_reminders
+from src.domains.shared.display_queries import display_name_key, read_display_page
+from src.domains.shared.display_query import DisplayQuery
 
 logger = structlog.get_logger(__name__)
 
@@ -65,6 +68,49 @@ class ReminderRepository(BaseRepository[Reminder]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def pending_page(
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        offset: int,
+        criteria: DisplayQuery,
+    ) -> tuple[list[Reminder], int]:
+        """Read displayed pending reminders with an exact total before pagination.
+
+        Args:
+            user_id: Owner of the pending reminders.
+            limit: Page size.
+            offset: Matching rows to skip.
+            criteria: Literal fragment, trigger ordering and creation cut.
+
+        Returns:
+            The requested page and exact matching total.
+        """
+        statement = pending_reminders(user_id).options(
+            load_only(Reminder.id, Reminder.content, Reminder.trigger_at, raiseload=True),
+            raiseload("*"),
+        )
+        if criteria.as_of is not None:
+            statement = statement.where(Reminder.created_at <= criteria.as_of)
+        direction = (
+            Reminder.trigger_at.desc() if criteria.sort == "recent" else Reminder.trigger_at.asc()
+        )
+        return await read_display_page(
+            self.db,
+            statement.order_by(direction, Reminder.id.asc()),
+            decode=lambda row: row[0],
+            query=criteria.q,
+            text_of=lambda row: (row.content,),
+            limit=limit,
+            offset=offset,
+            name_key=(
+                (lambda row: display_name_key(row.content, row.id))
+                if criteria.sort == "name"
+                else None
+            ),
+        )
 
     async def page_pending_by_id(
         self, user_id: UUID, *, after_id: UUID | None, limit: int

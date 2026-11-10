@@ -22,7 +22,7 @@
 import { useEffect } from 'react';
 
 import Link from 'next/link';
-import { PhoneCall } from 'lucide-react';
+import { PhoneCall } from '@/lib/icons';
 
 import { useTranslation } from 'react-i18next';
 

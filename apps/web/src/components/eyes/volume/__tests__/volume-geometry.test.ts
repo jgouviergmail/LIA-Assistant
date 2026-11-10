@@ -92,7 +92,7 @@ describe('structured body relief is closed 3D geometry, not a turning poster', (
   });
 
   it.each(VOLUME_CHARACTERS)(
-    'registers the authored %s front scarf outside its torso with a bounded conforming mesh',
+    'registers a bounded %s scarf mesh with finite unit material normals',
     character => {
       for (const variant of ['male', 'female'] as const) {
         const profile = volumeProfile(character, variant),
@@ -101,13 +101,17 @@ describe('structured body relief is closed 3D geometry, not a turning poster', (
         expect(mesh.vertices.length / 8).toBeLessThanOrEqual(1024);
         for (let i = 0; i < mesh.vertices.length; i += 8) {
           const [x, y, z, nx, ny, nz, u, v] = mesh.vertices.slice(i, i + 8);
+          expect([x, y, z].every(Number.isFinite)).toBe(true);
           expect(u).toBeGreaterThanOrEqual(0);
           expect(u).toBeLessThanOrEqual(1);
           expect(v).toBeGreaterThanOrEqual(0);
           expect(v).toBeLessThanOrEqual(1);
-          expect(x).toBeCloseTo((u - 0.5) * width, 5);
-          expect(y).toBeCloseTo(profile.collar.centerY + (v - 0.54) * width, 5);
-          expect(z).toBeGreaterThanOrEqual(volumeDepth(profile, x, y) + 0.0249);
+          if (!profile.collar.wrap) {
+            expect(x).toBeCloseTo((u - 0.5) * width, 5);
+            // Front-only artwork keeps its two independent affine slices.
+            if (i >= 21 * 8) expect(y).toBeGreaterThan(mesh.vertices[i - 21 * 8 + 1]);
+            expect(z).toBeGreaterThanOrEqual(volumeDepth(profile, x, y) + 0.0249);
+          }
           expect(Math.hypot(nx, ny, nz)).toBeCloseTo(1, 5);
         }
         expect(profile.collar.radiusX).toBeLessThan(1.4);

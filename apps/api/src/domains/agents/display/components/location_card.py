@@ -1,11 +1,11 @@
 """
-LocationCard Component - Current Location Display v1.0.
+LocationCard Component - Current Location Address Label.
 
 Renders the user's current GPS position with:
-- Static map hero image (Google Static Maps via proxy)
-- Map pin icon with address
-- Locality and country chips
-- Coordinates
+- Static map and Street View, with an optional admitted dynamic map
+- A locality heading and complete received address
+- Country and postal code
+- A labeled coordinate strip
 - Google Maps link
 
 Created: 2026-04-08
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.i18n_cards import card_label
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_LOCATION
 from src.domains.agents.display.components.base import (
@@ -25,12 +26,16 @@ from src.domains.agents.display.components.base import (
     render_card_top,
     render_chip,
     render_chip_row,
-    render_d_row,
     safe_url,
     wrap_with_response,
 )
+from src.domains.agents.display.components.location_map import (
+    location_map_point,
+    render_location_map,
+)
 from src.domains.agents.display.components.map_hero import render_map_hero
 from src.domains.agents.display.icons import Icons
+from src.domains.agents.display.values import scalar_text
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,22 +74,21 @@ class LocationCard(BaseComponent):
         Returns:
             HTML string for the location card.
         """
-        address = data.get("formatted_address", "")
-        locality = data.get("locality", "")
-        country = data.get("country", "")
-        postal_code = data.get("postal_code", "")
+        address = scalar_text(data.get("formatted_address"))
+        locality = scalar_text(data.get("locality"))
+        country = scalar_text(data.get("country"))
+        postal_code = scalar_text(data.get("postal_code"))
         latitude = data.get("latitude")
         longitude = data.get("longitude")
-        static_map_url = data.get("static_map_url", "")
+        static_map_url = scalar_text(data.get("static_map_url"))
 
-        # Display name: locality or first part of address
-        display_name = locality or (
-            address.split(",")[0] if address else V3Messages.get_position(ctx.language)
-        )
+        # Use the source's locality; never infer a street number or a town.
+        display_name = locality or address or V3Messages.get_position(ctx.language)
 
         # Google Maps URL
-        if latitude and longitude:
-            maps_url = f"https://www.google.com/maps/@{latitude},{longitude},15z"
+        point = location_map_point(latitude, longitude)
+        if point is not None:
+            maps_url = f"https://www.google.com/maps/@{point.lat},{point.lng},15z"
         elif address:
             maps_url = build_directions_url(address)
         else:
@@ -111,11 +115,12 @@ class LocationCard(BaseComponent):
                 linked_alt=V3Messages.get_open_in_maps(ctx.language),
                 plain_alt=display_name,
             )
+        hero_html = render_location_map(point, display_name, address, hero_html)
 
         # --- Street View thumbnail (lot SV, 2026-08) ---
         # Only present when the producer confirmed imagery exists (free
         # metadata check) — the map shows WHERE, this shows WHAT it looks like.
-        street_view_url = data.get("street_view_url", "")
+        street_view_url = scalar_text(data.get("street_view_url"))
         if street_view_url:
             street_view_img = (
                 f'<img src="{safe_url(street_view_url)}" alt="Street View" '
@@ -123,57 +128,57 @@ class LocationCard(BaseComponent):
             )
             hero_html += f'<div class="lia-route__map">{street_view_img}</div>'
 
-        # --- Card top: pin icon + display name ---
+        # --- Address label: shared icon/title geometry, with a navigation stamp ---
         title_html = escape_html(display_name)
         if maps_url:
             title_html = (
-                f'<a class="lia-card-top__title" href="{safe_url(maps_url)}"'
+                f'<a href="{safe_url(maps_url)}"'
                 f' target="_blank">{escape_html(display_name)}</a>'
             )
-        card_top = render_card_top("location_on", "blue", title_html)
+        title_html = f'<h3 class="lia-card-top__title">{title_html}</h3>'
+        card_top = render_card_top("navigation", "blue", title_html)
 
-        # --- Chips: locality, country, postal code ---
+        # The locality is already shown whole in the heading.
         chips = []
-        if locality:
-            chips.append(render_chip(locality, "blue", Icons.LOCATION))
         if country:
             chips.append(render_chip(country, "", "public"))
         if postal_code:
             chips.append(render_chip(postal_code, "", "pin_drop"))
         chip_row = render_chip_row(" ".join(chips)) if chips else ""
 
-        # --- Address row ---
+        # Keep the complete source address, including any number it contains.
         address_html = ""
         if address:
-            addr_link = address
+            addr_link = escape_html(address)
             if maps_url:
                 addr_link = (
                     f'<a href="{safe_url(maps_url)}" target="_blank">' f"{escape_html(address)}</a>"
                 )
-            address_html = render_d_row(
-                Icons.LOCATION,
-                addr_link,
-                icon_style=(
-                    "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;"
-                    "color:#ef4444"
-                ),
-            )
-            address_html = f'<div style="margin-top:var(--lia-space-lg)">{address_html}</div>'
+            address_html = f'<p class="lia-location__address">{addr_link}</p>'
 
         # --- Coordinates ---
         coords_html = ""
-        if latitude is not None and longitude is not None:
-            coords_text = f"{latitude:.6f}, {longitude:.6f}"
-            coords_html = render_d_row("explore", escape_html(coords_text))
+        if point is not None:
+            coords_html = (
+                '<div class="lia-location__coordinates"><dl>'
+                f'<div><dt>{escape_html(card_label("latitude", ctx.language))}</dt>'
+                f"<dd>{point.lat:.6f}</dd></div>"
+                f'<div><dt>{escape_html(card_label("longitude", ctx.language))}</dt>'
+                f"<dd>{point.lng:.6f}</dd></div></dl>"
+                '<span class="material-symbols-outlined" aria-hidden="true">'
+                "my_location</span></div>"
+            )
 
         nested_class = self._nested_class(ctx)
 
-        card_html = f"""<div class="lia-card lia-place {nested_class}">
+        card_html = f"""<div class="lia-card lia-place lia-location {nested_class}">
 {hero_html}
+<div class="lia-location__label">
 {card_top}
-{chip_row}
 {address_html}
+{chip_row}
 {coords_html}
+</div>
 </div>"""
 
         if with_wrapper:

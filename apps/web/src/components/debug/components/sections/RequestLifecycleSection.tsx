@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Timer } from 'lucide-react';
+import { Timer } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, NodeChip, SubSectionHeader } from '../shared';
 import { formatDuration } from '../../utils/formatters';
 import { DEBUG_TEXT_SIZES } from '../../utils/constants';

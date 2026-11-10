@@ -3,9 +3,7 @@
 /**
  * Relations — the personal CRM page (N-09 + favorites).
  *
- * A first-class nav destination since 2026-07-30 (it took the header slot
- * `spaces` held — the spaces page keeps its one-click door through the chat
- * indicator, which now always renders). Overview ⇄ detail in one page
+ * A first-class nav destination. Overview ⇄ detail in one page
  * (selected name in local state; the URL stays `/dashboard/relations` — a
  * `?name=` opens on that person, the « See the relationship » of a contact).
  * Reads are aggregations; the ONE write is the favorites star, toggled
@@ -15,10 +13,11 @@
  */
 
 import { useSearchParams } from 'next/navigation';
+import { SectionHeader } from '@/components/ui/section-header';
 import { useRef, useState } from 'react';
 import type { Language } from '@/i18n/settings';
 import { useAuth } from '@/hooks/useAuth';
-import { Users } from 'lucide-react';
+import { Users } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -105,13 +104,12 @@ function AccountRelationsPage({
   return (
     <FeatureErrorBoundary feature="relations">
       <div className="space-y-6">
-        <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-            <Users className="h-7 w-7 text-primary" aria-hidden="true" />
-            {t('relations.title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('relations.subtitle')}</p>
-        </div>
+        <SectionHeader
+          level={1}
+          icon={Users}
+          title={t('relations.title')}
+          description={t('relations.subtitle')}
+        />
 
         {selected && (
           <RelationDetailPanel

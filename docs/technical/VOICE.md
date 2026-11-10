@@ -711,6 +711,17 @@ Two kinds of text, two rules:
   because its records could not be summarised carries none either:
   `speaks_of_records`, declared by every caller with no default, gives it no
   cue block and no budget (`_comment_cue_budget`).
+  Since [ADR-373](../architecture/ADR-373-The-Personality-Governs-The-Voice.md)
+  § 8 (2026-11-07) the comment's frame takes the voice block's order — facts,
+  acts, the target language and its own rules first, then the personality for
+  the words, the address and the report, then the sound — and has no tone of
+  its own (its examples say neither « tu » nor « ! »); a personality that failed
+  to load reaches it as the default one. On an engine measured to perform them
+  (ElevenLabs v3/v4, Fish Audio S2, Gemini 3.8 as a style) its block also lists
+  the persona cues by their `sound.<cue>` row, the personality choosing among
+  all the cues within the rules. Measured over four families and six
+  personalities: contrary cues 4.2 % → 1.7 %, an expected cue on news
+  48.6 % → 58.6 %, the facts and the language held.
 - **Not written for speech** — an answer read aloud, a document readout, a
   radio line. `neutralize_literal` reads a markdown link or image as its label,
   drops a footnote mark or a task box, reads any other square bracket as its

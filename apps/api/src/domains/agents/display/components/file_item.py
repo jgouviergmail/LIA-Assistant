@@ -30,7 +30,7 @@ from src.domains.agents.display.components.card_content import (
 )
 from src.domains.agents.display.components.file_details import file_metadata_rows, person_label
 from src.domains.agents.display.icons import Icons, icon
-from src.domains.agents.display.values import list_values
+from src.domains.agents.display.values import list_values, scalar_text
 
 
 class FileItem(BaseComponent):
@@ -41,7 +41,7 @@ class FileItem(BaseComponent):
     - File type icon (doc, sheet, slides, pdf, etc.)
     - Name as primary link
     - Modified date
-    - Size and owner (desktop)
+    - Size and owner at every card width
     - Shared badge if applicable
     """
 
@@ -89,13 +89,17 @@ class FileItem(BaseComponent):
     ) -> str:
         """Render file as modern item with action buttons."""
         # Extract data
-        title = data.get("title") or data.get("name") or V3Messages.get_no_name(ctx.language)
-        url = data.get("url") or data.get("webViewLink", "")
-        mime_type = data.get("mimeType", "")
-        modified = data.get("modifiedTime") or data.get("modifiedDate", "")
+        title = (
+            scalar_text(data.get("title"))
+            or scalar_text(data.get("name"))
+            or V3Messages.get_no_name(ctx.language)
+        )
+        url = scalar_text(data.get("url")) or scalar_text(data.get("webViewLink"))
+        mime_type = scalar_text(data.get("mimeType"))
+        modified = scalar_text(data.get("modifiedTime")) or scalar_text(data.get("modifiedDate"))
         size = data.get("size", "")
         owner = self._get_owner(data)
-        is_shared = data.get("shared", False)
+        is_shared = data.get("shared") is True
         thumbnail = data.get("thumbnailLink", "")
 
         icon_name, file_class, type_key = self._get_file_visual(mime_type)
@@ -167,7 +171,7 @@ class FileItem(BaseComponent):
 
     @staticmethod
     def _content_preview(data: dict[str, Any], language: str) -> str:
-        """The content preview block: a text file's first characters, a binary one named.
+        """The received text content, or a binary file named without decoding its bytes.
 
         Args:
             data: The file payload.
@@ -198,7 +202,7 @@ class FileItem(BaseComponent):
         file_class: str,
         type_label: str,
         modified: str,
-        size: str,
+        size: object,
         owner: str,
         is_shared: bool,
         thumbnail: str,
@@ -220,7 +224,7 @@ class FileItem(BaseComponent):
         )
 
         # Starred (from SEARCH_FIELDS)
-        is_starred = data.get("starred", False) if data else False
+        is_starred = data.get("starred") is True if data else False
 
         # i18n labels
         favorite_label = V3Messages.get_favorite(ctx.language)
@@ -326,10 +330,14 @@ class FileItem(BaseComponent):
         meta_html = "\n".join(meta_parts)
 
         return f"""<div class="lia-card lia-file lia-file--{file_class} {nested_class}">
+<div class="lia-file__tab">{chip_row_html}</div>
+<div class="lia-file__sheet">
 {thumb_section}
+<div class="lia-file__record">
 {card_top_html}
-{chip_row_html}
 {meta_html}
+</div>
+</div>
 {detail_html}
 </div>"""
 
@@ -350,16 +358,23 @@ class FileItem(BaseComponent):
         # Default
         return Icons.FILE, "generic", "file"
 
-    def _get_owner(self, data: dict) -> str:
+    def _get_owner(self, data: dict[str, Any]) -> str:
         """Extract owner name."""
         return ", ".join(
             label for owner in list_values(data.get("owners")) if (label := person_label(owner))
         )
 
-    def _format_size_i18n(self, size: str | int, language: str) -> str:
-        """Format file size with i18n support."""
+    def _format_size_i18n(self, size: object, language: str) -> str:
+        """Format a supplied byte count; invalid measurements remain absent."""
+        # Drive returns an integer string. A tree, boolean, fraction or nonfinite
+        # value is not a byte count and must neither become zero nor raw text.
+        text = scalar_text(size)
+        if not text or not isinstance(size, str | int):
+            return ""
         try:
-            bytes_size = int(size)
+            bytes_size = int(text)
+            if bytes_size < 0:
+                return ""
             if bytes_size < 1024:
                 unit = V3Messages.get_size_unit(language, "b")
                 return f"{bytes_size} {unit}"
@@ -372,5 +387,5 @@ class FileItem(BaseComponent):
             else:
                 unit = V3Messages.get_size_unit(language, "gb")
                 return f"{bytes_size // (1024 * 1024 * 1024)} {unit}"
-        except ValueError, TypeError:
-            return str(size) if size else ""
+        except ValueError:
+            return ""

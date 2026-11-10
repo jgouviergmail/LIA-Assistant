@@ -24,6 +24,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.content_source import content_source_binding
 from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.clients.apple_carddav_xml import (
     extract_addressbook_home_set,
@@ -84,8 +85,9 @@ def _fake_redis() -> AsyncMock:
     async def _set(key: str, value: str, ex: int | None = None) -> None:
         store[key] = value
 
-    async def _delete(key: str) -> None:
-        store.pop(key, None)
+    async def _delete(*keys: str) -> None:
+        for key in keys:
+            store.pop(key, None)
 
     redis.get = AsyncMock(side_effect=_get)
     redis.set = AsyncMock(side_effect=_set)
@@ -449,8 +451,10 @@ class TestContactsCacheFreshness:
         """Regression: reporting ``now`` made every cached payload look brand new."""
         redis = _fake_redis()
         written_at = "2020-01-01T00:00:00+00:00"
-        redis._store[f"apple_contacts:{client.user_id}:all"] = json.dumps(
-            {"contacts": [{"names": [{"displayName": "Jane Doe"}]}], "cached_at": written_at}
+        redis._store[f"apple_contacts:{client.user_id}:all:{content_source_binding(client)}"] = (
+            json.dumps(
+                {"contacts": [{"names": [{"displayName": "Jane Doe"}]}], "cached_at": written_at}
+            )
         )
         http = AsyncMock()
 
@@ -468,24 +472,31 @@ class TestContactsCacheFreshness:
         assert contacts[0]["names"][0]["displayName"] == "Jane Doe"
         http.request.assert_not_awaited()
 
-    async def test_legacy_bare_list_cache_entry_is_still_readable(
+    async def test_legacy_cache_is_not_attributed_to_the_current_account(
         self, client: AppleContactsClient
     ) -> None:
-        """Entries written before the envelope change must not break a running instance."""
+        """An unscoped historical entry triggers a fresh read, never a guessed identity."""
         redis = _fake_redis()
         redis._store[f"apple_contacts:{client.user_id}:all"] = json.dumps(
             [{"names": [{"displayName": "Legacy Contact"}]}]
         )
 
-        with patch(
-            "src.domains.connectors.clients.apple_contacts_client.get_redis_session",
-            AsyncMock(return_value=redis),
+        http = AsyncMock(
+            request=AsyncMock(return_value=_response(207, '<d:multistatus xmlns:d="DAV:"/>'))
+        )
+        with (
+            patch.object(client, "_get_http_client", AsyncMock(return_value=http)),
+            patch(
+                "src.domains.connectors.clients.apple_contacts_client.get_redis_session",
+                AsyncMock(return_value=redis),
+            ),
         ):
             contacts, from_cache, cached_at = await client._get_all_contacts_cached(use_cache=True)
 
-        assert from_cache is True
+        assert from_cache is False
         assert cached_at is None
-        assert contacts[0]["names"][0]["displayName"] == "Legacy Contact"
+        assert contacts == []
+        http.request.assert_awaited_once()
 
     async def test_search_propagates_the_real_cached_at(self, client: AppleContactsClient) -> None:
         written_at = "2020-01-01T00:00:00+00:00"

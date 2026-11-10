@@ -121,7 +121,12 @@ class _ArchiveFailsInSQL(ScriptedDispatcher):
     """The archive's statement fails ON THE CALLER'S SESSION, as a real database error does."""
 
     async def _archive_message(
-        self, user: User, content: str, metadata: Mapping[str, object], db: AsyncSession
+        self,
+        user: User,
+        content: str,
+        metadata: Mapping[str, object],
+        db: AsyncSession,
+        conversation_id: UUID | None = None,
     ) -> dict[str, object]:
         await db.execute(text("SELECT 1 / 0"))
         raise AssertionError("unreachable: the statement above raises")

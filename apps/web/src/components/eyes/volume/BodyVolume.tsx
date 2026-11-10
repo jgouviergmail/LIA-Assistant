@@ -3,14 +3,26 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
 import type { SpiritVariant } from '@/components/spirit/catalogue';
-import { smileySphereResolution } from '../smiley/sphere-geometry';
 import { bindBodyVolume } from './volume-binding';
-import type { VolumeCharacter } from './volume-geometry';
+import {
+  VOLUME_BUFFER_MAX,
+  VOLUME_EXTENT,
+  VOLUME_SOURCE_EM,
+  type VolumeCharacter,
+} from './volume-geometry';
+
+const FONT_SIZE = { sm: 20, md: 30, lg: 44, xl: 64 } as const;
 
 // This stage includes the body's sides and is wider than the 2.6em face.
 // Match its pixels to the 3.4em canvas while retaining the existing GPU cap.
-const resolution = (size: EyesSize, dpr: number) =>
-  Math.min(192, Math.ceil((smileySphereResolution(size, dpr) * 3.4) / 2.6));
+const resolution = (size: EyesSize, dpr: number) => {
+  const density = Number.isFinite(dpr) ? Math.max(1, Math.min(2, dpr)) : 1;
+  const facePixels = Math.ceil(FONT_SIZE[size] * VOLUME_SOURCE_EM * density);
+  return Math.min(
+    VOLUME_BUFFER_MAX,
+    Math.ceil((facePixels * VOLUME_EXTENT * 2) / VOLUME_SOURCE_EM)
+  );
+};
 
 /** Native rig frames paint this bounded surface; React only owns its lifetime. */
 export function BodyVolume({

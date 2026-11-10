@@ -10,7 +10,7 @@
  * 4. Success confirmation
  */
 
-import { Lightbulb, Loader2, Radio, Wifi } from 'lucide-react';
+import { Lightbulb, Loader2, Radio, Wifi } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { Language } from '@/i18n/settings';

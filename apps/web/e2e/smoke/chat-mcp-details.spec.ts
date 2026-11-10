@@ -96,8 +96,15 @@ for (const sample of [
       await nested.press('Enter');
       await expect(card.locator('.lia-raw-block')).toContainText('MCP_LAST_NESTED');
       await expect(card.locator('.lia-raw-block')).toBeVisible();
-      expect((await fields.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-      expect((await resultTrigger.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      // Local rect heights retain the exact 44 px floor across browser protocols.
+      await expect(fields).toBeVisible();
+      await expect(resultTrigger).toBeVisible();
+      expect(
+        await fields.evaluate(node => node.getBoundingClientRect().height)
+      ).toBeGreaterThanOrEqual(44);
+      expect(
+        await resultTrigger.evaluate(node => node.getBoundingClientRect().height)
+      ).toBeGreaterThanOrEqual(44);
       await expectNoOverflow(page, `MCP ${sample.width}`);
       const accessibility = await new AxeBuilder({ page })
         .include('.lia-mcp')

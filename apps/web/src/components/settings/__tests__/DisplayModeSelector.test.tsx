@@ -1,5 +1,5 @@
 /**
- * DisplayModeSelector — the four-way display choice in Settings › Appearance.
+ * DisplayModeSelector — the five-way display choice in Settings › Appearance.
  *
  * It exists because the header's circular toggle drops `system`, which is the
  * `users.theme` column's `server_default` and therefore where every account
@@ -36,13 +36,13 @@ beforeEach(() => {
 });
 
 describe('DisplayModeSelector — mode choice', () => {
-  it('offers the four modes as a real radio group', () => {
+  it('offers the five modes as a real radio group', () => {
     renderWithProviders(<DisplayModeSelector lng="fr" />);
     const radios = screen.getAllByRole('radio');
-    expect(radios).toHaveLength(4);
+    expect(radios).toHaveLength(5);
     // Native radios: the browser supplies arrow-key navigation and roving
     // focus, so no keyboard handler of ours can be missing or wrong.
-    expect(radios.every(r => r.getAttribute('name') === 'display-mode')).toBe(true);
+    expect(radios.every(r => r.getAttribute('name') === radios[0].getAttribute('name'))).toBe(true);
   });
 
   it('marks the active mode as checked', () => {

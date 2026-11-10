@@ -12,7 +12,7 @@
       "identity_state": "unresolved",
       "relation_key": null
     },
-    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000006\">Alice</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000006\">Alice</a></div></div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div><div class=\"lia-secondary lia-sms__stamp\">19/10/2026 à 14:30</div></div></div><hr class=\"lia-response-separator\">"
   },
   {
     "data": {
@@ -27,7 +27,7 @@
       "identity_state": "unresolved",
       "relation_key": null
     },
-    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000007\">Vendor/UK</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000007\">Vendor/UK</a></div></div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div><div class=\"lia-secondary lia-sms__stamp\">19/10/2026 à 14:30</div></div></div><hr class=\"lia-response-separator\">"
   },
   {
     "data": {
@@ -42,6 +42,6 @@
       "identity_state": "unresolved",
       "relation_key": null
     },
-    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000008\">overview-scope</a></div></div><div class=\"lia-secondary\">19/10/2026 à 14:30</div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div></div></div><hr class=\"lia-response-separator\">"
+    "html": "<hr class=\"lia-response-separator\"><div class=\"lia-response-wrapper\" data-card-version=\"2\"><div class=\"lia-card lia-sms\"><div class=\"lia-card-top\"><div class=\"lia-illus lia-illus--blue\"><span class=\"material-symbols-outlined\">sms</span></div><div class=\"lia-card-top__info\"><a href=\"/fr/dashboard/sms?message=10000000-0000-4000-8000-000000000008\">overview-scope</a></div></div><div class=\"lia-card-content\">Oui. &lt;script&gt;window.smsLeak=true&lt;/script&gt;<br>https://example.invalid/secret</div><div class=\"lia-secondary lia-sms__stamp\">19/10/2026 à 14:30</div></div></div><hr class=\"lia-response-separator\">"
   }
 ]

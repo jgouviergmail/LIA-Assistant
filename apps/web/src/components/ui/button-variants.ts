@@ -1,5 +1,15 @@
 import { cva } from 'class-variance-authority';
 
+/** Keep fixed icon paints legible when a dark icon control is hovered. */
+export const DARK_ICON_BUTTON_HOVER_CLASS =
+  'dark:hover:bg-[color-mix(in_srgb,var(--color-card)_75%,black)]';
+
+/** Mark an active icon control without washing out the colored glyph in dark mode. */
+export const ACTIVE_ICON_BUTTON_CLASS =
+  'border-primary bg-primary/10 hover:bg-primary/15 ' +
+  'dark:bg-[color-mix(in_srgb,var(--color-card)_75%,black)] ' +
+  DARK_ICON_BUTTON_HOVER_CLASS;
+
 export const buttonVariants = cva(
   'relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 aria-busy:cursor-wait [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 btn-scale',
   {

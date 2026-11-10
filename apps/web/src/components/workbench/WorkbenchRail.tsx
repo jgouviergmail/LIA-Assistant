@@ -17,7 +17,7 @@
  * leaves unread, on every tool's page.
  */
 import Link from 'next/link';
-import { PlugZap, TriangleAlert } from 'lucide-react';
+import { PlugZap, TriangleAlert } from '@/lib/icons';
 import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
 
 import { useTranslation } from '@/i18n/client';

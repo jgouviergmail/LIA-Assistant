@@ -20,9 +20,6 @@ from src.core.constants import (
     HABITS_ABSENCE_MIN_DAYS_DEFAULT,
     HABITS_CANDIDATES_DISPLAY_MAX_DEFAULT,
     HABITS_CAPTURE_MIN_DEFAULT,
-    HABITS_DEVIATION_GRACE_HOURS_DEFAULT,
-    HABITS_DEVIATION_OFFER_COOLDOWN_DAYS_DEFAULT,
-    HABITS_DEVIATION_STOP_AFTER_IGNORED_DEFAULT,
     HABITS_EXIT_CAPTURE_DEFAULT,
     HABITS_EXIT_PRESENCE_DEFAULT,
     HABITS_EXIT_SELECTIVITY_DEFAULT,
@@ -36,6 +33,21 @@ from src.core.constants import (
     HABITS_PRESENCE_LAST_TTL_DAYS_DEFAULT,
     HABITS_PRESENCE_MIN_DEFAULT,
     HABITS_PROFILE_JOB_HOUR_UTC_DEFAULT,
+    HABITS_PROPOSAL_CHAT_GAP_HOURS_DEFAULT,
+    HABITS_PROPOSAL_CHAT_REPEAT_DAYS_DEFAULT,
+    HABITS_PROPOSAL_CONNECTOR_MIN_DAYS_DEFAULT,
+    HABITS_PROPOSAL_FAILURE_STREAK_DEFAULT,
+    HABITS_PROPOSAL_MANUAL_MIN_DAYS_DEFAULT,
+    HABITS_PROPOSAL_MANUAL_MIN_RUNS_DEFAULT,
+    HABITS_PROPOSAL_MUTE_AFTER_REFUSALS_DEFAULT,
+    HABITS_PROPOSAL_RESURFACE_DAYS_DEFAULT,
+    HABITS_PROPOSAL_ROUTINE_GAP_HOURS_DEFAULT,
+    HABITS_PROPOSAL_SILENT_MIN_NOTIFICATIONS_DEFAULT,
+    HABITS_PROPOSAL_SNOOZE_DAYS_DEFAULT,
+    HABITS_PROPOSAL_WINDOW_MAX_EXTENSION_HOURS_DEFAULT,
+    HABITS_PROPOSAL_WINDOW_MIN_CELLS_DEFAULT,
+    HABITS_PROPOSAL_WINDOW_MIN_DAYS_DEFAULT,
+    HABITS_PROPOSAL_WINDOW_MIN_SHARE_DEFAULT,
     HABITS_RECENT_DAYS_DEFAULT,
     HABITS_RECENT_MIN_DEFAULT,
     HABITS_SELECTIVITY_MIN_DEFAULT,
@@ -185,24 +197,101 @@ class HabitsSettings(BaseSettings):
         le=23,
         description="UTC hour of the nightly profile recompute job.",
     )
-    habits_deviation_offer_cooldown_days: int = Field(
-        default=HABITS_DEVIATION_OFFER_COOLDOWN_DAYS_DEFAULT,
+    habits_proposal_routine_gap_hours: float = Field(
+        default=HABITS_PROPOSAL_ROUTINE_GAP_HOURS_DEFAULT,
+        ge=0.5,
+        le=12.0,
+        description="A need asked this far from every time of a routine reading it is not "
+        "served by it; a routine launched by hand this far from its time is proposed moved.",
+    )
+    habits_proposal_manual_min_runs: int = Field(
+        default=HABITS_PROPOSAL_MANUAL_MIN_RUNS_DEFAULT,
+        ge=2,
+        le=30,
+        description="Manual launches of a routine before LIA proposes moving it.",
+    )
+    habits_proposal_manual_min_days: int = Field(
+        default=HABITS_PROPOSAL_MANUAL_MIN_DAYS_DEFAULT,
+        ge=2,
+        le=30,
+        description="Distinct days those manual launches must span.",
+    )
+    habits_proposal_failure_streak: int = Field(
+        default=HABITS_PROPOSAL_FAILURE_STREAK_DEFAULT,
+        ge=1,
+        le=20,
+        description="Consecutive failures of a routine before LIA proposes a look at it.",
+    )
+    habits_proposal_window_min_days: int = Field(
+        default=HABITS_PROPOSAL_WINDOW_MIN_DAYS_DEFAULT,
         ge=1,
         le=60,
-        description="Per-habit cooldown between missed-routine offers.",
+        description="Days present outside the notification hours before proposing to widen "
+        "them; an hour joins the extension only when present on this many days.",
     )
-    habits_deviation_stop_after_ignored: int = Field(
-        default=HABITS_DEVIATION_STOP_AFTER_IGNORED_DEFAULT,
+    habits_proposal_window_min_cells: int = Field(
+        default=HABITS_PROPOSAL_WINDOW_MIN_CELLS_DEFAULT,
         ge=1,
-        le=10,
-        description="Consecutive ignored offers before the habit's offers go mute "
-        "(the stop rule that bounds nagging on an abandoned routine).",
+        le=1000,
+        description="Present hours outside the notification hours, over the window.",
     )
-    habits_deviation_grace_hours: float = Field(
-        default=HABITS_DEVIATION_GRACE_HOURS_DEFAULT,
+    habits_proposal_window_min_share: float = Field(
+        default=HABITS_PROPOSAL_WINDOW_MIN_SHARE_DEFAULT,
         ge=0.0,
-        le=12.0,
-        description="Hours past the learned trigger before a slot counts as missed.",
+        le=1.0,
+        description="Share of present hours that must fall outside the notification hours.",
+    )
+    habits_proposal_window_max_extension_hours: int = Field(
+        default=HABITS_PROPOSAL_WINDOW_MAX_EXTENSION_HOURS_DEFAULT,
+        ge=1,
+        le=8,
+        description="Most hours added on each side of the notification hours (contiguous).",
+    )
+    habits_proposal_silent_min_notifications: int = Field(
+        default=HABITS_PROPOSAL_SILENT_MIN_NOTIFICATIONS_DEFAULT,
+        ge=5,
+        le=1000,
+        description="Proactive notifications sent with no reaction before LIA asks whether "
+        "they are worth keeping.",
+    )
+    habits_proposal_connector_min_days: int = Field(
+        default=HABITS_PROPOSAL_CONNECTOR_MIN_DAYS_DEFAULT,
+        ge=1,
+        le=60,
+        description="Days a domain was asked with no connector of its category before "
+        "proposing to connect one.",
+    )
+    habits_proposal_mute_after_refusals: int = Field(
+        default=HABITS_PROPOSAL_MUTE_AFTER_REFUSALS_DEFAULT,
+        ge=1,
+        le=20,
+        description="Refusals of one kind of proposal that silence that kind for the person.",
+    )
+    habits_proposal_snooze_days: int = Field(
+        default=HABITS_PROPOSAL_SNOOZE_DAYS_DEFAULT,
+        ge=1,
+        le=180,
+        description="A proposal put off with « later » reopens after this many days, if "
+        "still true.",
+    )
+    habits_proposal_resurface_days: int = Field(
+        default=HABITS_PROPOSAL_RESURFACE_DAYS_DEFAULT,
+        ge=7,
+        le=365,
+        description="An accepted proposal may come back after this many days, if true again.",
+    )
+    habits_proposal_chat_gap_hours: int = Field(
+        default=HABITS_PROPOSAL_CHAT_GAP_HOURS_DEFAULT,
+        ge=1,
+        le=168,
+        description="At most one proposal is shown under a chat answer per this many hours.",
+    )
+    habits_proposal_chat_repeat_days: int = Field(
+        default=HABITS_PROPOSAL_CHAT_REPEAT_DAYS_DEFAULT,
+        ge=1,
+        le=90,
+        description="A proposal already shown under a chat answer may be shown there again "
+        "after this many days, while it stays open.",
     )
     habits_absence_gap_factor: float = Field(
         default=HABITS_ABSENCE_GAP_FACTOR_DEFAULT,

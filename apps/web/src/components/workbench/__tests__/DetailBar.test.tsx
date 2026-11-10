@@ -4,7 +4,7 @@
  * one is no menu: its act stands in the bar. An act that must be told where opens its own list.
  * Every bar ends on the same two acts: the deletion, then the question to LIA.
  */
-import { CalendarArrowUp, Pencil, Sparkles, Trash2 } from 'lucide-react';
+import { CalendarArrowUp, Pencil, Sparkles, Trash2 } from '@/lib/icons';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';

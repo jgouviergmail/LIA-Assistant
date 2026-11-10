@@ -11,6 +11,7 @@ from src.domains.agents.display.components.base import (
     render_collapsible,
 )
 from src.domains.agents.display.components.source_attribution import weather_attribution
+from src.domains.agents.display.components.weather_details import temperature_range
 from src.domains.agents.display.icons import icon
 from src.domains.agents.display.values import first_present, list_values, scalar_text
 
@@ -34,7 +35,7 @@ def slot_temperature(
     temps = raw if isinstance(raw, dict) else data
     low = format_temperature(first_present(temps, "min", "temp_min", "temperature_min"))
     high = format_temperature(first_present(temps, "max", "temp_max", "temperature_max"))
-    return " / ".join(value for value in (low, high) if value)
+    return temperature_range(low, high)
 
 
 def render_weather_series(

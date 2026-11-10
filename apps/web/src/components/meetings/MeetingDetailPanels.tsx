@@ -18,7 +18,7 @@ import {
   Save,
   Trash2,
   X,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { MeetingFormatFact } from '@/components/meetings/MeetingDetailLinks';
 import { MeetingProgress } from '@/components/meetings/MeetingProgress';

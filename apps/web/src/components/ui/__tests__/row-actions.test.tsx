@@ -11,7 +11,9 @@ import { describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Unlink } from '@/lib/icons';
+import { IconStyleContext } from '@/lib/icon-style-context';
+import { colorHue, parseArtwork, reachableColors } from '@/lib/icons/__tests__/catalogue-paints';
 import { RowActions } from '../row-actions';
 
 function makeActions(overrides?: { onEdit?: () => void; onDelete?: () => void }) {
@@ -51,6 +53,44 @@ describe('RowActions', () => {
     );
   });
 
+  it.each([
+    ['Trash2', Trash2],
+    ['Unlink', Unlink],
+  ] as const)('keeps %s destructive artwork red in Flex on both action paths', async (_, icon) => {
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(
+      <IconStyleContext.Provider value="flex">
+        <RowActions
+          actions={[{ ...makeActions({ onDelete })[1], icon }]}
+          menuLabel="Actions — Standup"
+        />
+      </IconStyleContext.Provider>
+    );
+    const expectRedArtwork = (control: HTMLElement) => {
+      const svg = control.querySelector('svg');
+      expect(svg).toHaveAttribute('data-icon-style', 'flex');
+      const paints = reachableColors(parseArtwork(svg?.innerHTML ?? ''));
+      expect(
+        paints.some(paint => {
+          const hue = colorHue(paint);
+          return hue !== null && (hue >= 330 || hue <= 15);
+        })
+      ).toBe(true);
+    };
+
+    const button = screen.getByRole('button', { name: 'Delete Standup' });
+    expectRedArtwork(button);
+    await user.click(button);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Actions — Standup' }));
+    const item = await screen.findByRole('menuitem', { name: 'Delete Standup' });
+    expectRedArtwork(item);
+    await user.click(item);
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
   it('fires onSelect from the icon button', async () => {
     const onEdit = vi.fn();
     const user = userEvent.setup();
@@ -79,10 +119,7 @@ describe('RowActions', () => {
     const user = userEvent.setup();
     const [edit, remove] = makeActions();
     renderWithProviders(
-      <RowActions
-        actions={[{ ...edit, menuText: 'Edit' }, remove]}
-        menuLabel="Actions — Standup"
-      />
+      <RowActions actions={[{ ...edit, menuText: 'Edit' }, remove]} menuLabel="Actions — Standup" />
     );
 
     expect(screen.getByRole('button', { name: 'Edit Standup', hidden: true })).toBeInTheDocument();

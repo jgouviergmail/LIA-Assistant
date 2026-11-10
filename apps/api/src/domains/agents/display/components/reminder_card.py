@@ -24,6 +24,7 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
+    format_full_date,
     render_chip,
     render_d_item,
     wrap_with_response,
@@ -69,8 +70,12 @@ class ReminderCard(BaseComponent):
         reminder_id = data.get("id", "")
         content = data.get("content") or V3Messages.get_no_title(ctx.language)
         trigger_at = data.get("trigger_at", "")
-        trigger_at_formatted = data.get("trigger_at_formatted", "")
-        created_at_formatted = data.get("created_at_formatted", "")
+        trigger_at_formatted = scalar_text(data.get("trigger_at_formatted")) or format_full_date(
+            scalar_text(trigger_at), ctx.language, ctx.timezone, include_time=True
+        )
+        created_at_formatted = scalar_text(data.get("created_at_formatted")) or format_full_date(
+            scalar_text(data.get("created_at")), ctx.language, ctx.timezone, include_time=True
+        )
 
         # Check if reminder is imminent (within 1 hour)
         is_imminent = self._is_imminent(trigger_at)
@@ -178,16 +183,16 @@ class ReminderCard(BaseComponent):
             )
 
         schedule_html = render_d_item(Icons.DATE_RANGE, escape_html(schedule)) if schedule else ""
-        if schedule_html and schedule_timezone:
+        if schedule_timezone:
             schedule_html += render_d_item(Icons.SCHEDULE, escape_html(schedule_timezone))
 
         return f"""<div class="lia-card lia-reminder {imminent_class} {nested_class}" data-reminder-id="{escape_html(reminder_id)}">
-<div style="display:flex;gap:var(--lia-space-md);align-items:flex-start">
-<div class="lia-illus lia-illus--{illus_color}" style="width:36px;height:36px;border-radius:10px">
+<div class="lia-reminder__note">
+<div class="lia-illus lia-illus--{illus_color} lia-reminder__bookmark">
 <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20">{illus_icon}</span>
 </div>
-<div style="flex:1;min-width:0">
-<div style="display:flex;align-items:center;gap:var(--lia-space-sm);flex-wrap:wrap">
+<div class="lia-reminder__body">
+<div class="lia-reminder__heading">
 {trigger_chip}
 <span class="lia-reminder__label">{escape_html(content)}</span>
 </div>

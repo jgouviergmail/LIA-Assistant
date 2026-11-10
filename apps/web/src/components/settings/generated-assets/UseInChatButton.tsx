@@ -10,12 +10,12 @@
  * hold the copy.
  */
 
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import type { AttachSource } from '@/lib/attach-source-link';
-import { chatAttachHref } from '@/lib/briefing-utils';
+import { chatAttachHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 
 export function UseInChatButton({

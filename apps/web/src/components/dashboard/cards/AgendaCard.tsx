@@ -1,15 +1,28 @@
 'use client';
 import { ClassificationBadges } from '@/components/chat/ClassificationBadges';
 
-import { Calendar, CalendarDays, Clock3, MapPin, Navigation, NotebookPen } from 'lucide-react';
+import {
+  BellPlus,
+  Calendar,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  Navigation,
+  NotebookPen,
+  Video,
+} from '@/lib/icons';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { BriefingCard } from '../BriefingCard';
 import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { useHomeReminder } from './useHomeActs';
+import { useHomeTools } from '../HomeTools';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
+import { directionsHref, eventHref, homeLanguage } from '@/lib/briefing-tools';
 import { useDashboardChat, useDashboardRoute } from '../DashboardNavigation';
+import type { Language } from '@/i18n/settings';
 import type { AgendaData, AgendaEventItem, CardSection } from '@/types/briefing';
 
 interface AgendaCardProps {
@@ -24,7 +37,8 @@ export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: A
   const navigate = useDashboardRoute(router.push);
   const { i18n } = useTranslation();
   const openChat = useDashboardChat();
-  const lng = (i18n.language || 'fr').split('-')[0];
+  const lng = homeLanguage(i18n.language);
+  const { offered } = useHomeTools();
   return (
     <BriefingCard<AgendaData>
       titleKey="dashboard.briefing.cards.agenda.title"
@@ -39,6 +53,8 @@ export function AgendaCard({ section, isRefreshing, onRefresh, staggerIndex }: A
       renderContent={data => (
         <AgendaContent
           data={data}
+          lng={lng}
+          opensTools={offered}
           onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
           onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
@@ -125,18 +141,27 @@ function agendaEntries(events: AgendaEventItem[]) {
 
 function AgendaContent({
   data,
+  lng,
+  opensTools,
   onOpenChat,
   onExecute,
 }: {
   data: AgendaData;
+  lng: Language;
+  /** The instance offers the Tools: an event opens in the calendar. */
+  opensTools: boolean;
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
 }) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
+  const { remind, dialog } = useHomeReminder(lng);
   const groups = agendaDays(data.events, i18n.language || 'fr', user?.timezone);
+  const hrefOf = (event: AgendaEventItem) =>
+    opensTools ? eventHref(event, lng, user?.timezone) : null;
   return (
     <div className="@container space-y-5">
+      {dialog}
       {groups.map(group => (
         <div key={group.key} className="space-y-4">
           {group.label && (
@@ -150,7 +175,14 @@ function AgendaContent({
           )}
           <ul className="grid grid-cols-1 gap-x-5 gap-y-2 @min-[32rem]:grid-cols-3" role="list">
             {agendaEntries(group.events).map(({ event, key }) => (
-              <AgendaEntry key={key} event={event} onOpenChat={onOpenChat} onExecute={onExecute} />
+              <AgendaEntry
+                key={key}
+                event={event}
+                href={hrefOf(event)}
+                onOpenChat={onOpenChat}
+                onExecute={onExecute}
+                onRemind={remind}
+              />
             ))}
           </ul>
         </div>
@@ -161,23 +193,50 @@ function AgendaContent({
 
 function AgendaEntry({
   event,
+  href,
   onOpenChat,
   onExecute,
+  onRemind,
 }: {
   event: AgendaEventItem;
+  /** Where the event opens in the calendar; null keeps the chat. */
+  href: string | null;
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
+  onRemind: (words: string) => void;
 }) {
   const { t } = useTranslation();
-  const intent = t('dashboard.briefing.intents.event', {
-    title: event.title,
-    time: event.start_local,
-  });
-  const prepareIntent = t('dashboard.briefing.intents_exec.event_prepare', {
-    title: event.title,
-    time: event.start_local,
-  });
+  const words = { title: event.title, time: event.start_local };
+  const intent = t('dashboard.briefing.intents.event', words);
+  const prepareIntent = t('dashboard.briefing.intents_exec.event_prepare', words);
+  const target = href
+    ? { href, ariaLabel: t('dashboard.briefing.open_in.event', words) }
+    : { onSelect: () => onOpenChat(intent), ariaLabel: intent };
+  // Direct first — a map, the call, a reminder: no model — then what LIA does.
   const actions: CardItemAction[] = [
+    ...(event.location
+      ? [
+          {
+            icon: Navigation,
+            label: t('dashboard.briefing.home_acts.route', { location: event.location }),
+            href: directionsHref(event.location),
+          },
+        ]
+      : []),
+    ...(event.conference_url
+      ? [
+          {
+            icon: Video,
+            label: t('dashboard.briefing.home_acts.join_call'),
+            href: event.conference_url,
+          },
+        ]
+      : []),
+    {
+      icon: BellPlus,
+      label: t('dashboard.briefing.home_acts.remind'),
+      onSelect: () => onRemind(t('dashboard.briefing.remind_words.event', words)),
+    },
     {
       icon: NotebookPen,
       label: prepareIntent,
@@ -185,22 +244,10 @@ function AgendaEntry({
       onSelect: () => onExecute(prepareIntent),
     },
   ];
-  if (event.location) {
-    const routeIntent = t('dashboard.briefing.intents_exec.event_route', {
-      location: event.location,
-    });
-    actions.push({
-      icon: Navigation,
-      label: routeIntent,
-      opensChat: true,
-      onSelect: () => onExecute(routeIntent),
-    });
-  }
   return (
     <CardItemRow
-      ariaLabel={intent}
+      {...target}
       tooltip={event.location ? `${event.title}\n${event.location}` : event.title}
-      onSelect={() => onOpenChat(intent)}
       actions={actions}
       className="relative border-l border-l-violet-300/50 pl-3 before:absolute before:-left-1 before:top-4 before:size-2 before:rounded-full before:bg-violet-400 @min-[32rem]:border-l-0 @min-[32rem]:border-t @min-[32rem]:border-b-0 @min-[32rem]:pl-0 @min-[32rem]:pt-4 @min-[32rem]:before:left-0 @min-[32rem]:before:-top-1"
       contentClassName="flex flex-col items-start gap-2"

@@ -18,6 +18,7 @@ describe('DASHBOARD_DESTINATIONS', () => {
       'relations',
       'sms',
       'meetings',
+      'spaces',
       'notifications',
       'settings',
       'faq',
@@ -31,6 +32,7 @@ describe('DASHBOARD_DESTINATIONS', () => {
       ['tools', 'workbench_enabled'],
       ['sms', 'sms_enabled'],
       ['meetings', 'meetings_enabled'],
+      ['spaces', 'rag_spaces_enabled'],
     ]);
   });
 });
@@ -43,7 +45,8 @@ describe('visibleDestinations', () => {
       expect(segments).not.toContain('world');
       expect(segments).not.toContain('tools');
       expect(segments).not.toContain('sms');
-      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 4);
+      expect(segments).not.toContain('spaces');
+      expect(segments).toHaveLength(DASHBOARD_DESTINATIONS.length - 5);
     }
   });
 
@@ -53,6 +56,7 @@ describe('visibleDestinations', () => {
       world_enabled: true,
       workbench_enabled: true,
       sms_enabled: true,
+      rag_spaces_enabled: true,
     }).map(d => d.segment);
     expect(segments).toEqual(DASHBOARD_DESTINATIONS.map(d => d.segment));
     // The owner's order (2026-10-31): the tools right after the world, the
@@ -60,6 +64,7 @@ describe('visibleDestinations', () => {
     expect(segments.indexOf('tools')).toBe(segments.indexOf('world') + 1);
     expect(segments.indexOf('sms')).toBe(segments.indexOf('relations') + 1);
     expect(segments.indexOf('meetings')).toBe(segments.indexOf('sms') + 1);
+    expect(segments.indexOf('spaces')).toBe(segments.indexOf('meetings') + 1);
   });
 
   it('routes the new destination like every other one', () => {

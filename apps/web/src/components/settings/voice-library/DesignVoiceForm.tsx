@@ -9,7 +9,7 @@
 
 import { type FormEvent, useId, useState } from 'react';
 import type { TFunction } from 'i18next';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';

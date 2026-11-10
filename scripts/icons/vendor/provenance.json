@@ -1,0 +1,30 @@
+{
+  "fluent": {
+    "package": "@fluentui/svg-icons",
+    "version": "1.1.345",
+    "url": "https://registry.npmjs.org/@fluentui/svg-icons/-/svg-icons-1.1.345.tgz",
+    "sha512": "Mz5e5BFKtvRN5Yiwrs5JqZRKgd8Rt8S3YiCAuwOWudmm7NA14Y8Ijr8QzMrE6gtNdoUP6/om7ue0lBQJLL57Mw==",
+    "license": "MIT",
+    "source": "https://github.com/microsoft/fluentui-system-icons",
+    "selection": "Color variants, 24px preferred, 20px otherwise; geometry unchanged."
+  },
+  "lucide": {
+    "package": "lucide-react",
+    "version": "1.55.0",
+    "url": "https://registry.npmjs.org/lucide-react/-/lucide-react-1.55.0.tgz",
+    "sha512": "bSozQHiI3/8q7JvgoqVRGOYUi7fYT3siAZwmZsljjsOH2Husp/2ODdFf/leD+ZC/2yKfn7r8oh6yeoR3ITR5vA==",
+    "integritySource": "pnpm-lock.yaml; installed geometry is revalidated by the generator",
+    "license": "ISC and Feather-derived MIT",
+    "source": "https://github.com/lucide-icons/lucide",
+    "selection": "Canonical application geometry only; source attributes retained apart from React keys. LIA Soft/Flat are separately attributed authored color adaptations."
+  },
+  "flex": {
+    "package": "@iconify-json/streamline-flex-color",
+    "version": "1.2.2",
+    "url": "https://registry.npmjs.org/@iconify-json/streamline-flex-color/-/streamline-flex-color-1.2.2.tgz",
+    "sha512": "EphxHZHzxcR2B8AU7skOnq27cuOoZDzn69EzLysRkN+Nla7tyqF0eacsFCk70t2T9BhT3LBy9GgGeY3+Db2KPQ==",
+    "license": "CC-BY-4.0",
+    "source": "https://github.com/webalys-hq/streamline-vectors",
+    "selection": "Flat variants only, original 14-unit geometry; generated application colors are adapted."
+  }
+}

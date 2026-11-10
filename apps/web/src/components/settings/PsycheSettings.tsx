@@ -9,7 +9,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { toast } from 'sonner';
 import { usePsyche } from '@/hooks/usePsyche';
 import { useAuth } from '@/hooks/useAuth';

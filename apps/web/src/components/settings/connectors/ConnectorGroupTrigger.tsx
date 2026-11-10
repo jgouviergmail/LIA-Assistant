@@ -20,7 +20,7 @@
  */
 
 import type { ComponentType } from 'react';
-import { CheckCircle2, AlertTriangle, Plug } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Plug } from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 

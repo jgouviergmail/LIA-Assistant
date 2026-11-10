@@ -15,17 +15,26 @@ from uuid import UUID, uuid4
 import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
+from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 import src.domains.agents.effects.treatment_recorder  # noqa: F401  installs the collector
 import src.domains.agents.effects.treatments  # noqa: F401  installs the sink
+from src.core.exceptions import BaseAPIException
 from src.domains.agents.effects.models import AgentDecision, AgentTreatment
 from src.domains.chat.models import TokenUsageLog
-from src.domains.tool_assists import door
+from src.domains.feature_switches import guard
+from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.reminders.models import Reminder
+from src.domains.tool_assists import door, selection_records, selection_research
 from src.domains.tool_assists.catalogue import ToolAssist
 from src.domains.tool_assists.door import AssistRun, run_assist
+from src.domains.tool_assists.selection import SelectionRequest
+from src.domains.tool_assists.selection_research import ResearchProposal
+from src.domains.tool_assists.selection_routes import selection_answer
 from src.domains.users.models import User
+from src.domains.workboard.models import WorkboardTicket
 from src.infrastructure.database.session import get_db_context
 
 pytestmark = pytest.mark.integration
@@ -36,7 +45,9 @@ def _spent(run: AssistRun) -> None:
     usage = {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120}
     message = AIMessage(content="ok", usage_metadata=usage)
     result = LLMResult(generations=[[ChatGeneration(message=message)]])
-    for handler in run.config["callbacks"]:
+    callbacks = run.config.get("callbacks")
+    assert isinstance(callbacks, list)
+    for handler in callbacks:
         handler.on_llm_end(result, run_id=uuid4())
 
 
@@ -139,3 +150,93 @@ async def test_an_answer_already_held_leaves_nothing(person: UUID) -> None:
 
     assert done.usage is None
     assert await _rows(person) == {"spend": [], "decisions": [], "reads": []}
+
+
+@pytest.mark.parametrize("kind", ["reminder", "ticket"])
+async def test_a_selected_record_is_billed_without_creating_or_assigning_it(
+    person: UUID, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """The real selection door persists its spend and decision, never the proposed record."""
+
+    async def enabled(capability: PlatformCapability) -> bool:
+        return True
+
+    async def proposal[T: BaseModel](run: AssistRun, prompt: str, schema: type[T]) -> T:
+        _spent(run)
+        return schema.model_validate(
+            {"content": "Call Ana", "recurrence": None}
+            if kind == "reminder"
+            else {"title": "Call Ana", "description": "Ask about the quote"}
+        )
+
+    monkeypatch.setattr(guard, "is_capability_enabled", enabled)
+    monkeypatch.setattr(selection_records, "ask_slot", proposal)
+    answer = await selection_answer(
+        SelectionRequest.model_validate({"mode": "read", "action": kind, "text": "Call Ana"}),
+        User(id=person, language="en", timezone="Pacific/Auckland"),
+    )
+    assert answer.proposal.kind == kind and answer.usage is not None
+    rows = await _rows(person)
+    (spend,) = rows["spend"]
+    assert spend[1:] == ("tool_assist", "100")
+    assert rows["decisions"] == [(spend[0], "user")]
+    assert rows["reads"] == []
+    async with get_db_context() as db:
+        assert (
+            await db.execute(select(Reminder.id).where(Reminder.user_id == person))
+        ).first() is None
+        assert (
+            await db.execute(
+                select(WorkboardTicket.id).where(WorkboardTicket.owner_user_id == person)
+            )
+        ).first() is None
+
+
+@pytest.mark.parametrize("outcome", ["ok", "failed", "cancelled"])
+async def test_internet_keeps_query_spend_and_provider_outcome_on_one_owned_run(
+    person: UUID,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: str,
+) -> None:
+    """The actual research orchestrator files both successful and abandoned searches."""
+
+    async def provider(user_id: UUID) -> selection_research.ResearchProvider:
+        assert user_id == person
+        return "brave"
+
+    async def key(user_id: UUID, provider: selection_research.ResearchProvider) -> str:
+        assert user_id == person and provider == "brave"
+        return "test-key"
+
+    async def query[T: BaseModel](run: AssistRun, prompt: str, schema: type[T]) -> T:
+        _spent(run)
+        return schema.model_validate({"query": "A selected subject"})
+
+    async def search(run: AssistRun, query: str, key: str) -> ResearchProposal:
+        if outcome == "failed":
+            raise TimeoutError("provider unavailable")
+        if outcome == "cancelled":
+            raise asyncio.CancelledError
+        return ResearchProposal(query=query, provider="brave", sources=[])
+
+    monkeypatch.setattr(selection_research, "preferred_provider", provider)
+    monkeypatch.setattr(selection_research, "_credentials", key)
+    monkeypatch.setattr(selection_research, "ask_slot", query)
+    monkeypatch.setattr(selection_research, "_brave", search)
+    work = run_assist(
+        ToolAssist.SELECTION_INTERNET,
+        person,
+        "fr",
+        lambda run: selection_research.research_selection(run, "Selected words"),
+    )
+    if outcome == "ok":
+        done = await work
+        assert done.value.sources == [] and not done.held
+    else:
+        with pytest.raises(asyncio.CancelledError if outcome == "cancelled" else BaseAPIException):
+            await work
+    rows = await _rows(person)
+    (spend,) = rows["spend"]
+    assert spend[1:] == ("tool_assist", "100")
+    assert rows["decisions"] == [(spend[0], "user")]
+    assert rows["reads"] == [(spend[0], "tool_assist:brave", "ok" if outcome == "ok" else "failed")]

@@ -56,24 +56,20 @@ describe('blinkTapes', () => {
 });
 
 describe('tapesForGesture', () => {
-  it('hands the gaze moves and the slapstick beats back to their own systems', () => {
+  it('hands the gaze moves and scene requests back to their own systems', () => {
     CSS_OR_GAZE.forEach(gesture => expect(tapesForGesture(gesture)).toHaveLength(0));
   });
 
   it('owns the lid and body beats', () => {
     expect(RIG_OWNED_GESTURES).toEqual(
       expect.arrayContaining([
-        'swap',
-        'bump',
-        'spin',
-        'jelly',
         'slow-blink',
         'half-blink',
         'squint',
-        'bounce',
+        'nod',
         'brow',
         'perk',
-        'tilt',
+        'consider',
         'lip-press',
         'corner-tug',
         'brow-twitch',
@@ -181,7 +177,7 @@ describe('tapesForGesture', () => {
     expect(rig.values().browYL).toBeCloseTo(pose.browYL, 2);
   });
 
-  it('carries the FACE on the eye beats: a perk raises the brows, a squint knits them, a tilt smirks', () => {
+  it('carries the FACE on the eye beats: a perk raises the brows, a squint knits them, a thoughtful inclination smirks', () => {
     const channels = (gesture: IdleGesture) => tapesForGesture(gesture).map(tape => tape.channel);
     expect(channels('perk')).toEqual(
       expect.arrayContaining(['browYL', 'browYR', 'browArcL', 'browArcR'])
@@ -191,9 +187,9 @@ describe('tapesForGesture', () => {
     expect(channels('squint')).toEqual(expect.arrayContaining(['browYL', 'browArcL', 'mouthW']));
     const squintBrow = tapesForGesture('squint').find(tape => tape.channel === 'browYL')!;
     expect(squintBrow.keys[0].value).toBeGreaterThan(0); // down
-    expect(channels('tilt')).toEqual(expect.arrayContaining(['mouthSkew', 'browArcL']));
+    expect(channels('consider')).toEqual(expect.arrayContaining(['mouthSkew', 'browArcL']));
     // ...and every one of those is RELATIVE, an offset from the pose.
-    (['perk', 'squint', 'tilt'] as const).forEach(gesture =>
+    (['perk', 'squint', 'consider'] as const).forEach(gesture =>
       tapesForGesture(gesture)
         .filter(tape => tape.channel.startsWith('brow') || tape.channel.startsWith('mouth'))
         .forEach(tape => expect(tape.relative).toBe(true))
@@ -225,37 +221,36 @@ describe('tapesForGesture', () => {
     expect(tapeDurationMs(mouth!)).toBeLessThanOrEqual(GESTURE_DURATION_MS['slow-blink']);
   });
 
-  it('a BOUNCE drags the mouth along, a beat late — follow-through', () => {
-    const bounce = tapesForGesture('bounce');
-    const mouth = bounce.find(tape => tape.channel === 'mouthY');
-    const eye = bounce.find(tape => tape.channel === 'tyL');
-    expect(mouth).toBeDefined();
-    expect(mouth!.relative).toBe(true);
-    expect(mouth!.keys[0].atMs).toBeGreaterThan(eye!.keys[0].atMs);
+  it('nods once through the head, preserves eye placement and settles without a rebound', () => {
     const rig = createEyeRig({
       initial: { expression: 'focused', styleId: 'cozmo', family: 'calm' },
     });
-    rig.play(...bounce);
-    let peak = 0;
-    for (let frame = 0; frame < 30; frame += 1) {
+    const eyeY = rig.values().tyL;
+    rig.play(...tapesForGesture('nod'));
+    const pitch: number[] = [];
+    for (let frame = 0; frame < 140; frame += 1) {
       rig.step(16);
-      peak = Math.max(peak, Math.abs(rig.values().mouthY));
+      pitch.push(rig.values().headPitch);
+      expect(rig.values().tyL).toBe(eyeY);
     }
-    expect(peak).toBeGreaterThan(0.01);
-    for (let frame = 0; frame < 80; frame += 1) rig.step(16);
-    expect(rig.values().mouthY).toBeCloseTo(0, 2);
+    expect(Math.min(...pitch)).toBeLessThan(-0.003);
+    expect(Math.max(...pitch)).toBeGreaterThan(0.18);
+    const peak = pitch.indexOf(Math.max(...pitch));
+    expect(pitch.slice(peak).every(value => value >= -0.01)).toBe(true);
+    expect(pitch.at(-1)).toBeCloseTo(0, 2);
   });
 
-  it('lifts a squashed eye RELATIVELY, never yanking it to a neutral height', () => {
-    const rig = createEyeRig({
-      initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' },
-    });
-    const restingTy = rig.values().tyL;
-    rig.play(...tapesForGesture('bounce'));
-    rig.step(16);
-    // It went UP from joy's own height, and stayed in that neighbourhood.
-    expect(rig.values().tyL).toBeLessThan(restingTy);
-    expect(rig.values().tyL).toBeGreaterThan(restingTy - 0.12);
+  it('holds a thoughtful inclination on one side without oscillating through the other', () => {
+    const rig = createEyeRig();
+    rig.play(...tapesForGesture('consider'));
+    const roll: number[] = [];
+    for (let frame = 0; frame < 140; frame += 1) {
+      rig.step(16);
+      roll.push(rig.values().tilt);
+    }
+    expect(roll.filter(value => value > 2).length * 16).toBeGreaterThan(250);
+    expect(Math.min(...roll)).toBeGreaterThanOrEqual(-0.01);
+    expect(roll.at(-1)).toBeCloseTo(0, 2);
   });
 
   it('does not move the eyes at all when only one brow moves', () => {

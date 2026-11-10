@@ -1,154 +1,185 @@
-/**
- * useActivityTimeline — the accumulation contract of the activity feed.
- *
- * A chronological feed loads more, it does not paginate: pages accumulate,
- * a payload at offset 0 RESETS the feed (a refetch is a fresh feed, not a
- * duplicate), and rows arriving twice across pages (the set shifted between
- * requests) are deduplicated by (kind, ref_id) so React keys stay unique.
- * `firstLoad` is keyed on the ABSENCE of data, never on `error`.
- */
-
+/** Exercise pagination through the actual account/query lifecycle. */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-
-const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
-
-import { useActivityTimeline, ACTIVITY_PAGE_SIZE } from '../useActivityTimeline';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import type { RequestConfig } from '@/lib/api-client';
 import type { ActivityEvent, ActivityTimelineResponse } from '@/types/activity';
 
-function event(refId: string, kind = 'habit_detected'): ActivityEvent {
-  return {
-    kind,
-    ref_id: refId,
-    occurred_at: '2026-08-19T10:00:00Z',
-    text: `event ${refId}`,
-    status: null,
-  };
-}
+const { get, useAuth } = vi.hoisted(() => ({ get: vi.fn(), useAuth: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { get },
+}));
+import { useActivityTimeline, ACTIVITY_PAGE_SIZE } from '../useActivityTimeline';
 
+const cut = '2026-11-01T12:00:00Z';
+function event(refId: string): ActivityEvent {
+  return { kind: 'habit_detected', ref_id: refId, occurred_at: cut, text: refId, status: null };
+}
 function payload(over: Partial<ActivityTimelineResponse> = {}): ActivityTimelineResponse {
   return {
-    events: [],
-    totals: [],
-    has_more: false,
+    events: [event('a')],
+    totals: [{ kind: 'habit_detected', total: 30, truncated: false }],
+    has_more: true,
     offset: 0,
     limit: ACTIVITY_PAGE_SIZE,
     window_days: 30,
     failed_kinds: [],
+    criteria: { q: '', kinds: [], sort: 'recent', as_of: cut },
     ...over,
   };
 }
-
-function answer(data: ActivityTimelineResponse | undefined, over: Record<string, unknown> = {}) {
-  useApiQuery.mockReturnValue({
-    data,
-    loading: data === undefined,
-    error: null,
-    refetch: vi.fn(),
-    ...over,
-  });
-}
-
 beforeEach(() => {
-  useApiQuery.mockReset();
+  vi.resetAllMocks();
+  useAuth.mockReturnValue({ user: { id: 'one' } });
+  get.mockResolvedValue(payload());
 });
 
-describe('useActivityTimeline', () => {
-  it('requests the first page and reports firstLoad while empty-handed', () => {
-    answer(undefined);
-
-    const { result } = renderHook(() => useActivityTimeline());
-
-    expect(useApiQuery).toHaveBeenCalledWith(
-      `/activity/timeline?offset=0&limit=${ACTIVITY_PAGE_SIZE}`,
-      expect.objectContaining({ componentName: 'useActivityTimeline' })
+describe('activity feed', () => {
+  it('rejects a retained paging callback even after returning to the same filter', async () => {
+    const { result, rerender } = renderHook(
+      ({ q }) => useActivityTimeline({ q, kind: '', sort: 'recent' }),
+      { initialProps: { q: 'first' } }
     );
-    expect(result.current.firstLoad).toBe(true);
-    expect(result.current.events).toBeUndefined();
-  });
-
-  it('exposes the first page with its totals and window', () => {
-    answer(
-      payload({
-        events: [event('a'), event('b')],
-        totals: [{ kind: 'habit_detected', total: 2, truncated: false }],
-        has_more: true,
-        window_days: 30,
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    const retired = result.current.loadMore;
+    rerender({ q: 'second' });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    let finish: (value: ActivityTimelineResponse) => void = () => {};
+    get.mockReturnValueOnce(
+      new Promise<ActivityTimelineResponse>(resolve => {
+        finish = resolve;
       })
     );
-
-    const { result } = renderHook(() => useActivityTimeline());
-
-    expect(result.current.events?.map(e => e.ref_id)).toEqual(['a', 'b']);
-    expect(result.current.totals).toEqual([{ kind: 'habit_detected', total: 2, truncated: false }]);
-    expect(result.current.hasMore).toBe(true);
-    expect(result.current.windowDays).toBe(30);
-    expect(result.current.firstLoad).toBe(false);
+    rerender({ q: 'first' });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    act(retired);
+    await act(async () => {
+      finish(payload());
+    });
+    expect(get).toHaveBeenCalledTimes(3);
   });
-
-  it('loadMore appends the next page after the current one', () => {
-    answer(payload({ events: [event('a')], has_more: true }));
-    const { result, rerender } = renderHook(() => useActivityTimeline());
-
-    act(() => result.current.loadMore());
-    answer(payload({ events: [event('b')], offset: ACTIVITY_PAGE_SIZE, has_more: false }));
-    rerender();
-
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      `/activity/timeline?offset=${ACTIVITY_PAGE_SIZE}&limit=${ACTIVITY_PAGE_SIZE}`,
-      expect.anything()
+  it('loads first, appends with the server cut, deduplicates and refreshes from zero', async () => {
+    const { result } = renderHook(() => useActivityTimeline());
+    expect(result.current.firstLoad).toBe(true);
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    get.mockResolvedValueOnce(
+      payload({ offset: ACTIVITY_PAGE_SIZE, events: [event('a'), event('b')], has_more: false })
     );
-    expect(result.current.events?.map(e => e.ref_id)).toEqual(['a', 'b']);
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.events).toHaveLength(2));
+    expect(get).toHaveBeenLastCalledWith(
+      '/activity/timeline',
+      expect.objectContaining({
+        params: expect.objectContaining({ offset: ACTIVITY_PAGE_SIZE, as_of: cut }),
+      })
+    );
     expect(result.current.hasMore).toBe(false);
-  });
-
-  it('deduplicates rows that arrive twice across pages', () => {
-    answer(payload({ events: [event('a'), event('b')], has_more: true }));
-    const { result, rerender } = renderHook(() => useActivityTimeline());
-
-    act(() => result.current.loadMore());
-    // The set shifted server-side: "b" comes back on page 2.
-    answer(payload({ events: [event('b'), event('c')], offset: ACTIVITY_PAGE_SIZE }));
-    rerender();
-
-    expect(result.current.events?.map(e => e.ref_id)).toEqual(['a', 'b', 'c']);
-  });
-
-  it('a payload at offset 0 resets the feed instead of appending', () => {
-    answer(payload({ events: [event('a')], has_more: true }));
-    const { result, rerender } = renderHook(() => useActivityTimeline());
-
-    act(() => result.current.loadMore());
-    answer(payload({ events: [event('b')], offset: ACTIVITY_PAGE_SIZE }));
-    rerender();
+    get.mockResolvedValueOnce(payload({ events: [event('z')] }));
+    act(() => result.current.refetch());
     expect(result.current.events).toHaveLength(2);
-
-    // Fresh feed (e.g. after refetch): offset-0 payload replaces everything.
-    answer(payload({ events: [event('z')] }));
-    rerender();
-
-    expect(result.current.events?.map(e => e.ref_id)).toEqual(['z']);
-  });
-
-  it('loadMore is a no-op while nothing more exists', () => {
-    answer(payload({ events: [event('a')], has_more: false }));
-    const { result, rerender } = renderHook(() => useActivityTimeline());
-
-    act(() => result.current.loadMore());
-    rerender();
-
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      `/activity/timeline?offset=0&limit=${ACTIVITY_PAGE_SIZE}`,
-      expect.anything()
+    await waitFor(() => expect(result.current.events?.map(item => item.ref_id)).toEqual(['z']));
+    expect(get).toHaveBeenLastCalledWith(
+      '/activity/timeline',
+      expect.objectContaining({
+        params: expect.objectContaining({ offset: 0, as_of: undefined }),
+      })
     );
   });
 
-  it('surfaces failed kinds so the UI can state partial data', () => {
-    answer(payload({ events: [event('a')], failed_kinds: ['interest_notification'] }));
+  it('retires the prior filter and its in-flight page without mixing results', async () => {
+    const { result, rerender } = renderHook(
+      ({ q }) => useActivityTimeline({ q, sort: 'oldest', kind: 'habit_detected' }),
+      { initialProps: { q: '' } }
+    );
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    let finish: (value: ActivityTimelineResponse) => void = () => {};
+    get.mockReturnValueOnce(
+      new Promise<ActivityTimelineResponse>(resolve => {
+        finish = resolve;
+      })
+    );
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    get.mockResolvedValueOnce(payload({ events: [], has_more: false }));
+    rerender({ q: 'none' });
+    expect(result.current.events).toBeUndefined();
+    await waitFor(() => expect(result.current.events).toEqual([]));
+    await act(async () => {
+      finish(payload({ offset: ACTIVITY_PAGE_SIZE, events: [event('stale')] }));
+    });
+    expect(result.current.events).toEqual([]);
+    expect(get).toHaveBeenLastCalledWith(
+      '/activity/timeline',
+      expect.objectContaining({
+        params: expect.objectContaining({
+          q: 'none',
+          sort: 'oldest',
+          kinds: ['habit_detected'],
+          offset: 0,
+        }),
+      })
+    );
+  });
 
+  it('hides the previous owner immediately and rejects its retained callbacks', async () => {
+    const { result, rerender } = renderHook(() => useActivityTimeline());
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    const retired = { loadMore: result.current.loadMore, refetch: result.current.refetch };
+    let finish: (value: ActivityTimelineResponse) => void = () => {};
+    get.mockReturnValueOnce(
+      new Promise<ActivityTimelineResponse>(resolve => {
+        finish = resolve;
+      })
+    );
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender();
+    expect(result.current.events).toBeUndefined();
+    act(() => {
+      retired.loadMore();
+      retired.refetch();
+    });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(get).toHaveBeenLastCalledWith(
+      '/activity/timeline',
+      expect.objectContaining({ params: expect.objectContaining({ offset: 0 }) })
+    );
+    await act(async () => {
+      finish(payload({ events: [event('owner-two')] }));
+    });
+    expect(result.current.events?.[0].ref_id).toBe('owner-two');
+  });
+
+  it('keeps existing rows on failed refresh and retries the failed page without advancing', async () => {
     const { result } = renderHook(() => useActivityTimeline());
-
-    expect(result.current.failedKinds).toEqual(['interest_notification']);
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    get.mockRejectedValueOnce(new Error('offline'));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+    expect(result.current.events?.[0].ref_id).toBe('a');
+    const refreshed = Promise.withResolvers<ActivityTimelineResponse>();
+    get.mockReturnValueOnce(refreshed.promise);
+    act(() => result.current.refetch());
+    // Starting a retry clears its error before the replacement page arrives.
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.events?.[0].ref_id).toBe('a');
+    expect(result.current.failedKinds).toEqual([]);
+    await act(async () => {
+      refreshed.resolve(payload({ failed_kinds: ['interest_notification'] }));
+    });
+    await waitFor(() => expect(result.current.failedKinds).toEqual(['interest_notification']));
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
+    get.mockRejectedValueOnce(new Error('offline'));
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(Error));
+    get.mockResolvedValueOnce(
+      payload({ offset: ACTIVITY_PAGE_SIZE, events: [event('b')], has_more: false })
+    );
+    act(() => result.current.loadMore());
+    await waitFor(() => expect(result.current.events).toHaveLength(2));
+    const last: RequestConfig | undefined = get.mock.lastCall?.[1];
+    expect(last?.params?.offset).toBe(ACTIVITY_PAGE_SIZE);
   });
 });

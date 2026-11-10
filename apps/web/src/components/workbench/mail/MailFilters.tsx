@@ -13,7 +13,7 @@
  * what stays; a rule only Outlook can change offers no deletion, and one whose
  * conditions no field here reads goes by its name.
  */
-import { Trash2 } from 'lucide-react';
+import { Trash2 } from '@/lib/icons';
 import { useId, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';

@@ -1,6 +1,6 @@
 'use client';
 import { useId } from 'react';
-import { Check } from 'lucide-react';
+import { Check } from '@/lib/icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

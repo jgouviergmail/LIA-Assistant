@@ -27,7 +27,7 @@
 
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Sparkles } from 'lucide-react';
+import { AlertTriangle, Sparkles } from '@/lib/icons';
 
 import { RefreshButton } from '@/components/relations/CollapsibleSection';
 import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';

@@ -29,15 +29,27 @@ logger = structlog.get_logger(__name__)
 def _validate_read_only(
     actions: list[InitiativeAction],
     read_only_manifests: list[Any],
+    *,
+    limit: int,
 ) -> list[InitiativeAction]:
-    """Defense in depth: reject non-read-only tools and exact duplicates.
+    """Defense in depth: reject non-read-only tools, exact duplicates and excess.
 
     The LLM occasionally emits the same (tool, parameters) action twice in a
     single decision (observed 2026-07-22: two identical weather checks for
     co-located events) — executing both wastes a paid provider call whenever
-    the target tool has no response cache.
+    the target tool has no response cache. The prompt publishes the action
+    budget; this is where it holds (ADR-284): the first ``limit`` valid
+    actions run, in the order proposed.
+
+    Args:
+        actions: The actions the evaluator proposed.
+        read_only_manifests: The read-only tools offered to the evaluator.
+        limit: The most actions one evaluation may run.
+
+    Returns:
+        The actions to run.
     """
-    from src.infrastructure.observability.metrics_agents import (
+    from src.infrastructure.observability.metrics_initiative import (
         initiative_actions_rejected_total,
     )
 
@@ -61,6 +73,12 @@ def _validate_read_only(
             # Metrics are best-effort — never break the validation.
             with suppress(Exception):
                 initiative_actions_rejected_total.labels(reason="duplicate").inc()
+            continue
+        if len(validated) >= limit:
+            logger.info("initiative_action_over_cap", tool_name=action.tool_name, limit=limit)
+            # Metrics are best-effort — never break the validation.
+            with suppress(Exception):
+                initiative_actions_rejected_total.labels(reason="over_cap").inc()
             continue
         seen.add(key)
         validated.append(action)

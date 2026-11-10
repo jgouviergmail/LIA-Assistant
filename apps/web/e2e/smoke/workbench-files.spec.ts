@@ -257,20 +257,28 @@ test.describe('organising, on a phone', () => {
   test('a file really chosen is sent to the folder the list stands in', async ({
     page,
     mockApi,
+    baseURL,
+    apiNetworkGuard,
   }) => {
-    const sent: string[] = [];
+    if (!baseURL) throw new Error('The upload journey requires the configured application origin');
+    const received = apiNetworkGuard.captureMultipartUpload({
+      upstream: new URL(baseURL).origin,
+      pathname: '/api/v1/workbench/files/upload',
+      response: item('u1', 'Notes.txt'),
+    });
     await playTheApi(mockApi, [
       {
         url: '**/api/v1/workbench/files/upload',
         method: 'POST',
         handler: async called => {
-          sent.push(called.request().postData() ?? '');
-          await called.fulfill({ status: 201, json: item('u1', 'Notes.txt') });
+          // Preserve the browser's native body: WebKit's postData projection omits file bytes.
+          await called.continue();
         },
       },
     ]);
 
-    await page.goto('/en/dashboard/tools/files?folder=d1');
+    await page.goto(`${received.origin}/en/dashboard/tools/files?folder=d1`);
+    expect(new URL(page.url()).origin).toBe(received.origin);
     await waitForHydration(page, 'form[role="search"]');
     await page.getByLabel('Send files to this folder').setInputFiles({
       name: 'Notes.txt',
@@ -279,11 +287,20 @@ test.describe('organising, on a phone', () => {
     });
 
     await expect(page.getByText('File sent')).toBeVisible();
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain('name="name"');
-    expect(sent[0]).toContain('Notes.txt');
-    expect(sent[0]).toContain('name="folder_id"');
-    expect(sent[0]).toContain('hello');
+    expect(received.errors).toEqual([]);
+    expect(received.uploads).toHaveLength(1);
+    const parts = received.uploads[0].parts;
+    expect(parts.filter(part => part.kind === 'file')).toEqual([
+      {
+        kind: 'file',
+        name: 'file',
+        filename: 'Notes.txt',
+        contentType: 'text/plain',
+        bytes: Buffer.from('hello'),
+      },
+    ]);
+    expect(parts).toContainEqual({ kind: 'field', name: 'name', value: 'Notes.txt' });
+    expect(parts).toContainEqual({ kind: 'field', name: 'folder_id', value: 'd1' });
   });
 
   test('a new folder takes its name in a dialog held within the screen', async ({

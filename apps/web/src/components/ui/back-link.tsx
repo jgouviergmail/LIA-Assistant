@@ -12,7 +12,7 @@
  * pages that use it also localize the route through their own router.
  */
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 

@@ -26,7 +26,7 @@
  */
 
 import { useState } from 'react';
-import { BarChart3, Calendar, Download, FileJson, ShieldCheck, X } from 'lucide-react';
+import { BarChart3, Calendar, Download, FileJson, ShieldCheck, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { RegisterCharts } from '@/components/effects/RegisterCharts';

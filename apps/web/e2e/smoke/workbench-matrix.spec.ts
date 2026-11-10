@@ -565,21 +565,27 @@ test('a tool leaves the frame of the other pages where a computer starts, not be
   await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1008 });
 });
 
-test('the whole window holds in the default language, whose addresses carry no prefix', async ({
-  page,
-  authenticate,
-  mockApi,
-}) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await authenticate({ timezone: 'Europe/Paris', language: 'fr' });
-  await playTheWorkbench(mockApi);
+test.describe('default-language application address', () => {
+  test.use({ locale: 'fr-FR' });
 
-  await page.goto('/fr/dashboard/tools/mail');
-  await waitForHydration(page, 'main');
-  await expect(page.getByText('Committee agenda for Thursday').first()).toBeVisible();
+  test('the whole window holds in the default language, whose addresses carry no prefix', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await authenticate({ timezone: 'Europe/Paris', language: 'fr' });
+    await playTheWorkbench(mockApi);
 
-  expect(new URL(page.url()).pathname).toBe('/dashboard/tools/mail');
-  await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1904 });
+    // An explicit /fr application URL is preserved by the locale router.
+    // Exercise the unprefixed address with its incoming French preference.
+    await page.goto('/dashboard/tools/mail');
+    await waitForHydration(page, 'main');
+    await expect(page.getByText('Committee agenda for Thursday').first()).toBeVisible();
+
+    expect(new URL(page.url()).pathname).toBe('/dashboard/tools/mail');
+    await expect.poll(() => span(toolArea(page))).toEqual({ left: 16, right: 1904 });
+  });
 });
 
 test('the notice of a broken connector stands as wide as the page under it', async ({

@@ -36,6 +36,9 @@ from src.domains.live.schemas import (
 )
 from src.domains.live.service import LiveService
 from src.domains.live.session_store import LiveSessionRecord, LiveSessionStore
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS, NO_CUES
+from src.domains.voice_sessions.expression import PERSON_CUES
 from tests.unit.domains.live.conftest import CLOSING_ARCHIVE
 from tests.unit.domains.live.fakes import FakeRedis
 
@@ -355,6 +358,28 @@ async def test_a_wake_shifts_the_cap_and_mints_on_a_setup_rendered_now() -> None
     # Back among the open sessions, out of the sleeping ones.
     assert await harness.store.count_active() == 1
     assert await harness.store.count_standby() == 0
+
+
+async def test_a_wake_keeps_the_wire_the_session_started_on() -> None:
+    """ADR-373: a portal change mid-session waits for the next session.
+
+    The browser was handed the session's expression at the start; a wake that
+    re-read the engine could hand the voice cues the captions do not expect,
+    or take them away mid-conversation.
+    """
+    started = replace(_inputs(), cue_dialect=ELEVENLABS_AGENT_TAGS.name)
+    harness = Harness(replace(_record(), setup_inputs=setup_inputs_to_dict(started)))
+    await harness.claim()
+    await harness.standby()
+    provider = _provider()
+    provider.expression_dialect = AsyncMock(return_value=NO_CUES)  # changed meanwhile
+    await harness.wake(provider)
+    awake = await harness.store.get(USER.id)
+    assert awake is not None
+    assert awake.setup_inputs["cue_dialect"] == ELEVENLABS_AGENT_TAGS.name
+    block = live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES)
+    assert block in awake.setup_inputs["system_instruction"]
+    provider.expression_dialect.assert_not_awaited()
 
 
 async def test_waking_a_session_that_is_awake_is_refused() -> None:

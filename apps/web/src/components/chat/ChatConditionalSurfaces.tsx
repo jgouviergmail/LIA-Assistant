@@ -3,11 +3,11 @@
 /**
  * The conditional surfaces stacked between the message thread and the composer.
  *
- * Four blocks compete for that band — follow-up chips, the geolocation prompt,
- * the HITL approval card and connector notices. Which of them may take the slot
- * is decided by the pure arbiter in `lib/chat-surfaces` (S1); this component
- * only renders that decision, so the chat page keeps a single element here
- * instead of four independent branches.
+ * Five blocks compete for that band — the habit proposal card (ADR-375),
+ * follow-up chips, the geolocation prompt, the HITL approval card and connector
+ * notices. Which of them may take the slot is decided by the pure arbiter in
+ * `lib/chat-surfaces` (S1); this component only renders that decision, so the
+ * chat page keeps a single element here instead of five independent branches.
  *
  * A surface that does not hold the slot is UNMOUNTED, not hidden: it then costs
  * neither vertical space nor work. Two of them are deliberately unconditional:
@@ -19,6 +19,7 @@
  *   nothing (not even padding) without notices.
  */
 
+import { ChatProposalCard } from '@/components/chat/ChatProposalCard';
 import { FollowupChips, type FollowupChipsProps } from '@/components/chat/FollowupChips';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { HitlActionCard, type HitlActionCardProps } from '@/components/chat/HitlActionCard';
@@ -26,6 +27,7 @@ import {
   ConnectorNoticeBanner,
   type ConnectorNoticeBannerProps,
 } from '@/components/chat/ConnectorNoticeBanner';
+import type { HabitProposal, ProposalDecisions } from '@/hooks/useHabitProposals';
 import type { ChatSurface } from '@/lib/chat-surfaces';
 
 export interface ChatConditionalSurfacesProps {
@@ -42,6 +44,9 @@ export interface ChatConditionalSurfacesProps {
   onHitlAction: HitlActionCardProps['onAction'];
   connectorNotices: ConnectorNoticeBannerProps['notices'];
   onDismissConnectorNotice: ConnectorNoticeBannerProps['onDismiss'];
+  /** The proposal the latest answer shows — already filtered (see `visibleProposal`). */
+  habitProposal: HabitProposal | null;
+  proposalDecisions: ProposalDecisions;
 }
 
 export function ChatConditionalSurfaces({
@@ -54,9 +59,15 @@ export function ChatConditionalSurfaces({
   onHitlAction,
   connectorNotices,
   onDismissConnectorNotice,
+  habitProposal,
+  proposalDecisions,
 }: ChatConditionalSurfacesProps) {
   return (
     <>
+      {surfaces.has('proposal') && habitProposal && (
+        <ChatProposalCard proposal={habitProposal} decisions={proposalDecisions} />
+      )}
+
       {surfaces.has('followups') && (
         <FollowupChips
           suggestions={followupSuggestions}

@@ -1,50 +1,13 @@
 /**
  * Client-side i18n configuration
  *
- * Provides useTranslation hook and client-side i18n utilities
- * for Next.js 15 App Router client components.
+ * Reads the nearest server-supplied translation scope in client components.
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createInstance, type i18n as I18nInstance } from 'i18next';
-import resourcesToBackend from 'i18next-resources-to-backend';
-import { initReactI18next, useTranslation as useTranslationOrg } from 'react-i18next';
-import { getOptions, type Language } from './settings';
-
-// Cache for client-side instances
-const i18nInstances = new Map<string, I18nInstance>();
-
-/**
- * Initialize client-side i18next instance
- *
- * @param lng - Language code
- * @param ns - Namespace
- * @returns Initialized i18n instance
- */
-function initI18nextClient(lng: Language, ns?: string) {
-  const cacheKey = `${lng}-${ns || 'translation'}`;
-
-  if (i18nInstances.has(cacheKey)) {
-    return i18nInstances.get(cacheKey)!;
-  }
-
-  const i18nInstance = createInstance();
-
-  i18nInstance
-    .use(initReactI18next)
-    .use(
-      resourcesToBackend(
-        (language: string, namespace: string) =>
-          import(`../../locales/${language}/${namespace}.json`)
-      )
-    )
-    .init(getOptions(lng, ns));
-
-  i18nInstances.set(cacheKey, i18nInstance);
-  return i18nInstance;
-}
+import { useTranslation as useTranslationOrg } from 'react-i18next';
+import type { Language } from './settings';
 
 /**
  * useTranslation hook for client components
@@ -59,27 +22,16 @@ function initI18nextClient(lng: Language, ns?: string) {
  * }
  * ```
  *
- * @param lng - Language code
+ * @param _lng - Caller language hint, retained for compatibility. The nearest
+ *   server-supplied provider owns the route language, including before hydration.
  * @param ns - Namespace (optional)
  * @param options - Additional options
  */
-export function useTranslation(lng: Language, ns?: string, options?: { keyPrefix?: string }) {
-  const [i18n, setI18n] = useState<I18nInstance | null>(null);
-
-  useEffect(() => {
-    const instance = initI18nextClient(lng, ns);
-    setI18n(instance);
-  }, [lng, ns]);
-
-  const ret = useTranslationOrg(ns, options);
-
-  // Override the i18n instance immutably (F021): return a NEW object instead of
-  // mutating react-i18next's return value. Every caller destructures by name
-  // (`const { t } = useTranslation(...)` — 0 array-position consumers), so the
-  // spread preserves behaviour while satisfying react-hooks/immutability.
-  if (i18n && ret.i18n !== i18n) {
-    return { ...ret, i18n };
-  }
-
-  return ret;
+export function useTranslation(_lng: Language, ns?: string, options?: { keyPrefix?: string }) {
+  // `t` and `i18n` must name the SAME scoped instance. Creating another one
+  // here used to download the complete locale after hydration even though
+  // `t` still read the provider. The layout/scope already owns these resources.
+  // `useLanguageParam` can still report its initial fallback before its effect
+  // runs; it must not override the already-correct server provider's language.
+  return useTranslationOrg(ns, options);
 }

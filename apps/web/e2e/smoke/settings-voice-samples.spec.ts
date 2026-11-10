@@ -13,10 +13,6 @@ import {
 } from '../fixtures';
 import { surfaceRoutes } from '../fixtures/settings-surfaces';
 import {
-  MATERIAL_SYMBOLS_STYLESHEET_URL,
-  MATERIAL_SYMBOLS_FONT_URL,
-} from '../fixtures/offline-fonts';
-import {
   radioOptions,
   radioPreferences,
   radioSources,
@@ -37,13 +33,10 @@ declare global {
 const SAMPLE = 'settings.voice_sample';
 const LIA = 'settings.voice_mode.lia_voices';
 // These are DENIED native browser transports, as in meeting-timeline.spec.ts.
-// All external page/worker requests are checked independently below, against
-// only the two exact font URLs fulfilled by the offline font fixture.
+// All external page/worker requests fail independently below; fonts are local.
 const EXPECTED_BLOCKED_BROWSER_TRANSPORTS = new Set([
   'CONNECT www.google.com:443',
   'CONNECT content-autofill.googleapis.com:443',
-  'CONNECT fonts.googleapis.com:443',
-  'CONNECT fonts.gstatic.com:443',
 ]);
 const RADIO_ROLES: RadioSpeakingRole[] = [
   'host',
@@ -285,12 +278,9 @@ test.afterEach(async ({ page, apiNetworkGuard }, info) => {
   });
   expect(observed.unexpectedApi, 'every backend operation is mocked').toEqual([]);
   expect(observed.errors, 'no uncaught application error').toEqual([]);
-  expect(
-    observed.external.filter(
-      url => url !== MATERIAL_SYMBOLS_STYLESHEET_URL && url !== MATERIAL_SYMBOLS_FONT_URL
-    ),
-    'the app may request only the two exact externally named, locally mocked font URLs'
-  ).toEqual([]);
+  expect(observed.external, 'the app must not attempt external page or worker requests').toEqual(
+    []
+  );
   expect(
     apiNetworkGuard.blockedRequests.filter(
       request => !EXPECTED_BLOCKED_BROWSER_TRANSPORTS.has(request)

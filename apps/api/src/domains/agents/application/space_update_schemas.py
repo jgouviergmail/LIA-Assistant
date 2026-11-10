@@ -18,9 +18,12 @@ class SpaceUpdateInput(RAGSpaceUpdate):
 
     @model_validator(mode="after")
     def requires_a_source_change(self) -> SpaceUpdateInput:
-        if self.name is None and self.description is None and self.is_active is None:
+        if all(
+            value is None
+            for value in (self.name, self.description, self.is_active, self.is_favorite)
+        ):
             raise ValueError(
-                "Provide name, description (empty clears), or desired activation; null means omitted"
+                "Provide name, description (empty clears), activation or favorite state; null means omitted"
             )
         return self
 
@@ -31,6 +34,7 @@ class SpaceUpdateTarget(BaseModel):
     name: str
     description: str | None
     is_active: bool
+    is_favorite: bool = Field(default=False, description="Owner's favorite display preference")
     kind: str | None
 
 

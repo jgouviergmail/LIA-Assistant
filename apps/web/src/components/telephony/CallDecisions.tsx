@@ -21,11 +21,11 @@
  * reviews a proposal rather than retyping it.
  */
 
-import { CalendarPlus, CircleDollarSign, HelpCircle, MapPin } from 'lucide-react';
+import { CalendarPlus, CircleDollarSign, HelpCircle, MapPin } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { StructuredCallData } from '@/types/telephony';
 

@@ -2,7 +2,6 @@
 import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openNativeWorld, enterWorld, revealWorldControls } from '../fixtures/world-admission';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { installAudioProbe } from '../fixtures/world-sound';
 import { objectApproaches } from '../../src/features/world/scene-interactions';
 import { frameWorldProp, clickWorldProp } from '../fixtures/world-scene-navigation';
@@ -44,7 +43,6 @@ for (const width of [1280, 390]) {
         })
       );
       test.setTimeout(360000);
-      await installOfflineFonts(page);
       let instant = Date.parse('2026-06-15T12:00:00Z');
       await page.route('**/api/v1/world/environment', route =>
         route.fulfill({

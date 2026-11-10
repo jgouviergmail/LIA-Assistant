@@ -22,7 +22,7 @@
 
 import { useRef } from 'react';
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import {
   AlertTriangle,
   FileSpreadsheet,
@@ -31,7 +31,7 @@ import {
   Power,
   PowerOff,
   Upload,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import type {
   PricingSheetImportReport,

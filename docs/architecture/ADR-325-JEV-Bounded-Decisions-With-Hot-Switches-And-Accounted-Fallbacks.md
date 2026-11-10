@@ -113,6 +113,18 @@ is reformattable. The shared client keeps the vendor SDK's own pool (100 connect
 kept 30 s) and the single attempt. A JEV annotation reaches the filtering evidence as its
 view, never its instants (ADR-351 amendment 2026-10-26).
 
+**Amendment — 2026-11-08 ([ADR-374](ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)):**
+the eight collection previews leave with their switches, slots and stream event: their only
+surface was the panel hidden on 2026-10-04, and nothing else read them. The initiative
+utility gate leaves too, because it told no state apart; the evaluator it guarded runs on
+every eligible tool turn, as before.
+A threshold is no longer a constant: each gate is declared in
+`domains/llm_config/jev_gates.py` with its default and bounds, stored per usage in
+`system_settings`, frozen in the snapshot and carried by `DecisionAttempt`. Every paid
+judgement is counted in daily aggregates, and each observation records its agreement with
+what the extractor proposed. Observation still never suppresses an extraction or a write
+(§3): skipping one needs a further amendment, read on that agreement.
+
 ## Context
 
 LIA spends model time on decisions which do not require prose: choosing a meeting

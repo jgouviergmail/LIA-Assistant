@@ -5,7 +5,7 @@
  * sent to another list. Each act answers task by task (`useTaskSelection` tells it): what was
  * done leaves the selection, what could not be stays ticked. While an act runs the others wait.
  */
-import { Check, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, RotateCcw, Trash2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { SelectionBar } from '@/components/ui/selection-bar';

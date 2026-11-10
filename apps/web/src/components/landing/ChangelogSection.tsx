@@ -27,7 +27,7 @@
  */
 
 import Link from 'next/link';
-import { ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown, Sparkles } from '@/lib/icons';
 
 import { ChangelogItems } from '@/components/changelog/ChangelogItems';
 import { initI18next } from '@/i18n';

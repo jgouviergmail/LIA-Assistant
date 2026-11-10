@@ -21,7 +21,7 @@
  * the FRONTEND origin, which has no such route (found live once already).
  */
 
-import { Download } from 'lucide-react';
+import { Download } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

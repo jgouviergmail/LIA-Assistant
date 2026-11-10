@@ -51,14 +51,11 @@ def test_the_response_filtering_block_states_the_qualification_never_its_instant
     assert not AN_INSTANT.search(rendered)
 
 
-@pytest.mark.parametrize("preserve_fields", [False, True])
-def test_native_filter_evidence_carries_the_annotation_view(preserve_fields: bool) -> None:
+def test_native_filter_evidence_carries_the_annotation_view() -> None:
     from src.domains.agents.display.filter_evidence import project_filter_evidence
 
     published = annotation(timedelta(seconds=-1), timedelta(minutes=5))
-    evidence = project_filter_evidence(
-        {"subject": "Agreement", "classification": published}, preserve_fields=preserve_fields
-    )
+    evidence = project_filter_evidence({"subject": "Agreement", "classification": published})
     assert evidence.complete
     assert evidence.data["classification"] == classification_view(published)
     assert not AN_INSTANT.search(evidence.text)
@@ -67,7 +64,7 @@ def test_native_filter_evidence_carries_the_annotation_view(preserve_fields: boo
 def test_a_classification_field_that_is_no_annotation_stays_evidence() -> None:
     from src.domains.agents.display.filter_evidence import project_filter_evidence
 
-    evidence = project_filter_evidence({"classification": "confidential"}, preserve_fields=True)
+    evidence = project_filter_evidence({"classification": "confidential"})
     assert evidence.data == {"classification": "confidential"}
 
 
@@ -349,17 +346,14 @@ def test_real_mcp_payload_excludes_reserved_display_fields_at_every_depth():
         "items": [{"_external_flag": False, FIELD_DISPLAY_ONLY: "nested card-only content"}],
     }
     payload = mcp_item_payload(public, "Synthetic MCP", "list_samples", "https://mcp.test")
-    evidence = project_filter_evidence(payload, preserve_fields=True)
+    evidence = project_filter_evidence(payload)
 
     assert evidence.complete
+    # Transport metadata and every reserved display subtree stay out, at every depth.
     assert evidence.data == {
         "server_name": "Synthetic MCP",
         "tool_name": "list_samples",
-        "_mcp_structured": True,
-        "id": "public-mcp-id",
-        "metadata": {"owner": "Lina"},
-        "raw_material": "steel",
-        "items": [{"_external_flag": False}],
+        "items": [{}],
     }
     assert "card-only" not in evidence.text
     assert "_mcp_source" not in evidence.text
@@ -381,108 +375,7 @@ def test_real_mcp_payload_excludes_reserved_display_fields_at_every_depth():
 def test_unrepresentable_evidence_is_incomplete_and_never_repaired(payload):
     from src.domains.agents.display.filter_evidence import project_filter_evidence
 
-    evidence = project_filter_evidence(payload, preserve_fields=True)
+    evidence = project_filter_evidence(payload)
     assert not evidence.complete
     evidence.text.encode("utf-8")
     assert "\\ud800" not in evidence.text and "\\udfff" not in evidence.text
-
-
-@pytest.mark.parametrize(
-    "number",
-    [float("nan"), float("inf"), float("-inf"), "NaN", "sNaN", "Infinity", "-Infinity"],
-    ids=[
-        "nan",
-        "infinity",
-        "negative-infinity",
-        "decimal-nan",
-        "decimal-snan",
-        "decimal-inf",
-        "decimal-negative-inf",
-    ],
-)
-def test_snapshot_cannot_convert_nonfinite_source_numbers_into_complete_evidence(number):
-    from decimal import Decimal
-
-    from src.domains.agents.data_registry.models import (
-        RegistryItem,
-        RegistryItemMeta,
-        RegistryItemType,
-    )
-    from src.domains.agents.display.jev_snapshot import (
-        snapshot_collection_item,
-        snapshot_filter_evidence,
-    )
-
-    value = Decimal(number) if isinstance(number, str) else number
-    source = RegistryItem(
-        id="synthetic",
-        type=RegistryItemType.EVENT,
-        payload={"attendees": [{"measure": value}]},
-        meta=RegistryItemMeta(source="synthetic"),
-    )
-    frozen = snapshot_collection_item(source)
-    evidence = snapshot_filter_evidence(frozen, preserve_fields=False)
-    assert not evidence.complete
-    assert frozen.payload == {"_jev_evidence_omitted": True}
-    assert source.payload["attendees"][0]["measure"] is value
-
-
-def test_snapshot_preserves_finite_decimal_and_ignores_reserved_card_subtrees():
-    from decimal import Decimal
-
-    from src.core.field_names import FIELD_DISPLAY_ONLY
-    from src.domains.agents.data_registry.models import (
-        RegistryItem,
-        RegistryItemMeta,
-        RegistryItemType,
-    )
-    from src.domains.agents.display.jev_snapshot import (
-        snapshot_collection_item,
-        snapshot_filter_evidence,
-    )
-
-    card_fields = {"invalid": float("nan"), "opaque": object()}
-    source = RegistryItem(
-        id="synthetic",
-        type=RegistryItemType.MCP_RESULT,
-        payload={
-            "measure": Decimal("0.0100"),
-            "metadata": {"owner": "Lina", FIELD_DISPLAY_ONLY: card_fields},
-            "items": [{"name": "Sample", FIELD_DISPLAY_ONLY: card_fields}],
-        },
-        meta=RegistryItemMeta(source="mcp_synthetic", display=card_fields),
-    )
-    frozen = snapshot_collection_item(source)
-    evidence = snapshot_filter_evidence(frozen, preserve_fields=True)
-    assert evidence.complete
-    assert evidence.data == {
-        "measure": "0.0100",
-        "metadata": {"owner": "Lina"},
-        "items": [{"name": "Sample"}],
-    }
-    assert frozen.meta.display == {}
-    assert source.meta.display == card_fields
-    assert source.payload["metadata"][FIELD_DISPLAY_ONLY] is card_fields
-
-
-def test_snapshot_rejects_nested_key_collision_before_json_can_lose_source_evidence():
-    from src.domains.agents.data_registry.models import (
-        RegistryItem,
-        RegistryItemMeta,
-        RegistryItemType,
-    )
-    from src.domains.agents.display.jev_snapshot import (
-        snapshot_collection_item,
-        snapshot_filter_evidence,
-    )
-
-    measurements = {1: "NUMERIC", "1": "TEXT"}
-    source = RegistryItem(
-        id="synthetic",
-        type=RegistryItemType.EVENT,
-        payload={"measurements": measurements},
-        meta=RegistryItemMeta(source="synthetic"),
-    )
-    evidence = snapshot_filter_evidence(snapshot_collection_item(source), preserve_fields=False)
-    assert not evidence.complete
-    assert source.payload["measurements"] == measurements and len(measurements) == 2

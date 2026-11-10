@@ -12,7 +12,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Check, Pencil, TerminalSquare, Trash2, X } from 'lucide-react';
+import { Check, Pencil, TerminalSquare, Trash2, X } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

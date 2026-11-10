@@ -11,7 +11,7 @@
  */
 
 import Link from 'next/link';
-import { MicVocal } from 'lucide-react';
+import { MicVocal } from '@/lib/icons';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { CloneVoiceForm } from '@/components/settings/voice-library/CloneVoiceForm';

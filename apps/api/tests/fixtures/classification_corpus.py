@@ -25,7 +25,7 @@ from src.domains.agents.services.qualification.contracts import (
     ClassificationObservation,
 )
 from src.infrastructure.llm.decision_types import DecisionCharge
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer
 
 
 class Gate(BaseModel):
@@ -43,11 +43,14 @@ class Case(BaseModel):
     evidence: dict[str, JsonValue]
     expected_category: EmailCategory
     expected_priority: EmailPriority | None
+    # Whether the message expects a reply (lot F); None is not scored.
+    expected_reply: bool | None = None
 
     @model_validator(mode="after")
     def coherent_kind(self) -> Case:
         if self.kind == "event" and (
             self.expected_priority is not None
+            or self.expected_reply is not None
             or self.expected_category not in {"unknown", "professional", "personal"}
         ):
             raise ValueError("Event cases have no email-only label")
@@ -108,6 +111,7 @@ class ReplayCall(BaseModel):
     charge: DecisionCharge | None
     members: list[str]
     answers: dict[str, ChoiceAnswer]
+    nouls: dict[str, NoulAnswer] = Field(default_factory=dict)
 
 
 class ReplayReport(BaseModel):
@@ -147,6 +151,17 @@ def score(corpus: Corpus, predictions: dict[str, ContentClassification]) -> Qual
                 prediction.priority if isinstance(prediction, EmailClassification) else "unknown"
             )
             decisions.append(("email.priority", case.expected_priority, priority))
+        if case.expected_reply is not None:
+            reply = (
+                prediction.reply_expected if isinstance(prediction, EmailClassification) else None
+            )
+            decisions.append(
+                (
+                    "email.reply",
+                    str(case.expected_reply).lower(),
+                    "unknown" if reply is None else str(reply).lower(),
+                )
+            )
         for dimension, expected, actual in decisions:
             target = per_class[f"{dimension}.{expected}"]
             target.support += 1

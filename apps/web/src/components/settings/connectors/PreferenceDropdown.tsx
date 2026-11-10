@@ -6,7 +6,7 @@
 
 'use client';
 
-import { Settings2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Settings2, RefreshCw, AlertCircle } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

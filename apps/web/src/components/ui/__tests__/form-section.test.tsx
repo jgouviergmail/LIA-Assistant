@@ -14,7 +14,7 @@
  */
 
 import { render, screen } from '@testing-library/react';
-import { Clock } from 'lucide-react';
+import { Clock } from '@/lib/icons';
 import { describe, expect, it } from 'vitest';
 
 import { FormSection } from '../form-section';

@@ -17,6 +17,8 @@ import { WORKBENCH_RECIPIENTS_PATH } from '@/lib/workbench/recipients';
 import type { CalendarEventDetail, WorkbenchCalendar } from '@/lib/workbench/types';
 
 import { EventEditor, type EditorTarget } from '../EventEditor';
+import { eventStarts } from '../useEventStarts';
+import type { ProposedEvent } from '@/lib/workbench/assist';
 
 // The contacts matcher, played: « Mar… » finds Marc; the arguments say which door asked.
 const { suggest } = vi.hoisted(() => ({
@@ -115,6 +117,50 @@ function editor(
 const title = () => screen.getByLabelText('workbench.calendar.editor.summary');
 const create = () => screen.getByRole('button', { name: 'workbench.calendar.editor.create' });
 const save = () => screen.getByRole('button', { name: 'workbench.calendar.editor.save' });
+
+describe('AI dates and native defaults', () => {
+  it.each([false, true])(
+    'names missing dates before a person saves (all day: %s)',
+    async allDay => {
+      const proposal: ProposedEvent = {
+        summary: 'Review',
+        description: '',
+        location: '',
+        attendees: [],
+        all_day: allDay,
+        start_date: null,
+        start_time: null,
+        end_date: null,
+        end_time: null,
+        repeat: 'none',
+        conference: false,
+      };
+      const targets: EditorTarget[] = [];
+      eventStarts(CALENDARS, '2026-11-02', PARIS, target => targets.push(target)).startWith(
+        'Review',
+        '',
+        proposal
+      );
+      const { user, onCreate } = editor(targets[0]);
+      expect(await screen.findByText('workbench.calendar.editor.review_defaults')).toBeVisible();
+      expect(onCreate).not.toHaveBeenCalled();
+      fireEvent.change(
+        screen.getByLabelText(
+          allDay ? 'workbench.calendar.editor.first_day' : 'workbench.calendar.editor.start'
+        ),
+        { target: { value: '2026-12-01' } }
+      );
+      fireEvent.change(
+        screen.getByLabelText(
+          allDay ? 'workbench.calendar.editor.last_day' : 'workbench.calendar.editor.end'
+        ),
+        { target: { value: '2026-12-01' } }
+      );
+      await user.click(create());
+      await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
+    }
+  );
+});
 
 describe('EventEditor — a repeating event', () => {
   it('asks when it comes back on a new event, and sends the rule', async () => {

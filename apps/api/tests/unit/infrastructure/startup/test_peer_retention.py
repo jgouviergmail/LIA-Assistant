@@ -32,13 +32,28 @@ def test_retention_job_exists_even_with_peers_disabled(monkeypatch):
 async def test_disabled_sweep_reaps_but_never_claims_messages(monkeypatch):
     monkeypatch.setattr(settings, "peers_enabled", False)
     reap = AsyncMock()
-    database = MagicMock(side_effect=AssertionError("Disabled delivery opened a transaction"))
+    db = AsyncMock()
+
+    @asynccontextmanager
+    async def database():
+        yield db
+
+    repo = AsyncMock()
+    repo.expire_stale_pending.return_value = 0
+    repo.prune_access_log.return_value = 0
+    repo.purge_expired_message_texts.return_value = 2
+    leases = AsyncMock()
+    leases.recover_stale_delivering.return_value = 0
     monkeypatch.setattr(delivery, "maintain_capability_transfers", reap)
     monkeypatch.setattr(delivery, "get_db_context", database)
+    monkeypatch.setattr(delivery, "PeersRepository", lambda _: repo)
+    monkeypatch.setattr(delivery, "PeerDeliveryRepository", lambda _: leases)
+    monkeypatch.setattr(delivery, "is_capability_enabled", AsyncMock(return_value=False))
     counters = await delivery.sweep_pending_deliveries()
     reap.assert_awaited_once()
-    database.assert_not_called()
-    assert not any(counters.values())
+    repo.purge_expired_message_texts.assert_awaited_once()
+    leases.claim_pending_messages.assert_not_awaited()
+    assert counters["purged_texts"] == 2 and counters["claimed"] == 0
 
 
 @pytest.mark.asyncio

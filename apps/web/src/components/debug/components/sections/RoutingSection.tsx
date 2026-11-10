@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Route } from 'lucide-react';
+import { Route } from '@/lib/icons';
 import {
   DebugSection,
   InfoRow,

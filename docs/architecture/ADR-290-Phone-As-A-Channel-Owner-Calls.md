@@ -423,3 +423,7 @@ est déjà dans le chat). Une garde AST
 (`tests/unit/domains/telephony/test_call_notification_door_guard.py`) refuse tout
 autre envoi du type `phone_call`, écrit en littéral ou par une constante. Ce que la
 clé ElevenLabs de la personne paie reste hors de tout registre (règle du 2026-09-16).
+
+## Amendement 2026-11-07 — un tiers entend la courtoisie de LIA, jamais la personnalité ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md))
+
+Le lot 9 donnait la personnalité de la personne aux deux mandats, l'agent cuit du tiers compris. Règle du propriétaire du 2026-11-07 : un appel à un tiers (un restaurant, un garage) reste cordial, quelle que soit la personnalité. La variable dynamique `personality_profile` porte désormais toujours `mandates.third_party_manner` ; l'appel de la personne porte le bloc de personnalité partagé des sessions vocales. Avant chaque appel, l'agent reçoit la palette de balises de cet appel (complète pour la personne, cordiale pour un tiers) et ne porte plus la personnalité par défaut du fournisseur.

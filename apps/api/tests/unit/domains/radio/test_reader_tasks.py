@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -98,7 +99,8 @@ def test_a_provider_task_is_read_in_the_google_shape_every_client_normalises_to(
             "status": "completed",
             "due": "2026-09-30T00:00:00.000Z",
             "completed": "2026-09-26T09:12:00.000Z",
-        }
+        },
+        ZoneInfo("America/New_York"),
     )
     assert line == TaskLine(
         id="abc",
@@ -107,5 +109,15 @@ def test_a_provider_task_is_read_in_the_google_shape_every_client_normalises_to(
         due=date(2026, 9, 30),
         completed_at=datetime(2026, 9, 26, 9, 12, tzinfo=UTC),
     )
-    bare = task_line({"status": "needsAction", "due": "not a date"})
+    bare = task_line({"status": "needsAction", "due": "not a date"}, ZoneInfo("Europe/Paris"))
     assert bare == TaskLine(id=None, title="Untitled", completed=False, due=None, completed_at=None)
+
+
+def test_a_to_do_due_is_its_local_midnight_read_on_the_listener_s_clock() -> None:
+    """To Do answers midnight in Paris as 23:00 UTC the evening before: the day is the next."""
+    line = task_line(
+        {"id": "t", "title": "Pay", "due": "2026-09-29T22:00:00.000Z", "_provider": "microsoft"},
+        ZoneInfo("Europe/Paris"),
+    )
+
+    assert line.due == date(2026, 9, 30)

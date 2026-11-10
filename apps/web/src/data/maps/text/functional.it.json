@@ -121,9 +121,9 @@
     },
     "f.habits": {
       "name": "Abitudini apprese",
-      "role": "Statistiche deterministiche e spiegabili su quando fai cosa; ogni abitudine si vede, si corregge o si blocca, e un solo interruttore spegne ogni apprendimento.",
+      "role": "Statistiche deterministiche e spiegabili su ciò di cui hai bisogno e quando; ciò che trovano diventa proposte che accetti o rifiuti, ogni abitudine si vede, si corregge o si blocca, e un solo interruttore spegne ogni apprendimento.",
       "goal": "Anticipare senza tirare a indovinare, e senza imparare nulla alle tue spalle.",
-      "src": "6871ff106b3b"
+      "src": "bba7c2ac0b48"
     },
     "f.interests": {
       "name": "Interessi",
@@ -466,11 +466,11 @@
         "Menzioni un'allergia alla frutta a guscio.",
         "Il fatto viene estratto in background, archiviato, correggibile.",
         "Gli argomenti ricorrenti diventano interessi.",
-        "I momenti in cui fai le cose diventano abitudini, visibili e bloccabili.",
+        "Ciò che chiedi in molti giorni diventa un'abitudine, visibile e bloccabile, poi una proposta.",
         "LIA compila il tuo ritratto e dice quali fonti ha letto.",
         "Il suo umore e il suo tono si adattano alla relazione."
       ],
-      "src": "30baef5255f2"
+      "src": "6f0c9cec8e45"
     },
     "flow.knowledge": {
       "name": "Ciò che sai, LIA lo legge",

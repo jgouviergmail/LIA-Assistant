@@ -17,13 +17,8 @@ Both of you enable **discovery** in Settings → Connections (it is off by defau
 A masked email fragment (j…@g….com) helps tell homonyms apart. Nothing else is shared by connecting.
 
 ## How do I send a message to a connection?
-Just tell LIA: *tell Marie I am running late*. You see a **confirmation card** with the exact wording before anything leaves.
 
-The message is then delivered by **the recipient's own assistant**, in its personality and language, which names you as the sender — and your assistant confirms delivery in your chat.
-
-Replying works the same way: a reply is simply a new relayed message. The small AI cost of delivery is billed to the sender, and daily quotas prevent abuse.
-
-Relayed messages have a length limit (2,000 characters by default, instance-tunable): if yours is too long, LIA tells you the exact length and the limit, and offers to shorten or summarize it — nothing is sent without you knowing.
+Tell LIA, for example: *tell Marie I am running late*. The message is **queued directly, without a confirmation card**. An ambiguous recipient still needs clarification. The recipient’s assistant then conveys it in its own voice and language, naming you as the sender. Being queued does not mean it has been delivered. The small AI cost belongs to the sender; connection, block, length and daily quota checks still apply. Replying sends a new message.
 
 ## Can I name a connection by their first name?
 Yes. Asking about a connected person — their availability, their tasks, or a message to relay — a first name is enough when it designates **one** of your connections ("is Marie free tomorrow?").
@@ -52,9 +47,8 @@ No. Discovery is **opt-in and off by default**. Search only matches your **exact
 Blocked, unknown and declined targets all receive the exact same neutral answer, so nobody can probe whether you exist, declined, or blocked them.
 
 ## What happens when I remove a connection, or delete my account?
-Removing a connection ends all shares immediately, and **both** assistants inform their users.
 
-Relayed message content is scrubbed after delivery — LIA does not keep a browsable message history. Your GDPR export includes your connections and shares, and deleting your account purges both sides of every pair.
+Removing a connection immediately ends its shares and both assistants inform their users. Each person sees only their own side of relayed messages: the sender’s instruction or the recipient’s delivered text. These texts expire after the configured retention period; the record remains for dates and counts. Your export includes your connections and shares. Deleting your account removes its peer records.
 
 ## How do I share a generated image with a connection?
 On the card of an image LIA generated for you — in the chat as well as in **Settings › Preferences › My generated files** —, tap **Share with a connection**, pick the person and add a comment if you like. The click is your confirmation: no model is involved.

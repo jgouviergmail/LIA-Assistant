@@ -15,7 +15,7 @@
  */
 
 import { useMemo } from 'react';
-import { ClipboardList, LibraryBig, Save, Wand2 } from 'lucide-react';
+import { ClipboardList, LibraryBig, Save, Wand2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';

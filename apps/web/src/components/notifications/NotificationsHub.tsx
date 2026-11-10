@@ -15,7 +15,7 @@ import {
   Sparkles,
   Star,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { SmsHubSection } from '@/components/sms/SmsHubSection';
@@ -24,15 +24,32 @@ import { DiscussionsHubSection } from '@/components/notifications/DiscussionsHub
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
+import { ProposalList } from '@/components/habits/ProposalRow';
 import { NeedsMeList } from '@/components/workboard/NeedsMeList';
 import type { TicketRow } from '@/types/workboard';
-import { OpenOffersList, useOfferDecisions } from '@/components/notifications/OpenOffersList';
 import { PendingRemindersList } from '@/components/notifications/PendingRemindersList';
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
 import { ScheduledActionsList } from '@/components/notifications/ScheduledActionsList';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
+import { useAuth } from '@/hooks/useAuth';
+import { useDebounce } from '@/hooks/useDebounce';
+import { AlertListToolbar } from './AlertListToolbar';
+import { alertCategoryAvailability } from '@/lib/alert-categories';
+import {
+  alertParams,
+  ALERT_CATEGORIES,
+  DEFAULT_ALERT_CRITERIA,
+  scheduledDisplayRows,
+  type AlertCriteria,
+  type AlertCategory,
+} from '@/lib/alert-query';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import {
+  useProposalDecisions,
+  type HabitProposal,
+  type HabitProposalsPage,
+} from '@/hooks/useHabitProposals';
 import { useHubCounts, type HubCounts } from '@/hooks/useHubCounts';
 import { usePagedSection, type PagedSection } from '@/hooks/usePagedSection';
 import { getIntlLocale, type Language } from '@/i18n/settings';
@@ -55,9 +72,15 @@ const SIGNALLED_RESOURCES: ReadonlySet<ApplicationResource> = new Set<Applicatio
  * Extracted from the component so the component reads as what it is — an
  * ORDER of sections — and stays under the shrink-only complexity ratchet.
  */
-function useHubSections() {
+type HubPage = { total: number; as_of?: string };
+
+function useHubSections(criteria: AlertCriteria) {
+  const selected = (category: AlertCategory) =>
+    !criteria.category || criteria.category === category;
+  const display = { params: alertParams(criteria), selectAsOf: (page: HubPage) => page.as_of };
   const { config } = useAppConfig();
-  const heartbeatEnabled = Boolean(config?.features?.heartbeat_enabled);
+  const available = alertCategoryAvailability(config);
+  const habitsEnabled = Boolean(config?.features?.habits_enabled);
   // ONE read for all badges, so a folded section can be chosen from
   // rather than opened to find out whether it holds anything.
   const {
@@ -71,81 +94,91 @@ function useHubSections() {
   // One open-state per section: `Disclosure` unmounts its children
   // when closed, and these flags are what gate each query.
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  const isOpen = (key: string) => Boolean(open[key]);
+  const isOpen = (key: AlertCategory | 'offers') =>
+    Boolean(open[key]) && (key === 'offers' || selected(key));
   const track = (key: string) => (value: boolean) =>
     setOpen(previous => ({ ...previous, [key]: value }));
 
-  // Proposals inbox (Lot 5-C2): undecided missed-routine offers. Same
-  // fold-gated read as every section; the flag gate mirrors the backend
-  // (offers only exist when heartbeat runs).
-  const offers = usePagedSection<
-    { notifications: HeartbeatNotification[]; total: number },
-    HeartbeatNotification
-  >({
-    path: '/heartbeat/offers',
-    selectItems: payload => payload.notifications,
+  // Proposals (ADR-375): what LIA proposes from what it learned of the
+  // person's usage. Same fold-gated read as every section; the flag gate
+  // mirrors the backend (the proposals router is mounted with habits).
+  const offers = usePagedSection<HabitProposalsPage, HabitProposal>({
+    path: '/habits/proposals',
+    selectItems: payload => payload.proposals,
     selectTotal: payload => payload.total,
-    enabled: isOpen('offers') && heartbeatEnabled,
+    enabled: isOpen('offers') && habitsEnabled,
   });
 
-  const peers = usePagedSection<{ messages: RelayedMessage[]; total: number }, RelayedMessage>({
+  const peers = usePagedSection<
+    { messages: RelayedMessage[]; total: number; as_of?: string },
+    RelayedMessage
+  >({
     path: '/peers/messages',
+    ...display,
     selectItems: payload => payload.messages,
     selectTotal: payload => payload.total,
     // Gate-keeper (ADR-061): a disabled subsystem is never offered at all.
-    enabled: isOpen('peer_messages') && Boolean(config?.features?.peers_enabled),
+    enabled: isOpen('peer_messages') && available.peer_messages,
   });
 
   const proactive = usePagedSection<
-    { notifications: HeartbeatNotification[]; total: number },
+    { notifications: HeartbeatNotification[]; total: number; as_of?: string },
     HeartbeatNotification
   >({
     path: '/heartbeat/history',
+    ...display,
     selectItems: payload => payload.notifications,
     selectTotal: payload => payload.total,
-    enabled: isOpen('proactive') && heartbeatEnabled,
+    enabled: isOpen('proactive') && available.proactive,
   });
 
   const interests = usePagedSection<
-    { notifications: InterestNotification[]; total: number },
+    { notifications: InterestNotification[]; total: number; as_of?: string },
     InterestNotification
   >({
     path: '/interests/notifications/history',
+    ...display,
     selectItems: payload => payload.notifications,
     selectTotal: payload => payload.total,
     enabled: isOpen('interests'),
   });
 
   const reminders = usePagedSection<
-    { reminders: PendingReminder[]; total: number },
+    { reminders: PendingReminder[]; total: number; as_of?: string },
     PendingReminder
   >({
     path: '/reminders',
+    ...display,
     selectItems: payload => payload.reminders,
     selectTotal: payload => payload.total,
     enabled: isOpen('reminders'),
   });
 
   const scheduled = usePagedSection<
-    { scheduled_actions: ScheduledActionRow[]; total: number },
+    { scheduled_actions: ScheduledActionRow[]; total: number; as_of?: string },
     ScheduledActionRow
   >({
     path: '/scheduled-actions',
     pagination: 'client',
-    selectItems: payload => payload.scheduled_actions,
-    selectTotal: payload => payload.total,
+    queryKey: JSON.stringify(alertParams(criteria)),
+    selectItems: payload => scheduledDisplayRows(payload.scheduled_actions, criteria),
+    selectTotal: payload => scheduledDisplayRows(payload.scheduled_actions, criteria).length,
     enabled: isOpen('scheduled'),
   });
 
   // The workboard (ADR-276): tickets that need THIS person — a run stopped on
   // their answer, or something overdue. Flag-gated like every program section.
-  const workboard = usePagedSection<{ tickets: TicketRow[]; total: number }, TicketRow>({
+  const workboard = usePagedSection<
+    { tickets: TicketRow[]; total: number; as_of?: string },
+    TicketRow
+  >({
     path: '/workboard/needs-me',
+    ...display,
     selectItems: payload => payload.tickets,
     selectTotal: payload => payload.total,
-    enabled: isOpen('workboard') && Boolean(config?.features?.workboard_enabled),
+    enabled: isOpen('workboard') && available.workboard,
   });
-  const workboardEnabled = Boolean(config?.features?.workboard_enabled);
+  const workboardEnabled = available.workboard;
 
   // One press re-reads what the page shows. Every OPEN section restarts its
   // query (a folded one has none to restart). The totals, the SMS archive and
@@ -163,6 +196,8 @@ function useHubSections() {
   return {
     config,
     counts,
+    criteria,
+    selected,
     countsError,
     countsLoading,
     retryCounts,
@@ -176,6 +211,7 @@ function useHubSections() {
     scheduled,
     workboard,
     workboardEnabled,
+    habitsEnabled,
   };
 }
 
@@ -191,20 +227,24 @@ function sectionShell<TItem>(
   t: (key: string) => string,
   onOpenChange: (open: boolean) => void,
   /** The hub's own count, known before the section is ever opened. */
-  knownTotal: number | undefined
+  knownTotal: number | undefined,
+  searched = false
 ) {
   return {
     title: t(`notifications_hub.sections.${key}.title`),
     subtitle: t(`notifications_hub.sections.${key}.subtitle`),
-    emptyLabel: t(`notifications_hub.sections.${key}.empty`),
+    emptyLabel: t(
+      searched ? 'notifications_hub.filter.no_results' : `notifications_hub.sections.${key}.empty`
+    ),
     errorLabel: t(`notifications_hub.sections.${key}.error`),
     // The section's own total once it has data — it is the one that follows a
     // deletion — and the hub's count until then. Two sources for one figure
     // would be a contradiction; this is one figure with two moments.
-    total: section.items === undefined ? knownTotal : section.total,
+    total: section.items === undefined ? (searched ? undefined : knownTotal) : section.total,
     page: section.page,
     totalPages: section.totalPages,
     onPageChange: section.setPage,
+    onRetry: section.refetch,
     firstLoad: section.firstLoad,
     loading: section.loading,
     error: section.error,
@@ -235,23 +275,23 @@ function WorkboardHubSection({
   );
 }
 
-/** The proposals section (Lot 5-C2), extracted so the hub component stays
- * under the CC ratchet: the flag gate and the rows live here. */
+/** The proposals section (ADR-375), extracted so the hub component stays
+ * under the CC ratchet: the flag gate, the decisions and the rows live here.
+ * An empty list says WHY it is empty: switched off is not « nothing yet ». */
 function ProposalsHubSection({
   enabled,
   section,
   offers,
   lng,
-  locale,
 }: {
   enabled: boolean;
   section: Omit<HubSectionProps, 'icon' | 'children'>;
-  offers: PagedSection<HeartbeatNotification>;
+  offers: PagedSection<HabitProposal, HabitProposalsPage>;
   lng: string;
-  locale: string;
 }) {
+  const { t } = useTranslation();
   const summaryRef = useRef<HTMLElement>(null);
-  const decisions = useOfferDecisions({
+  const decisions = useProposalDecisions({
     lng,
     onDecided: restoreFocus => {
       if (restoreFocus) summaryRef.current?.focus();
@@ -259,11 +299,18 @@ function ProposalsHubSection({
     },
   });
   if (!enabled) return null;
+  const learningOff = offers.payload?.learning_enabled === false;
   return (
-    <HubSection icon={Lightbulb} {...section} summaryRef={summaryRef}>
-      <OpenOffersList
-        offers={(offers.items ?? []).filter(offer => !decisions.decided.has(offer.id))}
-        locale={locale}
+    <HubSection
+      icon={Lightbulb}
+      {...section}
+      emptyLabel={
+        learningOff ? t('notifications_hub.sections.offers.learning_off') : section.emptyLabel
+      }
+      summaryRef={summaryRef}
+    >
+      <ProposalList
+        proposals={(offers.items ?? []).filter(proposal => !decisions.decided.has(proposal.id))}
         decisions={decisions}
       />
     </HubSection>
@@ -312,48 +359,61 @@ function DeliveredNotifications({
   const { t } = useTranslation();
   const { config, counts, track, peers, proactive, interests } = sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
-    sectionShell(key, section, t, track(key), counts?.[countKey] ?? undefined);
+    sectionShell(
+      key,
+      section,
+      t,
+      track(key),
+      counts?.[countKey] ?? undefined,
+      key !== 'offers' && Boolean(sections.criteria.q.trim())
+    );
   return (
     <>
       {' '}
       {config?.features?.peers_enabled && (
-        <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
-          <RelayedMessagesList
-            messages={peers.items ?? []}
-            locale={locale}
-            presentation="timeline"
-          />
-        </HubSection>
+        <div hidden={!sections.selected('peer_messages')}>
+          <HubSection icon={MessageSquare} {...shell('peer_messages', peers, 'peer_messages')}>
+            <RelayedMessagesList
+              messages={peers.items ?? []}
+              locale={locale}
+              presentation="timeline"
+            />
+          </HubSection>
+        </div>
       )}
       {config?.features?.heartbeat_enabled && (
-        <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
-          <HeartbeatHistory
-            notifications={proactive.items}
-            total={proactive.total}
+        <div hidden={!sections.selected('proactive')}>
+          <HubSection icon={Sparkles} {...shell('proactive', proactive, 'proactive')}>
+            <HeartbeatHistory
+              notifications={proactive.items}
+              total={proactive.total}
+              firstLoad={false}
+              loading={proactive.loading}
+              error={null}
+              locale={locale}
+              presentation="timeline"
+            />
+          </HubSection>
+        </div>
+      )}
+      <div hidden={!sections.selected('interests')}>
+        <HubSection icon={Star} {...shell('interests', interests, 'interests')}>
+          <InterestNotificationHistory
+            notifications={interests.items}
+            total={interests.total}
             firstLoad={false}
-            loading={proactive.loading}
+            loading={interests.loading}
             error={null}
             locale={locale}
             presentation="timeline"
           />
         </HubSection>
-      )}
-      <HubSection icon={Star} {...shell('interests', interests, 'interests')}>
-        <InterestNotificationHistory
-          notifications={interests.items}
-          total={interests.total}
-          firstLoad={false}
-          loading={interests.loading}
-          error={null}
-          locale={locale}
-          presentation="timeline"
-        />
-      </HubSection>
+      </div>
     </>
   );
 }
 
-export function NotificationsHub({
+function OwnedNotificationsHub({
   lng,
   onOpenJournal,
 }: {
@@ -362,11 +422,33 @@ export function NotificationsHub({
 }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
-  const sections = useHubSections();
-  const { config, counts, track, offers, reminders, scheduled, workboard, workboardEnabled } =
-    sections;
+  const [criteria, setCriteria] = useState<AlertCriteria>(DEFAULT_ALERT_CRITERIA);
+  const { config: appConfig } = useAppConfig();
+  const available = alertCategoryAvailability(appConfig);
+  if (criteria.category && !available[criteria.category])
+    setCriteria({ ...criteria, category: '' });
+  const q = useDebounce(criteria.q, 300);
+  const sections = useHubSections({ ...criteria, q });
+  const {
+    config,
+    counts,
+    track,
+    offers,
+    reminders,
+    scheduled,
+    workboard,
+    workboardEnabled,
+    habitsEnabled,
+  } = sections;
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
-    sectionShell(key, section, t, track(key), counts?.[countKey] ?? undefined);
+    sectionShell(
+      key,
+      section,
+      t,
+      track(key),
+      counts?.[countKey] ?? undefined,
+      key !== 'offers' && Boolean(sections.criteria.q.trim())
+    );
 
   return (
     <div className="min-w-0 space-y-6">
@@ -402,14 +484,19 @@ export function NotificationsHub({
         </div>
       )}
 
-      {config?.features?.heartbeat_enabled && (
+      <AlertListToolbar
+        value={criteria}
+        onChange={setCriteria}
+        categories={ALERT_CATEGORIES.filter(category => available[category])}
+      />
+
+      {habitsEnabled && (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 sm:px-5">
           <ProposalsHubSection
             enabled
             section={shell('offers', offers, 'offers')}
             offers={offers}
             lng={lng}
-            locale={locale}
           />
         </div>
       )}
@@ -423,14 +510,18 @@ export function NotificationsHub({
           icon={CalendarClock}
           className="lg:col-start-2 lg:row-start-1"
         >
-          <HubSection icon={Bell} {...shell('reminders', reminders, 'reminders')}>
-            <PendingRemindersList reminders={reminders.items ?? []} locale={locale} />
-          </HubSection>
-          <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
-            <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
-          </HubSection>
+          <div hidden={!sections.selected('reminders')}>
+            <HubSection icon={Bell} {...shell('reminders', reminders, 'reminders')}>
+              <PendingRemindersList reminders={reminders.items ?? []} locale={locale} />
+            </HubSection>
+          </div>
+          <div hidden={!sections.selected('scheduled')}>
+            <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
+              <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
+            </HubSection>
+          </div>
           <WorkboardHubSection
-            enabled={workboardEnabled}
+            enabled={workboardEnabled && sections.selected('workboard')}
             section={shell('workboard', workboard, 'workboard')}
             tickets={workboard.items}
             lng={lng}
@@ -444,10 +535,25 @@ export function NotificationsHub({
           className="lg:col-start-1 lg:row-start-1"
         >
           <DeliveredNotifications sections={sections} locale={locale} />
-          <DiscussionsHubSection total={counts?.discussions} locale={locale} />
-          <SmsHubSection lng={lng} total={counts?.sms} />
+          <DiscussionsHubSection
+            total={counts?.discussions ?? undefined}
+            locale={locale}
+            criteria={sections.criteria}
+            selected={sections.selected('discussions')}
+          />
+          <SmsHubSection
+            lng={lng}
+            total={counts?.sms}
+            criteria={sections.criteria}
+            selected={sections.selected('sms')}
+          />
         </NotificationRegister>
       </div>
     </div>
   );
+}
+
+export function NotificationsHub(props: { lng: Language; onOpenJournal?: () => void }) {
+  const { user } = useAuth();
+  return <OwnedNotificationsHub key={user?.id ?? 'signed-out'} {...props} />;
 }

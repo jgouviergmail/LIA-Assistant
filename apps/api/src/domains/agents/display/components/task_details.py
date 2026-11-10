@@ -16,6 +16,31 @@ from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.values import scalar_text
 
 
+def task_checklist(data: Mapping[str, object]) -> list[object]:
+    """Keep both native lists, without treating an absent completion flag as false."""
+    result: list[object] = []
+    subtasks = data.get("subtasks")
+    if isinstance(subtasks, list):
+        result.extend(subtasks)
+    steps = data.get("steps")
+    if isinstance(steps, list):
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            state = step.get("checked")
+            result.append(
+                {
+                    "title": step.get("title"),
+                    **(
+                        {"status": "completed" if state else "needsAction"}
+                        if isinstance(state, bool)
+                        else {}
+                    ),
+                }
+            )
+    return result
+
+
 def _links(value: object, ctx: RenderContext) -> str:
     if not isinstance(value, list):
         return ""
@@ -32,22 +57,27 @@ def _links(value: object, ctx: RenderContext) -> str:
     return render_d_item(Icons.LINK, ", ".join(links)) if links else ""
 
 
-def _subtasks(value: object, ctx: RenderContext) -> str:
+def render_task_subtasks(value: object, ctx: RenderContext) -> str:
+    """Render the supplied checklist and its exact read-only completion measure."""
     if not isinstance(value, list):
         return ""
     items: list[str] = []
     completed = 0
+    known = 0
     for item in value:
         if not isinstance(item, dict):
             continue
         title = scalar_text(item.get("title"))
         if not title:
             continue
-        done = item.get("status") == "completed"
+        status = scalar_text(item.get("status"))
+        done = status == "completed"
+        explicit = status in {"completed", "needsAction"}
+        known += int(explicit)
         completed += int(done)
         text = f"<s>{escape_html(title)}</s>" if done else escape_html(title)
         state_class = " lia-task__subtask--done" if done else ""
-        symbol = Icons.TASK if done else Icons.CHECKBOX_BLANK
+        symbol = Icons.TASK if done else Icons.CHECKBOX_BLANK if explicit else "help_outline"
         items.append(
             f'<li class="lia-task__subtask{state_class}">{icon(symbol)}<span>{text}</span></li>'
         )
@@ -55,11 +85,16 @@ def _subtasks(value: object, ctx: RenderContext) -> str:
         return ""
     total = len(items)
     label = escape_html(V3Messages.get_subtasks(ctx.language))
+    progress = (
+        f'<progress class="lia-task__completion" value="{completed}" max="{total}" '
+        f'aria-label="{label}">{completed}/{total}</progress>'
+        if known == total
+        else ""
+    )
+    count = f"{completed}/{total}" if known == total else str(total)
     return (
         f'<div class="lia-task__subtasks"><div class="lia-task__subtasks-header">'
-        f"{icon(Icons.CHECKLIST)}<span>{label} ({completed}/{total})</span>"
-        f'<progress class="lia-task__completion" value="{completed}" max="{total}" '
-        f'aria-label="{label}">{completed}/{total}</progress></div>'
+        f"{icon(Icons.CHECKLIST)}<span>{label} ({count})</span>{progress}</div>"
         f'<ul class="lia-task__subtasks-list">{"".join(items)}</ul></div>'
     )
 
@@ -79,7 +114,7 @@ def render_task_details(data: Mapping[str, object], ctx: RenderContext) -> str:
                 f"{escape_html(label)}{label_separator(ctx.language)}{escape_html(parent)}",
             )
         )
-    parts.extend((_links(data.get("links"), ctx), _subtasks(data.get("subtasks"), ctx)))
+    parts.append(_links(data.get("links"), ctx))
     parts.extend(task_native_details(data, ctx))
     content = "".join(parts)
     return (

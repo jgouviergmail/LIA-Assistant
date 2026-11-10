@@ -14,7 +14,7 @@ for (const outcome of ['prepared', 'succeeded', 'failed', 'unknown'] as const) {
     await page.addInitScript(() => {
       localStorage.setItem(
         'lia_eyes_widget_prefs',
-        JSON.stringify({ state: { visible: true, style: 'smiley', size: 'md' }, version: 0 })
+        JSON.stringify({ state: { visible: true, style: 'bip', size: 'md' }, version: 0 })
       );
     });
     await mockApi(chatRoutes([]));
@@ -43,7 +43,7 @@ for (const outcome of ['prepared', 'succeeded', 'failed', 'unknown'] as const) {
       });
     });
     await page.goto('/en/dashboard/chat');
-    const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
+    const avatar = page.locator('[data-character="bip"] .lia-eyes').last();
     await expect(avatar).toBeVisible();
     await page.locator('textarea').fill('Contrôle du compagnon');
     await page.locator('textarea').press('Enter');
@@ -95,7 +95,7 @@ test('drawn eyes respect reduced motion and the widget remains keyboard operable
   expect(blocking, summary).toEqual([]);
 });
 
-test.describe('living smiley', () => {
+test.describe('living companion', () => {
   test.use({ contextOptions: { reducedMotion: 'no-preference' } });
 
   test('fits phone and desktop viewports and actually performs a spontaneous scene', async ({
@@ -108,7 +108,7 @@ test.describe('living smiley', () => {
     await page.addInitScript(() =>
       localStorage.setItem(
         'lia_eyes_widget_prefs',
-        JSON.stringify({ state: { visible: true, style: 'smiley', size: 'md' }, version: 0 })
+        JSON.stringify({ state: { visible: true, style: 'bip', size: 'md' }, version: 0 })
       )
     );
     const clockStart = new Date('2026-09-21T12:00:00Z');
@@ -117,7 +117,7 @@ test.describe('living smiley', () => {
     // the rig's timeline between the advances we explicitly observe.
     await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
     await page.goto('/en/dashboard/chat');
-    const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
+    const avatar = page.locator('[data-character="bip"] .lia-eyes').last();
     await waitForClockedHydration(page, avatar);
     await expect(avatar).toBeVisible();
     for (const width of [320, 375, 768, 1440]) {
@@ -151,9 +151,9 @@ test.describe('living smiley', () => {
     expect(scene).not.toBe('');
     await page.clock.runFor(1000);
     expect(await avatar.locator('[data-rig-mouth]').getAttribute('d')).not.toBe(restingMouth);
-    const capture = testInfo.outputPath('smiley-scene.png');
+    const capture = testInfo.outputPath('bip-scene.png');
     await avatar.screenshot({ path: capture });
-    await testInfo.attach('smiley-scene', { path: capture, contentType: 'image/png' });
+    await testInfo.attach('bip-scene', { path: capture, contentType: 'image/png' });
     // Keep every active scene frame. Only use sparse sampling after its end
     // is observed, while still advancing the full 12 seconds before the oracle.
     for (let remaining = 12_000; remaining > 0; remaining -= 500) {

@@ -13,6 +13,7 @@
 
 import {
   EYE_CHANNEL_BASES,
+  LIMB_CHANNELS,
   type ChannelKey,
   type EyeChannel,
   type EyeChannelBase,
@@ -23,6 +24,10 @@ import { tapeDurationMs, type Tape, type TapeKey } from '@/components/eyes/rig/t
 
 /** `[atMs, value]` pairs — a timeline reads as a table, not as objects. */
 export type Keys = readonly (readonly [number, number])[];
+
+/** The eyes lead a look, followed by smaller head travel in em per gaze unit. */
+export const HEAD_FOLLOW_X_EM = 0.08;
+export const HEAD_FOLLOW_Y_EM = 0.06;
 
 /** The right side trails the left by this much, everywhere. */
 export const RIGHT_TRAIL_MS = 40;
@@ -187,7 +192,8 @@ export function warpTapes(tapes: readonly Tape[], random: () => number): Tape[] 
   const warpFor = (channel: ChannelKey): ChannelWarp => {
     // Translation, revolution and landing are one trajectory. Independent
     // jitter would land the scales before the body reaches the floor.
-    if (channel.startsWith('body')) return { time: pace, size: 1 };
+    if (channel.startsWith('body') || LIMB_CHANNELS.some(limb => limb === channel))
+      return { time: pace, size: 1 };
     const known = byChannel.get(channel);
     if (known) return known;
     const warp = {

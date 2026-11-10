@@ -1,13 +1,19 @@
 'use client';
 import { useDashboardRoute } from '../DashboardNavigation';
-import { MessageSquare } from 'lucide-react';
+import { BellPlus, MessageSquare, Phone, ShieldBan, UserPlus } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
-import { getIntlLocale, isLanguage, fallbackLng } from '@/i18n/settings';
+import { getIntlLocale } from '@/i18n/settings';
 import { formatNumberLocale } from '@/lib/briefing-utils';
+import { homeLanguage, telHref } from '@/lib/briefing-tools';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
+import { useSmsManagement } from '@/hooks/useSmsManagement';
+import { SmsConfirmation } from '@/components/sms/SmsConfirmation';
+import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import type { CardSection, SmsData } from '@/types/briefing';
+import { useHomeReminder } from './useHomeActs';
+import { useHomeTools } from '../HomeTools';
+import type { CardSection, SmsCardItem, SmsData } from '@/types/briefing';
 interface Props {
   section?: CardSection<SmsData>;
   isRefreshing: boolean;
@@ -30,19 +36,69 @@ export function SmsCard({ section, isRefreshing, onRefresh, staggerIndex }: Prop
     />
   );
 }
+/**
+ * A message opens on the SMS page; its menu (owner, 2026-11-07) calls the sender, saves them in
+ * the contacts tool where an address book is connected, blocks them through the reviewed command
+ * the SMS page uses (it asks first, `SmsConfirmation`), or sets a reminder. No model in any of it.
+ */
 function SmsContent({ data }: { data: SmsData }) {
   const { t, i18n } = useTranslation();
   const router = useLocalizedRouter();
   const navigate = useDashboardRoute(router.push);
-  const candidate = (i18n.language || fallbackLng).split('-')[0];
-  const lng = isLanguage(candidate) ? candidate : fallbackLng;
+  const lng = homeLanguage(i18n.language);
+  const tools = useHomeTools();
+  const management = useSmsManagement();
+  const { remind, dialog } = useHomeReminder(lng);
   const dates = new Intl.DateTimeFormat(getIntlLocale(lng), {
     dateStyle: 'short',
     timeStyle: 'short',
     timeZone: data.timezone,
   });
+  const actsOf = (item: SmsCardItem): CardItemAction[] => {
+    const call = telHref(item.sender);
+    const who = { sender: item.display_name };
+    return [
+      ...(call
+        ? [
+            {
+              icon: Phone,
+              label: t('dashboard.briefing.home_acts.call', { name: item.display_name }),
+              href: call,
+            },
+          ]
+        : []),
+      // Only a sender the address book does not name yet: a named one is already a contact.
+      ...(tools.offers('contact') && item.display_name === item.sender
+        ? [
+            {
+              icon: UserPlus,
+              label: t('dashboard.briefing.home_acts.add_contact', who),
+              onSelect: () =>
+                tools.go({ kind: 'contact', name: '', email: '', phone: item.sender }),
+            },
+          ]
+        : []),
+      {
+        icon: ShieldBan,
+        label: t('dashboard.briefing.home_acts.block', who),
+        busy: management.busy,
+        onSelect: () =>
+          void management.propose('sms_sender_block.update', {
+            sender: item.sender,
+            blocked: true,
+          }),
+      },
+      {
+        icon: BellPlus,
+        label: t('dashboard.briefing.home_acts.remind'),
+        onSelect: () => remind(t('dashboard.briefing.remind_words.sms', who)),
+      },
+    ];
+  };
   return (
     <div className="min-w-0 space-y-3">
+      {dialog}
+      <SmsConfirmation actions={management} />
       <div className="flex items-baseline gap-2">
         <span className="text-3xl font-bold tabular-nums text-sky-700 dark:text-sky-300 tracking-tight">
           {formatNumberLocale(data.total, lng)}
@@ -66,6 +122,7 @@ function SmsContent({ data }: { data: SmsData }) {
               tooltip={`${excerpt}\n${sender}`}
               onSelect={() => navigate(`/dashboard/sms?message=${encodeURIComponent(item.id)}`)}
               contentClassName="flex flex-col gap-1.5 leading-snug"
+              actions={actsOf(item)}
             >
               <span className="flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-300 tabular-nums">
                 <MessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

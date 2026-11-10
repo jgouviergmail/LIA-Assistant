@@ -3,8 +3,8 @@
 Three gates (the deployment ceiling, the capability read at the act, the
 person's own preference); the rhythm through ``load_consumable_profile`` so a
 paused or blocked window never colours the portrait either (ADR-214 c); the
-recurring requests ACTIVE only, each with its shape, its hour and its usual
-intent — never a date. Habits are bounded by construction (two day classes,
+recurring needs ACTIVE only, each with its cadence, its part of the day and its
+usual intent — never a date, never a locked hour (ADR-375). Habits are bounded by construction (two day classes,
 ``habits_max_habits_per_kind`` rows); every line is rendered whole.
 """
 
@@ -15,7 +15,6 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
-from src.core.i18n_dates import format_half_hour_label
 from src.domains.habits.capability import habits_capability_enabled
 from src.domains.habits.consumption import load_consumable_profile
 from src.domains.habits.models import HabitKind, HabitStatus, UserHabit
@@ -65,16 +64,27 @@ def _rhythm_line(profile: RhythmProfile, lines: dict[str, str]) -> str | None:
     )
 
 
+#: English day names for the model-read line (technical English, ADR-323).
+_WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+_CADENCES = {"daily": "daily", "weekdays": "on working days"}
+
+
 def _recurring_line(habit: UserHabit, lines: dict[str, str]) -> str:
     payload = habit.payload or {}
-    hour = payload.get("trigger_hour")
+    weekday = payload.get("weekday")
+    cadence = (
+        lines["habits_recurring_weekly"].format(weekday=_WEEKDAYS[weekday])
+        if payload.get("cadence") == "weekly" and isinstance(weekday, int) and 0 <= weekday <= 6
+        else _CADENCES.get(str(payload.get("cadence")), "regularly")
+    )
+    part = payload.get("part_of_day")
     intent = payload.get("usual_intent")
     return lines["habits_recurring"].format(
         key=flat_item(str(habit.key)),
-        shape=flat_item(str(payload.get("shape") or "")),
-        hour=(
-            " " + lines["habits_recurring_hour"].format(hour=format_half_hour_label(float(hour)))
-            if hour is not None
+        cadence=cadence,
+        part=(
+            ", " + lines["habits_recurring_part"].format(part=flat_item(str(part)))
+            if part and part != "any"
             else ""
         ),
         intent=(
@@ -137,8 +147,9 @@ FRESHNESS = FreshnessProbe(
         "kind",
         "key",
         "status",
-        ("payload", "shape"),
-        ("payload", "trigger_hour"),
+        ("payload", "cadence"),
+        ("payload", "weekday"),
+        ("payload", "part_of_day"),
         ("payload", "usual_intent"),
     ),
     related_probes=(

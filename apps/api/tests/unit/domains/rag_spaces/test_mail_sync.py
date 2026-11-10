@@ -302,17 +302,16 @@ def _sync_harness(*, indexed: set[str], ready: int = 0) -> tuple[Any, ...]:
 
 
 @pytest.mark.usefixtures("settings_patch")
-@pytest.mark.parametrize("incomplete", ["thread_cap", "page_cap"])
+@pytest.mark.parametrize("incomplete", ["thread_cap", "nonprogressing_pages"])
 async def test_incomplete_mail_listing_retains_unseen_documents_and_history(
-    monkeypatch, incomplete
-):
+    monkeypatch: pytest.MonkeyPatch, incomplete: str
+) -> None:
     source = _source(last_history_id=123)
     monkeypatch.setattr(
         mail_sync.settings,
         "rag_mail_max_threads_per_sync",
-        1 if incomplete == "thread_cap" else 100,
+        1 if incomplete == "thread_cap" else 3,
     )
-    monkeypatch.setattr(mail_sync, "_MAX_PAGES", 1)
     client = AsyncMock()
     client.get_profile.return_value = {"historyId": "777"}
     client.list_threads.return_value = {"threads": [{"id": "visible"}], "nextPageToken": "more"}

@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.exceptions import UsageLimitExceededError
-from src.domains.agents.application.memory_creation_embeddings import (
+from src.domains.memories.creation_embeddings import (
     prepare_memory_creation_embeddings,
 )
 from src.infrastructure.llm.embedding_context import (
@@ -33,11 +33,11 @@ async def test_previous_cost_owner_is_restored_after_preparation_failure(failure
     try:
         with (
             patch(
-                "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit",
+                "src.domains.memories.creation_embeddings.enforce_usage_limit",
                 budget,
             ),
             patch(
-                "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+                "src.domains.memories.creation_embeddings._generate_document_embedding",
                 provider,
             ),
             pytest.raises(

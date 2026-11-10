@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, Shield, SlidersHorizontal } from 'lucide-react';
+import { Clock, Shield, SlidersHorizontal } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { HourWindow } from '@/components/settings/FrequencyControls';

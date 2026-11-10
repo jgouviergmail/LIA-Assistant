@@ -23,17 +23,37 @@
 @plugin "@tailwindcss/typography";
 
 /* V3 Display Architecture: Modern HTML components */
-/* Note: Material Symbols font is loaded via <link> in layout.tsx for better reliability */
 @import './lia-components.css';
 @import './lia-cards.css';
 @import './lia-route-map.css';
 @import './lia-overlays.css';
+@import './lia-cards-craft.css';
+@import './lia-cards-people.css';
+@import './lia-cards-world.css';
+@import './lia-cards-knowledge.css';
+@import './lia-cards-location.css';
 @import './dashboard-header.css';
 /* Expressive-eyes widget animation system (self-contained reduced-motion block) */
 @import './eyes.css';
+/* The historical icon stylesheet follows the component styles, as its former
+   layout link did. Only a glyph using this family requests the full local font. */
+@import '../../public/fonts/material-symbols/material-symbols.css';
 
 /* Enable dark: variant for .dark class */
 @variant dark (.dark &);
+
+/* A thin edge follows the local text colour, including inverted solid buttons.
+   Apply it to the artwork so callers retain their SVG filters and animations. */
+.app-icon-artwork {
+  filter: drop-shadow(0 0 0.48px currentColor) drop-shadow(0 0 0.48px currentColor);
+}
+
+/* The Fluent plane has blue paint close to the solid send button's blue.
+   Give its silhouette the same contrast colour as the button label. */
+.chat-send-icon > .app-icon-artwork {
+  filter: drop-shadow(0.6px 0 currentColor) drop-shadow(-0.6px 0 currentColor)
+    drop-shadow(0 0.6px currentColor) drop-shadow(0 -0.6px currentColor);
+}
 
 /* `text-[13px]` written so it follows the text scale: `text-px-13` is
    13 px times the reader's factor (Settings › Personalization › Font size).

@@ -14,7 +14,7 @@
  * Each row wears its initials; the whole list is headed by letter where the
  * provider answered it in that order.
  */
-import { Download, Plus, Search, Users } from 'lucide-react';
+import { Download, Plus, Search, Users } from '@/lib/icons';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useId, useRef, useState, type FormEvent, type RefObject } from 'react';
@@ -63,7 +63,8 @@ import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
 import { useContactAssist } from '../assist/useContactAssist';
-import { useHandoff, useToolBridges } from '../useToolBridges';
+import { useHandoff } from '@/hooks/useHandoff';
+import { useToolBridges } from '../useToolBridges';
 import { PANE_SEPARATOR_CLASS, paneWidth, useWorkbenchPane } from '../useWorkbenchPane';
 import { ContactDetail } from './ContactDetail';
 import { ContactEditor } from './ContactEditor';
@@ -180,8 +181,17 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
     shown,
     shown && !metInMail ? values => edit(shown, undefined, values) : undefined
   );
-  useHandoff('contact', true, handed =>
-    edit(undefined, { name: handed.name, emails: [{ value: handed.email, type: null }] })
+  // What was handed, and nothing empty: a mail's sender has an address, an SMS's a number.
+  useHandoff(
+    'contact',
+    true,
+    handed =>
+      edit(undefined, {
+        name: handed.name,
+        emails: handed.email ? [{ value: handed.email, type: null }] : [],
+        phones: handed.phone ? [{ value: handed.phone, type: null }] : [],
+      }),
+    editor !== null
   );
   const copy = (value: string) => {
     copyText(value).then(
@@ -329,6 +339,7 @@ function ReadyContacts({ lng, tool }: { lng: Language; tool: WorkbenchToolAvaila
               readOnly={metInMail}
               photoMaxBytes={tool.bounds.photo_max_bytes}
               historyAddresses={tool.bounds.history_addresses}
+              historyPhones={tool.bounds.history_phones}
               groups={
                 groupsOffered
                   ? {

@@ -4,10 +4,11 @@ import type { SpiritVariant } from '@/components/spirit/catalogue';
 import type { CompanionCharacter } from '@/components/spirit/companion-catalogue';
 import type { EyeStyleId } from './eye-styles';
 import { MONITOR_SCREEN } from './monitor-geometry';
-import { volumeProfile } from './volume/volume-geometry';
-import { SMILEY_COLLAR } from './volume/cloth-geometry';
+import { volumeProfile, VOLUME_SOURCE_EM } from './volume/volume-geometry';
+import { scarfFrame, type ScarfFit } from './volume/scarf-fit';
+import { WEATHER_COLD_MAX } from './rig/ambient';
 
-export type AvatarLayoutFamily = CompanionCharacter | 'smiley' | 'monitor';
+export type AvatarLayoutFamily = CompanionCharacter | 'monitor';
 interface LayoutLandmarks {
   /** Fractions of the complete frame, including a crown that extends above it. */
   readonly crownY: number;
@@ -19,6 +20,7 @@ export interface AvatarLayoutProfile extends LayoutLandmarks {
   readonly variant: SpiritVariant;
   readonly neckY: number;
   readonly scarfWidthEm: number;
+  readonly scarf: ScarfFit;
 }
 
 function landmarks(crownY: number, faceY: number, accessoryScale: number): LayoutLandmarks {
@@ -61,10 +63,6 @@ const LANDMARKS = {
     male: landmarks(-0.012, 0.336, 0.6),
     female: landmarks(-0.053, 0.354, 0.57),
   },
-  smiley: {
-    male: landmarks(0.01, 1.07 / 2.6, 1.06),
-    female: landmarks(-0.077, 1.07 / 2.6, 1.06),
-  },
   monitor: {
     male: landmarks(0.135, MONITOR_SCREEN.y + MONITOR_SCREEN.height / 2, 0.88),
     female: landmarks(0.135, MONITOR_SCREEN.y + MONITOR_SCREEN.height / 2, 0.88),
@@ -78,7 +76,6 @@ const STYLE_FAMILY = {
   amande: 'monitor',
   traits: 'monitor',
   anneaux: 'monitor',
-  smiley: 'smiley',
   spirit: 'spirit',
   moss: 'moss',
   lumen: 'lumen',
@@ -94,17 +91,32 @@ export function avatarLayoutProfile(
   variant: SpiritVariant
 ): AvatarLayoutProfile {
   const family = style === 'monitor' ? style : STYLE_FAMILY[style];
-  const collar = family === 'smiley' ? SMILEY_COLLAR : volumeProfile(family, variant).collar;
+  const collar = volumeProfile(family, variant).collar;
   return {
     family,
     variant,
     ...LANDMARKS[family][variant],
-    neckY: collar.centerY / 2.6 + 0.5,
-    scarfWidthEm: 2 * collar.radiusX * 1.1,
+    neckY: collar.centerY / VOLUME_SOURCE_EM + 0.5,
+    scarfWidthEm: scarfFrame(collar).width,
+    scarf: collar,
   };
 }
 
 type AvatarLayoutStyle = CSSProperties & Record<`--avatar-${string}`, string>;
+/** Both fitted bodies and bare-eye defaults publish the same garment mapping. */
+export function scarfLayoutStyle(fit: ScarfFit, prefix = 'avatar-scarf') {
+  const scarf = scarfFrame(fit);
+  return {
+    [`--${prefix}-width`]: `${scarf.width}em`,
+    [`--${prefix}-top`]: `${scarf.top}em`,
+    [`--${prefix}-height`]: `${scarf.height}em`,
+    [`--${prefix}-split`]: `${scarf.split}em`,
+    [`--${prefix}-band-scale`]: `${scarf.bandScale}em`,
+    [`--${prefix}-tail-scale`]: `${scarf.tailScale}em`,
+    [`--${prefix}-tail-offset`]: `${scarf.tailOffset - scarf.split}em`,
+    [`--${prefix}-opacity-scale`]: `${1 / WEATHER_COLD_MAX}`,
+  };
+}
 /** Eye span stays tied to the actual skin, including the latest Oscar spacing. */
 export function avatarLayoutStyle(profile: AvatarLayoutProfile): AvatarLayoutStyle {
   const nativeSpan = '(var(--eye-w, 1.3em) + var(--eye-gap, 0.45em) * 0.5)';
@@ -112,7 +124,7 @@ export function avatarLayoutStyle(profile: AvatarLayoutProfile): AvatarLayoutSty
     '--avatar-crown-y': `${Number((profile.crownY * 100).toFixed(3))}%`,
     '--avatar-face-y': `${Number((profile.faceY * 100).toFixed(3))}%`,
     '--avatar-neck-y': `${Number((profile.neckY * 100).toFixed(3))}%`,
-    '--avatar-scarf-width': `${profile.scarfWidthEm}em`,
+    ...scarfLayoutStyle(profile.scarf),
     '--avatar-accessory-scale': String(profile.accessoryScale),
     '--avatar-face-half-width':
       profile.family === 'monitor'

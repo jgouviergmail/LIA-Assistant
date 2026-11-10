@@ -165,6 +165,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     lifetime_metrics_task = observability.start_lifetime_metrics()
     cache_invalidation_task = caches.start_cache_invalidation_subscriber()
     worker_memory_task = observability.start_worker_memory_sampler()
+    jev_statistics_flusher = observability.start_jev_statistics_flusher()
 
     # LAST, once every registry, cache, graph and catalogue above is resident:
     # what the boot built is frozen out of the cyclic collector, so a full
@@ -187,6 +188,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             lifetime_metrics_task=lifetime_metrics_task,
             cache_invalidation_task=cache_invalidation_task,
             worker_memory_task=worker_memory_task,
+            jev_statistics_flusher=jev_statistics_flusher,
         )
     )
 
@@ -228,8 +230,10 @@ def _declared_field(location: Sequence[object], error_type: str) -> str:
     """Name a refused field only when the code wrote that name (ADR-317).
 
     `loc` also carries what a client typed: a key of a dict, an unknown key of a strict
-    body. One level under its source (`body`, `query`, `path`...) a name comes from a
-    declaration, and an `extra_forbidden` one never does.
+    body, the character where a JSON body stopped parsing. One level under its source
+    (`body`, `query`, `path`...) a name comes from a declaration, since every request
+    body is a model (`test_every_request_body_holds_declared_names`); an
+    `extra_forbidden` key never does, and a number there is a position or an index.
 
     Args:
         location: The error's `loc`.
@@ -240,7 +244,10 @@ def _declared_field(location: Sequence[object], error_type: str) -> str:
     """
     if error_type == "extra_forbidden" or len(location) > 2:
         return "<withheld>"
-    return str(location[-1])[:40] if location else "unknown"
+    if not location:
+        return "unknown"
+    leaf = location[-1]
+    return leaf[:40] if isinstance(leaf, str) else "<withheld>"
 
 
 # Pydantic / FastAPI request validation error metric (dashboard 16).
@@ -256,6 +263,8 @@ async def _validation_exception_handler(
     below the production level, so this line is the only trace of a refused request in
     the logs. It says how a field failed, never the value, and how many errors there
     were when it keeps fewer: `path` and `method` are already bound to the request.
+    The counter's labels are the line's own names: a label is a series kept for the
+    whole retention, so it never holds what a client typed.
 
     Args:
         request: Incoming request (unused — kept for signature compliance).
@@ -266,25 +275,25 @@ async def _validation_exception_handler(
     """
     del request  # unused
     errors = exc.errors()
+    refused = [
+        (
+            _declared_field(err.get("loc", ()), err.get("type", "")),
+            err.get("type", "unknown")[:40],
+        )
+        for err in errors[:_REFUSED_ERRORS_READ]
+    ]
     # metrics must never break the handler
     with suppress(Exception):
         from src.infrastructure.observability.metrics_errors import (
             validation_errors_total,
         )
 
-        for err in errors[:_REFUSED_ERRORS_READ]:
-            field = ".".join(str(p) for p in err.get("loc", ())) or "unknown"
-            # Keep only the leaf field name and truncate to bound cardinality.
-            field_leaf = field.rsplit(".", 1)[-1][:40]
-            error_type = err.get("type", "unknown")[:40]
-            validation_errors_total.labels(field=field_leaf, error_type=error_type).inc()
+        for field, error_type in refused:
+            validation_errors_total.labels(field=field, error_type=error_type).inc()
 
     logger.warning(
         "request_validation_failed",
-        errors=[
-            f"{_declared_field(err.get('loc', ()), err.get('type', ''))}:{err.get('type', '')[:40]}"
-            for err in errors[:_REFUSED_ERRORS_READ]
-        ],
+        errors=[f"{field}:{error_type}" for field, error_type in refused],
         error_count=len(errors),
     )
 

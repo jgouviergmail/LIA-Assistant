@@ -13,7 +13,8 @@
  *    the initiation frame the API rendered goes out first;
  *  - a client tool call is a delegation: the request lands in the thread,
  *    its answer streams and goes back as a `client_tool_result`;
- *  - the agent's reply is a caption, and End posts the outcome.
+ *  - the agent's reply is a caption — the audio tag its engine performed
+ *    removed (ADR-373) —, and End posts the outcome.
  *
  * No backend, LLM, or paid provider is contacted.
  */
@@ -85,6 +86,8 @@ const START = {
   delegation_timeout_seconds: 90,
   delegation_result_max_tokens: 600,
   turn_text_max_chars: 4000,
+  // The agent's engine performs audio tags (ADR-373): its words carry them.
+  expression: 'cues',
   rates: {
     pricing_unit: 'per_audio_minute',
     input_unit_price: 0.1,
@@ -283,7 +286,7 @@ test.describe('chat live session on ElevenLabs', () => {
         if (event.type === 'client_tool_result') {
           frame({
             type: 'agent_response',
-            agent_response_event: { agent_response: 'Tu as deux réunions demain.' },
+            agent_response_event: { agent_response: 'Tu as deux réunions demain. [sighs]' },
           });
         }
       });
@@ -322,8 +325,10 @@ test.describe('chat live session on ElevenLabs', () => {
       tone: 'LIA said this warmly.',
     });
 
-    // The agent's whole reply is a caption of the banner.
+    // The agent's whole reply is a caption of the banner — without the tag its
+    // engine performed and never spoke (ADR-373).
     await expect(banner).toContainText('Tu as deux réunions demain.');
+    await expect(banner).not.toContainText('[sighs]');
 
     await banner.getByRole('button', { name: 'Terminer la session live' }).click();
     await expect(banner).toHaveCount(0);

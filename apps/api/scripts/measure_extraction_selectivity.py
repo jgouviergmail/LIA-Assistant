@@ -239,7 +239,10 @@ INTEREST_SCENARIOS: tuple[Scenario, ...] = (
         "pos_deep_dive",
         True,
         "Same subject pushed three times in the exchange, each question digging "
-        "further. Mirrors a production interest with 27 signals, built over a trip.",
+        "further. Mirrors a production interest with 27 signals, built over a trip. "
+        "The extractors read four messages, so only the last two questions reach "
+        "the prompt: the three-question pattern is observable at two in the "
+        "shipped window.",
         (
             ("user", "On prépare un voyage au Pérou, quelles régions sont incontournables ?"),
             ("assistant", "Cusco, Arequipa et l'Amazonie reviennent le plus souvent."),
@@ -557,16 +560,23 @@ def _assert_placeholders(template: str, expected: set[str], name: str) -> None:
 
 
 def _to_messages(turns: tuple[tuple[str, str], ...]) -> list[BaseMessage]:
-    """Build the LangChain message window a scenario stands for."""
+    """The window the extractors read of the exchange a scenario stands for.
+
+    The runtime keeps the person's last message and the three before it
+    (``extraction_window``): a longer scenario is cut exactly as the runtime cuts it.
+    """
+    from src.domains.shared.extraction_targets import extraction_window, find_last_user_message
+
     out: list[BaseMessage] = []
     for role, text in turns:
         out.append(HumanMessage(content=text) if role == "user" else AIMessage(content=text))
-    return out
+    _last, last_index = find_last_user_message(out)
+    return extraction_window(out, last_index) if last_index >= 0 else out
 
 
 def _render_interest_prompt(template: str, scenario: Scenario, now: str) -> str:
     """Render the interest prompt exactly as ``_analyze_interests_core`` does."""
-    from src.core.i18n_types import get_language_name
+    from src.core.i18n import get_language_name
     from src.domains.interests.services.extraction_service import (
         _format_messages_for_extraction as fmt,
     )

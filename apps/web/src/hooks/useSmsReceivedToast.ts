@@ -1,6 +1,6 @@
 'use client';
 import { createElement, useCallback, useEffect, useRef } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';

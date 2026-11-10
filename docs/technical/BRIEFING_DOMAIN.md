@@ -9,7 +9,7 @@
 
 ## Overview
 
-The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 10-card grid (weather, agenda, unread mails, upcoming birthdays, active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, the latest modified Drive documents, and the workboard — what on the person's board needs them, ADR-276).
+The Today briefing turns the dashboard home page into a **daily ritual**: an LLM-generated greeting + contextual synthesis above a 10-card grid (weather, agenda, unread mails, upcoming birthdays from the active contacts provider (Google, Apple or Microsoft — ADR-077 amendment 2026-11-07), active reminders, health metrics, the « For you » card — open loops + automations digest, ADR-139/140 —, pending/overdue tasks from the active tasks provider, the latest modified Drive documents, and the workboard — what on the person's board needs them, ADR-276).
 
 Architecture in one line: **lecture pure, asyncio.gather parallel, per-section Redis cache, two lightweight LLM calls** (greeting + synthesis), no LangGraph, no DB model, no scheduler.
 
@@ -26,6 +26,7 @@ apps/api/src/domains/briefing/
 ├── companion.py         Minimal, fresh weather projection for the expressive avatar
 ├── formatters.py        Pure functions: raw API/DB → UI strings
 ├── fetchers.py          One async fetcher per source (testable in isolation)
+├── workboard_card.py    The Workboard card's fetcher (ADR-276), a local read
 ├── llm.py               generate_greeting() + generate_synthesis() + token tracking
 ├── service.py           BriefingService — orchestrator
 └── router.py            GET /briefing/cards + GET /briefing/synthesis + POST /briefing/refresh
@@ -447,6 +448,43 @@ the heartbeat's reading of the same board does. The greeting and synthesis do
 not read it (`SECTIONS_NOT_SUMMARISED`), so it does not count toward the
 synthesis threshold either.
 
+## From the home to the Tools (owner, 2026-11-07)
+
+Where the instance offers the « Tools » (ADR-369), a click on an item opens it in its tool, on
+the address that tool already reads (`lib/briefing-tools.ts`, the search's addresses): an event
+in the calendar on its day in the account's zone, an unread mail in the inbox, a task in its own
+list, a file in Files, the contact whose birthday it is; an SMS keeps its own page. The row is
+then a link (`CardItemRow` `href`, through `DashboardLink`, so an embedded dashboard still opens
+it its own way). The operator's switch keeps the chat, as does an item cached before its ids
+joined it: rows and LIA's acts are then exactly what they were.
+
+What a card carries for that: `AgendaEventItem.calendar_id` (the calendar read, `primary` an
+alias the calendar tool resolves to the account's own calendar) and `conference_url` (one reader
+for the Tools and the home, `connectors/clients/normalizers/calendar_links.py`);
+`TaskItem.list_id`, the list's REAL id (`@default` resolved by `get_task_list`, best effort: an
+unreadable one leaves it out and the card stands); `BirthdayItem.contact_id`, `email` and
+`phone` (ADR-077 amendment). The tasks tool opens a task past the pages it read through
+`GET /workbench/tasks/task`, kept at the head of its list (`useKeptTask`, `keepItem`).
+
+Each card's « More actions » holds at most five acts, direct ones first — no model, no register
+row (ADR-369, D5) — then LIA's, through the chat as before:
+
+| Card | Direct | With LIA |
+|---|---|---|
+| Agenda | Directions (a map's link, when there is a place) · Join the video call · Remind me | Prepare it |
+| Mail | Mark as read · Archive · Watch for a reply | Summarise · Draft a reply |
+| Task | Mark as done · Postpone to tomorrow (a task due by today) · Remind me | Help me move forward |
+| Document | Download · Send by email · Open on its drive | Summarise · Ask a question |
+| Birthday | Write to them · Call (when there is a number) · Remind me | Birthday message |
+| SMS | Call the sender · Add to contacts (a sender the address book does not name yet) · Block (the reviewed command, which asks first) · Remind me | — |
+
+The Tools' acts call the Tools' own routes (`cards/useHomeActs.tsx`); one that takes the item off
+the card reads the card again (`onInvalidate`), one refused is said and changes nothing. What is
+handed to ANOTHER tool (a file to a new message, a sender to the contacts) is offered only where
+`GET /workbench`, read once for the home by `HomeToolsProvider`, says that tool is connected.
+« Remind me » is the Tools' reminder dialog, on the account's clock. A task whose list could not
+be read keeps « done » and « postpone » as LIA's acts.
+
 ## Frontend layout
 
 ```
@@ -492,7 +530,7 @@ apps/web/src/
 ### UX behaviour
 
 - **Initial load**: `<BriefingSkeleton>` shown immediately, replaced by content with `animate-in fade-in 300 ms` + 50 ms stagger between cards.
-- **Card refresh**: clicking 🔄 on a card calls `POST /briefing/refresh` with that section only. Backend re-fetches that section, regenerates greeting + synthesis (always for consistency), returns the full payload. Frontend swaps `data` — only the targeted card visually changes (others rerender identically).
+- **Card refresh**: clicking 🔄 on a card calls `POST /briefing/sections/{section}/refresh`: the backend reads that source again and answers that section alone; the greeting and the synthesis are not rewritten (« Refresh all » does that). Only the targeted card changes.
 - **"Updated ✨" badge**: `<BriefingSynthesis>` watches `generated_at` and flashes the badge for 1.5 s when it changes.
 - **`prefers-reduced-motion`**: all animations are wrapped in `motion-safe:` so users who disable motion get instant transitions.
 - **Dark mode parity**: every color token is OKLCH-based via the LIA design system — no `dark:` overrides needed.

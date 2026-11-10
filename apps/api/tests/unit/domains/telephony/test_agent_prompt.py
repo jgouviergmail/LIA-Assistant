@@ -68,3 +68,33 @@ def test_data_collection_identifiers_match_extraction_contract():
     # Mandate-boundary fields must be part of the contract (cost never dropped,
     # out-of-mandate decisions surfaced for the user).
     assert {"additional_costs", "pending_user_decision"} <= identifiers
+
+
+@pytest.mark.unit
+def test_the_agent_drops_the_vendors_default_persona_and_the_fingerprint_covers_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-373: the vendor's « helpful » lines would fight the personality LIA sends.
+
+    The setting rides in the body AND the fingerprint, so a provisioned agent
+    drifts once and is re-synced before its next call.
+    """
+    from src.domains.telephony.agent_prompt import agent_config_fingerprint, build_agent_config
+    from src.domains.telephony.client import _agent_config_body, agent_prompt_settings
+
+    cfg = build_agent_config("fr", "Alex")
+    body = _agent_config_body(
+        name=cfg.name,
+        system_prompt=cfg.system_prompt,
+        first_message=cfg.first_message,
+        data_collection=cfg.data_collection,
+    )
+    prompt = body["conversation_config"]["agent"]["prompt"]
+    assert prompt["ignore_default_personality"] is True
+    assert agent_prompt_settings() == {"ignore_default_personality": True}
+    # The fingerprint moves with the setting: a provisioned agent drifts once.
+    import src.domains.telephony.agent_prompt as agent_prompt_module
+
+    before = agent_config_fingerprint(cfg)
+    monkeypatch.setattr(agent_prompt_module, "agent_prompt_settings", lambda: {})
+    assert agent_config_fingerprint(cfg) != before

@@ -74,11 +74,9 @@ async def test_memory_creation_pays_only_after_hitl_and_rechecks_before_each_cal
         patch("src.domains.agents.tools.application_memory_tools.get_db_context", session),
         patch("src.domains.agents.application.command_service.get_db_context", session),
         patch("src.domains.agents.application.draft_execution.get_db_context", session),
+        patch("src.domains.memories.creation_embeddings.enforce_usage_limit", budget),
         patch(
-            "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit", budget
-        ),
-        patch(
-            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            "src.domains.memories.creation_embeddings._generate_document_embedding",
             provider,
         ),
         patch("src.domains.agents.effects.runtime._LEDGER", ledger),

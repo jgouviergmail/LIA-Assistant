@@ -110,6 +110,38 @@ their message.
   names its message for the world's adapter (`dashboardDestination`); the web links
   (the home card, the relationship section) point at the page.
 
+## Amendment 2026-11-07 — a contact's texts, by its numbers
+
+**Owner request.** The contacts tool's « Latest exchanges » lists the five latest texts a
+contact sent. The archive keys a sender by an owner-blind digest of ONE spelling, so a
+number cannot be looked up under every spelling a text may have arrived under
+(`+33 6…`, `06…`).
+
+- **One rule says a sender is a number's**: `sms/identity.sent_from_lines`, extracted from
+  the identity book's match. The SMS page names its senders with it, the contacts tool reads
+  a contact's texts with it: only a phone-shaped sender answers a number, and two spellings
+  of one line meet without inferring the deployment's country.
+- **The senders are read, never searched** (`relation_reader.texts_from_lines`): newest first
+  under `SMS_DIRECTORY_MAX_CONTACTS`, decrypted within the identity budget, then the matched
+  digests' texts newest first. A bound that hid older senders is said (`texts_cut`); an
+  archive holding no text at all has nothing to say (`disabled`); a switched-off capability
+  refuses as the page does.
+- The answer carries a text's beginning (`SMS_CARD_EXCERPT_CHARS`, the home card's), never
+  its sender, and is `no-store`. It is the person reading their own archive: no model, no
+  register row (ADR-369, D5).
+
+## Amendment 2026-11-09 — native display search
+
+The alerts hub's literal name/body search has its own session-only reader and
+encrypted continuation; lexical assistant queries keep their contract. A separate
+blind trigram projection is permissive, never an answer: exact verification and
+honest bounds remain mandatory. Distinct sender resolution is independent of the
+body verification budget, happens outside SQL transactions and is fenced before
+publication. No plaintext name index is persisted. Both projection writers share
+storage accounting and preserve the active index through a failed rebuild.
+See [the read/lifecycle contract](../technical/SMS_INGESTION.md#native-alert-search-2026-11-09)
+and [qualification](../technical/SMS_QUALIFICATION.md#native-display-reader-2026-11-09).
+
 ## References
 
 - [Technical reference](../technical/SMS_INGESTION.md)

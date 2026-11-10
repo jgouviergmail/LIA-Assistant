@@ -3,16 +3,17 @@
 import json
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import JEV_HITL_REJECTION_MIN_CONFIDENCE
 from src.core.context import current_tracker
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.llm_config.jev_gates import gate_passes
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
+from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_with_jev
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer, ChoiceQuestion
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_jev import jev_decisions_total
 
 logger = get_logger(__name__)
 
@@ -34,17 +35,17 @@ def _rejection_owner() -> TrackingContext | None:
 
 
 def _accepted_rejection(
-    outcome: str,
-    answer: ChoiceAnswer | None,
+    attempt: DecisionAttempt,
     pending_actions: list[dict[str, Any]],
     snapshot: list[dict[str, Any]],
 ) -> bool:
     """Accept the bounded verdict only while the judged actions are unchanged."""
+    answer = attempt.answer
     return (
-        outcome == "success"
+        attempt.outcome == "success"
         and answer is not None
         and answer.choice == "reject_all"
-        and answer.confidence >= JEV_HITL_REJECTION_MIN_CONFIDENCE
+        and gate_passes(attempt.thresholds, JevUsage.HITL_REJECTION, "rejection", answer.confidence)
         and pending_actions == snapshot
     )
 
@@ -77,7 +78,7 @@ async def try_reject_all(
         return None
 
     answer = attempt.answer
-    selected = _accepted_rejection(attempt.outcome, answer, pending_actions, snapshot)
+    selected = _accepted_rejection(attempt, pending_actions, snapshot)
     outcome = (
         "selected"
         if selected
@@ -91,5 +92,5 @@ async def try_reject_all(
         target="hitl_rejected" if selected else "hitl_classifier",
         decision_labels={"selection": "Total rejection of the proposed actions"},
     )
-    jev_decisions_total.labels(usage=JevUsage.HITL_REJECTION, outcome=outcome).inc()
+    count_jev_outcome(JevUsage.HITL_REJECTION, outcome)
     return answer if selected else None

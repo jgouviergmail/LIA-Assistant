@@ -22,8 +22,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Final
 
+from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.api.run_origin import current_origin, current_origin_carries_drafts
-from src.domains.agents.effects.scope import EffectScope, current_turn_source
+from src.domains.agents.effects.scope import (
+    EffectScope,
+    current_turn_source,
+    has_execution_identity,
+)
+from src.domains.agents.prompts import load_prompt
 
 #: Policies whose effect happens somewhere the ledger cannot follow — or does
 #: not happen at all at this point in the flow.
@@ -57,7 +63,12 @@ PASS_THROUGH_POLICIES: Final[frozenset[str]] = frozenset({"read", "sandboxed", "
 POLICIES_NEEDING_SOMEBODY: Final[frozenset[str]] = frozenset({"confirm", "draft"})
 
 #: Policies that reach the world and are therefore recorded.
-LEDGERED_POLICIES: Final[frozenset[str]] = frozenset({"reversible", "artefact", "confirm"})
+LEDGERED_POLICIES: Final[frozenset[str]] = frozenset(
+    {"reversible", "artefact", "confirm", "direct"}
+)
+
+#: An unrecorded act under these policies must never reach the world.
+STRICT_LEDGER_POLICIES: Final[frozenset[str]] = frozenset({"confirm", "direct"})
 
 #: Sources that have nobody to ask. A ``confirm`` effect is not "unconfirmed"
 #: there — it is unconfirmable, and saying so is the difference between an
@@ -66,6 +77,8 @@ UNATTENDED_SOURCES: Final[frozenset[str]] = frozenset({"scheduled"})
 
 ERROR_CONFIRMATION_MISSING: Final[str] = "confirmation_missing"
 ERROR_CONFIRMATION_IMPOSSIBLE: Final[str] = "confirmation_impossible_unattended"
+ERROR_EXECUTION_AUTHORITY_MISSING: Final[str] = "execution_authority_missing"
+ERROR_DIRECT_UNATTENDED: Final[str] = "direct_communication_unattended"
 
 # Technical English for the model, which reformulates in the user's language —
 # the doctrine every tool-facing message in this codebase follows (ADR-256).
@@ -246,6 +259,8 @@ def decide_effect(
         The verdict. Pure: no I/O, no clock, no registry — every branch is
         enumerable in a unit test.
     """
+    if policy == "direct":
+        return _direct_authority(scope, carrier=carrier)
     unattended = scope is not None and nobody_can_answer(scope.source, carrier=carrier)
 
     # A DRAFT is only ever a pass-through where somebody can answer it. Nobody
@@ -273,3 +288,28 @@ def decide_effect(
         )
 
     return GateDecision(action=GateAction.LEDGER, unscoped=scope is None)
+
+
+def _direct_authority(scope: EffectScope | None, *, carrier: bool) -> GateDecision:
+    """A direct communication is scoped and never adds autonomous authority.
+
+    Args:
+        scope: Authority published by the executing turn.
+        carrier: Whether the user-authored work surface carries deferred questions.
+
+    Returns:
+        A durable-claim verdict or a refusal, never a confirmation card.
+    """
+    if not has_execution_identity(scope):
+        return _direct_refusal(ERROR_EXECUTION_AUTHORITY_MISSING)
+    if scope.source == "proactive" or (
+        nobody_can_answer(scope.source, carrier=carrier) and not scope.approved
+    ):
+        return _direct_refusal(ERROR_DIRECT_UNATTENDED)
+    return GateDecision(action=GateAction.LEDGER)
+
+
+def _direct_refusal(code: str) -> GateDecision:
+    """Read the model-facing wording from the versioned prompt store."""
+    wordings = dict(parse_prompt_sections(load_prompt("effect_gate_messages"), columns=2))
+    return GateDecision(action=GateAction.REFUSE, error_code=code, llm_message=wordings[code])

@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Check, ExternalLink, Pencil } from 'lucide-react';
+import { Check, ExternalLink, Pencil } from '@/lib/icons';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { CardItemRow } from '../CardItemRow';
@@ -28,7 +28,10 @@ import { runCardAction as runAction } from './card-actions-harness';
 const ACTIONS_LABEL = 'dashboard.briefing.actions.more';
 const FULL_LABEL = 'Comité de pilotage trimestriel avec la direction financière';
 
-function row(over: Partial<React.ComponentProps<typeof CardItemRow>> = {}) {
+/** A row that runs a handler: the link variant renders on its own (its props exclude one another). */
+type ButtonRow = Extract<React.ComponentProps<typeof CardItemRow>, { onSelect: () => void }>;
+
+function row(over: Partial<ButtonRow> = {}) {
   return renderWithProviders(
     <ul>
       <CardItemRow
@@ -159,6 +162,39 @@ describe('CardItemRow', () => {
     expect(link).toHaveAttribute('href', 'https://drive.example/doc');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('opens an item in its tool through a real link (2026-11-07)', () => {
+    // Opening an item elsewhere is navigation: a link keeps the middle-click, the context menu
+    // and the status-bar preview a button cannot offer.
+    renderWithProviders(
+      <ul>
+        <CardItemRow
+          ariaLabel="Prépare-moi la réunion de 10h"
+          tooltip={FULL_LABEL}
+          href="/en/dashboard/tools/mail?folder=system%3Ainbox&id=m1"
+        >
+          <span>Comité de pilotage…</span>
+        </CardItemRow>
+      </ul>
+    );
+
+    const link = screen.getByRole('link', { name: 'Prépare-moi la réunion de 10h' });
+    expect(link).toHaveAttribute('href', '/en/dashboard/tools/mail?folder=system%3Ainbox&id=m1');
+    expect(screen.queryByRole('button', { name: 'Prépare-moi la réunion de 10h' })).toBeNull();
+  });
+
+  it('dials a number where the person is, never in a new tab', async () => {
+    // A new tab breaks the device's own handler of `tel:` (the chat's links learnt it first).
+    const { user } = row({
+      actions: [{ icon: Check, label: 'Appeler Inès', href: 'tel:+33612345678' }],
+    });
+
+    await user.click(screen.getByRole('button', { name: ACTIONS_LABEL }));
+
+    const call = screen.getByRole('menuitem', { name: 'Appeler Inès' });
+    expect(call).toHaveAttribute('href', 'tel:+33612345678');
+    expect(call).not.toHaveAttribute('target');
   });
 
   it('states a busy action without removing it from the keyboard', async () => {

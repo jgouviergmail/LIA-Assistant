@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import { logger } from '@/lib/logger';
 

@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, 
 from src.core.constants import (
     WORKBENCH_CONTACT_ADDRESS_MAX_CHARS,
     WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
+    WORKBENCH_CONTACT_HISTORY_MAX_PHONES,
     WORKBENCH_CONTACT_NAME_MAX_CHARS,
     WORKBENCH_CONTACT_NOTES_MAX_CHARS,
     WORKBENCH_CONTACT_VALUE_MAX_CHARS,
@@ -33,6 +34,8 @@ from src.core.constants import (
     WORKBENCH_MAIL_QUERY_MAX_CHARS,
 )
 from src.domains.shared.text_normalization import fold_name
+from src.domains.sms.constants import SMS_CARD_EXCERPT_CHARS
+from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
 from src.domains.workbench.ids import OptionalPageToken, OptionalProviderId, ProviderId
 
 _ONE_LINE = r"^[^\x00-\x1f\x7f]+$"
@@ -134,19 +137,34 @@ OptionalAddresses = Annotated[
 ]
 
 
-HistorySource = Literal["used", "disabled", "unavailable"]
+#: Why a source has what it has: ``used`` (it was read, maybe finding nothing), ``disabled`` (no
+#: connector, a capability switched off, or LIA holds no record of that kind at all),
+#: ``unavailable`` (the read failed) and ``not_requested`` (the contact gives it nothing to look
+#: under: no address for mail and meetings, no number for calls and texts).
+HistorySource = Literal["used", "disabled", "unavailable", "not_requested"]
 
 
 class ContactHistoryQuery(BaseModel):
-    """Whose exchanges are asked: an address never carries a search operator."""
+    """Whose exchanges are asked: an address never carries a search operator, a number is a value."""
 
     model_config = ConfigDict(extra="forbid")
 
     address: list[EmailStr] = Field(
-        min_length=1,
+        default_factory=list,
         max_length=WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
         description="The contact's addresses.",
     )
+    phone: list[_Value] = Field(
+        default_factory=list,
+        max_length=WORKBENCH_CONTACT_HISTORY_MAX_PHONES,
+        description="The contact's numbers, written as they were saved.",
+    )
+
+    @model_validator(mode="after")
+    def _something_to_look_under(self) -> Self:
+        if not self.address and not self.phone:
+            raise ValueError("a contact's history is asked by an address or a number")
+        return self
 
 
 class HistoryMail(BaseModel):
@@ -172,6 +190,32 @@ class HistoryMeeting(BaseModel):
     calendar_id: str = Field(description="The calendar it was read on.")
 
 
+class HistoryCall(BaseModel):
+    """One call LIA placed to a contact: never the number it dialled."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID = Field(description="The call, as the calls list opens it.")
+    at: datetime = Field(description="When it was placed.")
+    status: PhoneCallStatus = Field(description="Where the call stands, or how it ended.")
+    outcome: PhoneCallOutcome | None = Field(description="What it achieved, once known.")
+    seconds: float | None = Field(description="How long it lasted, once known.")
+    purpose: str = Field(description="What LIA was asked to accomplish.")
+
+
+class HistoryText(BaseModel):
+    """One text a contact's number sent: never the number it came from."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID = Field(description="The text, as the SMS page opens it.")
+    at: datetime = Field(description="When it was received.")
+    excerpt: str = Field(
+        max_length=SMS_CARD_EXCERPT_CHARS, description="Its beginning, shown literally."
+    )
+    truncated: bool = Field(description="More of it remains beyond the excerpt.")
+
+
 class ContactHistory(BaseModel):
     """The latest exchanges with a contact, each source saying why it has nothing."""
 
@@ -192,6 +236,16 @@ class ContactHistory(BaseModel):
     )
     meetings_window_days: int = Field(description="How far back the calendar was read.")
     meetings_cut: bool = Field(description="A window held more events than were read.")
+    telephony: HistorySource = Field(description="What became of the calls' read.")
+    calls: list[HistoryCall] = Field(description="The latest calls LIA placed to their numbers.")
+    calls_window: int = Field(description="How many of LIA's latest calls were read.")
+    calls_cut: bool = Field(
+        description="LIA placed more calls than were read, and the list is not full."
+    )
+    sms: HistorySource = Field(description="What became of the texts' read.")
+    texts: list[HistoryText] = Field(description="The latest texts their numbers sent.")
+    texts_window: int = Field(description="How many of the archive's latest senders were read.")
+    texts_cut: bool = Field(description="The archive holds more senders than were read.")
 
 
 class ContactsQuery(BaseModel):

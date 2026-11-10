@@ -98,8 +98,6 @@ if (!['publish', 'validate'].includes(mode)) {
   for (const source of cards.renderers) if (sha256(fs.readFileSync(path.join(repo, source.source))) !== source.sha256) throw new Error(`Regenerate the actual backend card fixture after changing ${source.source}`);
   for (const asset of mapProvenance.images) if (sha256(fs.readFileSync(path.join(mapDirectory, asset.file))) !== asset.sha256) throw new Error(`Recorded map asset changed: ${asset.file}`);
   const geography = { html: cards.html, locationMapPath: path.join(mapDirectory, 'lyon-location.png'), routeMapPath: path.join(mapDirectory, 'lyon-route.png') };
-  const fontCss = fs.readFileSync(path.join(repo, 'apps/web/e2e/fixtures/fonts/material-symbols.css'), 'utf8');
-  const fontPath = path.join(repo, 'apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2');
   const program = path.join(output, 'landing-proof-program.js');
   // 120 seconds of unsigned 8-bit silence: exercise the player, never impersonate a voice.
   const silentAudioPath = path.join(output, 'landing-proof-silence.wav');
@@ -110,7 +108,7 @@ if (!['publish', 'validate'].includes(mode)) {
   header.writeUInt32LE(8000, 24); header.writeUInt32LE(8000, 28); header.writeUInt16LE(1, 32);
   header.writeUInt16LE(8, 34); header.write('data', 36); header.writeUInt32LE(samples, 40);
   fs.writeFileSync(silentAudioPath, Buffer.concat([header, Buffer.alloc(samples, 128)]));
-  fs.writeFileSync(program, createLandingProofCode(baseUrl, output, skillFrame, fontCss, fontPath, silentAudioPath, geography, nativeCards.dossierHtml));
+  fs.writeFileSync(program, createLandingProofCode(baseUrl, output, skillFrame, silentAudioPath, geography, nativeCards.dossierHtml));
   const guard = await createApiNetworkGuard();
   const browserDir = fs.readdirSync('/ms-playwright').find(name => /^chromium_headless_shell-\d+$/.test(name));
   if (!browserDir) throw new Error('Use the official Playwright Chromium container');

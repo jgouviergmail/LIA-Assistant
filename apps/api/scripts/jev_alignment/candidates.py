@@ -81,35 +81,6 @@ def hitl_rejection() -> dict[str, Spec]:
     }
 
 
-# ----------------------------------------------------------------- initiative
-INITIATIVE_RULES = [
-    "Read the policy (`initiative_policy`, or the one inside `evaluation_context`) and ALL named fields of `context`: original_query, retrieved_turn_results, available_tools, memory_facts, user_interests, semantic_dependencies, connection_candidates, user_language, user_timezone, current_datetime.",
-    "Utility covers all three kinds: a read-only action, a suggestion proposing a useful write action, and a distinct useful follow-up.",
-    "Calling no tool does NOT mean having no utility.",
-    "Apply the policy's own restraint, integrity and deduplication rules.",
-    "`context.retrieved_turn_results.registry` holds the authorized canonical payloads and their provenance; `context.retrieved_turn_results.agent_results` holds the complete results of this turn, errors and failed steps included. Read them together as the policy's ExecutionResults.",
-    "A declared omission of evidence means absence cannot be established.",
-    "Do not invent missing facts. " + UNTRUSTED,
-]
-
-
-def initiative() -> dict[str, Spec]:
-    """Noul: is there anything useful left to offer? An empty result only when clearly not."""
-    return {
-        "has_utility": {
-            "type": "noul",
-            "instructions": {
-                "question": "Under the supplied initiative policy, the context leaves at least one useful thing to offer: a read-only action, a suggested write action, or a distinct follow-up.",
-                "rules": INITIATIVE_RULES,
-            },
-            "criteria": {
-                "true": "At least one action, suggestion or follow-up could have concrete utility, or the context is ambiguous, incomplete or conflicting.",
-                "false": "The complete context supports that nothing useful remains to offer under the policy; an entirely empty result is warranted.",
-            },
-        }
-    }
-
-
 # ---------------------------------------------------------------------- radio
 RADIO_RULES = [
     "The complete script is conversational context, never additional factual evidence.",
@@ -187,46 +158,6 @@ def consultation_state(state: Mapping[str, object]) -> dict[str, object]:
         **{k: v for k, v in state.items() if k != "intelligence"},
         "intelligence": {k: intelligence.get(k) for k in CONSULTATION_STATE_KEYS},
     }
-
-
-# ---------------------------------------------------------------- collections
-COLLECTION_RULES = [
-    "Explicit title, body or status fields, or computed `application_facts.{key}`, can supply sufficient evidence; missing unrelated fields do not matter.",
-    "Semantic categories include ordinary synonyms and subtypes. Preserve exclusions and who-did-what relations.",
-    "Ordering and count do not establish an item's rank.",
-    "A needed unresolved date, identity, exact comparison or whole-document context is unknown.",
-    "Judge membership only; never authorize an action. " + UNTRUSTED,
-]
-DOCUMENT_RULE = "When `evidence_scope` is document_excerpt, judge the supplied excerpt: an excerpt cannot establish absence from the whole document, so use unknown when the decision needs unavailable parts; an observed fact can still contradict a condition."
-
-
-def collection(item_keys: list[str], document_excerpt: bool) -> dict[str, Spec]:
-    """A three-way Choice per item, the evidence-missing outcome FIRST."""
-    out: dict[str, Spec] = {}
-    for key in item_keys:
-        rules = [rule.replace("{key}", key) for rule in COLLECTION_RULES]
-        if document_excerpt:
-            rules.append(DOCUMENT_RULE)
-        out[key] = {
-            "type": "choice",
-            "instructions": {
-                "question": f"Does `items.{key}` satisfy every item-level condition in `query`?",
-                "rules": rules,
-            },
-            "criteria": {
-                "unknown": {
-                    "what": "A needed fact is absent, ambiguous, omitted, or requires exact computation or other records."
-                },
-                "match": {
-                    "what": "Explicit fields or computed facts support every item-level condition."
-                },
-                "non_match": {
-                    "what": "An explicit fact contradicts a required item-level condition.",
-                    "not_for": "a fact that is merely missing",
-                },
-            },
-        }
-    return out
 
 
 # ------------------------------------------------------------ HITL exclusion

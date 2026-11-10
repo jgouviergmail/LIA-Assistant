@@ -311,7 +311,7 @@ def compose_delivery_text(
             user_timezone=user_timezone,
         )
     except Exception as exc:  # noqa: BLE001 — bonus line, never lose the return
-        logger.warning("telephony_appointment_suggestion_failed", error=str(exc))
+        logger.warning("telephony_appointment_suggestion_failed", error_type=type(exc).__name__)
         return proposal_text
     if not suggestion:
         return proposal_text
@@ -331,7 +331,7 @@ async def _synthesize_with_fallback(
     fallback_phrase: str,
     user_id: UUID | None = None,
 ) -> tuple[ReturnProposal, SynthUsage | None]:
-    """Run the synthesis; a failure degrades to the plain-summary proposal.
+    """Run the synthesis; a failure returns the localized failure notice.
 
     Extracted from ``process_completed_call`` (CC discipline). The fallback
     proposal is intentionally debrief-empty — it persists as NULL downstream.
@@ -349,9 +349,10 @@ async def _synthesize_with_fallback(
             call_id=call_id,
         )
     except Exception as exc:  # noqa: BLE001 — synthesis must not lose the call
-        logger.warning("telephony_synthesis_failed", call_id=str(call_id), error=str(exc))
-        fallback = transcript_summary or fallback_phrase
-        return ReturnProposal(summary=transcript_summary or "", proposal_text=fallback), None
+        logger.warning(
+            "telephony_synthesis_failed", call_id=str(call_id), error_type=type(exc).__name__
+        )
+        return ReturnProposal(summary=fallback_phrase, proposal_text=fallback_phrase), None
 
 
 async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None:

@@ -12,10 +12,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.peers.delivery_repository import PeerDeliveryRepository, claim_of
 from src.domains.peers.models import (
     PeerConnection,
     PeerConnectionStatus,
@@ -220,7 +221,7 @@ class TestShareUpsert:
 
 
 class TestMessageDeliveryTransitions:
-    """The delivery ledger claims exactly once and scrubs on success (spec §8)."""
+    """The delivery ledger claims exactly once and retains both texts until their horizon."""
 
     async def _accepted_connection(self, repo, async_session, user_a, user_b):
         now = datetime.now(UTC)
@@ -244,11 +245,11 @@ class TestMessageDeliveryTransitions:
         await repo.enqueue_message(connection.id, user_a.id, user_b.id, "coucou")
         await async_session.commit()
 
-        claimed = await repo.claim_pending_messages()
+        claimed = await PeerDeliveryRepository(async_session).claim_pending_messages()
         assert len(claimed) == 1
         assert claimed[0].status == PeerMessageStatus.DELIVERING.value
         # Same-transaction second claim: the row already left pending.
-        assert await repo.claim_pending_messages() == []
+        assert await PeerDeliveryRepository(async_session).claim_pending_messages() == []
         await async_session.commit()
 
     async def test_delivered_keeps_both_texts(self, async_session: AsyncSession, two_users):
@@ -257,10 +258,11 @@ class TestMessageDeliveryTransitions:
         connection = await self._accepted_connection(repo, async_session, user_a, user_b)
         message = await repo.enqueue_message(connection.id, user_a.id, user_b.id, "secret")
         await async_session.commit()
-        (claimed,) = await repo.claim_pending_messages()
+        (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+        claim = claim_of(claimed)
         assert (
-            await repo.mark_message_delivered(
-                claimed.id, now=datetime.now(UTC), delivered_text="Il sera en retard."
+            await PeerDeliveryRepository(async_session).mark_message_delivered(
+                claim, now=datetime.now(UTC), delivered_text="Il sera en retard."
             )
             is True
         )
@@ -278,7 +280,9 @@ class TestMessageDeliveryTransitions:
         assert row.expires_at is not None  # stamped at enqueue
         # Finishing twice loses the claim cleanly.
         assert (
-            await repo.mark_message_delivered(claimed.id, now=datetime.now(UTC), delivered_text="x")
+            await PeerDeliveryRepository(async_session).mark_message_delivered(
+                claim, now=datetime.now(UTC), delivered_text="x"
+            )
             is False
         )
 
@@ -289,23 +293,28 @@ class TestMessageDeliveryTransitions:
         message = await repo.enqueue_message(connection.id, user_a.id, user_b.id, "x")
         await async_session.commit()
 
-        (claimed,) = await repo.claim_pending_messages()
+        (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+        claim = claim_of(claimed)
         assert (
-            await repo.mark_message_failed(claimed.id, "llm_error", max_attempts=2)
+            await PeerDeliveryRepository(async_session).mark_message_failed(
+                claim, "dispatch_error", max_attempts=2
+            )
             == PeerMessageStatus.PENDING.value
         )
         await async_session.commit()
-        (reclaimed,) = await repo.claim_pending_messages()
+        (reclaimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
         assert reclaimed.id == message.id
         assert (
-            await repo.mark_message_failed(reclaimed.id, "llm_error", max_attempts=2)
+            await PeerDeliveryRepository(async_session).mark_message_failed(
+                claim_of(reclaimed), "dispatch_error", max_attempts=2
+            )
             == PeerMessageStatus.FAILED.value
         )
         await async_session.commit()
         row = await async_session.get(PeerMessage, message.id)
         await async_session.refresh(row)
         assert row.attempts == 2
-        assert row.last_error == "llm_error"
+        assert row.last_error == "dispatch_error"
 
     async def test_stale_delivering_recovers_to_pending(
         self, async_session: AsyncSession, two_users
@@ -317,15 +326,18 @@ class TestMessageDeliveryTransitions:
         connection = await self._accepted_connection(repo, async_session, user_a, user_b)
         await repo.enqueue_message(connection.id, user_a.id, user_b.id, "x")
         await async_session.commit()
-        await repo.claim_pending_messages()
+        await PeerDeliveryRepository(async_session).claim_pending_messages()
         await async_session.commit()
 
-        recovered = await repo.recover_stale_delivering(
-            older_than=datetime.now(UTC) + timedelta(minutes=1)
+        await async_session.execute(
+            update(PeerMessage)
+            .where(PeerMessage.status == "delivering")
+            .values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1))
         )
+        recovered = await PeerDeliveryRepository(async_session).recover_stale_delivering()
         await async_session.commit()
         assert recovered == 1
-        (reclaimed,) = await repo.claim_pending_messages()
+        (reclaimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
         assert reclaimed.status == PeerMessageStatus.DELIVERING.value
 
 
@@ -359,10 +371,11 @@ class TestDeliveredMessageActivity:
         """Enqueue → claim → mark delivered, and return the ledger row."""
         message = await repo.enqueue_message(connection.id, sender.id, recipient.id, "hello")
         await async_session.commit()
-        await repo.claim_pending_messages()
+        (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+        claim = claim_of(claimed)
         await async_session.commit()
-        assert await repo.mark_message_delivered(
-            message.id, now=when, delivered_text="ce que son assistant a dit"
+        assert await PeerDeliveryRepository(async_session).mark_message_delivered(
+            claim, now=when, delivered_text="ce que son assistant a dit"
         )
         await async_session.commit()
         return message
@@ -593,8 +606,11 @@ class TestMessageRetention:
         )
         message = await repo.enqueue_message(connection.id, user_a.id, user_b.id, "ma directive")
         await async_session.commit()
-        (claimed,) = await repo.claim_pending_messages()
-        await repo.mark_message_delivered(claimed.id, now=now, delivered_text="son rendu")
+        (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+        claim = claim_of(claimed)
+        await PeerDeliveryRepository(async_session).mark_message_delivered(
+            claim, now=now, delivered_text="son rendu"
+        )
         message.expires_at = expires_at
         async_session.add(message)
         await async_session.commit()
@@ -662,8 +678,9 @@ class TestMessageRetention:
         )
         message = await repo.enqueue_message(connection.id, user_a.id, user_b.id, "jamais parti")
         await async_session.commit()
-        (claimed,) = await repo.claim_pending_messages()
-        await repo.cancel_message(claimed.id, "cancelled_blocked")
+        (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+        claim = claim_of(claimed)
+        await PeerDeliveryRepository(async_session).cancel_message(claim, "cancelled_blocked")
         await async_session.commit()
 
         row = await async_session.get(PeerMessage, message.id)
@@ -690,12 +707,13 @@ class TestTheGlobalTimelineIsPageable:
     async def _deliver_many(self, repo, async_session, connection, sender, recipient, count):
         base = datetime.now(UTC)
         for index in range(count):
-            message = await repo.enqueue_message(connection.id, sender.id, recipient.id, "hello")
+            await repo.enqueue_message(connection.id, sender.id, recipient.id, "hello")
             await async_session.commit()
-            await repo.claim_pending_messages()
+            (claimed,) = await PeerDeliveryRepository(async_session).claim_pending_messages()
+            claim = claim_of(claimed)
             await async_session.commit()
-            assert await repo.mark_message_delivered(
-                message.id,
+            assert await PeerDeliveryRepository(async_session).mark_message_delivered(
+                claim,
                 now=base - timedelta(minutes=count - index),
                 delivered_text="rendu",
             )

@@ -14,7 +14,7 @@
  * says which mode a call will actually run, so the page never offers a mode
  * the dial path will not honour (ADR-184).
  */
-import { AudioLines, Radio } from 'lucide-react';
+import { AudioLines, Radio } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import { GlyphSelect } from '@/components/workboard/GlyphSelect';

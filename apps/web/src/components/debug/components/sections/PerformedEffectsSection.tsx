@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { CheckCircle2, ListChecks, XCircle } from 'lucide-react';
+import { CheckCircle2, ListChecks, XCircle } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import type { PerformedEffectsMetrics } from '@/types/chat';
 

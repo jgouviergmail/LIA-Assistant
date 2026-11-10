@@ -32,6 +32,7 @@ from src.core.constants import (
     RATE_LIMIT_GLOBAL_EXEMPT_PATHS,
     RATE_LIMIT_GLOBAL_WINDOW_SECONDS,
     TURNSTILE_TOKEN_HEADER,
+    WORKBENCH_CARD_SOURCE_HEADER,
 )
 from src.core.http_scan import ScanProtectionMiddleware
 from src.core.i18n import language_from_header, language_scope
@@ -740,6 +741,8 @@ def setup_middleware(app: FastAPI) -> None:
             # The Turnstile widget's token on the password doors (ADR-364): those
             # JSON POSTs already pay a preflight, so allowing it costs nothing.
             TURNSTILE_TOKEN_HEADER,
+            # A card constrains its Tools request to the source that produced it.
+            WORKBENCH_CARD_SOURCE_HEADER,
         ],
         # A bounded CSV preview must withhold a cut record across API origins.
         expose_headers=["X-Request-ID", "X-Preview-Truncated", "Retry-After"],

@@ -714,6 +714,20 @@ tasks:
       - cmd: .venv/bin/python scripts/habits/measure_calibration.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  habits:proposals:measure:
+    desc: Simulate people and replay the usage proposals on the real rules (deterministic, no network)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate (ADR-375): thirteen generative personas live
+    # a month each, over many seeds, and the REAL needs and proposal rules run
+    # every night. It shows each expected proposal's rate and first night, and
+    # every proposal that opened unexpected — the false-positive cost a lowered
+    # bar would hide. Bars are the shipped defaults, never the live settings.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/habits/measure_proposals.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/habits/measure_proposals.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
   workboard:corpus:measure:
     desc: Measure which tool a model picks for a sentence about the board (NETWORK, on demand)
     dir: "{{.API_DIR}}"
@@ -1547,9 +1561,9 @@ tasks:
         platforms: [windows]
       - cmd: .venv/bin/python -m coverage xml --data-file=.coverage-combined -o coverage.xml
         platforms: [linux, darwin]
-      - cmd: .venv/Scripts/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=78
+      - cmd: .venv/Scripts/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=87
         platforms: [windows]
-      - cmd: .venv/bin/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=78
+      - cmd: .venv/bin/python -m coverage report --data-file=.coverage-combined --format=total --fail-under=87
         platforms: [linux, darwin]
 
   test:backend:diff-coverage:

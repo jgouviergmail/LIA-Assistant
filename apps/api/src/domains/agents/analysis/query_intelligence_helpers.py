@@ -253,11 +253,11 @@ def resolve_actionable_domain(state: dict[str, Any]) -> str | None:
 
     The recurrence SIGNATURE is the primary domain alone: production has only
     ever stored single-domain keys, and composing the secondary domains would
-    fragment every stored key (fewer occurrences per signature, locks further
-    out of reach) — a separate decision, to be measured before it is taken.
-    And it is a REGISTERED domain, on the rule the product-outcomes capture
-    already applies: the value becomes a Redis key tail and a word the
-    heartbeat quotes, so a stray spelling is not a domain (2026-09-11).
+    fragment every stored key (fewer days per signature, needs further out of
+    reach) — a separate decision, to be measured before it is taken. And it is
+    a REGISTERED domain, on the rule the product-outcomes capture already
+    applies: the value becomes a Redis key tail and the domain a habit proposal
+    names (ADR-375), so a stray spelling is not a domain (2026-09-11).
 
     Args:
         state: LangGraph state dict.

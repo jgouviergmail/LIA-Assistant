@@ -20,6 +20,7 @@ import { turnstileHeaders } from './turnstile';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
 import { resetMcpPreparationNotices } from '@/lib/sse-handlers/mcp-preparation';
 import type { ExchangeRhythm } from '@/lib/exchange-rhythm';
+import type { IconStyle, IconStyleUpdate } from '@/lib/icon-style';
 
 export interface User {
   id: string;
@@ -46,7 +47,10 @@ export interface User {
   onboarding_completed: boolean;
   onboarding_checklist?: { dismissed_at?: string; celebrated_at?: string } | null;
   theme?: string;
+  theme_light_start_minute?: number;
+  theme_dark_start_minute?: number;
   color_theme?: string;
+  icon_style?: IconStyle;
   font_family?: string;
   font_size?: number;
   image_generation_enabled?: boolean;
@@ -110,6 +114,8 @@ interface AuthContextType {
   /** Spend a native handoff code, from inside the shell's own WebView. */
   completeNativeSignIn: (code: string, verifier: string) => Promise<{ mfaRequired: boolean }>;
   refreshUser: () => Promise<boolean>;
+  /** Adopt the confirmed icon preference for the current account. */
+  applyUserUpdate: (updated: IconStyleUpdate) => boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -134,15 +140,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     id: null,
     sequence: 0,
   });
-  useEffect(() => {
-    const identity = refreshIdentity.current;
-    identity.id = user?.id ?? null;
-    identity.sequence += 1;
-    return () => {
-      identity.id = null;
-      identity.sequence += 1;
-    };
-  }, [user?.id]);
+  const iconPreferenceRevision = useRef(0);
+  const replaceSessionUser = useCallback((next: User | null): void => {
+    // Publish the session identity before React commits its queued state: a
+    // completed sign-in must immediately reject the previous account's work.
+    refreshIdentity.current.id = next?.id ?? null;
+    refreshIdentity.current.sequence += 1;
+    setUser(next);
+  }, []);
+  useEffect(
+    () => () => {
+      refreshIdentity.current.id = null;
+      refreshIdentity.current.sequence += 1;
+    },
+    []
+  );
   const [isLoading, setIsLoading] = useState(true);
   const router = useLocalizedRouter();
 
@@ -180,7 +192,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (isAuthPage) {
           // User is on an auth page - assume not authenticated
-          setUser(null);
+          replaceSessionUser(null);
           setIsLoading(false);
           return;
         }
@@ -189,18 +201,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // For protected pages, check authentication status
       try {
         const response = await apiClient.get<User>('/auth/me');
-        setUser(response);
+        replaceSessionUser(response);
       } catch {
         // No session or session expired - user not authenticated
         // The 401 handler in api-client will redirect to login
-        setUser(null);
+        replaceSessionUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     initAuth();
-  }, []);
+  }, [replaceSessionUser]);
 
   /**
    * SEC-035 — drop the previous account's client-side state.
@@ -236,71 +248,77 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * @param rememberMe - Extend session to 30 days instead of 7
    * @param turnstileToken - The bot check's token (ADR-364), when the instance runs one
    */
-  const login = async (
-    email: string,
-    password: string,
-    rememberMe = false,
-    turnstileToken: string | null = null
-  ): Promise<LoginResult> => {
-    // A4 device attestation: a device with push already granted proves
-    // itself with its FCM token (suppresses the new-login alert and names
-    // the session in "My devices"). Silent — resolves without any prompt
-    // when permission is 'granted'; every failure just means "notify".
-    let fcmToken: string | null = null;
-    try {
-      const { getNotificationPermission, requestNotificationPermission } =
-        await import('@/lib/firebase');
-      if (getNotificationPermission() === 'granted') {
-        fcmToken = await requestNotificationPermission();
-      }
-    } catch {
-      // Fail-safe toward notifying — never block the login on push plumbing.
-    }
-
-    try {
-      const response = await apiClient.post<{
-        user: User | null;
-        mfa_required?: boolean;
-        mfa_token?: string | null;
-      }>(
-        '/auth/login',
-        {
-          email,
-          password,
-          remember_me: rememberMe,
-          fcm_token: fcmToken,
-        },
-        turnstileHeaders(turnstileToken)
-      );
-
-      // Two-step login (TOTP active): no session yet — the caller must
-      // present the pending token + code to verifyMfa.
-      if (response.mfa_required) {
-        return { user: null, mfaRequired: true, mfaToken: response.mfa_token ?? null };
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+      rememberMe = false,
+      turnstileToken: string | null = null
+    ): Promise<LoginResult> => {
+      // A4 device attestation: a device with push already granted proves
+      // itself with its FCM token (suppresses the new-login alert and names
+      // the session in "My devices"). Silent — resolves without any prompt
+      // when permission is 'granted'; every failure just means "notify".
+      let fcmToken: string | null = null;
+      try {
+        const { getNotificationPermission, requestNotificationPermission } =
+          await import('@/lib/firebase');
+        if (getNotificationPermission() === 'granted') {
+          fcmToken = await requestNotificationPermission();
+        }
+      } catch {
+        // Fail-safe toward notifying — never block the login on push plumbing.
       }
 
-      setUser(response.user);
-      return { user: response.user, mfaRequired: false, mfaToken: null };
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  };
+      try {
+        const response = await apiClient.post<{
+          user: User | null;
+          mfa_required?: boolean;
+          mfa_token?: string | null;
+        }>(
+          '/auth/login',
+          {
+            email,
+            password,
+            remember_me: rememberMe,
+            fcm_token: fcmToken,
+          },
+          turnstileHeaders(turnstileToken)
+        );
+
+        // Two-step login (TOTP active): no session yet — the caller must
+        // present the pending token + code to verifyMfa.
+        if (response.mfa_required) {
+          return { user: null, mfaRequired: true, mfaToken: response.mfa_token ?? null };
+        }
+
+        replaceSessionUser(response.user);
+        return { user: response.user, mfaRequired: false, mfaToken: null };
+      } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
+    },
+    [replaceSessionUser]
+  );
 
   /**
    * Complete a two-step login: pending token + TOTP or backup code.
    * On success the backend sets the session cookie and returns the user.
    */
-  const verifyMfa = async (mfaToken: string | null, code: string): Promise<User> => {
-    const response = await apiClient.post<{ user: User }>('/auth/mfa/verify', {
-      // Omitted entirely when absent: the API falls back to the httpOnly
-      // cookie, and sending an explicit null would fail schema validation.
-      ...(mfaToken !== null && { mfa_token: mfaToken }),
-      code,
-    });
-    setUser(response.user);
-    return response.user;
-  };
+  const verifyMfa = useCallback(
+    async (mfaToken: string | null, code: string): Promise<User> => {
+      const response = await apiClient.post<{ user: User }>('/auth/mfa/verify', {
+        // Omitted entirely when absent: the API falls back to the httpOnly
+        // cookie, and sending an explicit null would fail schema validation.
+        ...(mfaToken !== null && { mfa_token: mfaToken }),
+        code,
+      });
+      replaceSessionUser(response.user);
+      return response.user;
+    },
+    [replaceSessionUser]
+  );
 
   /**
    * Register new user
@@ -320,40 +338,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * @param language - User's preferred language (optional, auto-detected if not provided)
    * @param turnstileToken - The bot check's token (ADR-364), when the instance runs one
    */
-  const register = async (
-    email: string,
-    password: string,
-    name?: string,
-    rememberMe = false,
-    timezone?: string,
-    language?: string,
-    termsAccepted?: boolean,
-    turnstileToken: string | null = null
-  ): Promise<User> => {
-    try {
-      const response = await apiClient.post<{ user: User }>(
-        '/auth/register',
-        {
-          email,
-          password,
-          full_name: name,
-          remember_me: rememberMe,
-          // Undefined outside a demonstrator: the field only exists where the
-          // terms are enforced, and sending false there would be a lie.
-          ...(termsAccepted ? { terms_accepted: true } : {}),
-          timezone,
-          language,
-        },
-        turnstileHeaders(turnstileToken)
-      );
+  const register = useCallback(
+    async (
+      email: string,
+      password: string,
+      name?: string,
+      rememberMe = false,
+      timezone?: string,
+      language?: string,
+      termsAccepted?: boolean,
+      turnstileToken: string | null = null
+    ): Promise<User> => {
+      try {
+        const response = await apiClient.post<{ user: User }>(
+          '/auth/register',
+          {
+            email,
+            password,
+            full_name: name,
+            remember_me: rememberMe,
+            // Undefined outside a demonstrator: the field only exists where the
+            // terms are enforced, and sending false there would be a lie.
+            ...(termsAccepted ? { terms_accepted: true } : {}),
+            timezone,
+            language,
+          },
+          turnstileHeaders(turnstileToken)
+        );
 
-      setUser(response.user);
-      return response.user;
-    } catch (error) {
-      console.error('Register error:', error);
-      throw error;
-    }
-  };
+        replaceSessionUser(response.user);
+        return response.user;
+      } catch (error) {
+        console.error('Register error:', error);
+        throw error;
+      }
+    },
+    [replaceSessionUser]
+  );
 
   /**
    * Logout user
@@ -404,10 +425,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // which cannot be attributed to a user once written (debug metrics
       // history carries the request text and execution details).
       purgeSensitiveClientStorage();
-      setUser(null);
+      replaceSessionUser(null);
       router.push('/login');
     }
-  }, [router, user?.id]);
+  }, [router, user?.id, replaceSessionUser]);
 
   /**
    * Initiate Google OAuth flow
@@ -425,19 +446,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * The verifier is what makes an intercepted deep link inert: the server
    * stored only its hash, and the code is worth nothing without it.
    */
-  const completeNativeSignIn = async (
-    code: string,
-    verifier: string
-  ): Promise<{ mfaRequired: boolean }> => {
-    const response = await apiClient.post<{ user?: User; mfa_required?: boolean }>(
-      '/auth/native/callback',
-      { code, verifier }
-    );
-    if (response.user) {
-      setUser(response.user);
-    }
-    return { mfaRequired: response.mfa_required === true };
-  };
+  const completeNativeSignIn = useCallback(
+    async (code: string, verifier: string): Promise<{ mfaRequired: boolean }> => {
+      const response = await apiClient.post<{ user?: User; mfa_required?: boolean }>(
+        '/auth/native/callback',
+        { code, verifier }
+      );
+      if (response.user) {
+        replaceSessionUser(response.user);
+      }
+      return { mfaRequired: response.mfa_required === true };
+    },
+    [replaceSessionUser]
+  );
 
   const initiateGoogleOAuth = async (nativeChallenge?: string): Promise<void> => {
     try {
@@ -471,6 +492,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const ownerId = refreshIdentity.current.id;
     if (!ownerId) return false;
     const sequence = ++refreshIdentity.current.sequence;
+    const iconRevision = iconPreferenceRevision.current;
     try {
       const response = await apiClient.get<User>('/auth/me');
       if (
@@ -482,10 +504,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Only update if user data actually changed (prevents unnecessary re-renders)
       setUser(prev => {
         if (prev?.id !== ownerId) return prev;
-        if (prev && JSON.stringify(prev) === JSON.stringify(response)) {
+        // Keep an icon confirmed since this read began, while still accepting
+        // unrelated preferences from the refreshed profile.
+        const updated =
+          iconPreferenceRevision.current === iconRevision
+            ? response
+            : { ...response, icon_style: prev.icon_style };
+        if (JSON.stringify(prev) === JSON.stringify(updated)) {
           return prev; // Same reference → no re-render
         }
-        return response;
+        return updated;
       });
       return true;
     } catch (error) {
@@ -495,10 +523,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  const applyUserUpdate = useCallback((updated: IconStyleUpdate): boolean => {
+    const identity = refreshIdentity.current;
+    if (!identity.id || identity.id !== updated.id) return false;
+    iconPreferenceRevision.current += 1;
+    // A PATCH response is a snapshot: adopt only the field this mutation owns.
+    setUser(current =>
+      current?.id === updated.id ? { ...current, icon_style: updated.icon_style } : current
+    );
+    return true;
+  }, []);
+
   // Memoize context value to prevent unnecessary re-renders of consumers.
-  // logout and refreshUser are useCallback-wrapped (stable references).
-  // login, register, initiateGoogleOAuth are recreated per render but only
-  // called on user action — they don't trigger consumer re-renders.
+  // Session actions keep stable references between account changes.
   const contextValue = useMemo(
     () => ({
       user,
@@ -510,8 +547,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       initiateGoogleOAuth,
       refreshUser,
+      applyUserUpdate,
     }),
-    [user, isLoading, logout, refreshUser]
+    [
+      user,
+      isLoading,
+      login,
+      verifyMfa,
+      completeNativeSignIn,
+      register,
+      logout,
+      refreshUser,
+      applyUserUpdate,
+    ]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

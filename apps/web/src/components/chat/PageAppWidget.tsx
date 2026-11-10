@@ -20,7 +20,7 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AppWindow, Code2, Play, RotateCcw } from 'lucide-react';
+import { AppWindow, Code2, Play, RotateCcw } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

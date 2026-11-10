@@ -9,7 +9,7 @@ import {
   MessageCircle,
   Sparkles,
   Sun,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { ReactNode } from 'react';

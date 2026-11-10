@@ -1,5 +1,5 @@
 /**
- * Modern Fetch API-based HTTP client for Next.js 15.
+ * Modern Fetch API-based HTTP client for Next.js.
  *
  * Replaces axios with native Fetch API for:
  * - Zero dependencies
@@ -12,6 +12,7 @@ import { readErrorDetail } from '@/lib/api-error';
 import { API_TIMEOUT_DEFAULT, NATIVE_CLIENT_HEADER } from '@/lib/constants';
 import { isNativeShell } from '@/lib/native/shell';
 import { applicationDeviceHeaders } from '@/lib/application-device-identity';
+import { cardSourceEndpoint, cardSourceHeaders } from '@/lib/workbench/card-source';
 
 /**
  * HTTP client error with status code and response data.
@@ -168,7 +169,7 @@ function getBaseUrl(): string {
  * which has no such route (found live: the export download 404'd).
  */
 export function apiEndpointUrl(endpoint: string): string {
-  return `${getBaseUrl()}${endpoint}`;
+  return `${getBaseUrl()}${cardSourceEndpoint(endpoint)}`;
 }
 
 /**
@@ -193,6 +194,18 @@ function appendParams(target: URLSearchParams, params: Record<string, QueryParam
   });
 }
 
+/** Append before the fragment, preserving any query already carried by a relative endpoint. */
+function appendRelativeQuery(path: string, params: Record<string, QueryParamValue>): string {
+  const values = new URLSearchParams();
+  appendParams(values, params);
+  const query = values.toString();
+  if (!query) return path;
+  const hash = path.indexOf('#');
+  const boundary = hash < 0 ? path.length : hash;
+  const before = path.slice(0, boundary);
+  return `${before}${before.includes('?') ? '&' : '?'}${query}${path.slice(boundary)}`;
+}
+
 /**
  * Build URL with query parameters.
  */
@@ -211,17 +224,7 @@ function buildUrl(endpoint: string, params?: Record<string, QueryParamValue>): s
     if (params) appendParams(url.searchParams, params);
     return url.toString();
   } else {
-    // Relative URL - simple string concatenation
-    if (params) {
-      const searchParams = new URLSearchParams();
-      appendParams(searchParams, params);
-      // An empty bag adds NO `?`: every parameter may legitimately be absent
-      // (an unset filter, an empty multi-select), and a bare `?` is a different
-      // URL for the cache and for a route matcher.
-      const query = searchParams.toString();
-      return query ? `${fullPath}?${query}` : fullPath;
-    }
-    return fullPath;
+    return params ? appendRelativeQuery(fullPath, params) : fullPath;
   }
 }
 
@@ -429,6 +432,11 @@ function combineSignals(
   return callerSignal ? AbortSignal.any([timeoutSignal, callerSignal]) : timeoutSignal;
 }
 
+/** Keep file forms intact; ordinary request data uses JSON. */
+function requestBody(data: unknown): BodyInit | undefined {
+  return data instanceof FormData ? data : JSON.stringify(data);
+}
+
 /**
  * Modern HTTP client using native Fetch API.
  *
@@ -484,8 +492,14 @@ class ApiClient {
     const headers: Record<string, string> = {
       ...(fetchConfig.headers as Record<string, string>),
       ...applicationDeviceHeaders(endpoint),
+      ...cardSourceHeaders(endpoint),
     };
-    if (needsContentType) {
+    if (fetchConfig.body instanceof FormData) {
+      // The browser owns the multipart boundary, including when a caller supplied a JSON default.
+      for (const name of Object.keys(headers)) {
+        if (name.toLowerCase() === 'content-type') delete headers[name];
+      }
+    } else if (needsContentType) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -534,6 +548,13 @@ class ApiClient {
     return response;
   }
 
+  /** POST a streamed response through the same cookie, cancellation and refusal boundary. */
+  async postResponse(endpoint: string, data: object, config?: RequestConfig): Promise<Response> {
+    const response = await this.send('POST', endpoint, { ...config, body: requestBody(data) });
+    if (!response.ok) return handleResponse<never>(response);
+    return response;
+  }
+
   /**
    * GET a binary body (an audio segment) as a Blob, through the same cookie,
    * header, timeout and 401/403 handling as every JSON call. An error answer
@@ -550,7 +571,7 @@ class ApiClient {
   async post<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<T> {
     return this.request<T>('POST', endpoint, {
       ...config,
-      body: JSON.stringify(data),
+      body: requestBody(data),
     });
   }
 
@@ -560,7 +581,7 @@ class ApiClient {
   async put<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<T> {
     return this.request<T>('PUT', endpoint, {
       ...config,
-      body: JSON.stringify(data),
+      body: requestBody(data),
     });
   }
 
@@ -570,7 +591,7 @@ class ApiClient {
   async patch<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<T> {
     return this.request<T>('PATCH', endpoint, {
       ...config,
-      body: JSON.stringify(data),
+      body: requestBody(data),
     });
   }
 

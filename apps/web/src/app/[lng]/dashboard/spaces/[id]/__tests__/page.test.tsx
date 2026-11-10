@@ -138,6 +138,7 @@ function space(over: Partial<RAGSpace> = {}): RAGSpace {
     description: null,
     is_active: true,
     kind: null,
+    is_favorite: false,
     document_count: 2,
     ready_document_count: 2,
     total_size: 4096,
@@ -180,6 +181,48 @@ async function selectBoth(user: ReturnType<typeof renderWithProviders>['user']) 
 }
 
 describe('SpaceDetailPage — selection (ADR-259)', () => {
+  it('keeps the selection and focus while the detail refreshes in the background', async () => {
+    const { user, rerender } = renderWithProviders(<SpaceDetailPage params={params} />);
+    const checkbox = within(screen.getByRole('listitem', { name: 'report.pdf' })).getByRole(
+      'checkbox'
+    );
+    await user.click(checkbox);
+    expect(checkbox).toHaveFocus();
+
+    detail.loading = true;
+    rerender(<SpaceDetailPage params={params} />);
+
+    expect(screen.getByRole('listitem', { name: 'report.pdf' })).toBeVisible();
+    expect(checkbox).toBeChecked();
+    expect(checkbox).toHaveFocus();
+
+    detail.loading = false;
+    detail.space = {
+      ...space({ document_count: 3 }),
+      documents: [
+        document(),
+        document({ id: 'd2', original_filename: 'notes.md' }),
+        document({ id: 'd3', original_filename: 'new.md' }),
+      ],
+      drive_sources: [],
+      mail_sources: [],
+      active_drive: null,
+    };
+    rerender(<SpaceDetailPage params={params} />);
+
+    expect(screen.getByRole('listitem', { name: 'new.md' })).toBeVisible();
+    expect(checkbox).toBeChecked();
+    expect(checkbox).toHaveFocus();
+  });
+
+  it('waits for the initial detail before showing documents', () => {
+    detail.space = null;
+    detail.loading = true;
+    renderWithProviders(<SpaceDetailPage params={params} />);
+    expect(screen.queryByText('spaces.not_found')).not.toBeInTheDocument();
+    expect(screen.queryByRole('listitem', { name: 'report.pdf' })).not.toBeInTheDocument();
+  });
+
   it('shows the bar once a row is selected, with the archive link carrying the ids', async () => {
     const { user } = renderWithProviders(<SpaceDetailPage params={params} />);
     expect(screen.queryByRole('region', { name: 'spaces.documents.selection_region' })).toBeNull();

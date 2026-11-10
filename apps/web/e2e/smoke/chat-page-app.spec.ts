@@ -304,6 +304,16 @@ test.describe('an interactive page in the chat (ADR-370)', () => {
     await start.focus();
     await page.keyboard.press('Enter');
     await expect(page.locator(FRAME)).toBeFocused();
+    // The element receives focus before its opaque document has loaded. Wait for
+    // that document's load before asking the browser to route a key into it.
+    await expect
+      .poll(() =>
+        page
+          .frameLocator(FRAME)
+          .locator('html')
+          .evaluate(() => document.readyState)
+      )
+      .toBe('complete');
     // Asked for, the page shows its top, clear of the chat's sticky header.
     await expect.poll(() => widgetTop(page)).toBeGreaterThanOrEqual(90);
     await page.keyboard.press('Tab');
@@ -367,10 +377,11 @@ test.describe('an interactive page in the chat (ADR-370)', () => {
     page,
     authenticate,
     mockApi,
+    apiNetworkGuard,
   }) => {
-    const left: string[] = [];
-    page.on('request', request => {
-      if (request.url().includes('exfil.example')) left.push(request.url());
+    const refusals: string[] = [];
+    page.on('console', line => {
+      if (line.text().includes('exfil.example')) refusals.push(line.text());
     });
     let popups = 0;
     page.context().on('page', () => {
@@ -392,7 +403,13 @@ test.describe('an interactive page in the chat (ADR-370)', () => {
       popup: 'blocked',
       storage: 'kept',
     });
-    expect(left).toEqual([]);
+    // Chromium emits a request event even for an image rejected by CSP, with
+    // failureText "csp" and no transport. The independent proxy observes what
+    // actually leaves the browser, including HTTPS CONNECT, and refuses it.
+    expect(refusals.some(line => line.includes('img-src'))).toBe(true);
+    expect(apiNetworkGuard.blockedRequests.filter(line => line.includes('exfil.example'))).toEqual(
+      []
+    );
     expect(popups).toBe(0);
     await expect(page).toHaveURL(/\/en\/dashboard\/chat/);
   });

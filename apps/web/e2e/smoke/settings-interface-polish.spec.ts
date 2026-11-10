@@ -31,7 +31,7 @@ const baseRoutes: MockRoute[] = [
   { url: '**/api/v1/usage/**', json: {} },
 ];
 
-test('four display modes include absolute black without a separate switch', async ({
+test('five display modes include absolute black without a separate switch', async ({
   page,
   authenticate,
   mockApi,
@@ -54,9 +54,10 @@ test('four display modes include absolute black without a separate switch', asyn
   await page.goto('/en/dashboard/settings?section=theme');
   const section = page.locator('#settings-section-theme');
   await expect(section).toBeVisible({ timeout: 60_000 });
-  await expect(section.getByRole('radio')).toHaveCount(4);
+  const modeGroup = section.getByRole('group', { name: label('settings.theme.mode_label'), exact: true });
+  await expect(modeGroup.getByRole('radio')).toHaveCount(5);
   await expect(section.getByRole('switch')).toHaveCount(0);
-  for (const name of ['light', 'dark', 'oled', 'system'])
+  for (const name of ['light', 'dark', 'oled', 'system', 'auto'])
     await expect(
       section.getByRole('radio', { name: label(`settings.theme.${name}`), exact: true })
     ).toHaveCount(1);
@@ -75,11 +76,11 @@ test('four display modes include absolute black without a separate switch', asyn
     await expect
       .poll(
         () =>
-          section.evaluate(element => {
-            const nested = element.querySelector(
-              'label:has(input[name="display-mode"]:not(:checked))'
-            );
+          modeGroup.evaluate(element => {
+            const nested = element.querySelector('label:has(input[type="radio"]:not(:checked))');
             if (!nested) throw new Error('Expected an unselected nested mode');
+            const panel = element.closest('#settings-section-theme');
+            if (!panel) throw new Error('Expected the appearance panel');
             const canvas = document.createElement('canvas');
             canvas.width = canvas.height = 1;
             const context = canvas.getContext('2d');
@@ -99,7 +100,7 @@ test('four display modes include absolute black without a separate switch', asyn
               return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
             }
             return (
-              luminance(getComputedStyle(element).backgroundColor) >
+              luminance(getComputedStyle(panel).backgroundColor) >
               luminance(getComputedStyle(nested).backgroundColor)
             );
           }),

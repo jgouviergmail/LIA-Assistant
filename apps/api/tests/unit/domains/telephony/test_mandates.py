@@ -22,6 +22,8 @@ from src.domains.telephony.mandates import (
     mandate_for,
 )
 from src.domains.telephony.models import CallKind
+from src.domains.voice_sessions.mandate import neutralise_vendor_syntax
+from src.domains.voice_sessions.session import VoiceSessionMode
 
 
 @pytest.mark.unit
@@ -96,25 +98,32 @@ def test_self_override_is_fully_rendered_for_the_vendor() -> None:
 @pytest.mark.unit
 def test_self_override_carries_the_assistant_s_personality() -> None:
     """Lot 9 (owner question 2026-09-16): the voice adopts the personality the
-    person configured for LIA — the same instruction the chat and the voice
-    flow weave into `<personality_profile>` — neutralised like every value."""
+    person configured for LIA — the voice sessions' ONE block, with its order
+    of precedence (2026-11-07) — neutralised like every value."""
+    from src.domains.voice_sessions.mandate import personality_block
+
     override = build_override(
-        CallKind.SELF, _inputs(personality="Warm and playful; {{never}} pompous.")
+        CallKind.SELF, _inputs(personality="Dry and playful; {{never}} pompous.")
     )
     assert override is not None
     prompt = override["agent"]["prompt"]["prompt"]
-    assert "<personality_profile>" in prompt
-    assert "Warm and playful; { {never} } pompous." in prompt
-    assert "Modulate" in prompt  # the frame says how the profile applies
+    assert "Dry and playful; { {never} } pompous." in prompt
+    assert (
+        neutralise_vendor_syntax(
+            personality_block("Dry and playful; {{never}} pompous.", user_name="Alex")
+        )
+        in prompt
+    )
 
 
 @pytest.mark.unit
 def test_self_override_without_a_personality_keeps_the_default_voice() -> None:
+    from src.domains.voice_sessions.mandate import voice_lines
+
     override = build_override(CallKind.SELF, _inputs(personality=""))
     assert override is not None
     prompt = override["agent"]["prompt"]["prompt"]
-    assert "<personality_profile>" in prompt
-    assert "no particular personality" in prompt
+    assert voice_lines()["default_personality"] in prompt
 
 
 @pytest.mark.unit
@@ -230,3 +239,31 @@ def test_the_live_override_carries_the_shared_delegation_block_and_no_data() -> 
     assert "<what_you_know>" not in prompt
     assert "warm and brisk" in prompt
     assert "Alex" in override["agent"]["first_message"]
+
+
+@pytest.mark.unit
+def test_the_third_party_manner_is_cordial_english_and_personal_to_nobody() -> None:
+    """Owner rule 2026-11-07: a stranger never hears the person's personality."""
+    from src.domains.telephony.mandates import third_party_manner
+
+    manner = third_party_manner()
+    assert manner.strip()
+    assert not any(ch in manner for ch in "àâéèêîôûç")
+    assert "{" not in manner
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("mode", ["direct", "delegated"])
+def test_the_owner_override_carries_the_cue_block_only_for_an_engine_that_performs_cues(
+    mode: VoiceSessionMode,
+) -> None:
+    from src.domains.voice.cue_prompt import live_cues_block
+    from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS
+    from src.domains.voice_sessions.expression import PERSON_CUES
+
+    cues = build_override(CallKind.SELF, _inputs(cue_dialect=ELEVENLABS_AGENT_TAGS), mode=mode)
+    words = build_override(CallKind.SELF, _inputs(), mode=mode)
+    assert cues is not None and words is not None
+    block = live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES)
+    assert block in cues["agent"]["prompt"]["prompt"]
+    assert "<voice_cues>" not in words["agent"]["prompt"]["prompt"]

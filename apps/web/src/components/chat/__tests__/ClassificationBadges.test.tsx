@@ -51,6 +51,25 @@ describe('closed JEV badges', () => {
     rerender(<ClassificationBadges value={{ ...value, injected: true }} />);
     expect(container).toBeEmptyDOMElement();
   });
+  it('says a reply is expected in the theme colour, and says nothing otherwise', () => {
+    const reply = {
+      ...value,
+      version: 'email-event-v2-reply',
+      category: 'professional',
+      priority: 'normal',
+    };
+    const { rerender } = render(
+      <ClassificationBadges value={{ ...reply, reply_expected: true }} />
+    );
+    const badge = screen.getByText('classification.reply_expected');
+    // A live trait with no semantic family takes the theme colour, never the inactive grey.
+    expect(badge.className).toMatch(/\btext-primary\b/);
+    expect(badge.className).not.toMatch(/\bbg-secondary\b/);
+    for (const verdict of [false, null]) {
+      rerender(<ClassificationBadges value={{ ...reply, reply_expected: verdict }} />);
+      expect(screen.queryByText('classification.reply_expected')).not.toBeInTheDocument();
+    }
+  });
   it('never restarts historical attention and bounds a remount to the remaining time', () => {
     expect(classificationAttentionStyle(new Date(now - 10000).toISOString(), now)).toEqual({});
     expect(classificationAttentionStyle(new Date(now - 2000).toISOString(), now)).toEqual({

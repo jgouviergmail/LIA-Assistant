@@ -26,9 +26,12 @@ Three decisions, each measured or documented:
   two of them landing on two workers must not read the provider twice.
 - **Compact, and stamped.** A People person carries metadata on every field:
   measured, 5 000 of them are 3.3 MB of JSON and 19 ms of ``json.loads`` on
-  the event loop. Only names, addresses and numbers are kept, and a small
-  stamp (version, cut) is written beside the book, so a reader that already
-  derived what it needs from a version asks the stamp, never the book.
+  the event loop. Only names, addresses, numbers, the birthday's day and the
+  contact's id are kept, and a small stamp (version, cut) is written beside
+  the book, so a reader that already derived what it needs from a version asks
+  the stamp, never the book. The cache key names the shape it holds
+  (``CONTACTS_DIRECTORY_SHAPE``): a book written before birthdays joined it is
+  never read as one that has them.
 """
 
 from __future__ import annotations
@@ -47,8 +50,14 @@ from src.infrastructure.utils.shared_flight import CLAIM_PREFIX, run_shared_flig
 
 logger = structlog.get_logger(__name__)
 
-#: What a directory entry needs: who, and how to reach them.
-CONTACTS_DIRECTORY_FIELDS: tuple[str, ...] = ("names", "emailAddresses", "phoneNumbers")
+#: What a directory entry needs: who, how to reach them, and when they were born (the
+#: birthdays card reads the same book, on every provider).
+CONTACTS_DIRECTORY_FIELDS: tuple[str, ...] = (
+    "names",
+    "emailAddresses",
+    "phoneNumbers",
+    "birthdays",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +97,8 @@ DirectoryReader = Callable[[int], Awaitable[tuple[list[dict[str, Any]], bool]]]
 
 #: The name parts a directory keeps.
 _NAME_KEYS: tuple[str, ...] = ("displayName", "givenName", "familyName")
+#: The parts of a birthday's day: the year is often unknown.
+_DAY_KEYS: tuple[str, ...] = ("year", "month", "day")
 
 
 def _kept(items: Any, keys: tuple[str, ...]) -> list[dict[str, str]]:
@@ -102,21 +113,40 @@ def _kept(items: Any, keys: tuple[str, ...]) -> list[dict[str, str]]:
     return [item for item in kept if item]
 
 
+def _days(items: Any) -> list[dict[str, dict[str, int]]]:
+    """The days of a People ``birthdays`` field: the numbers alone, a dateless one dropped."""
+    if not isinstance(items, list):
+        return []
+    days = []
+    for item in items:
+        date = item.get("date") if isinstance(item, dict) else None
+        if not isinstance(date, dict):
+            continue
+        kept = {key: date[key] for key in _DAY_KEYS if isinstance(date.get(key), int)}
+        if kept:
+            days.append({"date": kept})
+    return days
+
+
 def compact_person(person: Any) -> dict[str, Any]:
-    """A person reduced to what a directory entry reads: names, addresses, numbers.
+    """A person reduced to what a directory entry reads: who, how to reach them, their birthday.
 
     Args:
         person: A People-shape contact from any provider.
 
     Returns:
-        The same person without metadata, sources, photos or etags.
+        The same person without metadata, sources, photos or etags; its id in its book when it
+        has one, so a reader can open it.
     """
     if not isinstance(person, dict):
         return {}
+    resource = person.get("resourceName")
     return {
+        **({"resourceName": resource} if isinstance(resource, str) and resource else {}),
         "names": _kept(person.get("names"), _NAME_KEYS),
         "emailAddresses": _kept(person.get("emailAddresses"), ("value",)),
         "phoneNumbers": _kept(person.get("phoneNumbers"), ("value",)),
+        "birthdays": _days(person.get("birthdays")),
     }
 
 

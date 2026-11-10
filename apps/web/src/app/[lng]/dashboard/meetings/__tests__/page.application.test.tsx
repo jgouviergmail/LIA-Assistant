@@ -1,15 +1,8 @@
-/** The meetings list with real account lifetimes, reads, selection and confirmation. */
+/** The meetings list with real account lifetimes, reads and individual deletion. */
 import { type ContextType } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  act,
-  answerConfirmDialog,
-  renderWithProviders,
-  screen,
-  waitFor,
-  within,
-} from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 import { AuthContext, type User } from '@/lib/auth';
 import { ApiError } from '@/lib/api-client';
 import { publishApplicationResources } from '@/lib/application-resources';
@@ -71,6 +64,7 @@ function session(id: string): NonNullable<ContextType<typeof AuthContext>> {
     initiateGoogleOAuth: async () => {},
     completeNativeSignIn: async () => ({ mfaRequired: false }),
     refreshUser: async () => true,
+    applyUserUpdate: () => true,
   };
 }
 
@@ -109,10 +103,10 @@ function response(items: MeetingSummary[], total = items.length, offset = 0): Me
   return { items, total, limit: 20, offset };
 }
 
-function rowBox(title: string) {
+function deleteAction(title: string) {
   const row = screen.getByText(title).closest('li');
   if (!row) throw new Error('Meeting must belong to a list row');
-  return within(row).getByRole('checkbox', { name: 'meetings.list.select_row' });
+  return within(row).getByRole('button', { name: 'common.delete · ' + title });
 }
 
 function invalidate(owner = 'one') {
@@ -166,146 +160,68 @@ describe('meetings list application recovery', () => {
   });
 });
 describe('meetings list state and account boundaries', () => {
-  it('shows actions only for a selection and returns keyboard clear focus to the same select-all checkbox', async () => {
-    list.mockResolvedValueOnce(response([meeting('Select and clear')]));
-    const { user } = renderWithProviders(page());
-    await screen.findByText('Select and clear');
-    const all = screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' });
-    expect(
-      screen.queryByRole('button', { name: 'meetings.list.clear_selection' })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'meetings.list.delete_selected' })
-    ).not.toBeInTheDocument();
-
-    await user.click(rowBox('Select and clear'));
-    const clearAction = screen.getByRole('button', { name: 'meetings.list.clear_selection' });
-    expect(
-      screen.getByRole('button', { name: 'meetings.list.delete_selected' })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' })).toBe(all);
-    all.focus();
-    await user.tab();
-    expect(clearAction).toHaveFocus();
-    await user.keyboard('{Enter}');
-
-    expect(screen.getByRole('checkbox', { name: 'meetings.list.select_all_page' })).toBe(all);
-    expect(all).toHaveFocus();
-    expect(all).not.toBeChecked();
-    expect(rowBox('Select and clear')).not.toBeChecked();
-    expect(
-      screen.queryByRole('button', { name: 'meetings.list.clear_selection' })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'meetings.list.delete_selected' })
-    ).not.toBeInTheDocument();
-    expect(list).toHaveBeenCalledTimes(1);
-    expect(bulkDelete).not.toHaveBeenCalled();
-  });
-
-  it('preserves an existing disclosure, checkbox DOM, focus and selection when earlier groups arrive', async () => {
-    // Local instants keep the grouping scenario valid in every test-runner zone.
-    const kept = meeting('Kept timeline entry', {
-      started_at: new Date(2026, 9, 15, 9).toISOString(),
-      stopped_at: new Date(2026, 9, 15, 10).toISOString(),
-    });
-    const nextDay = meeting('Inserted day', {
-      started_at: new Date(2026, 9, 16, 9).toISOString(),
-      stopped_at: new Date(2026, 9, 16, 10).toISOString(),
-    });
-    const nextPeriod = meeting('Inserted period', {
-      started_at: new Date(2026, 9, 15, 16).toISOString(),
-      stopped_at: new Date(2026, 9, 15, 17).toISOString(),
-    });
+  it('keeps the open disclosure and focused delete control when earlier groups arrive', async () => {
+    const kept = meeting('Kept entry', { started_at: new Date(2026, 9, 15, 9).toISOString() });
+    const newer = meeting('Newer entry', { started_at: new Date(2026, 9, 16, 9).toISOString() });
     list.mockResolvedValueOnce(response([kept]));
-    list.mockResolvedValueOnce(response([nextDay, kept]));
-    list.mockResolvedValueOnce(response([nextDay, nextPeriod, kept]));
+    list.mockResolvedValueOnce(response([newer, kept]));
     const { user } = renderWithProviders(page());
     await screen.findByText(kept.id);
-    const checkbox = rowBox(kept.id);
-    const row = checkbox.closest('li');
-    const disclosure = row?.querySelector('details');
+    const button = deleteAction(kept.id);
+    const disclosure = button.closest('li')?.querySelector('details');
     const summary = disclosure?.querySelector('summary');
-    if (!disclosure || !summary) throw new Error('Meeting details must use a native disclosure');
+    if (!summary || !disclosure) throw new Error('A row needs its native disclosure');
     await user.click(summary);
-    await user.click(checkbox);
-    expect(disclosure).toHaveAttribute('open');
-    expect(checkbox).toHaveFocus();
-    expect(checkbox).toBeChecked();
-
+    button.focus();
     invalidate();
-    await screen.findByText(nextDay.id);
-    expect(rowBox(kept.id)).toBe(checkbox);
-    expect(disclosure).toBeInTheDocument();
+    await screen.findByText(newer.id);
+    expect(deleteAction(kept.id)).toBe(button);
+    expect(button).toHaveFocus();
     expect(disclosure).toHaveAttribute('open');
-    expect(checkbox).toHaveFocus();
-    expect(checkbox).toBeChecked();
-    expect(list).toHaveBeenCalledTimes(2);
-
-    invalidate();
-    await screen.findByText(nextPeriod.id);
-    expect(rowBox(kept.id)).toBe(checkbox);
-    expect(disclosure).toBeInTheDocument();
-    expect(disclosure).toHaveAttribute('open');
-    expect(checkbox).toHaveFocus();
-    expect(checkbox).toBeChecked();
-    expect(list).toHaveBeenCalledTimes(3);
     expect(bulkDelete).not.toHaveBeenCalled();
   });
 
-  it('keeps known rows and selection through a failed refresh and a successful retry', async () => {
-    list.mockResolvedValueOnce(response([meeting('Kept meeting')]));
+  it('keeps known rows through a failed refresh and retry, ignoring a foreign invalidation', async () => {
+    list.mockResolvedValueOnce(response([meeting('Kept')]));
     const { user, rerender } = renderWithProviders(page());
-    await screen.findByText('Kept meeting');
-    await user.click(rowBox('Kept meeting'));
-
-    // A new auth value for the same owner must not reset selection or reread.
+    await screen.findByText('Kept');
+    const button = deleteAction('Kept');
     rerender(page());
-    expect(rowBox('Kept meeting')).toBeChecked();
-    expect(list).toHaveBeenCalledTimes(1);
     invalidate('foreign');
     expect(list).toHaveBeenCalledTimes(1);
     list.mockRejectedValueOnce(new ApiError('offline', 500));
     invalidate();
-
     await screen.findByText('meetings.list.load_error');
-    expect(rowBox('Kept meeting')).toBeChecked();
-    expect(screen.queryByText('meetings.list.empty_title')).not.toBeInTheDocument();
-    list.mockResolvedValueOnce(response([meeting('Kept meeting')]));
+    expect(deleteAction('Kept')).toBe(button);
+    list.mockResolvedValueOnce(response([meeting('Kept')]));
     await user.click(screen.getByRole('button', { name: 'common.retry' }));
     await waitFor(() =>
       expect(screen.queryByText('meetings.list.load_error')).not.toBeInTheDocument()
     );
-    expect(rowBox('Kept meeting')).toBeChecked();
+    expect(deleteAction('Kept')).toBe(button);
     expect(list).toHaveBeenCalledTimes(3);
     expect(bulkDelete).not.toHaveBeenCalled();
   });
 
-  it('resets paging and selection on A-to-B-to-A and rejects a late A read', async () => {
+  it('resets paging on A-to-B-to-A and rejects a late A read', async () => {
     const oldRead = Promise.withResolvers<MeetingListResponse>();
     list.mockResolvedValueOnce(response([meeting('First A')], 21));
-    list.mockResolvedValueOnce(response([meeting('Selected A')], 21, 20));
+    list.mockResolvedValueOnce(response([meeting('Last A')], 21, 20));
     list.mockReturnValueOnce(oldRead.promise);
     list.mockResolvedValueOnce(response([meeting('Only B')]));
     list.mockResolvedValueOnce(response([meeting('Fresh A')]));
     const { user, rerender } = renderWithProviders(page());
     await screen.findByText('First A');
     await user.click(screen.getByRole('button', { name: /^common.next/ }));
-    await screen.findByText('Selected A');
-    await user.click(rowBox('Selected A'));
+    await screen.findByText('Last A');
     invalidate();
     await waitFor(() => expect(list).toHaveBeenCalledTimes(3));
-
     rerender(page('two'));
-    expect(screen.queryByText('Selected A')).not.toBeInTheDocument();
     await screen.findByText('Only B');
     await act(async () => oldRead.resolve(response([meeting('Late private A')], 21, 20)));
-    expect(screen.getByText('Only B')).toBeInTheDocument();
     expect(screen.queryByText('Late private A')).not.toBeInTheDocument();
-
     rerender(page('one'));
     await screen.findByText('Fresh A');
-    expect(rowBox('Fresh A')).not.toBeChecked();
     expect(list.mock.calls.map(([limit, offset]) => [limit, offset])).toEqual([
       [20, 0],
       [20, 20],
@@ -316,29 +232,8 @@ describe('meetings list state and account boundaries', () => {
     expect(bulkDelete).not.toHaveBeenCalled();
   });
 
-  it('withdraws A confirmation on account change and never revives its selection', async () => {
-    list.mockResolvedValueOnce(response([meeting('Confirm A')]));
-    list.mockResolvedValueOnce(response([meeting('Visible B')]));
-    list.mockResolvedValueOnce(response([meeting('Confirm A')]));
-    const { user, rerender } = renderWithProviders(page());
-    await screen.findByText('Confirm A');
-    await user.click(rowBox('Confirm A'));
-    await user.click(screen.getByRole('button', { name: 'meetings.list.delete_selected' }));
-    await screen.findByRole('alertdialog');
-
-    rerender(page('two'));
-    await screen.findByText('Visible B');
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(bulkDelete).not.toHaveBeenCalled();
-    rerender(page('one'));
-    await screen.findByText('Confirm A');
-    expect(rowBox('Confirm A')).not.toBeChecked();
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(bulkDelete).not.toHaveBeenCalled();
-  });
-
   it.each(['success', 'failure'] as const)(
-    'ignores a late A deletion %s without changing B selection or feedback',
+    'ignores a late A deletion %s after account change',
     async outcome => {
       const deleting = Promise.withResolvers<MeetingBulkDeleteResponse>();
       list.mockResolvedValueOnce(response([meeting('Delete A')]));
@@ -346,93 +241,118 @@ describe('meetings list state and account boundaries', () => {
       bulkDelete.mockReturnValueOnce(deleting.promise);
       const { user, rerender } = renderWithProviders(page());
       await screen.findByText('Delete A');
-      await user.click(rowBox('Delete A'));
-      await user.click(screen.getByRole('button', { name: 'meetings.list.delete_selected' }));
-      await answerConfirmDialog(user);
-      await waitFor(() => expect(bulkDelete).toHaveBeenCalledWith(['Delete A']));
-
+      await user.click(deleteAction('Delete A'));
+      expect(bulkDelete).toHaveBeenCalledExactlyOnceWith(['Delete A']);
       rerender(page('two'));
       await screen.findByText('Keep B');
-      await user.click(rowBox('Keep B'));
+      deleteAction('Keep B').focus();
       await act(async () => {
         if (outcome === 'success') deleting.resolve({ deleted: ['Delete A'], skipped: [] });
         else deleting.reject(new ApiError('private A failure', 500));
       });
-
-      expect(rowBox('Keep B')).toBeChecked();
+      expect(deleteAction('Keep B')).toHaveFocus();
       expect(list).toHaveBeenCalledTimes(2);
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.info).not.toHaveBeenCalled();
       expect(toast.error).not.toHaveBeenCalled();
-      expect(bulkDelete).toHaveBeenCalledTimes(1);
     }
   );
 });
 
 describe('meetings list deletion races', () => {
-  it('keeps selection on a failed delete so the user can retry', async () => {
+  it('retains the row and its focus on a failed delete, then allows an explicit retry', async () => {
     list.mockResolvedValueOnce(response([meeting('Retry delete')]));
     bulkDelete.mockRejectedValueOnce(new ApiError('offline', 500));
     const { user } = renderWithProviders(page());
     await screen.findByText('Retry delete');
-    await user.click(rowBox('Retry delete'));
-    await user.click(screen.getByRole('button', { name: 'meetings.list.delete_selected' }));
-    await answerConfirmDialog(user);
-
+    const button = deleteAction('Retry delete');
+    await user.click(button);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('common.error'));
-    expect(rowBox('Retry delete')).toBeChecked();
-    expect(screen.getByRole('button', { name: 'meetings.list.delete_selected' })).toHaveAttribute(
-      'aria-disabled',
-      'false'
-    );
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute('aria-disabled', 'false');
     expect(toast.success).not.toHaveBeenCalled();
     expect(list).toHaveBeenCalledTimes(1);
+    list.mockResolvedValueOnce(response([]));
+    bulkDelete.mockResolvedValueOnce({ deleted: ['Retry delete'], skipped: [] });
+    await user.click(button);
+    await waitFor(() => expect(screen.queryByText('Retry delete')).not.toBeInTheDocument());
+    expect(bulkDelete).toHaveBeenCalledTimes(2);
   });
 
-  it('uses the partial server result once and rejects an older post-delete read after a newer invalidation', async () => {
+  it.each(['meeting_in_progress', 'delete_failed', 'missing-result'])(
+    'does not claim deletion from %s',
+    async code => {
+      list.mockResolvedValue(response([meeting('Kept')]));
+      bulkDelete.mockResolvedValueOnce({
+        deleted: [],
+        skipped: code === 'missing-result' ? [] : [{ id: 'Kept', code }],
+      });
+      const { user } = renderWithProviders(page());
+      await screen.findByText('Kept');
+      await user.click(deleteAction('Kept'));
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      expect(screen.getByText('Kept')).toBeInTheDocument();
+      expect(toast.success).not.toHaveBeenCalled();
+      if (code === 'meeting_in_progress')
+        expect(toast.info).toHaveBeenCalledWith('meetings.list.bulk_skipped');
+      else expect(toast.error).toHaveBeenCalledWith('common.error');
+    }
+  );
+
+  it('sends one id once and rejects an older post-delete read after newer invalidation', async () => {
     const deleting = Promise.withResolvers<MeetingBulkDeleteResponse>();
     const oldRead = Promise.withResolvers<MeetingListResponse>();
-    list.mockResolvedValueOnce(response([meeting('Deleted'), meeting('Skipped')]));
+    list.mockResolvedValueOnce(response([meeting('Deleted'), meeting('Kept')]));
     list.mockReturnValueOnce(oldRead.promise);
-    list.mockResolvedValueOnce(response([meeting('Skipped')]));
+    list.mockResolvedValueOnce(response([meeting('Kept')]));
     bulkDelete.mockReturnValueOnce(deleting.promise);
     const { user } = renderWithProviders(page());
     await screen.findByText('Deleted');
-    await user.click(rowBox('Deleted'));
-    await user.click(rowBox('Skipped'));
-    const deleteAction = screen.getByRole('button', { name: 'meetings.list.delete_selected' });
-    await user.click(deleteAction);
-    await answerConfirmDialog(user);
-    await waitFor(() => expect(bulkDelete).toHaveBeenCalledTimes(1));
-
-    // Busy controls retain their name and native focusability; the handler guards writes.
-    expect(deleteAction).toHaveAttribute('aria-disabled', 'true');
-    expect(deleteAction).toHaveAttribute('aria-busy', 'true');
-    expect(deleteAction).not.toBeDisabled();
-    expect(deleteAction).toHaveAccessibleName('meetings.list.delete_selected');
-    await user.click(deleteAction);
+    const button = deleteAction('Deleted');
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveAccessibleName('common.delete · Deleted');
+    await user.click(button);
+    await user.click(deleteAction('Kept'));
+    expect(bulkDelete).toHaveBeenCalledExactlyOnceWith(['Deleted']);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(bulkDelete).toHaveBeenCalledTimes(1);
-    await act(async () =>
-      deleting.resolve({
-        deleted: ['Deleted'],
-        skipped: [{ id: 'Skipped', code: 'meeting_in_progress' }],
-      })
-    );
+    await act(async () => deleting.resolve({ deleted: ['Deleted'], skipped: [] }));
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
     invalidate();
     await waitFor(() => expect(screen.queryByText('Deleted')).not.toBeInTheDocument());
-    await act(async () => oldRead.resolve(response([meeting('Deleted'), meeting('Skipped')])));
-
-    expect(screen.getByText('Skipped')).toBeInTheDocument();
+    await act(async () => oldRead.resolve(response([meeting('Deleted'), meeting('Kept')])));
     expect(screen.queryByText('Deleted')).not.toBeInTheDocument();
-    expect(rowBox('Skipped')).not.toBeChecked();
-    expect(bulkDelete.mock.calls).toEqual([[['Deleted', 'Skipped']]]);
-    expect(list).toHaveBeenCalledTimes(3);
+    expect(screen.getByText('Kept')).toBeInTheDocument();
+    expect(bulkDelete).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith('meetings.list.bulk_deleted');
-    expect(toast.info).toHaveBeenCalledWith('meetings.list.bulk_skipped');
     expect(toast.error).not.toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    'restores focus after removing a row only while it owns focus (%s)',
+    async keepFocus => {
+      const deleting = Promise.withResolvers<MeetingBulkDeleteResponse>();
+      list.mockResolvedValueOnce(response([meeting('Remove')]));
+      list.mockResolvedValueOnce(response([]));
+      bulkDelete.mockReturnValueOnce(deleting.promise);
+      const { user } = renderWithProviders(page());
+      await screen.findByText('Remove');
+      await user.click(deleteAction('Remove'));
+      const search = screen.getByRole('searchbox');
+      if (!keepFocus) search.focus();
+      await act(async () => deleting.resolve({ deleted: ['Remove'], skipped: [] }));
+      await waitFor(() => expect(screen.queryByText('Remove')).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(
+          keepFocus
+            ? screen.getByRole('heading', { level: 1, name: 'meetings.list.title' })
+            : search
+        ).toHaveFocus()
+      );
+    }
+  );
 });
 
 describe('meetings list retry focus', () => {

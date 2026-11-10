@@ -15,11 +15,11 @@
  */
 
 import { useCallback, useState } from 'react';
-import { ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ThumbsDown, ThumbsUp } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ActionChipButton } from '@/components/chat/ActionChipButton';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { RESPONSE_FEEDBACK_COMMENT_MAX_LENGTH } from '@/lib/constants';
 
@@ -92,47 +92,36 @@ export function ResponseFeedbackButtons({
     }
   }, [comment, isSubmitting, mutate, messageDbId, t]);
 
-  const chipClass = (active: boolean, activeClass: string) =>
-    `p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background transition-colors ${
-      active ? activeClass : 'text-muted-foreground'
-    }`;
-
   return (
     <>
       {/* Thumb chips — in-flow siblings of the Copy chip inside the bubble's
           action row (the row owns spacing and the top separator). Tooltips
           match the proactive notifications': the same gesture must behave the
           same way on every kind of message. */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => submitVerdict('thumbs_up')}
-            disabled={isSubmitting}
-            aria-label={t('chat.feedback.up')}
-            aria-pressed={verdict === 'thumbs_up'}
-            className={chipClass(verdict === 'thumbs_up', 'text-green-600 dark:text-green-400')}
-          >
-            <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{t('chat.feedback.up')}</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => submitVerdict('thumbs_down')}
-            disabled={isSubmitting}
-            aria-label={t('chat.feedback.down')}
-            aria-pressed={verdict === 'thumbs_down'}
-            className={chipClass(verdict === 'thumbs_down', 'text-orange-600 dark:text-orange-400')}
-          >
-            <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{t('chat.feedback.down')}</TooltipContent>
-      </Tooltip>
+      <ActionChipButton
+        onClick={() => submitVerdict('thumbs_up')}
+        disabled={isSubmitting}
+        label={t('chat.feedback.up')}
+        aria-pressed={verdict === 'thumbs_up'}
+        className={
+          verdict === 'thumbs_up' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+        }
+      >
+        <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+      </ActionChipButton>
+      <ActionChipButton
+        onClick={() => submitVerdict('thumbs_down')}
+        disabled={isSubmitting}
+        label={t('chat.feedback.down')}
+        aria-pressed={verdict === 'thumbs_down'}
+        className={
+          verdict === 'thumbs_down'
+            ? 'text-orange-600 dark:text-orange-400'
+            : 'text-muted-foreground'
+        }
+      >
+        <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
+      </ActionChipButton>
 
       {/* 👎 optional one-line correction — `w-full` wraps it to its own line
           under the flex-wrap action row. */}

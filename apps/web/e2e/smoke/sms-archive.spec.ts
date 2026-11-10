@@ -146,13 +146,12 @@ for (const width of [390, 1280]) {
     await expect(page.getByText(sms.body, { exact: true })).toBeVisible();
     await expect(page.locator('img[src="x"]')).toHaveCount(0);
     const search = page.getByRole('searchbox');
-    await search.fill('dîner privé');
     failNextSearch = true;
-    await search.press('Enter');
+    await search.fill('dîner privé');
     const archive = section.getByRole('region', { name: 'Mes SMS', exact: true });
     await expect(archive.getByRole('alert')).toBeVisible();
     await expect(search).toHaveValue('dîner privé');
-    await archive.getByRole('button', { name: 'Actualiser', exact: true }).click();
+    await section.getByRole('button', { name: 'Actualiser', exact: true }).click();
     await expect
       .poll(() => searches.some(entry => JSON.stringify(entry.body).includes('dîner privé')))
       .toBe(true);
@@ -166,8 +165,26 @@ for (const width of [390, 1280]) {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
     ).toBe(true);
     await search.focus();
+    await page.keyboard.press('Escape');
+    await expect(search).toHaveValue('');
     await page.keyboard.press('Tab');
-    await expect(page.getByRole('button', { name: 'Rechercher', exact: true })).toBeFocused();
+    // Native date inputs may have several keyboard segments. They belong to
+    // the search toolbar and must both be traversed before its display chips.
+    for (const field of [
+      page.getByLabel('Du (inclus)', { exact: true }),
+      page.getByLabel('Au (exclus)', { exact: true }),
+    ]) {
+      await expect(field).toBeFocused();
+      for (
+        let step = 0;
+        step < 6 && (await field.evaluate(element => element === document.activeElement));
+        step += 1
+      ) {
+        await page.keyboard.press('Tab');
+      }
+    }
+    await expect(page.getByRole('button', { name: 'Par jour', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Rechercher', exact: true })).toHaveCount(0);
     expect(browserErrors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`sms-${width}.png`), fullPage: true });
   });
@@ -485,11 +502,11 @@ test('a token requires explicit browser approval and is cleared without persiste
 
 /* PHONE LINES: the owner's remarks of 2026-11-06. An iPhone's own date control cannot run here:
    what is held is the box it is given, and the display Safari on iOS respects. */
-test('the dates of a search stay inside their panel, as block fields', async ({
+test('SMS search stays above the archive with inline date labels and no timezone', async ({
   page,
   authenticate,
   mockApi,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await authenticate({ language: 'fr', timezone: 'Europe/Paris' });
   await mockApi([
@@ -508,14 +525,31 @@ test('the dates of a search stay inside their panel, as block fields', async ({
   await page.goto('/fr/dashboard/sms');
   const form = page.getByRole('search');
   await expect(form).toBeVisible();
-  const panel = await form.boundingBox();
-  for (const field of await form.locator('input[type="date"]').all()) {
-    const box = await field.boundingBox();
-    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
-      (panel?.x ?? 0) + (panel?.width ?? 0)
-    );
-    await expect(field).toHaveCSS('display', 'block');
-    await expect(field).toHaveCSS('appearance', 'none');
-    await expect(field).toHaveCSS('height', '40px');
+  expect(await form.evaluate(node => node.closest('details') === null)).toBe(true);
+  await expect(form.getByLabel('Du (inclus)', { exact: true })).toBeVisible();
+  await expect(form.getByLabel('Au (exclus)', { exact: true })).toBeVisible();
+  await expect(form).not.toContainText('Europe/Paris');
+  await page.locator('summary').filter({ hasText: 'Consulter mes SMS' }).click();
+  await expect(form).toBeVisible();
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const panel = await form.boundingBox();
+    for (const label of ['Du (inclus)', 'Au (exclus)']) {
+      const field = form.getByLabel(label, { exact: true });
+      const box = await field.boundingBox();
+      const labelBox = await form.getByText(label, { exact: true }).boundingBox();
+      if (!panel || !box || !labelBox) throw new Error('Date field and label must be visible');
+      expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
+      expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(box.x);
+      expect(Math.abs(labelBox.y + labelBox.height / 2 - box.y - box.height / 2)).toBeLessThan(1);
+      await expect(field).toHaveCSS('display', 'block');
+      await expect(field).toHaveCSS('appearance', 'none');
+      await expect(field).toHaveCSS('height', '44px');
+    }
+    await form.screenshot({ path: testInfo.outputPath(`sms-date-labels-${width}.png`) });
   }
+  await form.getByRole('searchbox').fill('automatique');
+  await expect(
+    page.locator('summary').filter({ hasText: 'Consulter mes SMS' }).locator('..')
+  ).toHaveAttribute('open');
 });

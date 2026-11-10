@@ -211,10 +211,11 @@ const observations = new WeakMap<Page, { api: string[]; errors: string[]; google
 test.beforeEach(async ({ page, context, mockApi, baseURL }) => {
   // Keep the real widget preference; no visual CSS injection or hidden application content.
   await page.addInitScript(() => {
-    if (!localStorage.getItem('lia_eyes_widget_prefs')) localStorage.setItem(
-      'lia_eyes_widget_prefs',
-      JSON.stringify({ state: { visible: false }, version: 0 })
-    );
+    if (!localStorage.getItem('lia_eyes_widget_prefs'))
+      localStorage.setItem(
+        'lia_eyes_widget_prefs',
+        JSON.stringify({ state: { visible: false }, version: 0 })
+      );
   });
   // authenticate() also seeds localhost for local HTTPS development; the proof origin may be IPv4.
   if (baseURL) {
@@ -358,7 +359,9 @@ test('1440px light: complete catalogue, serialized keyboard autosave and shared 
   await expect(pragmatic).toBeFocused();
   await pragmatic.press('Enter');
   expect(updates, 'selecting the current style does not save twice').toHaveLength(1);
-  expect(psycheReads, 'a style-only panel does not reread an offscreen psyche').toHaveLength(beforeStyleChange);
+  expect(psycheReads, 'a style-only panel does not reread an offscreen psyche').toHaveLength(
+    beforeStyleChange
+  );
   await headerChoice(page, styles[1]).click();
   await page.getByRole('menuitem').filter({ hasText: styles[2].title }).click();
   await selected(page, styles[2]);
@@ -491,8 +494,14 @@ test('390px OLED and20px text: all styles reflow; reduced motion and keyboard fo
   expect(audit.blocking, audit.summary).toHaveLength(0);
 });
 
-for (const [width, theme] of [[1440, 'light'], [320, 'oled']] as const) {
-  test(`${width}px ${theme}: avatar catalogue, keyboard persistence and readable current choice`, async ({ page, authenticate }, info) => {
+for (const [width, theme] of [
+  [1440, 'light'],
+  [320, 'oled'],
+] as const) {
+  test(`${width}px ${theme}: avatar catalogue, keyboard persistence and readable current choice`, async ({
+    page,
+    authenticate,
+  }, info) => {
     await page.setViewportSize({ width, height: 1050 });
     await prepareTheme(page, theme);
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -501,31 +510,45 @@ for (const [width, theme] of [[1440, 'light'], [320, 'oled']] as const) {
     expect(response?.status()).toBe(200);
     await waitForHydration(page, '#settings-section-eyes-style');
     const avatar = page.locator('#settings-section-eyes-style');
-    const current = avatar.getByRole('region', { name: copy('settings.eyes_style.current'), exact: true });
+    const current = avatar.getByRole('region', {
+      name: copy('settings.eyes_style.current'),
+      exact: true,
+    });
     await expect(current).toBeVisible();
     for (const id of EYE_STYLE_IDS) {
-      const option = avatar.getByRole('button', { name: copy(`eyes.styles.${id}.name`), exact: true });
+      const option = avatar.getByRole('button', {
+        name: copy(`eyes.styles.${id}.name`),
+        exact: true,
+      });
       await expect(option).toBeVisible();
       await expect(option).toHaveAccessibleDescription(copy(`eyes.styles.${id}.description`));
     }
-    const choice = avatar.getByRole('button', { name: copy('eyes.styles.smiley.name'), exact: true });
+    const choice = avatar.getByRole('button', {
+      name: copy('eyes.styles.oscar.name'),
+      exact: true,
+    });
     await choice.focus();
     await page.keyboard.press('Enter');
     await expect(choice).toHaveAttribute('aria-current', 'true');
     await expect(choice).toBeFocused();
-    await expect(current).toContainText(copy('eyes.styles.smiley.description'));
+    await expect(current).toContainText(copy('eyes.styles.oscar.description'));
     await expect(avatar.locator('button[aria-current="true"]')).toHaveCount(1);
     await expect(avatar).not.toContainText(/settings\.eyes_style\.[a-z_]+/);
     if (width > 1000) {
       const selected = await box(current);
-      const first = await box(avatar.getByRole('button', { name: copy(`eyes.styles.${EYE_STYLE_IDS[0]}.name`), exact: true }));
+      const first = await box(
+        avatar.getByRole('button', {
+          name: copy(`eyes.styles.${EYE_STYLE_IDS[0]}.name`),
+          exact: true,
+        })
+      );
       expect(Math.abs(selected.y - first.y)).toBeLessThan(2);
       expect(first.x).toBeGreaterThanOrEqual(selected.x + selected.width);
     }
     await page.reload();
     await waitForHydration(page, '#settings-section-eyes-style');
     await expect(choice).toHaveAttribute('aria-current', 'true');
-    await expect(current).toContainText(copy('eyes.styles.smiley.name'));
+    await expect(current).toContainText(copy('eyes.styles.oscar.name'));
     await expectNoOverflow(page, `avatar ${width}px ${theme}`);
     await page.evaluate(() => window.scrollTo(0, 0));
     const name = `avatar-style-${width}-${theme}`;

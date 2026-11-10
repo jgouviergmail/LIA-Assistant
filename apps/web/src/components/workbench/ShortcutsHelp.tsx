@@ -8,7 +8,7 @@
  * off, and for anyone who never learnt the key. Below `lg` there is no keyboard
  * to speak of, so the button is not drawn.
  */
-import { Keyboard } from 'lucide-react';
+import { Keyboard } from '@/lib/icons';
 import { useId, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';

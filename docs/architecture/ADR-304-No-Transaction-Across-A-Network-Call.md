@@ -155,3 +155,18 @@ provider that did not answer is an expected event; any other failure keeps its t
 every value at import (lot 3): Prometheus had counted 1 failed wake where Loki logged 3. Still open:
 the channel renewal re-anchors the token (`push_channels/service.py`, `_open`) and would drop a window
 still waiting — latent, never observed.
+
+## Amendment 2026-11-07 — a manual memory creation or edit embeds with nothing held
+
+Measured on PostgreSQL: `POST /memories` and `PATCH /memories/{id}` called the embedding provider
+(one or two network calls) inside the transaction their authentication had opened, the edit's own
+read included. The creation now commits that read before `create_from_management`, which embeds
+before its first write. The edit commits its reads, prepares the vectors with no transaction open
+(`prepare_update_embeddings`, in `domains/memories/service.py`), and writes in a transaction of its
+own through a `PreparedMemoryEmbeddings`, which refuses any other text rather than paying for it
+there. One rule decides what an edit embeds (`embedding_texts`), read by the preparation and by
+`MemoryService.update_memory`. The edit's read was never locked, so the window in which a concurrent
+writer can land between read and write is the one the route always had. Both routes' tests now
+authenticate on the request's session, as `_authenticate` does: the creation's test, whose
+authentication read nothing, could not see the defect
+(`test_no_transaction_is_held_while_the_vectors_are_computed` in each, four mutants killed).

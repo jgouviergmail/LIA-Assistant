@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Info } from 'lucide-react';
+import { Info } from '@/lib/icons';
 import { formatValue } from '../../utils/formatters';
 import { DEBUG_TEXT_SIZES } from '../../utils/constants';
 

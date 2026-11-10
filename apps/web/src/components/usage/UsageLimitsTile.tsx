@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Infinity } from 'lucide-react';
+import { Clock, Infinity } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { DashboardTile, TILE_ICON_BADGE } from '@/components/dashboard/DashboardTile';
 import { UsageGauge } from '@/components/usage/UsageGauge';

@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "4.5.0"
+version = "4.6.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -249,7 +249,7 @@ minversion = "9.0"
 # Taskfile.yml repeats the value in test:backend:coverage, the floor CI runs on the
 # unit and integration suites together (AC-030b, ADR-151);
 # test_task_ci_pytest_parity_guard.py holds the two equal.
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=78"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=87"
 # A test that hangs is interrupted with every thread's stack instead of freezing
 # the run (AC-033a; under xdist the worker ends, the test fails, the run goes on).
 # Generous by design (the slowest test measured 90 s, sequential under coverage,

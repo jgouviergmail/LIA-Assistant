@@ -1,12 +1,14 @@
 """The cue block a spoken-comment writer reads states what the code enforces (ADR-345, ADR-284).
 
-Four promises, each one a way the block could lie: it names exactly the cues
+Five promises, each one a way the block could lie: it names exactly the cues
 the engine that will speak performs (a cue it cannot perform would be dropped
-in silence, the writer believing it was obeyed), each with the meaning that
-says when it fits (measured 2026-10-17: told only the names, writers of two
-model families opened nearly every comment with ``[warm]`` or ``[cheerful]``,
-failures included, and none ever laughed or sighed), its example shows one of
-them, and the budget it publishes is the bound :class:`AuthoredCues` enforces.
+in silence, the writer believing it was obeyed), each delivery and sound with
+the meaning that says when it fits (measured 2026-10-17: told only the names,
+writers of two model families opened nearly every comment with ``[warm]`` or
+``[cheerful]``, failures included, and none ever laughed or sighed), each
+persona cue with what it sounds like, under the personality's choice within the
+rules (ADR-373, measured 2026-11-07), its example shows one of them, and the
+budget it publishes is the bound :class:`AuthoredCues` enforces.
 """
 
 from __future__ import annotations
@@ -20,14 +22,21 @@ import pytest
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.voice import cue_prompt, expressive_cues
 from src.domains.voice import service as voice_service
-from src.domains.voice.cue_prompt import CUE_PROMPT_LINES, expressive_cues_block
+from src.domains.voice.cue_prompt import (
+    CUE_PROMPT_LINES,
+    expressive_cues_block,
+    live_cues_block,
+    palette,
+)
 from src.domains.voice.expressive_cues import (
     DELIVERY_CUES,
+    ELEVENLABS_AGENT_TAGS,
     ELEVENLABS_SSML_BREAK,
     EVENT_CUES,
     FISH_S1_CUES,
     GEMINI_VOCAL_TAGS,
     NO_CUES,
+    PERSONA_CUES,
     AuthoredCues,
     Cue,
     CueDialect,
@@ -44,6 +53,12 @@ _DIALECTS = sorted(
 )
 _CUE_WORDS = re.compile(r"\[([^\[\]]+)\]")
 _LINES = dict(parse_prompt_sections(read_prompt_file(CUE_PROMPT_LINES), 2))
+#: The cues described by when they fit: the delivery and the sounds measured on 2026-10-17.
+_CUES_WITH_A_MEANING = sorted(DELIVERY_CUES | EVENT_CUES)
+#: The cues an agent palette can list: the ones its engine performs as a bracketed tag.
+_PALETTE_CUES = frozenset(
+    cue for cue in Cue if (ELEVENLABS_AGENT_TAGS.render(cue) or "").startswith("[")
+)
 
 
 def _section(block: str, header: str) -> list[str]:
@@ -73,16 +88,16 @@ def _rules(block: str) -> str:
 
 
 #: The rules row as every engine performing both kinds and a night cue reads it —
-#: byte for byte the text measured on 2026-10-17, before its clauses were split.
+#: byte for byte the text measured on 2026-11-07 (ADR-373), its clauses split as
+#: on 2026-10-17.
 _FULL_RULES = (
     "- A cue colours the NEWS, never the outcome of your own act. What you did or could not "
     "do — a confirmation that it is done, a status, a failure to get the result, nothing "
-    "found — is said plainly, with no cue at all, whatever your personality (Heuristic 9); "
-    "only late at night may a cue meant for the night above soften it. News that matters to "
-    "the person — an approval, a cancellation, a risk, a surprise, something funny — may open "
-    "with the one cue whose meaning above fits it, or carry a sound where the moment has one, "
-    "coloured by `<personality_profile>` and `<user_cognitive_state>`. At most 2 in the whole "
-    "comment; when in doubt, none."
+    "found — is said with no cue at all, whatever your personality (Heuristic 9); only late "
+    "at night may a cue meant for the night above soften it. News that matters to the person "
+    "— an approval, a cancellation, a risk, a surprise, something funny — may open with the "
+    "one cue above that fits it and your personality, or carry a sound where the moment has "
+    "one. At most 2 in the whole comment; when in doubt, none."
 )
 #: First-person words: how LIA reports an act of its own, never how it tells news.
 _FIRST_PERSON = re.compile(r"\b(?:I|I'm|I've|I'll|I'd|me|my|mine|myself)\b")
@@ -93,7 +108,44 @@ def test_the_block_names_exactly_the_cues_the_engine_performs(dialect: CueDialec
     block = expressive_cues_block(dialect, budget=2)
 
     assert _listed(block, "- How a sentence") == dialect.performs() & DELIVERY_CUES
+    assert _listed(block, "- How your character") == dialect.performs() & PERSONA_CUES
     assert _listed(block, "- A sound") == dialect.performs() & EVENT_CUES
+
+
+@pytest.mark.parametrize(
+    "dialect",
+    [d for d in _DIALECTS if d.performs() & PERSONA_CUES],
+    ids=lambda dialect: dialect.name,
+)
+def test_each_listed_persona_cue_says_what_it_sounds_like_never_when(
+    dialect: CueDialect,
+) -> None:
+    """Which manner fits is the personality's business (ADR-373)."""
+    listed = _section(expressive_cues_block(dialect, budget=2), "- How your character")
+
+    assert listed
+    for line in listed:
+        cue = Cue(_CUE_WORDS.findall(line)[0])
+        assert line == f"[{cue.value}] — {_LINES[f'sound.{cue.name.lower()}']}"
+
+
+@pytest.mark.parametrize(
+    "dialect",
+    [d for d in _DIALECTS if not d.performs() & PERSONA_CUES],
+    ids=lambda dialect: dialect.name,
+)
+def test_an_engine_without_persona_cues_is_never_told_of_a_character(
+    dialect: CueDialect,
+) -> None:
+    assert "How your character" not in expressive_cues_block(dialect, budget=2)
+
+
+def test_the_personality_chooses_its_cues_within_the_rules() -> None:
+    """The rules stay above the personality's choice (ADR-373 § 8: told it above
+    them, two model families cued more of LIA's own acts)."""
+    block = expressive_cues_block(expressive_cues.FISH_S2_CUES, budget=2)
+
+    assert "Within the rules below, your personality decides which of them you use" in block
 
 
 @pytest.mark.parametrize("dialect", _DIALECTS, ids=lambda dialect: dialect.name)
@@ -108,7 +160,7 @@ def test_each_listed_cue_says_when_it_fits(dialect: CueDialect) -> None:
         assert line == f"[{cue.value}] — {_LINES[f'meaning.{cue.name.lower()}']}"
 
 
-@pytest.mark.parametrize("cue", list(Cue), ids=lambda cue: cue.name.lower())
+@pytest.mark.parametrize("cue", _CUES_WITH_A_MEANING, ids=lambda cue: cue.name.lower())
 def test_every_cue_has_a_meaning_and_an_example_of_its_own(cue: Cue) -> None:
     meaning = _LINES.get(f"meaning.{cue.name.lower()}", "")
     example = _LINES.get(f"example.{cue.name.lower()}", "")
@@ -118,7 +170,7 @@ def test_every_cue_has_a_meaning_and_an_example_of_its_own(cue: Cue) -> None:
     assert _CUE_WORDS.findall(example) == [cue.value]
 
 
-@pytest.mark.parametrize("cue", list(Cue), ids=lambda cue: cue.name.lower())
+@pytest.mark.parametrize("cue", _CUES_WITH_A_MEANING, ids=lambda cue: cue.name.lower())
 def test_every_example_is_news_never_a_report_of_lias_own_act(cue: Cue) -> None:
     """The rules keep LIA's own acts plain; an example cueing one teaches the opposite.
 
@@ -132,7 +184,9 @@ def test_every_example_is_news_never_a_report_of_lias_own_act(cue: Cue) -> None:
 
 def test_the_night_cues_are_the_cues_whose_meaning_names_the_night() -> None:
     """The night clause is stated by a code table: it must name what the file means."""
-    named = {cue for cue in Cue if "night" in _LINES[f"meaning.{cue.name.lower()}"]}
+    named = {
+        cue for cue in _CUES_WITH_A_MEANING if "night" in _LINES[f"meaning.{cue.name.lower()}"]
+    }
 
     assert named == cue_prompt._NIGHT_CUES
 
@@ -148,7 +202,7 @@ def test_the_example_shows_a_cue_the_engine_performs(dialect: CueDialect) -> Non
 def test_the_example_prefers_warm_when_the_engine_performs_it() -> None:
     block = expressive_cues_block(expressive_cues.ELEVENLABS_AUDIO_TAGS, 2)
 
-    assert _example(block) == f"Example: {_LINES['example.warm']}"
+    assert _example(block) == _LINES["example"].format(example=_LINES["example.warm"])
 
 
 def test_an_engine_without_warm_is_shown_a_delivery_it_performs() -> None:
@@ -156,7 +210,7 @@ def test_an_engine_without_warm_is_shown_a_delivery_it_performs() -> None:
     block = expressive_cues_block(FISH_S1_CUES, 2)
 
     assert "[warm]" not in block
-    assert _example(block) == f"Example: {_LINES['example.calm']}"
+    assert _example(block) == _LINES["example"].format(example=_LINES["example.calm"])
 
 
 def test_an_engine_with_a_pause_only_is_never_told_about_delivery() -> None:
@@ -164,7 +218,7 @@ def test_an_engine_with_a_pause_only_is_never_told_about_delivery() -> None:
 
     assert "How a sentence is said" not in block
     assert _listed(block, "- A sound") == {Cue.SHORT_PAUSE}
-    assert _example(block) == f"Example: {_LINES['example.short_pause']}"
+    assert _example(block) == _LINES["example"].format(example=_LINES["example.short_pause"])
     # Neither do its rules invite a delivery to open with, nor a cue for the night:
     # it performs neither (ADR-284).
     rules = _rules(block)
@@ -173,11 +227,10 @@ def test_an_engine_with_a_pause_only_is_never_told_about_delivery() -> None:
     assert rules == (
         "- A cue colours the NEWS, never the outcome of your own act. What you did or could "
         "not do — a confirmation that it is done, a status, a failure to get the result, "
-        "nothing found — is said plainly, with no cue at all, whatever your personality "
-        "(Heuristic 9). News that matters to the person — an approval, a cancellation, a "
-        "risk, a surprise, something funny — may carry a sound where the moment has one, "
-        "coloured by `<personality_profile>` and `<user_cognitive_state>`. At most 2 in the "
-        "whole comment; when in doubt, none."
+        "nothing found — is said with no cue at all, whatever your personality (Heuristic "
+        "9). News that matters to the person — an approval, a cancellation, a risk, a "
+        "surprise, something funny — may carry a sound where the moment has one. At most 2 "
+        "in the whole comment; when in doubt, none."
     )
 
 
@@ -199,7 +252,8 @@ def test_each_rules_clause_is_stated_iff_its_cues_are_listed(dialect: CueDialect
     rules = _rules(expressive_cues_block(dialect, 2))
     performed = dialect.performs()
 
-    assert (_LINES["rules.news.delivery"] in rules) is bool(performed & DELIVERY_CUES)
+    opens = performed & (DELIVERY_CUES | PERSONA_CUES)
+    assert (_LINES["rules.news.delivery"] in rules) is bool(opens)
     assert (_LINES["rules.news.sound"] in rules) is bool(performed & EVENT_CUES)
     assert (_LINES["rules.night"] in rules) is bool(performed & cue_prompt._NIGHT_CUES)
     assert not re.search(r"\{\w+\}", rules)
@@ -215,7 +269,7 @@ def test_an_engine_without_sounds_is_never_told_to_carry_one(
 ) -> None:
     rules = _rules(expressive_cues_block(CueDialect("delivery_only", spellings), 2))
 
-    assert f"may {_LINES['rules.news.delivery']}, coloured by" in rules
+    assert f"may {_LINES['rules.news.delivery']}." in rules
     assert _LINES["rules.news.sound"] not in rules
     assert (_LINES["rules.night"] in rules) is night
 
@@ -225,6 +279,7 @@ def test_a_style_engine_is_told_about_delivery_too() -> None:
     block = expressive_cues_block(GEMINI_VOCAL_TAGS, 2)
 
     assert _listed(block, "- How a sentence") == DELIVERY_CUES
+    assert _listed(block, "- How your character") == PERSONA_CUES
     assert _listed(block, "- A sound") == EVENT_CUES
 
 
@@ -287,3 +342,84 @@ async def test_the_comment_prompt_carries_the_block_of_the_engine_that_speaks(
             < expressive.index("<expressive_cues>")
             < expressive.index("<execution_context>")
         )
+
+
+# ---------------------------------------------------------------------------
+# The live voice (ADR-373): the cues its engine performs, in the engine's own
+# spelling, each with what it SOUNDS like — never when to use it: measured on
+# 2026-11-07, a description written as a trigger (« with enthusiasm — at the
+# start and during the conversation ») was obeyed as one, whatever the
+# personality. Which cue fits is the personality's business.
+# ---------------------------------------------------------------------------
+
+
+def _live_listed(block: str) -> dict[str, str]:
+    """The cues a live block lists: spelling -> what follows the dash."""
+    listed: dict[str, str] = {}
+    for line in block.splitlines():
+        if line.startswith("  [") and " — " in line:
+            spelling, sound = line.strip().split(" — ", 1)
+            listed[spelling] = sound
+    return listed
+
+
+def _sound(cue: Cue) -> str:
+    return _LINES[f"sound.{cue.name.lower()}"]
+
+
+def test_every_cue_a_palette_can_offer_says_what_it_sounds_like_and_nothing_else() -> None:
+    sounds = {
+        key.removeprefix("sound."): row for key, row in _LINES.items() if key.startswith("sound.")
+    }
+    assert set(sounds) == {cue.name.lower() for cue in _PALETTE_CUES}
+    for name, row in sounds.items():
+        assert row and "[" not in row, name
+        assert not re.search(r"\b(when|if|during|after|before|whenever)\b", row, re.I), name
+
+
+@pytest.mark.parametrize(
+    "offered",
+    [frozenset(Cue), DELIVERY_CUES | EVENT_CUES, frozenset({Cue.SARCASTIC, Cue.SIGHS})],
+    ids=["the person", "a stranger", "two cues"],
+)
+def test_the_live_block_lists_exactly_the_offered_cues_in_the_engines_spelling(
+    offered: frozenset[Cue],
+) -> None:
+    listed = _live_listed(live_cues_block(ELEVENLABS_AGENT_TAGS, offered))
+    expected = {cue: ELEVENLABS_AGENT_TAGS.render(cue) for cue in offered & _PALETTE_CUES}
+    assert set(listed) == set(expected.values())
+    for cue, spelling in expected.items():
+        assert spelling is not None
+        assert listed[spelling] == _sound(cue)
+
+
+def test_a_block_without_persona_cues_names_no_persona_kind() -> None:
+    block = live_cues_block(ELEVENLABS_AGENT_TAGS, DELIVERY_CUES | EVENT_CUES)
+    assert _LINES["live.persona"] not in block
+    assert not any(str(ELEVENLABS_AGENT_TAGS.render(cue)) in block for cue in PERSONA_CUES)
+
+
+def test_the_live_block_publishes_no_budget_nothing_enforces() -> None:
+    """The voice writes straight to its engine: no code can hold a count (ADR-284)."""
+    assert not re.search(r"\d", live_cues_block(ELEVENLABS_AGENT_TAGS, frozenset(Cue)))
+
+
+def test_no_performed_cue_writes_no_live_block() -> None:
+    assert live_cues_block(NO_CUES, frozenset(Cue)) == ""
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, frozenset()) == ""
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, frozenset({Cue.SHORT_PAUSE})) == ""
+
+
+@pytest.mark.parametrize(
+    "offered", [frozenset(Cue), DELIVERY_CUES | EVENT_CUES], ids=["the person", "a stranger"]
+)
+def test_the_vendor_palette_is_the_live_block_as_data(offered: frozenset[Cue]) -> None:
+    entries = palette(ELEVENLABS_AGENT_TAGS, offered)
+    listed = _live_listed(live_cues_block(ELEVENLABS_AGENT_TAGS, offered))
+    assert {f"[{entry['tag']}]": entry["description"] for entry in entries} == listed
+    assert all(set(entry) == {"tag", "description"} for entry in entries)
+    assert all("[" not in entry["tag"] for entry in entries)
+
+
+def test_no_performed_cue_makes_no_palette() -> None:
+    assert palette(NO_CUES, frozenset(Cue)) == []

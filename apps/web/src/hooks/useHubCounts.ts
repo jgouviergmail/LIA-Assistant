@@ -19,22 +19,22 @@ import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 import { useApplicationResourceSync } from './useApplicationResourceSync';
 
 export interface HubCounts {
-  peer_messages: number;
-  proactive: number;
-  interests: number;
+  peer_messages: number | null;
+  proactive: number | null;
+  interests: number | null;
   /** Reminders still WAITING — the future, never a history. */
-  reminders: number;
-  scheduled: number;
-  /** Undecided missed-routine offers (Lot 5-C2) — a to-decide set. */
-  offers: number;
+  reminders: number | null;
+  scheduled: number | null;
+  /** Open habit proposals (ADR-375) — a to-decide set, 0 when habit learning is off. */
+  offers: number | null;
   /**
    * Tickets that need THIS person (ADR-276): a run stopped waiting for them,
    * or something on their board is overdue. A set to decide, never a count of
    * everything the account owns.
    */
-  workboard: number;
+  workboard: number | null;
   /** Openings LIA started (ADR-358); absence supports older APIs. */
-  discussions?: number;
+  discussions?: number | null;
   /** null is a source failure; absence supports older APIs. */
   sms?: number | null;
 }

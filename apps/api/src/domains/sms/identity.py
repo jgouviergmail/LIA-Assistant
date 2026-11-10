@@ -1,5 +1,6 @@
 """One bounded address-book projection; ambiguous identities stay literal."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -51,11 +52,28 @@ class IdentityBook:
         return SenderIdentity(sender, "raw", "unresolved" if self.complete else "unavailable")
 
 
+def sent_from_lines(sender: str, numbers: Iterable[str]) -> bool:
+    """Whether a raw sender is written on one of these lines.
+
+    The one rule a sender is a number's by: the SMS page names its senders with it, and the
+    contacts tool reads a contact's texts with it. Only a phone-shaped sender answers a number, and
+    two spellings of one line meet without the deployment's country being inferred.
+
+    Args:
+        sender: The sender as received.
+        numbers: The lines, written however they were saved.
+
+    Returns:
+        True when the sender is one of the lines.
+    """
+    if not normalize_sender(sender).startswith("phone:"):
+        return False
+    return any(same_line(sender, number, infer_country=False) for number in numbers)
+
+
 def _matches(sender: str, contact: ContactIdentity) -> bool:
     if fold_name(sender) == fold_name(contact.name):
         return True
     if any(normalize_sender(sender) == normalize_sender(email) for email in contact.emails):
         return True
-    if not normalize_sender(sender).startswith("phone:"):
-        return False
-    return any(same_line(sender, number, infer_country=False) for number in contact.numbers)
+    return sent_from_lines(sender, contact.numbers)

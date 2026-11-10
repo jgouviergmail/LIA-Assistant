@@ -4,7 +4,7 @@ import { useEffectRequest } from '@/hooks/useEffectRequest';
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Clock, DollarSign, Download, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { Clock, DollarSign, Download, Plus, RefreshCw, Trash2, Upload } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { capabilityProvenanceTone } from '@/lib/status-tone';
 import { CatalogueStatusPanel } from './CatalogueStatusPanel';

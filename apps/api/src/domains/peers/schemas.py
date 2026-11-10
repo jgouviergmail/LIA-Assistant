@@ -336,4 +336,5 @@ class RelayedMessagePage(BaseModel):
     """
 
     messages: list[RelayedMessageItem]
+    as_of: datetime | None = Field(None, description="Server-bounded upper delivery instant.")
     total: int = Field(ge=0, description="Exact count over the whole timeline.")

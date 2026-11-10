@@ -9,7 +9,7 @@
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle } from '@/lib/icons';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';

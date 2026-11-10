@@ -1,10 +1,6 @@
 /** Native decision routing, mirrored from the administration API. */
 export type JevUsage =
   | 'meeting_template'
-  | 'filter_email'
-  | 'filter_event'
-  | 'filter_task'
-  | 'filter_file'
   | 'radio_verification'
   | 'consultation_path'
   | 'consultation_bounded'
@@ -13,11 +9,6 @@ export type JevUsage =
   | 'observe_journal'
   | 'observe_open_loops'
   | 'hitl_exclusion'
-  | 'filter_reminder'
-  | 'filter_ticket'
-  | 'filter_mcp'
-  | 'filter_document'
-  | 'initiative_utility'
   | 'memory_reference_presence'
   | 'hitl_rejection'
   | 'parameter_kind'
@@ -29,6 +20,20 @@ export type JevReadiness =
   | 'unavailable_model'
   | 'missing_price'
   | 'unavailable';
+/** What a gate's score is (ADR-374): a confidence, a bounded concentration, a Noul margin. */
+export type JevGateKind = 'choice_confidence' | 'choice_concentration' | 'margin';
+/** Each answer alone, or every answer of one call. */
+export type JevGateScope = 'each' | 'all';
+/** One threshold of a usage, its published bounds and the value the next call uses. */
+export interface JevGateStatus {
+  key: string;
+  kind: JevGateKind;
+  scope: JevGateScope;
+  default: number;
+  minimum: number;
+  maximum: number;
+  value: number;
+}
 export interface JevUsageStatus {
   usage: JevUsage;
   label_key: string;
@@ -36,6 +41,10 @@ export interface JevUsageStatus {
   enabled: boolean;
   effective: boolean;
   readiness: JevReadiness;
+  /** None for an observer, which decides nothing. */
+  gates: JevGateStatus[];
+  /** Every threshold still equals the value its record qualified. */
+  qualified: boolean;
 }
 export interface JevSettings {
   enabled: boolean;
@@ -44,6 +53,47 @@ export interface JevSettings {
 export interface JevToggleUpdate {
   usage: JevUsage | null;
   enabled: boolean;
+}
+/** Some gates of one usage; a gate left out keeps its value. */
+export interface JevThresholdUpdate {
+  usage: JevUsage;
+  values: Record<string, number>;
+}
+
+/** One gate's judgements over the window, per bucket 0..100 (ADR-374). */
+export interface JevGateStatistics {
+  key: string;
+  kind: JevGateKind;
+  /** The threshold the next operation decides with. */
+  threshold: number;
+  /** A confidence concludes from bucket threshold × 100 up, a margin up to it. */
+  buckets: number[];
+}
+/** An observer's verdicts beside what its extractor proposed, for one bucket. */
+export interface JevAgreementRow {
+  verdict: string;
+  bucket: number;
+  proposed: boolean;
+  count: number;
+}
+/** One usage over the window: cost, outcomes, judgements. */
+export interface JevUsageStatistics {
+  usage: JevUsage;
+  /** Billed calls. */
+  calls: number;
+  cost_eur: number;
+  latency_p50_ms: number | null;
+  /** Operations per outcome code. */
+  outcomes: Record<string, number>;
+  gates: JevGateStatistics[];
+  /** An observer's agreement; null for a usage that decides. */
+  agreement: JevAgreementRow[] | null;
+}
+export interface JevStatisticsResponse {
+  /** Whole UTC days, today included. */
+  days: number;
+  since: string;
+  usages: JevUsageStatistics[];
 }
 
 /** Ephemeral, account-scoped diagnostics. Never persisted in browser storage. */
@@ -66,17 +116,6 @@ export type JevInvalidResponseReason =
   | 'winning_choice'
   | 'ambiguous_choice';
 
-/** Global collection counts shared by all its native batch traces; never add them. */
-export interface JevCollectionCoverage {
-  candidate_count: number;
-  evaluated_count: number;
-  unevaluated_count: number;
-  omitted_count: number;
-  unknown_count: number;
-  batch_index?: number | null;
-  batch_count?: number | null;
-}
-
 export interface JevCallTrace {
   id: string;
   run_id: string;
@@ -88,14 +127,12 @@ export interface JevCallTrace {
   duration_ms: number;
   context: { text: string; original_characters: number; omitted_characters: number };
   observed_result?: JevCallTrace['context'] | null;
-  collection_coverage?: JevCollectionCoverage | null;
   response: JevChoicePreview | null;
   responses?: Record<string, JevChoicePreview>;
   outcome: string;
   invalid_response_reason?: JevInvalidResponseReason | null;
   status_code: number | null;
   action: 'pending' | 'selected' | 'preview' | 'observed' | 'fallback' | 'aborted' | 'cancelled';
-  applied_decisions?: Record<string, 'match' | 'non_match' | 'unknown'>;
   decision_labels?: Record<string, string>;
   action_target: string | null;
   input_tokens: number | null;

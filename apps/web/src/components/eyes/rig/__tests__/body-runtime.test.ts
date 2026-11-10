@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BodyMotionSpace } from '@/components/eyes/body-motion-geometry';
-import { BODY_SKETCHES, type BodySketchName } from '../body-sketches';
+import { BODY_SKETCHES } from '../body-sketches';
 import { CHANNELS, type ChannelValues } from '../channels';
 import { absolute, warpTapes } from '../choreo';
 import { NEUTRAL_CONTEXT } from '../direction';
@@ -32,7 +32,7 @@ function run(rig: EyeRig, milliseconds: number, observe?: (values: BodyValues) =
 
 function actor(random = 0.8): EyeRig {
   const rig = createEyeRig({
-    initial: { expression: 'neutral', styleId: 'smiley', family: 'calm' },
+    initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
     lifeRandom: () => random,
   });
   rig.setBodySpace(ROOM);
@@ -59,46 +59,25 @@ describe('Native whole-body runtime', () => {
     expect(rig.sketchClock().scene).toBeNull();
   });
 
-  it.each(['body-roll', 'body-somersault', 'body-balloon'] satisfies BodySketchName[])(
-    'finishes both directions of %s without an inverse revolution on release',
-    name => {
-      for (const random of [0.2, 0.8]) {
-        const direction = random < 0.5 ? -1 : 1;
-        const terminal = name === 'body-balloon' ? 720 : 360;
-        const rig = actor(random);
-        rig.playScene(name);
-        let previous = 0;
-        let committed = false;
-        let peak = 0;
-        let worstReverse = 0;
-        run(rig, 8_000, values => {
-          const phase = direction * values.bodyRoll;
-          peak = Math.max(peak, phase);
-          if (phase > 20) committed = true;
-          if (committed)
-            worstReverse = Math.min(
-              worstReverse,
-              direction * angleDelta(previous, values.bodyRoll)
-            );
-          previous = values.bodyRoll;
-        });
-        expect(peak).toBeGreaterThan(terminal - 0.5);
-        expect(worstReverse).toBeGreaterThan(-0.01);
-        expect(body(rig)).toEqual(HOME);
-      }
+  it.each(BODY_SKETCHES)('%s remains upright instead of playing a full revolution', name => {
+    for (const random of [0.2, 0.8]) {
+      const rig = actor(random);
+      rig.playScene(name);
+      run(rig, 8_000, values => expect(Math.abs(values.bodyRoll)).toBeLessThan(16));
+      expect(body(rig)).toEqual(HOME);
     }
-  );
+  });
 
   const interruptions: ReadonlyArray<readonly [string, (rig: EyeRig) => void]> = [
     ['activity', rig => rig.setContext({ ...NEUTRAL_CONTEXT, activity: 'calculating' })],
     ['audio response', rig => rig.setContext({ ...NEUTRAL_CONTEXT, responding: true })],
     [
       'speaking pose',
-      rig => rig.setPose({ expression: 'speaking', styleId: 'smiley', family: 'calm' }),
+      rig => rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' }),
     ],
     [
       'expression',
-      rig => rig.setPose({ expression: 'attentive', styleId: 'smiley', family: 'calm' }),
+      rig => rig.setPose({ expression: 'attentive', styleId: 'cozmo', family: 'calm' }),
     ],
   ];
 
@@ -110,7 +89,7 @@ describe('Native whole-body runtime', () => {
       run(rig, 1_600);
       expect(rig.isPerforming()).toBe(true);
       const before = body(rig);
-      expect(Math.abs(before.bodyRoll)).toBeGreaterThan(20);
+      expect(before.bodyY).toBeLessThan(-0.5);
       interrupt(rig);
       expect(rig.isPerforming()).toBe(false);
       const after = body(rig);
@@ -142,7 +121,7 @@ describe('Native whole-body runtime', () => {
     rig.playScene('body-balloon');
     run(rig, 1_200);
     const before = body(rig);
-    expect(Math.abs(before.bodyX)).toBeGreaterThan(0.5);
+    expect(Math.abs(before.bodyY)).toBeGreaterThan(0.4);
     rig.setBodySpace(local);
     expect(rig.isPerforming()).toBe(false);
     expect(body(rig).bodyX).toBe(before.bodyX);
@@ -197,7 +176,7 @@ describe('Native whole-body runtime', () => {
 
   it('interrupts for pointer interaction without snapping and preserves the pause until released', () => {
     const rig = actor();
-    rig.playScene('body-roll');
+    rig.playScene('body-bow');
     run(rig, 1_200);
     const before = body(rig);
     rig.setLifePaused(true);

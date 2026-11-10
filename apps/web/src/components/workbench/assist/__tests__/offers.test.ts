@@ -16,26 +16,42 @@ import type {
   WorkbenchTask,
 } from '@/lib/workbench/types';
 
-const { ask, remind, confide, keep, watch, push, start, bridges, bounds, recorder, minutes } =
-  vi.hoisted(() => ({
-    bounds: {
-      value: null as null | { textMax: number; instructionMax: number; dictates: boolean },
-    },
-    ask: vi.fn(),
-    remind: vi.fn(),
-    confide: vi.fn(),
-    keep: vi.fn(),
-    watch: vi.fn(),
-    push: vi.fn(),
-    start: vi.fn(),
-    bridges: { assists: false, board: false, spaces: false, meetings: false, reads: false },
-    recorder: { value: null as null | { isSupported: boolean; phase: string; start: () => void } },
-    minutes: {
-      items: [] as { id: string }[],
-      loading: false,
-      asked: [] as { enabled?: boolean; params?: unknown }[],
-    },
-  }));
+const {
+  ask,
+  remind,
+  confide,
+  keep,
+  watch,
+  push,
+  start,
+  go,
+  ready,
+  bridges,
+  bounds,
+  recorder,
+  minutes,
+} = vi.hoisted(() => ({
+  bounds: {
+    value: null as null | { textMax: number; instructionMax: number; dictates: boolean },
+  },
+  ask: vi.fn(),
+  remind: vi.fn(),
+  confide: vi.fn(),
+  keep: vi.fn(),
+  watch: vi.fn(),
+  push: vi.fn(),
+  start: vi.fn(),
+  go: vi.fn(),
+  // The tools ready to take what is handed to them, by what they take.
+  ready: { kinds: [] as string[] },
+  bridges: { assists: false, board: false, spaces: false, meetings: false, reads: false },
+  recorder: { value: null as null | { isSupported: boolean; phase: string; start: () => void } },
+  minutes: {
+    items: [] as { id: string }[],
+    loading: false,
+    asked: [] as { enabled?: boolean; params?: unknown }[],
+  },
+}));
 vi.mock('../../useToolBridges', () => ({
   useToolBridges: () => ({
     ask,
@@ -45,9 +61,16 @@ vi.mock('../../useToolBridges', () => ({
     keep: bridges.spaces ? keep : undefined,
     meetings: bridges.meetings,
     reads: bridges.reads,
+    offers: (kind: string) => ready.kinds.includes(kind),
+    go,
   }),
 }));
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'owner', email: 'me@example.org', timezone: 'Europe/Paris' } }),
+}));
 vi.mock('../../WorkbenchShell', () => ({ useAssistBounds: () => bounds.value }));
+// These generic contact lines have no phone; eligibility is supplied at its own boundary.
+vi.mock('@/hooks/useTelephonyCallable', () => ({ useTelephonyCallable: () => false }));
 vi.mock('@/hooks/useMailWatch', () => ({ useMailWatch: () => ({ watch }) }));
 vi.mock('@/hooks/useLocalizedRouter', () => ({ useLocalizedRouter: () => ({ push }) }));
 vi.mock('@/components/meetings/MeetingRecorderProvider', () => ({
@@ -171,6 +194,7 @@ const FILE: WorkbenchFileDetail = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  ready.kinds = [];
   bridges.assists = false;
   bridges.board = false;
   bridges.spaces = false;
@@ -331,8 +355,19 @@ describe('the bridges to what LIA already does (lot 5)', () => {
     expect(labels(closed.lines)).not.toContain(CONFIDE);
 
     bridges.board = true;
-    const mail = renderHook(() => useMailAssist('en', MESSAGE, doors)).result.current;
+    const zoned = { ...doors, zone: 'Europe/Paris' };
+    const mail = renderHook(() => useMailAssist('en', MESSAGE, zoned)).result.current;
     line(mail.lines, CONFIDE).onSelect?.();
+    expect(confide).toHaveBeenLastCalledWith({
+      title: 'Budget',
+      brief: expect.stringMatching(
+        /^workbench\.assist\.confide\.brief_mail_on \{"sender":"Ana","subject":"Budget","when":"Nov 4, 2026, 10:00\sAM"\}$/
+      ),
+    });
+
+    const undated = { ...MESSAGE, received_at: null };
+    const unknown = renderHook(() => useMailAssist('en', undated, zoned)).result.current;
+    line(unknown.lines, CONFIDE).onSelect?.();
     expect(confide).toHaveBeenLastCalledWith({
       title: 'Budget',
       brief: 'workbench.assist.confide.brief_mail {"sender":"Ana","subject":"Budget"}',
@@ -549,5 +584,139 @@ describe('the lines of a file', () => {
     line(result.current.lines, REMIND).onSelect?.();
 
     expect(remind).toHaveBeenCalledWith('workbench.assist.remind.words.file {"name":"Plan.pdf"}');
+  });
+});
+
+describe('lot 5 — an event, a task and a file lead to the other tools (2026-11-07)', () => {
+  const WRITE_GUESTS = 'workbench.assist.calendar.write_guests';
+  const BLOCK = 'workbench.assist.tasks.block_slot';
+  const MAIL_WITH_LIA = 'workbench.assist.file.mail_with_lia';
+  const GUESTS: CalendarEventDetail = {
+    ...EVENT,
+    attendees: [
+      { email: 'ana@example.org', name: 'Ana', response: 'accepted' },
+      { email: 'ME@example.org', name: null, response: 'accepted' },
+      { email: 'ana@example.org', name: 'Ana', response: 'accepted' },
+    ],
+    organizer: 'bo@example.org',
+  };
+
+  it('writes to the event’s guests with LIA, each once and the person left out', () => {
+    bridges.assists = true;
+    ready.kinds = ['compose'];
+    const { lines } = renderHook(() => useEventAssist('en', GUESTS, 'Europe/Paris')).result.current;
+
+    line(lines, WRITE_GUESTS).onSelect?.();
+
+    expect(go).toHaveBeenCalledWith({
+      kind: 'compose',
+      to: 'ana@example.org, bo@example.org',
+      subject: 'Review',
+      assisted: true,
+    });
+  });
+
+  it('offers no writing to guests without any, without the assists, or without a mailbox', () => {
+    const offered = (event: CalendarEventDetail) =>
+      labels(renderHook(() => useEventAssist('en', event, 'Europe/Paris')).result.current.lines);
+
+    bridges.assists = true;
+    ready.kinds = ['compose'];
+    expect(offered({ ...EVENT, attendees: [], organizer: 'me@example.org' })).not.toContain(
+      WRITE_GUESTS
+    );
+    bridges.assists = false;
+    expect(offered(GUESTS)).not.toContain(WRITE_GUESTS);
+    bridges.assists = true;
+    ready.kinds = [];
+    expect(offered(GUESTS)).not.toContain(WRITE_GUESTS);
+  });
+
+  it('blocks a slot for a task on its coming day, at nine, the calendar opening on it', () => {
+    ready.kinds = ['event'];
+    const due = { ...TASK, due: '2099-01-15', notes: 'Invoice 118' };
+    const { lines } = renderHook(() => useTaskAssist('en', due, undefined, 'Europe/Paris')).result
+      .current;
+
+    line(lines, BLOCK).onSelect?.();
+
+    expect(go).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'event',
+        summary: 'Pay the invoice',
+        description: 'Invoice 118',
+        proposal: expect.objectContaining({
+          summary: 'Pay the invoice',
+          start_date: '2099-01-15',
+          start_time: '09:00',
+          all_day: false,
+        }),
+      })
+    );
+  });
+
+  it('blocks today for a task with no coming day, the editor choosing the hour', () => {
+    ready.kinds = ['event'];
+    const late = { ...TASK, due: '2001-01-15' };
+
+    for (const task of [TASK, late]) {
+      go.mockClear();
+      const { lines } = renderHook(() => useTaskAssist('en', task, undefined, 'Europe/Paris'))
+        .result.current;
+      line(lines, BLOCK).onSelect?.();
+
+      expect(go).toHaveBeenCalledWith({
+        kind: 'event',
+        summary: 'Pay the invoice',
+        description: '',
+      });
+    }
+  });
+
+  it('offers no slot without a calendar, for a task done, or one with no title', () => {
+    const offered = (task: WorkbenchTask) =>
+      labels(
+        renderHook(() => useTaskAssist('en', task, undefined, 'Europe/Paris')).result.current.lines
+      );
+
+    expect(offered(TASK)).not.toContain(BLOCK);
+    ready.kinds = ['event'];
+    expect(offered({ ...TASK, completed: true })).not.toContain(BLOCK);
+    expect(offered({ ...TASK, title: '' })).not.toContain(BLOCK);
+  });
+
+  it('sends a file in a message written with LIA, within what a message carries', () => {
+    bridges.assists = true;
+    ready.kinds = ['compose'];
+    const { lines } = renderHook(() => useFileAssist('en', FILE, 1000)).result.current;
+
+    line(lines, MAIL_WITH_LIA).onSelect?.();
+
+    expect(go).toHaveBeenCalledWith({
+      kind: 'compose',
+      to: '',
+      file: {
+        id: 'f1',
+        filename: 'Plan.pdf',
+        mime_type: 'application/pdf',
+        size: 10,
+        origin: 'drive',
+        expires_at: null,
+      },
+      assisted: true,
+    });
+  });
+
+  it('offers no message with LIA past the bound, for a file that cannot leave, or without the assists', () => {
+    const offered = (file: WorkbenchFileDetail, max?: number) =>
+      labels(renderHook(() => useFileAssist('en', file, max)).result.current.lines);
+
+    bridges.assists = true;
+    ready.kinds = ['compose'];
+    expect(offered(FILE, 5)).not.toContain(MAIL_WITH_LIA);
+    expect(offered({ ...FILE, downloadable: false }, 1000)).not.toContain(MAIL_WITH_LIA);
+    expect(offered(FILE)).not.toContain(MAIL_WITH_LIA);
+    bridges.assists = false;
+    expect(offered(FILE, 1000)).not.toContain(MAIL_WITH_LIA);
   });
 });

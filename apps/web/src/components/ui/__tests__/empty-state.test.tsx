@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users } from '@/lib/icons';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { EmptyState } from '../empty-state';

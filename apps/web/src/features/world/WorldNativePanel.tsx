@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import type { GeneratedAssetTab } from '@/types/generated-assets';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsPaneFrame } from '@/components/settings/SettingsPaneFrame';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid } from '@/lib/icons';
 import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
 import { useAuth } from '@/hooks/useAuth';
 import { worldCatalogue } from './functions';

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { downloadImage } from '@/lib/utils/download-image';
-import { ChevronLeft, ChevronRight, Download, Loader2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Loader2, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 interface ImageLightboxProps {

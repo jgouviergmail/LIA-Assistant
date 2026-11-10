@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Archive } from 'lucide-react';
+import { Archive } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { formatTokenCount } from '../../utils/formatters';
 import type { CompactionMetrics } from '@/types/chat';

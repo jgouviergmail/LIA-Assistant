@@ -250,3 +250,7 @@ Two defects of the closing card, found on 2026-10-24.
   read by the closing, the direct relay's rewrite and the restatement. The
   delegated turns' own extractions need nothing of the kind: a chat turn awaits
   them before it ends (`await_run_id_tasks`).
+
+## Amendment 2026-11-07 — one personality block for every voice mandate ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md))
+
+`voice_sessions/mandate.personality_block` renders one block for the four owner mandates; `voice_sessions/expression` declares the cues offered to the person and to a stranger and reads an agent's speaking engine; the delegation block restitutes LIA's own turns of phrase where they carry the personality.

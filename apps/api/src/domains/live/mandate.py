@@ -20,6 +20,9 @@ from src.core.constants import LIVE_DELEGATION_TOOL_NAME
 from src.core.i18n import get_language_name
 from src.core.prompt_store import read_prompt_file
 from src.core.time_utils import format_datetime_for_display
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
+from src.domains.voice_sessions.expression import PERSON_CUES
 from src.domains.voice_sessions.mandate import (
     BRIDGE_LINE_KEYS,
     DelegationBlockInputs,
@@ -62,6 +65,8 @@ class MandateInputs:
         tone_notes: Whether a delegated answer may come with a delivery note
             naming the register the answering model declared (ADR-253): the
             mandate says what to do with it only when the annotation is on.
+        cue_dialect: What the session's engine performs (ADR-373): the cue
+            block is rendered for it, and only when it performs a cue.
     """
 
     language: str
@@ -74,6 +79,7 @@ class MandateInputs:
     native_delegation: bool
     psyche_block: str = ""
     tone_notes: bool = False
+    cue_dialect: CueDialect = NO_CUES
 
 
 #: The one-line scaffolds are the voice sessions' own (ADR-301); the browser's
@@ -90,7 +96,6 @@ def render_live_mandate(inputs: MandateInputs) -> str:
     Returns:
         The text placed in the credential constraint and replayed in ``setup``.
     """
-    lines = live_lines()
     # The delegation block is the voice session's own (ADR-301): the phone's
     # Live mandate composes the very same text into its frame.
     rendered = read_prompt_file(_PROMPT).format(
@@ -98,7 +103,7 @@ def render_live_mandate(inputs: MandateInputs) -> str:
         language_name=get_language_name(inputs.language),
         now_local=format_datetime_for_display(inputs.now, inputs.timezone, inputs.language),
         timezone=inputs.timezone,
-        personality_block=personality_block(lines, inputs.personality),
+        personality_block=personality_block(inputs.personality, user_name=inputs.user_name),
         psyche_block=inputs.psyche_block.strip(),
         delegation_block=render_delegation_block(
             DelegationBlockInputs(
@@ -109,6 +114,7 @@ def render_live_mandate(inputs: MandateInputs) -> str:
                 tone_notes=inputs.tone_notes,
             )
         ),
+        expression_block=live_cues_block(inputs.cue_dialect, PERSON_CUES),
     )
     return _BLANK_RUN.sub("\n\n", rendered)
 

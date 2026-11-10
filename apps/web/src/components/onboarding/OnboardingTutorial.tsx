@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from '@/lib/icons';
 import { ONBOARDING_TOTAL_PAGES, ONBOARDING_SCROLL_BEHAVIOR } from '@/lib/constants';
 import { OnboardingDialogContent } from './OnboardingDialogContent';
 import { Page1Welcome } from './pages/Page1Welcome';

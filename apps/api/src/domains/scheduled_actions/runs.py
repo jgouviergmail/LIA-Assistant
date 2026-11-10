@@ -36,6 +36,7 @@ from src.domains.scheduled_actions.models import (
     ScheduledRunOutcome,
 )
 from src.domains.scheduled_actions.run_repository import ScheduledActionRunRepository
+from src.infrastructure.database.errors import database_error_fields
 
 logger = structlog.get_logger(__name__)
 
@@ -49,6 +50,7 @@ async def record_run(
     outcome: ScheduledRunOutcome,
     attempts: int,
     error: str | None = None,
+    run_id: str | None = None,
 ) -> ScheduledActionRun | None:
     """Write the run row for the tick that just ended.
 
@@ -61,6 +63,9 @@ async def record_run(
         outcome: How it ended.
         attempts: Pipeline attempts made; 0 when the pipeline never ran.
         error: The failure message, if any.
+        run_id: The turn the pipeline ran (ADR-375): what the routine consulted
+            is then read from the registers by this id. ``None`` when the
+            pipeline never started.
 
     Returns:
         The row, or ``None`` when the write failed — logged, the routine's own
@@ -88,14 +93,17 @@ async def record_run(
                 # No pending slot at all means the reader started this run.
                 manual=due_at is None or due_at > started_at,
                 error=error,
+                run_id=run_id,
             )
     except Exception as exc:
         # The history is a record of the routine, never a gate on it: the
         # marking that follows must still commit.
+        # Facts only (ADR-317): an error's text may quote the row it refused.
         logger.warning(
             "scheduled_action_run_record_failed",
             action_id=str(action.id),
             outcome=outcome.value,
-            error=str(exc)[:200],
+            error_type=type(exc).__name__,
+            **database_error_fields(exc),
         )
         return None

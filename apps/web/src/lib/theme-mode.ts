@@ -19,8 +19,8 @@
  * third value would have left it stale.
  */
 
-/** Display modes `next-themes` itself understands. */
-export type DisplayMode = 'light' | 'dark' | 'system';
+/** Chosen mode; automatic is resolved before reaching `next-themes`. */
+export type DisplayMode = 'light' | 'dark' | 'system' | 'auto';
 
 /** Full display state: a mode, plus the OLED refinement of dark. */
 export interface ThemeModeState {
@@ -37,15 +37,14 @@ export interface ThemeModeState {
 export const OLED_STORAGE_KEY = 'theme-oled';
 
 /** The persisted values `users.theme` may hold. */
-const PERSISTED = new Set(['light', 'dark', 'system', 'oled']);
+const PERSISTED = new Set(['light', 'dark', 'system', 'oled', 'auto']);
 
 /**
  * Encode the state for `users.theme`.
  *
- * The column is `String(20)`, `nullable=False`, with no `Literal`, no validator
- * and no backend consumer, so `'oled'` needs no migration. It means "dark, with
- * OLED": `system + OLED` is deliberately not representable, because OLED is an
- * explicit choice rather than something to inherit from the OS at dusk.
+ * The API validates this vocabulary. `oled` means dark with absolute black;
+ * `auto` preserves the schedule intent independently from today's rendered mode.
+ * `system + OLED` is deliberately not representable.
  */
 export function toPersistedTheme({ mode, oled }: ThemeModeState): string {
   // OLED implies dark. Persisting it against any other mode would silently

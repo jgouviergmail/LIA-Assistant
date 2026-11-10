@@ -131,6 +131,8 @@ test.describe('chat generated document cards', () => {
 
 for (const sample of [
   { width: 1280, theme: 'light' },
+  { width: 1280, theme: 'dark' },
+  { width: 390, theme: 'light' },
   { width: 390, theme: 'dark' },
   { width: 320, theme: 'oled' },
 ]) {
@@ -238,8 +240,11 @@ for (const sample of [
         .evaluate(node => node.getBoundingClientRect().height);
       expect(height).toBeLessThanOrEqual(220);
       for (const action of await card.getByRole('link').all()) {
-        const box = await action.boundingBox();
-        expect(box?.height).toBeGreaterThanOrEqual(44);
+        await expect(action).toBeVisible();
+        // Firefox's protocol quad subtraction can turn 44 into 43.999969.
+        // Read the rendered local dimension without changing the target floor.
+        const height = await action.evaluate(node => node.getBoundingClientRect().height);
+        expect(height).toBeGreaterThanOrEqual(44);
       }
     }
     await expect(page.getByRole('cell', { name: 'Received workbook' })).toBeAttached();

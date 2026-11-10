@@ -61,6 +61,8 @@ export const ADMIN_GOOGLE_API_PRICING_PAGE_SIZE = DEFAULT_PAGE_SIZE;
  * Default debounce delay for search inputs.
  */
 export const SEARCH_DEBOUNCE_MS = 300;
+/** Mirrors the API's literal metadata-search bound. */
+export const DISPLAY_SEARCH_MAX_LENGTH = 256;
 
 /**
  * Debounce delay for expensive operations.
@@ -147,13 +149,6 @@ export const CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500;
  * looked perfectly valid.
  */
 export const SCHEDULED_ACTION_TITLE_MAX_LENGTH = 200;
-
-/**
- * Max characters of a selected passage quoted into a C-02 selection intent —
- * beyond this the quote is ellipsized (a 4-page quote is prompt noise, and
- * the model can re-read the answer it just wrote anyway).
- */
-export const SELECTION_QUOTE_MAX_LENGTH = 600;
 
 /**
  * localStorage key prefix of the per-user chat input draft (UXR Lot 2, A7).
@@ -557,3 +552,6 @@ export const VOICE_RECORDING_SETUP_TIMEOUT_MS = 10000;
  * backend allows it explicitly in its CORS policy.
  */
 export const NATIVE_CLIENT_HEADER = 'X-LIA-Native';
+
+/** Unreviewed cross-page form proposals are private, transient data. */
+export const APPLICATION_HANDOFF_TTL_MS = 10 * 60 * 1000;

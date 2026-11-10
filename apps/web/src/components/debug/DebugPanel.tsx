@@ -17,7 +17,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import { Accordion } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
@@ -79,7 +79,7 @@ import {
   BookMarked,
   ListChecks,
   Image as ImageIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 

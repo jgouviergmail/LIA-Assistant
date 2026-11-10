@@ -1,9 +1,9 @@
 /**
- * Row selection on the meetings list (ADR-259) — what is specific to meetings.
+ * Eligibility for selective meeting deletion (ADR-259).
  *
  * The server skips live captures and processing jobs in a bulk delete; the
- * page refuses to select them in the first place so the count it announces is
- * the count it will delete. The set arithmetic is shared (`lib/selection`).
+ * page's individual delete action refuses them before sending an id.
+ * The server remains authoritative if a row changes after it was displayed.
  */
 
 import type { MeetingStatus, MeetingSummary } from '@/types/meetings';

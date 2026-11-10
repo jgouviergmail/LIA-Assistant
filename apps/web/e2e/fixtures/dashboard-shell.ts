@@ -65,6 +65,20 @@ const psycheState = {
 const unlimited = { current: 0, limit: null, usage_pct: null, exceeded: false };
 
 export const dashboardShellMocks: MockRoute[] = [
+  {
+    url: '**/api/v1/tool-assists/selection',
+    json: {
+      text_max_chars: 8000,
+      question_max_chars: 500,
+      language_max_chars: 40,
+      internet_available: true,
+      read_aloud_available: true,
+      internet_timeout_seconds: 360,
+      call_timeout_seconds: 120,
+      heartbeat_seconds: 10,
+      destinations: [],
+    },
+  },
   // Runtime presentation config is local app data, and stays mocked like the API shell.
   { url: '**/api/runtime-ui', json: { avatarStyleRolloutId: null } },
   {

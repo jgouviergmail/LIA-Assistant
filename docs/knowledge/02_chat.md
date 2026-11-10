@@ -472,7 +472,7 @@ The layout follows the answer's own data, never the shape of the conversation's 
 
 ## What are the little animated eyes on the chat page?
 
-This is LIA’s visual companion. It stays with you on every page of the app, and in the chat it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under **Settings › Features › Identity & Memory › Avatar style**, with previews that animate on hover or focus.
+This is LIA’s visual companion. It stays with you on every page of the app, and in the chat it follows real thinking, search, speech and response states. Expressions accompany tone without proving an action completed. Choose its design under **Settings › Features › Avatar style**, with previews that animate on hover or focus. Companions that have arms, wrists, legs or feet move them too as they listen, think and speak.
 
 Move the companion, change its size or hide it; controls appear on hover, focus or touch. On a phone it stays where you put it: nothing moves or folds it but you. Style, size and positions are saved in this browser. The landing uses its own BIP presentation, independently of your application choice. The system’s reduced-motion preference retains a quiet pose.
 

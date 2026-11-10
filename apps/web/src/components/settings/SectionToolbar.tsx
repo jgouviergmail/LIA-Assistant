@@ -27,8 +27,8 @@
 
 import type { ReactNode } from 'react';
 
-import type { LucideIcon } from 'lucide-react';
-import { MoreHorizontal } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
+import { MoreHorizontal } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import {

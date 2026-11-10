@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Disc } from 'lucide-react';
+import { Disc } from '@/lib/icons';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { DASHBOARD_DESTINATIONS, destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
@@ -152,12 +152,17 @@ describe('MobileNavMenu — instance-gated destinations (ADR-258)', () => {
           world_enabled: true,
           workbench_enabled: true,
           sms_enabled: true,
+          rag_spaces_enabled: true,
         })}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Menu' }));
     expect(screen.queryByRole('menuitem', { name: 'navigation.meetings' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'navigation.sms' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'navigation.spaces' })).toHaveAttribute(
+      'href',
+      '/fr/dashboard/spaces'
+    );
     expect(await screen.findAllByRole('menuitem')).toHaveLength(DASHBOARD_DESTINATIONS.length - 1);
   });
 

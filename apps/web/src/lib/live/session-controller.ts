@@ -42,6 +42,7 @@ import { meterCost, providerSeconds } from '@/lib/live/meter';
 import { useLiveStore } from '@/stores/liveStore';
 
 import { ActivityClock } from './activity-clock';
+import { heardText } from './cue-strip';
 import { DelegationBridge, type ReadAnswer } from './delegation';
 import type { MicCapture, MicCaptureOptions } from './mic-capture';
 import type { PcmPlayerDiagnostics } from './pcm-player';
@@ -771,10 +772,19 @@ export class LiveSessionController {
     } else {
       this.turn.assistant += text;
     }
-    this.store.getState().pushCaption(role, text, this.captionBreak);
+    this.store.getState().pushCaption(role, text, this.captionBreak, this.shownAs(role));
     this.captionBreak = false;
     // Words either way are activity (LIA's speech is also a hold while it plays).
     this.clock?.touch();
+  }
+
+  /**
+   * What a line of this role shows: on a `cues` session, the voice's words
+   * without the tags its engine performed and never spoke (ADR-373); otherwise
+   * what was transcribed — a bracket there is words.
+   */
+  private shownAs(role: LiveTranscriptRole): ((heard: string) => string) | undefined {
+    return role === 'assistant' && this.session?.expression === 'cues' ? heardText : undefined;
   }
 
   private onTurnComplete(): void {
@@ -888,9 +898,15 @@ export class LiveSessionController {
     if (!session || turn.delegated) return;
     const body = turnBody(turn, session.turn_text_max_chars);
     if (!body) return;
-    if (body.assistant_text) {
+    // The server hears the turn as transcribed (it removes and counts the tags);
+    // what the chat shows at once is what the archive will hold.
+    const shown =
+      body.assistant_text && session.expression === 'cues'
+        ? { ...body, assistant_text: heardText(body.assistant_text) || null }
+        : body;
+    if (shown.assistant_text) {
       const tone = inferToneFromContent({
-        content: body.assistant_text,
+        content: shown.assistant_text,
         isError: false,
         hasArtifacts: false,
       });
@@ -903,7 +919,7 @@ export class LiveSessionController {
         `/live/sessions/${session.session_id}/turns`,
         body
       );
-      this.appendArchived(session, body, ids);
+      this.appendArchived(session, shown, ids);
     } catch (error) {
       // The record is gone: a newer session of this account superseded this
       // one (or the cap and its grace passed). This tab must not keep talking

@@ -17,6 +17,8 @@
  *  - `PUBLIC_FAQ_SECTIONS` and friends answer what a given page renders.
  */
 
+import { isLanguage } from '@/i18n/settings';
+
 /** How often a page's content is expected to change, in sitemap vocabulary. */
 export type ChangeFrequency = 'weekly' | 'monthly' | 'yearly';
 
@@ -57,6 +59,24 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: '/login', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/register', changeFrequency: 'monthly', priority: 0.3 },
 ];
+
+// These two indexable pages enter the application and retain its negotiation.
+// Editorial pages come from the sitemap's declaration, not a second page list.
+const publicContentPaths = new Set(
+  PUBLIC_PAGES.filter(({ path }) => path !== '/login' && path !== '/register').map(
+    ({ path }) => path
+  )
+);
+
+/** Whether a pathname names editorial content whose URL alone declares its language. */
+export function isPublicContentPath(pathname: string): boolean {
+  const firstSegment = pathname.split('/')[1];
+  const unlocalizedPath = isLanguage(firstSegment)
+    ? pathname.slice(firstSegment.length + 1) || '/'
+    : pathname;
+  const path = unlocalizedPath.replace(/\/$/, '') || '/';
+  return publicContentPaths.has(path) || path.startsWith('/blog/');
+}
 
 /**
  * Routes deliberately kept out of the indexable set, and why.

@@ -14,7 +14,7 @@
  * clipping a control off the edge.
  */
 
-import { LayoutGrid, RotateCcw } from 'lucide-react';
+import { LayoutGrid, RotateCcw } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { ProofDrawer } from '@/components/showroom/ProofDrawer';

@@ -1,0 +1,820 @@
+/* Enveloppes: domain-specific compositions over the existing received-data DOM.
+   The shared craft tokens own themes; native disclosures own interaction. */
+.lia-response-wrapper[data-card-version='2'] {
+  .lia-email {
+    padding: 0.875rem;
+    border-radius: 0.8rem;
+    border-inline-start: 1px solid var(--lia-craft-line);
+    background: var(--lia-craft-paper);
+  }
+
+  .lia-email:not(:has(> .lia-email__overview)) {
+    display: flow-root;
+  }
+
+  .lia-email__overview {
+    position: relative;
+    display: flow-root;
+    padding-inline-start: 4.125rem;
+  }
+
+  .lia-email__overview > .lia-card-top {
+    display: contents;
+  }
+
+  .lia-email__overview .lia-card-top__info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.75rem;
+  }
+
+  .lia-email__overview .lia-card-top__subtitle {
+    flex-basis: 100%;
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-email__overview .lia-card-top__title {
+    font-family: var(--lia-font-sans);
+    line-height: 1.3;
+  }
+
+  .lia-email__overview .lia-illus {
+    /* The redundant initials fit the envelope even at enlarged body text sizes. */
+    --lia-text-sm: 0.875rem;
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    width: 3.15rem;
+    height: 2.4rem;
+    margin-top: 0.65rem;
+    border-radius: 0.2rem 0.2rem 0.45rem 0.45rem;
+    background: var(--lia-craft-tint);
+    overflow: visible;
+    isolation: isolate;
+  }
+
+  .lia-email__overview .lia-illus::before {
+    content: '';
+    position: absolute;
+    inset: -0.4rem 0.3rem 0.5rem;
+    border: 1px solid var(--lia-craft-line);
+    border-radius: 0.15rem;
+    background: var(--lia-craft-paper);
+    transform: rotate(-5deg);
+    z-index: -1;
+  }
+
+  .lia-email__overview .lia-illus::after {
+    content: '';
+    position: absolute;
+    inset: 1.1rem 0 0;
+    border-radius: 0 0 0.45rem 0.45rem;
+    background: var(--lia-craft-tint);
+    clip-path: polygon(0 0, 50% 45%, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .lia-email__overview .lia-illus > span {
+    align-self: start;
+    color: var(--lia-craft-ink);
+  }
+
+  .lia-email__subject {
+    display: block;
+    font-family: var(--lia-font-sans);
+    font-size: var(--lia-text-lg);
+    font-weight: 650;
+    line-height: 1.35;
+    margin: 0.3rem 0 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    -webkit-line-clamp: unset;
+  }
+
+  /* Inline groups keep native classifications beside attachment/thread chips,
+     including cards already stored with the two existing sibling containers. */
+  .lia-email__overview .lia-chip-row,
+  .lia-email__overview .lia-classification,
+  .lia-email > .lia-chip-row,
+  .lia-email > .lia-classification {
+    display: inline-flex;
+    vertical-align: middle;
+    width: auto;
+    max-width: 100%;
+    margin: 0;
+    padding-block: 0.4rem 0;
+    border: 0;
+    gap: 0.3rem 0.5rem;
+  }
+
+  .lia-email__overview .lia-chip-row:has(+ .lia-classification),
+  .lia-email > .lia-chip-row:has(+ .lia-classification) {
+    margin-inline-end: 0.5rem;
+  }
+
+  .lia-email__snippet {
+    margin: 0.4rem 0 0;
+    font-size: var(--lia-text-xs);
+    line-height: 1.45;
+  }
+
+  .lia-email > .lia-collapsible-wrapper {
+    margin-top: 0.65rem;
+  }
+
+  .lia-email .lia-part-item {
+    flex-wrap: wrap;
+  }
+
+  .lia-contact {
+    padding: 0;
+    border-radius: 0.35rem 1rem 0.35rem 0.35rem;
+  }
+
+  .lia-contact > .lia-card-top {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 1.5rem;
+    margin: 0;
+    border-bottom: 1px solid var(--lia-craft-line);
+  }
+
+  .lia-contact > .lia-card-top > .lia-illus {
+    width: 6rem;
+    height: 6.5rem;
+    border-radius: 50% 50% 0.3rem 0.3rem;
+    background: var(--lia-craft-tint);
+    color: var(--lia-craft-ink);
+  }
+
+  .lia-contact .lia-illus__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+
+  .lia-contact > .lia-card-top .lia-card-top__title {
+    font-size: calc(1.75rem * var(--lia-text-scale, 1));
+  }
+
+  .lia-contact__directory {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--lia-craft-soft);
+  }
+
+  .lia-contact__directory .lia-d-row {
+    align-items: center;
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-contact__value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .lia-contact__notes {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    border-top: 1px solid var(--lia-craft-line);
+  }
+
+  .lia-contact__notes:empty {
+    display: none;
+  }
+
+  .lia-contact > .lia-collapsible-wrapper {
+    margin: 0 1.25rem 1.25rem;
+  }
+
+  .lia-event {
+    padding: 1.5rem;
+    border-radius: 0.3rem 1.2rem 1.2rem 0.3rem;
+  }
+
+  .lia-event__invitation {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 1.4rem;
+    align-items: center;
+  }
+
+  .lia-event__invitation:not(:has(.lia-event__date-sheet)) {
+    grid-template-columns: 1fr;
+  }
+
+  .lia-event__invitation > .lia-card-top {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .lia-event__invitation .lia-card-top__title {
+    font-size: calc(1.6rem * var(--lia-text-scale, 1));
+  }
+
+  .lia-event__invitation .lia-illus {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 1.75rem;
+    align-self: center;
+  }
+
+  .lia-event__date-sheet {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    padding: 0.875rem 0.5rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background: var(--lia-craft-tint);
+    color: var(--lia-craft-ink);
+    text-align: center;
+  }
+
+  .lia-event__date-sheet::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 -0.35rem;
+    height: 0.4rem;
+    background: var(--lia-craft-tint);
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% 100%,
+      94% 25%,
+      88% 100%,
+      82% 25%,
+      76% 100%,
+      70% 25%,
+      64% 100%,
+      58% 25%,
+      52% 100%,
+      46% 25%,
+      40% 100%,
+      34% 25%,
+      28% 100%,
+      22% 25%,
+      16% 100%,
+      10% 25%,
+      4% 100%,
+      0 25%
+    );
+  }
+
+  .lia-event__date-sheet > span {
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-event__date-sheet strong {
+    font-family: var(--lia-craft-display-font);
+    font-size: calc(2.6rem * var(--lia-text-scale, 1));
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .lia-event__schedule {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-block: 0.9rem;
+    margin-top: 1.2rem;
+    border-block: 1px solid var(--lia-craft-line);
+  }
+
+  .lia-event__schedule .lia-chip-row {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .lia-event__organizer {
+    margin-block: 0.75rem;
+  }
+
+  .lia-event__organizer-email {
+    color: var(--lia-craft-muted);
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-event__participants {
+    margin-top: 1rem;
+  }
+
+  .lia-event__participants-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+    font-size: var(--lia-text-sm);
+    font-weight: 600;
+  }
+
+  .lia-event__participants-heading > .lia-icon {
+    color: var(--lia-craft-accent);
+  }
+
+  .lia-event__participants-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.875rem 1rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .lia-event__participant {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0;
+    margin: 0;
+    font-size: var(--lia-text-sm);
+    line-height: 1.4;
+  }
+
+  .lia-event__participant-icon {
+    flex: 0 0 1.25rem;
+    color: var(--lia-craft-muted);
+  }
+
+  .lia-event__participant--accepted .lia-event__participant-icon {
+    color: var(--color-success);
+  }
+
+  .lia-event__participant-icon > .lia-icon {
+    color: inherit;
+  }
+
+  .lia-event__participant--declined .lia-event__participant-icon {
+    color: var(--color-destructive);
+  }
+
+  .lia-event__participant--pending .lia-event__participant-icon,
+  .lia-event__participant--tentative .lia-event__participant-icon {
+    color: var(--color-warning);
+  }
+
+  .lia-event__participant-info {
+    display: grid;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .lia-event__participant-info > :first-child {
+    color: var(--lia-craft-ink);
+    font-weight: 600;
+  }
+
+  .lia-event__participant-state {
+    color: var(--lia-craft-muted);
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-event__organizer a {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+  }
+
+  .lia-calendar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 35%);
+    padding: 0;
+    border-radius: 0.25rem 1rem 1rem 0.25rem;
+  }
+
+  .lia-calendar:not(:has(.lia-calendar__access)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lia-calendar__cover {
+    position: relative;
+    padding: 1.5rem 1.25rem 1.5rem 2rem;
+    background: var(--lia-craft-accent);
+    color: var(--lia-craft-on-accent);
+  }
+
+  .lia-calendar__cover::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0.75rem;
+    width: 1px;
+    background: currentColor;
+    opacity: 0.3;
+  }
+
+  .lia-calendar__cover .lia-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0;
+    margin: 0 0 0.75rem;
+    border: 0;
+  }
+
+  .lia-calendar__cover .lia-card-top__title,
+  .lia-calendar__cover .lia-d-item,
+  .lia-calendar__cover .lia-d-item > .material-symbols-outlined {
+    color: var(--lia-craft-on-accent);
+  }
+
+  .lia-calendar__cover .lia-card-top > .lia-illus {
+    align-self: flex-start;
+    background: var(--lia-craft-paper);
+  }
+
+  .lia-calendar__access {
+    display: flex;
+    align-items: flex-end;
+    padding: 1.5rem 1.25rem 1.5rem 0;
+    background: var(--lia-craft-accent);
+  }
+
+  .lia-calendar__access .lia-chip-row {
+    width: 100%;
+    margin: 0;
+    padding: 1rem;
+    background: var(--lia-craft-paper);
+    border: 1px solid var(--lia-craft-line);
+    border-bottom-width: 0.4rem;
+    border-radius: 0.2rem;
+  }
+
+  .lia-calendar > :not(.lia-calendar__cover):not(.lia-calendar__access) {
+    grid-column: 1 / -1;
+    margin: 0.875rem 1.25rem;
+  }
+
+  .lia-task {
+    position: relative;
+    padding: 1.6rem 1.25rem 1.1rem 2rem;
+    border-radius: 0.3rem;
+    background: linear-gradient(
+      to right,
+      var(--lia-craft-paper) 1.1rem,
+      var(--lia-craft-line) 1.1rem,
+      var(--lia-craft-line) calc(1.1rem + 1px),
+      var(--lia-craft-paper) calc(1.1rem + 1px)
+    );
+  }
+
+  .lia-task::before {
+    content: '';
+    position: absolute;
+    top: 0.15rem;
+    left: calc(50% - 2rem);
+    width: 4rem;
+    height: 0.65rem;
+    border: 2px solid var(--lia-craft-line);
+    border-radius: 0.25rem;
+    background: var(--lia-craft-soft);
+  }
+
+  .lia-task > .lia-card-top {
+    border: 0;
+    margin-bottom: 0;
+    padding-bottom: 0.5rem;
+  }
+
+  .lia-task > .lia-task__subtasks {
+    margin-top: 1rem;
+  }
+
+  .lia-task__subtask {
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--lia-craft-line);
+    align-items: center;
+  }
+
+  .lia-task__completion {
+    height: 0.35rem;
+    accent-color: var(--lia-craft-accent);
+  }
+
+  .lia-sms {
+    border: 0;
+    background: transparent;
+    padding: 1rem;
+  }
+
+  .lia-sms > .lia-card-top {
+    border: 0;
+    padding-bottom: 0;
+    margin-bottom: 0.25rem;
+  }
+
+  .lia-sms .lia-card-top__title,
+  .lia-sms .lia-card-top__info > a {
+    font-family: var(--lia-font-sans);
+    font-size: var(--lia-text-lg);
+    font-weight: 600;
+  }
+
+  .lia-sms__sender {
+    padding-inline-start: 3rem;
+  }
+
+  .lia-sms > .lia-card-content {
+    position: relative;
+    margin: 1.1rem 0 0.875rem 0.5rem;
+    padding: 1.3rem 1.4rem;
+    border-radius: 1.3rem 1.3rem 1.3rem 0.2rem;
+    background: var(--lia-craft-tint);
+    color: var(--lia-craft-ink);
+    font-size: var(--lia-text-base);
+    line-height: 1.75;
+  }
+
+  .lia-sms > .lia-card-content::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -0.5rem;
+    width: 1rem;
+    height: 1rem;
+    background: var(--lia-craft-tint);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  }
+
+  .lia-sms__stamp {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline-start: auto;
+    padding: 0.45rem 0.6rem;
+    border-block: 2px solid var(--lia-craft-line);
+    font-size: var(--lia-text-xs);
+    color: var(--lia-craft-muted);
+  }
+
+  .lia-reminder {
+    /* The tinted note needs stronger ink than muted text calibrated for paper. */
+    --lia-text-muted: var(--lia-craft-ink);
+    --lia-text-secondary: var(--lia-craft-ink);
+    padding: 1.5rem;
+    border-radius: 0.25rem 0.25rem 1.3rem 0.25rem;
+    background: var(--lia-craft-tint);
+  }
+
+  .lia-reminder__note {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .lia-reminder .lia-illus.lia-reminder__bookmark {
+    width: 2.75rem;
+    height: 4rem;
+    border-radius: 0.2rem 0.2rem 1.25rem 1.25rem;
+    background: var(--lia-craft-accent);
+    color: var(--lia-craft-on-accent);
+  }
+
+  .lia-reminder__bookmark > .material-symbols-outlined {
+    color: var(--lia-craft-on-accent);
+  }
+
+  .lia-reminder__heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .lia-reminder__label {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
+    font-family: var(--lia-craft-display-font);
+    font-size: calc(1.5rem * var(--lia-text-scale, 1));
+    line-height: 1.35;
+    color: var(--lia-craft-ink);
+  }
+
+  .lia-tickets {
+    position: relative;
+    border-radius: 0.25rem;
+    border-inline-start: 0.35rem solid var(--lia-craft-accent);
+    padding: 1.4rem;
+  }
+
+  .lia-tickets > .lia-card-top {
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom-style: dashed;
+  }
+
+  .lia-tickets > .lia-card-top > .lia-illus {
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .lia-tickets > .lia-chip-row {
+    border: 0;
+    padding-top: 0;
+  }
+
+  .lia-ticket__steps {
+    padding-top: 0.5rem;
+  }
+
+  .lia-ticket__steps .lia-ticket-items {
+    border-inline-start: 2px solid var(--lia-craft-tint);
+    padding-inline-start: 1.1rem;
+    margin-inline-start: 0.5rem;
+  }
+
+  .lia-ticket__steps .lia-ticket-items > li {
+    padding-block: 0.45rem;
+  }
+
+  .lia-ticket__run {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--lia-craft-line);
+  }
+
+  .lia-ticket__run .lia-d-item {
+    font-size: var(--lia-text-xs);
+  }
+}
+
+@container card (max-width: 38rem) {
+  .lia-response-wrapper[data-card-version='2'] .lia-event__participants-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container card (max-width: 27.5rem) {
+  .lia-response-wrapper[data-card-version='2'] {
+    .lia-email__overview {
+      padding-inline-start: 3.15rem;
+    }
+
+    .lia-email__overview .lia-illus {
+      width: 2.4rem;
+      height: 2rem;
+    }
+
+    .lia-email__overview .lia-card-top__info {
+      display: block;
+    }
+
+    .lia-email__subject {
+      font-size: var(--lia-text-base);
+    }
+
+    .lia-contact > .lia-card-top {
+      grid-template-columns: 4.5rem minmax(0, 1fr);
+      gap: 0.875rem;
+      padding: 1.1rem;
+    }
+
+    .lia-contact > .lia-card-top > .lia-illus {
+      width: 4.5rem;
+      height: 5rem;
+    }
+
+    .lia-contact > .lia-card-top .lia-card-top__title {
+      font-size: calc(1.4rem * var(--lia-text-scale, 1));
+    }
+
+    .lia-contact__directory {
+      grid-template-columns: 1fr;
+      padding: 0.875rem 1.1rem;
+      gap: 0.75rem;
+    }
+
+    .lia-contact__notes {
+      padding: 0.875rem 1.1rem;
+    }
+
+    .lia-event {
+      padding: 1.1rem;
+    }
+
+    .lia-event__invitation {
+      grid-template-columns: 4.75rem minmax(0, 1fr);
+      gap: 1rem;
+    }
+
+    .lia-event__invitation .lia-card-top {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.4rem;
+    }
+
+    .lia-event__invitation .lia-illus {
+      align-self: flex-start;
+    }
+
+    .lia-event__invitation .lia-card-top__title {
+      font-size: calc(1.3rem * var(--lia-text-scale, 1));
+    }
+
+    .lia-event__date-sheet strong {
+      font-size: calc(2rem * var(--lia-text-scale, 1));
+    }
+
+    .lia-event__participants-list {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .lia-event__participant {
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--lia-craft-line);
+    }
+
+    .lia-calendar {
+      grid-template-columns: 1fr;
+    }
+
+    .lia-calendar__cover {
+      padding: 1.25rem 1.25rem 1rem 2rem;
+    }
+
+    .lia-calendar__access {
+      padding: 0 1.25rem 1.25rem 2rem;
+    }
+
+    .lia-task {
+      padding: 1.5rem 0.875rem 1rem 1.8rem;
+    }
+
+    .lia-reminder {
+      padding: 1.1rem;
+    }
+
+    .lia-reminder__note {
+      grid-template-columns: 2rem minmax(0, 1fr);
+      gap: 0.7rem;
+    }
+
+    .lia-reminder .lia-illus.lia-reminder__bookmark {
+      width: 2rem;
+      height: 3rem;
+    }
+
+    .lia-reminder__label {
+      font-size: calc(1.3rem * var(--lia-text-scale, 1));
+    }
+
+    .lia-tickets {
+      padding: 1rem;
+    }
+  }
+}
+
+@container card (max-width: 22.5rem) {
+  .lia-response-wrapper[data-card-version='2'] {
+    .lia-contact > .lia-card-top,
+    .lia-event__invitation {
+      grid-template-columns: 1fr;
+    }
+
+    .lia-event__date-sheet {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      justify-content: space-between;
+    }
+
+    .lia-event__invitation .lia-card-top {
+      flex-direction: row;
+      gap: 0.75rem;
+    }
+
+    .lia-event__invitation .lia-illus {
+      align-self: center;
+    }
+
+    .lia-reminder__note {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .lia-response-wrapper[data-card-version='2'] {
+    .lia-event__date-sheet,
+    .lia-calendar__cover,
+    .lia-calendar__access,
+    .lia-reminder__bookmark,
+    .lia-sms > .lia-card-content {
+      border: 1px solid CanvasText;
+    }
+  }
+}

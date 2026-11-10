@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import SMS_DISPLAY_INDEX_VERSION
 from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.core.security.utils import decrypt_data
 from src.domains.feature_switches.guard import require_capability_fresh
@@ -34,8 +35,8 @@ from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.ingestion.authority import lock_active_owner
 from src.domains.ingestion.key_material import key_for_owner
 from src.domains.sms.constants import SMS_SEARCH_INDEX_VERSION
+from src.domains.sms.index_projection import prepare_index_projection
 from src.domains.sms.models import SmsMessage, SmsSearchTerm
-from src.domains.sms.search import blind_terms
 from src.domains.users.models import User
 
 _STAGE = table(
@@ -43,6 +44,8 @@ _STAGE = table(
     column("message_id", Uuid()),
     column("hashes", ARRAY(LargeBinary(32))),
     column("complete", Boolean()),
+    column("display_hashes", ARRAY(LargeBinary(32))),
+    column("display_complete", Boolean()),
     column("logical_bytes", BigInteger()),
 )
 
@@ -63,16 +66,15 @@ async def stage_messages(db: AsyncSession, owner: UUID, key: bytes) -> int:
             rows = []
             for identifier, cipher, sender_cipher in partition:
                 body, sender = decrypt_data(cipher), decrypt_data(sender_cipher)
-                terms = blind_terms(owner, body, key=key)
-                hashes = [bytes.fromhex(term) for term in terms[: settings.sms_max_index_terms]]
+                projection = await prepare_index_projection(owner, sender, body, key=key)
                 rows.append(
                     {
                         "message_id": identifier,
-                        "hashes": hashes,
-                        "complete": len(terms) <= settings.sms_max_index_terms,
-                        "logical_bytes": len(body.encode())
-                        + len(sender.encode())
-                        + 32 * len(hashes),
+                        "hashes": list(projection.terms),
+                        "complete": projection.complete,
+                        "display_hashes": list(projection.display_terms),
+                        "display_complete": projection.display_complete,
+                        "logical_bytes": projection.logical_bytes,
                     }
                 )
             if rows:
@@ -98,7 +100,7 @@ async def rebuild_sms_index(db: AsyncSession, owner: UUID) -> int:
         key = key_for_owner(actor)
         await db.execute(
             text(
-                "CREATE TEMP TABLE sms_index_rebuild (message_id UUID PRIMARY KEY, hashes BYTEA[] NOT NULL, complete BOOLEAN NOT NULL, logical_bytes BIGINT NOT NULL) ON COMMIT DROP"
+                "CREATE TEMP TABLE sms_index_rebuild (message_id UUID PRIMARY KEY, hashes BYTEA[] NOT NULL, complete BOOLEAN NOT NULL, display_hashes BYTEA[] NOT NULL, display_complete BOOLEAN NOT NULL, logical_bytes BIGINT NOT NULL) ON COMMIT DROP"
             )
         )
         await stage_messages(db, owner, key)
@@ -148,6 +150,9 @@ async def _swap(db: AsyncSession, owner: UUID) -> int:
                 "message_id",
                 "term_hashes",
                 "index_version",
+                "display_hashes",
+                "display_complete",
+                "display_version",
                 "created_at",
                 "updated_at",
             ],
@@ -157,6 +162,9 @@ async def _swap(db: AsyncSession, owner: UUID) -> int:
                 _STAGE.c.message_id,
                 _STAGE.c.hashes,
                 literal(SMS_SEARCH_INDEX_VERSION),
+                _STAGE.c.display_hashes,
+                _STAGE.c.display_complete,
+                literal(SMS_DISPLAY_INDEX_VERSION),
                 func.now(),
                 func.now(),
             )

@@ -10,7 +10,7 @@
  * title.
  */
 
-import { ArrowLeft, LibraryBig } from 'lucide-react';
+import { ArrowLeft, LibraryBig } from '@/lib/icons';
 
 import { MeetingTemplateManager } from '@/components/meetings/MeetingTemplateManager';
 import { Button } from '@/components/ui/button';

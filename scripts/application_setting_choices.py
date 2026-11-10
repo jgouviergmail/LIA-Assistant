@@ -14,6 +14,7 @@ TARGET = ROOT / "apps/api/src/domains/agents/application/setting_choices.json"
 PATHS = {
     "language": "native-language-name",
     "color_theme": "settings.theme.themes.{value}.label",
+    "icon_style": "settings.theme.icons.{value}",
     "theme": "settings.theme.{value}",
     "font_family": "settings.font.fonts.{value}.label",
     "exchange_rhythm": "settings.usage_preferences.exchange_rhythm.options.{value}.label",
@@ -54,14 +55,16 @@ def render() -> str:
         translations = {}
         for language in ("fr", "en", "de", "es", "it", "zh"):
             source = json.loads(
-                (ROOT / f"apps/web/locales/{language}/translation.json").read_text(encoding="utf-8")
+                (ROOT / f"apps/web/locales/{language}/translation.json").read_text(
+                    encoding="utf-8"
+                )
             )
             labels = {}
             for value in values:
                 if path == "native-language-name":
-                    language_source = (ROOT / "apps/web/src/i18n/settings.ts").read_text(
-                        encoding="utf-8"
-                    )
+                    language_source = (
+                        ROOT / "apps/web/src/i18n/settings.ts"
+                    ).read_text(encoding="utf-8")
                     native = re.search(
                         rf"\b{re.escape(value.split('-')[0])}:\s*\{{\s*native:\s*'([^']+)'",
                         language_source,
@@ -81,7 +84,9 @@ def render() -> str:
     choices["__boolean__"] = {}
     for language in ("fr", "en", "de", "es", "it", "zh"):
         source = json.loads(
-            (ROOT / f"apps/web/locales/{language}/translation.json").read_text(encoding="utf-8")
+            (ROOT / f"apps/web/locales/{language}/translation.json").read_text(
+                encoding="utf-8"
+            )
         )
         choices["__boolean__"][normalize_language(language)] = {
             "true": source["common"]["yes"],

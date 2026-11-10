@@ -55,7 +55,6 @@ export function ambientMotion(values: Readonly<ChannelValues>, now: number, redu
   const weight = Math.max(
     values.weatherRain,
     values.weatherStorm,
-    values.weatherCold,
     values.weatherFreezing,
     values.weatherSnow,
     values.weatherHot,
@@ -71,4 +70,15 @@ export function ambientMotion(values: Readonly<ChannelValues>, now: number, redu
     ambientFall: fall,
     ambientPulse: Math.sin(Math.PI * fall) ** 2,
   };
+}
+
+/** Horizontal shear below the attachment line, drawn from lateral rig velocity. */
+export function scarfTrail(cold: number, yawVelocity: number, rollVelocity: number): number {
+  // Positive yaw carries the near cloth to the right. Positive roll carries
+  // the lower cloth to the left. The free fabric follows each with a lag.
+  const travel = rollVelocity * 0.009 - yawVelocity * 0.105;
+  const amount = Math.min(1, Math.max(0, (Math.abs(travel) - 0.025) / 0.325));
+  if (amount === 0 || cold <= 0) return 0;
+  const eased = amount * amount * (3 - 2 * amount);
+  return Math.sign(travel) * 0.3 * eased * Math.min(1, cold / WEATHER_COLD_MAX);
 }

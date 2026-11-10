@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Send } from 'lucide-react';
+import { Send } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { Disclosure } from '@/components/ui/disclosure';
 import { useAuth } from '@/hooks/useAuth';

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from src.domains.journals.portrait_builder import build_journal_user_model_block
 from src.domains.live.direct_mandate import build_direct_setup_inputs
+from src.domains.voice.expressive_cues import CueDialect
 
 if TYPE_CHECKING:
     from src.domains.live.connector_service import LiveConnectorService
@@ -36,6 +37,7 @@ async def render_setup_inputs(
     now: datetime,
     personality: str,
     psyche_block: str,
+    cue_dialect: CueDialect,
 ) -> LiveSetupInputs:
     """What the provider setup of a connection is rendered from.
 
@@ -55,6 +57,8 @@ async def render_setup_inputs(
         now: The instant of the connection — the clock the voice speaks.
         personality: The personality the person chose for LIA.
         psyche_block: LIA's inner state, or "".
+        cue_dialect: What the session's engine performs (ADR-373): read at the
+            start, the RECORD's at a wake — the wire never changes mid-session.
 
     Returns:
         The setup inputs, kept on the record for the connection's renewals.
@@ -74,6 +78,7 @@ async def render_setup_inputs(
             now=now,
             personality=personality,
             psyche_block=psyche_block,
+            cue_dialect=cue_dialect,
         )
     else:
         inputs = connectors.setup_inputs(
@@ -86,6 +91,7 @@ async def render_setup_inputs(
             now=now,
             personality=personality,
             psyche_block=psyche_block,
+            cue_dialect=cue_dialect,
         )
     # One composition for start and wake, shared by every provider and mode.
     # A native domain refusal also refuses its ambient portrait.

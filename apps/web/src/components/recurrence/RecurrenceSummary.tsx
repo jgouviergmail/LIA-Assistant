@@ -23,7 +23,7 @@
  * is in Paris or Tokyo.
  */
 
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock } from '@/lib/icons';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 

@@ -9,7 +9,7 @@
 
 import { type FormEvent, useId, useState } from 'react';
 import type { TFunction } from 'i18next';
-import { AudioLines, Library, Pencil, Trash2 } from 'lucide-react';
+import { AudioLines, Library, Pencil, Trash2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';

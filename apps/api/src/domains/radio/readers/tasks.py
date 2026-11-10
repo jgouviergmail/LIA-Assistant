@@ -20,6 +20,7 @@ from datetime import date, datetime, time, timedelta, tzinfo
 from typing import Any, Final
 from uuid import UUID
 
+from src.core.task_due import task_due_day
 from src.domains.briefing.constants import ERROR_CODE_CONNECTOR_OAUTH_EXPIRED
 from src.domains.briefing.exceptions import ConnectorAccessError
 from src.domains.connectors.active_client import ActiveClient, ClientUnavailable, open_active_client
@@ -70,15 +71,14 @@ def _instant(value: object) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def task_line(raw: Mapping[str, Any]) -> TaskLine:
-    """One provider task (Google Tasks shape) as the radio reads it."""
-    due = _instant(raw.get("due"))
+def task_line(raw: Mapping[str, Any], tz: tzinfo) -> TaskLine:
+    """One provider task (Google Tasks shape) as the radio reads it, its day on the listener's clock."""
     task_id = raw.get("id")
     return TaskLine(
         id=str(task_id) if task_id else None,
         title=str(raw.get("title") or "").strip() or "Untitled",
         completed=raw.get("status") == _COMPLETED,
-        due=due.date() if due is not None else None,
+        due=task_due_day(raw, tz),
         completed_at=_instant(raw.get(_COMPLETED)),
     )
 
@@ -187,7 +187,7 @@ async def read_tasks_done(user_id: UUID, *, now: datetime, tz: tzinfo) -> list[P
     raw = await _tasks(
         user_id, show_completed=True, show_hidden=True, completed_min=since.isoformat()
     )
-    return tasks_done_drafts([task_line(item) for item in raw], now=now, tz=tz)[
+    return tasks_done_drafts([task_line(item, tz) for item in raw], now=now, tz=tz)[
         : MAX_PER_SOURCE[PersonalSource.TASKS]
     ]
 
@@ -203,7 +203,7 @@ async def read_tasks_ahead(user_id: UUID, *, now: datetime, tz: tzinfo) -> list[
         due_min=first.isoformat(),
         due_max=last.isoformat(),
     )
-    return tasks_ahead_drafts([task_line(item) for item in raw], now=now, tz=tz)[
+    return tasks_ahead_drafts([task_line(item, tz) for item in raw], now=now, tz=tz)[
         : MAX_PER_SOURCE[PersonalSource.TASKS]
     ]
 

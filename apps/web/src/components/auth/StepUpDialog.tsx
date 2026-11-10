@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { KeyRound, ShieldAlert } from 'lucide-react';
+import { KeyRound, ShieldAlert } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import apiClient from '@/lib/api-client';
 import { Button } from '@/components/ui/button';

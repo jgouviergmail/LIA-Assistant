@@ -64,6 +64,16 @@ _OWNER_COLUMN_OVERRIDES: dict[str, str] = {
 # Columns stripped from exported rows even on FULL tables: secrets, key
 # material, or server-internal bookkeeping. Asserted by the exclusion test.
 _REDACTED_COLUMNS: dict[str, frozenset[str]] = {
+    # Delivery checkpoints are not correspondence; neither side may export them.
+    "peer_messages": frozenset(
+        {
+            "prepared_text_encrypted",
+            "claim_token",
+            "claim_generation",
+            "lease_expires_at",
+            "generation_started",
+        }
+    ),
     # Proactive discussions: the server's own fencing, claim and cache tokens.
     "discussion_context_states": frozenset({"ready_context"}),
     "discussion_outbox": frozenset({"attempt_token"}),

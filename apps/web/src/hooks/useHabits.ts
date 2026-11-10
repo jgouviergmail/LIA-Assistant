@@ -134,9 +134,9 @@ export interface HabitsOverview {
   candidates: HabitCandidate[];
   /** Candidates beyond the display cap — a cap is stated, never silent. */
   candidates_more: number;
-  /** Whether this instance lets LIA offer an automation in the chat when a
-   * recurring request locks (RECURRENCE_SUGGESTION_ENABLED). Learning and the
-   * heartbeat offers do not depend on it; the panel says so (ADR-184). */
+  /** Whether this instance lets LIA show a habit proposal under a chat answer
+   * (RECURRENCE_SUGGESTION_ENABLED, ADR-375). Learning and the proposals in
+   * Alerts do not depend on it; the panel says so (ADR-184). */
   chat_suggestions_enabled: boolean;
 }
 

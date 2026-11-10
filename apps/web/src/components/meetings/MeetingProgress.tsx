@@ -8,7 +8,7 @@
  * every stage pending with a spinner on the first.
  */
 
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

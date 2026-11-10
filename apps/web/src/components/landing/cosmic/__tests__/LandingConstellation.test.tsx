@@ -36,11 +36,15 @@ async function renderLanding(lng: Language = 'fr') {
 }
 
 beforeEach(() => {
+  const matchMedia = window.matchMedia;
   window.history.replaceState(null, '', '/#gallery');
   Element.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: true }))
+    vi.fn((query: string) => ({
+      ...matchMedia(query),
+      matches: query === '(prefers-reduced-motion: reduce)',
+    }))
   );
 });
 

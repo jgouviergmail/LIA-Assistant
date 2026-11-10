@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,9 @@ export interface SearchInputProps extends Omit<
    */
   loading?: boolean;
 
+  /** Translated clear action, when the surrounding feature already names it. */
+  clearLabel?: string;
+
   /**
    * Initial value for controlled component
    */
@@ -72,9 +75,11 @@ export function SearchInput({
   debounceMs = 300,
   clearable = true,
   loading = false,
+  clearLabel,
   placeholder,
   className,
   value: controlledValue,
+  onKeyDown,
   ...props
 }: SearchInputProps) {
   const { t } = useTranslation();
@@ -103,11 +108,15 @@ export function SearchInput({
   // ✅ FIX: Call ref instead of prop - no dependency on onSearchChange!
   // This breaks the infinite loop: parent re-render → new callback → no effect re-trigger
   useEffect(() => {
-    onSearchChangeRef.current(debouncedValue);
-  }, [debouncedValue]);
+    if (debounceMs > 0) onSearchChangeRef.current(debouncedValue);
+  }, [debouncedValue, debounceMs]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    const next = e.target.value;
+    setInputValue(next);
+    // An immediate controlled search must acknowledge the same keystroke;
+    // a zero-delay timer can otherwise restore an older value while typing.
+    if (debounceMs === 0) onSearchChangeRef.current(next);
   };
 
   // ✅ FIX: Use ref in handleClear - no dependency on onSearchChange
@@ -116,23 +125,11 @@ export function SearchInput({
     onSearchChangeRef.current('');
   }, []);
 
-  // Keyboard shortcut: Escape to clear
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && inputValue) {
-        handleClear();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [inputValue, handleClear]);
-
   return (
     <div className="relative">
       <div className="relative">
         {/* Search icon */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3">
           <Search className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
         </div>
 
@@ -144,13 +141,20 @@ export function SearchInput({
           }
           value={inputValue}
           onChange={handleChange}
+          onKeyDown={event => {
+            onKeyDown?.(event);
+            if (!event.defaultPrevented && event.key === 'Escape' && inputValue) {
+              event.preventDefault();
+              handleClear();
+            }
+          }}
           placeholder={resolvedPlaceholder}
           className={cn('pl-10', clearable && inputValue && 'pr-20', className)}
           {...props}
         />
 
         {/* Right side: Loading + Clear button */}
-        <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3">
+        <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-1">
           {/* Reuses the shared spinner: it is already themed and already names
               itself from the active locale. */}
           {loading && <LoadingSpinner size="default" spinnerColor="muted" />}
@@ -160,8 +164,8 @@ export function SearchInput({
             <button
               type="button"
               onClick={handleClear}
-              className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t('settings.search.clear')}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={clearLabel ?? t('settings.search.clear')}
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>

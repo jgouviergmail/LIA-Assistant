@@ -7,7 +7,7 @@
  * the view. The number is exact or absent (ADR-185): a list read in part or not at all takes it
  * away and says so.
  */
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck } from '@/lib/icons';
 import Link from 'next/link';
 
 import { Badge } from '@/components/ui/badge';

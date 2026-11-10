@@ -163,6 +163,14 @@ class RAGSpace(BaseModel):
         comment="System spaces are built-in (FAQ, etc.) and cannot be modified by users",
     )
 
+    is_favorite: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Owner's display preference, independent of retrieval activation",
+    )
+
     kind: Mapped[str | None] = mapped_column(
         String(30),
         nullable=True,

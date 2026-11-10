@@ -237,6 +237,33 @@ describe('eyesWidgetStore', () => {
     expect(useEyesWidgetStore.getState().size).toBe('md');
   });
 
+  it('retires a saved Smiley to BIP while preserving the rest of the device preferences', async () => {
+    localStorage.setItem(
+      EYES_WIDGET_PREFS_KEY,
+      JSON.stringify({
+        state: {
+          style: 'smiley',
+          visible: false,
+          size: 'auto',
+          position: { xPct: 15, yPct: 25 },
+          landingPosition: { xPct: 65, yPct: 75 },
+          appliedAvatarStyleRolloutId: 'retained-campaign',
+        },
+      })
+    );
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState()).toMatchObject({
+      style: 'bip',
+      visible: false,
+      size: 'auto',
+      position: { xPct: 15, yPct: 25 },
+      landingPosition: { xPct: 65, yPct: 75 },
+      appliedAvatarStyleRolloutId: 'retained-campaign',
+    });
+    useEyesWidgetStore.getState().setVisible(true);
+    expect(JSON.parse(localStorage.getItem(EYES_WIDGET_PREFS_KEY)!).state.style).toBe('bip');
+  });
+
   it('preserves a previously selected Cozmo style when preferences are rehydrated', async () => {
     localStorage.setItem(
       EYES_WIDGET_PREFS_KEY,
@@ -247,7 +274,7 @@ describe('eyesWidgetStore', () => {
     expect(useEyesWidgetStore.getState().size).toBe('md');
   });
 
-  it.each(['smiley', 'oscar'] as const)(
+  it.each(['bip', 'oscar'] as const)(
     'preserves saved %s, automatic size, visibility and both positions',
     async style => {
       localStorage.setItem(

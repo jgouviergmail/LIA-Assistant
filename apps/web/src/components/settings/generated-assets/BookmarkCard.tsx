@@ -13,7 +13,7 @@
  * already local (the chat's export path), and delete asks first.
  */
 
-import { ChevronDown, ChevronUp, Download, Share2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Share2, Trash2 } from '@/lib/icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
 

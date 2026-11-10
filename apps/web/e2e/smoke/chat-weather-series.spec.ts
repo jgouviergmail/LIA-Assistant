@@ -18,6 +18,8 @@ const references: { id: string; language: string; html: string }[] = JSON.parse(
 
 for (const sample of [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ]) {
@@ -73,31 +75,34 @@ for (const sample of [
       const series = page.locator('.lia-weather-series');
       await expect(series).toHaveCount(2);
       const first = series.first().locator('details.lia-weather-slot');
-      // A missing icon font renders the ligature names as clipped prose and
-      // changes both the layout and the contrast scan. A FontFaceSet check can
-      // succeed when no face was declared, so also require actual glyph widths.
+      // Known archived symbols now render through the account's SVG catalogue.
+      // Require painted geometry, so a missing icon cannot silently pass the
+      // layout and contrast scan with an empty wrapper or raw ligature text.
       await expect
         .poll(
           () =>
             first
-              .locator('.lia-weather-slot__icon .material-symbols-outlined')
+              .locator('.lia-weather-slot__icon .lia-symbol-icon > svg')
               .evaluateAll(
                 symbols =>
-                  document.fonts.check('18px "Material Symbols Outlined"') &&
+                  symbols.length === 3 &&
                   symbols.every(
                     symbol =>
+                      symbol.getBoundingClientRect().width > 0 &&
                       symbol.getBoundingClientRect().width <=
-                      1.5 * Number.parseFloat(getComputedStyle(symbol).fontSize)
+                        1.5 * Number.parseFloat(getComputedStyle(symbol).fontSize)
                   )
               ),
-          { message: 'Weather symbols must render as loaded font glyphs, not ligature names' }
+          { message: 'Weather symbols must render as visible SVGs, not ligature names' }
         )
         .toBe(true);
       // Each provider observation keeps its own day/night glyph and condition
       // color after markdown sanitization, including the collapsed selectors.
       expect(
-        await first.locator('.lia-weather-slot__icon .material-symbols-outlined').allTextContents()
-      ).toEqual(['light_mode', 'partly_cloudy_night', 'thunderstorm']);
+        await first
+          .locator('.lia-weather-slot__icon .lia-symbol-icon > svg')
+          .evaluateAll(symbols => symbols.map(symbol => symbol.getAttribute('data-icon-name')))
+      ).toEqual(['Sun', 'CloudMoon', 'CloudLightning']);
       expect(
         await first
           .locator('.lia-weather-slot__icon .lia-icon')
@@ -110,8 +115,8 @@ for (const sample of [
       await expect(secondSummary).toBeFocused();
       await expect(first.nth(1)).toHaveAttribute('open', '');
       await expect(
-        first.nth(1).locator('.lia-weather__icon .material-symbols-outlined')
-      ).toHaveText('partly_cloudy_night');
+        first.nth(1).locator('.lia-weather__icon .lia-symbol-icon > svg')
+      ).toHaveAttribute('data-icon-name', 'CloudMoon');
       await expect(first.nth(1).locator('.lia-weather__icon .lia-icon')).toHaveCSS(
         'color',
         'rgb(129, 140, 248)'
@@ -137,7 +142,6 @@ for (const sample of [
       await expect(first.nth(1).getByText(/2.4 m\/s/)).toBeVisible();
       const card = page.locator('.lia-card.lia-weather').first();
       await card.scrollIntoViewIfNeeded();
-      await page.screenshot({ path: test.info().outputPath(`weather-${sample.theme}.png`) });
       const compare = card.locator(':scope > .lia-collapsible-wrapper summary');
       await compare.focus();
       await compare.press('Enter');
@@ -158,6 +162,37 @@ for (const sample of [
         .analyze();
       expect(accessibility.violations).toEqual([]);
       expect(providerRequests).toEqual([]);
+
+      // Keep interaction, overflow and accessibility checks at the real viewport.
+      // Only the evidence capture grows vertically so the composer cannot hide
+      // the final observations or comparison rows inside the chat scrollport.
+      const viewport = page.viewportSize();
+      if (!viewport) throw new Error('Missing fixed review viewport');
+      const captureHeight = await card.evaluate(element => {
+        const scrollport = element.closest('.chat-scrollbar');
+        if (!scrollport) throw new Error('Missing chat scroll viewport');
+        return Math.ceil(
+          element.getBoundingClientRect().height + window.innerHeight - scrollport.clientHeight
+        );
+      });
+      const captureStyle =
+        'body * { visibility: hidden !important; } .lia-multi-domain, .lia-multi-domain * { visibility: visible !important; }';
+      try {
+        await page.setViewportSize({
+          width: viewport.width,
+          height: Math.max(1400, captureHeight + 2),
+        });
+        await card.screenshot({
+          path: test.info().outputPath(`weather-${sample.theme}.png`),
+          style: captureStyle,
+        });
+        await region.screenshot({
+          path: test.info().outputPath(`weather-comparison-${sample.width}-${sample.theme}.png`),
+          style: captureStyle,
+        });
+      } finally {
+        await page.setViewportSize(viewport);
+      }
     });
   });
 }

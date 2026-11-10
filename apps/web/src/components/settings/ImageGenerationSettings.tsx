@@ -17,7 +17,7 @@
  */
 
 import { useId, useState } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon } from '@/lib/icons';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,

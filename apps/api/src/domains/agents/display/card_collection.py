@@ -8,6 +8,7 @@ from src.core.i18n_cards import card_label
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.icons import Icons, icon
 from src.domains.agents.display.values import first_present, scalar_text
+from src.domains.workbench.card_targets import CARD_KIND_FIELD, CARD_TARGET_FIELD
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -49,11 +50,18 @@ def render_collection_item(
     try:
         html = component.render(item, ctx, is_first_item=first, is_last_item=last)
         reference = item.get("_lia_card_ref")
-        return (
-            f'<div class="lia-card-binding" data-card-ref="{escape(reference)}">{html}</div>'
-            if html and isinstance(reference, str)
-            else html
+        navigation = "".join(
+            f' {attribute}="{escape(value)}"'
+            for key, attribute in (
+                (CARD_TARGET_FIELD, "data-card-target"),
+                (CARD_KIND_FIELD, "data-card-kind"),
+            )
+            if isinstance(value := item.get(key), str)
         )
+        if html and (isinstance(reference, str) or navigation):
+            ref_attr = f' data-card-ref="{escape(reference)}"' if isinstance(reference, str) else ""
+            return f'<div class="lia-card-binding"{ref_attr}{navigation}>{html}</div>'
+        return html
     except (AttributeError, TypeError, ValueError, OverflowError, KeyError) as error:
         logger.warning(
             "card_item_render_failed",
@@ -63,9 +71,11 @@ def render_collection_item(
         return _unavailable(ctx.language, item)
 
 
-def fold_card_collection(cards: Sequence[str], limit: int, language: str) -> str:
+def fold_card_collection(
+    cards: Sequence[str], limit: int, language: str, *, initial_limit: int | None = None
+) -> str:
     """The limit controls the initial view, never the selected result set."""
-    visible = max(1, limit)
+    visible = max(1, min(limit, initial_limit) if initial_limit is not None else limit)
     initial = "\n".join(cards[:visible])
     remaining = cards[visible:]
     if not remaining:

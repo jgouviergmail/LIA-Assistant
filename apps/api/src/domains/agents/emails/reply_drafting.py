@@ -18,6 +18,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
+from src.core.constants import EMAIL_RECIPIENTS_READ_MAX_CHARS
 from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.prompt_layout import single_call_messages
@@ -45,14 +46,47 @@ class DraftedReply(BaseModel):
     )
 
 
-def received_as_external(original: dict[str, Any]) -> str:
-    """The received e-mail as external content: its headers, then its first part."""
+def _addressed(header: str) -> str:
+    """A recipients header as a model reads it: whole, or cut after its last whole address."""
+    if len(header) <= EMAIL_RECIPIENTS_READ_MAX_CHARS:
+        return header
+    kept = header[:EMAIL_RECIPIENTS_READ_MAX_CHARS]
+    return f"{kept[: kept.rfind(', ')] if ', ' in kept else kept}, …"
+
+
+def _recipient_lines(original: dict[str, Any]) -> list[str]:
+    """Whom the e-mail went to and the files it carries: only the lines that say something."""
+    files = ", ".join(
+        str(item.get("filename") or "")
+        for item in original.get("attachments") or []
+        if isinstance(item, dict) and item.get("filename")
+    )
+    said = [
+        ("To", _addressed(str(original.get("to") or ""))),
+        ("Cc", _addressed(str(original.get("cc") or ""))),
+        ("Attachments", files),
+    ]
+    return [f"{name}: {value}" for name, value in said if value]
+
+
+def received_as_external(original: dict[str, Any], *, recipients: bool = False) -> str:
+    """The received e-mail as external content: its headers, then its first part.
+
+    Args:
+        original: The received e-mail, in the ``EmailMessage`` vocabulary.
+        recipients: Whom it went to and the names of its files are said too: a form reads its
+            guests and what a task must send back there.
+
+    Returns:
+        The e-mail, wrapped as data a model never obeys.
+    """
     first_part, _parts = paginate_body(
         str(original.get("body") or ""), part=1, part_tokens=settings.emails_body_part_tokens
     )
     text = "\n".join(
         [
             f"From: {original.get('from') or ''}",
+            *(_recipient_lines(original) if recipients else []),
             f"Date: {original.get('date') or ''}",
             f"Subject: {original.get('subject') or ''}",
             "",

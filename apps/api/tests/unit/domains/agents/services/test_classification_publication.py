@@ -129,6 +129,36 @@ def test_server_badges_are_closed_and_model_cannot_forge_host_container():
     assert classification_badges({"category": "phishing_scam"}, "en") == ""
 
 
+@pytest.mark.parametrize(
+    ("reply_expected", "language", "label"),
+    [
+        (True, "fr", "Réponse attendue"),
+        (True, "zh-CN", "需要回复"),
+        (False, "en", "Reply expected"),
+        (None, "en", "Reply expected"),
+    ],
+)
+def test_a_reply_badge_shows_only_when_a_reply_is_expected(
+    reply_expected: bool | None, language: str, label: str
+) -> None:
+    from src.domains.agents.display.components.classification_badges import (
+        classification_badges,
+    )
+
+    now = datetime.now(UTC)
+    annotation = EmailClassification(
+        category="professional",
+        priority="normal",
+        reply_expected=reply_expected,
+        evidence_scope="snippet",
+        evaluated_at=now,
+        valid_until=now + timedelta(minutes=5),
+    )
+    html = classification_badges(annotation.model_dump(mode="json"), language)
+    # Only an expected reply is shown; « no reply » and « undecided » say nothing.
+    assert (label in html) is (reply_expected is True)
+
+
 @pytest.mark.parametrize("key,scope", [("gist", "summary"), ("body", "partial_body")])
 def test_allowed_digest_or_partial_body_is_identified(key, scope):
     value = publication.observation(

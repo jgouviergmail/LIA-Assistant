@@ -1,9 +1,8 @@
 /** Browser geometry and passive ambience: the real widget, with no provider calls. */
 import { test, expect, chatRoutes, waitForClockedHydration } from '../fixtures';
-import { expectSmileyProjection } from '../fixtures/smiley-projection';
 import { expectVolumeProjection } from '../fixtures/volume-projection';
 
-const styles = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux', 'smiley'] as const;
+const styles = ['cozmo', 'capsules', 'billes', 'amande', 'traits', 'anneaux'] as const;
 
 const climates = [
   {
@@ -64,14 +63,26 @@ for (const climate of climates) {
     mockApi,
   }) => {
     await authenticate();
-    await page.addInitScript(() => {
+    await page.addInitScript(holdColdPose => {
       localStorage.setItem(
         'lia_eyes_widget_prefs',
-        JSON.stringify({ state: { visible: true, style: 'smiley', size: 'md' }, version: 0 })
+        JSON.stringify({ state: { visible: true, style: 'cozmo', size: 'md' }, version: 0 })
       );
-    });
+      if (!holdColdPose) return;
+      // Keep the host's spontaneous gestures outside the deliberate turn.
+      let state = 0x12345678;
+      Math.random = () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return 0.99 + (state / 0x100000000) * 0.009;
+      };
+    }, climate.kind === 'cold');
     const now = Date.parse('2026-09-21T12:00:00Z');
     await page.clock.install({ time: now });
+    if (climate.kind === 'cold') {
+      await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 100));
+      // The native life stream gives the test a quiet interval before its first mimic.
+      await page.clock.setFixedTime(new Date('2026-09-21T12:00:03.174Z'));
+    }
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await mockApi([
       ...chatRoutes([]),
@@ -91,6 +102,7 @@ for (const climate of climates) {
     ]);
     await page.goto('/en/dashboard/chat');
     const avatar = page.locator('.lia-eyes').last();
+    if (climate.kind === 'cold') await waitForClockedHydration(page, avatar);
     await expect(avatar).toBeVisible();
     await page.clock.runFor(1800);
     const expectedProps = (
@@ -119,44 +131,92 @@ for (const climate of climates) {
     await expect(prop).toHaveCSS('overflow', 'visible');
     // Read the artwork actually painted by the current local raster renderer.
     // Transparent containers alone cannot prove that its bitmap has no rectangle.
-    const artwork = await prop.locator('.lia-ambient-prop').evaluateAll(elements =>
-      Promise.all(
-        elements.map(async element => {
-          const url =
-            getComputedStyle(element).backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
-          if (!url) throw new Error('The effective weather must load its own artwork');
-          const image = new Image();
-          image.src = url;
-          await image.decode();
-          const canvas = document.createElement('canvas');
-          canvas.width = image.naturalWidth;
-          canvas.height = image.naturalHeight;
-          const context = canvas.getContext('2d')!;
-          context.drawImage(image, 0, 0);
-          const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-          let transparent = 0;
-          let painted = 0;
-          for (let i = 3; i < pixels.length; i += 4) {
-            if (pixels[i] === 0) transparent++;
-            else painted++;
-          }
-          return { transparent, painted };
-        })
-      )
+    const painters = climate.kind === 'cold' ? '.lia-scarf-material > span' : '.lia-ambient-prop';
+    const artwork = await prop.locator(painters).evaluateAll(
+      (elements, pseudo) =>
+        Promise.all(
+          elements.map(async element => {
+            const url = getComputedStyle(element, pseudo).backgroundImage.match(
+              /url\(["']?(.*?)["']?\)/
+            )?.[1];
+            if (!url) throw new Error('The effective weather must load its own artwork');
+            const image = new Image();
+            image.src = url;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let transparent = 0;
+            let painted = 0;
+            for (let i = 3; i < pixels.length; i += 4) {
+              if (pixels[i] === 0) transparent++;
+              else painted++;
+            }
+            return { transparent, painted };
+          })
+        ),
+      climate.kind === 'cold' ? '::before' : null
     );
     expect(artwork.length).toBeGreaterThan(0);
     for (const { transparent, painted } of artwork) {
       expect(transparent).toBeGreaterThan(0);
       expect(painted).toBeGreaterThan(0);
     }
-    const moving = ['cold', 'freezing', 'rain', 'storm'].includes(climate.kind)
-      ? prop
-      : prop.locator(climate.moving);
+    const moving =
+      climate.kind === 'cold'
+        ? prop.locator('.lia-scarf-tail')
+        : ['freezing', 'rain', 'storm'].includes(climate.kind)
+          ? prop
+          : prop.locator(climate.moving);
     const transform = () => moving.evaluate(e => getComputedStyle(e).transform);
+    if (climate.kind === 'cold') {
+      await expect(avatar).toHaveAttribute('data-volume-scarf-ready', 'true');
+    }
     const before = await transform();
     await page.clock.runFor(450);
-    // The winter hat follows the head; it has no independent breath animation.
-    if (climate.kind !== 'freezing') expect(await transform()).not.toBe(before);
+    if (climate.kind === 'cold') {
+      const bandTransform = () =>
+        prop.locator('.lia-scarf-band').evaluate(e => getComputedStyle(e).transform);
+      const nativeDrape = () =>
+        avatar.locator('[data-volume-canvas]').evaluate(node => {
+          const gl = (node as HTMLCanvasElement).getContext('webgl');
+          const program = gl?.getParameter(gl.CURRENT_PROGRAM);
+          const location = program ? gl?.getUniformLocation(program, 'u_drape') : null;
+          const drape = location ? gl?.getUniform(program, location) : null;
+          if (!(drape instanceof Float32Array))
+            throw new Error('The cold scarf draw must provide native drape');
+          return [drape[0], drape[1]];
+        });
+      const attached = await bandTransform();
+      const [restShear, seam] = await nativeDrape();
+      expect(Number.isFinite(seam)).toBe(true);
+      expect(await transform()).toBe(before);
+      expect(restShear).toBe(0);
+      await page.mouse.move(5, 40);
+      await expect
+        .poll(async () => {
+          await page.clock.runFor(16);
+          const [shear] = await nativeDrape();
+          return Math.abs(shear);
+        })
+        .toBeGreaterThan(0.02);
+      const [nativeShear, movingSeam] = await nativeDrape();
+      const fallbackShear = await moving.evaluate(
+        e => new DOMMatrix(getComputedStyle(e).transform).c
+      );
+      expect(fallbackShear).toBeCloseTo(nativeShear, 3);
+      expect(movingSeam).toBe(seam);
+      expect(await bandTransform()).toBe(attached);
+      await page.clock.runFor(1100);
+      expect(await nativeDrape()).toEqual([0, seam]);
+      expect(await transform()).toBe(before);
+      expect(await bandTransform()).toBe(attached);
+    } else if (climate.kind !== 'freezing') {
+      expect(await transform()).not.toBe(before);
+    }
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.clock.runFor(64);
     // MediaQueryList change is a browser task, independent of the mocked clock.
@@ -191,8 +251,19 @@ for (const climate of climates) {
       })
       .toEqual([1, 0, 0, 1, ...climate.rest]);
     const frozen = await transform();
+    if (climate.kind === 'cold') {
+      const viewport = page.viewportSize();
+      if (!viewport) throw new Error('The cold scarf test requires a viewport');
+      await page.mouse.move(viewport.width - 5, viewport.height - 5);
+    }
     await page.clock.runFor(500);
     expect(await transform()).toBe(frozen);
+    if (climate.kind === 'cold') {
+      const trail = await avatar.evaluate(e =>
+        Number((e as HTMLElement).style.getPropertyValue('--rig-scarf-trail'))
+      );
+      expect(trail).toBe(0);
+    }
     expect(await visibleProps()).toEqual(expectedProps);
     if (climate.kind === 'hot') {
       const capture = test.info().outputPath('transparent-fan.png');
@@ -246,72 +317,11 @@ for (const style of styles) {
     const measure = () =>
       avatar.evaluate(async root => {
         const mouth = root.querySelector('[data-rig-mouth]')!.getBoundingClientRect();
-        const textured = root.classList.contains('lia-smiley');
-        const eyes = await Promise.all(
-          [...root.querySelectorAll('.lia-eye-shape')].map(async eye => {
-            const box = eye.getBoundingClientRect();
-            if (!textured) return { top: box.top, bottom: box.bottom };
-            // The sculpt lives inside a transparent canvas. Measure its painted
-            // alpha extent, not that canvas's empty lower margin (15/128px).
-            const source =
-              getComputedStyle(eye).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
-            if (!source) throw new Error('The real sculpted eye texture is required');
-            const image = new Image();
-            image.src = source;
-            await image.decode();
-            const canvas = document.createElement('canvas');
-            canvas.width = image.naturalWidth;
-            canvas.height = image.naturalHeight;
-            const context = canvas.getContext('2d')!;
-            context.drawImage(image, 0, 0);
-            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            let top = canvas.height;
-            let bottom = 0;
-            for (let y = 0; y < canvas.height; y++) {
-              for (let x = 0; x < canvas.width; x++) {
-                if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
-                top = Math.min(top, y);
-                bottom = Math.max(bottom, y + 1);
-              }
-            }
-            if (bottom <= top) throw new Error('The eye artwork must contain visible alpha');
-            return {
-              top: box.top + (top / canvas.height) * box.height,
-              bottom: box.top + (bottom / canvas.height) * box.height,
-            };
-          })
-        );
+        const eyes = [...root.querySelectorAll('.lia-eye-shape')].map(eye => {
+          const box = eye.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom };
+        });
         const em = Number.parseFloat(getComputedStyle(root).fontSize);
-        const head = root.querySelector<HTMLElement>('.lia-head')!;
-        const pair = root.querySelector<HTMLElement>('.lia-eyes-gaze')!;
-        const travel = new DOMMatrix(getComputedStyle(pair).transform);
-        const jaw = new DOMMatrix(getComputedStyle(root.querySelector('.lia-mouth')!).transform);
-        const body = root.querySelector('.lia-avatar-body');
-        const boundary = root.querySelector('.lia-raster-face-mask');
-        const containment =
-          body && boundary
-            ? {
-                image: getComputedStyle(body).backgroundImage,
-                mask: getComputedStyle(boundary).maskImage,
-                maskMode: getComputedStyle(boundary).maskMode,
-                clip: getComputedStyle(boundary).clipPath,
-                sphereReady: body.getAttribute('data-sphere-ready'),
-                canvasWidth: body.querySelector('canvas')?.width,
-                canvasHeight: body.querySelector('canvas')?.height,
-                // smileySphereResolution: the buffer follows the screen's density,
-                // clamped to [1, 2] — Desktop Safari renders at 2.
-                density: Math.max(1, Math.min(2, devicePixelRatio)),
-                sharedHead: boundary.parentElement === head && body.parentElement === head,
-                bodyTransform: getComputedStyle(body).transform,
-                eyesInside: boundary.contains(pair),
-                mouthInside: boundary.contains(root.querySelector('.lia-mouth')),
-                browsOutside: !boundary.querySelector('[data-rig-brow]'),
-                pairX: travel.m41,
-                pairY: travel.m42,
-                mouthX: jaw.m41,
-                mouthY: jaw.m42,
-              }
-            : null;
         return {
           expression: root.getAttribute('data-expression'),
           gesture: root.getAttribute('data-gesture'),
@@ -323,7 +333,6 @@ for (const style of styles) {
           gap: (mouth.top - Math.max(...eyes.map(e => e.bottom))) / em,
           mouthHeight: mouth.height / em,
           halfPixel: 0.5 / em,
-          containment,
           yaw: Number.parseFloat((root as HTMLElement).style.getPropertyValue('--rig-head-yaw')),
           transform: getComputedStyle(root.querySelector('.lia-head')!).transform,
         };
@@ -341,7 +350,7 @@ for (const style of styles) {
     await page.clock.runFor(1200);
     const resting = await measureOpen();
     expect(resting.gap).toBeGreaterThan(0.12); // Visible breathing room below the painted eyes.
-    expect(resting.gap).toBeLessThan(style === 'smiley' ? 0.26 : 0.4);
+    expect(resting.gap).toBeLessThan(0.4);
     // Native depth/breathing can move the contour by a fraction of a pixel.
     expect(resting.mouthHeight).toBeLessThan(0.22 + resting.halfPixel);
     await page.mouse.move(5, 40);
@@ -354,45 +363,9 @@ for (const style of styles) {
     await page.clock.runFor(1800);
     const looking = await measureOpen();
     expect(Math.abs(looking.yaw)).toBeGreaterThan(0.05);
-    if (style === 'smiley') await expectSmileyProjection(avatar);
-    else await expectVolumeProjection(avatar);
+    await expectVolumeProjection(avatar);
     expect(looking.gap, JSON.stringify(looking)).toBeLessThan(0.5);
     expect(looking.gap).toBeGreaterThan(0.02);
-    if (style === 'smiley') {
-      const widget = page.getByRole('group', { name: /LIA's expressive eyes/ });
-      await widget.focus();
-      for (let move = 0; move < 20; move++) await page.keyboard.press('ArrowLeft');
-      await page.clock.runFor(232);
-      const box = await avatar.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.x + box!.width / 2).toBeLessThan(200);
-      await page.mouse.move(370, box!.y + box!.height / 2);
-      await page.clock.runFor(32);
-      await expect
-        .poll(async () => Number(await avatar.getAttribute('data-gaze-x')))
-        .toBeGreaterThan(0.9);
-      await page.clock.runFor(1300);
-      const turned = await measure();
-      expect(turned.yaw).toBeGreaterThan(0.9);
-      // The real analytic sphere and organs share the projected head. Its
-      // exact circular silhouette replaces the fallback bitmap alpha mask.
-      expect(turned.containment).not.toBeNull();
-      expect(turned.containment!.image).toContain('radial-gradient');
-      expect(turned.containment!.sphereReady).toBe('true');
-      // The md face (30 px font, 2.6 em sphere) at the page's own density.
-      const buffer = Math.min(192, Math.ceil(30 * 2.6 * turned.containment!.density));
-      expect(turned.containment!.canvasWidth).toBe(buffer);
-      expect(turned.containment!.canvasHeight).toBe(buffer);
-      expect(turned.containment!.mask).toBe('none');
-      expect(['circle(49%)', 'circle(49% at 50% 50%)']).toContain(turned.containment!.clip);
-      expect(turned.containment!.sharedHead).toBe(true);
-      expect(turned.containment!.bodyTransform).toBe('none');
-      expect(turned.containment!.eyesInside).toBe(true);
-      expect(turned.containment!.mouthInside).toBe(true);
-      expect(turned.containment!.browsOutside).toBe(true);
-      expect(turned.containment!.pairX).toBeCloseTo(turned.containment!.mouthX, 3);
-      expect(turned.containment!.pairY).toBeCloseTo(turned.containment!.mouthY, 3);
-    }
   });
 }
 
@@ -424,13 +397,13 @@ test('weather persists through the answer, expires, and keeps the account clock'
     localStorage.setItem(
       'lia_eyes_widget_prefs',
       JSON.stringify({
-        state: { visible: true, style: 'smiley', size: 'md' },
+        state: { visible: true, style: 'cozmo', size: 'md' },
         version: 0,
       })
     )
   );
   await page.goto('/en/dashboard/chat');
-  const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
+  const avatar = page.locator('.lia-eyes[data-style="cozmo"]').last();
   await expect(avatar).toBeVisible();
   const opacity = (kind: string) =>
     avatar
@@ -489,13 +462,13 @@ test('night-time attitude and lighting follow the account rather than the device
     localStorage.setItem(
       'lia_eyes_widget_prefs',
       JSON.stringify({
-        state: { visible: true, style: 'smiley', size: 'md' },
+        state: { visible: true, style: 'cozmo', size: 'md' },
         version: 0,
       })
     )
   );
   await page.goto('/en/dashboard/chat');
-  const avatar = page.locator('.lia-eyes[data-style="smiley"]').last();
+  const avatar = page.locator('.lia-eyes[data-style="cozmo"]').last();
   await expect(avatar).toBeVisible();
   await page.clock.runFor(1500);
   await expect(avatar).toHaveAttribute('data-expression', 'sleepy');

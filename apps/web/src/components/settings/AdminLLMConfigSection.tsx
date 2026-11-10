@@ -14,7 +14,7 @@ import {
   Trash2,
   Eye,
   EyeOff,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -166,6 +166,7 @@ function ProviderKeyRow({
             <div className="relative w-48">
               <Input
                 aria-labelledby={headingId}
+                data-selection-assist="off"
                 type={isOllama || showKey ? 'text' : 'password'}
                 value={keyValue}
                 onChange={e => setKeyValue(e.target.value)}

@@ -2,7 +2,7 @@
 
 import { DashboardLink as Link } from '../DashboardNavigation';
 import { useRef, useState } from 'react';
-import { CalendarClock, Check, CircleSlash, Handshake, Pencil, Sparkles } from 'lucide-react';
+import { CalendarClock, Check, CircleSlash, Handshake, Pencil, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { BriefingCard } from '../BriefingCard';
@@ -12,7 +12,7 @@ import { CommitmentEditor } from '@/components/commitments/CommitmentEditor';
 import { haptic } from '@/lib/haptics';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useOpenLoops, type OpenLoopPatch } from '@/hooks/useOpenLoops';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { useDashboardChat } from '../DashboardNavigation';
 import { settingsSectionHref } from '@/lib/settings-sections';
 import type { Language } from '@/i18n/settings';

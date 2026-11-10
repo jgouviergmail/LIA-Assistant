@@ -1,12 +1,17 @@
 # Knowledge Spaces (RAG)
 
 ## What are Knowledge Spaces?
-Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload your own documents to create personal knowledge bases. When you ask a question, LIA automatically searches these documents and enriches its responses with relevant content.**Key features:**
+
+Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload your own documents to create personal knowledge bases. When you ask a question, LIA automatically searches these documents and enriches its responses with relevant content.
+
+**Key features:**
 - Upload 15+ formats: PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML
 - Automatic chunking and indexing via Gemini embeddings
 - Hybrid search (semantic + BM25 keyword) for optimal relevance
 - Source citations in responses
 - From Tools, **Keep in a space** drops a file or an attachment there
+
+In the spaces list, search by space name or filename, including files still processing or in error. Sort by name (default), newest, most files, or active spaces first; active and inactive groups are each alphabetical. The same controls are available in Settings. Mark a space as a favourite to keep it in its own group: it changes the list, never what LIA searches. The spaces sit right after Meetings in the menu.
 
 ## What file formats are supported?
 Knowledge Spaces accept **15+ formats**:

@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react';
-import { ChevronRight, Cog } from 'lucide-react';
+import { ChevronRight, Cog } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { outcomeText, settledLabel } from '@/lib/execution-outcome';

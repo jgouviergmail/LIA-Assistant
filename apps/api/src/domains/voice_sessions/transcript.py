@@ -27,6 +27,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
+from src.domains.voice.expressive_cues import strip_transcript_cues
+
 #: The vendor names the agent ``agent``; the thread names it ``assistant``.
 _ROLES: Final[dict[str, str]] = {"agent": "assistant", "assistant": "assistant", "user": "user"}
 #: The relay prompt's vocabulary for a transcript line.
@@ -102,10 +104,15 @@ class VoiceTranscript:
             role = _ROLES.get(str(entry.get("role") or ""))
             if role is None:
                 continue
+            # The agent's engine performs the audio tags its model wrote, and the
+            # vendor keeps them in the transcript, unspoken (ADR-373).
+            spoken = strip_transcript_cues(text)[0] if role == "assistant" else text.strip()
+            if not spoken:
+                continue
             turns.append(
                 VoiceTurn(
                     role=role,
-                    text=text.strip(),
+                    text=spoken,
                     offset_seconds=_offset(entry.get("time_in_call_secs")),
                     delegated=index in delegated,
                 )

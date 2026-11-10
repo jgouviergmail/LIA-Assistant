@@ -406,6 +406,8 @@ for (const mode of ['html', 'markdown'] as const) {
 
 for (const sample of [
   { width: 1280, theme: 'light', failure: false, reduced: false },
+  { width: 1280, theme: 'dark', failure: false, reduced: true },
+  { width: 390, theme: 'light', failure: false, reduced: false },
   { width: 390, theme: 'dark', failure: false, reduced: true },
   { width: 320, theme: 'oled', failure: true, reduced: false },
 ]) {

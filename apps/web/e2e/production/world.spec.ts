@@ -4,7 +4,6 @@ import { test, expect, type Browser, type BrowserContext, type Page } from '../n
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { enterNativeTransportPeer } from '../fixtures/world-native-peer';
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -62,7 +61,6 @@ test('standalone: native menu, five server clients and per-device rendering', as
     const lng = ['fr', 'en', 'de', 'es', 'it'][index - 1];
     const t = labels(lng);
     people.push({ context, page, t });
-    await installOfflineFonts(page);
     page.on('pageerror', error => errors.push(error.name));
     page.on('request', request => {
       if (/\/(agents\/chat\/stream|world\/messages\/send)/.test(request.url()))

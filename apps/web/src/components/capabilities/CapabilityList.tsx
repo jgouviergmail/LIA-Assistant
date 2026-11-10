@@ -15,7 +15,7 @@
  */
 
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';

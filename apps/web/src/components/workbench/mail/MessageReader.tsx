@@ -19,6 +19,10 @@
  * one loads.
  * Below `xl` the reader replaces the list, so its first control leads back to
  * the folder, and it takes the focus when it opens below `lg`.
+ *
+ * A passage of the text can be acted on with LIA (owner, 2026-11-07): selected in the text view,
+ * it opens the shared selection bubble, which answers beside it or proposes a native form. The original layout stays in its isolated frame, whose selection the page
+ * cannot read: « Act on a passage », under « Ask LIA », turns it to the text and says what to do.
  */
 import {
   Archive,
@@ -37,13 +41,14 @@ import {
   Reply,
   ReplyAll,
   Star,
+  TextSelect,
   Trash2,
   UserPlus,
   X,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -56,12 +61,18 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LinkedText } from '@/components/ui/linked-text';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/i18n/client';
-import { getIntlLocale, type Language } from '@/i18n/settings';
+import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 import type { ProposedEvent, ProposedTask } from '@/lib/workbench/assist';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import { isAndroidShell, shellCapability } from '@/lib/native/shell';
-import { addressLabel, initials, type MailMoves, type MailSendAct } from '@/lib/workbench/mail';
+import {
+  addressLabel,
+  initials,
+  receivedFull,
+  type MailMoves,
+  type MailSendAct,
+} from '@/lib/workbench/mail';
 import type {
   MailAddress,
   MailAttachment,
@@ -74,6 +85,7 @@ import type {
 } from '@/lib/workbench/types';
 
 import { askAct, BarAct, type AssistOffer, type DetailDeed } from '../DetailBar';
+import { useAssistBounds } from '../WorkbenchShell';
 import { AttachmentList } from './AttachmentList';
 import { LabelMenu } from './LabelMenu';
 import type { MailBulkAct } from './MailSelectionBar';
@@ -156,17 +168,6 @@ export interface MessageBridges {
   ask: (message: MailMessage) => void;
 }
 
-function receivedFull(iso: string | null, zone: string | undefined, lng: Language): string {
-  if (!iso) return '';
-  const instant = new Date(iso);
-  if (Number.isNaN(instant.getTime())) return '';
-  return new Intl.DateTimeFormat(getIntlLocale(lng), {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: zone,
-  }).format(instant);
-}
-
 function names(addresses: readonly MailAddress[]): string {
   return addresses.map(addressLabel).join(', ');
 }
@@ -178,11 +179,52 @@ function whileIdle(busy: ReaderAct | null, act: () => void) {
   };
 }
 
+/** How the text view of the open message was asked for: its swap, or a passage to act on. */
+interface TextView {
+  asText: boolean;
+  /** Asked for a passage: the text says what to do with one. */
+  hinted: boolean;
+  setAsText: (asText: boolean) => void;
+  /** « Ask LIA », with « Act on a passage » where the original layout hides the text. */
+  offer: AssistOffer | undefined;
+}
+
+/**
+ * The text view of the open message, kept by its id: another message opens on its own layout.
+ *
+ * @returns The view, and what « Ask LIA » offers on it.
+ */
+function useTextView(props: MessageReaderProps): TextView {
+  const { lng, message, original, assist } = props;
+  const { t } = useTranslation(lng);
+  const bounds = useAssistBounds();
+  const [view, setView] = useState<{ id: string; hinted: boolean } | null>(null);
+  const asText = message !== undefined && view?.id === message.id;
+  const setAsText = (next: boolean) =>
+    setView(next && message ? { id: message.id, hinted: false } : null);
+  const hidden = message !== undefined && Boolean(original?.html) && !asText;
+  const actOn: DetailDeed | null =
+    bounds && hidden && assist
+      ? {
+          label: t('workbench.assist.passage.act_on'),
+          icon: TextSelect,
+          onSelect: () => setView({ id: message.id, hinted: true }),
+        }
+      : null;
+  return {
+    asText,
+    hinted: asText && view?.hinted === true,
+    setAsText,
+    offer: actOn && assist ? { ...assist, lines: [...assist.lines, actOn] } : assist,
+  };
+}
+
 export function MessageReader(props: MessageReaderProps) {
   const { lng, message, loading, error, backLabel, focusOnOpen, onClose, onRetry, conversation } =
     props;
   const { t } = useTranslation(lng);
   const back = useRef<HTMLButtonElement>(null);
+  const view = useTextView(props);
 
   useEffect(() => {
     if (focusOnOpen) back.current?.focus();
@@ -190,8 +232,18 @@ export function MessageReader(props: MessageReaderProps) {
 
   let content;
   // Keyed: each message starts on its own layout, never on the last one's text view.
-  if (message) content = <ReaderBody key={message.id} {...props} message={message} />;
-  else if (loading) content = <ReaderSkeleton />;
+  if (message) {
+    content = (
+      <ReaderBody
+        key={message.id}
+        {...props}
+        message={message}
+        asText={view.asText}
+        hinted={view.hinted}
+        onAsText={view.setAsText}
+      />
+    );
+  } else if (loading) content = <ReaderSkeleton />;
   else {
     const refusal = workbenchRefusal(error);
     content = (
@@ -226,7 +278,7 @@ export function MessageReader(props: MessageReaderProps) {
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
-        {message && <ReaderToolbar {...props} message={message} />}
+        {message && <ReaderToolbar {...props} assist={view.offer} message={message} />}
       </div>
       {conversation}
       {content}
@@ -427,13 +479,7 @@ function ReaderToolbar({
           onMove={onMove}
         />
       )}
-      <ReaderDeletions
-        lng={lng}
-        busy={busy}
-        moves={moves}
-        onSend={onSend}
-        onForever={onForever}
-      />
+      <ReaderDeletions lng={lng} busy={busy} moves={moves} onSend={onSend} onForever={onForever} />
       <BarAct act={askAct(t('workbench.ask.label'), () => bridges.ask(message), assist)} />
     </span>
   );
@@ -563,7 +609,10 @@ function ReaderBody({
   onUnsubscribe,
   assistPanel,
   attachmentLines,
-}: MessageReaderProps & { message: MailMessage }) {
+  asText,
+  hinted,
+  onAsText,
+}: MessageReaderProps & { message: MailMessage } & BodyView) {
   const { t } = useTranslation(lng);
   const sender = message.sender;
   const chips = (labels ?? []).filter(label => message.label_ids.includes(label.id));
@@ -637,6 +686,9 @@ function ReaderBody({
           original={original}
           inline={inline}
           originalFailed={originalFailed}
+          asText={asText}
+          hinted={hinted}
+          onAsText={onAsText}
         />
         <AttachmentList
           lng={lng}
@@ -709,7 +761,15 @@ function AnswerButtons({
   );
 }
 
-interface MessageBodyProps {
+/** The text view, as the reader keeps it. */
+interface BodyView {
+  asText: boolean;
+  /** It was asked for a passage: the text says what to do with one. */
+  hinted: boolean;
+  onAsText: (asText: boolean) => void;
+}
+
+interface MessageBodyProps extends BodyView {
   lng: Language;
   text: string;
   original: MailHtml | undefined;
@@ -730,9 +790,17 @@ function useLinksInText(): boolean {
 }
 
 /** The original layout when the message has one, else (or on demand) its text. */
-function MessageBody({ lng, text, original, originalFailed, inline }: MessageBodyProps) {
+function MessageBody({
+  lng,
+  text,
+  original,
+  originalFailed,
+  inline,
+  asText,
+  hinted,
+  onAsText,
+}: MessageBodyProps) {
   const { t } = useTranslation(lng);
-  const [asText, setAsText] = useState(false);
   // Above the frame, so a look at the text does not take back what the reader asked for.
   const [images, setImages] = useState(false);
   const linksInText = useLinksInText();
@@ -742,7 +810,7 @@ function MessageBody({ lng, text, original, originalFailed, inline }: MessageBod
       variant="link"
       size="sm"
       className={cn('h-auto p-0 text-xs', place)}
-      onClick={() => setAsText(next)}
+      onClick={() => onAsText(next)}
     >
       {label}
     </Button>
@@ -778,14 +846,58 @@ function MessageBody({ lng, text, original, originalFailed, inline }: MessageBod
     );
   }
   return (
+    <MessageText
+      lng={lng}
+      text={text}
+      hinted={hinted}
+      back={html !== null ? swap(t('workbench.mail.show_original'), false) : null}
+      failed={originalFailed}
+    />
+  );
+}
+
+/**
+ * A message's text, a passage of which can be acted on with LIA (the selection bubble). Asked for
+ * a passage, it says what to do with one and takes the focus, where the selection is made.
+ */
+function MessageText({
+  lng,
+  text,
+  hinted,
+  back,
+  failed,
+}: {
+  lng: Language;
+  text: string;
+  hinted: boolean;
+  /** The way back to the original layout, where there is one. */
+  back: ReactNode;
+  /** The original layout could not be read. */
+  failed: boolean;
+}) {
+  const { t } = useTranslation(lng);
+  const scope = useRef<HTMLDivElement>(null);
+  const owner = useId();
+  useEffect(() => {
+    if (hinted) scope.current?.focus();
+  }, [hinted]);
+  return (
     <div className="space-y-2">
-      <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+      {hinted && (
+        <p className="text-xs text-muted-foreground">{t('workbench.assist.passage.act_on_hint')}</p>
+      )}
+      <div
+        ref={scope}
+        tabIndex={-1}
+        data-selection-scope="workbench"
+        data-selection-owner={owner}
+        className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground outline-none"
+      >
         <LinkedText text={text} />
       </div>
-      {html !== null && swap(t('workbench.mail.show_original'), false)}
-      {originalFailed && (
-        <p className="text-xs text-muted-foreground">{t('workbench.mail.html_failed')}</p>
-      )}
+
+      {back}
+      {failed && <p className="text-xs text-muted-foreground">{t('workbench.mail.html_failed')}</p>}
     </div>
   );
 }

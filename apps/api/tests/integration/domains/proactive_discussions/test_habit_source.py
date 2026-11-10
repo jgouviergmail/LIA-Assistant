@@ -33,12 +33,18 @@ async def seed_habits(engine: AsyncEngine, owner: UUID) -> None:
                     status=status,
                     last_observed_at=NOW,
                     payload={
-                        "version": 1,
-                        "shape": "intermittent",
-                        "trigger_hour": 9.5,
-                        "days_of_week": [],
+                        "version": 2,
+                        "domain": f"fictional-music-{index}",
+                        "cadence": "weekdays",
+                        "weekday": None,
+                        "usual_hour": 9.5,
+                        "prefill_hour": 9.0,
+                        "part_of_day": "morning",
                         "distinct_days": 8,
+                        "active_days": 12,
                         "occurrences": 9,
+                        "at_automation_bar": False,
+                        "last_day": "2026-11-05",
                         "usual_intent": "Find a fictional score",
                     },
                 )
@@ -57,7 +63,7 @@ async def test_blocked_and_paused_rows_are_excluded_before_page_and_count(
     assert result.total == 1 and result.complete and len(result.items) == 1
     assert "Find a fictional score" in result.items[0].excerpt
     assert result.items[0].occurred_at is None and result.items[0].assertion == "inferred"
-    assert "intermittent" in result.items[0].excerpt
+    assert "weekdays" in result.items[0].excerpt
 
 
 async def test_global_habit_consent_is_live(

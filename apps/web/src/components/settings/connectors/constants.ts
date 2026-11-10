@@ -13,7 +13,7 @@ import {
   Wind,
   ScanFace,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 // ============================================================================
 // CONNECTOR TYPES

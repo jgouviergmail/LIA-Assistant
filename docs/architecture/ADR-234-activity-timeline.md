@@ -29,8 +29,8 @@ audit tables into one merged, paginated, newest-first timeline:
   lifecycle events per row: created, ended — `updated_at` is an honest
   end timestamp because a loop leaves OPEN exactly once), and
   `scheduled_actions` (ONE event per action anchored on
-  `last_executed_at`; there is no runs table, and the payload never
-  pretends otherwise).
+  `last_executed_at`; the separate routine run history is not projected
+  into this timeline).
 - **Reminders are deliberately absent**: a delivered reminder is deleted
   the instant it fires (ephemeral doctrine). No persisted trace → no
   event, no count. Inventing a history would violate ADR-185.
@@ -63,7 +63,38 @@ audit tables into one merged, paginated, newest-first timeline:
   activity statement builders in sync (their SQL-predicate tests pin the
   contracts).
 - One event per scheduled action (latest run) is a stated v1 limit; a
-  per-run history requires a runs table and stays out of scope until a
-  feature needs it.
+  per-run history is available in the routine domain and remains outside
+  this timeline’s existing scope.
 - The evolution program's later lots (A3 provenance, C2 agent inbox)
   gain a natural surface to land on.
+
+
+## Amendment — filtered reads and stable ordering (2026-11-09)
+
+The timeline accepts literal displayed-text search, registry-validated categories,
+recent/oldest ordering, and an echoed upper instant (`as_of`). Later pages carry
+the first page's instant. This excludes later insertions; it is not an immutable
+historical snapshot: edits and deletions remain visible, and the client deduplicates
+by kind and row id. Account or criteria changes retire all prior pages and requests.
+
+Filtering precedes each source cap. An empty query uses a window count beside the
+ordered rows in one statement. A text query streams the complete owned time window
+in bounded batches through the canonical display normalizer, retaining only the
+matching prefix and counting every match. This deliberately avoids an unproved
+SQL collation substitute for the shared Unicode contract. It is linear in the
+window's text, not in the returned page; a future indexed projection must preserve
+that contract and be measured before replacing it. No extra relationship loads,
+LLM, connector calls, content logs or new persistence are involved.
+
+Creation and closure of an open loop have separate ordered pools and caps. All
+orders end on the source primary key, with kind then id breaking merged date ties.
+When a source is capped, the merge returns only the prefix whose complete order is
+known: another source cannot jump past that source's unseen next event. Exact
+filtered totals and truncation remain explicit; `has_more` describes only the known
+prefix. A failing source contributes no count and is named as unavailable.
+
+The shared native list toolbar wraps at narrow widths. Empty search results offer
+filter reset, a failed refresh retains its rows with a warning, and account-timezone
+day headings include the year. PostgreSQL source tests cover all seven kinds,
+ownership, ordering, null text, source scope, caps and cursor cancellation; browser
+journeys cover the toolbar, stable paging, error recovery and accessibility.

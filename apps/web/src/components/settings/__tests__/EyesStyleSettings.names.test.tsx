@@ -50,7 +50,7 @@ describe('the gendered options accessible names and variant captions', () => {
   it.each(['en', 'fr', 'de', 'es', 'it', 'zh'] as const)('announces its actual %s label', lng => {
     render(<EyesStyleSettings lng={lng} />);
     const dictionary = translations[lng].eyes;
-    for (const id of ['smiley', ...HYBRID_EYE_STYLE_IDS] as const) {
+    for (const id of [...HYBRID_EYE_STYLE_IDS] as const) {
       const name = dictionary.styles[id].name;
       const option = screen.getByRole('button', { name });
       expect(option).toHaveAccessibleName(name);

@@ -12,7 +12,7 @@ import {
   ListChecks,
   Mail,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import type { WorkbenchAvailability, WorkbenchToolAvailability, WorkbenchToolId } from './types';
 

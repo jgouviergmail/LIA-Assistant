@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { UsageLine } from '@/components/ui/usage-line';
 import { useTranslation } from '@/i18n/client';

@@ -11,6 +11,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { MeetingRecorderContextValue } from '@/components/meetings/MeetingRecorderProvider';
 import { useMeetingRecorderStore } from '@/stores/meetingRecorderStore';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 
 const context = vi.hoisted(() => ({ value: null as MeetingRecorderContextValue | null }));
 vi.mock('@/components/meetings/MeetingRecorderProvider', () => ({
@@ -69,17 +71,47 @@ describe('MeetingRecorderControl', () => {
     expect(rec.start).toHaveBeenCalledTimes(1);
   });
 
-  it('offers Stop while live, pulses, shows the elapsed time and stops the recorder', async () => {
+  it.each(ICON_STYLES)('keeps the live recording signal and Stop action in %s', async style => {
     const rec = recorder({ phase: 'recording', isCapturing: true, isLive: true });
     context.value = rec;
     act(() => useMeetingRecorderStore.getState().setElapsed(125));
-    const { user } = renderWithProviders(<MeetingRecorderControl lng="en" />);
+    const { user, rerender } = renderWithProviders(
+      <IconStyleContext.Provider value={style}>
+        <MeetingRecorderControl lng="en" />
+      </IconStyleContext.Provider>
+    );
     const button = screen.getByRole('button', { name: 'meetings.header.stop' });
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('header-recording-dot')).toHaveClass('animate-pulse');
+    const dot = screen.getByTestId('header-recording-dot');
+    expect(dot).toHaveAttribute('data-icon-style', style);
+    expect(dot).toHaveClass('text-destructive', 'animate-pulse');
+    expect(dot).toHaveAttribute('fill', 'none');
+    const ring = dot.querySelector('circle[cx="12"][cy="12"][r="10"]');
+    expect(ring).not.toBeNull();
+    // Lucide inherits its root stroke; colored artwork gives the same caller-
+    // controlled recording signal to the outer ring, keeping its own center.
+    expect(ring?.getAttribute('stroke') ?? dot.getAttribute('stroke')).toBe('currentColor');
+    if (style !== 'lucide') {
+      expect(ring).toHaveAttribute('fill', 'none');
+      expect(dot.querySelector('circle[r="2"]')).toHaveAttribute('fill', '#F8C86A');
+    }
     expect(screen.getByText('2:05')).toBeInTheDocument();
     await user.click(button);
     expect(rec.stop).toHaveBeenCalledTimes(1);
+    expect(rec.start).not.toHaveBeenCalled();
+
+    context.value = { ...rec, phase: 'idle', isCapturing: false, isLive: false };
+    rerender(
+      <IconStyleContext.Provider value={style}>
+        <MeetingRecorderControl lng="en" />
+      </IconStyleContext.Provider>
+    );
+    const record = screen.getByRole('button', { name: 'meetings.header.record' });
+    expect(record).toHaveAttribute('aria-pressed', 'false');
+    expect(record.querySelector('svg')).not.toHaveClass('text-destructive', 'animate-pulse');
+    expect(screen.queryByText('2:05')).toBeNull();
+    await user.click(record);
+    expect(rec.start).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a click while the recorder is busy starting or finishing', async () => {

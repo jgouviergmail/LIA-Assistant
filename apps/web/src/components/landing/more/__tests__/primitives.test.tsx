@@ -6,7 +6,7 @@
  */
 
 import { render, screen } from '@testing-library/react';
-import { Bell } from 'lucide-react';
+import { Bell } from '@/lib/icons';
 import { describe, expect, it } from 'vitest';
 
 import {

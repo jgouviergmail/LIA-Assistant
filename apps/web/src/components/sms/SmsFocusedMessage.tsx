@@ -45,7 +45,7 @@ export function SmsFocusedMessage({ messageId, lng }: { messageId: string; lng: 
     <div
       ref={focus}
       tabIndex={-1}
-      className="rounded-xl border border-primary/30 bg-card outline-offset-4"
+      className="rounded-xl border border-primary/30 bg-background outline-offset-4"
       aria-label={t('sms.title')}
     >
       {data ? (

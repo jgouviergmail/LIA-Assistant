@@ -26,7 +26,7 @@ import {
   Sparkles,
   UserCheck,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';

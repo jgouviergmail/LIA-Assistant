@@ -55,6 +55,35 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Keyboard pan, fixed/client origins and viewport fallback: 100/94.87/100/100.
+        'src/{hooks/useSelectionMenuPosition,lib/selection-position}.ts': {
+          statements: 98,
+          branches: 92,
+          functions: 98,
+          lines: 98,
+        },
+        // Native selection ownership and bounded SSE: adversarial boundary
+        // measurement 92.74 / 89.07 / 100 / 94.54; retain >=2 points.
+        'src/lib/selection-assist/**': {
+          statements: 90,
+          branches: 87,
+          functions: 98,
+          lines: 92,
+        },
+        // Native touch ownership and source invalidation: 97.53/90.36/100/99.28.
+        'src/hooks/useSelection{AssistTarget,TargetValidity}.ts': {
+          statements: 95,
+          branches: 88,
+          functions: 98,
+          lines: 97,
+        },
+        // Click-only recording and synchronous retirement: 98.73/91.48/100/100.
+        'src/components/selection-assist/{FieldDictation,DictationAct}.tsx': {
+          statements: 96,
+          branches: 89,
+          functions: 98,
+          lines: 98,
+        },
         'src/lib/native/photo.ts': {
           statements: 98,
           branches: 98,
@@ -744,11 +773,12 @@ export default defineConfig({
         // Raise each axis to floor(measured - 2), retaining the same margin rule.
         // Full-suite measurement 2026-10-11: 86.68 / 80.74 / 84.26 / 88.15.
         // Lock floor(measured - 2), preserving the existing shrink-only rule.
-        // Preserve the strongest floors from the independently qualified changes.
-        statements: 85,
-        branches: 80,
-        functions: 83,
-        lines: 87,
+        // Complete 2026-11-09 suite: 88.81 / 83.45 / 86.74 / 90.27.
+        // Advance every floor by one, retaining at least two points of margin.
+        statements: 86,
+        branches: 81,
+        functions: 84,
+        lines: 88,
         // Continuous avatar PCM and exclusive phrase routing, measured inline:
         // 99.24 / 95.45 / 100 / 100; retain a two-point margin on each axis.
         'src/lib/voice-output/*.ts': {

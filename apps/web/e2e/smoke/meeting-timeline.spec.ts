@@ -16,21 +16,15 @@ import {
   pagedMeetingTimeline,
   type MeetingPageRead,
 } from '../fixtures/meeting-timeline';
-import {
-  MATERIAL_SYMBOLS_STYLESHEET_URL,
-  MATERIAL_SYMBOLS_FONT_URL,
-} from '../fixtures/offline-fonts';
 import { showCompanion } from '../fixtures/companion';
 import { scanPage } from '../a11y/scan';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
 
 const DETAILS = 'Détails';
-// All remain DENIED by the proxy. The page's own external requests have a
-// separate exact check against the two fulfilled offline-font mock URLs.
+// These browser-owned transports remain DENIED by the proxy. The page's own
+// external requests fail independently below; fonts are served by the app origin.
 const EXPECTED_BLOCKED_BROWSER_TRANSPORTS = new Set([
   'CONNECT www.google.com:443', // Chromium proxy probe (api-isolation.spec.ts).
-  'CONNECT fonts.googleapis.com:443', // Native preconnect in app/[lng]/layout.tsx.
-  'CONNECT fonts.gstatic.com:443', // Native cross-origin font preconnect.
   // Chromium's own form classifier, triggered by the minutes search input.
   // Still DENIED: page-origin requests to this host fail the separate check below.
   'CONNECT content-autofill.googleapis.com:443',
@@ -255,7 +249,8 @@ async function assertGeometry(page: Page, rows: readonly MeetingSummary[], width
     box(record),
     box(rowFor(page, rows[0])),
   ]);
-  expect(a.y).toBeGreaterThanOrEqual(h.y + h.height);
+  if (width < 1024) expect(a.y).toBeGreaterThanOrEqual(h.y + h.height);
+  else expect(a.x).toBeGreaterThanOrEqual(h.x + h.width);
   expect(firstRow.y).toBeGreaterThanOrEqual(a.y + a.height);
   expect(a.x).toBeGreaterThanOrEqual(0);
   expect(a.x + a.width).toBeLessThanOrEqual(width);
@@ -279,23 +274,23 @@ async function assertGeometry(page: Page, rows: readonly MeetingSummary[], width
   for (const meeting of rows) {
     const row = rowFor(page, meeting);
     const link = meetingLink(page, meeting);
-    const check = row.getByRole('checkbox');
-    const [frame, target, label, first, last, checkBox] = await Promise.all([
+    const remove = row.getByRole('button', {
+      name: translated('common.delete') + ' · ' + title(meeting),
+      exact: true,
+    });
+    const [frame, target, first, last, removeBox] = await Promise.all([
       box(row),
       box(link),
-      box(check.locator('xpath=ancestor::label[1]')),
       textBox(link),
       textBox(link, undefined, true),
-      box(check),
+      box(remove),
     ]);
     expect(target.height, 'the title keeps a keyboard/touch target').toBeGreaterThanOrEqual(44);
     expect(target.width).toBeGreaterThanOrEqual(44);
-    expect(label.width).toBeGreaterThanOrEqual(44);
-    expect(label.height).toBeGreaterThanOrEqual(44);
-    expect(
-      Math.abs(checkBox.y + checkBox.height / 2 - first.y - first.height / 2),
-      'the checkbox follows the first title line'
-    ).toBeLessThanOrEqual(4);
+    expect(removeBox.width).toBeGreaterThanOrEqual(44);
+    expect(removeBox.height).toBeGreaterThanOrEqual(44);
+    expect(removeBox.x + removeBox.width).toBeLessThanOrEqual(frame.x + frame.width);
+    expect(removeBox.y).toBeGreaterThanOrEqual(target.y + target.height);
     expect(last.x + last.width, 'the full title remains inside its row').toBeLessThanOrEqual(
       frame.x + frame.width + 1
     );
@@ -449,14 +444,8 @@ test.afterEach(async ({ page, apiNetworkGuard }, info) => {
     contentType: 'application/json',
   });
   expect(failures.get(page) ?? [], 'all API reads need explicit hermetic mocks').toEqual([]);
-  expect(
-    external.filter(
-      url => url !== MATERIAL_SYMBOLS_STYLESHEET_URL && url !== MATERIAL_SYMBOLS_FONT_URL
-    ),
-    'the page must not attempt an external provider request'
-  ).toEqual([]);
-  // Browser proxy probes and the layout's two font preconnects stay denied.
-  // The page can request only the two fully mocked font URLs asserted above.
+  expect(external, 'the page must not attempt an external provider request').toEqual([]);
+  // Browser proxy probes stay denied; no font CDN transport is expected.
   // Keep its exact evidence in the attachment; every other blocked escape fails.
   expect(
     apiNetworkGuard.blockedRequests.filter(
@@ -522,29 +511,6 @@ for (const sample of [
         )
       )
       .toBe(sample.font);
-    const labelMetrics = await rowFor(page, rows[0])
-      .getByRole('checkbox')
-      .locator('xpath=ancestor::label[1]')
-      .evaluate(element => {
-        const style = getComputedStyle(element);
-        return {
-          fontSize: style.fontSize,
-          lineHeight: style.lineHeight,
-          height: style.height,
-          width: style.width,
-          targetHeight: element.getBoundingClientRect().height,
-        };
-      });
-    await info.attach('meeting-checkbox-label-computed', {
-      body: JSON.stringify(labelMetrics, null, 2),
-      contentType: 'application/json',
-    });
-    if (sample.font === 20) {
-      expect(labelMetrics.fontSize).toBe('20px');
-      expect(labelMetrics.lineHeight).toBe('32.5px');
-      expect(labelMetrics.height).toBe('52.5px');
-      expect(labelMetrics.targetHeight).toBe(52.5);
-    }
     await assertGroupsAndTimes(page, rows, MEETING_BROWSER_ZONE);
     await assertGeometry(page, rows, sample.width);
     // Distinct recorded instants survive the repeated local hour. The crossed offset is explicit.
@@ -576,7 +542,7 @@ for (const sample of [
   });
 }
 
-test('disclosure, selection and title navigation keep separate keyboard owners', async ({
+test('disclosure, deletion and title navigation keep separate keyboard owners', async ({
   page,
   authenticate,
   mockApi,
@@ -610,53 +576,32 @@ test('disclosure, selection and title navigation keep separate keyboard owners',
   await assertMetadata(page, rows);
   const first = rowFor(page, rows[0]);
   const summary = summaryFor(first);
-  const checkbox = first.getByRole('checkbox');
-  await expect(checkbox).not.toBeChecked();
-  await checkbox.focus();
-  await page.keyboard.press('Space');
-  await expect(checkbox).toBeChecked();
-  await expect(checkbox).toBeFocused();
-  await expect(first.locator('details')).toHaveJSProperty('open', true);
-  const selectAll = main(page).getByRole('checkbox', {
-    name: translated('meetings.list.select_all_page'),
+  await expect(main(page).getByRole('checkbox')).toHaveCount(0);
+  const remove = first.getByRole('button', {
+    name: translated('common.delete') + ' · ' + title(rows[0]),
     exact: true,
   });
-  await expect(selectAll).toHaveJSProperty('indeterminate', true);
-  await selectAll.focus();
-  await page.keyboard.press('Space');
-  for (const meeting of rows) {
-    const check = rowFor(page, meeting).getByRole('checkbox');
-    if (meeting.status === 'processing' || meeting.status === 'interrupted') {
-      await expect(check).toBeDisabled();
-      await expect(check).not.toBeChecked();
-    } else await expect(check).toBeChecked();
+  await remove.focus();
+  await expect(remove).toBeFocused();
+  await expect(first.locator('details')).toHaveJSProperty('open', true);
+  for (const meeting of rows.filter(row =>
+    ['processing', 'interrupted', 'recording'].includes(row.status)
+  )) {
+    const blocked = rowFor(page, meeting).getByRole('button', {
+      name: translated('common.delete') + ' · ' + title(meeting),
+      exact: true,
+    });
+    await expect(blocked).toHaveAttribute('aria-disabled', 'true');
+    await blocked.focus();
+    await page.keyboard.press('Enter');
   }
   await summary.focus();
   await page.keyboard.press('Space');
   await expect(first.locator('details')).toHaveJSProperty('open', false);
   await expect(summary).toBeFocused();
-  await expect(checkbox).toBeChecked();
   expect(page.url()).toBe(initialUrl);
   expect(reads).toEqual(initialReads);
   expect(detailReads.get(page)).toEqual([]);
-  await main(page)
-    .getByRole('button', { name: translated('meetings.list.clear_selection'), exact: true })
-    .click();
-  await expect(checkbox).not.toBeChecked();
-  await expect(
-    main(page).getByRole('checkbox', {
-      name: translated('meetings.list.select_all_page'),
-      exact: true,
-    })
-  ).not.toBeChecked();
-  await expect(
-    main(page).getByRole('checkbox', {
-      name: translated('meetings.list.select_all_page'),
-      exact: true,
-    })
-  ).toHaveJSProperty('indeterminate', false);
-
-  await expect(selectAll).toBeFocused();
 
   // Only this deliberate navigation may read a detail. A declared 404 is enough:
   // this lot tests the list's real destination, not the report implementation.
@@ -683,7 +628,7 @@ test('disclosure, selection and title navigation keep separate keyboard owners',
   );
 });
 
-test('server pagination stays below each page and resets only the page selection', async ({
+test('server pagination stays below each page without selection controls', async ({
   page,
   authenticate,
   mockApi,
@@ -714,33 +659,83 @@ test('server pagination stays below each page and resets only the page selection
   };
   await afterList(rows.slice(0, 20));
   await expect(previous).toBeDisabled();
-  await rowFor(page, rows[0]).getByRole('checkbox').check();
   await next.click();
   await expect(meetingLinks(page)).toHaveText(rows.slice(20).map(title));
   await afterList(rows.slice(20));
   await expect(next).toBeDisabled();
-  await expect(
-    main(page).getByRole('checkbox', {
-      name: translated('meetings.list.select_all_page'),
-      exact: true,
-    })
-  ).not.toBeChecked();
-  await expect(
-    main(page).getByRole('checkbox', {
-      name: translated('meetings.list.select_all_page'),
-      exact: true,
-    })
-  ).toHaveJSProperty('indeterminate', false);
-  for (const meeting of rows.slice(20))
-    await expect(rowFor(page, meeting).getByRole('checkbox')).not.toBeChecked();
+  await expect(main(page).getByRole('checkbox')).toHaveCount(0);
   await expectNoOverflow(page, 'meetings final partial page');
   await capture(page, info, 'meeting-last-page-pagination');
   await previous.click();
   await expect(meetingLinks(page)).toHaveText(rows.slice(0, 20).map(title));
-  await expect(rowFor(page, rows[0]).getByRole('checkbox')).not.toBeChecked();
+  await expect(main(page).getByRole('checkbox')).toHaveCount(0);
   expect(reads).toEqual([...initialReads, { limit: 20, offset: 20 }, { limit: 20, offset: 0 }]);
   expect(detailReads.get(page)).toEqual([]);
 });
+
+for (const width of [390, 1280]) {
+  test(`one meeting can be deleted from its row with recovery at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await prepareMeetingReadingView(page);
+    const owner = await authenticate({ language: 'fr' });
+    const rows = meetingTimeline().slice(0, 2);
+    const removed = rows[0];
+    const gate = Promise.withResolvers<void>();
+    let requests = 0;
+    await mockApi([
+      ...meetingTimelineRoutes(owner, rows),
+      {
+        url: '**/api/v1/meetings/bulk-delete',
+        method: 'POST',
+        handler: async (route, signal) => {
+          const command: unknown = route.request().postDataJSON();
+          expect(command).toEqual({ ids: [removed.id] });
+          requests += 1;
+          if (requests === 1) {
+            await route.fulfill({ status: 503, json: { detail: 'Synthetic refusal' } });
+            return;
+          }
+          if (!(await waitForMockGate(gate.promise, signal))) return;
+          rows.splice(0, 1);
+          await route.fulfill({ json: { deleted: [removed.id], skipped: [] } });
+        },
+      },
+    ]);
+    await readyList(page, rows);
+    const action = rowFor(page, removed).getByRole('button', {
+      name: translated('common.delete') + ' · ' + title(removed),
+      exact: true,
+    });
+    await action.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(translated('common.error'), { exact: true })).toBeVisible();
+    await expect(action).toHaveAttribute('aria-disabled', 'false');
+    await expect(action).toBeFocused();
+    await expect(meetingLink(page, removed)).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => requests).toBe(2);
+    await expect(action).toHaveAttribute('aria-busy', 'true');
+    await page.keyboard.press('Enter');
+    expect(requests).toBe(2);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    gate.resolve();
+    await expect(meetingLink(page, removed)).toHaveCount(0);
+    await expect(meetingLink(page, rows[0])).toBeVisible();
+    await expect(
+      main(page).getByRole('heading', { level: 1, name: 'Réunions', exact: true })
+    ).toBeFocused();
+    await expect(main(page).getByRole('checkbox')).toHaveCount(0);
+    await expect(main(page).getByText(/^\d+ réunions?$/)).toHaveCount(0);
+    await expectNoOverflow(page, `meeting deletion ${width}px`);
+    const { blocking, summary } = await scanPage(page, info, `meeting-row-deletion-${width}`);
+    expect(blocking, summary).toHaveLength(0);
+    await capture(page, info, `meeting-row-deletion-${width}`);
+  });
+}
 
 test.describe('the browser supplies the civil timezone', () => {
   test.use({ timezoneId: 'America/New_York' });

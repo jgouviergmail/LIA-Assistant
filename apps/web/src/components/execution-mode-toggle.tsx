@@ -3,7 +3,7 @@
 import { useHydrated } from '@/hooks/useHydrated';
 
 import { useState } from 'react';
-import { Workflow, Zap } from 'lucide-react';
+import { Workflow, Zap } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useAuth } from '@/hooks/useAuth';

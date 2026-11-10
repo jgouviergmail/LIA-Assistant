@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ArrowRight, Plug, Sparkles } from 'lucide-react';
+import { ArrowRight, Plug, Sparkles } from '@/lib/icons';
 import dynamic from 'next/dynamic';
 import { DashboardLink as Link } from './DashboardNavigation';
 import { useTranslation } from 'react-i18next';

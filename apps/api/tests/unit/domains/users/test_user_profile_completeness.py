@@ -44,7 +44,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy import Boolean
 
-from src.core.constants import USER_FONT_SIZE_MAX_PX
+from src.core.constants import (
+    USER_FONT_SIZE_MAX_PX,
+    USER_THEME_DARK_START_MINUTE,
+    USER_THEME_LIGHT_START_MINUTE,
+)
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.domains.shared.schemas import (
     VALID_COLOR_THEMES,
@@ -91,7 +95,10 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "login_notifications_enabled": False,
     "onboarding_checklist": {"connect_calendar": True},
     "theme": "dark",
+    "theme_light_start_minute": USER_THEME_LIGHT_START_MINUTE + 1,
+    "theme_dark_start_minute": USER_THEME_DARK_START_MINUTE + 1,
     "color_theme": "ocean",
+    "icon_style": "lucide",
     "font_family": "",  # replaced below: the allowed set is the authority
     "font_size": 0,  # replaced below: the bounds are the authority
     "image_generation_enabled": True,

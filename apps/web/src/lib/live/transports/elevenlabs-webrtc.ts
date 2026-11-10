@@ -23,12 +23,26 @@ function recordOf(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function promptOf(setup: Record<string, unknown>): string {
+/**
+ * The SDK's overrides, from the initiation frame the server rendered: LIA's
+ * prompt, and the greeting when the frame carries one — empty there, so the
+ * agent lets the person speak first and every word it says is the mandate's
+ * (ADR-373). The WebSocket transport replays the frame itself.
+ */
+function overridesOf(setup: Record<string, unknown>): {
+  agent: { prompt: { prompt: string }; firstMessage?: string };
+} {
   const override = recordOf(setup.conversation_config_override);
   const agent = recordOf(override.agent);
   const prompt = recordOf(agent.prompt).prompt;
   if (typeof prompt !== 'string' || !prompt) throw new Error('live_setup_prompt_missing');
-  return prompt;
+  const greeting = agent.first_message;
+  return {
+    agent: {
+      prompt: { prompt },
+      ...(typeof greeting === 'string' ? { firstMessage: greeting } : {}),
+    },
+  };
 }
 
 export class ElevenLabsWebRtcTransport implements LiveTransport {
@@ -85,7 +99,7 @@ export class ElevenLabsWebRtcTransport implements LiveTransport {
       conversationToken: options.credential,
       connectionType: 'webrtc',
       textOnly: false,
-      overrides: { agent: { prompt: { prompt: promptOf(options.setup) } } },
+      overrides: overridesOf(options.setup),
       clientTools,
       onConnect: ({ conversationId }) => {
         if (current()) events.onProviderConversation?.(conversationId);

@@ -1,7 +1,7 @@
 'use client';
 
 import type { TFunction } from 'i18next';
-import { Bot, Layers, ListChecks, ShieldCheck, Workflow, Wrench } from 'lucide-react';
+import { Bot, Layers, ListChecks, ShieldCheck, Workflow, Wrench } from '@/lib/icons';
 
 import {
   driverAvailability,

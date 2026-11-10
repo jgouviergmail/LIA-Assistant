@@ -12,7 +12,7 @@
  * headings of unequal weight (owner feedback, 2026-09-09: « la mise en forme
  * n'est pas propre »). A panel that has nothing to show renders nothing.
  */
-import { Coins, History, ListTree, MessageSquare, Sparkles } from 'lucide-react';
+import { Coins, History, ListTree, MessageSquare, Sparkles } from '@/lib/icons';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 

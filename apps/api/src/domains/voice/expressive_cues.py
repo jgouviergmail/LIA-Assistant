@@ -28,6 +28,14 @@ syntax and with its own words — read from each vendor's documentation on
   that some bracketed words (« curious », « scared ») are SPOKEN there;
 - every other engine reads a bracket aloud.
 
+A live voice on an ElevenLabs AGENT writes its cues itself, straight into what its
+engine speaks: its dialect (:data:`ELEVENLABS_AGENT_TAGS`) spells the persona cues
+from the same table as the v3/v4 speech engines (ADR-373). The comment writer is
+offered the persona cues on the engines measured to perform them, none read aloud
+(2026-11-07): ElevenLabs v3 and v4, Fish Audio's S2 models, Gemini 3.8 as a style —
+never ``drama-3`` (its directions undocumented, ADR-345), ``s1`` or the earlier
+ElevenLabs models. The radio writes none.
+
 LIA's writers speak ONE canonical vocabulary (:class:`Cue`), spelled ``[cue]``;
 a dictionary per engine spells each cue the engine's way, or drops it — a cue an
 engine cannot perform never reaches it, and a cue nobody declared is never
@@ -71,6 +79,19 @@ class Cue(StrEnum):
     CHUCKLES = "chuckles"
     SIGHS = "sighs"
     SHORT_PAUSE = "short pause"
+    # How a character sounds (placed at a sentence's start) — offered to a live
+    # voice and to the comment writer, whose personality chooses among them
+    # (ADR-373), on an engine that performs them; the radio never writes one.
+    SARCASTIC = "sarcastic"
+    DISMISSIVE = "dismissive"
+    CHEEKY = "cheeky"
+    MISCHIEVOUS = "mischievous"
+    ANNOYED = "annoyed"
+    WEARY = "weary"
+    SOFT = "soft"
+    SLOW = "slow"
+    RUSHED = "rushed"
+    BOOMING = "booming"
 
 
 #: The cues that colour a whole sentence.
@@ -92,6 +113,26 @@ DELIVERY_CUES: Final[frozenset[Cue]] = frozenset(
 EVENT_CUES: Final[frozenset[Cue]] = frozenset(
     {Cue.LAUGHS, Cue.CHUCKLES, Cue.SIGHS, Cue.SHORT_PAUSE}
 )
+#: The cues that say how a CHARACTER sounds: the personality of the voice, or of
+#: the comment's writer, picks among them (ADR-373). Only an engine measured to
+#: perform them spells one; the radio never writes one.
+PERSONA_CUES: Final[frozenset[Cue]] = frozenset(
+    {
+        Cue.SARCASTIC,
+        Cue.DISMISSIVE,
+        Cue.CHEEKY,
+        Cue.MISCHIEVOUS,
+        Cue.ANNOYED,
+        Cue.WEARY,
+        Cue.SOFT,
+        Cue.SLOW,
+        Cue.RUSHED,
+        Cue.BOOMING,
+    }
+)
+#: The cues a bracket engine spells in LIA's own words unless it says otherwise:
+#: the persona cues are declared by each engine measured to perform them.
+_BRACKETED_BY_DEFAULT: Final[frozenset[Cue]] = DELIVERY_CUES | EVENT_CUES
 
 _BY_WORDS: Final[Mapping[str, Cue]] = MappingProxyType({cue.value: cue for cue in Cue})
 _NO_STYLES: Final[Mapping[Cue, str]] = MappingProxyType({})
@@ -125,6 +166,18 @@ class CueDialect:
         """The cues this engine performs, inline or as a style."""
         return frozenset(self.spellings) | frozenset(self.styles)
 
+    def tags(self) -> Mapping[Cue, str]:
+        """The cues this engine performs as a bracketed tag written inside the words.
+
+        What a live voice can write itself, and what a vendor palette can name;
+        a pause spelled as an ellipsis or a delivery sent as a style is not one.
+        """
+        return {
+            cue: spelled
+            for cue, spelled in self.spellings.items()
+            if spelled.startswith("[") and spelled.endswith("]")
+        }
+
     def render(self, cue: Cue) -> str | None:
         """``cue`` spelled inline the engine's way, or ``None`` when it is not."""
         return self.spellings.get(cue)
@@ -141,22 +194,47 @@ class CueDialect:
 
 
 def _bracketed(**overrides: str) -> Mapping[Cue, str]:
-    """Every cue in square brackets, in LIA's words, but where the engine says otherwise."""
-    spelled = {cue: f"[{cue.value}]" for cue in Cue}
+    """Every comment cue in square brackets, in LIA's words, but where the engine says otherwise."""
+    spelled = {cue: f"[{cue.value}]" for cue in _BRACKETED_BY_DEFAULT}
     spelled.update({_BY_WORDS[name.replace("_", " ")]: value for name, value in overrides.items()})
     return MappingProxyType(spelled)
 
 
 #: An engine that reads brackets aloud.
 NO_CUES: Final[CueDialect] = CueDialect("none", MappingProxyType({}))
+#: The persona cues in ElevenLabs' own words (« v3 audio tags », last updated
+#: 2026-10-15; its help centre's emotion tags): ONE table for its v3/v4 speech
+#: engines and its agents' voices. Measured 2026-11-07 on v4, v4 Turbo and v3
+#: Conversational: none read aloud.
+_ELEVENLABS_PERSONA: Final[Mapping[Cue, str]] = MappingProxyType(
+    {
+        Cue.SARCASTIC: "[sarcastically]",
+        Cue.DISMISSIVE: "[dismissive]",
+        Cue.CHEEKY: "[cheeky]",
+        Cue.MISCHIEVOUS: "[mischievously]",
+        Cue.ANNOYED: "[annoyed]",
+        Cue.WEARY: "[tired]",
+        Cue.SOFT: "[softly]",
+        Cue.SLOW: "[slowly]",
+        Cue.RUSHED: "[rushed]",
+        Cue.BOOMING: "[booming]",
+    }
+)
 ELEVENLABS_AUDIO_TAGS: Final[CueDialect] = CueDialect(
-    "elevenlabs_audio_tags", _bracketed(whispering="[whispers]", short_pause="…")
+    "elevenlabs_audio_tags",
+    MappingProxyType(
+        {**_bracketed(whispering="[whispers]", short_pause="…"), **_ELEVENLABS_PERSONA}
+    ),
 )
 #: The ElevenLabs models before v3: the vendor's SSML pause (« up to 3 seconds »;
 #: « too many break tags can cause instability », which the budget bounds).
 ELEVENLABS_SSML_BREAK: Final[CueDialect] = CueDialect(
     "elevenlabs_ssml_break", MappingProxyType({Cue.SHORT_PAUSE: '<break time="0.5s" />'})
 )
+#: Fish Audio's S2 cues are free natural language (« not limited to a fixed set »):
+#: a persona cue in the vendor's own word where its emotions page lists one
+#: (« Frustrated — annoyed, exasperated », « Soft tone », « In a hurry tone »), else
+#: in plain words. Measured 2026-11-07 on s2.1-pro-free: none read aloud.
 FISH_S2_CUES: Final[CueDialect] = CueDialect(
     "fish_s2",
     _bracketed(
@@ -166,6 +244,16 @@ FISH_S2_CUES: Final[CueDialect] = CueDialect(
         chuckles="[chuckling]",
         sighs="[sighing]",
         short_pause="[break]",
+        sarcastic="[sarcastic]",
+        dismissive="[dismissive]",
+        cheeky="[cheeky]",
+        mischievous="[mischievous]",
+        annoyed="[frustrated]",
+        weary="[tired]",
+        soft="[soft tone]",
+        slow="[slowly]",
+        rushed="[in a hurry tone]",
+        booming="[booming]",
     ),
 )
 FISH_S1_CUES: Final[CueDialect] = CueDialect(
@@ -201,8 +289,17 @@ GEMINI_VOCAL_TAGS: Final[CueDialect] = CueDialect(
         }
     ),
     # Google's own style strings are plain delivery words (« warm and
-    # enthusiastic », « whispered urgently »); the cue's word is one.
-    styles=MappingProxyType({cue: cue.value for cue in DELIVERY_CUES}),
+    # enthusiastic », « whispered urgently »); the cue's word is one. A
+    # character's manner is a whole sentence's too (measured 2026-11-07: every
+    # persona style accepted, « slow » and « rushed » moving the duration).
+    styles=MappingProxyType({cue: cue.value for cue in DELIVERY_CUES | PERSONA_CUES}),
+)
+#: An ElevenLabs AGENT's voice (ADR-373): the live voice writes its cues
+#: itself, straight into the words its engine speaks, which reads every tag the
+#: vendor documents — spelled from the v3/v4 speech engines' own table. Its own
+#: name: a live session's record keeps the dialect it started with.
+ELEVENLABS_AGENT_TAGS: Final[CueDialect] = CueDialect(
+    "elevenlabs_agent_tags", ELEVENLABS_AUDIO_TAGS.spellings
 )
 
 #: Which engine performs which dialect, by provider and model-name prefix — the
@@ -241,6 +338,20 @@ def _speaking_model(provider: str, model: str) -> str:
         return model
     _, retires_on = announced_shutdown(provider, model)
     return successor if retires_on is not None and _today() > retires_on else model
+
+
+#: Every dialect by its name — what a session record keeps of its wire.
+_BY_NAME: Final[Mapping[str, CueDialect]] = MappingProxyType(
+    {
+        dialect.name: dialect
+        for dialect in (NO_CUES, ELEVENLABS_AGENT_TAGS, *(rule[2] for rule in _RULES))
+    }
+)
+
+
+def dialect_named(name: str) -> CueDialect:
+    """The dialect a record names; words alone for a name this release does not know."""
+    return _BY_NAME.get(name, NO_CUES)
 
 
 def cue_dialect(provider: str, model: str) -> CueDialect:
@@ -283,6 +394,12 @@ _BRACKET: Final[re.Pattern[str]] = re.compile(rf"\[([^\[\]\n]{{1,{_SPAN}}})\]")
 #: A parenthesis, to an engine that reads one as a direction: read as its words.
 _PARENTHESIS: Final[re.Pattern[str]] = re.compile(rf"\(([^()\n]{{1,{_SPAN}}})\)")
 _BLANKS: Final[re.Pattern[str]] = re.compile(r"[ \t]{2,}")
+#: A tag a transcript was cut inside, at its very end: a caption still streaming, a
+#: turn bounded at its maximum (``\Z``: ``$`` would also match before a final line
+#: break, where the browser's twin does not).
+_CUT_TAG: Final[re.Pattern[str]] = re.compile(rf" ?\[[^\[\]\n]{{0,{_SPAN}}}\Z")
+#: The blank a removed tag leaves against a line break.
+_BLANK_AT_BREAK: Final[re.Pattern[str]] = re.compile(r" ?\n ?")
 
 
 def _tidy(text: str) -> str:
@@ -360,6 +477,32 @@ class AuthoredCues:
         return AuthoredSentence(spoken, styles[0] if styles else None)
 
 
+def strip_transcript_cues(text: str) -> tuple[str, tuple[str, ...]]:
+    """A ``cues`` session's assistant text as the person heard it, and its tags (ADR-373).
+
+    The vendor keeps in its transcript the audio tags its model wrote, unspoken,
+    and the model may write tags beyond the palette LIA offered: so EVERY bounded
+    bracketed span goes (bounded like every flattener, ADR-326), a tag the text
+    was cut inside at its end included. Only a ``cues`` session's assistant text
+    is read here: anywhere else a bracket is words. The browser's twin
+    (``lib/live/cue-strip.ts``) is pinned to this one by a shared corpus.
+
+    Args:
+        text: What the vendor transcribed of the voice's turn.
+
+    Returns:
+        The text without its tags, blanks tidied; each tag's words, as written.
+    """
+    tags: list[str] = []
+
+    def drop(match: re.Match[str]) -> str:
+        tags.append(match.group(1).strip())
+        return ""
+
+    kept = _CUT_TAG.sub("", _AUTHORED_CUE.sub(drop, text))
+    return _BLANK_AT_BREAK.sub("\n", _BLANKS.sub(" ", kept)).strip(), tuple(tags)
+
+
 def neutralize_literal(text: str, dialect: CueDialect) -> str:
     """Text not written for speech, with no bracket an engine would perform.
 
@@ -386,12 +529,16 @@ def neutralize_literal(text: str, dialect: CueDialect) -> str:
 
 __all__ = [
     "DELIVERY_CUES",
+    "ELEVENLABS_AGENT_TAGS",
     "EVENT_CUES",
     "NO_CUES",
+    "PERSONA_CUES",
     "AuthoredCues",
     "AuthoredSentence",
     "Cue",
     "CueDialect",
     "cue_dialect",
+    "dialect_named",
     "neutralize_literal",
+    "strip_transcript_cues",
 ]

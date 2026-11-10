@@ -241,16 +241,13 @@ _LABELS_APPLIED_RESULT = {"success": True, "message_count": 2, "labels_applied":
 _LABELS_REMOVED_RESULT = {"success": True, "message_count": 2, "labels_removed": ["Perso"]}
 _TASK_LISTS_RESULT = {"success": True, "task_lists": [{"id": "tasklist-1", "title": "Perso"}]}
 _LOCATION_DATA = {
-    "locations": [
-        {
-            "formatted_address": "1 rue de la Paix, 75002 Paris",
-            "locality": "Paris",
-            "country": "France",
-            "postal_code": "75002",
-            "lat": 48.8698,
-            "lng": 2.3312,
-        }
-    ]
+    # GetCurrentLocationTool._execute_api_call returns one flat observation;
+    # the registry projection produces the `locations` collection afterwards.
+    "formatted_address": "1 rue de la Paix, 75002 Paris",
+    "locality": "Paris",
+    "country": "France",
+    "postal_code": "75002",
+    "location": {"lat": 48.8698, "lon": 2.3312},
 }
 
 
@@ -458,6 +455,23 @@ def test_strong_coverage_never_shrinks() -> None:
         f"commit and say why."
     )
     assert len(set(COVERED_TOOLS)) == len(COVERED_TOOLS), "duplicate entry inflates the count"
+
+
+def test_location_reference_examples_preserve_received_values() -> None:
+    """Existing paths alone must not hide empty text or fabricated coordinates."""
+    output = _build("get_current_location_tool")
+    assert output.success is True
+    completed = {"step_1": completed_step(output)}
+    resolver = ReferenceResolver()
+    for field in ("formatted_address", "locality", "country", "postal_code"):
+        assert (
+            resolver.resolve(f"$steps.step_1.locations[0].{field}", completed, None)
+            == _LOCATION_DATA[field]
+        )
+    point = _LOCATION_DATA["location"]
+    assert isinstance(point, dict)
+    assert resolver.resolve("$steps.step_1.locations[0].latitude", completed, None) == point["lat"]
+    assert resolver.resolve("$steps.step_1.locations[0].longitude", completed, None) == point["lon"]
 
 
 @pytest.mark.parametrize("tool_name", COVERED_TOOLS)

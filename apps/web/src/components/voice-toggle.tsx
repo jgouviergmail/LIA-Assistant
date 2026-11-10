@@ -25,7 +25,7 @@ import { useHydrated } from '@/hooks/useHydrated';
  */
 
 import * as React from 'react';
-import { AudioLines, Radio, Volume2, VolumeX } from 'lucide-react';
+import { AudioLines, Radio, Volume2, VolumeX } from '@/lib/icons';
 import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 

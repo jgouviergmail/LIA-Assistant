@@ -31,7 +31,7 @@
  */
 
 import Link from 'next/link';
-import { Menu, type LucideIcon } from 'lucide-react';
+import { Menu, type LucideIcon } from '@/lib/icons';
 
 import {
   DropdownMenu,
@@ -45,6 +45,7 @@ import {
   destinationPath,
   type DashboardDestination,
 } from '@/lib/dashboard-nav';
+import { DESTINATION_ICONS } from '@/lib/dashboard-nav-icons';
 import { cn } from '@/lib/utils';
 
 /** One action the menu offers after the destinations (already translated). */
@@ -120,12 +121,16 @@ export function MobileNavMenu({
           >
             LIA
           </span>
-          <Menu aria-hidden="true" className="h-3 w-3 text-primary-foreground" />
+          <Menu
+            aria-hidden="true"
+            className="h-3 w-3 text-primary-foreground [&.app-icon]:size-4"
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
         {destinations.map(destination => {
           const { segment, labelKey } = destination;
+          const DestinationIcon = DESTINATION_ICONS[segment];
           return (
             <DropdownMenuItem key={segment || 'home'} asChild>
               <Link
@@ -138,6 +143,10 @@ export function MobileNavMenu({
                   isActiveRoute(segment) && 'bg-primary/15 font-medium text-primary'
                 )}
               >
+                <DestinationIcon
+                  className="mr-2 h-4 w-4 shrink-0 [&.app-icon]:size-[18px]"
+                  aria-hidden="true"
+                />
                 {translate(labelKey)}
               </Link>
             </DropdownMenuItem>
@@ -156,7 +165,7 @@ export function MobileNavMenu({
                 action.tone === 'destructive' && 'text-destructive focus:text-destructive'
               )}
             >
-              <ActionIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+              <ActionIcon className="mr-2 h-4 w-4 [&.app-icon]:size-[18px]" aria-hidden="true" />
               {action.label}
             </DropdownMenuItem>
           );

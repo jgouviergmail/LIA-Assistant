@@ -90,6 +90,7 @@ def test_space_read_schema_and_authorities_are_bound_to_both_modes():
                 "name",
                 "description",
                 "is_active",
+                "is_favorite",
                 "kind",
                 "document_count",
                 "total_size",

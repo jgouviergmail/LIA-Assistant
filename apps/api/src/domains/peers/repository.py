@@ -10,11 +10,10 @@ the service/router layer — open_loops doctrine).
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import case, delete, exists, func, or_, select, update
+from sqlalchemy import delete, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +24,7 @@ from src.domains.peers.constants import (
     PEER_MESSAGE_DIRECTION_SENT,
     PEER_UNKNOWN_DISPLAY_NAME,
 )
+from src.domains.peers.history_queries import delivered_with_peer
 from src.domains.peers.models import (
     PeerAccessLog,
     PeerBlock,
@@ -614,70 +614,6 @@ class PeersRepository(BaseRepository[PeerConnection]):
         result = await self.db.execute(stmt)
         return int(result.scalar() or 0)
 
-    async def claim_pending_messages(self, limit: int = 10) -> list[PeerMessage]:
-        """Claim pending messages for delivery, exactly once per row.
-
-        ``FOR UPDATE SKIP LOCKED`` + transition to ``delivering`` in the same
-        transaction (scheduled_actions doctrine) — two sweep instances never
-        deliver the same message.
-
-        Args:
-            limit: Max rows claimed per sweep tick.
-
-        Returns:
-            Claimed rows, oldest first, already transitioned to delivering.
-        """
-        stmt = (
-            select(PeerMessage)
-            .where(PeerMessage.status == PeerMessageStatus.PENDING.value)
-            .order_by(PeerMessage.created_at.asc())
-            .limit(limit)
-            .with_for_update(skip_locked=True)
-        )
-        result = await self.db.execute(stmt)
-        messages = list(result.scalars().all())
-        for message in messages:
-            message.status = PeerMessageStatus.DELIVERING.value
-        await self.db.flush()
-        return messages
-
-    async def mark_message_delivered(
-        self, message_id: UUID, *, now: datetime, delivered_text: str
-    ) -> bool:
-        """Finish a delivery and record what was actually said (ADR-186).
-
-        The directive is NO LONGER erased here: both texts now live until
-        ``expires_at``, the same contract phone calls use. Each side keeps its
-        own words — the sender's directive stays in ``content``, the
-        recipient's rendering lands in ``delivered_text``.
-
-        Conditional on the ``delivering`` claim — a concurrent transition
-        (crash recovery racing the finish) loses cleanly.
-
-        Args:
-            message_id: The message.
-            now: Timezone-aware UTC delivery instant.
-            delivered_text: What the recipient's assistant said.
-
-        Returns:
-            True when this call performed the transition.
-        """
-        stmt = (
-            update(PeerMessage)
-            .where(
-                PeerMessage.id == message_id,
-                PeerMessage.status == PeerMessageStatus.DELIVERING.value,
-            )
-            .values(
-                status=PeerMessageStatus.DELIVERED.value,
-                delivered_at=now,
-                delivered_text=delivered_text,
-                last_error=None,
-            )
-        )
-        result = await self.db.execute(stmt)
-        return bool(getattr(result, "rowcount", 0))
-
     async def purge_expired_message_texts(self, *, now: datetime) -> int:
         """Clear both texts of messages past their retention horizon.
 
@@ -698,94 +634,11 @@ class PeersRepository(BaseRepository[PeerConnection]):
                 or_(
                     PeerMessage.content.is_not(None),
                     PeerMessage.delivered_text.is_not(None),
+                    PeerMessage.prepared_text_encrypted.is_not(None),
                 ),
             )
-            .values(content=None, delivered_text=None)
+            .values(content=None, delivered_text=None, prepared_text_encrypted=None)
             .execution_options(synchronize_session=False)
-        )
-        result = await self.db.execute(stmt)
-        return int(getattr(result, "rowcount", 0) or 0)
-
-    async def mark_message_failed(
-        self,
-        message_id: UUID,
-        error_code: str,
-        *,
-        max_attempts: int,
-    ) -> str:
-        """Record one REAL delivery failure (deferrals never call this).
-
-        attempts+1; below the cap the message returns to ``pending`` for the
-        next sweep, at the cap it becomes ``failed`` (sender then notified).
-
-        Args:
-            message_id: The message.
-            error_code: Typed code — never raw exception text (spec §12.5).
-            max_attempts: settings.peers_delivery_max_attempts.
-
-        Returns:
-            The resulting status value ("pending" or "failed").
-        """
-        message = await self.db.get(PeerMessage, message_id)
-        if message is None:  # purged concurrently — nothing to record
-            return PeerMessageStatus.FAILED.value
-        attempts = message.attempts + 1
-        target = (
-            PeerMessageStatus.FAILED.value
-            if attempts >= max_attempts
-            else PeerMessageStatus.PENDING.value
-        )
-        stmt = (
-            update(PeerMessage)
-            .where(
-                PeerMessage.id == message_id,
-                PeerMessage.status == PeerMessageStatus.DELIVERING.value,
-            )
-            .values(attempts=attempts, status=target, last_error=error_code[:50])
-        )
-        await self.db.execute(stmt)
-        return target
-
-    async def cancel_message(self, message_id: UUID, error_code: str) -> None:
-        """Cancel a claimed message (revalidation failed — block/removal/inactive).
-
-        The directive is KEPT (ADR-186): it is the sender's own text, and
-        "here is what you tried to pass on, and it did not leave" is worth
-        more than a blank line. It expires on the same horizon as any other.
-
-        Args:
-            message_id: The message.
-            error_code: Typed reason code.
-        """
-        stmt = (
-            update(PeerMessage)
-            .where(
-                PeerMessage.id == message_id,
-                PeerMessage.status == PeerMessageStatus.DELIVERING.value,
-            )
-            .values(
-                status=PeerMessageStatus.CANCELLED.value,
-                last_error=error_code[:50],
-            )
-        )
-        await self.db.execute(stmt)
-
-    async def recover_stale_delivering(self, *, older_than: datetime) -> int:
-        """Return crash-stranded ``delivering`` rows to ``pending``.
-
-        Args:
-            older_than: Claims updated before this UTC instant are stale.
-
-        Returns:
-            Number of rows recovered.
-        """
-        stmt = (
-            update(PeerMessage)
-            .where(
-                PeerMessage.status == PeerMessageStatus.DELIVERING.value,
-                PeerMessage.updated_at < older_than,
-            )
-            .values(status=PeerMessageStatus.PENDING.value)
         )
         result = await self.db.execute(stmt)
         return int(getattr(result, "rowcount", 0) or 0)
@@ -823,36 +676,6 @@ class PeersRepository(BaseRepository[PeerConnection]):
         await self.db.flush()
         return message
 
-    def _delivered_with_peer(self, user_id: UUID) -> tuple[Any, Any]:
-        """Shared skeleton of the two delivered-message reads.
-
-        EVERY exclusion lives here — including the unusable-name one. Filtering
-        those rows in Python instead would run AFTER the ``LIMIT``: the newest
-        row being a nameless peer would empty a page that had a good row
-        waiting behind it, and the page would then disagree with the aggregate,
-        which excludes them in SQL. Both callers join ``User`` on
-        ``counterpart``, so the name predicates are valid for both.
-
-        Returns:
-            Tuple of (counterpart expression, WHERE clauses).
-        """
-        counterpart = case(
-            (PeerMessage.sender_id == user_id, PeerMessage.recipient_id),
-            else_=PeerMessage.sender_id,
-        )
-        blocked = select(PeerBlock.blocked_id).where(PeerBlock.blocker_id == user_id)
-        clauses = (
-            or_(PeerMessage.sender_id == user_id, PeerMessage.recipient_id == user_id),
-            PeerMessage.status == PeerMessageStatus.DELIVERED.value,
-            PeerMessage.delivered_at.is_not(None),
-            counterpart.not_in(blocked),
-            # NULL folds to NULL here, which excludes the row — a peer with no
-            # name is unattributable, and a "?" card is not a person.
-            func.btrim(User.full_name) != "",
-            func.btrim(User.full_name) != PEER_UNKNOWN_DISPLAY_NAME,
-        )
-        return counterpart, clauses
-
     async def aggregate_delivered_messages_by_peer(self, user_id: UUID) -> list[NameActivity]:
         """Exact per-peer message activity, both directions, over ALL history.
 
@@ -868,7 +691,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Returns:
             One entry per peer display name (blank names dropped).
         """
-        counterpart, clauses = self._delivered_with_peer(user_id)
+        counterpart, clauses = delivered_with_peer(user_id)
         stmt = (
             select(
                 User.full_name,
@@ -893,7 +716,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Measuring the length of a capped page would under-report the moment the
         exchange outgrew it.
 
-        Shares ``_delivered_with_peer`` with the page, so a row excluded from
+        Shares ``delivered_with_peer`` with the page, so a row excluded from
         one is excluded from the other — a total assembled from a different
         filter is worse than no total at all.
 
@@ -903,7 +726,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         Returns:
             Exact number of delivered messages, in both directions.
         """
-        counterpart, clauses = self._delivered_with_peer(user_id)
+        counterpart, clauses = delivered_with_peer(user_id)
         stmt = (
             select(func.count())
             .select_from(PeerMessage)
@@ -961,7 +784,7 @@ class PeersRepository(BaseRepository[PeerConnection]):
         """
         if peer_names is not None and not peer_names:
             return []
-        counterpart, clauses = self._delivered_with_peer(user_id)
+        counterpart, clauses = delivered_with_peer(user_id)
         narrowed = (*clauses, User.full_name.in_(peer_names)) if peer_names else clauses
         if before is not None:
             narrowed = (*narrowed, older_than(PeerMessage.delivered_at, PeerMessage.id, before))

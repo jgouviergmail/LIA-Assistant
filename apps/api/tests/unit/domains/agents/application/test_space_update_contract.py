@@ -27,7 +27,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_update_inherits_source_fields_and_actual_tool_schema_in_both_modes():
-    assert set(RAGSpaceUpdate.model_fields) == {"name", "description"}
+    assert set(RAGSpaceUpdate.model_fields) == {"name", "description", "is_favorite"}
     assert set(SpaceUpdateInput.model_fields) == {
         *RAGSpaceUpdate.model_fields,
         "space_id",
@@ -52,6 +52,8 @@ def test_update_inherits_source_fields_and_actual_tool_schema_in_both_modes():
         {"description": None},
         {"is_active": "false"},
         {"is_active": 0},
+        {"is_favorite": "false"},
+        {"is_favorite": 0},
         {"user_id": str(uuid4())},
         {"name": " x "},
     ],
@@ -72,10 +74,13 @@ def test_exact_literal_preview_and_safe_sparse_edit_input(language):
         name="<script>Literal</script>",
         description="Purpose",
         is_active=False,
+        is_favorite=True,
         kind="meetings",
     )
     selected = SpaceUpdateSelection(
-        request=SpaceUpdateInput(space_id=identity, name=after.name, is_active=False),
+        request=SpaceUpdateInput(
+            space_id=identity, name=after.name, is_active=False, is_favorite=True
+        ),
         expected=before,
         proposed=after,
         state_digest="a" * 64,
@@ -95,6 +100,7 @@ def test_exact_literal_preview_and_safe_sparse_edit_input(language):
     )
     html = to_html_card(CardSpec(emoji="", title="", separator=": ", lines=tuple(rows)))
     assert "<script>Literal</script>" not in html and "&lt;script&gt;Literal&lt;/script&gt;" in html
+    assert "is_favorite" in html
     prompt = build_application_edit_prompt(draft.model_dump(mode="json"), "Change description")
     assert json.loads(prompt[1]["content"])["intent"] == selected.request.model_dump(
         mode="json", exclude_unset=True

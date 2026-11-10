@@ -12,14 +12,15 @@
  */
 
 import Link from 'next/link';
-import { Bell, ClipboardList, History, RefreshCw } from 'lucide-react';
+import { Bell, ClipboardList, History, RefreshCw } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import { HeaderActions } from '@/components/ui/section-header';
 import { cn } from '@/lib/utils';
 
 /** One height for the three controls — the touch target the tallest needs. */
-const CONTROL_CLASS = 'min-h-11 w-full sm:w-auto';
+const CONTROL_CLASS = 'min-h-11';
 
 /** The page the actions sit on; the switch leads to the other one. */
 export type AlertsView = 'hub' | 'activity';
@@ -48,7 +49,7 @@ export function AlertsViewActions({
       : { href: `/${lng}/dashboard/notifications`, Icon: Bell, label: t('activity.hub_back') };
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+    <HeaderActions>
       {switchable && (
         <Button asChild size="sm" className={CONTROL_CLASS}>
           <Link href={other.href}>
@@ -89,6 +90,6 @@ export function AlertsViewActions({
         <RefreshCw className={cn('h-4 w-4', busy && 'animate-spin')} aria-hidden="true" />
         {t('common.refresh')}
       </Button>
-    </div>
+    </HeaderActions>
   );
 }

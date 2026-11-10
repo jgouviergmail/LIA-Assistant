@@ -210,7 +210,7 @@ def _start(tool_name: str, policy: str | None) -> Activity | None:
     intent: Literal["read", "prepare", "act"] = "read"
     if policy == "draft":
         intent = "prepare"
-    elif policy in {"confirm", "reversible", "artefact"}:
+    elif policy in {"confirm", "direct", "reversible", "artefact"}:
         intent = "act"
     return Activity(
         run_id=run_id,

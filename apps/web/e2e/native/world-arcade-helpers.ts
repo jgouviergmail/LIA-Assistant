@@ -1,5 +1,4 @@
 import { expect, type Browser, type BrowserContext, type Page } from './fixtures';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { openNativeWorld, enterWorld } from '../fixtures/world-admission';
 import { worldProofUrl } from './world-route';
 import { parseWorldFrame, type WorldView } from '../../src/features/world/protocol';
@@ -58,7 +57,6 @@ export async function player(
   await signIn(context, baseURL, index);
   const page = await context.newPage();
   const person = observePlayer(page, context);
-  await installOfflineFonts(page);
   await openNativeWorld(page, alias, worldProofUrl(baseURL, 'en'));
   await enterWorld(page);
   await expect.poll(() => person.view()?.controlling).toBe(true);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Scaling } from 'lucide-react';
+import { Scaling } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useFloatingDrag } from '@/hooks/useFloatingDrag';
 import { useAvatarRuntime } from '@/lib/avatars/runtime';

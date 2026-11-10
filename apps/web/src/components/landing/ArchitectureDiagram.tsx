@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Workflow,
   Zap,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 const MODES = [

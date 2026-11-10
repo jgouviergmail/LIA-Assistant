@@ -15,6 +15,7 @@ import {
   duplicateFields,
   newEventFields,
   withProposedEvent,
+  proposalUsesDateDefaults,
 } from '@/lib/workbench/calendar/editor';
 import { instantToWall } from '@/lib/workbench/calendar/zoned';
 
@@ -73,7 +74,12 @@ export function eventStarts(
       const at = startHour(today, today, zone);
       const fields = { ...newEventFields(into.id, at.day, at.time), summary, description };
       const filled = proposal ? withProposedEvent(fields, { ...proposal, description }) : fields;
-      compose({ kind: 'new', fields: filled });
+      compose({
+        kind: 'new',
+        fields: filled,
+        conference: proposal?.conference === true,
+        reviewDefaults: proposal ? proposalUsesDateDefaults(proposal) : false,
+      });
     },
     onDay: startOn,
     onSlot: (day, time) =>

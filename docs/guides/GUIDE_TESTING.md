@@ -2115,7 +2115,7 @@ async def test_with_mocked_llm_call():
 ```toml
 # pyproject.toml
 [tool.pytest.ini_options]
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=78"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=87"
 ```
 
 **Rapports générés** :
@@ -2183,8 +2183,8 @@ commentaires de `apps/api/pyproject.toml`, de `Taskfile.yml` et de
 Les planchers en vigueur, que `doc_facts` tient à jour (une citation qui
 s'écarte de sa source fait échouer `task lint:docs`) :
 
-- backend : `--cov-fail-under=78` ;
-- frontend, plancher global : statements 85 / branches 80 / functions 83 / lines 87.
+- backend : `--cov-fail-under=87` ;
+- frontend, plancher global : statements 86 / branches 81 / functions 84 / lines 88.
 
 **Écart de plateforme, mesuré.** Le 2026-10-22, la CI Linux a mesuré 78,67 %
 sur le commit `3c6795d4b`. Le même jour, la mesure locale sous Windows donnait
@@ -2206,7 +2206,8 @@ Chaque valeur est celle de sa date : rien ici ne décrit l'état courant.
 v1.38.3) → 69 % (2026-09-03, v1.39.1) → 70 % (2026-09-05) → 71 % (2026-09-09,
 v1.43.2) → 72 % (2026-09-11, v1.44.2) → 73 % (2026-09-16, v1.45.0) → 74 %
 (2026-09-24, v1.47.2) → 75 % (2026-09-28, v2.0.0) → 77 % (2026-09-29) → 78 %
-(2026-10-04, réel 80,36 %).
+(2026-10-04, réel 80,36 %) → 87 % (2026-11-09, union unitaire + intégration
+mesurée à 89,24 %, marge de 2,24 points).
 
 - Le 2026-09-28, le palier atteint l'objectif de 75 % que fixait la
   recommandation n° 4 de l'audit 2026-07.
@@ -2218,7 +2219,7 @@ v1.43.2) → 72 % (2026-09-11, v1.44.2) → 73 % (2026-09-16, v1.45.0) → 74 %
 ### Exécuter Coverage
 
 ```bash
-# Coverage complète (applique le gate --cov-fail-under=78)
+# Coverage complète (applique le gate --cov-fail-under=87)
 cd apps/api
 pytest --cov=src --cov-report=term-missing --cov-report=html
 

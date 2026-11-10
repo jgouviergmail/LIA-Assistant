@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import type { DebugTone } from '../../utils/tones';

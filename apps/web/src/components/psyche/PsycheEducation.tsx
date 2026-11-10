@@ -20,7 +20,7 @@ import {
   Heart,
   Layers,
   SlidersHorizontal,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { MOOD_COLORS } from '@/lib/psyche-colors';
 import type { MoodLabel } from '@/types/psyche';

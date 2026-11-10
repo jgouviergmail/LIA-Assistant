@@ -62,10 +62,7 @@ from src.domains.agents.services.orchestration.approval_decision import (
 )
 from src.domains.agents.services.streaming.deferred_debug import deferred_debug_chunks
 from src.domains.agents.services.streaming.done_metadata import with_done_enrichments
-from src.domains.agents.services.streaming.followup_metadata import (
-    pop_followups,
-    pop_motivation,
-)
+from src.domains.agents.services.streaming.followup_metadata import pop_turn_extras
 from src.domains.agents.services.streaming.journey_timing import JourneyTiming
 from src.domains.agents.services.streaming.latency_sli import observe_pre_graph_phase
 from src.domains.agents.services.streaming.voice_coordinator import (
@@ -985,13 +982,11 @@ class AgentService(
                     duration = time.time() - start_time
                     ttft = first_token_time - start_time if first_token_time else None
 
-                    # UXR Lot 4 (A2): pop this run's follow-up chips ONCE —
-                    # consumed by both the archived metadata and the done
-                    # chunk below. Empty when the initiative did not emit any.
-                    followup_suggestions = pop_followups(run_id)
-                    # Lot 1-A3: provenance line of the initiative, same
-                    # pop-once doctrine as the chips.
-                    initiative_motivation = pop_motivation(run_id)
+                    # Pop this run's extras ONCE (the follow-up chips, the
+                    # initiative's provenance line, the habit proposal card of
+                    # ADR-375): consumed by both the archived metadata and the
+                    # done chunk below. Empty when the run handed none.
+                    turn_extras = pop_turn_extras(run_id)
 
                     # NOTE (ADR-117): attachment metadata and STT kwargs are now
                     # built BEFORE graph execution (archive-first block above).
@@ -1192,8 +1187,7 @@ class AgentService(
                                 trace_capture=streaming_service.trace_capture,
                                 duration_ms=int(duration * 1000),
                                 run_id=run_id,
-                                followup_suggestions=followup_suggestions,
-                                initiative_motivation=initiative_motivation,
+                                extras=turn_extras,
                                 effects=turn_effects,
                                 expressivity=delivery_metadata.get("expressivity"),
                                 activity=activity_summary.snapshot(),
@@ -1475,10 +1469,9 @@ class AgentService(
                         done_metadata,
                         user_message_id=archived_user_msg_id,
                         assistant_message_id=archived_assistant_msg_id,
-                        followup_suggestions=followup_suggestions,
+                        extras=turn_extras,
                         effects=turn_effects,
                         card_metadata=streaming_service.card_action_metadata,
-                        initiative_motivation=initiative_motivation,
                     )
                     # Resolve includes the Route 3 fallback (activate_skill_tool
                     # called directly by the response LLM, no planner involved)

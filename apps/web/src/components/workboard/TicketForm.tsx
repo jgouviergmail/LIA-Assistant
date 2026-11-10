@@ -11,7 +11,7 @@
  * that holds focus: disabling a focused button blurs it and drops the keyboard
  * user back on `<body>`.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -40,18 +40,20 @@ export interface TicketFormProps {
   peers: readonly PeerName[];
   onClose: () => void;
   onCreate: (body: TicketCreateBody) => Promise<{ ok: boolean }>;
+  initialDraft?: Pick<TicketCreateBody, 'title' | 'description'>;
 }
 
-export function TicketForm({ open, peers, onClose, onCreate }: TicketFormProps) {
+export function TicketForm({ open, peers, onClose, onCreate, initialDraft }: TicketFormProps) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(initialDraft?.title ?? '');
+  const [description, setDescription] = useState(initialDraft?.description ?? '');
   const [priority, setPriority] = useState('medium');
   const [assignee, setAssignee] = useState('me');
   const [dueAt, setDueAt] = useState('');
   const [executionMode, setExecutionMode] = useState<ExecutionMode>('react');
   const [follow, setFollow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
 
   const reset = () => {
     setTitle('');
@@ -64,7 +66,8 @@ export function TicketForm({ open, peers, onClose, onCreate }: TicketFormProps) 
   };
 
   const submit = async () => {
-    if (!title.trim() || busy) return;
+    if (!title.trim() || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     const peer = peers.find(connection => connection.peer_id === assignee);
     const result = await onCreate({
@@ -77,6 +80,7 @@ export function TicketForm({ open, peers, onClose, onCreate }: TicketFormProps) 
       execution_mode: executionMode,
       follow,
     });
+    inFlight.current = false;
     setBusy(false);
     if (result.ok) reset();
   };
@@ -85,7 +89,7 @@ export function TicketForm({ open, peers, onClose, onCreate }: TicketFormProps) 
     <Dialog
       open={open}
       onOpenChange={next => {
-        if (!next) {
+        if (!next && !inFlight.current) {
           reset();
           onClose();
         }
@@ -176,6 +180,7 @@ export function TicketForm({ open, peers, onClose, onCreate }: TicketFormProps) 
             <Button
               variant="outline"
               onClick={() => {
+                if (inFlight.current) return;
                 reset();
                 onClose();
               }}

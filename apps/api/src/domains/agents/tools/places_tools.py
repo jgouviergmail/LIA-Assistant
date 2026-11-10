@@ -47,6 +47,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.base import ConnectorTool
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
@@ -1242,6 +1243,14 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
             )
 
         data = result.get("data", {})
+        location = data.get("location")
+        if not isinstance(location, dict) or any(
+            location.get(key) is None for key in ("lat", "lon")
+        ):
+            return UnifiedToolOutput.failure(
+                message="Location response has no coordinates",
+                error_code=ToolErrorCode.INVALID_RESPONSE_FORMAT,
+            )
 
         # Concise LLM scaffolding summary. Language-free technical markers
         # (English), never inline French: the model answers in the user's
@@ -1264,13 +1273,13 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         summary = "\n".join(parts) if parts else "Current location resolved"
 
         # Prepare registry update for frontend rendering
-        lat = data.get("location", {}).get("lat", 0)
-        lon = data.get("location", {}).get("lon", 0)
+        lat = location["lat"]
+        lon = location["lon"]
 
         # Build static map URL via proxy (API key hidden server-side); the map
         # is billed when fetched and counted then, on this turn (signed run id).
         location_static_map_url: str | None = None
-        if lat and lon:
+        if lat is not None and lon is not None:
             location_static_map_url = with_attribution(
                 f"/api/v1/connectors/google-location/static-map?lat={lat}&lng={lon}"
             )

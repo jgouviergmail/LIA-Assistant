@@ -4,14 +4,17 @@
  * What must hold: empty state when there is nothing; one card per person with
  * their counts; clicking a card opens that person's detail; the star toggles
  * WITHOUT opening; favorites split into their own band; the name filter
- * appears only past the threshold and narrows both bands; the peers badge
+ * stays available at every list size and narrows both bands; the peers badge
  * only shows for connected LIA users.
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { RelationSummary } from '@/hooks/useRelations';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 
 import { RelationCardList } from '../RelationCardList';
 
@@ -51,6 +54,59 @@ function renderList(
 }
 
 describe('RelationCardList', () => {
+  it.each(ICON_STYLES)('keeps favorite state visible and actionable with %s icons', async style => {
+    const onOpen = vi.fn();
+    const onToggleFavorite = vi.fn();
+    function FavoriteList() {
+      const [favorite, setFavorite] = useState(false);
+      return (
+        <IconStyleContext.Provider value={style}>
+          <RelationCardList
+            relations={[relation({ is_favorite: favorite })]}
+            onOpen={onOpen}
+            onToggleFavorite={(name, next) => {
+              onToggleFavorite(name, next);
+              setFavorite(next);
+            }}
+          />
+        </IconStyleContext.Provider>
+      );
+    }
+    const expectInheritedState = (button: HTMLElement) => {
+      const svg = button.querySelector('svg');
+      expect(svg).toHaveAttribute('data-icon-style', style);
+      expect(svg).toHaveAttribute('fill', 'none');
+      const state = svg?.querySelector('path');
+      expect(state).not.toBeNull();
+      if (style === 'lucide') {
+        expect(state).not.toHaveAttribute('fill');
+      } else {
+        expect(state).toHaveAttribute('fill', 'inherit');
+        // A fill on an intermediate group would cut the caller's CSS state off.
+        expect(state?.parentElement).not.toHaveAttribute('fill');
+        const contours = svg?.querySelectorAll('path[fill="none"][stroke]');
+        expect(contours).toHaveLength(2);
+      }
+    };
+    const { user } = renderWithProviders(<FavoriteList />);
+    const add = screen.getByRole('button', { name: 'relations.favorite_add' });
+    expect(add).toHaveAttribute('aria-pressed', 'false');
+    expect(add.querySelector('svg')).not.toHaveClass('fill-amber-400');
+    expectInheritedState(add);
+    await user.click(add);
+    expect(onToggleFavorite).toHaveBeenNthCalledWith(1, 'Gérard Dupont', true);
+    const remove = screen.getByRole('button', { name: 'relations.favorite_remove' });
+    expect(remove).toHaveAttribute('aria-pressed', 'true');
+    expect(remove.querySelector('svg')).toHaveClass('fill-amber-400');
+    expectInheritedState(remove);
+    await user.click(remove);
+    expect(onToggleFavorite).toHaveBeenNthCalledWith(2, 'Gérard Dupont', false);
+    const restored = screen.getByRole('button', { name: 'relations.favorite_add' });
+    expect(restored).toHaveAttribute('aria-pressed', 'false');
+    expect(restored.querySelector('svg')).not.toHaveClass('fill-amber-400');
+    expectInheritedState(restored);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
   it('matches accents and keeps active filters accessible when a refresh shrinks the list', async () => {
     const list = [
       relation({ display_name: 'Élodie' }),
@@ -146,12 +202,17 @@ describe('RelationCardList', () => {
     expect(screen.queryByText('relations.open_loops_count')).toBeNull();
   });
 
-  it('keeps the filter hidden under the threshold', () => {
-    renderList([relation()]);
-    expect(screen.queryByRole('searchbox')).toBeNull();
+  it.each([0, 1, 8])('keeps search and all controls visible with %i relations', count => {
+    renderList(
+      Array.from({ length: count }, (_, index) => relation({ display_name: `P${index}` }))
+    );
+    expect(screen.getByRole('searchbox')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'relations.sort_label' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'relations.only_peers' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'relations.only_dormant' })).toBeVisible();
   });
 
-  it('filters both bands by name past the threshold', async () => {
+  it('filters both bands by name', async () => {
     const many = Array.from({ length: 9 }, (_, i) =>
       relation({ display_name: `Person ${i}`, is_favorite: i === 0 })
     );
@@ -176,7 +237,7 @@ describe('RelationCardList — dormancy, ordering and quick filters', () => {
   const RECENT = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
   const OLD = new Date(Date.now() - 200 * 24 * 3600 * 1000).toISOString();
 
-  /** Enough people to bring the toolbar out (it hides under the threshold). */
+  /** A varied list for composing filters and ordering. */
   const many = (over: Partial<RelationSummary>[] = []) => [
     ...over.map((patch, index) => relation({ display_name: `P${index}`, ...patch })),
     ...Array.from({ length: 9 }, (_, index) =>
@@ -200,9 +261,20 @@ describe('RelationCardList — dormancy, ordering and quick filters', () => {
     expect(screen.getByText('relations.no_recent_signal')).toBeInTheDocument();
   });
 
-  it('keeps the toolbar hidden under the threshold', () => {
-    renderList([relation()]);
-    expect(screen.queryByRole('combobox')).toBeNull();
+  it('filters a small list and keeps its controls when no result matches', async () => {
+    const { user } = renderList([
+      relation({ display_name: 'Peer', is_peer: true, last_interaction_at: RECENT }),
+      relation({ display_name: 'Dormant', is_peer: false, last_interaction_at: OLD }),
+    ]);
+    await user.click(screen.getByRole('button', { name: 'relations.only_peers' }));
+    expect(screen.getByText('Peer')).toBeVisible();
+    expect(screen.queryByText('Dormant')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'relations.only_dormant' }));
+    expect(screen.getByText('relations.filter_no_match')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'relations.clear_filters' }));
+    expect(screen.getByText('Peer')).toBeVisible();
+    expect(screen.getByText('Dormant')).toBeVisible();
+    expect(screen.getByRole('combobox')).toBeVisible();
   });
 
   it('narrows to connected LIA users on demand', async () => {
@@ -309,17 +381,19 @@ describe('RelationCardList — card and toolbar layout (owner request 2026-10-21
     expect(label).toHaveAttribute('title', name);
   });
 
-  it('puts the ordering under the search field, never beside it', () => {
-    renderList(
+  it('keeps search, ordering and chips in a predictable keyboard order', async () => {
+    const { user } = renderList(
       Array.from({ length: 10 }, (_, index) => relation({ display_name: `Personne ${index}` }))
     );
 
     const search = screen.getByRole('searchbox');
     const sort = screen.getByRole('combobox');
-    const searchRow = search.parentElement;
-    expect(searchRow).not.toBeNull();
-    // Its own row: the sort lives in the NEXT one.
-    expect(searchRow).not.toContainElement(sort);
-    expect(searchRow?.nextElementSibling).toContainElement(sort);
+    await user.click(search);
+    await user.tab();
+    expect(sort).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'relations.only_peers' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'relations.only_dormant' })).toHaveFocus();
   });
 });

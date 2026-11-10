@@ -14,8 +14,6 @@ interface CaptureInput {
   routes: { url: string | { regex: string }; json: unknown; status?: number }[];
   debug: typeof debugHistory;
   skillMessages: ReturnType<typeof messages>;
-  fontCss: string;
-  fontPath: string;
 }
 
 async function capture(page: Page, input: CaptureInput) {
@@ -50,20 +48,6 @@ async function capture(page: Page, input: CaptureInput) {
       )
     );
   }
-  await page.route('https://fonts.googleapis.com/**', route =>
-    route.fulfill({
-      contentType: 'text/css',
-      body: input.fontCss,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-    })
-  );
-  await page.route('https://fonts.gstatic.com/lia-e2e/MaterialSymbolsOutlined.woff2', route =>
-    route.fulfill({
-      contentType: 'font/woff2',
-      path: input.fontPath,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-    })
-  );
   await page.route('**/api/v1/notifications/stream', () => undefined);
   await page.routeWebSocket('**/*', socket => socket.close());
   await page.routeWebSocket('**/api/v1/voice/ws/audio?ticket=*', socket => {
@@ -367,8 +351,6 @@ export function createCaptureCode(
   outputDir: string,
   skillFrame: { title: string; html: string; aspect_ratio: number },
   eventCards: string,
-  fontCss: string,
-  fontPath: string
 ): string {
   const routes = publicScreenshotRoutes(eventCards).flatMap(route =>
     route.json !== undefined
@@ -401,5 +383,5 @@ export function createCaptureCode(
     },
     'Create a visual budget studio for a weekend in Lyon: two travellers, two nights, and a budget I can adjust.'
   );
-  return `async (page) => (${capture.toString()})(page, ${JSON.stringify({ baseUrl, outputDir, time: CAPTURE_TIME, routes, debug: debugHistory, skillMessages, fontCss, fontPath })})`;
+  return `async (page) => (${capture.toString()})(page, ${JSON.stringify({ baseUrl, outputDir, time: CAPTURE_TIME, routes, debug: debugHistory, skillMessages })})`;
 }

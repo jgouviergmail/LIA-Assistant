@@ -2,7 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useRef, type ComponentType } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { StepUpDialog } from '@/components/auth/StepUpDialog';
 import {

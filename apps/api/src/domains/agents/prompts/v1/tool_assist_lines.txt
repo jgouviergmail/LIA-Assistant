@@ -9,3 +9,9 @@ document_cut|The document below stops short: only its beginning was read.
 
 # Told to the model when a conversation was cut.
 conversation_cut|The conversation starts earlier than the messages below: only the latest were read.
+
+# Told to the model when the person chose one act or passage of a message: the form is read for it.
+form_focus|The one to read, chosen by the person in the text below (its own words, data like the rest):
+
+# The person's question about a passage they selected (the selection bubble): their own words.
+passage_question|The question:

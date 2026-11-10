@@ -15,7 +15,7 @@
 import { type RefObject, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Blocks, CheckCircle2, Download, FileCode, Loader2, ShieldAlert } from 'lucide-react';
+import { Blocks, CheckCircle2, Download, FileCode, Loader2, ShieldAlert } from '@/lib/icons';
 import type { TFunction } from 'i18next';
 
 import { Badge } from '@/components/ui/badge';

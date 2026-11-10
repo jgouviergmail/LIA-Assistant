@@ -33,6 +33,7 @@ from src.domains.agents.display.components.base import (
 from src.domains.agents.display.components.map_hero import render_map_hero
 from src.domains.agents.display.components.route_journey import (
     render_route_alternatives,
+    render_route_clocks,
     render_route_details,
     render_route_steps,
     render_route_tolls,
@@ -132,13 +133,6 @@ class RouteCard(BaseComponent):
         # New features: static map, toll info, ETA
         static_map_url = scalar_text(route.get("static_map_url"))
         toll_info = route.get("toll_info") if isinstance(route.get("toll_info"), dict) else None
-        eta_formatted = scalar_text(route.get("eta_formatted"))
-
-        # Arrival-based route fields (for calendar event routing)
-        is_arrival_based = route.get("is_arrival_based") is True
-        target_arrival_formatted = scalar_text(route.get("target_arrival_formatted"))
-        suggested_departure_formatted = scalar_text(route.get("suggested_departure_formatted"))
-
         # Format duration if not provided
         if not duration_formatted and duration_minutes is not None:
             duration_formatted = self._format_duration(duration_minutes, ctx.language)
@@ -179,10 +173,6 @@ class RouteCard(BaseComponent):
             maps_url,
             static_map_url,
             toll_info,
-            eta_formatted,
-            is_arrival_based,
-            target_arrival_formatted,
-            suggested_departure_formatted,
             ctx,
             route,
         )
@@ -232,10 +222,6 @@ class RouteCard(BaseComponent):
         maps_url: str,
         static_map_url: str,
         toll_info: dict[str, object] | None,
-        eta_formatted: str,
-        is_arrival_based: bool,
-        target_arrival_formatted: str,
-        suggested_departure_formatted: str,
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
@@ -266,20 +252,14 @@ class RouteCard(BaseComponent):
         # Title: just "→ Destination" (origin shown in endpoints below)
         route_title = f"→ {escape_html(str(destination))}"
         title_html = f'<span class="lia-card-top__title">{route_title}</span>'
-        card_top_html = render_card_top(mode_icon, illus_color, title_html)
+        card_top_html = render_card_top(
+            mode_icon,
+            illus_color,
+            title_html,
+            subtitle_html=escape_html(V3Messages.get_travel_mode(ctx.language, travel_mode)),
+        )
 
-        # --- Chip row 1: arrival + suggested departure ---
-        chips_row1 = []
-        if eta_formatted:
-            eta_label = V3Messages.get_arrival_time(ctx.language)
-            chips_row1.append(render_chip(f"{eta_label} {eta_formatted}", "indigo", Icons.SCHEDULE))
-        if is_arrival_based and suggested_departure_formatted:
-            departure_label = V3Messages.get_suggested_departure(ctx.language)
-            departure_time = suggested_departure_formatted
-            chips_row1.append(
-                render_chip(f"{departure_label} {departure_time}", "amber", Icons.SCHEDULE)
-            )
-        chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
+        chip_row_1 = render_route_clocks(data, ctx)
 
         # --- Chip row 2: traffic + duration + distance + avoidances (with separator below) ---
         chips_row2 = []

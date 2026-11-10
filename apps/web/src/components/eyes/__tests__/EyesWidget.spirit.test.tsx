@@ -164,23 +164,4 @@ describe('EyesWidget with the spirit renderer', () => {
     expect(localStorage.getItem(EYES_WIDGET_PREFS_KEY)).toBe(saved);
     expect(document.cookie).toBe(cookie);
   });
-
-  it('keeps the selected Smiley style while changing its identity from the shared gender preference', () => {
-    useEyesWidgetStore.getState().setStyle('smiley');
-    const { container } = render(
-      <EyesWidget chatStatus="idle" streamPhase="answer" hitlAwaiting={false} />
-    );
-    const face = container.querySelector('.lia-eyes');
-    expect(face).toHaveAttribute('data-smiley-variant', 'male');
-    const mouth = container.querySelector('[data-rig-mouth]');
-    act(() => {
-      document.cookie = 'lia_gender=female; path=/';
-      window.dispatchEvent(new Event('lia-gender-change'));
-    });
-    expect(container.querySelector('.lia-eyes')).toBe(face);
-    expect(face).toHaveAttribute('data-smiley-variant', 'female');
-    expect(container.querySelector('[data-rig-mouth]')).toBe(mouth);
-    expect(useEyesWidgetStore.getState().style).toBe('smiley');
-    expect(activeFrameSubscribers()).toBe(1);
-  });
 });

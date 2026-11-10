@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { Repeat2 } from 'lucide-react';
+import { Repeat2 } from '@/lib/icons';
 import { BudgetBar, DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';

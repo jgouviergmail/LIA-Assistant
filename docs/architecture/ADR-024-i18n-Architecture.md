@@ -545,6 +545,59 @@ subtree in `ROUTE_SCOPED_TRANSLATIONS` and a scope on the routes the guard names
 
 ---
 
+## Amendment 2026-11-08 — stable public languages and smaller shared catalogues
+
+A public editorial URL declares its language. The unprefixed home, guides,
+maps and blog are French, regardless of `Accept-Language` or `NEXT_LOCALE`;
+the other supported languages keep their explicit URL prefix. The redundant
+French prefix redirects permanently to its canonical unprefixed URL, keeping
+the query string. Visiting a public page does not overwrite the person's
+saved language preference. The language selector remains the explicit way to
+change it. Authentication and application routes retain preference-based
+language negotiation, with temporary redirects rather than permanent ones.
+The public route declaration supplies this policy; login and registration are
+application entry points even though their URLs also appear in the sitemap.
+The proxy never writes a language preference. Next's adapter strips internal
+prefetch headers, so the proxy cannot infer a person's intent from those
+headers. The browser synchronizes the language when a non-editorial route
+actually mounts, before its links can prefetch; an editorial page does
+not synchronize it. Both surfaces use the same public-route predicate. The
+explicit language selectors keep their existing writer, and an unprefixed
+application URL still negotiates from the cookie and browser language. This
+keeps a public page's login links from silently choosing a language.
+An explicit application locale stays in its URL, including the French prefix;
+dropping it would send the next request back through preference negotiation
+and could replace the language the URL explicitly requested.
+Selecting the language already displayed still confirms that preference. A
+changed preference uses document navigation to discard cached negotiated
+route trees: Next's client refresh invalidates segments but retains that route
+cache, including a login URL previously resolved in another language.
+
+The shared browser catalogue is reduced further using the existing
+`ROUTE_SCOPED_TRANSLATIONS` contract. Application-only translations belong to
+the dashboard boundary, and public experiences request their own additional
+subtrees. Shared controls retain their labels, while server components still
+resolve their text from the complete catalogue. This preserves server-rendered
+content and the existing design. The import-graph guard checks inherited
+layout scopes as well as page scopes; a layout's own readers cannot borrow a
+scope supplied only by a descendant page.
+
+The client translation hook reads that same provider instance. It does not
+create a second instance or download the complete locale after hydration.
+The provider also owns the rendered language while a client path hook is
+still resolving its initial value.
+
+The home title and introduction describe the free, open-source,
+self-hostable software in every interface language and distinguish it from
+potential hosting and external-service charges. Blog bodies link to related
+articles through localized, canonical paths, with translated previous/next
+labels. Link validation derives article destinations from `BLOG_ARTICLES`.
+The browser journey `apps/web/e2e/smoke/landing-seo.spec.ts` checks public
+language stability against a conflicting preference, the translated home,
+mobile reflow and a contextual article link in every supported language.
+
+---
+
 ## References
 
 ### Source Code

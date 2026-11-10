@@ -49,7 +49,7 @@ MAIN FUNCTIONS:
 
 import datetime as dt
 import re
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, datetime, time, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -63,6 +63,7 @@ from src.core.i18n_dates import (
     get_month_name,
     get_time_connector,
 )
+from src.core.task_due import task_due_day
 from src.core.time_parsing import parse_datetime as parse_datetime
 from src.core.time_parsing import parse_provider_datetime as parse_provider_datetime
 from src.core.time_parsing import parse_rfc3339 as parse_rfc3339
@@ -1150,13 +1151,17 @@ def convert_task_dates_in_payload(
     Returns:
         The modified task dict with formatted date fields
     """
-    # Due date
-    if task.get("due"):
+    # Due date: a DAY, read through the one door (core/task_due) — a Google due is the date it
+    # names, a To Do due its local midnight read in the zone — then told at its noon, so no
+    # conversion can move it to another day.
+    zone = now_in_timezone(user_timezone).tzinfo
+    due_day = task_due_day(task, zone) if zone is not None else None
+    if due_day is not None:
         task["due_formatted"] = format_datetime_for_display(
-            task["due"],
+            datetime.combine(due_day, time(12), tzinfo=zone),
             user_timezone,
             locale,
-            include_time=False,  # Task due dates typically don't have time
+            include_time=False,
             include_day_name=True,
         )
 

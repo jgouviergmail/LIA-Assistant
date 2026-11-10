@@ -11,7 +11,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, LayoutDashboard } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, LayoutDashboard } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { BRIEFING_CARD_ICONS } from '@/components/dashboard/briefing-card-icons';

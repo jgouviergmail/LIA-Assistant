@@ -26,7 +26,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ShieldCheck } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { UserSuggestion } from '@/components/settings/AdminUserAutocomplete';

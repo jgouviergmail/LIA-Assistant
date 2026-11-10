@@ -10,7 +10,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Brain } from 'lucide-react';
+import { Brain } from '@/lib/icons';
 
 import { Accordion } from '@/components/ui/accordion';
 import { DebugSection } from '../DebugSection';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import { rebuildBlockedReason } from '@/lib/discussion-context';
 import type { Language } from '@/i18n/settings';

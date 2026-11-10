@@ -113,6 +113,32 @@ describe('ComposerAssist', () => {
     expect(await lines(user)).toEqual(['workbench.assist.writing.compose']);
   });
 
+  it('takes dictation beside the subject as beside the message, where words can be said', async () => {
+    bounds.value = { textMax: 100, instructionMax: 100, dictates: true };
+    const subject = draw({ kind: 'new' }, SIGNATURE, '', 'subject');
+
+    expect(await lines(subject.user)).toEqual([
+      'workbench.assist.writing.compose',
+      'workbench.assist.voice.dictate',
+    ]);
+    subject.unmount();
+    const body = draw({ kind: 'new' }, SIGNATURE);
+
+    expect(await lines(body.user)).toEqual([
+      'workbench.assist.writing.compose',
+      'workbench.assist.voice.dictate',
+    ]);
+  });
+
+  it('opens on a whole message from an instruction when another tool asked for one', async () => {
+    draw({ kind: 'new', assisted: true }, SIGNATURE);
+
+    expect(
+      await screen.findByRole('dialog', { name: 'workbench.assist.writing.compose' })
+    ).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('does not ask twice: a reply opened with its proposal asks from the message alone', async () => {
     draw({ kind: 'reply', message: MESSAGE, all: false, propose: true }, '', '', 'subject');
 

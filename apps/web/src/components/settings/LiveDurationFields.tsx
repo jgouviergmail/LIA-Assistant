@@ -9,7 +9,7 @@
  * or only the interactions, and only the person knows their model's billing —
  * an unlimited session on a per-second provider is theirs to choose, eyes open.
  */
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Input } from '@/components/ui/input';

@@ -67,8 +67,6 @@ PromptName = Literal[
     "world_public_translator_prompt",
     "application_draft_modifier_prompt",
     "card_composition_context",
-    "jev_collection_question",
-    "jev_document_question",
     "jev_consultation_question",
     "jev_extraction_question",
     "jev_hitl_exclusion_question",
@@ -77,9 +75,9 @@ PromptName = Literal[
     "jev_parameter_kind_question",
     "jev_email_category_question",
     "jev_email_priority_question",
+    "jev_email_reply_expected_question",
     "jev_event_category_question",
     "jev_hitl_rejection_question",
-    "jev_initiative_question",
     "jev_radio_question",
     "response_system_prompt_base",
     "response_plan_rejection_notice",
@@ -137,6 +135,8 @@ PromptName = Literal[
     "live_direct_lines",
     # Voice sessions (ADR-301): the delegation block every voice mandate composes
     "voice_delegation_block",
+    # ... and the personality block, its order of precedence (ADR-373)
+    "voice_personality_block",
     # Email content generation
     "email_content_generation_prompt",
     "email_subject_generation_prompt",
@@ -176,6 +176,8 @@ PromptName = Literal[
     "heartbeat_wake_fresh_prompt",
     "moment_fresh_prompt",
     "peer_message_delivery_prompt",
+    "peer_message_delivery_request",
+    "effect_gate_messages",
     # MCP domain description generation
     "mcp_description_prompt",
     # Admin broadcast translation
@@ -312,6 +314,11 @@ PromptName = Literal[
     "tool_assist_filter_prompt",
     "tool_assist_contact_prompt",
     "tool_assist_card_prompt",
+    "tool_assist_contact_words_prompt",
+    "tool_assist_passage_prompt",
+    "tool_assist_memory_prompt",
+    "tool_assist_research_prompt",
+    "tool_assist_record_prompt",
     "tool_assist_lines",
     # Image prompt enhancement — an optional rewrite before the image model (ADR-315)
     "image_prompt_enhancement_prompt",

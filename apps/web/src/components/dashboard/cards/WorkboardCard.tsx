@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardLink as Link } from '../DashboardNavigation';
-import { CalendarClock, CircleHelp, LayoutGrid } from 'lucide-react';
+import { CalendarClock, CircleHelp, LayoutGrid } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';

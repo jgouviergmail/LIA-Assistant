@@ -146,7 +146,12 @@ describe('character identity uses the committed native rig', () => {
     captured.playScene('body-bow');
     for (let frame = 0; frame < 70; frame++) captured.step(16);
     expect(captured.values().headPitch).toBeGreaterThan(0.4);
-    expect(captured.values().bodySy).toBeLessThan(0.95);
+    // Oscar bows with an asymmetric hand gesture and planted feet while his
+    // suit retains its proportions. Orbit would have no articulated hands.
+    expect(Math.abs(captured.values().armL + captured.values().armR)).toBeGreaterThan(2);
+    expect(captured.values().bodySupport).toBeGreaterThan(0.99);
+    expect([captured.values().footL, captured.values().footR]).toEqual([0, 0]);
+    expect(captured.values().bodySy).toBeGreaterThan(0.99);
     view.unmount();
     expect(activeFrameSubscribers()).toBe(0);
   });

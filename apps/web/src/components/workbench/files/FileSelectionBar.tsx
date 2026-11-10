@@ -8,7 +8,7 @@
  * trash, what comes back and what leaves for good, and nothing else. A selection past
  * the published bound is said and sends nothing (`limits.bulk_max_items`, ADR-184).
  */
-import { Copy, FolderInput, Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { Copy, FolderInput, Pencil, RotateCcw, Trash2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { SelectionBar } from '@/components/ui/selection-bar';

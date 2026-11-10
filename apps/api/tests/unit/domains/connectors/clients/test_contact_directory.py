@@ -113,7 +113,12 @@ class TestGoogle:
         first, second = (call.kwargs["params"] for call in request.call_args_list)
         assert first["pageSize"] == second["pageSize"] == GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX
         assert first["sortOrder"] == "LAST_MODIFIED_DESCENDING"
-        assert set(first["personFields"].split(",")) == {"names", "emailAddresses", "phoneNumbers"}
+        assert set(first["personFields"].split(",")) == {
+            "names",
+            "emailAddresses",
+            "phoneNumbers",
+            "birthdays",
+        }
         assert "pageToken" not in first and second["pageToken"] == "t1"
         assert {k: v for k, v in second.items() if k != "pageToken"} == first
         assert len(directory.persons) == 3
@@ -184,6 +189,7 @@ class TestMicrosoft:
             directory = await client.list_email_directory(5000)
 
         assert request.call_args.args[2]["$top"] == MICROSOFT_CONTACTS_DIRECTORY_PAGE_SIZE
+        assert "birthday" in request.call_args.args[2]["$select"].split(",")
         follow.assert_awaited_once_with("GET", first["@odata.nextLink"])
         assert [p["names"][0]["displayName"] for p in directory.persons] == ["Ana", "Bo"]
         assert directory.persons[0]["emailAddresses"][0]["value"] == "ana@example.org"
@@ -256,7 +262,7 @@ class TestApple:
 
 
 class TestCompactAndStamp:
-    def test_only_names_addresses_and_numbers_are_kept(self) -> None:
+    def test_only_who_how_to_reach_them_and_their_birthday_are_kept(self) -> None:
         person = {
             "resourceName": "people/c1",
             "etag": "abc",
@@ -272,17 +278,55 @@ class TestCompactAndStamp:
             ],
             "emailAddresses": [{"metadata": {}, "value": "ana@example.org", "type": "work"}],
             "phoneNumbers": [{"value": "06 12 34 56 78", "canonicalForm": "+33612345678"}],
+            "birthdays": [
+                {"metadata": {"primary": True}, "date": {"month": 3, "day": 9}, "text": "9 mars"}
+            ],
         }
 
         assert compact_person(person) == {
+            "resourceName": "people/c1",
             "names": [{"displayName": "Ana Lima", "givenName": "Ana", "familyName": "Lima"}],
             "emailAddresses": [{"value": "ana@example.org"}],
             "phoneNumbers": [{"value": "06 12 34 56 78"}],
+            "birthdays": [{"date": {"month": 3, "day": 9}}],
         }
+
+    def test_a_birthday_keeps_only_the_numbers_of_its_day(self) -> None:
+        person = {
+            "birthdays": [
+                {"date": {"year": 1990, "month": 5, "day": 15, "hint": "x"}},
+                {"text": "no date"},
+                "junk",
+            ]
+        }
+
+        assert compact_person(person)["birthdays"] == [
+            {"date": {"year": 1990, "month": 5, "day": 15}}
+        ]
 
     @pytest.mark.parametrize("junk", [None, "x", {"names": "x", "emailAddresses": [1, {}]}])
     def test_a_malformed_person_compacts_to_nothing_rather_than_raising(self, junk: Any) -> None:
-        assert compact_person(junk) in ({}, {"names": [], "emailAddresses": [], "phoneNumbers": []})
+        empty = {"names": [], "emailAddresses": [], "phoneNumbers": [], "birthdays": []}
+        assert compact_person(junk) in ({}, empty)
+
+    async def test_a_book_cached_before_birthdays_joined_it_is_never_read_again(
+        self, redis: MemoryRedis
+    ) -> None:
+        user_id = uuid4()
+        book = ([{"names": [{"displayName": "Ana"}]}], False)
+        first = await cached_directory(user_id, "google_contacts", 10, AsyncMock(return_value=book))
+        written = {k: v for k, v in redis.store.items() if k.startswith("contacts_directory:")}
+        (entry,) = [value for key, value in written.items() if not key.endswith(":stamp")]
+        for key in written:
+            del redis.store[key]
+        # Where the book stood before its persons carried birthdays and ids.
+        redis.store[f"contacts_directory:{user_id}:google_contacts:10"] = entry
+        read = AsyncMock(return_value=book)
+
+        directory = await cached_directory(user_id, "google_contacts", 10, read)
+
+        read.assert_awaited_once()
+        assert directory.version != first.version
 
     async def test_the_stamp_names_the_version_and_the_cut_of_the_book(
         self, redis: MemoryRedis

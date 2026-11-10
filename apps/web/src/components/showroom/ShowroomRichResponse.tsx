@@ -14,7 +14,7 @@
  */
 
 import dynamic from 'next/dynamic';
-import { Bot } from 'lucide-react';
+import { Bot } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 const MarkdownContent = dynamic(

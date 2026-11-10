@@ -58,19 +58,10 @@ SECTION_WORKBOARD_TTL_SECONDS = 60
 # config↔briefing-domain circular import.)
 # =============================================================================
 
-# Birthday lookup pagination.
-#
-# We bypass the global `api_max_items_per_request` security cap (max 50) to
-# query the People API at its native limit of 1000 contacts per page. Without
-# this bypass, scanning 1500 contacts would require 30+ paginated calls —
-# unacceptable cold-cache latency for a briefing endpoint.
-#
-# Direct call uses `client._make_request("GET", "/people/me/connections", ...)`
-# which skips `apply_max_items_limit`. Justified because:
-#  - Source is the user's own contacts list (no privacy escalation)
-#  - Cache TTL is 7 days (rebuilt on demand via force refresh)
-#  - The per-card briefing TTL bounds the API call frequency anyway
-# Birthday pagination constants moved to src/domains/connectors/birthdays.py (P7).
+# Birthday lookup: the active contacts provider's whole book, through the shared
+# directory (`connectors/clients/contact_directory`), up to
+# `CONTACTS_BIRTHDAYS_DIRECTORY_MAX` — never the agents' item ceiling, under which
+# birthdays past the first page would never be seen (`connectors/birthdays.py`).
 
 # Forecast 3-h slots fetched from OpenWeatherMap.
 # 40 slots × 3 h = 120 h = 5 days (the free-tier maximum).

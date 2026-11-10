@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Library, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { Library, Pencil, ShieldCheck, Star, Trash2 } from '@/lib/icons';
 import { ExpandableDescription } from '@/components/ui/expandable-description';
 import { Card, CardContent, CardHeader, type CardProps } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { SpaceActivationToggle } from './SpaceActivationToggle';
 import { formatFileSize } from '@/lib/format';
 import type { RAGSpace } from '@/types/rag-spaces';
 import { lifecycleTone } from '@/lib/status-tone';
+import { cn } from '@/lib/utils';
 
 interface SpaceCardProps {
   space: RAGSpace;
@@ -17,6 +18,8 @@ interface SpaceCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  onToggleFavorite: () => void;
+  favoriting?: boolean;
   toggling?: boolean;
   surface?: CardProps['surface'];
 }
@@ -27,6 +30,8 @@ export function SpaceCard({
   onEdit,
   onDelete,
   onToggle,
+  onToggleFavorite,
+  favoriting,
   toggling,
   surface = 'primary',
 }: SpaceCardProps) {
@@ -112,7 +117,30 @@ export function SpaceCard({
           {/* Actions (ADR-208): always visible, never revealed by a hover. The
               wrapper keeps their clicks — and the menu's, which React bubbles
               through the portal — from opening the space. */}
-          <div onClick={e => e.stopPropagation()} role="presentation">
+          <div
+            className="flex shrink-0 items-center"
+            onClick={e => e.stopPropagation()}
+            role="presentation"
+          >
+            <button
+              type="button"
+              onClick={onToggleFavorite}
+              disabled={favoriting}
+              data-space-favorite={space.id}
+              aria-label={t(space.is_favorite ? 'spaces.favorite_remove' : 'spaces.favorite_add', {
+                name: space.name,
+              })}
+              aria-pressed={space.is_favorite}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <Star
+                aria-hidden="true"
+                className={cn(
+                  'h-4 w-4',
+                  space.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'
+                )}
+              />
+            </button>
             <RowActions
               actions={actions}
               menuLabel={t('common.actions_for', { name: space.name })}

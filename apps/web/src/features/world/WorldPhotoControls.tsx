@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Camera } from 'lucide-react';
+import { Camera } from '@/lib/icons';
 import { WorldWidgetButton } from './WorldWidgetButton';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
 import { useTranslation } from '@/i18n/client';

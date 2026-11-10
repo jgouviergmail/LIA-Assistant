@@ -1,13 +1,13 @@
 'use client';
 
 /** One renderer boundary for the floating companion and its settings previews. */
-import { ExpressiveEyes, type ExpressiveEyesProps } from './ExpressiveEyes';
+import type { ExpressiveEyesProps } from './ExpressiveEyes';
 import { DEFAULT_EYE_STYLE, isRigEyeStyle, type EyeStyleId } from './eye-styles';
 import { MonitorCompanion } from './MonitorCompanion';
 import { SpiritCompanion } from '@/components/spirit/SpiritCompanion';
 import type { SpiritVariant } from '@/components/spirit/catalogue';
 
-export type EyesFaceProps = Omit<ExpressiveEyesProps, 'styleId' | 'smileyVariant'> & {
+export type EyesFaceProps = Omit<ExpressiveEyesProps, 'styleId'> & {
   styleId?: EyeStyleId;
   variant: SpiritVariant;
   /** Hybrid previews stay fixed until the parent explicitly wakes them. */
@@ -22,15 +22,6 @@ export function EyesFace({
 }: EyesFaceProps) {
   if (!isRigEyeStyle(styleId))
     return <SpiritCompanion {...props} character={styleId} variant={variant} animate={animate} />;
-  if (styleId === 'smiley')
-    return (
-      <ExpressiveEyes
-        {...props}
-        styleId={styleId}
-        smileyVariant={variant}
-        motionEnabled={animate}
-      />
-    );
   return (
     <MonitorCompanion
       {...props}

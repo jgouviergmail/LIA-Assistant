@@ -251,6 +251,30 @@ describe('chatReducer — STREAM_DONE', () => {
     expect(next.messages[0].metadata?.followup_suggestions).toBeUndefined();
   });
 
+  it('carries the habit proposal card onto the live bubble (ADR-375)', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+    const card = { id: 'p-1', kind: 'review_notifications', facts: { sent: 24, window_days: 35 } };
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: { ...fullMetadata, habit_proposal: card } },
+    });
+
+    // Same field name as the archived message_metadata: a reload reads it the same way.
+    expect(next.messages[0].metadata?.habit_proposal).toEqual(card);
+  });
+
+  it('writes no card field for an answer that shows none', () => {
+    const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
+
+    const next = chatReducer(state, {
+      type: 'STREAM_DONE',
+      payload: { messageId: 'a-1', metadata: fullMetadata },
+    });
+
+    expect(next.messages[0].metadata).not.toHaveProperty('habit_proposal');
+  });
+
   it('carries the follow-up chips onto the live bubble (UXR Lot 4, A2)', () => {
     const state = streamingState('a-1', 'answer', [makeMessage('a-1', 'assistant', 'answer')]);
 

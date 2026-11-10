@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, BookX, RefreshCw, Stethoscope } from 'lucide-react';
+import { Activity, BookX, RefreshCw, Stethoscope } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

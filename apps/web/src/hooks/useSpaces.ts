@@ -8,7 +8,8 @@
  * Created: 2026-03-14
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { publishApplicationResources } from '@/lib/application-resources';
 import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 import { useApplicationResourceSync } from './useApplicationResourceSync';
 import { useApiMutation } from './useApiMutation';
@@ -19,6 +20,7 @@ import type {
   RAGSpaceCreatePayload,
   RAGSpaceUpdatePayload,
   RAGSpaceToggleResponse,
+  SpaceListQuery,
 } from '@/types/rag-spaces';
 
 const ENDPOINT = '/rag-spaces';
@@ -27,17 +29,29 @@ const releaseSpaceOverride = () => {};
 /**
  * Hook for managing RAG Spaces (list, create, update, delete, toggle).
  */
-export function useSpaces() {
+export function useSpaces(criteria?: SpaceListQuery) {
+  const queryKey = JSON.stringify(criteria) ?? '';
+  const [acceptedQuery, setAcceptedQuery] = useState('');
+  const acceptQuery = useCallback(() => setAcceptedQuery(queryKey), [queryKey]);
   const {
-    data: listData,
+    data: receivedData,
     loading,
     error,
     refetch,
     setData,
     ownerId,
     isCurrent,
-  } = useApplicationAccountQuery<RAGSpaceListResponse>(ENDPOINT, 'Spaces');
+  } = useApplicationAccountQuery<RAGSpaceListResponse>(ENDPOINT, 'Spaces', true, acceptQuery, {
+    params: criteria ? { ...criteria } : undefined,
+  });
+  const listData = acceptedQuery === queryKey ? receivedData : undefined;
   useApplicationResourceSync(ownerId, 'spaces', refetch, releaseSpaceOverride);
+
+  const refreshFiltered = useCallback(() => {
+    if (!criteria || !ownerId) return false;
+    publishApplicationResources(ownerId, new Set(['spaces']));
+    return true;
+  }, [criteria, ownerId]);
 
   const spaces = listData?.spaces ?? [];
   const total = listData?.total ?? 0;
@@ -70,6 +84,7 @@ export function useSpaces() {
       const result = await createMutation.mutate(ENDPOINT, payload);
       if (!isCurrent()) return;
       if (result) {
+        if (refreshFiltered()) return result;
         // Optimistic: add to list
         setData(prev => {
           if (!prev) return prev;
@@ -87,7 +102,7 @@ export function useSpaces() {
       }
       return result;
     },
-    [createMutation, setData, isCurrent]
+    [createMutation, setData, isCurrent, refreshFiltered]
   );
 
   const updateSpace = useCallback(
@@ -96,19 +111,27 @@ export function useSpaces() {
       const result = await updateMutation.mutate(`${ENDPOINT}/${spaceId}`, payload);
       if (!isCurrent()) return;
       if (result) {
+        if (refreshFiltered()) return result;
         setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
             spaces: prev.spaces.map(s =>
-              s.id === spaceId ? { ...s, name: result.name, description: result.description } : s
+              s.id === spaceId
+                ? {
+                    ...s,
+                    name: result.name,
+                    description: result.description,
+                    is_favorite: result.is_favorite,
+                  }
+                : s
             ),
           };
         });
       }
       return result;
     },
-    [updateMutation, setData, isCurrent]
+    [updateMutation, setData, isCurrent, refreshFiltered]
   );
 
   const deleteSpace = useCallback(
@@ -117,6 +140,7 @@ export function useSpaces() {
       // Mutation throws on failure — only update UI on success
       await deleteMutation.mutate(`${ENDPOINT}/${spaceId}`);
       if (!isCurrent()) return;
+      if (refreshFiltered()) return;
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -125,7 +149,7 @@ export function useSpaces() {
         };
       });
     },
-    [deleteMutation, setData, isCurrent]
+    [deleteMutation, setData, isCurrent, refreshFiltered]
   );
 
   const toggleSpace = useCallback(
@@ -134,6 +158,7 @@ export function useSpaces() {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${spaceId}/toggle`);
       if (!isCurrent()) return;
       if (result) {
+        if (refreshFiltered()) return result;
         setData(prev => {
           if (!prev) return prev;
           return {
@@ -146,7 +171,7 @@ export function useSpaces() {
       }
       return result;
     },
-    [toggleMutation, setData, isCurrent]
+    [toggleMutation, setData, isCurrent, refreshFiltered]
   );
 
   return {
@@ -154,7 +179,7 @@ export function useSpaces() {
     spaces,
     total,
     activeCount,
-    loading: loading && listData === undefined,
+    loading: !!ownerId && !error && (loading || listData === undefined),
     error,
     refetch,
 

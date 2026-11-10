@@ -99,14 +99,14 @@ class TestWhatTheHubPublishes:
 
 
 class TestTheProbesDegradeRatherThanFail:
-    async def test_an_unreadable_table_counts_as_zero(self) -> None:
+    async def test_an_unreadable_table_has_no_invented_count(self) -> None:
         """One unreachable table must not blank the whole hub."""
         from src.domains.notifications.hub_counts import _safe_count
 
         async def boom() -> int:
             raise RuntimeError("db went away")
 
-        assert await _safe_count("peer_messages", boom()) == 0
+        assert await _safe_count("peer_messages", boom()) is None
 
     async def test_a_successful_probe_returns_its_value(self) -> None:
         from src.domains.notifications.hub_counts import _safe_count

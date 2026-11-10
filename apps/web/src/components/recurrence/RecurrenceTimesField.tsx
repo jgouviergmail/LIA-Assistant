@@ -10,7 +10,7 @@
  */
 
 import { useId } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

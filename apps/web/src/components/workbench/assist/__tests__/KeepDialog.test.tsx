@@ -38,6 +38,7 @@ function space(id: string, name: string, kind: RAGSpace['kind'] = null): RAGSpac
     description: null,
     is_active: true,
     kind,
+    is_favorite: false,
     document_count: 0,
     ready_document_count: 0,
     total_size: 0,

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useSyncExternalStore } from 'react';
-import { KeyRound, RotateCw, Trash2 } from 'lucide-react';
+import { KeyRound, RotateCw, Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { IngestionApiPanel } from '@/components/ingestion/IngestionApiPanel';
@@ -85,7 +85,10 @@ export function SmsTokenSettings({
         )}
         <ul className="space-y-2">
           {tokens?.tokens.map(token => (
-            <li key={token.id} className="flex min-w-0 items-center gap-3 rounded-lg border p-3">
+            <li
+              key={token.id}
+              className="flex min-w-0 items-center gap-3 rounded-lg border bg-card p-3"
+            >
               <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-medium">
                   {token.label || token.token_prefix}

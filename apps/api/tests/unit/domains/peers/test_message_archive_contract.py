@@ -37,7 +37,7 @@ from src.domains.peers.constants import (
     PROACTIVE_PEER_MESSAGE_TYPE,
 )
 from src.infrastructure.proactive.notification import NotificationDispatcher
-from src.infrastructure.scheduler import peer_message_delivery as delivery
+from src.infrastructure.scheduler import peer_delivery_runner as delivery
 
 pytestmark = pytest.mark.unit
 
@@ -130,19 +130,37 @@ class TestNoOtherPeersDispatchCanImitateIt:
         assert f"proactive_{task_type}" != PROACTIVE_PEER_MESSAGE_TYPE
 
     async def test_sender_delivery_notice_differs(self) -> None:
-        dispatch = AsyncMock()
-        with patch(
-            "src.infrastructure.scheduler.peer_message_delivery.NotificationDispatcher"
-        ) as dispatcher_cls:
-            dispatcher_cls.return_value.dispatch = dispatch
-            await delivery._notify_sender(
-                SimpleNamespace(id=uuid4(), language="fr", full_name="Moi"),
-                "Message remis.",
-                SimpleNamespace(id=uuid4()),
-                AsyncMock(),
-            )
-        task_type = dispatch.await_args.kwargs["task_type"]
-        assert f"proactive_{task_type}" != PROACTIVE_PEER_MESSAGE_TYPE
+        from collections.abc import AsyncIterator
+        from contextlib import asynccontextmanager
+        from unittest.mock import MagicMock
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        from src.domains.peers.models import PeerMessage
+        from src.domains.users.models import User
+
+        sender = User(id=uuid4(), language="fr", full_name="Sender", is_active=True)
+        recipient = User(id=uuid4(), language="en", full_name="Recipient", is_active=True)
+        message = PeerMessage(
+            id=uuid4(), sender_id=sender.id, recipient_id=recipient.id, delivered_text="Received"
+        )
+        db = MagicMock(spec=AsyncSession)
+        db.get = AsyncMock(side_effect=[sender, recipient, message])
+        db.commit = AsyncMock()
+
+        @asynccontextmanager
+        async def context() -> AsyncIterator[AsyncSession]:
+            yield db
+
+        with (
+            patch.object(delivery, "get_db_context", context),
+            patch.object(delivery, "NotificationDispatcher") as dispatcher,
+        ):
+            dispatcher.return_value.dispatch = AsyncMock()
+            await delivery.notify_result(message, "delivered")
+        first, second = dispatcher.return_value.dispatch.await_args_list
+        assert f"proactive_{first.kwargs['task_type']}" == PROACTIVE_PEER_MESSAGE_TYPE
+        assert f"proactive_{second.kwargs['task_type']}" != PROACTIVE_PEER_MESSAGE_TYPE
 
 
 class TestUnknownSenderPlaceholder:

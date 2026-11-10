@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CornerDownLeft, TerminalSquare } from 'lucide-react';
+import { CornerDownLeft, TerminalSquare } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { filterSlashCommands, isSlashTrigger, type SlashCommand } from '@/lib/slash-commands';

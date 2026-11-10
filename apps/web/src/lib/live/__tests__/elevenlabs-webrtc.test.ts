@@ -97,6 +97,31 @@ describe('ElevenLabsWebRtcTransport', () => {
     expect(events.onClosed).not.toHaveBeenCalled();
   });
 
+  it('carries the empty greeting the server rendered, and only when it did', async () => {
+    const transport = new ElevenLabsWebRtcTransport();
+    await transport.connect(
+      {
+        ...options,
+        setup: {
+          type: 'conversation_initiation_client_data',
+          conversation_config_override: {
+            agent: { prompt: { prompt: 'Speak as LIA.' }, first_message: '' },
+          },
+        },
+      },
+      {}
+    );
+    // ADR-373: the portal's canned greeting is replaced by silence, so the
+    // first words the person hears are the mandate's.
+    expect(sdkOptions.overrides).toEqual({
+      agent: { prompt: { prompt: 'Speak as LIA.' }, firstMessage: '' },
+    });
+    await transport.close();
+    await transport.connect(options, {});
+    expect(sdkOptions.overrides).toEqual({ agent: { prompt: { prompt: 'Speak as LIA.' } } });
+    await transport.close();
+  });
+
   it('surfaces an unexpected SDK disconnect', async () => {
     const transport = new ElevenLabsWebRtcTransport();
     const onClosed = vi.fn();

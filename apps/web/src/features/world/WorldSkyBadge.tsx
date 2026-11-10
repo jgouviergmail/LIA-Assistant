@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { CloudFog, CloudRain, Moon, Snowflake, Sun } from 'lucide-react';
+import { CloudFog, CloudRain, Moon, Snowflake, Sun } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { Atmosphere } from './atmosphere';

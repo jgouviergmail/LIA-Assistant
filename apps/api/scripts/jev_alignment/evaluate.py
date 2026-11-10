@@ -18,7 +18,7 @@ comparison afterwards measures a candidate against itself for those usages.
 """
 
 import json
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -71,16 +71,6 @@ def rejection(threshold: float | None) -> Decision:
             allowed,
         )
     return _single(lambda r: (_p(r, "refuses_all") is not None and _p(r, "refuses_all") >= threshold), allowed)  # type: ignore[operator]
-
-
-def initiative(threshold: float | None) -> Decision:
-    allowed = lambda r: not r["gold"]["utility"]  # noqa: E731
-    if threshold is None:
-        return _single(
-            lambda r: _label(r, "selection") == "no_utility" and _conf(r, "selection") >= 0.85,
-            allowed,
-        )
-    return _single(lambda r: (_p(r, "has_utility") is not None and _p(r, "has_utility") <= threshold), allowed)  # type: ignore[operator]
 
 
 def consultation(threshold: float | None) -> Decision:
@@ -143,23 +133,12 @@ def exclusion(params: tuple[float, float] | None) -> Decision:
     return decide
 
 
-def collection_items(row: Row, threshold: float | None) -> Iterable[tuple[bool, bool, bool]]:
-    """Per item: (opportunity, taken, correct)."""
-    cut = 0.95 if threshold is None else threshold
-    for key in row["keys"]:
-        gold = row["gold"][key]
-        choice = _label(row, key)
-        taken = choice in {"match", "non_match"} and _conf(row, key) >= cut
-        yield gold in {"match", "non_match"}, taken, taken and choice == gold
-
-
 # ------------------------------------------------------------------ scoring
 def _opportunity(usage: str, row: Row) -> bool:
     gold = row["gold"]
     return {
         "memory_presence": lambda: gold["absent"],
         "hitl_rejection": lambda: gold["reject"],
-        "initiative": lambda: not gold["utility"],
         "consultation": lambda: gold["expected"] != "other",
         "radio": lambda: True,
         "hitl_exclusion": lambda: gold["keep"] is not None,
@@ -168,17 +147,11 @@ def _opportunity(usage: str, row: Row) -> bool:
 
 def score(usage: str, rows: Sequence[Row], param: Any) -> dict[str, Any]:
     """Wrong shortcuts, correct shortcuts and coverage of the opportunities."""
-    if usage == "collections":
-        triples = [t for row in rows for t in collection_items(row, param)]
-        opportunities = sum(o for o, _, _ in triples)
-        taken = sum(t for _, t, _ in triples)
-        correct = sum(c for _, _, c in triples)
-    else:
-        decide = DECISIONS[usage](param)
-        results = [(decide(row), _opportunity(usage, row)) for row in rows]
-        opportunities = sum(o for _, o in results)
-        taken = sum(t for (t, _), _ in results)
-        correct = sum(c for (_, c), _ in results)
+    decide = DECISIONS[usage](param)
+    results = [(decide(row), _opportunity(usage, row)) for row in rows]
+    opportunities = sum(o for _, o in results)
+    taken = sum(t for (t, _), _ in results)
+    correct = sum(c for (_, c), _ in results)
     return {
         "judged": len(rows),
         "opportunities": opportunities,
@@ -192,7 +165,6 @@ def score(usage: str, rows: Sequence[Row], param: Any) -> dict[str, Any]:
 DECISIONS: dict[str, Callable[[Any], Decision]] = {
     "memory_presence": memory,
     "hitl_rejection": rejection,
-    "initiative": initiative,
     "consultation": consultation,
     "radio": radio,
     "hitl_exclusion": exclusion,
@@ -200,7 +172,7 @@ DECISIONS: dict[str, Callable[[Any], Decision]] = {
 
 
 def grid(usage: str) -> list[Any]:
-    if usage in {"memory_presence", "initiative"}:
+    if usage == "memory_presence":
         return [round(0.01 * i, 2) for i in range(1, 51)]
     if usage == "hitl_rejection":
         return [round(0.5 + 0.01 * i, 2) for i in range(50)]
@@ -213,7 +185,7 @@ def grid(usage: str) -> list[Any]:
 
 def _strictness(usage: str, param: Any) -> float:
     """Larger means stricter (fewer shortcuts), to break ties conservatively."""
-    if usage in {"memory_presence", "initiative", "radio"}:
+    if usage in {"memory_presence", "radio"}:
         return -float(param)
     if usage == "hitl_exclusion":
         return float(param[0]) + float(param[1])
@@ -316,10 +288,8 @@ def main() -> None:
     for usage in (
         "memory_presence",
         "hitl_rejection",
-        "initiative",
         "consultation",
         "radio",
-        "collections",
         "hitl_exclusion",
     ):
         result = evaluate(usage)

@@ -9,7 +9,7 @@
  * placeholders, a save only marks the form busy — so a keyboard user keeps
  * their place.
  */
-import { Radio } from 'lucide-react';
+import { Radio } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';

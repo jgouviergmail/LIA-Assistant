@@ -155,3 +155,7 @@ The voice never holds a tool, a credential or a row of its own.
 - Plan: `docs/superpowers/plans/2026-09-18-live-mode.md`
 - Technical: `docs/technical/LIVE_MODE.md`
 - Probe: `apps/api/scripts/live/probe.py` (`task live:probe`)
+
+## Amendment 2026-11-07 — the personality governs the voice ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md))
+
+The mandate's personality line becomes the voice sessions' ONE personality block, with its order of precedence (facts and acts first, the personality over every other word and the delivery), and the frame loses its own tone (« keep small talk brief and warm »). A session's expression wire is decided at its start by the provider and frozen on the record.

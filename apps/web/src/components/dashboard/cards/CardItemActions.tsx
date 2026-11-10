@@ -26,7 +26,7 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { MoreHorizontal, type LucideIcon } from 'lucide-react';
+import { MoreHorizontal, type LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -50,7 +50,8 @@ export interface CardItemAction {
    * Navigation is not a click handler: an anchor gives the browser its
    * middle-click, its context menu and its status-bar preview. This replaces
    * the old `trailing` slot, which put a second visible affordance next to the
-   * chips — exactly the extra width this component exists to remove.
+   * chips — exactly the extra width this component exists to remove. A `tel:` link
+   * stays in the page: a new tab breaks the device's own handler of a call.
    */
   href?: string;
   /**
@@ -140,8 +141,7 @@ export function CardItemActions({ actions }: CardItemActionsProps) {
             {action.href !== undefined ? (
               <a
                 href={action.href}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(opensInPlace(action.href) ? {} : NEW_TAB)}
                 className="flex w-full cursor-pointer items-center gap-2"
               >
                 <action.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -158,6 +158,14 @@ export function CardItemActions({ actions }: CardItemActionsProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** A link opened beside the page, which keeps no hold on it. */
+const NEW_TAB = { target: '_blank', rel: 'noopener noreferrer' } as const;
+
+/** A device's own handler (a call, a mail app) opens in place: a new tab breaks it. */
+function opensInPlace(href: string): boolean {
+  return /^(tel|mailto):/i.test(href);
 }
 
 function actionLabel(

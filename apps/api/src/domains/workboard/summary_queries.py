@@ -19,8 +19,11 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Select, func, literal, select, union_all
-from sqlalchemy.orm import aliased, load_only
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased, load_only, raiseload
 
+from src.domains.shared.display_queries import display_name_key, read_display_page
+from src.domains.shared.display_query import DisplayQuery
 from src.domains.workboard.board_queries import BoardFilters, needs_me_stmt
 from src.domains.workboard.constants import OPEN_STATUSES
 from src.domains.workboard.models import WorkboardTicket
@@ -255,4 +258,52 @@ async def read_board_summary(
         tokens_cache=int(tokens_cache),
         google_requests=int(google),
         cost_eur=Decimal(cost),
+    )
+
+
+async def read_needs_me(
+    db: AsyncSession,
+    user_id: UUID,
+    now: datetime,
+    *,
+    limit: int,
+    offset: int,
+    criteria: DisplayQuery | None,
+) -> tuple[list[WorkboardTicket], int]:
+    """Read the attention page and its exact count from one owned statement.
+
+    Args:
+        db: Query session, never held across external work.
+        user_id: The reader.
+        now: Instant against which lateness is judged.
+        limit: Positive page size.
+        offset: Matching rows to skip.
+        criteria: Literal display filter, ordering and creation cut.
+
+    Returns:
+        Tickets waiting on the account or late on its board, and their total.
+    """
+    criteria = criteria or DisplayQuery()
+    direction = (
+        WorkboardTicket.due_at.desc() if criteria.sort == "recent" else WorkboardTicket.due_at.asc()
+    )
+    stmt = (
+        select(WorkboardTicket)
+        .where(WorkboardTicket.id.in_(needs_me_stmt(user_id, now)))
+        .options(raiseload("*"))
+        .order_by(direction.nulls_last(), WorkboardTicket.id.asc())
+    )
+    if criteria.as_of is not None:
+        stmt = stmt.where(WorkboardTicket.created_at <= criteria.as_of)
+    return await read_display_page(
+        db,
+        stmt,
+        decode=lambda row: row[0],
+        query=criteria.q,
+        text_of=lambda row: (row.title,),
+        limit=limit,
+        offset=offset,
+        name_key=(
+            (lambda row: display_name_key(row.title, row.id)) if criteria.sort == "name" else None
+        ),
     )

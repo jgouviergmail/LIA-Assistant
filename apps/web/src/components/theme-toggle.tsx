@@ -1,6 +1,6 @@
 'use client';
 
-import { Eclipse, Moon, Sun } from 'lucide-react';
+import { Eclipse, Moon, Sun } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useThemeMode } from '@/hooks/useThemeMode';

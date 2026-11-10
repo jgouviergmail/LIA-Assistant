@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Trash2,
   Upload,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

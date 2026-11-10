@@ -8,11 +8,11 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.agents.application.memory_creation_embeddings import (
+from src.domains.agents.services.memory_embedding_preparation import prepare_memory_embeddings
+from src.domains.memories.creation_embeddings import (
     prepare_memory_creation_embeddings,
     released_after,
 )
-from src.domains.agents.services.memory_embedding_preparation import prepare_memory_embeddings
 from src.domains.memories.prepared_embeddings import PreparedMemoryEmbeddings
 from src.domains.memories.schemas import ExtractedMemory
 from src.domains.memories.service import MemoryService
@@ -48,11 +48,11 @@ async def test_no_transaction_stays_open_across_an_embedding() -> None:
 
     with (
         patch(
-            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            "src.domains.memories.creation_embeddings._generate_document_embedding",
             new=embedded,
         ),
         patch(
-            "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit",
+            "src.domains.memories.creation_embeddings.enforce_usage_limit",
             new=AsyncMock(),
         ),
     ):

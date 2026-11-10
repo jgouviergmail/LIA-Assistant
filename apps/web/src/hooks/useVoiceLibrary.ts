@@ -5,7 +5,7 @@
  * and the acts an administrator performs on them.
  *
  * A clone and a transcript upload recordings, so they leave through `fetch`
- * with a `FormData` body (the API client forces JSON); a refusal keeps its
+ * with a `FormData` body and a browser-generated boundary; a refusal keeps its
  * status and its coded `detail` in an `ApiError`, which the section translates
  * by its code like every other refusal. Every act that changes the library
  * re-reads it: the server decides what a voice now is.

@@ -4687,6 +4687,97 @@
         "t.registers",
         "t.web"
       ]
+    },
+    {
+      "adr": 373,
+      "date": "2026-11-07",
+      "theme": "voice",
+      "functional": [
+        "f.live",
+        "f.telephony",
+        "f.personality",
+        "f.voice"
+      ],
+      "technical": [
+        "t.live",
+        "t.phone",
+        "t.voiceinfra",
+        "t.web"
+      ]
+    },
+    {
+      "adr": 374,
+      "date": "2026-11-08",
+      "theme": "models",
+      "functional": [
+        "f.initiative",
+        "f.mail",
+        "f.admin",
+        "f.llmconfig",
+        "f.costs",
+        "f.memory"
+      ],
+      "technical": [
+        "t.llmfactory",
+        "t.initiative",
+        "t.response",
+        "t.sse",
+        "t.metrics",
+        "t.postgres",
+        "t.web"
+      ]
+    },
+    {
+      "adr": 375,
+      "date": "2026-11-08",
+      "theme": "proactive",
+      "functional": [
+        "f.habits",
+        "f.routines",
+        "f.heartbeat",
+        "f.chat"
+      ],
+      "technical": [
+        "t.proactive",
+        "t.jobs",
+        "t.postgres",
+        "t.response",
+        "t.sse",
+        "t.web"
+      ]
+    },
+    {
+      "adr": 376,
+      "date": "2026-11-09",
+      "theme": "experience",
+      "functional": [
+        "f.chat",
+        "f.mail",
+        "f.calendar",
+        "f.contacts",
+        "f.tasks",
+        "f.drive"
+      ],
+      "technical": [
+        "t.dataregistry",
+        "t.connclients",
+        "t.fastapi",
+        "t.web"
+      ]
+    },
+    {
+      "adr": 377,
+      "date": "2026-11-09",
+      "theme": "experience",
+      "functional": [
+        "f.chat",
+        "f.application"
+      ],
+      "technical": [
+        "t.web",
+        "t.postgres",
+        "t.i18n"
+      ]
     }
   ]
 }

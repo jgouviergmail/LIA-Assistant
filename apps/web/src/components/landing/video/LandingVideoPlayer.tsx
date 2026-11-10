@@ -20,7 +20,7 @@
  */
 
 import Link from 'next/link';
-import { Pause, Play, SkipForward, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, SkipForward, Volume2, VolumeX, X } from '@/lib/icons';
 import { useEffect, useRef, type RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';

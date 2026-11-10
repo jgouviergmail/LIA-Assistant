@@ -355,6 +355,7 @@ async def _run_extraction(
                 config=RunnableConfig(callbacks=[token_capture]),
             )
         observation.set_output(extraction.model_dump_json())
+        observation.set_proposals(len(extraction.items))
 
         # G-1: every LLM call is billed — persist the extraction spend.
         from src.infrastructure.proactive.tracking import track_proactive_tokens

@@ -2,7 +2,6 @@
 import { test, expect, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openNativeWorld, enterWorld, revealWorldControls } from '../fixtures/world-admission';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { chatRoutes } from '../fixtures/chat';
 import { frameWorldProp } from '../fixtures/world-scene-navigation';
 import { worldProofUrl } from './world-route';
@@ -18,7 +17,6 @@ async function open(context: BrowserContext, baseURL: string, index: number, fra
       if (socket.url().endsWith('/world/ws'))
         socket.on('framereceived', event => frames.push(String(event.payload)));
     });
-  await installOfflineFonts(page);
   await openNativeWorld(page, 'Signals visitor', worldProofUrl(baseURL, 'en'));
   await enterWorld(page);
   await expect(page.locator('.world-admission')).not.toBeVisible();
@@ -137,7 +135,6 @@ for (const width of [1280, 390]) {
         route.continue({ url: new URL('/api/v1/world-proof/acting', baseURL).href })
       );
       await signIn(context, baseURL, 8);
-      await installOfflineFonts(page);
       await openNativeWorld(page, 'Acting visitor', worldProofUrl(baseURL, 'en'));
       await enterWorld(page);
       await revealWorldControls(page);

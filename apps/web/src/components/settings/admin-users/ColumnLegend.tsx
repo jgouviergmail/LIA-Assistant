@@ -9,7 +9,7 @@
  * declarations the headers render, so the two cannot disagree.
  */
 
-import { Info, ShieldOff, type LucideIcon } from 'lucide-react';
+import { Info, ShieldOff, type LucideIcon } from '@/lib/icons';
 
 import { Disclosure } from '@/components/ui/disclosure';
 

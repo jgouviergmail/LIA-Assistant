@@ -123,10 +123,24 @@ describe('ConversationBand', () => {
 
   it('leaves a click with a modifier to the browser', () => {
     const { props } = band(expanded);
+    const link = within(list()).getByRole('link', { name: /Sender m1/ });
+    // Observe after React's handler, then stop only jsdom's unsupported navigation.
+    const browserNavigation = vi.fn((event: MouseEvent) => {
+      const delegated = !event.defaultPrevented;
+      event.preventDefault();
+      return delegated;
+    });
+    document.addEventListener('click', browserNavigation, { once: true });
 
-    fireEvent.click(within(list()).getByRole('link', { name: /Sender m1/ }), { ctrlKey: true });
-
-    expect(props.onOpen).not.toHaveBeenCalled();
+    try {
+      fireEvent.click(link, { ctrlKey: true });
+      expect(props.onOpen).not.toHaveBeenCalled();
+      expect(link).toHaveAttribute('href', '/mail?id=m1');
+      expect(browserNavigation).toHaveBeenCalledOnce();
+      expect(browserNavigation).toHaveReturnedWith(true);
+    } finally {
+      document.removeEventListener('click', browserNavigation);
+    }
   });
 
   it('points each row at its message', () => {

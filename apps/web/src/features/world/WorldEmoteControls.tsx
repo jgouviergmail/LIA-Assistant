@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react';
-import { Hand } from 'lucide-react';
+import { Hand } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { WorldWidgetButton } from './WorldWidgetButton';
 import {

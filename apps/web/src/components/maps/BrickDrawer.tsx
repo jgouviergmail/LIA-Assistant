@@ -14,8 +14,9 @@ import {
   ScrollText,
   Share2,
   X,
-} from 'lucide-react';
-import { useMemo, useRef } from 'react';
+} from '@/lib/icons';
+import { SelectionHost } from '@/components/selection-assist/SelectionHost';
+import { useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { MapIcon } from './map-icons';
@@ -227,6 +228,7 @@ export function BrickDrawer({
 }) {
   const { t } = useTranslation();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const selectionHost = useId();
   // Radix hands focus back to its Trigger on close; the drawer has none (a node,
   // a row, a chip or the address opens it), so it remembers who had focus.
   const returnFocusRef = useRef<HTMLElement | SVGElement | null>(null);
@@ -242,6 +244,7 @@ export function BrickDrawer({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="lia-maps lm-scrim" />
         <DialogPrimitive.Content
+          data-selection-host={selectionHost}
           className="lia-maps lm-drawer"
           onOpenAutoFocus={event => {
             event.preventDefault();
@@ -290,6 +293,7 @@ export function BrickDrawer({
               />
             </>
           )}
+          <SelectionHost id={selectionHost} />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

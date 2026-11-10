@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MapPin, X, Navigation, RefreshCw } from 'lucide-react';
+import { MapPin, X, Navigation, RefreshCw } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { useGeolocation } from '@/hooks/useGeolocation';

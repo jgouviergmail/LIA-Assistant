@@ -3,11 +3,7 @@
 from collections.abc import Sequence
 
 from src.core.context import get_request_tool_manifests, request_tool_manifests_ctx
-from src.domains.agents.nodes.jev_initiative_context import (
-    InitiativeSemanticContext,
-    semantic_bridge_line,
-)
-from src.domains.agents.nodes.jev_initiative_evidence import InitiativeEvidence
+from src.domains.agents.nodes.initiative_prompt_parts import semantic_bridge_line
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.domains.agents.semantic.expansion_service import (
     collect_manifest_output_providers,
@@ -21,14 +17,11 @@ def build_semantic_candidate_lines(
     registry: TypeRegistry,
     executed_domains: Sequence[str],
     adjacent_manifests: Sequence[ToolManifest],
-    evidence: InitiativeEvidence,
-    native: InitiativeSemanticContext,
 ) -> list[str]:
     """Keep directional data links while rejecting generic text/number matches.
 
     Annotation describes a value's meaning; an unqualified text or quantity
-    cannot identify a useful connection between two domains. Native context
-    retains every genuine candidate before the prompt's rendering caps apply.
+    cannot identify a useful connection between two domains.
     """
     adjacent_tool_names = {manifest.name for manifest in adjacent_manifests}
     executed_set = set(executed_domains)
@@ -48,7 +41,6 @@ def build_semantic_candidate_lines(
             continue
         type_def = registry.get(type_name)
         if not type_def:
-            native.complete = False
             continue
         consumers = sorted(
             (
@@ -66,5 +58,5 @@ def build_semantic_candidate_lines(
             )
             & executed_set
         )
-        lines.append(semantic_bridge_line(type_name, providers, consumers, evidence, native))
+        lines.append(semantic_bridge_line(type_name, providers, consumers))
     return lines

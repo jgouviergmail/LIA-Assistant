@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronRight, FileText } from 'lucide-react';
+import { Check, ChevronRight, FileText } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { SCENE_TONES } from './scene-tones';

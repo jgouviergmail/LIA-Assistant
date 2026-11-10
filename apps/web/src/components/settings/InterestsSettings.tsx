@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Sparkles,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';

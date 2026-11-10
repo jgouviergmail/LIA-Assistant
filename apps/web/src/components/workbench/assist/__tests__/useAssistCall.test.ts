@@ -4,6 +4,9 @@
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement, type ContextType, type ReactNode } from 'react';
+import { AuthContext, type User } from '@/lib/auth';
+import { makeUser } from '@/__tests__/factories';
 
 import { ApiError } from '@/lib/api-client';
 
@@ -13,7 +16,7 @@ vi.mock('@/lib/api-client', async importOriginal => ({
   default: { post },
 }));
 
-import { useAssistCall } from '../useAssistCall';
+import { useAssistCall } from '@/hooks/useAssistCall';
 
 interface Answer {
   text: string;
@@ -38,6 +41,42 @@ function pending() {
 beforeEach(() => post.mockReset());
 
 describe('useAssistCall', () => {
+  it('aborts and forgets the same scope when the account changes or signs out', async () => {
+    let user: User | null = makeUser({ id: 'one' });
+    function Session({ children }: { children: ReactNode }) {
+      const auth: NonNullable<ContextType<typeof AuthContext>> = {
+        user,
+        isLoading: false,
+        login: vi.fn(),
+        verifyMfa: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        initiateGoogleOAuth: vi.fn(),
+        completeNativeSignIn: vi.fn(),
+        refreshUser: vi.fn(),
+        applyUserUpdate: vi.fn(),
+      };
+      return createElement(AuthContext.Provider, { value: auth }, children);
+    }
+    const first = pending();
+    const { result, rerender } = renderHook(() => useAssistCall<Answer>('same'), {
+      wrapper: Session,
+    });
+    const old = result.current;
+    act(() => {
+      void old.run('/x', { private: 'one' });
+    });
+    user = makeUser({ id: 'two' });
+    rerender();
+    expect(first.signal()?.aborted).toBe(true);
+    user = null;
+    rerender();
+    user = makeUser({ id: 'one' });
+    rerender();
+    await act(() => old.retry());
+    expect(post).toHaveBeenCalledOnce();
+    expect(result.current.state.status).toBe('idle');
+  });
   it('starts idle', () => {
     const { result } = renderHook(() => useAssistCall<Answer>());
 
@@ -158,7 +197,7 @@ describe('useAssistCall', () => {
     expect(result.current.state).toEqual({ status: 'idle' });
   });
 
-  it('keeps an answer it holds when the person comes back to it', async () => {
+  it('forgets an answer when its scope left, including an A-B-A return', async () => {
     post.mockResolvedValueOnce({ text: 'about m1', usage: null });
     const { result, rerender } = renderHook(({ scope }) => useAssistCall<Answer>(scope), {
       initialProps: { scope: 'm1' },
@@ -168,7 +207,7 @@ describe('useAssistCall', () => {
     rerender({ scope: 'm2' });
     rerender({ scope: 'm1' });
 
-    expect(result.current.state).toMatchObject({ status: 'done' });
+    expect(result.current.state).toMatchObject({ status: 'idle' });
   });
 
   it('shows nothing of an answer once the person moved to another thing', async () => {
@@ -191,5 +230,28 @@ describe('useAssistCall', () => {
     unmount();
 
     expect(call.signal()?.aborted).toBe(true);
+  });
+
+  it('forgets the retry payload on stop', async () => {
+    post.mockRejectedValueOnce(new Error('lost'));
+    const { result } = renderHook(() => useAssistCall<Answer>('one'));
+    await act(() => result.current.run('/x', { private: 'one' }));
+    act(() => result.current.stop());
+    await act(() => result.current.retry());
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it('a retained callback cannot start or retry an obsolete scope', async () => {
+    post.mockRejectedValueOnce(new Error('lost'));
+    const { result, rerender } = renderHook(({ scope }) => useAssistCall<Answer>(scope), {
+      initialProps: { scope: 'one' },
+    });
+    const old = result.current;
+    await act(() => old.run('/x', { private: 'one' }));
+    rerender({ scope: 'two' });
+    rerender({ scope: 'one' });
+    await act(() => old.retry());
+    await act(() => old.run('/x', {}));
+    expect(post).toHaveBeenCalledTimes(1);
   });
 });

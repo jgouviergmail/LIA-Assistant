@@ -24,6 +24,8 @@ from src.core.constants import (
     EVALUATOR_RELEVANCE_MAX_TOKENS_DEFAULT,
     GEOIP_DB_PATH_DEFAULT,
     GIT_COMMIT_SHA_DEFAULT,
+    JEV_STATISTICS_FINAL_FLUSH_TIMEOUT_SECONDS_DEFAULT,
+    JEV_STATISTICS_FLUSH_INTERVAL_SECONDS_DEFAULT,
     LANGFUSE_FLUSH_INTERVAL_DEFAULT,
     LANGFUSE_SAMPLE_RATE_DEFAULT,
     LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
@@ -180,6 +182,20 @@ class ObservabilitySettings(BaseSettings):
         ge=5,
         description="Seconds between two readings of this worker's resident memory "
         "(lia_worker_memory_bytes, one series per worker process)",
+    )
+
+    jev_statistics_flush_interval: int = Field(
+        default=JEV_STATISTICS_FLUSH_INTERVAL_SECONDS_DEFAULT,
+        ge=5,
+        le=600,
+        description="Seconds between two writes of this worker's pending JEV statistics "
+        "(ADR-374); a crash loses at most one period of counts",
+    )
+    jev_statistics_final_flush_timeout: float = Field(
+        default=JEV_STATISTICS_FINAL_FLUSH_TIMEOUT_SECONDS_DEFAULT,
+        ge=0.5,
+        le=30.0,
+        description="Seconds the last JEV statistics write at shutdown may take at most",
     )
 
     # =========================================================================

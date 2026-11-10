@@ -138,7 +138,9 @@ for (const width of [390, 1280]) {
     const { blocking, summary } = await scanPage(page, testInfo, `sms-home-${width}`);
     expect(blocking, summary).toHaveLength(0);
     expect(paid).toHaveLength(1);
-    await rows.first().getByRole('button').focus();
+    const openMessage = rows.first().getByRole('button', { name: /^Ouvrir ce SMS · Camille 1 ·/ });
+    await openMessage.focus();
+    await expect(openMessage).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`/dashboard/sms\\?message=${messages[0].id}$`));
     const focused = page.locator('main div[tabindex="-1"][aria-label="Mes SMS"]');

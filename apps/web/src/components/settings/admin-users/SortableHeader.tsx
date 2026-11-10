@@ -12,7 +12,7 @@
  * which is what the table's legend is for).
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 

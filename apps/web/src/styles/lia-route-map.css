@@ -6,6 +6,9 @@
   position: relative;
   min-height: clamp(240px, 38vw, 360px);
 }
+.lia-route-map__stage[data-map-shown='false'] {
+  min-height: 0;
+}
 .lia-route-map__canvas {
   position: absolute;
   inset: 0;

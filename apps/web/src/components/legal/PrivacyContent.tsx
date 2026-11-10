@@ -11,7 +11,7 @@ import {
   UserCheck,
   Cookie,
   Mail,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from '../guides/GuideMarkdown';
 import { GuideToc } from '../guides/GuideLayout';

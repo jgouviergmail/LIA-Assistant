@@ -26,7 +26,7 @@ import {
   translatePersonality,
 } from '@/lib/api/personality';
 import { PersonalityResponse, PersonalityCreate, PersonalityUpdate } from '@/types/personality';
-import { Drama, GripVertical, Languages, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { Drama, GripVertical, Languages, Pencil, Plus, Star, Trash2 } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { usePersonalityStore } from '@/stores/personalityStore';

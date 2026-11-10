@@ -26,10 +26,12 @@ const samples = [
   { language: 'es', width: 320, theme: 'light' },
   { language: 'it', width: 1280, theme: 'dark' },
   { language: 'zh-CN', width: 390, theme: 'oled' },
+  { language: 'fr', width: 320, theme: 'light', scale: 2 },
+  { language: 'fr', width: 1280, theme: 'dark', scale: 2 },
 ];
 
 for (const sample of samples) {
-  test(`card alignment ${sample.language} ${sample.width} ${sample.theme}`, async ({
+  test(`card alignment ${sample.language} ${sample.width} ${sample.theme} scale ${sample.scale ?? 1}`, async ({
     page,
     authenticate,
     mockApi,
@@ -72,9 +74,16 @@ for (const sample of samples) {
     });
     await waitForHydration(page);
     await awaitStyledPage(page, 'all producer card alignment');
+    await page.evaluate(scale => {
+      document.documentElement.style.setProperty('--lia-text-scale', String(scale));
+    }, sample.scale ?? 1);
     // Shell hydration precedes the asynchronous history render. Require the
     // corpus before opening disclosures or measuring its painted geometry.
     await expect(page.locator('[data-card-version="2"] > .lia-card').first()).toBeVisible();
+    for (const summary of await page.locator('.lia-card-collection > summary').all()) {
+      await summary.focus();
+      await summary.press('Enter');
+    }
     await page.evaluate(() => {
       document.querySelectorAll<HTMLDetailsElement>('.lia-card details').forEach(value => {
         value.open = true;
@@ -83,6 +92,7 @@ for (const sample of samples) {
     const geometry = await page.evaluate(() => {
       const issues: string[] = [];
       let measured = 0;
+      let stacked = 0;
       const selector =
         '.lia-card-top, .lia-chip, .lia-pill, .lia-tbadge, .lia-d-item, .lia-d-row, .lia-route__endpoint, .lia-route-step > summary, .lia-action-btn';
       for (const row of document.querySelectorAll<HTMLElement>(
@@ -98,16 +108,37 @@ for (const sample of samples) {
         const bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
         const center = rect.top + top + (rect.height - top - bottom) / 2;
         const iconRect = symbol.getBoundingClientRect();
-        const delta = Math.abs(iconRect.top + iconRect.height / 2 - center);
+        // A book cover or narrow contact stacks its illustration above the
+        // title. Check its declared horizontal alignment instead of applying
+        // a horizontal row's vertical-centering rule to a column.
+        const isStack =
+          (style.display.includes('flex') && style.flexDirection.startsWith('column')) ||
+          (style.display === 'grid' && style.gridTemplateColumns.split(' ').length === 1);
+        let delta = Math.abs(iconRect.top + iconRect.height / 2 - center);
+        if (isStack) {
+          stacked++;
+          const left =
+            rect.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
+          const right =
+            rect.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);
+          const alignment = style.display === 'grid' ? style.justifyItems : style.alignItems;
+          delta =
+            alignment === 'center'
+              ? Math.abs(iconRect.left + iconRect.width / 2 - (left + right) / 2)
+              : alignment.endsWith('end')
+                ? Math.abs(iconRect.right - right)
+                : Math.abs(iconRect.left - left);
+        }
         measured++;
         if (delta > 1)
           issues.push(
             `${row.className}: ${symbol.textContent?.trim()} delta=${delta.toFixed(2)} text=${row.textContent?.trim().slice(0, 70)}`
           );
       }
-      return { measured, issues };
+      return { measured, stacked, issues };
     });
     expect(geometry.measured).toBeGreaterThan(100);
+    expect(geometry.stacked).toBeGreaterThan(0);
     expect(geometry.issues).toEqual([]);
     await expectNoOverflow(page, `all producer alignment ${sample.language}`);
   });

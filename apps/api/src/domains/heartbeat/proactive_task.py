@@ -45,7 +45,6 @@ from src.domains.moments.schemas import ServedMoment
 from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database import get_db_context
 from src.infrastructure.observability.metrics_habits import (
-    heartbeat_habit_offers_total,
     heartbeat_ticks_deferred_total,
 )
 from src.infrastructure.observability.metrics_registry import heartbeat_enrichment_total
@@ -542,13 +541,6 @@ class HeartbeatProactiveTask:
                 "workboard_ticket_ids": [
                     ticket["id"] for ticket in (target.context.workboard or []) if ticket.get("id")
                 ],
-                # ADR-214 — the missed-routine candidate this notification
-                # actually OFFERED, consumed by the post-notification offer
-                # bookkeeping, persisted on the audit row (the offers inbox
-                # and the feedback bump read it there). Absent when the
-                # decision spoke about something else: a candidate merely
-                # present in the context is not an offer.
-                "habit_offer_id": _offered_habit_id(target),
             },
         )
 
@@ -659,8 +651,6 @@ class HeartbeatProactiveTask:
                 tokens_in=result.tokens_in,
                 tokens_out=result.tokens_out,
                 model_name=result.model_name,
-                # ADR-214: persisted so the feedback route can bump the habit.
-                habit_offer_id=_as_uuid(result.metadata.get("habit_offer_id")),
                 trigger=self._trigger(),
             )
 
@@ -708,11 +698,6 @@ class HeartbeatProactiveTask:
             # used the OPEN_LOOPS source (fetch-time bumping would suppress
             # loops the decision LLM chose to skip).
             await _bump_used_open_loops(db, user_id, result.metadata)
-
-            # ADR-214 — offer bookkeeping: only when the delivered notification
-            # actually used the HABITS source (same doctrine — exposing a
-            # candidate the LLM skipped must not burn its cooldown).
-            await _bump_offered_habit(db, user_id, result.metadata)
 
             # ADR-276 D14 — same doctrine again: a ticket the decision saw and
             # chose not to mention must not burn its cooldown.
@@ -769,84 +754,6 @@ class HeartbeatProactiveTask:
                 error=str(e),
             )
             return None
-
-
-def _offered_habit_id(target: HeartbeatTarget) -> str | None:
-    """The habit this decision OFFERED to run, or None.
-
-    Declared by the decision alone (``habit_offered``, rule 24). The HABITS
-    source label used to be the sole key and it is wrong in both directions:
-    the model does not always choose it for an offer (measured 2026-09-11 —
-    an email routine offer labelled UNREAD_EMAILS, budget never charged), and
-    it chooses it for the RHYTHM context too, which stamped a 7-day cooldown
-    on an offer never made. The label is therefore observed, never obeyed:
-    ``heartbeat_habit_offers_total{outcome}`` says how often a model labels
-    without declaring, so a prompt drift is visible instead of silent.
-    """
-    candidate = ((target.context.habits or {}).get("missed_routine") or {}).get("habit_id")
-    if not candidate:
-        return None
-    if bool(getattr(target.decision, "habit_offered", False)):
-        heartbeat_habit_offers_total.labels(outcome="declared").inc()
-        return str(candidate)
-    if "HABITS" in (target.decision.sources_used or []):
-        heartbeat_habit_offers_total.labels(outcome="label_only").inc()
-        logger.info("habit_offer_labelled_not_declared", habit_id=str(candidate))
-        return None
-    heartbeat_habit_offers_total.labels(outcome="none").inc()
-    return None
-
-
-async def _bump_offered_habit(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:
-    """Stamp the offer bookkeeping of the habit a delivered offer surfaced.
-
-    ADR-214 stop rule: the offer date joins ``payload.offer_dates`` (bounded),
-    and when the trailing offers reach the ignored threshold with no later
-    occurrence, ``muted_until_reproof`` silences further offers until the
-    routine re-occurs (the nightly sync lifts it on a fresh occurrence). The
-    ``habit_offer_id`` in the metadata is already the declared offer
-    (``_offered_habit_id``) — nothing else is read.
-    """
-    habit_id = metadata.get("habit_offer_id")
-    if not habit_id:
-        return
-    from src.core.config import settings as app_settings
-    from src.domains.habits.models import UserHabit
-    from src.domains.heartbeat.habit_context import (
-        _ledger_occurrence_days,
-        ignored_offer_count,
-    )
-
-    try:
-        habit = await db.get(UserHabit, UUID(str(habit_id)))
-    except ValueError:
-        return
-    if habit is None or habit.user_id != user_id:
-        return
-    # UTC calendar date on purpose: offer dates are compared against the
-    # ledger's LOCAL dates and against a 7-day cooldown — the worst skew is
-    # one day near midnight on an advisory bound, not worth a user fetch here.
-    today_iso = datetime.now(UTC).date().isoformat()
-    offer_dates = [str(d) for d in (habit.payload or {}).get("offer_dates") or []]
-    offer_dates = sorted({*offer_dates, today_iso})[-5:]
-    # New dict — never mutate JSONB in place.
-    habit.payload = {**(habit.payload or {}), "offer_dates": offer_dates}
-    # The stop rule counts offers with NO occurrence after them: an uptake
-    # between two offers resets the run (the routine re-proved itself), so
-    # the real ledger occurrences must weigh in, not an empty set.
-    occurrences = await _ledger_occurrence_days(user_id, habit.key)
-    if (
-        ignored_offer_count(offer_dates, occurrences)
-        >= app_settings.habits_deviation_stop_after_ignored
-    ):
-        habit.muted_until_reproof = True
-    logger.info(
-        "habit_offer_stamped",
-        user_id=str(user_id),
-        habit_id=str(habit_id),
-        offers=len(offer_dates),
-        muted=habit.muted_until_reproof,
-    )
 
 
 async def _bump_used_workboard(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:

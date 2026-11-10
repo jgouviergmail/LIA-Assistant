@@ -16,7 +16,6 @@ import {
   createSketchClock,
   drawFirstSketchDelayMs,
   drawSketchDelayMs,
-  HEAD_FOLLOW_X_EM,
   pickSketch,
   SKETCH_EXPRESSIONS,
   SKETCH_FIRST_MAX_DELAY_MS,
@@ -31,6 +30,7 @@ import {
   sketchTapes,
   type SketchName,
 } from '@/components/eyes/rig/sketches';
+import { HEAD_FOLLOW_X_EM } from '@/components/eyes/rig/choreo';
 import { createLifeRandom } from '@/components/eyes/rig/life';
 import { blinkTapes } from '@/components/eyes/rig/gestures';
 import { CHANNEL_KEYS, CHANNELS, isDerived } from '@/components/eyes/rig/channels';
@@ -70,8 +70,8 @@ function firstOnsetMs(rig: EyeRig, ms: number): number {
 }
 
 describe('the catalogue', () => {
-  it('holds nineteen scenes including the courteous bow, each three to five seconds long', () => {
-    expect(SKETCHES).toHaveLength(19);
+  it('holds fourteen scenes including the courteous bow, each three to five seconds long', () => {
+    expect(SKETCHES).toHaveLength(14);
     SKETCHES.forEach(name => {
       const duration = sketchDurationMs(sketchTapes(name));
       expect({ name, inRange: duration >= SKETCH_MIN_MS && duration <= SKETCH_MAX_MS }).toEqual({
@@ -136,10 +136,7 @@ describe('the catalogue', () => {
           expect({
             name,
             channel: tape.channel,
-            last:
-              tape.channel === 'bodyRoll'
-                ? (tape.keys[tape.keys.length - 1].value % 360) + 0
-                : tape.keys[tape.keys.length - 1].value,
+            last: tape.keys[tape.keys.length - 1].value,
           }).toEqual({ name, channel: tape.channel, last: rest });
         });
     });
@@ -473,7 +470,7 @@ describe('the scene and the state', () => {
     const rig = createEyeRig({
       initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
     });
-    rig.playSketch(sketchTapes('dizzy'));
+    rig.playSketch(sketchTapes('suspicious'));
     run(rig, 600);
     rig.settle();
     expect(rig.isPerforming()).toBe(false);

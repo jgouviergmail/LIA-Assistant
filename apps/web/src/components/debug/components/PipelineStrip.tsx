@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import { NodeChip } from './shared';
 import { formatDuration } from '../utils/formatters';
 import type { RequestLifecycleMetrics } from '@/types/chat';

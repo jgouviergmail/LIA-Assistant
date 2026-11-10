@@ -9,7 +9,7 @@
  * does a conversation still on its way; one that could not be read says so (ADR-292). The
  * number is exact, or the rows are stated as the latest ones (ADR-185).
  */
-import { ChevronDown, MessagesSquare } from 'lucide-react';
+import { ChevronDown, MessagesSquare } from '@/lib/icons';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';

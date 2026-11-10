@@ -41,6 +41,7 @@ from src.domains.agents.services.streaming.voice_scope import (
     voice_context_of,
 )
 from src.domains.chat.service import TrackingContext
+from src.domains.personalities.constants import default_personality_prompt
 from src.domains.voice import service as voice_service_module
 from src.domains.voice.schemas import VoiceAudioChunk
 
@@ -79,15 +80,23 @@ class _VoiceComment:
     read_aloud: list[str] = []
     #: What each comment was told: whether it speaks of the retained records.
     speaks_of_records: list[bool] = []
+    #: The personality each comment was written in.
+    personalities: list[str] = []
 
     def __init__(self, **_: object) -> None:
         _VoiceComment.created += 1
 
     async def stream_voice_comment(
-        self, context_summary: str, *, speaks_of_records: bool, **_: object
+        self,
+        context_summary: str,
+        personality_instruction: str,
+        *,
+        speaks_of_records: bool,
+        **_: object,
     ) -> AsyncIterator[VoiceAudioChunk]:
         _VoiceComment.contexts.append(context_summary)
         _VoiceComment.speaks_of_records.append(speaks_of_records)
+        _VoiceComment.personalities.append(personality_instruction)
         yield VoiceAudioChunk(audio_base64="SUQz", phrase_index=0, phrase_text="ok", is_last=True)
 
     async def stream_direct_tts(
@@ -113,6 +122,7 @@ def voice(monkeypatch: pytest.MonkeyPatch) -> type[_VoiceComment]:
     _VoiceComment.contexts = []
     _VoiceComment.read_aloud = []
     _VoiceComment.speaks_of_records = []
+    _VoiceComment.personalities = []
     GATES.update(agent_parallel=True, sync_fallback=True, chat_progressive=True)
     monkeypatch.setattr(coordinator_module, "_should_start_voice", listening)
     monkeypatch.setattr(voice_service_module, "VoiceCommentService", _VoiceComment)
@@ -278,6 +288,18 @@ class TestTheVoiceSpeaksOfWhatTheAnswerRetained:
         assert context.startswith(SELECTION_LINE)
         assert _named(context) == list(RETAINED)
         assert _VoiceComment.speaks_of_records == [True]
+
+    @pytest.mark.parametrize("parallel", [True, False], ids=["parallel", "fallback"])
+    async def test_a_personality_that_could_not_load_reaches_the_comment_as_the_default(
+        self, parallel: bool
+    ) -> None:
+        """The written answer falls back to the default personality when the
+        person's could not be read; the comment speaks in the same one, never in
+        an empty profile (ADR-373)."""
+        GATES["agent_parallel"] = parallel
+        await _voiced_turn([DECLARATION, ANSWER])
+
+        assert _VoiceComment.personalities == [default_personality_prompt()]
 
     async def test_a_fallback_that_cannot_summarise_the_records_reads_the_answer_without_cues(
         self, monkeypatch: pytest.MonkeyPatch

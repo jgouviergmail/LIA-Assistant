@@ -15,7 +15,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Info, Trash2 } from 'lucide-react';
+import { Info, Trash2 } from '@/lib/icons';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { InfoBox } from '@/components/ui/info-box';

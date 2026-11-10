@@ -2,7 +2,7 @@
 
 import { DashboardLink as Link } from './DashboardNavigation';
 import { Fragment, useRef, type ReactNode } from 'react';
-import { Sunrise } from 'lucide-react';
+import { Sunrise } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import type { UseBriefingResult } from '@/hooks/useBriefing';
 import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';

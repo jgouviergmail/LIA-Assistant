@@ -121,9 +121,9 @@
     },
     "f.habits": {
       "name": "Learned habits",
-      "role": "Deterministic, explainable statistics on when you do what; each habit can be seen, corrected or blocked, and a single switch turns off all learning.",
+      "role": "Deterministic, explainable statistics on what you need and when; what they find becomes proposals you accept or refuse, each habit can be seen, corrected or blocked, and a single switch turns off all learning.",
       "goal": "Anticipate without guessing, and without learning anything behind your back.",
-      "src": "6871ff106b3b"
+      "src": "bba7c2ac0b48"
     },
     "f.interests": {
       "name": "Interests",
@@ -466,11 +466,11 @@
         "You mention that you're allergic to nuts.",
         "The fact is extracted in the background, filed, and can be corrected.",
         "Topics that keep coming up become interests.",
-        "The times when you do things become habits, visible and blockable.",
+        "What you ask for on many days becomes a habit, visible and blockable, then a proposal.",
         "LIA compiles your portrait and says which sources she read.",
         "Her mood and tone adjust to the relationship."
       ],
-      "src": "30baef5255f2"
+      "src": "6f0c9cec8e45"
     },
     "flow.knowledge": {
       "name": "What you know, LIA reads",

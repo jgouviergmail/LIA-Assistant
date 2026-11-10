@@ -18,11 +18,11 @@ from src.domains.agents.application.memory_create_schemas import (
     MemoryCreatePatch,
     MemoryCreationValues,
 )
-from src.domains.agents.application.memory_creation_embeddings import (
+from src.domains.agents.application.memory_spec import MEMORY_CREATE_OPERATION
+from src.domains.memories.creation_embeddings import (
     prepare_memory_creation_embeddings,
     released_after,
 )
-from src.domains.agents.application.memory_spec import MEMORY_CREATE_OPERATION
 from src.domains.memories.management_commands import lock_memory_actor
 from src.domains.memories.protection import initial_memory_pin
 from src.domains.memories.service import MemoryService

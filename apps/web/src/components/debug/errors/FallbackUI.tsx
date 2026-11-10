@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 
 export interface FallbackUIProps {

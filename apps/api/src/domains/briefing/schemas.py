@@ -252,6 +252,13 @@ class AgendaEventItem(BaseModel):
         default=None,
         description="Start instant (UTC); local midnight for an all-day event.",
     )
+    # Where the Tools open it (2026-11-07): the calendar read, as the card read it.
+    calendar_id: str | None = Field(
+        default=None, description="The calendar the event was read from ('primary' is an alias)."
+    )
+    conference_url: str | None = Field(
+        default=None, description="The video call's web address, when the event holds one."
+    )
 
 
 class AgendaData(BaseModel):
@@ -377,6 +384,10 @@ class TaskItem(BaseModel):
     # Two tasks may share a title; a condition routine must tell them apart
     # (ADR-322).
     id: str | None = Field(default=None, description="Provider task id, when it sent one.")
+    # Where the Tools open it (2026-11-07): the list's REAL id, never an alias.
+    list_id: str | None = Field(
+        default=None, description="The task's list, by its real id; None when it was unreadable."
+    )
 
 
 class TasksData(BaseModel):

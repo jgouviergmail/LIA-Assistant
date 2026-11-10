@@ -1,14 +1,17 @@
 'use client';
 
-import { Eclipse, Monitor, Moon, Sun } from 'lucide-react';
+import { useId } from 'react';
+import { Clock, Eclipse, Monitor, Moon, Sun } from '@/lib/icons';
 
 import { useThemeMode } from '@/hooks/useThemeMode';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import type { DisplayMode } from '@/lib/theme-mode';
+import { ThemeScheduleEditor } from './ThemeScheduleEditor';
+import { Button } from '@/components/ui/button';
 
 /**
- * Four display choices backed by the existing atomic theme preference.
+ * Manual, operating-system and civil-time display choices.
  *
  * Why this exists at all: the header's circular toggle deliberately offers
  * three predictable stops and drops `system` — but `system` is the column's
@@ -22,11 +25,14 @@ const MODES: ReadonlyArray<{ name: DisplayMode | 'oled'; Icon: typeof Sun }> = [
   { name: 'dark', Icon: Moon },
   { name: 'oled', Icon: Eclipse },
   { name: 'system', Icon: Monitor },
+  { name: 'auto', Icon: Clock },
 ];
 
 export function DisplayModeSelector({ lng }: { lng: Language }) {
+  const groupId = useId();
   const { t } = useTranslation(lng);
-  const { mounted, mode, oled, apply } = useThemeMode();
+  const { mounted, mode, oled, apply, schedule, setSchedule, saving, saveError, retrySave } =
+    useThemeMode();
 
   if (!mounted) {
     return <div className="h-24 animate-pulse rounded-lg bg-muted" aria-hidden="true" />;
@@ -41,7 +47,7 @@ export function DisplayModeSelector({ lng }: { lng: Language }) {
         <legend className="mb-2 text-sm font-medium text-foreground">
           {t('settings.theme.mode_label')}
         </legend>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {MODES.map(({ name, Icon }) => {
             const selected =
               name === 'oled'
@@ -56,7 +62,7 @@ export function DisplayModeSelector({ lng }: { lng: Language }) {
               >
                 <input
                   type="radio"
-                  name="display-mode"
+                  name={groupId}
                   value={name}
                   checked={selected}
                   onChange={() =>
@@ -67,7 +73,7 @@ export function DisplayModeSelector({ lng }: { lng: Language }) {
                   // static analysis cannot resolve a name that lives two
                   // elements down behind a `t()` call. The explicit reference
                   // makes the accessible name verifiable instead of assumed.
-                  aria-labelledby={`display-mode-${name}-label`}
+                  aria-labelledby={`${groupId}-${name}-label`}
                   className="sr-only"
                 />
                 <Icon
@@ -75,7 +81,7 @@ export function DisplayModeSelector({ lng }: { lng: Language }) {
                   aria-hidden="true"
                 />
                 <span
-                  id={`display-mode-${name}-label`}
+                  id={`${groupId}-${name}-label`}
                   className={`text-xs font-medium ${selected ? 'text-primary' : 'text-foreground'}`}
                 >
                   {t(`settings.theme.${name}`)}
@@ -85,6 +91,31 @@ export function DisplayModeSelector({ lng }: { lng: Language }) {
           })}
         </div>
       </fieldset>
+      {mode === 'auto' && (
+        <ThemeScheduleEditor
+          lng={lng}
+          schedule={schedule}
+          setSchedule={setSchedule}
+          saving={saving}
+        />
+      )}
+      {saveError && (
+        <div className="space-y-2">
+          <p role="alert" className="text-sm text-destructive">
+            {t('settings.theme.save_error')}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            aria-disabled={saving}
+            onClick={() => {
+              if (!saving) void retrySave();
+            }}
+          >
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

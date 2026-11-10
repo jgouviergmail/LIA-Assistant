@@ -87,7 +87,6 @@ from src.core.constants import (
     HEARTBEAT_INTEREST_SAMPLE_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT,
-    HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT,
     HEARTBEAT_RECENT_WINDOW_COUNT_DEFAULT,
     HEARTBEAT_RECENT_WINDOW_DAYS_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
@@ -1960,15 +1959,6 @@ class AgentsSettings(BaseSettings):
         description=(
             "Grace period (in days) before a memory becomes eligible for purge evaluation. "
             "Memories younger than this are never purged. Default: 7 days."
-        ),
-    )
-    heartbeat_offers_window_days: int = Field(
-        default=HEARTBEAT_OFFERS_WINDOW_DAYS_DEFAULT,
-        ge=1,
-        le=90,
-        description=(
-            "Days an UNDECIDED missed-routine offer stays listed in the "
-            "proposals inbox (Lot 5-C2). Older offers age out silently."
         ),
     )
     memory_invalidated_retention_days: int = Field(

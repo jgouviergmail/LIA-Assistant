@@ -35,6 +35,7 @@ class PendingReminderPage(BaseModel):
     """
 
     reminders: list[PendingReminderItem]
+    as_of: datetime | None = Field(None, description="Server-bounded upper creation instant.")
     total: int = Field(ge=0, description="Exact count of reminders still waiting.")
 
 

@@ -1,0 +1,84 @@
+/* Enveloppes material. The account's theme owns every surface and accent;
+   the domain styles own the composition, not a parallel theme system. */
+:root {
+  --lia-craft-paper: var(--color-card);
+  --lia-craft-ink: var(--color-card-foreground);
+  --lia-craft-muted: var(--color-muted-foreground);
+  --lia-craft-line: var(--color-border);
+  --lia-craft-accent: var(--color-primary);
+  --lia-craft-on-accent: var(--color-primary-foreground);
+  --lia-craft-tint: color-mix(in oklch, var(--color-primary) 12%, var(--color-card));
+  --lia-craft-soft: color-mix(in oklch, var(--color-primary) 5%, var(--color-card));
+  --lia-craft-display-font: Georgia, 'Times New Roman', serif;
+}
+
+.lia-response-wrapper[data-card-version='2'] {
+  --lia-border-light: var(--color-border);
+
+  .lia-card {
+    border-color: var(--lia-craft-line);
+    background: var(--lia-craft-paper);
+    box-shadow: none;
+    isolation: isolate;
+  }
+
+  .lia-card-top__title {
+    color: var(--lia-craft-ink);
+    font-family: var(--lia-craft-display-font);
+    font-size: calc(1.5rem * var(--lia-text-scale, 1));
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+  }
+
+  .lia-card-top__subtitle,
+  .lia-card__meta {
+    color: var(--lia-craft-muted);
+  }
+
+  .lia-illus:not(.lia-illus--date):not(.lia-illus--photo) {
+    color: var(--lia-craft-ink);
+    background: var(--lia-craft-tint);
+  }
+
+  .lia-illus > .material-symbols-outlined {
+    color: var(--lia-craft-accent);
+  }
+
+  .lia-collapsible {
+    background: var(--lia-craft-soft);
+    border-color: var(--lia-craft-line);
+    border-radius: 0.5rem;
+  }
+
+  .lia-collapsible__content {
+    background: var(--lia-craft-paper);
+    border-color: var(--lia-craft-line);
+  }
+
+  .lia-collapsible[open] > .lia-collapsible__content {
+    animation: none;
+  }
+
+  .lia-chip-row {
+    row-gap: 0.5rem;
+    padding-block: 0.625rem;
+  }
+
+  /* Historical badge hiding must not remove a received state on a phone. */
+  .lia-card__header-end .lia-badges {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
+.lia-card-collection[data-card-version='2'] {
+  background: var(--lia-craft-soft);
+  box-shadow: none;
+}
+
+@media (forced-colors: active) {
+  .lia-response-wrapper[data-card-version='2'] .lia-card {
+    border-color: CanvasText;
+  }
+}

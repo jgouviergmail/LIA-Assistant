@@ -112,3 +112,56 @@ modal returns focus to the control that opened it.
   the shared admission.
 - Limits stated, not hidden: a killed browser can lose a map report; a public SDK key
   cannot enforce LIA's per-account limits at Google; Apple Mail cards offer no action.
+
+## Amendment — 2026-11-07: Enveloppes and the received-address map
+
+The selected Enveloppes direction changes each family's composition without replacing
+the deterministic rendering and message-owned interaction architecture. Email uses
+an envelope, events an invitation, files a folder, articles a reading spread and
+research a source-bearing brief. MCP results and execution results have a receipt
+form; a proposal remains visibly distinct from an explicit outcome. The stylesheet
+owners and family mapping are documented in
+[HTML_CARDS.md](../technical/HTML_CARDS.md#enveloppes-compositions-and-collection-density):
+[craft](../../apps/web/src/styles/lia-cards-craft.css),
+[people](../../apps/web/src/styles/lia-cards-people.css),
+[world](../../apps/web/src/styles/lia-cards-world.css),
+[knowledge](../../apps/web/src/styles/lia-cards-knowledge.css) and
+[location](../../apps/web/src/styles/lia-cards-location.css).
+
+1. **One theme and one responsive UI.** Materials derive from the account's existing
+   palette and the application's light/dark/OLED tokens. Body text retains the
+   account's text scaling; the craft layer owns editorial headings. The phone
+   recomposes the same cards and specialized React modules at their container width,
+   not a second native UI or a reduced payload.
+2. **A fold changes density, never the selected set.** The initial email slice and
+   invitation participant slice are declared by `HTML_EMAIL_VISIBLE_MESSAGES` and
+   `HTML_EVENT_VISIBLE_PARTICIPANTS` in
+   [core/constants.py](../../apps/api/src/core/constants.py). The
+   [collection renderer](../../apps/api/src/domains/agents/display/card_collection.py)
+   and [event presentation](../../apps/api/src/domains/agents/display/components/event_presentation.py)
+   retain every remaining received entry behind a native disclosure with an exact
+   remainder. Revealing stored text needs no provider or model request. The existing
+   answer-level fold and lazy media lifecycle remain separate.
+3. **Illustration cannot replace evidence.** Actual supplied thumbnails, photos,
+   map/Street View previews, forecast slots and generated-format excerpts keep their
+   existing renderers, links, attribution and controls. A missing RSVP or lamp state
+   does not become a positive or negative fact. Generated-file lifetime checks,
+   HITL targets and confirmation rules, and MCP redaction and display bounds remain
+   authoritative; a visible MCP limit notice is not hidden inside its closed result.
+4. **An address can use the existing admitted map.** A LOCATION card emits a bounded,
+   typed [location projection](../../apps/api/src/domains/agents/display/components/location_map.py)
+   from received finite coordinates, revalidated by the
+   [browser decoder](../../apps/web/src/lib/location-map-data.ts). The
+   [enhancement](../../apps/web/src/components/chat/markdown-location-map.tsx) keeps the
+   static fallback and uses the existing paid-map admission, shared controller and
+   reporting lifecycle after explicit cost-disclosed activation. Its marker shows
+   the supplied address and source link in the shared desktop/phone popup. It neither
+   creates a PLACE registry entity nor requests geocoding, GPS, Places details or a
+   route. Invalid or unavailable enhancement paths leave the original card readable.
+
+The [existing qualification boundaries](../technical/HTML_CARDS.md#regression-strategy-and-operational-limits)
+still apply: regenerated backend/browser fixtures, source-fact and action parity,
+responsive reflow, keyboard/focus, theme/contrast and media lifecycle checks are
+required for the implementation. This amendment records the architecture and
+behavior; it does not claim completed test runs, production deployment or physical
+WebView qualification.

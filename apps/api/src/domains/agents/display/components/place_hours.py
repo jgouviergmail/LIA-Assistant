@@ -14,6 +14,7 @@ from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
     format_date,
+    format_time,
     render_kv_rows,
 )
 from src.domains.agents.display.components.place_dates import provider_date
@@ -48,7 +49,9 @@ def transition_time(data: Mapping[str, object], ctx: RenderContext, *, opening: 
     instant = convert_to_user_timezone(parsed, zone)
     if instant is None:
         return ""
-    return f"{format_date(instant, ctx.language, zone, 'full', include_time=True)} · {label}"
+    clock = format_time(instant, ctx.language, zone)
+    day = format_date(instant, ctx.language, zone, "full")
+    return f"{clock} · {day} · {label}"
 
 
 def _schedule(data: Mapping[str, object], key: str) -> Mapping[str, object]:

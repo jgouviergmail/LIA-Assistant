@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, MARKDOWN_SPAN_MAX_CHARS
 from src.core.i18n import resolve_language
+from src.core.time_utils import convert_to_user_timezone
 from src.domains.agents.display.card_collection import fold_card_collection, render_collection_item
 
 if TYPE_CHECKING:
@@ -127,6 +128,8 @@ class BaseComponent(ABC):
     - CSS classes only (no inline styles)
     """
 
+    collection_initial_limit: int | None = None
+
     @abstractmethod
     def render(
         self,
@@ -197,7 +200,9 @@ class BaseComponent(ABC):
             # Filter out empty cards (validation failures return "")
             if rendered.strip():
                 html_parts.append(compact_html(rendered))
-        return fold_card_collection(html_parts, ctx.max_items, ctx.language)
+        return fold_card_collection(
+            html_parts, ctx.max_items, ctx.language, initial_limit=self.collection_initial_limit
+        )
 
     @staticmethod
     def _nested_class(ctx: RenderContext) -> str:
@@ -332,7 +337,6 @@ def format_date(
     """
     language = resolve_language(language)
     from src.core.i18n_dates import get_day_name, get_month_name, get_time_connector
-    from src.core.time_utils import convert_to_user_timezone
 
     # Parse and convert to user timezone using existing infrastructure
     parsed_dt = convert_to_user_timezone(dt, timezone)
@@ -403,11 +407,11 @@ def format_date(
         try:
             from zoneinfo import ZoneInfo
 
-            now = datetime.now(ZoneInfo(timezone) if isinstance(timezone, str) else timezone)
+            now = _now(ZoneInfo(timezone) if isinstance(timezone, str) else timezone)
         except Exception:
             # parsed_dt is always aware (convert_to_user_timezone guarantees it);
             # UTC is a pure defensive fallback that keeps `now` aware regardless.
-            now = datetime.now(parsed_dt.tzinfo or UTC)
+            now = _now(parsed_dt.tzinfo or UTC)
 
         diff = now.date() - parsed_dt.date()
 
@@ -428,6 +432,21 @@ def format_date(
             else:  # fr, es, it
                 base = f"{day_num:02d}/{month_num:02d}"
         return f"{base}{time_suffix}"
+
+
+def _now(tz: tzinfo) -> datetime:
+    """The instant a relative label (« Aujourd'hui », « Hier », a weekday) is measured from.
+
+    The module's one clock: a reference rendering pins it (the cards' browser
+    corpus), so a label written today still reads true tomorrow.
+
+    Args:
+        tz: The zone the instant is expressed in.
+
+    Returns:
+        The current instant in ``tz``.
+    """
+    return datetime.now(tz)
 
 
 def format_relative_date(
@@ -486,7 +505,7 @@ def format_full_date(
 def format_time(
     dt: datetime | str | None,
     language: str | None = None,
-    timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    timezone: str | tzinfo = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
     Format time with locale-aware conventions.
@@ -497,7 +516,7 @@ def format_time(
     Args:
         dt: Datetime to format
         language: Language code for format convention
-        timezone: IANA timezone for conversion
+        timezone: IANA timezone or explicit provider timezone for conversion
 
     Returns:
         Formatted time string
@@ -522,8 +541,8 @@ def format_time(
         import zoneinfo
 
         if dt.tzinfo is not None:
-            target_tz = zoneinfo.ZoneInfo(timezone)
-            dt = dt.astimezone(target_tz)
+            target_tz = zoneinfo.ZoneInfo(timezone) if isinstance(timezone, str) else timezone
+            dt = convert_to_user_timezone(dt, target_tz) or dt
 
     # Format based on language convention
     if (resolve_language(language)) == "en":
@@ -776,6 +795,7 @@ def wrap_with_response(
                     action=action.get("action", ""),
                     url=action.get("url"),
                     domain=domain,
+                    card_open=action.get("card_open") == "true",
                 )
             )
         parts.append("</div>")
@@ -796,6 +816,7 @@ def render_action_button(
     url: str | None = None,
     domain: str = "",
     primary: bool = False,
+    card_open: bool = False,
 ) -> str:
     """
     Render a suggested action button with Material Symbols icon.
@@ -807,6 +828,7 @@ def render_action_button(
         url: Optional URL (renders as <a> instead of <button>)
         domain: Domain for styling (email, calendar, contact, etc.)
         primary: If True, use primary button styling
+        card_open: This source action opens the card's own record in Tools.
 
     Returns:
         Button or anchor HTML
@@ -831,8 +853,9 @@ def render_action_button(
     escaped_label = escape_html(label)
 
     if url:
+        navigation = ' data-card-open="true"' if card_open else ""
         return (
-            f'<a href="{safe_url(url)}" class="{class_str}" target="_blank" rel="noopener">'
+            f'<a href="{safe_url(url)}" class="{class_str}" target="_blank" rel="noopener"{navigation}>'
             f"{icon_html}{escaped_label}</a>"
         )
     else:
@@ -970,16 +993,17 @@ def get_attachment_type(
 
 def format_file_size(size_bytes: int | None) -> str:
     """Format file size in human-readable form."""
-    if not size_bytes:
+    if size_bytes is None:
         return ""
 
+    amount = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if abs(size_bytes) < 1024.0:
+        if abs(amount) < 1024.0:
             if unit == "B":
                 return f"{size_bytes}{unit}"
-            return f"{size_bytes:.1f}{unit}"
-        size_bytes /= 1024.0  # type: ignore
-    return f"{size_bytes:.1f}TB"
+            return f"{amount:.1f}{unit}"
+        amount /= 1024.0
+    return f"{amount:.1f}TB"
 
 
 def render_attachment(
@@ -1003,7 +1027,9 @@ def render_attachment(
     icon_name, type_class = get_attachment_type(filename, mime_type)
     escaped_name = escape_html(filename)
     size_html = (
-        f'<span class="lia-attachment__size">({format_file_size(size)})</span>' if size else ""
+        f'<span class="lia-attachment__size">({format_file_size(size)})</span>'
+        if size is not None
+        else ""
     )
 
     tag = "a" if url else "span"

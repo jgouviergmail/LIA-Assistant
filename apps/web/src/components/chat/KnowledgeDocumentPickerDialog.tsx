@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Library } from 'lucide-react';
+import { FileText, Library } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { AttachSourcePickerDialog, type PickerWords } from './AttachSourcePickerDialog';

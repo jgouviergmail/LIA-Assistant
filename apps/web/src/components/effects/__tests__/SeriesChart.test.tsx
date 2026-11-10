@@ -101,6 +101,12 @@ describe('SeriesChart', () => {
     expect(screen.getByText('Total 42 ms')).toBeInTheDocument();
   });
 
+  it('is a figure named by its title, so a reader can find it among the others', () => {
+    renderChart({ slices: [{ label: 'a', count: 3, secondary: 0 }], total: 3 });
+
+    expect(screen.getByRole('figure', { name: 'A chart' })).toBeInTheDocument();
+  });
+
   it('says an empty series is empty rather than drawing nothing', () => {
     renderChart({});
 

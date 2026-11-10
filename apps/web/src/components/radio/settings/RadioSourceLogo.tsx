@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe2 } from 'lucide-react';
+import { Globe2 } from '@/lib/icons';
 import { useState } from 'react';
 
 /** A discreet site mark, requested from that site's own origin only. */

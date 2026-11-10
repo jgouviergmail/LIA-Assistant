@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import apiClient, { type QueryParamValue } from '@/lib/api-client';
 import { paramsOf, serialiseParams } from '@/lib/workbench/params';
 import type { RereadOptions } from '@/lib/workbench/types';
+import { useWorkbenchSourceKey } from './useWorkbenchSourceKey';
 
 export interface WorkbenchItemState<T> {
   /** The item, once read for the current key. */
@@ -51,7 +52,8 @@ export function useWorkbenchItem<T>(
   const { user } = useAuth();
   const owner = user?.id;
   const queryKey = serialiseParams(params);
-  const key = owner && path ? `${owner}|${path}|${queryKey}` : null;
+  const sourceKey = useWorkbenchSourceKey(path);
+  const key = owner && path ? JSON.stringify([owner, path, queryKey, sourceKey]) : null;
   const [read, setRead] = useState<Read<T> | null>(null);
   // Every read starts a new generation; an answer to an older one is dropped.
   const generation = useRef(0);

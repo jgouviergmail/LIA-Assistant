@@ -106,11 +106,12 @@ class McpResultCard(BaseComponent):
         top = render_card_top("extension", "teal", title, badges_html=badge)
         result = render_collapsible(
             trigger_text=card_label("mcp_result", ctx.language),
-            content_html=content + snapshot.notice(),
+            content_html=content,
             with_separator=False,
         )
         html = (
-            f'<div class="lia-card lia-mcp {self._nested_class(ctx)}">{top}{metadata}{result}</div>'
+            f'<div class="lia-card lia-mcp {self._nested_class(ctx)}">{top}{metadata}'
+            f'<div class="lia-mcp__receipt">{snapshot.notice()}{result}</div></div>'
         )
         return (
             wrap_with_response(

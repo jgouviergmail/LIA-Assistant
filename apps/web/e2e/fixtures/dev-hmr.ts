@@ -3,9 +3,14 @@ import type { Page } from '@playwright/test';
 /**
  * Next development boot waits for its real initial HMR synchronization.
  * Relay only that fixed same-origin channel, without allowing browser API sockets
- * or proxy upgrades. Production/managed-server journeys have no development HMR.
+ * or proxy upgrades. An owned upload front door can use another port on the same
+ * loopback host. Production/managed-server journeys have no development HMR.
  */
-export async function installDevHmr(page: Page, baseURL: string | undefined): Promise<() => void> {
+export async function installDevHmr(
+  page: Page,
+  baseURL: string | undefined,
+  browserOrigin?: string
+): Promise<() => void> {
   if (!baseURL || process.env.E2E_MANAGED_SERVER !== '0') return () => {};
   const origin = new URL(baseURL);
   if (origin.protocol !== 'http:') return () => {};
@@ -13,10 +18,15 @@ export async function installDevHmr(page: Page, baseURL: string | undefined): Pr
     return () => {};
   const expected = new URL('/_next/hmr', origin);
   expected.protocol = 'ws:';
+  const browser = new URL(browserOrigin ?? origin);
+  if (browser.protocol !== origin.protocol || browser.hostname !== origin.hostname) {
+    throw new Error('A development HMR front door must use the same loopback host');
+  }
+  browser.protocol = 'ws:';
   const sockets = new Set<WebSocket>();
   let stopped = false;
   await page.routeWebSocket(
-    url => url.origin === expected.origin && url.pathname === expected.pathname,
+    url => url.origin === browser.origin && url.pathname === expected.pathname,
     route => {
       if (stopped) {
         void route.close().catch(() => {});

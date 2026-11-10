@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { House, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { House, LoaderCircle, ShieldCheck } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

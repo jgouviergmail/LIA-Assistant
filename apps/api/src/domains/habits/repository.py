@@ -162,11 +162,6 @@ _ACTIVITY_BOUNDS_SQL = text(f"""
     """)
 
 
-#: Payload keys the heartbeat writes on a row and every refresh must keep:
-#: the offer bookkeeping of the ADR-214 stop rule.
-PRESERVED_PAYLOAD_KEYS: frozenset[str] = frozenset({"offer_dates"})
-
-
 class HabitsRepository:
     """Data access for habit profiles and discrete habits."""
 
@@ -441,17 +436,12 @@ class HabitsRepository:
         key: str,
         payload: dict[str, Any],
         last_observed_at: datetime,
-        *,
-        reset_mute: bool = True,
     ) -> str:
         """Create or refresh one habit, respecting user-set statuses.
 
         A BLOCKED row is the user's tombstone: it is never updated nor
         reactivated. A PAUSED row keeps its status but its payload follows
-        the data. The offer bookkeeping the heartbeat stamps
-        (``PRESERVED_PAYLOAD_KEYS``) survives a refresh — a promotion used to
-        overwrite the whole payload and erase the 7-day cooldown and the
-        stop-rule memory every time it fired (measured 2026-09-11).
+        the data.
 
         Args:
             user_id: Owner.
@@ -459,10 +449,6 @@ class HabitsRepository:
             key: Stable habit identity within the kind.
             payload: Kind-specific versioned payload (NEW dict — JSONB rule).
             last_observed_at: When the behaviour was last seen.
-            reset_mute: Whether this refresh proves a fresh occurrence and
-                may lift the deviation stop-rule mute. The chat-side
-                promotion fires on a live turn (True); the nightly sync
-                decides from the ledger (``occurrence_after_last_offer``).
 
         Returns:
             ``"created"`` | ``"updated"`` | ``"blocked"`` (skipped).
@@ -492,33 +478,9 @@ class HabitsRepository:
             return "created"
         if row.status == HabitStatus.BLOCKED.value:
             return "blocked"
-        preserved = {k: v for k, v in (row.payload or {}).items() if k in PRESERVED_PAYLOAD_KEYS}
-        row.payload = {**preserved, **payload}  # new dict — never mutate JSONB in place
+        row.payload = dict(payload)  # new dict — never mutate JSONB in place
         row.last_observed_at = last_observed_at
-        if reset_mute:
-            row.muted_until_reproof = False
         return "updated"
-
-    async def touch_habit(self, habit: UserHabit, last_observed_at: datetime) -> bool:
-        """Refresh when the behaviour was last seen, nothing else.
-
-        The nightly sync's answer to a lock that wavers while its evidence
-        remains: the payload keeps the last proven shape, the date says the
-        request is still alive.
-        """
-        await self.lock_learning_owner(habit.user_id)
-        result = await self.db.execute(
-            update(UserHabit)
-            .where(
-                UserHabit.id == habit.id,
-                UserHabit.user_id == habit.user_id,
-                UserHabit.status != HabitStatus.BLOCKED.value,
-            )
-            .values(last_observed_at=last_observed_at)
-            .returning(UserHabit.id),
-            execution_options={"synchronize_session": False},
-        )
-        return result.scalar_one_or_none() is not None
 
     async def remove_stale_active_habits(
         self, user_id: UUID, kind: str, live_keys: set[str]
@@ -586,11 +548,21 @@ class HabitsRepository:
         """Delete the user's profile row (used by 'forget everything')."""
         await self.db.execute(delete(UserHabitProfile).where(UserHabitProfile.user_id == user_id))
 
-    async def record_feedback(self, habit_id: UUID, user_id: UUID, positive: bool) -> None:
-        """Server-side atomic signal increment (no read-modify-write)."""
+    async def record_feedback(self, user_id: UUID, kind: str, key: str, *, positive: bool) -> None:
+        """Count a decision on a proposal built on this habit (ADR-375).
+
+        Server-side atomic increment (no read-modify-write); a habit that no
+        longer exists counts nothing.
+
+        Args:
+            user_id: Owner.
+            kind: The habit's kind.
+            key: The habit's key (a domain for a recurring need).
+            positive: Accepted (True) or refused (False).
+        """
         column = UserHabit.positive_signals if positive else UserHabit.negative_signals
         await self.db.execute(
             update(UserHabit)
-            .where(UserHabit.id == habit_id, UserHabit.user_id == user_id)
+            .where(UserHabit.user_id == user_id, UserHabit.kind == kind, UserHabit.key == key)
             .values({column.key: column + 1})
         )

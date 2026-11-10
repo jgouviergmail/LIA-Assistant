@@ -21,6 +21,7 @@ export const WORKBENCH_ERROR_CODES = [
   'provider_unavailable',
   'item_gone',
   'stale_handle',
+  'card_source_changed',
   'conflict',
   'name_taken',
   'name_refused',

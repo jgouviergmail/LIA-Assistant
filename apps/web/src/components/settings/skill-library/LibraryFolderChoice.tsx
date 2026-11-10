@@ -5,7 +5,7 @@
  * Each folder is a native button; the root of the repository is named in words.
  */
 import type { TFunction } from 'i18next';
-import { ArrowLeft, Folder } from 'lucide-react';
+import { ArrowLeft, Folder } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import type { LibraryFolderChoice as Choice } from '@/lib/skill-library/types';

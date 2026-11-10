@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight } from '@/lib/icons';
 import { initI18next } from '@/i18n';
 import { FadeInOnScroll } from './FadeInOnScroll';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';

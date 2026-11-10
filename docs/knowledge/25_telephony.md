@@ -286,3 +286,9 @@ as a message from you.
 your instance back; where it cannot (a private address), the setting says so
 and every call runs direct. Should the provider refuse the delegation on a
 given call, that call runs direct and the notification says so.
+
+## Does LIA's personality apply on the phone?
+
+On a call with you, yes: after the opening sentence that checks it is really you, the voice speaks with the personality chosen in **LIA Style** — its words, its manner, its humour — as in a Live session, facts unchanged. On a call to someone else (a restaurant, a garage, an office), never: LIA calls on your behalf and speaks with a cordial, plain and efficient manner, the same for every account.
+
+When your ElevenLabs agent's voice performs expression tags, LIA writes on the agent, before each call, the tags that fit that call: the whole palette for a call with you, the cordial ones only for a third party.

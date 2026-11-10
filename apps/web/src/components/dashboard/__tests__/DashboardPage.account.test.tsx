@@ -13,12 +13,13 @@ import DashboardPage from '@/app/[lng]/dashboard/page';
 import type { UserStatistics } from '@/hooks/useUserStatistics';
 import { AuthContext, type User } from '@/lib/auth';
 import { LoggingProvider } from '@/lib/logging-context';
+import type { BriefingInitialResponse, BriefingTextResponse, CardSection } from '@/types/briefing';
 import type { LimitDetail, UserUsageLimitResponse } from '@/types/usage-limits';
 
 const { radioMounts } = vi.hoisted(() => ({ radioMounts: vi.fn() }));
 
-// Keep unrelated dashboard readers out of this account-lifetime test. The
-// statistics component, both of its hooks, auth context and API client are real.
+// Keep unrelated dashboard presentations out of this account-lifetime test. The
+// workspace's briefing reader, statistics hooks, auth context and API client are real.
 vi.mock('@/hooks/usePersonalResults', () => ({
   usePersonalResults: () => ({ results: undefined, firstLoad: false, error: null }),
 }));
@@ -40,6 +41,50 @@ vi.mock('@/components/radio/RadioDashboardCard', () => ({
 
 const STATISTICS = '/api/v1/chat/users/me/statistics';
 const LIMITS = '/api/v1/usage-limits/me';
+const INITIAL = '/api/v1/briefing/cards/initial';
+const TEXT = '/api/v1/briefing/text';
+const HIDDEN_SECTION = {
+  status: 'hidden',
+  data: null,
+  generated_at: '2026-11-08T08:00:00Z',
+  error_code: null,
+  error_message: null,
+  from_cache: false,
+  stale_generated_at: null,
+  last_attempt_at: null,
+} satisfies CardSection<null>;
+const BRIEFING: BriefingInitialResponse = {
+  cards: {
+    weather: HIDDEN_SECTION,
+    agenda: HIDDEN_SECTION,
+    mails: HIDDEN_SECTION,
+    birthdays: HIDDEN_SECTION,
+    reminders: HIDDEN_SECTION,
+    health: HIDDEN_SECTION,
+    sms: HIDDEN_SECTION,
+    for_you: HIDDEN_SECTION,
+    tasks: HIDDEN_SECTION,
+    documents: HIDDEN_SECTION,
+    workboard: HIDDEN_SECTION,
+  },
+  windows: {
+    birthdays_horizon_days: 7,
+    health_window_days: 14,
+    agenda_lookahead_hours: 24,
+    tasks_horizon_days: 7,
+    weather_forecast_days: 5,
+  },
+  pending: [],
+  act: 'account-lifetime-briefing',
+  act_expires_at: '2026-11-08T08:10:00Z',
+  section_concurrency: 1,
+};
+const BRIEFING_TEXT: BriefingTextResponse = {
+  greeting: { text: 'Hello', generated_at: HIDDEN_SECTION.generated_at, usage: null },
+  synthesis: null,
+  reused: true,
+  state: 'ready',
+};
 const params = Promise.resolve({ lng: 'fr' });
 
 interface PendingRead {
@@ -79,6 +124,7 @@ function session(user: User): NonNullable<ContextType<typeof AuthContext>> {
     initiateGoogleOAuth: async () => {},
     completeNativeSignIn: async () => ({ mfaRequired: false }),
     refreshUser: async () => true,
+    applyUserUpdate: () => true,
   };
 }
 
@@ -169,8 +215,17 @@ beforeEach(() => {
     vi.fn<typeof fetch>((input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const path = new URL(url, 'https://lia.example.test').pathname;
-      if (path !== STATISTICS && path !== LIMITS) throw new Error(`Unexpected API read: ${path}`);
       expect(init?.credentials).toBe('include');
+      if (path === INITIAL) {
+        expect(init?.method).toBe('GET');
+        return Promise.resolve(Response.json(BRIEFING));
+      }
+      if (path === TEXT) {
+        expect(init?.method).toBe('POST');
+        expect(JSON.parse(String(init?.body))).toEqual({ act: BRIEFING.act, force: false });
+        return Promise.resolve(Response.json(BRIEFING_TEXT));
+      }
+      if (path !== STATISTICS && path !== LIMITS) throw new Error(`Unexpected API read: ${path}`);
       return new Promise<Response>(resolve => {
         pending.push({ path, respond: body => resolve(Response.json(body)) });
       });

@@ -1,0 +1,153 @@
+{
+  "_doc": "Shared corpus of the transcript cue stripping (ADR-373): read by pytest (voice/expressive_cues.strip_transcript_cues) AND by vitest (lib/live/cue-strip.ts). Only a `cues` session's assistant text is ever stripped: there, every bracket is a tag its engine performed and never spoke. A rule that drifts on one side fails the other's build.",
+  "strip": [
+    {
+      "id": "plain",
+      "input": "The meeting is at three.",
+      "expected": "The meeting is at three.",
+      "tags": []
+    },
+    {
+      "id": "a delivery tag opening the sentence",
+      "input": "[sarcastically] Oh, wonderful, another meeting.",
+      "expected": "Oh, wonderful, another meeting.",
+      "tags": [
+        "sarcastically"
+      ]
+    },
+    {
+      "id": "a sound inside a sentence",
+      "input": "Fine [sighs] I will look.",
+      "expected": "Fine I will look.",
+      "tags": [
+        "sighs"
+      ]
+    },
+    {
+      "id": "a sound before the full stop",
+      "input": "That was easy [laughs].",
+      "expected": "That was easy.",
+      "tags": [
+        "laughs"
+      ]
+    },
+    {
+      "id": "two tags in a row",
+      "input": "[annoyed][sighs] Again?",
+      "expected": "Again?",
+      "tags": [
+        "annoyed",
+        "sighs"
+      ]
+    },
+    {
+      "id": "a tag beyond the palette, written its own way",
+      "input": "[Laughs harder] Really.",
+      "expected": "Really.",
+      "tags": [
+        "Laughs harder"
+      ]
+    },
+    {
+      "id": "every bracket goes, whatever it holds",
+      "input": "[note: this] Your flight is at nine.",
+      "expected": "Your flight is at nine.",
+      "tags": [
+        "note: this"
+      ]
+    },
+    {
+      "id": "a tag alone",
+      "input": "[laughs]",
+      "expected": "",
+      "tags": [
+        "laughs"
+      ]
+    },
+    {
+      "id": "blanks left by a tag collapse",
+      "input": "Well  [sighs]  fine",
+      "expected": "Well fine",
+      "tags": [
+        "sighs"
+      ]
+    },
+    {
+      "id": "a tag opening each line",
+      "input": "[calm] First line.\n[warm] Second line.",
+      "expected": "First line.\nSecond line.",
+      "tags": [
+        "calm",
+        "warm"
+      ]
+    },
+    {
+      "id": "a tag cut at the end of the text",
+      "input": "Let me check [sarcas",
+      "expected": "Let me check",
+      "tags": []
+    },
+    {
+      "id": "an opening bracket at the very end",
+      "input": "One moment [",
+      "expected": "One moment",
+      "tags": []
+    },
+    {
+      "id": "nested brackets keep the outer pair",
+      "input": "[[laughs]] Sure.",
+      "expected": "[] Sure.",
+      "tags": [
+        "laughs"
+      ]
+    },
+    {
+      "id": "empty brackets are no tag",
+      "input": "[] Sure.",
+      "expected": "[] Sure.",
+      "tags": []
+    },
+    {
+      "id": "a bracket across a line break is no tag",
+      "input": "See [this\nline] there.",
+      "expected": "See [this\nline] there.",
+      "tags": []
+    },
+    {
+      "id": "an ideographic text",
+      "input": "好的[笑]我看看。",
+      "expected": "好的我看看。",
+      "tags": [
+        "笑"
+      ]
+    },
+    {
+      "id": "a tag with blanks inside",
+      "input": "[ whispers ] Between us.",
+      "expected": "Between us.",
+      "tags": [
+        "whispers"
+      ]
+    },
+    {
+      "id": "a cut tag before a final line break is words",
+      "input": "Hello [cut\n",
+      "expected": "Hello [cut",
+      "tags": []
+    },
+    {
+      "id": "a tag at the bound goes",
+      "input": "[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] x",
+      "expected": "x",
+      "tags": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "id": "a span past the bound is words",
+      "input": "[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] x",
+      "expected": "[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] x",
+      "tags": []
+    }
+  ]
+}

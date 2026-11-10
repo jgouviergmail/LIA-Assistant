@@ -138,7 +138,7 @@ export function allDayFields(calendarId: string, day: string): EventFields {
 /**
  * An event LIA read, in the form (ADR-372): the person checks it there and saves it, or not.
  *
- * What it could not read stays as the form holds it, so a day never turns into today by itself.
+ * Missing fields retain the native defaults, explicitly identified by the editor for review.
  *
  * @param fields - What the form holds.
  * @param event - What was read.
@@ -166,6 +166,12 @@ export function withProposedEvent(fields: EventFields, event: ProposedEvent): Ev
         ? { ...fields.repeat, anchor_date: startDate }
         : withFreq(emptyRecurrence(startDate), event.repeat),
   };
+}
+
+/** Whether a proposal leaves date/time fields to the native form's defaults. */
+export function proposalUsesDateDefaults(event: ProposedEvent): boolean {
+  if (event.start_date === null || event.end_date === null) return true;
+  return !event.all_day && (event.start_time === null || event.end_time === null);
 }
 
 /** @returns The fields an existing event opens on, read on the account's wall. */

@@ -74,6 +74,20 @@ describe('liveStore', () => {
     ]);
   });
 
+  it('re-shows a growing line from everything it heard, so a tag split across fragments never shows', () => {
+    // ADR-373: on a `cues` session a tag may arrive in two fragments; the line
+    // is shown from the whole text it accumulated, never fragment by fragment.
+    const store = useLiveStore.getState();
+    const shown = (heard: string) => heard.replace(/ ?\[[^\]]*\]?/g, '');
+    store.pushCaption('assistant', 'Oh [sarcas', true, shown);
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['Oh']);
+    store.pushCaption('assistant', 'tically] great.', false, shown);
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['Oh great.']);
+    // Without a way of showing, a line shows what it heard (a bracket is words).
+    store.pushCaption('user', 'press [X]', true);
+    expect(useLiveStore.getState().captions.map(c => c.text)).toEqual(['Oh great.', 'press [X]']);
+  });
+
   it('keeps at most LIVE_CAPTIONS_MAX lines, the oldest dropped', () => {
     const store = useLiveStore.getState();
     for (let i = 0; i < LIVE_CAPTIONS_MAX + 5; i++) store.pushCaption('user', `line ${i}`, true);

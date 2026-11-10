@@ -6,6 +6,8 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
 
@@ -166,12 +168,13 @@ async def test_duplicate_names_cannot_expand_singular_exclusion_when_scope_is_am
 
 
 async def test_clear_scope_does_not_lower_the_individual_item_threshold():
-    from src.domains.agents.services.hitl import jev_item_filter as module
 
     result, _, _ = await call(
         [{"subject": "a"}],
         {
-            "item_0": answer("exclude", module.MIN_CONFIDENCE - 0.001),
+            "item_0": answer(
+                "exclude", float(gate_defaults(JevUsage.HITL_EXCLUSION)["item"]) - 0.001
+            ),
             "reference_scope": answer("clear", 0.99),
         },
     )

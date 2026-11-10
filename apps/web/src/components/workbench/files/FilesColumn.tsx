@@ -6,7 +6,7 @@
  * dropped belong to it alone: they go where the list stands, and a search stands
  * nowhere.
  */
-import { FolderPlus, Search, Trash2, Upload, X } from 'lucide-react';
+import { FolderPlus, Search, Trash2, Upload, X } from '@/lib/icons';
 import Link from 'next/link';
 import { useRef, useState, type ChangeEvent, type FormEvent, type RefObject } from 'react';
 import { toast } from 'sonner';

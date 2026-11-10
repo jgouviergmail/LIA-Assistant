@@ -13,7 +13,7 @@
  * selects, the tick selects: two checkboxes on a line would read as one.
  */
 import Link from 'next/link';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';

@@ -51,6 +51,7 @@ function Session({ children }: { children: ReactNode }) {
     initiateGoogleOAuth: vi.fn(),
     completeNativeSignIn: vi.fn(),
     refreshUser: vi.fn(),
+    applyUserUpdate: vi.fn(() => true),
   };
   return createElement(AuthContext.Provider, { value: auth }, children);
 }

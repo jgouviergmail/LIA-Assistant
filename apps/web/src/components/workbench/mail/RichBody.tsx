@@ -9,7 +9,7 @@
  * A button keeps the selection by never taking the focus. A link is made of the selection, and
  * of an address people can follow.
  */
-import { Bold, Italic, Link2, List, ListOrdered, Underline, type LucideIcon } from 'lucide-react';
+import { Bold, Italic, Link2, List, ListOrdered, Underline, type LucideIcon } from '@/lib/icons';
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';

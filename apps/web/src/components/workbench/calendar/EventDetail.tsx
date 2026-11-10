@@ -32,7 +32,7 @@ import {
   Repeat,
   Trash2,
   Video,
-} from 'lucide-react';
+} from '@/lib/icons';
 import type { ReactNode, Ref } from 'react';
 
 import { Button } from '@/components/ui/button';

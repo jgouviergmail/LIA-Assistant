@@ -111,6 +111,22 @@ A single cache TTL would force the most volatile source's TTL on the slowest one
 3. **Pre-compute via scheduler from day one** — Rejected: lazy fetch < 1 s satisfies the SLO; pre-compute can be added later as an optimization without breaking the API.
 4. **Split LLM into two slots** — Rejected: admins would maintain two configs in sync for no practical benefit.
 
+## Amendment 2026-11-07 — birthdays from the active contacts provider
+
+The birthdays card read Google Contacts alone, on the belief that Apple and Microsoft keep no
+birthday field. They do (vCard `BDAY`, Graph `birthday`), and each provider's normaliser already
+wrote it in the People shape. The card, the heartbeat source and its « connected » badge now read
+the account's ACTIVE contacts provider, whichever it is:
+
+- One book: the shared directory (`connectors/clients/contact_directory`), now carrying each
+  contact's id and birthday, read whole through the shared door (`open_active_client`, ADR-304)
+  up to `CONTACTS_BIRTHDAYS_DIRECTORY_MAX`, a cut logged. Its cache key names the shape it holds
+  (`CONTACTS_DIRECTORY_SHAPE`), so a book cached before birthdays joined it is never read again.
+- A birthday item carries the contact's id, first address and first number, so the card can open
+  the contact and offer to write or call.
+- The card's source is `contacts`; an active provider whose credentials cannot be read asks to
+  reconnect, as the mail card does, and exhausted retries are classified on the error they last met.
+
 ## References
 
 - Plan d'implémentation : `C:\Users\jgouv\.claude\plans\radiant-today-briefing.md`

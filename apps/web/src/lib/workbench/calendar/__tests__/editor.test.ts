@@ -447,6 +447,7 @@ describe('an event LIA read, in the form', () => {
     description: '',
     attendees: [],
     repeat: 'none',
+    conference: false,
   };
 
   it('keeps the form’s day and hour where nothing was said', () => {

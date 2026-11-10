@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useState } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useSmsArchive } from '@/hooks/useSmsArchive';
 import { Button } from '@/components/ui/button';
@@ -36,14 +36,7 @@ function SenderMessages({
           {t('sms.unavailable')}
         </p>
       )}
-      {list.data && (
-        <SmsMessageList
-          messages={list.data.items}
-          lng={lng}
-          timezone={timezone}
-          surface="background"
-        />
-      )}
+      {list.data && <SmsMessageList messages={list.data.items} lng={lng} timezone={timezone} />}
       <div className="flex flex-wrap gap-2">
         {cursor && (
           <Button variant="outline" onClick={() => setCursor(undefined)}>
@@ -77,6 +70,7 @@ export function SmsSenderThreads({
           title={sender.display_name}
           description={sender.display_name !== sender.sender ? sender.sender : undefined}
           badge={sender.total}
+          surface="nested"
         >
           <SenderMessages sender={sender} lng={lng} timezone={timezone} />
         </Disclosure>
@@ -111,6 +105,7 @@ export function SmsSearchGroups({
           title={items[0]?.display_name ?? sender}
           badge={items.length}
           defaultOpen
+          surface="nested"
         >
           <div className="py-3">
             {items[0] && (
@@ -120,7 +115,7 @@ export function SmsSearchGroups({
                 scope={() => ({ sender_id: items[0].id })}
               />
             )}
-            <SmsMessageList messages={items} lng={lng} timezone={timezone} surface="background" />
+            <SmsMessageList messages={items} lng={lng} timezone={timezone} />
           </div>
         </Disclosure>
       ))}

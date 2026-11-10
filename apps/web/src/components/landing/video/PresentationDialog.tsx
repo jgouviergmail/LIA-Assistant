@@ -1,7 +1,7 @@
 'use client';
 
 /** A fullscreen, exclusive presentation with native media controls and focus return. */
-import { Clapperboard, RotateCcw } from 'lucide-react';
+import { Clapperboard, RotateCcw } from '@/lib/icons';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

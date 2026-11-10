@@ -13,6 +13,9 @@ export const COMPANION_CHARACTERS = [
 ] as const;
 export type CompanionCharacter = (typeof COMPANION_CHARACTERS)[number];
 
+/** Measured transparent-canvas alpha in every current companion body WebP. */
+export const COMPANION_BODY_ALPHA_FLOOR = 2 / 255;
+
 /** Published artwork is immutable; refreshed bodies receive a new version. */
 export const COMPANION_BODY_VERSIONS = {
   spirit: 2,

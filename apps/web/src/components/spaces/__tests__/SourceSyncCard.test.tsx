@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FolderSync } from 'lucide-react';
+import { FolderSync } from '@/lib/icons';
 
 import type { RAGSourceSyncStatus } from '@/types/rag-spaces';
 

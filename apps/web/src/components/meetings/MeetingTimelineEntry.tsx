@@ -11,9 +11,9 @@ import {
   Info,
   Users,
   type LucideIcon,
-} from 'lucide-react';
-import type { ReactNode } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+} from '@/lib/icons';
+import type { ReactNode, RefObject } from 'react';
+import { MeetingRowDelete } from './MeetingRowDelete';
 import { Disclosure } from '@/components/ui/disclosure';
 import { MeetingStatusBadge } from './MeetingStatusBadge';
 import { useTranslation } from '@/i18n/client';
@@ -151,14 +151,18 @@ function CaptureTimes({ item, lng }: { item: MeetingTimelineItem; lng: Language 
 export function MeetingTimelineEntry({
   item,
   lng,
-  selected,
-  onToggle,
+  onDelete,
+  deleteDisabled,
+  deleting,
+  focusTarget,
   detailHref,
 }: {
   item: MeetingTimelineItem;
   lng: Language;
-  selected: boolean;
-  onToggle: () => void;
+  onDelete: () => void;
+  deleteDisabled: boolean;
+  deleting: boolean;
+  focusTarget: RefObject<HTMLHeadingElement | null>;
   /** Optional localized return-context URL, supplied by a paged list. */
   detailHref?: string;
 }) {
@@ -176,17 +180,6 @@ export function MeetingTimelineEntry({
       </div>
       <div className="min-w-0">
         <div className="flex min-w-0 items-start gap-2">
-          <label
-            className="flex h-[calc(1lh+1.25rem)] min-h-11 w-11 shrink-0 cursor-pointer items-center justify-center leading-relaxed"
-            title={selectable ? undefined : t('meetings.list.not_selectable')}
-          >
-            <Checkbox
-              checked={selected}
-              aria-disabled={!selectable}
-              onChange={() => selectable && onToggle()}
-            />
-            <span className="sr-only">{t('meetings.list.select_row', { title })}</span>
-          </label>
           <MeetingOpenLink
             id={meeting.id}
             href={
@@ -201,17 +194,30 @@ export function MeetingTimelineEntry({
             <MeetingStatusBadge lng={lng} status={meeting.status} stage={meeting.stage} />
           </span>
         </div>
-        <div className="hidden pl-[52px] md:block">
-          <RecordingFacts meeting={meeting} lng={lng} />
+        <div className="mt-2 flex items-end gap-2">
+          <div className="hidden min-w-0 flex-1 md:block">
+            <RecordingFacts meeting={meeting} lng={lng} />
+          </div>
+          <Disclosure
+            surface="nested"
+            icon={Info}
+            title={t('common.details')}
+            className="min-w-0 flex-1 rounded-none border-x-0 border-b-0 px-0 md:hidden [&>summary]:ml-auto [&>summary]:min-h-11 [&>summary]:w-fit [&>summary]:text-sm [&>summary]:font-semibold [&>summary]:text-muted-foreground"
+          >
+            <RecordingFacts meeting={meeting} lng={lng} />
+          </Disclosure>
+          <div className="ml-auto shrink-0">
+            <MeetingRowDelete
+              lng={lng}
+              title={title}
+              unavailable={!selectable}
+              disabled={deleteDisabled}
+              busy={deleting}
+              onDelete={onDelete}
+              focusTarget={focusTarget}
+            />
+          </div>
         </div>
-        <Disclosure
-          surface="nested"
-          icon={Info}
-          title={t('common.details')}
-          className="mt-2 rounded-none border-x-0 border-b-0 px-0 md:hidden [&>summary]:ml-auto [&>summary]:min-h-11 [&>summary]:w-fit [&>summary]:text-sm [&>summary]:font-semibold [&>summary]:text-muted-foreground"
-        >
-          <RecordingFacts meeting={meeting} lng={lng} />
-        </Disclosure>
       </div>
     </li>
   );

@@ -100,7 +100,7 @@
     },
     "f.habits": {
       "name": "Habitudes apprises",
-      "role": "Des statistiques déterministes et explicables sur quand tu fais quoi ; chaque habitude se voit, se corrige ou se bloque, et un seul interrupteur ferme tout apprentissage.",
+      "role": "Des statistiques déterministes et explicables sur ce dont tu as besoin et quand ; ce qu'elles trouvent devient des propositions que tu acceptes ou refuses, chaque habitude se voit, se corrige ou se bloque, et un seul interrupteur ferme tout apprentissage.",
       "goal": "Anticiper sans deviner, et sans rien apprendre dans ton dos."
     },
     "f.interests": {
@@ -394,7 +394,7 @@
         "Tu mentionnes que tu es allergique aux fruits à coque.",
         "Le fait est extrait en arrière-plan, rangé, corrigeable.",
         "Les sujets qui reviennent deviennent des centres d'intérêt.",
-        "Les moments où tu fais les choses deviennent des habitudes, visibles et bloquables.",
+        "Ce que tu demandes beaucoup de jours devient une habitude, visible et bloquable, puis une proposition.",
         "LIA compile ton portrait et dit quelles sources elle a lues.",
         "Son humeur et son ton s'ajustent à la relation."
       ]

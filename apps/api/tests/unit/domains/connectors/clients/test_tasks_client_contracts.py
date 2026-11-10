@@ -227,6 +227,72 @@ class TestADueDateCanBeRemoved:
         assert recorder.requests == []
 
 
+class TestAToDoDueNamesItsZone:
+    """Measured on Graph (2026-11-07): given UTC, To Do keeps the UTC date; given the zone, it keeps
+    local midnight. A due given with its zone is sent with it; one given without keeps UTC."""
+
+    async def test_a_new_task_carries_the_zone_it_was_given(self) -> None:
+        client, recorder = _microsoft(), _Recorder(_ok({"id": "t1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.create_task(
+                "l1", "Pay", due="2026-11-08T00:00:00", due_zone="Europe/Paris"
+            ),
+        )
+
+        body = httpx.Response(200, content=recorder.requests[-1].content).json()
+        assert body["dueDateTime"] == {
+            "dateTime": "2026-11-08T00:00:00",
+            "timeZone": "Europe/Paris",
+        }
+
+    async def test_a_change_carries_it_too(self) -> None:
+        client, recorder = _microsoft(), _Recorder(_ok({"id": "t1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_task(
+                "l1", "t1", due="2026-11-08T00:00:00", due_zone="Europe/Paris"
+            ),
+        )
+
+        body = httpx.Response(200, content=recorder.requests[0].content).json()
+        assert body["dueDateTime"] == {
+            "dateTime": "2026-11-08T00:00:00",
+            "timeZone": "Europe/Paris",
+        }
+
+    async def test_a_due_given_without_a_zone_keeps_utc(self) -> None:
+        client, recorder = _microsoft(), _Recorder(_ok({"id": "t1"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.update_task("l1", "t1", due="2026-11-08T00:00:00Z"),
+        )
+
+        body = httpx.Response(200, content=recorder.requests[0].content).json()
+        assert body["dueDateTime"]["timeZone"] == "UTC"
+
+    async def test_google_keeps_a_date_and_takes_no_zone(self) -> None:
+        client = _google()
+        recorder = _Recorder(_ok({"id": "t1", "title": "Pay"}))
+
+        await _drive(
+            client,
+            recorder,
+            lambda: client.create_task(
+                "l1", "Pay", due="2026-11-08T00:00:00.000Z", due_zone="Europe/Paris"
+            ),
+        )
+
+        body = httpx.Response(200, content=recorder.requests[-1].content).json()
+        assert body["due"] == "2026-11-08T00:00:00.000Z"
+
+
 class TestEditingACompletedGoogleTask:
     async def test_keeps_its_completion_date(self) -> None:
         client = _google()

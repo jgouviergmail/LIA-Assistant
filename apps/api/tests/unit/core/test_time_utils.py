@@ -876,6 +876,36 @@ class TestConvertTaskDatesInPayload:
 
         assert "due_formatted" in result
 
+    def test_a_google_due_keeps_its_date_west_of_greenwich(self) -> None:
+        """A Google due is a date: read in New York it stays the 2nd (2026-11-07, lot 6)."""
+        result = convert_task_dates_in_payload(
+            {"due": "2025-12-02T00:00:00.000Z"}, "America/New_York", "en"
+        )
+        expected = format_datetime_for_display(
+            "2025-12-02T12:00:00-05:00",
+            "America/New_York",
+            "en",
+            include_time=False,
+            include_day_name=True,
+        )
+
+        assert result["due_formatted"] == expected
+
+    def test_a_to_do_due_is_its_local_midnight_read_in_the_zone(self) -> None:
+        """To Do answers midnight in Paris as 23:00 UTC the evening before: the day is the 2nd."""
+        result = convert_task_dates_in_payload(
+            {"due": "2025-12-01T23:00:00.000Z", "_provider": "microsoft"}, "Europe/Paris", "en"
+        )
+        expected = format_datetime_for_display(
+            "2025-12-02T12:00:00+01:00",
+            "Europe/Paris",
+            "en",
+            include_time=False,
+            include_day_name=True,
+        )
+
+        assert result["due_formatted"] == expected
+
     def test_convert_task_completed_date(self) -> None:
         """Test converting task completed date."""
         task = {

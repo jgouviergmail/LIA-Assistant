@@ -3,19 +3,22 @@
  * reads before anything changes. Words already written are never replaced without being asked, and
  * leaving costs what was spent and changes nothing.
  */
-import { MessageSquareReply, PenLine } from 'lucide-react';
+import { MessageSquareReply, PenLine } from '@/lib/icons';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { ApiError } from '@/lib/api-client';
 
-const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+const { post, hearing } = vi.hoisted(() => ({ post: vi.fn(), hearing: { dictates: false } }));
 vi.mock('@/lib/api-client', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
   default: { post },
 }));
+vi.mock('../../WorkbenchShell', () => ({
+  useAssistBounds: () => ({ textMax: 100, instructionMax: 100, dictates: hearing.dictates }),
+}));
 
-vi.mock('../DictationAct', () => ({
+vi.mock('@/components/selection-assist/DictationAct', () => ({
   DictationAct: ({ onWords, onEnd }: { onWords: (words: string) => void; onEnd: () => void }) => (
     <button
       type="button"
@@ -79,6 +82,42 @@ async function pick(user: ReturnType<typeof draw>['user'], label: string) {
 beforeEach(() => {
   post.mockReset();
   post.mockResolvedValue(WORDS);
+  hearing.dictates = false;
+});
+
+describe('WritingAssist — an instruction said aloud', () => {
+  const SAY = 'workbench.assist.voice.dictate';
+
+  it('takes the instruction by voice where words can be said, asking nothing by itself', async () => {
+    hearing.dictates = true;
+    const { user } = draw({ lines: [FROM_WORDS] });
+
+    await pick(user, 'Propose a reply');
+    await user.type(screen.getByRole('textbox'), 'Thank Ana,');
+    await user.click(screen.getByRole('button', { name: SAY }));
+    await user.click(await screen.findByRole('button', { name: 'listening' }));
+
+    expect(screen.getByRole('textbox')).toHaveValue('Thank Ana, Said aloud');
+    expect(await screen.findByRole('button', { name: SAY })).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('offers no microphone where nothing can hear', async () => {
+    const { user } = draw({ lines: [FROM_WORDS] });
+
+    await pick(user, 'Propose a reply');
+
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: SAY })).toBeNull();
+  });
+
+  it('opens a line that needs words on its form, and waits for them', async () => {
+    draw({ lines: [FROM_WORDS], startWith: 'compose' });
+
+    expect(await screen.findByRole('textbox')).toHaveValue('');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(post).not.toHaveBeenCalled();
+  });
 });
 
 describe('WritingAssist — dictation', () => {

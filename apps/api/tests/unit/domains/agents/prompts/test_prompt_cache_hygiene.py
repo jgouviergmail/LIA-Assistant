@@ -74,6 +74,11 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "tool_assist_filter_prompt",
     "tool_assist_contact_prompt",
     "tool_assist_card_prompt",
+    "tool_assist_contact_words_prompt",
+    "tool_assist_passage_prompt",
+    "tool_assist_memory_prompt",
+    "tool_assist_research_prompt",
+    "tool_assist_record_prompt",
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",

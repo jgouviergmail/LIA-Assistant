@@ -244,7 +244,9 @@ morph between line, arch and ring instead of selecting a different CSS recipe.
 `rig/apply.ts` remains the only DOM writer and suppresses unchanged attributes.
 The stylesheet retains material, layout and the decorative emote.
 
-All skins, including the amber `smiley`, share the same direction:
+All skins share the same direction. The amber `smiley` mentioned in the original
+implementation was subsequently retired by the owner; see the catalogue-retirement
+amendment in [ADR-340](ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md).
 
 1. Psyche's pleasure, arousal, dominance, curiosity and engagement modulate the
    resting pose and spontaneous choices. Disabled Psyche uses neutral values.
@@ -321,12 +323,12 @@ The head now has its own critically damped yaw/pitch springs. The eyes lead;
 the head follows the actual gaze channels, including authored thought and
 activity patterns. A shared perspective parent carries eyes, brows, jaw and
 props at distinct depths. Each skin retains its material and silhouette.
-The smiley's lit sphere counter-rotates to keep a round outline; its facial
-plane stays in front throughout the turn envelope. A real-browser projection
-test catches the far-eye occlusion that a shallow facial plane produced.
+The original, subsequently retired Smiley used a counter-rotated lit sphere and
+an independent facial plane. That renderer is no longer part of the catalogue;
+the current companion projection is described in
+[ADR-340](ADR-340-Native-Avatar-Volume-From-Reviewed-Offline-Art.md).
 The mouth's compact anchor and restrained jaw travel are checked against the
 painted SVG contour and eye bounds, rather than just CSS declarations.
-The smiley has a tighter upper clearance bound than the taller eye styles.
 Resting temperament deliberately exaggerates signed mouth curvature, eye
 compression and brow asymmetry so that mood reads at widget size. Actual work
 and response poses attenuate that layer. Thinking holds a raised brow, unequal
@@ -382,3 +384,19 @@ visibility/motion owner. The
 [native volume guide](../technical/NATIVE_AVATAR_VOLUME.md) documents source
 ownership, resource fallback and the limits of approximate rear anatomy,
 DOM/SVG facial occlusion and the deliberately front-composited scarf.
+
+### Follow-up: quieter, directed acting (2026-11-08)
+
+The owner-authorized [finishing pass](../superpowers/specs/2026-11-08-avatar-finishing.md)
+retains the clock, springs, artwork and lifecycle. It removes the full-turn,
+somersault, jig, dizzy and brow-groove scenes and the autonomous slapstick,
+head-wobble and eye-hop gestures. The catalogue is defined by `SKETCHES`,
+with explicit validation at the public scene entry; a stale removed name
+cannot start an empty or unknown performance.
+
+The remaining scenes have character-specific timing, readable holds and
+quiet recovery. Breathing and gaze remain active. Speech accents follow the
+generated phrase, without an unrelated periodic eye bounce. Conversational
+nod and thoughtful inclination are host-only cues, never random idle picks.
+These are repertoire and direction changes within the existing architecture;
+they add no animation clock, dependency or generated assets.

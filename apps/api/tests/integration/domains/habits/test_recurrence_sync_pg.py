@@ -1,14 +1,18 @@
-"""The recurring habit's life, on a real PostgreSQL, through the real nightly
-recompute (ADR-214 amendment c). Replays the 2026-09-11 measurements:
+"""A recurring need's life on a real PostgreSQL, through the real nightly run (ADR-375).
 
-- sim B: two ignored offers muted the habit and a live occurrence the next
-  day did NOT lift the mute (it waited for the next chat fire, ≥ 30 days);
-- sim C4-b: a promoted habit whose ledger had EXPIRED was still offered as a
-  « missed routine » — a ghost;
-- sim C15: the promotion itself depended on the chat suggestion firing.
+What the ADR-214 hour lock could not learn, replayed end to end:
 
-The ledger is the NX-faithful in-memory double the seed tests use (advisory
-Redis); the rows, the statuses and the recompute are real.
+- a domain asked on many days at hours that WANDER is a need — the lock wanted
+  one hour, and one off-hour ask a week defeated it;
+- it is learned by the nightly recompute alone, no chat turn;
+- at the automation bar it opens ONE proposal, refreshed (never duplicated) the
+  next night and withdrawn the night the need lapses or the person pauses it;
+- an expired ledger demotes the ACTIVE need; the person's paused and blocked
+  rows survive it, and a blocked need is never refreshed;
+- an unreadable ledger changes nothing, and an open proposal is held.
+
+The ledger is an NX-faithful in-memory double (advisory Redis); the rows, the
+statuses, the proposals, the ports and the recompute are real.
 """
 
 from __future__ import annotations
@@ -26,18 +30,28 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings as app_settings
-from src.domains.habits.models import HabitKind, HabitStatus, UserHabit
-from src.domains.habits.recurrence_sync import sync_recurring_habits
+from src.domains.agents.effects import routine_reads
+from src.domains.habits import usage_ports
+from src.domains.habits.models import (
+    HabitKind,
+    HabitProposal,
+    HabitStatus,
+    ProposalKind,
+    ProposalStatus,
+    UserHabit,
+)
 from src.domains.habits.repository import HabitsRepository
 from src.domains.habits.service import HabitsService
-from src.domains.heartbeat.habit_context import fetch_habits_context
-from src.domains.heartbeat.proactive_task import _bump_offered_habit
+from src.domains.habits.usage_refresh import refresh_usage
+from src.domains.heartbeat import feedback_summary
 from src.domains.users.models import User
 from src.infrastructure.cache import recurrence_store
 
 pytestmark = pytest.mark.integration
 
 TZ = ZoneInfo("Europe/Paris")
+#: Hours a real person asks at: nothing a lock could hold on.
+WANDERING = (8.66, 13.16, 19.5, 10.0, 21.25, 7.9, 16.4)
 
 
 class _FakeRedis:
@@ -56,9 +70,6 @@ class _FakeRedis:
     async def delete(self, *keys: str) -> int:
         return sum(1 for k in keys if self.data.pop(k, None) is not None)
 
-    async def ttl(self, key: str) -> int:
-        return 3600
-
     def scan_iter(self, match: str) -> Any:
         prefix = match[:-1]
 
@@ -68,6 +79,13 @@ class _FakeRedis:
                     yield key
 
         return _iter()
+
+
+@pytest.fixture(autouse=True)
+def _real_ports(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(usage_ports, "_PORTS", usage_ports._Ports())
+    usage_ports.install_routine_reads_reader(routine_reads.read_routine_run_domains)
+    usage_ports.install_proactive_feedback_reader(feedback_summary.read_proactive_feedback)
 
 
 @pytest_asyncio.fixture
@@ -87,22 +105,31 @@ async def owner(async_session: AsyncSession) -> User:
     return user
 
 
-def _ledger(
-    redis: _FakeRedis, user_id: uuid.UUID, signature: str, days: dict[date, list[float]]
-) -> None:
-    payload = {
-        "days": {d.isoformat(): h for d, h in days.items()},
-        "suggested_at": None,
-        "origin": "live",
+def _today() -> date:
+    return datetime.now(TZ).date()
+
+
+def _asked(today: date, first: int, last: int) -> dict[date, list[float]]:
+    return {
+        today - timedelta(days=k): [WANDERING[k % len(WANDERING)]] for k in range(first, last + 1)
     }
-    redis.data[recurrence_store.redis_key(str(user_id), signature)] = json.dumps(payload)
 
 
-def _daily(today: date, *, first: int, last: int, hour: float = 9.0) -> dict[date, list[float]]:
-    return {today - timedelta(days=k): [hour] for k in range(first, last + 1)}
+def _ledger(
+    redis: _FakeRedis, user_id: uuid.UUID, domain: str, days: dict[date, list[float]]
+) -> None:
+    payload = {"days": {d.isoformat(): h for d, h in days.items()}, "origin": "live"}
+    redis.data[recurrence_store.redis_key(str(user_id), domain)] = json.dumps(payload)
 
 
-async def _rows(session: AsyncSession, user_id: uuid.UUID) -> list[UserHabit]:
+async def _active(session: AsyncSession, user_id: uuid.UUID, today: date, days: int) -> None:
+    """The person used LIA on these days (the rollup the previous nights banked)."""
+    await HabitsRepository(session).upsert_activity_days(
+        user_id, {today - timedelta(days=k): {9: 1} for k in range(1, days + 1)}
+    )
+
+
+async def _needs(session: AsyncSession, user_id: uuid.UUID) -> list[UserHabit]:
     result = await session.execute(
         select(UserHabit).where(
             UserHabit.user_id == user_id, UserHabit.kind == HabitKind.RECURRING_REQUEST.value
@@ -111,121 +138,131 @@ async def _rows(session: AsyncSession, user_id: uuid.UUID) -> list[UserHabit]:
     return list(result.scalars().all())
 
 
-def _patch(redis: _FakeRedis) -> Any:
+async def _proposals(session: AsyncSession, user_id: uuid.UUID) -> list[HabitProposal]:
+    result = await session.execute(
+        select(HabitProposal)
+        .where(HabitProposal.user_id == user_id)
+        .execution_options(populate_existing=True)
+    )
+    return list(result.scalars().all())
+
+
+def _patch(redis: _FakeRedis | None) -> Any:
     return patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=redis))
 
 
-async def test_the_nightly_recompute_promotes_a_locked_signature_without_a_chat_turn(
+async def _night(session: AsyncSession, owner: User) -> Any:
+    outcome = await refresh_usage(session, owner, settings=app_settings, now=datetime.now(UTC))
+    await session.flush()
+    return outcome
+
+
+async def test_a_need_asked_at_wandering_hours_is_learned_by_the_nightly_alone(
     async_session: AsyncSession, owner: User
 ) -> None:
     redis = _FakeRedis()
-    today = datetime.now(TZ).date()
-    _ledger(redis, owner.id, "email", _daily(today, first=1, last=21))
-    # The recompute short-circuits an account with no activity at all before
-    # it reaches the ledger; a person with a ledger has typed, so give the
-    # rollup the days those turns banked.
-    await HabitsRepository(async_session).upsert_activity_days(
-        owner.id, {today - timedelta(days=k): {9: 1} for k in range(1, 22)}
-    )
+    today = _today()
+    _ledger(redis, owner.id, "weather", _asked(today, 1, 21))
+    await _active(async_session, owner.id, today, 21)
     await async_session.flush()
+
     with _patch(redis):
         await HabitsService(async_session).recompute_user_profile(owner, force=True)
     await async_session.flush()
-    [row] = await _rows(async_session, owner.id)
-    assert row.key == "email" and row.status == HabitStatus.ACTIVE.value
-    assert row.payload["shape"] == "daily" and row.payload["version"] == 1
-    assert row.last_observed_at.astimezone(TZ).date() == today - timedelta(days=1)
+
+    [need] = await _needs(async_session, owner.id)
+    assert (need.key, need.status) == ("weather", HabitStatus.ACTIVE.value)
+    assert (need.payload["version"], need.payload["cadence"]) == (2, "daily")
+    assert need.payload["at_automation_bar"] is True
+    assert need.last_observed_at.astimezone(TZ).date() == today - timedelta(days=1)
+    [proposal] = await _proposals(async_session, owner.id)
+    assert (proposal.kind, proposal.key) == (ProposalKind.AUTOMATE_NEED.value, "weather")
+    assert proposal.status == ProposalStatus.OPEN.value
+    assert proposal.payload["minute"] in (0, 15, 30, 45)
 
 
-async def test_mute_lifts_on_a_fresh_occurrence_and_offer_dates_survive(
+async def test_the_proposal_is_refreshed_never_duplicated_and_withdrawn_when_the_need_lapses(
     async_session: AsyncSession, owner: User
 ) -> None:
     redis = _FakeRedis()
-    today = datetime.now(TZ).date()
-    # occurrences stopped 10 days ago → the slot is missed today (k=2 rule)
-    _ledger(redis, owner.id, "email", _daily(today, first=10, last=30))
-    repo = HabitsRepository(async_session)
+    today = _today()
+    _ledger(redis, owner.id, "weather", _asked(today, 1, 21))
+    await _active(async_session, owner.id, today, 21)
     with _patch(redis):
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        [row] = await _rows(async_session, owner.id)
-        # two offers → muted (the stop rule)
-        row.payload = {**row.payload, "offer_dates": [(today - timedelta(days=9)).isoformat()]}
-        await async_session.flush()
-        await _bump_offered_habit(async_session, owner.id, {"habit_offer_id": str(row.id)})
-        await async_session.flush()
-        assert row.muted_until_reproof is True
-        offers_before = list(row.payload["offer_dates"])
-        assert await fetch_habits_context(async_session, owner.id, owner, app_settings) is None
+        await _night(async_session, owner)
+        [first] = await _proposals(async_session, owner.id)
+        # One more ask: the facts move, the row stays the same row.
+        _ledger(redis, owner.id, "weather", _asked(today, 0, 21))
+        second = await _night(async_session, owner)
+        [again] = await _proposals(async_session, owner.id)
+        assert again.id == first.id and again.status == ProposalStatus.OPEN.value
+        assert second.proposals.transitions.get(("automate_need", "opened")) is None
 
-        # the routine re-occurs → the next nightly lifts the mute, keeps the bookkeeping
-        _ledger(redis, owner.id, "email", {**_daily(today, first=10, last=30), today: [9.1]})
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        await async_session.refresh(row)
-        assert row.muted_until_reproof is False
-        assert row.payload["offer_dates"] == offers_before
-        assert row.payload["shape"] == "daily"
-
-
-async def test_an_expired_ledger_demotes_the_ghost_routine(
-    async_session: AsyncSession, owner: User
-) -> None:
-    redis = _FakeRedis()
-    today = datetime.now(TZ).date()
-    _ledger(redis, owner.id, "email", _daily(today, first=1, last=21))
-    repo = HabitsRepository(async_session)
-    with _patch(redis):
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        assert len(await _rows(async_session, owner.id)) == 1
-        # the ledger expires (35-day TTL): no key at all
+        # The ledger expires (its TTL): the need lapses, its proposal goes with it.
         redis.data.clear()
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        assert await _rows(async_session, owner.id) == []
-        # …and the heartbeat has nothing left to offer
-        assert await fetch_habits_context(async_session, owner.id, owner, app_settings) is None
+        lapsed = await _night(async_session, owner)
+    assert await _needs(async_session, owner.id) == []
+    assert await _proposals(async_session, owner.id) == []
+    assert lapsed.recurring.demoted == 1
+    assert lapsed.proposals.transitions == {("automate_need", "withdrawn"): 1}
 
 
 @pytest.mark.parametrize("status", [HabitStatus.PAUSED.value, HabitStatus.BLOCKED.value])
-async def test_the_persons_own_statuses_survive_the_ledger(
+async def test_the_persons_own_statuses_survive_the_ledger_and_silence_the_proposal(
     async_session: AsyncSession, owner: User, status: str
 ) -> None:
     redis = _FakeRedis()
-    today = datetime.now(TZ).date()
-    _ledger(redis, owner.id, "email", _daily(today, first=1, last=21))
+    today = _today()
+    _ledger(redis, owner.id, "weather", _asked(today, 1, 21))
+    await _active(async_session, owner.id, today, 21)
     repo = HabitsRepository(async_session)
     with _patch(redis):
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        [row] = await _rows(async_session, owner.id)
+        await _night(async_session, owner)
+        [row] = await _needs(async_session, owner.id)
+        learned = dict(row.payload)
         await repo.set_status(row, status)
         await async_session.flush()
+
+        # The person said stop: the open proposal leaves the next night.
+        await _night(async_session, owner)
+        assert await _proposals(async_session, owner.id) == []
+
+        # An expired ledger never removes what the person decided…
         redis.data.clear()
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        [kept] = await _rows(async_session, owner.id)
-        assert kept.id == row.id and kept.status == status
-        # a blocked signature never comes back even when it locks again
-        _ledger(redis, owner.id, "email", _daily(today, first=1, last=21))
-        await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-        await async_session.flush()
-        [still] = await _rows(async_session, owner.id)
-        assert still.id == row.id and still.status == status
+        await _night(async_session, owner)
+        [kept] = await _needs(async_session, owner.id)
+        assert (kept.id, kept.status) == (row.id, status)
+
+        # …and the need returning refreshes a paused row, never a blocked one.
+        _ledger(redis, owner.id, "weather", _asked(today, 1, 14))
+        await _night(async_session, owner)
+    await async_session.refresh(kept)
+    assert (kept.id, kept.status) == (row.id, status)
+    if status == HabitStatus.PAUSED.value:
+        assert kept.payload["distinct_days"] == 14
+    else:
+        assert kept.payload == learned
+    assert await _proposals(async_session, owner.id) == []
 
 
-async def test_redis_down_leaves_every_row_alone(async_session: AsyncSession, owner: User) -> None:
-    repo = HabitsRepository(async_session)
-    await repo.upsert_habit(
-        user_id=owner.id,
-        kind=HabitKind.RECURRING_REQUEST.value,
-        key="email",
-        payload={"version": 1, "shape": "daily"},
-        last_observed_at=datetime.now(UTC),
-    )
-    await async_session.flush()
+async def test_an_unreadable_ledger_changes_nothing_and_holds_the_proposal(
+    async_session: AsyncSession, owner: User
+) -> None:
+    redis = _FakeRedis()
+    today = _today()
+    _ledger(redis, owner.id, "weather", _asked(today, 1, 21))
+    await _active(async_session, owner.id, today, 21)
+    with _patch(redis):
+        await _night(async_session, owner)
+    [need] = await _needs(async_session, owner.id)
+    payload = dict(need.payload)
+
     with _patch(None):
-        outcome = await sync_recurring_habits(repo, owner.id, "Europe/Paris", app_settings)
-    assert outcome.skipped is True
-    assert len(await _rows(async_session, owner.id)) == 1
+        outcome = await _night(async_session, owner)
+
+    assert outcome.recurring.skipped is True
+    assert outcome.proposals.transitions == {("automate_need", "held"): 1}
+    [kept] = await _needs(async_session, owner.id)
+    assert (kept.id, kept.payload) == (need.id, payload)
+    [proposal] = await _proposals(async_session, owner.id)
+    assert proposal.status == ProposalStatus.OPEN.value

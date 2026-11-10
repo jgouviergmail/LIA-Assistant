@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LayoutGrid, Plus } from 'lucide-react';
+import { LayoutGrid, Plus } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
@@ -24,7 +24,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { Board } from '@/components/workboard/Board';
 import { BoardFilters } from '@/components/workboard/BoardFilters';
 import { TicketDetailPanel } from '@/components/workboard/TicketDetailPanel';
-import { TicketForm } from '@/components/workboard/TicketForm';
+import { useTicketCreation } from '@/components/workboard/useTicketCreation';
 import { useAuth } from '@/hooks/useAuth';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePeerRecipients } from '@/hooks/usePeerRecipients';
@@ -45,7 +45,12 @@ export interface WorkboardPageProps {
   initialFilters?: Filters;
 }
 
-export function WorkboardPage({
+export function WorkboardPage(props: WorkboardPageProps) {
+  const { user } = useAuth();
+  return <AccountWorkboardPage key={user?.id ?? 'signed-out'} {...props} />;
+}
+
+function AccountWorkboardPage({
   lng,
   initialTicketId,
   embedded = false,
@@ -73,7 +78,6 @@ export function WorkboardPage({
     )
   );
   const [embeddedTicket, setEmbeddedTicket] = useState<string | null>(initialTicketId ?? null);
-  const [creating, setCreating] = useState(false);
   // Bumped after every write so the open panel re-reads the ticket it shows.
   const [revision, setRevision] = useState(0);
   // A drag is the one moment a refreshed payload would be felt, so the page
@@ -95,6 +99,7 @@ export function WorkboardPage({
   // form (`/dashboard/workboard/<id>`), which the backend puts in every ticket
   // notification; `?ticket=` is what the board itself writes.
   const open = embedded ? embeddedTicket : (initialTicketId ?? params.get('ticket'));
+  const creation = useTicketCreation({ lng, peers, board, embedded, blocked: !!open });
 
   const openTicket = useCallback(
     (id: string | null) => {
@@ -178,7 +183,7 @@ export function WorkboardPage({
           key: 'create',
           label: t('workboard.actions.create'),
           icon: Plus,
-          onSelect: () => setCreating(true),
+          onSelect: creation.start,
         }}
         menuLabel={t('common.more_actions')}
       />
@@ -209,7 +214,7 @@ export function WorkboardPage({
               ? t('workboard.empty.filtered_description')
               : t('workboard.empty.description')
           }
-          action={{ label: t('workboard.actions.create'), onClick: () => setCreating(true) }}
+          action={{ label: t('workboard.actions.create'), onClick: creation.start }}
         />
       ) : (
         <div aria-busy={board.loading}>
@@ -242,22 +247,7 @@ export function WorkboardPage({
         </div>
       )}
 
-      <TicketForm
-        open={creating}
-        lng={lng}
-        peers={peers}
-        onClose={() => setCreating(false)}
-        onCreate={async body => {
-          const result = await board.create(body);
-          if (result.ok) {
-            toast.success(t('workboard.created'));
-            setCreating(false);
-          } else {
-            toastWorkboardError(t, result.errorCode);
-          }
-          return result;
-        }}
-      />
+      {creation.form}
 
       <TicketDetailPanel
         ticketId={open}

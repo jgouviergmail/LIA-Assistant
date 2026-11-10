@@ -1,7 +1,6 @@
 /** Real browser → Next BFF → native world router → isolated SQL + Redis. */
 import { test, expect, type Browser, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { openNativeWorld, enterWorld } from '../fixtures/world-admission';
 
@@ -85,7 +84,6 @@ test('five real accounts share positions; a sixth waits; duplicate control is ex
         return route.abort();
       });
     const page = await owned.newPage();
-    await installOfflineFonts(page);
     let latest: Evidence | null = null;
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.name));

@@ -16,7 +16,7 @@
 
 import { useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail } from 'lucide-react';
+import { Mail } from '@/lib/icons';
 
 import { ActionChipButton } from '@/components/chat/ActionChipButton';
 import { EmailShareDialog } from '@/components/email-share/EmailShareDialog';

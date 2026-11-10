@@ -71,8 +71,13 @@ describe('MarkdownContent — rich component vocabulary', () => {
       container.querySelector('.lia-callout.lia-callout-success .lia-callout__title')?.textContent
     ).toBe('Tout est prêt');
     expect(container.querySelector('.lia-chip.lia-chip--green')).not.toBeNull();
-    expect(container.querySelector('.lia-chip .material-symbols-outlined')?.textContent).toBe(
-      'check_circle'
+    expect(container.querySelector('.lia-chip .material-symbols-outlined svg')).toHaveAttribute(
+      'data-icon-name',
+      'CircleCheck'
+    );
+    expect(container.querySelector('.lia-chip .material-symbols-outlined')).toHaveAttribute(
+      'aria-hidden',
+      'true'
     );
 
     const kv = container.querySelector('dl.lia-kv');

@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 import { DebugChip, DebugSection, SubSectionHeader } from '../shared';
 import type { DebugMetrics } from '@/types/chat';
 

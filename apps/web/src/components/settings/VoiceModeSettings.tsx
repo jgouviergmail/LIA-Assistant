@@ -17,7 +17,7 @@
  */
 
 import { useState, useEffect, useId } from 'react';
-import { Mic, Cloud, Server, AlertTriangle, AudioLines, Ear } from 'lucide-react';
+import { Mic, Cloud, Server, AlertTriangle, AudioLines, Ear } from '@/lib/icons';
 import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/card';
 import { InfoBox } from '@/components/ui/info-box';

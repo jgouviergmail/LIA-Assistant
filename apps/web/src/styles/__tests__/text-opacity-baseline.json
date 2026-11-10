@@ -3,7 +3,6 @@
   "app/[lng]/(auth)/register/page.tsx": 1,
   "components/auth/login-form.tsx": 1,
   "components/chat/FollowupChips.tsx": 2,
-  "components/chat/MarkdownContent.tsx": 1,
   "components/chat/ResponseFeedbackButtons.tsx": 1,
   "components/chat/search/ChatSearchBar.tsx": 2,
   "components/chat/SlashCommandMenu.tsx": 1,

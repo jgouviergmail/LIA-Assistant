@@ -380,3 +380,10 @@ async def test_probe_accepts_an_opened_session() -> None:
     assert seen["model"] == "gemini-3.8-live-extended-thinking"
     assert str(config.thinking_config.thinking_level).endswith("LOW")  # type: ignore[attr-defined]
     assert config.tools[0].function_declarations[0].name == "send_to_lia"  # type: ignore[attr-defined]
+
+
+async def test_the_native_voice_is_offered_no_cue() -> None:
+    """Native audio: the delivery is said in words, read without the network (ADR-373)."""
+    from src.domains.voice.expressive_cues import NO_CUES
+
+    assert await GeminiLiveProvider().expression_dialect("k", "gemini-3.8-live") is NO_CUES

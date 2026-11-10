@@ -370,7 +370,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Je n'ai pas pu relayer notre appel dans le chat : le plafond d'utilisation est atteint pour le moment. Redis-le-moi quand il sera levé."
         ),
         "relay_failed": (
-            "Je n'ai pas pu relayer notre appel dans le chat. Voici ce que j'en retiens ; redis-moi ce que tu veux que je fasse."
+            "Je n'ai pas pu relayer notre appel dans le chat. Redis-moi ce que tu veux que je fasse."
         ),
     },
     "en": {
@@ -407,7 +407,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "I could not relay our call into the chat: the usage ceiling is reached for now. Tell me again once it lifts."
         ),
         "relay_failed": (
-            "I could not relay our call into the chat. Here is what I keep from it; tell me again what you want done."
+            "I could not relay our call into the chat. Tell me again what you want done."
         ),
     },
     "de": {
@@ -450,7 +450,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Ich konnte unseren Anruf nicht in den Chat übernehmen: das Nutzungslimit ist vorerst erreicht. Sag es mir erneut, sobald es aufgehoben ist."
         ),
         "relay_failed": (
-            "Ich konnte unseren Anruf nicht in den Chat übernehmen. Das behalte ich davon; sag mir erneut, was ich tun soll."
+            "Ich konnte unseren Anruf nicht in den Chat übernehmen. Sag mir erneut, was ich tun soll."
         ),
     },
     "es": {
@@ -487,7 +487,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "No he podido trasladar nuestra llamada al chat: el límite de uso está alcanzado por ahora. Vuelve a decírmelo cuando se levante."
         ),
         "relay_failed": (
-            "No he podido trasladar nuestra llamada al chat. Esto es lo que retengo; vuelve a decirme qué quieres que haga."
+            "No he podido trasladar nuestra llamada al chat. Vuelve a decirme qué quieres que haga."
         ),
     },
     "it": {
@@ -530,7 +530,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
             "Non ho potuto riportare la nostra chiamata nella chat: il limite di utilizzo è raggiunto per ora. Ridimmelo quando sarà tolto."
         ),
         "relay_failed": (
-            "Non ho potuto riportare la nostra chiamata nella chat. Ecco cosa ne trattengo; ridimmi cosa vuoi che faccia."
+            "Non ho potuto riportare la nostra chiamata nella chat. Ridimmi cosa vuoi che faccia."
         ),
     },
     "zh-CN": {
@@ -560,9 +560,7 @@ RETURN_PHRASES: dict[str, dict[str, str]] = {
         "relay_quota_blocked": (
             "我无法把我们的通话转达到聊天：目前已达到使用上限。上限解除后再告诉我一次。"
         ),
-        "relay_failed": (
-            "我无法把我们的通话转达到聊天。以下是我记下的内容；请再告诉我你要我做什么。"
-        ),
+        "relay_failed": ("我无法把我们的通话转达到聊天。请再告诉我你要我做什么。"),
     },
 }
 

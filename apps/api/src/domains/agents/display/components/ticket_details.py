@@ -123,10 +123,12 @@ def _ticket_last_run(value: object, ctx: RenderContext) -> str:
 
 def render_ticket_details(data: Mapping[str, object], ctx: RenderContext) -> str:
     lead, rest = split_lead(scalar_text(data.get("description")), preview_chars=240)
-    content = (
-        render_text_content(rest)
-        + _ticket_children(data.get("children"), ctx)
-        + _ticket_comments(data.get("comments"), ctx)
-        + _ticket_last_run(data.get("last_run"), ctx)
+    steps = _ticket_children(data.get("children"), ctx)
+    last_run = _ticket_last_run(data.get("last_run"), ctx)
+    content = render_text_content(rest) + _ticket_comments(data.get("comments"), ctx)
+    return (
+        render_text_content(lead)
+        + (f'<div class="lia-ticket__steps">{steps}</div>' if steps else "")
+        + (f'<div class="lia-ticket__run">{last_run}</div>' if last_run else "")
+        + render_details(content, ctx)
     )
-    return render_text_content(lead) + render_details(content, ctx)

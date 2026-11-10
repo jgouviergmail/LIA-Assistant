@@ -19,7 +19,7 @@
  */
 
 import { createElement, useCallback, useEffect, useState } from 'react';
-import { Download, FileWarning } from 'lucide-react';
+import { Download, FileWarning } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { MarkdownContent } from '@/components/chat/MarkdownContent';

@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { AudioLines } from 'lucide-react';
+import { AudioLines } from '@/lib/icons';
 
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAppConfig } from '@/hooks/useAppConfig';

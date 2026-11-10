@@ -16,7 +16,15 @@ import { cn } from '@/lib/utils';
 
 const ACTION_CHIP_BOX =
   'p-1.5 rounded-md border border-border/30 transition-colors ' +
+  // The 18px colored drawing uses the existing padding; its layout footprint stays 14px.
+  '[&>.app-icon]:size-[18px] [&>.app-icon]:-m-0.5 ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+// Selection belongs to the control's box: a multicolour glyph cannot inherit
+// the text tint that Lucide uses to distinguish a recorded answer.
+const ACTION_CHIP_SELECTED_CLASS =
+  'border-primary bg-primary/10 hover:bg-primary/15 ' +
+  'dark:bg-primary/15 dark:hover:bg-primary/20';
 
 /** The chip's box — the one every icon action of the bubble row shares. */
 export const ACTION_CHIP_CLASS = `${ACTION_CHIP_BOX} bg-background/80 hover:bg-background`;
@@ -43,6 +51,7 @@ export interface ActionChipButtonProps extends React.ButtonHTMLAttributes<HTMLBu
 
 export const ActionChipButton = React.forwardRef<HTMLButtonElement, ActionChipButtonProps>(
   function ActionChipButton({ label, children, className, tone = 'default', ...props }, ref) {
+    const selected = props['aria-pressed'] === true || props['aria-pressed'] === 'true';
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -52,7 +61,8 @@ export const ActionChipButton = React.forwardRef<HTMLButtonElement, ActionChipBu
             aria-label={label}
             className={cn(
               tone === 'deeper' ? ACTION_CHIP_DEEPER_CLASS : ACTION_CHIP_CLASS,
-              className
+              className,
+              selected && ACTION_CHIP_SELECTED_CLASS
             )}
             {...props}
           >

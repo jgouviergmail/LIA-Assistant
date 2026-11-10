@@ -21,8 +21,8 @@ Sources:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from time import perf_counter
 from typing import Any
 from uuid import UUID
@@ -37,6 +37,7 @@ from src.core.constants import (
     GMAIL_FORMAT_METADATA,
     HEARTBEAT_CONTENT_EXCERPT_CHARS,
 )
+from src.core.task_due import task_due_day
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.activity_probe import fetch_last_seen_at
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
@@ -138,22 +139,21 @@ def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> st
         return str(raw)
 
 
-def _extract_due_date(due_str: str | None) -> str:
-    """Extract a human-readable date from an RFC 3339 task due string.
+def _due_label(task: Mapping[str, Any], zone: tzinfo) -> str:
+    """A task's due day for the prompt, through the one door (``core/task_due``).
 
-    Task due dates are conceptually dates, not datetimes (Google Tasks always
-    uses midnight UTC). Extracting the date portion avoids misleading timezone
-    conversions that could shift the date by one day.
+    A Google due is the date it names; a To Do due is local midnight, which Graph answers in UTC
+    (the evening before east of Greenwich): its day is that instant read in the account's zone.
 
-    Examples:
-        '2026-03-15T00:00:00.000Z' → '2026-03-15'
-        '2026-03-15' → '2026-03-15'
-        None → 'no date'
+    Args:
+        task: A task as the clients answer it.
+        zone: The account's zone.
+
+    Returns:
+        ``YYYY-MM-DD``, or « no date » without a readable one.
     """
-    if not due_str:
-        return "no date"
-    # Extract YYYY-MM-DD from ISO/RFC 3339 string
-    return due_str[:10] if len(due_str) >= 10 else due_str
+    day = task_due_day(task, zone)
+    return day.isoformat() if day else "no date"
 
 
 class ContextAggregator:
@@ -576,40 +576,36 @@ class ContextAggregator:
         tasks = result.get("items", [])
         if not tasks:
             return None
-        # Minimal task data for the prompt, overdue flagged. Both providers'
-        # normalizers return "due" as RFC 3339 and "status" as
-        # "needsAction"/"completed"; a due date is a date — date part only.
+        # Minimal task data for the prompt, overdue flagged. A due is a DAY, read through the one
+        # door: overdue once that day has passed on the person's clock, never on the day itself.
+        user_tz = _resolve_user_tz(user)
+        today = now.astimezone(user_tz).date()
         return [
             {
                 "title": t.get("title", "Untitled"),
-                "due": _extract_due_date(t.get("due")),
-                "overdue": self._is_task_overdue(t, now),
+                "due": _due_label(t, user_tz),
+                "overdue": self._is_task_overdue(t, today, user_tz),
             }
             for t in tasks
             if t.get("status") == "needsAction"
         ]
 
     @staticmethod
-    def _is_task_overdue(task: dict[str, Any], now: datetime) -> bool:
-        """Check if a task is overdue by parsing the RFC 3339 due date.
+    def _is_task_overdue(task: Mapping[str, Any], today: date, zone: tzinfo) -> bool:
+        """Whether a task still to do has a day that passed on the person's clock.
 
         Args:
-            task: Task dict (normalized format from any provider).
-            now: Current UTC datetime for comparison.
+            task: A task as the clients answer it.
+            today: The person's today.
+            zone: The account's zone, which a To Do due is read in.
 
         Returns:
-            True if the task is overdue (due date in the past and not completed).
+            True once its day has passed; never on the day itself, once done or without a day.
         """
-        due_str = task.get("due")
-        if not due_str or task.get("status") != "needsAction":
+        if task.get("status") != "needsAction":
             return False
-        try:
-            # Google Tasks returns "2026-03-03T00:00:00.000Z" (RFC 3339).
-            # datetime.fromisoformat handles both "Z" (Python 3.11+) and "+00:00".
-            due_dt = datetime.fromisoformat(due_str.replace("Z", "+00:00"))
-            return due_dt < now
-        except ValueError, TypeError:
-            return False
+        day = task_due_day(task, zone)
+        return day is not None and day < today
 
     # ------------------------------------------------------------------
     # Weather source + change detection

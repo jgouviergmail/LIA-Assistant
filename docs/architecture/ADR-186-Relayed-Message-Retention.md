@@ -105,3 +105,42 @@ passe de 108 à 67 SLOC. La réponse durable était aussi la plus simple.
 | Ne dé-effacer que `content` | L'émetteur serait servi, le destinataire resterait tributaire de son archive — le cas le plus courant |
 | Garder l'archive en secours pour l'historique | Conserve JSONB + plancher + marge d'horloge indéfiniment, pour un ensemble de lignes fini et décroissant |
 | Montrer à chacun les deux textes | Déferait le relais : le rendu personnalisé d'un assistant n'appartient pas à l'autre utilisateur |
+
+## Amendment 2026-11-09 — fenced delivery and retained generation checkpoint
+
+The direct-send policy is defined in [ADR-263](ADR-263-Execution-Authority-Chain-And-Effect-Register.md).
+It changes admission, not the sender/recipient privacy split or the retention horizon.
+
+`PeerDeliveryRepository` owns the delivery transitions. A live owner token and
+monotonically increasing generation are required for renewal, generation checkpoint,
+completion, cancellation and failure. Stale workers cannot settle a replacement's
+claim. The scheduler commits one claim before doing external work, renews it on
+independent short sessions, and cancels work when renewal fails. Each message is
+attempted at most once in a sweep.
+
+Before the model call, `generation_started` is committed. A completed rendition is
+retained in `prepared_text_encrypted`; a dispatch retry decrypts it without another
+model call or another charge. An expired claim with a started generation and no
+stored rendition becomes `failed / generation_outcome_unknown`. Provider retry
+budgets stay in their existing client. Cancellation closes its own claim; stale
+cancellation cannot affect another owner.
+
+The unique message row is the durable notification key. Conversation creation is
+completed before the final transaction because it can commit internally. That
+transaction locks the current pair and claim, rechecks capability, membership,
+blocks and retention, archives through the canonical conversation service, then
+conditionally settles delivery. A failure rolls both writes back. After commit,
+optional push/SSE/channel notifications cannot cause another archive. A crash may
+lose an optional push or sender notice; the recipient's committed conversation
+remains authoritative. A notification without a durable archive cannot settle this
+path as delivered.
+
+The retention sweep clears the encrypted prepared text with both existing texts,
+even when peers are switched off. Prepared text is never part of public history
+schemas and cannot be rewritten or resurrected after expiry.
+
+Migration `d94b62a10e73` follows `c83a51f09d62`. **Drain old peer delivery workers
+before applying it**: an old `delivering` row has no provable owner or model outcome
+and is closed as failed, preserving its record and directive. Downgrade similarly
+closes in-flight generated work before removing checkpoints. The migration was
+designed for a coordinated deployment, not mixed old/new delivery workers.

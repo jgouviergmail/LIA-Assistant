@@ -26,8 +26,8 @@ import {
   UserCheck,
   Users,
   Zap,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 
 /**
  * Navigation spine of the three showcase guides.

@@ -344,7 +344,7 @@ describe('useConnectorPreferences — application scope', () => {
     get.mockRejectedValue(new Error('offline'));
     act(() => publishApplicationResources('account-a', new Set(['connector_preferences'])));
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('settings.application_tools.sync_failed')
+      expect(toast.error).toHaveBeenCalledWith('common.refresh_failed')
     );
     expect(result.current.savedPrefs.c1?.default_calendar_name).toBe('Before');
   });

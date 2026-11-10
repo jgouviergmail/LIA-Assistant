@@ -3,7 +3,7 @@
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
-import { Smartphone } from 'lucide-react';
+import { Smartphone } from '@/lib/icons';
 
 interface Page6NotificationsProps {
   lng: Language;

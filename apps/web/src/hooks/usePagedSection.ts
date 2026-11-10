@@ -1,25 +1,20 @@
 'use client';
 
-/** Independent lazy pages with exact counts, retained refresh data and a
- * first-load state derived from absence of data. Closing resets the position.
- * Complete, unpaged endpoints explicitly opt into local pagination. */
-
+/** Lazy account-owned pages. Retained rows always keep their own page label. */
 import { useCallback, useState } from 'react';
+import type { QueryParamValue } from '@/lib/api-client';
+import { useAuth } from './useAuth';
+import { useApplicationAccountQuery } from './useApplicationAccountQuery';
 
-import { useApiQuery } from './useApiQuery';
-
-/** Rows per page across the whole hub — one number, one reading rhythm. */
 export const HUB_PAGE_SIZE = 10;
 
-export interface PagedSection<TItem> {
+export interface PagedSection<TItem, TPayload = unknown> {
   items: TItem[] | undefined;
-  /** EXACT count over the whole set, not the length of this page. */
+  payload: TPayload | undefined;
   total: number;
-  /** 1-indexed, as the pagination control expects. */
   page: number;
   setPage: (page: number) => void;
   totalPages: number;
-  /** True only before the first payload — never on a refetch. */
   firstLoad: boolean;
   loading: boolean;
   error: Error | null;
@@ -27,167 +22,188 @@ export interface PagedSection<TItem> {
 }
 
 export interface UsePagedSectionOptions<TPayload, TItem> {
-  /** Endpoint without paging parameters; client pagination keeps it unchanged. */
   path: string;
-  /** Pull the rows out of the payload. */
   selectItems: (payload: TPayload) => TItem[];
-  /** Pull the exact total out of the payload. */
   selectTotal: (payload: TPayload) => number;
-  /** Fetch only while the section is open: a folded list costs nothing. */
+  selectAsOf?: (payload: TPayload) => string | undefined;
+  /** Validate a wire payload before retaining it or deriving pagination. */
+  parse?: (payload: unknown) => TPayload;
   enabled: boolean;
   pageSize?: number;
-  /**
-   * Server pages by default. Use client only for an endpoint returning its
-   * complete collection, such as scheduled actions, which accepts no offset.
-   */
+  /** Client pagination is reserved for a complete collection. */
   pagination?: 'server' | 'client';
-  /**
-   * Bump it when a write elsewhere changed the set (a broadcast was just sent):
-   * the section refetches FROM ITS FIRST PAGE and keeps what it shows meanwhile
-   * — a refresh, never a first load. Omitted, nothing ever forces a refetch.
-   */
   refreshKey?: number;
+  /** Criteria identity, including local filters for complete collections. */
+  queryKey?: string;
+  params?: Record<string, QueryParamValue>;
 }
 
-/** Requested position and the two explicit transitions that reset it. */
-function usePagePosition(enabled: boolean, refreshKey: number | undefined) {
-  const [page, setPage] = useState(1);
-
-  // Closing the section forgets the position. Re-opening on page 4 of a list
-  // the reader last saw days ago would be a state nobody asked to keep.
-  //
-  // Adjusted DURING RENDER (the official React pattern for "state that depends
-  // on a prop"), never in an effect: an effect would render page 4 once, paint
-  // it, then correct itself — and the ratchet refuses `setState` in an effect
-  // precisely because that flash is a real one. React discards this render and
-  // immediately re-runs with the new state, so nothing reaches the screen.
-  const [wasEnabled, setWasEnabled] = useState(enabled);
-  if (wasEnabled !== enabled) {
-    setWasEnabled(enabled);
-    if (!enabled) setPage(1);
-  }
-  // A new refresh key means the set changed under the reader: back to its
-  // start, where the change is (same render-phase adjustment as above).
-  const [lastRefreshKey, setLastRefreshKey] = useState(refreshKey);
-  if (lastRefreshKey !== refreshKey) {
-    setLastRefreshKey(refreshKey);
-    setPage(1);
-  }
-
-  return {
-    page,
-    setPage,
-    canRecoverPage: enabled && wasEnabled === enabled && lastRefreshKey === refreshKey,
-  };
+interface PageScope {
+  readonly key: string;
 }
-
-interface LoadedPageOptions<TPayload> {
-  data: TPayload | undefined;
-  loading: boolean;
-  error: Error | null;
+interface Position {
+  scope: PageScope;
   page: number;
-  totalPages: number;
-  canRecoverPage: boolean;
-  setPage: (page: number) => void;
+  enabled: boolean;
+  refreshKey: number | undefined;
 }
 
-/** Keep the page belonging to retained rows, independently of the next request. */
-function useLoadedPage<TPayload>({
-  data,
-  loading,
-  error,
-  page,
-  totalPages,
-  canRecoverPage,
-  setPage,
-}: LoadedPageOptions<TPayload>): number {
-  const [loaded, setLoaded] = useState(() => ({ data, page }));
-  // A new endpoint first exposes the previous data. It is not a successful
-  // response for that endpoint, and must never invalidate its requested page.
-  if (data === undefined || loading || error || data === loaded.data) return loaded.page;
-
-  setLoaded({ data, page });
-  if (canRecoverPage && page > totalPages) setPage(totalPages);
-  return page;
-}
-
-/** An error must label retained server rows with the page they came from. */
-function retainLoadedPage<TPayload>(
-  {
-    data,
-    error,
-    canRecoverPage,
-  }: Pick<LoadedPageOptions<TPayload>, 'data' | 'error' | 'canRecoverPage'>,
-  pagination: 'server' | 'client'
-): boolean {
-  return pagination === 'server' && error !== null && canRecoverPage && data !== undefined;
-}
-
-function pagedEndpoint(path: string, page: number, pageSize: number): string {
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}limit=${pageSize}&offset=${(page - 1) * pageSize}`;
-}
-
-export function usePagedSection<TPayload, TItem>({
-  path,
-  selectItems,
-  selectTotal,
-  enabled,
-  pageSize = HUB_PAGE_SIZE,
-  pagination = 'server',
-  refreshKey,
-}: UsePagedSectionOptions<TPayload, TItem>): PagedSection<TItem> {
-  const { page, setPage, canRecoverPage } = usePagePosition(enabled, refreshKey);
-  const endpoint = pagination === 'client' ? path : pagedEndpoint(path, page, pageSize);
-  const { data, loading, error, refetch } = useApiQuery<TPayload>(endpoint, {
-    componentName: 'usePagedSection',
+/** A new owner/filter/closing retires callbacks; a refresh retains its rows. */
+function usePagePosition(key: string, enabled: boolean, refreshKey: number | undefined) {
+  const [position, setPosition] = useState<Position>(() => ({
+    scope: { key },
+    page: 1,
     enabled,
-    deps: [refreshKey],
-  });
-
-  const total = data === undefined ? 0 : selectTotal(data);
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const loadedPage = useLoadedPage({
-    data,
-    loading,
-    error,
-    page,
-    totalPages,
-    canRecoverPage,
-    setPage,
-  });
-  // A complete client collection is authoritative for every local page.
-  if (canRecoverPage && pagination === 'client' && data !== undefined && page > totalPages) {
-    setPage(totalPages);
+    refreshKey,
+  }));
+  if (position.scope.key !== key || (position.enabled && !enabled)) {
+    setPosition({ scope: { key }, page: 1, enabled, refreshKey });
+  } else if (position.enabled !== enabled || position.refreshKey !== refreshKey) {
+    setPosition({ ...position, page: 1, enabled, refreshKey });
   }
+  const scope = position.scope;
+  const setPage = useCallback(
+    (page: number) => {
+      setPosition(current =>
+        current.scope !== scope || !current.enabled
+          ? current
+          : { ...current, page: Math.max(1, page) }
+      );
+    },
+    [scope]
+  );
+  return { ...position, setPage };
+}
 
-  const rows = data === undefined ? undefined : selectItems(data);
-  const items =
-    pagination === 'client' ? rows?.slice((page - 1) * pageSize, page * pageSize) : rows;
-  // On failure the retained server rows still belong to their loaded page.
-  // Keep the request position internally, so retry can target the failed page.
-  const visiblePage = retainLoadedPage({ data, error, canRecoverPage }, pagination)
-    ? loadedPage
-    : page;
-  const goTo = useCallback(
-    (next: number) => {
-      const nextPage = Math.max(1, next);
-      if (nextPage === page && error) {
-        void refetch();
+function pagedEndpoint(path: string, page: number, size: number): string {
+  return `${path}${path.includes('?') ? '&' : '?'}limit=${size}&offset=${(page - 1) * size}`;
+}
+
+/** Only an accepted response can move the visible page label. */
+function useAcceptedPage<TPayload, TItem>(
+  options: UsePagedSectionOptions<TPayload, TItem>,
+  scope: PageScope,
+  page: number,
+  setPage: (page: number) => void,
+  pageSize: number
+) {
+  const { enabled, parse, selectTotal, selectAsOf, pagination = 'server' } = options;
+  const [loaded, setLoaded] = useState<{ scope: PageScope; page: number; payload: TPayload }>();
+  const accept = useCallback(
+    (received: TPayload) => {
+      if (!enabled) return;
+      const payload = parse ? parse(received) : received;
+      const lastPage = Math.max(1, Math.ceil(selectTotal(payload) / pageSize));
+      if (pagination === 'server' && page > lastPage) {
+        setPage(lastPage);
         return;
       }
-      setPage(nextPage);
+      setLoaded({ scope, page, payload });
     },
-    [page, error, refetch, setPage]
+    [enabled, parse, selectTotal, pageSize, pagination, page, setPage, scope]
+  );
+  const accepted = loaded?.scope === scope ? loaded : undefined;
+  const data = accepted?.payload;
+  const asOf = page > 1 && data !== undefined ? selectAsOf?.(data) : undefined;
+  return { accept, data, asOf, visiblePage: accepted?.page ?? page };
+}
+
+/** Navigation is fenced by the current account/query and retries the requested page. */
+function usePageNavigation(
+  isCurrent: () => boolean,
+  enabled: boolean,
+  page: number,
+  error: Error | null,
+  refetchVerified: () => Promise<unknown>,
+  setPage: (page: number) => void,
+  pagination: 'server' | 'client'
+) {
+  const goTo = useCallback(
+    (next: number) => {
+      if (!isCurrent() || !enabled) return;
+      const target = Math.max(1, next);
+      if (target === page && error) {
+        void refetchVerified();
+        return;
+      }
+      setPage(target);
+    },
+    [isCurrent, enabled, page, error, refetchVerified, setPage]
+  );
+  const refetch = useCallback(() => {
+    if (!isCurrent() || !enabled) return;
+    if (pagination === 'client' || page === 1) void refetchVerified();
+    else setPage(1);
+  }, [isCurrent, enabled, pagination, page, refetchVerified, setPage]);
+  return { goTo, refetch };
+}
+
+/** Project only the accepted complete collection; server pages are never sliced twice. */
+function pageContents<TPayload, TItem>(
+  data: TPayload | undefined,
+  options: UsePagedSectionOptions<TPayload, TItem>,
+  page: number,
+  size: number
+) {
+  const total = data === undefined ? 0 : options.selectTotal(data);
+  const rows = data === undefined ? undefined : options.selectItems(data);
+  const items =
+    options.pagination === 'client' ? rows?.slice((page - 1) * size, page * size) : rows;
+  return { total, totalPages: Math.max(1, Math.ceil(total / size)), items };
+}
+
+export function usePagedSection<TPayload, TItem>(
+  options: UsePagedSectionOptions<TPayload, TItem>
+): PagedSection<TItem, TPayload> {
+  const {
+    path,
+    enabled,
+    pageSize = HUB_PAGE_SIZE,
+    pagination = 'server',
+    refreshKey,
+    queryKey,
+    params,
+  } = options;
+  const { user } = useAuth();
+  const identity = JSON.stringify([user?.id, path, queryKey, params]);
+  const { scope, page, setPage } = usePagePosition(identity, enabled, refreshKey);
+  const { accept, data, asOf, visiblePage } = useAcceptedPage(
+    options,
+    scope,
+    page,
+    setPage,
+    pageSize
+  );
+  const endpoint = pagination === 'client' ? path : pagedEndpoint(path, page, pageSize);
+  const requestParams = asOf === undefined ? params : { ...params, as_of: asOf };
+  const { loading, error, refetchVerified, isCurrent } = useApplicationAccountQuery<TPayload>(
+    endpoint,
+    'usePagedSection',
+    enabled,
+    accept,
+    { params: requestParams, deps: [refreshKey, queryKey] }
+  );
+  const { total, totalPages, items } = pageContents(data, options, page, pageSize);
+  if (enabled && pagination === 'client' && data !== undefined && page > totalPages)
+    setPage(totalPages);
+
+  const { goTo, refetch } = usePageNavigation(
+    isCurrent,
+    enabled,
+    page,
+    error,
+    refetchVerified,
+    setPage,
+    pagination
   );
 
   return {
     items,
+    payload: data,
     total,
-    page: visiblePage,
-    setPage: goTo,
     totalPages,
-    // Derived from `data`, never from `error` — see the note above.
+    page: pagination === 'server' ? visiblePage : page,
+    setPage: goTo,
     firstLoad: data === undefined && loading,
     loading,
     error,

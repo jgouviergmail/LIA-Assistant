@@ -20,7 +20,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Final
-from urllib.parse import urlsplit
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -37,6 +36,7 @@ from src.domains.connectors.clients.event_recurrence import (
     is_series,
     series_bounds,
 )
+from src.domains.connectors.clients.normalizers.calendar_links import conference_url, web_address
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.protocols import (
     CalendarAnswerProtocol,
@@ -88,8 +88,6 @@ _RESPONSES: dict[str, Response] = {
 _WRITABLE_ROLES = frozenset({"owner", "writer"})
 #: Calendars read at once over a window (a provider answers a burst with 429).
 WINDOW_CONCURRENCY: Final = 4
-#: The only links an event may hand the page: an invitation's sender wrote them.
-_WEB_SCHEMES: Final = frozenset({"https", "http"})
 
 
 async def list_calendars(user_id: UUID) -> CalendarList:
@@ -468,7 +466,7 @@ def _event(raw: Mapping[str, Any], calendar_id: str) -> CalendarEvent | None:
         end=end[1],
         location=raw.get("location") or None,
         recurring=bool(raw.get("recurringEventId") or raw.get("recurrence")),
-        conference_url=_conference_url(raw),
+        conference_url=conference_url(raw),
     )
 
 
@@ -492,7 +490,7 @@ def event_detail(raw: Mapping[str, Any], calendar_id: str) -> EventDetail:
         description=_description(raw.get("description")),
         attendees=[_attendee(item) for item in raw.get("attendees") or [] if item.get("email")],
         organizer=organizer.get("email") or None,
-        link=_web_address(raw.get("htmlLink")),
+        link=web_address(raw.get("htmlLink")),
         reminder_minutes=_reminder(raw),
         busy=raw.get("transparency") != "transparent",
         private=raw.get("visibility") == "private",
@@ -558,21 +556,3 @@ def _attendee(raw: Mapping[str, Any]) -> Attendee:
         name=raw.get("displayName") or None,
         response=_RESPONSES.get(str(raw.get("responseStatus")), "needsAction"),
     )
-
-
-def _conference_url(raw: Mapping[str, Any]) -> str | None:
-    """Meet's link, or the video entry point Graph's Teams link is normalised into."""
-    if found := _web_address(raw.get("hangoutLink")):
-        return found
-    for entry in (raw.get("conferenceData") or {}).get("entryPoints") or []:
-        if entry.get("entryPointType") == "video" and (found := _web_address(entry.get("uri"))):
-            return found
-    return None
-
-
-def _web_address(value: object) -> str | None:
-    """``value`` when it is a web address with a host; never a script or a data URI."""
-    if not isinstance(value, str) or not value:
-        return None
-    parts = urlsplit(value)
-    return value if parts.scheme.lower() in _WEB_SCHEMES and parts.netloc else None

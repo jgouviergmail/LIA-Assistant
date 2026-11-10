@@ -58,6 +58,8 @@ const KNOWN_SOURCES = new Set([
   'UPCOMING_BIRTHDAYS',
   'OPEN_LOOPS',
   'DEPARTURE_ADVICE',
+  // No longer emitted (ADR-375 retired the missed-routine section it labelled);
+  // kept so the notifications written before it still read in the history.
   'HABITS',
   'WORKBOARD',
   'ANTICIPATED_MOMENT',

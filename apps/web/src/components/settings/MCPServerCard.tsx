@@ -29,7 +29,7 @@ import {
   Unplug,
   Zap,
   Send,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { CapabilityProvenance } from '@/components/peers/CapabilityProvenance';
 
 import { Badge } from '@/components/ui/badge';

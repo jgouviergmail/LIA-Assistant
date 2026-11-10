@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth';
 import apiClient, { type QueryParamValue } from '@/lib/api-client';
 import { paramsOf, serialiseParams } from '@/lib/workbench/params';
 import type { RereadOptions } from '@/lib/workbench/types';
+import { useWorkbenchSourceKey } from './useWorkbenchSourceKey';
 
 /** What a workbench listing answers. */
 export interface WorkbenchPage<T> {
@@ -54,6 +55,11 @@ export interface WorkbenchPageState<T> {
   loadMore: () => Promise<void>;
   refresh: (options?: RereadOptions) => Promise<void>;
   replaceItem: (id: string, next: T | null) => void;
+  /**
+   * Keeps an item a link named that the pages read do not hold, at the head of the list, so every
+   * act reaches it as any other; its own page, once read, puts it back in its place.
+   */
+  keepItem: (item: T) => void;
 }
 
 interface Listing<T> {
@@ -90,6 +96,12 @@ function failed<T>(key: string, error: unknown): Listing<T> {
  * @param params - Its params (a folder, a filter); part of the key.
  * @returns The listing's state and its three gestures.
  */
+/** The items a page does not hold again: an item kept from a link is read in its own place. */
+function withoutAny<T extends { id: string }>(items: readonly T[], page: readonly T[]): T[] {
+  const read = new Set(page.map(item => item.id));
+  return items.filter(item => !read.has(item.id));
+}
+
 export function useWorkbenchPage<T extends { id: string }>(
   path: string | null,
   params: Readonly<Record<string, QueryParamValue>>
@@ -97,7 +109,8 @@ export function useWorkbenchPage<T extends { id: string }>(
   const { user } = useAuth();
   const owner = user?.id;
   const queryKey = serialiseParams(params);
-  const key = owner && path ? `${owner}|${path}|${queryKey}` : null;
+  const sourceKey = useWorkbenchSourceKey(path);
+  const key = owner && path ? JSON.stringify([owner, path, queryKey, sourceKey]) : null;
   const [listing, setListing] = useState<Listing<T> | null>(null);
   const [moreFor, setMoreFor] = useState<string | null>(null);
   // Every first read and refresh starts a new listing; an answer to an older
@@ -163,7 +176,7 @@ export function useWorkbenchPage<T extends { id: string }>(
         previous && previous.key === key
           ? {
               key,
-              items: [...previous.items, ...answer.items],
+              items: [...withoutAny(previous.items, answer.items), ...answer.items],
               pages: previous.pages + 1,
               nextToken: answer.next_page_token,
               skipped: previous.skipped + (answer.skipped ?? 0),
@@ -198,6 +211,17 @@ export function useWorkbenchPage<T extends { id: string }>(
     [key]
   );
 
+  const keepItem = useCallback(
+    (item: T) => {
+      setListing(previous => {
+        if (!previous || previous.key !== key) return previous;
+        if (previous.items.some(held => held.id === item.id)) return previous;
+        return { ...previous, items: [item, ...previous.items] };
+      });
+    },
+    [key]
+  );
+
   return {
     items: current ? listing.items : [],
     nextToken,
@@ -209,5 +233,6 @@ export function useWorkbenchPage<T extends { id: string }>(
     loadMore,
     refresh,
     replaceItem,
+    keepItem,
   };
 }

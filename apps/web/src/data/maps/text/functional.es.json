@@ -121,9 +121,9 @@
     },
     "f.habits": {
       "name": "Hábitos aprendidos",
-      "role": "Estadísticas deterministas y explicables sobre cuándo haces qué; cada hábito se ve, se corrige o se bloquea, y un solo interruptor detiene todo aprendizaje.",
+      "role": "Estadísticas deterministas y explicables sobre lo que necesitas y cuándo; lo que encuentran se convierte en propuestas que aceptas o rechazas, cada hábito se ve, se corrige o se bloquea, y un solo interruptor detiene todo aprendizaje.",
       "goal": "Anticiparse sin adivinar, y sin aprender nada a tus espaldas.",
-      "src": "6871ff106b3b"
+      "src": "bba7c2ac0b48"
     },
     "f.interests": {
       "name": "Intereses",
@@ -466,11 +466,11 @@
         "Mencionas que tienes alergia a los frutos secos.",
         "El dato se extrae en segundo plano, se archiva y se puede corregir.",
         "Los temas que se repiten se convierten en intereses.",
-        "Los momentos en que haces las cosas se convierten en hábitos, visibles y bloqueables.",
+        "Lo que pides muchos días se convierte en un hábito, visible y bloqueable, y luego en una propuesta.",
         "LIA compila tu retrato y dice qué fuentes ha leído.",
         "Su estado de ánimo y su tono se ajustan a la relación."
       ],
-      "src": "30baef5255f2"
+      "src": "6f0c9cec8e45"
     },
     "flow.knowledge": {
       "name": "Lo que tú sabes, LIA lo lee",

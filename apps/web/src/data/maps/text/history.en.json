@@ -1952,6 +1952,31 @@
       "title": "From the Tools: a click, a call, a proposal",
       "summary": "Summing up a message, proposing a reply, reading a business card: a click asks LIA one thing and gets a proposal the person reads, never a write to their provider. The act is traced and billed to whoever clicked, and nothing adds a control to a screen with no room for one: the last icon of every bar opens the list.",
       "src": "357747655d68"
+    },
+    "373": {
+      "title": "The personality governs the voice",
+      "summary": "An ElevenLabs voice session set to a cynical personality spoke like a cheerful assistant: the portal's expression tags prescribed enthusiasm and LIA's own frames asked for warmth. Now every voice of the person — Live, Live direct, the phone and the chat's spoken comment — speaks in the chosen personality, substance first, facts untouched; LIA itself writes the tag palette, the greeting and its tools on the agent. A call to a third party stays cordial.",
+      "src": "e1614a8b7a92"
+    },
+    "374": {
+      "title": "JEV keeps what someone reads, and its thresholds become settings",
+      "summary": "The result previews no screen showed any more and the initiative's JEV gate, which told nothing apart, are gone, while the initiative evaluator still sees every tool turn. Every JEV threshold becomes a bounded setting the administration screen can change, and every paid judgement is counted over time, so that a threshold is decided on what really happens rather than on a corpus.",
+      "src": "40543eabe9e3"
+    },
+    "375": {
+      "title": "What LIA learns from use becomes proposals",
+      "summary": "An hour no longer conditions a recurring request: a need is recognised by the days it comes back, and the hour only pre-fills. Six kinds of proposal grow from what LIA already records — automating a need, moving a routine relaunched by hand, widening the notification hours, connecting a source… — and one click accepts and carries them out. The chat shows at most one under an answer, chosen by code.",
+      "src": "de653a14795d"
+    },
+    "376": {
+      "title": "A card opens its record in the Tools, on a signed proof of its source",
+      "summary": "An e-mail, an event, a contact, a task, a file or a light shown in the chat opens in the Tools. The card carries a signed destination, bound to the account and to the source that answered; on the click the server checks that source again and refuses, saying why, when the account changed, rather than open another record that happens to share the identifier.",
+      "src": "97a376cbbd7b"
+    },
+    "377": {
+      "title": "The account chooses how the interface is drawn",
+      "summary": "Every icon goes through one door that draws the account's chosen style, Lucide, Fluent Color or Streamline Flex, without changing what any symbol means, and the system's high contrast keeps its colours. The theme can also turn from light to absolute black by itself at the chosen hours, on the account's clock, without a timer ever writing the profile.",
+      "src": "961a36d2c764"
     }
   }
 }

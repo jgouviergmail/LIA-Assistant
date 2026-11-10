@@ -44,10 +44,12 @@ from src.domains.agents.telephony.live_tools import (
     function_declaration,
 )
 from src.domains.agents.tools.telephony_self_tools import memory_fetcher_for, spoken_text
-from src.domains.live.mandate import live_lines
 from src.domains.live.preferences import LivePreferences
 from src.domains.live.providers.protocol import LiveSetupInputs
 from src.domains.telephony.self_call_context import build_owner_context, default_fetchers
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
+from src.domains.voice_sessions.expression import PERSON_CUES
 from src.domains.voice_sessions.mandate import personality_block
 
 _PROMPT: Final = "live_direct_system_prompt"
@@ -76,6 +78,7 @@ class DirectMandateInputs:
         user_context: The rendered context block (the phone's), or "".
         tool_domains: The domains the declared tools read, in the vocabulary's
             words; empty when no tool is declared.
+        cue_dialect: What the session's engine performs (ADR-373).
     """
 
     language: str
@@ -86,6 +89,7 @@ class DirectMandateInputs:
     psyche_block: str
     user_context: str
     tool_domains: tuple[str, ...]
+    cue_dialect: CueDialect = NO_CUES
 
 
 def direct_lines() -> dict[str, str]:
@@ -129,10 +133,11 @@ def render_direct_mandate(inputs: DirectMandateInputs) -> str:
         language_name=get_language_name(inputs.language),
         now_local=format_datetime_for_display(inputs.now, inputs.timezone, inputs.language),
         timezone=inputs.timezone,
-        personality_block=personality_block(live_lines(), inputs.personality),
+        personality_block=personality_block(inputs.personality, user_name=inputs.user_name),
         psyche_block=inputs.psyche_block.strip(),
         live_tools_block=live_tools_block,
         user_context_block=inputs.user_context.strip() or lines["no_context"],
+        expression_block=live_cues_block(inputs.cue_dialect, PERSON_CUES),
     )
     return _BLANK_RUN.sub("\n\n", rendered)
 
@@ -197,6 +202,7 @@ async def build_direct_setup_inputs(
     now: datetime,
     personality: str,
     psyche_block: str,
+    cue_dialect: CueDialect = NO_CUES,
 ) -> LiveSetupInputs:
     """Everything a provider renders into a DIRECT session's setup.
 
@@ -213,6 +219,7 @@ async def build_direct_setup_inputs(
         now: The instant of the start.
         personality: The configured personality instruction, or "".
         psyche_block: LIA's inner state block, or "".
+        cue_dialect: What the session's engine performs (ADR-373).
 
     Returns:
         The setup inputs: the direct mandate, no delegation, the declared tools.
@@ -229,6 +236,7 @@ async def build_direct_setup_inputs(
             psyche_block=psyche_block,
             user_context=context,
             tool_domains=tool_domains(specs),
+            cue_dialect=cue_dialect,
         )
     )
     declarations: tuple[dict[str, Any], ...] = tuple(function_declaration(spec) for spec in specs)
@@ -242,6 +250,7 @@ async def build_direct_setup_inputs(
         preferences=preferences,
         trigger_tokens=settings.live_context_trigger_tokens,
         target_tokens=settings.live_context_target_tokens,
+        cue_dialect=cue_dialect.name,
     )
 
 

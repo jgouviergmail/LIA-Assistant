@@ -115,7 +115,7 @@ export function renderWithProviders(
     ...rtlOptions,
   });
   const user = userEvent.setup(
-    advanceTimers ? { advanceTimers: (ms) => vi.advanceTimersByTime(ms) } : undefined
+    advanceTimers ? { advanceTimers: ms => vi.advanceTimersByTime(ms) } : undefined
   );
   return { user, queryClient, ...result };
 }
@@ -148,6 +148,29 @@ export async function answerConfirmDialog(
   const target = accept ? buttons.find(button => button !== cancel) : cancel;
   if (!target) throw new Error('confirm dialog has no confirming button');
   await user.click(target);
+}
+
+/**
+ * Teaches jsdom a browser's focus rule it lacks: an element whose computed `visibility` is
+ * `hidden` takes no focus.
+ *
+ * A surface placed once it is measured (a selection toolbar, a bubble beside a passage) mounts
+ * hidden: a `focus()` called before it shows is lost in a browser and kept by jsdom, so a test
+ * without this rule passes on a focus no person ever gets.
+ *
+ * Returns:
+ *   The spy: undone by `vi.restoreAllMocks()`, or by its own `mockRestore()` in a file that
+ *   restores nothing between its tests.
+ */
+export function focusLikeABrowser() {
+  const focus = HTMLElement.prototype.focus;
+  return vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+    this: HTMLElement,
+    options?: FocusOptions
+  ) {
+    if (window.getComputedStyle(this).visibility === 'hidden') return;
+    focus.call(this, options);
+  });
 }
 
 // Re-export the RTL surface + userEvent so tests import everything from here.

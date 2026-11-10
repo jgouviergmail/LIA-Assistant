@@ -1,11 +1,11 @@
 'use client';
 import { useState } from 'react';
-import { Archive } from 'lucide-react';
+import { Archive } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { ListControls, ListField } from '@/components/ui/list-toolbar';
 import { civilDateInstant } from '@/lib/civil-date-instant';
 import type { useSmsManagement } from '@/hooks/useSmsManagement';
 
@@ -49,30 +49,26 @@ export function SmsArchiveErasure({
             eraseRange();
           }}
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="sms-erase-from">
-                {t('sms.from')} · {timezone}
-              </Label>
+          <ListControls>
+            <ListField htmlFor="sms-erase-from" label={t('sms.from')}>
               <Input
                 id="sms-erase-from"
                 type="date"
+                className="h-11"
                 value={from}
                 onChange={event => setFrom(event.target.value)}
               />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="sms-erase-to">
-                {t('sms.to')} · {timezone}
-              </Label>
+            </ListField>
+            <ListField htmlFor="sms-erase-to" label={t('sms.to')}>
               <Input
                 id="sms-erase-to"
                 type="date"
+                className="h-11"
                 value={to}
                 onChange={event => setTo(event.target.value)}
               />
-            </div>
-          </div>
+            </ListField>
+          </ListControls>
           {invalid && (
             <p role="alert" className="text-sm text-destructive">
               {t('common.error')}

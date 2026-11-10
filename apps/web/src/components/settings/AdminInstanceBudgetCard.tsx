@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Wallet } from 'lucide-react';
+import { Wallet } from '@/lib/icons';
 
 import { formatEuro } from '@/lib/format';
 import { Input } from '@/components/ui/input';

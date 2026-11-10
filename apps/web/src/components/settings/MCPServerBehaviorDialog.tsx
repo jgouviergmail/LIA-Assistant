@@ -1,7 +1,7 @@
 'use client';
 
 import type { TFunction } from 'i18next';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

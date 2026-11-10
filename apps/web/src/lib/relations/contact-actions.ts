@@ -20,7 +20,7 @@
  */
 
 import type { TFunction } from 'i18next';
-import { Mail, PhoneOutgoing, Route, type LucideIcon } from 'lucide-react';
+import { Mail, PhoneOutgoing, Route, type LucideIcon } from '@/lib/icons';
 
 import type { ContactCard, ContactValue } from '@/hooks/useRelations';
 import { localizeContactLabel } from '@/lib/relations/contact-label';

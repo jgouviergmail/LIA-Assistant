@@ -10,12 +10,13 @@ import {
 } from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, LocateFixed, MapPinned } from 'lucide-react';
-import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
+import { ExternalLink, LocateFixed, MapPinned } from '@/lib/icons';
+import { AppConfigSeedContext } from '@/hooks/useAppConfig';
 import { usePaidMap } from '@/hooks/usePaidMap';
 import { usePlaceRoute } from '@/hooks/usePlaceRoute';
 import { AuthContext } from '@/lib/auth';
 import { parsePlacePosition, type PlacePositionData } from '@/lib/place-position-data';
+import { placeMapOffer } from '@/lib/place-map-offer';
 import { hasSearchMatch } from './markdown-search-matches';
 import { PlaceMapPopup, type PlacePopup } from './place-map-popup';
 
@@ -40,23 +41,6 @@ export function MarkdownPlacePosition({
       )}
     </div>
   );
-}
-
-function positionOffer(
-  config: AppConfig | null,
-  owner: string | null,
-  data: PlacePositionData,
-  language: string
-) {
-  const offer = config?.place_maps;
-  if (!owner || !offer?.enabled || !data.places.some(place => place.position)) return null;
-  const price = Number(offer.estimated_cost_eur);
-  if (!Number.isFinite(price) || price <= 0) return null;
-  return new Intl.NumberFormat(language, {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 5,
-  }).format(price);
 }
 
 function PositionMap({
@@ -121,7 +105,12 @@ function PositionMap({
       if (result) controller.current?.setRoute(result.route);
     });
   }
-  const cost = positionOffer(config, owner, data, i18n.language);
+  const cost = placeMapOffer(
+    config,
+    owner,
+    data.places.some(place => place.position),
+    i18n.language
+  );
   // Drives the list's layout (lia-cards.css): beside the map on a wide card
   // while there IS a map, a centred line that wraps while there is none —
   // behind its offer, a side column would face nothing.

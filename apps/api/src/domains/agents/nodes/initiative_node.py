@@ -30,12 +30,13 @@ from typing import Any
 import structlog
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
-from pydantic import JsonValue
 
 from src.core.config import settings
 from src.core.constants import (
     INITIATIVE_MEMORY_LIMIT,
     INITIATIVE_MEMORY_MIN_SCORE,
+    INITIATIVE_SUMMARY_MAX_FIELDS,
+    INITIATIVE_SUMMARY_MAX_STEPS,
     NODE_INITIATIVE,
     STATE_KEY_INITIATIVE_FOLLOWUPS,
     STATE_KEY_INITIATIVE_ITERATION,
@@ -60,6 +61,21 @@ from src.domains.agents.nodes.initiative_plan import (
     _build_initiative_plan,
     _validate_read_only,
 )
+from src.domains.agents.nodes.initiative_prompt_parts import (
+    format_interests as _format_interests,
+)
+from src.domains.agents.nodes.initiative_prompt_parts import (
+    format_memory_facts as _format_memory_facts,
+)
+from src.domains.agents.nodes.initiative_prompt_parts import (
+    format_tools_for_prompt as _format_tools_for_prompt,
+)
+from src.domains.agents.nodes.initiative_prompt_parts import (
+    is_technical_field,
+    list_preview,
+    step_summary,
+    truncate_text,
+)
 
 # InitiativeAction is re-exported on purpose: initiative_plan and the test
 # suite import it from HERE (its historical home). The `as` idiom marks the
@@ -71,24 +87,6 @@ from src.domains.agents.nodes.initiative_schemas import (
     InitiativeDecision,
 )
 from src.domains.agents.nodes.initiative_semantic_bridges import build_semantic_candidate_lines
-from src.domains.agents.nodes.jev_initiative import choose_empty_initiative
-from src.domains.agents.nodes.jev_initiative_context import (
-    InitiativeSemanticContext,
-    canonical_initiative_context,
-)
-from src.domains.agents.nodes.jev_initiative_evidence import (
-    InitiativeEvidence,
-    named_initiative_state,
-)
-from src.domains.agents.nodes.jev_initiative_evidence import (
-    format_interests as _format_interests,
-)
-from src.domains.agents.nodes.jev_initiative_evidence import (
-    format_memory_facts as _format_memory_facts,
-)
-from src.domains.agents.nodes.jev_initiative_evidence import (
-    format_tools_for_prompt as _format_tools_for_prompt,
-)
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.streaming.followup_metadata import (
     push_followups,
@@ -255,8 +253,6 @@ def _get_adjacent_read_only_manifests(
 def _build_semantic_context(
     executed_domains: list[str],
     adjacent_manifests: list[Any],
-    evidence: InitiativeEvidence | None = None,
-    native: InitiativeSemanticContext | None = None,
 ) -> tuple[str, str]:
     """Build semantic type context for the initiative prompt.
 
@@ -289,14 +285,11 @@ def _build_semantic_context(
         SEMANTIC_DEPS_NO_CROSS_DOMAIN,
     )
 
-    native = native or InitiativeSemanticContext()
     if not settings.semantic_linking_enabled:
-        native.enabled = False
         return SEMANTIC_DEPS_NO_CROSS_DOMAIN, SEMANTIC_CANDIDATES_NONE
 
     dependencies = SEMANTIC_DEPS_NO_CROSS_DOMAIN
     candidates = SEMANTIC_CANDIDATES_NONE
-    evidence = InitiativeEvidence.for_optional(evidence)
     try:
         from src.domains.agents.semantic.expansion_service import (
             generate_semantic_dependencies_for_prompt,
@@ -310,12 +303,9 @@ def _build_semantic_context(
         )
 
         registry = get_expansion_service().registry
-        lines = build_semantic_candidate_lines(
-            registry, executed_domains, adjacent_manifests, evidence, native
-        )
+        lines = build_semantic_candidate_lines(registry, executed_domains, adjacent_manifests)
         if len(lines) > SEMANTIC_CANDIDATES_MAX_LINES:
             dropped = len(lines) - SEMANTIC_CANDIDATES_MAX_LINES
-            evidence.omit("semantic_bridges_omitted", dropped)
             lines = lines[:SEMANTIC_CANDIDATES_MAX_LINES]
             lines.append(f"(+{dropped} more candidate types omitted)")
         if lines:
@@ -328,18 +318,12 @@ def _build_semantic_context(
             candidate_count=len(lines),
         )
     except Exception as exc:
-        native.complete = False
-        evidence.omit("context_unavailable")
         logger.warning("initiative_semantic_context_failed", error=str(exc))
 
     return dependencies, candidates
 
 
-async def _load_memory_facts(
-    user_id: str,
-    execution_summary: str,
-    evidence: InitiativeEvidence | None = None,
-) -> list[str] | None:
+async def _load_memory_facts(user_id: str, execution_summary: str) -> list[str] | None:
     """Load semantically relevant memory facts for initiative context."""
     if not user_id:
         return None
@@ -353,21 +337,18 @@ async def _load_memory_facts(
             min_score=INITIATIVE_MEMORY_MIN_SCORE,
         )
     except Exception as exc:
-        (evidence or InitiativeEvidence()).omit("context_unavailable")
         logger.warning("initiative_memory_load_failed", error=str(exc))
         return None
 
 
-async def _load_user_interests(
-    user_id: str, evidence: InitiativeEvidence | None = None
-) -> dict[str, Any]:
+async def _load_user_interests(user_id: str) -> dict[str, Any]:
     """Load user interest profile for initiative context."""
     try:
         from src.domains.interests.services import get_user_interests_for_debug
 
         return await get_user_interests_for_debug(user_id)
-    except Exception:
-        (evidence or InitiativeEvidence()).omit("context_unavailable")
+    except Exception as exc:
+        logger.debug("initiative_interests_load_failed", error_type=type(exc).__name__)
         return {"interests": [], "enabled": False}
 
 
@@ -375,7 +356,6 @@ def _format_execution_summary(
     agent_results: dict[str, Any],
     registry: dict[str, Any] | None = None,
     current_turn_id: int | None = None,
-    evidence: InitiativeEvidence | None = None,
 ) -> str:
     """Format execution results for initiative LLM evaluation.
 
@@ -393,8 +373,6 @@ def _format_execution_summary(
         Human-readable summary with enough detail for cross-domain reasoning.
     """
     sections: list[str] = []
-    evidence = evidence if evidence is not None else InitiativeEvidence()
-    evidence.check_failures(agent_results, current_turn_id)
 
     # 1. Extract from registry (rich data: weather details, event names, etc.)
     if registry:
@@ -418,32 +396,25 @@ def _format_execution_summary(
                 payload = getattr(item, "payload", None) or {}
                 domain = getattr(getattr(item, "meta", None), "domain", None) or "unknown"
             if not isinstance(payload, dict):
-                evidence.omit("unsupported_payload")
                 continue
 
             # Generic extraction: iterate all payload fields, exclude technical ones
             summary_parts: list[str] = []
             for key, val in payload.items():
-                if evidence.excluded(key, _EXCLUDE_FIELDS, val):
-                    continue
-                if val is None:
+                if is_technical_field(key, _EXCLUDE_FIELDS) or val is None:
                     continue
                 if isinstance(val, str):
-                    val = evidence.text(val)
-                    summary_parts.append(f"{key}: {val}")
+                    summary_parts.append(f"{key}: {truncate_text(val)}")
                 elif isinstance(val, (int, float, bool)):
                     summary_parts.append(f"{key}: {val}")
                 elif isinstance(val, list) and val:
                     # Compact list preview (e.g., attendees, names)
-                    preview = evidence.list_preview(val)
-                    summary_parts.append(f"{key}: {preview}")
-                # Skip dicts and other complex types to keep summary concise
-                else:
-                    evidence.omit("nested_value_omitted", int(bool(val)))
+                    summary_parts.append(f"{key}: {list_preview(val)}")
+                # Dicts and other complex types are skipped to keep the summary concise.
 
             if summary_parts:
-                evidence.omit("fields_omitted", len(summary_parts) - 8)
-                sections.append(f"[{domain}] {'; '.join(summary_parts[:8])}")
+                kept = summary_parts[:INITIATIVE_SUMMARY_MAX_FIELDS]
+                sections.append(f"[{domain}] {'; '.join(kept)}")
 
     # 2. Fallback: extract from agent_results step_results if registry is empty
     # FIX 2026-04-08: Filter by current_turn_id to prevent stale data from
@@ -465,24 +436,21 @@ def _format_execution_summary(
                 data = result_data.get("data", {})
                 if isinstance(data, dict):
                     step_results = data.get("step_results") or data.get("aggregated_results") or []
-                    evidence.omit(
-                        "steps_omitted",
-                        len(step_results) - 5 if isinstance(step_results, list) else 0,
+                    steps = (
+                        step_results[:INITIATIVE_SUMMARY_MAX_STEPS]
+                        if isinstance(step_results, list)
+                        else []
                     )
-                    for sr in step_results[:5] if isinstance(step_results, list) else []:
-                        if isinstance(sr, dict):
-                            tool = sr.get("tool_name", "tool")
-                            sr_result = sr.get("result", {})
-                            summary = evidence.step_summary(sr_result)
-                            if summary:
-                                sections.append(f"[{tool}] {summary}")
-                        else:
-                            evidence.omit("unsupported_step")
+                    for sr in steps:
+                        if not isinstance(sr, dict):
+                            continue
+                        summary = step_summary(sr.get("result", {}))
+                        if summary:
+                            sections.append(f"[{sr.get('tool_name', 'tool')}] {summary}")
             elif status == AgentResultStatus.ERROR.value:
                 error = result_data.get("error", "Unknown error")
                 sections.append(f"[{agent_name}] ERROR: {error}")
 
-    evidence.omit("no_structured_evidence", int(not sections))
     return "\n".join(sections) if sections else "No execution results."
 
 
@@ -497,7 +465,7 @@ def _format_execution_summary(
     duration_metric=agent_node_duration_seconds,
     counter_metric=agent_node_executions_total,
 )
-async def _initiative_core(
+async def initiative_node(
     state: MessagesState,
     config: RunnableConfig,
 ) -> dict[str, Any]:
@@ -598,35 +566,29 @@ async def _initiative_core(
     agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
     current_turn_id = state.get(STATE_KEY_CURRENT_TURN_ID)
     current_registry = state.get("current_turn_registry") or state.get("registry") or {}
-    initiative_evidence = InitiativeEvidence()
     execution_summary = _format_execution_summary(
-        agent_results,
-        registry=current_registry,
-        current_turn_id=current_turn_id,
-        evidence=initiative_evidence,
+        agent_results, registry=current_registry, current_turn_id=current_turn_id
     )
     original_query = _extract_original_query(state)
-    native_evidence = InitiativeEvidence()
 
     memory_facts, interest_profile = await asyncio.gather(
-        _load_memory_facts(str(user_id), execution_summary, native_evidence),
-        _load_user_interests(str(user_id), native_evidence),
+        _load_memory_facts(str(user_id), execution_summary),
+        _load_user_interests(str(user_id)),
     )
 
     # ── 6. Build prompt and call initiative LLM ──────────────────────
     tools_description = _format_tools_for_prompt(adjacent_manifests)
     memory_text = _format_memory_facts(memory_facts)
-    interests_text = _format_interests(interest_profile, initiative_evidence)
-    native_semantics = InitiativeSemanticContext()
+    interests_text = _format_interests(interest_profile)
     semantic_dependencies, connection_candidates = _build_semantic_context(
-        executed_domains, adjacent_manifests, initiative_evidence, native_semantics
+        executed_domains, adjacent_manifests
     )
 
     llm = get_llm(NODE_INITIATIVE)
     agent_config = get_llm_config_for_agent(settings, NODE_INITIATIVE)
     provider = agent_config.provider
 
-    prompt_arguments: dict[str, JsonValue] = {
+    prompt_arguments: dict[str, object] = {
         "execution_summary": execution_summary,
         "available_tools": tools_description,
         "memory_facts": memory_text,
@@ -640,43 +602,22 @@ async def _initiative_core(
         "max_actions": settings.initiative_max_actions,
     }
     prompt = load_prompt("initiative_prompt", version="v1").format(**prompt_arguments)
-    native_context = canonical_initiative_context(
-        arguments=prompt_arguments,
-        registry=current_registry,
-        agent_results=agent_results,
-        current_turn_id=current_turn_id,
-        memory_facts=memory_facts,
-        interest_profile=interest_profile,
-        manifests=adjacent_manifests,
-        evidence=native_evidence,
-        registry_is_current=bool(state.get("current_turn_registry")),
-        semantic_context=native_semantics,
-    )
-    native_state = named_initiative_state(prompt_arguments, native_evidence, context=native_context)
 
     from src.infrastructure.llm.reasoning_stream import make_reasoning_emit
 
     try:
-        decision = await choose_empty_initiative(
-            prompt,
-            str(user_id),
-            run_id,
-            state=native_state,
-            omissions=native_evidence.omissions,
+        decision = await asyncio.wait_for(
+            get_structured_output(
+                llm=llm,
+                messages=single_call_messages(prompt),
+                schema=InitiativeDecision,
+                provider=provider,
+                node_name=NODE_INITIATIVE,
+                config=config,
+                reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
+            ),
+            timeout=llm_call_timeout_seconds(NODE_INITIATIVE),
         )
-        if decision is None:
-            decision = await asyncio.wait_for(
-                get_structured_output(
-                    llm=llm,
-                    messages=single_call_messages(prompt),
-                    schema=InitiativeDecision,
-                    provider=provider,
-                    node_name=NODE_INITIATIVE,
-                    config=config,
-                    reasoning_emit=make_reasoning_emit(NODE_INITIATIVE),
-                ),
-                timeout=llm_call_timeout_seconds(NODE_INITIATIVE),
-            )
     except (TimeoutError, Exception) as exc:
         logger.warning("initiative_llm_failed", error=str(exc), run_id=run_id)
         return {STATE_KEY_INITIATIVE_ITERATION: iteration + 1}
@@ -693,7 +634,7 @@ async def _initiative_core(
 
     # Prometheus: evaluation decision (dashboard 13) — non-critical
     with suppress(Exception):
-        from src.infrastructure.observability.metrics_agents import (
+        from src.infrastructure.observability.metrics_initiative import (
             initiative_duration_seconds,
             initiative_evaluations_total,
         )
@@ -720,7 +661,7 @@ async def _initiative_core(
         # Metrics emission must never fail the turn (same idiom as the
         # open_loops repository chokepoint).
         with suppress(Exception):
-            from src.infrastructure.observability.metrics_agents import (
+            from src.infrastructure.observability.metrics_initiative import (
                 initiative_followups_total,
             )
 
@@ -733,7 +674,7 @@ async def _initiative_core(
 
     # Emit one initiative_actions_executed_total per validated action (done below)
     with suppress(Exception):
-        from src.infrastructure.observability.metrics_agents import (
+        from src.infrastructure.observability.metrics_initiative import (
             initiative_actions_executed_total,
         )
 
@@ -741,7 +682,9 @@ async def _initiative_core(
             initiative_actions_executed_total.labels(tool_name=_action.tool_name).inc()
 
     # ── 9. Validate read-only (defense in depth) ─────────────────────
-    validated_actions = _validate_read_only(decision.actions, adjacent_manifests)
+    validated_actions = _validate_read_only(
+        decision.actions, adjacent_manifests, limit=settings.initiative_max_actions
+    )
     if not validated_actions:
         logger.warning("initiative_all_actions_rejected", run_id=run_id)
         state_update[STATE_KEY_INITIATIVE_SKIPPED_REASON] = "all_actions_non_readonly"

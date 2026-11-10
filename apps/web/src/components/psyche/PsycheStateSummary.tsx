@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { ChartScatter, Compass, Brain, Heart, MessageCircle, type LucideIcon } from 'lucide-react';
+import { ChartScatter, Compass, Brain, Heart, MessageCircle, type LucideIcon } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { Card } from '@/components/ui/card';

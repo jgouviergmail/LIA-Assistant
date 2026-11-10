@@ -10,8 +10,6 @@ interface CaptureInput {
   output: string;
   time: string;
   routes: ReturnType<typeof landingProofRoutes>;
-  fontCss: string;
-  fontPath: string;
   messages: ReturnType<typeof proofMessages>;
   approvalMessages: ReturnType<typeof proofMessages>;
   skillMessages: ReturnType<typeof skillMessages>;
@@ -51,8 +49,6 @@ async function capture(page: Page, input: CaptureInput) {
       return route.fulfill(fixture.status === 204 ? { status: 204, body: '' } : { status: fixture.status ?? 200, json: fixture.json });
     });
   }
-  await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: input.fontCss, headers: { 'Access-Control-Allow-Origin': '*' } }));
-  await page.route('https://fonts.gstatic.com/lia-e2e/MaterialSymbolsOutlined.woff2', route => route.fulfill({ contentType: 'font/woff2', path: input.fontPath, headers: { 'Access-Control-Allow-Origin': '*' } }));
   await page.route('**/api/v1/notifications/stream', () => undefined);
   for (const [url, path] of [['**/api/v1/connectors/google-location/static-map*', input.locationMapPath], ['**/api/v1/connectors/google-routes/static-map*', input.routeMapPath]]) {
     await page.route(url, route => {
@@ -134,11 +130,11 @@ async function capture(page: Page, input: CaptureInput) {
     // review remains required; keep this measurement explicitly named as such.
     captures.push({ name, route: new URL(page.url()).pathname + new URL(page.url()).search, viewport: page.viewportSize(), exercised, illustrated, emails, avatarDomBoundsInViewport: avatar.visible.filter(item => item.presentation.visible).length, avatarPresentation: avatar.visible.map(item => item.presentation) });
   };
-  const useMessages = async (body: ReturnType<typeof proofMessages>) => {
+  const setMessages = async (body: ReturnType<typeof proofMessages>) => {
     await page.route('**/api/v1/conversations/me/messages*', route => route.fulfill({ json: body }));
   };
 
-  await useMessages(input.messages);
+  await setMessages(input.messages);
   await page.setViewportSize({ width: 1600, height: 1400 });
   await ready('/en/dashboard/chat', 'Your launch review, ready to discuss');
   await page.mouse.move(400, 500);
@@ -149,7 +145,7 @@ async function capture(page: Page, input: CaptureInput) {
   await save('dossier', ['real chat route, native HtmlRenderer.render_multi output for one FileItem and one EmailCard; compact synthesis and active-space indicator'], ['fictional cross-source comparison and complete source payloads; calendar is synthesis context, its native EventCards are illustrated in the public agenda campaign; no inference, document fetch, email lookup or calendar query performed']);
 
   await page.setViewportSize({ width: 1600, height: 1100 });
-  await useMessages(input.approvalMessages);
+  await setMessages(input.approvalMessages);
   await page.route('**/api/v1/agents/hitl/pending', route => route.fulfill({ json: input.pending }));
   await ready('/en/dashboard/chat', 'A message ready for your review');
   await page.getByRole('button', { name: 'Confirm', exact: true }).waitFor({ state: 'visible' });
@@ -160,7 +156,7 @@ async function capture(page: Page, input: CaptureInput) {
   await page.getByText('Launch plan.pdf', { exact: true }).waitFor({ state: 'visible' });
   await save('knowledge', ['real space detail, source lists and indexed-document rows'], ['document contents, completed synchronization and embedding costs; no indexing performed']);
 
-  await useMessages(input.skillMessages);
+  await setMessages(input.skillMessages);
   await ready('/en/dashboard/chat', 'Shape your weekend, right here');
   await page.waitForTimeout(700);
   // A real scroll cancels chat follow-to-bottom; iframe click auto-scrolling
@@ -220,7 +216,7 @@ async function capture(page: Page, input: CaptureInput) {
   await page.getByRole('button', { name: 'Stop the radio', exact: true }).first().click();
 
   await page.setViewportSize({ width: 1600, height: 1400 });
-  await useMessages(input.geographicMessages.places);
+  await setMessages(input.geographicMessages.places);
   await ready('/en/dashboard/chat', 'A place to consider, with the useful details');
   await page.locator('.lia-card.lia-place').getByText('Opening hours', { exact: true }).click();
   await page.locator('.lia-card.lia-place').getByText('Accessibility', { exact: true }).click();
@@ -233,7 +229,7 @@ async function capture(page: Page, input: CaptureInput) {
   // At this real desktop width the native map hero keeps the complete
   // recorded 1280x600 image below its 400px cap, including Google's attribution.
   await page.setViewportSize({ width: 1100, height: 1100 });
-  await useMessages(input.geographicMessages.maps);
+  await setMessages(input.geographicMessages.maps);
   await ready('/en/dashboard/chat', 'Your meeting point, with the map beside it');
   await page.mouse.move(400, 500);
   await page.mouse.wheel(0, -2400);
@@ -241,7 +237,7 @@ async function capture(page: Page, input: CaptureInput) {
   await save('maps', ['real LocationCard output in the chat; native Google static-map proxy fulfilled from the recorded, unmodified local Google PNG; address, city, country and coordinates'], ['public landmark rather than current device location; no account GPS, geocoding or Google request during browser capture']);
 
   await page.setViewportSize({ width: 1100, height: 1300 });
-  await useMessages(input.geographicMessages.routes);
+  await setMessages(input.geographicMessages.routes);
   await ready('/en/dashboard/chat', 'A walk from Bellecour to Part-Dieu');
   await page.mouse.move(400, 500);
   await page.mouse.wheel(0, -2400);
@@ -252,9 +248,9 @@ async function capture(page: Page, input: CaptureInput) {
   return { fixtureTime: input.time, locale: 'en', theme: 'light', viewport: { width: 1600, height: 1100 }, avatar: { style: 'bip', size: 'xl', variant: 'male', bodyAsset: '/avatars/bip/v1/male/body.webp', reducedMotion: false, preferences: 'Real maximum XL preference through isolated browser localStorage and male cookie. Real mouse moves toward the screen centre renew native cursor gaze. Character, size, hybrid renderer and body asset checked before every capture; each PNG still requires pixel review.' }, captures, unexpected, errors, mockedRequests: [...new Set(reads)], names: ['dossier', 'approval', 'knowledge', 'skill', 'memory', 'administration', 'relations', 'meetings', 'radio', 'places', 'maps', 'routes'] };
 }
 
-export function createLandingProofCode(baseUrl: string, output: string, skillFrame: Parameters<typeof skillMessages>[0], fontCss: string, fontPath: string, silentAudioPath: string, geography: { html: GeographicCardHtml; locationMapPath: string; routeMapPath: string }, dossierCards: string): string {
+export function createLandingProofCode(baseUrl: string, output: string, skillFrame: Parameters<typeof skillMessages>[0], silentAudioPath: string, geography: { html: GeographicCardHtml; locationMapPath: string; routeMapPath: string }, dossierCards: string): string {
   if (PROOF_NAMES.length !== 12) throw new Error('Twelve app proofs are required');
-  const input: CaptureInput = { baseUrl, output, time: PROOF_TIME, routes: landingProofRoutes(), fontCss, fontPath,
+  const input: CaptureInput = { baseUrl, output, time: PROOF_TIME, routes: landingProofRoutes(),
     messages: proofMessages(multiSourceResponse(dossierCards), 'Prepare Monday’s launch review using my project brief, supplier emails and meeting notes.'),
     approvalMessages: proofMessages(APPROVAL_RESPONSE, 'Draft a message to clarify the supplier’s delivery date. Ask me before sending it.'),
     skillMessages: skillMessages(skillFrame), pending: PENDING_APPROVAL, spaceId: SPACE_ID, meetingId: MEETING_ID, radioId: RADIO_ID, silentAudioPath,

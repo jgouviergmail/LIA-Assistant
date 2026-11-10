@@ -43,20 +43,17 @@ from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import format_datetime_for_display
 from src.domains.telephony.models import CallKind
 from src.domains.telephony.prompts.loader import TelephonyPromptName, load_telephony_prompt
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
+from src.domains.voice_sessions.expression import PERSON_CUES
 from src.domains.voice_sessions.mandate import (
     DelegationBlockInputs,
+    neutralise_vendor_syntax,
     personality_block,
     render_delegation_block,
 )
 from src.domains.voice_sessions.session import VoiceSessionMode
 
-#: The vendor reads ``{{name}}`` as a dynamic variable. A value carrying that
-#: sequence is broken apart so it stays text — the doubled brace never reaches
-#: the wire from a value.
-_VENDOR_OPEN: Final = "{{"
-_VENDOR_OPEN_NEUTRAL: Final = "{ {"
-_VENDOR_CLOSE: Final = "}}"
-_VENDOR_CLOSE_NEUTRAL: Final = "} }"
 #: The language the prompt files are written in.
 PROMPT_LANGUAGE: Final = "en"
 
@@ -114,6 +111,8 @@ class MandateInputs:
             in; "" when none could be read.
         result_budget_tokens: The published bound of a delegated answer
             (Live mode, ADR-301) — what the delegation block states.
+        cue_dialect: What the agent's speaking engine performs (ADR-373):
+            an owner frame lists the cues the voice may write, and only then.
     """
 
     language: str
@@ -127,6 +126,7 @@ class MandateInputs:
     live_tool_domains: tuple[str, ...] = ()
     personality: str = ""
     result_budget_tokens: int = 0
+    cue_dialect: CueDialect = NO_CUES
 
 
 MANDATES: Final[Mapping[CallKind, CallMandate]] = {
@@ -193,20 +193,6 @@ def mandate_for(kind: CallKind, *, mode: VoiceSessionMode = "direct") -> CallMan
     return MANDATES[kind]
 
 
-def neutralise_vendor_syntax(value: str) -> str:
-    """Break any ``{{…}}`` inside a VALUE so the vendor reads it as text.
-
-    Args:
-        value: Text bound for the override prompt.
-
-    Returns:
-        The same text with doubled braces separated by a space.
-    """
-    return value.replace(_VENDOR_OPEN, _VENDOR_OPEN_NEUTRAL).replace(
-        _VENDOR_CLOSE, _VENDOR_CLOSE_NEUTRAL
-    )
-
-
 def spoken_digits(code: str) -> str:
     """Space the digits of a code so a TTS reads them one by one.
 
@@ -253,8 +239,25 @@ def _self_prompt(inputs: MandateInputs) -> str:
         user_context_block=context_block,
         availability_block=availability_block,
         live_tools_block=live_tools_block,
-        personality_block=personality_block(lines, neutralise_vendor_syntax(inputs.personality)),
+        personality_block=neutralise_vendor_syntax(
+            personality_block(inputs.personality, user_name=inputs.user_name)
+        ),
+        expression_block=_expression_block(inputs),
     )
+
+
+def third_party_manner() -> str:
+    """The manner a STRANGER hears (owner, 2026-11-07): cordial, never the personality.
+
+    The baked agent reads it in its ``<personality_profile>`` slot, as a
+    dynamic variable, on every call that is not the person's own.
+    """
+    return _scaffold_lines()["third_party_manner"]
+
+
+def _expression_block(inputs: MandateInputs) -> str:
+    """The cues an owner call's voice may write: the person's whole vocabulary (ADR-373)."""
+    return live_cues_block(inputs.cue_dialect, PERSON_CUES)
 
 
 def _objective(inputs: MandateInputs, lines: dict[str, str]) -> str:
@@ -287,8 +290,11 @@ def _self_live_prompt(inputs: MandateInputs) -> str:
         user_name=neutralise_vendor_syntax(inputs.user_name),
         language_name=get_language_name(inputs.language),
         objective=_objective(inputs, lines),
-        personality_block=personality_block(lines, neutralise_vendor_syntax(inputs.personality)),
+        personality_block=neutralise_vendor_syntax(
+            personality_block(inputs.personality, user_name=inputs.user_name)
+        ),
         delegation_block=delegation_block,
+        expression_block=_expression_block(inputs),
     )
 
 
@@ -378,6 +384,5 @@ __all__ = [
     "build_override",
     "append_owner_portrait",
     "mandate_for",
-    "neutralise_vendor_syntax",
     "spoken_digits",
 ]

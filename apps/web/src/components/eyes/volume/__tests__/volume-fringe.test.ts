@@ -5,7 +5,7 @@ import { visibleVolumeMesh, volumeProfile, rotateVolumePoint } from '../volume-g
 import { createMeshGpu } from '../mesh-gpu';
 import { createClothGpu } from '../cloth-gpu';
 import { restChannelValues } from '../../rig/channels';
-import { smileyClothGraphics } from '../../__tests__/smiley-cloth-graphics';
+import { volumeGraphics } from '../../__tests__/volume-graphics';
 
 const canvasContext = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!;
 afterEach(() => {
@@ -17,7 +17,7 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
     const profile = volumeProfile('oscar', 'female'),
       physical = { vertices: new Float32Array(), indices: new Uint16Array() },
       mesh = withSoftFringe(physical, profile),
-      gl = smileyClothGraphics();
+      gl = volumeGraphics();
     const gpu = createMeshGpu(document.createElement('canvas'), gl, mesh);
     const fragment = gl.shaderSource.mock.calls
       .map(([, source]) => source)
@@ -26,8 +26,8 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
     expect(fragment).not.toMatch(/tex\.a\s*>=\s*180/);
     expect(fragment).toContain('float alpha=min(tex.a,texture2D(u_fringe,v_uv).a)');
     expect(fragment).toContain('gl_FragColor=vec4(tex.rgb*alpha,alpha)');
-    expect(mesh.vertices.length / 8).toBe(4);
-    expect(mesh.indices.length).toBe(6);
+    expect(mesh.vertices.length / 8).toBeGreaterThan(4);
+    expect(mesh.indices.length).toBeGreaterThan(6);
     gpu?.dispose();
   });
   it('joins front and rear normals at a radial contour without interpolating opposite rear signs', () => {
@@ -53,7 +53,7 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
     const contour = [...new Set(mesh.indices)].filter(index => mesh.vertices[index * 8 + 2] === 0);
     expect(contour.length).toBeGreaterThan(40);
     expect(contour.every(index => Math.abs(mesh.vertices[index * 8 + 5]) < 0.0000001)).toBe(true);
-    const gl = smileyClothGraphics(),
+    const gl = volumeGraphics(),
       gpu = createMeshGpu(document.createElement('canvas'), gl, mesh);
     const sources = gl.shaderSource.mock.calls.map(([, source]) => source),
       vertex = sources.find(source => source.includes('attribute'))!,
@@ -70,7 +70,7 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
     );
     gpu?.dispose();
   });
-  it('preserves the complete closed hull and adds only two planar source-fringe triangles', () => {
+  it('preserves the closed hull and tessellates source detail for local articulation', () => {
     const alpha = new Uint8Array(192 * 192);
     for (let y = 30; y < 160; y++) for (let x = 30; x < 160; x++) alpha[y * 192 + x] = 255;
     const mask = { width: 192, height: 192, alpha },
@@ -79,8 +79,8 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
       combined = withSoftFringe(physical, profile);
     expect(combined.indices.slice(0, physical.indices.length)).toEqual(physical.indices);
     expect(combined.vertices.slice(0, physical.vertices.length)).toEqual(physical.vertices);
-    expect(combined.vertices.length - physical.vertices.length).toBe(32);
-    expect(combined.indices.length - physical.indices.length).toBe(6);
+    expect(combined.vertices.length - physical.vertices.length).toBeGreaterThan(32);
+    expect(combined.indices.length - physical.indices.length).toBeGreaterThan(6);
     for (let i = physical.vertices.length; i < combined.vertices.length; i += 8) {
       expect(combined.vertices[i + 2]).toBe(0);
       expect(combined.vertices[i + 5]).toBe(2);
@@ -101,7 +101,7 @@ describe('soft source alpha never becomes an opaque physical rear or side', () =
 });
 
 function materialDriver() {
-  const gl = smileyClothGraphics();
+  const gl = volumeGraphics();
   const uniforms = new Map<string, WebGLUniformLocation>();
   gl.getUniformLocation.mockImplementation((_program, name) => {
     const location = {};

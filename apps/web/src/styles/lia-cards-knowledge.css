@@ -1,0 +1,491 @@
+/* Documentary objects keep their own reading grammar and the application's palette.
+   These rules enhance current deterministic markup; no generated content is a fact. */
+.lia-response-wrapper[data-card-version='2'] {
+  :is(.lia-file, .lia-article, .lia-search, .lia-web-search, .lia-mcp, .lia-hues) {
+    container-type: inline-size;
+    container-name: card lia-knowledge;
+    color: var(--lia-craft-ink);
+    background: var(--lia-craft-paper);
+    border-color: var(--lia-craft-line);
+  }
+
+  :is(
+    .lia-file__sheet,
+    .lia-file__record,
+    .lia-article__reading,
+    .lia-article__margin,
+    .lia-search__clipping,
+    .lia-web-search__reading,
+    .lia-web-search__references,
+    .lia-mcp__receipt,
+    .lia-hues__reading
+  ) {
+    min-inline-size: 0;
+  }
+
+  /* Drive: a labelled folder, with the actual source thumbnail on its paper. */
+  .lia-file {
+    display: block;
+    padding: var(--lia-space-md);
+    border-radius: 6px 22px 16px 16px;
+    background: var(--lia-craft-tint);
+  }
+  .lia-file__tab {
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    padding: 0 var(--lia-space-sm);
+  }
+  .lia-file__tab .lia-chip-row {
+    margin: 0;
+    padding-block: var(--lia-space-xs) var(--lia-space-md);
+    border: 0;
+  }
+  .lia-file__sheet {
+    display: grid;
+    gap: var(--lia-space-lg);
+    padding: var(--lia-space-lg);
+    border: 1px solid var(--lia-craft-line);
+    border-radius: 3px 14px 3px 3px;
+    background: var(--lia-craft-paper);
+    box-shadow: 3px 4px 0 var(--lia-craft-soft);
+  }
+  .lia-file__record > .lia-card-top {
+    align-items: center;
+    border: 0;
+  }
+  .lia-file__record .lia-illus {
+    border-radius: 2px 12px 2px 2px;
+    border: 1px solid var(--lia-craft-line);
+    background: var(--lia-craft-tint);
+  }
+  .lia-file__preview {
+    display: block;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    margin: 0;
+    padding: var(--lia-space-sm);
+    border: 1px solid var(--lia-craft-line);
+    border-radius: 3px;
+    background: var(--lia-craft-soft);
+  }
+  .lia-file__preview .lia-file__thumb {
+    inline-size: 100%;
+    block-size: auto;
+    max-block-size: 240px;
+    object-fit: contain;
+    border-radius: 0;
+  }
+  .lia-file__sheet .lia-file-meta {
+    padding-block: var(--lia-space-xs);
+    align-items: flex-start;
+  }
+  .lia-file > .lia-collapsible-wrapper {
+    margin: var(--lia-space-md) 0 0 var(--lia-space-md);
+    padding: var(--lia-space-sm) var(--lia-space-md);
+    border-inline-start: 2px solid var(--lia-craft-accent);
+    background: var(--lia-craft-paper);
+  }
+
+  /* Encyclopedia: an editorial reading page with the supplied index in its margin. */
+  .lia-article {
+    display: block;
+    border-radius: 4px 18px 18px 4px;
+    border-inline-start: 7px solid var(--lia-craft-tint);
+    padding: var(--lia-space-lg);
+  }
+  .lia-article > .lia-card-top {
+    align-items: center;
+    padding-bottom: var(--lia-space-lg);
+  }
+  .lia-article .lia-card-top__title {
+    font-family: var(--lia-craft-display-font);
+    font-size: calc(1.75rem * var(--lia-text-scale, 1));
+    font-weight: 500;
+    line-height: 1.15;
+  }
+  .lia-article__spread {
+    display: grid;
+    gap: var(--lia-space-lg);
+  }
+  .lia-article__thumb {
+    inline-size: 100%;
+    block-size: auto;
+    margin: 0 0 var(--lia-space-md);
+    border-radius: 3px;
+    background: var(--lia-craft-soft);
+  }
+  .lia-article__thumb img {
+    max-block-size: 240px;
+    block-size: auto;
+    object-fit: contain;
+  }
+  .lia-article__body {
+    line-height: 1.7;
+    font-size: var(--lia-text-base);
+  }
+  .lia-article__body > .lia-card-text:first-child {
+    font-family: var(--lia-craft-display-font);
+  }
+  .lia-article__margin {
+    padding-block-start: var(--lia-space-md);
+    border-block-start: 1px solid var(--lia-craft-line);
+    font-size: var(--lia-text-sm);
+  }
+  .lia-article__margin .lia-research-list {
+    padding-inline-start: 1.3em;
+  }
+  .lia-article__read-more {
+    display: inline-flex;
+    min-block-size: 44px;
+    align-items: center;
+    margin-block-start: var(--lia-space-md);
+  }
+
+  /* Search clippings distinguish source provenance from the received answer. */
+  .lia-search {
+    display: block;
+    padding: var(--lia-space-sm);
+    background: var(--lia-craft-tint);
+    border-radius: 14px;
+  }
+  .lia-search__provenance {
+    padding: var(--lia-space-sm) var(--lia-space-md);
+  }
+  .lia-search__provenance > .lia-card__meta {
+    margin: 0;
+    color: var(--lia-craft-ink);
+  }
+  .lia-search__clipping {
+    padding: var(--lia-space-lg);
+    background: var(--lia-craft-paper);
+    border: 1px solid var(--lia-craft-line);
+    border-radius: 3px 16px 3px 3px;
+  }
+  .lia-search__clipping > .lia-card-top {
+    align-items: center;
+    border: 0;
+  }
+  .lia-search__clipping .lia-card-top__title {
+    font-family: var(--lia-craft-display-font);
+    font-size: calc(1.5rem * var(--lia-text-scale, 1));
+    line-height: 1.3;
+  }
+  .lia-search__answer {
+    border-inline-start: 3px solid var(--lia-craft-tint);
+    padding-inline-start: var(--lia-space-md);
+    line-height: 1.65;
+  }
+  .lia-search--answer .lia-search__answer {
+    border-inline-start-style: double;
+  }
+
+  /* A research brief keeps original sources beside, never inside, the synthesis. */
+  .lia-web-search {
+    display: block;
+    padding: 0;
+    border-radius: 16px;
+  }
+  .lia-web-search > .lia-card-top {
+    margin: 0;
+    padding: var(--lia-space-lg);
+    background: var(--lia-craft-tint);
+    border-radius: 15px 15px 0 0;
+  }
+  .lia-web-search > .lia-card-top .lia-illus {
+    border-radius: 3px;
+    background: var(--lia-craft-paper);
+    border: 1px solid var(--lia-craft-line);
+    box-shadow: 3px 3px 0 var(--lia-craft-soft);
+  }
+  .lia-web-search__brief {
+    display: grid;
+  }
+  .lia-web-search__reading {
+    padding: var(--lia-space-lg);
+    line-height: 1.65;
+  }
+  .lia-web-search__references {
+    padding: var(--lia-space-lg);
+    border-block-start: 1px solid var(--lia-craft-line);
+    background: var(--lia-craft-soft);
+    border-radius: 0 0 15px 15px;
+  }
+  .lia-web-search__references .lia-research-list {
+    padding-inline-start: 1.5em;
+  }
+  .lia-web-search__references .lia-research-source {
+    font-size: var(--lia-text-sm);
+  }
+  .lia-web-search__references .lia-research-source > .lia-card__meta {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  /* MCP is a receipt of bounded data, never an execution-success certificate. */
+  .lia-mcp {
+    display: block;
+    padding: 0;
+    border-radius: 6px 6px 2px 2px;
+    border-block-end: 3px double var(--lia-craft-line);
+  }
+  .lia-mcp > .lia-card-top {
+    margin: 0;
+    padding: var(--lia-space-lg);
+    border-block-end: 1px dashed var(--lia-craft-muted);
+    background: var(--lia-craft-tint);
+    border-radius: 5px 5px 0 0;
+  }
+  .lia-mcp__metadata,
+  .lia-mcp__receipt {
+    margin: 0;
+    padding: var(--lia-space-md) var(--lia-space-lg);
+  }
+  .lia-mcp__metadata {
+    border-block-end: 1px solid var(--lia-craft-line);
+  }
+  .lia-mcp-fields > div {
+    padding-block: var(--lia-space-sm);
+    border-block-end: 1px solid var(--lia-craft-line);
+  }
+  .lia-mcp-fields > div:nth-child(even) {
+    background: var(--lia-craft-soft);
+  }
+  .lia-mcp-fields dd {
+    font-variant-numeric: tabular-nums;
+  }
+  .lia-mcp .lia-card__limit-notice {
+    padding: var(--lia-space-sm);
+    border-inline-start: 3px solid var(--lia-craft-accent);
+    color: var(--lia-craft-ink);
+    background: var(--lia-craft-tint);
+  }
+
+  /* A fixed, read-only lamp silhouette follows only the explicit boolean state. */
+  .lia-hues__composition {
+    display: grid;
+    grid-template-columns: minmax(72px, 0.35fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--lia-space-lg);
+  }
+  .lia-hues__scene {
+    position: relative;
+    min-block-size: 150px;
+    border-radius: 50% 50% 6px 6px;
+    background: var(--lia-craft-soft);
+    border-block-end: 1px solid var(--lia-craft-line);
+  }
+  .lia-hues__shade {
+    position: absolute;
+    z-index: 1;
+    inset: 24px 20% auto;
+    block-size: 42px;
+    border: 2px solid var(--lia-craft-muted);
+    border-radius: 28px 28px 4px 4px;
+    background: var(--lia-craft-paper);
+  }
+  .lia-hues__stem {
+    position: absolute;
+    inset: 65px auto 24px 50%;
+    border-inline-start: 3px solid var(--lia-craft-muted);
+  }
+  .lia-hues__foot {
+    position: absolute;
+    inset: auto 22% 20px;
+    border-block-start: 4px solid var(--lia-craft-muted);
+    border-radius: 50%;
+  }
+  .lia-hues__scene--on {
+    background: radial-gradient(
+      ellipse at 50% 45%,
+      var(--lia-craft-tint),
+      var(--lia-craft-paper) 72%
+    );
+  }
+  .lia-hues__scene--on .lia-hues__shade {
+    background: var(--lia-craft-accent);
+    border-color: var(--lia-craft-accent);
+  }
+  .lia-hues__scene--unknown .lia-hues__shade {
+    border-style: dashed;
+  }
+  .lia-hues__reading .lia-chip-row {
+    margin-block-start: 0;
+  }
+
+  @container lia-knowledge (min-width: 550px) {
+    .lia-file__sheet:has(> .lia-file__preview) {
+      grid-template-columns: minmax(120px, 0.55fr) minmax(0, 1fr);
+      align-items: start;
+    }
+    .lia-article__spread:has(> .lia-article__margin) {
+      grid-template-columns: minmax(0, 1.65fr) minmax(160px, 0.8fr);
+    }
+    .lia-article__margin {
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--lia-craft-line);
+      padding: 0 0 0 var(--lia-space-lg);
+    }
+    .lia-web-search__brief:has(> .lia-web-search__references) {
+      grid-template-columns: minmax(0, 1.45fr) minmax(180px, 0.85fr);
+    }
+    .lia-web-search__references {
+      border-block-start: 0;
+      border-inline-start: 1px solid var(--lia-craft-line);
+      border-radius: 0 0 15px;
+    }
+  }
+  @container lia-knowledge (max-width: 270px) {
+    .lia-file > .lia-collapsible-wrapper {
+      margin-inline-start: 0;
+      padding-inline: 0;
+    }
+    .lia-hues__composition {
+      grid-template-columns: 1fr;
+    }
+    .lia-hues__scene {
+      min-block-size: 130px;
+      max-inline-size: 130px;
+      inline-size: 100%;
+      margin-inline: auto;
+    }
+    .lia-file__sheet,
+    .lia-search__clipping {
+      padding: var(--lia-space-md);
+    }
+  }
+}
+
+/* A proposal's paper remains visibly unsigned; a result carries its explicit mark. */
+.lia-card:is(.lia-draft, .lia-draft-result) {
+  /* Draft rows use the same theme palette as their paper, including on tinted surfaces. */
+  --lia-text-secondary: var(--lia-craft-muted);
+  color: var(--lia-craft-ink);
+  background: var(--lia-craft-paper);
+  border: 1px solid var(--lia-craft-line);
+  padding: var(--lia-space-lg);
+  overflow-wrap: anywhere;
+}
+.lia-card.lia-draft {
+  border-inline-start: 5px solid var(--lia-craft-accent);
+  border-radius: 3px 20px 20px 3px;
+  background: var(--lia-craft-soft);
+}
+.lia-card.lia-draft .lia-card-top {
+  border-block-end: 1px dashed var(--lia-craft-muted);
+}
+.lia-draft__paper {
+  min-inline-size: 0;
+  padding: var(--lia-space-md);
+  border: 1px solid var(--lia-craft-line);
+  border-radius: 3px;
+  background: var(--lia-craft-paper);
+}
+.lia-draft__paper .lia-desc-block {
+  background: var(--lia-craft-soft);
+  color: var(--lia-craft-ink);
+  line-height: 1.65;
+}
+.lia-card.lia-draft-result {
+  border-radius: 5px;
+  border-block-end: 3px double var(--lia-craft-line);
+}
+.lia-draft-result .lia-card-top {
+  background: var(--lia-craft-tint);
+  padding: var(--lia-space-md);
+  border-radius: 3px;
+}
+.lia-draft-result .lia-draft__paper {
+  border: 0;
+  border-block-start: 1px dashed var(--lia-craft-muted);
+}
+
+/* The existing generated-file lifecycle and previews remain React-owned. */
+.lia-generated-documents {
+  container: lia-documents / inline-size;
+}
+.lia-generated-document {
+  min-inline-size: 0;
+  color: var(--lia-craft-ink);
+  background: var(--lia-craft-soft);
+  border-color: var(--lia-craft-line);
+  padding: var(--lia-space-md);
+  border-radius: 18px;
+}
+.lia-generated-document__header {
+  flex-wrap: wrap;
+}
+.lia-generated-document__identity {
+  min-inline-size: min(100%, 180px);
+}
+.lia-generated-document__name {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.lia-generated-documents > .lia-generated-file-gone {
+  max-inline-size: none;
+  padding: var(--lia-space-lg);
+  border-radius: 3px 18px 3px 3px;
+  border-color: var(--lia-craft-muted);
+  color: var(--lia-craft-muted);
+  background: var(--lia-craft-soft);
+  overflow-wrap: anywhere;
+}
+.lia-generated-document .lia-document-preview {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  margin-block-start: var(--lia-space-md);
+  background: var(--lia-craft-paper);
+  color: var(--lia-craft-ink);
+  border: 1px solid var(--lia-craft-line);
+  border-radius: 3px;
+  box-shadow: 3px 4px 0 var(--lia-craft-tint);
+}
+.lia-document-preview > p:first-child {
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-block-end: 1px solid var(--lia-craft-line);
+}
+.lia-document-preview:is(.lia-document-preview--docx, .lia-document-preview--pptx) > pre {
+  font-family: var(--lia-craft-display-font);
+  font-size: var(--lia-text-base);
+  line-height: 1.7;
+  padding: var(--lia-space-lg);
+}
+.lia-document-preview:is(.lia-document-preview--csv, .lia-document-preview--xlsx) th {
+  background: var(--lia-craft-tint);
+  color: var(--lia-craft-ink);
+}
+.lia-document-preview:is(.lia-document-preview--csv, .lia-document-preview--xlsx)
+  tr:nth-child(even) {
+  background: var(--lia-craft-soft);
+}
+.lia-document-preview--pdf img {
+  min-block-size: 180px;
+  max-block-size: 280px;
+}
+@container lia-documents (min-width: 600px) {
+  .lia-generated-document:has(> .lia-document-preview) {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+    gap: var(--lia-space-lg);
+    align-items: start;
+  }
+  .lia-generated-document__header {
+    align-content: start;
+  }
+  .lia-generated-document__identity {
+    flex-basis: 100%;
+    margin-block-end: var(--lia-space-md);
+  }
+  .lia-generated-document .lia-document-preview {
+    margin-block-start: 0;
+  }
+}
+@media (forced-colors: active) {
+  .lia-file__sheet,
+  .lia-generated-document .lia-document-preview {
+    box-shadow: none;
+  }
+  .lia-hues__scene--on .lia-hues__shade {
+    background: Highlight;
+  }
+}

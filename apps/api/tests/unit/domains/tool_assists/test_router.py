@@ -37,6 +37,7 @@ from src.domains.tool_assists.mail import (
 )
 from src.domains.tool_assists.mail_triage import Triage, TriagedMessage
 from src.domains.tool_assists.mail_words import ProposedFilter, ProposedSearch
+from src.domains.tool_assists.passage import PassageAct
 from src.domains.tool_assists.speech import HeardWords
 from src.domains.tool_assists.text import RewriteTone, WritingKind
 from src.domains.workbench.errors import ITEM_GONE, refuse
@@ -250,6 +251,58 @@ async def test_a_translation_takes_the_language_as_the_person_names_it(
     assert answer.json()["text"] == "Olá"
 
 
+async def test_a_passage_is_answered_by_its_own_assist(
+    client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def act(
+        run: AssistRun,
+        words: str,
+        asked: PassageAct,
+        question: str | None,
+        *,
+        origin: str,
+    ) -> str:
+        assert (words, asked, question, origin) == (
+            "The fee is due.",
+            PassageAct.ASK,
+            "When?",
+            "mail",
+        )
+        return "On Friday."
+
+    monkeypatch.setattr(assists_router.passage, "act_on_passage", act)
+
+    answer = await client.post(
+        "/tool-assists/text/passage",
+        json={"passage": "The fee is due.", "act": "ask", "question": "When?", "origin": "mail"},
+    )
+
+    assert answer.json()["text"] == "On Friday."
+    assert calls[0]["assist"] is ToolAssist.TEXT_PASSAGE
+
+
+_TOO_LONG = "x" * (settings.tool_assist_text_max_chars + 1)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"passage": _TOO_LONG, "act": "explain", "origin": "mail"},
+        {"passage": "The fee is due.", "act": "ask", "origin": "mail"},
+        {"passage": "The fee is due.", "act": "explain", "question": "Why?", "origin": "mail"},
+        {"passage": "The fee is due.", "act": "explain", "origin": "web"},
+    ],
+    ids=["past_its_bound", "ask_without_question", "question_without_ask", "unknown_origin"],
+)
+async def test_an_odd_passage_request_reaches_no_model(
+    client: AsyncClient, calls: list[dict[str, Any]], body: dict[str, str]
+) -> None:
+    answer = await client.post("/tool-assists/text/passage", json=body)
+
+    assert answer.status_code == 422
+    assert calls == []
+
+
 async def test_a_text_is_written_for_a_known_kind(
     client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -360,6 +413,23 @@ async def test_words_are_read_aloud_with_their_cut_and_cost(
 
     assert answer.status_code == 200
     assert answer.json() == {"audio": "SUQz", "cut": True, "cost_eur": 0.002, "usage": None}
+    assert calls[0]["assist"] is ToolAssist.READ_ALOUD
+
+
+async def test_reading_selected_words_needs_no_tools_capability(
+    client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def enabled(capability: PlatformCapability) -> bool:
+        return capability is not PlatformCapability.WORKBENCH
+
+    async def read(run: AssistRun, words: str) -> HeardWords:
+        assert words == "A selection from chat"
+        return HeardWords(audio="SUQz", cut=False, cost_eur=0)
+
+    monkeypatch.setattr("src.domains.feature_switches.guard.is_capability_enabled", enabled)
+    monkeypatch.setattr(assists_router.speech, "read_aloud", read)
+    response = await client.post("/tool-assists/read-aloud", json={"text": "A selection from chat"})
+    assert response.status_code == 200
     assert calls[0]["assist"] is ToolAssist.READ_ALOUD
 
 
@@ -488,6 +558,29 @@ async def test_a_card_is_read_from_its_picture(
     assert calls[0]["assist"] is ToolAssist.CONTACT_FROM_CARD
 
 
+async def test_a_contact_said_in_a_sentence_reaches_the_editor(
+    client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The new-contact form, filled from the person's words (2026-11-07): nothing is created."""
+    seen: list[str] = []
+
+    async def read(run: AssistRun, sentence: str) -> ProposedContact:
+        seen.append(sentence)
+        return ProposedContact(given_name="Inès")
+
+    monkeypatch.setattr(assists_router.contact_card, "contact_from_words", read)
+
+    answer = await client.post(
+        "/tool-assists/contacts/from-words", json={"sentence": "Inès, architecte chez Acme"}
+    )
+
+    assert answer.status_code == 200
+    assert answer.json()["contact"]["given_name"] == "Inès"
+    assert answer.json()["usage"]["cost_eur"] == COST.cost_eur
+    assert seen == ["Inès, architecte chez Acme"]
+    assert calls[0]["assist"] is ToolAssist.CONTACT_FROM_WORDS
+
+
 async def test_a_picture_past_its_ceiling_is_refused_before_anything_reads_it(
     client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -599,13 +692,6 @@ async def test_a_subject_is_proposed_for_the_words_already_written(
     ("path", "body", "reader", "assist", "source"),
     [
         (
-            "/tool-assists/mail/event",
-            {"message_id": "m1"},
-            "event_from_message",
-            ToolAssist.MAIL_EVENT,
-            "m1",
-        ),
-        (
             "/tool-assists/calendar/from-words",
             {"sentence": "Lunch on Thursday"},
             "event_from_sentence",
@@ -613,7 +699,7 @@ async def test_a_subject_is_proposed_for_the_words_already_written(
             "Lunch on Thursday",
         ),
     ],
-    ids=["from-a-message", "from-a-sentence"],
+    ids=["from-a-sentence"],
 )
 async def test_an_event_reaches_the_editor_as_a_proposal(
     client: AsyncClient,
@@ -642,20 +728,66 @@ async def test_an_event_reaches_the_editor_as_a_proposal(
     assert calls[0]["assist"] is assist
 
 
-async def test_a_task_from_a_message_reaches_its_form_as_a_proposal(
+async def test_an_event_from_a_message_reaches_the_editor_with_its_focus(
     client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def read(run: AssistRun, message_id: str, clock: AssistClock) -> ProposedTask:
-        assert message_id == "m1"
-        return ProposedTask(title="Send the budget", due="2026-11-13")
+    seen: list[tuple[str, str | None]] = []
+
+    async def read(
+        run: AssistRun, message_id: str, clock: AssistClock, focus: str | None
+    ) -> ProposedEvent:
+        seen.append((message_id, focus))
+        return ProposedEvent(summary="Lunch", start_date="2026-11-12", conference=True)
+
+    monkeypatch.setattr(assists_router.actions, "event_from_message", read)
+
+    plain = await client.post("/tool-assists/mail/event", json={"message_id": "m1"})
+    focused = await client.post(
+        "/tool-assists/mail/event", json={"message_id": "m1", "focus": "Lunch on Thursday"}
+    )
+
+    assert plain.status_code == focused.status_code == 200
+    assert plain.json()["event"]["conference"] is True
+    assert seen == [("m1", None), ("m1", "Lunch on Thursday")]
+    assert calls[0]["assist"] is ToolAssist.MAIL_EVENT
+
+
+async def test_a_task_from_a_message_reaches_its_form_read_against_the_lists_and_the_act_named(
+    client: AsyncClient, calls: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[tuple[str, list[str], str | None]] = []
+
+    async def read(
+        run: AssistRun, message_id: str, clock: AssistClock, lists: list[str], focus: str | None
+    ) -> ProposedTask:
+        seen.append((message_id, lists, focus))
+        return ProposedTask(title="Send the budget", due="2026-11-13", importance="high")
 
     monkeypatch.setattr(assists_router.actions, "task_from_message", read)
 
-    answer = await client.post("/tool-assists/mail/task", json={"message_id": "m1"})
+    plain = await client.post("/tool-assists/mail/task", json={"message_id": "m1"})
+    focused = await client.post(
+        "/tool-assists/mail/task",
+        json={"message_id": "m1", "lists": ["Work", "Home"], "focus": "Send the budget"},
+    )
 
-    assert answer.status_code == 200
-    assert answer.json()["task"]["title"] == "Send the budget"
+    assert plain.status_code == focused.status_code == 200
+    assert focused.json()["task"]["title"] == "Send the budget"
+    assert focused.json()["task"]["importance"] == "high"
+    assert seen == [("m1", [], None), ("m1", ["Work", "Home"], "Send the budget")]
     assert calls[0]["assist"] is ToolAssist.MAIL_TASK
+
+
+@pytest.mark.parametrize("path", ["/tool-assists/mail/task", "/tool-assists/mail/event"])
+async def test_a_focus_past_its_published_bound_reaches_no_model(
+    client: AsyncClient, calls: list[dict[str, Any]], path: str
+) -> None:
+    focus = "x" * (settings.tool_assist_text_max_chars + 1)
+
+    answer = await client.post(path, json={"message_id": "m1", "focus": focus})
+
+    assert answer.status_code == 422
+    assert calls == []
 
 
 async def test_a_task_said_in_a_sentence_is_read_against_the_person_s_lists(

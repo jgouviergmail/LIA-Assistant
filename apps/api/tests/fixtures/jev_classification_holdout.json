@@ -20,7 +20,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-001",
@@ -33,7 +34,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-002",
@@ -46,7 +48,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-003",
@@ -59,7 +62,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-004",
@@ -72,7 +76,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-005",
@@ -85,7 +90,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-006",
@@ -98,7 +104,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-007",
@@ -111,7 +118,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-008",
@@ -124,7 +132,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-009",
@@ -137,7 +146,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-010",
@@ -150,7 +160,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-011",
@@ -163,7 +174,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-012",
@@ -176,7 +188,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-013",
@@ -189,7 +202,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-014",
@@ -202,7 +216,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-015",
@@ -215,7 +230,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-016",
@@ -228,7 +244,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-017",
@@ -241,7 +258,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-018",
@@ -254,7 +272,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-019",
@@ -267,7 +286,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-020",
@@ -280,7 +300,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-021",
@@ -293,7 +314,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-022",
@@ -306,7 +328,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-023",
@@ -319,7 +342,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-024",
@@ -332,7 +356,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-025",
@@ -345,7 +370,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-026",
@@ -358,7 +384,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-027",
@@ -371,7 +398,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-028",
@@ -384,7 +412,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-029",
@@ -397,7 +426,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-030",
@@ -410,7 +440,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-031",
@@ -423,7 +454,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-032",
@@ -436,7 +468,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-033",
@@ -449,7 +482,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-034",
@@ -462,7 +496,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-035",
@@ -475,7 +510,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-036",
@@ -488,7 +524,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-037",
@@ -501,7 +538,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-038",
@@ -514,7 +552,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-039",
@@ -527,7 +566,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "holdout-040",
@@ -540,7 +580,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "holdout-041",
@@ -553,7 +594,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "unknown",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": null
     },
     {
       "id": "holdout-042",
@@ -836,7 +878,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-061",
@@ -849,7 +892,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-062",
@@ -862,7 +906,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-063",
@@ -875,7 +920,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-064",
@@ -888,7 +934,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-065",
@@ -901,7 +948,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-066",
@@ -914,7 +962,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-067",
@@ -927,7 +976,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "holdout-068",
@@ -940,7 +990,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "holdout-069",
@@ -953,7 +1004,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     }
   ]
 }

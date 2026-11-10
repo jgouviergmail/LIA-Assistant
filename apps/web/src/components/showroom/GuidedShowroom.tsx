@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { HonestyStrip } from '@/components/showroom/HonestyStrip';

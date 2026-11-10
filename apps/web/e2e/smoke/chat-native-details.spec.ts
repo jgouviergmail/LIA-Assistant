@@ -22,6 +22,8 @@ const references: Reference[] = JSON.parse(
 );
 const samples = [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ];
@@ -70,14 +72,22 @@ for (const sample of samples) {
       document.documentElement.toggleAttribute('data-oled', theme === 'oled');
     }, sample.theme);
     const summaries = page.locator('.lia-card summary');
+    await expect(summaries).toHaveCount(5);
     for (const summary of await summaries.all()) {
+      const details = summary.locator('..');
+      await expect(details).toHaveJSProperty('open', false);
       if (sample.width === 320) await summary.tap();
       else {
         await summary.focus();
         await summary.press('Enter');
       }
+      // Complete the native gesture before another summary scrolls into view.
+      // Text presence alone also accepts facts hidden inside a closed details.
+      await expect(details).toHaveJSProperty('open', true);
+      await expect(details.locator(':scope > .lia-collapsible__content')).toBeVisible();
       expect((await summary.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     }
+    await expect(page.locator('.lia-card details[open]')).toHaveCount(5);
     await expect(page.locator('meter')).toHaveAttribute('value', '0');
     expect(await page.locator('meter').getAttribute('aria-label')).toBeTruthy();
     await expect(page.locator('.lia-hues')).toContainText('4000 K');
@@ -88,6 +98,37 @@ for (const sample of samples) {
     await expect(page.locator('.lia-calendar')).toContainText('22 Garden Street');
     await expect(page.locator('.lia-calendar')).toContainText('garden@example.test');
     await expect(page.locator('.lia-contact')).toContainText('Received pronunciation');
+    // A qualifier follows the value's final text fragment, never the row's far edge.
+    // Allow a natural next line only when that line has insufficient room.
+    const qualifiedValues = page.locator('.lia-contact__value:has(a):has(.lia-tbadge)');
+    expect(await qualifiedValues.count()).toBeGreaterThanOrEqual(4);
+    for (const value of await qualifiedValues.all()) {
+      const geometry = await value.evaluate(element => {
+        const link = element.querySelector('a');
+        const badge = element.querySelector('.lia-tbadge');
+        if (!link || !badge) throw new Error('Missing qualified contact value');
+        const range = document.createRange();
+        range.selectNodeContents(link);
+        const fragments = [...range.getClientRects()];
+        const last = fragments.at(-1);
+        if (!last) throw new Error('Contact value has no rendered text');
+        const bounds = badge.getBoundingClientRect();
+        return {
+          gap: bounds.left - last.right,
+          verticalGap: bounds.top - last.top,
+          room: element.getBoundingClientRect().right - last.right,
+          badgeWidth: bounds.width,
+          lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+        };
+      });
+      if (geometry.room >= geometry.badgeWidth + 12) {
+        expect(geometry.gap).toBeGreaterThanOrEqual(3);
+        expect(geometry.gap).toBeLessThanOrEqual(12);
+        expect(Math.abs(geometry.verticalGap)).toBeLessThan(geometry.lineHeight);
+      } else {
+        expect(geometry.verticalGap).toBeLessThan(geometry.lineHeight * 2);
+      }
+    }
     await expect(page.locator('.lia-contact time').first()).toHaveAttribute(
       'datetime',
       '2021-04-05'

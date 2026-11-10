@@ -35,10 +35,16 @@ import type { VoiceModeState } from '@/stores/voiceModeStore';
 
 export interface LiveCaption {
   role: LiveTranscriptRole;
+  /** What the line shows. */
   text: string;
+  /** Everything the line heard: it is re-shown from it as fragments arrive (ADR-373). */
+  heard: string;
   /** Epoch milliseconds of the first fragment of this line. */
   at: number;
 }
+
+/** A line shows what it heard unless told otherwise. */
+const asHeard = (heard: string): string => heard;
 
 export interface LiveStore {
   lastActivity: ActivityRecord | null;
@@ -109,8 +115,17 @@ export interface LiveStore {
   begin: (sessionId: string | null, mode?: LiveSessionMode) => void;
   apply: (event: LiveEvent) => void;
   setVoiceState: (state: VoiceModeState) => void;
-  /** Appends to the last caption of the same role while a turn grows, else opens a new one. */
-  pushCaption: (role: LiveTranscriptRole, text: string, newTurn: boolean) => void;
+  /**
+   * Appends to the last caption of the same role while a turn grows, else opens a
+   * new one; `show` turns everything the line heard into what it shows (on a
+   * `cues` session, the words without their tags — ADR-373).
+   */
+  pushCaption: (
+    role: LiveTranscriptRole,
+    text: string,
+    newTurn: boolean,
+    show?: (heard: string) => string
+  ) => void;
   setMuted: (muted: boolean) => void;
   setDelegating: (delegating: boolean) => void;
   setTimeLeft: (ms: number | null) => void;
@@ -187,14 +202,15 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   begin: (sessionId, mode = 'delegated') => set({ ...INITIAL, sessionId, mode, status: 'minting' }),
   apply: event => set(state => ({ status: transition(state.status, event) })),
   setVoiceState: voiceState => set({ voiceState }),
-  pushCaption: (role, text, newTurn) =>
+  pushCaption: (role, text, newTurn, show = asHeard) =>
     set(state => {
       const last = state.captions[state.captions.length - 1];
       if (last && last.role === role && !newTurn) {
-        const merged = { ...last, text: last.text + text };
+        const heard = last.heard + text;
+        const merged = { ...last, heard, text: show(heard) };
         return { captions: [...state.captions.slice(0, -1), merged] };
       }
-      const captions = [...state.captions, { role, text, at: Date.now() }];
+      const captions = [...state.captions, { role, text: show(text), heard: text, at: Date.now() }];
       return { captions: captions.slice(-LIVE_CAPTIONS_MAX) };
     }),
   setMuted: muted => set({ muted }),

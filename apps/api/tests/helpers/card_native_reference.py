@@ -67,6 +67,24 @@ def native_detail_domains(language: str) -> dict[str, dict[str, object]]:
                 "names": [
                     {"displayName": "Garden keeper", "phoneticFullName": "Received pronunciation"}
                 ],
+                "emailAddresses": [
+                    {"value": "camille@example.test", "type": "home"},
+                    {"value": "camille.garden.work@example.test", "type": "work"},
+                ],
+                "phoneNumbers": [{"value": "+33612345678", "type": "mobile"}],
+                "addresses": [
+                    {
+                        "streetAddress": "18 rue des Tilleuls",
+                        "city": "Lyon",
+                        "postalCode": "69001",
+                        "country": "France",
+                        "type": "work",
+                    }
+                ],
+                "urls": [
+                    {"value": "https://studio.example.test/about?team=garden", "type": "work"},
+                    {"value": "https://portfolio.example.test/camille", "type": "profile"},
+                ],
                 "organizations": [
                     {
                         "name": "Garden company",

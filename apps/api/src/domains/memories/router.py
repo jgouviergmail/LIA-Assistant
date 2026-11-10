@@ -23,6 +23,8 @@ from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     AuthorizationError,
+    BaseAPIException,
+    ResourceConflictError,
     ResourceNotFoundError,
     raise_memory_not_found,
     raise_memory_store_error,
@@ -32,7 +34,12 @@ from src.core.management_export_file import prepare_management_export_file
 from src.core.management_export_response import ManagementExportResponse
 from src.core.session_dependencies import get_current_active_session
 from src.domains.agents.tools.memory_tools import get_memory_categories
-from src.domains.memories.management_commands import lock_active_owned_memory, set_locked_memory_pin
+from src.domains.memories.management_commands import (
+    lock_active_owned_memory,
+    lock_memory_actor,
+    set_locked_memory_pin,
+)
+from src.domains.memories.management_embeddings import prepare_managed_embeddings
 from src.domains.memories.management_export import MemoryCSVExportRecord, memory_export_rows
 from src.domains.memories.read_models import build_retention_config as _build_retention_config
 from src.domains.memories.read_models import memory_to_response as _memory_to_response
@@ -48,7 +55,7 @@ from src.domains.memories.schemas import (
     MemoryResponse,
     MemoryUpdate,
 )
-from src.domains.memories.service import MemoryService
+from src.domains.memories.service import MemoryService, embedding_texts
 from src.domains.shared.provenance_repository import ProvenanceRepository
 from src.domains.shared.schemas import ProvenanceResponse
 from src.domains.users.models import User
@@ -111,7 +118,7 @@ async def export_memories(
         logger.error(
             "memories_export_failed",
             user_id=str(user.id),
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="export",
@@ -171,7 +178,7 @@ async def list_memories(
         logger.error(
             "memories_list_failed",
             user_id=str(user.id),
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="list",
@@ -205,7 +212,7 @@ async def get_memory(
 
         return _memory_to_response(memory)
 
-    except ResourceNotFoundError:
+    except BaseAPIException:
         raise
     except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
@@ -214,7 +221,7 @@ async def get_memory(
             "memory_get_failed",
             user_id=str(user.id),
             memory_id=memory_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="get",
@@ -235,10 +242,16 @@ async def create_memory(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MemoryResponse:
-    """Create a new memory."""
+    """Create a new memory: the vectors are computed with nothing held, then written."""
     try:
-        service = MemoryService(db)
-        memory = await service.create_from_management(user.id, data)
+        # ADR-304: authentication read on this session; its connection goes back BEFORE
+        # the provider is called, and the creation embeds before its first write.
+        user_id = user.id
+        await db.commit()
+        prepared = await prepare_managed_embeddings(db, user_id, (data.content, data.trigger_topic))
+        await lock_memory_actor(db, user_id)
+        service = MemoryService(db, embedder=prepared.resolve)
+        memory = await service.create_from_management(user_id, data)
         await db.commit()
 
         logger.info(
@@ -250,11 +263,13 @@ async def create_memory(
 
         return _memory_to_response(memory)
 
+    except BaseAPIException:
+        raise
     except Exception as e:
         logger.error(
             "memory_create_failed",
             user_id=str(user.id),
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="create",
@@ -274,7 +289,7 @@ async def update_memory(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> MemoryResponse:
-    """Update an existing memory."""
+    """Update an existing memory: read, embed with nothing held, then write."""
     try:
         repo = MemoryRepository(db)
         memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
@@ -282,7 +297,18 @@ async def update_memory(
         if not memory:
             raise_memory_not_found(memory_id)
 
-        service = MemoryService(db)
+        # ADR-304: the pooled connection goes back BEFORE the provider is called; the
+        # edit is then written in a transaction of its own, with the vectors prepared.
+        user_id = user.id
+        texts = embedding_texts(memory, data.content, data.trigger_topic)
+        await db.commit()
+        prepared = await prepare_managed_embeddings(db, user_id, texts)
+        memory = await lock_active_owned_memory(db, user_id, UUID(memory_id))
+        if texts != embedding_texts(memory, data.content, data.trigger_topic):
+            raise ResourceConflictError(
+                resource_type="memory", detail={"error_code": "MEMORY_CHANGED"}
+            )
+        service = MemoryService(db, embedder=prepared.resolve)
         updated = await service.update_from_management(memory, data)
         await db.commit()
 
@@ -295,7 +321,7 @@ async def update_memory(
 
         return _memory_to_response(updated)
 
-    except ResourceNotFoundError:
+    except BaseAPIException:
         raise
     except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
@@ -304,7 +330,7 @@ async def update_memory(
             "memory_update_failed",
             user_id=str(user.id),
             memory_id=memory_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="update",
@@ -349,7 +375,7 @@ async def toggle_pin_memory(
             "memory_pin_toggle_failed",
             user_id=str(user.id),
             memory_id=memory_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="toggle_pin",
@@ -386,7 +412,7 @@ async def delete_memory(
             memory_id=memory_id,
         )
 
-    except ResourceNotFoundError:
+    except BaseAPIException:
         raise
     except ValueError, AttributeError:
         raise_memory_not_found(memory_id)
@@ -395,7 +421,7 @@ async def delete_memory(
             "memory_delete_failed",
             user_id=str(user.id),
             memory_id=memory_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="delete",
@@ -449,7 +475,7 @@ async def delete_all_memories(
         logger.error(
             "memories_delete_all_failed",
             user_id=str(user.id),
-            error=str(e),
+            error_type=type(e).__name__,
         )
         raise_memory_store_error(
             operation="delete_all",

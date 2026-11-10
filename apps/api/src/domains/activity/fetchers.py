@@ -25,7 +25,7 @@ from src.domains.activity.constants import (
     ACTIVITY_KIND_SCHEDULED_ACTION_RUN,
 )
 from src.domains.activity.repository import ActivityReadRepository
-from src.domains.activity.schemas import ActivityEvent
+from src.domains.activity.schemas import ActivityCriteria, ActivityEvent
 from src.domains.open_loops.models import OpenLoopStatus
 from src.infrastructure.database.session import get_db_context
 
@@ -107,7 +107,7 @@ class FetchFn(Protocol):
     """Signature every timeline source fetcher satisfies."""
 
     async def __call__(
-        self, *, user_id: UUID, since: datetime, cap: int
+        self, *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> list[KindBundle]:  # pragma: no cover - protocol
         ...
 
@@ -218,12 +218,12 @@ def _bundle(kind: str, events: Sequence[ActivityEvent], total: int) -> KindBundl
 
 
 async def fetch_heartbeat_notifications(
-    *, user_id: UUID, since: datetime, cap: int
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> list[KindBundle]:
     """Heartbeat notifications sent in the window."""
     async with get_db_context() as db:
         rows, total = await ActivityReadRepository(db).heartbeat_notifications_since(
-            user_id, since, cap
+            user_id, since, cap, criteria
         )
     return [
         _bundle(
@@ -235,12 +235,12 @@ async def fetch_heartbeat_notifications(
 
 
 async def fetch_interest_notifications(
-    *, user_id: UUID, since: datetime, cap: int
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> list[KindBundle]:
     """Interest notifications sent in the window."""
     async with get_db_context() as db:
         rows, total = await ActivityReadRepository(db).interest_notifications_since(
-            user_id, since, cap
+            user_id, since, cap, criteria
         )
     return [
         _bundle(
@@ -251,44 +251,62 @@ async def fetch_interest_notifications(
     ]
 
 
-async def fetch_journal_entries(*, user_id: UUID, since: datetime, cap: int) -> list[KindBundle]:
+async def fetch_journal_entries(
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> list[KindBundle]:
     """Automatic journal entries written in the window."""
     async with get_db_context() as db:
-        rows, total = await ActivityReadRepository(db).journal_entries_since(user_id, since, cap)
+        rows, total = await ActivityReadRepository(db).journal_entries_since(
+            user_id, since, cap, criteria
+        )
     return [_bundle(ACTIVITY_KIND_JOURNAL_ENTRY, [map_journal_entry(r) for r in rows], total)]
 
 
-async def fetch_habits(*, user_id: UUID, since: datetime, cap: int) -> list[KindBundle]:
+async def fetch_habits(
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> list[KindBundle]:
     """Habits detected in the window."""
     async with get_db_context() as db:
-        rows, total = await ActivityReadRepository(db).habits_since(user_id, since, cap)
+        rows, total = await ActivityReadRepository(db).habits_since(user_id, since, cap, criteria)
     return [_bundle(ACTIVITY_KIND_HABIT_DETECTED, [map_habit(r) for r in rows], total)]
 
 
-async def fetch_open_loops(*, user_id: UUID, since: datetime, cap: int) -> list[KindBundle]:
-    """Open-loop lifecycle events (created / ended) in the window."""
+async def fetch_open_loops(
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> list[KindBundle]:
+    """Read selected lifecycle streams independently before capping either one."""
+    kinds = criteria.kinds if criteria else ()
+    bundles: list[KindBundle] = []
     async with get_db_context() as db:
-        rows, created_total, closed_total = await ActivityReadRepository(db).open_loops_since(
-            user_id, since, cap
-        )
-    created: list[ActivityEvent] = []
-    closed: list[ActivityEvent] = []
-    for row in rows:
-        for event in map_open_loop(row, since=since):
-            (created if event.kind == ACTIVITY_KIND_OPEN_LOOP_CREATED else closed).append(event)
-    return [
-        _bundle(ACTIVITY_KIND_OPEN_LOOP_CREATED, created, created_total),
-        _bundle(ACTIVITY_KIND_OPEN_LOOP_CLOSED, closed, closed_total),
-    ]
+        repo = ActivityReadRepository(db)
+        if not kinds or ACTIVITY_KIND_OPEN_LOOP_CREATED in kinds:
+            rows, total = await repo.open_loops_created_since(user_id, since, cap, criteria)
+            events = [
+                event
+                for row in rows
+                for event in map_open_loop(row, since=since)
+                if event.kind == ACTIVITY_KIND_OPEN_LOOP_CREATED
+            ]
+            bundles.append(_bundle(ACTIVITY_KIND_OPEN_LOOP_CREATED, events, total))
+        if not kinds or ACTIVITY_KIND_OPEN_LOOP_CLOSED in kinds:
+            rows, total = await repo.open_loops_closed_since(user_id, since, cap, criteria)
+            events = [
+                event
+                for row in rows
+                for event in map_open_loop(row, since=since)
+                if event.kind == ACTIVITY_KIND_OPEN_LOOP_CLOSED
+            ]
+            bundles.append(_bundle(ACTIVITY_KIND_OPEN_LOOP_CLOSED, events, total))
+    return bundles
 
 
 async def fetch_scheduled_action_runs(
-    *, user_id: UUID, since: datetime, cap: int
+    *, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> list[KindBundle]:
     """Scheduled actions whose last execution falls in the window."""
     async with get_db_context() as db:
         rows, total = await ActivityReadRepository(db).scheduled_action_runs_since(
-            user_id, since, cap
+            user_id, since, cap, criteria
         )
     return [
         _bundle(

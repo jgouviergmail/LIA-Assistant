@@ -41,6 +41,7 @@ from src.domains.reminders.read_models import (
 )
 from src.domains.reminders.schemas import ReminderCreate, ReminderUpdate
 from src.domains.reminders.service import ReminderService
+from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 
 router = APIRouter(prefix="/reminders", tags=["Reminders"])
@@ -59,6 +60,7 @@ router = APIRouter(prefix="/reminders", tags=["Reminders"])
 async def list_pending_reminders(
     limit: int = Query(default=10, ge=1, le=100, description="Page size."),
     offset: int = Query(default=0, ge=0, description="Page offset."),
+    criteria: DisplayQuery = Depends(display_query),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> PendingReminderPage:
@@ -74,11 +76,15 @@ async def list_pending_reminders(
         The page and the EXACT total behind it.
     """
     reminders, total = await ReminderService(db).list_pending_page(
-        user.id, limit=limit, offset=offset
+        user.id,
+        limit=limit,
+        offset=offset,
+        criteria=criteria,
     )
     return PendingReminderPage(
         reminders=[PendingReminderItem.model_validate(r) for r in reminders],
         total=total,
+        as_of=criteria.as_of,
     )
 
 

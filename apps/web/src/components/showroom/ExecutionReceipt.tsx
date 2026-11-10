@@ -19,7 +19,7 @@ import {
   Phone,
   Settings2,
   ShieldCheck,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type {

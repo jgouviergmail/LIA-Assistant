@@ -1,6 +1,6 @@
 'use client';
 
-import { Pause, Play, Route, StepBack, StepForward, X } from 'lucide-react';
+import { Pause, Play, Route, StepBack, StepForward, X } from '@/lib/icons';
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 

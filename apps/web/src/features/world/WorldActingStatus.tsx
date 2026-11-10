@@ -1,5 +1,5 @@
 'use client';
-import { Bot } from 'lucide-react';
+import { Bot } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { WorldActingState } from './world-acting';

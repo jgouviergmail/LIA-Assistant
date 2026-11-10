@@ -52,6 +52,7 @@ export const discussionOpeningSchema = z.object({
     .default([]),
 });
 export const discussionOpeningPageSchema = z.object({
+  as_of: z.string().datetime({ offset: true }).nullable().optional(),
   items: z.array(discussionOpeningSchema),
   total: z.number().int().nonnegative(),
   next_cursor: z.string().uuid().nullable(),

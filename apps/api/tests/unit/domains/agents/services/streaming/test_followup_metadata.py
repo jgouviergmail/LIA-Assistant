@@ -12,12 +12,18 @@ from src.core.constants import (
     INITIATIVE_FOLLOWUP_MAX_CHARS,
     INITIATIVE_FOLLOWUPS_MAX,
 )
-from src.core.field_names import FIELD_FOLLOWUP_SUGGESTIONS
+from src.core.field_names import FIELD_FOLLOWUP_SUGGESTIONS, FIELD_HABIT_PROPOSAL
 from src.domains.agents.services.streaming.followup_metadata import (
+    NO_TURN_EXTRAS,
+    TurnExtras,
     pop_followups,
+    pop_turn_extras,
     push_followups,
+    push_motivation,
+    push_turn_proposal,
     sanitize_followups,
     with_followup_suggestions,
+    with_habit_proposal,
 )
 
 
@@ -122,4 +128,36 @@ class TestInitiativeMotivation:
         enriched = with_initiative_motivation(base, "parce que")
         assert enriched is not base
         assert enriched[FIELD_INITIATIVE_MOTIVATION] == "parce que"
+        assert base == {"kept": True}
+
+
+@pytest.mark.unit
+class TestTurnExtras:
+    """Everything a turn hands its stream besides the answer, popped ONCE (ADR-375):
+    the chips, the provenance line and the habit proposal card."""
+
+    def test_one_pop_takes_every_extra_of_the_run(self) -> None:
+        card = {"id": "p-1", "kind": "automate_need"}
+        push_followups("run-x", ["Et demain ?"])
+        push_motivation("run-x", "parce que")
+        push_turn_proposal("run-x", card)
+        push_turn_proposal("run-y", {"id": "p-2"})
+
+        extras = pop_turn_extras("run-x")
+
+        assert extras == TurnExtras(
+            followups=("Et demain ?",), motivation="parce que", habit_proposal=card
+        )
+        assert pop_turn_extras("run-x") == NO_TURN_EXTRAS  # pop-once, every part
+        assert pop_turn_extras("run-y").habit_proposal == {"id": "p-2"}  # runs isolated
+
+    def test_a_run_that_pushed_nothing_pops_no_extras(self) -> None:
+        assert pop_turn_extras("run-silent") == NO_TURN_EXTRAS
+
+    def test_the_card_enricher_is_branch_free(self) -> None:
+        base = {"kept": True}
+        assert with_habit_proposal(base, None) is base
+        enriched = with_habit_proposal(base, {"id": "p-1"})
+        assert enriched is not base
+        assert enriched[FIELD_HABIT_PROPOSAL] == {"id": "p-1"}
         assert base == {"kept": True}

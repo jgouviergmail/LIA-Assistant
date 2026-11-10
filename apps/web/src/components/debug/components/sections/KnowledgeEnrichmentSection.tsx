@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';

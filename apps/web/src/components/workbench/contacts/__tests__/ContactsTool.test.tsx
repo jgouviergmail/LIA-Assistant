@@ -8,7 +8,7 @@
  * the provider's own bound.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
 import {
   answerConfirmDialog,
@@ -66,7 +66,7 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
-import { handOff, takeHandoff } from '@/lib/workbench/handoff';
+import { handOff, takeHandoff, setHandoffOwner } from '@/lib/workbench/handoff';
 
 import { WorkbenchShell } from '../../WorkbenchShell';
 import { ContactsTool } from '../ContactsTool';
@@ -82,6 +82,14 @@ const NO_HISTORY: WorkbenchContactHistory = {
   shared: [],
   meetings_window_days: 720,
   meetings_cut: false,
+  telephony: 'not_requested',
+  calls: [],
+  calls_window: 500,
+  calls_cut: false,
+  sms: 'not_requested',
+  texts: [],
+  texts_window: 2000,
+  texts_cut: false,
 };
 
 const GOOGLE: WorkbenchFeature[] = ['multi_valued', 'contact_groups', 'other_contacts'];
@@ -876,11 +884,21 @@ describe('ContactsTool — a contact met in mail', () => {
 
 describe('ContactsTool — what another tool hands it', () => {
   it('opens a new contact holding the name and the address it was given', async () => {
-    handOff({ kind: 'contact', name: 'Ana Lima', email: 'ana@example.org' });
+    handOff('owner', { kind: 'contact', name: 'Ana Lima', email: 'ana@example.org' });
     screenOf();
 
     expect(await screen.findByLabelText('workbench.contacts.editor.name')).toHaveValue('Ana Lima');
     expect(screen.getByDisplayValue('ana@example.org')).toBeInTheDocument();
+  });
+
+  it('opens a new contact holding the number an SMS came from, and no empty address', async () => {
+    // The home's SMS card saves a sender (2026-11-07): a number, often with no name.
+    handOff('owner', { kind: 'contact', name: '', email: '', phone: '+33612345678' });
+    screenOf();
+
+    expect(await screen.findByDisplayValue('+33612345678')).toBeInTheDocument();
+    expect(screen.getByLabelText('workbench.contacts.editor.name')).toHaveValue('');
+    expect(screen.queryByDisplayValue('ana@example.org')).toBeNull();
   });
 });
 
@@ -893,7 +911,7 @@ describe('ContactsTool — to the other tools', () => {
     await user.click(await screen.findByRole('button', { name: 'workbench.contacts.write' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/mail');
-    expect(takeHandoff('compose')).toEqual({ kind: 'compose', to: 'ana@example.org' });
+    expect(takeHandoff('compose', 'owner')).toEqual({ kind: 'compose', to: 'ana@example.org' });
   });
 
   it('offers no such way without a mailbox', async () => {
@@ -956,6 +974,33 @@ describe('ContactsTool — the open contact', () => {
 
     const link = await screen.findByRole('link', { name: 'workbench.contacts.see_relation' });
     expect(link.getAttribute('href')).toBe('/en/dashboard/relations?name=Ana+LIMA');
+  });
+
+  it('asks its latest exchanges by its numbers too, within the published bound', async () => {
+    bounds = { ...bounds, history_addresses: 3, history_phones: 1 };
+    const both = {
+      ...ANA,
+      phones: [
+        { value: '+33 6 12', type: 'mobile' },
+        { value: '01 40 00 00 00', type: 'work' },
+      ],
+    };
+    api.get.mockImplementation((path: string) => {
+      if (path === '/workbench') return Promise.resolve(rail());
+      if (path === '/workbench/contacts/history') return Promise.resolve(NO_HISTORY);
+      if (path === '/workbench/contacts') return Promise.resolve({ ...page, items: [both] });
+      if (path === '/workbench/contacts/contact') return Promise.resolve(both);
+      return Promise.resolve({ groups: [], relations: [], relations_total: 0 });
+    });
+    screenOf();
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/workbench/contacts/history', expect.anything())
+    );
+    const asked = api.get.mock.calls.find(([path]) => path === '/workbench/contacts/history');
+    expect(asked?.[1]).toMatchObject({
+      params: { address: ['ana@example.org'], phone: ['+33 6 12'] },
+    });
   });
 
   it('links nothing on a name that only resembles a relation’s', async () => {
@@ -1044,3 +1089,10 @@ describe('ContactsTool — panes sized by hand', () => {
     expect(pane?.style.getPropertyValue('--pane-w')).toBe('');
   });
 });
+
+beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
+});
+
+afterEach(() => setHandoffOwner(null));

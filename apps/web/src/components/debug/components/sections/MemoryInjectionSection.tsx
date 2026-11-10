@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Brain } from 'lucide-react';
+import { Brain } from '@/lib/icons';
 import {
   DebugChip,
   DebugSection,

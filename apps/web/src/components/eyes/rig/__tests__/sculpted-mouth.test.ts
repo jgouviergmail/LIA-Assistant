@@ -37,7 +37,7 @@ function host(sculpted = true) {
   return { writer: createRigWriter(root), cavity, teeth, tongue };
 }
 
-describe('Smiley sculpted mouth projection', () => {
+describe('Companion sculpted mouth projection', () => {
   it('renders the chosen slightly open resting smile while joy keeps its approved deep bowl', () => {
     const neutral = sculptedMouthContours(pose(0.36));
     expect(neutral.cavity).toBe(
@@ -223,7 +223,7 @@ describe('Smiley sculpted mouth projection', () => {
   it('follows the existing generated speaking rig without another animation clock', () => {
     const { writer, cavity, teeth, tongue } = host();
     const rig = createEyeRig({
-      initial: { expression: 'speaking', styleId: 'smiley', family: 'calm' },
+      initial: { expression: 'speaking', styleId: 'billes', family: 'calm' },
     });
     const drawings = new Set<string>();
     for (let ms = 0; ms < 2400; ms += 16) {

@@ -1,38 +1,23 @@
-"""Peers tools — relay messages to connected users from chat (Lot 4, spec A3).
+"""Resolve connected peers and enqueue explicitly requested messages directly.
 
-Two tools plus the confirmed-draft executor:
-
-- ``send_peer_message_tool`` — resolves the recipient among the CALLER's
-  accepted connections (full or first name, ``resolve_connected_peer`` —
-  never the discovery index),
-  enforces the quotas and the sender's LLM budget, then returns a
-  **PEER_MESSAGE draft** (A3: the send is the email class — nothing leaves
-  until the user confirms the HITL card). The draft mechanism is the
-  fail-closed two-phase confirmation: it gates pipeline AND ReAct AND
-  skill-subagent contexts identically (devops FN-1 doctrine).
-- ``list_peer_connections_tool`` — read-only listing of the caller's
-  connections with both share directions (name resolution + "who am I
-  connected to").
-- ``execute_peer_message_draft`` — re-validates every guard at confirmation
-  time (an arbitrary delay separates draft from approval — devops doctrine),
-  enqueues the message and kicks the delivery sweep.
+The registered effect gate claims direct sends before this tool runs. The
+shared admission command rechecks authority and quotas atomically. Historical
+PEER_MESSAGE cards retain their confirmation path and use that same command.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import Annotated, Any
+from collections.abc import Mapping
+from typing import Annotated, Any, assert_never
 from uuid import UUID
 
-import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
+from sqlalchemy import select
 
 from src.core.config import get_settings
 from src.domains.agents.constants import AGENT_PEER
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
-from src.domains.agents.drafts.models import DraftType
-from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.peer.name_directory import (
     PeerNameMatch,
     PeerNameOutcome,
@@ -43,16 +28,21 @@ from src.domains.agents.tools.decorators import read_tool, write_tool
 from src.domains.agents.tools.name_refusals import ambiguous_name_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
-from src.domains.peers.models import PeerConnectionStatus
+from src.domains.peers.message_command import (
+    PeerMessageReceipt,
+    PeerMessageRefusal,
+    enqueue_peer_message,
+    valid_peer_message,
+)
+from src.domains.peers.models import PeerConnection
 from src.domains.peers.repository import PeersRepository
+from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
-
-logger = structlog.get_logger(__name__)
 
 
 async def _resolve_recipient(
     repo: PeersRepository, user_id: UUID, recipient_name: str
-) -> tuple[Any | None, PeerNameMatch, dict[UUID, str]]:
+) -> tuple[PeerConnection | None, PeerNameMatch, dict[UUID, str]]:
     """Resolve a recipient among the caller's ACCEPTED connections by name.
 
     Args:
@@ -64,10 +54,6 @@ async def _resolve_recipient(
     Returns:
         (connection or None, the name decision, peer_id→name directory).
     """
-    from sqlalchemy import select
-
-    from src.domains.users.models import User
-
     connections = await repo.list_accepted_for_user(user_id)
     if not connections:
         return None, PeerNameMatch(PeerNameOutcome.UNKNOWN), {}
@@ -125,25 +111,19 @@ async def send_peer_message_tool(
     ],
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Prepare a message for a connected user — sent only after confirmation.
+    """Queue a message for a connected user without a confirmation card.
 
-    Nothing is sent here (A3): this returns a PEER_MESSAGE draft the user must
-    confirm. Delivery then happens assistant-to-assistant: the recipient's
-    assistant conveys the message in its own personality and language.
-
-    Replies included: relays are STATELESS (no message_id/thread) — replying
-    to a relayed message is simply sending a new one. Recipient matching is
-    accent- and case-insensitive; the message stays in the user's language and
-    is phrased in DIRECT ADDRESS: an indirect request ("ask X how they are
-    doing") becomes the words meant for the recipient ("how are you doing?").
+    Resolve the recipient among accepted connections; ambiguous names still
+    ask for clarification. The recipient's assistant delivers asynchronously
+    in its own voice and language. The receipt states queued, never delivered.
 
     Args:
-        recipient_name: Display name among the caller's accepted connections.
-        message: The directive to relay (recipient's assistant rephrases it).
-        runtime: LangChain tool runtime (injected).
+        recipient_name: Full or unique first name among accepted connections.
+        message: Directive addressed to the recipient in the user's language.
+        runtime: Injected LangChain tool runtime.
 
     Returns:
-        UnifiedToolOutput carrying the draft, or a typed failure.
+        An explicit queue receipt or a typed refusal.
     """
     settings = get_settings()
     validated = validate_runtime_config(runtime, "send_peer_message_tool")
@@ -151,14 +131,10 @@ async def send_peer_message_tool(
         return validated
     user_id = UUID(str(validated.user_id))
 
-    if not message.strip():
+    if not valid_peer_message(message):
         return UnifiedToolOutput.failure(
-            message="The message is empty.", error_code="INVALID_INPUT"
-        )
-    if len(message) > settings.peers_message_max_chars:
-        return UnifiedToolOutput.failure(
-            message=(f"The message exceeds {settings.peers_message_max_chars} characters."),
-            error_code="INVALID_INPUT",
+            message=f"The message must contain text and at most {settings.peers_message_max_chars} characters.",
+            error_code=ToolErrorCode.INVALID_INPUT,
         )
 
     async with get_db_context() as db:
@@ -166,69 +142,49 @@ async def send_peer_message_tool(
         connection, match, directory = await _resolve_recipient(repo, user_id, recipient_name)
         if connection is None:
             return _recipient_failure(match, recipient_name, directory)
-        quota_failure = await _check_send_quotas(repo, user_id, connection, settings)
-        if quota_failure is not None:
-            return quota_failure
         peer_id = connection.user_b_id if connection.user_a_id == user_id else connection.user_a_id
-        recipient_display = directory[peer_id]
+        connection_id = connection.id
 
-    logger.info(
-        "peer_message_draft_created",
-        user_id=str(user_id),
-        connection_id=str(connection.id),
-    )
-    return DraftService().create_draft(
-        draft_type=DraftType.PEER_MESSAGE,
-        content={
-            "connection_id": str(connection.id),
-            "recipient_id": str(peer_id),
-            "recipient_name": recipient_display,
-            "message": message,
-        },
-        source_tool="send_peer_message_tool",
+    result = await enqueue_peer_message(user_id, connection_id, peer_id, message)
+    if isinstance(result, PeerMessageRefusal):
+        return _queue_failure(result)
+    _kick_delivery()
+    return UnifiedToolOutput.data_success(
+        message="Message queued for asynchronous delivery. It has not yet been delivered.",
+        structured_data=_receipt_data(result),
     )
 
 
-async def _check_send_quotas(
-    repo: PeersRepository,
-    user_id: UUID,
-    connection: Any,
-    settings: Any,
-) -> UnifiedToolOutput | None:
-    """Enforce the daily quotas and the sender's LLM budget (spec §9).
+def _queue_failure(refusal: PeerMessageRefusal) -> UnifiedToolOutput:
+    """Project a domain refusal into the tool's error vocabulary."""
+    match refusal:
+        case PeerMessageRefusal.DISABLED:
+            code = ToolErrorCode.CONFIGURATION_ERROR
+        case PeerMessageRefusal.NOT_CONNECTED:
+            code = ToolErrorCode.NOT_FOUND
+        case PeerMessageRefusal.INVALID_MESSAGE:
+            code = ToolErrorCode.INVALID_INPUT
+        case PeerMessageRefusal.QUOTA_REACHED:
+            code = ToolErrorCode.RATE_LIMIT_EXCEEDED
+        case _:
+            assert_never(refusal)
+    return UnifiedToolOutput.failure(message=refusal.value, error_code=code)
 
-    Returns:
-        A typed failure output, or None when sending is allowed.
-    """
-    from src.domains.usage_limits.service import UsageLimitService
 
-    if await UsageLimitService.is_user_blocked_for_llm(user_id, layer="peer_message_send"):
-        return UnifiedToolOutput.failure(
-            message="Your usage limit is reached — relayed messages are paused.",
-            error_code="RATE_LIMITED",
-        )
-    now = datetime.now(UTC)
-    peer_id = connection.user_b_id if connection.user_a_id == user_id else connection.user_a_id
-    if await repo.count_messages_today(user_id, now=now) >= settings.peers_message_max_per_day:
-        return UnifiedToolOutput.failure(
-            message=(
-                f"Daily relayed-message quota reached "
-                f"({settings.peers_message_max_per_day}/day)."
-            ),
-            error_code="RATE_LIMITED",
-        )
-    if (
-        await repo.count_messages_today_for_pair(user_id, peer_id, now=now)
-        >= settings.peers_message_max_per_day_per_pair
-    ):
-        return UnifiedToolOutput.failure(
-            message=(
-                f"Daily quota toward this contact reached "
-                f"({settings.peers_message_max_per_day_per_pair}/day)."
-            ),
-            error_code="RATE_LIMITED",
-        )
-    return None
+def _receipt_data(receipt: PeerMessageReceipt) -> dict[str, object]:
+    """Use the same honest receipt on the direct and historical draft paths."""
+    return {
+        "message_id": str(receipt.message_id),
+        "recipient_name": receipt.recipient_name,
+        "status": "pending",
+    }
+
+
+def _kick_delivery() -> None:
+    """Wake the existing sweep only after admission has committed."""
+    from src.infrastructure.scheduler.peer_message_delivery import kick_delivery_soon
+
+    kick_delivery_soon()
 
 
 @read_tool(name="list_peer_connections", agent_name=AGENT_PEER)
@@ -270,54 +226,33 @@ async def list_peer_connections_tool(
 
 
 async def execute_peer_message_draft(
-    draft_content: dict[str, Any],
-    user_id: UUID,
-    deps: Any,
-) -> dict[str, Any]:
-    """Execute a confirmed PEER_MESSAGE draft: enqueue + kick delivery.
-
-    Registered in ``draft_executor_registry.ensure_executors_registered()``.
-    Every guard is re-checked here on purpose (devops doctrine): an arbitrary
-    delay separates the draft from the confirmation — the connection may have
-    been removed, a block placed, or a quota reached in between.
+    draft_content: Mapping[str, object], user_id: UUID, deps: object
+) -> dict[str, object]:
+    """Execute a historically confirmed card through current admission rules.
 
     Args:
-        draft_content: PEER_MESSAGE draft content.
-        user_id: The sender (draft owner).
-        deps: ToolDependencies (unused — own session).
+        draft_content: The content approved by the historical card.
+        user_id: Confirming owner, never a value taken from the draft.
+        deps: Existing executor dependency contract (unused here).
 
     Returns:
-        {"success", "recipient_name"} on enqueue; {"success": False, "error"}
-        with a typed code otherwise.
+        A pending receipt or a typed error; malformed and stale cards never enqueue.
     """
-    from src.infrastructure.scheduler.peer_message_delivery import kick_delivery_soon
-
-    settings = get_settings()
-    connection_id = UUID(draft_content["connection_id"])
-    recipient_id = UUID(draft_content["recipient_id"])
-    message_text = draft_content["message"]
-
-    async with get_db_context() as db:
-        repo = PeersRepository(db)
-        connection = await repo.get_by_id(connection_id)
-        if (
-            connection is None
-            or connection.status != PeerConnectionStatus.ACCEPTED.value
-            or user_id not in (connection.user_a_id, connection.user_b_id)
-        ):
-            return {"success": False, "error": "peers_not_connected"}
-        if await repo.has_block_between(user_id, recipient_id):
-            return {"success": False, "error": "peers_not_connected"}  # neutral
-        quota_failure = await _check_send_quotas(repo, user_id, connection, settings)
-        if quota_failure is not None:
-            return {"success": False, "error": "peers_quota_reached"}
-        message = await repo.enqueue_message(connection_id, user_id, recipient_id, message_text)
-        await db.commit()
-
-    kick_delivery_soon()
-    logger.info(
-        "peer_message_enqueued",
-        message_id=str(message.id),
-        user_id=str(user_id),
-    )
-    return {"success": True, "recipient_name": draft_content.get("recipient_name", "?")}
+    connection = draft_content.get("connection_id")
+    recipient = draft_content.get("recipient_id")
+    message = draft_content.get("message")
+    if (
+        not isinstance(connection, str)
+        or not isinstance(recipient, str)
+        or not isinstance(message, str)
+    ):
+        return {"success": False, "error": PeerMessageRefusal.INVALID_MESSAGE.value}
+    try:
+        connection_id, recipient_id = UUID(connection), UUID(recipient)
+    except ValueError:
+        return {"success": False, "error": PeerMessageRefusal.INVALID_MESSAGE.value}
+    result = await enqueue_peer_message(user_id, connection_id, recipient_id, message)
+    if isinstance(result, PeerMessageRefusal):
+        return {"success": False, "error": result.value}
+    _kick_delivery()
+    return {"success": True, **_receipt_data(result)}

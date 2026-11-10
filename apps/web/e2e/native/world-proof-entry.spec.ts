@@ -2,7 +2,6 @@
 import { test, expect } from './fixtures';
 import fr from '../../locales/fr/translation.json';
 import en from '../../locales/en/translation.json';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 
 test.use({ locale: 'fr-FR' });
@@ -21,7 +20,6 @@ for (const [index, language, labels, nativeName] of [
         'The identity chooser is development-only'
       );
       // Keep font downloads offline; dev WebSocket/bootstrap and all API calls stay real.
-      await installOfflineFonts(page);
       if (index === 2) await page.setViewportSize({ width: 390, height: 844 });
       let sessions = 0;
       let tickets = 0;

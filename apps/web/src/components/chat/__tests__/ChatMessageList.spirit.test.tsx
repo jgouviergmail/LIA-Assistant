@@ -118,8 +118,7 @@ function historyPortrait(
   expect(row.querySelector('canvas')).toBeNull();
   if (isRigEyeStyle(style)) {
     expect(face).toHaveAttribute('data-style', style);
-    if (style === 'smiley') expect(face).toHaveAttribute('data-smiley-variant', variant);
-    else expect(row.querySelector('.lia-monitor-screen')).not.toBeNull();
+    expect(row.querySelector('.lia-monitor-screen')).not.toBeNull();
   } else {
     const body = row.querySelector(`[data-character="${style}"]`);
     expect(body).toHaveAttribute('data-spirit-companion', variant);
@@ -205,11 +204,11 @@ describe('Chat portrait identity and emotional history', () => {
     expect(messages[0].metadata?.psyche_state).toEqual(snapshot);
   });
 
-  it('changes Smiley and hybrid identities immediately while preserving both saved message expressions', async () => {
+  it('changes hybrid identities immediately while preserving both saved message expressions', async () => {
     const { container, getByRole } = await renderConversation(true);
     const past = container.querySelector<HTMLElement>('[data-message-id="past"]')!;
     const latest = container.querySelector<HTMLElement>('[data-message-id="latest"]')!;
-    for (const style of ['smiley', ...HYBRID_EYE_STYLE_IDS] satisfies EyeStyleId[]) {
+    for (const style of [...HYBRID_EYE_STYLE_IDS] satisfies EyeStyleId[]) {
       act(() => useEyesWidgetStore.getState().setStyle(style));
       fireEvent.click(getByRole('button', { name: 'Select masculine LIA' }));
       historyPortrait(past, style, 'male', 'sad');
@@ -225,34 +224,34 @@ describe('Chat portrait identity and emotional history', () => {
     // kept the mood stored with it, whatever the person had chosen.
     act(() => usePsycheStore.getState().setDisplayAvatar(false));
     document.cookie = 'lia_gender=male; path=/';
-    useEyesWidgetStore.getState().setStyle('smiley');
+    useEyesWidgetStore.getState().setStyle('bip');
     const { container } = await renderConversation();
     const past = container.querySelector<HTMLElement>('[data-message-id="past"]')!;
-    await waitFor(() => historyPortrait(past, 'smiley', 'male', 'neutral'));
+    await waitFor(() => historyPortrait(past, 'bip', 'male', 'neutral'));
   });
 
   it('shows the selected neutral portrait when psyche is disabled and the message has no snapshot', async () => {
     psycheEnabled = false;
     document.cookie = 'lia_gender=male; path=/';
-    useEyesWidgetStore.getState().setStyle('smiley');
+    useEyesWidgetStore.getState().setStyle('bip');
     const plainMessage = makeMessage({ id: 'plain', role: 'assistant', metadata: {} });
     const { container } = await act(async () =>
       renderWithProviders(<ChatMessageList messages={[plainMessage]} />)
     );
     const row = container.querySelector<HTMLElement>('[data-message-id="plain"]')!;
-    await waitFor(() => historyPortrait(row, 'smiley', 'male', 'neutral'));
+    await waitFor(() => historyPortrait(row, 'bip', 'male', 'neutral'));
   });
 
   it('wakes only a visible live or hovered miniature and drops its canvas on suspension', async () => {
-    useEyesWidgetStore.getState().setStyle('smiley');
+    useEyesWidgetStore.getState().setStyle('bip');
     const { container } = await renderConversation();
     const past = container.querySelector<HTMLElement>('[data-message-id="past"]')!;
     const latest = container.querySelector<HTMLElement>('[data-message-id="latest"]')!;
-    historyPortrait(past, 'smiley', 'female', 'sad');
-    historyPortrait(latest, 'smiley', 'female', 'attentive');
+    historyPortrait(past, 'bip', 'female', 'sad');
+    historyPortrait(latest, 'bip', 'female', 'attentive');
 
     act(() => showNativePortrait(past));
-    historyPortrait(past, 'smiley', 'female', 'sad');
+    historyPortrait(past, 'bip', 'female', 'sad');
     act(() => showNativePortrait(latest));
     expect(latest.querySelector('.lia-eyes')).not.toHaveAttribute('data-motion', 'off');
     expect(container.querySelectorAll('canvas')).toHaveLength(1);
@@ -262,17 +261,17 @@ describe('Chat portrait identity and emotional history', () => {
     act(() => browser.setVisibility('visible'));
     expect(container.querySelectorAll('canvas')).toHaveLength(1);
     act(() => showNativePortrait(latest, false));
-    historyPortrait(latest, 'smiley', 'female', 'attentive');
+    historyPortrait(latest, 'bip', 'female', 'attentive');
 
     act(() => browser.setMotion(true));
     const hoverTarget = past.querySelector<HTMLElement>('[role="presentation"]')!;
     fireEvent.mouseEnter(hoverTarget);
-    historyPortrait(past, 'smiley', 'female', 'sad');
+    historyPortrait(past, 'bip', 'female', 'sad');
     act(() => browser.setMotion(false));
     expect(past.querySelector('.lia-eyes')).not.toHaveAttribute('data-motion', 'off');
     expect(container.querySelectorAll('canvas')).toHaveLength(1);
     fireEvent.mouseLeave(hoverTarget);
-    historyPortrait(past, 'smiley', 'female', 'sad');
+    historyPortrait(past, 'bip', 'female', 'sad');
     expect(container.querySelectorAll('canvas')).toHaveLength(0);
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info } from '@/lib/icons';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useTranslation } from '@/i18n/client';
 import { getIntlLocale, type Language } from '@/i18n/settings';

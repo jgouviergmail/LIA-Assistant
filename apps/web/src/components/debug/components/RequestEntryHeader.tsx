@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { ChevronDown, Clock, MessageSquare, TriangleAlert } from 'lucide-react';
+import { ChevronDown, Clock, MessageSquare, TriangleAlert } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { DebugChip, NodeChip } from './shared';
 import {

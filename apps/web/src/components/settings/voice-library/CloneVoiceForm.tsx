@@ -11,7 +11,7 @@
 
 import { type FormEvent, useId, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
-import { Copy, FileAudio, Trash2, Wand2 } from 'lucide-react';
+import { Copy, FileAudio, Trash2, Wand2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

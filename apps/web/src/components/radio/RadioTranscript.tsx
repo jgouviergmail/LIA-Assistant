@@ -10,7 +10,7 @@
  * becomes an anchor, opened in a new tab without a referrer.
  */
 
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

@@ -25,6 +25,7 @@ const saved: RAGSpaceListResponse = {
       description: null,
       is_active: true,
       kind: null,
+      is_favorite: false,
       document_count: 0,
       ready_document_count: 0,
       total_size: 0,
@@ -41,6 +42,47 @@ beforeEach(() => {
 });
 
 describe('knowledge-space data and assistant refresh belong to the current account', () => {
+  it('keys the server listing by field, literal query and sort, ignoring late results', async () => {
+    const { result, rerender } = renderHook(
+      ({ q }) => useSpaces({ q, field: 'filename', sort: 'active' }),
+      { initialProps: { q: 'old' } }
+    );
+    await waitFor(() => expect(result.current.total).toBe(1));
+    expect(get).toHaveBeenLastCalledWith(
+      '/rag-spaces',
+      expect.objectContaining({
+        params: { q: 'old', field: 'filename', sort: 'active' },
+      })
+    );
+    let finish: (value: RAGSpaceListResponse) => void = () => {};
+    get.mockReturnValueOnce(
+      new Promise<RAGSpaceListResponse>(resolve => {
+        finish = resolve;
+      })
+    );
+    rerender({ q: 'middle' });
+    expect(result.current.spaces).toEqual([]);
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    get.mockResolvedValueOnce({ spaces: [], total: 0 });
+    rerender({ q: 'latest' });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      finish(saved);
+    });
+    expect(result.current.spaces).toEqual([]);
+    expect(result.current.total).toBe(0);
+  });
+
+  it('rereads a filtered list after mutation instead of inventing membership or ordering', async () => {
+    const { result } = renderHook(() => useSpaces({ q: 'saved', field: 'name', sort: 'name' }));
+    await waitFor(() => expect(result.current.total).toBe(1));
+    patch.mockResolvedValueOnce({ ...saved.spaces[0], name: 'Renamed' });
+    get.mockResolvedValueOnce({ spaces: [], total: 0 });
+    await act(async () => {
+      await result.current.updateSpace('space', { name: 'Renamed' });
+    });
+    await waitFor(() => expect(result.current.spaces).toEqual([]));
+  });
   it('does not refresh a detail reader without a selected space', async () => {
     renderHook(() => useSpaceDetail(null));
     act(() => publishApplicationResources('one', new Set(['spaces'])));

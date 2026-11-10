@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from math import isfinite
 
+from src.core.time_parsing import parse_rfc3339
 from src.domains.agents.display.values import list_values, nonnegative_integer, scalar_text
 
 
@@ -93,8 +94,16 @@ def _transit(value: object) -> dict[str, object]:
         "headsign": scalar_text(source.get("headsign")),
         "departure_stop": scalar_text(mapping(stops.get("departureStop")).get("name")),
         "arrival_stop": scalar_text(mapping(stops.get("arrivalStop")).get("name")),
+        "departure_time": _instant(stops.get("departureTime")),
+        "arrival_time": _instant(stops.get("arrivalTime")),
         "stop_count": nonnegative_integer(source.get("stopCount")),
     }
+
+
+def _instant(value: object) -> str | None:
+    """Keep an explicitly offset provider clock; an unreadable clock stays absent."""
+    parsed = parse_rfc3339(value)
+    return parsed.isoformat() if parsed is not None else None
 
 
 def normalized_step(value: Mapping[str, object], mode: str = "") -> dict[str, object]:

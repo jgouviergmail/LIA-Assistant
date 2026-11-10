@@ -12,12 +12,17 @@ import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-u
 
 // Nested capability controls need a stable instance configuration; this
 // fixture tests the component, not useAppConfig's network/error lifecycle.
+// The instance offers telephony unless a test switches it off (D2, 2026-11-07).
+const instance = vi.hoisted(() => ({ telephony: true }));
 vi.mock('@/hooks/useAppConfig', async importOriginal => {
   const original = await importOriginal<typeof import('@/hooks/useAppConfig')>();
   const { appConfigFixture } = await import('@/__tests__/fixtures/app-config');
-  const config = appConfigFixture();
   const useAppConfig: typeof original.useAppConfig = (enabled = true) => ({
-    config: enabled ? config : null,
+    config: enabled
+      ? appConfigFixture({
+          capabilities: { telephony: { enabled: instance.telephony, family: 'voice' } },
+        })
+      : null,
     loading: false,
     error: null,
   });
@@ -190,6 +195,7 @@ beforeEach(() => {
   // running it for every later test.
   openChat.mockReset();
   connectors.value = [];
+  instance.telephony = true;
   useRelationDetail.mockReset();
   closeCommitment.mockClear();
   updateCommitment.mockClear();
@@ -809,6 +815,23 @@ describe('RelationDetailPanel — quick actions', () => {
     ['an inactive one', [telephonyConnector('inactive')]],
   ])('offers no LIA call with %s, the rest of the card unchanged', (_case, held) => {
     connectors.value = held;
+    useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
+    useRelationContext.mockReturnValue(
+      contactContext({
+        emails: [{ value: 'marie@client.fr', label: null }],
+        phones: [{ value: '+33 6 00 00 00 00', label: null }],
+        addresses: [],
+      })
+    );
+    renderPanel();
+
+    expect(screen.getByRole('button', { name: /^relations\.action_email/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^relations\.action_lia_call/ })).toBeNull();
+  });
+
+  it('offers no LIA call where the instance switched telephony off, connector or not', () => {
+    instance.telephony = false;
+    connectors.value = [telephonyConnector('active')];
     useRelationDetail.mockReturnValue({ detail: detail(), loading: false, error: false });
     useRelationContext.mockReturnValue(
       contactContext({

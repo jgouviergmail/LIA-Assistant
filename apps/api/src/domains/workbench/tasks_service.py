@@ -287,10 +287,11 @@ async def create_task(user_id: UUID, zone: ZoneInfo, request: NewTask) -> Task:
                     request.list_id,
                     title=request.title,
                     notes=request.notes,
-                    due=due,
+                    due=due.value if due else None,
                     parent=request.parent,
                     details=details,
                     steps=tuple(request.steps),
+                    due_zone=due.zone if due else None,
                 )
         return task_of(raw, provider, zone)
 
@@ -301,6 +302,16 @@ async def create_task(user_id: UUID, zone: ZoneInfo, request: NewTask) -> Task:
         tool=_TOOL.value,
         record=lambda made: {"task_id": made.id},
     )
+
+
+async def read_task(user_id: UUID, zone: ZoneInfo, *, list_id: str, task_id: str) -> Task:
+    """One task, whole: the home opens one the open page does not hold (2026-11-07)."""
+    async with open_tool_client(_TOOL, user_id) as opened:
+        client: TasksClientProtocol = opened.client
+        async with provider_call(_TOOL, "read", act=False):
+            raw = await client.get_task(list_id, task_id)
+        provider = opened.connector_type
+    return task_of(raw, provider, zone)
 
 
 async def update_task(user_id: UUID, zone: ZoneInfo, request: TaskChange) -> Task:
@@ -317,7 +328,8 @@ async def update_task(user_id: UUID, zone: ZoneInfo, request: TaskChange) -> Tas
                 request.task_id,
                 title=request.title,
                 notes=request.notes,
-                due=due,
+                due=due.value if due else None,
+                due_zone=due.zone if due else None,
                 status=status,
                 clear_due=request.removes_due,
                 details=details,

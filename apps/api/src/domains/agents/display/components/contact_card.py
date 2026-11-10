@@ -40,7 +40,11 @@ from src.domains.agents.display.components.card_content import (
 )
 from src.domains.agents.display.components.contact_details import (
     alternate_name_rows,
+    contact_address,
+    contact_name,
     organization_rows,
+    typed_contact_row,
+    website_rows,
 )
 from src.domains.agents.display.icons import Icons, get_relation_icon, icon
 from src.domains.agents.display.values import list_values, scalar_text
@@ -155,6 +159,7 @@ class ContactCard(BaseComponent):
                     "icon": Icons.PERSON,
                     "label": V3Messages.get_view_details(ctx.language),
                     "url": url,
+                    "card_open": "true",
                 }
             )
 
@@ -216,16 +221,24 @@ class ContactCard(BaseComponent):
         phone_html = self._render_phone_list_v4(phones[:3], ctx)
         address_html = self._render_primary_address_v4(data, ctx)
         birthday_html = self._render_birthday_v4(data, ctx)
+        directory_html = (
+            f'<div class="lia-contact__directory"><div>{email_html}</div><div>{phone_html}</div></div>'
+            if email_html or phone_html
+            else ""
+        )
+        notes_html = (
+            f'<div class="lia-contact__notes">{address_html}{birthday_html}</div>'
+            if address_html or birthday_html
+            else ""
+        )
 
         # --- Collapsible extended details ---
         collapsible_html = self._render_collapsible_details(data, ctx)
 
         return f"""<div class="lia-card lia-contact {nested_class}">
 {card_top_html}
-{email_html}
-{phone_html}
-{address_html}
-{birthday_html}
+{directory_html}
+{notes_html}
 {collapsible_html}
 </div>"""
 
@@ -244,7 +257,7 @@ class ContactCard(BaseComponent):
             badge = (
                 render_type_badge(type_label, self._type_to_variant(etype)) if type_label else ""
             )
-            items.append(render_d_row(Icons.EMAIL, f"{link} {badge}"))
+            items.append(typed_contact_row(Icons.EMAIL, link, badge))
         return "\n".join(items)
 
     def _render_phone_list_v4(self, phones: list, ctx: RenderContext) -> str:
@@ -263,7 +276,7 @@ class ContactCard(BaseComponent):
             badge = (
                 render_type_badge(type_label, self._type_to_variant(ptype)) if type_label else ""
             )
-            items.append(render_d_row(Icons.PHONE, f"{link} {badge}"))
+            items.append(typed_contact_row(Icons.PHONE, link, badge))
         return "\n".join(items)
 
     def _render_primary_address_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
@@ -272,11 +285,7 @@ class ContactCard(BaseComponent):
         if not addresses:
             return ""
         addr = addresses[0]
-        formatted = (
-            addr.get("formattedValue") or addr.get("formatted", "")
-            if isinstance(addr, dict)
-            else str(addr)
-        )
+        formatted = contact_address(addr)
         atype = addr.get("type", "") if isinstance(addr, dict) else ""
         if not formatted:
             return ""
@@ -284,9 +293,10 @@ class ContactCard(BaseComponent):
         directions_url = build_directions_url(formatted)
         link = f'<a href="{safe_url(directions_url)}" target="_blank">{escape_html(formatted)}</a>'
         badge = render_type_badge(type_label, self._type_to_variant(atype)) if type_label else ""
-        return render_d_row(
+        return typed_contact_row(
             Icons.LOCATION,
-            f"{link} {badge}",
+            link,
+            badge,
             icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
         )
 
@@ -329,6 +339,7 @@ class ContactCard(BaseComponent):
         detail_sections: list[str] = []
         detail_sections.extend(alternate_name_rows(data, ctx))
         detail_sections.extend(organization_rows(data, ctx))
+        detail_sections.extend(website_rows(data, ctx))
         for birthday in list_values(data.get("birthdays"))[1:]:
             row = self._render_birthday_v4({"birthdays": [birthday]}, ctx)
             if row:
@@ -391,10 +402,10 @@ class ContactCard(BaseComponent):
         if len(addresses) > 1:
             for addr in addresses[1:]:
                 if isinstance(addr, dict):
-                    formatted = addr.get("formattedValue") or addr.get("formatted", "")
+                    formatted = contact_address(addr)
                     atype = addr.get("type", "")
                 else:
-                    formatted = str(addr)
+                    formatted = contact_address(addr)
                     atype = ""
                 if formatted:
                     type_label = V3Messages.get_data_type(ctx.language, atype) if atype else ""
@@ -403,7 +414,7 @@ class ContactCard(BaseComponent):
                         if type_label
                         else ""
                     )
-                    rows.append(render_d_row(Icons.LOCATION, f"{escape_html(formatted)} {badge}"))
+                    rows.append(typed_contact_row(Icons.LOCATION, escape_html(formatted), badge))
         return rows
 
     def _detail_nicknames(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
@@ -429,7 +440,7 @@ class ContactCard(BaseComponent):
                 relation_icon = get_relation_icon(rtype)
                 type_label = V3Messages.get_relation_type(ctx.language, rtype) if rtype else ""
                 badge = render_type_badge(type_label, "other") if type_label else ""
-                rows.append(render_d_row(relation_icon, f"{escape_html(person)} {badge}"))
+                rows.append(typed_contact_row(relation_icon, escape_html(person), badge))
         return rows
 
     def _detail_biography(self, data: dict[str, Any], ctx: RenderContext) -> list[str]:
@@ -551,9 +562,7 @@ class ContactCard(BaseComponent):
         """
         for first in list_values(data.get("names")):
             if isinstance(first, dict):
-                display = scalar_text(first.get("displayName")) or scalar_text(
-                    first.get("givenName")
-                )
+                display = contact_name(first)
                 if display:
                     return display
         no_name_fallback = V3Messages.get_no_name(resolve_language(language))

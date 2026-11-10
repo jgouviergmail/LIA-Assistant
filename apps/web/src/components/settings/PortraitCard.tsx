@@ -13,7 +13,7 @@
  */
 
 import { useState } from 'react';
-import { Flag, UserSquare2 } from 'lucide-react';
+import { Flag, UserSquare2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { PortraitProvenance } from '@/components/settings/PortraitProvenance';

@@ -34,7 +34,6 @@ class JourneyTiming:
     started: float = field(default_factory=perf_counter)
     first_useful_ms: float | None = None
     first_token_ms: float | None = None
-    first_preview_ms: float | None = None
     asked_question: bool = False
     closed: bool = False
 
@@ -53,8 +52,6 @@ class JourneyTiming:
                 self.first_token_ms = elapsed
                 observe_journey_first_token(elapsed / 1000)
             useful = True
-        # Legacy JEV preview frames are no longer displayed in the discussion.
-        # Keep their timing field empty so a hidden result cannot imply delivery.
         elif kind == "content_replacement" and content.strip():
             useful = True
         elif kind in _QUESTION_KINDS:
@@ -93,7 +90,6 @@ class JourneyTiming:
         return {
             "first_useful_ms": self.first_useful_ms,
             "first_answer_token_ms": self.first_token_ms,
-            "first_visible_preview_ms": self.first_preview_ms,
         }
 
     def log_completed(self, run_id: str, cost_eur: float) -> None:

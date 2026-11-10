@@ -3,6 +3,7 @@
  * `domains/workbench/schemas/common.py`, kept in step by hand (the backend's
  * vocabulary is closed and small; a drift fails the rail's tests).
  */
+import type { PhoneCallOutcome, PhoneCallStatus } from '@/types/telephony';
 
 /** How a screen is read again. */
 export interface RereadOptions {
@@ -629,8 +630,12 @@ export type DriveKind = 'folder' | 'file' | 'shortcut';
 export type DriveExportFormat = 'pdf' | 'docx' | 'xlsx' | 'pptx';
 
 /** One Drive item as the list draws it. */
-/** What became of a source's read: nothing found is `used`, with empty lists. */
-export type ContactHistorySource = 'used' | 'disabled' | 'unavailable';
+/**
+ * What became of a source's read: nothing found is `used`, with empty lists; `disabled` is a source
+ * nothing feeds (no connector, switched off, no record of that kind at all), `not_requested` one the
+ * contact gave nothing to look under (no address, no number).
+ */
+export type ContactHistorySource = 'used' | 'disabled' | 'unavailable' | 'not_requested';
 
 /** One message exchanged with a contact. */
 export interface ContactHistoryMail {
@@ -650,6 +655,27 @@ export interface ContactHistoryMeeting {
   calendar_id: string;
 }
 
+/** One call LIA placed to a contact: never the number it dialled. */
+export interface ContactHistoryCall {
+  id: string;
+  at: string;
+  status: PhoneCallStatus;
+  outcome: PhoneCallOutcome | null;
+  seconds: number | null;
+  /** What LIA was asked to accomplish; empty for none, the page says so. */
+  purpose: string;
+}
+
+/** One text a contact's number sent: never the number it came from. */
+export interface ContactHistoryText {
+  id: string;
+  at: string;
+  /** Its beginning, shown literally. */
+  excerpt: string;
+  /** More of it remains beyond the excerpt. */
+  truncated: boolean;
+}
+
 /** The latest exchanges with a contact. */
 export interface WorkbenchContactHistory {
   mail: ContactHistorySource;
@@ -664,6 +690,20 @@ export interface WorkbenchContactHistory {
   meetings_window_days: number;
   /** A window held more events than were read. */
   meetings_cut: boolean;
+  telephony: ContactHistorySource;
+  /** The latest calls LIA placed to their numbers. */
+  calls: ContactHistoryCall[];
+  /** How many of LIA's latest calls were read. */
+  calls_window: number;
+  /** LIA placed more calls than were read, and the list is not full. */
+  calls_cut: boolean;
+  sms: ContactHistorySource;
+  /** The latest texts their numbers sent. */
+  texts: ContactHistoryText[];
+  /** How many of the archive's latest senders were read. */
+  texts_window: number;
+  /** The archive holds more senders than were read. */
+  texts_cut: boolean;
 }
 
 /** A text file's words, and the version a change must name. */

@@ -16,12 +16,14 @@ If the briefing cannot load, the radio and your shortcuts stay available.
 
 ## Which cards are on My dashboard, and what can I do from them?
 
-Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (each file with its place on your drive) (your latest files, on Google Drive or OneDrive; Microsoft offers no such list, so on OneDrive the card starts from the top of your drive and completes itself as your files change) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
+Eleven cards, in the order you choose: **Weather** (with air quality and pollen where available), **Birthdays**, **Active reminders**, **Health**, **My SMS** (the messages your phone relayed, counted for the period), **Agenda** (a timeline, day by day), **Unread mail**, **For you** (commitments being tracked and your next routine), **Tasks** (pending and overdue), **Documents** (your latest files) and **Workboard** (your tickets, what LIA or your connections hold, what is late or open — each count opens the board, filtered).
 
 **👆 From an item:**
-• a click opens the chat with a matching request ready — you send it yourself
-• **More actions** (⋯) runs a named action at once: summarise or reply to a mail, prepare for an event or get directions, complete or postpone a task, write a birthday message… anything that changes your accounts still asks for confirmation in the chat
-• some act in place: cancel a reminder (after a confirmation), mark a commitment done or no longer relevant, or edit it
+• where your instance offers the **Tools**, a click opens the item in its tool — the event in Calendar, the mail in Mail, the task in its own list, the file in Files, the person whose birthday it is in Contacts; an SMS opens on the SMS page. Otherwise a click opens the chat with a matching request ready — you send it yourself
+• **More actions** (⋯) holds up to five actions, the direct ones first, which need no AI: mark a mail as read or archive it, mark a task as done or move it to tomorrow, download a file or send it by email, write to or call the person whose birthday it is, call, save or block the sender of an SMS (blocking asks first), get directions, join a video call, or set a reminder. When an action takes an item off the card, the card updates at once. Then what LIA does in the chat: summarise or reply to a mail, prepare for an event, help you move a task forward, write a birthday message… anything that changes your accounts still asks for confirmation
+• some act in place: cancel a reminder (after a confirmation), mark a commitment done or no longer relevant, or edit it.
+
+On OneDrive, Microsoft offers no list of your latest files: the Documents card starts from the top of your drive and completes itself as your files change.
 
 ## Can I customize the dashboard cards?
 

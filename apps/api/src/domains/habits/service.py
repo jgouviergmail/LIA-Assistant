@@ -2,10 +2,11 @@
 
 Orchestrates the pure rhythm detector over repository data:
 
-- ``recompute_user_profile``: the nightly unit of work for one user —
-  aggregate, detect (with hysteresis from the stored profile), persist,
-  sync the ACTIVE_WINDOW habit rows, and seed an empty recurrence ledger
-  from durable product outcomes (rebuild lot).
+- ``recompute_user_profile``: the nightly unit of work for one user — seed
+  an empty recurrence ledger from durable product outcomes, learn the
+  recurring needs and bring the proposals in line (``usage_refresh``,
+  ADR-375), then aggregate, detect the rhythm (with hysteresis from the stored
+  profile), persist, and sync the ACTIVE_WINDOW habit rows.
 - Read APIs for the router (profile + habits + explanation).
 
 Sessions are owned by the caller (one per user in the job — never shared
@@ -30,7 +31,6 @@ from src.domains.habits.models import (
     UserHabit,
     UserHabitProfile,
 )
-from src.domains.habits.recurrence_sync import RecurringSyncOutcome, sync_recurring_habits
 from src.domains.habits.repository import HabitsRepository
 from src.domains.habits.rhythm import (
     DAY_CLASSES,
@@ -39,6 +39,7 @@ from src.domains.habits.rhythm import (
     compute_rhythm_profile_with_diagnostics,
 )
 from src.domains.habits.streaks import StreakSummary, compute_streaks
+from src.domains.habits.usage_refresh import refresh_usage
 from src.domains.habits.window_keys import part_of_day as part_of_day
 from src.domains.habits.window_keys import window_habit_key
 
@@ -109,20 +110,15 @@ class HabitsService:
         # Last COMPLETE local day: a partial today must never dilute presence.
         as_of = (now_local - timedelta(days=1)).date()
 
-        # The ledger side comes FIRST, before any skip. The seed rebuilds an
+        # The usage side comes FIRST, before any skip. The seed rebuilds an
         # EMPTY ledger from durable product outcomes (one-shot by construction)
-        # and runs on the manual recompute path too; the recurring sync then
-        # follows that ledger (ADR-214 amendment c): promotion, refresh, mute
-        # lift and demotion no longer wait for a chat turn. Seed before sync,
-        # or a Redis flush would demote every row one night and recreate it
-        # the next — and both before the activity skips, because the one
-        # account the demotion exists for (conversations reset, silent past
-        # the rollup window, ledger expired) is exactly the account every
-        # skip below refuses. Neither reads the activity sources.
+        # and runs on the manual recompute path too; the usage refresh then
+        # learns the needs and brings the proposals in line (ADR-375). Seed
+        # before the refresh, or a Redis flush would demote every need one
+        # night and recreate it the next — and both before the activity skips:
+        # a quiet person's proposals must still reopen, lapse and withdraw.
         await seed_ledger_from_outcomes(self.db, user.id, str(user_tz), settings)
-        self._emit_recurring_sync(
-            await sync_recurring_habits(self.repository, user.id, str(user_tz), settings)
-        )
+        await refresh_usage(self.db, user, settings=settings, now=datetime.now(UTC))
 
         first_at, last_at = await self.repository.fetch_activity_bounds(user.id)
         if last_at is None and not await self.repository.fetch_activity_rollup(user.id):
@@ -239,22 +235,6 @@ class HabitsService:
         return "computed"
 
     @staticmethod
-    def _emit_recurring_sync(outcome: RecurringSyncOutcome) -> None:
-        """Count what the recurring sync did (best-effort, never breaks the job)."""
-        with suppress(Exception):
-            from src.infrastructure.observability.metrics_habits import (
-                recurring_habits_synced_total,
-            )
-
-            if outcome.skipped:
-                recurring_habits_synced_total.labels(action="skipped").inc()
-                return
-            for action in ("created", "updated", "kept", "demoted", "blocked", "capped"):
-                count = getattr(outcome, action)
-                if count:
-                    recurring_habits_synced_total.labels(action=action).inc(count)
-
-    @staticmethod
     def _emit_gate_diagnostics(gate_diagnostics: dict[str, dict[str, int]]) -> None:
         """Emit the detector's gate-rejection census (best-effort).
 
@@ -359,8 +339,8 @@ class HabitsService:
         What is published is the detector's inputs and the thresholds it
         applied, so the reader can reconstruct the claim. No rank, no score
         theater — an enforced constant the reader cannot see is a trap
-        (ADR-184). The thresholds are PER KIND: a recurring habit is proven
-        by the lock evaluation, not by the rhythm gates — publishing the
+        (ADR-184). The thresholds are PER KIND: a recurring need is proven
+        by the need detector, not by the rhythm gates — publishing the
         other detector's numbers would be exactly the published≠applied
         drift the doctrine forbids (code-review catch 2026-08-05).
 
@@ -371,21 +351,19 @@ class HabitsService:
             Bounded explanation payload for the API.
         """
         if habit.kind == HabitKind.RECURRING_REQUEST.value:
-            # Every bar ``evaluate_locks`` applies, the labeling ones included
-            # (2026-09-11): a threshold the reader cannot see is a trap.
+            # Every bar ``needs.detect_need`` applies (ADR-375), the cadence
+            # and automation ones included: a threshold the reader cannot see
+            # is a trap.
             thresholds: dict[str, float | int] = {
                 "min_distinct_days": settings.recurrence_min_distinct_days,
-                "lock_min_occurrences": settings.recurrence_lock_min_occurrences,
-                "lock_min_spread_days": settings.recurrence_lock_min_spread_days,
-                "lock_r_min": settings.recurrence_lock_r_min,
-                "lock_half_r_min": settings.recurrence_lock_half_r_min,
-                "lock_half_agree_hours": settings.recurrence_lock_half_agree_hours,
+                "need_min_weeks": settings.recurrence_need_min_weeks,
+                "need_recent_days": settings.recurrence_need_recent_days,
+                "automate_share": settings.recurrence_automate_share,
+                "automate_min_days": settings.recurrence_automate_min_days,
                 "weekly_min_same_dow": settings.recurrence_weekly_min_same_dow,
                 "weekly_dow_fraction": settings.recurrence_weekly_dow_fraction,
-                "shape_min_span_days": settings.recurrence_shape_min_span_days,
-                "daily_density_min": settings.recurrence_daily_density_min,
-                "intermittent_r_min": settings.recurrence_intermittent_r_min,
                 "weekend_tolerance": settings.recurrence_weekend_tolerance,
+                "part_of_day_share": settings.recurrence_part_of_day_share,
                 "window_days": settings.recurrence_window_days,
             }
         else:

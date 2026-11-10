@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { NotebookPen } from 'lucide-react';
+import { NotebookPen } from '@/lib/icons';
 import {
   DebugChip,
   DebugSection,

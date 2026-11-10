@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, type ComponentProps, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { isLanguage } from '@/i18n/settings';
 import { isSettingsSectionToken, type SettingsSectionToken } from '@/lib/settings-sections';

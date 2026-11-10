@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { ListChecks } from 'lucide-react';
-import { ClockIcon } from 'lucide-react';
+import { ListChecks } from '@/lib/icons';
+import { ClockIcon } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT, executionStatusTone } from '../../utils/tones';
 import { formatDuration } from '../../utils/formatters';

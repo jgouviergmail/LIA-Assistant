@@ -23,7 +23,7 @@
  * draft in its thread, and the composer closes on it. On a phone every button of the page's end
  * stands on its own line, the whole width (owner, 2026-11-06).
  */
-import { Paperclip, Send, Type, Upload, X } from 'lucide-react';
+import { Paperclip, Send, Type, Upload, X } from '@/lib/icons';
 import {
   type ReactNode,
   useEffect,

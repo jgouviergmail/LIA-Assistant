@@ -531,9 +531,9 @@ def _schedule_post_response_extractions(
             )
         elif not settings.habits_enabled:
             # The ledger is habit LEARNING (ADR-214), gated by the habits
-            # capability — never by the chat suggestion's own flag
-            # (RECURRENCE_SUGGESTION_ENABLED only decides whether LIA offers
-            # an automation in the answer). The deployment ceiling is read
+            # capability — never by the chat card's own flag
+            # (RECURRENCE_SUGGESTION_ENABLED only decides whether a habit
+            # proposal may appear under an answer, ADR-375). The deployment ceiling is read
             # here, synchronously; the operator switch and the person's own
             # switch are read in the background task.
             _record_extraction(KIND_RECURRENCE, OUTCOME_FEATURE_DISABLED)  # no ledger writes
@@ -559,8 +559,9 @@ def _schedule_post_response_extractions(
                 user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
             from datetime import datetime
 
-            # v2 (ADR-214): the signature is the domain only — the local date
-            # and hour are recorded as DATA for the shape locks, and so is the
+            # The signature is the domain only — the local date and hour are
+            # recorded as DATA for the recurring needs (ADR-375: the hour
+            # describes a need, it never conditions it), and so is the
             # analyzer's intent (Q4, 2026-09-11): « what the person usually
             # asks for » travels inside the payload, never inside the key.
             now_local = datetime.now(user_tz)
@@ -590,7 +591,6 @@ def _schedule_post_response_extractions(
         logger.error(
             "recurrence_record_scheduling_failed",
             run_id=run_id,
-            error=str(e),
             error_type=type(e).__name__,
             exc_info=True,
         )

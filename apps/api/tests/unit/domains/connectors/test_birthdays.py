@@ -5,6 +5,10 @@ The birthday fetch/computation logic moved from ``briefing`` to a neutral
 briefing domain (briefing already imports ``heartbeat.geocoding`` — a
 heartbeat→briefing edge would create a domain import cycle, forbidden by
 the release contract).
+
+Since 2026-11-07 the birthdays come from the ACTIVE contacts provider (Google,
+Apple or Microsoft) through the shared directory, read whole through the shared
+door — whose own tests hold the no-session and always-closed contract.
 """
 
 from contextlib import asynccontextmanager
@@ -13,14 +17,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
+from src.core.constants import CONTACTS_BIRTHDAYS_DIRECTORY_MAX
+from src.core.exceptions import MaxRetriesExceededError
+from src.domains.connectors.active_client import ActiveClient, ClientUnavailable
 from src.domains.connectors.birthdays import (
     BirthdayFetchError,
     BirthdayItem,
     fetch_upcoming_birthdays,
     upcoming_birthdays_from_connections,
 )
+from src.domains.connectors.clients.contact_directory import ContactDirectory
+from src.domains.connectors.models import ConnectorType
+
+PARIS = ZoneInfo("Europe/Paris")
 
 
 def _connection(name: str, month: int, day: int, year: int | None = None) -> dict:
@@ -71,149 +83,151 @@ class TestUpcomingBirthdaysComputation:
         )
         assert [i.contact_name for i in items] == ["A", "B"]
 
+    def test_a_birthday_names_its_contact_and_how_to_reach_them(self):
+        """The card opens the contact, writes to them, calls them: it needs their id and ways."""
+        person = {
+            **_connection("Inès", 7, 23),
+            "resourceName": "people/c42",
+            "emailAddresses": [{"value": ""}, {"value": "ines@example.org"}],
+            "phoneNumbers": [{"value": "+33 6 12 34 56 78"}],
+        }
 
-class _Units:
-    """A detached connector service counting the sessions it holds open."""
+        [item] = upcoming_birthdays_from_connections(
+            [person], horizon_days=14, max_items=5, today=date(2026, 7, 22)
+        )
 
-    def __init__(self, service):
-        self.service = service
-        self.open = 0
+        assert (item.contact_id, item.email, item.phone) == (
+            "people/c42",
+            "ines@example.org",
+            "+33 6 12 34 56 78",
+        )
+
+    def test_a_contact_with_no_way_to_reach_them_still_has_their_birthday(self):
+        [item] = upcoming_birthdays_from_connections(
+            [_connection("Hugo", 7, 23)], horizon_days=14, max_items=5, today=date(2026, 7, 22)
+        )
+
+        assert (item.contact_id, item.email, item.phone) == (None, None, None)
+
+    def test_a_year_written_as_zero_is_an_unknown_year(self):
+        """Microsoft's normaliser writes an unknown year as 0: no age, no year in the date."""
+        [item] = upcoming_birthdays_from_connections(
+            [_connection("Léa", 7, 23, 0)], horizon_days=14, max_items=5, today=date(2026, 7, 22)
+        )
+
+        assert (item.date_iso, item.age_at_next) == ("--07-23", None)
+
+
+def _door(opened: object, asked: list[str] | None = None):
+    """The shared door, yielding ``opened`` for the category it is asked."""
 
     @asynccontextmanager
-    async def unit_of_work(self):
-        self.open += 1
-        try:
-            yield self.service
-        finally:
-            self.open -= 1
+    async def door(category, user_id, *, container=None, fresh=False):
+        if asked is not None:
+            asked.append(category)
+        yield opened
+
+    return door
+
+
+def _active(client: object) -> ActiveClient:
+    return ActiveClient(
+        client=client, connector_type=ConnectorType.MICROSOFT_CONTACTS, preferred_name=None
+    )
+
+
+async def _fetch(**overrides) -> list[BirthdayItem] | None:
+    return await fetch_upcoming_birthdays(
+        uuid4(), PARIS, horizon_days=overrides.get("horizon_days", 400), max_items=5
+    )
 
 
 @pytest.mark.unit
 class TestFetchUpcomingBirthdays:
-    """Provider fetch: silent None when not configured, typed error on failure."""
+    """The active provider's book: None when there is none, a typed error when it fails."""
 
-    async def test_returns_none_when_connector_not_configured(self):
-        service = MagicMock()
-        service.get_connector_credentials = AsyncMock(return_value=None)
+    @pytest.mark.parametrize(
+        "absent", [ClientUnavailable.NO_CONNECTOR, ClientUnavailable.NO_CLIENT]
+    )
+    async def test_no_contacts_provider_reads_as_not_configured(self, absent):
+        with patch("src.domains.connectors.birthdays.open_active_client", _door(absent)):
+            assert await _fetch() is None
 
-        with (
-            patch(
-                "src.domains.connectors.birthdays.DetachedConnectorService",
-                return_value=_Units(service),
-            ),
+    async def test_unreadable_credentials_are_a_failure_not_an_absence(self):
+        """An active provider whose token cannot be read is « reconnect », never « connect »."""
+        with patch(
+            "src.domains.connectors.birthdays.open_active_client",
+            _door(ClientUnavailable.NO_CREDENTIALS),
         ):
-            result = await fetch_upcoming_birthdays(
-                uuid4(),
-                ZoneInfo("Europe/Paris"),
-                horizon_days=1,
-                max_items=5,
-            )
+            with pytest.raises(BirthdayFetchError) as raised:
+                await _fetch()
 
-        assert result is None
+        assert raised.value.reason == "no_credentials"
 
-    async def test_http_error_raises_typed_fetch_error(self):
-        import httpx
-
-        service = MagicMock()
-        service.get_connector_credentials = AsyncMock(return_value=MagicMock())
+    async def test_the_active_provider_book_is_read_whole_under_the_birthdays_cap(self):
         client = MagicMock()
-        client.close = AsyncMock()
-        client._make_request = AsyncMock(side_effect=httpx.ConnectError("boom"))
-
-        with (
-            patch(
-                "src.domains.connectors.birthdays.DetachedConnectorService",
-                return_value=_Units(service),
-            ),
-            patch(
-                "src.domains.connectors.birthdays.GooglePeopleClient",
-                return_value=client,
-            ),
-        ):
-            with pytest.raises(BirthdayFetchError):
-                await fetch_upcoming_birthdays(
-                    uuid4(),
-                    ZoneInfo("Europe/Paris"),
-                    horizon_days=1,
-                    max_items=5,
-                )
-
-    async def test_fetch_computes_items_in_user_local_frame(self):
-        """Connections are scanned — with no session held — then computed
-        against the USER's local date."""
-        service = MagicMock()
-        service.get_connector_credentials = AsyncMock(return_value=MagicMock())
-        client = MagicMock()
-        client.close = AsyncMock()
-        units = _Units(service)
-
-        async def _page(*_args, **_kwargs):
-            assert units.open == 0, "a session was still open while Contacts answered"
-            return {"connections": [_connection("Zoé", 7, 23)]}
-
-        client._make_request = AsyncMock(side_effect=_page)
-
-        with (
-            patch(
-                "src.domains.connectors.birthdays.DetachedConnectorService",
-                return_value=units,
-            ),
-            patch(
-                "src.domains.connectors.birthdays.GooglePeopleClient",
-                return_value=client,
-            ),
-        ):
-            result = await fetch_upcoming_birthdays(
-                uuid4(),
-                ZoneInfo("Europe/Paris"),
-                horizon_days=400,
-                max_items=5,
+        client.list_email_directory = AsyncMock(
+            return_value=ContactDirectory(
+                persons=[{**_connection("Zoé", 7, 23), "resourceName": "people/z"}],
+                truncated=False,
+                from_cache=False,
             )
+        )
+        asked: list[str] = []
+
+        with patch(
+            "src.domains.connectors.birthdays.open_active_client", _door(_active(client), asked)
+        ):
+            result = await _fetch()
+
+        assert asked == ["contacts"]
+        client.list_email_directory.assert_awaited_once_with(CONTACTS_BIRTHDAYS_DIRECTORY_MAX)
+        assert result is not None
+        assert [(item.contact_name, item.contact_id) for item in result] == [("Zoé", "people/z")]
+
+    async def test_the_days_are_counted_in_the_person_s_own_day(self):
+        """At 00:30 in Paris on the 23rd, a birthday on the 23rd is today, whatever UTC says."""
+        client = MagicMock()
+        client.list_email_directory = AsyncMock(
+            return_value=ContactDirectory(
+                persons=[_connection("Zoé", 7, 23)], truncated=False, from_cache=True
+            )
+        )
+
+        class _Clock:
+            @staticmethod
+            def now(tz):
+                from datetime import datetime
+
+                return datetime(2026, 7, 23, 0, 30, tzinfo=tz)
+
+        with (
+            patch("src.domains.connectors.birthdays.open_active_client", _door(_active(client))),
+            patch("src.domains.connectors.birthdays.datetime", _Clock),
+        ):
+            result = await _fetch(horizon_days=14)
 
         assert result is not None
-        assert [i.contact_name for i in result] == ["Zoé"]
-        assert isinstance(result[0], BirthdayItem)
-        # Single page → exactly one paginated call
-        assert client._make_request.await_count == 1
+        assert [item.days_until for item in result] == [0]
 
-    async def test_client_transport_closed_on_success_and_on_error(self):
-        """The People client owns an httpx transport: it must be closed on
-        the success path AND when the scan raises (systemic rule)."""
-        import httpx
+    @pytest.mark.parametrize(
+        ("failure", "reason"),
+        [
+            (TimeoutError("slow"), "timeout"),
+            (httpx.ConnectError("boom"), "http_error"),
+            (MaxRetriesExceededError("list_email_directory", 3), "retries_exhausted"),
+        ],
+    )
+    async def test_a_provider_failure_is_typed_and_keeps_its_cause(self, failure, reason):
+        client = MagicMock()
+        client.list_email_directory = AsyncMock(side_effect=failure)
 
-        for side_effect, expectation in (
-            (None, None),
-            (httpx.ConnectError("boom"), BirthdayFetchError),
-        ):
-            service = MagicMock()
-            service.get_connector_credentials = AsyncMock(return_value=MagicMock())
-            client = MagicMock()
-            client.close = AsyncMock()
-            if side_effect is None:
-                client._make_request = AsyncMock(return_value={"connections": []})
-            else:
-                client._make_request = AsyncMock(side_effect=side_effect)
+        with patch("src.domains.connectors.birthdays.open_active_client", _door(_active(client))):
+            with pytest.raises(BirthdayFetchError) as raised:
+                await _fetch()
 
-            with (
-                patch(
-                    "src.domains.connectors.birthdays.DetachedConnectorService",
-                    return_value=_Units(service),
-                ),
-                patch(
-                    "src.domains.connectors.birthdays.GooglePeopleClient",
-                    return_value=client,
-                ),
-            ):
-                if expectation is None:
-                    await fetch_upcoming_birthdays(
-                        uuid4(), ZoneInfo("Europe/Paris"), horizon_days=1, max_items=5
-                    )
-                else:
-                    with pytest.raises(expectation):
-                        await fetch_upcoming_birthdays(
-                            uuid4(), ZoneInfo("Europe/Paris"), horizon_days=1, max_items=5
-                        )
-            client.close.assert_awaited_once()
+        assert raised.value.reason == reason
+        assert raised.value.__cause__ is failure
 
 
 @pytest.mark.unit

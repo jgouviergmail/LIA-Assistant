@@ -7,6 +7,8 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   usePathname: () => '/fr/dashboard',
 }));
+// The card manages the account's senders (the reviewed block command, 2026-11-07).
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 const section: CardSection<SmsData> = {
   status: 'ok',
   data: {
@@ -52,7 +54,8 @@ describe('SMS home card', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByText('dashboard.briefing.cards.sms.open')).not.toBeInTheDocument();
     expect(within(rows[0]).getByText(/09:59/)).toBeVisible();
-    const target = within(rows[0]).getByRole('button');
+    // The row itself, by its name: its « More actions » trigger is a button too (2026-11-07).
+    const target = within(rows[0]).getByRole('button', { name: /Camille 0/ });
     act(() => target.focus());
     await user.keyboard('{Enter}');
     expect(push).toHaveBeenCalledWith(

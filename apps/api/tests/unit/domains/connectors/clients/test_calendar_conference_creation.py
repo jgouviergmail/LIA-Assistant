@@ -131,6 +131,29 @@ class TestGraphNormalizerConferenceParity:
         assert "hangoutLink" not in normalized
 
 
+class TestGraphReadsAskForTheJoinLink:
+    """Graph answers only what ``$select`` names: a read that does not name the online meeting
+    never sees its Teams link, and « Join the video call » never shows (2026-11-07)."""
+
+    async def test_reading_an_event_surfaces_its_teams_link(self) -> None:
+        client = _microsoft_client()
+        spy = AsyncMock(
+            return_value={
+                "id": "evt-1",
+                "subject": "Point",
+                "isOnlineMeeting": True,
+                "onlineMeeting": {"joinUrl": "https://teams.microsoft.com/l/meetup-join/xyz"},
+            }
+        )
+        client._make_request = spy  # type: ignore[method-assign]
+
+        event = await client.get_event("evt-1")
+
+        selected = set(spy.call_args.args[2]["$select"].split(","))
+        assert {"isOnlineMeeting", "onlineMeeting"} <= selected
+        assert event["hangoutLink"] == "https://teams.microsoft.com/l/meetup-join/xyz"
+
+
 class TestAppleGracefulDegradation:
     async def test_add_conference_is_accepted_and_ignored(self) -> None:
         from src.domains.connectors.clients.apple_calendar_client import AppleCalendarClient

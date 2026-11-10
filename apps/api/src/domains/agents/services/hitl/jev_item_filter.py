@@ -6,19 +6,14 @@ from uuid import UUID
 
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.prompts.prompt_loader import load_prompt
+from src.domains.llm_config.jev_gates import gate_passes
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
 from src.infrastructure.llm.typesafe_client import ChoiceQuestion
-from src.infrastructure.observability.metrics_jev import jev_decisions_total
 
-# Re-chosen on jev-1.14.0 (2026-10-26) on the committed HITL corpora: no wrong
-# exclusion from 0.80; 0.80 and 0.90 tie (calibration 10 of 12, holdout 8 of 11)
-# where 0.99 kept 6 and 5, so the stricter tie. A selection still needs the human's
-# confirmation; the reference scope keeps its own threshold.
-MIN_CONFIDENCE = 0.90
-REFERENCE_SCOPE_MIN_CONFIDENCE = 0.80
 REFERENCE_SCOPE_KEY = "reference_scope"
 # The list shape the HITL corpora measured: the items and the one scope question.
 MAX_BATCH_QUESTIONS = 24
@@ -41,10 +36,13 @@ def _kept_indices(attempt: DecisionAttempt, count: int) -> list[int] | None:
     if attempt.outcome != "success" or set(attempt.answers) != expected:
         return None
     scope = attempt.answers[REFERENCE_SCOPE_KEY]
-    if scope.choice != "clear" or scope.confidence < REFERENCE_SCOPE_MIN_CONFIDENCE:
+    thresholds, usage = attempt.thresholds, JevUsage.HITL_EXCLUSION
+    if scope.choice != "clear" or not gate_passes(
+        thresholds, usage, "reference_scope", scope.confidence
+    ):
         return None
     if any(
-        attempt.answers[f"item_{i}"].confidence < MIN_CONFIDENCE
+        not gate_passes(thresholds, usage, "item", attempt.answers[f"item_{i}"].confidence)
         or attempt.answers[f"item_{i}"].choice not in {"keep", "exclude"}
         for i in range(count)
     ):
@@ -111,4 +109,4 @@ async def _record_result(
             REFERENCE_SCOPE_KEY: "Exclusion reference scope",
         },
     )
-    jev_decisions_total.labels(usage=JevUsage.HITL_EXCLUSION, outcome=outcome).inc()
+    count_jev_outcome(JevUsage.HITL_EXCLUSION, outcome)

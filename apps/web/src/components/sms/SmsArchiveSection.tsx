@@ -1,7 +1,8 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { MessageSquareText } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquareText } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -19,17 +20,33 @@ export function SmsArchiveSection({ lng }: { lng: Language }) {
   const { t } = useTranslation(lng, 'translation');
   const message = useSearchParams().get('message');
   const focused = message && MESSAGE_ID.test(message) ? message : null;
+  const [open, setOpen] = useState(true);
+  const [previousFocused, setPreviousFocused] = useState(focused);
+  if (previousFocused !== focused) {
+    setPreviousFocused(focused);
+    if (focused) setOpen(true);
+  }
   return (
-    <Disclosure
-      key={focused ?? 'archive'}
-      icon={MessageSquareText}
-      title={t('sms.archive')}
-      defaultOpen
-    >
-      <div className="min-w-0 space-y-4 pt-2">
-        {focused && <SmsFocusedMessage messageId={focused} lng={lng} />}
-        <SmsArchive lng={lng} heading={false} />
-      </div>
-    </Disclosure>
+    <SmsArchive
+      lng={lng}
+      heading={false}
+      enabled={open}
+      onFiltersChange={() => setOpen(true)}
+      renderResults={content => (
+        <Disclosure
+          key={focused ?? 'archive'}
+          icon={MessageSquareText}
+          title={t('sms.archive')}
+          defaultOpen
+          open={open}
+          onOpenChange={setOpen}
+        >
+          <div className="min-w-0 space-y-4 pt-2">
+            {focused && <SmsFocusedMessage key={focused} messageId={focused} lng={lng} />}
+            {content}
+          </div>
+        </Disclosure>
+      )}
+    />
   );
 }

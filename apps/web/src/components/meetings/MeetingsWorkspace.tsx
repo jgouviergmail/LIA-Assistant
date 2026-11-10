@@ -2,12 +2,10 @@
 
 /**
  * The user's meetings (ADR-258): every recording and where its minutes stand,
- * with row selection and bulk delete (ADR-259).
+ * with a direct delete action on each row (ADR-259).
  *
- * The page owns paging; `MeetingRows` owns the selection and is keyed by the
- * page offset, so a page change resets the selection by construction (no
- * effect resetting state). Rows the server would skip (live, processing) are
- * not selectable; the server still decides which deletions are allowed.
+ * The page owns paging; each explicit delete sends one id through the existing
+ * server-owned deletion contract. Live and processing rows cannot be deleted.
  */
 
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
@@ -23,24 +21,22 @@ import {
   Sun,
   Sunrise,
   Upload,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { MeetingNavigationProvider } from './MeetingNavigation';
 import { MeetingImportDialog } from '@/components/meetings/MeetingImportDialog';
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
-import { BackLink } from '@/components/ui/back-link';
-import { MeetingSelectionBar } from '@/components/meetings/MeetingSelectionBar';
 import { MeetingTimelineEntry } from '@/components/meetings/MeetingTimelineEntry';
 import type { ToolbarAction } from '@/components/settings/SectionToolbar';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/ui/pagination';
-import { SectionHeader } from '@/components/ui/section-header';
+import { HeaderActions, SectionHeader } from '@/components/ui/section-header';
 import { TimelineDayGroup, TimelineGroup } from '@/components/ui/timeline-group';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SearchInput } from '@/components/ui/search-input';
-import { useConfirm } from '@/components/ui/use-confirm';
+import { ListSearch } from '@/components/ui/list-toolbar';
+import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
@@ -50,12 +46,13 @@ import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLife
 import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { backDestination, withOrigin } from '@/lib/back-origin';
+import { withOrigin } from '@/lib/back-origin';
 import { useSearchParams } from 'next/navigation';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { meetingListPage, meetingListQuery, meetingListSearch } from '@/lib/meetings/list-location';
 import { projectMeetingTimeline, type MeetingPeriod } from '@/lib/meetings/timeline';
-import { isSelectable, pageSelectionState, toggleId } from '@/lib/meetings/selection';
+import { isSelectable } from '@/lib/meetings/selection';
+import type { MeetingSummary } from '@/types/meetings';
 
 const PAGE_SIZE = 20;
 const PERIOD_ICONS = {
@@ -75,7 +72,7 @@ interface MeetingsWorkspaceProps {
   onEmptyAction?: () => void;
 }
 
-/** The rows of one page with their selection; remounted by the page on every offset change. */
+/** The rows of one page and its pending deletion, with account-scoped feedback. */
 function MeetingRows({
   lng,
   list,
@@ -83,6 +80,7 @@ function MeetingRows({
   page,
   origin,
   query,
+  focusTarget,
 }: {
   lng: Language;
   list: UseMeetingListReturn;
@@ -90,65 +88,44 @@ function MeetingRows({
   page: number;
   origin: string | null;
   query: string;
+  focusTarget: RefObject<HTMLHeadingElement | null>;
 }) {
   const { t } = useTranslation(lng);
-  const { confirm, confirmDialog } = useConfirm();
   const { user } = useAuth();
   const { isCurrent } = useApplicationAccountLifetime(user?.id);
   const toast = useApplicationAccountToast(user?.id);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { meetings } = list;
   const timeline = useMemo(() => projectMeetingTimeline(meetings, lng), [meetings, lng]);
   const headingPrefix = useId();
-  const confirming = useRef(false);
+  const pending = useRef(false);
 
-  const selectableIds = meetings.filter(isSelectable).map(m => m.id);
-  const chosen = selectableIds.filter(id => selected.has(id));
-  const pageState = pageSelectionState(selectableIds, selected);
-  // A refreshed processing row must not keep a hidden selection which could
-  // reappear without the reader choosing it when processing finishes.
-  if (chosen.length !== selected.size) setSelected(new Set(chosen));
-
-  const remove = async () => {
-    if (!isCurrent() || chosen.length === 0 || list.isDeleting || confirming.current) return;
-    confirming.current = true;
-    const ok = await confirm({
-      title: t('meetings.list.confirm_bulk_delete_title'),
-      description: t('meetings.list.confirm_bulk_delete_description', { count: chosen.length }),
-      confirmLabel: t('meetings.list.delete_selected', { count: chosen.length }),
-      destructive: true,
-    });
-    confirming.current = false;
-    if (!ok || !isCurrent()) return;
+  const remove = async (meeting: MeetingSummary) => {
+    if (!isCurrent() || pending.current || list.isDeleting || !isSelectable(meeting)) return;
+    pending.current = true;
+    setDeletingId(meeting.id);
     try {
-      const result = await list.bulkDelete(chosen);
-      if (result === null || !isCurrent()) return;
-      setSelected(new Set());
-      if (result.deleted.length > 0) {
-        toast.success(t('meetings.list.bulk_deleted', { count: result.deleted.length }));
+      const result = await list.bulkDelete([meeting.id]);
+      if (!isCurrent()) return;
+      const deleted = result.deleted.includes(meeting.id);
+      if (deleted) toast.success(t('meetings.list.bulk_deleted', { count: 1 }));
+      else {
+        const skipped = result.skipped.find(row => row.id === meeting.id);
+        if (skipped?.code === 'meeting_in_progress')
+          toast.info(t('meetings.list.bulk_skipped', { count: 1 }));
+        else toast.error(t('common.error'));
       }
-      if (result.skipped.length > 0) {
-        toast.info(t('meetings.list.bulk_skipped', { count: result.skipped.length }));
-      }
-      await onDeleted(result.deleted.length);
+      await onDeleted(deleted ? 1 : 0);
     } catch {
-      toast.error(t('common.error'));
+      if (isCurrent()) toast.error(t('common.error'));
+    } finally {
+      pending.current = false;
+      if (isCurrent()) setDeletingId(null);
     }
   };
 
   return (
     <div className="space-y-3">
-      {confirmDialog}
-      <MeetingSelectionBar
-        lng={lng}
-        count={chosen.length}
-        canSelectAll={selectableIds.length > 0}
-        pageState={pageState}
-        onSelectAll={() => setSelected(new Set(selectableIds))}
-        onClear={() => setSelected(new Set())}
-        onDelete={() => void remove()}
-        deleting={list.isDeleting}
-      />
       {/* Keep the existing row height, including wrapping, without displaying the timezone hint. */}
       <p
         aria-hidden="true"
@@ -189,8 +166,10 @@ function MeetingRows({
                         ),
                         lng
                       )}
-                      selected={selected.has(item.meeting.id)}
-                      onToggle={() => setSelected(toggleId(selected, item.meeting.id))}
+                      onDelete={() => void remove(item.meeting)}
+                      deleteDisabled={deletingId !== null || list.isDeleting}
+                      deleting={deletingId === item.meeting.id}
+                      focusTarget={focusTarget}
                     />
                   ))}
                 </ul>
@@ -250,7 +229,6 @@ function AccountMeetingsPage({
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
   const origin = useBackOrigin();
-  const back = backDestination(origin);
   const searchParams = useSearchParams();
   const [importOpen, setImportOpen] = useState(false);
   const toolbar = useToolbarActions(t, () => setImportOpen(true));
@@ -308,12 +286,6 @@ function AccountMeetingsPage({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        {/* Six doors lead here — the header, the phone menu, a minutes card in
-            the chat, a recorder toast, the settings section, a slash command —
-            and this list had none back. The door that was used travels in the
-            URL as a token; with none, the chat is the way out (owner,
-            2026-09-10). */}
-        {!embedded && <BackLink label={t(back.labelKey)} onClick={() => router.push(back.href)} />}
         <SectionHeader
           headingRef={headingRef}
           level={1}
@@ -322,9 +294,7 @@ function AccountMeetingsPage({
           description={t('meetings.list.subtitle')}
           actions={
             toolbar.length ? (
-              // One row, Import to the right of Record (owner, 2026-10-25): the
-              // header stacks its actions, which put Import under Record.
-              <div className="flex w-full gap-2 sm:w-auto">
+              <HeaderActions>
                 {toolbar.map((action, index) => (
                   <Button
                     key={action.key}
@@ -339,23 +309,18 @@ function AccountMeetingsPage({
                     {action.label}
                   </Button>
                 ))}
-              </div>
+              </HeaderActions>
             ) : undefined
           }
         />
-        <SearchInput
-          value={query}
-          onSearchChange={search}
-          placeholder={t('meetings.list.search_placeholder')}
-          aria-label={t('meetings.list.search_placeholder')}
+        <ListSearch
+          query={query}
+          onQuery={search}
+          searchLabel={t('meetings.list.search_placeholder')}
+          debounceMs={SEARCH_DEBOUNCE_MS}
           maxLength={200}
           loading={isLoading && meetings.length > 0}
         />
-        {total > 0 && (
-          <p aria-live="polite" aria-atomic="true" className="text-sm text-muted-foreground">
-            {t('meetings.list.total', { count: total })}
-          </p>
-        )}
       </div>
 
       <ListLoadError
@@ -372,6 +337,7 @@ function AccountMeetingsPage({
           page={offset / PAGE_SIZE + 1}
           origin={origin}
           query={query}
+          focusTarget={headingRef}
           onEmptyAction={() =>
             query ? search('') : onEmptyAction ? onEmptyAction() : router.push('/dashboard/chat')
           }
@@ -398,6 +364,7 @@ function MeetingListContent(props: {
   page: number;
   origin: string | null;
   query: string;
+  focusTarget: RefObject<HTMLHeadingElement | null>;
   onEmptyAction: () => void;
 }) {
   const { list } = props;

@@ -67,16 +67,14 @@ export interface UseApiQueryResult<T> {
 /** Normalize and report a current request's failure at the API boundary. */
 function reportQueryFailure(
   error: Error,
-  endpoint: string,
   component: string,
   params: Record<string, QueryParamValue> | undefined
 ): Error {
   const failure =
     error instanceof ApiError ? error : new Error(error.message || 'Failed to fetch data');
-  logger.error(`API query failed: ${endpoint}`, failure, {
+  logger.error('api_query_failed', undefined, {
     component,
-    endpoint,
-    params,
+    parameter_count: Object.keys(params ?? {}).length,
     status: error instanceof ApiError ? error.status : undefined,
   });
   return failure;
@@ -165,7 +163,7 @@ export function useApiQuery<T = unknown>(
           return false;
         }
 
-        const errorObj = reportQueryFailure(error, endpoint, componentName, stableParams);
+        const errorObj = reportQueryFailure(error, componentName, stableParams);
         setError(errorObj);
         onErrorRef.current?.(errorObj);
         return false;

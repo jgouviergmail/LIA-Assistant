@@ -343,6 +343,33 @@ class TestCreatingAWatch:
             )
 
 
+class TestTheAccountCap:
+    async def test_a_full_account_is_refused_by_a_type_a_caller_can_tell_apart(self) -> None:
+        """A caller that must react to the cap (a habit proposal stays open
+        and says why) recognises the refusal by its TYPE — never by reading
+        the message (the classification ratchet). It stays a ValidationError
+        for every caller that already handles one."""
+        from src.core.constants import SCHEDULED_ACTIONS_MAX_PER_USER
+        from src.domains.scheduled_actions.errors import RoutineLimitError
+
+        service = ScheduledActionService(MagicMock())
+        service.repository = MagicMock()
+        service.repository.lock_creation_owner = AsyncMock()
+        service.repository.count_for_user = AsyncMock(return_value=SCHEDULED_ACTIONS_MAX_PER_USER)
+        service.repository.create = AsyncMock()
+
+        with pytest.raises(RoutineLimitError) as refused:
+            await service.create(
+                uuid.uuid4(),
+                ScheduledActionCreate(
+                    title="Météo", action_prompt="quel temps ?", recurrence=_EVERY_DAY_AT_EIGHT
+                ),
+                "Europe/Paris",
+            )
+        assert isinstance(refused.value, ValidationError)
+        service.repository.create.assert_not_awaited()
+
+
 class TestSwitchingClocks:
     async def test_becoming_a_watch_drops_the_schedule(self) -> None:
         action = _action(condition_state=None)

@@ -1,5 +1,8 @@
 """Source fetchers — one pure async function per dashboard card.
 
+The Workboard card's fetcher lives in ``workboard_card.py``, the SMS card's in
+``sms_context.py``.
+
 Contract per fetcher:
 - Returns a populated *Data pydantic model on success (may have empty items list).
 - Raises ConnectorNotConfiguredError if the user has no active connector for the source.
@@ -83,19 +86,13 @@ from src.domains.briefing.schemas import (
     RemindersData,
     TasksData,
     WeatherData,
-    WorkboardData,
-    WorkboardPreviews,
-    WorkboardTicketItem,
 )
+from src.domains.connectors.clients.normalizers.calendar_links import CONFERENCE_FIELDS
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.connectors.weather_provider import (
     open_platform_weather_client,
     resolve_weather_client,
-)
-from src.domains.feature_switches.registry import (
-    PlatformCapability,
-    is_capability_enabled,
 )
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
@@ -105,10 +102,6 @@ from src.domains.users.user_location_service import (
     NoLocationAvailableError,
     UserLocationService,
 )
-from src.domains.workboard.constants import CLOSED_STATUSES
-from src.domains.workboard.models import WorkboardTicket
-from src.domains.workboard.repository import WorkboardRepository
-from src.domains.workboard.summary_queries import read_attention
 from src.infrastructure.async_utils import settled_or_raise
 from src.infrastructure.database.session import get_db_context
 
@@ -387,7 +380,7 @@ async def fetch_agenda(
                 time_max=(now + window).isoformat(),
                 max_results=settings.briefing_max_agenda_items,
                 calendar_id=access.calendar_id,
-                fields=["id", "summary", "start", "end", "location"],
+                fields=["id", "summary", "start", "end", "location", *CONFERENCE_FIELDS],
             )
         except (TimeoutError, httpx.HTTPError) as exc:
             raise ConnectorAccessError("calendar", _classify_http_error(exc), str(exc)) from exc
@@ -410,7 +403,11 @@ async def fetch_agenda(
         timezone=str(user_tz),
         container=calendar_id,
     )
-    return AgendaData(events=[format_agenda_event(e, user_tz, language) for e in upcoming])
+    return AgendaData(
+        events=[
+            format_agenda_event(e, user_tz, language, calendar_id=calendar_id) for e in upcoming
+        ]
+    )
 
 
 # =============================================================================
@@ -518,17 +515,22 @@ async def _unread_inbox(
 
 
 # =============================================================================
-# Birthdays (Google Contacts only — Apple/MS lack a native birthday field)
+# Birthdays (the active contacts provider: Google, Apple or Microsoft)
 # =============================================================================
+
+#: The card's source: the contacts category, whichever provider serves it.
+_BIRTHDAYS_SOURCE = "contacts"
 
 
 async def fetch_birthdays(*, user: User, user_tz: ZoneInfo) -> BirthdaysData:
     """Fetch upcoming birthdays via the shared connectors fetch (P7).
 
-    The full-scan + computation moved to ``connectors.birthdays`` so the
+    The book read + computation live in ``connectors.birthdays`` so the
     heartbeat can reuse them without a briefing import cycle. This wrapper
     only translates the neutral outcomes into the briefing section-status
-    contract (NOT_CONFIGURED / ERROR exceptions).
+    contract (NOT_CONFIGURED / ERROR exceptions): an active provider whose
+    credentials cannot be read asks to reconnect (as the mails card does),
+    exhausted retries are classified on the error they last met.
 
     Cache TTL = seconds until next local midnight (computed by the service
     layer). The contact list is quasi-static, but `days_until` on each
@@ -550,15 +552,21 @@ async def fetch_birthdays(*, user: User, user_tz: ZoneInfo) -> BirthdaysData:
             max_items=settings.briefing_max_birthdays_items,
         )
     except BirthdayFetchError as exc:
-        # Classify from the ORIGINAL exception (__cause__) so the section
-        # status keeps its historical granularity (401/429/network).
+        if exc.reason == "no_credentials":
+            raise ConnectorAccessError(
+                _BIRTHDAYS_SOURCE, ERROR_CODE_CONNECTOR_OAUTH_EXPIRED, exc.detail
+            ) from exc
+        # Classify from the ORIGINAL exception (__cause__, or what exhausted
+        # retries last met) so the section status keeps its granularity
+        # (401/429/network).
         original = exc.__cause__ if isinstance(exc.__cause__, Exception) else exc
+        cause = getattr(original, "last_error", None) or original
         raise ConnectorAccessError(
-            "google_contacts", _classify_http_error(original), exc.detail
+            _BIRTHDAYS_SOURCE, _classify_http_error(cause), exc.detail
         ) from exc
 
     if items is None:
-        raise ConnectorNotConfiguredError("google_contacts")
+        raise ConnectorNotConfiguredError(_BIRTHDAYS_SOURCE)
 
     return BirthdaysData(items=items)
 
@@ -658,7 +666,7 @@ async def fetch_health(*, user: User) -> HealthData:
 
 
 # =============================================================================
-# For you (open loops + automations digest — P15, interdomain Lot 4)
+# Tasks & documents (the active tasks provider, the account's drive — P15)
 # =============================================================================
 
 
@@ -710,14 +718,38 @@ async def fetch_tasks(*, user: User, user_tz: ZoneInfo, whole_page: bool = False
         except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
             cause = getattr(exc, "last_error", None) or exc
             raise ConnectorAccessError("tasks", _classify_http_error(cause), str(exc)) from exc
+        list_id = await _real_list_id(opened.client, task_list_id, TASK_LIST.fallback)
 
     raw_items = result.get("items", []) or []
-    items = [item for task in raw_items if (item := _task_to_item(task, today_local)) is not None]
+    items = [
+        item
+        for task in raw_items
+        if (item := _task_to_item(task, today_local, zone=user_tz, list_id=list_id)) is not None
+    ]
     # Overdue first (oldest due first), then due ascending; undated last.
     items.sort(key=lambda t: (t.days_until_due is None, t.days_until_due or 0))
     if not whole_page:
         items = items[: settings.briefing_max_tasks_items]
     return TasksData(items=items, overdue_count=sum(1 for t in items if t.overdue))
+
+
+async def _real_list_id(client: Any, list_id: str, alias: str) -> str | None:
+    """The list's real id, where the Tools open its tasks; None when it cannot be read.
+
+    An alias (Google's ``@default``, which the Microsoft client maps to the first
+    list) is unknown to the Tools, and a task opened under another list than its
+    own would be written there. The address is a convenience: the card's tasks
+    never depend on it.
+    """
+    if list_id != alias:
+        return list_id
+    try:
+        listed = await client.get_task_list(list_id)
+    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError, ConnectorAPIError) as exc:
+        logger.debug("briefing_task_list_unresolved", error_type=type(exc).__name__)
+        return None
+    real = listed.get("id") if isinstance(listed, dict) else None
+    return str(real) if real and real != alias else None
 
 
 async def _document_path(client: Any, file: dict[str, Any], known: dict[str, Any]) -> str | None:
@@ -782,6 +814,11 @@ async def fetch_documents(
             )
         )
     return DocumentsData(items=items, provider=opened.connector_type.value)
+
+
+# =============================================================================
+# For you (open loops + automations digest — P15, interdomain Lot 4)
+# =============================================================================
 
 
 def _soonest_upcoming(
@@ -886,64 +923,4 @@ async def fetch_for_you(
         open_loops=loops,
         recent_automations=recent,
         next_automation=next_automation,
-    )
-
-
-# =============================================================================
-# Workboard (what on the board needs the person — ADR-276)
-# =============================================================================
-
-
-async def fetch_workboard(*, user_id: UUID) -> WorkboardData:
-    """What on the person's workboard needs their attention.
-
-    Exact aggregates over the whole board (ADR-185) — waiting on them, held by
-    them, by LIA, by peers, late, open — plus the first tickets waiting on them.
-    The workboard's own statements keep the card, board and hub in agreement
-    on every figure. A local read: one session, closed before returning.
-
-    Raises:
-        ConnectorNotConfiguredError: when the instance switched the workboard
-            off — read AT CALL TIME, so a switch flipped after boot hides the
-            card on the next load (ADR-280).
-    """
-    if not await is_capability_enabled(PlatformCapability.WORKBOARD):
-        raise ConnectorNotConfiguredError("workboard")
-    now = now_utc()
-    async with get_db_context() as db:
-        figures = await read_attention(
-            WorkboardRepository(db),
-            user_id,
-            now,
-            limit=settings.briefing_max_workboard_items,
-        )
-        items = [_workboard_item(ticket, now) for ticket in figures.needs_me_first]
-        previews = WorkboardPreviews.model_validate(
-            {
-                key: [_workboard_item(ticket, now) for ticket in tickets]
-                for key, tickets in figures.previews.items()
-            }
-        )
-    return WorkboardData(
-        needs_me=figures.needs_me,
-        held_by_me=figures.held_by_me,
-        held_by_lia=figures.held_by_lia,
-        held_by_peers=figures.held_by_peers,
-        overdue=figures.overdue,
-        open_total=figures.open_total,
-        items=items,
-        previews=previews,
-    )
-
-
-def _workboard_item(ticket: WorkboardTicket, now: datetime) -> WorkboardTicketItem:
-    """The same read-only ticket projection for legacy rows and grouped previews."""
-    return WorkboardTicketItem(
-        id=str(ticket.id),
-        title=ticket.title,
-        status=ticket.status,
-        due_at=ticket.due_at,
-        overdue=ticket.due_at is not None
-        and ticket.due_at < now
-        and ticket.status not in CLOSED_STATUSES,
     )

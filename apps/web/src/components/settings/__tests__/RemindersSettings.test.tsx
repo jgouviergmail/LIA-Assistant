@@ -13,16 +13,21 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
-import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { handOff, setHandoffOwner } from '@/lib/workbench/handoff';
 import type { Reminder } from '@/hooks/useReminders';
 import type { RecurrenceSpec } from '@/types/recurrence';
 
 const { useReminders } = vi.hoisted(() => ({ useReminders: vi.fn() }));
 vi.mock('@/hooks/useReminders', () => ({ useReminders }));
-const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const account = vi.hoisted(() => ({ id: 'owner', timezone: 'Pacific/Auckland' }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: account }) }));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 vi.mock('sonner', () => ({ toast }));
 
 import { RemindersSettings } from '../RemindersSettings';
@@ -75,12 +80,114 @@ function hook(over: Partial<Hook> = {}): Hook {
     updating: false,
     deleting: false,
     ...over,
-  } as Hook;
+  };
 }
 
 beforeEach(() => {
+  account.id = 'owner';
   vi.clearAllMocks();
   useReminders.mockReturnValue(hook());
+});
+afterEach(() => setHandoffOwner(null));
+
+describe('a reminder proposed from selected text', () => {
+  it('preserves the open draft and receives a pending proposal only after closing it', async () => {
+    setHandoffOwner('owner');
+    const { user } = renderWithProviders(<RemindersSettings lng="en" />);
+    await user.click(screen.getByRole('button', { name: /reminders.create/ }));
+    await user.type(screen.getByLabelText('reminders.field_content'), 'My unfinished reminder');
+    act(() => {
+      handOff('owner', {
+        kind: 'reminder',
+        reminder: { content: 'New proposal', recurrence: null },
+      });
+    });
+    expect(screen.getByLabelText('reminders.field_content')).toHaveValue('My unfinished reminder');
+    expect(toast.info).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('reminders.field_content')).toHaveValue('New proposal')
+    );
+  });
+
+  it('claims a save once and retires its late result when the account changes', async () => {
+    setHandoffOwner('owner');
+    let finish: (value: Reminder) => void = () => undefined;
+    const createReminder = vi.fn(
+      () =>
+        new Promise<Reminder>(resolve => {
+          finish = resolve;
+        })
+    );
+    useReminders.mockReturnValue(hook({ createReminder }));
+    const view = renderWithProviders(<RemindersSettings lng="en" />);
+    act(() => {
+      handOff('owner', {
+        kind: 'reminder',
+        reminder: { content: 'Private reminder', recurrence: spec() },
+      });
+    });
+    const save = await screen.findByRole('button', { name: 'common.save' });
+    await view.user.dblClick(save);
+    expect(createReminder).toHaveBeenCalledTimes(1);
+    await view.user.click(screen.getByRole('button', { name: 'common.cancel' }));
+    expect(screen.getByRole('dialog')).toBeVisible();
+    act(() => {
+      account.id = 'another';
+      setHandoffOwner('another');
+    });
+    view.rerender(<RemindersSettings lng="en" />);
+    await act(async () => finish(reminder()));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('opens the native form without saving or inventing a missing time', async () => {
+    setHandoffOwner('owner');
+    const state = hook();
+    useReminders.mockReturnValue(state);
+    renderWithProviders(<RemindersSettings lng="en" />);
+    act(() => {
+      handOff('owner', { kind: 'reminder', reminder: { content: 'Call Ana', recurrence: null } });
+    });
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(screen.getByLabelText('reminders.field_content')).toHaveValue('Call Ana');
+    expect(screen.getByRole('button', { name: 'common.save' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByLabelText('recurrence.anchor_label')).toHaveValue(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: account.timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date())
+    );
+    expect(state.createReminder).not.toHaveBeenCalled();
+  });
+  it('keeps a complete proposed schedule until the person explicitly saves', async () => {
+    setHandoffOwner('owner');
+    const state = hook();
+    useReminders.mockReturnValue(state);
+    const { user } = renderWithProviders(<RemindersSettings lng="en" />);
+    const schedule = spec({ freq: 'once', anchor_date: '2030-11-12' });
+    act(() => {
+      handOff('owner', {
+        kind: 'reminder',
+        reminder: { content: 'Call Ana', recurrence: schedule },
+      });
+    });
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(state.createReminder).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'common.save' }));
+    expect(state.createReminder).toHaveBeenCalledWith({
+      content: 'Call Ana',
+      original_message: 'Call Ana',
+      recurrence: schedule,
+    });
+  });
 });
 
 describe('the list', () => {

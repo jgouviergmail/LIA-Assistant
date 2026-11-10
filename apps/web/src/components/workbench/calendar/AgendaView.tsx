@@ -9,7 +9,7 @@
  * opens scrolled to. An event's call is a link of its own at the end of its
  * row, its series a mark beside its title.
  */
-import { Repeat, Video } from 'lucide-react';
+import { Repeat, Video } from '@/lib/icons';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef } from 'react';
 

@@ -77,9 +77,8 @@ from src.infrastructure.observability.metrics_rag_spaces import (
 
 logger = get_logger(__name__)
 
-# Hard page bound for both Gmail listings: the thread cap and the history are
-# already bounded by content, this bounds the number of round-trips an upstream
-# can ask for inside one sweep.
+# Hard page bound for the incremental history sweep. Full label listings use
+# their configured thread budget, including when a provider returns sparse pages.
 _MAX_PAGES = 20
 
 
@@ -255,12 +254,16 @@ class MailThreadListing:
 
 
 async def _list_label_threads(client: Any, label_id: str, max_threads: int) -> MailThreadListing:
-    """Unique thread ids with an explicit census-completeness verdict."""
+    """Unique thread ids with an explicit census-completeness verdict.
+
+    Allow one page per admitted thread: even single-item pages can fill the
+    configured budget, while an upstream returning no new ids stays bounded.
+    """
     ids: list[str] = []
     seen: set[str] = set()
     token: str | None = None
     overflow = False
-    for _ in range(_MAX_PAGES):
+    for _ in range(max_threads):
         if len(ids) >= max_threads:
             break
         page = await source_worker_external(

@@ -7,13 +7,12 @@ re-declared one). This is the recurrence counterpart of the rhythm unlock
 progressbar: the user sees WHERE each nascent habit stands instead of an
 unquantified silence until the lock fires.
 
-The ledger's SEMANTICS belong to the agents domain; its STORAGE format is
-the shared ``infrastructure.cache.recurrence_store`` (agents already
-imports habits for the promotion path, so importing the agents service from
-here would close the runtime cycle the coupling ratchet forbids — the
-shared store is the factored answer, no duplicated literal). The end-to-end
-shape stays pinned by
-``tests/unit/domains/habits/test_candidates_ledger_contract.py``.
+The ledger's STORAGE format is the shared
+``infrastructure.cache.recurrence_store`` (agents writes it, habits reads it,
+and habits importing agents would close the runtime cycle the coupling
+ratchet forbids). What makes a signature a NEED is ``habits.needs``; the
+threshold published here is its existence bar. The end-to-end shape stays
+pinned by ``tests/unit/domains/habits/test_candidates_ledger_contract.py``.
 
 Enumeration uses ``SCAN`` with a match pattern (cursor-based, non-blocking):
 signatures per user are few and this runs on a settings-page fetch, not a
@@ -102,7 +101,7 @@ async def list_recurrence_candidates(
             anchor the lock evaluation uses).
         exclude_keys: Signatures that already have a habit row (any status —
             a BLOCKED tombstone must never resurface as a candidate).
-        settings: Settings view (flag, window, existence threshold).
+        settings: Settings view (window, existence threshold).
         limit: Maximum candidates returned; the remainder is COUNTED (a cap
             is stated, never applied in silence — ADR-185 doctrine).
 
@@ -111,8 +110,6 @@ async def list_recurrence_candidates(
         advisory, so a missing Redis or a malformed entry degrades to an
         empty/shorter list, never an error.
     """
-    if not getattr(settings, "recurrence_suggestion_enabled", False):
-        return [], 0
     try:
         from src.infrastructure.cache.redis import get_redis_cache
 

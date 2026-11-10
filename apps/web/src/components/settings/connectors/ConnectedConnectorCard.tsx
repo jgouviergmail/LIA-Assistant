@@ -7,7 +7,7 @@
 
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
-import { Clock, Unplug } from 'lucide-react';
+import { Clock, Unplug } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ConnectorIcon } from './ConnectorIcon';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';

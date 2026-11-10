@@ -21,7 +21,7 @@
  */
 
 import * as React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from '@/lib/icons';
 
 import { FeatureErrorBoundary } from '@/components/errors/FeatureErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ import {
   SETTINGS_SEARCH_META,
   type SettingsSearchAvailability,
 } from '@/lib/settings-search';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '@/lib/settings-sections';
 
 import { SETTINGS_SECTION_REGISTRY } from './settings-section-registry';

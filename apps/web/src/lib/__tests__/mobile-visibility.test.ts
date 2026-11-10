@@ -41,6 +41,12 @@ const VARIANT_FOR_WIDTH: Record<number, string> = {
   1536: '2xl:',
 };
 
+/** A 2xl or max-xl class never proves that a surface carries an xl variant. */
+function hasVariant(source: string, variant: string): boolean {
+  const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\w-])${escaped}`).test(source);
+}
+
 /** Expand a `location` such as `dir/{A,B}Settings` into concrete file paths. */
 function resolveLocations(location: string): string[] {
   const braces = /\{([^}]+)\}/.exec(location);
@@ -88,6 +94,13 @@ describe('MOBILE_SURFACES — table integrity', () => {
  * layout that no longer exists.
  */
 describe('the table describes the real code', () => {
+  it('does not mistake a wider or inverted breakpoint for the declared variant', () => {
+    expect(hasVariant('className="hidden 2xl:flex"', 'xl:')).toBe(false);
+    expect(hasVariant('className="max-xl:hidden"', 'xl:')).toBe(false);
+    expect(hasVariant('className="hidden xl:flex"', 'xl:')).toBe(true);
+    expect(hasVariant('className="max-[380px]:hidden"', 'max-[380px]:')).toBe(true);
+  });
+
   it.each(MOBILE_SURFACES.map(s => [s.id, s] as const))(
     '%s points at real files',
     (_id, surface) => {
@@ -103,7 +116,7 @@ describe('the table describes the real code', () => {
   )('%s carries the Tailwind variant of its declared threshold', (_id, surface) => {
     const variant = VARIANT_FOR_WIDTH[surface.minWidth as number];
     const files = resolveLocations(surface.location);
-    const found = files.some(file => readFileSync(file, 'utf8').includes(variant));
+    const found = files.some(file => hasVariant(readFileSync(file, 'utf8'), variant));
     expect(
       found,
       `${surface.id} declares ${surface.minWidth}px but no "${variant}" variant appears in ${files.join(', ')}`
@@ -259,16 +272,23 @@ describe('Q3 — only observation may be dropped outright', () => {
 
 describe('surfacesHiddenBelow — what a given width loses', () => {
   it('lists nothing at the widest breakpoint', () => {
-    // 2xl (1536 px) since ADR-258 moved the personality title there.
-    expect(surfacesHiddenBelow(1536).filter(s => s.minWidth !== null && s.minWidth > 1536)).toEqual(
-      []
-    );
+    expect(surfacesHiddenBelow(1536)).toEqual([]);
   });
 
-  it('reports the header enrichment as lost below 1280 px', () => {
-    const lost = surfacesHiddenBelow(1024).map(s => s.id);
-    expect(lost).toContain('header-token-toggle');
-    expect(lost).toContain('header-nav-icons');
+  it.each([
+    { width: 1023, hidden: ['dashboard-nav', 'header-token-toggle', 'meeting-recorder-control'] },
+    { width: 1024, hidden: ['header-token-toggle'] },
+    { width: 1279, hidden: ['header-token-toggle'] },
+    { width: 1280, hidden: ['header-token-toggle'] },
+    { width: 1535, hidden: ['header-token-toggle'] },
+    { width: 1536, hidden: [] },
+  ])('reports the actual header surfaces hidden at $width px', ({ width, hidden }) => {
+    const header = new Set(['dashboard-nav', 'header-token-toggle', 'meeting-recorder-control']);
+    const lost = surfacesHiddenBelow(width)
+      .map(surface => surface.id)
+      .filter(id => header.has(id))
+      .sort();
+    expect(lost).toEqual(hidden);
   });
 
   it('reports the dashboard nav as lost on a phone', () => {
@@ -276,7 +296,7 @@ describe('surfacesHiddenBelow — what a given width loses', () => {
   });
 
   it('is monotonic — a narrower viewport never loses less', () => {
-    const widths = [380, 640, 768, 880, 1024, 1280];
+    const widths = [380, 640, 768, 880, 1024, 1280, 1536];
     for (let i = 1; i < widths.length; i++) {
       const narrower = surfacesHiddenBelow(widths[i - 1]).length;
       const wider = surfacesHiddenBelow(widths[i]).length;

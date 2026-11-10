@@ -78,7 +78,7 @@ describe('eye-style registry', () => {
   it('has unique ids and contains the default', () => {
     expect(new Set(EYE_STYLE_IDS).size).toBe(EYE_STYLE_IDS.length);
     expect(EYE_STYLE_IDS).toContain(DEFAULT_EYE_STYLE);
-    expect(EYE_STYLE_IDS).toHaveLength(15);
+    expect(EYE_STYLE_IDS).toHaveLength(14);
     expect(HYBRID_EYE_STYLE_IDS).toEqual([
       'spirit',
       'moss',
@@ -93,7 +93,7 @@ describe('eye-style registry', () => {
 
   it('validates ids strictly', () => {
     expect(isValidEyeStyle('spirit')).toBe(true);
-    expect(isValidEyeStyle('smiley')).toBe(true);
+    expect(isValidEyeStyle('smiley')).toBe(false);
     expect(isValidEyeStyle(DEFAULT_EYE_STYLE)).toBe(true);
     expect(isValidEyeStyle('not-a-style')).toBe(false);
     expect(isValidEyeStyle(undefined)).toBe(false);

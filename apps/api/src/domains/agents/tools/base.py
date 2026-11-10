@@ -66,6 +66,7 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_types import SupportedLanguage
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.dependencies import ToolDependencies, get_dependencies
+from src.domains.agents.display.card_navigation import stamp_card_targets
 from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.failure_verdict import keep_declared_failure
 from src.domains.agents.tools.output import UnifiedToolOutput
@@ -428,16 +429,24 @@ class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC)
                         self.format_registry_response(result),
                         tool_name=self.tool_name,
                     )
+                    timezone = (
+                        runtime.context.timezone
+                        if isinstance(runtime.context, LiaRuntimeContext)
+                        else "UTC"
+                    )
+                    stamp_card_targets(
+                        output,
+                        client=client,
+                        provider=effective_connector_type,
+                        user_id=user_uuid,
+                        timezone=timezone,
+                    )
                     return await qualify_tool_output(
                         output,
                         client=client,
                         provider=effective_connector_type.value,
                         user_id=user_uuid,
-                        timezone=(
-                            runtime.context.timezone
-                            if isinstance(runtime.context, LiaRuntimeContext)
-                            else "UTC"
-                        ),
+                        timezone=timezone,
                     )
                 else:
                     return self.format_response(result)

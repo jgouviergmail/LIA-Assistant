@@ -2,25 +2,37 @@
 
 Google Tasks keeps a date: the time part of its RFC 3339 ``due`` is discarded
 (``2026-11-03T00:00:00.000Z`` is the 3rd, in every zone — converting it to a
-zone west of Greenwich would show the 2nd). Microsoft To Do keeps the INSTANT
-of local midnight, which Graph answers in UTC (midnight in Paris is 23:00 UTC
-the day before, 22:00 in summer): the day is that instant read in the account's
-zone, and a day is written as its midnight there, a DST night included.
+zone west of Greenwich would show the 2nd). Microsoft To Do keeps the instant
+of midnight in the zone it is GIVEN, and answers it in UTC: measured on Graph
+(2026-11-07), given UTC it keeps the UTC date, which made a day written as its
+UTC instant the day before east of Greenwich. So a day is written as its
+midnight on the account's wall, the zone named, and read back as its instant
+in that zone — both through ``core/task_due``, the door every reader of a
+task's day shares (the home's card, the heartbeat, the radio, the assistant).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time
+from datetime import date
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
+from src.core.task_due import due_day, todo_due
 from src.domains.connectors.models import ConnectorType
 
 #: Providers whose due date is a date (the time part is the provider's noise).
 _DATE_ONLY = frozenset({ConnectorType.GOOGLE_TASKS})
 
 
-def due_for_provider(provider: ConnectorType, day: date, zone: ZoneInfo) -> str:
-    """The value a provider's client is given for ``day``.
+class ProviderDue(NamedTuple):
+    """What a client is given for a day: the value, and the zone it is a wall time in."""
+
+    value: str
+    zone: str | None
+
+
+def due_for_provider(provider: ConnectorType, day: date, zone: ZoneInfo) -> ProviderDue:
+    """What a provider's client is given for ``day``.
 
     Args:
         provider: The tasks provider.
@@ -28,14 +40,13 @@ def due_for_provider(provider: ConnectorType, day: date, zone: ZoneInfo) -> str:
         zone: The account's zone.
 
     Returns:
-        Google: the day at midnight UTC (RFC 3339); To Do: the UTC instant of
-        the day's midnight in ``zone``, as Graph's ``dateTime`` (no offset —
-        the client names the zone, UTC).
+        Google: the day at midnight UTC (RFC 3339), no zone; To Do: the day's
+        midnight on the account's wall, and that zone's name.
     """
     if provider in _DATE_ONLY:
-        return f"{day.isoformat()}T00:00:00.000Z"
-    midnight = datetime.combine(day, time(), tzinfo=zone).astimezone(UTC)
-    return midnight.strftime("%Y-%m-%dT%H:%M:%S")
+        return ProviderDue(f"{day.isoformat()}T00:00:00.000Z", None)
+    wall, name = todo_due(day, zone)
+    return ProviderDue(wall, name)
 
 
 def due_from_provider(provider: ConnectorType, raw: str | None, zone: ZoneInfo) -> date | None:
@@ -49,14 +60,4 @@ def due_from_provider(provider: ConnectorType, raw: str | None, zone: ZoneInfo) 
     Returns:
         The day, or None.
     """
-    if not raw:
-        return None
-    try:
-        if provider in _DATE_ONLY:
-            return date.fromisoformat(raw[:10])
-        instant = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if instant.tzinfo is None:
-        instant = instant.replace(tzinfo=UTC)
-    return instant.astimezone(zone).date()
+    return due_day(raw, todo=provider not in _DATE_ONLY, zone=zone)

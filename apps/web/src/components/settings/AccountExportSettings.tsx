@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { DownloadCloud } from 'lucide-react';
+import { DownloadCloud } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import apiClient, { ApiError, ApiStepUpError, apiEndpointUrl } from '@/lib/api-client';

@@ -7,9 +7,10 @@
  * ones", with its own wording.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { fireEvent, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { act, fireEvent, renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
+import { handOff, setHandoffOwner, handoffStore } from '@/lib/workbench/handoff';
 import { makeUser } from '@/__tests__/factories';
 
 const { useMemories } = vi.hoisted(() => ({ useMemories: vi.fn() }));
@@ -23,7 +24,9 @@ const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth }));
 const { patch } = vi.hoisted(() => ({ patch: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({ default: { patch } }));
-const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 vi.mock('sonner', () => ({ toast }));
 
 import { MemorySettings } from '../MemorySettings';
@@ -88,13 +91,110 @@ const PIN = 'memories.pin';
 const UNPIN = 'memories.unpin';
 
 beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
   vi.clearAllMocks();
   patch.mockResolvedValue({});
   useAuth.mockReturnValue({
-    user: makeUser({ memory_enabled: true }),
+    user: makeUser({ id: 'owner', memory_enabled: true }),
     refreshUser: vi.fn(),
   });
   useMemories.mockReturnValue(hook());
+});
+afterEach(() => setHandoffOwner(null));
+
+describe('MemorySettings — AI proposal in the native create form', () => {
+  it('claims one save, retains the proposal on refusal, and rejects a result arriving after an account change', async () => {
+    let settle: (value: Memory) => void = () => undefined;
+    const createMemory = vi
+      .fn<MemoriesHook['createMemory']>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockImplementation(
+        () =>
+          new Promise(resolve => {
+            settle = resolve;
+          })
+      );
+    useMemories.mockReturnValue(hook({ createMemory }));
+    const view = render();
+    act(() => {
+      handOff('owner', {
+        kind: 'memory',
+        memory: { content: 'Private proposal', category: 'preference' },
+      });
+    });
+    await screen.findByLabelText('memories.field_content *');
+    await view.user.click(screen.getByRole('button', { name: 'memories.create_button' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('memories.create_error'));
+    expect(screen.getByLabelText('memories.field_content *')).toHaveValue('Private proposal');
+    const button = screen.getByRole('button', { name: 'memories.create_button' });
+    act(() => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    expect(createMemory).toHaveBeenCalledTimes(2);
+    useAuth.mockReturnValue({
+      user: makeUser({ id: 'another', memory_enabled: true }),
+      refreshUser: vi.fn(),
+    });
+    act(() => setHandoffOwner('another'));
+    view.rerender(<MemorySettings lng="en" />);
+    await act(async () => settle(memory()));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+  it('receives a proposal while already open, permits editing, and saves only on the person’s click', async () => {
+    const createMemory = vi.fn().mockResolvedValue(memory());
+    useMemories.mockReturnValue(hook({ createMemory }));
+    const { user } = render();
+    act(() => {
+      handOff('owner', {
+        kind: 'memory',
+        memory: {
+          content: 'Prefers green tea',
+          category: 'preference',
+          usage_nuance: 'At breakfast',
+          importance: 0.6,
+        },
+      });
+    });
+    const field = await screen.findByLabelText('memories.field_content *');
+    expect(field).toHaveValue('Prefers green tea');
+    expect(screen.getByLabelText('memories.field_usage_nuance')).toHaveValue('At breakfast');
+    expect(createMemory).not.toHaveBeenCalled();
+    await user.clear(field);
+    await user.type(field, 'Prefers jasmine tea');
+    await user.click(screen.getByRole('button', { name: 'memories.create_button' }));
+    await waitFor(() =>
+      expect(createMemory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Prefers jasmine tea',
+          category: 'preference',
+          importance: 0.6,
+        })
+      )
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+  it('keeps a dirty form intact and presents a waiting proposal after cancellation', async () => {
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: 'memories.create' }));
+    const field = await screen.findByLabelText('memories.field_content *');
+    await user.type(field, 'My own unfinished memory');
+    act(() => {
+      handOff('owner', {
+        kind: 'memory',
+        memory: { content: 'New proposal', category: 'personal' },
+      });
+    });
+    expect(field).toHaveValue('My own unfinished memory');
+    expect(handoffStore.getSnapshot()).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'common.cancel' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('memories.field_content *')).toHaveValue('New proposal')
+    );
+  });
 });
 
 describe('MemorySettings — list', () => {

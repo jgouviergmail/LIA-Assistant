@@ -12,10 +12,11 @@ import {
   Smile,
   SpellCheck,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import type { Language } from '@/i18n/settings';
 import { getIntlLocale, languages } from '@/i18n/settings';
+import { languageName } from '@/lib/language-name';
 import { ASSIST_PATHS, type RewriteTone, type WritingKind } from '@/lib/workbench/assist';
 
 import type { Say } from './lines';
@@ -41,8 +42,7 @@ export function rewriteLines(t: Say, text: string): readonly WritingLine[] {
 
 /** The app's other languages, in the reader's words. */
 function otherLanguages(lng: Language): readonly string[] {
-  const names = new Intl.DisplayNames(getIntlLocale(lng), { type: 'language' });
-  return languages.filter(code => code !== lng).map(code => names.of(code) ?? code);
+  return languages.filter(code => code !== lng).map(code => languageName(code, getIntlLocale(lng)));
 }
 
 /** @returns The translation of words already written, into the language the person names. */

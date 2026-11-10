@@ -38,13 +38,11 @@ async def test_store_replaces_one_call_and_bounds_retention_by_account() -> None
             trace,
             action="preview",
             outcome="uncertain",
-            target="result_preview",
-            applied_decisions={"q0": "unknown"},
+            target="email_classification",
             decision_labels={"q0": "Private source title"},
         )
         stored_preview = (await store.read_traces(owner)).calls[0]
         assert stored_preview.action == "preview"
-        assert stored_preview.applied_decisions == {"q0": "unknown"}
         assert stored_preview.decision_labels == {"q0": "Private source title"}
         await store.record_action(
             owner,

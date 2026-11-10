@@ -6,7 +6,7 @@
  * is `SpacesManager`, shared with `/dashboard/spaces`.
  */
 
-import { Library } from 'lucide-react';
+import { Library } from '@/lib/icons';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SpacesManager } from '@/components/spaces/SpacesManager';

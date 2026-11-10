@@ -10,7 +10,7 @@
  * teaser for users without one) — so it never advertises an empty page.
  */
 
-import { ChevronRight, UserSquare2 } from 'lucide-react';
+import { ChevronRight, UserSquare2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { useJournalPortrait } from '@/hooks/useJournalPortrait';

@@ -71,12 +71,14 @@ class TestTheDeclaration:
 
     def test_policy_vocabulary_is_closed(self) -> None:
         assert MUTATION_POLICIES == frozenset(
-            {"read", "draft", "confirm", "reversible", "artefact", "sandboxed"}
+            {"read", "draft", "confirm", "direct", "reversible", "artefact", "sandboxed"}
         )
 
     def test_only_the_exempting_policies_need_a_reason(self) -> None:
         """draft and confirm ASK the user — they owe no written justification."""
-        assert POLICIES_REQUIRING_REASON == frozenset({"reversible", "artefact", "sandboxed"})
+        assert POLICIES_REQUIRING_REASON == frozenset(
+            {"direct", "reversible", "artefact", "sandboxed"}
+        )
         assert POLICIES_REQUIRING_REASON < MUTATION_POLICIES
 
     def test_policy_and_reason_are_carried(self) -> None:
@@ -390,7 +392,7 @@ class TestTheGuardCannotRefuseAProductionBoot:
             # silently disables its branch, and every manifest behind it escapes
             # (measured — that is exactly how the four peer manifests hid).
             assert registry.get_tool_manifest("place_phone_call_tool").mutation_policy == "draft"
-            assert registry.get_tool_manifest("send_peer_message_tool").mutation_policy == "draft"
+            assert registry.get_tool_manifest("send_peer_message_tool").mutation_policy == "direct"
             assert registry.get_tool_manifest("run_python_tool").mutation_policy == "sandboxed"
         finally:
             registry_module._global_registry = previous

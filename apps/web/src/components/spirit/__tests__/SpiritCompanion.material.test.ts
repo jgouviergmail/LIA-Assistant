@@ -43,6 +43,10 @@ describe('Spirit original sculpt material', () => {
 
   it('shades the sculpt subtly from the existing head channels without recoloring its eyes', () => {
     const body = material('.lia-spirit-companion .lia-head::before');
+    expect(body).toContain('var(--spirit-body-alpha-filter)');
+    expect(body.indexOf('var(--spirit-body-alpha-filter)')).toBeLessThan(
+      body.indexOf('brightness(')
+    );
     expect(body).toContain('brightness(');
     expect(body).toContain('clamp(0.96,');
     expect(body).toContain('var(--rig-head-yaw, 0)');

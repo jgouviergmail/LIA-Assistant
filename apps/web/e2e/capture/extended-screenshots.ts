@@ -13,8 +13,6 @@ interface CaptureInput {
   output: string;
   time: string;
   routes: ReturnType<typeof extendedScreenshotRoutes>;
-  fontCss: string;
-  fontPath: string;
   copy: Record<string, string>;
   ticketId: string;
   meetingId: string;
@@ -63,20 +61,6 @@ async function capture(page: Page, input: CaptureInput) {
       );
     });
   }
-  await page.route('https://fonts.googleapis.com/**', route =>
-    route.fulfill({
-      contentType: 'text/css',
-      body: input.fontCss,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-    })
-  );
-  await page.route('https://fonts.gstatic.com/lia-e2e/MaterialSymbolsOutlined.woff2', route =>
-    route.fulfill({
-      contentType: 'font/woff2',
-      path: input.fontPath,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-    })
-  );
   await page.route('**/api/v1/notifications/stream', () => undefined);
   await page.routeWebSocket('**/*', socket => socket.close());
   await page.routeWebSocket('**/api/v1/voice/ws/audio?ticket=*', socket => {
@@ -608,8 +592,6 @@ async function capture(page: Page, input: CaptureInput) {
 export function createExtendedCaptureCode(
   baseUrl: string,
   output: string,
-  fontCss: string,
-  fontPath: string,
   copy: Record<string, string>,
   onlyNames?: ExtendedName[]
 ): string {
@@ -618,8 +600,6 @@ export function createExtendedCaptureCode(
     output,
     time: PROOF_TIME,
     routes: extendedScreenshotRoutes(),
-    fontCss,
-    fontPath,
     copy,
     ticketId: TICKET_ID,
     meetingId: MEETING_ID,

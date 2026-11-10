@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { Check, Globe, Info } from 'lucide-react';
+import { Check, Globe, Info } from '@/lib/icons';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';

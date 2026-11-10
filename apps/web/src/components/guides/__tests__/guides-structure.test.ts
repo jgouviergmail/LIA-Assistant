@@ -26,6 +26,8 @@ import { describe, it, expect } from 'vitest';
 
 import pkg from '../../../../package.json';
 import en from '../../../../locales/en/translation.json';
+import { BLOG_ARTICLES } from '../../../data/blog-articles';
+import { buildLocalizedPath } from '../../../utils/i18n-path-utils';
 import { PUBLIC_FAQ_SECTIONS } from '../../faq/faq-sections';
 import { HOW_TOC_SECTIONS, WHY_TOC_SECTIONS, STORY_TOC_SECTIONS } from '../guides-toc';
 import type { GuideTocSection } from '../guides-toc';
@@ -119,7 +121,16 @@ const PAGE_ANCHORS: Record<string, readonly string[]> = {
   '/story': STORY_TOC_SECTIONS.map(s => s.id),
   '/faq': PUBLIC_FAQ_SECTIONS.map(s => `faq-${s}`),
 };
-const BARE_PAGES = new Set(['/how', '/why', '/story', '/faq', '/maps', '/privacy', '/terms']);
+const BARE_PAGES = new Set([
+  '/how',
+  '/why',
+  '/story',
+  '/faq',
+  '/maps',
+  '/privacy',
+  '/terms',
+  ...BLOG_ARTICLES.map(article => `/blog/${article.slug}`),
+]);
 
 /**
  * Why an on-site link would land nowhere, or `null` when it resolves.
@@ -149,6 +160,20 @@ const unresolvedLink = (target: string, lang: (typeof LANGS)[number] = 'fr'): st
 /** Every `href` of a blog article body that stays on the site. */
 const blogOnSiteLinks = (html: string): string[] =>
   [...html.matchAll(/href="(\/[^"]*)"/g)].map(m => m[1]);
+
+/** Related reading names another published article in the reader's language. */
+const relatedArticleLinks = (
+  html: string,
+  slug: string,
+  lang: (typeof LANGS)[number]
+): string[] => {
+  const relatedPaths = new Set(
+    BLOG_ARTICLES.filter(article => article.slug !== slug).map(article =>
+      buildLocalizedPath(`/blog/${article.slug}`, lang)
+    )
+  );
+  return blogOnSiteLinks(html).filter(target => relatedPaths.has(target));
+};
 
 /** The blog articles of a locale (their bodies are HTML kept in the translation file). */
 const blogArticles = (lang: (typeof LANGS)[number]): Record<string, { body: string }> =>
@@ -302,6 +327,7 @@ describe('guide on-site links', () => {
     expect(unresolvedLink('/how#nope')).not.toBeNull();
     expect(unresolvedLink('/faq#faq-nope')).not.toBeNull();
     expect(unresolvedLink('/nowhere')).not.toBeNull();
+    expect(unresolvedLink('/blog/no-such-article')).not.toBeNull();
   });
 
   it('requires the guide locale prefix', () => {
@@ -327,6 +353,23 @@ describe('guide on-site links', () => {
 });
 
 describe('blog article on-site links', () => {
+  it('resolves published article routes in the matching language', () => {
+    expect(unresolvedLink('/blog/knowledge-spaces')).toBeNull();
+    expect(unresolvedLink('/en/blog/knowledge-spaces', 'en')).toBeNull();
+    expect(unresolvedLink('/blog/knowledge-spaces', 'en')).not.toBeNull();
+  });
+
+  it('does not count self-links, missing articles or another language as related reading', () => {
+    const html =
+      '<a href="/en/blog/voice-mode">self</a>' +
+      '<a href="/en/blog/missing">missing</a>' +
+      '<a href="/blog/privacy-by-design">wrong language</a>' +
+      '<a href="/en/blog/privacy-by-design">related</a>';
+
+    expect(relatedArticleLinks(html, 'voice-mode', 'en')).toEqual(['/en/blog/privacy-by-design']);
+    expect(relatedArticleLinks('<p>No links yet.</p>', 'voice-mode', 'en')).toEqual([]);
+  });
+
   it('extracts on-site hrefs only', () => {
     expect(blogOnSiteLinks('<a href="/how#ddd">a</a> <a href="https://x.y">b</a>')).toEqual([
       '/how#ddd',
@@ -342,6 +385,17 @@ describe('blog article on-site links', () => {
     );
 
     expect(broken).toEqual([]);
+  });
+
+  it.each(LANGS)('every published %s article offers relevant reading in its language', lang => {
+    const articles = blogArticles(lang);
+    for (const { slug } of BLOG_ARTICLES) {
+      expect(articles[slug], `${lang}/${slug}: missing article`).toBeDefined();
+      expect(
+        relatedArticleLinks(articles[slug].body, slug, lang),
+        `${lang}/${slug}: no link to another published article in this language`
+      ).not.toHaveLength(0);
+    }
   });
 });
 

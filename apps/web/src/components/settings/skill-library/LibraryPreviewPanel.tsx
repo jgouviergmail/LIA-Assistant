@@ -11,7 +11,7 @@
  * React children only.
  */
 import type { TFunction } from 'i18next';
-import { ArrowLeft, Download, FileCode, FolderGit2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Download, FileCode, FolderGit2, ShieldAlert, ShieldCheck } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

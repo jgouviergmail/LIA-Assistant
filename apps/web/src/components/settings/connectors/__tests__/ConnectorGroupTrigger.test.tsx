@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Phone } from 'lucide-react';
+import { Phone } from '@/lib/icons';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { GoogleMark } from '@/components/icons/BrandMarks';

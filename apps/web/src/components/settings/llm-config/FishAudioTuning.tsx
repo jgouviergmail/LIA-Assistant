@@ -16,7 +16,7 @@
  */
 
 import { useId, useState } from 'react';
-import { Pin, Search, Trash2 } from 'lucide-react';
+import { Pin, Search, Trash2 } from '@/lib/icons';
 
 import { libraryRefusal } from '@/components/settings/voice-library/wording';
 import { Button } from '@/components/ui/button';

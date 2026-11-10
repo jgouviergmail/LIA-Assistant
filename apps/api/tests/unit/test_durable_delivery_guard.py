@@ -41,10 +41,6 @@ BEST_EFFORT: dict[tuple[str, str], str] = {
         "A notice of a connection event; the event itself is the connection's state, "
         "and one recipient's failure must not stop the others."
     ),
-    ("infrastructure/scheduler/peer_message_delivery.py", "_notify_sender"): (
-        "A notice to the SENDER; the delivery state is the recipient's, decided by "
-        "the durable dispatch of the message itself."
-    ),
     ("infrastructure/scheduler/phone_relay_runner.py", "_push_relay_ran"): (
         "A push and nothing else: the relayed turn already archived its rows in the chat."
     ),
@@ -175,7 +171,23 @@ def test_every_best_effort_entry_still_names_a_site() -> None:
 
 
 def test_the_scan_sees_the_durable_consumers() -> None:
-    durable = [site for site in _discarded_dispatches() if site[2]]
+    # An atomic caller may READ the result before committing. Counting only
+    # discarded returns would hide precisely this stronger delivery contract.
+    durable: set[tuple[str, str]] = set()
+    for path in SRC.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for function in ast.walk(tree):
+            if not isinstance(function, ast.AsyncFunctionDef):
+                continue
+            bound = _dispatcher_names(function)
+            if any(
+                isinstance(call, ast.Call)
+                and _is_dispatch_call(call, bound)
+                and _requires_durable(call)
+                for call in ast.walk(function)
+            ):
+                durable.add((path.relative_to(SRC).as_posix(), function.name))
+    assert ("infrastructure/scheduler/peer_delivery_archive.py", "commit_delivery") in durable
     assert len(durable) >= MIN_DURABLE_SITES, durable
 
 

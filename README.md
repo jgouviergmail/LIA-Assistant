@@ -3,7 +3,7 @@
 # LIA — Your next conversation, already prepared
 
 I built LIA because I wanted to pick up a conversation without piecing its context together again.
-This self-hosted AI assistant brings your emails, meeting notes and open commitments into view, then helps you prepare the next step.
+This free, open-source, self-hosted AI assistant brings your emails, meeting notes and open commitments into view, then helps you prepare the next step. The software is free; hosting and connected services may incur costs.
 
 **Start the guided installer:**
 
@@ -28,7 +28,7 @@ The moment I wanted to improve is simple: **“I'm speaking with Claire. What di
 - **Choose what happens next.** Review the email draft before sending. Edit it, approve it or say no.
 - **Use your services yourself.** Open **Tools** for mail, calendar, tasks, contacts, files and Hue controls: by hand with no model call, and yellow stars where one click asks LIA for a summary, a reply or a form to check. The connected provider determines the available controls.
 
-Try: *“Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”*
+Try: _“Prepare my catch-up with Claire using the project brief, our recent emails and the last meeting notes. Highlight anything that conflicts.”_
 
 That continuity is LIA's focus: the relationship, its sources and the next action in one place. Start there; voice, personal Radio, routines and the rest are available when you need them. The [functional map](https://lia.jeyswork.com/maps/functional) shows how those pieces connect.
 
@@ -47,7 +47,6 @@ The command above starts the installer in [install.sh](install.sh). It asks how 
 Already have the checkout? Run `./install.sh` from its root. An interrupted installation can continue with `./install.sh --resume`.
 
 The [self-hosting guide](docs/guides/GUIDE_SELF_HOSTING.md) covers every installer choice and troubleshooting. The [getting-started guide](docs/GETTING_STARTED.md) covers the wider setup.
-
 
 <details>
 <summary><strong>Installer options, production hosting and optional integrations</strong></summary>
@@ -135,8 +134,6 @@ cd apps/web && pnpm dev
 ```
 
 </details>
-
-
 
 ### Development URLs
 
@@ -236,14 +233,14 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 #### Knowledge spaces
 
-- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 549 questions cover every feature a person can use, in six languages.
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive and OneDrive folder sync, a Gmail label as a source, and a system space that indexes the product's own help corpus so LIA can explain itself — drawn from the in-app FAQ, whose 553 questions cover every feature a person can use, in six languages.
 - A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
+- Search spaces by their name or a file's, sort them by name, recency, file count or activity, and keep favourites in their own group, right after Meetings in the menu: a favourite changes the list, never what retrieval reads.
 - Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
 
 #### Meetings and minutes
 
-- Search complete minutes from the meeting list, with server-side filtering and pagination.
-
+- Search complete minutes from the meeting list, with server-side filtering and pagination, and delete a meeting from its row.
 - Record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones.
 - Import a recording you already hold — WAV, MP3 or M4A — and it becomes a meeting with its minutes: sent in chunks under published bounds, read only as the format it claims, its length measured before any engine is paid.
 - A chain of transcription engines walked at processing time.
@@ -255,7 +252,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - A 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)).
 - A timeline on each relationship card lines up its dated records — commitments, calls, memories, relayed messages, text messages — on one thread, page after page, never repeating or dropping one.
-- Connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking; a first name reaches the person it designates, and a name that fits several people is asked about, never guessed ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
+- Connections between users of the same instance, assistant to assistant — a message asked in words leaves without a confirmation card and is delivered once by the recipient's own assistant, field-level read-only shares, silent blocking; a first name reaches the person it designates, and a name that fits several people is asked about, never guessed ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
 - A generated image shared with a connection as a copy, in one click and one transaction, its comment quoted literally in their chat ([ADR-316](docs/architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md)).
 
 #### What LIA produced is yours
@@ -302,6 +299,16 @@ the messages of a page weighed. Nothing is sent or saved until you do it by hand
 stands beside the answer, and an administrator can switch it off
 ([what a click asks of LIA](docs/technical/TOOL_ASSISTS.md),
 [ADR-372](docs/architecture/ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md)).
+
+The same help reaches every screen. Select readable text anywhere in LIA, the chat
+included: a small menu reads it aloud, explains, summarises, simplifies, translates or
+searches the web, naming the service it asked and its sources, and turns it into a task,
+an event, a reminder, a ticket or a memory through the usual form, saved by your own click.
+While you write, a selection is translated, corrected, formatted, shortened, made more
+formal or warmer, and a replacement keeps the browser's undo; a focused field has its own
+dictation. Passwords, security codes and isolated frames are left out, and every answer
+states its cost. A card in the chat opens its e-mail, event, contact, task, file or light
+here, checked against the account that answered it.
 
 What a provider's client gains reaches the assistant's tools in the same release, deleting for
 good excepted, so the same gesture can be asked in words, with a confirmation card when it
@@ -412,8 +419,8 @@ A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR
 #### Interests and habits, learned with restraint
 
 - An interest is created only on a named ground quoted from your own words, with six exclusion classes and a cap on deletions per run ([ADR-166](docs/architecture/ADR-166-Extraction-Admission-Doctrine.md), [INTERESTS](docs/technical/INTERESTS.md)).
-- Habits are learned deterministically from a recurrence ledger, promoted, refreshed or demoted by a nightly job and never on doubt.
-- A status you set on a learned window holds for the heartbeat, its scheduling and the assistant's context alike, a missed routine is offered by name, and one learning switch closes every door ([ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md)).
+- Habits are learned deterministically from a request ledger, promoted, refreshed or demoted by a nightly job and never on doubt: a recurring need is recognised by the days it comes back, and its hour only describes it.
+- What LIA learns becomes proposals rendered by code — automate a need, move a routine you run by hand, look at a failing one, widen your notification hours, pause notifications nobody reacts to, connect a source — accepted, put off or refused in one click, at most one a day under a chat answer. A status you set holds for the proposals, the heartbeat's timing and the assistant's context alike, and one learning switch closes every door ([ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md), [ADR-375](docs/architecture/ADR-375-Learned-Usage-Becomes-Proposals.md)).
 
 #### A daily briefing
 
@@ -428,8 +435,9 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 #### A chat that streams
 
+- The interface follows your style: three icon styles — Lucide, Fluent Color (the default) or Streamline Flex, the colour ones completed by attributed LIA drawings where a collection lacks a concept, the system's forced colours kept — and an automatic appearance, light during the hours you choose and absolute black otherwise, in your account's time zone ([icon styles](docs/technical/ICON_STYLES.md), [display preferences](docs/technical/DISPLAY_PREFERENCES.md)).
 - Answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge.
-- A data card shows everything the source supplied and never invents a missing value — an e-mail's body, every organisation of a contact, conference join points, subtasks, a place's photos (full-screen gallery), reviews and opening hours, a route's alternatives, weather slots, generated-document previews — the detail behind native disclosures; opening one calls nothing. The model reads a versioned semantic view of the answer, never the card's HTML ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md), [HTML_CARDS](docs/technical/HTML_CARDS.md)).
+- Data cards take the shape of their content (Enveloppes): an envelope for a mail, an invitation for an event, a folder for files, research with its sources in the margin, in your palette, light, dark or OLED, on a computer and a phone. Every supplied fact and actual photo, map, weather slot or document preview stays available, and a long collection folds after its first items without another provider or model request. The model reads a versioned semantic view of the answer, never the card's HTML ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md), [HTML_CARDS](docs/technical/HTML_CARDS.md)).
 - Reply, forward, move an e-mail to the trash or adjust a reminder from its card: the request is prepared in the composer, and the server re-checks the original message, source and account grant. E-mail deletion still passes through approval before changing its original mailbox. A route opens as an interactive Google map whose estimated cost is announced first and every construction counted ([ADR-332](docs/architecture/ADR-332-Deterministic-Cards-Received-Facts-And-Message-Owned-Actions.md)).
 - MCP cards name the server's public origin and the called method above an accessible response disclosure; opening it reveals the received result without another call. Weather icons follow the provider's condition codes and day/night information, across current, daily and hourly forecasts.
 - In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
@@ -466,6 +474,7 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 - In supported Live configurations, the voice model can delegate a data request or action to the chat engine. The delegated turn uses the graph’s approvals, registers and quotas and appears in the thread. Concurrent speech, interruption and delegation behavior depend on the provider, model and mode.
 - A provider declares its wire and the seam never branches on its name.
 - A direct session holds the read-only tools itself and acts on nothing.
+- Every voice of the person — Live, Live direct, a call with them and the chat's spoken comment — speaks in the personality they chose, facts untouched; on an ElevenLabs agent LIA writes the expression palette that fits, its own greeting and exactly the session's tools, and a call to a third party stays cordial ([ADR-373](docs/architecture/ADR-373-The-Personality-Governs-The-Voice.md)).
 - A silence puts the session on standby instead of ending it: the provider connection closes and nothing is billed until the phrase or a tap wakes it into a new connection; only the person ends a session ([ADR-329](docs/architecture/ADR-329-Live-Standby-And-Multilingual-Wake-Word.md)).
 - The provider's own usage is folded into an indicative meter and shown, never recorded — the vendor's bill read once at the end where it has one ([ADR-299](docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md), [ADR-300](docs/architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md), [LIVE_MODE](docs/technical/LIVE_MODE.md)).
 
@@ -482,11 +491,15 @@ The home page opens on the date and LIA's living face, then aggregates your sour
 
 The complete native catalogue uses original designs and contextual expressions.
 Reviewed offline artwork supplies bounded body relief, while the shared rig
-owns head pose, eyes, brows and mouth. Reduced motion and unavailable graphics
+owns head pose, eyes, brows, mouth and the limbs each design actually has.
+Arms, wrists and feet join listening, thought, speech and body scenes, with
+breath-led settling, planted support and articulation calibrated for each variant.
+Scenes coordinate preparation, action and recovery; cold-weather scarves are
+fitted to each silhouette in both live and fallback rendering. Reduced motion and unavailable graphics
 retain their native fallback. See the [volume guide](docs/technical/NATIVE_AVATAR_VOLUME.md)
 for projection and performance limits.
 
-- Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig, including the shaded Smiley. Eyes lead a head with depth and weight.
+- Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig across the companion catalogue. Eyes lead a head with depth and weight.
 - Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call.
 - You place the companion — a drag, the arrow keys, or a fold into its restore dot — and on a phone nothing else moves it.
 - Reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
@@ -569,7 +582,7 @@ for projection and performance limits.
 
 #### Three registers, sealed on request
 
-- Optional JEV badges qualify displayed emails (professional, personal, spam or phishing/scam; normal, urgent or critical priority) and appointments (professional or personal). Accepted labels also inform the answer. Uncertainty produces no badge; these advisory labels grant no permission and provide no guarantee of safety ([ADR-351](docs/architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md)).
+- Optional JEV badges qualify displayed emails (professional, personal, spam or phishing/scam; normal, urgent or critical priority; a reply expected, never on spam or phishing) and appointments (professional or personal). Accepted labels also inform the answer. Uncertainty produces no badge; these advisory labels grant no permission and provide no guarantee of safety ([ADR-351](docs/architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md)).
 
 - One row per action (claimed before it happens, closed from an explicit result), one per consultation (which capability read what, when, with what outcome), one per turn.
 - Proactive acts and direct reads are recorded too.
@@ -980,7 +993,7 @@ The admin interface brings deployed capabilities, accounts, model configuration,
 | Area                          | What you control                                                                                                                                                                                                                                                                                                                                                           |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **LLM configuration**         | The model behind every node and slot, provider parameters, prompt versions, the context window per slot                                                                                                                                                                                                                                                                    |
-| **Bounded JEV decisions**     | An independent opt-in switch for each native decision, a general switch, dedicated model and price settings, and diagnostic traces of duration, fallback and spend; uncertain results return to the established path ([ADR-325](docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md), [guide](docs/technical/JEV_INTEGRATION.md)) |
+| **Bounded JEV decisions**     | An independent opt-in switch for each native decision, a general switch, dedicated model and price settings, each decision threshold within its published bounds, thirty days of counted judgements, and diagnostic traces of duration, fallback and spend; uncertain results return to the established path ([ADR-374](docs/architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md), [ADR-325](docs/architecture/ADR-325-JEV-Bounded-Decisions-With-Hot-Switches-And-Accounted-Fallbacks.md), [guide](docs/technical/JEV_INTEGRATION.md)) |
 | **Model catalogue & pricing** | Providers, capability flags, accepted reasoning depths, a provenance badge and prices per model — the source of truth for the LLM factory, with its status against the public registries; image-generation and Google API pricing alongside; live cross-worker invalidation                                                                                                |
 | **Platform capabilities**     | One switch per capability, grouped in families, each row showing the deployment bound, the operator choice and the state actually enforced                                                                                                                                                                                                                                 |
 | **Budgets & limits**          | Per-user token, message and cost quotas with live gauges; the instance daily ceiling in euros, today's spend and what remains                                                                                                                                                                                                                                              |
@@ -1007,7 +1020,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### Observability
 
-- **Prometheus**: 660 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
+- **Prometheus**: 666 custom metrics (agents, LLM, infrastructure), labelled by route template — a name or a search in an address never becomes a series. A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric — and the reverse holds: every panel reads a series something produces.
 - **Grafana**: 33 dashboards, including product-value and radio cockpits · **Loki**: structured JSON logs that keep facts, never people's words, shipped by Grafana Alloy ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) · **Tempo**: distributed tracing, spans named by the route template · **Langfuse**: LLM tracing with prompt versions. The whole stack runs on supported versions, pinned by digest.
 - **Linked signals, a pipeline that watches itself**: a log line opens its trace, a trace its logs and metrics, a latency point its exemplar; Loki, Alloy, Tempo and Grafana are scraped on closed keep-lists and `LogsNotDelivered` fires when lines go missing; every dashboard opens on seven days (logs and traces on four hours) behind one shared menu — [ADR-333](docs/architecture/ADR-333-Linked-Signals-And-A-Pipeline-That-Watches-Itself.md).
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
@@ -1204,10 +1217,10 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                                        |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Backend tests           | 59,214 collected over `tests/`, across 3,872 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-06)    |
-| Frontend tests (vitest) | 17,167 across 1,421 files (`vitest list`, 2026-11-06), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
-| Coverage floor          | 78% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
-| Technical audit         | Method, evidence and open findings — [full public report & protocol](docs/audit/README.md)                                |
+| Backend tests           | 60,666 collected over `tests/`, across 3,983 files (`pytest --collect-only -q --no-cov`, Windows/Python 3.14, 2026-11-10)    |
+| Frontend tests (vitest) | 20,587 across 1,494 files (`vitest list`, 2026-11-10), plus hermetic Playwright journeys with axe, dark-mode and zoom checks |
+| Coverage floor          | 87% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob                       |
+| Technical audit         | Method, evidence and open findings — [full public report & protocol](docs/audit/README.md)                                   |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
 
@@ -1250,17 +1263,17 @@ Pre-push: secret scan           Security workflow (weekly)
 
 ### Security
 
-| Reference                                                                              | Concrete measure                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [GDPR / RGPD](https://eur-lex.europa.eu/eli/reg/2016/679)                              | PII filtering, data minimisation, full-account export and account deletion that also removes linked OAuth grants and transparency records ([privacy guide](docs/knowledge/15_privacy.md))                                                                                                                                                                                                                                                             |
-| [EU AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) | The interface identifies LIA as AI; approval before mutation and separate records of actions, reads and decisions support transparency and traceability. Applicable duties still depend on the deployment and use case ([traceability boundaries](docs/technical/AI_ACT_TRACEABILITY.md))                                                                                                                                                             |
-| OWASP Top 10                                                                           | XSS, SQL injection and CSRF safeguards; a global Redis-backed rate limit before routes; request bodies bounded before they are read, webhooks included; reset links bound to their account and capped per account, an optional anti-robot check on the password doors ([ADR-363](docs/architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md), [ADR-364](docs/architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md)) |
-| Prompt injection                                                                       | External content wrapped in safety markers, trust classified by data type rather than by producing tool, and a provenance that survives history compaction — a summary built from third-party text inherits its banner instead of promoting the claim to system authority                                                                                                                                                                             |
-| SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md))                                                                                                                                                             |
-| OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                |
-| [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                                       |
-| Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                                 |
-| Untrusted code                                                                         | A page the model writes runs in a sandboxed frame with an opaque origin, under a policy that names no host ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md))             |
+| Reference                                                                              | Concrete measure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [GDPR / RGPD](https://eur-lex.europa.eu/eli/reg/2016/679)                              | PII filtering, data minimisation, full-account export and account deletion that also removes linked OAuth grants and transparency records ([privacy guide](docs/knowledge/15_privacy.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| [EU AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) | The interface identifies LIA as AI; approval before mutation and separate records of actions, reads and decisions support transparency and traceability. Applicable duties still depend on the deployment and use case ([traceability boundaries](docs/technical/AI_ACT_TRACEABILITY.md))                                                                                                                                                                                                                                                                                                                                                                       |
+| OWASP Top 10                                                                           | XSS, SQL injection and CSRF safeguards; a global Redis-backed rate limit before routes; request bodies bounded before they are read, webhooks included; reset links bound to their account and capped per account, an optional anti-robot check on the password doors ([ADR-363](docs/architecture/ADR-363-Password-Reset-Bounded-Per-Account-And-Bound-To-It.md), [ADR-364](docs/architecture/ADR-364-Turnstile-Bot-Check-On-The-Password-Doors.md))                                                                                                                                                                                                           |
+| Prompt injection                                                                       | External content wrapped in safety markers, trust classified by data type rather than by producing tool, and a provenance that survives history compaction — a summary built from third-party text inherits its banner instead of promoting the claim to system authority                                                                                                                                                                                                                                                                                                                                                                                       |
+| SSRF & hostile text                                                                    | Every fetched URL is validated, then fetched on the very address the check resolved, one redirect hop at a time; text flatteners run in linear time on hostile input, held by growth and equivalence tests ([ADR-326](docs/architecture/ADR-326-Linear-Flatteners-And-Pinned-Fetches.md))                                                                                                                                                                                                                                                                                                                                                                       |
+| OAuth / PKCE                                                                           | PKCE S256, single-use state and issuer/identity checks; grouped Google/Microsoft consent shares grants only within the verified provider account, and every token renews through one door ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)); linking a federated identity never changes an account's status ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md))                                                                                                                                                                                                                                          |
+| [MCP](https://modelcontextprotocol.io/) / plugins                                      | Model Context Protocol servers and apps, agentskills.io skills and Agent Plugins v1 packages use documented open interfaces, with separately reviewed trust and sandbox boundaries ([MCP](docs/technical/MCP_INTEGRATION.md), [plugins](docs/technical/PLUGINS_INTEGRATION.md))                                                                                                                                                                                                                                                                                                                                                                                 |
+| Supply chain                                                                           | Hash-verified universal lockfiles and every build input pinned by digest, pip-audit on the full transitive tree, a weekly watch of each dependency's own advisories and end-of-life dates, a refresh that never moves a version backwards ([ADR-331](docs/architecture/ADR-331-Dependency-Watch-And-A-Refresh-That-Never-Goes-Back.md)), a CycloneDX SBOM per release                                                                                                                                                                                                                                                                                           |
+| Untrusted code                                                                         | A page the model writes runs in a sandboxed frame with an opaque origin, under a policy that names no host ([ADR-370](docs/architecture/ADR-370-A-Page-The-Model-Writes-Runs-In-The-Chat-In-The-Strictest-Frame.md)). Skill scripts execute in a throwaway container — no Docker socket, no network, read-only filesystem, unprivileged uid, all capabilities dropped — and no sandbox means no execution, never a weaker fallback; a script the assistant writes, or a skill's command that names its hosts, reaches the web only through one egress proxy holding the keys and the allowlist ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)) |
 
 These references describe implemented controls, not a GDPR/AI Act legal opinion, OWASP or ISO certification, or a security-audit score. The [public technical audit](docs/audit/README.md) measures 24 technical-quality areas against an ISO/IEC 25010:2023-inspired grid and explicitly excludes security.
 
@@ -1311,7 +1324,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-370 ADR files (ADR-001 through ADR-372 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+375 ADR files (ADR-001 through ADR-377 — ADR-008 has no separate file and ADR-349 remains reserved) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded
@@ -1327,18 +1340,17 @@ I choose the product's direction, its architecture and the details of its everyd
 
 The [full story](https://lia.jeyswork.com/story) covers the method, trade-offs and work still to do.
 
-
 <details>
 <summary><strong>Development process, project figures and engineering evidence</strong></summary>
 
 <a id="built-by-an-ai-directed-by-a-human"></a>
 
-|                                |                                           |                                         |                                                                         |
-| ------------------------------ | ----------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
-| **62** backend domain packages | **1,136,803** source lines (excl. tests) | **77,168** inventoried automated tests | **370** ADRs                                                            |
-| **295** versions shipped       | **6 languages**, parity enforced in CI    | **660** Prometheus metrics              | [Technical audit and protocol](docs/audit/README.md) |
+|                                |                                          |                                        |                                                      |
+| ------------------------------ | ---------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| **62** backend domain packages | **1,165,741** source lines (excl. tests) | **81,253** inventoried automated tests | **375** ADRs                                         |
+| **296** versions shipped       | **6 languages**, parity enforced in CI   | **666** Prometheus metrics             | [Technical audit and protocol](docs/audit/README.md) |
 
-Source-line figure: 1,136,803 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-07). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
+Source-line figure: 1,165,741 physical lines in Python, TypeScript, JavaScript and CSS under `apps/api/src` and `apps/web/src`, excluding test directories and `*.test.*`/`*.spec.*` files (measured 2026-11-09). The domain figure counts backend domain packages. Test inventory combines backend collection and the frontend suite; release qualification executes the repository's required gates. The published technical audit does not score security.
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — the method, executed evidence, open work and full report: [docs/audit/](docs/audit/README.md)
@@ -1346,10 +1358,10 @@ Source-line figure: 1,136,803 physical lines in Python, TypeScript, JavaScript a
 </details>
 
 <details>
-<summary><strong>Latest release — LIA, one click away</strong></summary>
+<summary><strong>Latest release — Everywhere, your way</strong></summary>
 
 <p align="center">
-  <strong>Version 4.5.0</strong> — <strong>LIA, one click away.</strong> Yellow stars mark where LIA can help on the screens of Tools: it sums up, translates, proposes a reply, fills a form from a sentence or a business card and weighs a page of mail. One click, one proposal to read, the cost beside it, nothing written at your provider. Every form of the Tools now opens and ends the same way — 7 November 2026.
+  <strong>Version 4.6.0</strong> — <strong>Everywhere, your way.</strong> Select words anywhere in LIA, the chat included, and a small menu explains, translates, searches the web or turns them into a task, an event or a reminder through the form you know. A card in the chat opens its record in the Tools, what LIA learns from your use becomes proposals you accept in one click, the voice speaks in the personality you chose, and the screens follow your icon style and your hours — 10 November 2026.
 </p>
 
 [Full changelog](CHANGELOG.md)

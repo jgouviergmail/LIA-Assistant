@@ -15,7 +15,7 @@
 
 import { useState } from 'react';
 import type { Language } from '@/i18n/settings';
-import { ArrowLeft, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ClipboardList } from '@/lib/icons';
 
 import { MeetingLineage } from '@/components/meetings/MeetingDetailLinks';
 import {

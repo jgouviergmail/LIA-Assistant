@@ -7,7 +7,7 @@
  * answers card by card. Every card that made it is counted, and every one that did not is named
  * in a report that stays until it is read. A file past the published ceiling is refused unsent.
  */
-import { Upload } from 'lucide-react';
+import { Upload } from '@/lib/icons';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 

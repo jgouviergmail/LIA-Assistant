@@ -9,38 +9,45 @@ the one the repository measured rather than the length of the page.
 from __future__ import annotations
 
 import uuid
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.domains.interests.notifications_router import get_interest_notification_history
+from src.domains.interests.schemas import InterestNotificationHistoryItem
+from src.domains.shared.display_query import DisplayQuery
+from src.domains.users.models import User
 from tests._routes import served_routes
 
 pytestmark = pytest.mark.unit
 
 
-def _user() -> SimpleNamespace:
-    return SimpleNamespace(id=uuid.uuid4())
+def _user() -> User:
+    return User(id=uuid.uuid4())
 
 
-def _row(**over: object) -> SimpleNamespace:
-    base = {
-        "id": uuid.uuid4(),
-        "created_at": datetime(2026, 8, 1, 9, 30, tzinfo=UTC),
-        "content": "Trois articles sur la fusion nucléaire cette semaine.",
-        "source": "perplexity",
-        "user_feedback": None,
-        "interest": SimpleNamespace(topic="fusion nucléaire"),
-    }
-    base.update(over)
-    return SimpleNamespace(**base)
+def _row(
+    *,
+    topic: str | None = "fusion nucléaire",
+    content: str | None = "Trois articles sur la fusion nucléaire cette semaine.",
+) -> InterestNotificationHistoryItem:
+    return InterestNotificationHistoryItem(
+        id=uuid.uuid4(),
+        created_at=datetime(2026, 8, 1, 9, 30, tzinfo=UTC),
+        content=content,
+        source="perplexity",
+        user_feedback=None,
+        topic=topic,
+    )
 
 
-def _patched(rows: list[object], total: int):
+def _patched(
+    rows: list[InterestNotificationHistoryItem], total: int
+) -> AbstractContextManager[AsyncMock]:
     return patch(
-        "src.domains.interests.repository.InterestNotificationRepository.get_history",
+        "src.domains.interests.history_queries.InterestHistoryRepository.page",
         new=AsyncMock(return_value=(rows, total)),
     )
 
@@ -49,7 +56,7 @@ class TestHistoryRoute:
     async def test_reports_the_notification_with_its_interest(self) -> None:
         with _patched([_row()], total=1):
             response = await get_interest_notification_history(
-                limit=10, offset=0, user=_user(), db=AsyncMock()
+                limit=10, offset=0, criteria=DisplayQuery(), user=_user(), db=AsyncMock()
             )
 
         assert len(response.notifications) == 1
@@ -60,9 +67,9 @@ class TestHistoryRoute:
 
     async def test_a_deleted_interest_leaves_the_topic_absent_not_a_crash(self) -> None:
         """`interest_id` is nullable and the relationship can be None."""
-        with _patched([_row(interest=None)], total=1):
+        with _patched([_row(topic=None)], total=1):
             response = await get_interest_notification_history(
-                limit=10, offset=0, user=_user(), db=AsyncMock()
+                limit=10, offset=0, criteria=DisplayQuery(), user=_user(), db=AsyncMock()
             )
 
         assert response.notifications[0].topic is None
@@ -70,7 +77,7 @@ class TestHistoryRoute:
     async def test_a_row_predating_the_content_column_renders_without_it(self) -> None:
         with _patched([_row(content=None)], total=1):
             response = await get_interest_notification_history(
-                limit=10, offset=0, user=_user(), db=AsyncMock()
+                limit=10, offset=0, criteria=DisplayQuery(), user=_user(), db=AsyncMock()
             )
 
         assert response.notifications[0].content is None
@@ -79,7 +86,7 @@ class TestHistoryRoute:
         """ADR-185: a count shown to the reader is exact or it does not exist."""
         with _patched([_row(), _row()], total=57):
             response = await get_interest_notification_history(
-                limit=2, offset=0, user=_user(), db=AsyncMock()
+                limit=2, offset=0, criteria=DisplayQuery(), user=_user(), db=AsyncMock()
             )
 
         assert len(response.notifications) == 2
@@ -88,14 +95,18 @@ class TestHistoryRoute:
     async def test_the_page_is_scoped_to_the_caller(self) -> None:
         user = _user()
         with _patched([], total=0) as history:
-            await get_interest_notification_history(limit=10, offset=0, user=user, db=AsyncMock())
+            criteria = DisplayQuery(q="été", sort="name", as_of=datetime.now(UTC))
+            response = await get_interest_notification_history(
+                limit=10, offset=0, criteria=criteria, user=user, db=AsyncMock()
+            )
 
-        assert history.await_args.kwargs["user_id"] == user.id
+        history.assert_awaited_once_with(user_id=user.id, limit=10, offset=0, criteria=criteria)
+        assert response.as_of == criteria.as_of
 
     async def test_an_empty_history_is_an_empty_list(self) -> None:
         with _patched([], total=0):
             response = await get_interest_notification_history(
-                limit=10, offset=0, user=_user(), db=AsyncMock()
+                limit=10, offset=0, criteria=DisplayQuery(), user=_user(), db=AsyncMock()
             )
 
         assert response.notifications == []

@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import type { IntelligentMechanisms } from '@/types/chat';

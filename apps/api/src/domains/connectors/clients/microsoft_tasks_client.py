@@ -337,6 +337,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         *,
         details: TaskDetails | None = None,
         steps: Sequence[str] = (),
+        due_zone: str | None = None,
     ) -> dict[str, Any]:
         """
         Create a new task.
@@ -345,10 +346,11 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             task_list_id: Task list ID (or "@default").
             title: Task title.
             notes: Task notes/description.
-            due: Due date in RFC 3339 format.
+            due: Due date in RFC 3339 format, or a wall time in ``due_zone``.
             parent: Parent task ID (IGNORED — Microsoft To Do has no subtask hierarchy).
             details: Its importance, reminder and repetition.
             steps: The steps it starts with.
+            due_zone: The zone ``due`` is a wall time in; UTC when none is named.
 
         Returns:
             Created task data.
@@ -362,7 +364,9 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             )
 
         resolved_id = await self._resolve_list_id(task_list_id)
-        body = build_task_body(title=title, notes=notes, due=due) | details_body(details)
+        body = build_task_body(title=title, notes=notes, due=due, due_zone=due_zone) | (
+            details_body(details)
+        )
         if steps:
             body["checklistItems"] = [{"displayName": step} for step in steps]
 
@@ -390,6 +394,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         *,
         clear_due: bool = False,
         details: TaskDetails | None = None,
+        due_zone: str | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing task.
@@ -401,10 +406,11 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             task_id: Task ID to update.
             title: New title.
             notes: New notes.
-            due: New due date in RFC 3339 format.
+            due: New due date in RFC 3339 format, or a wall time in ``due_zone``.
             status: New status ("needsAction" or "completed").
             clear_due: Remove the due date (ADR-369).
             details: What changes of its importance, reminder and repetition.
+            due_zone: The zone ``due`` is a wall time in; UTC when none is named.
 
         Returns:
             Updated task data.
@@ -422,7 +428,7 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
         if notes is not None:
             body["body"] = {"content": notes, "contentType": "text"}
         if due is not None:
-            body["dueDateTime"] = {"dateTime": due, "timeZone": "UTC"}
+            body["dueDateTime"] = {"dateTime": due, "timeZone": due_zone or "UTC"}
         elif clear_due:
             body["dueDateTime"] = None
         if status is not None:

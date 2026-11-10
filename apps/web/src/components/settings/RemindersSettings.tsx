@@ -24,10 +24,9 @@
  * ever sent" — the empty state says exactly that.
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import { Bell, BellPlus, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Bell, BellPlus, Pencil, Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 
 import { RecurrenceEditor, type RecurrenceLimits } from '@/components/recurrence/RecurrenceEditor';
 import { FormSection } from '@/components/ui/form-section';
@@ -56,6 +55,11 @@ import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
 import { useReminders, type Reminder, type ReminderCreate } from '@/hooks/useReminders';
+import { useAuth } from '@/hooks/useAuth';
+import { useHandoff } from '@/hooks/useHandoff';
+import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
+import { instantToWall } from '@/lib/workbench/calendar/zoned';
 import { emptyRecurrence, recurrenceIsComplete } from '@/lib/recurrence';
 import { type Language } from '@/i18n/settings';
 import type { RecurrenceSpec } from '@/types/recurrence';
@@ -87,20 +91,22 @@ function browserTimezone(): string {
   }
 }
 
-/** Today, `YYYY-MM-DD`, as the anchor a new recurrence starts from. */
-function todayLocal(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
 interface DraftState {
   content: string;
   recurrence: RecurrenceSpec;
 }
 
 export function RemindersSettings({ lng }: RemindersSettingsProps) {
+  const { user } = useAuth();
+  return <AccountRemindersSettings key={user?.id ?? 'signed-out'} lng={lng} />;
+}
+
+function AccountRemindersSettings({ lng }: RemindersSettingsProps) {
   const { t } = useTranslation(lng);
+  const { user } = useAuth();
+  const { isCurrent } = useApplicationAccountLifetime(user?.id);
+  const toast = useApplicationAccountToast(user?.id);
+  const saving = useRef(false);
   const {
     reminders,
     total,
@@ -116,19 +122,40 @@ export function RemindersSettings({ lng }: RemindersSettingsProps) {
   const [editing, setEditing] = useState<Reminder | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const accountTimezone = user?.timezone ?? browserTimezone();
   const [draft, setDraft] = useState<DraftState>({
     content: '',
-    recurrence: emptyRecurrence(todayLocal()),
+    recurrence: emptyRecurrence(instantToWall(new Date(), accountTimezone).date),
   });
 
-  const timezone = editing?.user_timezone ?? browserTimezone();
+  const timezone = editing?.user_timezone ?? accountTimezone;
   const busy = creating || updating;
+  useHandoff(
+    'reminder',
+    !initialLoading,
+    handed => {
+      setEditing(null);
+      setDraft({
+        content: handed.reminder.content,
+        recurrence: handed.reminder.recurrence ?? {
+          ...emptyRecurrence(instantToWall(new Date(), accountTimezone).date),
+          freq: 'once',
+          times: { mode: 'at', at: [] },
+        },
+      });
+      setDialogOpen(true);
+    },
+    dialogOpen || busy
+  );
 
   const openCreate = useCallback(() => {
     setEditing(null);
-    setDraft({ content: '', recurrence: emptyRecurrence(todayLocal()) });
+    setDraft({
+      content: '',
+      recurrence: emptyRecurrence(instantToWall(new Date(), accountTimezone).date),
+    });
     setDialogOpen(true);
-  }, []);
+  }, [accountTimezone]);
 
   const openEdit = useCallback((reminder: Reminder) => {
     setEditing(reminder);
@@ -144,7 +171,8 @@ export function RemindersSettings({ lng }: RemindersSettingsProps) {
   const handleSave = useCallback(async () => {
     // The guard, not a `disabled` attribute: disabling a focused control blurs
     // it and drops it from the tab order (`apps/web/CLAUDE.md`).
-    if (!canSave || busy) return;
+    if (!canSave || busy || saving.current || !isCurrent()) return;
+    saving.current = true;
     try {
       if (editing) {
         await updateReminder(editing.id, {
@@ -167,11 +195,13 @@ export function RemindersSettings({ lng }: RemindersSettingsProps) {
         await createReminder(payload);
         toast.success(t('reminders.created'));
       }
-      setDialogOpen(false);
+      if (isCurrent()) setDialogOpen(false);
     } catch {
       toast.error(t('reminders.save_failed'));
+    } finally {
+      saving.current = false;
     }
-  }, [canSave, busy, editing, draft, updateReminder, createReminder, t]);
+  }, [canSave, busy, editing, draft, updateReminder, createReminder, t, isCurrent, toast]);
 
   const handleDelete = useCallback(async () => {
     if (!deletingId) return;
@@ -183,7 +213,7 @@ export function RemindersSettings({ lng }: RemindersSettingsProps) {
     } finally {
       setDeletingId(null);
     }
-  }, [deletingId, deleteReminder, t]);
+  }, [deletingId, deleteReminder, t, toast]);
 
   const pendingDeletion = reminders.find(r => r.id === deletingId) ?? null;
 
@@ -206,7 +236,9 @@ export function RemindersSettings({ lng }: RemindersSettingsProps) {
 
       <ReminderFormDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={open => {
+          if (!saving.current) setDialogOpen(open);
+        }}
         editing={editing}
         draft={draft}
         onDraftChange={setDraft}

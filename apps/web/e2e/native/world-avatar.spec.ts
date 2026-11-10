@@ -3,7 +3,6 @@ import { worldProofUrl } from './world-route';
 /** Real SQL, authenticated preference routes and authoritative actor projections. */
 import { test, expect } from './fixtures';
 import fr from '../../locales/fr/translation.json';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { enterWorld } from '../fixtures/world-admission';
 import { frameWorldProp } from '../fixtures/world-scene-navigation';
 import { WORLD } from '../../src/features/world/definition';
@@ -42,8 +41,6 @@ test('native appearance persists, broadcasts only its public style and edits thr
     const me = await (await context.request.get('/api/v1/auth/me')).json();
     const before = await (await context.request.get('/api/v1/world/avatar')).json();
     expect(before.public_name).toBe(me.full_name.slice(0, 24));
-    await installOfflineFonts(page);
-    await installOfflineFonts(other);
     await page.goto(worldProofUrl(baseURL, 'fr').href);
     await expect(page.locator('[data-world-public-name]')).toHaveText(me.full_name.slice(0, 24));
     expect(await page.locator('input[name="world-alias"]').count()).toBe(0);

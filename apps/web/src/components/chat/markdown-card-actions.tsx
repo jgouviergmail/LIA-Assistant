@@ -16,6 +16,8 @@ import type {
   CardComposeAction,
   CardCompositionDraft,
 } from '@/types/card-actions';
+import { CardToolBoundary } from './markdown-card-target';
+import { MaterialSymbol } from './markdown-icon-span';
 
 interface MessageActionContext {
   projection: CardActionsProjection | null;
@@ -69,7 +71,9 @@ export function MarkdownCardBinding({
       : null;
   return (
     <ItemActions.Provider value={item}>
-      <div {...props}>{children}</div>
+      <CardToolBoundary node={node} binding>
+        <div {...props}>{children}</div>
+      </CardToolBoundary>
     </ItemActions.Provider>
   );
 }
@@ -118,9 +122,7 @@ export function MarkdownCardButton({
     >
       {enabled && action ? (
         <>
-          <span className="material-symbols-outlined" aria-hidden="true">
-            {CARD_ACTION_ICONS[action]}
-          </span>
+          <MaterialSymbol name={CARD_ACTION_ICONS[action]} />
           {t(`chat.card_actions.${action}`)}
         </>
       ) : (

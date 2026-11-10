@@ -21,12 +21,14 @@ import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { MarkdownCardImage } from './markdown-card-image';
 import { MarkdownCardDetails } from './markdown-card-details';
+import { MarkdownListItem, MarkdownOrderedList, MarkdownUnorderedList } from './markdown-lists';
 import { useMarkdownImageLoad } from './use-markdown-image-load';
 import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { codeBlockOf } from '@/lib/markdown-code-block';
 import { MarkdownCardButton } from './markdown-card-actions';
+import { MarkdownLink } from './markdown-card-target';
 import { MarkdownDiv } from './markdown-presentation-div';
-import { MarkdownClassificationSpan } from './ClassificationBadges';
+import { MarkdownIconSpan } from './markdown-icon-span';
 import {
   MarkdownTable,
   MarkdownTableBody,
@@ -368,7 +370,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             return url;
           }}
           components={{
-            span: MarkdownClassificationSpan,
+            span: MarkdownIconSpan,
             button: MarkdownCardButton,
             // Headings
             h1: ({ children }) => (
@@ -423,79 +425,12 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
             em: ({ children }) => <em className="italic text-foreground">{children}</em>,
 
             // Links
-            a: ({ href, className, children, node: _node, ...props }) => {
-              // LIA components (e.g., lia-event__title) need their original class preserved
-              const isLiaComponent = className?.startsWith('lia-');
+            a: props => <MarkdownLink {...props} isUser={isUser} />,
 
-              // tel: and mailto: links should NOT open in new tab (breaks native handlers)
-              const isProtocolLink = href?.startsWith('tel:') || href?.startsWith('mailto:');
-
-              return (
-                <a
-                  href={href}
-                  // Only external links open in new tab - tel:/mailto: use native handlers
-                  {...(!isProtocolLink && { target: '_blank', rel: 'noopener noreferrer' })}
-                  className={
-                    isLiaComponent
-                      ? className
-                      : cn(
-                          'underline decoration-primary/40 hover:decoration-primary transition-colors',
-                          isUser
-                            ? 'text-primary-foreground hover:text-primary-foreground/90'
-                            : 'text-primary hover:text-primary/90'
-                        )
-                  }
-                  {...props}
-                >
-                  {children}
-                </a>
-              );
-            },
-
-            // Unordered lists - balanced spacing between items.
-            // LIA component classes (e.g. future lia-* list variants) are
-            // preserved verbatim — same contract as the `p`/`a` overrides.
-            ul: ({ className, children }) => {
-              const isLiaComponent = className?.startsWith('lia-');
-              return (
-                <ul
-                  className={
-                    isLiaComponent
-                      ? className
-                      : cn('list-disc list-outside pl-5 mb-2 space-y-1.5 last:mb-0', className)
-                  }
-                >
-                  {children}
-                </ul>
-              );
-            },
-
-            // Ordered lists - generous spacing (numbered items often contain
-            // rich content). `lia-steps` (ADR-177 styled counters) must keep
-            // its class: the stylesheet resets list-style and draws numbered
-            // bullets itself, so the default decimal classes would fight it.
-            ol: ({ className, children, start }) => {
-              const isLiaComponent = className?.startsWith('lia-');
-              return (
-                <ol
-                  start={start}
-                  className={
-                    isLiaComponent
-                      ? className
-                      : cn('list-decimal list-outside pl-5 mb-2 space-y-3 last:mb-0', className)
-                  }
-                >
-                  {children}
-                </ol>
-              );
-            },
-
-            // List items - normal leading for readability
-            li: ({ children, value }) => (
-              <li value={value} className="pl-1 leading-normal">
-                {children}
-              </li>
-            ),
+            // Preserve sanitized card classes on both lists and their rows.
+            ul: MarkdownUnorderedList,
+            ol: MarkdownOrderedList,
+            li: MarkdownListItem,
 
             // Blockquotes
             blockquote: ({ children }) => (

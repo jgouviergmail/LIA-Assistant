@@ -8,7 +8,6 @@ from typing import Never
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -29,6 +28,7 @@ from src.domains.sms.repository import (
     project,
 )
 from src.domains.sms.search import blind_digest, blind_terms, tokenize
+from src.domains.sms.search_limits import bounded_candidates
 from src.domains.sms.sender_policy import normalize_sender
 from src.domains.users.models import User
 
@@ -125,29 +125,7 @@ class SmsReadService:
         return verified[: query.limit + 1], total
 
     async def _candidates(self, statement: Select[tuple[SmsMessage]]) -> builtins.list[SmsMessage]:
-        previous = await self.db.scalar(select(func.current_setting("statement_timeout"))) or "0"
-        await self.db.execute(
-            select(func.set_config("statement_timeout", str(settings.sms_search_timeout_ms), True))
-        )
-        try:
-            candidates = list(
-                (
-                    await self.db.scalars(
-                        statement.order_by(
-                            SmsMessage.received_at.desc(), SmsMessage.id.desc()
-                        ).limit(settings.sms_search_max_candidates + 1)
-                    )
-                ).all()
-            )
-        except DBAPIError as error:
-            await self.db.rollback()
-            if getattr(error.orig, "sqlstate", None) == "57014":
-                _too_broad()
-            raise
-        await self.db.execute(select(func.set_config("statement_timeout", previous, True)))
-        if len(candidates) > settings.sms_search_max_candidates:
-            _too_broad()
-        return candidates
+        return await bounded_candidates(self.db, statement)
 
     async def get(
         self,

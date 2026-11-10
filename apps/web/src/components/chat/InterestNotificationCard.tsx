@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ThumbsUp, ThumbsDown, Ban, Sparkles, ExternalLink } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Ban, Sparkles, ExternalLink } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { MarkdownContent } from './MarkdownContent';
 import { cn } from '@/lib/utils';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState, type Ref } from 'react';
-import { Clock3, FileText, Loader2, Target, Timer } from 'lucide-react';
+import { Clock3, FileText, Loader2, Target, Timer } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import { Badge } from '@/components/ui/badge';
 import { CallDebrief, CallDebriefActions } from './CallDebrief';

@@ -9,7 +9,7 @@
  * GitHub (external navigation).
  */
 
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { ShowroomProofLinks } from '@/components/showroom/proof-links';

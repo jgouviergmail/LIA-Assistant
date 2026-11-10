@@ -1,13 +1,26 @@
 'use client';
 
-import { ExternalLink, FileText, MessageCircleQuestion, Sparkles } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  MessageCircleQuestion,
+  Send,
+  Sparkles,
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
+import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { useHomeTools, type HomeTools } from '../HomeTools';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
+import { documentHref, homeLanguage } from '@/lib/briefing-tools';
 import { driveName } from '@/lib/drives';
+import { downloadUrl } from '@/lib/workbench/files';
+import { driveAttachment } from '@/lib/workbench/mail-compose';
 import { useDashboardChat } from '../DashboardNavigation';
-import type { CardSection, DocumentsData } from '@/types/briefing';
+import type { Language } from '@/i18n/settings';
+import type { CardSection, DocumentItem, DocumentsData } from '@/types/briefing';
 
 interface DocumentsCardProps {
   section: CardSection<DocumentsData>;
@@ -19,10 +32,11 @@ interface DocumentsCardProps {
 /**
  * Documents card (P15 extension, 2026-07-22).
  *
- * Latest modified files of the connected drive, Google Drive or OneDrive. Each
- * row is a button opening the chat prefilled with a summarize intent (QW-9
- * `?draft=`), plus a separate external-link anchor to the file on its drive
- * (user arbitration: both).
+ * Latest modified files of the connected drive, Google Drive or OneDrive. Where
+ * the instance offers the « Tools », a file opens in the files tool, downloads
+ * through it, and leaves in a new message of the mail tool (owner, 2026-11-07);
+ * else the row opens the chat prefilled with a summarize intent (QW-9 `?draft=`).
+ * The file on its drive stays one anchor away (user arbitration: both).
  */
 export function DocumentsCard({
   section,
@@ -32,7 +46,8 @@ export function DocumentsCard({
 }: DocumentsCardProps) {
   const { i18n } = useTranslation();
   const openChat = useDashboardChat();
-  const lng = (i18n.language || 'fr').split('-')[0];
+  const lng = homeLanguage(i18n.language);
+  const tools = useHomeTools();
   return (
     <BriefingCard<DocumentsData>
       titleKey="dashboard.briefing.cards.documents.title"
@@ -45,6 +60,8 @@ export function DocumentsCard({
       renderContent={data => (
         <DocumentsContent
           data={data}
+          lng={lng}
+          tools={tools}
           onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
           onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
@@ -78,20 +95,73 @@ function documentTypeKey(mime: string | null): string {
 
 function DocumentsContent({
   data,
+  lng,
+  tools,
   onOpenChat,
   onExecute,
 }: {
   data: DocumentsData;
+  lng: Language;
+  tools: HomeTools;
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
+  /** Direct first: the Tools' download and new message, then the file on its drive. */
+  const directActs = (doc: DocumentItem): CardItemAction[] => {
+    const id = doc.id;
+    const tooled: CardItemAction[] =
+      tools.offered && id
+        ? [
+            // The Tools' own download: a Google document leaves in its first export format.
+            {
+              icon: Download,
+              label: t('dashboard.briefing.home_acts.download'),
+              href: downloadUrl(id, null),
+            },
+            ...(tools.offers('compose')
+              ? [
+                  {
+                    icon: Send,
+                    label: t('dashboard.briefing.home_acts.send_by_mail'),
+                    onSelect: () =>
+                      tools.go({
+                        kind: 'compose',
+                        to: '',
+                        file: driveAttachment({
+                          id,
+                          name: doc.name,
+                          mime_type: doc.mime_type ?? 'application/octet-stream',
+                        }),
+                      }),
+                  },
+                ]
+              : []),
+          ]
+        : [];
+    // Opening the file in Drive is a real anchor (`href`): navigation deserves the
+    // browser's own affordances — middle-click, context menu, status-bar preview.
+    const drive: CardItemAction[] = doc.web_view_link
+      ? [
+          {
+            icon: ExternalLink,
+            label: t('dashboard.briefing.cards.documents.open_external', { subject: doc.name }),
+            href: doc.web_view_link,
+          },
+        ]
+      : [];
+    return [...tooled, ...drive];
+  };
   return (
     <ul className="space-y-0.5" role="list">
       {data.items.map((doc, index) => {
         const intent = t('dashboard.briefing.intents.document_summarize', {
           subject: doc.name,
         });
+        const href = tools.offered ? documentHref(doc, lng) : null;
+        const target = href
+          ? { href, ariaLabel: t('dashboard.briefing.open_in.document', { subject: doc.name }) }
+          : { onSelect: () => onOpenChat(intent), ariaLabel: intent };
         const summarizeIntent = t('dashboard.briefing.intents_exec.document_summarize', {
           subject: doc.name,
         });
@@ -102,12 +172,12 @@ function DocumentsContent({
         });
         return (
           <CardItemRow
-            key={index}
-            ariaLabel={intent}
+            key={doc.id ?? index}
+            {...target}
             tooltip={doc.name}
-            onSelect={() => onOpenChat(intent)}
             contentClassName="flex flex-col gap-1.5 leading-snug"
             actions={[
+              ...directActs(doc),
               {
                 icon: Sparkles,
                 label: summarizeIntent,
@@ -121,22 +191,6 @@ function DocumentsContent({
                 }),
                 onSelect: () => onOpenChat(askDraft),
               },
-              // Opening the file in Drive joins the menu as a real anchor
-              // (`href`) rather than sitting beside it as a fourth icon: it was
-              // the widest row of the grid, and navigation deserves the
-              // browser's own affordances — middle-click, context menu,
-              // status-bar preview.
-              ...(doc.web_view_link
-                ? [
-                    {
-                      icon: ExternalLink,
-                      label: t('dashboard.briefing.cards.documents.open_external', {
-                        subject: doc.name,
-                      }),
-                      href: doc.web_view_link,
-                    },
-                  ]
-                : []),
             ]}
           >
             <span className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 tabular-nums">

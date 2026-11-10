@@ -18,8 +18,6 @@ from html import unescape
 from typing import Any
 from urllib.parse import urlparse
 
-import structlog
-
 from src.core.i18n import resolve_language
 from src.core.i18n_cards import card_label
 from src.core.i18n_drafts import label_separator
@@ -35,7 +33,6 @@ from src.domains.agents.display.components.base import (
     format_duration,
     format_full_date,
     format_time,
-    render_att_row,
     render_card_top,
     render_chip,
     render_chip_row,
@@ -43,8 +40,6 @@ from src.domains.agents.display.components.base import (
     render_d_item,
     render_d_row,
     render_desc_block,
-    render_part_list,
-    render_section_header,
     safe_url,
     wrap_with_response,
 )
@@ -58,14 +53,20 @@ from src.domains.agents.display.components.classification_badges import (
 from src.domains.agents.display.components.conference_details import (
     render_conference_details,
 )
+from src.domains.agents.display.components.event_presentation import (
+    event_response_status,
+    render_event_attendees,
+    render_event_date,
+    render_event_organizer,
+    render_event_response,
+)
+from src.domains.agents.display.components.event_schedule import event_schedule_rows
 from src.domains.agents.display.components.source_details import event_native_details
 from src.domains.agents.display.components.source_recurrence import (
     render_source_recurrence,
 )
 from src.domains.agents.display.icons import Icons, icon
-from src.domains.agents.display.values import list_values
-
-logger = structlog.get_logger(__name__)
+from src.domains.agents.display.values import list_values, nonnegative_integer, scalar_text
 
 #: Where a block no reader wrote opens: a style, a script, the document's head
 #: and its title (the ``display/components/base.py`` stripper's own set), or a
@@ -172,22 +173,11 @@ def _is_meet_url(text: str) -> bool:
 
 
 class EventCard(BaseComponent):
-    """
-    Modern calendar event card v3.1.
+    """Invitation with a date tear-off, explicit RSVP and complete participant access.
 
-    Design:
-    - Response wrapper with assistant comment zone + actions zone
-    - Left border color based on user's response status:
-      - Green (#34a853): accepted
-      - Orange (#fbbc04): needsAction or tentative
-      - Red (#ea4335): declined
-      - Gray (transparent): no attendees / organizer only
-    - Time block (prominent) with duration
-    - Title as link
-    - Location with map/meet link
-    - Attendees count badge
-    - Collapsible details (description, organizer, reminders, etc.)
-    - Action buttons
+    The organizer and initial participants are visible beside the schedule.
+    Every remaining person and supplemental fact stays in native disclosures.
+    Existing source links and message-scoped suggested actions are preserved.
     """
 
     # Response status to CSS class mapping
@@ -296,6 +286,7 @@ class EventCard(BaseComponent):
                     "icon": Icons.CALENDAR,
                     "label": V3Messages.get_view_details(ctx.language),
                     "url": url,
+                    "card_open": "true",
                 }
             )
 
@@ -393,20 +384,22 @@ class EventCard(BaseComponent):
             else ""
         )
 
-        # --- Attendee avatars with "N participants" label ---
-        if attendees:
-            participant_label = V3Messages.get_participant(ctx.language, len(attendees))
-            attendees_html = render_att_row(attendees, label_text=participant_label)
-        else:
-            attendees_html = ""
+        # Named participants remain visible, with an exact local remainder.
+        attendees_html = render_event_attendees(
+            attendees, ctx, partial=data.get("attendeesOmitted") is True
+        )
+        date_sheet = render_event_date(data.get("start"), ctx)
+        personal_response = render_event_response(data, ctx)
+        organizer_html = render_event_organizer(data.get("organizer"), ctx)
 
         # --- Collapsible details ---
-        collapsible_html = self._render_collapsible_details(data, attendees, ctx)
+        collapsible_html = self._render_collapsible_details(data, ctx)
 
         return f"""<div class="lia-card lia-event {response_class} {nested_class}">
-{card_top_html}
-{chip_row_html}
+<div class="lia-event__invitation">{date_sheet}{card_top_html}</div>
+<div class="lia-event__schedule">{chip_row_html}{personal_response}</div>
 {location_html}
+{organizer_html}
 {attendees_html}
 {collapsible_html}
 </div>"""
@@ -418,7 +411,9 @@ class EventCard(BaseComponent):
             return "event_available", "green"
         elif status == "declined":
             return "event_busy", "red"
-        return "pending", "amber"
+        if status in {"needsAction", "tentative"}:
+            return "pending", "amber"
+        return Icons.CALENDAR, "indigo"
 
     def _render_location_v4(self, location: str, ctx: RenderContext) -> str:
         """Render location using v4 d-row component."""
@@ -455,12 +450,12 @@ class EventCard(BaseComponent):
     def _render_collapsible_details(
         self,
         data: dict[str, Any],
-        attendees: list,
         ctx: RenderContext,
     ) -> str:
         """Render collapsible section with extended details using v4 components."""
         detail_sections: list[str] = []
         detail_sections.extend(event_native_details(data, ctx))
+        detail_sections.extend(event_schedule_rows(data, ctx))
 
         # Description block: a third party's HTML, read as text — its style and
         # script blocks dropped and its tags removed, entities decoded AFTER
@@ -473,45 +468,7 @@ class EventCard(BaseComponent):
             if desc_clean:
                 detail_sections.append(render_desc_block(escape_html(desc_clean)))
 
-        # Organizer with email
-        organizer = data.get("organizer", {})
-        if organizer and isinstance(organizer, dict):
-            org_name = organizer.get("displayName") or organizer.get("email", "")
-            org_email = organizer.get("email", "")
-            # Skip non-human emails (calendar groups, resources)
-            is_human_email = bool(
-                org_email
-                and "@group.calendar.google.com" not in org_email
-                and "@resource.calendar.google.com" not in org_email
-            )
-            if org_name:
-                organized_by = V3Messages.get_organized_by(ctx.language)
-                if is_human_email:
-                    name_html = (
-                        f'<a href="mailto:{escape_html(org_email)}">' f"{escape_html(org_name)}</a>"
-                    )
-                    # The space rides INSIDE the span: the card's compaction
-                    # removes the whitespace between two tags, and the name
-                    # ran into the address.
-                    email_suffix = (
-                        '<span style="color:var(--lia-text-muted);'
-                        'font-size:var(--lia-text-xs)">'
-                        f" {escape_html(org_email)}</span>"
-                        if org_email != org_name
-                        else ""
-                    )
-                else:
-                    name_html = escape_html(org_name)
-                    email_suffix = ""
-                detail_sections.append(
-                    render_d_item(
-                        Icons.PERSON,
-                        organized_by.format(name=name_html, separator=label_separator(ctx.language))
-                        + email_suffix,
-                    )
-                )
-
-        detail_sections.append(render_conference_details(data.get("conferenceData"), ctx))
+        detail_sections.append(self._render_conference(data, ctx))
 
         # Recurrence info
         detail_sections.append(
@@ -524,13 +481,7 @@ class EventCard(BaseComponent):
             )
         )
 
-        detail_sections.append(render_reminder_settings(data.get("reminders"), ctx))
-
-        # Participants section with status + name + email
-        if attendees:
-            participants_label = V3Messages.get_participants(ctx.language)
-            detail_sections.append(render_section_header(participants_label, Icons.GROUP, "indigo"))
-            detail_sections.append(render_part_list(attendees, max_shown=len(attendees)))
+        detail_sections.append(self._render_reminders(data, ctx))
 
         # Attachments
         attachments = data.get("attachments", [])
@@ -558,7 +509,7 @@ class EventCard(BaseComponent):
                 )
 
         # Wrap in collapsible (no separator — chip-row above already has one)
-        if detail_sections:
+        if any(detail_sections):
             content_html = "\n".join(detail_sections)
             return render_collapsible(
                 trigger_text=V3Messages.get_see_more(ctx.language),
@@ -568,6 +519,30 @@ class EventCard(BaseComponent):
             )
 
         return ""
+
+    def _render_reminders(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Read the supplied provider shape, preserving an explicit zero-minute alert."""
+        if "reminders" in data:
+            return render_reminder_settings(data["reminders"], ctx)
+        minutes = nonnegative_integer(data.get("reminderMinutes"))
+        if minutes is None:
+            return ""
+        return render_d_item(
+            Icons.REMINDER, escape_html(V3Messages.get_reminder_time(ctx.language, minutes))
+        )
+
+    def _render_conference(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Retain a standalone source meeting URL as well as structured join points."""
+        conference = data.get("conferenceData")
+        content = render_conference_details(conference, ctx)
+        entries = list_values(conference.get("entryPoints")) if isinstance(conference, dict) else []
+        known = [point.get("uri") for point in entries if isinstance(point, dict)]
+        meeting_url = scalar_text(data.get("hangoutLink"))
+        if meeting_url and meeting_url not in known:
+            content += render_conference_details(
+                {"entryPoints": [{"entryPointType": "video", "uri": meeting_url}]}, ctx
+            )
+        return content
 
     def _is_all_day(self, start: dict) -> bool:
         """Check if event is all-day."""
@@ -658,31 +633,11 @@ class EventCard(BaseComponent):
 
         Returns:
             Response status: 'accepted', 'declined', 'tentative', 'needsAction'
-            or empty string if user is not an attendee (organizer only event).
+            or empty string when no explicit self-attendee response was supplied.
         """
-        event_title = data.get("summary", "Unknown")
-        attendees = data.get("attendees", [])
-        organizer = data.get("organizer", {})
-
-        logger.debug(
-            "event_response_status_detection",
-            event_title=event_title,
-            attendees_count=len(attendees),
-        )
-
-        if not attendees:
-            return "accepted"
-
-        for attendee in attendees:
-            if isinstance(attendee, dict) and attendee.get("self"):
-                return attendee.get("responseStatus", "needsAction")  # type: ignore[no-any-return]
-
-        if isinstance(organizer, dict) and organizer.get("self"):
-            return "accepted"
-
-        return "needsAction"
+        return event_response_status(data)
 
     def _get_response_status_class(self, data: dict[str, Any]) -> str:
         """Get CSS class for user's response status."""
         status = self._get_user_response_status(data)
-        return self.RESPONSE_STATUS_CLASS.get(status, "lia-event--pending")
+        return self.RESPONSE_STATUS_CLASS.get(status, "")

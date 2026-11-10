@@ -90,9 +90,8 @@ interface UseLLMPricingSheet {
  * was reviewed. The backend re-derives the plan and refuses a different one, so
  * a catalogue that moved between the two calls cannot be written over blindly.
  *
- * Uploads go through a raw `fetch` because `apiClient` forces a JSON
- * content-type and a multipart body needs the browser to set its own boundary —
- * same reason as the plugin and skill importers.
+ * Uploads use a credentialed multipart `fetch`, with the browser supplying the
+ * content-type boundary, as do the plugin and skill importers.
  */
 export function useLLMPricingSheet(): UseLLMPricingSheet {
   const [busy, setBusy] = useState(false);

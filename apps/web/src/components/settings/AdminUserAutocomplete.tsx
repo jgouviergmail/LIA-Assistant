@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { User, X, Search, Loader2 } from 'lucide-react';
+import { User, X, Search, Loader2 } from '@/lib/icons';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/client';
 import apiClient from '@/lib/api-client';

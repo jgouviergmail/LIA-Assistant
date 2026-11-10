@@ -2,7 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { usePathname } from 'next/navigation';
-import { Library, Settings2 } from 'lucide-react';
+import { Library, Settings2 } from '@/lib/icons';
 import Link from 'next/link';
 import { toast } from 'sonner';
 

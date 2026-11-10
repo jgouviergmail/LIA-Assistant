@@ -65,7 +65,9 @@ async def _selection(
 ) -> SpaceUpdateSelection:
     space = await ui_queries.owned_space(db, actor_id, request.space_id)
     before = SpaceUpdateTarget.model_validate(space)
-    changes = space_mutation.source_update_values(request.name, request.description)
+    changes = space_mutation.source_update_values(
+        request.name, request.description, is_favorite=request.is_favorite
+    )
     source_intent = {key: value if value is not None else "" for key, value in changes.items()}
     normalized = SpaceUpdateInput.model_validate(
         {**request.model_dump(exclude_unset=True), **source_intent}
@@ -154,6 +156,7 @@ async def execute_space_update(
         expected.request.name,
         expected.request.description,
         commit=False,
+        is_favorite=expected.request.is_favorite,
     )
     if expected.request.is_active is not None:
         await service.set_space_activation(

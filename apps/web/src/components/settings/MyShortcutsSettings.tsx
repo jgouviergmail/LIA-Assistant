@@ -15,7 +15,7 @@
  */
 
 import { useMemo } from 'react';
-import { Pin } from 'lucide-react';
+import { Pin } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { SettingsSection } from '@/components/settings/SettingsSection';

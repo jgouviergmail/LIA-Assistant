@@ -9,7 +9,7 @@
  * Under the subject: a subject for those words, or before any the same message from an instruction,
  * which writes both.
  */
-import { Heading, MessageSquareReply, PenLine } from 'lucide-react';
+import { Heading, MessageSquareReply, PenLine } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
@@ -24,6 +24,7 @@ import { WritingAssist, type WritingLine, type WritingUse } from './WritingAssis
 
 const REPLY_LINE = 'reply';
 const SUBJECT_LINE = 'subject';
+const COMPOSE_LINE = 'compose';
 
 function replyLine(message: MailMessage, t: Say): WritingLine {
   return {
@@ -43,7 +44,7 @@ function replyLine(message: MailMessage, t: Say): WritingLine {
 
 function composeLine(recipient: string, t: Say): WritingLine {
   return {
-    key: 'compose',
+    key: COMPOSE_LINE,
     label: t('workbench.assist.writing.compose'),
     icon: PenLine,
     path: ASSIST_PATHS.mailCompose,
@@ -103,22 +104,33 @@ function linesOf(
   ];
 }
 
-export function ComposerAssist({
-  lng,
-  field,
-  target,
-  fields,
-  signature,
-  writesSubject,
-  onBody,
-  onSubject,
-}: ComposerAssistProps) {
+/** The line the message opens on, asked for elsewhere: an answer's proposal, or a whole message. */
+function openedOn(field: ComposerAssistProps['field'], target: ComposerTarget): string | null {
+  if (field !== 'body') return null;
+  if (target.kind === 'reply' && target.propose) return REPLY_LINE;
+  if (target.kind === 'new' && target.assisted) return COMPOSE_LINE;
+  return null;
+}
+
+/** Words said into the field the person is at: after the message's words, or the subject's. */
+function dictated(
+  props: Pick<ComposerAssistProps, 'field' | 'fields' | 'writesSubject' | 'onBody' | 'onSubject'>
+): ((words: string) => void) | undefined {
+  const { field, fields, writesSubject, onBody, onSubject } = props;
+  if (field === 'body') {
+    return words => onBody({ text: words, subject: null, cut: false, usage: null }, 'add');
+  }
+  if (!writesSubject) return undefined;
+  return words => onSubject([fields.subject.trimEnd(), words].filter(Boolean).join(' '));
+}
+
+export function ComposerAssist(props: ComposerAssistProps) {
+  const { lng, field, target, fields, signature, writesSubject, onBody, onSubject } = props;
   const { t } = useTranslation(lng);
   const bounds = useAssistBounds();
   if (!bounds) return null;
   const own = ownWords(fields, signature).trim();
   const readable = own !== '' && own.length <= bounds.textMax;
-  const inBody = field === 'body';
   return (
     <WritingAssist
       lng={lng}
@@ -130,12 +142,8 @@ export function ComposerAssist({
         if (line.key === SUBJECT_LINE) onSubject(answer.text);
         else onBody(answer, use);
       }}
-      startWith={inBody && target.kind === 'reply' && target.propose ? REPLY_LINE : null}
-      onDictated={
-        inBody && bounds.dictates
-          ? words => onBody({ text: words, subject: null, cut: false, usage: null }, 'add')
-          : undefined
-      }
+      startWith={openedOn(field, target)}
+      onDictated={bounds.dictates ? dictated(props) : undefined}
     />
   );
 }

@@ -18,7 +18,7 @@
  * the panel offers and it already says what it does.
  */
 
-import { Scale } from 'lucide-react';
+import { Scale } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

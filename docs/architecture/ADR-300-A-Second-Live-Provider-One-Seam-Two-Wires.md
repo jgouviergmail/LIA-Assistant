@@ -400,3 +400,7 @@ sees the browser's socket refused (1008) — is named as such
 - Technical: `docs/technical/LIVE_MODE.md`
 - Provider reference read on 2026-09-19: `developers.openai.com/api/docs/guides/live-*`,
   `voice-webrtc?api=live`, `voice-websockets?api=live`, `models/gpt-live-1`
+
+## Amendment 2026-11-07 — what LIA writes on an ElevenLabs agent ([ADR-373](ADR-373-The-Personality-Governs-The-Voice.md))
+
+« What the agent sounds like is the portal's » narrows to the voice, the language, the model and the turn-taking. At every session LIA writes, where it drifted: the permission for the frame's prompt and greeting, the vendor's default persona off, the cue palette of an engine that performs tags (described by sound, never as a trigger), an empty greeting, and — ADR-373 § 6 — exactly its own tool set.

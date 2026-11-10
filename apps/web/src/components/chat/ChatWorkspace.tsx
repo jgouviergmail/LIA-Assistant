@@ -22,17 +22,22 @@ import { useChatHistorySearch } from '@/hooks/useChatHistorySearch';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { ResizableDebugPanel } from '@/components/debug/ResizableDebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
-import { WifiOff, Trash2, Search, X } from 'lucide-react';
+import { WifiOff, Trash2, Search, X } from '@/lib/icons';
 import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { logger } from '@/lib/logger';
 import { sentHistoryOf } from '@/lib/sent-history';
-import { chatListActivity, hitlAwaitsUser, visibleChatSurfaces } from '@/lib/chat-surfaces';
+import {
+  chatListActivity,
+  hitlAwaitsUser,
+  surfaceIsBusy,
+  visibleChatSurfaces,
+} from '@/lib/chat-surfaces';
 import { visibleFollowups, visibleMotivation } from '@/components/chat/FollowupChips';
+import { useChatProposal } from '@/hooks/useChatProposal';
 import { ChatConditionalSurfaces } from '@/components/chat/ChatConditionalSurfaces';
 import { useAuthenticatedEyesChatState } from '@/components/eyes/useEyesChatState';
 import { useEyesChatWiring } from '@/components/eyes/useEyesChatWiring';
-import { SelectionActions } from '@/components/chat/SelectionActions';
 import { ResetConversationConfirm } from '@/components/chat/ResetConversationConfirm';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -543,14 +548,23 @@ export function ChatWorkspace({
   // surface is transiently busy (streaming, history view); a chip click
   // PREFILLS the input (never sends). Whether they may take the slot at all is
   // decided by the surface arbiter below, not here.
+  const surfaceBusy = surfaceIsBusy({ isTyping, activeStreamId, historyView });
   const followupSuggestions = useMemo(
-    () => visibleFollowups(messages, isTyping || !!activeStreamId || historyView),
-    [messages, isTyping, activeStreamId, historyView]
+    () => visibleFollowups(messages, surfaceBusy),
+    [messages, surfaceBusy]
   );
   const followupMotivation = useMemo(
-    () => visibleMotivation(messages, isTyping || !!activeStreamId || historyView),
-    [messages, isTyping, activeStreamId, historyView]
+    () => visibleMotivation(messages, surfaceBusy),
+    [messages, surfaceBusy]
   );
+  // ADR-375: the habit proposal the latest answer shows, decided through the
+  // inbox's own door.
+  const { proposal: habitProposal, decisions: proposalDecisions } = useChatProposal(
+    messages,
+    surfaceBusy,
+    lng
+  );
+  const hasHabitProposal = habitProposal !== null;
 
   // S1: single priority rule for everything stacked between the thread and the
   // composer. Measured (S0): a pending HITL card plus chips takes the chrome to
@@ -565,9 +579,16 @@ export function ChatWorkspace({
         hasConnectorNotices: connectorNotices.length > 0,
         // The prompt owns its own trigger; this only offers it the slot.
         wantsGeolocationPrompt: true,
+        hasProposal: hasHabitProposal,
         hasFollowups: followupSuggestions.length > 0,
       }),
-    [isUsageBlocked, hitl.status, connectorNotices.length, followupSuggestions.length]
+    [
+      isUsageBlocked,
+      hitl.status,
+      connectorNotices.length,
+      hasHabitProposal,
+      followupSuggestions.length,
+    ]
   );
   const chipPrefill = cardComposition.prefill;
   const handleFollowupPick = cardComposition.prefillText;
@@ -1006,19 +1027,11 @@ export function ChatWorkspace({
             <RegistryProvider value={registryWithHistory}>
               {/* Headless: celebrates relationship-stage milestones (I7) */}
               <PsycheMilestoneWatcher />
-              {/* C-02: act on a selected passage of an assistant answer —
-                  executes through the same send path as a typed message
-                  (ADR-173), or prefills when the action needs the user's
-                  own words. Renders nothing without a scoped selection. */}
               {/* `grow shrink-0`: takes the leftover height when the thread is
                   short (which keeps the sticky composer at the bottom), and
                   keeps its own content height when it is long (`shrink-0`, or
                   a flex item would compress and clip the messages). */}
               <div className="flex grow shrink-0 flex-col">
-                <SelectionActions
-                  onExecute={sendMessageFromPresent}
-                  onPrefill={handleFollowupPick}
-                />
                 <BookmarkStateProvider
                   enabled={bookmarksReadable(appConfig)}
                   canKeep={bookmarkKeepingAvailable(appConfig)}
@@ -1089,6 +1102,8 @@ export function ChatWorkspace({
                 onHitlAction={submitHitlDecision}
                 connectorNotices={connectorNotices}
                 onDismissConnectorNotice={dismissConnectorNotice}
+                habitProposal={habitProposal}
+                proposalDecisions={proposalDecisions}
               />
 
               {/* No background here: `ChatInput` owns the glass material (its

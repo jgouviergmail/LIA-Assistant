@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Coroutine, Mapping
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from time import perf_counter, time
@@ -14,12 +15,14 @@ from pydantic import JsonValue
 
 from src.core.context import current_tracker
 from src.domains.llm.pricing_service import token_cost_usd
+from src.domains.llm_config.jev_gates import judged_scores
 from src.domains.llm_config.jev_registry import JEV_USAGES, JevUsage
 from src.domains.llm_config.jev_settings import (
     DecisionConfiguration,
     JevSnapshot,
     load_jev_snapshot,
 )
+from src.domains.llm_config.jev_statistics_sink import record_judgements
 from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
 from src.infrastructure.llm.decision_types import DecisionAttempt, DecisionCharge
 from src.infrastructure.llm.inference_params import capture_inference_params
@@ -122,13 +125,14 @@ async def choose_many_with_jev(
         snapshot = await load_jev_snapshot(usage)
     if not snapshot.requested:
         return DecisionAttempt(
-            outcome="disabled" if snapshot.readiness == "ready" else snapshot.readiness
+            outcome="disabled" if snapshot.readiness == "ready" else snapshot.readiness,
+            thresholds=snapshot.thresholds,
         )
     config = snapshot.configuration
     if config is None:
-        return DecisionAttempt(outcome=snapshot.readiness)
+        return DecisionAttempt(outcome=snapshot.readiness, thresholds=snapshot.thresholds)
     await enforce_usage_limit(user_id, layer="jev_decision")
-    return await _execute_decision(
+    attempt = await _execute_decision(
         config=config,
         usage=usage,
         user_id=user_id,
@@ -136,6 +140,10 @@ async def choose_many_with_jev(
         state=state,
         questions=questions,
     )
+    if attempt.outcome == "success":
+        # Every answer a gate judged, whatever the consumer then decides (ADR-374).
+        record_judgements(usage, judged_scores(usage, attempt.answers, attempt.nouls))
+    return replace(attempt, thresholds=snapshot.thresholds)
 
 
 async def _call_native(

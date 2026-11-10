@@ -26,7 +26,7 @@
  * is exactly the hotspot the complexity ratchet refuses.
  */
 
-import { AlertTriangle, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, ShieldQuestion } from '@/lib/icons';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 

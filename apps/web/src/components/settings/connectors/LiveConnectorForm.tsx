@@ -11,7 +11,7 @@
  * listed.
  */
 
-import { AudioLines, KeyRound, Volume2 } from 'lucide-react';
+import { AudioLines, KeyRound, Volume2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { VoicesProvenance } from '@/components/live/VoicesProvenance';

@@ -148,7 +148,7 @@ export function useSkills(adminView = false) {
 
   /**
    * Import a skill via FormData upload.
-   * Uses raw fetch because apiClient forces Content-Type: application/json.
+   * Uses credentialed multipart fetch; the browser supplies the content-type boundary.
    */
   const uploadSkill = useCallback(
     async (file: File, endpoint: string): Promise<Skill | undefined> => {

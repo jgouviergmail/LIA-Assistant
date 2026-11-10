@@ -35,6 +35,7 @@ from src.domains.workbench.rate_limits import (
     rate_limit_write,
 )
 from src.domains.workbench.schemas.acts import ActOutcome
+from src.domains.workbench.schemas.card_queries import MailAttachmentQuery
 from src.domains.workbench.schemas.mail import (
     AttachmentRequest,
     InlineImagesQuery,
@@ -301,10 +302,10 @@ async def get_attachment_preview(
     responses={200: {"content": {"application/octet-stream": {}}}},
 )
 async def get_attachment(
-    request: Annotated[AttachmentRequest, Query()], user: _Account
+    request: Annotated[MailAttachmentQuery, Query()], user: _Account
 ) -> Response:
     """Download one attachment of a message."""
-    content = await mail_attachments.download_attachment(user.id, request)
+    content = await mail_attachments.download_attachment(user.id, request.provider_query())
     return download_response(
         content.data, content.filename or request.filename or "", content.mime_type, "attachment"
     )

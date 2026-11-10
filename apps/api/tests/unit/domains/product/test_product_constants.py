@@ -102,7 +102,7 @@ class TestDeriveResultType:
         persists in the assistant metadata. The two domains must not import
         each other at runtime (coupling ratchet), so the shared string is
         pinned on both sides by this contract test — same doctrine as
-        ``test_habit_ledger_key_contract``. If the router vocabulary changes,
+        ``test_candidates_ledger_contract``. If the router vocabulary changes,
         this test fails and the product derivation must follow.
         """
         from src.domains.agents.constants import INTENTION_ACTION, INTENTION_CONVERSATION

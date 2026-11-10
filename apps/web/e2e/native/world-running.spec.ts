@@ -3,7 +3,6 @@ import { openNativeWorld } from '../fixtures/world-admission';
 import { expect, test } from './fixtures';
 import en from '../../locales/en/translation.json';
 import { MOVEMENT } from '../../src/features/world/movement';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { signIn } from './world-arcade-helpers';
 
@@ -44,7 +43,6 @@ test('a double click runs through authoritative collision-safe movement at a bou
   });
   try {
     await signIn(context, baseURL, 8);
-    await installOfflineFonts(page);
     await openNativeWorld(page, 'Running visitor', worldProofUrl(baseURL, 'en'));
     if (await page.locator('input[name="world-presence-consent"]').isVisible())
       await page.locator('input[name="world-presence-consent"]').check();

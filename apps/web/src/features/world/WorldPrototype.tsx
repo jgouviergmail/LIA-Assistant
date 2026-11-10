@@ -12,7 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { CircleHelp, TriangleAlert, MousePointer2 } from 'lucide-react';
+import { CircleHelp, TriangleAlert, MousePointer2 } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { useMediaQuery } from '@/hooks/useMediaQuery';

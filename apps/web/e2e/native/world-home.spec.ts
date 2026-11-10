@@ -2,7 +2,6 @@ import { openNativeWorld, revealWorldControls, enterWorld } from '../fixtures/wo
 /** Native cookie/SQL home save, conflict and private input; no business/provider doubles. */
 import { test, expect, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { worldProofUrl } from './world-route';
@@ -104,7 +103,6 @@ test('private home: real save, cancel, conflict/reload, phone accessibility and 
     expect(reset.status()).toBe(200);
 
     const page = await owner.newPage();
-    await installOfflineFonts(page);
     page.on('pageerror', error => errors.push(error.name));
     await openNativeWorld(page, 'Home visitor', worldProofUrl(baseURL, identity.lng));
     await enterWorld(page);

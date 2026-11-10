@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Waves } from 'lucide-react';
+import { Waves } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import { TONE_TEXT } from '../../utils/tones';

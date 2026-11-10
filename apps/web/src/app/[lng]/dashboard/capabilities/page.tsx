@@ -8,7 +8,7 @@
  * map stays testable without a router.
  */
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { CapabilityMapView } from '@/components/capabilities/CapabilityMapView';

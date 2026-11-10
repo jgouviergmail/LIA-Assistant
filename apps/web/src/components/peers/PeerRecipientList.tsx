@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users } from '@/lib/icons';
 import { connectionsSettingsPath } from '@/lib/peers/recipients';
 
 interface RecipientListProps {

@@ -32,6 +32,7 @@ const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
 
 import { useThemeMode } from '../useThemeMode';
+import { ThemeModeProvider } from '@/lib/theme-preferences';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -54,7 +55,7 @@ describe('useThemeMode — restoring the stored preference', () => {
           })
       )
       .mockResolvedValue(undefined);
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     let first: Promise<void> | undefined;
     act(() => {
       first = result.current.apply({ mode: 'dark', oled: false });
@@ -66,11 +67,15 @@ describe('useThemeMode — restoring the stored preference', () => {
       reject?.(new Error('offline'));
       await first;
     });
-    expect(mutate).toHaveBeenLastCalledWith('/users/u1', { theme: 'light' });
+    expect(mutate).toHaveBeenLastCalledWith(
+      '/users/u1',
+      { theme: 'light' },
+      { signal: expect.any(AbortSignal) }
+    );
   });
   it('applies the new account system mode instead of carrying another account local choice', () => {
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'system' }, refreshUser: vi.fn() });
-    const { rerender } = renderHook(() => useThemeMode());
+    const { rerender } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     setTheme.mockClear();
     useAuth.mockReturnValue({ user: { id: 'u2', theme: 'system' }, refreshUser: vi.fn() });
     rerender();
@@ -84,7 +89,7 @@ describe('useThemeMode — restoring the stored preference', () => {
     themeState.resolvedTheme = 'dark';
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'dark' }, refreshUser: vi.fn() });
 
-    renderHook(() => useThemeMode());
+    renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await waitFor(() => expect(setTheme).toHaveBeenCalledWith('dark'));
   });
@@ -94,7 +99,7 @@ describe('useThemeMode — restoring the stored preference', () => {
     themeState.resolvedTheme = 'light';
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'light' }, refreshUser: vi.fn() });
 
-    renderHook(() => useThemeMode());
+    renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await waitFor(() => expect(setTheme).toHaveBeenCalledWith('light'));
   });
@@ -104,7 +109,7 @@ describe('useThemeMode — restoring the stored preference', () => {
     themeState.resolvedTheme = 'dark';
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'dark' }, refreshUser: vi.fn() });
 
-    renderHook(() => useThemeMode());
+    renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await waitFor(() => expect(setTheme).not.toHaveBeenCalled());
   });
@@ -114,7 +119,7 @@ describe('useThemeMode — restoring the stored preference', () => {
     themeState.resolvedTheme = 'light';
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'oled' }, refreshUser: vi.fn() });
 
-    renderHook(() => useThemeMode());
+    renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await waitFor(() => {
       expect(setTheme).toHaveBeenCalledWith('dark');
@@ -125,7 +130,7 @@ describe('useThemeMode — restoring the stored preference', () => {
 
   it('leaves system alone — it is the column default, not a value to override', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'system' }, refreshUser: vi.fn() });
-    renderHook(() => useThemeMode());
+    renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     await waitFor(() => expect(setTheme).not.toHaveBeenCalled());
   });
 });
@@ -137,7 +142,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
       release = resolve;
     });
     mutate.mockImplementationOnce(() => held);
-    const { result, rerender } = renderHook(() => useThemeMode());
+    const { result, rerender } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     let firstSave: Promise<void> | undefined;
     act(() => {
       firstSave = result.current.apply({ mode: 'dark', oled: false });
@@ -152,14 +157,14 @@ describe('useThemeMode — persistence under rapid changes', () => {
       await firstSave;
     });
     expect(mutate.mock.calls).toEqual([
-      ['/users/u1', { theme: 'dark' }],
-      ['/users/u2', { theme: 'light' }],
+      ['/users/u1', { theme: 'dark' }, { signal: expect.any(AbortSignal) }],
+      ['/users/u2', { theme: 'light' }, { signal: expect.any(AbortSignal) }],
     ]);
   });
 
   it('applies a confirmed change back to system without overriding the initial column default', () => {
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'dark' }, refreshUser: vi.fn() });
-    const { rerender } = renderHook(() => useThemeMode());
+    const { rerender } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     setTheme.mockClear();
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'system' }, refreshUser: vi.fn() });
     rerender();
@@ -176,7 +181,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
         })
     );
 
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await act(async () => {
       void result.current.apply({ mode: 'dark', oled: false });
@@ -199,7 +204,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
   });
 
   it('collapses a burst rather than firing one request per press', async () => {
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
 
     await act(async () => {
       await Promise.all([
@@ -216,7 +221,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
 
   it('does not persist at all without a signed-in user', async () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     await act(async () => {
       await result.current.apply({ mode: 'dark', oled: false });
     });
@@ -230,7 +235,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
     // must not cost the user the theme they can already see applied. The
     // failure is logged by the mutation hook, not swallowed silently.
     mutate.mockRejectedValue(new Error('offline'));
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     await act(async () => {
       await expect(result.current.apply({ mode: 'dark', oled: true })).resolves.toBeUndefined();
     });
@@ -241,7 +246,7 @@ describe('useThemeMode — persistence under rapid changes', () => {
   it('recovers for the next press after a failed write', async () => {
     // The drain loop must not stay latched as "writing" after an error.
     mutate.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined);
-    const { result } = renderHook(() => useThemeMode());
+    const { result } = renderHook(() => useThemeMode(), { wrapper: ThemeModeProvider });
     await act(async () => {
       await result.current.apply({ mode: 'dark', oled: false });
     });
@@ -249,15 +254,22 @@ describe('useThemeMode — persistence under rapid changes', () => {
     await act(async () => {
       await result.current.apply({ mode: 'light', oled: false });
     });
-    expect(mutate).toHaveBeenCalledWith('/users/u1', { theme: 'light' });
+    expect(mutate).toHaveBeenCalledWith(
+      '/users/u1',
+      { theme: 'light' },
+      { signal: expect.any(AbortSignal) }
+    );
   });
 });
 
 it('keeps the header and embedded world controls on the same OLED state', async () => {
-  const { result } = renderHook(() => ({
-    header: useThemeMode(),
-    world: useThemeMode(),
-  }));
+  const { result } = renderHook(
+    () => ({
+      header: useThemeMode(),
+      world: useThemeMode(),
+    }),
+    { wrapper: ThemeModeProvider }
+  );
   await act(async () => result.current.world.apply({ mode: 'dark', oled: true }));
   expect(result.current.world.oled).toBe(true);
   expect(result.current.header.oled).toBe(true);

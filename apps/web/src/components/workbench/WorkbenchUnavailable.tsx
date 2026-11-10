@@ -10,7 +10,7 @@
  * offer, a retry for a rail that could not be read. A page-level empty state
  * always offers an action (`EmptyState variant="page"`).
  */
-import { PlugZap, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { PlugZap, TriangleAlert, Wrench, type LucideIcon } from '@/lib/icons';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { useTranslation } from '@/i18n/client';

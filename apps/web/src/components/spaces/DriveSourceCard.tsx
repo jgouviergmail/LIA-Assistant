@@ -15,7 +15,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { FolderSync } from 'lucide-react';
+import { FolderSync } from '@/lib/icons';
 
 import { SourceSyncCard } from '@/components/spaces/SourceSyncCard';
 import { driveName } from '@/lib/drives';

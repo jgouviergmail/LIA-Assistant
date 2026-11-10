@@ -48,8 +48,9 @@ from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.core.time_utils import now_utc
 from src.domains.chat.models import MessageTokenSummary, TokenUsageLog
 from src.domains.conversations.models import ConversationMessage
+from src.domains.shared.display_query import DisplayQuery
 from src.domains.shared.text_normalization import fold_name
-from src.domains.workboard import detail_queries
+from src.domains.workboard import detail_queries, summary_queries
 from src.domains.workboard.board_queries import (
     BoardFilters,
     apply_assignee,
@@ -421,7 +422,13 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
         return list(found)
 
     async def needs_me(
-        self, user_id: UUID, now: datetime, *, limit: int = 20, offset: int = 0
+        self,
+        user_id: UUID,
+        now: datetime,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        criteria: DisplayQuery | None = None,
     ) -> tuple[list[WorkboardTicket], int]:
         """Tickets waiting on this account, plus the late ones on its board.
 
@@ -430,19 +437,14 @@ class WorkboardRepository(BaseRepository[WorkboardTicket]):
             now: The instant lateness is judged against.
             limit: Page size.
             offset: Page offset.
+            criteria: Optional hub search, ordering and creation cut.
 
         Returns:
             The page and the EXACT total behind it.
         """
-        ids = needs_me_stmt(user_id, now).subquery()
-        stmt = (
-            select(WorkboardTicket)
-            .where(WorkboardTicket.id.in_(select(ids.c.id)))
-            .order_by(WorkboardTicket.due_at.asc().nulls_last(), WorkboardTicket.id.asc())
+        return await summary_queries.read_needs_me(
+            self.db, user_id, now, limit=limit, offset=offset, criteria=criteria
         )
-        rows = (await self.db.execute(stmt.limit(limit).offset(offset))).scalars().all()
-        total = int((await self.db.execute(select(func.count()).select_from(ids))).scalar() or 0)
-        return list(rows), total
 
     async def count_needs_me(self, user_id: UUID, now: datetime) -> int:
         """How many tickets wait on this account — the aggregate alone.

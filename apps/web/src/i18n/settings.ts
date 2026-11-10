@@ -37,6 +37,18 @@ export const languageNames: Record<Language, { native: string; english: string }
   zh: { native: '简体中文', english: 'Chinese (Simplified)' },
 };
 
+/** Read a supported browser preference without inferring it from the current URL. */
+export function getLocaleCookie(): Language | null {
+  if (typeof document === 'undefined') return null;
+  const prefix = `${cookieName}=`;
+  const value = document.cookie
+    .split(';')
+    .map(cookie => cookie.trim())
+    .find(cookie => cookie.startsWith(prefix))
+    ?.slice(prefix.length);
+  return value && isLanguage(value) ? value : null;
+}
+
 /**
  * Set the locale cookie for i18n routing
  * Used by LanguageSelector and LanguageSettings to persist user's language choice

@@ -8,7 +8,7 @@
  * downloads stay right below. A reading that failed says so and can be tried again. Another file
  * opened drops the read under way.
  */
-import { Maximize2 } from 'lucide-react';
+import { Maximize2 } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';

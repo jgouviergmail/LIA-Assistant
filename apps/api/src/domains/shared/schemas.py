@@ -37,6 +37,10 @@ from src.core.constants import (
     USER_FONT_SIZE_DEFAULT_PX,
     USER_FONT_SIZE_MAX_PX,
     USER_FONT_SIZE_MIN_PX,
+    USER_ICON_STYLE_DEFAULT,
+    USER_THEME_DARK_START_MINUTE,
+    USER_THEME_LIGHT_START_MINUTE,
+    IconStyle,
 )
 from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.core.security import validate_password_strict
@@ -56,7 +60,7 @@ from src.domains.shared.settings_shortcuts import sanitize_settings_shortcuts
 # is a silent failure: the UI applies the change locally and the PATCH answers
 # 422, so it looks correct until the next page load. Guarded by
 # tests/unit/domains/users/test_theme_preference_contract.py.
-VALID_THEMES = ("light", "dark", "system", "oled")
+VALID_THEMES = ("light", "dark", "system", "oled", "auto")
 VALID_COLOR_THEMES = ("default", "ocean", "forest", "sunset", "slate")
 VALID_FONT_FAMILIES = (
     "system",  # Default (Inter)
@@ -347,9 +351,23 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
             "celebrated_at} ISO-UTC — item states are detected live."
         ),
     )
-    theme: str = Field(default="system", description="User display mode: light, dark, or system")
+    theme: str = Field(
+        default="system", description="Display mode: light, dark, system, oled, auto"
+    )
+    theme_light_start_minute: int = Field(
+        default=USER_THEME_LIGHT_START_MINUTE,
+        description="Start of light mode, minutes from midnight in the account timezone",
+    )
+    theme_dark_start_minute: int = Field(
+        default=USER_THEME_DARK_START_MINUTE,
+        description="Start of absolute black mode, minutes from midnight in the account timezone",
+    )
     color_theme: str = Field(
         default="default", description="User color theme: default, ocean, forest, sunset, slate"
+    )
+    icon_style: IconStyle = Field(
+        default=USER_ICON_STYLE_DEFAULT,
+        description="Interface icon style: lucide, fluent, flex",
     )
     font_family: str = Field(
         default="system",
@@ -498,6 +516,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         """Ensure color_theme defaults to 'default' if None."""
         return v if v is not None else "default"
 
+    @field_validator("icon_style", mode="before")
+    @classmethod
+    def set_icon_style_default(cls, value: str | None) -> str:
+        """Read a missing preference as the rollout default."""
+        return value if value is not None else USER_ICON_STYLE_DEFAULT
+
     @field_validator("font_family", mode="before")
     @classmethod
     def set_font_family_default(cls, v: str | None) -> str:
@@ -509,6 +533,18 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_font_size_default(cls, v: int | None) -> int:
         """Ensure font_size defaults to the default size if None."""
         return v if v is not None else USER_FONT_SIZE_DEFAULT_PX
+
+    @field_validator("theme_light_start_minute", mode="before")
+    @classmethod
+    def set_theme_light_default(cls, value: int | None) -> int:
+        """Unpersisted model instances read the same default as the database."""
+        return value if value is not None else USER_THEME_LIGHT_START_MINUTE
+
+    @field_validator("theme_dark_start_minute", mode="before")
+    @classmethod
+    def set_theme_dark_default(cls, value: int | None) -> int:
+        """Unpersisted model instances read the same default as the database."""
+        return value if value is not None else USER_THEME_DARK_START_MINUTE
 
 
 class ProvenanceItem(BaseModel):

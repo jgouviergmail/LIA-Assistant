@@ -26,7 +26,7 @@ from typing import Annotated, Any
 import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, ROUTES_INVALID_DESTINATION_VALUES
@@ -114,6 +114,12 @@ class RouteItem(BaseModel):
     toll_info: dict[str, Any] | None = None
     eta: str | None = None
     eta_formatted: str | None = None
+    departure_time: str | None = Field(
+        default=None, description="Route departure instant with its explicit display-zone offset."
+    )
+    departure_formatted: str | None = Field(
+        default=None, description="Localized departure clock and date context."
+    )
     # Arrival-based route fields (for calendar event routing)
     is_arrival_based: bool = False
     target_arrival_time: str | None = None

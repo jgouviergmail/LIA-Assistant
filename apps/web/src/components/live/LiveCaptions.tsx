@@ -22,7 +22,10 @@ export interface LiveCaptionsProps {
 
 export function LiveCaptions({ captions, expanded }: LiveCaptionsProps) {
   const { t } = useTranslation();
-  const shown = expanded ? captions.slice(-EXPANDED_LINES) : captions.slice(-1);
+  // A line that shows nothing — a voice's cue alone, its tag removed (ADR-373) —
+  // is no line: the last one that said something stays in view.
+  const said = captions.filter(caption => caption.text);
+  const shown = expanded ? said.slice(-EXPANDED_LINES) : said.slice(-1);
   if (shown.length === 0) return null;
   return (
     <ol className={cn('m-0 flex list-none flex-col gap-0.5 p-0 text-xs', !expanded && 'truncate')}>

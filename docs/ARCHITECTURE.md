@@ -27,6 +27,13 @@ ajouter de clé d'état LangGraph pour une simple annotation ou un widget.
 
 ## Attendre moins, et le dire
 
+Les sélections de texte partagent un fournisseur d'interface unique, monté sous
+l'authentification. Les réponses locales et les propositions de formulaires passent
+par [la porte des aides IA](technical/TOOL_ASSISTS.md), hors graphe, avec les mêmes
+plafonds de dépense et registres. L'identité du compte et la navigation bornent
+leur état temporaire. Les [préférences d'affichage](technical/DISPLAY_PREFERENCES.md)
+conservent l'intention automatique séparée du thème effectivement rendu.
+
 Le catalogue d'un serveur MCP personnel est un instantané rangé sur la ligne du
 compte : chaque worker le sert, même juste après un redémarrage, pendant qu'un
 seul le revalide en arrière-plan sous une revendication à jeton propriétaire.

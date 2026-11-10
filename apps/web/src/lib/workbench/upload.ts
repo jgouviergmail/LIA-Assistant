@@ -6,6 +6,7 @@
  * stopping aborts what is on its way, and what became of it is the provider's to know.
  */
 import { ApiError, apiEndpointUrl } from '@/lib/api-client';
+import { cardSourceHeaders } from './card-source';
 
 /** Past it the wait is over: the server's own bound on the bytes, and a margin. */
 const SEND_TIMEOUT_MS = 180_000;
@@ -67,6 +68,9 @@ export function sendFile<T>(
     };
     signal.addEventListener('abort', stop);
     request.open('POST', apiEndpointUrl(path));
+    for (const [name, value] of Object.entries(cardSourceHeaders(path))) {
+      request.setRequestHeader(name, value);
+    }
     request.withCredentials = true;
     request.timeout = SEND_TIMEOUT_MS;
     request.send(form);

@@ -18,12 +18,8 @@
  * 2. it runs in the browser on a route when a chain of runtime imports from
  *    that route's file to it passes through a `'use client'` module (a server
  *    component resolving the key itself sends the browser a string, not a key);
- * 3. that route's file must render `<ScopedTranslations scopes={...}>` naming
- *    the subtree.
- *
- * Measured when written (2026-10-28): the public FAQ and the dashboard FAQ are
- * the only two routes it requires to scope anything, and `blog` has no client
- * reader at all.
+ * 3. the route or an ancestor layout must render `<ScopedTranslations>` naming
+ *    the subtree. Named scope groups resolve to their actual imported values.
  *
  * Its blind spot, stated: a server component handing a client component a
  * scoped KEY as a string prop (`labelKey="blog.…"`) holds the literal on the
@@ -36,7 +32,11 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { isCommentLine, readSources } from '@/__tests__/source-scan';
-import { ROUTE_SCOPED_TRANSLATIONS } from '../scoped-translations';
+import {
+  DASHBOARD_TRANSLATION_SCOPES,
+  MORE_TRANSLATION_SCOPES,
+  ROUTE_SCOPED_TRANSLATIONS,
+} from '../scoped-translations';
 
 /** Every module of `src/`, tests aside — read at collection (`source-scan.ts`). */
 const MODULES = readSources(
@@ -145,9 +145,27 @@ function browserRoutes(start: string): Set<string> {
 function scopedBy(text: string): Set<string> {
   const scoped = new Set<string>();
   for (const match of text.matchAll(/<ScopedTranslations\b[\s\S]*?scopes=\{([\s\S]*?)\}\s*>/g)) {
+    const groups: Readonly<Record<string, readonly string[]>> = {
+      DASHBOARD_TRANSLATION_SCOPES,
+      MORE_TRANSLATION_SCOPES,
+    };
+    for (const subtree of groups[match[1].trim()] ?? []) scoped.add(subtree);
     for (const subtree of ROUTE_SCOPED_TRANSLATIONS) {
       if (match[1].includes(`'${subtree}'`)) scoped.add(subtree);
     }
+  }
+  return scoped;
+}
+
+/** A layout provides to descendants, never to a parent or a sibling route. */
+function scopesForRoute(route: string, sources: ReadonlyMap<string, string> = TEXT): Set<string> {
+  const scoped = scopedBy(sources.get(route) ?? '');
+  let directory = path.posix.dirname(route);
+  while (directory.startsWith('app/')) {
+    for (const subtree of scopedBy(sources.get(`${directory}/layout.tsx`) ?? '')) {
+      scoped.add(subtree);
+    }
+    directory = path.posix.dirname(directory);
   }
   return scoped;
 }
@@ -169,13 +187,44 @@ describe('route-scoped translations reach every browser reader', () => {
     for (const [relative, text] of TEXT) {
       if (relative === DECLARATION || !readsSubtree(text, subtree)) continue;
       for (const route of browserRoutes(relative)) {
-        if (!scopedBy(TEXT.get(route) ?? '').has(subtree)) unscoped.push(`${route} ← ${relative}`);
+        if (!scopesForRoute(route).has(subtree)) unscoped.push(`${route} ← ${relative}`);
       }
     }
     expect(
       unscoped,
       `wrap the reader in <ScopedTranslations scopes={['${subtree}']}> on these routes`
     ).toEqual([]);
+  });
+
+  it('inherits only ancestor layouts and rejects a missing or sibling scope', () => {
+    const sources = new Map([
+      [
+        'app/[lng]/dashboard/layout.tsx',
+        '<ScopedTranslations scopes={DASHBOARD_TRANSLATION_SCOPES}>',
+      ],
+      ['app/[lng]/dashboard/faq/page.tsx', "<ScopedTranslations scopes={['faq.sections']}>"],
+    ]);
+    expect(scopesForRoute('app/[lng]/dashboard/faq/page.tsx', sources)).toEqual(
+      new Set([...DASHBOARD_TRANSLATION_SCOPES, 'faq.sections'])
+    );
+    expect(scopesForRoute('app/[lng]/dashboard/chat/page.tsx', sources).has('faq.sections')).toBe(
+      false
+    );
+    expect(scopesForRoute('app/[lng]/page.tsx', sources).has('settings.admin')).toBe(false);
+    expect(scopesForRoute('app/[lng]/more/page.tsx', sources).has('settings.admin')).toBe(false);
+    sources.delete('app/[lng]/dashboard/layout.tsx');
+    expect(scopesForRoute('app/[lng]/dashboard/faq/page.tsx', sources).has('settings.admin')).toBe(
+      false
+    );
+  });
+
+  it('resolves a scope group only as the actual scopes expression', () => {
+    expect(scopedBy('<ScopedTranslations scopes={MORE_TRANSLATION_SCOPES}>')).toEqual(
+      new Set(MORE_TRANSLATION_SCOPES)
+    );
+    expect(scopedBy('<ScopedTranslations scopes={NOT_MORE_TRANSLATION_SCOPES}>')).toEqual(
+      new Set()
+    );
   });
 
   it('has the root layout leave the route-scoped subtrees out', () => {

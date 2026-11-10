@@ -41,6 +41,8 @@ export interface Tape {
    * raise means "a bit higher than wherever this eye currently sits" — an
    * absolute target would yank a squashed joy eye up to a neutral height. */
   readonly relative?: boolean;
+  /** Authored trajectories can move between keys; omitted keeps the native step grammar. */
+  readonly interpolation?: 'linear' | 'smooth';
   /** A RELEASE: the tape a scene appends to hand a channel home on the
    * scene's own spring once its hold ends (`choreo.withRelease`). Not a
    * beat — a test that bounds how long a beat holds skips it. */
@@ -57,9 +59,9 @@ export function tapeDurationMs(tape: Tape): number {
  * The target this tape dictates at `elapsedMs`, or `null` once it is over
  * (the pose takes the channel back).
  *
- * Keys are STEPS, not interpolations: the spring between two keys is what
- * makes the motion, which is why a two-key tape produces a real anticipation
- * arc rather than a linear ramp.
+ * Ordinary keys are steps, preserving the native anticipation and blink grammar.
+ * An explicit trajectory moves its TARGET between keys; the same spring still
+ * owns position and velocity, including interruptions and long frames.
  */
 export function tapeTargetAt(tape: Tape, elapsedMs: number): number | null {
   if (elapsedMs < 0 || elapsedMs > tapeDurationMs(tape) || tape.keys.length === 0) return null;
@@ -67,12 +69,17 @@ export function tapeTargetAt(tape: Tape, elapsedMs: number): number | null {
   // channel yet. That is how the right eye trails the left one by 70-90 ms
   // without a second mechanism.
   if (elapsedMs < tape.keys[0].atMs) return null;
-  let value = tape.keys[0].value;
+  let previous = tape.keys[0];
   for (const key of tape.keys) {
-    if (key.atMs > elapsedMs) break;
-    value = key.value;
+    if (key.atMs > elapsedMs) {
+      if (!tape.interpolation) return previous.value;
+      const phase = (elapsedMs - previous.atMs) / (key.atMs - previous.atMs);
+      const blend = tape.interpolation === 'smooth' ? phase * phase * (3 - 2 * phase) : phase;
+      return previous.value + (key.value - previous.value) * blend;
+    }
+    previous = key;
   }
-  return value;
+  return previous.value;
 }
 
 /**

@@ -7,7 +7,7 @@
  * transcript.
  */
 
-import { GitBranch } from 'lucide-react';
+import { GitBranch } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';

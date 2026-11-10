@@ -231,7 +231,8 @@ class TestFetchers:
             )
         ]
         repo = MagicMock()
-        repo.open_loops_since = AsyncMock(return_value=(loops, 4, 2))
+        repo.open_loops_created_since = AsyncMock(return_value=(loops, 4))
+        repo.open_loops_closed_since = AsyncMock(return_value=(loops, 2))
 
         with (
             patch("src.domains.activity.fetchers.get_db_context", new=_db_ctx()),

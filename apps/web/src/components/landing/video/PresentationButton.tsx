@@ -2,7 +2,7 @@
 
 /** Explicit entry to the complete film; the heavy modal loads only on request. */
 import dynamic from 'next/dynamic';
-import { Clapperboard } from 'lucide-react';
+import { Clapperboard } from '@/lib/icons';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';

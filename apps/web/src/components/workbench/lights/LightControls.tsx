@@ -10,8 +10,8 @@
  * when the bridge refuses it. A lamp the bridge cannot reach says so and offers
  * nothing: a bridge accepts what it cannot deliver, so the gesture would read as done.
  */
-import { Lightbulb, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { Lightbulb, TriangleAlert } from '@/lib/icons';
+import { useEffect, useRef, useState } from 'react';
 
 import { Switch } from '@/components/ui/switch';
 import type { LightChangeBody } from '@/hooks/useWorkbenchLights';
@@ -29,15 +29,21 @@ export interface LightControlsProps {
   light: WorkbenchLight;
   /** Send a change; resolves once sent and re-read, rejects (already said) when refused. */
   onChange: (change: LightChangeBody) => Promise<void>;
+  /** A source card selected this actual lamp; focusing it sends no command. */
+  targeted?: boolean;
 }
 
-export function LightControls({ lng, light, onChange }: LightControlsProps) {
+export function LightControls({ lng, light, onChange, targeted = false }: LightControlsProps) {
   const { t } = useTranslation(lng);
   const [onDraft, setOnDraft] = useState<boolean | null>(null);
   const [colourDraft, setColourDraft] = useState<string | null>(null);
   const on = onDraft ?? light.on;
   const colour = colourDraft ?? light.color_hex;
   const reachable = light.reachable !== false;
+  const card = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (targeted) card.current?.focus();
+  }, [targeted, light.id]);
 
   const send = (change: LightChangeBody, draft: () => void, settle: () => void) => {
     draft();
@@ -48,10 +54,16 @@ export function LightControls({ lng, light, onChange }: LightControlsProps) {
 
   return (
     <div
+      ref={card}
       role="group"
       aria-label={light.name}
+      aria-current={targeted ? 'true' : undefined}
+      tabIndex={targeted ? -1 : undefined}
       data-lit={on && reachable}
-      className={cn(UNLIT_CARD, 'space-y-4 rounded-lg border bg-card p-4')}
+      className={cn(
+        UNLIT_CARD,
+        'space-y-4 rounded-lg border bg-card p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+      )}
     >
       <div className="flex items-center gap-3">
         <Lightbulb

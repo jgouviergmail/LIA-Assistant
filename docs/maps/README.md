@@ -87,7 +87,8 @@ python scripts/audit/doc_maps.py --restamp history/entries/263 functional/bricks
 
 `task docs:maps` also re-vendors the documents' icons when the data names a new
 one (`--refresh-icons`, which reads `apps/web/node_modules`); the site draws the
-same Lucide icons through `components/maps/map-icons.tsx`, whose test fails on
+same icon concepts through the account-style facade in
+`components/maps/map-icons.tsx`, whose test fails on
 an icon it does not know. `release:bump` and `release:sync-counts` run
 `task docs:maps` themselves, because a release moves the version stamp and the
 release milestones.

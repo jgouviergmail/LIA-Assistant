@@ -561,6 +561,52 @@ def _install_portrait_sources() -> None:
         raise StartupCompletenessError(str(exc)) from exc
 
 
+def _install_habit_usage_ports() -> None:
+    """Wire what habits reads from, and does through, other domains — and prove it (ADR-375).
+
+    Two registries other domains fill, because they import habits and habits
+    importing them back would close a cycle:
+
+    - the USAGE PORTS — what routine runs read (``agents``) and what proactive
+      notifications met (``heartbeat``);
+    - the PROPOSAL HANDLERS — habits owns four, ``heartbeat`` the two that change
+      its own preferences.
+
+    The step IMPORTS and INSTALLS every owner explicitly (an already-imported
+    module wires nothing, ADR-270), then refuses to boot when a port or a
+    handler is missing, or when a registered domain has no proposal decision
+    in ``habits.need_domains``.
+
+    Raises:
+        StartupCompletenessError: On a missing port, a kind nobody carries out
+            or an undecided domain.
+    """
+    from src.domains.agents.effects import routine_reads
+    from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+    from src.domains.habits import proposal_handlers
+    from src.domains.habits.need_domains import assert_need_domains_complete
+    from src.domains.habits.proposal_actions import assert_proposal_actions_complete
+    from src.domains.habits.usage_ports import (
+        assert_usage_ports_installed,
+        install_proactive_feedback_reader,
+        install_routine_reads_reader,
+    )
+    from src.domains.heartbeat import feedback_summary
+    from src.domains.heartbeat import proposal_handlers as heartbeat_proposal_handlers
+
+    install_routine_reads_reader(routine_reads.read_routine_run_domains)
+    install_proactive_feedback_reader(feedback_summary.read_proactive_feedback)
+    proposal_handlers.install()
+    heartbeat_proposal_handlers.install()
+    try:
+        assert_usage_ports_installed()
+        assert_proposal_actions_complete()
+        assert_need_domains_complete(DOMAIN_REGISTRY)
+    except AssertionError as exc:
+        logger.error("habit_usage_ports_incomplete", error=str(exc), exc_info=True)
+        raise StartupCompletenessError(str(exc)) from exc
+
+
 def _validate_diagnostics_registries() -> None:
     """Boot gates of the diagnostics subsystem (ADR-085 pattern).
 
@@ -888,6 +934,7 @@ def run_failfast_validations() -> None:
     _install_proactive_notifier()
     _install_ticket_releaser()
     _install_portrait_sources()
+    _install_habit_usage_ports()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

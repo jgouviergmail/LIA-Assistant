@@ -1,6 +1,6 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
 import { useApplicationAccountQuery } from '@/hooks/useApplicationAccountQuery';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';

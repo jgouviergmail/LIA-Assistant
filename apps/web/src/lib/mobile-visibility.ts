@@ -104,7 +104,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
   {
     id: 'header-logout',
-    location: 'app/[lng]/dashboard/layout',
+    location: 'app/[lng]/dashboard/DashboardLayoutClient',
     kind: 'action',
     tier: 'blocking',
     minWidth: null,
@@ -177,21 +177,14 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   // touch. A surface visible everywhere is not a conditional surface.
   {
     id: 'header-token-toggle',
-    location: 'app/[lng]/dashboard/layout',
+    location: 'app/[lng]/dashboard/DashboardLayoutClient',
     kind: 'observation',
     tier: 'desktop-only',
-    minWidth: 1280,
+    minWidth: 1536,
     substitute: 'The context pill exposes the same totals in its tooltip.',
-    reason: 'Token counters only earn their width once the row has room for the labels.',
-  },
-  {
-    id: 'header-nav-icons',
-    location: 'app/[lng]/dashboard/layout',
-    kind: 'decoration',
-    tier: 'desktop-only',
-    minWidth: 1280,
-    substitute: null,
-    reason: 'The nav label carries both the meaning and the accessible name; the icon is scenery.',
+    reason:
+      'Token counters wait until 2xl: below 1536 px they compete with the destination ' +
+      'and action controls for the same header row.',
   },
   {
     id: 'chat-debug-panel',
@@ -209,7 +202,7 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
   },
   {
     id: 'meeting-recorder-control',
-    location: 'app/[lng]/dashboard/layout',
+    location: 'app/[lng]/dashboard/DashboardLayoutClient',
     kind: 'action',
     tier: 'substituted',
     minWidth: 1024,
@@ -220,9 +213,11 @@ export const MOBILE_SURFACES: readonly MobileSurface[] = [
       'ADR-259: a seventh 44 px control overflows the phone header by ~26 px at 390 px ' +
       '(measured), so below lg the command moves into the menu the logo already opens.',
   },
+  // The destination glyphs are the links themselves, not separate decoration;
+  // their visibility is declared once, with the navigation they constitute.
   {
     id: 'dashboard-nav',
-    location: 'app/[lng]/dashboard/layout',
+    location: 'app/[lng]/dashboard/DashboardLayoutClient',
     kind: 'action',
     tier: 'substituted',
     minWidth: 1024,

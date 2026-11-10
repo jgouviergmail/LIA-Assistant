@@ -8,7 +8,7 @@ historical import path keeps working.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.domains.agents.orchestration.plan_schemas import ParameterItem
 
@@ -30,6 +30,26 @@ class InitiativeAction(BaseModel):
     )
     rationale: str = Field(description="Why this adds concrete value (one sentence)")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _tool_named_in_name(cls, data: object) -> object:
+        """Read ``name`` as ``tool_name`` when the action names its tool nowhere else.
+
+        Measured 2026-11-08: the evaluator sometimes keys an action's tool with the
+        parameters' own field name, and the strict schema then discarded the whole
+        decision. An action can only name its tool, so the slip is mechanically
+        repaired before validation; an action carrying both keys stays an error.
+
+        Args:
+            data: The raw action as the model wrote it.
+
+        Returns:
+            The action with its tool under ``tool_name``, otherwise unchanged.
+        """
+        if isinstance(data, dict) and "name" in data and "tool_name" not in data:
+            return {"tool_name": data["name"], **{k: v for k, v in data.items() if k != "name"}}
+        return data
+
 
 class InitiativeDecision(BaseModel):
     """LLM decision for the initiative phase."""
@@ -37,7 +57,9 @@ class InitiativeDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     analysis: str = Field(description="Actionable signals found (one sentence)")
-    should_act: bool = Field(description="True only if high-value cross-domain action found")
+    should_act: bool = Field(
+        description="True when a read-only cross-domain check would plausibly enrich the answer"
+    )
     reasoning: str = Field(description="Why acting or not (one sentence)")
     actions: list[InitiativeAction] = Field(
         default_factory=list,

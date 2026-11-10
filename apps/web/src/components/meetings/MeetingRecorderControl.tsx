@@ -14,7 +14,7 @@
  * Neither renders where the recorder is not offered (no provider, no support).
  */
 
-import { Disc } from 'lucide-react';
+import { Disc } from '@/lib/icons';
 
 import type { MobileNavAction } from '@/components/dashboard/MobileNavMenu';
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';

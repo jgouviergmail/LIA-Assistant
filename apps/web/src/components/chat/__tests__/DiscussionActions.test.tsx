@@ -1,5 +1,8 @@
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 const mutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }));
@@ -50,6 +53,7 @@ describe('personal discussion feedback', () => {
     fireEvent.click(button);
     await screen.findByRole('alert');
     expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(button).not.toHaveClass('border-primary', 'bg-primary/10');
   });
 });
 
@@ -79,28 +83,45 @@ it('reply only prefills an explicit quote and never sends or writes feedback', (
   expect(mutate).not.toHaveBeenCalled();
 });
 
-it('wears the bubble row chips, a shade deeper, and keeps focus after an answer', async () => {
-  mutate.mockResolvedValueOnce({
-    id,
-    message_id: id,
-    created_at: '2026-10-20T12:00:00Z',
-    content: 'Fiction',
-    state: 'engaged',
-    feedback: 'useful',
-  });
-  render(<DiscussionActions metadata={promised} />, { wrapper: TooltipProvider });
-  const useful = screen.getByRole('button', { name: 'discussions.feedback.useful' });
-  // The same box as Copy or Keep, told apart by its ground alone.
-  expect(useful.className).toContain('rounded-md');
-  expect(useful.className).toContain('border-border/30');
-  expect(useful.className).toContain('color-mix');
-  act(() => useful.focus());
-  fireEvent.click(useful);
-  await waitFor(() => expect(useful).toHaveAttribute('aria-pressed', 'true'));
-  // Answered: announced as unavailable, never disabled under the focus it holds.
-  expect(useful).toHaveFocus();
-  expect(useful).not.toBeDisabled();
-  expect(useful).toHaveAttribute('aria-disabled', 'true');
-  fireEvent.click(screen.getByRole('button', { name: 'discussions.feedback.incorrect' }));
-  expect(mutate).toHaveBeenCalledOnce();
-});
+it.each(ICON_STYLES)(
+  'shows a recorded answer and keeps keyboard focus with %s icons',
+  async style => {
+    const keyboard = userEvent.setup();
+    mutate.mockResolvedValueOnce({
+      id,
+      message_id: id,
+      created_at: '2026-10-20T12:00:00Z',
+      content: 'Fiction',
+      state: 'engaged',
+      feedback: 'useful',
+    });
+    render(
+      <IconStyleContext.Provider value={style}>
+        <DiscussionActions metadata={promised} />
+      </IconStyleContext.Provider>,
+      { wrapper: TooltipProvider }
+    );
+    const useful = screen.getByRole('button', { name: 'discussions.feedback.useful' });
+    // The same box as Copy or Keep, told apart by its ground alone.
+    expect(useful.className).toContain('rounded-md');
+    expect(useful.className).toContain('border-border/30');
+    expect(useful.className).toContain('color-mix');
+    expect(useful).not.toHaveClass('border-primary', 'bg-primary/10');
+    expect(useful.querySelector('svg')).toHaveAttribute('data-icon-name', 'ThumbsUp');
+    expect(useful.querySelector('svg')).toHaveAttribute('data-icon-style', style);
+    await keyboard.tab();
+    expect(useful).toHaveFocus();
+    expect(useful).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
+    await keyboard.keyboard('{Enter}');
+    await waitFor(() => expect(useful).toHaveAttribute('aria-pressed', 'true'));
+    expect(useful).toHaveClass('border-primary', 'bg-primary/10', 'dark:bg-primary/15');
+    // Answered: announced as unavailable, never disabled under the focus it holds.
+    expect(useful).toHaveFocus();
+    expect(useful).not.toBeDisabled();
+    expect(useful).toHaveAttribute('aria-disabled', 'true');
+    const incorrect = screen.getByRole('button', { name: 'discussions.feedback.incorrect' });
+    expect(incorrect).not.toHaveClass('border-primary', 'bg-primary/10');
+    fireEvent.click(incorrect);
+    expect(mutate).toHaveBeenCalledOnce();
+  }
+);

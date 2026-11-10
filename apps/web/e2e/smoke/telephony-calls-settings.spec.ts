@@ -217,7 +217,9 @@ async function geometry(
       expect(titleBox.y, 'phones present time before the callee name').toBeGreaterThanOrEqual(
         first.y + first.height - 2
       );
-      await expect(control.locator('svg.lucide-phone, svg.lucide-phone-call')).toHaveCount(0);
+      await expect(
+        control.locator('svg[data-icon-name="Phone"], svg[data-icon-name="PhoneCall"]')
+      ).toHaveCount(0);
       expect(stateBox.y, 'status stays in the temporal header').toBeLessThan(titleBox.y);
     }
     if (item.completed_at) {

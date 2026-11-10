@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import AuthorizationError, ResourceConflictError
 from src.domains.habits.forget_snapshot import HabitForgetSnapshot, habit_forget_snapshot
 from src.domains.habits.management_commands import HabitCompletionUnknown
-from src.domains.habits.models import UserActivityDay, UserHabit, UserHabitProfile
+from src.domains.habits.models import (
+    HabitProposal,
+    UserActivityDay,
+    UserHabit,
+    UserHabitProfile,
+)
 from src.domains.habits.schemas import HabitsDeleteAllResponse
 from src.domains.users.preference_cas import PreferenceWriteReceipt
 from src.domains.users.repository import UserRepository
@@ -56,7 +61,8 @@ async def forget_habit_data(
     actual = await habit_forget_snapshot(db, actor_id, locked=True)
     if expected is not None and actual != expected:
         raise ResourceConflictError("habits", detail={"error_code": "STALE_STATE"})
-    for model in (UserHabit, UserHabitProfile, UserActivityDay):
+    # Proposals go with what they were learned from, refusals included (ADR-375).
+    for model in (UserHabit, UserHabitProfile, UserActivityDay, HabitProposal):
         await db.execute(delete(model).where(model.user_id == actor_id))
     await db.flush()
     if check is not None:

@@ -44,11 +44,22 @@ from src.domains.telephony.mandates import (
     append_owner_portrait,
     build_override,
     mandate_for,
+    third_party_manner,
 )
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.users.models import User
+from src.domains.voice.cue_prompt import palette
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
+from src.domains.voice_sessions.expression import (
+    PERSON_CUES,
+    STRANGER_CUES,
+    agent_dialect,
+    expression_of,
+    palette_block,
+)
 from src.domains.voice_sessions.session import VoiceSessionMode
+from src.infrastructure.observability.metrics_live import live_cue_palette_synced_total
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -291,6 +302,42 @@ class TelephonyService:
         await self.db.commit()
         return wanted, delegation is not None
 
+    async def _arm_agent_expression(self, active: _ActiveConnector, kind: CallKind) -> CueDialect:
+        """Give the agent the cue palette of the call it is about to make (ADR-373).
+
+        The palette lives on the AGENT (the vendor reads it on every
+        conversation, and a per-call override cannot carry it), and one agent
+        serves the person and strangers: the person's call gets every cue
+        their personality may choose, a stranger's the cordial ones — written
+        before the dial, only when the agent holds another. Best-effort: an
+        agent that cannot be read or written costs the cues, never the call.
+
+        Returns:
+            What the agent's engine performs — :data:`NO_CUES` when unreadable.
+        """
+        client = self._client_factory(active.api_key)
+        try:
+            agent = await client.get_agent(active.agent_id)
+        except ElevenLabsAgentsError as exc:
+            logger.warning("telephony_agent_expression_unreadable", status_code=exc.status_code)
+            return NO_CUES
+        dialect = agent_dialect(agent)
+        if expression_of(dialect) != "cues":
+            return dialect
+        tts = palette_block(
+            agent, palette(dialect, PERSON_CUES if kind is CallKind.SELF else STRANGER_CUES)
+        )
+        if tts is None:
+            return dialect
+        try:
+            await client.patch_agent(active.agent_id, {"conversation_config": {"tts": tts}})
+        except ElevenLabsAgentsError as exc:
+            logger.warning("telephony_agent_palette_refused", status_code=exc.status_code)
+            live_cue_palette_synced_total.labels(surface="phone", outcome="refused").inc()
+            return NO_CUES
+        live_cue_palette_synced_total.labels(surface="phone", outcome="written").inc()
+        return dialect
+
     async def _personality_for(self, user_id: UUID) -> str:
         """The instruction the person configured for LIA's personality (lot 9).
 
@@ -447,6 +494,7 @@ class TelephonyService:
             logger.warning("telephony_live_call_degraded_to_direct", user_id=str(user_id))
             call_mode = "direct"
             mandate = mandate_for(kind, mode=call_mode)
+        cue_dialect = await self._arm_agent_expression(active, kind)
 
         availability_summary = ""
         if mandate.prefetch_availability:
@@ -473,6 +521,7 @@ class TelephonyService:
                 live_tool_domains=tuple(sorted({binding.domain for binding in live_tools})),
                 personality=personality,
                 result_budget_tokens=settings.live_delegation_result_max_tokens,
+                cue_dialect=cue_dialect,
             ),
             mode=call_mode,
         )
@@ -517,9 +566,10 @@ class TelephonyService:
             "current_datetime": format_datetime_for_display(now, user_tz, user_language),
             "recording_disclosure": "",  # D-8: recording disabled → no disclosure
             "call_id": str(call_id),  # webhook reconciliation key
-            # Lot 9: the baked third-party agent reads the person's configured
-            # personality per call — a variable, so no re-sync on a change.
-            "personality_profile": personality,
+            # The baked agent's slot is a STRANGER's: LIA's cordial manner,
+            # never the person's personality (owner rule 2026-11-07). The
+            # person's own call carries its personality in its override.
+            "personality_profile": third_party_manner(),
         }
 
         # Vendor HTTP call — OUTSIDE any DB transaction.

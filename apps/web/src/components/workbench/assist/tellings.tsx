@@ -12,7 +12,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { LLMUsage } from '@/types/llm-usage';
 
-import type { AssistState } from './useAssistCall';
+import type { AssistState } from '@/hooks/useAssistCall';
 
 /** What an answer that leaves its place cost: the page goes, the figure stays said. */
 export function tellCost(usage: LLMUsage | null): void {

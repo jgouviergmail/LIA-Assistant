@@ -25,7 +25,7 @@ describe('a gaze carried by a head with weight', () => {
 
   it('follows an internally authored thought, not only pointer props', () => {
     const rig = createEyeRig({
-      initial: { expression: 'thinking', styleId: 'smiley', family: 'calm' },
+      initial: { expression: 'thinking', styleId: 'cozmo', family: 'calm' },
     });
     let movement = 0;
     for (let i = 0; i < 400; i++) {

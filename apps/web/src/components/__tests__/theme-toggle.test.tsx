@@ -29,6 +29,7 @@ const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
 
 import { ThemeToggle } from '../theme-toggle';
+import { ThemeModeProvider } from '@/lib/theme-preferences';
 
 /** Put the control in a known state before each case. */
 function setEnvironment(resolved: string | undefined, oled: boolean, theme = resolved ?? 'light') {
@@ -48,12 +49,20 @@ beforeEach(() => {
 
 describe('ThemeToggle — the cycle', () => {
   it('renders a named control', () => {
-    renderWithProviders(<ThemeToggle />);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   it('light → dark', async () => {
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     expect(setTheme).toHaveBeenCalledWith('dark');
     expect(document.documentElement.hasAttribute('data-oled')).toBe(false);
@@ -61,18 +70,26 @@ describe('ThemeToggle — the cycle', () => {
 
   it('dark → OLED sets the attribute and does NOT change the next-themes theme', async () => {
     setEnvironment('dark', false);
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     // Staying on 'dark' is the whole design: `.dark` must remain on <html> so
     // the 9 `resolvedTheme === 'dark'` sites and the `html:not(.dark) .cosmos`
     // rules keep their dark branch.
-    expect(setTheme).toHaveBeenCalledWith('dark');
+    expect(setTheme).not.toHaveBeenCalled();
     expect(document.documentElement.hasAttribute('data-oled')).toBe(true);
   });
 
   it('OLED → light clears the attribute', async () => {
     setEnvironment('dark', true);
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     expect(setTheme).toHaveBeenCalledWith('light');
     expect(document.documentElement.hasAttribute('data-oled')).toBe(false);
@@ -80,7 +97,11 @@ describe('ThemeToggle — the cycle', () => {
 
   it('advances visibly for a user left on system with a dark OS', async () => {
     setEnvironment('dark', false, 'system');
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     expect(document.documentElement.hasAttribute('data-oled')).toBe(true);
   });
@@ -95,12 +116,20 @@ describe('ThemeToggle — the cycle', () => {
     ['dark', true, 'lucide-sun'],
   ] as const)('from %s (oled=%s) it offers %s', (resolved, oledOn, icon) => {
     setEnvironment(resolved, oledOn);
-    const { container } = renderWithProviders(<ThemeToggle />);
+    const { container } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     expect(container.querySelector('svg')?.getAttribute('class')).toContain(icon);
   });
 
   it('names itself after what pressing it will do', () => {
-    renderWithProviders(<ThemeToggle />);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     expect(screen.getByRole('button')).toHaveAccessibleName('theme.to_dark');
   });
 });
@@ -108,27 +137,55 @@ describe('ThemeToggle — the cycle', () => {
 describe('ThemeToggle — persistence', () => {
   it('persists OLED as its own theme value', async () => {
     setEnvironment('dark', false);
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
-    await waitFor(() => expect(mutate).toHaveBeenCalledWith('/users/u1', { theme: 'oled' }));
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        '/users/u1',
+        { theme: 'oled' },
+        { signal: expect.any(AbortSignal) }
+      )
+    );
   });
 
   it('persists the plain modes unchanged', async () => {
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
-    await waitFor(() => expect(mutate).toHaveBeenCalledWith('/users/u1', { theme: 'dark' }));
+    await waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        '/users/u1',
+        { theme: 'dark' },
+        { signal: expect.any(AbortSignal) }
+      )
+    );
   });
 
   it('mirrors the flag into localStorage so the anti-FOUC script can read it', async () => {
     setEnvironment('dark', false);
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     expect(window.localStorage.getItem(OLED_STORAGE_KEY)).toBe('1');
   });
 
   it('switches the theme but does not persist when there is no user', async () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
-    const { user } = renderWithProviders(<ThemeToggle />);
+    const { user } = renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await user.click(screen.getByRole('button'));
     expect(setTheme).toHaveBeenCalledWith('dark');
     expect(mutate).not.toHaveBeenCalled();
@@ -137,13 +194,21 @@ describe('ThemeToggle — persistence', () => {
   it('restores a stored OLED preference from the user record', async () => {
     setEnvironment('dark', false);
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'oled' }, refreshUser: vi.fn() });
-    renderWithProviders(<ThemeToggle />);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await waitFor(() => expect(document.documentElement.hasAttribute('data-oled')).toBe(true));
   });
 
   it('does not fight the provider when the user record says system', async () => {
     useAuth.mockReturnValue({ user: { id: 'u1', theme: 'system' }, refreshUser: vi.fn() });
-    renderWithProviders(<ThemeToggle />);
+    renderWithProviders(
+      <ThemeModeProvider>
+        <ThemeToggle />
+      </ThemeModeProvider>
+    );
     await waitFor(() => expect(setTheme).not.toHaveBeenCalled());
   });
 });

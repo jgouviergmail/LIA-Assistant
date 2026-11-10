@@ -19,11 +19,11 @@ Every spec intercepts `**/api/v1/**` and serves fixed payloads (`fixtures/`), so
 a single lowest-priority catch-all that fails any un-mocked API call with `501`,
 so a leaking request is a loud, visible failure — never a silent real hit.
 
-The application's exact Material Symbols stylesheet request is served locally
-with the real variable font, pinned to a reviewed upstream commit. Its
-[provenance, SHA-256 and Apache 2.0 license](fixtures/fonts/README.md) travel with
-the fixture. Geometry and contrast scans therefore render actual icon glyphs
-without a runtime CDN download or an opaque HTTPS tunnel.
+The application self-hosts its full Material Symbols variable font, pinned to a
+reviewed upstream commit. E2E tests read the real app server's assets without
+intercepting their URLs. Their [provenance, SHA-256 and Apache 2.0 license](../public/fonts/material-symbols/README.md)
+travel with the public files. Geometry and contrast scans render actual icon
+glyphs without a runtime CDN download or an opaque HTTPS tunnel.
 
 Each browser context also uses a loopback transport guard. It forwards the
 page's assets and rejects HTTP API requests that escape interception with the
@@ -57,7 +57,7 @@ including teardown, while an unexpected request still receives the explicit 501.
 
 - `fixtures/api-mock.ts` — catch-all + `registerRoutes` (LIFO ordering explained inline).
 - `fixtures/api-network-guard.ts` — context-owned transport boundary and teardown quarantine.
-- `fixtures/offline-fonts.ts` — exact stylesheet and font routes for the vendored icon face.
+- `smoke/self-hosted-icon-font.spec.ts` — real local stylesheet/font delivery and historical ligature loading.
 - `fixtures/test-user.ts` — deterministic `User` factory mirroring `src/lib/auth.tsx`.
 - `fixtures/dashboard-shell.ts` — type-correct mocks for the endpoints the
   authenticated shell fires on every page (config, personalities, connector
@@ -104,13 +104,39 @@ the disposable official container, verifies STUN with a bounded Binding request,
 and closes its services afterwards. Outside a container those packages must
 already be installed. Headless Firefox creates no WebGL context without a
 display, so the wrapper also starts the suite under Xvfb, where Mesa's software
-renderer serves it; the browsers stay headless. What Playwright cannot observe
+renderer serves it. Chromium and Firefox keep their headless modes. On Linux,
+WebKit is explicitly presented on that display: the pinned headless engine was
+measured delivering trusted mouse events and timer callbacks while suspending
+RAF, IntersectionObserver updates and the native input acknowledgement. The
+same unchanged journeys and a passive RAF comparison progressed when presented.
+This mode is chosen before execution, never as a retry after failure; all test
+oracles and timeouts remain unchanged. Other operating systems retain their
+existing mode.
+
+Direct `E2E_ALL_BROWSERS=1` callers on Linux must also supply `DISPLAY` or use the
+native-media wrapper. The configuration refuses a missing display; the wrapper
+refuses a missing `xvfb-run` when no display was supplied. A supplied display is
+validated by the browser's real native opening, which fails explicitly for an
+unusable X server. Its mere presence is not treated as proof of usability.
+What Playwright cannot observe
 on an engine — the `Cookie` header and the file content of an intercepted
 request on WebKit, a redirect fulfilment on WebKit, a download started in a
 subframe outside Chromium — is asserted wherever it is observable and recorded
 elsewhere as an `engine-limit` annotation ([engine-introspection](fixtures/engine-introspection.ts)),
 so a report never reads a skipped check as a passed one. Card scans load the selected account theme before the
 first paint and require the history cards before geometry measurements.
+
+The workbench upload journey proves the delivered file on every engine with
+`apiNetworkGuard.captureMultipartUpload`, rather than reading Playwright's
+multipart projection. The guard's own loopback origin serves the real app's
+SSR/assets with its CSP unchanged and receives only the registered exact POST.
+Other API routes, origins, methods, queries and opaque transports retain the
+guard's refusal. The real browser constructs and sends the body unchanged;
+the test checks the received file bytes, name, MIME type and destination folder.
+The receiver bounds fixture bodies to 1 MiB, records parsing failures without
+publishing an upload, and its owner closes sockets and awaits pending readers.
+The native Node transport checks run in `npm run test:transport` before E2E.
+
 The resting-face oracle pauses the clock before navigation and pins the random
 gesture delay beyond its measurement interval. Detail captures keep the audited viewport and let
 locator screenshots perform their own scroll, avoiding duplicate WebKit work.
@@ -308,7 +334,7 @@ data were prepared once outside the browser in three bounded requests; their
 public source, hashes and attribution are in `fixtures/maps/provenance.json`.
 API requests are
 fulfilled locally; unknown API and external requests fail the campaign. Public
-font requests are fulfilled with the vendored E2E font. Voice WebSockets
+font requests use the canonical self-hosted assets. Voice WebSockets
 are simulated locally and service-worker registration is disabled.
 The Weekend Budget Studio is a fictional custom skill example produced by
 executing `capture/render_trip_budget.py` and displayed in the native sandboxed
@@ -373,7 +399,6 @@ as `Dockerfile.prod`), then `PORT=3000 HOSTNAME=0.0.0.0 node
 | `E2E_BASE_URL`       | `http://127.0.0.1:3000` | HTTP production server under test.              |
 | `E2E_MANAGED_SERVER` | unset                   | `1` → Playwright builds + serves the app (CI).  |
 | `CI`                 | unset                   | Enables retries, GitHub reporter, `forbidOnly`. |
-
 
 ## World journeys
 

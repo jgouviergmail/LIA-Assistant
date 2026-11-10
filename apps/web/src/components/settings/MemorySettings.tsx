@@ -15,7 +15,7 @@ import {
   Save,
   Trash2,
   X,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -49,9 +49,10 @@ import {
   type Memory,
 } from '@/hooks/useMemories';
 import { useAuth } from '@/hooks/useAuth';
+import { useApplicationAccountToast } from '@/hooks/useApplicationAccountToast';
+import { useMemoryCreateForm } from './useMemoryCreateForm';
 import apiClient from '@/lib/api-client';
 import { isMemoryTextSavable, isRefusedInput } from '@/lib/memories/text-bounds';
-import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,14 +113,19 @@ function memoryDetailTone(pinned: boolean | undefined): string {
 }
 
 export function MemorySettings({ lng }: BaseSettingsProps) {
+  const { user } = useAuth();
+  return <AccountMemorySettings key={user?.id ?? 'signed-out'} lng={lng} />;
+}
+
+function AccountMemorySettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
+  const toast = useApplicationAccountToast(user?.id);
   const {
     memories,
     total,
     limits,
     loading,
-    creating,
     deleting,
     updating,
     deletingAll,
@@ -171,43 +177,21 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
     }
   };
 
-  // Create dialog state
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<MemoryFormData>(EMPTY_MEMORY_FORM);
-
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MemoryFormData>(EMPTY_MEMORY_FORM);
 
-  // Create dialog handlers
-  const handleOpenCreate = () => {
-    setCreateForm(EMPTY_MEMORY_FORM);
-    setCreateDialogOpen(true);
-  };
-
-  const handleCloseCreate = () => {
-    setCreateDialogOpen(false);
-    setCreateForm(EMPTY_MEMORY_FORM);
-  };
-
-  const handleSaveCreate = async () => {
-    if (!createForm.content.trim()) return;
-    try {
-      await createMemory({
-        content: createForm.content,
-        category: createForm.category,
-        usage_nuance: createForm.usage_nuance || undefined,
-        emotional_weight: createForm.emotional_weight,
-        importance: createForm.importance,
-        trigger_topic: createForm.trigger_topic || undefined,
-      });
-      toast.success(t('memories.create_success'));
-      handleCloseCreate();
-    } catch (error) {
-      toast.error(t(isRefusedInput(error) ? 'memories.text_refused' : 'memories.create_error'));
-    }
-  };
+  const {
+    open: createDialogOpen,
+    form: createForm,
+    setForm: setCreateForm,
+    start: handleOpenCreate,
+    close: handleCloseCreate,
+    save: handleSaveCreate,
+    saving: creating,
+    onOpenChange: setCreateDialogOpen,
+  } = useMemoryCreateForm(lng, createMemory, loading, editDialogOpen, limits);
 
   const handleOpenEdit = (memory: Memory) => {
     setEditingMemoryId(memory.id);

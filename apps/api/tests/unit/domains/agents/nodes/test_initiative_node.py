@@ -425,7 +425,7 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod._initiative_core(state, config)
+        result = await mod.initiative_node(state, config)
 
         assert result.get("initiative_skipped_reason") == "skill_active"
         assert result.get("initiative_iteration") == 1
@@ -450,7 +450,7 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod._initiative_core(state, config)
+        result = await mod.initiative_node(state, config)
 
         assert result.get("initiative_skipped_reason") != "skill_active"
 
@@ -469,7 +469,7 @@ class TestInitiativeSkippedWhenSkillActive:
         }
         config = {"configurable": {"user_id": "test-user"}}
 
-        result = await mod._initiative_core(state, config)
+        result = await mod.initiative_node(state, config)
 
         # Not skipped for "skill_active" since no skill_name present
         assert result.get("initiative_skipped_reason") != "skill_active"
@@ -506,7 +506,7 @@ class TestValidateReadOnlyDeduplication:
             self._action("get_weather_forecast_tool", "Charenton-le-Pont"),
         ]
 
-        validated = _validate_read_only(actions, [manifest])
+        validated = _validate_read_only(actions, [manifest], limit=len(actions))
 
         assert len(validated) == 1
 
@@ -520,6 +520,6 @@ class TestValidateReadOnlyDeduplication:
             self._action("get_weather_forecast_tool", "Lyon"),
         ]
 
-        validated = _validate_read_only(actions, [manifest])
+        validated = _validate_read_only(actions, [manifest], limit=len(actions))
 
         assert len(validated) == 2

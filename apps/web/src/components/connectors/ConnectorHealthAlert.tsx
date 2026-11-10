@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ExternalLink } from '@/lib/icons';
 import { useConnectorHealth, ConnectorHealthItem } from '@/hooks/useConnectorHealth';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/i18n/client';

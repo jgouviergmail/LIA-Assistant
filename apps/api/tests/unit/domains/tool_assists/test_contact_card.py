@@ -30,9 +30,12 @@ from src.domains.tool_assists.contact_card import (
     Exchange,
     FoundValue,
     FoundValues,
+    WordsDraft,
     complete_contact,
     contact_from_card,
+    contact_from_words,
     proposed_contact,
+    proposed_contact_from_words,
     proposed_values,
     said_in,
 )
@@ -367,3 +370,102 @@ async def test_a_card_is_redrawn_before_a_model_reads_it(
     assert seen["data"] == b"raw photo"
     assert seen["side"] == TOOL_ASSIST_CARD_MAX_SIDE
     assert seen["image"] == b"redrawn"
+
+
+# --- A contact said in a sentence (owner, 2026-11-07) --------------------------------------------
+
+SAID = (
+    "Inès Martin, architecte chez Acme, ines@acme.fr, 06 12 34 56 78, 12 rue de la Paix 75002 Paris"
+)
+
+
+def test_a_sentence_fills_the_form_with_what_it_says() -> None:
+    proposal = proposed_contact_from_words(
+        WordsDraft(
+            found=True,
+            given_name="Inès",
+            family_name="Martin",
+            organization="Acme",
+            job_title="architecte",
+            emails=["ines@acme.fr"],
+            phones=["06 12 34 56 78"],
+            address="12 rue de la Paix\n75002 Paris",
+        ),
+        SAID,
+    )
+
+    assert (proposal.given_name, proposal.family_name) == ("Inès", "Martin")
+    assert (proposal.organization, proposal.job_title) == ("Acme", "architecte")
+    assert proposal.emails == ["ines@acme.fr"]
+    assert proposal.phones == ["06 12 34 56 78"]
+    # Its lines are the model's; its words are the sentence's.
+    assert proposal.address == "12 rue de la Paix\n75002 Paris"
+
+
+def test_a_value_the_sentence_does_not_hold_never_reaches_the_form() -> None:
+    proposal = proposed_contact_from_words(
+        WordsDraft(
+            found=True,
+            given_name="Inès",
+            organization="Acme Corporation",
+            emails=["contact@acme.fr"],
+            phones=["01 99 99 99 99"],
+            website="acme.fr",
+        ),
+        SAID,
+    )
+
+    assert proposal.given_name == "Inès"
+    assert (proposal.organization, proposal.emails, proposal.phones) == ("", [], [])
+    # Every word of it is said (« acme », « fr »): a site is held by its words, not invented.
+    assert proposal.website == "acme.fr"
+
+
+def test_a_dictated_address_is_held_by_the_words_said() -> None:
+    proposal = proposed_contact_from_words(
+        WordsDraft(found=True, given_name="Ines", emails=["ines@acme.fr"]),
+        "Ines, son adresse c'est ines arobase acme point fr",
+    )
+
+    assert proposal.emails == ["ines@acme.fr"]
+
+
+def test_accents_are_no_invention() -> None:
+    proposal = proposed_contact_from_words(
+        WordsDraft(found=True, given_name="Inès", family_name="Lefèvre"), "ines lefevre"
+    )
+
+    assert (proposal.given_name, proposal.family_name) == ("Inès", "Lefèvre")
+
+
+@pytest.mark.parametrize(
+    "draft",
+    [
+        WordsDraft(found=False, given_name="Inès"),
+        WordsDraft(found=True, given_name="Paul"),
+        WordsDraft(found=True, website="acme.fr"),
+    ],
+)
+def test_words_that_name_nobody_said_are_a_refusal(draft: WordsDraft) -> None:
+    with pytest.raises(BaseAPIException) as refused:
+        proposed_contact_from_words(draft, SAID)
+
+    assert _code(refused) == "assist_not_found"
+
+
+async def test_the_sentence_reaches_the_model_and_the_form_is_held_to_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+
+    async def ask(run: AssistRun, prompt: str, schema: type[Any]) -> WordsDraft:
+        seen.update(prompt=prompt, schema=schema)
+        return WordsDraft(found=True, given_name="Inès", phones=["06 00 00 00 00"])
+
+    monkeypatch.setattr(contact_card, "ask_slot", ask)
+
+    proposal = await contact_from_words(_run(), SAID)
+
+    assert SAID in seen["prompt"]
+    assert seen["schema"] is WordsDraft
+    assert (proposal.given_name, proposal.phones) == ("Inès", [])

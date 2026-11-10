@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Link2 } from 'lucide-react';
+import { Link2 } from '@/lib/icons';
 import { DebugChip, DebugSection, InfoRow, MetricRow, SubSectionHeader } from '../shared';
 import type { DebugMetrics } from '@/types/chat';
 

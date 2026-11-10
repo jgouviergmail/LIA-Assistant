@@ -5,6 +5,8 @@ from uuid import uuid4
 
 import pytest
 
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.meetings import jev_selection as module
 from src.infrastructure.llm.decision_types import DecisionAttempt, DecisionCharge
 from src.infrastructure.llm.typesafe_client import ChoiceAnswer
@@ -23,8 +25,8 @@ def record_charge(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 @pytest.mark.parametrize(
     "choice,confidence,selected",
     [
-        ("c1", module.MIN_CONFIDENCE, True),
-        ("c1", module.MIN_CONFIDENCE - 0.01, False),
+        ("c1", float(gate_defaults(JevUsage.MEETING_TEMPLATE)["template"]), True),
+        ("c1", float(gate_defaults(JevUsage.MEETING_TEMPLATE)["template"]) - 0.01, False),
         ("none", 0.99, False),
         ("invented", 1.0, False),
     ],

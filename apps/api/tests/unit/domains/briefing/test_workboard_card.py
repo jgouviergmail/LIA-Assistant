@@ -20,7 +20,6 @@ import pytest
 from src.core.config import settings
 from src.domains.briefing.constants import SECTION_NAMES, SECTION_WORKBOARD
 from src.domains.briefing.exceptions import ConnectorNotConfiguredError
-from src.domains.briefing.fetchers import fetch_workboard
 from src.domains.briefing.schemas import (
     CardSection,
     CardStatus,
@@ -29,6 +28,7 @@ from src.domains.briefing.schemas import (
     WorkboardTicketItem,
 )
 from src.domains.briefing.service import _has_content
+from src.domains.briefing.workboard_card import fetch_workboard
 
 NOW = datetime.now(UTC)
 
@@ -88,11 +88,11 @@ class TestFetchWorkboard:
         read = AsyncMock()
         with (
             patch(
-                "src.domains.briefing.fetchers.is_capability_enabled",
+                "src.domains.briefing.workboard_card.is_capability_enabled",
                 AsyncMock(return_value=False),
             ),
-            patch("src.domains.briefing.fetchers.read_attention", read),
-            patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
+            patch("src.domains.briefing.workboard_card.read_attention", read),
+            patch("src.domains.briefing.workboard_card.get_db_context", new=_db_ctx()),
         ):
             with pytest.raises(ConnectorNotConfiguredError):
                 await fetch_workboard(user_id=uuid4())
@@ -114,11 +114,11 @@ class TestFetchWorkboard:
         )
         with (
             patch(
-                "src.domains.briefing.fetchers.is_capability_enabled",
+                "src.domains.briefing.workboard_card.is_capability_enabled",
                 AsyncMock(return_value=True),
             ),
-            patch("src.domains.briefing.fetchers.read_attention", read),
-            patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
+            patch("src.domains.briefing.workboard_card.read_attention", read),
+            patch("src.domains.briefing.workboard_card.get_db_context", new=_db_ctx()),
         ):
             data = await fetch_workboard(user_id=uuid4())
 
@@ -142,11 +142,11 @@ class TestFetchWorkboard:
         read = AsyncMock(return_value=_figures(needs_me=1, open_total=0, first=[done]))
         with (
             patch(
-                "src.domains.briefing.fetchers.is_capability_enabled",
+                "src.domains.briefing.workboard_card.is_capability_enabled",
                 AsyncMock(return_value=True),
             ),
-            patch("src.domains.briefing.fetchers.read_attention", read),
-            patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
+            patch("src.domains.briefing.workboard_card.read_attention", read),
+            patch("src.domains.briefing.workboard_card.get_db_context", new=_db_ctx()),
         ):
             data = await fetch_workboard(user_id=uuid4())
         assert data.items[0].overdue is False
@@ -304,10 +304,14 @@ class TestGroupedPreviewContract:
         }
         with (
             patch(
-                "src.domains.briefing.fetchers.is_capability_enabled", AsyncMock(return_value=True)
+                "src.domains.briefing.workboard_card.is_capability_enabled",
+                AsyncMock(return_value=True),
             ),
-            patch("src.domains.briefing.fetchers.read_attention", AsyncMock(return_value=figures)),
-            patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
+            patch(
+                "src.domains.briefing.workboard_card.read_attention",
+                AsyncMock(return_value=figures),
+            ),
+            patch("src.domains.briefing.workboard_card.get_db_context", new=_db_ctx()),
         ):
             data = await fetch_workboard(user_id=uuid4())
         assert [item.title for item in data.items] == ["Needs me"]

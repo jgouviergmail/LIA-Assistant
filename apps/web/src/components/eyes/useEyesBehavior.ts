@@ -44,11 +44,9 @@ import {
   idleGazeTarget,
   inactivityStageFor,
   isDoubleBlink,
-  isSillyTime,
   nextBlinkDelayMs,
   nextIdleGestureDelayMs,
   pickIdleGesture,
-  pickSillyGesture,
   readingGazeAt,
   shouldBlinkBeforeGaze,
   shouldChainGlance,
@@ -695,22 +693,13 @@ export function useEyesBehavior({
             psyche.enabled ? psyche.moodLabel : null,
             current.expression
           );
-          if (family !== 'drowsy' && isSillyTime(Math.random)) {
-            // Rare slapstick beat — comedy needs an awake face.
-            const silly = pickSillyGesture(Math.random);
-            setGesture(silly);
-            after(GESTURE_DURATION_MS[silly], () => setGesture(null));
-          } else {
-            const picked = pickIdleGesture(Math.random, family);
-            if (picked === 'saccade' || picked === 'glance') {
-              playGazeWander(picked);
-            } else if (picked === 'flicker') {
-              // Mini mood scene — rides the performance channel.
-              // Whole-face idle scenes belong to the rig; keep this beat quiet.
-            } else {
-              setGesture(picked);
-              after(GESTURE_DURATION_MS[picked], () => setGesture(null));
-            }
+          const picked = pickIdleGesture(Math.random, family);
+          if (picked === 'saccade' || picked === 'glance') {
+            playGazeWander(picked);
+          } else if (picked !== 'flicker') {
+            // Whole-face scenes belong to the rig; a flicker leaves this tick quiet.
+            setGesture(picked);
+            after(GESTURE_DURATION_MS[picked], () => setGesture(null));
           }
         }
         loop();

@@ -54,6 +54,7 @@ function listing(): WorkbenchPageState<MailSummary> {
     loadMore: vi.fn(),
     refresh: vi.fn(),
     replaceItem: vi.fn(),
+    keepItem: vi.fn(),
   };
 }
 
@@ -313,12 +314,18 @@ describe('useMailActs — a selection', () => {
       failed: [failedOne('m2')],
       moved: [{ id: 'm1', new_id: 'n1' }],
     });
-    await expect(result.current.send(['m1', 'm2'], 'trash')).resolves.toEqual(['m1']);
+    await act(async () => {
+      await expect(result.current.send(['m1', 'm2'], 'trash')).resolves.toEqual(['m1']);
+    });
+    expect(result.current.bulkBusy).toBeNull();
     expect(state.move).toHaveBeenLastCalledWith(['m1', 'm2'], 'system:trash');
     expect(toast.error).toHaveBeenLastCalledWith('workbench.mail.partial');
 
     vi.mocked(state.move).mockRejectedValueOnce(REFUSED);
-    await expect(result.current.send(['m1'], 'archive')).resolves.toEqual([]);
+    await act(async () => {
+      await expect(result.current.send(['m1'], 'archive')).resolves.toEqual([]);
+    });
+    expect(result.current.bulkBusy).toBeNull();
     expect(toast.error).toHaveBeenLastCalledWith('workbench.errors.provider_unavailable');
   });
 
@@ -444,7 +451,10 @@ describe('useMailActs — a selection', () => {
     );
 
     vi.mocked(state.deleteForever).mockResolvedValueOnce({ done: ['m1'], failed: [] });
-    await expect(result.current.deleteForever(['m1'])).resolves.toEqual(['m1']);
+    await act(async () => {
+      await expect(result.current.deleteForever(['m1'])).resolves.toEqual(['m1']);
+    });
+    expect(result.current.bulkBusy).toBeNull();
     expect(toast.success).toHaveBeenLastCalledWith('workbench.mail.deleted_forever', undefined);
 
     vi.mocked(state.emptyTrash).mockResolvedValueOnce({ deleted: 3, remaining: false });

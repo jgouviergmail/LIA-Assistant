@@ -37,8 +37,8 @@ from src.domains.workbench.rate_limits import (
     rate_limit_write,
 )
 from src.domains.workbench.schemas.acts import ActOutcome
+from src.domains.workbench.schemas.card_queries import FileDownloadQuery
 from src.domains.workbench.schemas.files import (
-    DownloadQuery,
     DriveItem,
     DriveQuota,
     FileCopied,
@@ -109,9 +109,9 @@ async def get_file(
     dependencies=[Depends(rate_limit_download)],
     responses={200: {"content": {"application/octet-stream": {}}}},
 )
-async def get_download(query: Annotated[DownloadQuery, Query()], user: _Account) -> Response:
+async def get_download(query: Annotated[FileDownloadQuery, Query()], user: _Account) -> Response:
     """Download one file."""
-    got = await files_service.download_file(user.id, query)
+    got = await files_service.download_file(user.id, query.provider_query())
     return download_response(got.data, got.filename, got.mime_type, "file")
 
 

@@ -3,8 +3,8 @@ import { cleanup, render } from '@testing-library/react';
 import { EyesFace } from '../EyesFace';
 import { ExpressiveEyes } from '../ExpressiveEyes';
 import { EYE_STYLE_IDS, isRigEyeStyle } from '../eye-styles';
-import { volumeProfile } from '../volume/volume-geometry';
-import { SMILEY_COLLAR } from '../volume/cloth-geometry';
+import { volumeProfile, type CollarProfile } from '../volume/volume-geometry';
+import { clothMesh } from '../volume/cloth-geometry';
 import { avatarLayoutProfile } from '../layout-profiles';
 import { activeFrameSubscribers } from '../rig/scheduler';
 import { installSpiritBrowser } from '@/components/spirit/__tests__/browser';
@@ -15,6 +15,24 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+/** Interpret the actual CSS rectangles independently of the GPU fit mapper. */
+function expectScarfMaterialCoordinates(style: CSSStyleDeclaration, collar: CollarProfile): void {
+  const css = (name: string) => parseFloat(style.getPropertyValue(`--avatar-scarf-${name}`));
+  const mesh = clothMesh(collar);
+  for (let i = 0; i < mesh.vertices.length; i += 8) {
+    const [x, y, , , , , u, v] = mesh.vertices.slice(i, i + 8);
+    const upperY = v * css('band-scale');
+    const materialY =
+      upperY <= css('split') + 1e-6
+        ? upperY
+        : css('split') + css('tail-offset') + v * css('tail-scale');
+    expect(x).toBeCloseTo((u - 0.5) * css('width'), 5);
+    expect(y).toBeCloseTo(css('top') + materialY, 5);
+  }
+  // The center of the original woven band is row 105.5 of the 192px art.
+  expect(css('top') + (105.5 / 192) * css('band-scale')).toBeCloseTo(collar.centerY, 12);
+}
 
 describe('avatar landmarks follow the selected model and gender without new motion', () => {
   it.each(EYE_STYLE_IDS)('publishes both %s layouts on the actual native host', styleId => {
@@ -44,6 +62,7 @@ describe('avatar landmarks follow the selected model and gender without new moti
         />
       );
       const root = view.container.querySelector<HTMLElement>('.lia-eyes');
+      if (!root) throw new Error('The avatar layout host is missing');
       expect(root).toHaveAttribute('data-avatar-layout');
       expect(root).toHaveAttribute('data-avatar-variant', variant);
       expect(root).toHaveAttribute('data-expression', 'joy');
@@ -57,10 +76,7 @@ describe('avatar landmarks follow the selected model and gender without new moti
       const scale = parseFloat(root?.style.getPropertyValue('--avatar-accessory-scale') ?? '');
       expect(scale).toBeGreaterThan(0);
       expect(scale).toBeLessThanOrEqual(1.2);
-      const collar =
-        styleId === 'smiley'
-          ? SMILEY_COLLAR
-          : volumeProfile(isRigEyeStyle(styleId) ? 'monitor' : styleId, variant).collar;
+      const collar = volumeProfile(isRigEyeStyle(styleId) ? 'monitor' : styleId, variant).collar;
       expect(parseFloat(root?.style.getPropertyValue('--avatar-neck-y') ?? '')).toBeCloseTo(
         (collar.centerY / 2.6 + 0.5) * 100,
         3
@@ -68,6 +84,7 @@ describe('avatar landmarks follow the selected model and gender without new moti
       const scarfWidth = root?.style.getPropertyValue('--avatar-scarf-width') ?? '';
       expect(scarfWidth).toMatch(/^[\d.]+em$/);
       expect(parseFloat(scarfWidth)).toBeCloseTo(2 * collar.radiusX * 1.1, 5);
+      if (!collar.wrap) expectScarfMaterialCoordinates(root.style, collar);
       expect(view.container.querySelector('canvas')).toBeNull();
       expect(activeFrameSubscribers()).toBe(0);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Sparkles, Link2, MessageCircleHeart, Brain, Bell, Terminal, Heart } from 'lucide-react';
+import { Sparkles, Link2, MessageCircleHeart, Brain, Bell, Terminal, Heart } from '@/lib/icons';
 
 export type IllustrationType =
   | 'welcome'

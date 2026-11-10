@@ -321,6 +321,23 @@ export function addressLabel(address: MailAddress): string {
   return address.name || address.address;
 }
 
+/**
+ * @param iso - When the mailbox received it (ISO, UTC).
+ * @param zone - The account's zone: its day and hour are the ones told.
+ * @param lng - The reader's language.
+ * @returns Its day and hour as the reader reads them; empty when there is none to tell.
+ */
+export function receivedFull(iso: string | null, zone: string | undefined, lng: Language): string {
+  if (!iso) return '';
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return '';
+  return new Intl.DateTimeFormat(getIntlLocale(lng), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: zone,
+  }).format(instant);
+}
+
 /** A two-way choice kept on this device, for `useSyncExternalStore`. */
 interface DeviceChoice<T extends string> {
   /** This device's choice; the usual one when none is stored or storage is refused. */

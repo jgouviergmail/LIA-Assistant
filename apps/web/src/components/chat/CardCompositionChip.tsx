@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Reply, Forward, BellOff, Trash2 } from 'lucide-react';
+import { X, Reply, Forward, BellOff, Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import type { CardCompositionDraft } from '@/types/card-actions';
 

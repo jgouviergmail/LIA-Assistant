@@ -13,6 +13,8 @@ from src.core.private_input_route import PrivateApplicationInputRoute
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.sms.display_reads import SmsDisplayReader
+from src.domains.sms.display_schemas import SmsDisplayQuery
 from src.domains.sms.facade import SmsFacade
 from src.domains.sms.identity_resolution import refresh_sender_identities
 from src.domains.sms.management_commands import set_sms_preference
@@ -44,6 +46,18 @@ async def search_sms(
 ) -> SmsPage:
     response.headers["Cache-Control"] = "no-store"
     return await SmsFacade(db).list(actor.id, query, assistant=False)
+
+
+@router.post("/display-search", response_model=SmsPage)
+async def display_sms(
+    query: SmsDisplayQuery,
+    response: Response,
+    actor: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> SmsPage:
+    """Search the native display before paging; the assistant's lexical door is unchanged."""
+    response.headers["Cache-Control"] = "no-store"
+    return await SmsDisplayReader(db).list(actor.id, query)
 
 
 @router.get("/senders", response_model=SmsSenderPage)

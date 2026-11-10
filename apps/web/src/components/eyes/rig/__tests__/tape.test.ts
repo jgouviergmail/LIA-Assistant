@@ -41,6 +41,22 @@ describe('tapeDurationMs', () => {
 });
 
 describe('tapeTargetAt', () => {
+  it('samples an explicitly continuous trajectory while retaining legacy step tapes', () => {
+    const path: Tape = {
+      channel: 'bodyY',
+      interpolation: 'linear',
+      keys: [
+        { atMs: 0, value: 0 },
+        { atMs: 400, value: -1 },
+        { atMs: 800, value: 0 },
+      ],
+    };
+    expect(tapeTargetAt(path, 100)).toBeCloseTo(-0.25);
+    expect(tapeTargetAt(path, 600)).toBeCloseTo(-0.5);
+    expect(tapeTargetAt({ ...path, interpolation: 'smooth' }, 100)).toBeCloseTo(-0.15625);
+    expect(tapeTargetAt(path, 801)).toBeNull();
+    expect(tapeTargetAt(BLINK, 100)).toBe(1);
+  });
   it('holds each key until the next one (steps, never a ramp)', () => {
     expect(tapeTargetAt(BLINK, 0)).toBe(1);
     expect(tapeTargetAt(BLINK, 129)).toBe(1);

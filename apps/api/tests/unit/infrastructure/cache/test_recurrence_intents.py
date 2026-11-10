@@ -20,7 +20,7 @@ pytestmark = pytest.mark.unit
 
 class TestRecordIntent:
     def test_counts_one_intent_per_occurrence(self) -> None:
-        data: dict = {"days": {}, "suggested_at": None}
+        data: dict = {"days": {}}
         recurrence_store.record_intent(data, "search")
         recurrence_store.record_intent(data, "search")
         recurrence_store.record_intent(data, "send")
@@ -79,7 +79,7 @@ class TestLoadKeepsTheShape:
     async def test_a_payload_without_intents_reads_as_empty(self) -> None:
         class _Redis:
             async def get(self, key: str) -> str:
-                return '{"days": {"2026-09-01": [8.0]}, "suggested_at": null}'
+                return '{"days": {"2026-09-01": [8.0]}}'
 
         data = await recurrence_store.load(_Redis(), "recurrence:u:email")
         assert data["intents"] == {}

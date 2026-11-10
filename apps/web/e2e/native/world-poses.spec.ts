@@ -4,7 +4,6 @@ import { frameWorldProp } from '../fixtures/world-scene-navigation';
 import en from '../../locales/en/translation.json';
 import { WORLD } from '../../src/features/world/definition';
 import type { WorldView } from '../../src/features/world/protocol';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { openNativeWorld, enterWorld } from '../fixtures/world-admission';
 import { worldTransportFault } from './transport';
@@ -90,7 +89,6 @@ test('scene seating is shared, survives reconnect, stands safely and keeps the b
         paid.push(request.url());
     });
     await page.bringToFront();
-    await installOfflineFonts(page);
     await openNativeWorld(page, 'Seat visitor', worldProofUrl(baseURL, 'en'));
     await enterWorld(page);
     await expect.poll(() => own()?.status).toBe('active');

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, PlayCircle, ShieldCheck, Users, MapPin } from 'lucide-react';
+import { ChevronDown, PlayCircle, ShieldCheck, Users, MapPin } from '@/lib/icons';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';

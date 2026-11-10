@@ -32,10 +32,14 @@ const row = (family: string, name: string) =>
   });
 
 beforeEach(() => {
+  const matchMedia = window.matchMedia;
   Element.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal(
     'matchMedia',
-    vi.fn(() => ({ matches: true }))
+    vi.fn((query: string) => ({
+      ...matchMedia(query),
+      matches: query === '(prefers-reduced-motion: reduce)',
+    }))
   );
 });
 

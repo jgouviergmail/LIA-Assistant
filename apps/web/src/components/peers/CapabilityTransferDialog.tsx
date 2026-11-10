@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FileMinus, Files, Send } from 'lucide-react';
+import { FileMinus, Files, Send } from '@/lib/icons';
 import { toast } from 'sonner';
 import {
   Dialog,

@@ -87,3 +87,15 @@ the settings page says so through the candidates' `origin` (`live` versus
 regression; an inbox that stays empty after two months of stable-hour use
 with `live` candidates visible is the signal worth a ticket.
 
+
+## Amendment 2026-11-08 — the inbox reads habit proposals (ADR-375)
+
+C2 is superseded. The inbox is no longer a view over heartbeat notifications: it reads
+`habit_proposals` through `GET /habits/proposals` (an exact total, ADR-185), and
+`/heartbeat/offers` retires with the missed-routine offer it listed. Accepting no longer opens
+a prefilled chat: it CARRIES the proposal out in one transaction — a routine created or moved,
+the notification hours widened, the notifications paused — or opens the screen a failing
+routine or a missing connector needs; « Later » and « Never » replace the thumbs. The
+honest-expectation paragraph of 2026-09-03 no longer holds: a proposal no longer waits for a
+stable hour, only for the needs and signals ADR-375 lists. C4 (the adaptive ReAct budget) is
+unchanged.

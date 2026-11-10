@@ -99,7 +99,9 @@ class RAGSpacesSettings(BaseSettings):
     rag_spaces_max_docs_per_space: int = Field(
         default=RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT,
         ge=1,
-        le=200,
+        # Production runs 10 000 (owner decision, 2026-11-09): every reader only
+        # compares a count to it, nothing is sized by it.
+        le=10_000,
         description="Maximum number of documents per RAG space.",
     )
 
@@ -400,8 +402,12 @@ class RAGSpacesSettings(BaseSettings):
     rag_mail_max_threads_per_sync: int = Field(
         default=RAG_MAIL_MAX_THREADS_PER_SYNC,
         ge=1,
-        le=2000,
-        description="Threads read by one full label sync (the rest waits for the next run).",
+        le=10_000,
+        description=(
+            "Maximum threads listed by a full Gmail label sync, independently of the space's "
+            "document capacity. A truncated sync retains unseen documents and reports incomplete; "
+            "another full sync starts from the first page, not from the previous cutoff."
+        ),
     )
 
     rag_mail_max_thread_chars: int = Field(

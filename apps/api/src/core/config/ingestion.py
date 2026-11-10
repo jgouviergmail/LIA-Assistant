@@ -7,6 +7,8 @@ from src.core.constants import (
     SMS_CONTEXT_EXCERPT_CHARS_DEFAULT,
     SMS_CONTEXT_MAX_ITEMS_DEFAULT,
     SMS_CONTEXT_TOKEN_BUDGET_DEFAULT,
+    SMS_DISPLAY_MAX_INDEX_TERMS_DEFAULT,
+    SMS_DISPLAY_MAX_SENDERS_DEFAULT,
     SMS_SUMMARY_WINDOW_HOURS_DEFAULT,
 )
 
@@ -29,6 +31,18 @@ class IngestionSettings(BaseSettings):
     sms_max_origin_chars: int = Field(default=32, ge=1, le=32)
     sms_max_future_skew_seconds: int = Field(default=300, ge=0, le=3600)
     sms_max_index_terms: int = Field(default=512, ge=16, le=2048)
+    sms_display_max_index_terms: int = Field(
+        default=SMS_DISPLAY_MAX_INDEX_TERMS_DEFAULT,
+        ge=16,
+        le=8192,
+        description="Maximum stored blind display trigrams per SMS; incomplete rows remain candidates.",
+    )
+    sms_display_max_senders: int = Field(
+        default=SMS_DISPLAY_MAX_SENDERS_DEFAULT,
+        ge=1,
+        le=10000,
+        description="Distinct senders resolved for one display search or name sort; independent of body verification.",
+    )
     sms_search_max_query_terms: int = Field(default=32, ge=1, le=128)
     sms_search_max_candidates: int = Field(default=500, ge=1, le=2000)
     sms_search_timeout_ms: int = Field(default=2000, ge=100, le=10000)

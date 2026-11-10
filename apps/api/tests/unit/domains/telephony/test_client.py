@@ -256,6 +256,99 @@ async def test_delete_tool_forces_and_tolerates_a_vendor_refusal() -> None:
 
 
 # ---------------------------------------------------------------------------
+# The workspace's tools, read and released (ADR-373: the agent's tools are LIA's)
+# ---------------------------------------------------------------------------
+
+
+def _tool(tool_id: str, name: str = "send_to_lia") -> dict[str, object]:
+    return {"id": tool_id, "tool_config": {"type": "client", "name": name}}
+
+
+@pytest.mark.unit
+async def test_list_tools_reads_every_page_of_the_workspaces_client_tools() -> None:
+    from src.core.constants import ELEVENLABS_TOOLS_PAGE_SIZE
+
+    pages = {
+        None: {"tools": [_tool("t1")], "has_more": True, "next_cursor": "c2"},
+        "c2": {"tools": [_tool("t2", "get_events_tool"), "junk"], "has_more": False},
+    }
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=pages[request.url.params.get("cursor")])
+
+    tools = await _client(handler).list_tools()
+
+    # What is not a tool the vendor described is not read as one.
+    assert [tool["id"] for tool in tools] == ["t1", "t2"]
+    assert [request.url.params.get("cursor") for request in seen] == [None, "c2"]
+    for request in seen:
+        assert request.method == "GET" and request.url.path == "/v1/convai/tools"
+        # LIA only ever creates client tools: nothing else is read.
+        assert request.url.params["types"] == "client"
+        assert int(request.url.params["page_size"]) == ELEVENLABS_TOOLS_PAGE_SIZE
+
+
+@pytest.mark.unit
+async def test_list_tools_stops_at_its_page_bound() -> None:
+    """A cursor that never ends cannot hold a session start."""
+    from src.core.constants import ELEVENLABS_TOOLS_LIST_MAX_PAGES
+
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(
+            200, json={"tools": [_tool(f"t{calls}")], "has_more": True, "next_cursor": "again"}
+        )
+
+    tools = await _client(handler).list_tools()
+    assert calls == ELEVENLABS_TOOLS_LIST_MAX_PAGES
+    assert len(tools) == ELEVENLABS_TOOLS_LIST_MAX_PAGES
+
+
+@pytest.mark.unit
+async def test_list_tools_raises_a_vendor_refusal() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"detail": "boom"})
+
+    with pytest.raises(ElevenLabsAgentsError):
+        await _client(handler).list_tools()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("status", "outcome"),
+    [(204, "freed"), (200, "freed"), (409, "in_use"), (404, "refused"), (500, "refused")],
+)
+async def test_release_tool_deletes_without_force_and_says_what_became_of_it(
+    status: int, outcome: str
+) -> None:
+    """Measured 2026-09-16: a tool an agent still references answers 409 unless
+    forced — the very protection a sweep wants: it is kept."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(status)
+
+    assert await _client(handler).release_tool("tool_x") == outcome
+    [request] = seen
+    assert request.method == "DELETE" and request.url.path == "/v1/convai/tools/tool_x"
+    assert "force" not in request.url.params
+
+
+@pytest.mark.unit
+async def test_release_tool_counts_a_lost_connection_as_refused() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down", request=request)
+
+    assert await _client(handler).release_tool("tool_x") == "refused"
+
+
+# ---------------------------------------------------------------------------
 # The LLM is the portal's, never LIA's (owner decision, 2026-09-16)
 # ---------------------------------------------------------------------------
 
@@ -291,7 +384,9 @@ def test_the_agent_body_carries_only_what_is_lias() -> None:
     agent = body["conversation_config"]["agent"]
     assert set(body["conversation_config"]) == {"agent"}  # no tts, asr, conversation
     assert set(agent) == {"prompt", "first_message"}  # no language
-    assert set(agent["prompt"]) == {"prompt", "built_in_tools"}  # no llm, no tool_ids
+    # No llm, no tool_ids; the one prompt setting LIA owns drops the vendor's
+    # default persona (ADR-373).
+    assert set(agent["prompt"]) == {"prompt", "built_in_tools", "ignore_default_personality"}
     assert "end_call" in agent["prompt"]["built_in_tools"]
     assert "voicemail_detection" in agent["prompt"]["built_in_tools"]
     assert body["platform_settings"]["data_collection"]["agreed"] == {

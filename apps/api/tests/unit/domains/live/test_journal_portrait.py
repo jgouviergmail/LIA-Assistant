@@ -14,6 +14,7 @@ from src.domains.live.setup_render import render_setup_inputs
 from src.domains.telephony.mandates import append_owner_portrait
 from src.domains.telephony.models import CallKind
 from src.domains.users.models import User
+from src.domains.voice.expressive_cues import NO_CUES
 
 pytestmark = pytest.mark.unit
 
@@ -58,6 +59,7 @@ async def test_live_start_and_wake_share_one_provider_neutral_portrait(mode):
             now=datetime.now(UTC),
             personality="",
             psyche_block="",
+            cue_dialect=NO_CUES,
         )
     assert result.system_instruction == f"BASE FRAME\n\n{block}"
     portrait.assert_awaited_once_with(
@@ -88,6 +90,7 @@ async def test_live_refusal_and_budget_never_publish_a_portrait_fragment(disable
             now=datetime.now(UTC),
             personality="",
             psyche_block="",
+            cue_dialect=NO_CUES,
         )
     assert result.system_instruction == "BASE FRAME"
     if disabled:

@@ -8,7 +8,7 @@
  * - with the operator's switch off, nothing offers to keep a NEW answer, but a
  *   kept one keeps its mark and can be let go: the switch removes the act,
  *   never the record (ADR-282);
- * - the state is read ONCE per chat, and a bubble draws it filled or empty;
+ * - the state is read ONCE per chat, and a bubble draws a checked or plain mark;
  * - a click is optimistic and confirmed by the server; a refusal rolls the icon
  *   back and shows the server's own sentence (the cap, the switch);
  * - the second click removes; a click while the first is in flight is ignored;
@@ -22,6 +22,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
+import { DEFAULT_ICON_STYLE, ICON_STYLES, type IconStyle } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 
 const { api, FakeApiError } = vi.hoisted(() => {
   /** The shape `api-client` throws: a status the component reads, a body the detail comes from. */
@@ -45,11 +47,13 @@ import { BookmarkButton } from '../BookmarkButton';
 const MESSAGE = 'a1b2c3d4-0000-4000-8000-000000000001';
 const KEPT = 'b1b2c3d4-0000-4000-8000-000000000009';
 
-function mount(enabled = true, canKeep = true) {
+function mount(enabled = true, canKeep = true, style: IconStyle = DEFAULT_ICON_STYLE) {
   return renderWithProviders(
-    <BookmarkStateProvider enabled={enabled} canKeep={canKeep}>
-      <BookmarkButton messageDbId={MESSAGE} />
-    </BookmarkStateProvider>
+    <IconStyleContext.Provider value={style}>
+      <BookmarkStateProvider enabled={enabled} canKeep={canKeep}>
+        <BookmarkButton messageDbId={MESSAGE} />
+      </BookmarkStateProvider>
+    </IconStyleContext.Provider>
   );
 }
 
@@ -90,13 +94,15 @@ describe('when it is drawn', () => {
 
     await user.click(button);
 
-    await waitFor(() => expect(api.delete).toHaveBeenCalledWith(`/bookmarks/by-message/${MESSAGE}`));
+    await waitFor(() =>
+      expect(api.delete).toHaveBeenCalledWith(`/bookmarks/by-message/${MESSAGE}`)
+    );
     // Let go, the answer is no longer kept and keeping is off: nothing to offer.
     await waitFor(() => expect(screen.queryByTestId('bookmark-toggle')).not.toBeInTheDocument());
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('reads the state ONCE for the chat and draws a kept answer filled', async () => {
+  it('reads the state ONCE for the chat and marks a kept answer checked', async () => {
     api.get.mockResolvedValue({ message_ids: { [MESSAGE]: KEPT } });
 
     mount();
@@ -113,6 +119,34 @@ describe('when it is drawn', () => {
 });
 
 describe('the toggle', () => {
+  it.each(ICON_STYLES)('keeps the unkept and kept drawings distinct in %s', async style => {
+    const { user } = mount(true, true, style);
+    const button = await screen.findByTestId('bookmark-toggle');
+    const expectUnkept = () => {
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+      const icon = button.querySelector('svg');
+      expect(icon).toHaveAttribute('data-icon-name', 'Bookmark');
+      expect(icon).toHaveAttribute('data-icon-style', style);
+      expect(icon).toHaveAttribute('fill', 'none');
+    };
+    expectUnkept();
+    const unkeptPaths = [...button.querySelectorAll('svg path')].map(path =>
+      path.getAttribute('d')
+    );
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-pressed', 'true'));
+    expect(button.querySelector('svg')).toHaveAttribute('data-icon-name', 'BookmarkCheck');
+    expect(
+      [...button.querySelectorAll('svg path')].map(path => path.getAttribute('d'))
+    ).not.toEqual(unkeptPaths);
+    expect(button).toHaveClass('border-primary', 'bg-primary/10');
+    await user.click(button);
+    await waitFor(() => expect(button).toHaveAttribute('aria-pressed', 'false'));
+    expectUnkept();
+    expect(api.post).toHaveBeenCalledWith('/bookmarks', { message_id: MESSAGE });
+    expect(api.delete).toHaveBeenCalledWith(`/bookmarks/by-message/${MESSAGE}`);
+  });
+
   it('keeps on the first click and says so', async () => {
     const { user } = mount();
     const button = await screen.findByTestId('bookmark-toggle');

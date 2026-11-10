@@ -15,6 +15,8 @@ export interface SelectionViewport {
 
 const MARGIN = 8;
 const GAP = 8;
+const MIN_CONTROL_HEIGHT = 44;
+const OVERLAY_VIEWPORT_SHARE = 1 / 3;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
 
@@ -54,7 +56,17 @@ export function selectionMenuSpace(
   }));
   const full = spaces.find(space => space.width >= size.width && space.height >= size.height);
   // Avoid unusable slivers: the smallest interactive control needs a free slot.
-  const usable = spaces.filter(space => space.width >= 40 && space.height >= 40);
+  const usable = spaces.filter(
+    space => space.width >= MIN_CONTROL_HEIGHT && space.height >= MIN_CONTROL_HEIGHT
+  );
+  const overlayHeight = Math.max(
+    0,
+    Math.min(
+      bottom - top,
+      size.height,
+      Math.max(MIN_CONTROL_HEIGHT, viewport.height * OVERLAY_VIEWPORT_SHARE)
+    )
+  );
   return (
     full ??
     usable.sort(
@@ -62,7 +74,17 @@ export function selectionMenuSpace(
         Math.min(b.width, size.width) * Math.min(b.height, size.height) -
         Math.min(a.width, size.width) * Math.min(a.height, size.height)
     )[0] ??
-    null
+      // A full-viewport selection/editor leaves no free rectangle. Keep one bounded,
+      // scrollable edge panel available; the native selection endpoints remain untouched.
+      {
+        side: 'overlay',
+        left,
+        right,
+        top: bottom - overlayHeight,
+        bottom,
+        width: Math.max(0, right - left),
+        height: overlayHeight,
+      }
   );
 }
 

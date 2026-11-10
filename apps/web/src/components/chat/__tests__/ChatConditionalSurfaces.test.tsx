@@ -10,6 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import type { HabitProposal } from '@/hooks/useHabitProposals';
 import { visibleChatSurfaces, type ChatSurface } from '@/lib/chat-surfaces';
 import { initialHitlCardState } from '@/types/hitl';
 
@@ -19,6 +20,15 @@ import {
 } from '../ChatConditionalSurfaces';
 
 const SUGGESTIONS = ['Décale le rendez-vous', 'Envoie un récapitulatif'];
+const CARD = 'habits.proposals.chat_title';
+const PROPOSAL: HabitProposal = {
+  id: 'p-1',
+  kind: 'review_notifications',
+  key: 'heartbeat',
+  facts: { sent: 24, window_days: 35 },
+  created_at: '2026-11-08T03:00:00Z',
+  updated_at: '2026-11-08T03:00:00Z',
+};
 
 function props(over: Partial<ChatConditionalSurfacesProps> = {}): ChatConditionalSurfacesProps {
   return {
@@ -30,6 +40,8 @@ function props(over: Partial<ChatConditionalSurfacesProps> = {}): ChatConditiona
     onHitlAction: vi.fn(),
     connectorNotices: [],
     onDismissConnectorNotice: vi.fn(),
+    habitProposal: PROPOSAL,
+    proposalDecisions: { pending: null, decided: new Set(), decide: vi.fn() },
     ...over,
   };
 }
@@ -65,6 +77,34 @@ describe('ChatConditionalSurfaces — follow-up chips', () => {
   });
 });
 
+describe('ChatConditionalSurfaces — the habit proposal card (ADR-375)', () => {
+  it('mounts the card when it holds the slot', () => {
+    renderWithProviders(
+      <ChatConditionalSurfaces {...props({ surfaces: new Set<ChatSurface>(['proposal']) })} />
+    );
+    expect(screen.getByRole('region', { name: CARD })).toBeInTheDocument();
+  });
+
+  it('does not mount it when it does not — a proposal alone is not enough', () => {
+    renderWithProviders(<ChatConditionalSurfaces {...props()} />);
+    expect(screen.queryByRole('region', { name: CARD })).toBeNull();
+  });
+
+  it('takes the place of the chips, decided by the arbiter', () => {
+    const surfaces = visibleChatSurfaces({
+      usageBlocked: false,
+      hitlAwaitingAction: false,
+      hasConnectorNotices: false,
+      wantsGeolocationPrompt: false,
+      hasProposal: true,
+      hasFollowups: true,
+    });
+    renderWithProviders(<ChatConditionalSurfaces {...props({ surfaces })} />);
+    expect(screen.getByRole('region', { name: CARD })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: SUGGESTIONS[0] })).toBeNull();
+  });
+});
+
 describe('ChatConditionalSurfaces — always-mounted surfaces', () => {
   it('renders no HITL card when the state is `none` (the card owns that gate)', () => {
     const { container } = renderWithProviders(<ChatConditionalSurfaces {...props()} />);
@@ -86,6 +126,7 @@ describe('ChatConditionalSurfaces — arbitration end to end', () => {
       hitlAwaitingAction: true,
       hasConnectorNotices: false,
       wantsGeolocationPrompt: true,
+      hasProposal: false,
       hasFollowups: true,
     });
     renderWithProviders(<ChatConditionalSurfaces {...props({ surfaces })} />);
@@ -98,6 +139,7 @@ describe('ChatConditionalSurfaces — arbitration end to end', () => {
       hitlAwaitingAction: false,
       hasConnectorNotices: false,
       wantsGeolocationPrompt: false,
+      hasProposal: false,
       hasFollowups: true,
     });
     renderWithProviders(<ChatConditionalSurfaces {...props({ surfaces })} />);

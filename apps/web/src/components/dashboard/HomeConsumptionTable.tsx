@@ -1,5 +1,5 @@
-import { Coins, Database, Globe, MessageSquare } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Coins, Database, Globe, MessageSquare } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { UserStatistics } from '@/hooks/useUserStatistics';

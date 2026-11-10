@@ -10,7 +10,7 @@
  * place, so its field holds that name alone. A name already taken is said in the
  * refusal's own words.
  */
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from '@/lib/icons';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';

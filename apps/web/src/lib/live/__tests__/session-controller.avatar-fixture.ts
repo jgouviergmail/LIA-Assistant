@@ -45,6 +45,7 @@ const START: LiveSessionStart = {
   delegation_timeout_seconds: 90,
   delegation_result_max_tokens: 600,
   turn_text_max_chars: 4000,
+  expression: 'prose',
   rates: {
     pricing_unit: 'per_1m_tokens',
     input_unit_price: 0.75,

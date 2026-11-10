@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
@@ -18,7 +18,7 @@ import {
 import { BriefingCard } from '../BriefingCard';
 import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { useDashboardChat } from '../DashboardNavigation';
 import { haptic } from '@/lib/haptics';
 import { useApiMutation } from '@/hooks/useApiMutation';

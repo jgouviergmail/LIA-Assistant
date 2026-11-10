@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import { Settings2 } from 'lucide-react';
+import { Settings2 } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import { getIntlLocale, type Language } from '@/i18n/settings';
 import { Badge } from '@/components/ui/badge';

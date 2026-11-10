@@ -19,7 +19,7 @@
  * would work today and break the day the file outgrows what a tab wants to hold.
  */
 
-import { FileJson } from 'lucide-react';
+import { FileJson } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

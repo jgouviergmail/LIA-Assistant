@@ -19,7 +19,7 @@ import {
   RotateCcw,
   User,
   X,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { voiceProviderBrand } from '@/lib/voice-provider-brand';
 import { cn } from '@/lib/utils';
@@ -558,9 +558,9 @@ function GoneFileCard({ family, name }: { family: 'image' | 'document'; name: st
   return (
     <div
       data-testid={`generated-${family}-gone`}
-      className="w-full max-w-[512px] mx-auto rounded-lg border border-dashed bg-muted/30 p-3"
+      className="lia-generated-file-gone w-full max-w-[512px] mx-auto rounded-lg border border-dashed bg-muted/30 p-3"
     >
-      <div className="truncate text-sm font-medium text-muted-foreground">{name}</div>
+      <div className="break-words text-sm font-medium text-muted-foreground">{name}</div>
       <p className="mt-1 text-px-11 text-muted-foreground">{t(`chat.${family}_expiry.gone`)}</p>
     </div>
   );
@@ -707,7 +707,7 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
   // maximum-complexity hotspot and must not gain render branches.
   if (!documents || documents.length === 0) return null;
   return (
-    <div className="mt-3 space-y-2">
+    <div className="lia-generated-documents mt-3 space-y-2">
       {documents.map((doc, i) => {
         if (doc.gone) return <GoneFileCard key={i} family="document" name={doc.filename} />;
         const Icon = documentTypeIcon(doc.doc_type);
@@ -715,21 +715,23 @@ function GeneratedDocumentCards({ documents }: { documents?: GeneratedDocument[]
           <div
             key={i}
             data-testid="generated-document-card"
-            className="overflow-hidden rounded-lg border bg-card w-full max-w-[512px] mx-auto"
+            className="lia-generated-document rounded-lg border bg-card w-full mx-auto"
           >
-            <div className="flex items-center gap-2 p-3">
+            <div className="lia-generated-document__header flex items-center gap-2 p-3">
               <a
                 href={documentOpenHref(doc, i18n.language)}
                 target="_blank"
                 rel="noopener"
-                className="flex items-center gap-3 min-h-11 min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="lia-generated-document__identity flex items-center gap-3 min-h-11 min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={t('chat.document_card.open', { name: doc.filename })}
               >
                 <Icon className="w-8 h-8 shrink-0 text-primary" aria-hidden="true" />
                 {/* divs, not spans: the expiry notice renders a <p>, which is
                   valid flow content inside <a>/<div> but not inside <span> */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-sm">{doc.filename}</div>
+                  <div className="lia-generated-document__name font-medium text-sm">
+                    {doc.filename}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {doc.doc_type.toUpperCase()} · {formatFileSize(doc.size_bytes)}
                   </div>
@@ -1121,7 +1123,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
   // System messages (generic system notifications)
   if (isSystem) {
     return (
-      <div className="flex gap-3 mb-4 animate-message-enter">
+      <div data-selection-surface="message" className="flex gap-3 mb-4 animate-message-enter">
         {/* System icon */}
         <div className="flex-shrink-0">
           <div className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm bg-warning/10 text-warning ring-2 ring-warning/20">
@@ -1153,7 +1155,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
 
   if (!isUser) {
     return (
-      <div className="mb-4 animate-message-enter mobile:flex mobile:flex-row-reverse mobile:gap-3">
+      <div
+        data-selection-surface="message"
+        className="mb-4 animate-message-enter mobile:flex mobile:flex-row-reverse mobile:gap-3"
+      >
         {/* Avatar — AssistantAvatar with psyche state (per-message or fallback) */}
         <div className="hidden mobile:block flex-shrink-0">
           <AssistantAvatar
@@ -1304,7 +1309,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
 
   // User messages
   return (
-    <div className="flex gap-3 mb-4 animate-message-enter flex-row">
+    <div
+      data-selection-surface="message"
+      className="flex gap-3 mb-4 animate-message-enter flex-row"
+    >
       {/* Avatar */}
       <div className="flex-shrink-0">
         {message.avatar ? (

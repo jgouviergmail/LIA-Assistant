@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle, Database, LibraryBig, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Database, LibraryBig, RefreshCw } from '@/lib/icons';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -10,15 +10,22 @@ Created: 2026-03-08
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import JEV_STATISTICS_DAYS_DEFAULT, JEV_STATISTICS_DAYS_MAX
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input, raise_llm_type_not_found
 from src.core.session_dependencies import get_current_superuser_session
 from src.domains.llm_config.jev_admin import (
     JevSettingsResponse,
+    JevThresholdUpdate,
     get_jev_settings,
     update_jev_setting,
+    update_jev_thresholds,
 )
 from src.domains.llm_config.jev_settings import JevToggleUpdate
+from src.domains.llm_config.jev_statistics_read import (
+    JevStatisticsResponse,
+    read_jev_statistics,
+)
 from src.domains.llm_config.schemas import (
     LLMConfigListResponse,
     LLMTypeConfig,
@@ -58,6 +65,40 @@ async def patch_jev(
 ) -> JevSettingsResponse:
     """Persist and audit a single preference; future operations read it immediately."""
     return await update_jev_setting(db, body, admin_user_id=current_user.id, request=request)
+
+
+@router.patch(
+    "/jev/thresholds",
+    response_model=JevSettingsResponse,
+    summary="Move some thresholds of one Jev usage",
+)
+async def patch_jev_thresholds(
+    body: JevThresholdUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> JevSettingsResponse:
+    """Persist and audit bounded thresholds (ADR-374); the next operation decides with them."""
+    return await update_jev_thresholds(db, body, admin_user_id=current_user.id, request=request)
+
+
+@router.get(
+    "/jev/statistics",
+    response_model=JevStatisticsResponse,
+    summary="Read Jev's durable statistics over a window of days",
+)
+async def get_jev_statistics(
+    days: int = Query(
+        default=JEV_STATISTICS_DAYS_DEFAULT,
+        ge=1,
+        le=JEV_STATISTICS_DAYS_MAX,
+        description="Whole UTC days, today included.",
+    ),
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> JevStatisticsResponse:
+    """Calls, cost, latency, outcomes and bucketed judgements per usage (admin only)."""
+    return await read_jev_statistics(db, days=days)
 
 
 @router.get(

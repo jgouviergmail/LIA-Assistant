@@ -17,7 +17,7 @@
 
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, FileText, ChevronRight, FolderOpen } from 'lucide-react';
+import { Folder, FileText, ChevronRight, FolderOpen } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {

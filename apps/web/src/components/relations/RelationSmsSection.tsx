@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useAppConfig } from '@/hooks/useAppConfig';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState, useSyncExternalStore } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 /**

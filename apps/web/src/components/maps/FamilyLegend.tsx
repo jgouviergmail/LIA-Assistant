@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutGrid, Rows3 } from 'lucide-react';
+import { LayoutGrid, Rows3 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { BrickMapKind, FamilyView } from '@/lib/maps/types';

@@ -32,7 +32,7 @@ import {
   Repeat,
   Telescope,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -45,6 +45,7 @@ import { Label } from '@/components/ui/label';
 import { RowActions } from '@/components/ui/row-actions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
+import { weekdayName } from '@/lib/habit-labels';
 import { lifecycleTone } from '@/lib/status-tone';
 import { useAppConfig } from '@/hooks/useAppConfig';
 import { useConfirm } from '@/components/ui/use-confirm';
@@ -61,21 +62,6 @@ import {
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import type { BaseSettingsProps } from '@/types/settings';
-
-/** Localized weekday name from a 0=Monday..6=Sunday index. */
-function weekdayName(locale: string, dow: number): string {
-  // 2026-08-03 is a Monday; offsetting from it yields any weekday safely.
-  const reference = new Date(Date.UTC(2026, 7, 3 + dow));
-  return new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(reference);
-}
-
-/** "07:30"-style label from a fractional hour. */
-function formatHour(hour: number): string {
-  const totalMinutes = (Math.round((hour * 60) / 30) * 30) % (24 * 60);
-  const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const m = String(totalMinutes % 60).padStart(2, '0');
-  return `${h}:${m}`;
-}
 
 export function HabitsSettings({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
@@ -391,7 +377,8 @@ function domainsLabel(t: ReturnType<typeof useTranslation>['t'], key: string): s
 /** One recurrence signature under observation: the domains, then either the
  * quantified progress toward the ENFORCED existence gate (published by the
  * backend — ADR-184) or, once volume is there, the consistency-forming state
- * (a lock is not a linear progress — pretending otherwise would be a lie). */
+ * (the remaining bars — days over two weeks, a recent ask, ADR-375 — are not a
+ * linear progress; pretending otherwise would be a lie). */
 function CandidateRow({ lng, candidate }: { lng: Language; candidate: HabitCandidate }) {
   const { t } = useTranslation(lng);
   const volumeReached = candidate.observed_days >= candidate.required_days;
@@ -576,31 +563,49 @@ function habitLabel(
       windows,
     });
   }
-  const shape = typeof habit.payload.shape === 'string' ? habit.payload.shape : 'daily';
-  const hour = typeof habit.payload.trigger_hour === 'number' ? habit.payload.trigger_hour : null;
-  const days = Array.isArray(habit.payload.days_of_week)
-    ? (habit.payload.days_of_week as number[])
-    : [];
-  const schedule =
-    shape === 'weekly' && days.length > 0
-      ? t('settings.habits.shape.weekly', { day: weekdayName(locale, days[0]) })
-      : t(`settings.habits.shape.${shape}`);
   const usualIntent = habitIntentOf(habit.payload.usual_intent);
-  const values = {
-    domains: domainsLabel(t, habit.key),
-    schedule,
-    time: hour !== null ? `~${formatHour(hour)}` : '',
-  };
+  const values = { domains: domainsLabel(t, habit.key), cadence: needCadence(t, locale, habit) };
   // Q4: the ledger's dominant request opens the row when it learned one
-  // (« Search · Emails — every day ~08:30 »).
+  // (« Search · Emails — Monday to Friday »).
   return (
     usualIntent
-      ? t('settings.habits.row.recurring_request_with_intent', {
+      ? t('settings.habits.row.recurring_need_with_intent', {
           ...values,
           intent: t(`settings.habits.intent.${usualIntent}`),
         })
-      : t('settings.habits.row.recurring_request', values)
+      : t('settings.habits.row.recurring_need', values)
   ).trim();
+}
+
+/** When a recurring need is asked (ADR-375): any day, working days, or one weekday. */
+function needCadence(
+  t: ReturnType<typeof useTranslation>['t'],
+  locale: string,
+  habit: Habit
+): string {
+  const weekday = typeof habit.payload.weekday === 'number' ? habit.payload.weekday : null;
+  if (habit.payload.cadence === 'weekly' && weekday !== null) {
+    return t('settings.habits.cadence.weekly', { day: weekdayName(locale, weekday) });
+  }
+  return t(
+    `settings.habits.cadence.${habit.payload.cadence === 'weekdays' ? 'weekdays' : 'daily'}`
+  );
+}
+
+const NEED_PARTS = new Set(['morning', 'afternoon', 'evening', 'night']);
+
+/** What a recurring need rests on: its days among the days of use, and when it is asked. */
+function needCaption(t: ReturnType<typeof useTranslation>['t'], habit: Habit): string | null {
+  if (habit.kind !== 'recurring_request') return null;
+  const { distinct_days: days, active_days: active, part_of_day: part } = habit.payload;
+  const facts: string[] = [];
+  if (typeof days === 'number' && typeof active === 'number') {
+    facts.push(t('settings.habits.need_caption', { days, active }));
+  }
+  if (typeof part === 'string' && NEED_PARTS.has(part)) {
+    facts.push(t(`settings.habits.usually.${part}`));
+  }
+  return facts.length > 0 ? facts.join(' · ') : null;
 }
 
 function HabitRow({
@@ -616,6 +621,7 @@ function HabitRow({
 }) {
   const { t, i18n } = useTranslation(lng);
   const label = habitLabel(t, i18n.language, habit);
+  const caption = needCaption(t, habit);
   return (
     <li className="rounded-lg border border-border bg-card px-3 py-2">
       <div className="flex items-center gap-2">
@@ -623,6 +629,7 @@ function HabitRow({
           <p className="truncate text-sm font-medium" title={label}>
             {label}
           </p>
+          {caption && <p className="text-px-11 text-muted-foreground">{caption}</p>}
           <p className="text-px-11 text-muted-foreground">
             {t('settings.habits.signals_caption', {
               positive: habit.positive_signals,

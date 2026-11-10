@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { EyeOff, RefreshCw, Trash2 } from 'lucide-react';
+import { EyeOff, RefreshCw, Trash2 } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';

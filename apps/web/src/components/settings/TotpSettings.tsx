@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, ShieldCheck, Smartphone } from 'lucide-react';
+import { Copy, ShieldCheck, Smartphone } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -199,7 +199,10 @@ export function TotpSettings() {
                 <p className="text-xs text-muted-foreground">
                   {t('settings.security.totp.enroll_secret_label')}
                 </p>
-                <code className="block select-all break-all rounded bg-muted px-2 py-1 text-xs">
+                <code
+                  data-selection-assist="off"
+                  className="block select-all break-all rounded bg-muted px-2 py-1 text-xs"
+                >
                   {enrollment.secret}
                 </code>
               </div>
@@ -234,7 +237,7 @@ export function TotpSettings() {
             <DialogTitle>{t('settings.security.totp.backup_title')}</DialogTitle>
             <DialogDescription>{t('settings.security.totp.backup_description')}</DialogDescription>
           </DialogHeader>
-          <ul className="grid grid-cols-2 gap-2 font-mono text-sm">
+          <ul data-selection-assist="off" className="grid grid-cols-2 gap-2 font-mono text-sm">
             {(backupCodes ?? []).map(code => (
               <li key={code} className="select-all rounded bg-muted px-2 py-1 text-center">
                 {code}

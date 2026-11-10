@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { MessageCircle, Link2, Unlink, Copy, Check } from 'lucide-react';
+import { MessageCircle, Link2, Unlink, Copy, Check } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

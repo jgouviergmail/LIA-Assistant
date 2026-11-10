@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Gauge } from 'lucide-react';
+import { Gauge } from '@/lib/icons';
 import {
   DebugChip,
   DebugSection,

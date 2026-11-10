@@ -22,7 +22,7 @@
  */
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Filter, X } from 'lucide-react';
+import { Filter, X } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';

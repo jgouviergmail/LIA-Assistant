@@ -5,7 +5,7 @@ import { useHydrated } from '@/hooks/useHydrated';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { Check, Languages, Info } from 'lucide-react';
+import { Check, Languages, Info } from '@/lib/icons';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { LanguageFlag } from '@/components/icons/LanguageFlag';

@@ -61,6 +61,46 @@ flowchart TD
 | `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning, the session-less call-back. |
 | Tool | `agents/tools/telephony_self_tools.py::call_me` — `reversible` with a written reason: no card, and a routine may plan it. |
 
+## Voicemail: the portal owns the spoken message
+
+All outgoing mandates (third-party, owner direct, owner Live and number
+verification) delegate a detected answering machine to ElevenLabs'
+`voicemail_detection` system tool, once, without accompanying speech. The
+provider plays the message configured in its portal, if any, and terminates the
+call. LIA neither composes an additional message nor calls `end_call` on that
+path. This takes precedence over the ordinary greeting, identity check, recap
+and goodbye; a verification code is never read to a voicemail.
+
+The versioned prompts carry this rule explicitly. Their former instructions and
+examples asked the model to speak a message itself, competing with the provider's
+configured message. The HTTP client enables the system tool without supplying a
+`voicemail_message` value. The portal remains the place to edit that text.
+
+The baked third-party prompt participates in the existing agent-config fingerprint
+and is synchronized before the next call after deployment; the owner and
+verification prompts travel as per-call overrides. HTTP contract tests verify
+that neither create nor update supplies a voicemail message. A real phone call is
+still needed to verify acoustic timing and the provider's delivered speech.
+
+See the [ElevenLabs voicemail tool documentation](https://elevenlabs.io/docs/eleven-agents/customization/tools/system-tools/voicemail-detection).
+
+## Post-call language and unanswered calls
+
+The provider's transcript summary is model input, not a localized fallback. When
+the return synthesis fails, both owner and third-party calls use the central
+`get_return_phrases` notice in the account's language; the raw vendor summary is
+neither appended to that notification nor stored as its recap. A failed synthesis
+also supplies no evidence that the owner answered.
+
+An owner call answered by voicemail needs no model or chat relay. Its terminal
+status reads the provider's explicit phone result or an executed
+`voicemail_detection` tool, as well as the legacy status/reason fields. A prose
+summary mentioning voicemail is never evidence by itself. Before tool cleanup or
+notification delivery, the durable outbox already holds the localized unanswered
+notice (or the separate line-failure notice). An interruption at that point cannot
+turn a known unanswered call into a claimed chat-relay failure. These rules apply
+to both direct and Live owner calls and are exercised in all supported languages.
+
 ## Security invariants (do not weaken)
 
 1. **Read-only, minimized by capability.** The agent only ever receives a
@@ -352,15 +392,32 @@ flowchart TD
   reads the person's switches from THEIR row at every call: a tool still
   attached by a stale PATCH answers « not found » on a domain switched off
   since. Needs a PUBLIC `API_URL` the vendor can reach.
-- **The assistant's personality (lot 9)**: the instruction the person
+- **The assistant's personality (lot 9, ADR-373)**: the instruction the person
   configured for LIA (`PersonalityService.get_prompt_instruction_for_user`,
   the chat's and the voice flow's own door) is read once at the dial,
-  best-effort, and reaches both mandates — rendered into the owner prompt's
-  `<personality_profile>` (neutralised like every value; a scaffold says when
-  none is configured) and handed to the baked third-party agent as the
-  `personality_profile` dynamic variable, so a personality change needs no
-  re-sync. Both prompts say it colours how the agent speaks, never what it
-  may share or do.
+  best-effort, and rendered into the owner prompt as the voice sessions' ONE
+  personality block (`voice_sessions/mandate.personality_block`, neutralised
+  like every value; LIA's default manner when none could be read): facts and
+  acts first, the personality over every other word and the delivery. A
+  STRANGER never hears it: the baked third-party agent's
+  `<personality_profile>` slot always receives LIA's cordial manner
+  (`mandates.third_party_manner`) as the `personality_profile` dynamic
+  variable (owner rule 2026-11-07).
+- **The agent's expression (ADR-373)**: the provisioned agent drops the
+  vendor's default persona (`client.agent_prompt_settings`, in the body AND
+  the fingerprint). Before every dial, `TelephonyService._arm_agent_expression`
+  reads the agent: when its engine performs audio tags, it writes the palette
+  of the call it is about to make — the person's whole vocabulary for an
+  owner call (whose prompt then lists the cues), the cordial one for a third
+  party or a verification — only where it drifted, inside the agent's whole
+  `tts` block sent back as stored (`voice_sessions.expression.palette_block`,
+  shared with the live sync), best effort (a refusal costs the cues, never
+  the call). The vendor's transcript keeps the tags the agent's engine
+  performed, unspoken: the agent's turns are read through
+  `expressive_cues.strip_transcript_cues` where they become a `VoiceTranscript`
+  (the archive, the relay, the learning) and where the third-party synthesis
+  reads them (`payload.extract_transcript_text`); the person's own words are
+  never touched.
 - **The call's bill (lot 8)**: the live lookups during the call, the
   synthesis after it and the relayed turn all spend under ONE run id
   (`telephony/spend.phone_call_run_id`, `phone_call_<hex>`): each lookup

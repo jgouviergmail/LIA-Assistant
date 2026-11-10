@@ -20,6 +20,8 @@ from src.domains.agents.services.qualification.contracts import (
 from src.domains.agents.utils.token_utils import count_tokens
 from src.infrastructure.llm.typesafe_client import (
     ChoiceQuestion,
+    DecisionQuestion,
+    NoulQuestion,
     TypeSafeError,
     encode_decision_request,
 )
@@ -42,7 +44,7 @@ def _reference_time(now: datetime, timezone: str) -> str:
 @dataclass(frozen=True)
 class ClassificationBatch:
     state: dict[str, JsonValue]
-    questions: dict[str, ChoiceQuestion]
+    questions: dict[str, DecisionQuestion]
     members: tuple[ClassificationObservation, ...]
     request_bytes: int
     estimated_input_tokens: int
@@ -51,7 +53,7 @@ class ClassificationBatch:
 def _batch(
     values: list[ClassificationObservation], *, model: str, now: datetime, timezone: str
 ) -> ClassificationBatch:
-    questions: dict[str, ChoiceQuestion] = {}
+    questions: dict[str, DecisionQuestion] = {}
     items: dict[str, JsonValue] = {}
     for index, value in enumerate(values):
         key = f"i{index}"
@@ -70,6 +72,10 @@ def _batch(
         if value.kind == "email":
             questions[f"{key}_priority"] = ChoiceQuestion.model_validate_json(
                 load_prompt("jev_email_priority_question", version="v1")
+            ).filled(item_key=key)
+            # Whether the message expects a reply: a Noul, decided at its margin (ADR-374).
+            questions[f"{key}_reply"] = NoulQuestion.model_validate_json(
+                load_prompt("jev_email_reply_expected_question", version="v1")
             ).filled(item_key=key)
     state: dict[str, JsonValue] = {
         "reference_time": _reference_time(now, timezone),

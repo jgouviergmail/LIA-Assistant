@@ -108,7 +108,7 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
 | User-model portrait | `build_journal_user_model_block(format='brief')` (compiled portrait, ADR-079) | journals_enabled | "" |
 | Health signals | `heartbeat/health_context.fetch_health_signals` → `health_metrics/heartbeat_signals.build_heartbeat_health_signals` (summary + baseline deltas + variations, ONE per-day rollup per kind — ADR-148) | health_metrics_enabled + per-user opt-in | None |
-| Birthdays | `connectors.birthdays.fetch_upcoming_birthdays` via `context_sources.fetch_birthdays_context` (Redis cache to local midnight, horizon `HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS`) — P7 | Google Contacts connector | None |
+| Birthdays | `connectors.birthdays.fetch_upcoming_birthdays` via `context_sources.fetch_birthdays_context` (Redis cache to local midnight, horizon `HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS`) — P7; the active contacts provider's whole book through the shared directory | Active contacts connector (Google, Apple or Microsoft) | None |
 | Departure advice | `context_sources.fetch_departure_advice` (2nd pass over fetched calendar events: Routes traffic-aware ETA + leave-by, Redis cache per (user, event), ≤1 call/cycle) — P6, rule 20 | `HEARTBEAT_DEPARTURE_ENABLED` + Google API key | None |
 | Open loops | `context_sources.fetch_open_loops_context` (lazy expiry + nudge-worthiness filter + per-loop cooldown; post-notify bump in `proactive_task` when `OPEN_LOOPS` was used) — P5, ADR-139 | `OPEN_LOOPS_ENABLED` | None |
 | Habits | `habit_context.fetch_habits_context` — the learned RHYTHM (consumable windows only: a window the person paused, blocked or deleted never reaches the prompt — `habits/consumption.py`) and at most ONE missed-routine OFFER, naming the usual request (`usual_intent`, ADR-214 c) — rule 24 | `HABITS_ENABLED` + the `habits` capability switch + the person's « learn my habits » preference | None |
@@ -303,12 +303,11 @@ carry the `task_type`.
 can land inside a learned window within the sweep's own bounds
 (`TickSurface`, one per sweep, pinned to its `EligibilityChecker`). Fail-open
 everywhere; consumable windows only. The prompt sees the rhythm as CONTEXT
-(rule 24: prefer those windows, never mention that a rhythm was learned) and
-the missed routine as an OFFER the decision must DECLARE
-(`HeartbeatDecision.habit_offered`): the offer budget (≤ 1/day, 7-day
-cooldown, mute after 2 ignored) is stamped from that declaration, no longer
-from the `sources_used` label the model happened to pick (measured
-2026-09-11: an offer labelled `UNREAD_EMAILS` never burnt its cooldown).
+(rule 24: prefer those windows, never mention that a rhythm was learned).
+The missed-routine OFFER the decision used to declare is retired (ADR-375): it
+waited for the same request at the same hour. What LIA learns from use is
+proposed in the « Proposals » inbox and under a chat answer instead, decided
+there in one click — never through a heartbeat notification.
 
 What the decision sees: the aggregator receives the wake payload — the mail
 metadata the pre-filter already fetched (used instead of the delta fast-path,

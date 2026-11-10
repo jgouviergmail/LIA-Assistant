@@ -50,6 +50,52 @@ type ChatActionHandlers = { [K in ChatAction['type']]: ChatActionHandler<K> };
 // STREAM_DONE helpers (extracted so the handler stays flat)
 // ============================================================================
 
+/** What a done chunk writes into the bubble's metadata — every key under the
+ * name the ARCHIVED row uses, so a live bubble and a reloaded one read alike.
+ * Store psyche state snapshot for avatar display. ADR-117 Lot 3: a cancelled
+ * run's synthesized done flags the partial bubble with the SAME `interrupted`
+ * field as archived history rows — one badge for live and reload. */
+function doneMessageMetadata(
+  current: Message['metadata'],
+  metadata: StreamDoneMetadata
+): Message['metadata'] {
+  return {
+    ...current,
+    application_interactions: metadata.application_interactions,
+    psyche_state: metadata.psyche_state,
+    // Expressivity (ADR-253): the register the answering model declared for
+    // THIS answer — read by the live bridge as the voice's delivery note. Live
+    // only: the archived row never carries it, so a reload never re-performs.
+    ...(metadata.expressivity ? { expressivity: metadata.expressivity } : {}),
+    ...(metadata.cancelled ? { interrupted: true, interrupt_reason: 'cancelled' } : {}),
+    // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
+    // render when a message can be targeted server-side. Never over a row the
+    // bubble already names (ADR-320): the fallback below can land on an
+    // EARLIER answer, and renamed, that row would come back as a second copy
+    // at the next merge while the bubble took the new answer's words.
+    ...(metadata.archived_message_id && !current?.message_db_id
+      ? { message_db_id: metadata.archived_message_id }
+      : {}),
+    // UXR Lot 4 (A2): follow-up chips — same field name as the archived
+    // message_metadata so live and reloaded rows read identically.
+    ...(metadata.followup_suggestions?.length
+      ? { followup_suggestions: metadata.followup_suggestions }
+      : {}),
+    // Lot 1-A3: provenance line of the chips (same live/reload symmetry).
+    ...(metadata.initiative_motivation
+      ? { initiative_motivation: metadata.initiative_motivation }
+      : {}),
+    // ADR-375: the habit proposal the answer shows, read through
+    // `habitProposalOf` like a reloaded row.
+    ...(metadata.habit_proposal ? { habit_proposal: metadata.habit_proposal } : {}),
+    // ADR-263: kept under the SAME key the archived row uses, so a reload
+    // hydrates from the same shape the live turn carried.
+    ...(metadata.performed_effects?.length
+      ? { performed_effects: metadata.performed_effects }
+      : {}),
+  };
+}
+
 /** Attach the SSE ``done`` metadata (tokens, TTS attribution, psyche snapshot,
  * cancellation badge) to a single message. Shared by both STREAM_DONE branches
  * (matched-id and last-assistant fallback) so the patch never drifts. */
@@ -74,42 +120,7 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     generatedDocuments: metadata.generated_documents,
     skillProposals: metadata.skill_proposals,
     browserScreenshot: metadata.browser_screenshot as { url: string; alt: string } | undefined,
-    // Store psyche state snapshot for avatar display.
-    // ADR-117 Lot 3: a cancelled run's synthesized done flags the partial
-    // bubble with the SAME `interrupted` field as archived history rows — one
-    // badge for live and reload.
-    metadata: {
-      ...m.metadata,
-      application_interactions: metadata.application_interactions,
-      psyche_state: metadata.psyche_state,
-      // Expressivity (ADR-253): the register the answering model declared for
-      // THIS answer — read by the live bridge as the voice's delivery note. Live
-      // only: the archived row never carries it, so a reload never re-performs.
-      ...(metadata.expressivity ? { expressivity: metadata.expressivity } : {}),
-      ...(metadata.cancelled ? { interrupted: true, interrupt_reason: 'cancelled' } : {}),
-      // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
-      // render when a message can be targeted server-side. Never over a row the
-      // bubble already names (ADR-320): the fallback below can land on an
-      // EARLIER answer, and renamed, that row would come back as a second copy
-      // at the next merge while the bubble took the new answer's words.
-      ...(metadata.archived_message_id && !m.metadata?.message_db_id
-        ? { message_db_id: metadata.archived_message_id }
-        : {}),
-      // UXR Lot 4 (A2): follow-up chips — same field name as the archived
-      // message_metadata so live and reloaded rows read identically.
-      ...(metadata.followup_suggestions?.length
-        ? { followup_suggestions: metadata.followup_suggestions }
-        : {}),
-      // Lot 1-A3: provenance line of the chips (same live/reload symmetry).
-      ...(metadata.initiative_motivation
-        ? { initiative_motivation: metadata.initiative_motivation }
-        : {}),
-      // ADR-263: kept under the SAME key the archived row uses, so a reload
-      // hydrates from the same shape the live turn carried.
-      ...(metadata.performed_effects?.length
-        ? { performed_effects: metadata.performed_effects }
-        : {}),
-    },
+    metadata: doneMessageMetadata(m.metadata, metadata),
     // Parsed with the one parser the history path uses: live and reloaded
     // bubbles cannot disagree about what was done.
     performedEffects: performedEffectsFromMetadata({
@@ -292,7 +303,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   // ------------------------------------------------------------------ User
   SEND_MESSAGE: (state, action) => ({
     ...state,
-    resultPreviews: [],
     messages: [...state.messages, action.payload.message],
     status: 'sending',
     streaming: {
@@ -313,7 +323,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   CLEAR_MESSAGES: state => ({
     ...state,
-    resultPreviews: [],
     messages: [],
     status: 'idle',
     streaming: {
@@ -399,7 +408,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   // ------------------------------------------------------------------ SSE Lifecycle
   SSE_CONNECTING: state => ({
     ...state,
-    resultPreviews: [],
     status: 'sending',
     streaming: {
       ...state.streaming,
@@ -417,7 +425,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   SSE_DISCONNECTED: state => ({
     ...state,
-    resultPreviews: [],
     status: 'idle',
     streaming: {
       currentMessageId: null,
@@ -429,7 +436,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   SSE_ERROR: (state, action) => ({
     ...state,
-    resultPreviews: [],
     status: 'error',
     streaming: {
       ...state.streaming,
@@ -593,7 +599,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
         phase: 'answer',
       },
       browserScreenshot: null, // Clear overlay when stream completes
-      resultPreviews: [],
       contextUsage: nextContextUsage(state, metadata),
       hitl: hitlAfterDone,
     };
@@ -601,7 +606,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
 
   STREAM_ERROR: (state, action) => ({
     ...state,
-    resultPreviews: [],
     status: 'error',
     streaming: {
       ...state.streaming,
@@ -777,21 +781,6 @@ const ACTION_HANDLERS: ChatActionHandlers = {
   }),
 
   // ------------------------------------------------------------------ Browser Screenshots
-  RESULT_PREVIEW: (state, action) => {
-    if (
-      state.status !== 'streaming' ||
-      state.streaming.currentMessageId !== action.payload.messageId
-    )
-      return state;
-    return {
-      ...state,
-      resultPreviews: [
-        ...state.resultPreviews.filter(item => item.kind !== action.payload.collection.kind),
-        action.payload.collection,
-      ],
-    };
-  },
-
   BROWSER_SCREENSHOT: (state, action) => ({ ...state, browserScreenshot: action.payload }),
 
   BROWSER_SCREENSHOT_CLEAR: state => ({ ...state, browserScreenshot: null }),

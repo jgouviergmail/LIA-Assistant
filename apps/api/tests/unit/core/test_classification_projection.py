@@ -39,11 +39,12 @@ def event(valid_for: timedelta, category: str = "personal") -> dict[str, object]
     ).model_dump(mode="json")
 
 
-def email() -> dict[str, object]:
+def email(**over: object) -> dict[str, object]:
     return EmailClassification.model_validate(
         {
             "category": "phishing_scam",
             "priority": "urgent",
+            **over,
             "evidence_scope": "snippet",
             "evaluated_at": NOW,
             "valid_until": NOW + timedelta(minutes=5),
@@ -76,6 +77,13 @@ class TestTheView:
             "current",
         )
 
+    def test_an_email_says_whether_it_expects_a_reply_only_once_decided(self) -> None:
+        decided = classification_view(email(category="professional", reply_expected=True), now=NOW)
+        undecided = classification_view(email(category="professional"), now=NOW)
+
+        assert decided is not None and decided["reply_expected"] == "true"
+        assert undecided is not None and "reply_expected" not in undecided
+
     @pytest.mark.parametrize("value", [None, "personal", {"category": "personal"}, 3])
     def test_what_is_no_annotation_has_no_view(self, value: object) -> None:
         assert classification_view(value, now=NOW) is None
@@ -95,6 +103,13 @@ class TestTheText:
 
         assert "expired" in text
         assert not AN_INSTANT.search(text)
+
+    def test_a_decided_reply_is_stated_beside_the_labels(self) -> None:
+        text = classification_text(
+            email(category="professional", priority="normal", reply_expected=False), now=NOW
+        )
+
+        assert "category=professional" in text and "reply_expected=false" in text
 
     def test_an_unknown_category_still_says_nothing(self) -> None:
         assert classification_text(event(timedelta(seconds=30), category="unknown"), now=NOW) == ""
@@ -265,32 +280,13 @@ def _render_history(payload: dict[str, object], now: datetime | None = None) -> 
     return view
 
 
-def _render_initiative(payload: dict[str, object]) -> str:
-    from src.domains.agents.nodes.jev_initiative_context import canonical_initiative_context
-    from src.domains.agents.nodes.jev_initiative_evidence import InitiativeEvidence
-
-    return json.dumps(
-        canonical_initiative_context(
-            arguments={},
-            registry={"email-1": {"payload": payload, "meta": {"turn_id": 1}}},
-            agent_results={},
-            current_turn_id=1,
-            memory_facts=None,
-            interest_profile={},
-            manifests=[],
-            evidence=InitiativeEvidence(),
-        )
-    )
-
-
 class TestEveryModelFacingSerializer:
     """Each generic serializer a model reads states the state, never an instant.
 
     The 2026-10-25 change covered the tool data block and the one-line form; the
-    filtering evidence the response node and the collection filters read kept the
-    raw annotation, and on 2026-10-26 a response called current labels expired.
-    The same day the answers archived in the history and the initiative state
-    handed to JEV were found carrying it too.
+    filtering evidence the response node read kept the raw annotation, and on
+    2026-10-26 a response called current labels expired. The same day the answers
+    archived in the history were found carrying it too.
     """
 
     @pytest.mark.parametrize(
@@ -301,7 +297,6 @@ class TestEveryModelFacingSerializer:
             _render_filter_data,
             _render_tool_data,
             _render_history,
-            _render_initiative,
         ],
         ids=[
             "voice_summary",
@@ -309,7 +304,6 @@ class TestEveryModelFacingSerializer:
             "filter_data",
             "tool_data",
             "answer_history",
-            "initiative_state",
         ],
     )
     def test_a_current_annotation_reaches_the_model_as_current(self, render) -> None:

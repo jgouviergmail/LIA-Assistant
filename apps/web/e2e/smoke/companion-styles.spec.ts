@@ -4,7 +4,7 @@ import en from '../../locales/en/translation.json';
 import fr from '../../locales/fr/translation.json';
 import { companionBodyAsset } from '../../src/components/spirit/companion-catalogue';
 
-const CHARACTERS = ['smiley', 'spirit', 'moss', 'lumen'] as const;
+const CHARACTERS = ['bip', 'spirit', 'moss', 'lumen'] as const;
 const PREFS_KEY = 'lia_eyes_widget_prefs';
 const ROUTES: MockRoute[] = [
   { url: /\/api\/v1\/connectors(?:\?fresh=true)?$/, json: { connectors: [] } },
@@ -25,6 +25,7 @@ for (const [language, width] of [
     baseURL,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await authenticate({ language });
     if (!baseURL) throw new Error('The hermetic app origin is required');
     await page.context().addCookies([{ name: 'NEXT_LOCALE', value: language, url: baseURL }]);
@@ -42,9 +43,7 @@ for (const [language, width] of [
       await expect(card).toBeVisible();
       await expect(card).toContainText(labels.variants.female);
       await expect(card).toContainText(labels.variants.male);
-      const identityAttribute =
-        character === 'smiley' ? 'data-smiley-variant' : 'data-spirit-companion';
-      await expect(card.locator(`[${identityAttribute}]`)).toHaveCount(2);
+      await expect(card.locator('[data-spirit-companion]')).toHaveCount(2);
       await expect(card.locator('canvas')).toHaveCount(0);
       for (const face of await card.locator('.lia-eyes').all()) {
         await expect(face).toHaveAttribute('data-motion', 'off');
@@ -52,32 +51,14 @@ for (const [language, width] of [
       }
       // Exercise the real focus wake-up before measuring the GPU preview.
       await card.focus();
-      for (const variant of ['female', 'male']) {
-        const face =
-          character === 'smiley'
-            ? card.locator(`.lia-eyes[data-smiley-variant="${variant}"]`)
-            : card.locator(
-                `[data-character="${character}"][data-spirit-companion="${variant}"] .lia-eyes`
-              );
+      for (const variant of ['female', 'male'] as const) {
+        const face = card.locator(
+          `[data-character="${character}"][data-spirit-companion="${variant}"] .lia-eyes`
+        );
         await expect(face).toHaveAttribute('data-expression', 'neutral');
-        if (character === 'smiley')
-          await expect(face.locator('.lia-avatar-body')).toHaveAttribute(
-            'data-sphere-ready',
-            'true'
-          );
+        await expect(face).toHaveAttribute('data-volume-ready', 'true');
         const geometry = await face.evaluate(async root => {
           const width = root.getBoundingClientRect().width;
-          const canvas = root.querySelector<HTMLCanvasElement>('.lia-smiley-sphere');
-          if (canvas)
-            return {
-              width,
-              kind: 'sphere' as const,
-              ready: canvas.parentElement?.getAttribute('data-sphere-ready'),
-              bufferWidth: canvas.width,
-              bufferHeight: canvas.height,
-              // smileySphereResolution clamps the screen's density to [1, 2].
-              density: Math.max(1, Math.min(2, devicePixelRatio)),
-            };
           const image = new Image();
           const background = getComputedStyle(
             root.querySelector('.lia-head')!,
@@ -87,28 +68,13 @@ for (const [language, width] of [
           await image.decode();
           return {
             width,
-            kind: 'hybrid' as const,
             source: new URL(image.src).pathname,
             bitmapWidth: image.naturalWidth,
           };
         });
         expect(geometry.width).toBeCloseTo(52, 1);
-        if (character === 'smiley') {
-          expect(geometry.kind).toBe('sphere');
-          if (geometry.kind !== 'sphere')
-            throw new Error('The Smiley card must show the actual GPU sphere');
-          expect(geometry.ready).toBe('true');
-          // The card face (20 px font, 2.6 em sphere) at the page's own density.
-          const buffer = Math.min(192, Math.ceil(20 * 2.6 * geometry.density));
-          expect(geometry.bufferWidth).toBe(buffer);
-          expect(geometry.bufferHeight).toBe(buffer);
-        } else {
-          expect(geometry.kind).toBe('hybrid');
-          if (geometry.kind !== 'hybrid')
-            throw new Error('The original companion body is required');
-          expect(geometry.source).toBe(companionBodyAsset(character, variant as 'female' | 'male'));
-          expect(geometry.bitmapWidth).toBe(192);
-        }
+        expect(geometry.source).toBe(companionBodyAsset(character, variant));
+        expect(geometry.bitmapWidth).toBe(192);
       }
       await card.screenshot({
         path: testInfo.outputPath(`card-${character}-${language}-${width}.png`),
@@ -131,6 +97,27 @@ for (const [language, width] of [
       expect(card.content).toBeLessThanOrEqual(card.width + 1);
     }
     if (language === 'fr' && width === 768) {
+      await section.evaluate(
+        (section, names) => {
+          const cards = [...section.querySelectorAll('button')]
+            .filter(card => names.includes(card.getAttribute('aria-label') ?? ''))
+            .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+          const first = cards[0];
+          if (!first) throw new Error('The native companion cards must be mounted');
+          first.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+          for (let parent = first.parentElement; parent; parent = parent.parentElement) {
+            if (
+              parent.scrollHeight > parent.clientHeight &&
+              /auto|scroll/.test(getComputedStyle(parent).overflowY)
+            ) {
+              parent.scrollBy({ top: -24, behavior: 'instant' });
+              return;
+            }
+          }
+          window.scrollBy({ top: -24, behavior: 'instant' });
+        },
+        CHARACTERS.map(character => labels.styles[character].name)
+      );
       const clip = await section.evaluate(
         (section, names) => {
           const boxes = [...section.querySelectorAll('button')]
@@ -188,7 +175,7 @@ for (const character of ['moss', 'lumen'] as const) {
       if (localStorage.getItem('lia_eyes_widget_prefs') !== null) return;
       localStorage.setItem(
         'lia_eyes_widget_prefs',
-        JSON.stringify({ state: { visible: true, style: 'smiley', size: 'auto' }, version: 0 })
+        JSON.stringify({ state: { visible: true, style: 'bip', size: 'auto' }, version: 0 })
       );
     });
     await mockApi([...ROUTES, ...chatRoutes([])]);

@@ -9,7 +9,7 @@
  * nothing in the trash is lost. « More drafts » exactly when the provider has
  * more.
  */
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, Trash2 } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';

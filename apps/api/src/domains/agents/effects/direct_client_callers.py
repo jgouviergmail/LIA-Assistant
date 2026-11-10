@@ -51,6 +51,7 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/tool_assists/files.py": "tool_assist",
     "domains/tool_assists/mail.py": "tool_assist",
     "domains/tool_assists/mail_triage.py": "tool_assist",
+    "domains/tool_assists/selection_research.py": "tool_assist",
     # The push-driven drain of the Drive changes feed (ADR-304 moved it out
     # of ``drive_ingest``), under ``space_read``.
     "domains/rag_spaces/drive_provider.py": "space",
@@ -243,6 +244,11 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Opens the person's own provider through the door so that THEY read or act "
         "by hand in the Tools section (ADR-369, D5): an act of the person, not of "
         "LIA — the registers record what LIA used, and LIA used nothing here."
+    ),
+    "domains/workbench/card_source.py": (
+        "Imports only ActiveClient to check the acquired client's provider and credential-source "
+        "fingerprint before a source-bound Tools request. It opens no client and fetches no "
+        "content; the guarded reads and acts are the person's own hand (ADR-369, D5)."
     ),
     "domains/workbench/errors.py": (
         "Imports the clients' exception TYPES to classify a failure into a refusal "

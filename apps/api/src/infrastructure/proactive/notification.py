@@ -314,6 +314,7 @@ class NotificationDispatcher:
         commit_before_notification: bool = True,
         push_enabled: bool = True,
         require_durable: bool = False,
+        archive_conversation_id: UUID | None = None,
     ) -> NotificationResult:
         """
         Dispatch notification via all enabled channels.
@@ -335,6 +336,8 @@ class NotificationDispatcher:
             require_durable: The caller writes a durable « delivered » state
                 from this dispatch: raise unless it was archived, pushed or sent
                 on an external channel (``NotificationResult.durably_delivered``).
+            archive_conversation_id: A conversation already established by an atomic
+                caller. Avoids get-or-create's internal commit inside its transaction.
 
         Returns:
             NotificationResult with dispatch status for each channel
@@ -374,6 +377,7 @@ class NotificationDispatcher:
                     content=content,
                     metadata=full_metadata,
                     db=db,
+                    conversation_id=archive_conversation_id,
                 )
 
                 # CRITICAL: Commit BEFORE sending external notifications
@@ -620,6 +624,7 @@ class NotificationDispatcher:
         content: str,
         metadata: dict[str, Any],
         db: AsyncSession,
+        conversation_id: UUID | None = None,
     ) -> dict[str, Any]:
         """
         Archive notification message in conversation.
@@ -629,6 +634,7 @@ class NotificationDispatcher:
             content: Message content
             metadata: Message metadata
             db: Database session
+            conversation_id: Existing conversation, when the caller owns atomicity.
 
         Returns:
             Dict with archived status, conversation_id, message_id
@@ -638,13 +644,19 @@ class NotificationDispatcher:
         conv_service = ConversationService()
 
         # Get or create conversation
-        conversation = await conv_service.get_or_create_conversation(
-            user.id, db, language=user.language
-        )
+        if conversation_id is None:
+            conversation = await conv_service.get_or_create_conversation(
+                user.id, db, language=user.language
+            )
+            conversation_id = conversation.id
+        else:
+            existing = await conv_service.get_active_conversation(user.id, db)
+            if existing is None or existing.id != conversation_id:
+                raise ValueError("The archive conversation must belong to the notification owner")
 
         # Archive the proactive message
         message = await conv_service.archive_message(
-            conversation_id=conversation.id,
+            conversation_id=conversation_id,
             role="assistant",
             content=content,
             metadata=metadata,
@@ -656,13 +668,13 @@ class NotificationDispatcher:
         logger.debug(
             "proactive_message_archived",
             user_id=str(user.id),
-            conversation_id=str(conversation.id),
+            conversation_id=str(conversation_id),
             message_id=str(message.id),
         )
 
         return {
             "archived": True,
-            "conversation_id": conversation.id,
+            "conversation_id": conversation_id,
             "message_id": message.id,
         }
 

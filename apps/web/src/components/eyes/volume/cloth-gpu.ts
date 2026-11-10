@@ -1,8 +1,10 @@
-/** The same authored alpha scarf shares either body scene, never another canvas/clock. */
+/** Cloth shares the body canvas, pose and clock, with real rear-body occlusion. */
 import type { ChannelValues } from '../rig/channels';
-import { WEATHER_COLD_MAX } from '../rig/ambient';
-import { createMeshGpu, type VolumeGraphics } from './mesh-gpu';
-import { clothMesh } from './cloth-geometry';
+import type { VolumeGraphics } from './mesh-gpu';
+import { clothMesh, scarfKnotMesh } from './cloth-geometry';
+import { createClothMaterial } from './cloth-material';
+import { mapScarfUv, SCARF_ART, scarfOpacity } from './scarf-fit';
+import { scarfKnotFacets } from './scarf-wrap';
 import {
   volumePose,
   type CollarProfile,
@@ -10,6 +12,7 @@ import {
   type VolumeProfile,
 } from './volume-geometry';
 export type ClothGraphics = VolumeGraphics;
+type Material = NonNullable<ReturnType<typeof createClothMaterial>>;
 
 export function createClothGpu(
   canvas: HTMLCanvasElement,
@@ -19,66 +22,67 @@ export function createClothGpu(
   extent = 1.3,
   surface?: VolumeProfile
 ) {
+  const seamY = profile.wrap
+    ? scarfKnotFacets(profile)[1].origin.y
+    : mapScarfUv(profile, 0, SCARF_ART.tailStart).y;
+  const drape = { shear: 0, seamY };
   let active = true,
-    failed = false,
-    ready = false;
-  let gpu: ReturnType<typeof createMeshGpu> = null,
-    image: HTMLImageElement | null = null;
+    failed = false;
+  const materials: Material[] = [];
   const stop = () => {
-    if (image) {
-      image.onload = null;
-      image.onerror = null;
-      image = null;
+    for (const material of materials) material.dispose();
+    materials.length = 0;
+  };
+  const fail = () => {
+    failed = true;
+    stop();
+  };
+  const prepare = () => {
+    const specs = [{ mesh: clothMesh(profile, surface), url: SCARF_ART.url }];
+    if (profile.wrap) specs.push({ mesh: scarfKnotMesh(profile), url: SCARF_ART.url });
+    for (const { mesh, url } of specs) {
+      const material = createClothMaterial(canvas, gl, mesh, extent, url, onTextureReady, fail);
+      if (!material) {
+        fail();
+        return;
+      }
+      materials.push(material);
     }
-    gpu?.dispose();
-    gpu = null;
-    ready = false;
   };
   return {
     draw(values: Readonly<ChannelValues>, pose: VolumePose = volumePose(values, 'orbit')): boolean {
-      const cold = Number.isFinite(values.weatherCold)
-        ? Math.max(0, Math.min(1, values.weatherCold))
-        : 0;
+      const opacity = scarfOpacity(values.weatherCold);
       if (!active || failed) return false;
-      if (cold <= 0.02) {
+      if (opacity === 0) {
         stop();
         return false;
       }
-      if (!gpu) {
-        gpu = createMeshGpu(canvas, gl, clothMesh(profile, surface), false, extent);
-        if (!gpu) {
-          failed = true;
-          return false;
-        }
-      }
-      if (!image) {
-        image = new Image();
-        const material = image;
-        image.onload = () => {
-          if (!active || !gpu || image !== material) return;
-          gpu.upload(material);
-          ready = true;
-          onTextureReady();
-        };
-        image.onerror = () => {
-          if (image !== material) return;
-          failed = true;
-          stop();
-        };
-        image.src = '/avatars/scarf/v1/front.webp';
-      }
-      if (!ready) return false;
-      // This mesh contains the authored front section only. Coarse body triangles
-      // must not cut holes in a garment that follows the true front surface.
-      gl.depthFunc(gl.ALWAYS);
-      gl.depthMask(false);
+      if (materials.length === 0) prepare();
+      if (failed || !materials.every(material => material.ready())) return false;
+      drape.shear = values.scarfTrail;
       try {
-        return gpu.draw(
+        gl.depthFunc(profile.wrap ? gl.LEQUAL : gl.ALWAYS);
+        gl.depthMask(Boolean(profile.wrap));
+        materials[0].gpu.draw(
           pose,
           values.lightWarm,
           values.lightCool,
-          Math.min(1, cold / WEATHER_COLD_MAX)
+          opacity,
+          undefined,
+          profile.wrap ? undefined : drape
         );
+        if (materials[1]) {
+          gl.depthMask(false);
+          materials[1].gpu.draw(
+            pose,
+            values.lightWarm,
+            values.lightCool,
+            opacity,
+            undefined,
+            drape
+          );
+        }
+        return true;
       } finally {
         gl.depthFunc(gl.LEQUAL);
         gl.depthMask(true);

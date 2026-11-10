@@ -21,7 +21,7 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { getBrowserTimezone, formatTimezoneDisplay } from '@/utils/timezone';
 import { getBrowserLanguageForBackend } from '@/utils/locale-mapping';
 import { validatePassword, getPasswordRequirementChecks } from '@/lib/password-validation';
-import { Check, X } from 'lucide-react';
+import { Check, X } from '@/lib/icons';
 
 /**
  * i18n key for a failed registration.

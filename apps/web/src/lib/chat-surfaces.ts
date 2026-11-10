@@ -1,10 +1,10 @@
 /**
  * Priority rule for the conditional surfaces of the chat shell (S1).
  *
- * Between the message thread and the composer, up to five blocks can appear —
+ * Between the message thread and the composer, up to six blocks can appear —
  * the usage banner, the HITL approval card, connector notices, the geolocation
- * prompt and the follow-up chips. Each is rendered independently and knows
- * nothing of the others.
+ * prompt, the habit proposal card (ADR-375) and the follow-up chips. Each is
+ * rendered independently and knows nothing of the others.
  *
  * Measured (S0, 2026-07-26, 800 px viewport → 716 px shell): a pending HITL
  * card plus follow-up chips takes the chrome to 443 px, 62 % of the shell,
@@ -40,6 +40,18 @@ export function chatListActivity(searchQuery: string, live: ChatListActivity): C
 }
 
 /**
+ * Is the band TRANSIENTLY busy? An answer streaming, or the history view open:
+ * the comfort surfaces (the chips, the proposal card) wait for it to end.
+ */
+export function surfaceIsBusy(live: {
+  isTyping: boolean;
+  activeStreamId: string | null;
+  historyView: boolean;
+}): boolean {
+  return live.isTyping || !!live.activeStreamId || live.historyView;
+}
+
+/**
  * Does the approval card currently owe the user an action?
  *
  * Only `awaiting` and `submitting` do. The two end-of-life states are
@@ -57,7 +69,14 @@ export function hitlAwaitsUser(status: HitlCardStatus): boolean {
 }
 
 /** Every conditional surface of the chat shell, in render order. */
-export const CHAT_SURFACES = ['usage', 'hitl', 'connector', 'geolocation', 'followups'] as const;
+export const CHAT_SURFACES = [
+  'usage',
+  'hitl',
+  'connector',
+  'geolocation',
+  'proposal',
+  'followups',
+] as const;
 
 export type ChatSurface = (typeof CHAT_SURFACES)[number];
 
@@ -78,6 +97,8 @@ export interface ChatSurfaceContext {
    * showing".
    */
   wantsGeolocationPrompt: boolean;
+  /** The latest answer carries a habit proposal not yet decided (ADR-375). */
+  hasProposal: boolean;
   /** The latest answer carries follow-up suggestions. */
   hasFollowups: boolean;
 }
@@ -91,7 +112,7 @@ export interface ChatSurfaceContext {
  * Returns:
  *   The surfaces that may take the slot. Two readings, on purpose:
  *
- *   - for the COMFORT surfaces (`geolocation`, `followups`) the set is
+ *   - for the COMFORT surfaces (`geolocation`, `proposal`, `followups`) the set is
  *     binding: absent means not mounted — not merely hidden — so they cost no
  *     space and no work;
  *   - for the tier-1/tier-2 surfaces (`usage`, `hitl`, `connector`) it states
@@ -101,7 +122,7 @@ export interface ChatSurfaceContext {
  *     components already owns its own empty early return. The consumer
  *     therefore mounts them unconditionally — see `ChatConditionalSurfaces`.
  *
- *   Modelling all five rather than only the two that yield is deliberate: the
+ *   Modelling all six rather than only the three that yield is deliberate: the
  *   rule is "who is waiting for the user", and that question needs the blocking
  *   surfaces in it to be answerable.
  */
@@ -122,7 +143,10 @@ export function visibleChatSurfaces(context: ChatSurfaceContext): ReadonlySet<Ch
   // attention with the very action that unblocks the conversation.
   const awaitingUser = context.usageBlocked || context.hitlAwaitingAction;
   if (!awaitingUser && context.wantsGeolocationPrompt) visible.add('geolocation');
-  if (!awaitingUser && context.hasFollowups) visible.add('followups');
+  // One question at a time: a proposal asks for a decision, the chips offer a
+  // next request. The chips come back once the proposal is decided.
+  if (!awaitingUser && context.hasProposal) visible.add('proposal');
+  if (!awaitingUser && !context.hasProposal && context.hasFollowups) visible.add('followups');
 
   return visible;
 }

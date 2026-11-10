@@ -11,7 +11,7 @@
  * drive may refuse one a folder already holds. An act that did not go through
  * leaves the walk open, to choose another folder or another name.
  */
-import { ArrowLeft, ChevronRight, Folder } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Folder } from '@/lib/icons';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';

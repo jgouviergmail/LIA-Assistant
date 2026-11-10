@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Sparkles, Target } from 'lucide-react';
+import { Sparkles, Target } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { CollapsibleSection } from '@/components/relations/CollapsibleSection';

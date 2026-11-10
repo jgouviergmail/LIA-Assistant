@@ -1,6 +1,6 @@
 'use client';
 import { useId, useState } from 'react';
-import { Copy, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Copy, Eye, EyeOff, ShieldAlert } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,6 +70,7 @@ export function IngestionApiPanel({ endpoints, labels, secret, onCopy, onClearSe
             <div className="min-w-0 flex-1 basis-48">
               <Input
                 id={secretId}
+                data-selection-assist="off"
                 type={show ? 'text' : 'password'}
                 value={secret}
                 readOnly

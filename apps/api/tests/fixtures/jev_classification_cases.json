@@ -20,7 +20,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-001",
@@ -33,7 +34,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-002",
@@ -46,7 +48,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-003",
@@ -59,7 +62,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-004",
@@ -72,7 +76,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-005",
@@ -85,7 +90,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-006",
@@ -98,7 +104,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-007",
@@ -111,7 +118,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-008",
@@ -124,7 +132,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-009",
@@ -137,7 +146,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-010",
@@ -150,7 +160,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-011",
@@ -163,7 +174,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-012",
@@ -176,7 +188,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-013",
@@ -189,7 +202,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-014",
@@ -202,7 +216,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-015",
@@ -215,7 +230,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-016",
@@ -228,7 +244,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-017",
@@ -241,7 +258,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-018",
@@ -254,7 +272,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-019",
@@ -267,7 +286,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-020",
@@ -280,7 +300,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-021",
@@ -293,7 +314,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-022",
@@ -306,7 +328,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-023",
@@ -319,7 +342,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-024",
@@ -332,7 +356,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-025",
@@ -345,7 +370,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-026",
@@ -358,7 +384,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-027",
@@ -371,7 +398,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-028",
@@ -384,7 +412,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-029",
@@ -397,7 +426,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-030",
@@ -410,7 +440,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-031",
@@ -423,7 +454,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-032",
@@ -436,7 +468,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "spam",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-033",
@@ -449,7 +482,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-034",
@@ -462,7 +496,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "urgent"
+      "expected_priority": "urgent",
+      "expected_reply": true
     },
     {
       "id": "cases-035",
@@ -475,7 +510,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "critical"
+      "expected_priority": "critical",
+      "expected_reply": true
     },
     {
       "id": "cases-036",
@@ -758,7 +794,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": null
     },
     {
       "id": "cases-055",
@@ -771,7 +808,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": null
     },
     {
       "id": "cases-056",
@@ -784,7 +822,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-057",
@@ -797,7 +836,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-058",
@@ -810,7 +850,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-059",
@@ -823,7 +864,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "professional",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-060",
@@ -836,7 +878,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-061",
@@ -849,7 +892,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "personal",
-      "expected_priority": "normal"
+      "expected_priority": "normal",
+      "expected_reply": false
     },
     {
       "id": "cases-062",
@@ -862,7 +906,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     },
     {
       "id": "cases-063",
@@ -875,7 +920,8 @@
         "from": "fiction@example.test"
       },
       "expected_category": "phishing_scam",
-      "expected_priority": "unknown"
+      "expected_priority": "unknown",
+      "expected_reply": false
     }
   ]
 }

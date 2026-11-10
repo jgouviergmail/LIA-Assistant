@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { Disclosure } from '../disclosure';
-import { Bell } from 'lucide-react';
+import { Bell } from '@/lib/icons';
 
 describe('Disclosure', () => {
   it('is closed on arrival and shows nothing of its content', () => {
@@ -89,6 +89,23 @@ describe('Disclosure', () => {
     );
 
     expect(screen.getByText('contenu')).toBeInTheDocument();
+  });
+
+  it('opens from an external action and reports the reader closing it', async () => {
+    const onOpenChange = vi.fn();
+    const content = (open: boolean) => (
+      <Disclosure icon={Bell} title="Results" open={open} onOpenChange={onOpenChange}>
+        <p>Matching records</p>
+      </Disclosure>
+    );
+    const { user, rerender } = renderWithProviders(content(false));
+    expect(screen.queryByText('Matching records')).not.toBeInTheDocument();
+    rerender(content(true));
+    expect(screen.getByText('Matching records')).toBeVisible();
+    await user.click(screen.getByText('Results'));
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    rerender(content(false));
+    expect(screen.queryByText('Matching records')).not.toBeInTheDocument();
   });
 });
 

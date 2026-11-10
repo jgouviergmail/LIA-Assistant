@@ -88,8 +88,8 @@ import {
   Users,
   Vibrate,
   Workflow,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 
 import type { SettingsSectionToken } from './settings-sections';
 

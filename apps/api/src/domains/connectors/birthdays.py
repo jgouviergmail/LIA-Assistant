@@ -1,4 +1,4 @@
-"""Shared upcoming-birthdays fetch and computation (Google Contacts).
+"""Shared upcoming-birthdays fetch and computation, from the active contacts provider.
 
 Extracted from the briefing domain (P7, interdomain program Lot 1) so the
 heartbeat can consume birthdays WITHOUT importing briefing: ``briefing``
@@ -9,13 +9,18 @@ consumers import from here:
 
 - ``briefing/fetchers.fetch_birthdays`` — thin wrapper translating the
   neutral outcomes into the briefing section-status exceptions.
-- ``heartbeat/context_aggregator._fetch_birthdays`` — silent-None consumer
+- ``heartbeat/context_sources.fetch_birthdays_context`` — silent-None consumer
   with its own Redis cache.
 
-The full-scan pagination intentionally bypasses ``apply_max_items_limit``
-(hard cap 50) to use the People API native max page size: with > 50 contacts,
-birthdays beyond the first page would never be inspected. See the original
-briefing fetcher docstring (moved here verbatim in spirit).
+**Whichever provider holds the contacts** (2026-11-07): the book is the shared
+directory (``clients/contact_directory``) of the account's ACTIVE contacts
+provider — Google, Apple or Microsoft, each normalised to the People shape —
+opened through the shared door (``open_active_client``, ADR-304: nothing held
+while the provider answers, the transport closed on every path). It was a
+Google-only scan; « Apple and Microsoft lack a birthday field » was never true
+(vCard ``BDAY``, Graph ``birthday``). The book is read whole up to
+``CONTACTS_BIRTHDAYS_DIRECTORY_MAX`` — never the agents' item ceiling, under
+which birthdays past the first page would never be seen — and a cut is logged.
 """
 
 from __future__ import annotations
@@ -27,29 +32,32 @@ import httpx
 import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.session_scope import DetachedConnectorService
+from src.core.constants import CONTACTS_BIRTHDAYS_DIRECTORY_MAX
+from src.core.exceptions import MaxRetriesExceededError
+from src.domains.connectors.active_client import (
+    ActiveClient,
+    ClientUnavailable,
+    open_active_client,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
     from zoneinfo import ZoneInfo
 
-from src.domains.connectors.clients.google_people_client import GooglePeopleClient
+    from src.domains.connectors.clients.contact_directory import ContactDirectory
 
 logger = structlog.get_logger(__name__)
 
-# People API native max page size / pagination cap (moved from briefing
-# constants — 5 × 1000 covers more contacts than any real address book).
-BIRTHDAY_PAGE_SIZE = 1000
-BIRTHDAY_PAGINATION_MAX_PAGES = 5
+#: The functional category whose active provider holds the book.
+_CONTACTS_CATEGORY = "contacts"
 
 
 class BirthdayItem(BaseModel):
-    """Upcoming birthday entry — pre-computed days_until + age."""
+    """Upcoming birthday entry — pre-computed days_until + age, and how to reach the person."""
 
     model_config = ConfigDict(frozen=True)
 
-    contact_name: str
+    contact_name: str = Field(..., description="The contact's display name")
     date_iso: str = Field(
         ...,
         description="ISO 8601 date: 'YYYY-MM-DD' if year known, '--MM-DD' otherwise",
@@ -59,14 +67,22 @@ class BirthdayItem(BaseModel):
         None,
         description="Age the contact will turn at the next birthday. None when birth year unknown.",
     )
+    contact_id: str | None = Field(
+        None,
+        description="The contact's id in its provider's book (People ``resourceName`` shape), "
+        "which opens it in the Tools; None when the provider gave none.",
+    )
+    email: str | None = Field(None, description="The contact's first address, to write to them")
+    phone: str | None = Field(None, description="The contact's first number, to call them")
 
 
 class BirthdayFetchError(Exception):
-    """Typed failure while scanning contacts for birthdays.
+    """Typed failure while reading the contacts for birthdays.
 
-    Carries a short machine ``reason`` (e.g. "timeout", "http_error") and the
-    original detail so callers can translate it into their own error contract
-    (the briefing wrapper maps it to ``ConnectorAccessError``).
+    Carries a short machine ``reason`` (``no_credentials``, ``timeout``,
+    ``http_error``, ``retries_exhausted``) and the original detail so callers
+    can translate it into their own error contract (the briefing wrapper maps
+    it to ``ConnectorAccessError``); the original exception is its ``__cause__``.
     """
 
     def __init__(self, reason: str, detail: str) -> None:
@@ -82,16 +98,17 @@ def upcoming_birthdays_from_connections(
     max_items: int,
     today: date,
 ) -> list[BirthdayItem]:
-    """Extract upcoming birthdays from People API connections.
+    """Extract upcoming birthdays from People-shape persons.
 
-    Google People birthday format::
+    People birthday format (every provider's normaliser writes it)::
 
         {"birthdays": [{"date": {"month": 3, "day": 15, "year": 1990}, ...}]}
 
-    The ``year`` is optional — many users record month + day only.
+    The ``year`` is optional — many users record month + day only — and an
+    unknown year written as 0 (Microsoft's normaliser) reads as none.
 
     Args:
-        connections: ``connections`` array from ``GooglePeopleClient.list_connections``.
+        connections: People-shape persons (the contact directory's ``persons``).
         horizon_days: Look-ahead window from today (e.g. 14).
         max_items: Cap on the returned list size.
         today: Reference date, REQUIRED in the **user's local frame**
@@ -139,12 +156,16 @@ def upcoming_birthdays_from_connections(
                     age_at_next = None
             else:
                 date_iso = f"--{int(month):02d}-{int(day):02d}"
+            resource = connection.get("resourceName")
             candidates.append(
                 BirthdayItem(
                     contact_name=name,
                     date_iso=date_iso,
                     days_until=days_until,
                     age_at_next=age_at_next,
+                    contact_id=resource if isinstance(resource, str) and resource else None,
+                    email=_first_value(connection, "emailAddresses"),
+                    phone=_first_value(connection, "phoneNumbers"),
                 )
             )
             break  # one birthday per contact is enough
@@ -160,69 +181,44 @@ async def fetch_upcoming_birthdays(
     horizon_days: int,
     max_items: int,
 ) -> list[BirthdayItem] | None:
-    """Full-scan Google Contacts and compute upcoming birthdays.
+    """Read the active contacts provider's book and compute upcoming birthdays.
 
-    Reads the credentials in a session of its own and closes it BEFORE the
-    scan: up to ``BIRTHDAY_PAGINATION_MAX_PAGES`` provider round trips must
-    never hold a transaction (ADR-304). The client refreshes its token through
-    the same detached service. Neutral outcome contract so every consumer maps
-    it to its own semantics:
+    Neutral outcome contract so every consumer maps it to its own semantics.
+
+    Args:
+        user_id: Whose contacts.
+        user_tz: The person's zone: « today » is their day, never the server's.
+        horizon_days: Look-ahead window from today.
+        max_items: Cap on the returned list size.
 
     Returns:
-        - ``None`` when the Google Contacts connector is not configured.
-        - The (possibly empty) computed list otherwise.
+        ``None`` when the account has no contacts provider; the (possibly
+        empty) computed list otherwise.
 
     Raises:
-        BirthdayFetchError: On timeout or HTTP failure while scanning.
+        BirthdayFetchError: When the provider's credentials cannot be read, or
+            on timeout, HTTP failure or exhausted retries while reading.
     """
-    connectors = DetachedConnectorService()
-    async with connectors.unit_of_work() as service:
-        credentials = await service.get_connector_credentials(
-            user_id, ConnectorType.GOOGLE_CONTACTS
+    async with open_active_client(_CONTACTS_CATEGORY, user_id) as opened:
+        if opened is ClientUnavailable.NO_CREDENTIALS:
+            raise BirthdayFetchError("no_credentials", "Credentials missing or refresh failed")
+        if not isinstance(opened, ActiveClient):
+            return None
+        directory = await _read_book(opened.client)
+
+    if directory.truncated:
+        logger.info(
+            "birthdays_directory_truncated",
+            user_id=str(user_id),
+            contacts=len(directory.persons),
+            cap=CONTACTS_BIRTHDAYS_DIRECTORY_MAX,
         )
-    if not credentials:
-        return None
-
-    client = GooglePeopleClient(user_id, credentials, connectors)
-    all_connections: list[dict[str, Any]] = []
-    page_token: str | None = None
-
-    try:
-        for _ in range(BIRTHDAY_PAGINATION_MAX_PAGES):
-            params: dict[str, Any] = {
-                "personFields": "names,birthdays",
-                "pageSize": BIRTHDAY_PAGE_SIZE,
-            }
-            if page_token:
-                params["pageToken"] = page_token
-
-            # Direct API call — bypasses apply_max_items_limit on purpose
-            # (see module docstring for justification).
-            response = await client._make_request("GET", "/people/me/connections", params=params)
-            all_connections.extend(response.get("connections", []) or [])
-            page_token = response.get("nextPageToken")
-            if not page_token:
-                break
-        else:
-            logger.info(
-                "birthdays_pagination_cap_reached",
-                user_id=str(user_id),
-                pages=BIRTHDAY_PAGINATION_MAX_PAGES,
-                contacts=len(all_connections),
-            )
-    except TimeoutError as exc:
-        raise BirthdayFetchError("timeout", str(exc)) from exc
-    except httpx.HTTPError as exc:
-        raise BirthdayFetchError("http_error", str(exc)) from exc
-    finally:
-        # Deterministic close of the per-instance httpx transport on every
-        # path (same doctrine as briefing/fetchers.py weather).
-        await client.close()
-
     logger.info(
         "birthdays_fetched",
         user_id=str(user_id),
-        total_contacts=len(all_connections),
+        provider=opened.connector_type.value,
+        total_contacts=len(directory.persons),
+        from_cache=directory.from_cache,
     )
 
     # `today` MUST be the user's local date (not the server's UTC date) — at
@@ -230,15 +226,39 @@ async def fetch_upcoming_birthdays(
     # return yesterday and an upcoming-birthday computed against it would mark
     # yesterday's birthday as "today" with days_until=0.
     return upcoming_birthdays_from_connections(
-        all_connections,
+        directory.persons,
         horizon_days=horizon_days,
         max_items=max_items,
         today=datetime.now(user_tz).date(),
     )
 
 
+async def _read_book(client: Any) -> ContactDirectory:
+    """The whole book under the birthdays cap, a failure typed with its cause kept."""
+    try:
+        directory: ContactDirectory = await client.list_email_directory(
+            CONTACTS_BIRTHDAYS_DIRECTORY_MAX
+        )
+    except TimeoutError as exc:
+        raise BirthdayFetchError("timeout", str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise BirthdayFetchError("http_error", str(exc)) from exc
+    except MaxRetriesExceededError as exc:
+        raise BirthdayFetchError("retries_exhausted", str(exc)) from exc
+    return directory
+
+
+def _first_value(person: dict[str, Any], field: str) -> str | None:
+    """The first non-empty ``value`` of a People list field (an address, a number)."""
+    for item in person.get(field) or []:
+        value = item.get("value") if isinstance(item, dict) else None
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
 def _extract_primary_name(connection: dict[str, Any]) -> str | None:
-    """Return the contact's display name from a People API connection.
+    """Return the contact's display name from a People-shape person.
 
     Prefers ``displayName`` from the primary names entry; falls back to the
     first names entry; returns None if no name is set.

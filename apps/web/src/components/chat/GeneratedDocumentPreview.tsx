@@ -73,7 +73,11 @@ function TextPreview({ url, docType }: { url: string; docType: string }) {
     };
   }, [url, attempt]);
   return (
-    <div ref={ref} className="lia-document-preview" aria-busy={state.kind === 'loading'}>
+    <div
+      ref={ref}
+      className={`lia-document-preview lia-document-preview--${docType}`}
+      aria-busy={state.kind === 'loading'}
+    >
       <p className="m-0 px-3 py-1 text-px-11 text-muted-foreground">
         {t('chat.document_card.excerpt')}
       </p>
@@ -157,7 +161,7 @@ function PdfPreview({ url, filename }: { url: string; filename: string }) {
         onClick={() => (failed ? setFailed(false) : setOpen(true))}
         aria-label={failed ? t('common.retry') : alt}
         aria-haspopup={failed ? undefined : 'dialog'}
-        className="lia-document-preview block w-full bg-muted/30 p-3 rounded-b-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="lia-document-preview lia-document-preview--pdf block w-full bg-muted/30 p-3 rounded-b-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         {failed ? (
           <span className="flex min-h-20 items-center justify-center gap-2 text-xs text-muted-foreground">

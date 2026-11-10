@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { Download, Plus, Trash2 } from 'lucide-react';
+import { Download, Plus, Trash2 } from '@/lib/icons';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { SectionToolbar } from '../SectionToolbar';

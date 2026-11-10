@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPhysicalPropWriter } from '../physical-prop-writer';
 import { restChannelValues } from '../../rig/channels';
 import { projectVolumeSurface, volumePose, volumeProfile } from '../volume-geometry';
-import { projectSmileySurface, spherePose } from '../../smiley/sphere-geometry';
 function host(style = 'billes', character = 'boulon') {
   const root = document.createElement('span');
   root.dataset.style = style;
@@ -90,9 +89,10 @@ describe('wearable and facial props share the native anatomical projection', () 
     root.dataset.volumeReady = 'false';
     writer.write(restChannelValues());
     for (const token of tokens) expect(root.style.getPropertyValue(token)).toBe('');
-    root.dataset.style = 'smiley';
-    root.dataset.smileyVariant = 'female';
-    delete root.dataset.volumeCharacter;
+    root.dataset.style = 'billes';
+    root.dataset.volumeVariant = 'female';
+    root.dataset.volumeCharacter = 'bip';
+    root.dataset.volumeReady = 'true';
     writer.write(restChannelValues());
     expect(root.style.getPropertyValue(tokens[0])).toContain('matrix(1, 0, 0, 1');
     writer.write({ ...restChannelValues(), headYaw: 1 });
@@ -129,25 +129,6 @@ describe('wearable and facial props share the native anatomical projection', () 
     const [x, dy] = translated(root, tokens[0]);
     expect(x).toBeCloseTo(expected.x, 4);
     expect(dy).toBeCloseTo(expected.y - y, 4);
-    writer.dispose();
-  });
-  it('projects the Smiley freezing laurel on the sphere independently of the tied ribbon and follows the heat bead with its right eye', () => {
-    const root = host('smiley');
-    delete root.dataset.volumeCharacter;
-    root.style.setProperty('--avatar-crown-y', '1%');
-    root.style.setProperty('--avatar-face-y', '47%');
-    const writer = createPhysicalPropWriter(root),
-      values = { ...restChannelValues(), headYaw: 1, headPitch: -0.5 },
-      y = Math.min((0.01 - 0.5) * 2.6 - 0.24 * 0.9, (0.47 - 0.5) * 2.6 - 1.25 * 0.9) + 0.8 * 0.9;
-    const expected = projectSmileySurface({ x: 0, y }, spherePose(values)),
-      rest = projectSmileySurface({ x: 0, y }, spherePose(restChannelValues()));
-    writer.write(values);
-    const [x, dy] = translated(root, tokens[0]);
-    expect(x).toBeCloseTo(expected.x - rest.x, 4);
-    expect(dy).toBeCloseTo(expected.y - rest.y, 4);
-    const heat = root.style.getPropertyValue(tokens[3]);
-    writer.write({ ...values, gazeX: 0.8, txR: 0.07 });
-    expect(root.style.getPropertyValue(tokens[3])).not.toBe(heat);
     writer.dispose();
   });
 });

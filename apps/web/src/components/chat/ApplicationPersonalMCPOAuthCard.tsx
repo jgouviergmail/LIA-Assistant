@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server } from 'lucide-react';
+import { Server } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useApplicationPersonalMCPOAuth } from '@/hooks/useApplicationPersonalMCPOAuth';
 import { personalMCPOAuthMessage } from '@/lib/application-personal-mcp-oauth';

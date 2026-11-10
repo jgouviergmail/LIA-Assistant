@@ -23,17 +23,25 @@ from src.core.config import settings
 from src.core.constants import (
     WORKBENCH_CONTACT_HISTORY_ITEMS,
     WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES,
+    WORKBENCH_CONTACT_HISTORY_MAX_PHONES,
     WORKBENCH_CONTACT_HISTORY_SPAN_DAYS,
     WORKBENCH_CONTACT_HISTORY_SPANS,
+    WORKBENCH_CONTACT_VALUE_MAX_CHARS,
 )
 from src.core.exceptions import ConnectorAPIError
 from src.domains.connectors.active_client import ActiveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.relations.providers import classification
+from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
 from src.domains.workbench import contacts_history
+from src.domains.workbench.contacts_lines import PhoneHistory
 from src.domains.workbench.errors import NOT_CONNECTED, refuse
 from src.domains.workbench.features import WorkbenchTool
-from src.domains.workbench.schemas.contacts import ContactHistoryQuery
+from src.domains.workbench.schemas.contacts import (
+    ContactHistoryQuery,
+    HistoryCall,
+    HistoryText,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -412,9 +420,27 @@ class TestWhatItNeverDoes:
 
 
 class TestTheRequest:
-    def test_a_contact_with_no_address_asks_nothing(self) -> None:
+    def test_a_contact_with_neither_address_nor_number_asks_nothing(self) -> None:
         with pytest.raises(ValidationError):
-            ContactHistoryQuery(address=[])
+            ContactHistoryQuery(address=[], phone=[])
+
+    def test_numbers_alone_are_enough(self) -> None:
+        query = ContactHistoryQuery(phone=["06 12 34 56 78"])
+
+        assert (query.address, query.phone) == ([], ["06 12 34 56 78"])
+
+    def test_numbers_are_bounded(self) -> None:
+        many = [
+            f"06 12 34 56 {index:02d}" for index in range(WORKBENCH_CONTACT_HISTORY_MAX_PHONES + 1)
+        ]
+
+        with pytest.raises(ValidationError):
+            ContactHistoryQuery(phone=many)
+
+    @pytest.mark.parametrize("number", ["   ", "1" * (WORKBENCH_CONTACT_VALUE_MAX_CHARS + 1)])
+    def test_a_number_is_a_bounded_value(self, number: str) -> None:
+        with pytest.raises(ValidationError):
+            ContactHistoryQuery(phone=[number])
 
     def test_addresses_are_bounded(self) -> None:
         many = [f"a{index}@x.org" for index in range(WORKBENCH_CONTACT_HISTORY_MAX_ADDRESSES + 1)]
@@ -426,3 +452,85 @@ class TestTheRequest:
     def test_an_address_never_carries_an_operator(self, address: str) -> None:
         with pytest.raises(ValidationError):
             ContactHistoryQuery(address=[address])
+
+
+_NUMBER = "06 12 34 56 78"
+_CALL = HistoryCall(
+    id=uuid4(),
+    at=NOW - timedelta(days=2),
+    status=PhoneCallStatus.COMPLETED,
+    outcome=PhoneCallOutcome.OBJECTIVE_MET,
+    seconds=93.5,
+    purpose="Move Tuesday's appointment",
+)
+_TEXT = HistoryText(
+    id=uuid4(), at=NOW - timedelta(hours=3), excerpt="Call me back", truncated=False
+)
+
+
+def _phone(history: PhoneHistory | None = None) -> Any:
+    answer = history or PhoneHistory(
+        telephony="used",
+        calls=[_CALL],
+        calls_window=500,
+        calls_cut=True,
+        sms="used",
+        texts=[_TEXT],
+        texts_window=2000,
+        texts_cut=False,
+    )
+    return patch.object(contacts_history, "phone_history", AsyncMock(return_value=answer))
+
+
+class TestByTheirNumbers:
+    async def test_a_contact_with_numbers_alone_asks_no_mailbox_nor_calendar(self) -> None:
+        mail, calendar = _mail(), _calendar()
+
+        with _phone():
+            history = await _history(mail, calendar, ContactHistoryQuery(phone=[_NUMBER]))
+
+        mail.search_emails.assert_not_awaited()
+        calendar.list_events_window.assert_not_awaited()
+        assert (history.mail, history.calendar) == ("not_requested", "not_requested")
+
+    async def test_a_contact_with_addresses_alone_asks_no_phone_record(self) -> None:
+        history = await _history(_mail(), _calendar())
+
+        assert (history.telephony, history.sms) == ("not_requested", "not_requested")
+        assert (history.calls, history.texts) == ([], [])
+
+    async def test_each_number_is_asked_once(self) -> None:
+        with _phone() as phone:
+            await _history(
+                _mail(),
+                _calendar(),
+                ContactHistoryQuery(phone=[_NUMBER, _NUMBER, "01 40 00 00 00"]),
+            )
+
+        phone.assert_awaited_once_with(USER, [_NUMBER, "01 40 00 00 00"])
+
+    async def test_what_the_phone_records_hold_reaches_the_page(self) -> None:
+        with _phone():
+            history = await _history(_mail(), _calendar(), ContactHistoryQuery(phone=[_NUMBER]))
+
+        assert (history.telephony, history.calls, history.calls_window, history.calls_cut) == (
+            "used",
+            [_CALL],
+            500,
+            True,
+        )
+        assert (history.sms, history.texts, history.texts_window, history.texts_cut) == (
+            "used",
+            [_TEXT],
+            2000,
+            False,
+        )
+
+    async def test_the_number_never_reaches_the_answer(self) -> None:
+        with _phone():
+            history = await _history(
+                _mail(), _calendar(), ContactHistoryQuery(address=[ANA], phone=[_NUMBER])
+            )
+
+        assert "12 34 56 78" not in history.model_dump_json()
+        assert "12345678" not in history.model_dump_json()

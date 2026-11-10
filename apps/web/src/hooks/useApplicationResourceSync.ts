@@ -37,7 +37,7 @@ export function useApplicationResourceSync(
           if (!dirty) releaseOverride();
         } while (dirty);
       } catch {
-        if (!cancelled) toast.error(t('settings.application_tools.sync_failed'));
+        if (!cancelled) toast.error(t('common.refresh_failed'));
       } finally {
         running = false;
       }

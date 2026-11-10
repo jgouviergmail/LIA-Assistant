@@ -8,7 +8,7 @@
  * line and what is shown ends it, the search takes all the room the calendars leave it,
  * and the views stand in the middle of theirs.
  */
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from '@/lib/icons';
 import type { RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';

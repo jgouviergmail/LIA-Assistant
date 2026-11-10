@@ -1,6 +1,5 @@
 /** Worn props use the same native surface projection; CSS retains existing one-shot motion. */
 import { restChannelValues, type ChannelValues } from '../rig/channels';
-import { projectSmileySurface, spherePose } from '../smiley/sphere-geometry';
 import { bodyVolumeMaterial } from './volume-binding';
 import {
   VOLUME_CHARACTERS,
@@ -33,7 +32,6 @@ function propFrame(root: HTMLElement, profile: VolumeProfile | null) {
     eyeScale,
     monitor: profile?.character === 'monitor',
     human: profile?.character === 'oscar',
-    smiley: root.dataset.style === 'smiley',
     anchors: {
       crown: { x: 0, y: Math.min(crownY - 0.24 * scale, faceY - 1.25 * scale) + 0.8 * scale },
       tear: { x: -half - 0.02 + 0.1 * scale, y: faceY + 0.13 * scale },
@@ -59,11 +57,6 @@ function eyeTravel(frame: Frame, kind: Kind, values: Readonly<ChannelValues>) {
           finite(values[`ty${side}`])) *
         frame.eyeScale,
     };
-  if (frame.smiley)
-    return {
-      x: finite(values.gazeX) * 0.065 + finite(values[`tx${side}`]),
-      y: finite(values.gazeY) * 0.045 + finite(values[`ty${side}`]),
-    };
   return {
     x: finite(values.gazeX) * 0.03 + bounded(values[`tx${side}`], 0.08),
     y: finite(values.gazeY) * 0.02 + bounded(values[`ty${side}`], 0.1),
@@ -72,27 +65,24 @@ function eyeTravel(frame: Frame, kind: Kind, values: Readonly<ChannelValues>) {
 function propTransform(
   kind: Kind,
   frame: Frame,
-  profile: VolumeProfile | null,
+  profile: VolumeProfile,
   values: Readonly<ChannelValues>
 ) {
   const rest = frame.anchors[kind],
     shift = eyeTravel(frame, kind, values),
     point = { x: rest.x + shift.x, y: rest.y + shift.y };
-  const current = project(frame, profile, point, values),
-    neutral = project(frame, profile, rest, NEUTRAL);
+  const current = project(profile, point, values),
+    neutral = project(profile, rest, NEUTRAL);
   const x = current.x - neutral.x,
     y = current.y - neutral.y;
   return `translate(${format(x)}em, ${format(y)}em) matrix(${[current.a, current.b, current.c, current.d].map(format).join(', ')}, 0, 0)`;
 }
 function project(
-  frame: Frame,
-  profile: VolumeProfile | null,
+  profile: VolumeProfile,
   point: { x: number; y: number },
   values: Readonly<ChannelValues>
 ) {
-  if (frame.smiley) return projectSmileySurface(point, spherePose(values));
-  const surface = profile!;
-  return projectVolumeSurface(surface, point, volumePose(values, surface.character));
+  return projectVolumeSurface(profile, point, volumePose(values, profile.character));
 }
 function sourceProfile(root: HTMLElement) {
   const character = root.dataset.volumeCharacter;
@@ -114,14 +104,14 @@ export function createPhysicalPropWriter(root: HTMLElement) {
   };
   return {
     write(values: Readonly<ChannelValues>) {
-      const current = `${root.dataset.style}-${root.dataset.volumeCharacter}-${root.dataset.volumeVariant}-${root.dataset.smileyVariant}`;
+      const current = `${root.dataset.style}-${root.dataset.volumeCharacter}-${root.dataset.volumeVariant}`;
       if (current !== key) {
         clear();
         key = current;
         profile = sourceProfile(root);
         frame = propFrame(root, profile);
       }
-      if (!frame?.smiley && (!profile || root.dataset.volumeReady !== 'true')) {
+      if (!profile || root.dataset.volumeReady !== 'true') {
         clear();
         return;
       }

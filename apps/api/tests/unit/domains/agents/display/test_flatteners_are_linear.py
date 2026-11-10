@@ -36,6 +36,7 @@ from src.domains.voice.expressive_cues import (
     AuthoredCues,
     cue_dialect,
     neutralize_literal,
+    strip_transcript_cues,
 )
 from src.domains.voice.sentence_streamer import is_speakable
 from src.domains.voice_sessions.projection import flatten_for_voice
@@ -80,6 +81,8 @@ FLATTENERS: dict[str, Flattener] = {
     ),
     "neutralize_literal(parentheses)": lambda s: neutralize_literal(s, FISH_S1_CUES),
     "AuthoredCues.render(parentheses)": lambda s: AuthoredCues(FISH_S1_CUES, 3).render(s),
+    # A cues session's transcript, before every archive and every caption (ADR-373).
+    "strip_transcript_cues": strip_transcript_cues,
 }
 
 #: Each witness names the shape that was slow somewhere; every flattener meets

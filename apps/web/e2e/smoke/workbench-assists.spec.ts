@@ -6,7 +6,9 @@
  * panel takes no room until it is asked for and leaves when it is closed; a refusal is said in place;
  * the keyboard walks the list; an attachment's row gains no control; a sentence becomes the criteria
  * on screen; the page's order is LIA's only once asked, behind « Filters » on a phone. With the
- * capability off, the Tools are what they were.
+ * capability off, the Tools are what they were. A passage selected in the message's text is acted
+ * on beside it, in a bubble that stays on the screen, holds the focus once shown (a question's form
+ * gone included) and leaves on Escape, the message under it staying open (2026-11-07).
  */
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -112,13 +114,14 @@ interface Played {
   summaries: number;
   listed: string[];
   triages: unknown[];
+  passages: unknown[];
 }
 
 async function playTheApi(
   mockApi: (routes: MockRoute[]) => Promise<void>,
   options: { assists?: boolean; summary?: 'refused' } = {}
 ): Promise<Played> {
-  const played: Played = { summaries: 0, listed: [], triages: [] };
+  const played: Played = { summaries: 0, listed: [], triages: [], passages: [] };
   const assists = options.assists ?? true;
   await mockApi([
     {
@@ -172,6 +175,28 @@ async function playTheApi(
           return;
         }
         await route.fulfill({ json: SUMMARY });
+      },
+    },
+    {
+      url: /\/api\/v1\/tool-assists\/text\/selection\/stream$/,
+      method: 'POST',
+      handler: async route => {
+        played.passages.push(route.request().postDataJSON());
+        await route.fulfill({
+          contentType: 'text/event-stream',
+          body:
+            'data: ' +
+            JSON.stringify({
+              result: {
+                proposal: {
+                  kind: 'text',
+                  text: 'The committee goes over the quarter at nine: its figures and what comes next.',
+                },
+                usage: COST,
+              },
+            }) +
+            '\n\n',
+        });
       },
     },
     {
@@ -273,6 +298,110 @@ for (const sample of [
 
     await panel.getByRole('button', { name: 'Close' }).click();
     await expect(panel).toHaveCount(0);
+  });
+}
+
+/** Selects words of the message's text, as a person's drag would. */
+async function selectInText(page: Page, words: string) {
+  await page.locator('[data-selection-scope="workbench"]').evaluate((scope, wanted) => {
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf(wanted) ?? -1;
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + wanted.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return;
+    }
+    throw new Error(`no « ${wanted} » in the text`);
+  }, words);
+}
+
+for (const sample of [
+  { width: 1280, theme: 'light' },
+  { width: 390, theme: 'dark' },
+] as const) {
+  test(`a passage is explained beside it at ${sample.width}px in ${sample.theme}`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width: sample.width, height: 844 });
+    await prepareTheme(page, sample.theme);
+    await authenticate({ timezone: 'Europe/Paris' });
+    const played = await playTheApi(mockApi);
+
+    await page.goto('/en/dashboard/tools/mail?id=m1');
+    const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+    await expect(reader.getByText('Quarter review at nine.', { exact: false })).toBeVisible();
+    await waitForHydration(page, 'main');
+    await selectInText(page, 'Quarter review');
+
+    const toolbar = page.getByRole('toolbar', { name: 'Ask LIA about this text' });
+    await expect(toolbar).toBeVisible();
+    await expectInside(page.locator('body'), toolbar);
+    await toolbar.getByRole('button', { name: 'Explain' }).click();
+
+    const bubble = page.getByRole('dialog', { name: 'Explain' });
+    await expect(
+      bubble.getByText('The committee goes over the quarter at nine', { exact: false })
+    ).toBeVisible();
+    expect(played.passages).toEqual([
+      { text: 'Quarter review', mode: 'read', action: 'explain', origin: 'page' },
+    ]);
+    await expectInside(page.locator('body'), bubble);
+    await expectNoOverflow(page, `passage ${sample.width}px ${sample.theme}`);
+    expect(
+      (await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations
+    ).toEqual([]);
+
+    await page.keyboard.press('Escape');
+    await expect(bubble).toHaveCount(0);
+    const text = page.locator('[data-selection-scope="workbench"]');
+    await expect(text).toBeFocused();
+
+    // A question: its form leaves the bubble once sent, the focus stays in the bubble, and Escape
+    // still closes the bubble, never the message under it.
+    await selectInText(page, 'the figures');
+    await toolbar.getByRole('button', { name: 'Question' }).click();
+    const asking = page.getByRole('dialog', { name: 'Question' });
+    await asking.getByRole('textbox', { name: 'Your question' }).fill('Which figures?');
+    await asking.getByRole('button', { name: 'Ask', exact: true }).click();
+    await expect(
+      asking.getByText('The committee goes over the quarter at nine', { exact: false })
+    ).toBeVisible();
+    expect(played.passages).toEqual([
+      { text: 'Quarter review', mode: 'read', action: 'explain', origin: 'page' },
+      {
+        text: 'the figures',
+        mode: 'read',
+        action: 'ask',
+        question: 'Which figures?',
+        origin: 'page',
+      },
+    ]);
+    await test.info().attach('answer-focus', {
+      contentType: 'application/json',
+      body: JSON.stringify(
+        await asking.evaluate(panel => ({
+          activeTag: document.activeElement?.tagName,
+          activeRole: document.activeElement?.getAttribute('role'),
+          activeName: document.activeElement?.getAttribute('aria-label'),
+          activeIsPanel: document.activeElement === panel,
+          containsActive: panel.contains(document.activeElement),
+          visibility: getComputedStyle(panel).visibility,
+        }))
+      ),
+    });
+    await expect(asking.getByRole('button', { name: 'Close' })).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(asking).toHaveCount(0);
+    await expect(reader).toBeVisible();
+    await expect(text).toBeFocused();
   });
 }
 
@@ -429,3 +558,130 @@ test('switched off, the Tools are what they were', async ({ page, authenticate, 
   await page.getByRole('button', { name: /filter/i }).click();
   await expect(page.getByRole('button', { name: 'Sort' })).toHaveCount(0);
 });
+
+/** The rail with the tasks ready beside the mailbox, and what the tasks screen reads and posts. */
+async function playTheTasks(
+  mockApi: (routes: MockRoute[]) => Promise<void>,
+  posted: { read: unknown[]; made: unknown[] }
+) {
+  await mockApi([
+    {
+      url: '**/api/v1/workbench',
+      json: {
+        ...RAIL,
+        tools: RAIL.tools.map(tool =>
+          tool.tool === 'tasks'
+            ? {
+                tool: 'tasks',
+                state: 'ready',
+                provider: 'google_tasks',
+                features: ['list_management', 'subtasks', 'due_date_only', 'task_order'],
+                bounds: { title_max_chars: 1024, notes_max_chars: 8192 },
+              }
+            : tool
+        ),
+      },
+    },
+    {
+      url: /\/api\/v1\/workbench\/tasks\/lists(\?.*)?$/,
+      method: 'GET',
+      json: {
+        items: [
+          { id: 'l1', title: 'Home', default: true },
+          { id: 'l2', title: 'Work', default: false },
+        ],
+        next_page_token: null,
+      },
+    },
+    {
+      url: /\/api\/v1\/workbench\/tasks\?/,
+      method: 'GET',
+      json: { items: [], next_page_token: null },
+    },
+    {
+      url: /\/api\/v1\/workbench\/tasks$/,
+      method: 'POST',
+      handler: async route => {
+        posted.made.push(route.request().postDataJSON());
+        await route.fulfill({
+          json: {
+            id: 't9',
+            title: 'Bring the Q3 figures to the committee',
+            notes: null,
+            completed: false,
+            due: '2026-11-12',
+            parent: null,
+            position: null,
+            steps: [],
+            importance: null,
+            reminder: null,
+            repeat: null,
+          },
+        });
+      },
+    },
+    {
+      url: /\/api\/v1\/tool-assists\/mail\/task$/,
+      method: 'POST',
+      handler: async route => {
+        posted.read.push(route.request().postDataJSON());
+        await route.fulfill({
+          json: {
+            task: {
+              title: 'Bring the Q3 figures to the committee',
+              notes: 'Camille Martin asks for the figures of the quarter review.',
+              due: '2026-11-12',
+              list_name: 'Work',
+              importance: null,
+            },
+            usage: COST,
+          },
+        });
+      },
+    },
+  ]);
+}
+
+for (const width of [1280, 390] as const) {
+  test(`an action of a summary becomes a whole task, checked in its form, at ${width}px`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await authenticate({ timezone: 'Europe/Paris' });
+    await playTheApi(mockApi);
+    const posted = { read: [] as unknown[], made: [] as unknown[] };
+    await playTheTasks(mockApi, posted);
+
+    await page.goto('/en/dashboard/tools/mail?id=m1');
+    const reader = page.getByRole('article', { name: 'Committee agenda for Thursday' });
+    await openList(page, reader);
+    await page.getByRole('menuitem', { name: 'Sum it up' }).click();
+    await reader.getByRole('button', { name: 'Make a task: Bring the figures' }).click();
+
+    const form = page.getByRole('dialog', { name: 'New task' });
+    await expect(form.getByLabel('Title')).toHaveValue('Bring the Q3 figures to the committee');
+    await expect(page).toHaveURL(/\/en\/dashboard\/tools\/tasks/);
+    expect(posted.read).toEqual([
+      { message_id: 'm1', lists: ['Home', 'Work'], focus: 'Bring the figures' },
+    ]);
+    await expect(form.getByLabel('Notes')).toHaveValue(
+      /Camille Martin asks for the figures[\s\S]*\/en\/dashboard\/tools\/mail\?id=m1/
+    );
+    await expect(form.getByLabel('Due date')).toHaveValue('2026-11-12');
+    await expect(form.getByLabel('List')).toHaveValue('l2');
+    await expectNoOverflow(page, `a handed task at ${width}px`);
+    expect(
+      (await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations
+    ).toEqual([]);
+
+    await form.getByRole('button', { name: 'Add' }).click();
+
+    await expect(form).toHaveCount(0);
+    await expect(page.getByText('Added to “Work”.')).toBeVisible();
+    expect(posted.made).toEqual([
+      expect.objectContaining({ list_id: 'l2', due: '2026-11-12', title: expect.any(String) }),
+    ]);
+  });
+}

@@ -1,215 +1,318 @@
-"""Read-only aggregation repository for the activity timeline (Lot 1-A1).
+"""Owned, windowed timeline reads; literal matching precedes every source cap.
 
-Cross-domain READ model: queries the source domains' tables directly
-(same reuse doctrine as ``briefing/fetchers.py`` importing other domains'
-repositories). Never writes. Statement builders are pure module-level
-functions so unit tests can assert the compiled SQL predicates without a
-database.
-
-Counting doctrine (ADR-185): every total is an exact ``COUNT(*)`` over the
-whole window; rows only are capped. A cap is stated by the caller
-(``truncated`` flag), never applied in silence.
+Each source returns rows and an exact total from one SQL snapshot. Creation
+and closure are separate streams because their ordering dates differ.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, SQLColumnExpression, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only, raiseload
 
 from src.domains.activity.constants import TIMELINE_JOURNAL_SOURCES
+from src.domains.activity.schemas import ActivityCriteria
 from src.domains.habits.models import UserHabit
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.interests.models import InterestNotification
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
 from src.domains.open_loops.models import OpenLoop, OpenLoopStatus
 from src.domains.scheduled_actions.models import ScheduledAction
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from src.domains.shared.display_queries import read_display_rows
 
 _ENDED_LOOP_STATUSES = (OpenLoopStatus.CLOSED.value, OpenLoopStatus.EXPIRED.value)
 
-_RowT = TypeVar("_RowT")
 
-
-# =============================================================================
-# Pure statement builders (unit-testable WHERE clauses)
-# =============================================================================
+def _ordered[T](
+    statement: Select[tuple[T]],
+    instant: SQLColumnExpression[datetime | None],
+    identity: SQLColumnExpression[UUID],
+    cap: int,
+    criteria: ActivityCriteria | None,
+) -> Select[tuple[T]]:
+    """Apply the upper instant and stable direction before the source cap."""
+    query = criteria or ActivityCriteria()
+    if query.as_of is not None:
+        statement = statement.where(instant <= query.as_of)
+    order = instant.asc() if query.sort == "oldest" else instant.desc()
+    return statement.options(raiseload("*")).order_by(order, identity.asc()).limit(cap)
 
 
 def heartbeat_rows_stmt(
-    user_id: UUID, since: datetime, cap: int
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> Select[tuple[HeartbeatNotification]]:
-    """Heartbeat notifications in the window, newest first, capped."""
-    return (
+    """Heartbeat notifications owned by the reader, ordered on their send instant."""
+    return _ordered(
         select(HeartbeatNotification)
+        .options(
+            load_only(
+                HeartbeatNotification.id,
+                HeartbeatNotification.created_at,
+                HeartbeatNotification.content,
+                HeartbeatNotification.priority,
+                raiseload=True,
+            )
+        )
         .where(
             HeartbeatNotification.user_id == user_id,
             HeartbeatNotification.created_at >= since,
-        )
-        .order_by(HeartbeatNotification.created_at.desc())
-        .limit(cap)
+        ),
+        HeartbeatNotification.created_at,
+        HeartbeatNotification.id,
+        cap,
+        criteria,
     )
 
 
 def interest_rows_stmt(
-    user_id: UUID, since: datetime, cap: int
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> Select[tuple[InterestNotification]]:
-    """Interest notifications in the window, newest first, capped."""
-    return (
+    """Interest notifications owned by the reader; historical content may be null."""
+    return _ordered(
         select(InterestNotification)
+        .options(
+            load_only(
+                InterestNotification.id,
+                InterestNotification.created_at,
+                InterestNotification.content,
+                raiseload=True,
+            )
+        )
         .where(
             InterestNotification.user_id == user_id,
             InterestNotification.created_at >= since,
-        )
-        .order_by(InterestNotification.created_at.desc())
-        .limit(cap)
+        ),
+        InterestNotification.created_at,
+        InterestNotification.id,
+        cap,
+        criteria,
     )
 
 
-def journal_rows_stmt(user_id: UUID, since: datetime, cap: int) -> Select[tuple[JournalEntry]]:
-    """ACTIVE automatic journal entries in the window (manual excluded)."""
-    return (
+def journal_rows_stmt(
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> Select[tuple[JournalEntry]]:
+    """Active automatic entries only; manual and archived entries are not proactive work."""
+    return _ordered(
         select(JournalEntry)
+        .options(
+            load_only(
+                JournalEntry.id,
+                JournalEntry.created_at,
+                JournalEntry.title,
+                JournalEntry.source,
+                raiseload=True,
+            )
+        )
         .where(
             JournalEntry.user_id == user_id,
             JournalEntry.created_at >= since,
             JournalEntry.status == JournalEntryStatus.ACTIVE.value,
             JournalEntry.source.in_(TIMELINE_JOURNAL_SOURCES),
-        )
-        .order_by(JournalEntry.created_at.desc())
-        .limit(cap)
+        ),
+        JournalEntry.created_at,
+        JournalEntry.id,
+        cap,
+        criteria,
     )
 
 
-def habit_rows_stmt(user_id: UUID, since: datetime, cap: int) -> Select[tuple[UserHabit]]:
-    """Habits DETECTED in the window (whatever their current status)."""
-    return (
+def habit_rows_stmt(
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> Select[tuple[UserHabit]]:
+    """Detection is the creation date, whatever the habit's current status."""
+    return _ordered(
         select(UserHabit)
-        .where(UserHabit.user_id == user_id, UserHabit.created_at >= since)
-        .order_by(UserHabit.created_at.desc())
-        .limit(cap)
+        .options(
+            load_only(
+                UserHabit.id,
+                UserHabit.created_at,
+                UserHabit.key,
+                UserHabit.status,
+                raiseload=True,
+            )
+        )
+        .where(
+            UserHabit.user_id == user_id,
+            UserHabit.created_at >= since,
+        ),
+        UserHabit.created_at,
+        UserHabit.id,
+        cap,
+        criteria,
     )
 
 
-def open_loop_rows_stmt(user_id: UUID, since: datetime, cap: int) -> Select[tuple[OpenLoop]]:
-    """Loops with a lifecycle event in the window (created, or ended).
-
-    ``updated_at`` is an honest end timestamp: a loop leaves OPEN exactly
-    once (repository docstring contract) and is never touched afterwards.
-    """
-    return (
+def open_loops_created_rows_stmt(
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> Select[tuple[OpenLoop]]:
+    """Creation events have their own ordered pool, independent of later closure."""
+    return _ordered(
         select(OpenLoop)
+        .options(
+            load_only(
+                OpenLoop.id,
+                OpenLoop.subject,
+                OpenLoop.status,
+                OpenLoop.closed_reason,
+                OpenLoop.created_at,
+                OpenLoop.updated_at,
+                raiseload=True,
+            )
+        )
         .where(
             OpenLoop.user_id == user_id,
-            or_(
-                OpenLoop.created_at >= since,
-                (OpenLoop.status.in_(_ENDED_LOOP_STATUSES)) & (OpenLoop.updated_at >= since),
-            ),
+            OpenLoop.created_at >= since,
+        ),
+        OpenLoop.created_at,
+        OpenLoop.id,
+        cap,
+        criteria,
+    )
+
+
+def open_loops_closed_rows_stmt(
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+) -> Select[tuple[OpenLoop]]:
+    """A loop ends once; its final update is its closure instant."""
+    return _ordered(
+        select(OpenLoop)
+        .options(
+            load_only(
+                OpenLoop.id,
+                OpenLoop.subject,
+                OpenLoop.status,
+                OpenLoop.closed_reason,
+                OpenLoop.created_at,
+                OpenLoop.updated_at,
+                raiseload=True,
+            )
         )
-        .order_by(OpenLoop.updated_at.desc())
-        .limit(cap)
+        .where(
+            OpenLoop.user_id == user_id,
+            OpenLoop.updated_at >= since,
+            OpenLoop.status.in_(_ENDED_LOOP_STATUSES),
+        ),
+        OpenLoop.updated_at,
+        OpenLoop.id,
+        cap,
+        criteria,
     )
 
 
 def scheduled_action_rows_stmt(
-    user_id: UUID, since: datetime, cap: int
+    user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
 ) -> Select[tuple[ScheduledAction]]:
-    """Scheduled actions whose LAST execution falls in the window.
-
-    There is no runs table: one event per action (its most recent run),
-    a documented v1 limitation — never a per-run history claim.
-    """
-    return (
+    """One last-execution event per routine; this is not its run history."""
+    return _ordered(
         select(ScheduledAction)
+        .options(
+            load_only(
+                ScheduledAction.id,
+                ScheduledAction.title,
+                ScheduledAction.last_executed_at,
+                raiseload=True,
+            )
+        )
         .where(
             ScheduledAction.user_id == user_id,
             ScheduledAction.last_executed_at.is_not(None),
             ScheduledAction.last_executed_at >= since,
-        )
-        .order_by(ScheduledAction.last_executed_at.desc())
-        .limit(cap)
+        ),
+        ScheduledAction.last_executed_at,
+        ScheduledAction.id,
+        cap,
+        criteria,
     )
-
-
-def _count_from(stmt: Select[tuple[_RowT]]) -> Select[tuple[int]]:
-    """Exact COUNT(*) over a rows statement's WHERE (order/limit stripped)."""
-    return select(func.count()).select_from(stmt.order_by(None).limit(None).subquery())
-
-
-def open_loops_created_count_stmt(user_id: UUID, since: datetime) -> Select[tuple[int]]:
-    """Exact count of loops CREATED in the window."""
-    return select(func.count()).where(OpenLoop.user_id == user_id, OpenLoop.created_at >= since)
-
-
-def open_loops_closed_count_stmt(user_id: UUID, since: datetime) -> Select[tuple[int]]:
-    """Exact count of loops ENDED (closed or expired) in the window."""
-    return select(func.count()).where(
-        OpenLoop.user_id == user_id,
-        OpenLoop.status.in_(_ENDED_LOOP_STATUSES),
-        OpenLoop.updated_at >= since,
-    )
-
-
-# =============================================================================
-# Repository
-# =============================================================================
 
 
 class ActivityReadRepository:
-    """Thin executor over the pure statement builders. Read-only."""
+    """Cross-domain read model on a session owned by one source fetcher."""
 
     def __init__(self, db: AsyncSession) -> None:
-        """Bind to an AsyncSession owned by the calling fetcher."""
         self.db = db
 
-    async def _rows_and_count(self, rows_stmt: Select[tuple[_RowT]]) -> tuple[list[_RowT], int]:
-        rows = list((await self.db.execute(rows_stmt)).scalars().all())
-        total = (await self.db.execute(_count_from(rows_stmt))).scalar_one()
-        return rows, int(total)
-
     async def heartbeat_notifications_since(
-        self, user_id: UUID, since: datetime, cap: int
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> tuple[list[HeartbeatNotification], int]:
-        """Windowed heartbeat notifications + exact total."""
-        return await self._rows_and_count(heartbeat_rows_stmt(user_id, since, cap))
+        """Match the notification content this timeline renders."""
+        return await read_display_rows(
+            self.db,
+            heartbeat_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.content,
+            cap=cap,
+        )
 
     async def interest_notifications_since(
-        self, user_id: UUID, since: datetime, cap: int
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> tuple[list[InterestNotification], int]:
-        """Windowed interest notifications + exact total."""
-        return await self._rows_and_count(interest_rows_stmt(user_id, since, cap))
+        """Match rendered content, not a hidden topic or prompt."""
+        return await read_display_rows(
+            self.db,
+            interest_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.content,
+            cap=cap,
+        )
 
     async def journal_entries_since(
-        self, user_id: UUID, since: datetime, cap: int
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> tuple[list[JournalEntry], int]:
-        """Windowed automatic journal entries + exact total."""
-        return await self._rows_and_count(journal_rows_stmt(user_id, since, cap))
+        """Match the rendered entry title."""
+        return await read_display_rows(
+            self.db,
+            journal_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.title,
+            cap=cap,
+        )
 
     async def habits_since(
-        self, user_id: UUID, since: datetime, cap: int
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> tuple[list[UserHabit], int]:
-        """Windowed detected habits + exact total."""
-        return await self._rows_and_count(habit_rows_stmt(user_id, since, cap))
-
-    async def open_loops_since(
-        self, user_id: UUID, since: datetime, cap: int
-    ) -> tuple[list[OpenLoop], int, int]:
-        """Windowed loop rows + exact created/ended totals (two counts)."""
-        rows = list(
-            (await self.db.execute(open_loop_rows_stmt(user_id, since, cap))).scalars().all()
+        """Match the displayed detection key."""
+        return await read_display_rows(
+            self.db,
+            habit_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.key,
+            cap=cap,
         )
-        created = (
-            await self.db.execute(open_loops_created_count_stmt(user_id, since))
-        ).scalar_one()
-        closed = (await self.db.execute(open_loops_closed_count_stmt(user_id, since))).scalar_one()
-        return rows, int(created), int(closed)
+
+    async def open_loops_created_since(
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+    ) -> tuple[list[OpenLoop], int]:
+        """Read the complete creation count and its own ordered matching prefix."""
+        return await read_display_rows(
+            self.db,
+            open_loops_created_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.subject,
+            cap=cap,
+        )
+
+    async def open_loops_closed_since(
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
+    ) -> tuple[list[OpenLoop], int]:
+        """Read the complete closure count and its own ordered matching prefix."""
+        return await read_display_rows(
+            self.db,
+            open_loops_closed_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.subject,
+            cap=cap,
+        )
 
     async def scheduled_action_runs_since(
-        self, user_id: UUID, since: datetime, cap: int
+        self, user_id: UUID, since: datetime, cap: int, criteria: ActivityCriteria | None = None
     ) -> tuple[list[ScheduledAction], int]:
-        """Windowed last-executions + exact total."""
-        return await self._rows_and_count(scheduled_action_rows_stmt(user_id, since, cap))
+        """Read routines' last execution, matching only their displayed title."""
+        return await read_display_rows(
+            self.db,
+            scheduled_action_rows_stmt(user_id, since, cap, criteria),
+            query=criteria.q if criteria else "",
+            text_of=lambda row: row.title,
+            cap=cap,
+        )

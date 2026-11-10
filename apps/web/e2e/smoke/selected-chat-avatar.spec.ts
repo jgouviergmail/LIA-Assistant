@@ -8,7 +8,7 @@ import type { PsycheStateSummary } from '../../src/types/psyche';
 const HISTORY_ID = 'selected-avatar-history';
 const LATEST_ID = 'selected-avatar-latest';
 const PREFS_KEY = 'lia_eyes_widget_prefs';
-const STYLES = ['smiley', 'moss', 'lumen', 'cozmo', 'spirit'] as const;
+const STYLES = ['bip', 'moss', 'lumen', 'cozmo', 'spirit'] as const;
 type SelectedStyle = (typeof STYLES)[number];
 type Variant = 'male' | 'female';
 
@@ -90,26 +90,24 @@ function portraitRoutes(): MockRoute[] {
   ];
 }
 
-async function preparePreference(page: Page, baseURL: string | undefined) {
+async function preparePreference(page: Page, baseURL: string | undefined, savedStyle = 'bip') {
   if (!baseURL) throw new Error('The hermetic app origin is required');
-  // The production journey has no HMR. In Docker dev, keep its test-only
-  // socket local so failed proxy upgrades cannot repeatedly reload the page.
-  await page.routeWebSocket(/\/_next\/hmr(?:\?|$)/, socket => {
-    socket.onMessage(() => {});
-  });
   await page.context().addCookies([{ name: 'lia_gender', value: 'male', url: baseURL }]);
-  await page.addInitScript(key => {
-    // Initialize once, preserving choices made through the real settings UI.
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          state: { visible: false, style: 'smiley', size: 'lg', position: null },
-          version: 0,
-        })
-      );
-    }
-  }, PREFS_KEY);
+  await page.addInitScript(
+    ({ key, style }) => {
+      // Initialize once, preserving choices made through the real settings UI.
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            state: { visible: false, style, size: 'lg', position: null },
+            version: 0,
+          })
+        );
+      }
+    },
+    { key: PREFS_KEY, style: savedStyle }
+  );
 }
 
 function portrait(page: Page, id = LATEST_ID): Locator {
@@ -133,9 +131,7 @@ async function expectPortrait(page: Page, id: string, style: SelectedStyle, vari
     await expect(view).toHaveAttribute('data-companion-portrait', style);
     await expect(view).toHaveAttribute('data-portrait-variant', variant);
     await expect(view.locator('.lia-eyes')).toHaveCount(1);
-    if (style === 'smiley')
-      await expect(view.locator('.lia-eyes')).toHaveAttribute('data-smiley-variant', variant);
-    if (style === 'moss' || style === 'lumen' || style === 'spirit')
+    if (style === 'bip' || style === 'moss' || style === 'lumen' || style === 'spirit')
       await expect(view.locator('[data-character]')).toHaveAttribute('data-character', style);
     if (style === 'cozmo') await expect(view.locator('.lia-monitor')).toHaveCount(1);
   }
@@ -207,7 +203,7 @@ test('selected settings skin and current gender reach history and latest without
       await expect(historical.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
       await expect(latest.locator('.lia-eyes')).toHaveAttribute('data-motion', 'off');
     }
-    if (style === 'smiley' || style === 'moss' || style === 'cozmo')
+    if (style === 'bip' || style === 'moss' || style === 'cozmo')
       await capturePortraits(page, testInfo, `${style}-female-history-and-latest-40px`);
     if (style !== 'spirit') await page.goBack({ waitUntil: 'domcontentloaded' });
   }
@@ -226,8 +222,8 @@ test('only the visible latest or hovered native portrait wakes; reduced motion a
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/en/dashboard/chat', { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await expect(page.locator(`[data-message-id="${LATEST_ID}"]`)).toBeVisible({ timeout: 90_000 });
-  const historical = await expectPortrait(page, HISTORY_ID, 'smiley', 'male');
-  const latest = await expectPortrait(page, LATEST_ID, 'smiley', 'male');
+  const historical = await expectPortrait(page, HISTORY_ID, 'bip', 'male');
+  const latest = await expectPortrait(page, LATEST_ID, 'bip', 'male');
   await expect(latest.locator('canvas')).toHaveCount(1);
   await expect(historical.locator('canvas')).toHaveCount(0);
   await expect(historical.locator('.lia-eyes')).toHaveAttribute('data-rig-visible', 'false');
@@ -236,7 +232,7 @@ test('only the visible latest or hovered native portrait wakes; reduced motion a
   await page.mouse.move(0, 0);
   await expect(historical.locator('canvas')).toHaveCount(0);
   await expect(latest.locator('canvas')).toHaveCount(1);
-  await capturePortraits(page, testInfo, 'smiley-male-animated-latest-frozen-history');
+  await capturePortraits(page, testInfo, 'bip-male-animated-latest-frozen-history');
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(latest.locator('canvas')).toHaveCount(0);
@@ -263,4 +259,33 @@ test('only the visible latest or hovered native portrait wakes; reduced motion a
   });
   await expect(latest.locator('canvas')).toHaveCount(1);
   await expect(historical.locator('canvas')).toHaveCount(0);
+});
+
+test('a retired Smiley preference hydrates to BIP without loading retired artwork', async ({
+  page,
+  authenticate,
+  mockApi,
+  baseURL,
+}) => {
+  await authenticate();
+  await preparePreference(page, baseURL, 'smiley');
+  await mockApi(portraitRoutes());
+  const retiredRequests: string[] = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/avatars/smiley/'))
+      retiredRequests.push(request.url());
+  });
+  await page.goto('/en/dashboard/chat');
+  await waitForHydration(page, `[data-message-id="${LATEST_ID}"]`);
+  await expectPortrait(page, HISTORY_ID, 'bip', 'male');
+  await expectPortrait(page, LATEST_ID, 'bip', 'male');
+  await page.reload();
+  await expectPortrait(page, LATEST_ID, 'bip', 'male');
+  await page.goto('/en/dashboard/settings?section=eyes-style');
+  const section = page.locator('#settings-section-eyes-style');
+  await expect(
+    section.getByRole('button', { name: en.eyes.styles.bip.name, exact: true })
+  ).toHaveAttribute('aria-current', 'true');
+  await expect(section.getByRole('button', { name: 'Smiley', exact: true })).toHaveCount(0);
+  expect(retiredRequests).toEqual([]);
 });

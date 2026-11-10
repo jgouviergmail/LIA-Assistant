@@ -41,7 +41,7 @@ import {
   Volume2,
   WandSparkles,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 /**
  * The per-account switches, in display order — the backend's

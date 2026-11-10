@@ -13,7 +13,7 @@
 
 import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, type LucideIcon } from 'lucide-react';
+import { Loader2, type LucideIcon } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

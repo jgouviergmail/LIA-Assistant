@@ -31,6 +31,29 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+async def cancel_and_join[T](task: asyncio.Task[T]) -> None:
+    """Cancel an owned task, await its cleanup through repeated cancellation, then propagate it.
+
+    Unlike a detached write this task owns resources needed by its caller: the caller
+    cannot return while cleanup is still running. The task's own operations retain
+    their existing deadlines. ``wait`` never forwards a second cancellation to cleanup.
+    """
+    parent = asyncio.current_task()
+    assert parent is not None
+    cancellations = parent.cancelling()
+    task.cancel()
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            continue
+    if not task.cancelled():
+        task.result()
+    if parent.cancelling() > cancellations:
+        raise asyncio.CancelledError
+
+
 # Global set to keep strong references to background tasks
 # Prevents garbage collection while tasks are running
 _background_tasks: set[asyncio.Task] = set()

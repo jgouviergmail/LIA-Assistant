@@ -29,6 +29,7 @@ from src.domains.agents.display.components.base import (
     html_to_text,
     markdown_links_to_html,
     phone_for_tel,
+    render_attachment,
     render_chip_stars,
     safe_css_color,
     safe_url,
@@ -304,6 +305,7 @@ class TestFormatFileSize:
     @pytest.mark.parametrize(
         ("size", "expected"),
         [
+            (0, "0B"),
             (512, "512B"),
             (2048, "2.0KB"),
             (5 * 1024 * 1024, "5.0MB"),
@@ -313,9 +315,12 @@ class TestFormatFileSize:
     def test_human_readable_units(self, size: int, expected: str) -> None:
         assert format_file_size(size) == expected
 
-    @pytest.mark.parametrize("value", [None, 0])
-    def test_missing_size_renders_nothing(self, value: int | None) -> None:
-        assert format_file_size(value) == ""
+    def test_missing_size_renders_nothing(self) -> None:
+        assert format_file_size(None) == ""
+
+    def test_empty_attachment_keeps_its_received_size(self) -> None:
+        assert "(0B)" in render_attachment("empty.txt", size=0)
+        assert "lia-attachment__size" not in render_attachment("unknown.txt")
 
 
 class TestRenderChipStars:

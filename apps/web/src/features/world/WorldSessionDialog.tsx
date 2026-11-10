@@ -1,6 +1,6 @@
 'use client';
 
-import { UsersRound } from 'lucide-react';
+import { UsersRound } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

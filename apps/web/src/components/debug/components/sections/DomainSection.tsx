@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Layers } from '@/lib/icons';
 import { validateDomainScores } from '../../validation/validators';
 import {
   DebugChip,

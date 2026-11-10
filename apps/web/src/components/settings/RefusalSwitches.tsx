@@ -1,7 +1,7 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';

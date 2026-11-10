@@ -17,10 +17,11 @@
  * None renders where the instance does not offer the radio.
  */
 
-import { Radio } from 'lucide-react';
+import { Radio } from '@/lib/icons';
 
 import type { MobileNavAction } from '@/components/dashboard/MobileNavMenu';
 import { Button } from '@/components/ui/button';
+import { ACTIVE_ICON_BUTTON_CLASS } from '@/components/ui/button-variants';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { isOnAir } from '@/lib/radio/machine';
@@ -95,7 +96,11 @@ export function RadioControl({
     <Button
       variant="ghost"
       size="sm"
-      className={cn('h-11 w-11 px-0 max-[380px]:h-9 max-[380px]:w-9', className)}
+      className={cn(
+        'h-11 w-11 px-0 border border-transparent max-[380px]:h-9 max-[380px]:w-9',
+        className,
+        command.onAir && ACTIVE_ICON_BUTTON_CLASS
+      )}
       onClick={command.run}
       aria-pressed={command.onAir}
       aria-disabled={command.busy}

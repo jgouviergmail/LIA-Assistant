@@ -1,6 +1,6 @@
 'use client';
 
-import { ScrollText } from 'lucide-react';
+import { ScrollText } from '@/lib/icons';
 
 import { Disclosure } from '@/components/ui/disclosure';
 import { unitSuffix } from '@/lib/diagnostics-units';

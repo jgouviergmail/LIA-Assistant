@@ -17,7 +17,7 @@
  */
 
 import { useId, useState } from 'react';
-import { AlertTriangle, Check, CircleDot, Loader2, Play, Square, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, CircleDot, Loader2, Play, Square, Trash2 } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { TemplateSelect } from '@/components/meetings/TemplateSelect';

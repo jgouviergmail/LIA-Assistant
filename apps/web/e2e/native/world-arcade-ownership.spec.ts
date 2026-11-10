@@ -1,7 +1,6 @@
 /** A second tab cannot inherit game consent; Escape withdraws exactly once. */
 import { test, expect } from './fixtures';
 import { player, observePlayer, openCabinet, choice } from './world-arcade-helpers';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { openNativeWorld, enterWorld } from '../fixtures/world-admission';
 import { worldProofUrl } from './world-route';
 import en from '../../locales/en/translation.json';
@@ -22,7 +21,6 @@ test('same-account tab takeover withdraws the old private board and Escape leave
     // The same account in a second tab: its own socket, commands and verdicts.
     const successor = observePlayer(tab, host.context);
     const sent = successor.sent;
-    await installOfflineFonts(tab);
     await openNativeWorld(tab, 'Alex', worldProofUrl(baseURL, 'en'));
     await enterWorld(tab);
     await tab.getByRole('button', { name: en.world.session.takeover, exact: true }).click();

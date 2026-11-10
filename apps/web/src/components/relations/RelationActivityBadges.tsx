@@ -1,5 +1,5 @@
 'use client';
-import { Handshake, ListTodo, MessageSquare, PhoneCall } from 'lucide-react';
+import { Handshake, ListTodo, MessageSquare, PhoneCall } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import type { RelationSummary } from '@/hooks/useRelations';
 

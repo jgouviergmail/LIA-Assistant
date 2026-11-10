@@ -118,6 +118,29 @@ async def _generate_dual_embeddings(
     return content_embedding, keyword_embedding
 
 
+def embedding_texts(
+    memory: Memory, content: str | None, trigger_topic: str | None
+) -> tuple[str, str] | None:
+    """The texts an update embeds, or None when it keeps the row's vectors.
+
+    A memory's vectors are computed from its content and its trigger topic: an update
+    changing neither keeps them. ``None`` leaves a field as it is, as in a PATCH.
+
+    Args:
+        memory: The row before the update.
+        content: The new content, or None.
+        trigger_topic: The new trigger topic, or None.
+
+    Returns:
+        The content and the trigger topic to embed, or None.
+    """
+    texts = (
+        memory.content if content is None else content,
+        memory.trigger_topic if trigger_topic is None else trigger_topic,
+    )
+    return None if texts == (memory.content, memory.trigger_topic) else texts
+
+
 # =============================================================================
 # Memory Service
 # =============================================================================
@@ -371,12 +394,11 @@ class MemoryService:
         Returns:
             Updated Memory.
         """
-        content_changed = False
+        texts = embedding_texts(memory, content, trigger_topic)
 
         if content is not None and content != memory.content:
             memory.content = content
             memory.char_count = len(content)
-            content_changed = True
 
         if category is not None:
             memory.category = category
@@ -386,7 +408,6 @@ class MemoryService:
 
         if trigger_topic is not None and trigger_topic != memory.trigger_topic:
             memory.trigger_topic = trigger_topic
-            content_changed = True
 
         if usage_nuance is not None:
             memory.usage_nuance = usage_nuance
@@ -394,19 +415,18 @@ class MemoryService:
         if importance is not None:
             memory.importance = importance
 
-        # Re-embed if content or trigger_topic changed
-        if content_changed:
+        if texts is not None:
             memory.embedding, memory.keyword_embedding = await (
                 self._embedder or _generate_dual_embeddings
-            )(memory.content, memory.trigger_topic)
+            )(*texts)
 
         updated = await self.repo.update(memory)
 
         logger.info(
             "memory_updated",
             memory_id=str(memory.id),
-            content_changed=content_changed,
-            re_embedded=content_changed,
+            content_changed=texts is not None,
+            re_embedded=texts is not None,
         )
 
         return updated

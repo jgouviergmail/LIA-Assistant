@@ -22,6 +22,8 @@ const references: Reference[] = JSON.parse(
 );
 const samples = [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ] as const;
@@ -72,7 +74,7 @@ for (const sample of samples) {
         contentType: 'image/svg+xml',
         body: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="#88aaa2"/></svg>',
         headers: {
-          'Access-Control-Allow-Origin': 'https://localhost:3000',
+          'Access-Control-Allow-Origin': new URL(page.url()).origin,
           'Access-Control-Allow-Credentials': 'true',
         },
       });

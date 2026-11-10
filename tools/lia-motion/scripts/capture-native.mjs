@@ -31,7 +31,14 @@ for (const dir of ['fixtures', 'capture']) {
 const { createLandingProofCode } = require(`${compiled}/capture/landing-proof.js`);
 const { createApiNetworkGuard } = require(`${compiled}/fixtures/api-network-guard.js`);
 const converter = JSON.parse(execFileSync('python3', [`${repo}/data/skills/system/unit-converter/scripts/render_converter.py`], { input: JSON.stringify({ parameters: { _lang: 'fr' } }), encoding: 'utf8' })).frame;
-const fontCss = fs.readFileSync(`${repo}/apps/web/e2e/fixtures/fonts/material-symbols.css`, 'utf8');
+const mapDirectory = `${repo}/apps/web/e2e/fixtures/maps`;
+const mapCards = JSON.parse(fs.readFileSync(`${mapDirectory}/cards.json`, 'utf8'));
+const nativeCards = JSON.parse(fs.readFileSync(`${repo}/apps/web/e2e/fixtures/native-cards.json`, 'utf8'));
+const geography = {
+  html: mapCards.html,
+  locationMapPath: `${mapDirectory}/lyon-location.png`,
+  routeMapPath: `${mapDirectory}/lyon-route.png`,
+};
 const silence = `${output}/silent.wav`;
 const samples = 8000 * 120;
 const header = Buffer.alloc(44);
@@ -40,7 +47,7 @@ header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(
 header.writeUInt32LE(8000, 24); header.writeUInt32LE(8000, 28); header.writeUInt16LE(1, 32);
 header.writeUInt16LE(8, 34); header.write('data', 36); header.writeUInt32LE(samples, 40);
 fs.writeFileSync(silence, Buffer.concat([header, Buffer.alloc(samples, 128)]));
-const code = createLandingProofCode('http://127.0.0.1:3134', output, converter, fontCss, `${repo}/apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2`, silence);
+const code = createLandingProofCode('http://127.0.0.1:3134', output, converter, silence, geography, nativeCards.dossierHtml);
 const json = code.slice(code.lastIndexOf(')(page, ') + 8, -1);
 const input = JSON.parse(json);
 const translations = new Map(Object.entries({
@@ -213,8 +220,6 @@ async function film(entryPage, input) {
       return route.continue();
     });
     for (const fixture of input.routes) await page.route(typeof fixture.url === 'string' ? fixture.url : new RegExp(fixture.url.regex), route => route.fulfill(fixture.status === 204 ? { status: 204, body: '' } : { status: fixture.status ?? 200, json: fixture.json }));
-    await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: input.fontCss, headers: { 'Access-Control-Allow-Origin': '*' } }));
-    await page.route('https://fonts.gstatic.com/lia-e2e/MaterialSymbolsOutlined.woff2', route => route.fulfill({ contentType: 'font/woff2', path: input.fontPath, headers: { 'Access-Control-Allow-Origin': '*' } }));
     await page.route('**/api/v1/notifications/stream', () => undefined);
     await page.route(`**/api/v1/radio/sessions/${input.radioId}/segments/*/audio`, route => route.fulfill({ contentType: 'audio/wav', path: input.silentAudioPath }));
     await page.route(`**/api/v1/radio/sessions/${input.radioId}/stop`, route => route.fulfill({ status: 204, body: '' }));

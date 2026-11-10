@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { act, fireEvent, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { TicketForm } from '@/components/workboard/TicketForm';
 import type { TicketCreateBody } from '@/types/workboard';
 
@@ -111,6 +111,30 @@ describe('what it sends', () => {
 });
 
 describe('what it refuses to send', () => {
+  it('claims a submission synchronously and keeps the form while it is pending', async () => {
+    let finish: (result: { ok: boolean }) => void = () => undefined;
+    onCreate.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const { user } = render();
+    await user.type(screen.getByLabelText('workboard.form.title'), 'Call Ana');
+    const button = screen.getByRole('button', { name: 'workboard.actions.create' });
+    act(() => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    expect(onCreate).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: 'workboard.actions.cancel' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('workboard.form.title')).toHaveValue('Call Ana');
+    await act(async () => finish({ ok: false }));
+    expect(screen.getByLabelText('workboard.form.title')).toHaveValue('Call Ana');
+    await user.click(button);
+    expect(onCreate).toHaveBeenCalledTimes(2);
+  });
   it('sends nothing at all without a title, and keeps the button focusable', async () => {
     // The guard is in the HANDLER: `disabled` on a focused control blurs it and
     // drops the keyboard user back on `<body>`.

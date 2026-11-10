@@ -8,7 +8,7 @@
  * what is listed is not offered, nor is a view (`takesDrop`): a message sits in a
  * place, never in « the starred ». The trash and the spam have their own buttons.
  */
-import { Folder, Inbox, Archive, Tag, type LucideIcon } from 'lucide-react';
+import { Folder, Inbox, Archive, Tag, type LucideIcon } from '@/lib/icons';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';

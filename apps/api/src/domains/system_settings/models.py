@@ -116,10 +116,6 @@ class SystemSettingKey(str, enum.Enum):
     # Native decision routing. Absent means OFF; read without a cache.
     JEV_ENABLED = "jev_enabled"
     JEV_MEETING_TEMPLATE_ENABLED = "jev_meeting_template_enabled"
-    JEV_FILTER_EMAIL_ENABLED = "jev_filter_email_enabled"
-    JEV_FILTER_EVENT_ENABLED = "jev_filter_event_enabled"
-    JEV_FILTER_TASK_ENABLED = "jev_filter_task_enabled"
-    JEV_FILTER_FILE_ENABLED = "jev_filter_file_enabled"
     JEV_RADIO_VERIFICATION_ENABLED = "jev_radio_verification_enabled"
     JEV_CONSULTATION_PATH_ENABLED = "jev_consultation_path_enabled"
     JEV_CONSULTATION_BOUNDED_ENABLED = "jev_consultation_bounded_enabled"
@@ -128,17 +124,23 @@ class SystemSettingKey(str, enum.Enum):
     JEV_OBSERVE_JOURNAL_ENABLED = "jev_observe_journal_enabled"
     JEV_OBSERVE_OPEN_LOOPS_ENABLED = "jev_observe_open_loops_enabled"
     JEV_HITL_EXCLUSION_ENABLED = "jev_hitl_exclusion_enabled"
-    JEV_FILTER_REMINDER_ENABLED = "jev_filter_reminder_enabled"
-    JEV_FILTER_TICKET_ENABLED = "jev_filter_ticket_enabled"
-    JEV_FILTER_MCP_ENABLED = "jev_filter_mcp_enabled"
-    JEV_FILTER_DOCUMENT_ENABLED = "jev_filter_document_enabled"
-
-    JEV_INITIATIVE_UTILITY_ENABLED = "jev_initiative_utility_enabled"
     JEV_MEMORY_REFERENCE_PRESENCE_ENABLED = "jev_memory_reference_presence_enabled"
     JEV_HITL_REJECTION_ENABLED = "jev_hitl_rejection_enabled"
     JEV_PARAMETER_KIND_ENABLED = "jev_parameter_kind_enabled"
     JEV_EMAIL_CLASSIFICATION_ENABLED = "jev_email_classification_enabled"
     JEV_EVENT_CLASSIFICATION_ENABLED = "jev_event_classification_enabled"
+    # ADR-374: each deciding usage's thresholds, a JSON object of gate key → value;
+    # absent or unusable values read as the declared defaults (jev_gates.py).
+    JEV_MEETING_TEMPLATE_THRESHOLDS = "jev_meeting_template_thresholds"
+    JEV_RADIO_VERIFICATION_THRESHOLDS = "jev_radio_verification_thresholds"
+    JEV_CONSULTATION_PATH_THRESHOLDS = "jev_consultation_path_thresholds"
+    JEV_CONSULTATION_BOUNDED_THRESHOLDS = "jev_consultation_bounded_thresholds"
+    JEV_HITL_EXCLUSION_THRESHOLDS = "jev_hitl_exclusion_thresholds"
+    JEV_HITL_REJECTION_THRESHOLDS = "jev_hitl_rejection_thresholds"
+    JEV_MEMORY_REFERENCE_PRESENCE_THRESHOLDS = "jev_memory_reference_presence_thresholds"
+    JEV_PARAMETER_KIND_THRESHOLDS = "jev_parameter_kind_thresholds"
+    JEV_EMAIL_CLASSIFICATION_THRESHOLDS = "jev_email_classification_thresholds"
+    JEV_EVENT_CLASSIFICATION_THRESHOLDS = "jev_event_classification_thresholds"
 
     # Future settings can be added here:
     # MAINTENANCE_MODE = "maintenance_mode"

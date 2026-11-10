@@ -12,17 +12,18 @@ Renders tasks with:
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 from src.core.i18n_v3 import V3Messages
-from src.core.time_utils import is_past
+from src.core.task_due import task_due_day
+from src.core.time_utils import now_in_timezone
 from src.domains.agents.constants import CONTEXT_DOMAIN_TASKS
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
     format_full_date,
-    format_relative_date,
     render_card_top,
     render_chip,
     render_chip_row,
@@ -31,7 +32,11 @@ from src.domains.agents.display.components.base import (
 )
 from src.domains.agents.display.components.card_content import render_linked_title
 from src.domains.agents.display.components.source_details import task_native_chip
-from src.domains.agents.display.components.task_details import render_task_details
+from src.domains.agents.display.components.task_details import (
+    render_task_details,
+    render_task_subtasks,
+    task_checklist,
+)
 from src.domains.agents.display.icons import Icons
 from src.domains.agents.display.values import scalar_text
 
@@ -75,8 +80,15 @@ class TaskItem(BaseComponent):
         """
         # Extract data
         title = data.get("title") or V3Messages.get_no_title(ctx.language)
-        url = data.get("url") or data.get("link") or data.get("selfLink", "")
-        due = data.get("due", "")
+        url = (
+            data.get("url")
+            or data.get("webViewLink")
+            or data.get("link")
+            or data.get("selfLink", "")
+        )
+        local_now = now_in_timezone(ctx.timezone)
+        due_day = task_due_day(data, local_now.tzinfo or UTC)
+        due = due_day.isoformat() if due_day else ""
         status = data.get("status", "needsAction")
         notes = scalar_text(data.get("notes"))
         priority = data.get("priority") or data.get("importance", "")
@@ -86,7 +98,7 @@ class TaskItem(BaseComponent):
         completed_date = data.get("completed", "")
 
         is_completed = status == "completed"
-        is_overdue = self._is_overdue(due)
+        is_overdue = due_day is not None and due_day < local_now.date()
 
         # Build default actions if not provided
         if suggested_actions is None:
@@ -135,6 +147,7 @@ class TaskItem(BaseComponent):
                     "icon": Icons.CHECKLIST,
                     "label": V3Messages.get_view_details(ctx.language),
                     "url": url,
+                    "card_open": "true",
                 }
             )
 
@@ -195,6 +208,7 @@ class TaskItem(BaseComponent):
 {card_top_html}
 {chip_row_html}
 {notes_html}
+{render_task_subtasks(task_checklist(data), ctx)}
 {collapsible_html}
 </div>"""
 
@@ -213,7 +227,7 @@ class TaskItem(BaseComponent):
         chips: list[str] = []
         if native_chip:
             chips.append(native_chip)
-        if priority in {"high", "medium", "low"} and not is_completed:
+        if priority in {"high", "medium", "low"}:
             color = {"high": "red", "medium": "amber", "low": "blue"}[priority]
             chips.append(
                 render_chip(V3Messages.get_priority(ctx.language, priority), color, "flag")
@@ -221,13 +235,14 @@ class TaskItem(BaseComponent):
         if is_completed and completed_date:
             date = format_full_date(completed_date, ctx.language, ctx.timezone, include_time=True)
             chips.append(render_chip(date, "green", "event_available"))
-        elif due and not is_completed:
-            date = format_relative_date(due, ctx.language, ctx.timezone)
+        if due:
+            # A task's due is a civil DAY, not an instant to convert a second time.
+            date = format_full_date(due, ctx.language, "UTC")
             chips.append(
                 render_chip(
                     date,
-                    "red" if is_overdue else "amber",
-                    "warning" if is_overdue else Icons.CALENDAR,
+                    "red" if is_overdue and not is_completed else "amber",
+                    "warning" if is_overdue and not is_completed else Icons.CALENDAR,
                 )
             )
         if task_list_name:
@@ -238,10 +253,3 @@ class TaskItem(BaseComponent):
             )
             chips.append(render_chip(name, "", Icons.CHECKLIST))
         return render_chip_row(" ".join(chips)) if chips else ""
-
-    def _is_overdue(self, due: str | None) -> bool:
-        """Check if task is overdue using timezone-safe comparison."""
-        if not due:
-            return False
-        # Use time_utils.is_past() for safe timezone-aware comparison
-        return is_past(due)

@@ -1952,6 +1952,31 @@
       "title": "Dagli Strumenti: un clic, una chiamata, una proposta",
       "summary": "Riassumere un messaggio, proporre una risposta, leggere un biglietto da visita: un clic chiede una sola cosa a LIA e riceve una proposta che la persona legge, mai una scrittura presso il fornitore. L’atto viene tracciato e addebitato a chi ha cliccato, e nulla aggiunge un controllo a una schermata senza spazio: l’ultima icona di ogni barra apre l’elenco.",
       "src": "357747655d68"
+    },
+    "373": {
+      "title": "La personalità governa la voce",
+      "summary": "Una sessione vocale ElevenLabs impostata su una personalità cinica parlava come un assistente allegro: i tag espressivi del portale imponevano entusiasmo e le cornici di LIA chiedevano calore. Ora ogni voce della persona — Live, Live diretto, telefono e il commento vocale della chat — parla con la personalità scelta, prima la sostanza, i fatti intatti; LIA stessa scrive sull'agente la tavolozza dei tag, il saluto e i suoi strumenti. Una chiamata a terzi resta cordiale.",
+      "src": "e1614a8b7a92"
+    },
+    "374": {
+      "title": "JEV conserva ciò che qualcuno legge, e le sue soglie diventano impostazioni",
+      "summary": "Le anteprime dei risultati che nessuno schermo mostrava più e la porta JEV dell'iniziativa, che non distingueva nulla, sono state rimosse, mentre il valutatore dell'iniziativa continua a vedere ogni turno con strumenti. Ogni soglia JEV diventa un'impostazione limitata, modificabile dalla schermata di amministrazione, e ogni giudizio pagato viene contato nel tempo, perché una soglia si decida su ciò che accade davvero e non su un corpus.",
+      "src": "40543eabe9e3"
+    },
+    "375": {
+      "title": "Ciò che LIA impara dall'uso diventa proposte",
+      "summary": "Un orario non condiziona più una richiesta ricorrente: un bisogno si riconosce dai giorni in cui ritorna, e l'orario serve solo a precompilare. Sei tipi di proposte nascono da ciò che LIA registra già — automatizzare un bisogno, spostare una routine riavviata a mano, ampliare gli orari delle notifiche, collegare una fonte… — e un clic le accetta e le esegue. La chat ne mostra al massimo una sotto una risposta, scelta dal codice.",
+      "src": "de653a14795d"
+    },
+    "376": {
+      "title": "Una scheda apre la sua voce negli Strumenti, su una prova firmata della sua fonte",
+      "summary": "Un'e-mail, un evento, un contatto, un'attività, un file o una luce mostrati nella chat si aprono negli Strumenti. La scheda porta una destinazione firmata, legata all'account e alla fonte che ha risposto; al clic il server ricontrolla quella fonte e rifiuta, dicendo perché, se l'account è cambiato, invece di aprire un'altra voce che condivida l'identificativo.",
+      "src": "97a376cbbd7b"
+    },
+    "377": {
+      "title": "L'account sceglie come è disegnata l'interfaccia",
+      "summary": "Ogni icona passa da un'unica porta che disegna lo stile scelto dall'account, Lucide, Fluent Color o Streamline Flex, senza cambiare il significato di alcun simbolo, e il contrasto elevato del sistema mantiene i suoi colori. Il tema può anche passare da solo dal chiaro al nero assoluto agli orari scelti, con l'orologio dell'account, senza che un timer scriva mai il profilo.",
+      "src": "961a36d2c764"
     }
   }
 }

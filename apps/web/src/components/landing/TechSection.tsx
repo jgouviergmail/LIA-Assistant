@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   TabletSmartphone,
   TrendingUp,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';

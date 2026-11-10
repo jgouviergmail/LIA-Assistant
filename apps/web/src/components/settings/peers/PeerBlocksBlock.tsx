@@ -9,7 +9,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import type { BlockView } from '@/hooks/usePeerConnections';
 import { useTranslation } from '@/i18n/client';

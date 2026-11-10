@@ -3,11 +3,12 @@
  *
  * A channel is ONE animated scalar. Everything the eyes do at runtime is a
  * combination of these numbers, and every one of them surfaces as a
- * `--rig-*` custom property the stylesheet consumes. That prefix is the
- * enforceable half of the system's boundary rule:
+ * `--rig-*` custom property. CSS and SVG consume the facial channels; the
+ * native GPU writer reads joint angles from the same values. The boundary
+ * guard exercises every published limb's GPU reader too.
  *
- *   TS owns what MOVES (these channels). CSS owns what is DRAWN (silhouette,
- *   skin, matter). A stylesheet READS `--rig-*`; it never DECLARES one.
+ *   TS owns what MOVES (these channels). Shape renderers own what is DRAWN.
+ *   A stylesheet READS `--rig-*`; it never DECLARES one.
  *
  * Per-eye channels are declared once and mirrored into an `L`/`R` pair, so an
  * asymmetry is always a pose decision and never a table typo. Rest values are
@@ -75,12 +76,29 @@ export interface ChannelDef {
 
 type ChannelSpec = Omit<ChannelDef, 'cssVar'> & { readonly cssVar?: never };
 
+/** Screen-plane joint angles: positive is clockwise, zero is the source artwork. */
+const LIMB_SPECS = {
+  armL: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  armR: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  wristL: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  wristR: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  legL: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  legR: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  footL: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+  footR: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
+} as const satisfies Record<string, ChannelSpec>;
+
+export type LimbChannel = keyof typeof LIMB_SPECS;
+/** The rig and native volume share this order, including GPU uniform packing. */
+export const LIMB_CHANNELS = Object.keys(LIMB_SPECS) as readonly LimbChannel[];
+
 /** Channels the spring loop must skip: they are computed, not integrated. */
 export function isDerived(key: ChannelKey): boolean {
   return CHANNELS[key].derived === true;
 }
 
 const GLOBAL_SPECS = {
+  ...LIMB_SPECS,
   /** Normalized gaze, [-1, 1]. The stylesheet turns it into em travel. */
   gazeX: { rest: 0, unit: 'num', group: 'gaze', precision: 3, snap: false },
   gazeY: { rest: 0, unit: 'num', group: 'gaze', precision: 3, snap: false },
@@ -100,6 +118,7 @@ const GLOBAL_SPECS = {
   lightWarm: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   lightCool: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   ambientSway: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
+  scarfTrail: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   ambientFall: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   ambientPulse: { rest: 1, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   /** Head tilt of the whole pair. */
@@ -116,6 +135,19 @@ const GLOBAL_SPECS = {
   bodyRoll: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
   bodySx: { rest: 1, unit: 'num', group: 'mass', precision: 3, snap: false },
   bodySy: { rest: 1, unit: 'num', group: 'mass', precision: 3, snap: false },
+  /** Ground contact blends the authored sole anchor into the native body projection. */
+  bodySupport: { rest: 1, unit: 'num', group: 'mass', precision: 3, snap: false },
+  /** -1 plants the left foot, +1 the right; zero supports the centered stance. */
+  bodySupportSide: { rest: 0, unit: 'num', group: 'mass', precision: 3, snap: false },
+  /** Ground shadow follows travel rather than the torso's contact compensation. */
+  bodyShadowX: {
+    rest: 0,
+    unit: 'em',
+    group: 'stretch',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
   bodyShadowScale: {
     rest: 1,
     unit: 'num',

@@ -13,7 +13,7 @@
  * line: an act is never cut. What LIA can do on the thing stands under that same last icon: a
  * screen with little room gains no control, and the list says the rest (owner, 2026-11-06).
  */
-import { Loader2, MessageCircle, MoreHorizontal, type LucideIcon } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, type LucideIcon } from '@/lib/icons';
 import { Fragment, type Ref } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { cn } from '@/lib/utils';
 
-import { AssistStars } from './assist/AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { DetailClose } from './DetailClose';
 
 /** One press, wherever it is drawn: in the bar, behind « … », or on a line of an act's list. */

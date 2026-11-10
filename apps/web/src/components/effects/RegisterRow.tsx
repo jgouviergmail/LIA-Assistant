@@ -22,7 +22,7 @@
  * authorship, in that order.
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 

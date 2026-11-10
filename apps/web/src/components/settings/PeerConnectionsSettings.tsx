@@ -13,7 +13,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Eye, Handshake, Inbox, Radar, ShieldOff, UserSearch } from 'lucide-react';
+import { Eye, Handshake, Inbox, Radar, ShieldOff, UserSearch } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Card } from '@/components/ui/card';

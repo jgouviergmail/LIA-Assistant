@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import JsonValue
 
-from src.core.constants import JEV_PARAMETER_KIND_MAX_VALUES, JEV_PARAMETER_KIND_MIN_CONFIDENCE
+from src.core.constants import JEV_PARAMETER_KIND_MAX_VALUES
 from src.core.context import current_tracker
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.semantic.manifest_semantics import available_manifest
@@ -30,8 +30,10 @@ from src.domains.agents.semantic.param_guard import (
     proven_by_binding,
 )
 from src.domains.agents.semantic.value_bindings import BindingScope
+from src.domains.llm_config.jev_gates import gate_passes
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import JevSnapshot, load_jev_snapshot
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_store import record_action
 from src.infrastructure.llm.jev_runtime import choose_many_with_jev
@@ -39,7 +41,6 @@ from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
-    jev_decisions_total,
 )
 
 if TYPE_CHECKING:
@@ -77,7 +78,7 @@ def _decided_kind(attempt: DecisionAttempt) -> str | None:
         attempt.outcome != "success"
         or answer is None
         or answer.choice not in VALUE_KINDS
-        or answer.confidence < JEV_PARAMETER_KIND_MIN_CONFIDENCE
+        or not gate_passes(attempt.thresholds, JevUsage.PARAMETER_KIND, "kind", answer.confidence)
     ):
         return None
     return answer.choice
@@ -149,7 +150,7 @@ async def _judge_value(
         target="tool_call_refused" if refused else "tool_call",
         decision_labels=_DECISION_LABELS,
     )
-    jev_decisions_total.labels(usage=JevUsage.PARAMETER_KIND, outcome=outcome).inc()
+    count_jev_outcome(JevUsage.PARAMETER_KIND, outcome)
     jev_decision_duration_seconds.labels(usage=JevUsage.PARAMETER_KIND, outcome=outcome).observe(
         perf_counter() - started
     )

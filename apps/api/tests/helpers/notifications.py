@@ -73,7 +73,12 @@ class ScriptedDispatcher(NotificationDispatcher):
         self.channels = channels
 
     async def _archive_message(
-        self, user: User, content: str, metadata: Mapping[str, object], db: AsyncSession
+        self,
+        user: User,
+        content: str,
+        metadata: Mapping[str, object],
+        db: AsyncSession,
+        conversation_id: UUID | None = None,
     ) -> dict[str, object]:
         if self.channels.archive_error is not None:
             raise self.channels.archive_error

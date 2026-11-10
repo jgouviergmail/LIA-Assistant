@@ -26,6 +26,7 @@ from src.core.exceptions import (
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _, normalize_language
 from src.core.sql_search import LIKE_ESCAPE, escape_like
+from src.domains.users.display_preferences import requires_preference_lock, validate_display_patch
 from src.domains.users.models import User
 from src.domains.users.preference_cas import (
     PreferenceWriteReceipt,
@@ -187,7 +188,7 @@ class UserService:
         """
         user = (
             await self.repository.get_by_id(user_id)
-            if expected_preferences is None
+            if not requires_preference_lock(data, comparing=expected_preferences is not None)
             else await self.repository.get_by_id_for_preference_update(user_id)
         )
 
@@ -215,6 +216,8 @@ class UserService:
 
         # Only update fields that are provided
         update_data = data.model_dump(exclude_unset=True)
+
+        validate_display_patch(user, data)
 
         if not update_data:
             # No fields to update

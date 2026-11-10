@@ -1,6 +1,6 @@
 'use client';
 import { useId } from 'react';
-import { MessageCircle, ShieldCheck, ChevronDown, Megaphone } from 'lucide-react';
+import { MessageCircle, ShieldCheck, ChevronDown, Megaphone } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useTranslation } from '@/i18n/client';

@@ -3,8 +3,7 @@
  *
  * The component suite proves the dialog's logic in jsdom; this proves the two
  * things jsdom cannot: that a REAL file chosen in a REAL browser reaches the
- * API as multipart (the client forces `application/json`, which is why this
- * one call bypasses it), and that the apply request carries the fingerprint of
+ * API as multipart with the browser supplying its boundary, and that the apply request carries the fingerprint of
  * the plan the administrator actually read.
  *
  * Hermetic: /auth/me returns a superuser, the model list and both import calls

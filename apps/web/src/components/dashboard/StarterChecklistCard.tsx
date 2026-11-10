@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { DashboardLink as Link } from './DashboardNavigation';
-import { CheckCircle2, Circle, ListChecks, PartyPopper, X } from 'lucide-react';
+import { CheckCircle2, Circle, ListChecks, PartyPopper, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { useApiMutation } from '@/hooks/useApiMutation';

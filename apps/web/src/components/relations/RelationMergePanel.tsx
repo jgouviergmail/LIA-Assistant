@@ -15,7 +15,7 @@
 
 import { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link2, Undo2 } from 'lucide-react';
+import { Link2, Undo2 } from '@/lib/icons';
 
 interface RelationMergePanelProps {
   /** The relationship currently open — the merge TARGET. */

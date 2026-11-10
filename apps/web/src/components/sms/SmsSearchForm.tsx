@@ -1,26 +1,38 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { civilDateInstant } from '@/lib/civil-date-instant';
+import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import type { SmsQuery } from '@/types/sms';
+import { ListControls, ListField, ListSearch } from '@/components/ui/list-toolbar';
+
+interface SearchValues {
+  search: string;
+  from: string;
+  to: string;
+}
 export function SmsSearchForm({
   timezone,
   filtered,
   onChange,
+  searchable = true,
+  chips,
 }: {
   timezone: string;
   filtered: boolean;
   onChange: (query: SmsQuery) => void;
+  searchable?: boolean;
+  chips?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const [search, setSearch] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const id = useId();
+  const [values, setValues] = useState<SearchValues>({ search: '', from: '', to: '' });
   const [invalid, setInvalid] = useState(false);
-  function submit() {
+  function change(next: SearchValues) {
+    setValues(next);
+    const { search, from, to } = next;
     try {
       if (from && to && from >= to) throw new RangeError();
       onChange({
@@ -34,70 +46,42 @@ export function SmsSearchForm({
     }
   }
   return (
-    <form
-      role="search"
-      className="space-y-3"
-      onSubmit={event => {
-        event.preventDefault();
-        submit();
-      }}
-    >
-      <Label htmlFor="sms-search">{t('sms.search')}</Label>
-      <div className="flex min-w-0 flex-wrap gap-2">
-        <div className="min-w-0 flex-1">
-          <Input
-            id="sms-search"
-            type="search"
-            value={search}
-            maxLength={256}
-            onChange={event => setSearch(event.target.value)}
-          />
-        </div>
-        <Button type="submit">{t('sms.search_button')}</Button>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor="sms-search-from">
-            {t('sms.from')} · {timezone}
-          </Label>
-          <Input
-            id="sms-search-from"
-            type="date"
-            value={from}
-            onChange={event => setFrom(event.target.value)}
-          />
-        </div>
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor="sms-search-to">
-            {t('sms.to')} · {timezone}
-          </Label>
-          <Input
-            id="sms-search-to"
-            type="date"
-            value={to}
-            onChange={event => setTo(event.target.value)}
-          />
-        </div>
-      </div>
+    <div role="search" className="space-y-3">
+      {searchable && (
+        <ListSearch
+          query={values.search}
+          onQuery={search => change({ ...values, search })}
+          searchLabel={t('sms.search')}
+          debounceMs={SEARCH_DEBOUNCE_MS}
+        />
+      )}
+      <ListControls chips={chips}>
+        {(['from', 'to'] as const).map(bound => (
+          <ListField key={bound} htmlFor={`${id}-${bound}`} label={t(`sms.${bound}`)}>
+            <Input
+              id={`${id}-${bound}`}
+              type="date"
+              className="h-11 min-w-0 w-full"
+              value={values[bound]}
+              onChange={event => change({ ...values, [bound]: event.target.value })}
+            />
+          </ListField>
+        ))}
+      </ListControls>
       {invalid && (
         <p role="alert" className="text-sm text-destructive">
           {t('common.error')}
         </p>
       )}
-      {filtered && (
+      {(filtered || Object.values(values).some(Boolean)) && (
         <Button
           type="button"
           variant="ghost"
-          onClick={() => {
-            setSearch('');
-            setFrom('');
-            setTo('');
-            onChange({});
-          }}
+          onClick={() => change({ search: '', from: '', to: '' })}
         >
           {t('sms.clear_search')}
         </Button>
       )}
-    </form>
+    </div>
   );
 }

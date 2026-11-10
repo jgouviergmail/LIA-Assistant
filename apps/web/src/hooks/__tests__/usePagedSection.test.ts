@@ -1,440 +1,249 @@
-/**
- * usePagedSection — the paging contract every hub section shares.
- *
- * Four rules, each of which was got wrong somewhere in this codebase before:
- * a closed section costs no request; the total is the payload's, never the
- * page's length; the first-load spinner is keyed on the ABSENCE of data (a
- * refetch clears `error` and a spinner keyed on it unmounts the list
- * mid-refresh); and closing forgets the position.
- */
+/** Real query/account lifetimes, including lazy reads and late page responses. */
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UsePagedSectionOptions } from '../usePagedSection';
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-
-const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
-
-import { usePagedSection, HUB_PAGE_SIZE } from '../usePagedSection';
+const { get, useAuth } = vi.hoisted(() => ({ get: vi.fn(), useAuth: vi.fn() }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { get },
+}));
+import { usePagedSection } from '../usePagedSection';
 
 interface Payload {
   rows: string[];
   total: number;
+  as_of?: string;
 }
-
-function answer(payload: Payload | undefined, over: Record<string, unknown> = {}) {
-  useApiQuery.mockReturnValue({
-    data: payload,
-    loading: payload === undefined,
-    error: null,
-    refetch: vi.fn(),
+function payload(rows = ['first'], total = 35): Payload {
+  return { rows, total };
+}
+function options(
+  over: Partial<UsePagedSectionOptions<Payload, string>> = {}
+): UsePagedSectionOptions<Payload, string> {
+  return {
+    path: '/things',
+    enabled: true,
+    selectItems: p => p.rows,
+    selectTotal: p => p.total,
     ...over,
+  };
+}
+function delayed() {
+  let resolve: (value: Payload) => void = () => {};
+  const promise = new Promise<Payload>(done => {
+    resolve = done;
   });
+  return { promise, resolve };
 }
-
-function render(enabled = true) {
-  return renderHook(
-    ({ on }: { on: boolean }) =>
-      usePagedSection<Payload, string>({
-        path: '/things',
-        selectItems: p => p.rows,
-        selectTotal: p => p.total,
-        enabled: on,
-      }),
-    { initialProps: { on: enabled } }
-  );
-}
-
 beforeEach(() => {
-  useApiQuery.mockReset();
+  vi.resetAllMocks();
+  useAuth.mockReturnValue({ user: { id: 'one' } });
+  get.mockResolvedValue(payload());
 });
 
-describe('usePagedSection', () => {
-  it('asks for the first page with the shared size', () => {
-    answer({ rows: ['a'], total: 1 });
-
-    render();
-
-    expect(useApiQuery).toHaveBeenCalledWith(
-      `/things?limit=${HUB_PAGE_SIZE}&offset=0`,
-      expect.objectContaining({ enabled: true })
-    );
-  });
-
-  it('does not fetch while the section is closed', () => {
-    answer(undefined);
-
-    render(false);
-
-    expect(useApiQuery).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ enabled: false })
-    );
-  });
-
-  it('walks pages by offset, not by slicing what it already has', async () => {
-    answer({ rows: ['a'], total: 40 });
-    const { result } = render();
-
-    act(() => result.current.setPage(3));
-
-    await waitFor(() =>
-      expect(useApiQuery).toHaveBeenLastCalledWith(
-        `/things?limit=${HUB_PAGE_SIZE}&offset=${HUB_PAGE_SIZE * 2}`,
-        expect.anything()
-      )
-    );
-  });
-
-  it('reports the payload total, never the length of the page', () => {
-    answer({ rows: ['a', 'b'], total: 214 });
-
-    const { result } = render();
-
-    expect(result.current.items).toHaveLength(2);
-    expect(result.current.total).toBe(214);
-    expect(result.current.totalPages).toBe(Math.ceil(214 / HUB_PAGE_SIZE));
-  });
-
-  it('keeps one page even when the set is empty', () => {
-    answer({ rows: [], total: 0 });
-
-    const { result } = render();
-
-    expect(result.current.totalPages).toBe(1);
-  });
-
-  it('flags the first load, and never a refetch', () => {
-    answer(undefined, { loading: true });
-    const first = render();
-    expect(first.result.current.firstLoad).toBe(true);
-
-    // Data in hand and loading again: that is a REFETCH, and unmounting the
-    // list here is what wipes a reader's place.
-    answer({ rows: ['a'], total: 1 }, { loading: true });
-    const refetching = render();
-    expect(refetching.result.current.firstLoad).toBe(false);
-    expect(refetching.result.current.loading).toBe(true);
-  });
-
-  it('does not treat an error as a first load', () => {
-    // `error` is cleared by a refetch; deriving the spinner from it would
-    // remount the list under the reader.
-    answer({ rows: ['a'], total: 1 }, { error: new Error('boom') });
-
-    const { result } = render();
-
-    expect(result.current.firstLoad).toBe(false);
-    expect(result.current.error).toBeInstanceOf(Error);
-    expect(result.current.items).toHaveLength(1);
-  });
-
-  it('forgets the position when the section closes', async () => {
-    answer({ rows: ['a'], total: 100 });
-    const { result, rerender } = render();
-
-    act(() => result.current.setPage(4));
-    await waitFor(() => expect(result.current.page).toBe(4));
-
-    rerender({ on: false });
-
-    await waitFor(() => expect(result.current.page).toBe(1));
-  });
-
-  it('refetches from the first page when the refresh key changes, keeping its rows', async () => {
-    answer({ rows: ['a'], total: 100 });
-    const { result, rerender } = renderHook(
-      ({ key }: { key: number }) =>
-        usePagedSection<Payload, string>({
-          path: '/things',
-          selectItems: p => p.rows,
-          selectTotal: p => p.total,
-          enabled: true,
-          refreshKey: key,
-        }),
-      { initialProps: { key: 0 } }
-    );
-    act(() => result.current.setPage(3));
-    await waitFor(() => expect(result.current.page).toBe(3));
-
-    rerender({ key: 1 });
-
-    await waitFor(() => expect(result.current.page).toBe(1));
-    // The key reaches the query's dependencies (a refetch even when the path
-    // is unchanged), and the rows on screen are never dropped for it.
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      `/things?limit=${HUB_PAGE_SIZE}&offset=0`,
-      expect.objectContaining({ deps: [1] })
-    );
-    expect(result.current.firstLoad).toBe(false);
-    expect(result.current.items).toEqual(['a']);
-  });
-
-  it('never asks for a page below the first', () => {
-    answer({ rows: [], total: 0 });
-    const { result } = render();
-
-    act(() => result.current.setPage(0));
-
-    expect(result.current.page).toBe(1);
-  });
-
-  it('appends its paging to a path that already carries a query', () => {
-    answer({ rows: [], total: 0 });
-
-    renderHook(() =>
-      usePagedSection<Payload, string>({
-        path: '/things?kind=peer',
-        selectItems: p => p.rows,
-        selectTotal: p => p.total,
-        enabled: true,
-      })
-    );
-
-    expect(useApiQuery).toHaveBeenCalledWith(
-      `/things?kind=peer&limit=${HUB_PAGE_SIZE}&offset=0`,
-      expect.anything()
-    );
-  });
-});
-
-describe('usePagedSection client pagination', () => {
-  const allRows = Array.from({ length: 23 }, (_, index) => `routine-${index + 1}`);
-
-  function renderClient(enabled = true) {
-    return renderHook(
-      ({ on }: { on: boolean }) =>
-        usePagedSection<Payload, string>({
-          path: '/scheduled-actions?kind=time',
-          selectItems: payload => payload.rows,
-          selectTotal: payload => payload.total,
-          enabled: on,
-          pagination: 'client',
-        }),
-      { initialProps: { on: enabled } }
-    );
-  }
-
-  it('reads the complete endpoint without unsupported paging and slices each local page', () => {
-    answer({ rows: allRows, total: allRows.length });
-    const { result } = renderClient();
-
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/scheduled-actions?kind=time',
-      expect.objectContaining({ enabled: true })
-    );
-    expect(result.current.items).toEqual(allRows.slice(0, 10));
-    expect(result.current.total).toBe(23);
-    expect(result.current.totalPages).toBe(3);
-
+describe('owned section pages', () => {
+  it('carries the accepted server cut to later pages and renews it on refresh', async () => {
+    const cut = '2026-11-01T10:00:00Z';
+    get.mockResolvedValueOnce({ ...payload(), as_of: cut });
+    const { result } = renderHook(() => usePagedSection(options({ selectAsOf: p => p.as_of })));
+    await waitFor(() => expect(result.current.items).toEqual(['first']));
+    get.mockResolvedValueOnce({ ...payload(['second']), as_of: cut });
     act(() => result.current.setPage(2));
-    expect(result.current.items).toEqual(allRows.slice(10, 20));
-    act(() => result.current.setPage(3));
-    expect(result.current.items).toEqual(allRows.slice(20));
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/scheduled-actions?kind=time',
-      expect.objectContaining({ enabled: true })
-    );
-  });
-
-  it('clamps to the last remaining page when a refreshed collection shrinks', () => {
-    answer({ rows: allRows, total: allRows.length });
-    const { result, rerender } = renderClient();
-    act(() => result.current.setPage(3));
-
-    answer({ rows: allRows.slice(0, 11), total: 11 });
-    rerender({ on: true });
-
-    expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(['routine-11']);
-    expect(result.current.total).toBe(11);
-    expect(result.current.totalPages).toBe(2);
-    expect(result.current.firstLoad).toBe(false);
-  });
-
-  it('retains lazy reads, explicit refetch, and first-page reopening', () => {
-    const refetch = vi.fn();
-    answer({ rows: allRows, total: allRows.length }, { refetch });
-    const { result, rerender } = renderClient(false);
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/scheduled-actions?kind=time',
-      expect.objectContaining({ enabled: false })
-    );
-    rerender({ on: true });
-    act(() => result.current.setPage(3));
+    await waitFor(() => expect(result.current.items).toEqual(['second']));
+    expect(get.mock.lastCall?.[1].params).toEqual({ as_of: cut });
     act(() => result.current.refetch());
-    expect(refetch).toHaveBeenCalledOnce();
-
-    rerender({ on: false });
-    rerender({ on: true });
-    expect(result.current.page).toBe(1);
-    expect(result.current.items).toEqual(allRows.slice(0, 10));
-  });
-});
-
-describe('usePagedSection server page recovery', () => {
-  it('requests the last valid page after a completed response reports a smaller total', () => {
-    answer({ rows: ['page-one'], total: 25 });
-    const { result, rerender } = render();
-    act(() => result.current.setPage(3));
-
-    // Deleting the only item on the third page makes it invalid.
-    answer({ rows: [], total: 20 });
-    rerender({ on: true });
-
-    expect(result.current.page).toBe(2);
-    expect(result.current.totalPages).toBe(2);
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/things?limit=10&offset=10',
-      expect.objectContaining({ enabled: true })
-    );
-    expect(result.current.firstLoad).toBe(false);
-
-    answer({ rows: ['remaining-page-two'], total: 20 });
-    rerender({ on: true });
-    expect(result.current.items).toEqual(['remaining-page-two']);
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    expect(get.mock.lastCall?.[1].params).toBeUndefined();
   });
 
-  it('does not mistake retained data for a response to the newly requested page', () => {
-    const retained = { rows: ['old-page'], total: 10 };
-    answer(retained);
-    const { result, rerender } = render();
-
-    act(() => result.current.setPage(2));
-    expect(result.current.page).toBe(2);
-    expect(useApiQuery).toHaveBeenLastCalledWith('/things?limit=10&offset=10', expect.anything());
-    answer(retained, { loading: true });
-    rerender({ on: true });
-    expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(['old-page']);
-
-    answer({ rows: ['new-page'], total: 11 });
-    rerender({ on: true });
-    expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(['new-page']);
+  it('refuses malformed pages without replacing the last accepted rows', async () => {
+    const parse = (value: unknown): Payload => {
+      if (value === null) throw new Error('Malformed page');
+      return payload(['valid']);
+    };
+    const { result } = renderHook(() => usePagedSection(options({ parse })));
+    await waitFor(() => expect(result.current.items).toEqual(['valid']));
+    get.mockResolvedValueOnce(null);
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.items).toEqual(['valid']);
   });
-
-  it('waits for a successful settled response before recovering a page', () => {
-    answer({ rows: ['old-page'], total: 25 });
-    const { result, rerender } = render();
-    act(() => result.current.setPage(3));
-    const reduced = { rows: [], total: 10 };
-
-    answer(reduced, { loading: true });
-    rerender({ on: true });
-    expect(result.current.page).toBe(3);
-
-    answer(reduced, { loading: false });
-    rerender({ on: true });
-    expect(result.current.page).toBe(1);
-    expect(useApiQuery).toHaveBeenLastCalledWith('/things?limit=10&offset=0', expect.anything());
-  });
-});
-
-describe('usePagedSection reset priority', () => {
-  it('keeps closure at page one if the collection shrinks in the same render', () => {
-    answer({ rows: ['old'], total: 25 });
-    const { result, rerender } = render();
-    act(() => result.current.setPage(3));
-
-    answer({ rows: ['remaining'], total: 15 });
-    rerender({ on: false });
-
-    expect(result.current.page).toBe(1);
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/things?limit=10&offset=0',
-      expect.objectContaining({ enabled: false })
-    );
-  });
-
-  it('keeps an explicit refresh at page one when its new payload also shrinks', () => {
-    answer({ rows: ['old'], total: 25 });
+  it('retires old filters before reading the new first page, even with a late page four', async () => {
     const { result, rerender } = renderHook(
-      ({ key }: { key: number }) =>
-        usePagedSection<Payload, string>({
-          path: '/things',
-          selectItems: payload => payload.rows,
-          selectTotal: payload => payload.total,
-          enabled: true,
-          refreshKey: key,
-        }),
-      { initialProps: { key: 0 } }
+      ({ q }) => usePagedSection(options({ queryKey: q, params: { q } })),
+      { initialProps: { q: 'old' } }
     );
-    act(() => result.current.setPage(3));
-
-    answer({ rows: ['remaining'], total: 15 });
-    rerender({ key: 1 });
-
-    expect(result.current.page).toBe(1);
-    expect(useApiQuery).toHaveBeenLastCalledWith(
+    await waitFor(() => expect(result.current.items).toEqual(['first']));
+    const late = delayed();
+    get.mockReturnValueOnce(late.promise);
+    act(() => result.current.setPage(4));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    get.mockResolvedValueOnce(payload(['new']));
+    rerender({ q: 'new' });
+    expect(result.current.items).toBeUndefined();
+    await waitFor(() => expect(result.current.items).toEqual(['new']));
+    await act(async () => late.resolve(payload(['late'])));
+    expect(result.current.items).toEqual(['new']);
+    expect(get).toHaveBeenLastCalledWith(
       '/things?limit=10&offset=0',
-      expect.objectContaining({ deps: [1] })
+      expect.objectContaining({ params: { q: 'new' } })
     );
   });
-});
 
-describe('usePagedSection failed navigation', () => {
-  it('announces the retained page after failure and can retry the same requested page', () => {
-    const retained = { rows: ['loaded-page-one'], total: 20 };
-    const refetch = vi.fn();
-    answer(retained, { refetch });
-    const { result, rerender } = render();
-    act(() => result.current.setPage(2));
-    const failure = new Error('page two unavailable');
-    answer(retained, { error: failure, refetch });
-    rerender({ on: true });
-
-    expect(result.current.items).toEqual(['loaded-page-one']);
+  it('hides the old account and rejects callbacks retained across account or filter changes', async () => {
+    const { result, rerender } = renderHook(({ q }) => usePagedSection(options({ queryKey: q })), {
+      initialProps: { q: 'a' },
+    });
+    await waitFor(() => expect(result.current.items).toEqual(['first']));
+    const oldFilter = result.current.setPage;
+    rerender({ q: 'b' });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    rerender({ q: 'a' });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    act(() => oldFilter(4));
     expect(result.current.page).toBe(1);
-    expect(result.current.error).toBe(failure);
+    const oldOwner = { page: result.current.setPage, refresh: result.current.refetch };
+    const next = delayed();
+    get.mockReturnValueOnce(next.promise);
+    useAuth.mockReturnValue({ user: { id: 'two' } });
+    rerender({ q: 'a' });
+    expect(result.current.items).toBeUndefined();
+    act(() => {
+      oldOwner.page(4);
+      oldOwner.refresh();
+    });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(4));
+    await act(async () => next.resolve(payload(['owner-two'])));
+    expect(result.current.items).toEqual(['owner-two']);
+    expect(result.current.page).toBe(1);
+  });
+
+  it('does no folded read, reopens on the first page and never calls a closed refresh', async () => {
+    const { result, rerender } = renderHook(
+      ({ enabled }) => usePagedSection(options({ enabled })),
+      { initialProps: { enabled: false } }
+    );
+    await act(async () => {
+      result.current.refetch();
+    });
+    expect(get).not.toHaveBeenCalled();
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.items).toEqual(['first']));
+    get.mockResolvedValueOnce(payload(['fourth']));
+    act(() => result.current.setPage(4));
+    await waitFor(() => expect(result.current.items).toEqual(['fourth']));
+    rerender({ enabled: false });
+    act(() => result.current.refetch());
+    expect(get).toHaveBeenCalledTimes(2);
+    rerender({ enabled: true });
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    expect(get.mock.lastCall?.[0]).toBe('/things?limit=10&offset=0');
+  });
+
+  it('labels retained rows by their loaded page while navigating and after a failure', async () => {
+    const { result } = renderHook(() => usePagedSection(options()));
+    await waitFor(() => expect(result.current.items).toEqual(['first']));
+    const second = delayed();
+    get.mockReturnValueOnce(second.promise);
+    act(() => result.current.setPage(2));
+    await waitFor(() => expect(result.current.loading).toBe(true));
+    expect(result.current.page).toBe(1);
     expect(result.current.firstLoad).toBe(false);
-
-    act(() => result.current.setPage(2));
-    expect(refetch).toHaveBeenCalledOnce();
-    expect(result.current.error).toBe(failure);
-    expect(useApiQuery).toHaveBeenLastCalledWith(
-      '/things?limit=10&offset=10',
-      expect.objectContaining({ enabled: true })
-    );
-
-    answer({ rows: ['loaded-page-two'], total: 20 }, { refetch });
-    rerender({ on: true });
+    await act(async () => second.resolve(payload(['second'])));
     expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(['loaded-page-two']);
-    expect(result.current.error).toBeNull();
-  });
-
-  it('remembers the last successful page rather than always falling back to page one', () => {
-    answer({ rows: ['page-one'], total: 30 });
-    const { result, rerender } = render();
-    act(() => result.current.setPage(2));
-    const second = { rows: ['page-two'], total: 30 };
-    answer(second);
-    rerender({ on: true });
+    get.mockRejectedValueOnce(new Error('offline'));
     act(() => result.current.setPage(3));
-    answer(second, { error: new Error('page-three unavailable') });
-    rerender({ on: true });
-
+    await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(['page-two']);
+    expect(result.current.items).toEqual(['second']);
+    get.mockResolvedValueOnce(payload(['third']));
+    act(() => result.current.setPage(3));
+    await waitFor(() => expect(result.current.items).toEqual(['third']));
+    expect(result.current.page).toBe(3);
   });
 
-  it('does not relabel locally paged data after a failed collection refresh', () => {
-    const collection = { rows: Array.from({ length: 15 }, (_, i) => `routine-${i}`), total: 15 };
-    answer(collection);
-    const { result, rerender } = renderHook(() =>
-      usePagedSection<Payload, string>({
-        path: '/scheduled-actions',
-        selectItems: payload => payload.rows,
-        selectTotal: payload => payload.total,
-        enabled: true,
-        pagination: 'client',
-      })
-    );
-    act(() => result.current.setPage(2));
-    answer(collection, { error: new Error('refresh unavailable') });
-    rerender();
+  it.each(['manual', 'signal'] as const)(
+    'refreshes from page one after a %s refresh, preserving rows meanwhile',
+    async kind => {
+      const { result, rerender } = renderHook(
+        ({ refreshKey }) => usePagedSection(options({ refreshKey })),
+        { initialProps: { refreshKey: 0 } }
+      );
+      await waitFor(() => expect(result.current.items).toEqual(['first']));
+      get.mockResolvedValueOnce(payload(['third']));
+      act(() => result.current.setPage(3));
+      await waitFor(() => expect(result.current.items).toEqual(['third']));
+      const first = delayed();
+      get.mockReturnValueOnce(first.promise);
+      if (kind === 'manual') act(() => result.current.refetch());
+      else rerender({ refreshKey: 1 });
+      expect(result.current.items).toEqual(['third']);
+      await waitFor(() => expect(get.mock.lastCall?.[0]).toBe('/things?limit=10&offset=0'));
+      await act(async () => first.resolve(payload(['fresh'], 1)));
+      expect(result.current.page).toBe(1);
+      expect(result.current.total).toBe(1);
+    }
+  );
 
-    expect(result.current.page).toBe(2);
-    expect(result.current.items).toEqual(collection.rows.slice(10));
+  it('recovers an emptied server page only after its successful response and preserves exact totals', async () => {
+    const { result } = renderHook(() => usePagedSection(options()));
+    await waitFor(() => expect(result.current.total).toBe(35));
+    const empty = delayed();
+    get.mockReturnValueOnce(empty.promise);
+    act(() => result.current.setPage(4));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(result.current.total).toBe(35);
+    get.mockResolvedValueOnce(payload(['last'], 21));
+    await act(async () => empty.resolve(payload([], 21)));
+    await waitFor(() => expect(result.current.items).toEqual(['last']));
+    expect(result.current.page).toBe(3);
+    expect(result.current.totalPages).toBe(3);
+  });
+
+  it('keeps initial error distinct from loading and zero results', async () => {
+    get.mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => usePagedSection(options()));
+    expect(result.current.firstLoad).toBe(true);
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.firstLoad).toBe(false);
+    expect(result.current.items).toBeUndefined();
+    get.mockResolvedValueOnce(payload([], 0));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.items).toEqual([]));
+    expect(result.current.total).toBe(0);
+    expect(result.current.totalPages).toBe(1);
+    act(() => result.current.setPage(-2));
+    expect(result.current.page).toBe(1);
+  });
+
+  it('paginates a complete client collection locally and recovers after a shrink', async () => {
+    const rows = Array.from({ length: 22 }, (_, i) => String(i));
+    get.mockResolvedValueOnce(payload(rows, rows.length));
+    const { result } = renderHook(() =>
+      usePagedSection(options({ pagination: 'client', path: '/all?active=true' }))
+    );
+    await waitFor(() => expect(result.current.items).toEqual(rows.slice(0, 10)));
+    expect(get.mock.lastCall?.[0]).toBe('/all?active=true');
+    act(() => result.current.setPage(3));
+    expect(result.current.items).toEqual(rows.slice(20));
+    expect(get).toHaveBeenCalledTimes(1);
+    get.mockRejectedValueOnce(new Error('offline'));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.items).toEqual(rows.slice(20));
+    expect(result.current.page).toBe(3);
+    get.mockResolvedValueOnce(payload(['only'], 1));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.items).toEqual(['only']));
+    expect(result.current.page).toBe(1);
+  });
+
+  it('appends paging to existing query parameters without losing them', async () => {
+    renderHook(() => usePagedSection(options({ path: '/things?active=true' })));
+    await waitFor(() =>
+      expect(get.mock.lastCall?.[0]).toBe('/things?active=true&limit=10&offset=0')
+    );
   });
 });

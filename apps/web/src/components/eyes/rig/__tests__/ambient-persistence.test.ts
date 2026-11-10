@@ -71,7 +71,7 @@ describe('verified conditions own their accessories throughout the assistant act
       const root = document.createElement('span');
       const writer = createRigWriter(root);
       const rig = createEyeRig({
-        initial: { expression: 'neutral', styleId: 'smiley', family: 'calm' },
+        initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
         characterId: 'oscar',
         lifeRandom: () => 0.8,
       });

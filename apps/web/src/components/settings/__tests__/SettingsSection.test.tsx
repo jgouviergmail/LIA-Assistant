@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Star } from 'lucide-react';
+import { Star } from '@/lib/icons';
 
 import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import { SettingsSection } from '../SettingsSection';

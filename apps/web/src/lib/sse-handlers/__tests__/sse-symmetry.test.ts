@@ -22,7 +22,9 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getRegisteredSSEHandlers, hasSSEHandler } from '@/lib/sse-handlers';
+import { getRegisteredSSEHandlers, hasSSEHandler, processSSEChunk } from '@/lib/sse-handlers';
+import type { ChatStreamChunk } from '@/types/chat';
+import { buildHandlerContext } from './context-fixture';
 
 /**
  * Pinned copy of the backend ChatStreamChunk `type` Literal.
@@ -35,7 +37,6 @@ const BACKEND_CONTRACT_TYPES = [
   'router_decision',
   'execution_step',
   'registry_update',
-  'result_preview',
   'application_state_changed',
   'debug_metrics',
   'debug_metrics_update',
@@ -112,6 +113,21 @@ describe('SSE contract symmetry', () => {
       expect(hasSSEHandler(type)).toBe(true);
     }
     expect(hasSSEHandler('definitely_not_a_type')).toBe(false);
+  });
+});
+
+describe('retired SSE events', () => {
+  // ADR-374: the collection previews left. A server still running the previous
+  // release can emit their event while this client is already the new one.
+  it('ignores a result_preview from an earlier server without error or state change', () => {
+    const { context, dispatch } = buildHandlerContext();
+    expect(hasSSEHandler('result_preview')).toBe(false);
+    // As it arrives: parsed from the wire, typed by nothing but the contract.
+    const retired: ChatStreamChunk = JSON.parse(
+      '{"type":"result_preview","content":"","metadata":{"collection":{"kind":"EMAIL","items":[]}}}'
+    );
+    expect(() => processSSEChunk(retired, context)).not.toThrow();
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 

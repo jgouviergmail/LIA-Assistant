@@ -2,7 +2,7 @@
 
 import { useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { apiImageProps } from '@/lib/utils/api-resource-url';

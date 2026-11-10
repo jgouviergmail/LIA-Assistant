@@ -1,16 +1,19 @@
 """Research answer and individual result cards share full, safe details."""
 
+from src.core.i18n_cards import card_label
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     render_card_top,
     render_chip,
+    render_collapsible,
     wrap_with_response,
 )
 from src.domains.agents.display.components.card_content import (
     render_folded_text,
     render_linked_title,
+    render_text_content,
 )
 from src.domains.agents.display.components.folded_synthesis import render_folded_synthesis
 from src.domains.agents.display.components.research_content import (
@@ -36,6 +39,13 @@ class SearchResultCard(BaseComponent):
             body = render_folded_synthesis(
                 scalar_text(data.get("answer")), ctx, citations=list_values(data.get("citations"))
             )
+            context = scalar_text(data.get("context"))
+            if context:
+                body += render_collapsible(
+                    trigger_text=card_label("research_context", ctx.language),
+                    content_html=render_text_content(context),
+                    with_separator=False,
+                )
             body += research_sources(data.get("citations"), ctx) + research_questions(
                 data.get("related_questions"), ctx
             )
@@ -50,7 +60,13 @@ class SearchResultCard(BaseComponent):
         top = render_card_top(
             "search", "blue", render_linked_title(title, data.get("url")), badges_html=badge
         )
-        card = f'<div class="lia-card lia-search {variant} {self._nested_class(ctx)}">{top}{research_identity(data)}<div class="lia-search__answer">{body}</div></div>'
+        identity = research_identity(data)
+        provenance = f'<div class="lia-search__provenance">{identity}</div>' if identity else ""
+        card = (
+            f'<div class="lia-card lia-search {variant} {self._nested_class(ctx)}">'
+            f'{provenance}<div class="lia-search__clipping">{top}'
+            f'<div class="lia-search__answer">{body}</div></div></div>'
+        )
         return wrap_with_response(
             card_html=card,
             domain="search",

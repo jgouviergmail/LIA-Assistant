@@ -129,8 +129,9 @@ validation_errors_total = Counter(
     "validation_errors_total",
     "Total validation errors by field and error type",
     ["field", "error_type"],
-    # field: email, password, connector_type, message, etc.
-    # error_type: missing, invalid_format, too_long, too_short, invalid_choice
+    # field: a name the code declared (email, content, memory_id...); `<withheld>` when
+    #        `loc` holds what a client typed, `private_input` on a private route
+    # error_type: Pydantic's (missing, string_too_long, json_invalid, extra_forbidden...)
 )
 
 # ============================================================================

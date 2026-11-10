@@ -1,7 +1,7 @@
 'use client';
 
 import { PUBLIC_THREAD } from './public-message-protocol';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { MailboxClientState } from './mailbox-client';

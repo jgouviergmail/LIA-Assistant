@@ -5,7 +5,7 @@ Tests the ContextAggregator with mocked data sources,
 parallel fetch behavior, and weather change detection.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
@@ -14,7 +14,7 @@ import pytest
 
 from src.domains.heartbeat.context_aggregator import (
     ContextAggregator,
-    _extract_due_date,
+    _due_label,
     _format_event_time,
     _format_utc_datetime,
 )
@@ -886,37 +886,56 @@ class TestFormatEventTime:
 
 
 # ---------------------------------------------------------------------------
-# _extract_due_date (task due date formatting)
+# A task's due DAY, through the one door (core/task_due, 2026-11-07)
 # ---------------------------------------------------------------------------
+
+PARIS_ZONE = ZoneInfo("Europe/Paris")
+NEW_YORK_ZONE = ZoneInfo("America/New_York")
 
 
 @pytest.mark.unit
-class TestExtractDueDate:
-    """Tests for _extract_due_date helper."""
+class TestTheDueDay:
+    """A Google due is the date it names; a To Do due its instant read in the account's zone."""
 
-    def test_rfc3339_google_format(self):
-        """Test Google Tasks RFC 3339 format extracts date only."""
-        assert _extract_due_date("2026-03-15T00:00:00.000Z") == "2026-03-15"
+    def test_a_google_due_is_its_date_west_of_greenwich_too(self):
+        assert _due_label({"due": "2026-03-15T00:00:00.000Z"}, NEW_YORK_ZONE) == "2026-03-15"
 
-    def test_rfc3339_microsoft_format(self):
-        """Test Microsoft To Do format extracts date only."""
-        assert _extract_due_date("2026-03-15T00:00:00Z") == "2026-03-15"
+    def test_a_to_do_due_is_local_midnight_read_in_the_zone(self):
+        # Midnight in Paris, as To Do answers it: 23:00 UTC the evening before.
+        task = {"due": "2026-03-14T23:00:00.000Z", "_provider": "microsoft"}
+        assert _due_label(task, PARIS_ZONE) == "2026-03-15"
 
-    def test_plain_date(self):
-        """Test plain date passes through unchanged."""
-        assert _extract_due_date("2026-03-15") == "2026-03-15"
+    def test_a_plain_date_is_that_date(self):
+        assert _due_label({"due": "2026-03-15"}, PARIS_ZONE) == "2026-03-15"
 
-    def test_none_returns_no_date(self):
-        """Test None returns 'no date'."""
-        assert _extract_due_date(None) == "no date"
+    @pytest.mark.parametrize("raw", [None, "", "soon"])
+    def test_no_readable_due_is_no_date(self, raw):
+        assert _due_label({"due": raw}, PARIS_ZONE) == "no date"
 
-    def test_empty_string_returns_no_date(self):
-        """Test empty string returns 'no date'."""
-        assert _extract_due_date("") == "no date"
 
-    def test_short_string_passthrough(self):
-        """Test short string returns as-is."""
-        assert _extract_due_date("soon") == "soon"
+@pytest.mark.unit
+class TestATaskIsOverdue:
+    """Overdue once its day has passed on the person's clock, never on the day itself."""
+
+    TODAY = date(2026, 3, 15)
+
+    def test_not_on_its_own_day(self):
+        task = {
+            "due": "2026-03-14T23:00:00.000Z",
+            "_provider": "microsoft",
+            "status": "needsAction",
+        }
+        assert ContextAggregator._is_task_overdue(task, self.TODAY, PARIS_ZONE) is False
+
+    def test_once_its_day_has_passed(self):
+        task = {"due": "2026-03-14T00:00:00.000Z", "status": "needsAction"}
+        assert ContextAggregator._is_task_overdue(task, self.TODAY, PARIS_ZONE) is True
+
+    def test_never_once_done_nor_without_a_day(self):
+        done = {"due": "2026-03-01T00:00:00.000Z", "status": "completed"}
+        undated = {"status": "needsAction"}
+        assert ContextAggregator._is_task_overdue(done, self.TODAY, PARIS_ZONE) is False
+        assert ContextAggregator._is_task_overdue(undated, self.TODAY, PARIS_ZONE) is False
 
 
 # ---------------------------------------------------------------------------

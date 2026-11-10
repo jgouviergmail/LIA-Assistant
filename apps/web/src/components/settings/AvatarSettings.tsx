@@ -1,6 +1,6 @@
 'use client';
 
-import { ScanFace } from 'lucide-react';
+import { ScanFace } from '@/lib/icons';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useRef, useState, type RefObject } from 'react';

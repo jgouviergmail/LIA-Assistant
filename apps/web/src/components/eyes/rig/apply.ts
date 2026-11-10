@@ -27,8 +27,8 @@ import {
   SVG_CHANNELS,
 } from './face-geometry';
 import { strokeContours } from './stroke-geometry';
-import { createSmileySurfaceWriter } from '../smiley/sphere-writer';
-import { projectBodyMotion, type BodyBox, type BodyViewport } from '../body-motion-geometry';
+import type { BodyBox, BodyViewport } from '../body-motion-geometry';
+import { BODY_STAGE_CHANNELS, createBodyStageWriter } from './body-stage-writer';
 import { createAmbientPropWriter } from './ambient-prop-writer';
 import { createVolumeSurfaceWriter } from '../volume/volume-writer';
 
@@ -163,60 +163,17 @@ function createFaceWriter(root: HTMLElement) {
 export function createRigWriter(element: HTMLElement): RigWriter {
   let writeFace = createFaceWriter(element);
   let style = element.dataset.style;
-  const writeSphere = createSmileySurfaceWriter(element);
   const writeVolume = createVolumeSurfaceWriter(element);
   const ambient = createAmbientPropWriter(element);
   let active = true;
   // NaN never compares equal, so the first frame always writes everything.
   const lastRaw = CHANNEL_KEYS.map(() => Number.NaN);
   const lastText = CHANNEL_KEYS.map(() => '');
-  const bodyKeys = ['bodyX', 'bodyY', 'bodyRoll', 'bodySx', 'bodySy'] as const;
-  let bodyFrame: { box: BodyBox; viewport: BodyViewport } | null = null;
-  const bodyRaw = bodyKeys.map(() => NaN);
-  const bodyText = bodyKeys.map(() => '');
-  let bodyDirty = true;
-
-  function writeBody(values: Readonly<ChannelValues>) {
-    let changed = bodyDirty;
-    bodyKeys.forEach((key, i) => {
-      if (Math.abs(values[key] - bodyRaw[i]) < 0.0001) return;
-      bodyRaw[i] = values[key];
-      changed = true;
-    });
-    if (!changed) return;
-    bodyDirty = false;
-    const desired = {
-      x: values.bodyX,
-      y: values.bodyY,
-      roll: values.bodyRoll,
-      sx: values.bodySx,
-      sy: values.bodySy,
-    };
-    const drawn = bodyFrame
-      ? projectBodyMotion(desired, bodyFrame.box, bodyFrame.viewport)
-      : desired;
-    const numbers = [drawn.x, drawn.y, drawn.roll, drawn.sx, drawn.sy];
-    bodyKeys.forEach((key, i) => {
-      const text = formatChannel(key, numbers[i]);
-      if (text === bodyText[i]) return;
-      bodyText[i] = text;
-      element.style.setProperty(CHANNELS[key].cssVar, text);
-    });
-    const moving =
-      Math.abs(desired.x) +
-        Math.abs(desired.y) +
-        Math.abs(desired.roll) +
-        Math.abs(desired.sx - 1) +
-        Math.abs(desired.sy - 1) >
-      0.002;
-    const state = String(moving);
-    if (element.dataset.bodyMoving !== state) element.dataset.bodyMoving = state;
-  }
+  const body = createBodyStageWriter(element);
 
   return {
     setBodyFrame(box, viewport) {
-      bodyFrame = { box, viewport };
-      bodyDirty = true;
+      body.setFrame(box, viewport);
     },
     write(values) {
       if (!active) return;
@@ -225,13 +182,12 @@ export function createRigWriter(element: HTMLElement): RigWriter {
         writeFace = createFaceWriter(element);
       }
       writeFace.write(values);
-      writeSphere.write(values);
       writeVolume.write(values);
       ambient.write(values);
-      writeBody(values);
+      body.write(values);
       for (let index = 0; index < CHANNEL_KEYS.length; index += 1) {
         const key = CHANNEL_KEYS[index];
-        if ((bodyKeys as readonly string[]).includes(key)) continue;
+        if ((BODY_STAGE_CHANNELS as readonly string[]).includes(key)) continue;
         const value = values[key];
         if (Math.abs(value - lastRaw[index]) < thresholds[index]) continue;
         lastRaw[index] = value;
@@ -242,11 +198,8 @@ export function createRigWriter(element: HTMLElement): RigWriter {
       }
     },
     reset() {
-      bodyDirty = true;
-      bodyRaw.fill(NaN);
-      bodyText.fill('');
+      body.reset();
       writeFace.reset();
-      writeSphere.reset();
       writeVolume.reset();
       ambient.reset();
       for (let index = 0; index < CHANNEL_KEYS.length; index += 1) {

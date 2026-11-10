@@ -13,7 +13,7 @@
  * first. A refused save says why; the lists keep what the server holds.
  */
 
-import { MicVocal } from 'lucide-react';
+import { MicVocal } from '@/lib/icons';
 import { useId, useRef } from 'react';
 import { toast } from 'sonner';
 

@@ -1,16 +1,17 @@
 """Only the native consumable habit payload enters personal context.
 
-Offer dates, notification mutes and debugging state are not activity facts.
-Unknown native versions fail closed instead of being guessed from a JSON bag.
+Debugging state and bookkeeping are not activity facts. Unknown native
+versions fail closed instead of being guessed from a JSON bag: a recurring
+need is read in its ADR-375 shape (days, a usual hour and a part of the day,
+never a locked hour).
 """
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from src.domains.habits.models import HabitKind
-from src.domains.habits.recurrence_locks import RECURRENCE_SHAPES
-from src.domains.habits.recurrence_sync import RECURRING_PAYLOAD_VERSION
+from src.domains.habits.needs import NEED_PAYLOAD_VERSION
 from src.domains.habits.schemas import HabitResponse, HabitWindowSchema
 from src.domains.habits.service import ACTIVE_WINDOW_PAYLOAD_VERSION
 from src.domains.shared.discussion_lines import evidence_lines
@@ -32,24 +33,18 @@ class ActiveWindowPayload(BaseModel):
 
 
 class RecurringPayload(BaseModel):
-    """A learned recurring request's native payload: its shape, hour, days and counts."""
+    """A learned recurring need's native payload: what, how often, and when — described."""
 
     model_config = ConfigDict(extra="ignore", frozen=True)
     version: StrictInt
-    shape: str
-    trigger_hour: Annotated[float | None, Field(ge=0, lt=24, allow_inf_nan=False)]
-    days_of_week: tuple[Annotated[StrictInt, Field(ge=0, le=6)], ...] = Field(max_length=7)
+    domain: Annotated[str, Field(max_length=64)]
+    cadence: Literal["daily", "weekdays", "weekly"]
+    weekday: Annotated[StrictInt | None, Field(ge=0, le=6)] = None
+    usual_hour: Annotated[float, Field(ge=0, lt=24, allow_inf_nan=False)]
+    part_of_day: Literal["morning", "afternoon", "evening", "night", "any"]
     distinct_days: Annotated[StrictInt, Field(ge=0)]
-    occurrences: Annotated[StrictInt, Field(ge=0)]
+    active_days: Annotated[StrictInt, Field(ge=0)]
     usual_intent: Annotated[str | None, Field(max_length=4000)] = None
-
-    @field_validator("shape")
-    @classmethod
-    def known_shape(cls, value: str) -> str:
-        """Refuse a recurrence shape the habits domain does not declare."""
-        if value not in RECURRENCE_SHAPES:
-            raise ValueError("unknown native recurrence shape")
-        return value
 
 
 def _semantic_payload(row: HabitResponse) -> str:
@@ -59,7 +54,7 @@ def _semantic_payload(row: HabitResponse) -> str:
             raise ValueError("unknown native active-window version")
         return window.model_dump_json()
     recurring = RecurringPayload.model_validate(row.payload)
-    if recurring.version != RECURRING_PAYLOAD_VERSION:
+    if recurring.version != NEED_PAYLOAD_VERSION:
         raise ValueError("unknown native recurrence version")
     return recurring.model_dump_json()
 

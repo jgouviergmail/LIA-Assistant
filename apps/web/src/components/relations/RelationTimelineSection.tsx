@@ -18,7 +18,7 @@
 
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarClock, History, Loader2 } from 'lucide-react';
+import { CalendarClock, History, Loader2 } from '@/lib/icons';
 import type { TFunction } from 'i18next';
 
 import {

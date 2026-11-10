@@ -48,7 +48,7 @@ class TestTheClaimRequest:
             _request(mutation_policy="maybe")
 
     def test_every_declared_policy_is_accepted(self) -> None:
-        for policy in ("read", "draft", "confirm", "reversible", "artefact", "sandboxed"):
+        for policy in ("read", "draft", "confirm", "direct", "reversible", "artefact", "sandboxed"):
             assert _request(mutation_policy=policy).mutation_policy == policy
 
     def test_a_digest_must_be_a_digest(self) -> None:

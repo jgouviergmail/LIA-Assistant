@@ -59,11 +59,16 @@ class _ArchiveFailsInSQLFor(ScriptedDispatcher):
         self.failing = failing
 
     async def _archive_message(
-        self, user: User, content: str, metadata: Mapping[str, object], db: AsyncSession
+        self,
+        user: User,
+        content: str,
+        metadata: Mapping[str, object],
+        db: AsyncSession,
+        conversation_id: UUID | None = None,
     ) -> dict[str, object]:
         if user.id == self.failing:
             await db.execute(text("SELECT 1 / 0"))
-        return await super()._archive_message(user, content, metadata, db)
+        return await super()._archive_message(user, content, metadata, db, conversation_id)
 
 
 async def test_an_admin_whose_archive_failed_in_sql_starves_nobody(

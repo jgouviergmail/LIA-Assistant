@@ -3,7 +3,7 @@
  * ticking what they keep, nothing reaching the card by itself; and a photographed card filling a
  * new contact's form under their eyes.
  */
-import { render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,10 +12,10 @@ import { EMPTY_CONTACT, withCard, withFoundValues } from '@/lib/workbench/contac
 import { formatDay } from '@/lib/workbench/tasks';
 import type { WorkbenchContact } from '@/lib/workbench/types';
 
-const { post, mutate, bridges, bounds, toast } = vi.hoisted(() => ({
+const { post, bridges, bounds, toast, phone } = vi.hoisted(() => ({
   post: vi.fn(),
-  mutate: vi.fn(),
-  bridges: { assists: true },
+  bridges: { assists: true, mailbox: true, ask: vi.fn(), go: vi.fn() },
+  phone: { callable: true },
   bounds: { value: { textMax: 100, instructionMax: 10, dictates: false } as object | null },
   toast: Object.assign(vi.fn(), { info: vi.fn(), error: vi.fn() }),
 }));
@@ -26,10 +26,16 @@ vi.mock('@/lib/api-client', async importOriginal => ({
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { timezone: 'Pacific/Kiritimati' } }),
 }));
-vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation: () => ({ mutate }) }));
 vi.mock('../../useToolBridges', () => ({
-  useToolBridges: () => ({ ask: vi.fn(), remind: vi.fn(), assists: bridges.assists }),
+  useToolBridges: () => ({
+    ask: bridges.ask,
+    remind: vi.fn(),
+    go: bridges.go,
+    offers: (kind: string) => kind === 'compose' && bridges.mailbox,
+    assists: bridges.assists,
+  }),
 }));
+vi.mock('@/hooks/useTelephonyCallable', () => ({ useTelephonyCallable: () => phone.callable }));
 vi.mock('../../WorkbenchShell', () => ({ useAssistBounds: () => bounds.value }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('@/i18n/client', () => ({
@@ -39,7 +45,7 @@ vi.mock('@/i18n/client', () => ({
   }),
 }));
 
-import { CardAssist } from '../CardAssist';
+import { NewContactAssist } from '../NewContactAssist';
 import { useContactAssist } from '../useContactAssist';
 
 const COMPLETE = 'workbench.assist.contacts.complete';
@@ -85,7 +91,84 @@ const labels = (lines: readonly { label: string }[]) => lines.map(line => line.l
 beforeEach(() => {
   vi.clearAllMocks();
   bridges.assists = true;
+  bridges.mailbox = true;
+  phone.callable = true;
   bounds.value = { textMax: 100, instructionMax: 10, dictates: false };
+});
+
+describe('useContactAssist — a call and a message through LIA (2026-11-07)', () => {
+  const CALLABLE: WorkbenchContact = {
+    ...CONTACT,
+    phones: [
+      { value: '+33 6 12 34 56 78', type: 'mobile' },
+      { value: '01 23 45 67 89', type: null },
+    ],
+  };
+  const CALL = 'workbench.assist.contacts.call';
+
+  it('offers one call per number, its kind named, the words left unsent in the chat', () => {
+    const { lines } = renderHook(() => useContactAssist('en', CALLABLE)).result.current;
+    const calls = lines.filter(line => line.label.startsWith(CALL));
+
+    expect(calls.map(line => line.label)).toEqual([
+      `${CALL} {"name":"Ana Silva","which":"workbench.contacts.kinds.mobile"}`,
+      `${CALL} {"name":"Ana Silva","which":"01 23 45 67 89"}`,
+    ]);
+    calls[1].onSelect?.();
+    expect(bridges.ask).toHaveBeenCalledWith(
+      'workbench.assist.contacts.call_words {"name":"Ana Silva","number":"01 23 45 67 89"}'
+    );
+  });
+
+  it('tells two numbers of one kind apart by the numbers, and offers a number once', () => {
+    const twice: WorkbenchContact = {
+      ...CONTACT,
+      phones: [
+        { value: '+33 6 12 34 56 78', type: 'mobile' },
+        { value: '+33 7 11 22 33 44', type: 'mobile' },
+        { value: '+33 6 12 34 56 78', type: 'mobile' },
+        { value: '01 23 45 67 89', type: 'work' },
+      ],
+    };
+    const { lines } = renderHook(() => useContactAssist('en', twice)).result.current;
+
+    expect(labels(lines).filter(label => label.startsWith(CALL))).toEqual([
+      `${CALL} {"name":"Ana Silva","which":"+33 6 12 34 56 78"}`,
+      `${CALL} {"name":"Ana Silva","which":"+33 7 11 22 33 44"}`,
+      `${CALL} {"name":"Ana Silva","which":"workbench.contacts.kinds.work"}`,
+    ]);
+  });
+
+  it('offers no call where the instance or the account cannot place one', () => {
+    phone.callable = false;
+    const { lines } = renderHook(() => useContactAssist('en', CALLABLE)).result.current;
+
+    expect(lines.some(line => line.label.startsWith(CALL))).toBe(false);
+  });
+
+  it('writes to them with LIA in a new message, where a mailbox is ready', () => {
+    const { lines } = renderHook(() => useContactAssist('en', CONTACT)).result.current;
+    const write = lines.find(line => line.label.startsWith('workbench.assist.contacts.write_to'));
+
+    write?.onSelect?.();
+    expect(bridges.go).toHaveBeenCalledWith({
+      kind: 'compose',
+      to: 'ana@example.org',
+      assisted: true,
+    });
+  });
+
+  it.each([
+    ['no mailbox', () => (bridges.mailbox = false)],
+    ['no click may ask a model', () => (bridges.assists = false)],
+  ])('offers no message through LIA with %s', (_, unset) => {
+    unset();
+    const { lines } = renderHook(() => useContactAssist('en', CONTACT)).result.current;
+
+    expect(lines.some(line => line.label.startsWith('workbench.assist.contacts.write_to'))).toBe(
+      false
+    );
+  });
 });
 
 describe('useContactAssist', () => {
@@ -109,15 +192,13 @@ describe('useContactAssist', () => {
   it('asks by the id alone, shows each value with its source, and keeps what is ticked', async () => {
     post.mockResolvedValue({ values: [PHONE, JOB], usage: null });
     const onFound = vi.fn();
-    const { result, rerender } = renderHook(() => useContactAssist('en', CONTACT, onFound));
+    const { result } = renderHook(() => useContactAssist('en', CONTACT, onFound));
 
-    result.current.lines.find(line => line.label === COMPLETE)?.onSelect?.();
+    act(() => result.current.lines.find(line => line.label === COMPLETE)?.onSelect?.());
+    expect(result.current.busy).toBe(true);
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0]?.[1]).toEqual({ contact_id: 'c1' });
-    await waitFor(() => {
-      rerender();
-      expect(result.current.busy).toBe(false);
-    });
+    await waitFor(() => expect(result.current.busy).toBe(false));
     // Once, and outside the wait: what is rendered in `waitFor` wakes it again, without end.
     render(<div>{result.current.panel}</div>);
 
@@ -203,53 +284,137 @@ describe('what a card gains', () => {
   });
 });
 
-describe('CardAssist', () => {
-  const LABEL = 'workbench.assist.contacts.from_card';
+describe('NewContactAssist', () => {
+  // Its own name: a field's « Write with LIA » (the notes) stands in the same form.
+  const WRITE = 'workbench.assist.contacts.write';
+  const FROM_CARD = 'workbench.assist.contacts.from_card';
+  const FROM_WORDS = 'workbench.assist.contacts.from_words';
+  const CAMERA = 'workbench.assist.contacts.take_photo';
+  const LIBRARY = 'workbench.assist.contacts.choose_photo';
   const picture = new File(['bytes'], 'card.jpg', { type: 'image/jpeg' });
 
   function draw(maxBytes = 1000) {
     const onRead = vi.fn();
-    const { container } = render(<CardAssist lng="en" maxBytes={maxBytes} onRead={onRead} />);
-    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
-    return { onRead, input };
+    const rendered = render(<NewContactAssist lng="en" maxBytes={maxBytes} onRead={onRead} />);
+    return { onRead, ...rendered };
+  }
+
+  async function openReading(capture = false) {
+    const user = userEvent.setup({ applyAccept: false });
+    await user.click(screen.getByRole('button', { name: WRITE }));
+    await user.click(screen.getByRole('menuitem', { name: FROM_CARD }));
+    const dialog = screen.getByRole('dialog', { name: FROM_CARD });
+    const input = dialog.querySelector<HTMLInputElement>(
+      capture ? 'input[capture]' : 'input[type="file"]:not([capture])'
+    );
+    if (!input) throw new Error('Photo source input missing');
+    return { input, dialog, user };
   }
 
   it('stands aside where a click may not ask a model', () => {
     bounds.value = null;
     draw();
 
-    expect(screen.queryByRole('button', { name: LABEL })).toBeNull();
+    expect(screen.queryByRole('button', { name: WRITE })).toBeNull();
   });
 
-  it('offers the camera, and fills the form with what it read', async () => {
-    mutate.mockResolvedValue({ contact: CARD, usage: null });
-    const { onRead, input } = draw();
-    expect(input).toHaveAttribute('capture', 'environment');
+  it('offers both ways behind « Write with LIA »', async () => {
+    draw();
 
-    await userEvent.setup({ applyAccept: false }).upload(input as HTMLInputElement, picture);
+    await userEvent.setup().click(screen.getByRole('button', { name: WRITE }));
+
+    expect(screen.getByRole('menuitem', { name: FROM_WORDS })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: FROM_CARD })).toBeInTheDocument();
+  });
+
+  it('fills the form from a sentence, typed or dictated, nothing created', async () => {
+    post.mockResolvedValue({ contact: CARD, usage: null });
+    const { onRead } = draw();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: WRITE }));
+    await user.click(screen.getByRole('menuitem', { name: FROM_WORDS }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'workbench.assist.writing.instruction' }),
+      'Ana, sales'
+    );
+    await user.click(screen.getByRole('button', { name: 'workbench.assist.writing.ask' }));
 
     await waitFor(() => expect(onRead).toHaveBeenCalledWith(CARD));
-    expect(mutate.mock.calls[0]?.[0]).toBe('/tool-assists/contacts/from-card');
-    expect((mutate.mock.calls[0]?.[1] as FormData).get('file')).toBeInstanceOf(File);
+    expect(post.mock.calls[0]?.[0]).toBe('/tool-assists/contacts/from-words');
+    // Within the published bound of a sentence (10 here).
+    expect(post.mock.calls[0]?.[1]).toEqual({ sentence: 'Ana, sales' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
+
+  it.each([true, false])(
+    'opens the chosen photo source (camera: %s), then fills the form',
+    async capture => {
+      post.mockResolvedValue({ contact: CARD, usage: null });
+      const { onRead } = draw();
+      const { input, dialog, user } = await openReading(capture);
+      const click = vi.spyOn(input, 'click');
+      expect(within(dialog).getByRole('button', { name: CAMERA })).toBeVisible();
+      expect(within(dialog).getByRole('button', { name: LIBRARY })).toBeVisible();
+      expect(post).not.toHaveBeenCalled();
+      expect(input.getAttribute('capture')).toBe(capture ? 'environment' : null);
+      await user.click(within(dialog).getByRole('button', { name: capture ? CAMERA : LIBRARY }));
+      expect(click).toHaveBeenCalledOnce();
+      click.mockRestore();
+      await user.upload(input, picture);
+
+      await waitFor(() => expect(onRead).toHaveBeenCalledWith(CARD));
+      expect(post.mock.calls[0]?.[0]).toBe('/tool-assists/contacts/from-card');
+      expect((post.mock.calls[0]?.[1] as FormData).get('file')).toBe(picture);
+      expect(screen.queryByRole('dialog', { name: FROM_CARD })).toBeNull();
+    }
+  );
 
   it('refuses a picture past its ceiling before anything leaves', async () => {
-    const { onRead, input } = draw(2);
+    const { onRead } = draw(2);
+    const { input, user } = await openReading();
 
-    await userEvent.setup({ applyAccept: false }).upload(input as HTMLInputElement, picture);
+    await user.upload(input, picture);
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
-    expect(mutate).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
     expect(onRead).not.toHaveBeenCalled();
   });
 
-  it('says a failure and leaves the form as it stands', async () => {
-    mutate.mockRejectedValue(new Error('down'));
-    const { onRead, input } = draw();
+  it('says a failure, keeps the form, and lets the person select the same picture again', async () => {
+    post.mockRejectedValueOnce(new Error('down'));
+    post.mockResolvedValueOnce({ contact: CARD, usage: null });
+    const { onRead } = draw();
+    const { input, user } = await openReading();
 
-    await userEvent.setup({ applyAccept: false }).upload(input as HTMLInputElement, picture);
+    await user.upload(input, picture);
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('workbench.assist.failed'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('workbench.assist.failed');
     expect(onRead).not.toHaveBeenCalled();
+    expect(post).toHaveBeenCalledOnce();
+    await user.upload(input, picture);
+    await waitFor(() => expect(onRead).toHaveBeenCalledWith(CARD));
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('aborts on closing and ignores a late answer without filling the form', async () => {
+    let complete: (value: { contact: ProposedContact; usage: null }) => void = () => undefined;
+    post.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          complete = resolve;
+        })
+    );
+    const { onRead } = draw();
+    const { input, dialog, user } = await openReading();
+    await user.upload(input, picture);
+    expect(within(dialog).getByRole('button', { name: CAMERA })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: LIBRARY })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(post.mock.calls[0][2].signal.aborted).toBe(true);
+    await act(async () => complete({ contact: CARD, usage: null }));
+    expect(onRead).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: FROM_CARD })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: WRITE })).toHaveFocus());
   });
 });

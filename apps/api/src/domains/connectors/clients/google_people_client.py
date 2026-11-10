@@ -20,6 +20,7 @@ from src.core.constants import (
     GOOGLE_OTHER_CONTACTS_SEARCH_MAX,
     GOOGLE_PEOPLE_CONNECTIONS_PAGE_SIZE_MAX,
 )
+from src.core.content_source import content_source_binding
 from src.core.field_names import FIELD_CACHED_AT, FIELD_QUERY
 from src.domains.connectors.clients import contact_photos
 from src.domains.connectors.clients.base_google_client import (
@@ -100,6 +101,10 @@ class GooglePeopleClient(GoogleContactGroupsMixin, CacheableMixin[ContactsCache]
         """
         # Initialize base class with default rate limiting
         super().__init__(user_id, credentials, connector_service)
+
+    async def _get_cache(self) -> ContactsCache:
+        """Every record read uses the credentials' source, including cache hits."""
+        return (await super()._get_cache()).for_source(content_source_binding(self))
 
     async def search_contacts(
         self,
@@ -340,7 +345,7 @@ class GooglePeopleClient(GoogleContactGroupsMixin, CacheableMixin[ContactsCache]
                 (``cached_directory``); None for the shared entry.
 
         Returns:
-            The persons (names, addresses, numbers), and whether the book was cut.
+            The persons (names, addresses, numbers, birthdays), and whether the book was cut.
         """
         return await cached_directory(
             self.user_id,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { AArrowDown, AArrowUp, ALargeSmall, Eye, RotateCcw } from 'lucide-react';
+import { AArrowDown, AArrowUp, ALargeSmall, Eye, RotateCcw } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';

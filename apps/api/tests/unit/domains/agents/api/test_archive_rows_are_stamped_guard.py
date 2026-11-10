@@ -42,6 +42,7 @@ from src.domains.agents.api.archive_metadata import (
     build_live_turn_metadata,
 )
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
+from src.domains.agents.services.streaming.followup_metadata import NO_TURN_EXTRAS
 
 pytestmark = pytest.mark.unit
 
@@ -71,8 +72,7 @@ def _builders() -> dict[str, dict[str, Any]]:
             trace_capture=_Capture(),
             duration_ms=12,
             run_id="run-1",
-            followup_suggestions=None,
-            initiative_motivation=None,
+            extras=NO_TURN_EXTRAS,
             effects=None,
         ),
         "build_hitl_question_metadata": lambda: build_hitl_question_metadata(

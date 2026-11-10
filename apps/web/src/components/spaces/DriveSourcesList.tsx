@@ -15,7 +15,7 @@
 
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderPlus, HardDriveDownload } from 'lucide-react';
+import { FolderPlus, HardDriveDownload } from '@/lib/icons';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useDrivePreflight } from '@/hooks/useDriveSources';

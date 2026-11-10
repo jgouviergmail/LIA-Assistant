@@ -16,7 +16,7 @@
  * a chronology sorted by size is not a chronology.
  */
 
-import { Activity } from 'lucide-react';
+import { Activity } from '@/lib/icons';
 import { useMemo } from 'react';
 import {
   Area,

@@ -4,7 +4,7 @@ import { useEffectRequest } from '@/hooks/useEffectRequest';
 
 import { useState, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Coins, RefreshCw } from 'lucide-react';
+import { Coins, RefreshCw } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';

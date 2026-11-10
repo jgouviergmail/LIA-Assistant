@@ -102,10 +102,10 @@ describe('body interaction priority', () => {
     vi.spyOn(host, 'matches').mockImplementation(selector => selector === ':hover');
     const hoveredRig = createEyeRig();
     const unbindHovered = bindBodyMotion(element, hoveredRig, writer, wake);
-    hoveredRig.playScene('body-roll');
+    hoveredRig.playScene('body-bow');
     expect(hoveredRig.isPerforming()).toBe(false);
     host.dispatchEvent(new Event('pointerleave'));
-    hoveredRig.playScene('body-roll');
+    hoveredRig.playScene('body-bow');
     expect(hoveredRig.isPerforming()).toBe(true);
     unbindHovered();
   });
@@ -127,7 +127,7 @@ describe('body interaction priority', () => {
   });
   it('yields to hovering and typing, resumes later, and removes its event bindings', () => {
     const { host, rig, wake, dispose } = mount();
-    rig.playScene('body-roll');
+    rig.playScene('body-bow');
     expect(rig.isPerforming()).toBe(true);
     host.dispatchEvent(new Event('pointerenter'));
     expect(rig.isPerforming()).toBe(false);
@@ -138,10 +138,10 @@ describe('body interaction priority', () => {
     expect(rig.isPerforming()).toBe(true);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     expect(rig.isPerforming()).toBe(false);
-    rig.playScene('body-jig');
+    rig.playScene('body-sneeze');
     expect(rig.isPerforming()).toBe(false);
     for (let i = 0; i < 100; i++) rig.step(16);
-    rig.playScene('body-jig');
+    rig.playScene('body-sneeze');
     expect(rig.isPerforming()).toBe(true);
     dispose();
     wake.mockClear();
@@ -161,12 +161,12 @@ describe('body interaction priority', () => {
     expect(button.style.transform).toBe('');
     button.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     expect(rig.isPerforming()).toBe(false);
-    rig.playScene('body-roll');
+    rig.playScene('body-bow');
     expect(rig.isPerforming()).toBe(false);
     button.dispatchEvent(
       new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })
     );
-    rig.playScene('body-roll');
+    rig.playScene('body-bow');
     expect(rig.isPerforming()).toBe(true);
     dispose();
   });

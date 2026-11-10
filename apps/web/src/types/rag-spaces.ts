@@ -11,6 +11,13 @@
 /** Document processing lifecycle status. */
 export type RAGDocumentStatus = 'pending' | 'processing' | 'ready' | 'error' | 'reindexing';
 
+/** Display-only criteria; filenames are searched server-side in every document state. */
+export interface SpaceListQuery {
+  q: string;
+  field: 'name' | 'filename';
+  sort: 'name' | 'recent' | 'files' | 'active';
+}
+
 /** One sync lifecycle for every synced source — Drive folder, Gmail label (ADR-262). */
 export type RAGSourceSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
 
@@ -139,6 +146,7 @@ export interface RAGSpace {
   name: string;
   description: string | null;
   is_active: boolean;
+  is_favorite: boolean;
   /** Role of a space another domain manages ('meetings', 'bookmarks'); null when the person created it. */
   kind: string | null;
   document_count: number;
@@ -173,6 +181,7 @@ export interface RAGSpaceCreatePayload {
 export interface RAGSpaceUpdatePayload {
   name?: string;
   description?: string;
+  is_favorite?: boolean;
 }
 
 /** API response for toggle endpoint. */

@@ -8,9 +8,10 @@
  * in Drive » opens a tab that cannot reach back, and the trash asks first.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 
 import {
+  act,
   answerConfirmDialog,
   fireEvent,
   renderWithProviders,
@@ -20,7 +21,7 @@ import {
 } from '@/__tests__/test-utils';
 import type { AppConfig } from '@/hooks/useAppConfig';
 import { ApiError } from '@/lib/api-client';
-import { takeHandoff } from '@/lib/workbench/handoff';
+import { takeHandoff, setHandoffOwner } from '@/lib/workbench/handoff';
 import { FileSendStopped } from '@/lib/workbench/upload';
 import type {
   WorkbenchAvailability,
@@ -171,7 +172,7 @@ beforeEach(() => {
   bulkMax = 50;
   features = ['export', 'file_views'];
   mailReady = false;
-  takeHandoff('compose');
+  takeHandoff('compose', 'owner');
   page = {
     items: [
       item({ id: 'd1', name: 'Projects', kind: 'folder', mime_type: 'folder', size: null }),
@@ -1300,7 +1301,7 @@ describe('FilesTool — a file going out by mail', () => {
     await user.click(await screen.findByRole('button', { name: 'workbench.files.send_by_mail' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/mail');
-    expect(takeHandoff('compose')).toEqual({
+    expect(takeHandoff('compose', 'owner')).toEqual({
       kind: 'compose',
       to: '',
       file: {
@@ -1522,7 +1523,7 @@ describe('FilesTool — the trash', () => {
     api.post.mockClear();
     api.post.mockResolvedValue({ done: ['p1'], failed: [] });
 
-    action.onClick();
+    await act(async () => action.onClick());
 
     await waitFor(() => expect(api.post).toHaveBeenCalled());
     expect(api.post.mock.calls[0].slice(0, 2)).toEqual([
@@ -1545,7 +1546,7 @@ describe('FilesTool — the trash', () => {
     api.post.mockClear();
     api.post.mockRejectedValue(new ApiError('no', 422, { detail: { code: 'provider_refused' } }));
 
-    action.onClick();
+    await act(async () => action.onClick());
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('workbench.errors.provider_refused')
@@ -1564,7 +1565,7 @@ describe('FilesTool — the trash', () => {
     const action = undoOf(toast.success.mock.calls[0]);
     await user.click(shortcut!);
 
-    action.onClick();
+    await act(async () => action.onClick());
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('workbench.files.restored'));
     expect((await boxes()).map(box => (box as HTMLInputElement).checked)).toEqual([
@@ -1798,12 +1799,12 @@ describe('FilesTool — files sent to the drive', () => {
 
     await user.upload(chooser(), named('a.txt'));
     await screen.findByText('workbench.files.sending');
-    progress(40);
+    act(() => progress(40));
 
     const bar = () =>
       screen.queryByRole('progressbar', { name: 'workbench.files.sending_progress' });
     await waitFor(() => expect(bar()).toHaveAttribute('value', '40'));
-    finish(item({}));
+    await act(async () => finish(item({})));
     await waitFor(() => expect(bar()).toBeNull());
   });
 
@@ -2142,3 +2143,10 @@ describe('FilesTool — a text changed by hand', () => {
     expect(screen.queryByRole('textbox', { name: 'workbench.files.text_field' })).toBeNull();
   });
 });
+
+beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
+});
+
+afterEach(() => setHandoffOwner(null));

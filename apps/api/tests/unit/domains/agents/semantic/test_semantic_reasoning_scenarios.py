@@ -12,8 +12,6 @@ import pytest
 from src.core.context import UserMCPToolsContext, request_tool_manifests_ctx, user_mcp_tools_ctx
 from src.domains.agents.models import MessagesState, create_initial_state
 from src.domains.agents.nodes.initiative_semantic_bridges import build_semantic_candidate_lines
-from src.domains.agents.nodes.jev_initiative_context import InitiativeSemanticContext
-from src.domains.agents.nodes.jev_initiative_evidence import InitiativeEvidence
 from src.domains.agents.nodes.react_prompt import build_system_prompt
 from src.domains.agents.orchestration.condition_evaluator import ReferenceResolver
 from src.domains.agents.registry.catalogue import (
@@ -477,14 +475,9 @@ def test_initiative_does_not_claim_an_address_in_a_names_only_source_contract() 
             ParameterSchema("to", "string", True, "Destination", semantic_type="physical_address")
         ],
     )
-    native = InitiativeSemanticContext()
     with _request([source, consumer]):
-        lines = build_semantic_candidate_lines(
-            registry, ["contact"], [consumer], InitiativeEvidence(), native
-        )
+        lines = build_semantic_candidate_lines(registry, ["contact"], [consumer])
     assert lines == []
-    assert native.bridges == []
-    assert native.complete
 
 
 @pytest.mark.parametrize("bound", [[], ["lookup_people"], ["send"], ["lookup_people", "send"]])

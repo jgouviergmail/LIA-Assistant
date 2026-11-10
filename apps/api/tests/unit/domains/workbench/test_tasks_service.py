@@ -112,11 +112,12 @@ class TestADueDateIsADay:
             )
             listed = await tasks_service.list_tasks(USER, NEW_YORK, list_id="l1")
 
-        assert client.create_task.await_args.kwargs["due"] == "2026-11-03T00:00:00.000Z"
+        kwargs = client.create_task.await_args.kwargs
+        assert (kwargs["due"], kwargs["due_zone"]) == ("2026-11-03T00:00:00.000Z", None)
         assert created.due == listed.items[0].due == date(2026, 11, 3)
 
     @pytest.mark.parametrize(
-        ("day", "instant"),
+        ("day", "answered"),
         [
             (date(2026, 11, 3), "2026-11-02T23:00:00"),
             # The night Paris moves to summer time: midnight is still UTC+1.
@@ -124,16 +125,38 @@ class TestADueDateIsADay:
             (date(2026, 3, 30), "2026-03-29T22:00:00"),
         ],
     )
-    async def test_to_do_keeps_local_midnight(self, day: date, instant: str) -> None:
-        stored = {"id": "t1", "title": "Pay", "due": f"{instant}.000Z"}
+    async def test_to_do_is_given_the_day_s_midnight_in_the_named_zone(
+        self, day: date, answered: str
+    ) -> None:
+        """Measured on Graph (2026-11-07): given UTC, To Do kept the UTC date — the day before east
+        of Greenwich; given the zone, it keeps local midnight, which it answers in UTC."""
+        stored = {"id": "t1", "title": "Pay", "due": f"{answered}.000Z", "_provider": "microsoft"}
         client = _client(create_task=stored)
         with _door(client, MICROSOFT):
             created = await tasks_service.create_task(
                 USER, PARIS, NewTask(list_id="l1", title="Pay", due=day, **_key())
             )
 
-        assert client.create_task.await_args.kwargs["due"] == instant
+        kwargs = client.create_task.await_args.kwargs
+        assert (kwargs["due"], kwargs["due_zone"]) == (
+            f"{day.isoformat()}T00:00:00",
+            "Europe/Paris",
+        )
         assert created.due == day
+
+    async def test_a_changed_to_do_due_is_given_its_zone_too(self) -> None:
+        stored = {"id": "t1", "title": "Pay", "due": "2026-11-07T23:00:00.000Z"}
+        client = _client(update_task=stored, get_task=stored)
+        with _door(client, MICROSOFT):
+            changed = await tasks_service.update_task(
+                USER,
+                PARIS,
+                TaskChange(list_id="l1", task_id="t1", due=date(2026, 11, 8)),
+            )
+
+        kwargs = client.update_task.await_args.kwargs
+        assert (kwargs["due"], kwargs["due_zone"]) == ("2026-11-08T00:00:00", "Europe/Paris")
+        assert changed.due == date(2026, 11, 8)
 
     async def test_a_task_without_a_date_has_none(self) -> None:
         client = _client(list_tasks={"items": [{"id": "t1", "title": "x", "due": None}]})
@@ -187,6 +210,37 @@ class TestChanges:
             await tasks_service.update_task(
                 USER, PARIS, TaskChange(list_id="l1", task_id="t1", title="y")
             )
+        assert refused.value.detail == {"code": "item_gone"}
+
+
+class TestOneTask:
+    """A task the open page does not hold is read alone (the home opens it, 2026-11-07)."""
+
+    async def test_one_task_is_read_in_the_section_s_vocabulary(self) -> None:
+        client = _client(
+            get_task={"id": "t9", "title": "Pay", "status": "needsAction", "due": "2026-11-20"}
+        )
+        with _door(client):
+            task = await tasks_service.read_task(USER, PARIS, list_id="l1", task_id="t9")
+
+        assert (task.id, task.title, task.completed, task.due) == (
+            "t9",
+            "Pay",
+            False,
+            date(2026, 11, 20),
+        )
+        client.get_task.assert_awaited_once_with("l1", "t9")
+
+    async def test_a_gone_task_reads_item_gone(self) -> None:
+        client = MagicMock(
+            get_task=AsyncMock(
+                side_effect=ConnectorAPIError(
+                    connector_type="google_tasks", status_code=404, detail="x"
+                )
+            )
+        )
+        with _door(client), pytest.raises(BaseAPIException) as refused:
+            await tasks_service.read_task(USER, PARIS, list_id="l1", task_id="t9")
         assert refused.value.detail == {"code": "item_gone"}
 
 

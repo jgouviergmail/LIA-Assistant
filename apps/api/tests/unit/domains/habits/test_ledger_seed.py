@@ -25,7 +25,6 @@ from uuid import uuid4
 import pytest
 
 from src.domains.habits.ledger_seed import _SEED_ACTIVITY_SQL, seed_ledger_from_outcomes
-from src.domains.habits.recurrence_sync import RecurringSyncOutcome
 from src.infrastructure.cache import recurrence_store
 
 pytestmark = pytest.mark.unit
@@ -94,7 +93,7 @@ class TestSeedLedgerFromOutcomes:
         db = _db_with_rows(
             [
                 ("email", "2026-08-01", 9.0),
-                ("email", "2026-08-01", 9.5),
+                ("email", "2026-08-01", 10.5),
                 ("email", "2026-08-02", 9.25),
                 ("calendar", "2026-08-02", 14.0),
             ]
@@ -106,13 +105,13 @@ class TestSeedLedgerFromOutcomes:
         # End-to-end: what the seed wrote, the shared store reads back.
         data = await recurrence_store.load(redis, recurrence_store.redis_key(str(user_id), "email"))
         days = recurrence_store.parse_days(data)
-        assert days == {date(2026, 8, 1): [9.0, 9.5], date(2026, 8, 2): [9.25]}
-        assert data["suggested_at"] is None
+        assert days == {date(2026, 8, 1): [9.0, 10.5], date(2026, 8, 2): [9.25]}
+        assert data["origin"] == recurrence_store.ORIGIN_SEED
 
     async def test_non_empty_ledger_is_never_touched(self) -> None:
         user_id = uuid4()
         live_key = recurrence_store.redis_key(str(user_id), "email")
-        redis = _FakeRedis({live_key: '{"days": {"2026-08-03": [10.0]}, "suggested_at": null}'})
+        redis = _FakeRedis({live_key: '{"days": {"2026-08-03": [10.0]}}'})
         db = _db_with_rows([("email", "2026-08-01", 9.0)])
         with _patch_redis(redis):
             seeded = await seed_ledger_from_outcomes(db, user_id, "Europe/Paris", _settings())
@@ -162,6 +161,17 @@ class TestSeedLedgerFromOutcomes:
         assert len(days[date(2026, 8, 1)]) == 4  # hours-per-day cap
         assert len(days) == 28  # newest day entries kept (store trim)
 
+    async def test_seed_keeps_one_hour_per_clock_hour(self) -> None:
+        """ADR-375: the seed and the live write share ONE append rule."""
+        user_id = uuid4()
+        redis = _FakeRedis()
+        rows = [("email", "2026-08-01", h) for h in (9.1, 9.6, 11.2)]
+        db = _db_with_rows(rows)
+        with _patch_redis(redis):
+            await seed_ledger_from_outcomes(db, user_id, "Europe/Paris", _settings())
+        data = await recurrence_store.load(redis, recurrence_store.redis_key(str(user_id), "email"))
+        assert recurrence_store.parse_days(data)[date(2026, 8, 1)] == [9.1, 11.2]
+
     async def test_sql_uses_the_shared_human_predicate_and_domain_filter(self) -> None:
         """One definition of "human" for the seed AND the rhythm repository
         (2026-09-03: the summary whitelist read "no summary" as "human" and
@@ -208,12 +218,9 @@ class TestRecomputeTriggersSeed:
         seed = AsyncMock(return_value=0)
         with (
             patch("src.domains.habits.service.seed_ledger_from_outcomes", seed),
-            # The recurring sync that follows the seed has its own suite and
-            # reads Redis — neutralised, as the service tests do.
-            patch(
-                "src.domains.habits.service.sync_recurring_habits",
-                AsyncMock(return_value=RecurringSyncOutcome()),
-            ),
+            # The usage refresh that follows the seed has its own suite and
+            # reads Redis: here it only has to be called after the seed.
+            patch("src.domains.habits.service.refresh_usage", AsyncMock()),
         ):
             await service.recompute_user_profile(_user())
         seed.assert_awaited_once()

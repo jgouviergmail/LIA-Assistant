@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
 import { ApiError } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { useApiQuery, type UseApiQueryOptions } from '../useApiQuery';
 
 const mockApi = vi.hoisted(() => ({
@@ -72,6 +73,28 @@ describe('useApiQuery — success path', () => {
 });
 
 describe('useApiQuery — error paths', () => {
+  it('keeps search words and provider error content out of error logs', async () => {
+    const privateText = 'private selection with a person@example.test';
+    const refusal = new ApiError(privateText, 400);
+    mockApi.get.mockRejectedValueOnce(refusal);
+    const { result } = renderHook(() =>
+      useApiQuery(`/thing?q=${encodeURIComponent(privateText)}`, {
+        componentName: 'T',
+        params: { q: privateText, page: 1 },
+      })
+    );
+    await waitFor(() => expect(result.current.error).toBe(refusal));
+    expect(logger.error).toHaveBeenCalledWith('api_query_failed', undefined, {
+      component: 'T',
+      status: 400,
+      parameter_count: 2,
+    });
+    expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain(privateText);
+    expect(JSON.stringify(vi.mocked(logger.error).mock.calls)).not.toContain(
+      encodeURIComponent(privateText)
+    );
+  });
+
   it('normalizes a generic Error and invokes onError', async () => {
     const onError = vi.fn();
     mockApi.get.mockRejectedValueOnce(new Error('boom'));

@@ -100,6 +100,21 @@ describe('MarkdownContent — sentinel dispatch', () => {
     expect(container.querySelector(`div.${className}`)).not.toBeNull();
   });
 
+  it.each([
+    ['lia-mcp-app__placeholder', 'mcp-widget'],
+    ['lia-skill-app__loading', 'skill-widget'],
+    ['lia-page-app__placeholder', 'page-widget'],
+  ])('does not confuse presentation class %s with a widget sentinel', (className, testId) => {
+    render(`<div class="${className}" data-registry-id="not-a-widget">Ordinary content</div>`);
+    expect(screen.getByText('Ordinary content')).toBeInTheDocument();
+    expect(screen.queryByTestId(testId)).not.toBeInTheDocument();
+  });
+
+  it('finds a sentinel token among unrelated classes', async () => {
+    render('<div class="decorative lia-mcp-app another" data-registry-id="token-matched"></div>');
+    expect(await screen.findByTestId('mcp-widget')).toHaveTextContent('token-matched');
+  });
+
   it('keeps an ordinary div as an ordinary div', () => {
     const { container } = render('<div class="whatever">texte</div>');
 

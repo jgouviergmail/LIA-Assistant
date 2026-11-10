@@ -78,6 +78,19 @@ Three properties hold across all of them:
 - **The user's own.** Both registers leave with the account archive and die with
   the account.
 
+### Explicit peer messages and selection assistance
+
+An explicitly requested peer message uses the native `direct` authority policy:
+the action is claimed and recorded without manufacturing a confirmation. Ambiguous
+recipients still require a choice; other tools keep their own confirmation rules.
+Admission returns a pending message, while delivery is settled separately from an
+explicit archival result. The lease, generation checkpoint and upgrade constraints
+are specified in [ADR-263](../architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md#amendment-2026-11-09--direct-peer-messages-without-fabricated-approval).
+
+Selection assistance uses the existing out-of-turn accounting and decision door.
+A generated proposal is not a completed provider action: task/event/memory forms
+retain their explicit save boundary. See [the assistance contract](TOOL_ASSISTS.md).
+
 ### Native decision diagnostics have a different lifetime
 
 An optional JEV decision records a bounded, encrypted per-account trace in

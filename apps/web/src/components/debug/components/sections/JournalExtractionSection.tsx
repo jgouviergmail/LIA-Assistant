@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { NotebookText } from 'lucide-react';
+import { NotebookText } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { ActionBadge, DebugChip, DebugSection, EmptySection, MetricRow } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';

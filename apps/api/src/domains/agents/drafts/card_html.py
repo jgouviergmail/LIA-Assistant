@@ -250,7 +250,10 @@ def to_html_result(spec: ResultSpec) -> str:
     parts.extend(
         _item_html(item, spec.separator, first=index == 0) for index, item in enumerate(spec.items)
     )
-    return compact_html(f'<div class="lia-card lia-draft-result">{top}{"".join(parts)}</div>')
+    return compact_html(
+        f'<div class="lia-card lia-draft-result">{top}'
+        f'<div class="lia-draft__paper">{"".join(parts)}</div></div>'
+    )
 
 
 def to_html_card(spec: CardSpec) -> str:
@@ -265,4 +268,7 @@ def to_html_card(spec: CardSpec) -> str:
     """
     top = _card_top(spec.emoji, escape_html(shown_value(spec.title)), "indigo")
     parts = _lines_html(spec.lines, spec.separator)
-    return compact_html(f'<div class="lia-card lia-draft">{top}{"".join(parts)}</div>')
+    return compact_html(
+        f'<div class="lia-card lia-draft">{top}'
+        f'<div class="lia-draft__paper">{"".join(parts)}</div></div>'
+    )

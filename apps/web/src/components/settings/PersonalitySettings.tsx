@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Palette, RefreshCw, Sparkles } from 'lucide-react';
+import { Palette, RefreshCw, Sparkles } from '@/lib/icons';
 import { AnimatedEmoji } from '@/components/ui/animated-emoji';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

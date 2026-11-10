@@ -10,11 +10,8 @@
  * menu the logo opens. Two lists would drift, and the one that drifted would be
  * the mobile one — the one nobody looks at on a large screen.
  *
- * R01 (2026-07): `spaces` joined the table because the chat indicator used
- * to render nothing without spaces. Superseded (2026-07-30): the indicator
- * now always renders, so the slot goes to `relations` — the personal CRM,
- * which had NO navigation home at all (settings search and a briefing
- * shortcut were its only doors). Spaces stays one click away in the chat.
+ * Knowledge spaces also have their own destination after meetings; the chat
+ * indicator and settings section remain direct doors to the same screen.
  */
 
 /** Instance feature flags a destination may depend on (`useAppConfig().features`). */
@@ -23,6 +20,7 @@ export interface DestinationFeatures {
   meetings_enabled?: boolean;
   workbench_enabled?: boolean;
   sms_enabled?: boolean;
+  rag_spaces_enabled?: boolean;
 }
 
 /** A destination of the dashboard shell. */
@@ -36,6 +34,7 @@ export interface DashboardDestination {
     | 'relations'
     | 'sms'
     | 'meetings'
+    | 'spaces'
     | 'notifications'
     | 'settings'
     | 'faq';
@@ -116,6 +115,7 @@ export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
     feature: 'meetings_enabled',
     carriesOrigin: true,
   },
+  { segment: 'spaces', labelKey: 'navigation.spaces', feature: 'rag_spaces_enabled' },
   { segment: 'notifications', labelKey: 'navigation.notifications' },
   { segment: 'settings', labelKey: 'navigation.settings' },
   { segment: 'faq', labelKey: 'navigation.faq' },

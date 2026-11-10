@@ -345,6 +345,36 @@ describe('AuthProvider — registering', () => {
     );
   });
 
+  it('publishes a consented registration before its first confirmed icon update', async () => {
+    browseTo('/register');
+    const created = makeUser({ id: 'new-account', email: 'new@test.dev', icon_style: 'fluent' });
+    post.mockResolvedValueOnce({ user: created });
+    const { context } = await settled(renderAuth());
+
+    await act(async () => {
+      const registered = await context().register(
+        created.email,
+        'Sup3rSecret!!',
+        undefined,
+        false,
+        undefined,
+        undefined,
+        true
+      );
+      expect(registered).toBe(created);
+      // A successful sign-up owns its profile before React flushes the batch.
+      expect(context().applyUserUpdate({ id: created.id, icon_style: 'flex' })).toBe(true);
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      '/auth/register',
+      expect.objectContaining({ email: created.email, terms_accepted: true }),
+      undefined
+    );
+    expect(context().user).toEqual({ ...created, icon_style: 'flex' });
+    expect(get).not.toHaveBeenCalled();
+  });
+
   it('lets the optional fields through as undefined', async () => {
     const rendered = await settled(renderAuth());
     const { context } = rendered;
@@ -607,6 +637,115 @@ describe('AuthProvider — refreshing the user', () => {
       expect(await old).toBe(false);
     });
     expect(context().user?.font_size).toBe(18);
+  });
+});
+
+describe('AuthProvider — adopting a confirmed icon preference', () => {
+  it('applies the confirmed preference without a second network request', async () => {
+    const { context } = await settled(renderAuth());
+    const before = context().user;
+    const updated = { id: makeUser().id, icon_style: 'flex' } as const;
+    get.mockClear();
+
+    act(() => {
+      expect(context().applyUserUpdate(updated)).toBe(true);
+    });
+
+    expect(context().user).toEqual({ ...before, icon_style: 'flex' });
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('rejects another account without changing the current profile', async () => {
+    const { context } = await settled(renderAuth());
+    const before = context().user;
+
+    act(() => {
+      expect(context().applyUserUpdate({ id: 'another-account', icon_style: 'flex' })).toBe(false);
+    });
+
+    expect(context().user).toBe(before);
+  });
+
+  it('does not create a session when no account is signed in', async () => {
+    browseTo('/login');
+    const { context } = await settled(renderAuth());
+
+    act(() => {
+      expect(context().applyUserUpdate({ id: makeUser().id, icon_style: 'flex' })).toBe(false);
+    });
+
+    expect(context().user).toBeNull();
+  });
+
+  it('adopts an older refresh for other preferences while preserving the confirmed icon', async () => {
+    const { context } = await settled(renderAuth());
+    const { promise, resolve } = Promise.withResolvers<ReturnType<typeof makeUser>>();
+    get.mockReturnValueOnce(promise);
+    const pending = context().refreshUser();
+    const updated = { id: makeUser().id, icon_style: 'lucide' } as const;
+
+    act(() => {
+      expect(context().applyUserUpdate(updated)).toBe(true);
+    });
+    await act(async () => {
+      resolve(makeUser({ email: 'user@test.dev', icon_style: 'fluent', color_theme: 'emerald' }));
+      expect(await pending).toBe(true);
+    });
+
+    expect(context().user).toEqual(
+      makeUser({ email: 'user@test.dev', icon_style: 'lucide', color_theme: 'emerald' })
+    );
+  });
+
+  it('keeps newer unrelated preferences when a delayed icon confirmation is applied', async () => {
+    const { context } = await settled(renderAuth());
+    const delayedIconUpdate = { id: makeUser().id, icon_style: 'flex' } as const;
+    get.mockResolvedValue(
+      makeUser({ email: 'user@test.dev', color_theme: 'emerald', font_size: 18 })
+    );
+
+    await act(async () => {
+      expect(await context().refreshUser()).toBe(true);
+    });
+    act(() => {
+      expect(context().applyUserUpdate(delayedIconUpdate)).toBe(true);
+    });
+
+    expect(context().user).toEqual(
+      makeUser({
+        email: 'user@test.dev',
+        color_theme: 'emerald',
+        font_size: 18,
+        icon_style: 'flex',
+      })
+    );
+  });
+
+  it('rejects a late mutation response immediately after logout', async () => {
+    const { context } = await settled(renderAuth());
+    const applyUserUpdate = context().applyUserUpdate;
+
+    await act(async () => {
+      await context().logout();
+      expect(applyUserUpdate({ id: makeUser().id, icon_style: 'flex' })).toBe(false);
+    });
+
+    expect(context().user).toBeNull();
+  });
+
+  it('rejects a previous account response after another account signs in', async () => {
+    const { context } = await settled(renderAuth());
+    const applyUserUpdate = context().applyUserUpdate;
+    const next = makeUser({ id: 'next-account', email: 'next@test.dev' });
+    post.mockResolvedValueOnce({ user: next });
+
+    await act(async () => {
+      await context().login(next.email, 'password');
+      // The sign-in promise can resolve before React commits the queued state.
+      expect(applyUserUpdate({ id: makeUser().id, icon_style: 'flex' })).toBe(false);
+    });
+
+    expect(context().user).toBe(next);
   });
 });
 

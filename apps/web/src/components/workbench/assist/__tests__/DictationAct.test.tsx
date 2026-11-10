@@ -31,9 +31,9 @@ vi.mock('@/i18n/client', () => ({
   }),
 }));
 
-import { DictationAct } from '../DictationAct';
+import { DictationAct } from '@/components/selection-assist/DictationAct';
 
-const STOP = 'workbench.assist.voice.stop_dictation';
+const STOP = 'selectionAssist.voice.stop_dictation';
 
 function dictate(onWords = vi.fn()) {
   const onEnd = vi.fn();
@@ -92,7 +92,7 @@ describe('DictationAct', () => {
     act(() => voice.options?.onTranscription?.('   '));
 
     expect(onWords).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith('workbench.assist.voice.nothing_heard');
+    expect(toast.info).toHaveBeenCalledWith('selectionAssist.voice.nothing_heard');
     expect(onEnd).toHaveBeenCalledOnce();
   });
 
@@ -118,8 +118,24 @@ describe('DictationAct', () => {
 
     act(() => voice.options?.onError?.(new Error('denied')));
 
-    expect(toast.error).toHaveBeenCalledWith('workbench.assist.voice.dictation_failed');
+    expect(toast.error).toHaveBeenCalledWith('selectionAssist.voice.dictation_failed');
     expect(onWords).not.toHaveBeenCalled();
     expect(onEnd).toHaveBeenCalledOnce();
+  });
+
+  it('ignores queued words, costs and errors after its owner unmounts', () => {
+    const { onWords, onEnd, unmount } = dictate();
+    const late = voice.options;
+    unmount();
+    act(() => {
+      late?.onTranscription?.('Old account words', { stt_cost_eur: 0.1 });
+      late?.onTranscription?.('');
+      late?.onError?.(new Error('Retired request'));
+    });
+    expect(onWords).not.toHaveBeenCalled();
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

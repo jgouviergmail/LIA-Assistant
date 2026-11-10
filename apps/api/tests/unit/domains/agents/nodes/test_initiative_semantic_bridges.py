@@ -4,8 +4,6 @@ import pytest
 
 from src.core.context import request_tool_manifests_ctx
 from src.domains.agents.nodes.initiative_semantic_bridges import build_semantic_candidate_lines
-from src.domains.agents.nodes.jev_initiative_context import InitiativeSemanticContext
-from src.domains.agents.nodes.jev_initiative_evidence import InitiativeEvidence
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     OutputFieldSchema,
@@ -40,7 +38,7 @@ def _manifest(name: str, value_type: str, *, produces: bool = False) -> ToolMani
     )
 
 
-def test_generic_shapes_do_not_reach_rendered_or_native_candidates() -> None:
+def test_generic_shapes_do_not_reach_the_candidates() -> None:
     registry = TypeRegistry()
     types = ("Text", "QuantitativeValue", "email_address")
     for type_name in types:
@@ -54,14 +52,9 @@ def test_generic_shapes_do_not_reach_rendered_or_native_candidates() -> None:
         )
     adjacent = [_manifest(f"consume_{type_name}", type_name) for type_name in types]
     sources = [_manifest(f"produce_{type_name}", type_name, produces=True) for type_name in types]
-    native = InitiativeSemanticContext()
-    evidence = InitiativeEvidence()
     token = request_tool_manifests_ctx.set([*sources, *adjacent])
     try:
-        lines = build_semantic_candidate_lines(registry, ["email"], adjacent, evidence, native)
+        lines = build_semantic_candidate_lines(registry, ["email"], adjacent)
     finally:
         request_tool_manifests_ctx.reset(token)
     assert len(lines) == 1 and "email_address" in lines[0]
-    assert [bridge["semantic_type"] for bridge in native.bridges] == ["email_address"]
-    assert native.complete
-    assert not evidence.omissions

@@ -26,12 +26,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useWorkbenchMailSettings, type MailVacationBody } from '@/hooks/useWorkbenchMailSettings';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import type { MailFolder, MailVacation, WorkbenchToolAvailability } from '@/lib/workbench/types';
 
 import { FieldAssist } from '../assist/FieldAssist';
 import { MailFilters } from './MailFilters';
-import { ToolDialogHeader } from '../ToolForm';
+import { TOOL_FORM_SCREEN, ToolDialogHeader } from '../ToolForm';
 
 export interface MailboxSettingsPanelProps {
   lng: Language;
@@ -68,7 +69,7 @@ export function MailboxSettingsPanel({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 sm:max-w-2xl">
+      <DialogContent className={cn(TOOL_FORM_SCREEN, 'sm:max-w-2xl')}>
         <ToolDialogHeader>
           <DialogTitle>{t('workbench.mail.settings_title')}</DialogTitle>
           <DialogDescription>{t('workbench.mail.settings.description')}</DialogDescription>

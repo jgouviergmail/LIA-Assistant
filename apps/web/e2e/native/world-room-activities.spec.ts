@@ -5,7 +5,6 @@ import en from '../../locales/en/translation.json';
 import { WORLD } from '../../src/features/world/definition';
 import type { WorldView } from '../../src/features/world/protocol';
 import { frameWorldProp } from '../fixtures/world-scene-navigation';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 async function pointAt(page: Page, key: string) {
   const prop = WORLD.props.find(p => p.key === key);
@@ -49,7 +48,6 @@ test('room activities select exact gallery tabs, confirmed seats and localized u
     const flags = (await (await context.request.get('/api/v1/config')).json()) as {
       features: { bookmarks_enabled?: boolean };
     };
-    await installOfflineFonts(page);
     const url = worldProofUrl(baseURL, 'en');
     url.searchParams.set('tab', 'documents');
     await openNativeWorld(page, 'Room activities visitor', url);

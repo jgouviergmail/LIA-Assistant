@@ -1,12 +1,17 @@
 'use client';
 
-import { Cake, Gift } from 'lucide-react';
+import { BellPlus, Cake, Gift, PenLine, Phone } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
+import type { CardItemAction } from './CardItemActions';
 import { CardItemRow } from './CardItemRow';
-import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
+import { useHomeReminder } from './useHomeActs';
+import { useHomeTools, type HomeTools } from '../HomeTools';
+import { chatDraftHref, chatIntentHref } from '@/lib/chat-href';
+import { birthdayHref, homeLanguage, telHref } from '@/lib/briefing-tools';
 import { useDashboardChat } from '../DashboardNavigation';
-import type { BirthdaysData, BriefingWindows, CardSection } from '@/types/briefing';
+import type { Language } from '@/i18n/settings';
+import type { BirthdayItem, BirthdaysData, BriefingWindows, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
   section: CardSection<BirthdaysData>;
@@ -26,7 +31,8 @@ export function BirthdaysCard({
 }: BirthdaysCardProps) {
   const { i18n } = useTranslation();
   const openChat = useDashboardChat();
-  const lng = (i18n.language || 'fr').split('-')[0];
+  const lng = homeLanguage(i18n.language);
+  const tools = useHomeTools();
   return (
     <BriefingCard<BirthdaysData>
       titleKey="dashboard.briefing.cards.birthdays.title"
@@ -40,6 +46,8 @@ export function BirthdaysCard({
       renderContent={data => (
         <BirthdaysContent
           data={data}
+          lng={lng}
+          tools={tools}
           onOpenChat={draft => openChat(chatDraftHref(lng, draft))}
           onExecute={intent => openChat(chatIntentHref(lng, intent))}
         />
@@ -51,72 +59,111 @@ export function BirthdaysCard({
 
 function BirthdaysContent({
   data,
+  lng,
+  tools,
   onOpenChat,
   onExecute,
 }: {
   data: BirthdaysData;
+  lng: Language;
+  tools: HomeTools;
   onOpenChat: (draft: string) => void;
   onExecute: (intent: string) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const { remind, dialog } = useHomeReminder(lng);
+  /** Direct first — write, call, a reminder: no model — then LIA's wishes. */
+  const actsOf = (birthday: BirthdayItem): CardItemAction[] => {
+    const name = { name: birthday.contact_name };
+    const { email } = birthday;
+    const call = birthday.phone ? telHref(birthday.phone) : null;
+    const messageIntent = t('dashboard.briefing.intents_exec.birthday_message', name);
+    return [
+      ...(email && tools.offers('compose')
+        ? [
+            {
+              icon: PenLine,
+              label: t('dashboard.briefing.home_acts.write', name),
+              onSelect: () => tools.go({ kind: 'compose', to: email }),
+            },
+          ]
+        : []),
+      ...(call
+        ? [{ icon: Phone, label: t('dashboard.briefing.home_acts.call', name), href: call }]
+        : []),
+      {
+        icon: BellPlus,
+        label: t('dashboard.briefing.home_acts.remind'),
+        onSelect: () => remind(t('dashboard.briefing.remind_words.birthday', name)),
+      },
+      {
+        icon: Gift,
+        label: messageIntent,
+        opensChat: true,
+        onSelect: () => onExecute(messageIntent),
+      },
+    ];
+  };
   const dateFormat = new Intl.DateTimeFormat(i18n.language || 'fr', {
     day: 'numeric',
     month: 'long',
     timeZone: 'UTC',
   });
   return (
-    <ul className="space-y-0.5" role="list">
-      {data.items.map((birthday, index) => {
-        // QW-9: click opens the chat prefilled with a birthday-message intent.
-        const intent = t('dashboard.briefing.intents.birthday', {
-          name: birthday.contact_name,
-        });
-        const messageIntent = t('dashboard.briefing.intents_exec.birthday_message', {
-          name: birthday.contact_name,
-        });
-        return (
-          <CardItemRow
-            key={index}
-            ariaLabel={intent}
-            tooltip={birthday.contact_name}
-            onSelect={() => onOpenChat(intent)}
-            contentClassName="flex flex-col gap-1.5 leading-snug"
-            actions={[
-              {
-                icon: Gift,
-                label: messageIntent,
-                opensChat: true,
-                onSelect: () => onExecute(messageIntent),
-              },
-            ]}
-          >
-            <span className="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-300 tabular-nums">
-              <Cake className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {birthday.days_until === 0
-                ? t('dashboard.briefing.cards.birthdays.today')
-                : t('dashboard.briefing.cards.birthdays.in_days', {
-                    count: birthday.days_until,
-                  })}
-            </span>
-            <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
-              {birthday.contact_name}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {birthday.age_at_next !== null && (
-                <>
-                  {t('dashboard.briefing.cards.birthdays.age_next', {
-                    count: birthday.age_at_next,
-                  })}{' '}
-                  ·{' '}
-                </>
-              )}
-              {/* A birthday is a civil month/day, even when its year is unknown.
+    <>
+      {dialog}
+      <ul className="space-y-0.5" role="list">
+        {data.items.map((birthday, index) => {
+          // The contact opens in the contacts tool where the Tools are offered; else (QW-9) the
+          // chat, prefilled with a birthday-message intent.
+          const intent = t('dashboard.briefing.intents.birthday', {
+            name: birthday.contact_name,
+          });
+          const href = tools.offered ? birthdayHref(birthday, lng) : null;
+          const target = href
+            ? {
+                href,
+                ariaLabel: t('dashboard.briefing.open_in.birthday', {
+                  name: birthday.contact_name,
+                }),
+              }
+            : { onSelect: () => onOpenChat(intent), ariaLabel: intent };
+          return (
+            <CardItemRow
+              key={birthday.contact_id ?? index}
+              {...target}
+              tooltip={birthday.contact_name}
+              contentClassName="flex flex-col gap-1.5 leading-snug"
+              actions={actsOf(birthday)}
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-300 tabular-nums">
+                <Cake className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {birthday.days_until === 0
+                  ? t('dashboard.briefing.cards.birthdays.today')
+                  : t('dashboard.briefing.cards.birthdays.in_days', {
+                      count: birthday.days_until,
+                    })}
+              </span>
+              <span className="line-clamp-2 break-words text-sm font-semibold text-foreground/90">
+                {birthday.contact_name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {birthday.age_at_next !== null && (
+                  <>
+                    {t('dashboard.briefing.cards.birthdays.age_next', {
+                      count: birthday.age_at_next,
+                    })}{' '}
+                    ·{' '}
+                  </>
+                )}
+                {/* A birthday is a civil month/day, even when its year is unknown.
                   A fixed leap year preserves February 29; UTC prevents a day shift. */}
-              {dateFormat.format(new Date(`2000-${birthday.date_iso.slice(-5)}T00:00:00Z`))}
-            </span>
-          </CardItemRow>
-        );
-      })}
-    </ul>
+                {dateFormat.format(new Date(`2000-${birthday.date_iso.slice(-5)}T00:00:00Z`))}
+              </span>
+            </CardItemRow>
+          );
+        })}
+      </ul>
+    </>
   );
 }

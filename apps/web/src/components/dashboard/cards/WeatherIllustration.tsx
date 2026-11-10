@@ -7,7 +7,7 @@ import {
   Snowflake,
   Sun,
   Wind,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 /** The briefing API publishes OpenWeatherMap main codes, not translated descriptions. */
 type WeatherKind =

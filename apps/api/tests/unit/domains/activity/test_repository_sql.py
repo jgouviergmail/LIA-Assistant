@@ -14,14 +14,12 @@ import pytest
 from sqlalchemy.dialects import postgresql
 
 from src.domains.activity.repository import (
-    _count_from,
     habit_rows_stmt,
     heartbeat_rows_stmt,
     interest_rows_stmt,
     journal_rows_stmt,
-    open_loop_rows_stmt,
-    open_loops_closed_count_stmt,
-    open_loops_created_count_stmt,
+    open_loops_closed_rows_stmt,
+    open_loops_created_rows_stmt,
     scheduled_action_rows_stmt,
 )
 
@@ -42,7 +40,8 @@ class TestRowStatements:
             interest_rows_stmt,
             journal_rows_stmt,
             habit_rows_stmt,
-            open_loop_rows_stmt,
+            open_loops_created_rows_stmt,
+            open_loops_closed_rows_stmt,
             scheduled_action_rows_stmt,
         ],
     )
@@ -59,12 +58,6 @@ class TestRowStatements:
         assert "source in (" in sql
         assert "status =" in sql
 
-    def test_open_loop_statement_matches_created_or_ended_in_window(self):
-        sql = _sql(open_loop_rows_stmt(USER_ID, SINCE, 50))
-
-        assert " or " in sql
-        assert "status in" in sql or "status in (" in sql.replace("_", "")
-
     def test_scheduled_actions_require_a_past_execution(self):
         sql = _sql(scheduled_action_rows_stmt(USER_ID, SINCE, 50))
 
@@ -73,21 +66,11 @@ class TestRowStatements:
 
 
 @pytest.mark.unit
-class TestCountStatements:
-    def test_count_from_strips_order_and_limit_but_keeps_where(self):
-        counted = _count_from(journal_rows_stmt(USER_ID, SINCE, 50))
-        sql = _sql(counted)
-
-        assert "count" in sql
-        assert "user_id" in sql
-        assert "limit" not in sql
-        assert "order by" not in sql
-
-    def test_loop_counts_split_created_and_ended(self):
-        created_sql = _sql(open_loops_created_count_stmt(USER_ID, SINCE))
-        closed_sql = _sql(open_loops_closed_count_stmt(USER_ID, SINCE))
-
+class TestIndependentLoopStreams:
+    def test_loop_streams_split_created_and_ended(self):
+        created_sql = _sql(open_loops_created_rows_stmt(USER_ID, SINCE, 50))
+        closed_sql = _sql(open_loops_closed_rows_stmt(USER_ID, SINCE, 50))
         assert "created_at >=" in created_sql
-        assert "status" not in created_sql
+        assert "status in" not in created_sql
         assert "status in" in closed_sql
         assert "updated_at >=" in closed_sql

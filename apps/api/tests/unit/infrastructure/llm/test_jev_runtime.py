@@ -450,7 +450,7 @@ async def test_a_single_noul_goes_through_the_batch_door_and_reaches_nouls() -> 
     ):
         async with tracker:
             result = await module.choose_with_jev(
-                usage=JevUsage.INITIATIVE_UTILITY,
+                usage=JevUsage.MEMORY_REFERENCE_PRESENCE,
                 user_id=owner,
                 run_id="noul",
                 state="x",

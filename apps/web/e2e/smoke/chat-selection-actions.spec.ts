@@ -1,12 +1,4 @@
-/**
- * Selection actions (C-02) — acting on a selected passage of an answer.
- *
- * Unit tests cover the scope-refusal logic and the action wiring in jsdom.
- * Only a browser proves the part that jsdom cannot: a real `selectionchange`
- * on a rendered assistant bubble surfaces the toolbar, and a toolbar action
- * deep-links the chat (executed intent) — the whole feature lives in DOM
- * selection behaviour a component test never exercises.
- */
+/** Shared selection on real chat bubbles: local answers, geometry, keyboard, and no chat send. */
 import type { Locator, Page } from '@playwright/test';
 
 import { test, expect, type MockRoute } from '../fixtures';
@@ -34,6 +26,20 @@ const ASSISTANT_MESSAGE = {
 };
 
 const ROUTES: MockRoute[] = [
+  {
+    url: '**/api/v1/tool-assists/text/selection/stream',
+    method: 'POST',
+    handler: route =>
+      route.fulfill({
+        contentType: 'text/event-stream',
+        body:
+          'data: ' +
+          JSON.stringify({
+            result: { proposal: { kind: 'text', text: 'Une explication locale.' }, usage: null },
+          }) +
+          '\n\n',
+      }),
+  },
   { url: '**/api/v1/conversations/me', json: CONVERSATION },
   {
     url: '**/api/v1/conversations/me/messages*',
@@ -58,15 +64,21 @@ const MULTILINE_PASSAGE =
   'Le menu reste proche de ces mots sans cacher leur début, leur milieu ou leur fin. ' +
   'Les actions sont toujours accessibles et la sélection reste la même pendant la lecture.';
 const ACTION_LABELS = [
+  'Lire',
+  'Question',
   'Expliquer',
-  'Reformuler',
+  'Résumer',
+  'Simplifier',
   'Traduire',
-  'En tâche',
-  'En rappel',
+  'Internet',
+  'Tâche',
+  'Événement',
+  'Rappel',
+  'Ticket',
   'Mémoriser',
-  'Poser une question',
+  'LIA',
 ] as const;
-const SELECTION_TOOLBAR_NAME = 'Actions sur le passage sélectionné';
+const SELECTION_TOOLBAR_NAME = 'Demander à LIA sur ce texte';
 
 /** Enough genuine message content on both sides to reach either edge by scrolling. */
 function positioningRoutes(): MockRoute[] {
@@ -290,7 +302,35 @@ async function selectAnswer(page: Page): Promise<void> {
 }
 
 test.describe('selection actions (C-02)', () => {
-  test('selecting an answer surfaces the toolbar, whose action executes via the chat', async ({
+  test('a paused drag finishes before its single selection menu appears', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await authenticate({ language: 'fr' });
+    await mockApi(ROUTES);
+    await page.goto('/fr/dashboard/chat');
+    const answer = page.getByText(ANSWER_TEXT);
+    await expect(answer).toBeVisible();
+    const box = await answer.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(box!.x + 5, box!.y + 12);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + Math.min(180, box!.width - 10), box!.y + 12, { steps: 8 });
+    await expect
+      .poll(() => page.evaluate(() => getSelection()?.toString().length ?? 0))
+      .toBeGreaterThan(0);
+    // A deliberate hesitation, longer than the debounce, while the press remains held.
+    await page.waitForTimeout(700);
+    await expect(page.getByRole('toolbar')).toHaveCount(0);
+    await page.mouse.up();
+    await expect(page.getByRole('toolbar', { name: SELECTION_TOOLBAR_NAME })).toBeVisible();
+    await expect(page.getByRole('toolbar')).toHaveCount(1);
+    expect(errors).toEqual([]);
+  });
+  test('selecting an answer explains it locally without sending a chat message', async ({
     page,
     authenticate,
     mockApi,
@@ -305,14 +345,47 @@ test.describe('selection actions (C-02)', () => {
     await selectAnswer(page);
 
     // The toolbar appears (selectionchange is debounced ~250 ms).
-    const toolbar = page.getByRole('toolbar', { name: /chat\.selection|passage|sélection/i });
+    const toolbar = page.getByRole('toolbar', { name: SELECTION_TOOLBAR_NAME });
     await expect(toolbar).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('toolbar')).toHaveCount(1);
+    await page.screenshot({ path: test.info().outputPath('reading-menu.png') });
+    expect.soft((await toolbar.boundingBox())?.width).toBeLessThanOrEqual(640);
 
-    // A named action executes: "explain" sends through the chat pipeline.
-    await toolbar.getByRole('button').first().click();
-    // The composer receives the sent intent — the message list grows or the
-    // input clears; either way the toolbar is dismissed (selection cleared).
-    await expect(toolbar).toBeHidden({ timeout: 10_000 });
+    const selectionBefore = await page
+      .locator('[data-selection-scope="assistant"]')
+      .evaluate(element => ({
+        html: element.innerHTML,
+        selection: getSelection()?.toString(),
+        range: getSelection()?.rangeCount ? getSelection()?.getRangeAt(0).toString() : null,
+        excluded: !!element.closest('[aria-hidden="true"], [inert]'),
+      }));
+
+    const chatSends: string[] = [];
+    page.on('request', request => {
+      if (request.method() === 'POST' && request.url().includes('/chat/stream'))
+        chatSends.push(request.url());
+    });
+    await toolbar.getByRole('button', { name: 'Expliquer', exact: true }).click();
+    await test.info().attach('selection-source', {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        before: selectionBefore,
+        after: await page.locator('[data-selection-scope="assistant"]').evaluate(element => ({
+          html: element.innerHTML,
+          excluded: !!element.closest('[aria-hidden="true"], [inert]'),
+          active: document.activeElement?.outerHTML,
+        })),
+      }),
+    });
+    await expect(page.getByRole('dialog', { name: 'Expliquer' })).toHaveText(
+      /Une explication locale/
+    );
+    await page.screenshot({ path: test.info().outputPath('reading-answer.png') });
+    expect(
+      (await page.getByRole('dialog', { name: 'Expliquer' }).boundingBox())?.width
+    ).toBeLessThanOrEqual(384);
+    await expect(toolbar).toBeHidden();
+    expect(chatSends).toEqual([]);
   });
 
   test('selecting nothing keeps the toolbar hidden', async ({ page, authenticate, mockApi }) => {
@@ -322,9 +395,7 @@ test.describe('selection actions (C-02)', () => {
     await expect(page.getByText(ANSWER_TEXT)).toBeVisible({ timeout: 30_000 });
 
     // No selection → no toolbar.
-    await expect(page.getByRole('toolbar', { name: /passage|sélection|selection/i })).toHaveCount(
-      0
-    );
+    await expect(page.getByRole('toolbar', { name: SELECTION_TOOLBAR_NAME })).toHaveCount(0);
   });
 
   for (const width of [320, 640, 1280]) {
@@ -364,7 +435,7 @@ test.describe('selection actions (C-02)', () => {
         }
         // Playwright's actionability checks detect controls clipped by an
         // ancestor or covered by another surface without executing the action.
-        await toolbar.getByRole('button', { name: 'Poser une question', exact: true }).click({
+        await toolbar.getByRole('button', { name: 'Question', exact: true }).click({
           trial: true,
         });
         await expectReadableMenu(toolbar);
@@ -441,7 +512,7 @@ test.describe('selection actions (C-02)', () => {
     expect(afterLines).toBeGreaterThan(before.lines);
   });
 
-  test('keyboard navigation reaches the question action and prefills the selected passage', async ({
+  test('keyboard navigation opens a local question and preserves the chat composer', async ({
     page,
     authenticate,
     mockApi,
@@ -455,16 +526,19 @@ test.describe('selection actions (C-02)', () => {
 
     const toolbar = page.getByRole('toolbar', { name: SELECTION_TOOLBAR_NAME, exact: true });
     await expectReadableMenu(toolbar);
-    await toolbar.getByRole('button', { name: 'Expliquer', exact: true }).focus();
+    await toolbar.getByRole('button', { name: ACTION_LABELS[0], exact: true }).focus();
     for (const label of ACTION_LABELS.slice(1)) {
       await page.keyboard.press('Tab');
       await expect(toolbar.getByRole('button', { name: label, exact: true })).toBeFocused();
     }
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Enter');
-
-    const composer = page.locator('textarea');
-    await expect(composer).toHaveValue(`Au sujet de ce passage : « ${ANSWER_TEXT} » — `);
-    await expect(composer).toBeFocused();
+    const asking = page.getByRole('dialog', { name: 'Question' });
+    await expect(asking.getByRole('textbox', { name: 'Votre question' })).toBeVisible();
+    await expect(
+      page.locator('textarea:not([data-selection-assist-ui] textarea)').first()
+    ).toHaveValue('');
     await expect(toolbar).toBeHidden();
     await expect(page.locator('[data-selection-scope="assistant"]')).toHaveCount(1);
   });
@@ -475,7 +549,9 @@ test.describe('selection actions (C-02)', () => {
     mockApi,
     browserName,
   }) => {
-    await page.setViewportSize({ width: 320, height: 480 });
+    // Select while the chat has a usable reading surface, then shrink the
+    // viewport as when a phone keyboard appears. The menu must really scroll.
+    await page.setViewportSize({ width: 320, height: 400 });
     await authenticate({ language: 'fr' });
     await mockApi(positioningRoutes());
     await page.goto('/fr/dashboard/chat');
@@ -486,8 +562,21 @@ test.describe('selection actions (C-02)', () => {
     await expect(passage).toBeAttached({ timeout: 30_000 });
     await positionPassage(passage, 'middle');
     await selectPassage(passage);
+    await page.setViewportSize({ width: 320, height: 300 });
     const toolbar = page.getByRole('toolbar', { name: SELECTION_TOOLBAR_NAME, exact: true });
     await expectReadableMenu(toolbar);
+    // The shortened labels can still fit above the selected passage. Scroll
+    // the real reader until that space is smaller than the rendered menu.
+    await passage.evaluate(
+      (element, menuHeight) => {
+        let scroller = element.parentElement;
+        while (scroller && !/(auto|scroll|overlay)/.test(getComputedStyle(scroller).overflowY))
+          scroller = scroller.parentElement;
+        if (!scroller) throw new Error('The passage needs its real scroll ancestor');
+        scroller.scrollTop += element.getBoundingClientRect().top - menuHeight * 0.75;
+      },
+      await toolbar.evaluate(element => element.getBoundingClientRect().height)
+    );
     await expect
       .poll(() => toolbar.evaluate(element => element.scrollHeight - element.clientHeight))
       .toBeGreaterThan(8);
@@ -522,7 +611,7 @@ test.describe('selection actions (C-02)', () => {
 
     // A real viewport update forces a fresh measurement. Temporarily removing
     // max-height during that measurement must not erase the person's scroll.
-    await page.setViewportSize({ width: 320, height: 481 });
+    await page.setViewportSize({ width: 320, height: 301 });
     await page.evaluate(
       () =>
         new Promise<void>(resolve =>
@@ -544,13 +633,18 @@ test.describe('selection actions (C-02)', () => {
     expect(await toolbar.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(MULTILINE_PASSAGE);
 
-    const question = toolbar.getByRole('button', { name: 'Poser une question', exact: true });
-    await question.scrollIntoViewIfNeeded();
-    await expect(question).toBeInViewport();
-    await question.click();
-    await expect(page.locator('textarea')).toHaveValue(
-      `Au sujet de ce passage : « ${MULTILINE_PASSAGE} » — `
-    );
+    const lastAction = toolbar.getByRole('button', { name: 'LIA', exact: true });
+    await lastAction.scrollIntoViewIfNeeded();
+    await expect(lastAction).toBeInViewport();
+    await lastAction.focus();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(
+      page
+        .getByRole('dialog', { name: 'Question' })
+        .getByRole('textbox', { name: 'Votre question' })
+    ).toBeVisible();
     await expect(toolbar).toBeHidden();
   });
 });

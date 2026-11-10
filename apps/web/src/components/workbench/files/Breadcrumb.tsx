@@ -8,7 +8,7 @@
  * lives outside My Drive (shared with the person), the gap is drawn « … » and
  * named for a screen reader — never a path invented to fill it.
  */
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '@/lib/icons';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 

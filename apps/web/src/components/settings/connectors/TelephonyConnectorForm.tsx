@@ -11,7 +11,7 @@
  * own ElevenLabs/telephony accounts (D-9) — surfaced as a notice.
  */
 
-import { Check, Copy, KeyRound, Loader2, Phone } from 'lucide-react';
+import { Check, Copy, KeyRound, Loader2, Phone } from '@/lib/icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

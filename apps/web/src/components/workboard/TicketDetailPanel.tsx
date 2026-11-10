@@ -28,7 +28,7 @@
  *   otherwise: `workboard_run_now_requires_lia`).
  */
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, PlayCircle, Send, SlidersHorizontal, Trash2, Undo2 } from 'lucide-react';
+import { FileText, PlayCircle, Send, SlidersHorizontal, Trash2, Undo2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';

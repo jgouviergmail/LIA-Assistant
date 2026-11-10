@@ -1952,6 +1952,31 @@
       "title": "Desde las Herramientas: un clic, una llamada, una propuesta",
       "summary": "Resumir un mensaje, proponer una respuesta, leer una tarjeta de visita: un clic pide una sola cosa a LIA y recibe una propuesta que la persona lee, nunca una escritura en su proveedor. El acto se registra y se factura a quien hizo clic, y nada añade un control a una pantalla sin espacio: el último icono de cada barra abre la lista.",
       "src": "357747655d68"
+    },
+    "373": {
+      "title": "La personalidad gobierna la voz",
+      "summary": "Una sesión de voz de ElevenLabs configurada con una personalidad cínica hablaba como un asistente alegre: las etiquetas de expresión del portal imponían entusiasmo y los marcos de LIA pedían calidez. Ahora cada voz de la persona — Live, Live directo, el teléfono y el comentario hablado del chat — habla con la personalidad elegida, el fondo primero, los hechos intactos; LIA misma escribe en el agente la paleta de etiquetas, el saludo y sus herramientas. Una llamada a un tercero sigue siendo cordial.",
+      "src": "e1614a8b7a92"
+    },
+    "374": {
+      "title": "JEV conserva lo que alguien lee, y sus umbrales pasan a ser ajustes",
+      "summary": "Se retiran las vistas previas de resultados que ninguna pantalla mostraba ya y la puerta JEV de la iniciativa, que no distinguía nada, y el evaluador de iniciativa sigue viendo cada turno con herramientas. Cada umbral de JEV se convierte en un ajuste acotado que la pantalla de administración puede cambiar, y cada juicio pagado se cuenta en el tiempo, para que un umbral se decida según lo que ocurre de verdad y no según un corpus.",
+      "src": "40543eabe9e3"
+    },
+    "375": {
+      "title": "Lo que LIA aprende del uso se convierte en propuestas",
+      "summary": "Una hora ya no condiciona una petición recurrente: una necesidad se reconoce por los días en que vuelve, y la hora solo sirve para rellenar de antemano. Seis tipos de propuestas nacen de lo que LIA ya registra — automatizar una necesidad, mover una rutina relanzada a mano, ampliar las horas de notificación, conectar una fuente… — y un clic las acepta y las ejecuta. El chat muestra como mucho una bajo una respuesta, elegida por el código.",
+      "src": "de653a14795d"
+    },
+    "376": {
+      "title": "Una tarjeta abre su ficha en las Herramientas, con una prueba firmada de su fuente",
+      "summary": "Un correo, un evento, un contacto, una tarea, un archivo o una luz mostrados en el chat se abren en las Herramientas. La tarjeta lleva un destino firmado, ligado a la cuenta y a la fuente que respondió; al hacer clic, el servidor vuelve a comprobar esa fuente y se niega, diciendo por qué, si la cuenta cambió, en lugar de abrir otra ficha que comparta el identificador.",
+      "src": "97a376cbbd7b"
+    },
+    "377": {
+      "title": "La cuenta elige cómo se dibuja la interfaz",
+      "summary": "Todos los iconos pasan por una sola puerta que dibuja el estilo elegido por la cuenta, Lucide, Fluent Color o Streamline Flex, sin cambiar el sentido de ningún símbolo, y el alto contraste del sistema conserva sus colores. El tema también puede pasar solo del claro al negro absoluto a las horas elegidas, con el reloj de la cuenta, sin que un temporizador escriba nunca el perfil.",
+      "src": "961a36d2c764"
     }
   }
 }

@@ -8,7 +8,7 @@
  * asked about: another page, or a refreshed one, starts over. What could not be read keeps its place
  * and is counted; what is held costs nothing.
  */
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown } from '@/lib/icons';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -31,9 +31,9 @@ import type { MailSummary } from '@/lib/workbench/types';
 
 import { MAIL_CHIP } from '../mail/MailSearchBar';
 import { useAssistBounds } from '../WorkbenchShell';
-import { AssistStars } from './AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { tellCost, useToldFailure } from './tellings';
-import { useAssistCall } from './useAssistCall';
+import { useAssistCall } from '@/hooks/useAssistCall';
 
 /** How a page can be read by what it weighs. */
 export type TriageMode = 'important' | 'category' | 'priority';

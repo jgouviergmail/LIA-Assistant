@@ -78,7 +78,18 @@ class ArticleCard(BaseComponent):
             if safe_image_url(scalar_text(url))
             else ""
         )
-        card = f'<div class="lia-card lia-article {self._nested_class(ctx)}">{top}{thumbnail}<div class="lia-article__body">{body}{read_more}</div>{article_metadata(item, ctx)}{article_sections(item, ctx)}{article_categories(item.get("categories"), ctx)}</div>'
+        margin = (
+            article_metadata(item, ctx)
+            + article_sections(item, ctx)
+            + article_categories(item.get("categories"), ctx)
+        )
+        margin_html = f'<div class="lia-article__margin">{margin}</div>' if margin else ""
+        card = (
+            f'<div class="lia-card lia-article {self._nested_class(ctx)}">{top}'
+            f'<div class="lia-article__spread"><div class="lia-article__reading">'
+            f'{thumbnail}<div class="lia-article__body">{body}{read_more}</div></div>'
+            f"{margin_html}</div></div>"
+        )
         return wrap_with_response(
             card_html=card,
             domain="wikipedia",

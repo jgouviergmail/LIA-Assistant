@@ -18,6 +18,7 @@ from typing import Any, Final
 from zoneinfo import ZoneInfo
 
 from src.domains.telephony.models import PhoneCallStatus
+from src.domains.voice.expressive_cues import strip_transcript_cues
 
 
 def nested(payload: dict[str, Any], *path: str) -> Any:
@@ -55,16 +56,53 @@ def extract_transcript_text(payload: dict[str, Any], limit: int = 4000) -> str:
         if not isinstance(turn, dict):
             continue
         message = turn.get("message") or turn.get("text") or ""
+        if isinstance(message, str) and turn.get("role") == "agent":
+            # The audio tags the agent's engine performed are no words of the call (ADR-373).
+            message = strip_transcript_cues(message)[0]
         if message:
             lines.append(f"{turn.get('role', '')}: {message}".strip())
     return "\n".join(lines)[:limit]
 
 
+def _voicemail_tool_called(payload: dict[str, object]) -> bool:
+    """Read an executed voicemail tool from the provider's transcript.
+
+    Args:
+        payload: The post-call webhook payload.
+
+    Returns:
+        Whether an agent actually called the voicemail detection system tool.
+    """
+    turns = nested(payload, "data", "transcript")
+    if not isinstance(turns, list):
+        return False
+    for turn in turns:
+        if not isinstance(turn, dict) or turn.get("role") != "agent":
+            continue
+        tool_calls = turn.get("tool_calls")
+        if not isinstance(tool_calls, list):
+            continue
+        if any(
+            isinstance(call, dict)
+            and call.get("tool_name") == "voicemail_detection"
+            and call.get("tool_has_been_called") is True
+            for call in tool_calls
+        ):
+            return True
+    return False
+
+
 def map_status(payload: dict[str, Any]) -> PhoneCallStatus:
-    """Map the webhook payload to a terminal call status (spike: confirm values)."""
+    """Map provider status and executed tools to a terminal call status."""
     status = str(nested(payload, "data", "status") or "").lower()
     reason = str(nested(payload, "data", "metadata", "termination_reason") or "").lower()
-    if "voicemail" in status or "voicemail" in reason:
+    call_result = nested(payload, "data", "metadata", "phone_call", "call_result")
+    if (
+        call_result == "voicemail"
+        or _voicemail_tool_called(payload)
+        or "voicemail" in status
+        or "voicemail" in reason
+    ):
         return PhoneCallStatus.VOICEMAIL
     if "no_answer" in reason or "no-answer" in reason or "unanswered" in reason:
         return PhoneCallStatus.NO_ANSWER

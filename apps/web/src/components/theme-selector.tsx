@@ -5,13 +5,14 @@ import { useHydrated } from '@/hooks/useHydrated';
 import { useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useColorTheme } from '@/lib/theme-context';
-import { Check, Palette } from 'lucide-react';
+import { Check, Palette } from '@/lib/icons';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { DisplayModeSelector } from '@/components/settings/DisplayModeSelector';
+import { IconStyleSelector } from '@/components/settings/IconStyleSelector';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import type { User } from '@/lib/auth';
@@ -104,6 +105,7 @@ export function ThemeSelector({ lng }: ThemeSelectorProps) {
           {/* Display mode first: it decides WHICH variant of the accents below
               is on screen, so choosing an accent before a mode is backwards. */}
           <DisplayModeSelector lng={lng} />
+          <IconStyleSelector lng={lng} />
 
           <div className="grid gap-3">
             {THEMES.map(themeOption => {

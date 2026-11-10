@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Music, Film, Utensils, Plane, Lightbulb, TrendingUp } from 'lucide-react';
+import { Sparkles, Music, Film, Utensils, Plane, Lightbulb, TrendingUp } from '@/lib/icons';
 
 interface Page5InterestsProps {
   lng: Language;

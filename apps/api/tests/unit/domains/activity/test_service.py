@@ -6,7 +6,7 @@ broken source must neither kill the page nor vanish silently.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -16,7 +16,7 @@ from src.domains.activity.constants import (
     ACTIVITY_KIND_HEARTBEAT_NOTIFICATION,
 )
 from src.domains.activity.fetchers import KindBundle, TimelineSource
-from src.domains.activity.schemas import ActivityEvent
+from src.domains.activity.schemas import ActivityCriteria, ActivityEvent
 from src.domains.activity.service import ActivityService
 
 NOW = datetime(2026, 8, 19, 12, 0, 0, tzinfo=UTC)
@@ -27,7 +27,7 @@ def _event(kind: str, ref_id: str, minutes_ago: int) -> ActivityEvent:
 
 
 def _source(kind: str, events: list[ActivityEvent], total: int | None = None) -> TimelineSource:
-    async def _fetch(*, user_id, since, cap):
+    async def _fetch(*, user_id, since, cap, criteria=None):
         return [
             KindBundle(
                 kind=kind,
@@ -41,7 +41,7 @@ def _source(kind: str, events: list[ActivityEvent], total: int | None = None) ->
 
 
 def _failing_source(kind: str) -> TimelineSource:
-    async def _fetch(*, user_id, since, cap):
+    async def _fetch(*, user_id, since, cap, criteria=None):
         raise RuntimeError("source exploded")
 
     return TimelineSource((kind,), _fetch)
@@ -49,6 +49,45 @@ def _failing_source(kind: str) -> TimelineSource:
 
 @pytest.mark.unit
 class TestActivityService:
+    async def test_only_requested_sources_run_with_the_same_owned_cut(self) -> None:
+        called = AsyncMock(
+            return_value=[
+                KindBundle(kind=ACTIVITY_KIND_HABIT_DETECTED, events=[], total=0, truncated=False)
+            ]
+        )
+        excluded = AsyncMock(side_effect=AssertionError("unselected source must not run"))
+        sources = (
+            TimelineSource((ACTIVITY_KIND_HABIT_DETECTED,), called),
+            TimelineSource((ACTIVITY_KIND_HEARTBEAT_NOTIFICATION,), excluded),
+        )
+        owner = uuid4()
+        criteria = ActivityCriteria(
+            q="Été", kinds=(ACTIVITY_KIND_HABIT_DETECTED,), sort="oldest", as_of=NOW
+        )
+        with patch("src.domains.activity.service.ALL_SOURCE_FETCHERS", sources):
+            response = await ActivityService(owner).build_timeline(
+                offset=0, limit=10, criteria=criteria
+            )
+        from src.core.config import settings
+
+        called.assert_awaited_once_with(
+            user_id=owner,
+            since=NOW - timedelta(days=settings.activity_timeline_window_days),
+            cap=settings.activity_timeline_source_cap,
+            criteria=criteria,
+        )
+        excluded.assert_not_called()
+        assert response.criteria == criteria
+
+    async def test_future_cut_is_bounded_by_the_server_clock(self) -> None:
+        before = datetime.now(UTC)
+        with patch("src.domains.activity.service.ALL_SOURCE_FETCHERS", ()):
+            response = await ActivityService(uuid4()).build_timeline(
+                offset=0, limit=10, criteria=ActivityCriteria(as_of=before + timedelta(days=1))
+            )
+        assert response.criteria.as_of is not None
+        assert before <= response.criteria.as_of <= datetime.now(UTC)
+
     async def test_merges_sources_and_reports_exact_totals(self):
         sources = (
             _source(
@@ -105,7 +144,7 @@ class TestActivityService:
     async def test_window_days_comes_from_settings(self):
         captured: dict[str, object] = {}
 
-        async def _fetch(*, user_id, since, cap):
+        async def _fetch(*, user_id, since, cap, criteria=None):
             captured["since"] = since
             captured["cap"] = cap
             return [

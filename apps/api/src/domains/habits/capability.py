@@ -15,6 +15,8 @@ deployment value (``is_capability_enabled``'s own contract).
 
 from __future__ import annotations
 
+from typing import Any
+
 from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 
 
@@ -25,3 +27,21 @@ async def habits_capability_enabled() -> bool:
         True when both the deployment ceiling and the operator switch allow it.
     """
     return await is_capability_enabled(PlatformCapability.HABITS)
+
+
+async def proposals_served(user: Any) -> bool:
+    """Whether this person's habit proposals are shown and may be decided (ADR-375).
+
+    The doors the nightly learning stands behind: the deployment ceiling and
+    the operator switch (``habits_capability_enabled``), and the person's own
+    « learn my habits » switch — off, LIA neither computes nor serves anything
+    learned from them. The ONE predicate the inbox count and the proposals
+    routes read.
+
+    Args:
+        user: The ``User`` row (its ``habits_enabled`` preference is read).
+
+    Returns:
+        True when the proposals are served.
+    """
+    return bool(getattr(user, "habits_enabled", False)) and await habits_capability_enabled()

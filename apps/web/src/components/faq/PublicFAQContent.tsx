@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Search, X } from '@/lib/icons';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { normalizeSearchText } from '@/lib/utils';

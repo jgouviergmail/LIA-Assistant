@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { LayoutGrid, FileText, PanelsTopLeft, Type } from 'lucide-react';
+import { LayoutGrid, FileText, PanelsTopLeft, Type } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ResponseDisplayPreview } from '@/components/settings/ResponseDisplayPreview';

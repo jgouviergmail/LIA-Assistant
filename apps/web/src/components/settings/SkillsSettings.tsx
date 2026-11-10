@@ -20,7 +20,7 @@ import {
   Upload,
   UserRound,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { Disclosure } from '@/components/ui/disclosure';

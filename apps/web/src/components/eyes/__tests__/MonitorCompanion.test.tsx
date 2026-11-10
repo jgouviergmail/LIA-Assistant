@@ -14,7 +14,7 @@ import {
   SpiritIntersectionObserver,
 } from '@/components/spirit/__tests__/browser';
 
-const styles = RIG_EYE_STYLE_IDS.filter(style => style !== 'smiley');
+const styles = RIG_EYE_STYLE_IDS;
 let clock = 0;
 let frameId = 0;
 const frames = new Map<number, FrameRequestCallback>();
@@ -120,11 +120,11 @@ describe('Monitor companion decoration', () => {
       const native = render(<ExpressiveEyes {...initial} />);
       for (const variation of [
         { expression: 'surprise', gaze: { x: 1, y: -1 }, blinking: true, blinkMask: true },
-        { expression: 'speaking', gaze: { x: -1, y: 1 }, gesture: 'bounce', blinking: false },
+        { expression: 'speaking', gaze: { x: -1, y: 1 }, gesture: 'nod', blinking: false },
         {
           expression: 'joy',
           gaze: { x: 1, y: 1 },
-          gesture: 'tilt',
+          gesture: 'consider',
           emphasis: 1.4,
           responseWeight: 0.7,
         },

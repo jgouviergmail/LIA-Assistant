@@ -72,7 +72,7 @@ async def test_editor_replaces_exact_approval_after_fresh_read(
         patch("src.domains.agents.tools.application_memory_tools.get_db_context", session),
         patch("src.domains.agents.application.draft_editing.get_db_context", session),
         patch(
-            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            "src.domains.memories.creation_embeddings._generate_document_embedding",
             provider,
         ),
     ):

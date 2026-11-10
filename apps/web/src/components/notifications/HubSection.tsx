@@ -24,14 +24,17 @@
  */
 
 import type { ReactNode, Ref } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Pagination } from '@/components/ui/pagination';
 import { Disclosure } from '@/components/ui/disclosure';
+import { Button } from '@/components/ui/button';
 
 export interface HubSectionProps {
+  controls?: ReactNode;
+  onRetry?: () => void;
   icon: LucideIcon;
   summaryRef?: Ref<HTMLElement>;
   /** Already translated. */
@@ -90,6 +93,8 @@ export function HubSection({
   isEmpty,
   onOpenChange,
   children,
+  controls,
+  onRetry,
 }: HubSectionProps) {
   const { t } = useTranslation();
 
@@ -122,6 +127,12 @@ export function HubSection({
       description={subtitle}
       onOpenChange={onOpenChange}
     >
+      {controls}
+      {error && onRetry && (
+        <Button size="sm" variant="outline" onClick={onRetry} disabled={loading}>
+          {t('common.retry')}
+        </Button>
+      )}
       {firstLoad ? (
         <div className="flex justify-center py-6">
           <LoadingSpinner className="h-5 w-5" />

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ChevronDown, Lightbulb } from 'lucide-react';
+import { ChevronDown, Lightbulb } from '@/lib/icons';
 import { FadeInOnScroll } from '../FadeInOnScroll';
 import { SCENE_TONES } from '../demo/scene-tones';
 import { CatalogDisclosure } from './CatalogDisclosure';

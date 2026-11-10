@@ -12,6 +12,8 @@ import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 import type { RadioView } from '@/lib/radio/controller';
 import type { RadioSegment } from '@/lib/radio/types';
 import { IDLE_RADIO_VIEW, useRadioStore } from '@/stores/radioStore';
+import { ICON_STYLES } from '@/lib/icon-style';
+import { IconStyleContext } from '@/lib/icon-style-context';
 
 const player = vi.hoisted(() => ({
   start: vi.fn(async () => undefined),
@@ -46,6 +48,50 @@ beforeEach(() => {
 });
 
 describe('RadioControl', () => {
+  it.each(ICON_STYLES)(
+    'keeps its on-air state visible without motion with %s icons',
+    async style => {
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const media = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({
+        ...mediaQuery,
+        media: query,
+        matches: query === '(prefers-reduced-motion: reduce)',
+      }));
+      try {
+        const { user } = renderWithProviders(
+          <IconStyleContext.Provider value={style}>
+            <RadioControl lng="en" enabled />
+          </IconStyleContext.Provider>
+        );
+        const button = screen.getByRole('button', { name: 'radio.header.start' });
+        expect(button).toHaveAttribute('aria-pressed', 'false');
+        expect(button).not.toHaveClass('border-primary', 'bg-primary/10');
+        expect(button.querySelector('svg')).toHaveAttribute('data-icon-style', style);
+        await user.tab();
+        expect(button).toHaveFocus();
+        await user.keyboard('{Enter}');
+        expect(player.start).toHaveBeenCalledTimes(1);
+
+        show({ status: 'playing', sessionId: 's1' });
+        expect(button).toHaveAttribute('aria-pressed', 'true');
+        expect(button).toHaveClass(
+          'border-primary',
+          'bg-primary/10',
+          'dark:bg-[color-mix(in_srgb,var(--color-card)_75%,black)]'
+        );
+        expect(button).toHaveAccessibleName('radio.header.stop');
+        expect(button).toHaveFocus();
+        await user.click(button);
+        expect(player.stop).toHaveBeenCalledTimes(1);
+        show({ status: 'idle' });
+        expect(button).toHaveAttribute('aria-pressed', 'false');
+        expect(button).not.toHaveClass('border-primary', 'bg-primary/10');
+      } finally {
+        media.mockRestore();
+      }
+    }
+  );
+
   it('renders nothing where the radio is not offered', () => {
     const { container } = renderWithProviders(<RadioControl lng="en" enabled={false} />);
     expect(container).toBeEmptyDOMElement();

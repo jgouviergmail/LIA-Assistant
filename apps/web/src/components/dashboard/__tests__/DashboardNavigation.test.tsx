@@ -7,7 +7,7 @@ import {
   useDashboardChat,
 } from '../DashboardNavigation';
 import { CardItemActions } from '../cards/CardItemActions';
-import { NotebookPen } from 'lucide-react';
+import { NotebookPen } from '@/lib/icons';
 const { nativeChat } = vi.hoisted(() => ({ nativeChat: vi.fn() }));
 vi.mock('@/lib/chat-deep-link', () => ({ openChatDeepLink: nativeChat }));
 const id = '10000000-0000-4000-8000-000000000001';

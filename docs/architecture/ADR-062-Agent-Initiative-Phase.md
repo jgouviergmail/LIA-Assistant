@@ -10,6 +10,33 @@ and the initiative node prefetches the response node's user-context injections
 concurrently with its LLM evaluation
 ([ADR-091](ADR-091-Response-Context-Prefetch.md)).
 
+Amended — 2026-11-08: the JEV gate in front of the evaluator (`initiative_utility`,
+ADR-325) is retired; the evaluator runs on every eligible tool turn
+([ADR-374](ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md)).
+
+Amended — 2026-11-08 (b): the evaluator's prompt gets back the enrichment role this ADR
+gave it. The rewrite of 2026-09-15 had let it act only on an immediate operational friction
+a person would be annoyed to miss, the weather only on a severe warning, and turned the
+follow-up chips from always considered into exceptional; production then saw no action in
+89 evaluations over seven days and a follow-up chip on 1 answer in 104, for about 8 € a
+month. The evaluator again completes an answer with read-only checks in other domains
+whenever a concrete anchor makes one plausibly useful: the weather of a route at its time,
+the journey to an appointment asked with its start as the arrival time so the answer can
+say when to leave, the calendar of a proposed day. It proposes its chips whether or not it
+acts, and treats memory and interests as priorities, never as a prerequisite. What the
+prompt publishes, the code keeps: the action budget is enforced (`_validate_read_only`,
+rejection reason `over_cap`), and a contract test holds the journey rule to the route
+tool's `arrival_time`. Measured before shipping on eleven fictional turns under the
+production slot configuration (the previous prompt against this one, two draws): the
+expected enrichment on 11 turns in 11 against 7, an action where none was due on 0 turns
+in 10 for both, follow-up chips on every enriching turn against 2 in 11, and the
+appointment's journey asked with its arrival time. Two corrections came out of it: the
+suggestion and the motivation address the person informally in every language (without
+French examples they switched between the familiar and the formal form), and an action
+that names its tool in `name` is repaired before validation, since an action can only
+name its tool (2 decisions in 50 were lost to that slip; production, acting rarely, had
+seen none).
+
 ## Context
 
 LIA uses a static planner that pre-generates all execution steps and parameters

@@ -16,7 +16,7 @@
  * run would invite a turn with nothing to do.
  */
 import Link from 'next/link';
-import { ExternalLink, LayoutGrid, MessageSquarePlus } from 'lucide-react';
+import { ExternalLink, LayoutGrid, MessageSquarePlus } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 /** The fields a workboard notification carries (see `notification_metadata`). */

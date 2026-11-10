@@ -7,7 +7,7 @@
  */
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { BookOpenText } from 'lucide-react';
+import { BookOpenText } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

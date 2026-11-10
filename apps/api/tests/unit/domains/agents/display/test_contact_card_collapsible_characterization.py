@@ -235,9 +235,10 @@ def test_maximal_output_is_nonempty_and_covers_all_sections(card, ctx):
         assert needle in out, f"section missing from maximal render: {needle!r}"
 
 
-# Re-captured for the authorized full-detail presentation, 2026-10-03.
+# Re-captured for adjacent value/qualifier grouping, 2026-11-08.
+# Removing only the new grouping spans reproduces the prior golden hash.
 # The semantic reachability/escaping assertions complement this byte contract.
-_GOLDEN_MAXIMAL_SHA256 = "fec2bead2ce2c6be6c7d39f3f03eb89f2dbcc5d10fbdd54a92cac766b71905a3"
+_GOLDEN_MAXIMAL_SHA256 = "5b8c98e2fb222dc3230b837b179c33b699c2211837ff2f3c37dd1c707c48861b"
 
 
 def test_maximal_output_is_byte_identical_to_golden(card, ctx):

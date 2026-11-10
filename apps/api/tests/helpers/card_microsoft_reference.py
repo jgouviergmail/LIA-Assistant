@@ -26,6 +26,10 @@ def microsoft_reference_domains(language: str) -> dict[str, dict[str, object]]:
             "categories": ["Design", "Accessibilité"],
             "isReminderOn": False,
             "hasAttachments": True,
+            "checklistItems": [
+                {"id": "step-one", "displayName": "Accès vérifiés", "isChecked": True},
+                {"id": "step-two", "displayName": "Prévenir les bénévoles", "isChecked": False},
+            ],
             "dueDateTime": {"dateTime": "2027-07-01T09:00:00", "timeZone": "Europe/Paris"},
             "createdDateTime": "2026-10-01T09:00:00Z",
             "startDateTime": {"dateTime": "2027-06-30T10:00:00", "timeZone": "Europe/Paris"},
@@ -42,6 +46,9 @@ def microsoft_reference_domains(language: str) -> dict[str, dict[str, object]]:
             "start": {"dateTime": "2026-10-05T09:00:00", "timeZone": "Europe/Paris"},
             "end": {"dateTime": "2026-10-05T10:00:00", "timeZone": "Europe/Paris"},
             "showAs": "free",
+            "responseStatus": {"response": "tentativelyAccepted"},
+            "isReminderOn": True,
+            "reminderMinutesBeforeStart": 0,
             "recurrence": {
                 "pattern": {"type": "weekly", "interval": 2, "daysOfWeek": ["monday", "friday"]},
                 "range": {

@@ -1,6 +1,7 @@
 /** Source shadows and unmeshed details remain behind the closed relief. */
 import type { VolumeMask, VolumeMesh, VolumeProfile } from './volume-geometry';
 import { volumeFringeAlpha } from './volume-coverage';
+import { limbProfile } from './limb-profiles';
 
 /** A bounded alpha texture shares the material's existing source read. */
 export function volumeFringeMask(mesh: VolumeMesh, mask: VolumeMask): HTMLCanvasElement | null {
@@ -19,51 +20,55 @@ export function volumeFringeMask(mesh: VolumeMesh, mask: VolumeMask): HTMLCanvas
     return null;
   }
 }
+
+/** Refine moving source regions only; rigid tiles retain their four original corners. */
 export function withSoftFringe(mesh: VolumeMesh, profile: VolumeProfile): VolumeMesh {
-  const start = mesh.vertices.length / 8,
-    half = 1.3 * profile.scale;
-  const vertices = new Float32Array(mesh.vertices.length + 32);
-  vertices.set(mesh.vertices);
-  // Normal.z=2 flags the masked fringe, not another anatomical surface or rear.
-  vertices.set(
-    [
-      -half,
-      -half,
+  const chains = limbProfile(profile.character, profile.variant);
+  const tiles = chains.length ? 8 : 1;
+  const vertices = Array.from(mesh.vertices),
+    indices = Array.from(mesh.indices);
+  const points = new Map<string, number>();
+  const point = (u: number, v: number): number => {
+    const key = `${u},${v}`;
+    const present = points.get(key);
+    if (present !== undefined) return present;
+    const index = vertices.length / 8;
+    // Normal.z=2 flags the masked fringe before deformation, never an anatomical normal.
+    vertices.push(
+      (u - 0.5) * 2.6 * profile.scale,
+      (v - 0.5) * 2.6 * profile.scale,
       0,
       0,
       0,
       2,
-      0,
-      0,
-      half,
-      -half,
-      0,
-      0,
-      0,
-      2,
-      1,
-      0,
-      half,
-      half,
-      0,
-      0,
-      0,
-      2,
-      1,
-      1,
-      -half,
-      half,
-      0,
-      0,
-      0,
-      2,
-      0,
-      1,
-    ],
-    mesh.vertices.length
-  );
-  const indices = new Uint16Array(mesh.indices.length + 6);
-  indices.set(mesh.indices);
-  indices.set([start, start + 1, start + 2, start, start + 2, start + 3], mesh.indices.length);
-  return { vertices, indices };
+      u,
+      v
+    );
+    points.set(key, index);
+    return index;
+  };
+  for (let row = 0; row < tiles; row++)
+    for (let col = 0; col < tiles; col++) {
+      const moving = chains.some(
+        ({ region: [x0, y0, x1, y1] }) =>
+          x0 <= (col + 1) / tiles &&
+          x1 >= col / tiles &&
+          y0 <= (row + 1) / tiles &&
+          y1 >= row / tiles
+      );
+      const divisions = moving ? 8 : 1;
+      for (let y = 0; y < divisions; y++)
+        for (let x = 0; x < divisions; x++) {
+          const left = (col + x / divisions) / tiles,
+            right = (col + (x + 1) / divisions) / tiles;
+          const top = (row + y / divisions) / tiles,
+            bottom = (row + (y + 1) / divisions) / tiles;
+          const a = point(left, top),
+            b = point(right, top),
+            c = point(right, bottom),
+            d = point(left, bottom);
+          indices.push(a, b, c, a, c, d);
+        }
+    }
+  return { vertices: new Float32Array(vertices), indices: new Uint16Array(indices) };
 }

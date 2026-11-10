@@ -15,38 +15,6 @@ afterEach(() => {
 });
 
 describe('anatomical body volume preserves the native face and frozen portraits', () => {
-  it('keeps both stopped Smiley previews on their bake without a canvas', () => {
-    const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
-    const view = render(
-      <EyesFace
-        styleId="smiley"
-        variant="male"
-        expression="neutral"
-        gaze={null}
-        size="sm"
-        life={false}
-        animate={false}
-      />
-    );
-    for (const variant of ['male', 'female'] as const) {
-      view.rerender(
-        <EyesFace
-          styleId="smiley"
-          variant={variant}
-          expression="neutral"
-          gaze={null}
-          size="sm"
-          life={false}
-          animate={false}
-        />
-      );
-      expect(view.container.querySelector('.lia-eyes')).toHaveAttribute('data-motion', 'off');
-      expect(view.container.querySelector('canvas')).toBeNull();
-      expect(getContext).not.toHaveBeenCalled();
-      expect(activeFrameSubscribers()).toBe(0);
-    }
-  });
-
   it.each(['reduced', 'hidden'] as const)(
     'retains the body bake before any GPU allocation when %s',
     mode => {

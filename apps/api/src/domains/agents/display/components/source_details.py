@@ -69,7 +69,7 @@ def _date_row(value: object, label: str, ctx: RenderContext) -> str:
 def task_native_details(data: Mapping[str, object], ctx: RenderContext) -> list[str]:
     native = data.get("native_task")
     if not isinstance(native, dict):
-        return []
+        return [_date_row(data.get("updated"), V3Messages.get_modified(ctx.language), ctx)]
     rows = _lifecycle_dates(native, ctx)
     date_fields: tuple[tuple[str, CardLabel], ...] = (
         ("startDateTime", "start"),
@@ -126,6 +126,16 @@ def event_native_details(data: Mapping[str, object], ctx: RenderContext) -> list
                 )
             )
         rows.extend(_lifecycle_dates(native, ctx))
+    else:
+        rows.extend(
+            _lifecycle_dates(
+                {
+                    "createdDateTime": data.get("created"),
+                    "lastModifiedDateTime": data.get("updated"),
+                },
+                ctx,
+            )
+        )
     for key, choices in (
         ("transparency", {"transparent": "available", "opaque": "busy"}),
         (

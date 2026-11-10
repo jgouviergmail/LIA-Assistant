@@ -20,8 +20,42 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders, screen, waitFor, within } from '@/__tests__/test-utils';
 
 const { useApiQuery } = vi.hoisted(() => ({ useApiQuery: vi.fn() }));
-const { patchMock } = vi.hoisted(() => ({ patchMock: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ default: { patch: patchMock } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'hub-owner' } }) }));
+// Presentation/decision tests control source states here. The real pagination
+// lifecycle and API integration are exercised in the hook and hub flow suites.
+vi.mock('@/hooks/usePagedSection', () => ({
+  HUB_PAGE_SIZE: 10,
+  usePagedSection: <TPayload, TItem>(
+    options: import('@/hooks/usePagedSection').UsePagedSectionOptions<TPayload, TItem>
+  ) => {
+    const query = useApiQuery(`${options.path}?limit=10&offset=0`, { enabled: options.enabled });
+    const data: TPayload | undefined = query.data;
+    const total = data === undefined ? 0 : options.selectTotal(data);
+    return {
+      items: data === undefined ? undefined : options.selectItems(data),
+      payload: data,
+      total,
+      page: 1,
+      totalPages: Math.max(1, Math.ceil(total / 10)),
+      setPage: vi.fn(),
+      loading: query.loading,
+      firstLoad: data === undefined && query.loading,
+      error: query.error,
+      refetch: () => {
+        if (options.enabled) query.refetch();
+      },
+    };
+  },
+}));
+const { postMock } = vi.hoisted(() => ({ postMock: vi.fn() }));
+vi.mock('@/lib/api-client', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  default: { post: postMock },
+}));
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+vi.mock('sonner', () => ({ toast }));
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery }));
 vi.mock('@/hooks/useApplicationAccountQuery', () => ({
   useApplicationAccountQuery: (endpoint: string, componentName: string) => ({
@@ -41,11 +75,15 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+import { ApiError } from '@/lib/api-client';
+
 import { NotificationsHub } from '../NotificationsHub';
 
 function flags(over: Record<string, boolean> = {}) {
   useAppConfig.mockReturnValue({
-    config: { features: { peers_enabled: true, heartbeat_enabled: true, ...over } },
+    config: {
+      features: { peers_enabled: true, heartbeat_enabled: true, habits_enabled: true, ...over },
+    },
   });
 }
 
@@ -84,7 +122,8 @@ function answerHubCounts(counts: Record<string, number>) {
 beforeEach(() => {
   useApiQuery.mockReset();
   useApiQuery.mockReturnValue({ data: undefined, loading: false, error: null, refetch: vi.fn() });
-  patchMock.mockReset().mockResolvedValue({});
+  postMock.mockReset().mockResolvedValue({});
+  for (const spy of Object.values(toast)) spy.mockReset();
   useAppConfig.mockReset();
   flags();
 });
@@ -137,7 +176,9 @@ describe('NotificationsHub', () => {
       refetch: readOf(endpoint),
     }));
     const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
-    await user.click(screen.getByText('notifications_hub.sections.reminders.title'));
+    await user.click(
+      screen.getByText('notifications_hub.sections.reminders.title', { selector: 'summary span' })
+    );
 
     await user.click(screen.getByRole('button', { name: 'common.refresh' }));
 
@@ -168,7 +209,9 @@ describe('NotificationsHub', () => {
     renderWithProviders(<NotificationsHub lng="fr" />);
 
     for (const key of ['peer_messages', 'proactive', 'interests', 'reminders', 'scheduled']) {
-      expect(screen.getByText(`notifications_hub.sections.${key}.title`)).toBeInTheDocument();
+      expect(
+        screen.getByText(`notifications_hub.sections.${key}.title`, { selector: 'summary span' })
+      ).toBeInTheDocument();
     }
     // No page of rows. The badge counts are a separate, cheap read — asserted
     // below — and they are what makes a folded section choosable at all.
@@ -209,7 +252,9 @@ describe('NotificationsHub', () => {
   it('fetches only the section the reader opened', async () => {
     const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
 
-    await user.click(screen.getByText('notifications_hub.sections.interests.title'));
+    await user.click(
+      screen.getByText('notifications_hub.sections.interests.title', { selector: 'summary span' })
+    );
 
     await waitFor(() => expect(fetched()).toHaveLength(1));
     expect(fetched()[0]).toContain('/interests/notifications/history');
@@ -224,7 +269,22 @@ describe('NotificationsHub', () => {
     expect(screen.queryByText('notifications_hub.sections.peer_messages.title')).toBeNull();
     expect(screen.queryByText('notifications_hub.sections.proactive.title')).toBeNull();
     // The three that do not depend on an instance flag are still there.
-    expect(screen.getByText('notifications_hub.sections.interests.title')).toBeInTheDocument();
+    expect(
+      screen.getByText('notifications_hub.sections.interests.title', { selector: 'summary span' })
+    ).toBeInTheDocument();
+  });
+
+  it('shows the proposals with habit learning, whatever the heartbeat (ADR-375)', () => {
+    flags({ habits_enabled: false });
+    const { unmount } = renderWithProviders(<NotificationsHub lng="fr" />);
+    expect(screen.queryByText('notifications_hub.sections.offers.title')).toBeNull();
+    unmount();
+
+    flags({ heartbeat_enabled: false });
+    renderWithProviders(<NotificationsHub lng="fr" />);
+    expect(
+      screen.getByText('notifications_hub.sections.offers.title', { selector: 'summary span' })
+    ).toBeInTheDocument();
   });
 
   it('says under each title what the section holds', () => {
@@ -305,90 +365,145 @@ describe('notification registers', () => {
         within(received).getByText(`notifications_hub.sections.${key}.title`)
       ).toBeInTheDocument();
     }
-    const offers = screen.getByText('notifications_hub.sections.offers.title');
+    const offers = screen.getByText('notifications_hub.sections.offers.title', {
+      selector: 'summary span',
+    });
     expect(offers.compareDocumentPosition(future) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(fetched()).toEqual([]);
   });
 });
 
-it('does not resurrect a decided offer when folded during a failed refresh', async () => {
-  const payload = {
-    notifications: [
+/** One open proposal as `/habits/proposals` serves it. */
+function proposalsPage(over: Record<string, unknown> = {}) {
+  return {
+    proposals: [
       {
-        id: 'offer-once',
-        content: 'Préparer le rendez-vous ?',
-        created_at: '2026-10-15T10:00:00Z',
-        priority: 'low',
-        sources_used: [],
-        user_feedback: null,
+        id: 'proposal-once',
+        kind: 'automate_need',
+        key: 'weather',
+        facts: {
+          domain: 'weather',
+          cadence: 'weekdays',
+          weekday: null,
+          hour: 7,
+          minute: 30,
+          distinct_days: 14,
+          active_days: 22,
+          part_of_day: 'morning',
+          existing_routine: null,
+        },
+        created_at: '2026-11-08T03:00:00Z',
+        updated_at: '2026-11-08T03:00:00Z',
       },
     ],
     total: 1,
+    learning_enabled: true,
+    ...over,
   };
-  const refetch = vi.fn();
+}
+
+function answerProposals(payload: unknown, error: Error | null = null) {
   useApiQuery.mockImplementation((endpoint: string) => ({
-    data: endpoint.startsWith('/heartbeat/offers') ? payload : undefined,
+    data: endpoint.startsWith('/habits/proposals') ? payload : undefined,
     loading: false,
-    error: new Error('offline'),
-    refetch,
+    error,
+    refetch: vi.fn(),
   }));
+}
+
+const PROPOSAL_TEXT = /^habits\.proposals\.automate_need\.text\|/;
+
+it('reads the proposals of habit learning, not the retired heartbeat offers', async () => {
+  answerProposals(proposalsPage());
   const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
-  const title = screen.getByText('notifications_hub.sections.offers.title');
-  await user.click(title);
   await user.click(
-    screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
+    screen.getByText('notifications_hub.sections.offers.title', { selector: 'summary span' })
   );
-  await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(fetched().some(path => path.startsWith('/habits/proposals'))).toBe(true)
+  );
+  expect(fetched().some(path => path.startsWith('/heartbeat/offers'))).toBe(false);
+  expect(screen.getByText(PROPOSAL_TEXT)).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'habits.proposals.automate_need.accept' })
+  ).toBeInTheDocument();
+});
+
+it('says learning is off rather than « nothing to propose »', async () => {
+  answerProposals({ proposals: [], total: 0, learning_enabled: false });
+  const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+  await user.click(
+    screen.getByText('notifications_hub.sections.offers.title', { selector: 'summary span' })
+  );
+  expect(
+    await screen.findByText('notifications_hub.sections.offers.learning_off')
+  ).toBeInTheDocument();
+  expect(screen.queryByText('notifications_hub.sections.offers.empty')).toBeNull();
+});
+
+it('does not resurrect a decided proposal when folded during a failed refresh', async () => {
+  answerProposals(proposalsPage(), new Error('offline'));
+  const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+  const title = screen.getByText('notifications_hub.sections.offers.title', {
+    selector: 'summary span',
+  });
+  await user.click(title);
+  await user.click(screen.getByRole('button', { name: 'habits.proposals.later' }));
+  await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+  expect(postMock).toHaveBeenCalledWith('/habits/proposals/proposal-once/dismiss');
   expect(title.closest('summary')).toHaveFocus();
   await user.click(title);
   await user.click(title);
-  expect(screen.queryByText('Préparer le rendez-vous ?')).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText(PROPOSAL_TEXT)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'habits.proposals.later' })).not.toBeInTheDocument();
 });
 
 it('keeps an in-flight decision locked across folding and reopening', async () => {
   let complete!: () => void;
-  patchMock.mockImplementation(
+  postMock.mockImplementation(
     () =>
       new Promise<void>(resolve => {
         complete = resolve;
       })
   );
-  const payload = {
-    notifications: [
-      {
-        id: 'offer-in-flight',
-        content: 'Préparer le rendez-vous ?',
-        created_at: '2026-10-15T10:00:00Z',
-        priority: 'low',
-        sources_used: [],
-        user_feedback: null,
-      },
-    ],
-    total: 1,
-  };
-  useApiQuery.mockImplementation((endpoint: string) => ({
-    data: endpoint.startsWith('/heartbeat/offers') ? payload : undefined,
-    loading: false,
-    error: null,
-    refetch: vi.fn(),
-  }));
+  answerProposals(proposalsPage());
   const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
-  const title = screen.getByText('notifications_hub.sections.offers.title');
+  const title = screen.getByText('notifications_hub.sections.offers.title', {
+    selector: 'summary span',
+  });
   await user.click(title);
-  await user.click(
-    screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' })
-  );
+  await user.click(screen.getByRole('button', { name: 'habits.proposals.never' }));
   await user.click(title);
   await user.click(title);
-  const decline = screen.getByRole('button', { name: 'notifications_hub.sections.offers.dismiss' });
-  expect(decline).toHaveAttribute('aria-disabled', 'true');
-  await user.click(decline);
-  expect(patchMock).toHaveBeenCalledTimes(1);
+  const never = screen.getByRole('button', { name: 'habits.proposals.never' });
+  expect(never).toHaveAttribute('aria-disabled', 'true');
+  expect(never).toHaveAttribute('aria-busy', 'true');
+  expect(
+    screen.getByRole('button', { name: 'habits.proposals.automate_need.accept' })
+  ).toHaveAttribute('aria-disabled', 'true');
+  await user.click(never);
+  expect(postMock).toHaveBeenCalledTimes(1);
   complete();
-  await waitFor(() =>
-    expect(screen.queryByText('Préparer le rendez-vous ?')).not.toBeInTheDocument()
+  await waitFor(() => expect(screen.queryByText(PROPOSAL_TEXT)).not.toBeInTheDocument());
+});
+
+it('keeps a proposal whose act was refused, and says why in the reader’s language', async () => {
+  postMock.mockRejectedValue(
+    new ApiError('conflict', 409, {
+      detail: { error_code: 'PROPOSAL_ACTION_REFUSED', reason: 'routine_limit' },
+    })
   );
+  answerProposals(proposalsPage());
+  const { user } = renderWithProviders(<NotificationsHub lng="fr" />);
+  await user.click(
+    screen.getByText('notifications_hub.sections.offers.title', { selector: 'summary span' })
+  );
+  await user.click(screen.getByRole('button', { name: 'habits.proposals.automate_need.accept' }));
+  await waitFor(() =>
+    expect(toast.error).toHaveBeenCalledWith('habits.proposals.refused.routine_limit')
+  );
+  expect(screen.getByText(PROPOSAL_TEXT)).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'habits.proposals.automate_need.accept' })
+  ).not.toHaveAttribute('aria-disabled');
 });

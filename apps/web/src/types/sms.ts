@@ -132,3 +132,8 @@ export interface SmsQuery {
   limit?: number;
   cursor?: string;
 }
+
+/** Native display mode is explicitly selected; legacy readers stay lexical. */
+export interface SmsDisplayOrder {
+  sort: 'recent' | 'oldest' | 'name';
+}

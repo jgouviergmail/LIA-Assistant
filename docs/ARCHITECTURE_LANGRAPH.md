@@ -4,6 +4,12 @@
 **Date**: 2026-07-11 (base 2026-04-07)
 **Status**: Production
 
+L'envoi direct à un pair est une politique de capacité partagée par Pipeline et
+ReAct, décrite dans [ADR-263](architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md).
+Une ambiguïté de destinataire reste une question. Les menus de sélection IA
+passent par [tool_assists](technical/TOOL_ASSISTS.md) sans créer de tour de chat
+ni ajouter d'état au checkpoint LangGraph.
+
 ---
 
 ## Vue d'Ensemble
@@ -106,7 +112,7 @@ Alternative path when `execution_mode == "react"`: the router routes to `react_s
 
 > **Draft hand-off (parity with pipeline)**: when `react_execute_tools` detects a prepared draft, `route_from_react_execute_tools` routes to `hitl_dispatch` (the same node the pipeline uses) → `initiative` → `response_node`, where the confirmed draft is actually executed (`execute_draft_if_confirmed`). The ReAct completion metrics are still emitted on this short-circuited path (`status="draft"`).
 
-> **Nominal-path Initiative (ADR-062 parity, ADR-070 amendment 2026-05-21)**: when no draft is pending, `route_from_react_finalize` optionally routes `react_finalize → initiative → response_node` (gated by `INITIATIVE_REACT_ENABLED`, default off) so the autonomous answer gets the same proactive cross-domain enrichment as the pipeline. `route_from_initiative` short-circuits to `response_node` in ReAct (one pass, no orchestrator loop), and `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative results (`{turn}:initiative`) so neither is dropped.
+> **Nominal-path Initiative (ADR-062 parity, ADR-070 amendment 2026-05-21)**: when no draft is pending, `route_from_react_finalize` optionally routes `react_finalize → initiative → response_node` (gated by `INITIATIVE_REACT_ENABLED`, on by default) so the autonomous answer gets the same proactive cross-domain enrichment as the pipeline. `route_from_initiative` short-circuits to `response_node` in ReAct (one pass, no orchestrator loop), and `response_node` merges the ReAct answer (`{turn}:react_agent`) with the Initiative results (`{turn}:initiative`) so neither is dropped.
 
 Safety: max iterations (`REACT_AGENT_MAX_ITERATIONS`) + hard timeout (`REACT_AGENT_TIMEOUT_SECONDS`). The ceiling starts from the router's domain span (ADR-238) and is extended only by **productive** iterations (ADR-248): a refusal, an empty result or an error does not buy the next one.
 

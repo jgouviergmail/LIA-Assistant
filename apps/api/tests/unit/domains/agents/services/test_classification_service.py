@@ -15,11 +15,12 @@ from redis.asyncio import Redis
 from src.domains.agents.services.qualification import service
 from src.domains.chat.service import TrackingContext
 from src.domains.llm.pricing_service import ModelPrice
+from src.domains.llm_config.jev_gates import gate_defaults
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import DecisionConfiguration, JevSnapshot
 from src.infrastructure.llm import jev_http, jev_runtime
 from src.infrastructure.llm.decision_types import DecisionAttempt
-from src.infrastructure.llm.typesafe_client import ChoiceAnswer
+from src.infrastructure.llm.typesafe_client import ChoiceAnswer, NoulAnswer, NoulQuestion
 from tests.unit.domains.agents.services.test_classification_batches import observed
 
 pytestmark = pytest.mark.unit
@@ -49,7 +50,11 @@ async def successful(**kwargs: object) -> DecisionAttempt:
     questions = kwargs["questions"]
     assert isinstance(questions, dict)
     answers: dict[str, ChoiceAnswer] = {}
+    nouls: dict[str, NoulAnswer] = {}
     for key, question in questions.items():
+        if isinstance(question, NoulQuestion):
+            nouls[key] = NoulAnswer(type="noul", noul=0.95)
+            continue
         choice = "normal" if key.endswith("_priority") else "professional"
         answers[key] = ChoiceAnswer(
             type="choice",
@@ -57,7 +62,7 @@ async def successful(**kwargs: object) -> DecisionAttempt:
             confidence=1.0,
             probabilities={option: float(option == choice) for option in question.criteria},
         )
-    return DecisionAttempt(outcome="success", answers=answers)
+    return DecisionAttempt(outcome="success", answers=answers, nouls=nouls)
 
 
 async def invoke(**kwargs: object):
@@ -84,7 +89,7 @@ def native_seams(monkeypatch: pytest.MonkeyPatch):
     )
 
 
-async def test_two_email_questions_share_one_operation_snapshot_and_one_native_charge(
+async def test_the_email_questions_share_one_operation_snapshot_and_one_native_charge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     choose = AsyncMock(side_effect=successful)
@@ -94,8 +99,10 @@ async def test_two_email_questions_share_one_operation_snapshot_and_one_native_c
     result = await invoke()
     assert result["private-1"].category == "professional"
     assert result["private-1"].priority == "normal"
+    assert result["private-1"].reply_expected is True
     load.assert_awaited_once_with(JevUsage.EMAIL_CLASSIFICATION)
-    assert len(choose.call_args.kwargs["questions"]) == 2
+    # Category, priority and whether a reply is expected, in one call (ADR-374).
+    assert len(choose.call_args.kwargs["questions"]) == 3
     assert choose.await_count == 1
     assert choose.call_args.kwargs["snapshot"] is load.return_value
 
@@ -175,6 +182,9 @@ async def test_real_native_transport_and_accounting_close_one_bill_even_for_an_u
         requests.append(body)
         answers = {}
         for key, question in body["questions"].items():
+            if key.endswith("_reply"):
+                answers[key] = {"type": "noul", "noul": 0.95}
+                continue
             choice = "normal" if key.endswith("_priority") else "professional"
             answers[key] = {
                 "type": "choice",
@@ -217,7 +227,7 @@ async def test_real_native_transport_and_accounting_close_one_bill_even_for_an_u
             timezone="UTC",
         )
     assert bool(result) == (failure is None)
-    assert len(requests) == 1 and len(requests[0]["questions"]) == 2
+    assert len(requests) == 1 and len(requests[0]["questions"]) == 3
     calls = tracker.get_llm_calls_breakdown()
     assert len(calls) == 1 and calls[0]["call_type"] == "decision"
     assert calls[0]["tokens_in"] == 1234 and calls[0]["tokens_out"] == 42
@@ -280,8 +290,8 @@ def test_threshold_change_invalidates_cached_acceptance(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     before = service.policy_fingerprint()
-    monkeypatch.setattr(service, "JEV_CLASSIFICATION_MIN_CONFIDENCE", 0.999)
-    assert service.policy_fingerprint() != before
+    moved = {**gate_defaults(JevUsage.EMAIL_CLASSIFICATION), "category": Decimal("0.99")}
+    assert service.policy_fingerprint(JevUsage.EMAIL_CLASSIFICATION, moved) != before
 
 
 async def test_a_broken_cache_does_not_wait_for_a_claim(

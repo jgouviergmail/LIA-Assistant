@@ -24,18 +24,13 @@ vi.mock('@/lib/native/shell', () => ({
 import apiClient from '@/lib/api-client';
 
 /** The URL the client actually asked `fetch` for. */
-function urlOf(call: unknown): string {
-  return (call as [string, RequestInit])[0];
+function urlOf(call: readonly unknown[]): string {
+  if (typeof call[0] !== 'string') throw new TypeError('Expected a URL string');
+  return call[0];
 }
 
 function okJson() {
-  return {
-    ok: true,
-    status: 200,
-    headers: new Headers({ 'content-type': 'application/json' }),
-    json: async () => ({}),
-    text: async () => '{}',
-  } as unknown as Response;
+  return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
 }
 
 beforeEach(() => {
@@ -48,9 +43,25 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('buildUrl — list parameters', () => {
+  it.each(['', 'https://example.test'])(
+    'preserves paging, repeated keys and fragments with base %s',
+    async base => {
+      vi.stubEnv('NEXT_PUBLIC_API_URL', base);
+      await apiClient.get('/reminders?limit=10&offset=30&kind=old#section?literal', {
+        params: { q: 'été %_?', kind: ['new', 'other'] },
+      });
+      const url = new URL(urlOf(vi.mocked(fetch).mock.calls[0]), 'http://relative.test');
+      expect(url.searchParams.get('offset')).toBe('30');
+      expect(url.searchParams.get('limit')).toBe('10');
+      expect(url.searchParams.get('q')).toBe('été %_?');
+      expect(url.searchParams.getAll('kind')).toEqual(['old', 'new', 'other']);
+      expect(url.hash).toBe('#section?literal');
+    }
+  );
   it('repeats one entry per item, in order', async () => {
     await apiClient.get('/workboard/tickets', {
       params: { status: ['todo', 'in_progress'], assignee: 'me' },

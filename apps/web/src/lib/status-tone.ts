@@ -38,6 +38,8 @@ const NEUTRAL: BadgeTone = 'secondary';
 /** Accepted content labels, independent from provider read/important flags. */
 export function classificationTone(value: string): BadgeTone {
   if (value === 'phishing_scam' || value === 'critical') return 'alert';
+  // A live trait with no semantic family takes the theme colour, never the inactive grey.
+  if (value === 'reply_expected') return 'default';
   return value === 'urgent' ? 'warning' : NEUTRAL;
 }
 

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ShieldBan, UnlockKeyhole } from 'lucide-react';
+import { ShieldBan, UnlockKeyhole } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -37,7 +37,9 @@ export function SmsBlockedSenders({
         >
           <Label htmlFor="sms-block-sender">{t('sms.block_sender')}</Label>
           <div className="flex flex-wrap gap-2">
-            <div className="min-w-0 flex-1">
+            {/* The field asks 14rem before sharing its line (owner request 2026-11-08): on a
+                phone the long button goes under it instead of squeezing it to a stub. */}
+            <div className="min-w-0 flex-[1_1_14rem]">
               <Input
                 id="sms-block-sender"
                 value={sender}
@@ -52,7 +54,10 @@ export function SmsBlockedSenders({
         </form>
         <ul className="space-y-2">
           {page?.blocks.map(block => (
-            <li key={block.id} className="flex items-center gap-3 rounded-lg border p-3">
+            <li
+              key={block.id}
+              className="flex items-center gap-3 rounded-lg border bg-background p-3"
+            >
               <span className="min-w-0 flex-1 break-words text-sm">{block.sender}</span>
               <RowActions
                 menuLabel={`${t('common.actions')} · ${block.sender}`}

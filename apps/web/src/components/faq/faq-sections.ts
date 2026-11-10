@@ -8,7 +8,7 @@
  * absent from this list renders nowhere (`__tests__/section-registry.test.ts`).
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import {
   Activity,
   AppWindow,
@@ -51,7 +51,7 @@ import {
   Zap,
   ClipboardList,
   SquareKanban,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 /** Icon per FAQ section key (`faq.sections.<key>` in the locale files). */
 export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {

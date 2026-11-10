@@ -8,7 +8,9 @@ Opening a card shows the 360° sheet, whose first section is where you launch a 
 ## How do favorites work?
 Tap the **star** on any card (or in the 360° sheet) — no need to open anything. Favorites keep their own band at the top of the page, and a starred person **never disappears**, even when there has been no interaction for a long while.
 
-Tap the star again to unstar; with many relations, use the name filter that appears above the list.
+Tap the star again to unstar. The name filter, ordering control and **On LIA** /
+**Dormant** filter chips always remain above the list, including when it is empty
+or contains only a few people. Name search and both chips can be combined.
 
 ## What is the small LIA badge on some cards?
 It marks relations who are **also connected users** of your LIA instance (see the Peer Connections section). The badge is read-only and only appears when the connections feature is enabled — a bridge between your personal CRM and assistant-to-assistant connections.

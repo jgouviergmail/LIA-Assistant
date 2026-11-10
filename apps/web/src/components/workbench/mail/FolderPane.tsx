@@ -32,7 +32,7 @@ import {
   Tag,
   Tags,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useId, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';

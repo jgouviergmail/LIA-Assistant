@@ -1191,11 +1191,21 @@ test('what is pasted arrives as words, whatever the page it came from', async ({
   await words.click();
   await words.evaluate(field => {
     const data = new DataTransfer();
-    data.setData('text/plain', 'plain words');
-    data.setData('text/html', '<img src=x onerror=alert(1)><b>marked</b>');
-    field.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
-    );
+    const plain = 'plain words';
+    const html = '<img src=x onerror=alert(1)><b>marked</b>';
+    data.setData('text/plain', plain);
+    data.setData('text/html', html);
+    const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+    // Firefox discards clipboardData in a synthetic event's constructor.
+    // Supply this event's real DataTransfer without replacing the paste handler.
+    Object.defineProperty(event, 'clipboardData', { value: data });
+    if (
+      event.clipboardData?.getData('text/plain') !== plain ||
+      event.clipboardData?.getData('text/html') !== html
+    ) {
+      throw new Error('The synthetic paste must carry both plain text and HTML.');
+    }
+    field.dispatchEvent(event);
   });
 
   await expect(words).toHaveText('plain words');

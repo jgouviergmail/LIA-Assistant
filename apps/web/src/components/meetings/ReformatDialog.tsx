@@ -11,7 +11,7 @@
  */
 
 import { useId, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/lib/icons';
 
 import { TemplateSelect } from '@/components/meetings/TemplateSelect';
 import { Button } from '@/components/ui/button';

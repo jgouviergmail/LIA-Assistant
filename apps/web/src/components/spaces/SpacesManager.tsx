@@ -20,9 +20,9 @@
  * rename and deletion are on the card itself.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Library, Plus } from 'lucide-react';
+import { Library, Plus } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -31,12 +31,18 @@ import { CreateSpaceDialog } from '@/components/spaces/CreateSpaceDialog';
 import { DeleteSpaceConfirm } from '@/components/spaces/DeleteSpaceConfirm';
 import { EditSpaceDialog } from '@/components/spaces/EditSpaceDialog';
 import { SpaceCard } from '@/components/spaces/SpaceCard';
+import { SpaceCardList } from '@/components/spaces/SpaceCardList';
+import { SpaceListToolbar } from '@/components/spaces/SpaceListToolbar';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { SectionHeader } from '@/components/ui/section-header';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useSpaces } from '@/hooks/useSpaces';
+import { useAuth } from '@/hooks/useAuth';
+import { useDebounce } from '@/hooks/useDebounce';
+import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import type { RAGSpace } from '@/types/rag-spaces';
+import type { RAGSpace, SpaceListQuery } from '@/types/rag-spaces';
 
 export interface SpacesManagerProps {
   /** Which door mounted the screen: the standalone page or the settings card. */
@@ -49,11 +55,49 @@ const GRID_CLASSES: Record<SpacesManagerProps['variant'], string> = {
 };
 
 export function SpacesManager({ variant }: SpacesManagerProps) {
+  const { user } = useAuth();
+  return <SpaceList key={user?.id ?? 'anonymous'} variant={variant} />;
+}
+
+function SpaceListHeader({ variant, onCreate }: SpacesManagerProps & { onCreate: () => void }) {
+  const { t } = useTranslation();
+  if (variant === 'page') {
+    return (
+      <SectionHeader
+        level={1}
+        icon={Library}
+        title={t('spaces.title')}
+        description={t('spaces.subtitle')}
+        actions={
+          <Button onClick={onCreate}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t('spaces.create_button')}
+          </Button>
+        }
+      />
+    );
+  }
+  return (
+    <SectionToolbar
+      count=""
+      menuLabel={t('common.more_actions')}
+      primary={{ key: 'create', label: t('spaces.create_button'), icon: Plus, onSelect: onCreate }}
+    />
+  );
+}
+
+function SpaceList({ variant }: SpacesManagerProps) {
   const { t } = useTranslation();
   const router = useLocalizedRouter();
+  const [criteria, setCriteria] = useState<SpaceListQuery>({ q: '', field: 'name', sort: 'name' });
+  const query = useDebounce(criteria.q, SEARCH_DEBOUNCE_MS);
+  const [onlyManaged, setOnlyManaged] = useState(false);
+  const filtering = Boolean(query.trim() || onlyManaged);
   const {
     spaces,
     loading,
+    error,
+    refetch,
     createSpace,
     updateSpace,
     deleteSpace,
@@ -61,11 +105,36 @@ export function SpacesManager({ variant }: SpacesManagerProps) {
     creating,
     updating,
     toggling,
-  } = useSpaces();
+  } = useSpaces({ ...criteria, q: query });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editSpace, setEditSpace] = useState<RAGSpace | null>(null);
   const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<RAGSpace | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const favoriteFocus = useRef<string | null>(null);
+  const visible = onlyManaged ? spaces.filter(space => space.kind != null) : spaces;
+
+  // Moving between bands remounts the star: restore keyboard focus after the
+  // confirmed list refresh, including an unsuccessful preference write.
+  useEffect(() => {
+    if (loading || updating || !favoriteFocus.current) return;
+    const button = Array.from(
+      listRef.current?.querySelectorAll<HTMLButtonElement>('[data-space-favorite]') ?? []
+    ).find(candidate => candidate.dataset.spaceFavorite === favoriteFocus.current);
+    if (button) {
+      button.focus({ preventScroll: true });
+      favoriteFocus.current = null;
+    }
+  }, [loading, updating, spaces]);
+
+  const handleFavorite = async (space: RAGSpace) => {
+    favoriteFocus.current = space.id;
+    try {
+      await updateSpace(space.id, { is_favorite: !space.is_favorite });
+    } catch {
+      toast.error(t('spaces.favorite_error'));
+    }
+  };
 
   const handleCreate = useCallback(
     async (name: string, description?: string) => {
@@ -128,58 +197,57 @@ export function SpacesManager({ variant }: SpacesManagerProps) {
 
   return (
     <FeatureErrorBoundary feature="rag-spaces">
-      <div className={variant === 'page' ? 'space-y-6' : 'space-y-4'}>
-        {variant === 'page' ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{t('spaces.title')}</h1>
-              <p className="mt-2 text-muted-foreground">{t('spaces.subtitle')}</p>
-            </div>
-            <Button onClick={openCreate} className="sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              {t('spaces.create_button')}
+      <div ref={listRef} className={variant === 'page' ? 'space-y-6' : 'space-y-4'}>
+        <SpaceListHeader variant={variant} onCreate={openCreate} />
+
+        <SpaceListToolbar
+          value={criteria}
+          onChange={setCriteria}
+          onlyManaged={onlyManaged}
+          onToggleManaged={() => setOnlyManaged(value => !value)}
+        />
+
+        {error ? (
+          <div role="alert" className="space-y-2">
+            <p>{t('spaces.list.load_error')}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                void refetch().catch(() => {});
+              }}
+            >
+              {t('common.retry')}
             </Button>
           </div>
-        ) : (
-          // The settings card already names the section: no second title,
-          // only the section's own action bar (ADR-207: a labelled, solid CTA).
-          spaces.length > 0 && (
-            <SectionToolbar
-              count=""
-              menuLabel={t('common.more_actions')}
-              primary={{
-                key: 'create',
-                label: t('spaces.create_button'),
-                icon: Plus,
-                onSelect: openCreate,
-              }}
-            />
-          )
-        )}
-
-        {loading ? (
+        ) : loading ? (
           <div className={grid}>
             {[1, 2, 3].map(i => (
               <div key={i} className="h-40 rounded-lg border bg-muted/50 animate-pulse" />
             ))}
           </div>
-        ) : spaces.length === 0 ? (
+        ) : visible.length === 0 ? (
           <EmptyState
-            // A whole route says "empty" at page scale; inside the settings
-            // card the section-scale state keeps the card's proportions.
-            variant={variant}
+            // Creation remains in the page header, including an empty collection.
+            variant="section"
+            reason={filtering ? 'no-match' : 'no-data'}
             icon={Library}
-            title={t('spaces.empty_title')}
-            description={t('spaces.empty_description')}
-            action={{
-              label: t('spaces.create_button'),
-              onClick: openCreate,
-              icon: Plus,
-            }}
+            title={t(filtering ? 'spaces.list.no_matches' : 'spaces.empty_title')}
+            description={t(filtering ? 'spaces.list.no_matches_hint' : 'spaces.empty_description')}
+            action={
+              filtering
+                ? {
+                    label: t('spaces.list.clear'),
+                    onClick: () => {
+                      setCriteria(current => ({ ...current, q: '' }));
+                      setOnlyManaged(false);
+                    },
+                  }
+                : undefined
+            }
           />
         ) : (
-          <div className={grid}>
-            {spaces.map(space => (
+          <SpaceCardList spaces={visible} gridClassName={grid}>
+            {space => (
               <SpaceCard
                 key={space.id}
                 surface={variant === 'page' ? 'primary' : 'nested'}
@@ -188,10 +256,12 @@ export function SpacesManager({ variant }: SpacesManagerProps) {
                 onEdit={() => setEditSpace(space)}
                 onDelete={() => setDeleteConfirmSpace(space)}
                 onToggle={() => handleToggle(space.id)}
+                onToggleFavorite={() => void handleFavorite(space)}
+                favoriting={updating}
                 toggling={toggling}
               />
-            ))}
-          </div>
+            )}
+          </SpaceCardList>
         )}
 
         <CreateSpaceDialog

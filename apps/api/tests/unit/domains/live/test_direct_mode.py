@@ -31,6 +31,9 @@ from src.domains.live.schemas import (
     LiveTurnRequest,
     LiveUsage,
 )
+from src.domains.voice.cue_prompt import live_cues_block
+from src.domains.voice.expressive_cues import ELEVENLABS_AGENT_TAGS
+from src.domains.voice_sessions.expression import PERSON_CUES
 from tests.unit.domains.live.test_service import (
     CLOSING,
     MODULE,
@@ -172,6 +175,31 @@ async def test_a_direct_session_keeps_its_turns_in_the_record_and_archives_none(
     kwargs = store.append_turns.call_args.kwargs
     assert kwargs["max_rows"] == LIVE_DIRECT_TRANSCRIPT_MAX_ROWS
     assert kwargs["ttl_seconds"] >= 1
+
+
+async def test_a_direct_cues_session_keeps_its_voice_as_heard_for_the_relay() -> None:
+    """ADR-373: the words relayed at the end are the person's and what they heard."""
+    record = _direct_record()
+    record = replace(
+        record,
+        setup_inputs={**record.setup_inputs, "cue_dialect": ELEVENLABS_AGENT_TAGS.name},
+    )
+    service, store, _ = _service(_connector(), record=record)
+    await service.archive_turn(
+        USER,
+        "s" * 32,
+        LiveTurnRequest(
+            user_text="next train [to] Lyon?",
+            assistant_text="[tired] The next one leaves at nine [sighs].",
+            started_at=_now(),
+            ended_at=_now(),
+        ),
+        language="fr",
+    )
+    assert store.kept_turns == [
+        ("user", "next train [to] Lyon?"),
+        ("assistant", "The next one leaves at nine."),
+    ]
 
 
 async def test_a_direct_session_ends_by_relaying_its_words_as_the_person_s_turn() -> None:
@@ -487,3 +515,13 @@ async def test_build_direct_setup_inputs_assembles_the_mandate_the_tools_and_the
     assert inputs.trigger_tokens == settings.live_context_trigger_tokens
     assert inputs.target_tokens == settings.live_context_target_tokens
     assert "AGENDA\n- x" in inputs.system_instruction
+
+
+def test_the_direct_mandate_carries_the_cue_block_only_on_an_engine_that_performs_cues() -> None:
+    cues = dm.render_direct_mandate(_inputs(cue_dialect=ELEVENLABS_AGENT_TAGS))
+    words = dm.render_direct_mandate(_inputs())
+    assert live_cues_block(ELEVENLABS_AGENT_TAGS, PERSON_CUES) in cues
+    assert "<voice_cues>" not in words
+    # The cues come before what the voice knows: the data block stays last.
+    assert cues.index("<voice_cues>") < cues.rindex("\nWHAT YOU KNOW\n")
+    assert "\n\n\n" not in words and "\n\n\n" not in cues

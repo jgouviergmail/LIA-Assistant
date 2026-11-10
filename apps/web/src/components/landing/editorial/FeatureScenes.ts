@@ -96,6 +96,7 @@ export const FEATURE_SCENES: Readonly<Record<string, FeatureScene>> = {
   skills: 'tools',
   interactive_pages: 'tools',
   workbench: 'tools',
+  text_menus: 'tools',
   tools_mail: 'tools',
   tools_calendar: 'briefing',
   tools_tasks: 'board',

@@ -8,14 +8,20 @@ slice against a real account before go-live.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from http import HTTPStatus
+from typing import Any, Literal
 
 import httpx
 import structlog
 
+from src.core.constants import ELEVENLABS_TOOLS_LIST_MAX_PAGES, ELEVENLABS_TOOLS_PAGE_SIZE
 from src.domains.telephony.schemas import OutboundCallResult, PhoneNumberInfo
 
 logger = structlog.get_logger(__name__)
+
+#: What a workspace tool became once released without force (ADR-373): deleted,
+#: kept because another agent still uses it, or kept on any other answer.
+ToolRelease = Literal["freed", "in_use", "refused"]
 
 _BASE_URL = "https://api.elevenlabs.io/v1/convai"
 # ElevenLabs authenticates via this header (not a bearer token).
@@ -49,6 +55,7 @@ def _agent_config_body(
     """
     prompt_config: dict[str, Any] = {
         "prompt": system_prompt,
+        **agent_prompt_settings(),
         # System tools: each entry REQUIRES its "name" field (real vendor 400
         # observed on an empty object: "Field required — built_in_tools.
         # end_call.name"). Without end_call the agent can NEVER hang up.
@@ -82,6 +89,20 @@ def _agent_config_body(
             for field in data_collection
         }
     return body
+
+
+def agent_prompt_settings() -> dict[str, Any]:
+    """The prompt settings LIA owns on the agent it provisions (ADR-373).
+
+    The vendor's default persona is dropped: its « helpful » lines would
+    fight the personality an owner call carries and the cordial manner a
+    stranger hears. One function read by the body AND the fingerprint, so a
+    provisioned agent drifts once and is re-synced before its next call.
+
+    Returns:
+        The ``conversation_config.agent.prompt`` fields LIA sets.
+    """
+    return {"ignore_default_personality": True}
 
 
 def override_permissions() -> dict[str, Any]:
@@ -369,6 +390,68 @@ class ElevenLabsAgentsClient:
         tool_id: str = resp.json()["id"]
         logger.info("elevenlabs_tool_created", tool_id=tool_id)
         return tool_id
+
+    async def list_tools(self) -> list[dict[str, Any]]:
+        """The workspace's CLIENT tools, page after page (ADR-373).
+
+        LIA only ever creates client tools, so nothing else is read. Pages
+        follow ``next_cursor`` while ``has_more``, bounded by
+        :data:`ELEVENLABS_TOOLS_LIST_MAX_PAGES`: a cursor that never ends
+        cannot hold a session start, and past the bound the listing is what
+        was read — the logs say so.
+
+        Returns:
+            The tools as the vendor serves them (``id``, ``tool_config``).
+
+        Raises:
+            ElevenLabsAgentsError: On a vendor refusal.
+        """
+        tools: list[dict[str, Any]] = []
+        cursor: str | None = None
+        for _page in range(ELEVENLABS_TOOLS_LIST_MAX_PAGES):
+            params: dict[str, Any] = {"page_size": ELEVENLABS_TOOLS_PAGE_SIZE, "types": "client"}
+            if cursor:
+                params["cursor"] = cursor
+            payload = (await self._request("GET", "/tools", params=params)).json()
+            if not isinstance(payload, dict):
+                return tools
+            tools.extend(
+                tool
+                for tool in payload.get("tools") or []
+                if isinstance(tool, dict) and isinstance(tool.get("id"), str)
+            )
+            cursor = payload.get("next_cursor")
+            if not payload.get("has_more") or not isinstance(cursor, str) or not cursor:
+                return tools
+        logger.warning(
+            "elevenlabs_tools_listing_bounded",
+            pages=ELEVENLABS_TOOLS_LIST_MAX_PAGES,
+            tool_count=len(tools),
+        )
+        return tools
+
+    async def release_tool(self, tool_id: str) -> ToolRelease:
+        """Delete a workspace tool WITHOUT force, and say what became of it (ADR-373).
+
+        Measured 2026-09-16: a tool an agent still references answers 409
+        unless forced — the very protection a sweep wants: a tool another
+        agent uses is kept. Never raises: a sweep is cleanup, never a reason
+        to refuse a start (``_request`` already logged a refusal).
+
+        Args:
+            tool_id: The vendor's tool id.
+
+        Returns:
+            ``freed`` (deleted), ``in_use`` (409: another agent uses it, kept)
+            or ``refused`` (any other answer, a lost connection included).
+        """
+        try:
+            await self._request("DELETE", f"/tools/{tool_id}")
+        except ElevenLabsAgentsError as exc:
+            return "in_use" if exc.status_code == HTTPStatus.CONFLICT else "refused"
+        except httpx.RequestError:
+            return "refused"
+        return "freed"
 
     async def delete_tool(self, tool_id: str) -> None:
         """Best-effort delete of a workspace tool, forced.

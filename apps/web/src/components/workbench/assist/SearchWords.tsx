@@ -14,9 +14,9 @@ import type { Language } from '@/i18n/settings';
 import { ASSIST_PATHS, type ProposedSearch, type SearchAnswer } from '@/lib/workbench/assist';
 
 import { useAssistBounds } from '../WorkbenchShell';
-import { AssistStars } from './AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { tellCost, useToldFailure } from './tellings';
-import { useAssistCall, useLatest } from './useAssistCall';
+import { useAssistCall, useLatest } from '@/hooks/useAssistCall';
 
 export interface SearchWordsProps {
   lng: Language;

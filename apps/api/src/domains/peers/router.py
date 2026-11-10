@@ -21,9 +21,9 @@ from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.peers.constants import PEER_ACCESS_LOG_MAX_ENTRIES
+from src.domains.peers.history_queries import PeerHistoryRepository
 from src.domains.peers.image_share import deliver_shared_image, share_image
 from src.domains.peers.notifications import dispatch_peer_events
-from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import (
     AccessLogEntry,
     BlockCreate,
@@ -38,11 +38,11 @@ from src.domains.peers.schemas import (
     DiscoveryStateUpdate,
     ImageShareCreate,
     ImageShareView,
-    RelayedMessageItem,
     RelayedMessagePage,
     ShareUpdate,
 )
 from src.domains.peers.service import PeersService
+from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -387,13 +387,13 @@ async def list_blocks(
 async def list_relayed_messages(
     limit: int = Query(default=10, ge=1, le=100, description="Page size."),
     offset: int = Query(default=0, ge=0, description="Page offset."),
+    criteria: DisplayQuery = Depends(display_query),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> RelayedMessagePage:
     """One page of relayed messages, and the exact total behind it.
 
-    Both halves come from ONE session so a delivery landing between two reads
-    cannot produce a total the page contradicts.
+    The rows and count come from one filtered statement.
 
     Args:
         limit: Page size.
@@ -405,19 +405,11 @@ async def list_relayed_messages(
         The page and the EXACT total (ADR-185) — the hub states its cap rather
         than applying it in silence.
     """
-    repo = PeersRepository(db)
-    activity = await repo.list_delivered_message_activity(user.id, limit=limit, offset=offset)
-    total = await repo.count_delivered_messages(user.id)
+    activity, total = await PeerHistoryRepository(db).page(
+        user.id, limit=limit, offset=offset, criteria=criteria
+    )
     return RelayedMessagePage(
-        messages=[
-            RelayedMessageItem(
-                id=str(item.message_id),
-                peer_display_name=item.peer_display_name,
-                direction=item.direction,
-                content=item.text,
-                occurred_at=item.occurred_at,
-            )
-            for item in activity
-        ],
+        messages=activity,
         total=total,
+        as_of=criteria.as_of,
     )

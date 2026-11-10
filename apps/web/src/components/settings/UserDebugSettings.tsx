@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bug } from 'lucide-react';
+import { Bug } from '@/lib/icons';
 import { Switch } from '@/components/ui/switch';
 import { InfoBox } from '@/components/ui/info-box';
 import { SettingsSection } from '@/components/settings/SettingsSection';

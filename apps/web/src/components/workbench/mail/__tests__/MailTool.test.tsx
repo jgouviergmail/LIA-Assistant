@@ -79,7 +79,7 @@ vi.mock('@/hooks/useAppConfig', async importOriginal => ({
   }),
 }));
 
-import { handOff, takeHandoff } from '@/lib/workbench/handoff';
+import { handOff, takeHandoff, setHandoffOwner } from '@/lib/workbench/handoff';
 
 import { MAIL_READ_DWELL_MS } from '@/lib/workbench/mail';
 
@@ -200,6 +200,7 @@ let conversation: { items: MailSummary[]; truncated: boolean } | Error;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  nav.push.mockReset();
   instance.assists = false;
   nav.search = '';
   media.desktop = true;
@@ -243,6 +244,13 @@ function fixedAnswers(): Record<string, unknown> {
     '/workbench/mail/message/unsubscribe': leaving,
     '/workbench/mail/folders': folders,
     '/workbench/mail/counts': unread,
+    '/workbench/tasks/lists': {
+      items: [
+        { id: 'l1', title: 'Home', default: true },
+        { id: 'l2', title: 'Work', default: false },
+      ],
+      next_page_token: null,
+    },
   };
 }
 
@@ -1193,7 +1201,7 @@ describe('MailTool — sorting', () => {
     const undo = vi.mocked(toast.success).mock.lastCall?.[1]?.action as
       | { onClick: () => void }
       | undefined;
-    undo?.onClick();
+    await act(async () => undo?.onClick());
 
     await waitFor(() =>
       expect(posted('/workbench/mail/move')).toEqual({
@@ -1201,6 +1209,9 @@ describe('MailTool — sorting', () => {
         to: 'system:inbox',
         origin: 'system:archive',
       })
+    );
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('workbench.mail.undone', undefined)
     );
   });
 
@@ -1637,9 +1648,11 @@ describe('MailTool — from a message to the other tools', () => {
   };
 
   afterEach(() => {
-    takeHandoff('task');
-    takeHandoff('event');
-    takeHandoff('contact');
+    act(() => {
+      takeHandoff('task', 'owner');
+    });
+    takeHandoff('event', 'owner');
+    takeHandoff('contact', 'owner');
   });
 
   it('turns the message into a task, pointing back at it', async () => {
@@ -1648,7 +1661,7 @@ describe('MailTool — from a message to the other tools', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.to_task' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks');
-    const handed = takeHandoff('task');
+    const handed = takeHandoff('task', 'owner');
     expect(handed?.title).toBe('Subject m1');
     expect(handed?.notes).toContain('/en/dashboard/tools/mail?id=m1');
   });
@@ -1659,7 +1672,7 @@ describe('MailTool — from a message to the other tools', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.to_event' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/calendar');
-    expect(takeHandoff('event')?.summary).toBe('Subject m1');
+    expect(takeHandoff('event', 'owner')?.summary).toBe('Subject m1');
   });
 
   it('saves the sender as a contact', async () => {
@@ -1668,11 +1681,20 @@ describe('MailTool — from a message to the other tools', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'workbench.mail.to_contact' }));
 
     expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/contacts');
-    expect(takeHandoff('contact')).toEqual({
+    expect(takeHandoff('contact', 'owner')).toEqual({
       kind: 'contact',
       name: 'Sender m1',
       email: 'm1@example.org',
     });
+  });
+
+  it('leaves the task and the event to « Ask LIA » wherever LIA can read them', async () => {
+    instance.assists = true;
+    await opened(['tasks', 'calendar', 'contacts']);
+
+    await screen.findByRole('menuitem', { name: 'workbench.mail.to_contact' });
+    expect(screen.queryByRole('menuitem', { name: 'workbench.mail.to_task' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'workbench.mail.to_event' })).toBeNull();
   });
 
   it('offers no way to a tool that is not ready', async () => {
@@ -2041,6 +2063,13 @@ describe('MailTool — what LIA does on a message', () => {
     usage: { tokens_in: 90, tokens_out: 30, tokens_cache: 0, cost_eur: 0.001, model_name: 'm' },
   };
   const line = (name: string) => screen.findByRole('menuitem', { name });
+  const TASK_READ = {
+    title: 'Send the budget',
+    notes: '',
+    due: '2026-11-06',
+    list_name: 'Work',
+    importance: null,
+  };
 
   async function opened(ready: readonly WorkbenchToolId[] = []) {
     instance.assists = true;
@@ -2104,18 +2133,37 @@ describe('MailTool — what LIA does on a message', () => {
     expect(screen.queryByText('Ana asks for the budget.')).toBeNull();
   });
 
-  it('makes a task of an action it found, pointing back at the message', async () => {
+  it('makes a whole task of an action it found, read for that action, pointing back at the message', async () => {
     const { user } = await opened(['tasks']);
+    const read = {
+      task: {
+        title: 'Send the Q1 budget to Ana',
+        notes: 'Ana needs the Q1 budget for the board.',
+        due: '2026-11-06',
+        list_name: 'Work',
+        importance: 'high',
+      },
+      usage: null,
+    };
 
     await user.click(await line('workbench.assist.mail.summary'));
-    await user.click(
-      await screen.findByRole('button', { name: 'workbench.assist.mail.to_task' })
-    );
+    await screen.findByText('Ana asks for the budget.');
+    api.post.mockResolvedValueOnce(read);
+    await user.click(await screen.findByRole('button', { name: 'workbench.assist.mail.to_task' }));
 
-    expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks');
-    const handed = takeHandoff('task');
-    expect(handed?.title).toBe('Send the budget');
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks'));
+    expect(posted('/tool-assists/mail/task')).toEqual({
+      message_id: 'm1',
+      lists: ['Home', 'Work'],
+      focus: 'Send the budget',
+    });
+    const handed = takeHandoff('task', 'owner');
+    expect(handed?.title).toBe('Send the Q1 budget to Ana');
+    expect(handed?.notes).toContain('Ana needs the Q1 budget for the board.');
     expect(handed?.notes).toContain('/en/dashboard/tools/mail?id=m1');
+    expect(handed?.due).toBe('2026-11-06');
+    expect(handed?.list_name).toBe('Work');
+    expect(handed?.importance).toBe('high');
   });
 
   it('opens the calendar on the event it read, the message linked: nothing is created', async () => {
@@ -2137,7 +2185,7 @@ describe('MailTool — what LIA does on a message', () => {
     await user.click(await line('workbench.assist.mail.to_event'));
 
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/calendar'));
-    const handed = takeHandoff('event');
+    const handed = takeHandoff('event', 'owner');
     expect(handed?.summary).toBe('Lunch with Ana');
     expect(handed?.proposal?.start_date).toBe('2026-11-05');
     expect(handed?.description).toContain('At the usual place');
@@ -2145,19 +2193,60 @@ describe('MailTool — what LIA does on a message', () => {
     expect(posted('/tool-assists/mail/event')).toEqual({ message_id: 'm1' });
   });
 
-  it('opens the tasks on what it read, its day kept', async () => {
+  it('opens the tasks on what it read against the person s lists, its day kept', async () => {
     const { user } = await opened(['tasks']);
     api.post.mockResolvedValueOnce({
-      task: { title: 'Send the budget', notes: '', due: '2026-11-06', list_name: null },
+      task: {
+        title: 'Send the budget',
+        notes: '',
+        due: '2026-11-06',
+        list_name: 'Work',
+        importance: null,
+      },
       usage: null,
     });
 
     await user.click(await line('workbench.assist.mail.to_task_line'));
 
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/en/dashboard/tools/tasks'));
-    const handed = takeHandoff('task');
+    expect(posted('/tool-assists/mail/task')).toEqual({
+      message_id: 'm1',
+      lists: ['Home', 'Work'],
+    });
+    const handed = takeHandoff('task', 'owner');
     expect(handed?.title).toBe('Send the budget');
     expect(handed?.due).toBe('2026-11-06');
+    expect(handed?.list_name).toBe('Work');
+  });
+
+  it('reads a task without the lists when they cannot be read, and reads them once', async () => {
+    const reader = api.get.getMockImplementation();
+    let listReads = 0;
+    api.get.mockImplementation((path: string, options?: { params?: { id?: string } }) => {
+      if (path !== '/workbench/tasks/lists') return reader?.(path, options);
+      listReads += 1;
+      return listReads === 1 ? Promise.reject(new Error('down')) : reader?.(path, options);
+    });
+    const { user } = await opened(['tasks']);
+    const read = { task: { ...TASK_READ, list_name: null }, usage: null };
+    api.post.mockResolvedValue(read);
+
+    await user.click(await line('workbench.assist.mail.to_task_line'));
+    await waitFor(() => expect(nav.push).toHaveBeenCalledTimes(1));
+    expect(posted('/tool-assists/mail/task')).toEqual({ message_id: 'm1', lists: [] });
+    takeHandoff('task', 'owner');
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await line('workbench.assist.mail.to_task_line'));
+    await waitFor(() => expect(postsTo('/tool-assists/mail/task')).toBe(2));
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await line('workbench.assist.mail.to_task_line'));
+
+    await waitFor(() => expect(postsTo('/tool-assists/mail/task')).toBe(3));
+    expect(posted('/tool-assists/mail/task')).toEqual({
+      message_id: 'm1',
+      lists: ['Home', 'Work'],
+    });
+    expect(listReads).toBe(2);
   });
 
   it('says it found no event, and goes nowhere', async () => {
@@ -2218,27 +2307,47 @@ describe('MailTool — what LIA does on a message', () => {
     await user.click(await line('workbench.assist.mail.reply'));
     await user.click(await screen.findByRole('button', { name: 'workbench.assist.writing.use' }));
 
-    expect(
-      await screen.findByRole('textbox', { name: 'workbench.mail.compose.body' })
-    ).toHaveValue('Dear Ana, yes.');
+    expect(await screen.findByRole('textbox', { name: 'workbench.mail.compose.body' })).toHaveValue(
+      'Dear Ana, yes.'
+    );
     expect(api.post).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('MailTool — what another tool hands it', () => {
   it('opens a new message to the address it was given', async () => {
-    handOff({ kind: 'compose', to: 'ana@example.org' });
+    handOff('owner', { kind: 'compose', to: 'ana@example.org' });
     screenOf();
 
     const to = await screen.findByRole('combobox', { name: 'workbench.mail.compose.to' });
 
     expect(to).toHaveValue('ana@example.org');
   });
+
+  it('opens a message to write with LIA, its subject named, on the instruction it waits for', async () => {
+    instance.assists = true;
+    handOff('owner', {
+      kind: 'compose',
+      to: 'ana@example.org, paul@example.org',
+      subject: 'Budget review',
+      assisted: true,
+    });
+    screenOf();
+
+    expect(await screen.findByRole('combobox', { name: 'workbench.mail.compose.to' })).toHaveValue(
+      'ana@example.org, paul@example.org'
+    );
+    expect(screen.getByLabelText('workbench.mail.compose.subject')).toHaveValue('Budget review');
+    expect(
+      await screen.findByRole('dialog', { name: 'workbench.assist.writing.compose' })
+    ).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
 });
 
 describe('MailTool — a file of the drive', () => {
   it('opens a new message carrying the file it was given', async () => {
-    handOff({
+    handOff('owner', {
       kind: 'compose',
       to: '',
       file: {
@@ -2288,4 +2397,46 @@ describe('MailTool — panes sized by hand', () => {
     fireEvent.keyDown(separator, { key: 'Enter' });
     expect(pane?.style.getPropertyValue('--pane-w')).toBe('');
   });
+});
+
+describe('MailTool — a passage of a message (2026-11-07)', () => {
+  const passage = (key: string) => `workbench.assist.passage.${key}`;
+
+  async function openedOn(ready: readonly WorkbenchToolId[] = []) {
+    instance.assists = true;
+    answerRail(ready);
+    nav.search = 'id=m1';
+    api.post.mockResolvedValue({ text: 'It is the body of the message.', usage: null });
+    const rendered = screenOf();
+    await screen.findByRole('article', { name: 'Subject m1' });
+    return rendered;
+  }
+
+  it('turns the original layout into its text for a passage, from « Ask LIA »', async () => {
+    htmls = { m1: { html: '<p>Original of m1</p>', truncated: false } };
+    const { user } = await openedOn();
+    await screen.findByRole('button', { name: 'workbench.mail.show_text' });
+
+    await user.click(screen.getByRole('button', { name: 'workbench.ask.label' }));
+    await user.click(await screen.findByRole('menuitem', { name: passage('act_on') }));
+
+    expect(await screen.findByText(passage('act_on_hint'))).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'workbench.mail.show_original' })
+    ).toBeInTheDocument();
+  });
+
+  it('offers « Act on a passage » only where the original layout hides the text', async () => {
+    const { user } = await openedOn();
+
+    await user.click(await screen.findByRole('button', { name: 'workbench.ask.label' }));
+    await screen.findByRole('menuitem', { name: 'workbench.assist.mail.summary' });
+
+    expect(screen.queryByRole('menuitem', { name: passage('act_on') })).toBeNull();
+  });
+});
+
+beforeEach(() => {
+  setHandoffOwner(null);
+  setHandoffOwner('owner');
 });

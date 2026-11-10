@@ -5,7 +5,6 @@ import { test, expect, type BrowserContext, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { worldProofUrl } from './world-route';
 import { cssPixels } from './layout';
 
@@ -73,7 +72,6 @@ test('polished world: personal cached atmosphere, E interaction, native draft, p
     expect(session.status()).toBe(200);
     const page = await context.newPage();
     await page.bringToFront();
-    await installOfflineFonts(page);
     page.on('pageerror', error => failures.push(error.name));
     page.on('request', request => {
       if (

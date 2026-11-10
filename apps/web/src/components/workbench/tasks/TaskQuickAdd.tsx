@@ -10,7 +10,7 @@
  * asked, an icon inside the field reads a sentence: its title lands in the field, its day and list
  * in one line under it, and nothing exists until « Add » is pressed.
  */
-import { Plus, X } from 'lucide-react';
+import { Plus, X } from '@/lib/icons';
 import { forwardRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';

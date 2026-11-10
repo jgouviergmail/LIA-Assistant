@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageCircle, PencilLine, UsersRound, Megaphone } from 'lucide-react';
+import { MessageCircle, PencilLine, UsersRound, Megaphone } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

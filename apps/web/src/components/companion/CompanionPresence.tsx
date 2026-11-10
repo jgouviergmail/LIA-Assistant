@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, X } from 'lucide-react';
+import { MessageSquare, X } from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 import { AssistantAvatar } from '@/components/psyche/AssistantAvatar';

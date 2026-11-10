@@ -6,10 +6,11 @@ Both default off. This is native decisioning, with ordinary platform quotas,
 actual token accounting and paid failure accounting; there is no generative
 fallback. See [the integration guide](JEV_INTEGRATION.md).
 
-Emails carry a category (professional, personal, spam or phishing/scam) and an
-independent single priority (normal, urgent or critical). Appointments carry a
+Emails carry a category (professional, personal, spam or phishing/scam), an
+independent single priority (normal, urgent or critical) and, since 2026-11-08,
+whether they expect a reply (`reply_expected`, see below). Appointments carry a
 professional/personal category. Unknown values produce no badge; normal produces
-no priority badge. The closed [annotation types](../../apps/api/src/core/content_classification.py)
+no priority badge; only an expected reply shows one. The closed [annotation types](../../apps/api/src/core/content_classification.py)
 carry evidence scope and validity. The same accepted annotations reach the UI
 and assistant; prompts explicitly forbid treating a missing badge as safety or
 an advisory phishing label as proven fraud.
@@ -148,3 +149,34 @@ emails; an appointment's category only sorts it. The email priority question
 receives its reference time in the zone it names, as the calibration corpora do.
 
 The shared source/answer contract is recorded in [ADR-351](../architecture/ADR-351-Advisory-Source-Annotations-Shared-With-The-Answer.md).
+
+## Whether an email expects a reply — 2026-11-08
+
+A third question per email, a Noul (`jev_email_reply_expected_question`): « the
+message explicitly asks its recipient for a reply or an action », with or without
+a deadline; information, receipts, newsletters, promotions and messages shared to
+read at leisure ask nothing. It is decided at the `email_classification.reply_expected`
+margin ([ADR-374](../architecture/ADR-374-JEV-Retirements-Declared-Thresholds-And-Durable-Statistics.md),
+default 0.30: expected from p ≥ 0.70, not expected up to p ≤ 0.30, undecided
+between) and published only beside an ACCEPTED legitimate category: spam and
+phishing are always « no reply » (the question read them anywhere from 0.33 to 0.92),
+and an email whose category was not accepted makes no reply claim, so a phishing
+mail the category question missed can never be labelled « reply expected ». The
+annotation version becomes `email-event-v2-reply`; a v1 annotation archived in a
+thread is still read and never re-classified. The badge, the model view
+(`reply_expected=true|false`), the response prompt and the initiative gate read it.
+
+Qualified on the three corpora, each email labelled by reading it (true when a reply
+or an action is explicitly asked; false for information, spam and phishing; null for a
+greeting alone or a training request to analyse a quoted scam), by one paid replay of
+36 native calls (0.0093 €, proof account, fictional data): no wrong accepted label on
+any dimension; « reply expected » covered 12/12, 12/12 and 6/6; « no reply » 26/32,
+32/34 and 24/24; category and priority identical, class by class, to the previous
+qualified records.
+
+The third question shares one operation's budget (12 batches, 400 000 bytes, the
+whole operation under 5 s). Measured on 48 e-mails: up to 400 characters of evidence
+each, all 48 are labelled; at 800 characters and more, 36 of 48 are, the others
+carrying no badge, which reads as « unknown ». A long listing of long e-mails is the
+case it bites; raising the batch ceiling would add a fourth wave of concurrent calls
+under the 5 s bound of the whole operation, so it is left as a decision to measure.

@@ -1,13 +1,13 @@
-"""The recurrence-ledger seed against a real PostgreSQL (ADR-214 amendment).
+"""The recurrence-ledger seed against a real PostgreSQL (ADR-214 amendment, ADR-375).
 
 Prod-like replay of the 2026-09-03 finding: the primary account had 183
 ``automation_run`` outcomes on the ``scheduler`` channel between 01:00 and
 04:00 local (its 07:00-09:00 routines executed while their timezone was
 still Asian) and 5 typed turns. The previous seed rebuilt the scheduler's
 own metronome as the user's recurrences (email 27 days, event 26, weather
-26, web_search 27); replayed alone, that night cluster LOCKS a daily habit
-at 01:16. With the shared human predicate, the seed must keep every
-signature within its typed days and the lock evaluation must stay silent.
+26, web_search 27); replayed alone, that night cluster would read as four
+recurring NEEDS. With the shared human predicate, the seed must keep every
+signature within its typed days, and no need may be read from it.
 """
 
 from __future__ import annotations
@@ -23,9 +23,10 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings as app_settings
-from src.domains.agents.services.recurrence_ledger import evaluate_locks
 from src.domains.habits.ledger_seed import seed_ledger_from_outcomes
+from src.domains.habits.needs import NeedThresholds
 from src.domains.habits.repository import HabitsRepository
+from src.domains.habits.usage_observations import LedgerView, needs_from_ledger
 from src.domains.product.models import ProductOutcome
 from src.domains.users.models import User
 from src.infrastructure.cache import recurrence_store
@@ -61,25 +62,13 @@ class _FakeRedis:
         return _iter()
 
 
-def _lock_settings() -> SimpleNamespace:
+def _seed_settings() -> SimpleNamespace:
     """The production defaults, read from settings — never re-declared."""
     return SimpleNamespace(
         habits_enabled=True,
         recurrence_window_days=app_settings.recurrence_window_days,
-        recurrence_min_distinct_days=app_settings.recurrence_min_distinct_days,
         recurrence_day_hours_cap=app_settings.recurrence_day_hours_cap,
         recurrence_ledger_max_entries=app_settings.recurrence_ledger_max_entries,
-        recurrence_lock_min_occurrences=app_settings.recurrence_lock_min_occurrences,
-        recurrence_lock_min_spread_days=app_settings.recurrence_lock_min_spread_days,
-        recurrence_lock_r_min=app_settings.recurrence_lock_r_min,
-        recurrence_lock_half_r_min=app_settings.recurrence_lock_half_r_min,
-        recurrence_lock_half_agree_hours=app_settings.recurrence_lock_half_agree_hours,
-        recurrence_shape_min_span_days=app_settings.recurrence_shape_min_span_days,
-        recurrence_daily_density_min=app_settings.recurrence_daily_density_min,
-        recurrence_intermittent_r_min=app_settings.recurrence_intermittent_r_min,
-        recurrence_weekend_tolerance=app_settings.recurrence_weekend_tolerance,
-        recurrence_weekly_min_same_dow=app_settings.recurrence_weekly_min_same_dow,
-        recurrence_weekly_dow_fraction=app_settings.recurrence_weekly_dow_fraction,
     )
 
 
@@ -157,7 +146,7 @@ async def test_seed_keeps_lia_s_own_routines_out(async_session: AsyncSession, ow
 
     with patch("src.infrastructure.cache.redis.get_redis_cache", new=AsyncMock(return_value=redis)):
         seeded = await seed_ledger_from_outcomes(
-            async_session, owner.id, "Europe/Paris", _lock_settings()
+            async_session, owner.id, "Europe/Paris", _seed_settings()
         )
 
     # Only the typed domains are seeded, each with exactly its typed days.
@@ -176,11 +165,16 @@ async def test_seed_keeps_lia_s_own_routines_out(async_session: AsyncSession, ow
     for days in per_signature.values():
         for hours in days.values():
             assert all(9 <= h <= 21 for h in hours), hours
-    # And nothing locks: the night cluster alone WOULD lock daily at ~01:00 —
-    # that is the false suggestion the shared predicate prevents.
-    today = datetime.now(UTC).astimezone().date()
-    for days in per_signature.values():
-        assert evaluate_locks(days, today, _lock_settings()) is None
+    # And no need is read: the night cluster alone WOULD read as four daily
+    # needs — the false proposal the shared predicate prevents.
+    ledger = LedgerView(readable=True, days_by_domain=per_signature, intents={})
+    needs = needs_from_ledger(
+        ledger,
+        active_days=typed_rows,
+        today=datetime.now(UTC).date(),
+        thresholds=NeedThresholds.from_settings(app_settings),
+    )
+    assert needs == ()
 
 
 async def test_rhythm_run_source_reads_only_typed_outcomes(

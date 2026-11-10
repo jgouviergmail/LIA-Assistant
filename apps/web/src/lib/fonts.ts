@@ -136,7 +136,7 @@ export const geistSans = GeistSans;
 /**
  * The icons of the PUBLIC pages: Material Symbols Outlined cut down to the few
  * icons they draw (the landing's demo), ~4 KB where the full variable font the
- * application loads from Google Fonts is 4 MB — and the landing used to download
+ * application self-hosts is 4 MB — and the landing used to download
  * it before the reader scrolled (measured 2026-10-28). `lia-components.css` maps
  * `.landing-page .material-symbols-outlined` to this family, so the full font is
  * never requested there; the application keeps it, because the cards the model

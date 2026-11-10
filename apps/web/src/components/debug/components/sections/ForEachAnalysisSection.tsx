@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Repeat } from 'lucide-react';
+import { Repeat } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow, SubSectionHeader } from '../shared';
 import { CARDINALITY_MODE_LABELS, CARDINALITY_ALL_VALUE } from '../../utils/constants';
 import { TONE_TEXT } from '../../utils/tones';

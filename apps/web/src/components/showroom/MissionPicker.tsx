@@ -9,7 +9,7 @@
  * synthetic contract is stated before anything runs.
  */
 
-import { Bell, FileText, Handshake, type LucideIcon, Phone, Radio, UserRound } from 'lucide-react';
+import { Bell, FileText, Handshake, type LucideIcon, Phone, Radio, UserRound } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { ShowroomMissionDefinition, ShowroomMissionId } from '@/components/showroom/types';

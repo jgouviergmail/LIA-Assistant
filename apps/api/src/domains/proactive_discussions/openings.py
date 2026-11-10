@@ -1,7 +1,7 @@
 """Owner-scoped opening history and explicit reversible conversational feedback."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, Field, TypeAdapter
@@ -25,6 +25,8 @@ from src.domains.proactive_discussions.schemas import DiscussionFeedback
 from src.domains.proactive_discussions.write_schemas import DiscussionPolicyPatch
 from src.domains.shared.discussion_sources import DiscussionValue, SourceKey
 from src.domains.shared.discussion_sql import native_discussion_page
+from src.domains.shared.display_queries import display_name_key, read_display_page
+from src.domains.shared.display_query import DisplayQuery
 
 
 class OpeningEvidence(DiscussionValue):
@@ -66,6 +68,9 @@ class OpeningPage(DiscussionValue):
 
     items: tuple[OpeningView, ...] = Field(description="The page, newest first.")
     total: int = Field(description="Every visible opening, not only this page.")
+    as_of: AwareDatetime | None = Field(
+        None, description="Upper creation instant for display pages."
+    )
     next_cursor: UUID | None = Field(
         default=None, description="The after_id of the next page, if there is one."
     )
@@ -172,15 +177,16 @@ async def get_opening(db: AsyncSession, owner: UUID, opening_id: UUID) -> Openin
     )
 
 
-def _visible_openings(*columns: Any, owner: UUID) -> Select[Any]:
+def _visible_openings[Columns: tuple[object, ...]](
+    statement: Select[Columns], *, owner: UUID
+) -> Select[Columns]:
     """The openings a person can see: theirs, still archived and shown in their conversation.
 
     The ONE filter of the history page and of the notifications hub's badge,
     so the two can never report different sets (ADR-185).
     """
     return (
-        select(*columns)
-        .select_from(DiscussionOpeningRecord)
+        statement.select_from(DiscussionOpeningRecord)
         .join(ConversationMessage, ConversationMessage.id == DiscussionOpeningRecord.message_id)
         .where(
             DiscussionOpeningRecord.user_id == owner,
@@ -193,7 +199,7 @@ def _visible_openings(*columns: Any, owner: UUID) -> Select[Any]:
 
 async def count_openings(db: AsyncSession, owner: UUID) -> int:
     """The exact number of visible openings, without reading a page of them."""
-    return int(await db.scalar(_visible_openings(func.count(), owner=owner)) or 0)
+    return int(await db.scalar(_visible_openings(select(func.count()), owner=owner)) or 0)
 
 
 async def list_openings(db: AsyncSession, owner: UUID, request: OpeningPageRequest) -> OpeningPage:
@@ -215,12 +221,16 @@ async def list_openings(db: AsyncSession, owner: UUID, request: OpeningPageReque
         db,
         owner,
         _visible_openings(
-            DiscussionOpeningRecord.id,
-            DiscussionOpeningRecord.message_id,
-            DiscussionOpeningRecord.created_at.label("recorded_at"),
-            DiscussionOpeningRecord.state,
-            ConversationMessage.content,
-            ConversationMessage.message_metadata["discussion_feedback"].astext.label("feedback"),
+            select(
+                DiscussionOpeningRecord.id,
+                DiscussionOpeningRecord.message_id,
+                DiscussionOpeningRecord.created_at.label("recorded_at"),
+                DiscussionOpeningRecord.state,
+                ConversationMessage.content,
+                ConversationMessage.message_metadata["discussion_feedback"].astext.label(
+                    "feedback"
+                ),
+            ),
             owner=owner,
         ),
         limit=request.limit,
@@ -235,6 +245,63 @@ async def list_openings(db: AsyncSession, owner: UUID, request: OpeningPageReque
         total=page.total,
         next_cursor=items[-1].id if len(page.rows) > request.limit else None,
     )
+
+
+async def list_display_openings(
+    db: AsyncSession,
+    owner: UUID,
+    *,
+    limit: int,
+    offset: int,
+    criteria: DisplayQuery,
+) -> OpeningPage:
+    """Read native alert pages without changing the assistant's keyset contract.
+
+    Args:
+        db: Reader-owned session.
+        owner: Authenticated account.
+        limit: Page size.
+        offset: Matching rows to skip.
+        criteria: Display search, ordering and upper creation instant.
+
+    Returns:
+        Visible archived words and their exact matching count.
+
+    Raises:
+        ResourceNotFoundError: The account is inactive or deleted.
+    """
+    await DiscussionRepository(db)._owner(owner)
+    statement = _visible_openings(
+        select(
+            DiscussionOpeningRecord.id,
+            DiscussionOpeningRecord.message_id,
+            DiscussionOpeningRecord.created_at,
+            DiscussionOpeningRecord.state,
+            ConversationMessage.content,
+            ConversationMessage.message_metadata["discussion_feedback"].astext.label("feedback"),
+        ),
+        owner=owner,
+    )
+    if criteria.as_of is not None:
+        statement = statement.where(DiscussionOpeningRecord.created_at <= criteria.as_of)
+    direction = (
+        DiscussionOpeningRecord.created_at.asc()
+        if criteria.sort == "oldest"
+        else DiscussionOpeningRecord.created_at.desc()
+    )
+    items, total = await read_display_page(
+        db,
+        statement.order_by(direction, DiscussionOpeningRecord.id.asc()),
+        decode=lambda row: OpeningView.model_validate(dict(row._mapping)),
+        query=criteria.q,
+        text_of=lambda row: (row.content,),
+        limit=limit,
+        offset=offset,
+        name_key=(
+            (lambda row: display_name_key(row.content, row.id)) if criteria.sort == "name" else None
+        ),
+    )
+    return OpeningPage(items=tuple(items), total=total, as_of=criteria.as_of)
 
 
 async def apply_feedback(

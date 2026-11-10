@@ -135,6 +135,11 @@ describe('amplitude — the overplay', () => {
 });
 
 describe('accents', () => {
+  it('uses a head acknowledgement and a thoughtful hold for explicit conversational cues', () => {
+    expect(accentGesture('nod')).toBe('nod');
+    expect(accentGesture('tilt')).toBe('consider');
+  });
+
   it('resolves every accent to an existing movement, or to nothing', () => {
     for (const accent of TONE_ACCENTS) {
       const gesture = accentGesture(accent);

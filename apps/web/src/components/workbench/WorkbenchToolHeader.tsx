@@ -12,7 +12,7 @@
  * tool moves focus to its heading — after a switch the reader lands on the screen
  * they asked for, never on the rail they left.
  */
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/lib/icons';
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 

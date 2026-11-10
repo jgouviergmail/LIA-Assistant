@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList } from '@/lib/icons';
 import { DebugSection, EmptySection, MetricRow, StrategyBadge, SubSectionHeader } from '../shared';
 import { formatTokenCount, formatCost, formatPercent } from '../../utils/formatters';
 import { TONE_TEXT } from '../../utils/tones';

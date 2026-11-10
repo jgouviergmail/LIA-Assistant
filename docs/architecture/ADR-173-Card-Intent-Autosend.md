@@ -54,7 +54,7 @@ un tronçon vide serait du bruit.
 - Les chips d'action sont des **frères** du bouton principal de l'item (un
   bouton dans un bouton est invalide en HTML et inatteignable au lecteur
   d'écran) ; leur nom accessible est la phrase d'intent complète.
-- `chatIntentHref` vit à côté de `chatDraftHref` (`lib/briefing-utils.ts`) ;
+- `chatIntentHref` vit à côté de `chatDraftHref` (`lib/chat-href.ts`) ;
   les intents exécutables vivent sous `dashboard.briefing.intents_exec.*`
   (6 langues), distincts des intents de préremplissage QW-9.
 - Épinglé par `hooks/__tests__/useAutoSendIntent.test.ts` (envoi unique sous

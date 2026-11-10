@@ -5,9 +5,9 @@
  * job learned is visible here, legible, and reversible. Three claims only a
  * browser can prove, each paid for once:
  *
- * - a recurring request names what is usually asked and its domains through
- *   the register's vocabulary (« Search · Emails + Contacts »), never as the
- *   raw `email+contact` signature the ledger stores — the unit tests see the
+ * - a recurring request names what is usually asked and its domain through
+ *   the register's vocabulary (« Search · Emails »), never as the
+ *   raw `email` key the ledger stores — the unit tests see the
  *   i18n MOCK echo keys, so only a real render shows what a person reads;
  * - when the instance does not offer automations in the chat, the panel says
  *   so instead of letting the person wait for an offer that cannot come
@@ -16,6 +16,7 @@
  *   and the whole section fits a 320 px phone without a horizontal scroll.
  */
 import { test, expect, type MockRoute } from '../fixtures';
+import type { HabitsOverview } from '../../src/hooks/useHabits';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 const RECURRING_ID = '00000000-0000-4000-8000-0000000000a1';
@@ -44,7 +45,7 @@ const MORNING_BINS = Array.from({ length: 24 }, (_, hour) =>
 );
 
 /** Mirrors `HabitsOverview` (src/hooks/useHabits.ts). */
-const OVERVIEW = {
+const OVERVIEW: HabitsOverview = {
   habits_enabled: true,
   profile: {
     computed_at: '2026-09-10T02:15:00Z',
@@ -72,9 +73,23 @@ const OVERVIEW = {
     {
       id: RECURRING_ID,
       kind: 'recurring_request',
-      key: 'email+contact',
-      // The ledger's dominant request (ADR-214 c): the row opens with it.
-      payload: { shape: 'daily', trigger_hour: 8.5, days_of_week: [], usual_intent: 'search' },
+      key: 'email',
+      // The current nightly writer's payload (ADR-375), not the retired clock shape.
+      payload: {
+        version: 2,
+        domain: 'email',
+        cadence: 'weekdays',
+        weekday: null,
+        usual_hour: 8.5,
+        prefill_hour: 8.25,
+        part_of_day: 'morning',
+        distinct_days: 14,
+        active_days: 22,
+        occurrences: 16,
+        at_automation_bar: true,
+        last_day: '2026-09-10',
+        usual_intent: 'search',
+      },
       status: 'active',
       positive_signals: 4,
       negative_signals: 0,
@@ -82,7 +97,7 @@ const OVERVIEW = {
       created_at: '2026-09-01T02:15:00Z',
     },
   ],
-  candidates: [{ key: 'email+task', observed_days: 2, required_days: 4, origin: 'live' }],
+  candidates: [{ key: 'task', observed_days: 2, required_days: 4, origin: 'live' }],
   candidates_more: 0,
   // The one instance flag the learning does NOT depend on.
   chat_suggestions_enabled: false,
@@ -95,16 +110,36 @@ const ROUTES: MockRoute[] = [
 
 test.describe('habits settings panel', () => {
   for (const width of [1280, 320]) {
-    test(`partial forgetting is reported and remains retryable at ${width}px`, async ({ page, authenticate, mockApi }) => {
+    test(`partial forgetting is reported and remains retryable at ${width}px`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }) => {
       await authenticate({ language: 'en' });
       await mockApi(ROUTES);
       let writes = 0;
       await page.route('**/api/v1/habits', async route => {
         if (route.request().method() === 'DELETE') {
           writes += 1;
-          await route.fulfill({ json: { deleted_habits: writes === 1 ? 1 : 0, profile_deleted: true, advisory_cleanup_confirmed: writes > 1 } });
+          await route.fulfill({
+            json: {
+              deleted_habits: writes === 1 ? 1 : 0,
+              profile_deleted: true,
+              advisory_cleanup_confirmed: writes > 1,
+            },
+          });
         } else {
-          await route.fulfill({ json: writes === 0 ? OVERVIEW : { ...OVERVIEW, habits: [], candidates: [], profile: { ...OVERVIEW.profile, computed_at: null } } });
+          await route.fulfill({
+            json:
+              writes === 0
+                ? OVERVIEW
+                : {
+                    ...OVERVIEW,
+                    habits: [],
+                    candidates: [],
+                    profile: { ...OVERVIEW.profile, computed_at: null },
+                  },
+          });
         }
       });
       await page.setViewportSize({ width, height: 800 });
@@ -114,12 +149,18 @@ test.describe('habits settings panel', () => {
       await expect(forget).toBeVisible({ timeout: 20_000 });
       await forget.click();
       expect(writes).toBe(0);
-      await page.getByRole('alertdialog').getByRole('button', { name: 'Forget everything', exact: true }).click();
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Forget everything', exact: true })
+        .click();
       await expect(page.getByText(/Habits and rhythm were erased, but cleanup/)).toBeVisible();
       await expect.poll(() => writes).toBe(1);
       await expect(forget).toBeVisible();
       await forget.click();
-      await page.getByRole('alertdialog').getByRole('button', { name: 'Forget everything', exact: true }).click();
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Forget everything', exact: true })
+        .click();
       await expect.poll(() => writes).toBe(2);
       await expectNoOverflow(page, `habit forgetting retry @${width}px`);
     });
@@ -149,8 +190,10 @@ test.describe('habits settings panel', () => {
 
     // A recurring request is named by its domains, through the register's
     // own vocabulary — the raw signature never reaches the screen.
-    await expect(page.getByText(/Search · Emails \+ Contacts — every day ~08:30/)).toBeVisible();
-    await expect(page.getByText('email+contact')).toHaveCount(0);
+    await expect(page.getByText('Search · Emails — Monday to Friday')).toBeVisible();
+    await expect(page.getByText('14 of 22 days of use · mostly in the morning')).toBeVisible();
+    await expect(page.getByText('email', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/~08:30/)).toHaveCount(0);
     await expect(page.getByText('5 days in a row')).toBeVisible();
     await expect(page.getByText('Active', { exact: true })).toBeVisible();
 
@@ -158,11 +201,11 @@ test.describe('habits settings panel', () => {
     // the ENFORCED existence gate, and the vocabulary rule holds there too.
     await expect(page.getByRole('progressbar').first()).toBeVisible();
     await expect(page.getByText('2/4 distinct days')).toBeVisible();
-    await expect(page.getByText(/Emails \+ Tasks/)).toBeVisible();
+    await expect(page.getByText('Tasks', { exact: true })).toBeVisible();
 
     // The chat will not offer an automation on this instance: said, once.
     await expect(
-      page.getByText('On this instance LIA does not offer an automation in the chat', {
+      page.getByText('On this instance LIA shows no proposal under her chat answers', {
         exact: false,
       })
     ).toBeVisible();
@@ -191,7 +234,9 @@ test.describe('habits settings panel', () => {
       },
     ]);
     await page.goto('/en/dashboard/settings?section=habits');
-    await expect(page.getByText(/Emails \+ Contacts/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Search · Emails — Monday to Friday')).toBeVisible({
+      timeout: 20_000,
+    });
 
     await page.getByRole('button', { name: 'Pause' }).click();
 
@@ -211,7 +256,9 @@ test.describe('habits settings panel', () => {
     await page.goto('/en/dashboard/settings?section=habits');
     await awaitStyledPage(page, '/dashboard/settings?section=habits @320px');
 
-    await expect(page.getByText(/Emails \+ Contacts/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Search · Emails — Monday to Friday')).toBeVisible({
+      timeout: 20_000,
+    });
     await page.locator('summary', { hasText: 'Activity rhythm' }).click();
     await page.locator('summary', { hasText: 'Under observation' }).click();
     await expect(page.getByText('2/4 distinct days')).toBeVisible();

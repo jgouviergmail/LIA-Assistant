@@ -207,6 +207,7 @@ def build_task_body(
     notes: str | None = None,
     due: str | None = None,
     status: str | None = None,
+    due_zone: str | None = None,
 ) -> dict[str, Any]:
     """
     Build a Microsoft To Do task request body from parameters.
@@ -214,8 +215,10 @@ def build_task_body(
     Args:
         title: Task title.
         notes: Task notes/description.
-        due: Due date in RFC 3339 format.
+        due: Due date in RFC 3339 format, or a wall time in ``due_zone``.
         status: Google Tasks status ("needsAction" or "completed").
+        due_zone: The zone ``due`` is a wall time in; UTC when none is named (To Do keeps local
+            midnight only in the zone it is given: ``core/task_due``).
 
     Returns:
         Dict suitable for POST/PATCH /me/todo/lists/{id}/tasks.
@@ -229,7 +232,7 @@ def build_task_body(
         # Microsoft expects dateTimeTimeZone object
         body["dueDateTime"] = {
             "dateTime": due,
-            "timeZone": "UTC",
+            "timeZone": due_zone or "UTC",
         }
 
     if status is not None:

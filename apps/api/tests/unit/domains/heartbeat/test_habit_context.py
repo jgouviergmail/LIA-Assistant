@@ -1,4 +1,4 @@
-"""Heartbeat habits source (ADR-214) — measured deviations, bounded offers.
+"""Heartbeat habits source (ADR-214) — the learned rhythm, nothing more (ADR-375).
 
 The contract pinned here (plan §5.4):
 - shape-aware k rule: daily/workdays need TWO consecutive missed scheduled
@@ -21,16 +21,27 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.domains.heartbeat.habit_context import (
-    detect_missed_routine,
-    fetch_habits_context,
-    ignored_offer_count,
-    rhythm_summary,
-)
+from src.domains.heartbeat.habit_context import fetch_habits_context, rhythm_summary
 
 TZ = ZoneInfo("Europe/Paris")
 # Tuesday 2026-08-04, 10:30 local — one hour past a 09:00 trigger + grace.
 NOW = datetime(2026, 8, 4, 10, 30, tzinfo=TZ)
+
+
+_WINDOW_PROFILE_PAYLOAD = {
+    "version": 1,
+    "active_days_fraction": 0.8,
+    "sparse": False,
+    "classes": {
+        "weekday": {
+            "verdict": "windows",
+            "windows": [{"start_hour": 8, "end_hour": 10, "presence": 0.9}],
+            "n_eff": 20.0,
+            "bin_presence": [0.0] * 24,
+        },
+        "weekend": {"verdict": "none", "windows": [], "n_eff": 8.0, "bin_presence": [0.0] * 24},
+    },
+}
 
 
 @pytest.fixture(autouse=True)
@@ -46,123 +57,20 @@ def _habits_switch_on(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _settings(**overrides: Any) -> SimpleNamespace:
-    defaults = {
-        "habits_enabled": True,
-        "habits_deviation_offer_cooldown_days": 7,
-        "habits_deviation_stop_after_ignored": 2,
-        "habits_deviation_grace_hours": 1.0,
-    }
+    defaults = {"habits_enabled": True}
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
 
 
-def _habit(**overrides: Any) -> MagicMock:
-    habit = MagicMock()
-    habit.id = uuid.uuid4()
-    habit.kind = "recurring_request"
-    habit.key = "email"
-    habit.status = "active"
-    habit.muted_until_reproof = False
-    habit.positive_signals = 1
-    habit.payload = {
-        "version": 1,
-        "shape": "daily",
-        "trigger_hour": 9.0,
-        "days_of_week": [0, 1, 2, 3, 4, 5, 6],
-        **overrides.pop("payload", {}),
-    }
-    for key, value in overrides.items():
-        setattr(habit, key, value)
-    return habit
-
-
-@pytest.mark.unit
-class TestDetectMissedRoutine:
-    def test_daily_needs_two_consecutive_missed_days(self) -> None:
-        habit = _habit()
-        # Yesterday HAS an occurrence: k=2 not reached — silence (k=1 at
-        # p̂≈0.85 would produce ~one false remark a week, measured).
-        assert detect_missed_routine(habit, {"2026-08-03"}, NOW, _settings()) is None
-        # Yesterday missed too → offer.
-        offer = detect_missed_routine(habit, {"2026-08-01"}, NOW, _settings())
-        assert offer is not None
-        assert offer["signature"] == "email"
-        assert offer["trigger_label"] == "09:00"
-
-    def test_the_offer_carries_what_the_person_usually_asks(self) -> None:
-        """Q4 / C13: the descriptor the sync stored on the row reaches the
-        offer, so the decision can name the request rather than « it »."""
-        habit = _habit(payload={"usual_intent": "search"})
-        offer = detect_missed_routine(habit, {"2026-08-01"}, NOW, _settings())
-        assert offer is not None
-        assert offer["usual_intent"] == "search"
-
-    def test_an_offer_without_a_descriptor_says_so(self) -> None:
-        offer = detect_missed_routine(_habit(), {"2026-08-01"}, NOW, _settings())
-        assert offer is not None
-        assert offer["usual_intent"] is None
-
-    def test_weekly_offers_on_first_miss(self) -> None:
-        habit = _habit(payload={"shape": "weekly", "days_of_week": [1]})
-        offer = detect_missed_routine(habit, set(), NOW, _settings())
-        assert offer is not None
-        assert offer["shape"] == "weekly"
-        assert offer["weekday"] == 1
-
-    def test_not_scheduled_today_is_silent(self) -> None:
-        habit = _habit(payload={"shape": "weekly", "days_of_week": [0]})  # Mondays
-        assert detect_missed_routine(habit, set(), NOW, _settings()) is None
-
-    def test_grace_period_holds_before_the_slot_counts_as_missed(self) -> None:
-        early = datetime(2026, 8, 4, 9, 30, tzinfo=TZ)  # inside the 1h grace
-        habit = _habit(payload={"shape": "weekly", "days_of_week": [1]})
-        assert detect_missed_routine(habit, set(), early, _settings()) is None
-
-    def test_todays_occurrence_means_no_miss(self) -> None:
-        habit = _habit(payload={"shape": "weekly", "days_of_week": [1]})
-        assert detect_missed_routine(habit, {"2026-08-04"}, NOW, _settings()) is None
-
-    def test_cooldown_blocks_a_repeat_offer(self) -> None:
-        habit = _habit(
-            payload={
-                "shape": "weekly",
-                "days_of_week": [1],
-                "offer_dates": ["2026-08-01"],  # 3 days ago < 7-day cooldown
-            }
-        )
-        assert detect_missed_routine(habit, set(), NOW, _settings()) is None
-
-    def test_stop_rule_mutes_after_ignored_offers(self) -> None:
-        habit = _habit(
-            payload={
-                "shape": "weekly",
-                "days_of_week": [1],
-                "offer_dates": ["2026-07-14", "2026-07-21"],  # both ignored
-            }
-        )
-        assert detect_missed_routine(habit, set(), NOW, _settings()) is None
-
-    def test_uptake_after_an_offer_resets_the_stop_rule(self) -> None:
-        habit = _habit(
-            payload={
-                "shape": "weekly",
-                "days_of_week": [1],
-                "offer_dates": ["2026-07-14", "2026-07-21"],
-            }
-        )
-        # The routine re-occurred after the last offer: the run is broken and
-        # (cooldown elapsed) the offer fires again.
-        offer = detect_missed_routine(habit, {"2026-07-28"}, NOW, _settings())
-        assert offer is not None
-
-
-@pytest.mark.unit
-class TestIgnoredOfferCount:
-    def test_counts_trailing_offers_without_later_occurrence(self) -> None:
-        assert ignored_offer_count(["2026-07-14", "2026-07-21"], set()) == 2
-        assert ignored_offer_count(["2026-07-14", "2026-07-21"], {"2026-07-28"}) == 0
-        assert ignored_offer_count(["2026-07-14", "2026-07-21"], {"2026-07-16"}) == 1
-        assert ignored_offer_count([], set()) == 0
+def _window_row(status: str) -> MagicMock:
+    """An ``active_window`` row, the only kind the heartbeat still reads."""
+    row = MagicMock()
+    row.id = uuid.uuid4()
+    row.kind = "active_window"
+    row.key = "weekday:morning"
+    row.status = status
+    row.payload = {"version": 1}
+    return row
 
 
 @pytest.mark.unit
@@ -225,39 +133,14 @@ class TestFetchHabitsContext:
         user = SimpleNamespace(habits_enabled=True, timezone="Europe/Paris")
         assert await fetch_habits_context(MagicMock(), uuid.uuid4(), user, _settings()) is None
 
-    async def test_returns_rhythm_and_single_candidate(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_returns_the_rhythm_alone(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """ADR-375: the block carries the learned windows and nothing else —
+        the missed-routine offer it used to carry is retired."""
         import src.domains.heartbeat.habit_context as module
 
         profile_row = MagicMock()
-        profile_row.payload = {
-            "version": 1,
-            "active_days_fraction": 0.8,
-            "sparse": False,
-            "classes": {
-                "weekday": {
-                    "verdict": "windows",
-                    "windows": [{"start_hour": 8, "end_hour": 10, "presence": 0.9}],
-                    "n_eff": 20.0,
-                    "bin_presence": [0.0] * 24,
-                },
-                "weekend": {
-                    "verdict": "none",
-                    "windows": [],
-                    "n_eff": 8.0,
-                    "bin_presence": [0.0] * 24,
-                },
-            },
-        }
-        weekly = _habit(payload={"shape": "weekly", "days_of_week": [NOW.weekday()]})
-        weekly.positive_signals = 5
-        muted = _habit(muted_until_reproof=True)
-
-        # The mirror row of the claimed window is ACTIVE: consumable.
-        window_row = _habit(
-            kind="active_window", key="weekday:morning", status="active", payload={"version": 1}
-        )
+        profile_row.payload = _WINDOW_PROFILE_PAYLOAD
+        window_row = _window_row("active")
 
         class _Repo:
             def __init__(self, db: Any) -> None:
@@ -267,47 +150,12 @@ class TestFetchHabitsContext:
                 return profile_row
 
             async def list_habits(self, user_id: Any, kind: str | None = None) -> list:
-                if kind == "active_window":
-                    return [window_row]
-                return [weekly, muted]
+                return [window_row] if kind == "active_window" else []
 
         monkeypatch.setattr(module, "HabitsRepository", _Repo)
-        monkeypatch.setattr(module, "_ledger_occurrence_days", AsyncMock(return_value=set()))
-
-        class _FrozenDatetime(datetime):
-            """The fetch reads the wall clock; the test must not."""
-
-            @classmethod
-            def now(cls, tz: Any = None) -> datetime:  # noqa: ANN401
-                return NOW if tz is None else NOW.astimezone(tz)
-
-        monkeypatch.setattr(module, "datetime", _FrozenDatetime)
-
         user = SimpleNamespace(habits_enabled=True, timezone="Europe/Paris")
         result = await fetch_habits_context(MagicMock(), uuid.uuid4(), user, _settings())
-        assert result is not None
-        assert result["rhythm"] == {"weekday": ["08:00-10:00"]}
-        # Only the unmuted candidate is considered; exactly one offer. The
-        # detection is deterministic here — no soft assertion (the muted
-        # sibling would otherwise pass silently as "no offer").
-        assert result["missed_routine"] is not None
-        assert result["missed_routine"]["habit_id"] == str(weekly.id)
-
-
-_WINDOW_PROFILE_PAYLOAD = {
-    "version": 1,
-    "active_days_fraction": 0.8,
-    "sparse": False,
-    "classes": {
-        "weekday": {
-            "verdict": "windows",
-            "windows": [{"start_hour": 8, "end_hour": 10, "presence": 0.9}],
-            "n_eff": 20.0,
-            "bin_presence": [0.0] * 24,
-        },
-        "weekend": {"verdict": "none", "windows": [], "n_eff": 8.0, "bin_presence": [0.0] * 24},
-    },
-}
+        assert result == {"rhythm": {"weekday": ["08:00-10:00"]}}
 
 
 @pytest.mark.unit
@@ -323,9 +171,7 @@ class TestWindowStatusesGovernConsumption:
 
         profile_row = MagicMock()
         profile_row.payload = _WINDOW_PROFILE_PAYLOAD
-        refused = _habit(
-            kind="active_window", key="weekday:morning", status=status, payload={"version": 1}
-        )
+        refused = _window_row(status)
 
         class _Repo:
             def __init__(self, db: Any) -> None:

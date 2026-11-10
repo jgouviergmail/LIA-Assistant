@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { UserCheck } from 'lucide-react';
+import { UserCheck } from '@/lib/icons';
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import type { HitlMetrics } from '@/types/chat';
 

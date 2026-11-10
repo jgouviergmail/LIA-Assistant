@@ -18,7 +18,7 @@
  * when the instance flag is off or the surface is unavailable.
  */
 
-import { Check, CircleSlash, ListTodo, Pencil, Send } from 'lucide-react';
+import { Check, CircleSlash, ListTodo, Pencil, Send } from '@/lib/icons';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -36,7 +36,7 @@ import {
   type OpenLoopPatch,
 } from '@/hooks/useOpenLoops';
 import { useTranslation } from '@/i18n/client';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { Language } from '@/i18n/settings';
 import type { BaseSettingsProps } from '@/types/settings';

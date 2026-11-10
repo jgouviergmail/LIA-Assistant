@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Megaphone, Send, X, Users, UserCheck } from 'lucide-react';
+import { Megaphone, Send, X, Users, UserCheck } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';

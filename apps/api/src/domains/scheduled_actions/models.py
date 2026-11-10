@@ -408,6 +408,11 @@ class ScheduledActionRun(Base, UUIDMixin):
         nullable=True,
         comment="Last error message of a FAILURE, truncated.",
     )
+    run_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="The turn this run executed (joins the registers); NULL when it never ran.",
+    )
 
     __table_args__ = (
         # The week read: one routine, its instants.

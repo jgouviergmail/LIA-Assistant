@@ -3,18 +3,18 @@
 /**
  * The bookmark toggle of an assistant bubble (ADR-282).
  *
- * Same chip family as « copy », right beside it. Filled when the answer is
- * kept, empty otherwise; one click keeps, the next lets go. Drawn only for a
- * bubble that carries its archived id (the same gate as the feedback chips)
+ * Same chip family as « copy », right beside it. Checked when the answer is
+ * kept, a plain outline otherwise; one click keeps, the next lets go. Drawn only
+ * for a bubble that carries its archived id (the same gate as the feedback chips)
  * inside a chat whose instance offers bookmarks — outside that, nothing. With
- * the operator's switch off, a kept answer keeps its filled mark and can still
+ * the operator's switch off, a kept answer keeps its checked mark and can still
  * be let go, but no other answer offers to be kept.
  *
  * A refusal says why: the cap and the operator's switch both come back as
  * sentences the API translated, and a sentence is what the toast shows.
  */
 
-import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { Bookmark, BookmarkCheck } from '@/lib/icons';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

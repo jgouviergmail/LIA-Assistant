@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Check, ClipboardList, FileText, LockKeyhole, Mail, Radio, Sparkles } from 'lucide-react';
+import { Check, ClipboardList, FileText, LockKeyhole, Mail, Radio, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { SCENE_TONES } from './scene-tones';

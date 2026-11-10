@@ -8,13 +8,11 @@ Endpoints:
 - PATCH /heartbeat/notifications/{id}/feedback: Submit notification feedback
 """
 
-from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_internal_error,
@@ -38,6 +36,7 @@ from src.domains.heartbeat.schemas import (
     HeartbeatSettingsUpdate,
 )
 from src.domains.heartbeat.source_availability import compute_available_sources
+from src.domains.shared.display_query import DisplayQuery, display_query
 from src.domains.users.models import User
 from src.infrastructure.observability.logging import get_logger
 
@@ -48,7 +47,7 @@ router = APIRouter(
     tags=["Heartbeat"],
     # The deployment ceiling decides whether this router is mounted at all.
     # The operator's switch guards the ACTS — the three sweeps read it at
-    # call time — never this router: settings, history, offers and feedback
+    # call time — never this router: settings, history and feedback
     # are the record the person keeps reading and changing whatever the
     # switch says (ADR-280 amendment, 2026-09-11; measured on docker dev, the
     # router still answered 403 with the switch off).
@@ -140,42 +139,18 @@ async def get_heartbeat_history(
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
+    criteria: DisplayQuery = Depends(display_query),
 ) -> HeartbeatHistoryResponse:
     """Get paginated heartbeat notification history."""
     repo = HeartbeatNotificationRepository(db)
-    notifications, total = await repo.get_history(user_id=user.id, limit=limit, offset=offset)
+    notifications, total = await repo.get_history(
+        user_id=user.id, limit=limit, offset=offset, criteria=criteria
+    )
 
     return HeartbeatHistoryResponse(
         notifications=[HeartbeatNotificationResponse.from_model(n) for n in notifications],
         total=total,
-    )
-
-
-@router.get(
-    "/offers",
-    response_model=HeartbeatHistoryResponse,
-    summary="Open missed-routine offers (proposals inbox)",
-    description=(
-        "Undecided habit offers (Lot 5-C2): notifications carrying a "
-        "habit_offer_id and no feedback yet, inside the recency window. "
-        "Deciding one rides PATCH /notifications/{id}/feedback (ADR-214)."
-    ),
-)
-async def get_open_offers(
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    user: User = Depends(get_current_active_session),
-    db: AsyncSession = Depends(get_db),
-) -> HeartbeatHistoryResponse:
-    """List the user's open missed-routine offers, newest first."""
-    since = datetime.now(UTC) - timedelta(days=settings.heartbeat_offers_window_days)
-    repo = HeartbeatNotificationRepository(db)
-    notifications, total = await repo.get_open_offers(
-        user_id=user.id, since=since, limit=limit, offset=offset
-    )
-    return HeartbeatHistoryResponse(
-        notifications=[HeartbeatNotificationResponse.from_model(n) for n in notifications],
-        total=total,
+        as_of=criteria.as_of,
     )
 
 
@@ -217,16 +192,6 @@ async def submit_heartbeat_feedback(
         target_id=notification_id,
         feedback_value=data.feedback,
     )
-
-    # ADR-214 — close the habit feedback loop: a verdict on a notification
-    # that carried a missed-routine offer is a verdict on the habit itself.
-    row = await repo.get_by_id(notification_id)
-    if row is not None and row.habit_offer_id is not None:
-        from src.domains.habits.repository import HabitsRepository
-
-        await HabitsRepository(db).record_feedback(
-            row.habit_offer_id, user.id, positive=(data.feedback == "thumbs_up")
-        )
 
     # ADR-214 amendment (2026-09-03): a thumb is an explicit human act — a
     # presence hour for the rhythm detector (the notification itself never is).

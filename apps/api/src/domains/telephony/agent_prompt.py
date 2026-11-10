@@ -33,7 +33,7 @@ import json
 from dataclasses import dataclass
 
 from src.core.i18n_telephony import get_greeting_first_message
-from src.domains.telephony.client import override_permissions
+from src.domains.telephony.client import agent_prompt_settings, override_permissions
 from src.domains.telephony.prompts.loader import load_telephony_prompt
 
 # Structured data the agent must collect during the call. The identifiers MUST
@@ -161,6 +161,8 @@ def agent_config_fingerprint(cfg: AgentConfig) -> str:
         # connector provisioned before it drifts and is re-synced before the
         # owner is dialled — without it the vendor refuses the override.
         "overrides": override_permissions(),
+        # The vendor's default persona dropped (ADR-373): same rule, same drift.
+        "prompt_settings": agent_prompt_settings(),
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]

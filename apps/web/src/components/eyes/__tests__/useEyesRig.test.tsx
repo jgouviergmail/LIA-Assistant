@@ -61,7 +61,7 @@ describe('useEyesRig — the sketch clock', () => {
   it('constructs a valid native rig when its style is omitted', () => {
     const face = render(<NativeDefaultHost />);
     expect(seen.options).toHaveLength(1);
-    expect(seen.options[0].initial?.styleId).toBe('smiley');
+    expect(seen.options[0].initial?.styleId).toBe('cozmo');
     expect(face.container.firstElementChild?.getAttribute('style')).toContain('--rig-r-top-l:');
     expect(activeFrameSubscribers()).toBe(0);
     face.unmount();

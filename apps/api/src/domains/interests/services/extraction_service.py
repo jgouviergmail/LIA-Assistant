@@ -75,6 +75,7 @@ from src.domains.interests.services.extraction_storage import (
 )
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.shared.extraction_targets import (
+    extraction_window,
     find_last_user_message,
     is_synthetic_message,
 )
@@ -551,9 +552,7 @@ async def _analyze_interests_core(
         else str(last_human_message.content)
     )
 
-    # Get minimal context: last 4 messages before the target message
-    context_start = max(0, last_human_index - 3)
-    context_messages = messages[context_start : last_human_index + 1]
+    context_messages = extraction_window(messages, last_human_index)
 
     user_uuid = UUID(user_id)
 
@@ -630,6 +629,7 @@ async def _analyze_interests_core(
 
     # Parse extraction result
     extracted_interests = _parse_extraction_result(result_content)
+    observation.set_proposals(len(extracted_interests))
 
     # Build result
     analysis_result = InterestAnalysisResult(

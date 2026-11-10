@@ -17,7 +17,7 @@
  * its label (`apps/web/CLAUDE.md`).
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import type { ReactNode } from 'react';
 
 export interface FormSectionProps {

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { UserRound } from 'lucide-react';
+import { UserRound } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';

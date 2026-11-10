@@ -17,7 +17,7 @@ import {
   Podcast,
   Radio,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useId, useState, type ReactNode } from 'react';
 
 import { Disclosure } from '@/components/ui/disclosure';

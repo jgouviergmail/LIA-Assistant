@@ -6,13 +6,16 @@ number the text does not hold never reaches the page. The whole message is read,
 assistant keeps (ADR-287), since a signature is exactly what that one leaves out.
 
 From a photographed card: the picture is redrawn before anything reads it, so a phone's GPS stays
-behind, and the vision slot reads it. Nothing is created either way: the person's editor opens filled,
-and they save it or not.
+behind, and the vision slot reads it. From a sentence the person says or types (2026-11-07): a value
+reaches the form only if every word of it was said — a number by its digits — so the model may set an
+address on lines or spell a dictated e-mail, never add a word nobody said. Nothing is created either
+way: the person's editor opens filled, and they save it or not.
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final
@@ -33,6 +36,7 @@ from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.protocols import EmailClientProtocol
+from src.domains.shared.text_normalization import fold_name
 from src.domains.tool_assists.catalogue import SECTION_CONTACTS, SECTION_MAIL
 from src.domains.tool_assists.door import AssistRun
 from src.domains.tool_assists.llm import ask_slot, ask_slot_on_image
@@ -89,6 +93,12 @@ class CardDraft(BaseModel):
     emails: list[str] = Field(default_factory=list, description="The addresses, as written.")
     phones: list[str] = Field(default_factory=list, description="The numbers, as written.")
     address: str = Field(default="", description="The postal address, its lines kept.")
+
+
+class WordsDraft(CardDraft):
+    """What the model reads in a person's words; empty means they do not say."""
+
+    found: bool = Field(description="The words describe someone to save as a contact.")
 
 
 class ProposedContact(BaseModel):
@@ -305,6 +315,82 @@ def proposed_contact(draft: CardDraft) -> ProposedContact:
     if not (draft.found and named):
         refuse(ASSIST_NOT_FOUND)
     return proposal
+
+
+def _words(text: str) -> list[str]:
+    """A text's words, case and accents aside."""
+    return [fold_name(word) for word in re.findall(r"\w+", text)]
+
+
+def said_in_words(value: str, words: str, *, number: bool = False) -> bool:
+    """Whether a person's words hold a value: a number by its digits, the rest by its words.
+
+    Every word of the value must be said, in any order and case, accents aside: the model may set
+    an address on lines or write « ines arobase acme point fr » as an address, never add a word.
+
+    Args:
+        value: What the model read.
+        words: What the person said.
+        number: The value is a phone number.
+
+    Returns:
+        The words hold it.
+    """
+    if number:
+        digits = _digits(value)
+        return bool(digits) and digits in _digits(words)
+    said = set(_words(words))
+    wanted = _words(value)
+    return bool(wanted) and all(word in said for word in wanted)
+
+
+def proposed_contact_from_words(draft: WordsDraft, words: str) -> ProposedContact:
+    """What the editor can take of a sentence: only what it says.
+
+    Args:
+        draft: What the model read.
+        words: What the person said.
+
+    Returns:
+        The filled form.
+
+    Raises:
+        BaseAPIException: The words describe nobody, or name nobody they say.
+    """
+
+    def kept(value: str) -> str:
+        return value if said_in_words(value, words) else ""
+
+    return proposed_contact(
+        CardDraft(
+            found=draft.found,
+            given_name=kept(draft.given_name),
+            family_name=kept(draft.family_name),
+            organization=kept(draft.organization),
+            job_title=kept(draft.job_title),
+            website=kept(draft.website),
+            emails=[address for address in draft.emails if said_in_words(address, words)],
+            phones=[phone for phone in draft.phones if said_in_words(phone, words, number=True)],
+            address=kept(draft.address),
+        )
+    )
+
+
+async def contact_from_words(run: AssistRun, sentence: str) -> ProposedContact:
+    """Fill a new contact from what the person says: nothing is created.
+
+    Args:
+        run: The assist's run.
+        sentence: Their words, typed or dictated.
+
+    Returns:
+        The filled form.
+
+    Raises:
+        BaseAPIException: The words describe nobody, or no usable answer came.
+    """
+    prompt = load_prompt("tool_assist_contact_words_prompt").format(sentence=sentence)
+    return proposed_contact_from_words(await ask_slot(run, prompt, WordsDraft), sentence)
 
 
 async def contact_from_card(run: AssistRun, data: bytes) -> ProposedContact:

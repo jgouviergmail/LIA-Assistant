@@ -216,8 +216,12 @@ test.describe('the cards of an answer', () => {
 
     // The words stay in view; the card the response node appended is folded.
     await expect(page.getByText('Your quarter is', { exact: false })).toBeVisible();
-    const card = page.getByRole('link', { name: 'Board review' });
-    await expect(card).toHaveCount(0);
+    // A historical source title is inert when Tools is unavailable; folding
+    // preserves its facts independently of whether navigation is offered.
+    const card = page
+      .locator('.lia-event .lia-card-top__title')
+      .filter({ hasText: 'Board review' });
+    await expect(card).toBeHidden();
     const summary = page.locator('details.lia-card-group > summary');
     await expect(summary).toHaveText('Show details');
 
@@ -226,6 +230,10 @@ test.describe('the cards of an answer', () => {
     await expect(summary).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(card).toBeInViewport();
+    await expect(page.locator('.lia-event').getByText('Monday', { exact: true })).toBeVisible();
+    await expect(
+      page.locator('.lia-event').getByText('10:00 - 11:00', { exact: true })
+    ).toBeVisible();
 
     const scan = await scanPage(page, test.info(), 'answer card group');
     expect(scan.blocking, `axe violations on the card group:\n${scan.summary}`).toHaveLength(0);

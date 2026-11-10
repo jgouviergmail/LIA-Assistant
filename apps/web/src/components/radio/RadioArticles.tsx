@@ -17,7 +17,7 @@
  * only a web address ever becomes a link, opened without a referrer.
  */
 
-import { ExternalLink, FileText, Newspaper, RotateCcw } from 'lucide-react';
+import { ExternalLink, FileText, Newspaper, RotateCcw } from '@/lib/icons';
 import { useId } from 'react';
 
 import { Button } from '@/components/ui/button';

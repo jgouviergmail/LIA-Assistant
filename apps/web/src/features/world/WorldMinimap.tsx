@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass } from 'lucide-react';
+import { Compass } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

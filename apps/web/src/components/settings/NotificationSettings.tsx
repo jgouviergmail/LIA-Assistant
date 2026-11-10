@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Bell, Smartphone, Monitor, Trash2 } from 'lucide-react';
+import { Bell, Smartphone, Monitor, Trash2 } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { InfoBox } from '@/components/ui/info-box';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

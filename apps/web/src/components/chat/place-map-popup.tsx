@@ -1,11 +1,9 @@
 'use client';
 
-import { useLayoutEffect, useRef, type ComponentProps, type RefObject } from 'react';
-import { createPortal } from 'react-dom';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useMemo, type ComponentProps, type RefObject } from 'react';
 import type { mountPlaceMap } from '@/lib/google-place-map';
-import { PlaceMapDetails, PlaceMapTitle } from './place-map-details';
+import { PlaceMapDetails } from './place-map-details';
+import { MapDetailsPopup } from './map-details-popup';
 
 type DetailsProps = ComponentProps<typeof PlaceMapDetails>;
 export interface PlacePopup {
@@ -29,51 +27,13 @@ export function PlaceMapPopup({
   onRetry(): void;
   onDismiss(): void;
 }) {
-  const phone = useMediaQuery('(max-width: 639px)');
-  const title = useRef<HTMLHeadingElement>(null);
-  useLayoutEffect(() => {
-    const map = controller.current;
-    if (phone) map?.clearDetails();
-    else map?.showDetails(popup.place.ref, popup.element, popup.header, onDismiss);
-    return () => map?.clearDetails();
-  }, [phone, popup, controller, onDismiss]);
-
-  const details = (
-    <PlaceMapDetails place={popup.place} route={route} onRetry={onRetry} showTitle={false} />
+  const target = useMemo(
+    () => ({ ...popup, ref: popup.place.ref, label: popup.place.label }),
+    [popup]
   );
-  if (!phone)
-    return (
-      <>
-        {createPortal(<PlaceMapTitle place={popup.place} />, popup.header)}
-        {createPortal(details, popup.element)}
-      </>
-    );
-
   return (
-    <Dialog open onOpenChange={open => !open && onDismiss()}>
-      <DialogContent
-        className="lia-place-details-dialog top-auto translate-y-0"
-        aria-describedby={undefined}
-        onOpenAutoFocus={event => {
-          event.preventDefault();
-          title.current?.focus();
-        }}
-        onCloseAutoFocus={event => {
-          if (popup.invoker?.isConnected) {
-            event.preventDefault();
-            popup.invoker.focus({ preventScroll: true });
-          }
-        }}
-      >
-        <div className="lia-place-details-dialog__body">
-          <div className="lia-place-details-dialog__heading">
-            <DialogTitle asChild>
-              <PlaceMapTitle ref={title} place={popup.place} tabIndex={-1} />
-            </DialogTitle>
-          </div>
-          <div className="lia-place-details-dialog__facts">{details}</div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <MapDetailsPopup popup={target} controller={controller} onDismiss={onDismiss}>
+      <PlaceMapDetails place={popup.place} route={route} onRetry={onRetry} showTitle={false} />
+    </MapDetailsPopup>
   );
 }

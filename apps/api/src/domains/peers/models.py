@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -296,6 +297,17 @@ class PeerMessage(BaseModel):
         String(50),
         nullable=True,
         comment="Typed error code of the last failure — never raw exception text.",
+    )
+    claim_token: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    claim_generation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    generation_started: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    prepared_text_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Encrypted rendition awaiting atomic archival; same retention TTL.",
     )
 
     __table_args__ = (

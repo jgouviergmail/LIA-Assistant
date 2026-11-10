@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useId, useState } from 'react';
-import { Play, Radio, Timer, Users } from 'lucide-react';
+import { Play, Radio, Timer, Users } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';

@@ -11,10 +11,6 @@ class JevUsage(StrEnum):
     """Shipped, independently switchable decision points."""
 
     MEETING_TEMPLATE = "meeting_template"
-    FILTER_EMAIL = "filter_email"
-    FILTER_EVENT = "filter_event"
-    FILTER_TASK = "filter_task"
-    FILTER_FILE = "filter_file"
     RADIO_VERIFICATION = "radio_verification"
     CONSULTATION_PATH = "consultation_path"
     CONSULTATION_BOUNDED = "consultation_bounded"
@@ -22,12 +18,7 @@ class JevUsage(StrEnum):
     OBSERVE_INTERESTS = "observe_interests"
     OBSERVE_JOURNAL = "observe_journal"
     OBSERVE_OPEN_LOOPS = "observe_open_loops"
-    INITIATIVE_UTILITY = "initiative_utility"
     HITL_EXCLUSION = "hitl_exclusion"
-    FILTER_REMINDER = "filter_reminder"
-    FILTER_TICKET = "filter_ticket"
-    FILTER_MCP = "filter_mcp"
-    FILTER_DOCUMENT = "filter_document"
     MEMORY_REFERENCE_PRESENCE = "memory_reference_presence"
     HITL_REJECTION = "hitl_rejection"
     PARAMETER_KIND = "parameter_kind"
@@ -37,11 +28,16 @@ class JevUsage(StrEnum):
 
 @dataclass(frozen=True)
 class JevUsageSpec:
-    """One usage's routing, configuration and translated presentation."""
+    """One usage's routing, configuration, translated presentation and stored thresholds.
+
+    ``thresholds_key`` is ``None`` for a usage that decides nothing (the observers); the
+    gates it stores are declared in ``jev_gates.py``, which checks both lists agree.
+    """
 
     setting_key: SystemSettingKey
     llm_type: str
     label_key: str
+    thresholds_key: SystemSettingKey | None = None
 
 
 JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
@@ -49,46 +45,25 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         SystemSettingKey.JEV_MEETING_TEMPLATE_ENABLED,
         "meeting_template_selection",
         "settings.admin.jev.usages.meeting_template",
-    ),
-    JevUsage.FILTER_EMAIL: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_EMAIL_ENABLED,
-        "jev_filter_email",
-        "settings.admin.jev.usages.filter_email",
-    ),
-    JevUsage.FILTER_EVENT: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_EVENT_ENABLED,
-        "jev_filter_event",
-        "settings.admin.jev.usages.filter_event",
-    ),
-    JevUsage.FILTER_TASK: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_TASK_ENABLED,
-        "jev_filter_task",
-        "settings.admin.jev.usages.filter_task",
-    ),
-    JevUsage.FILTER_FILE: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_FILE_ENABLED,
-        "jev_filter_file",
-        "settings.admin.jev.usages.filter_file",
+        SystemSettingKey.JEV_MEETING_TEMPLATE_THRESHOLDS,
     ),
     JevUsage.RADIO_VERIFICATION: JevUsageSpec(
         SystemSettingKey.JEV_RADIO_VERIFICATION_ENABLED,
         "jev_radio_verification",
         "settings.admin.jev.usages.radio_verification",
+        SystemSettingKey.JEV_RADIO_VERIFICATION_THRESHOLDS,
     ),
     JevUsage.CONSULTATION_PATH: JevUsageSpec(
         SystemSettingKey.JEV_CONSULTATION_PATH_ENABLED,
         "jev_consultation_path",
         "settings.admin.jev.usages.consultation_path",
+        SystemSettingKey.JEV_CONSULTATION_PATH_THRESHOLDS,
     ),
     JevUsage.CONSULTATION_BOUNDED: JevUsageSpec(
         SystemSettingKey.JEV_CONSULTATION_BOUNDED_ENABLED,
         "jev_consultation_bounded",
         "settings.admin.jev.usages.consultation_bounded",
-    ),
-    JevUsage.INITIATIVE_UTILITY: JevUsageSpec(
-        SystemSettingKey.JEV_INITIATIVE_UTILITY_ENABLED,
-        "jev_initiative_utility",
-        "settings.admin.jev.usages.initiative_utility",
+        SystemSettingKey.JEV_CONSULTATION_BOUNDED_THRESHOLDS,
     ),
     JevUsage.OBSERVE_MEMORY: JevUsageSpec(
         SystemSettingKey.JEV_OBSERVE_MEMORY_ENABLED,
@@ -114,51 +89,37 @@ JEV_USAGES: dict[JevUsage, JevUsageSpec] = {
         SystemSettingKey.JEV_HITL_EXCLUSION_ENABLED,
         "jev_hitl_exclusion",
         "settings.admin.jev.usages.hitl_exclusion",
-    ),
-    JevUsage.FILTER_REMINDER: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_REMINDER_ENABLED,
-        "jev_filter_reminder",
-        "settings.admin.jev.usages.filter_reminder",
-    ),
-    JevUsage.FILTER_TICKET: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_TICKET_ENABLED,
-        "jev_filter_ticket",
-        "settings.admin.jev.usages.filter_ticket",
-    ),
-    JevUsage.FILTER_MCP: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_MCP_ENABLED,
-        "jev_filter_mcp",
-        "settings.admin.jev.usages.filter_mcp",
-    ),
-    JevUsage.FILTER_DOCUMENT: JevUsageSpec(
-        SystemSettingKey.JEV_FILTER_DOCUMENT_ENABLED,
-        "jev_filter_document",
-        "settings.admin.jev.usages.filter_document",
+        SystemSettingKey.JEV_HITL_EXCLUSION_THRESHOLDS,
     ),
     JevUsage.MEMORY_REFERENCE_PRESENCE: JevUsageSpec(
         SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_ENABLED,
         "jev_memory_reference_presence",
         "settings.admin.jev.usages.memory_reference_presence",
+        SystemSettingKey.JEV_MEMORY_REFERENCE_PRESENCE_THRESHOLDS,
     ),
     JevUsage.HITL_REJECTION: JevUsageSpec(
         SystemSettingKey.JEV_HITL_REJECTION_ENABLED,
         "jev_hitl_rejection",
         "settings.admin.jev.usages.hitl_rejection",
+        SystemSettingKey.JEV_HITL_REJECTION_THRESHOLDS,
     ),
     JevUsage.PARAMETER_KIND: JevUsageSpec(
         SystemSettingKey.JEV_PARAMETER_KIND_ENABLED,
         "jev_parameter_kind",
         "settings.admin.jev.usages.parameter_kind",
+        SystemSettingKey.JEV_PARAMETER_KIND_THRESHOLDS,
     ),
     JevUsage.EMAIL_CLASSIFICATION: JevUsageSpec(
         SystemSettingKey.JEV_EMAIL_CLASSIFICATION_ENABLED,
         "jev_email_classification",
         "settings.admin.jev.usages.email_classification",
+        SystemSettingKey.JEV_EMAIL_CLASSIFICATION_THRESHOLDS,
     ),
     JevUsage.EVENT_CLASSIFICATION: JevUsageSpec(
         SystemSettingKey.JEV_EVENT_CLASSIFICATION_ENABLED,
         "jev_event_classification",
         "settings.admin.jev.usages.event_classification",
+        SystemSettingKey.JEV_EVENT_CLASSIFICATION_THRESHOLDS,
     ),
 }
 
@@ -169,10 +130,12 @@ def assert_jev_registry_complete() -> None:
         key for key, meta in LLM_TYPES_REGISTRY.items() if meta.required_kind.value == "decision"
     }
     keys = {spec.setting_key for spec in JEV_USAGES.values()}
+    thresholds = [spec.thresholds_key for spec in JEV_USAGES.values() if spec.thresholds_key]
     if (
         set(JEV_USAGES) != set(JevUsage)
         or {spec.llm_type for spec in JEV_USAGES.values()} != slots
         or len(keys) != len(JEV_USAGES)
+        or len(thresholds) != len(set(thresholds))
     ):
         raise RuntimeError("Jev usage registry is incomplete or has shared switches")
 

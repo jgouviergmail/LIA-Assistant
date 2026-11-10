@@ -28,6 +28,7 @@ describe('originFromPathname', () => {
   it.each([
     ['/fr/dashboard/chat', 'chat'],
     ['/en/dashboard/relations', 'relations'],
+    ['/fr/dashboard/spaces', 'spaces'],
     ['/de/dashboard/notifications', 'notifications'],
     ['/zh/dashboard/settings', 'settings'],
     ['/it/dashboard/faq', 'faq'],
@@ -39,12 +40,12 @@ describe('originFromPathname', () => {
     // `/dashboard/settings?section=meetings` and `/dashboard/spaces/<id>` are
     // both "the screen I was on".
     expect(originFromPathname('/fr/dashboard/settings/anything')).toBe('settings');
+    expect(originFromPathname('/fr/dashboard/spaces/space-id')).toBe('spaces');
   });
 
   it('answers null for a screen that is not a destination', () => {
-    // Deliberate: the token vocabulary is closed. A back button pointing at
-    // `/dashboard/spaces` would need that screen in the table first.
-    expect(originFromPathname('/fr/dashboard/spaces')).toBeNull();
+    // The token vocabulary stays closed to the declared navigation destinations.
+    expect(originFromPathname('/fr/dashboard/unknown')).toBeNull();
   });
 
   it('answers null outside the dashboard', () => {

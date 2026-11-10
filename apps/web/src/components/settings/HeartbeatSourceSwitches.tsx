@@ -15,8 +15,8 @@ import {
   Navigation,
   Repeat,
   Sparkles,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { RefusalSwitches } from '@/components/settings/RefusalSwitches';

@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react';
-import { Check, Reply, ShieldOff, X } from 'lucide-react';
+import { Check, Reply, ShieldOff, X } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/ui/use-confirm';

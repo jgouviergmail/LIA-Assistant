@@ -61,12 +61,12 @@ describe('createEyeRig', () => {
     expect(posedOnly(rig.values())).toEqual(posedOnly(resolvePose('sad', 'cozmo')));
   });
 
-  it('starts on the Smiley neutral pose by default, already breathing', () => {
+  it('starts on the Cozmo neutral pose by default, already breathing', () => {
     // Every channel the idle loops do NOT ride sits exactly on its pose value.
     // The ones they do ride are already off it on the very first frame, and
     // must be: the moving hold is what keeps a resting face from freezing.
     const values = createEyeRig().values();
-    const rest = resolvePose('neutral', 'smiley');
+    const rest = resolvePose('neutral', 'cozmo');
     // Budget per channel = the sum of the amplitudes riding it, in that
     // channel's own unit (a rotation drifts in degrees, a mass in units).
     const budget = new Map<ChannelKey, number>();

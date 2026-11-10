@@ -51,9 +51,13 @@ it('keeps the SMS hub body unmounted until opened and does not invent a zero cou
   expect(screen.getByText('7')).toBeVisible();
   unfold('sms.title');
   await waitFor(() => expect(post).toHaveBeenCalled());
-  expect(post.mock.lastCall?.slice(0, 2)).toEqual(['/sms/search', { limit: 10 }]);
+  expect(post.mock.lastCall?.slice(0, 2)).toEqual([
+    '/sms/display-search',
+    expect.objectContaining({ limit: 10, sort: 'recent' }),
+  ]);
   expect(get).not.toHaveBeenCalled();
-  expect(screen.queryByRole('search')).not.toBeInTheDocument();
+  expect(screen.getByRole('search')).toBeVisible();
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'sms.by_sender' })).not.toBeInTheDocument();
 });
 it('pages received SMS in server chronology, retains focus during reads, and re-reads in place after erasure', async () => {

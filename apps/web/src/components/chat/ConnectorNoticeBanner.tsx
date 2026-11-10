@@ -21,7 +21,7 @@
  */
 
 import { useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, X } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 

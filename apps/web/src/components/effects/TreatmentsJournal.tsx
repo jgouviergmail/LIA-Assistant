@@ -20,7 +20,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Eye, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, XCircle } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import {

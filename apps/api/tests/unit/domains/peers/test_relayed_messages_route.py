@@ -25,34 +25,40 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.peers.router import list_relayed_messages
-from src.domains.peers.schemas import PeerMessageActivity
+from src.domains.peers.schemas import RelayedMessageItem, RelayedMessagePage
+from src.domains.shared.display_query import DisplayQuery
+from src.domains.users.models import User
 
 pytestmark = pytest.mark.unit
 
 
-def _user() -> MagicMock:
-    user = MagicMock()
-    user.id = uuid.uuid4()
-    return user
+def _user() -> User:
+    return User(id=uuid.uuid4())
 
 
-def _activity(index: int, *, text: str | None = "ce que j'ai dit") -> PeerMessageActivity:
-    return PeerMessageActivity(
-        message_id=uuid.uuid4(),
-        peer_id=uuid.uuid4(),
+def _activity(index: int, *, text: str | None = "ce que j'ai dit") -> RelayedMessageItem:
+    return RelayedMessageItem(
+        id=str(uuid.uuid4()),
         peer_display_name="Marie Client",
         direction="received" if index % 2 else "sent",
         occurred_at=datetime(2026, 8, 3, 10, index, tzinfo=UTC),
-        text=text,
+        content=text,
     )
 
 
-async def _call(*, rows: list[PeerMessageActivity], total: int, limit: int = 10, offset: int = 0):
+async def _call(
+    *, rows: list[RelayedMessageItem], total: int, limit: int = 10, offset: int = 0
+) -> tuple[RelayedMessagePage, MagicMock, User]:
     user = _user()
-    with patch("src.domains.peers.router.PeersRepository") as repo_cls:
-        repo_cls.return_value.list_delivered_message_activity = AsyncMock(return_value=rows)
-        repo_cls.return_value.count_delivered_messages = AsyncMock(return_value=total)
-        page = await list_relayed_messages(limit=limit, offset=offset, user=user, db=AsyncMock())
+    with patch("src.domains.peers.router.PeerHistoryRepository") as repo_cls:
+        repo_cls.return_value.page = AsyncMock(return_value=(rows, total))
+        page = await list_relayed_messages(
+            limit=limit,
+            offset=offset,
+            criteria=DisplayQuery(q="été", sort="name"),
+            user=user,
+            db=AsyncMock(),
+        )
         return page, repo_cls.return_value, user
 
 
@@ -66,13 +72,17 @@ class TestTheRelayedMessagesPage:
     async def test_the_page_window_reaches_the_repository(self) -> None:
         _, repo, user = await _call(rows=[], total=0, limit=25, offset=50)
 
-        repo.list_delivered_message_activity.assert_awaited_once_with(user.id, limit=25, offset=50)
+        repo.page.assert_awaited_once_with(
+            user.id, limit=25, offset=50, criteria=DisplayQuery(q="été", sort="name")
+        )
 
     async def test_the_count_is_scoped_to_the_caller(self) -> None:
         """A total is a claim ABOUT this account — never a global figure."""
         _, repo, user = await _call(rows=[], total=0)
 
-        repo.count_delivered_messages.assert_awaited_once_with(user.id)
+        repo.page.assert_awaited_once_with(
+            user.id, limit=10, offset=0, criteria=DisplayQuery(q="été", sort="name")
+        )
 
     async def test_it_carries_the_callers_own_side_of_the_exchange(self) -> None:
         page, _, _ = await _call(rows=[_activity(0, text="rappelle-lui le devis")], total=1)

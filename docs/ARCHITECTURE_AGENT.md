@@ -6,6 +6,12 @@
 
 Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau connecteur, d'un nouvel agent ou d'un nouveau tool dans LIA. Il est basé sur l'architecture réelle du système et les patterns établis.
 
+L'envoi explicitement demandé à un pair utilise la politique native `direct` :
+pas de brouillon de confirmation, mais une revendication durable de l'action,
+une résolution non ambiguë du destinataire et un résultat de livraison distinct
+de l'admission. Les autres confirmations restent inchangées. Le contrat et
+les contraintes de migration sont dans [ADR-263](architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md).
+
 **Où lire quoi** — quatre documents couvrent ce domaine, et chacun fait autorité
 sur une question précise :
 

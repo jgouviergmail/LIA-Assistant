@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from langgraph.store.memory import InMemoryStore
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,18 +44,25 @@ KEYWORD_VECTOR = [0.2] * MEMORY_EMBEDDING_DIMENSIONS
 def embedder() -> Iterator[AsyncMock]:
     """The provider is the only thing replaced: the route, the service and the rows are real."""
     with patch(
-        "src.domains.memories.service._generate_dual_embeddings",
-        new=AsyncMock(return_value=(CONTENT_VECTOR, None)),
+        "src.domains.memories.creation_embeddings._generate_document_embedding",
+        new=AsyncMock(return_value=CONTENT_VECTOR),
     ) as stub:
         yield stub
 
 
 @pytest.fixture
 async def client(async_session: AsyncSession, test_user: User) -> AsyncIterator[httpx.AsyncClient]:
+    async def authenticated(db: AsyncSession = Depends(get_db)) -> User:
+        # Production reads the account on the request's own session (`_authenticate`):
+        # the edit's transaction is open before the route's first line.
+        account = await db.scalar(select(User).where(User.id == test_user.id))
+        assert account is not None
+        return account
+
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_db] = lambda: async_session
-    app.dependency_overrides[get_current_active_session] = lambda: test_user
+    app.dependency_overrides[get_current_active_session] = authenticated
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as http:
@@ -104,10 +111,36 @@ async def test_an_edit_at_the_ceiling_is_saved_with_its_new_vector(
 
     assert response.status_code == 200, response.text
     assert response.json()["content"] == text
-    embedder.assert_awaited_once()
+    assert embedder.await_count == 2
     current = await _reread(async_session, row)
     assert current.content == text
     assert current.char_count == len(text)
+    assert current.embedding is not None
+    assert list(current.embedding) == pytest.approx(CONTENT_VECTOR)
+
+
+async def test_no_transaction_is_held_while_the_vectors_are_computed(
+    async_session: AsyncSession,
+    test_user: User,
+    client: httpx.AsyncClient,
+    embedder: AsyncMock,
+) -> None:
+    """A vector is a network call: the edit's reads are committed before it (ADR-304)."""
+    row = await _stored(async_session, test_user)
+    held: list[bool] = []
+
+    async def provider(content: str) -> list[float]:
+        held.append(async_session.in_transaction())
+        return CONTENT_VECTOR
+
+    embedder.side_effect = provider
+
+    response = await client.patch(f"/memories/{row.id}", json={"content": "A revised fact"})
+
+    assert response.status_code == 200, response.text
+    assert held == [False, False]
+    current = await _reread(async_session, row)
+    assert current.content == "A revised fact"
     assert current.embedding is not None
     assert list(current.embedding) == pytest.approx(CONTENT_VECTOR)
 
@@ -167,7 +200,7 @@ async def test_a_cleared_nuance_and_topic_are_saved_empty(
     assert response.status_code == 200, response.text
     current = await _reread(async_session, row)
     assert current.usage_nuance == "" and current.trigger_topic == ""
-    embedder.assert_awaited_once_with("An owned fact", "")
+    embedder.assert_awaited_once_with("An owned fact")
 
 
 async def test_one_row_past_the_ceiling_leaves_the_list_open(
@@ -227,11 +260,9 @@ async def test_the_assistant_can_shorten_a_row_past_the_ceiling(
         patch("src.domains.agents.tools.application_memory_tools.get_db_context", session),
         patch("src.domains.agents.application.command_service.get_db_context", session),
         patch("src.domains.agents.application.draft_execution.get_db_context", session),
+        patch("src.domains.memories.creation_embeddings.enforce_usage_limit", budget),
         patch(
-            "src.domains.agents.application.memory_creation_embeddings.enforce_usage_limit", budget
-        ),
-        patch(
-            "src.domains.agents.application.memory_creation_embeddings._generate_document_embedding",
+            "src.domains.memories.creation_embeddings._generate_document_embedding",
             AsyncMock(return_value=None),
         ),
         patch("src.domains.agents.effects.runtime._LEDGER", ledger),

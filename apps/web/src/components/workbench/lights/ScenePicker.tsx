@@ -9,7 +9,7 @@
  * A scene moves many lamps, so the bridge is re-read after. A scene asked while
  * another is on its way is not sent twice.
  */
-import { Sparkles, Waves } from 'lucide-react';
+import { Sparkles, Waves } from '@/lib/icons';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';

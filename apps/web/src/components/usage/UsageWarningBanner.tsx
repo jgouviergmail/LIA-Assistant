@@ -14,7 +14,7 @@
  * ever resets.
  */
 
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';

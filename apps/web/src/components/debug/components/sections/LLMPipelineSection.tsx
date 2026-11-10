@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Workflow } from 'lucide-react';
+import { Workflow } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, NodeChip, SubSectionHeader } from '../shared';
 import { callModel, callModelTitle } from '../../utils/call-model';
 import { MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';

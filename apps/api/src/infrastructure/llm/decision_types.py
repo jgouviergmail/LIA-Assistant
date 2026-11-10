@@ -1,6 +1,8 @@
 """Portable result and accounting values for a native decision call."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,7 +28,9 @@ class DecisionAttempt:
     """A usable answer or a fallback code, keeping even unsuccessful paid usage.
 
     ``answer``/``answers`` hold Choice answers; ``nouls`` holds Noul answers by
-    question key (``"selection"`` for a single question).
+    question key (``"selection"`` for a single question). ``thresholds`` are the ones
+    the operation's snapshot froze (ADR-374); a consumer decides through
+    ``jev_gates.gate_passes``, which reads the declared default when none travelled.
     """
 
     answer: ChoiceAnswer | None = None
@@ -35,3 +39,4 @@ class DecisionAttempt:
     diagnostic: JevCallTrace | None = None
     answers: dict[str, ChoiceAnswer] = field(default_factory=dict)
     nouls: dict[str, NoulAnswer] = field(default_factory=dict)
+    thresholds: Mapping[str, Decimal] = field(default_factory=dict)

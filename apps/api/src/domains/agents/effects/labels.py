@@ -151,6 +151,7 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "delete_mailbox_drafts_tool": _nothing,
     # ADR-369: read / unread on any provider — the label counts, never names.
     "set_email_read_state_tool": _count("message_ids"),
+    "send_peer_message_tool": _recipient("recipient_name"),
     # ADR-369, lot 4: the sort counts, and a folder is named as the person named it.
     "organize_emails_tool": _count("message_ids"),
     "manage_mail_folder_tool": _target("name", "folder"),

@@ -269,6 +269,9 @@ export interface LiveOfferResponse {
   sdp: string;
 }
 
+/** How a session's voice expresses itself: the server decides it at the start (ADR-373). */
+export type LiveVoiceExpression = 'prose' | 'cues';
+
 /** `POST /live/sessions` — everything the browser needs to open the session. */
 export interface LiveSessionStart extends LiveCredential {
   session_id: string;
@@ -293,7 +296,11 @@ export interface LiveSessionStart extends LiveCredential {
   delegation_timeout_seconds: number;
   delegation_result_max_tokens: number;
   turn_text_max_chars: number;
-  /** This model's declared tariff (a model with no tariff never starts). */
+  /**
+   * How this session's voice expresses itself (ADR-373): in words alone, or with
+   * cues written inside its words, which a caption or a row never shows.
+   */
+  expression: LiveVoiceExpression;
   /** The model's declared tariff for the meter; null on a vendor-billed model (the clock alone). */
   rates: LiveRates | null;
   /** The connector's spend ceiling for this session (euros), if the person set one. */

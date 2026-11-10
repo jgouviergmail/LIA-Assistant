@@ -135,10 +135,10 @@ class HabitsOverviewResponse(BaseModel):
     chat_suggestions_enabled: bool = Field(
         default=True,
         description=(
-            "Whether this instance lets LIA offer an automation in the chat when a "
-            "recurring request locks (RECURRENCE_SUGGESTION_ENABLED). Learning and "
-            "the heartbeat offers do not depend on it; the panel says so rather "
-            "than letting the person wait for an offer that cannot come (ADR-184)."
+            "Whether this instance lets LIA show a habit proposal under a chat "
+            "answer (RECURRENCE_SUGGESTION_ENABLED, ADR-375). Learning and the "
+            "proposals inbox do not depend on it; the panel says so rather than "
+            "letting the person wait for a card that cannot come (ADR-184)."
         ),
     )
 

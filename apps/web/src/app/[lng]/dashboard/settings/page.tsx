@@ -48,6 +48,8 @@ import { useTranslation } from '@/i18n/client';
 import { buildSettingsShellModel } from '@/lib/settings-shell-model';
 import { isSettingsSectionToken, type SettingsSectionToken } from '@/lib/settings-sections';
 import { cn } from '@/lib/utils';
+import { Settings } from '@/lib/icons';
+import { SectionHeader } from '@/components/ui/section-header';
 
 interface SettingsPageProps {
   params: Promise<{ lng: string }>;
@@ -266,10 +268,12 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t('settings.title')}</h1>
-        <p className="mt-2 text-muted-foreground">{t('settings.subtitle')}</p>
-      </div>
+      <SectionHeader
+        level={1}
+        icon={Settings}
+        title={t('settings.title')}
+        description={t('settings.subtitle')}
+      />
 
       {/* Default stretch alignment on purpose: the aside must be as tall as
           the row for its sticky child to have travel room — `items-start`

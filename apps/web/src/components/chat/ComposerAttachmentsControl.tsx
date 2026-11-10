@@ -28,7 +28,7 @@ import {
   Paperclip,
   Plus,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { BookmarkPickerDialog } from '@/components/chat/BookmarkPickerDialog';
 import { GeneratedFilePickerDialog } from '@/components/chat/GeneratedFilePickerDialog';

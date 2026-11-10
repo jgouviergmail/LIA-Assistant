@@ -20,7 +20,7 @@
  * only when its tab is shown, so opening the page costs one request, not two.
  */
 
-import { BarChart3, ClipboardList, Eye, ShieldCheck, Sparkles } from 'lucide-react';
+import { BarChart3, ClipboardList, Eye, ShieldCheck, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Article12ExportCard } from '@/components/effects/Article12ExportCard';

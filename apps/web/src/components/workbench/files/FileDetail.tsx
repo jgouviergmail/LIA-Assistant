@@ -25,7 +25,7 @@ import {
   RotateCcw,
   Share2,
   Trash2,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useState, type ReactNode, type Ref } from 'react';
 
 import { Button } from '@/components/ui/button';

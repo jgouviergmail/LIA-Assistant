@@ -309,6 +309,7 @@ class GoogleTasksClient(BaseGoogleClient):
         *,
         details: TaskDetails | None = None,
         steps: Sequence[str] = (),
+        due_zone: str | None = None,
     ) -> dict[str, Any]:
         """
         Create a new task.
@@ -321,6 +322,7 @@ class GoogleTasksClient(BaseGoogleClient):
             parent: Parent task ID for creating subtasks (optional)
             details: To Do's alone: refused here, never dropped
             steps: To Do's alone: refused here, never dropped
+            due_zone: Ignored: Google keeps a date, in no zone (``core/task_due``)
 
         Returns:
             Created task data
@@ -375,6 +377,7 @@ class GoogleTasksClient(BaseGoogleClient):
         *,
         clear_due: bool = False,
         details: TaskDetails | None = None,
+        due_zone: str | None = None,
     ) -> dict[str, Any]:
         """
         Update an existing task.
@@ -392,6 +395,7 @@ class GoogleTasksClient(BaseGoogleClient):
             status: New status - "needsAction" or "completed" (optional)
             clear_due: Remove the due date (ADR-369)
             details: To Do's alone: refused here, never dropped
+            due_zone: Ignored: Google keeps a date, in no zone (``core/task_due``)
 
         Returns:
             Updated task data

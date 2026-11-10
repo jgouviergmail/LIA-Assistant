@@ -19,7 +19,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus } from '@/lib/icons';
 
 import { MeetingTemplateForm } from '@/components/meetings/MeetingTemplateForm';
 import { MeetingTemplateLibrary } from '@/components/meetings/MeetingTemplateLibrary';

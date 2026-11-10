@@ -59,6 +59,9 @@ def classification_view(value: object, now: datetime | None = None) -> dict[str,
     }
     if isinstance(annotation, EmailClassification):
         view["priority"] = annotation.priority
+        # Said only once decided: an undecided reply is no claim (ADR-374).
+        if annotation.reply_expected is not None:
+            view["reply_expected"] = str(annotation.reply_expected).lower()
     view["state"] = "current" if moment < annotation.valid_until else "expired"
     return view
 
@@ -73,6 +76,8 @@ def classification_text(value: object, now: datetime | None = None) -> str:
         labels.append(f"category={view['category']}")
     if view.get("priority", "unknown") != "unknown":
         labels.append(f"priority={view['priority']}")
+    if "reply_expected" in view:
+        labels.append(f"reply_expected={view['reply_expected']}")
     if not labels:
         return ""
     return (

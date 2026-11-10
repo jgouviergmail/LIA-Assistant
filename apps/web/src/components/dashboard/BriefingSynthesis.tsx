@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { LoaderCircle, Minus, Plus, Sparkles, Square, Volume2 } from 'lucide-react';
+import { LoaderCircle, Minus, Plus, Sparkles, Square, Volume2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';

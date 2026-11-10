@@ -1,6 +1,6 @@
 'use client';
 
-import { Blocks, Server } from 'lucide-react';
+import { Blocks, Server } from '@/lib/icons';
 import { Badge } from '@/components/ui/badge';
 import type { PluginComponentReport, PluginImportReport } from '@/hooks/usePlugins';
 

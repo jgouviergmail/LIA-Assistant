@@ -24,6 +24,7 @@ import {
   homeWorkboardPreviewName,
 } from '../fixtures/dashboard-home';
 import { appConfig } from '../fixtures/dashboard-shell';
+import { expectDarkIconControlContrast } from '../fixtures/icon-control-contrast';
 import { expectNoOverflow, prepareTheme } from './overflow-report';
 import { expectOnOneLine, expectUnder } from './phone-lines';
 import { scanPage } from '../a11y/scan';
@@ -1142,6 +1143,87 @@ test('a card refresh preserves its scroll area, keyboard focus and visible data'
   expect(await page.evaluate(() => window.scrollY)).toBeCloseTo(pageBefore, 0);
   expect(requests).toEqual([{ sections: ['agenda'] }]);
 });
+
+for (const sample of [
+  { iconStyle: 'fluent', theme: 'light' },
+  { iconStyle: 'fluent', theme: 'dark' },
+  { iconStyle: 'flex', theme: 'light' },
+  { iconStyle: 'flex', theme: 'dark' },
+] as const) {
+  test(`${sample.iconStyle} ${sample.theme}: briefing refresh remains visible and single-flight without motion`, async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const user = await authenticate({
+      language: 'fr',
+      timezone: HOME_TIMEZONE,
+      icon_style: sample.iconStyle,
+      theme: sample.theme,
+    });
+    await mockApi(homeRoutes(user));
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const requests: BriefingSection[] = [];
+    await mockApi([
+      {
+        url: CARD_REFRESH,
+        method: 'POST',
+        handler: async (route, signal) => {
+          const section = refreshedSection(route);
+          requests.push(section);
+          if (!(await waitForMockGate(gate, signal))) return;
+          await route.fulfill({ json: refreshedAgenda().cards[section] });
+        },
+      },
+    ]);
+    await readyHome(page, 'fr');
+    const card = briefingCard(page, 'agenda', 'fr');
+    const refresh = refreshControl(card, 'agenda', 'fr');
+    const paint = () =>
+      refresh.evaluate(element => {
+        const style = getComputedStyle(element);
+        return { border: style.borderTopColor, background: style.backgroundColor };
+      });
+    const idle = await paint();
+    if (sample.theme === 'dark') {
+      await refresh.hover();
+      await expect(refresh).toHaveAttribute('aria-busy', 'false');
+      await expectDarkIconControlContrast(refresh, testInfo, 'idle-hover');
+      await page.mouse.move(0, 0);
+      await expect.poll(paint).toEqual(idle);
+    }
+    try {
+      await refresh.focus();
+      await refresh.press('Enter');
+      await expect(refresh).toHaveAttribute('aria-busy', 'true');
+      await expect(refresh).toHaveAttribute('aria-disabled', 'true');
+      await expect(refresh).toBeFocused();
+      const busy = await paint();
+      expect(busy.border).not.toBe(idle.border);
+      expect(busy.background).not.toBe(idle.background);
+      await expect(refresh.locator('svg')).toHaveAttribute('data-icon-style', sample.iconStyle);
+      await expect(refresh.locator('svg')).toHaveCSS('animation-name', 'none');
+      if (sample.theme === 'dark') await expectDarkIconControlContrast(refresh, testInfo);
+      await refresh.press('Enter');
+      expect(requests).toEqual(['agenda']);
+      await card.screenshot({
+        path: testInfo.outputPath(`${sample.iconStyle}-${sample.theme}-briefing-busy.png`),
+      });
+    } finally {
+      release();
+    }
+    await expect(refresh).toHaveAttribute('aria-busy', 'false');
+    await expect(refresh).toHaveAttribute('aria-disabled', 'false');
+    await expect(refresh).toBeFocused();
+    expect(await paint()).toEqual(idle);
+    expect(requests).toEqual(['agenda']);
+  });
+}
 
 test('network error retains its stale page and Retry refreshes cards once without navigation', async ({
   page,

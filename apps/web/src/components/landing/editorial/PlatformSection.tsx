@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Activity, Cpu, BellRing, Users } from 'lucide-react';
+import { Activity, Cpu, BellRing, Users } from '@/lib/icons';
 import { initI18next } from '@/i18n';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';

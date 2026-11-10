@@ -23,7 +23,7 @@ import {
   Presentation,
   Star,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';

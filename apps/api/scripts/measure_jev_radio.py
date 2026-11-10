@@ -16,9 +16,11 @@ from time import perf_counter
 
 import httpx
 
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.radio.facts import FactKind, FactPack, RadioFact, Sensitivity, SourceRef
 from src.domains.radio.formats import RadioFormat, RadioRole
-from src.domains.radio.jev_checker import DECISION_MARGIN, verifier_request
+from src.domains.radio.jev_checker import verifier_request
 from src.domains.radio.script import LineKind, RadioDelivery, ScriptPart
 from src.domains.radio.verification import VerifiedLine
 from src.infrastructure.llm.typesafe_client import TypeSafeClient, TypeSafeError
@@ -124,7 +126,10 @@ if __name__ == "__main__":
         default=Path(__file__).parents[1] / "tests/fixtures/jev_radio_cases.json",
     )
     parser.add_argument(
-        "--margin", type=float, default=DECISION_MARGIN, help="decided when p <= m or p >= 1 - m"
+        "--margin",
+        type=float,
+        default=float(gate_defaults(JevUsage.RADIO_VERIFICATION)["line_margin"]),
+        help="decided when p <= m or p >= 1 - m",
     )
     args = parser.parse_args()
     credential = (

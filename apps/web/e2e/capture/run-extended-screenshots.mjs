@@ -243,19 +243,12 @@ if (mode === 'capture' || mode === 'typecheck') {
       return [key, copy[key]];
     })
   );
-  const fontCss = fs.readFileSync(
-    path.join(repo, 'apps/web/e2e/fixtures/fonts/material-symbols.css'),
-    'utf8'
-  );
-  const fontPath = path.join(repo, 'apps/web/e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2');
   const program = path.join(output, 'extended-capture-program.js');
   fs.writeFileSync(
     program,
     createExtendedCaptureCode(
       baseUrl,
       output,
-      fontCss,
-      fontPath,
       usedCopy,
       selection ? selectedNames : undefined
     )

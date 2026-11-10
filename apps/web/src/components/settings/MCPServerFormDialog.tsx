@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { AlertTriangle, Sparkles, Zap } from 'lucide-react';
+import { AlertTriangle, Sparkles, Zap } from '@/lib/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

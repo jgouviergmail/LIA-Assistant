@@ -9,8 +9,8 @@ import {
   LayoutGrid,
   Settings,
   Sparkles,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '@/lib/icons';
+import type { LucideIcon } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { HeadingRule } from '@/components/ui/heading-rule';
 import { cn } from '@/lib/utils';

@@ -11,7 +11,7 @@
  * during streaming, history view, or while the input is disabled.
  */
 
-import { CornerDownRight, Sparkles } from 'lucide-react';
+import { CornerDownRight, Sparkles } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import type { Message } from '@/types/chat';

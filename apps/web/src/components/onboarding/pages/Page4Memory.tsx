@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, Home, Users, Heart, Sparkles, Pin, Settings } from 'lucide-react';
+import { User, Home, Users, Heart, Sparkles, Pin, Settings } from '@/lib/icons';
 
 interface Page4MemoryProps {
   lng: Language;

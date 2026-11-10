@@ -27,14 +27,14 @@ import {
   HelpCircle,
   ListPlus,
   PenLine,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { chatDraftHref } from '@/lib/briefing-utils';
+import { chatDraftHref } from '@/lib/chat-href';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
 import type { PhoneCallDebrief } from '@/types/telephony';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 
 export interface CallDebriefProps {
   debrief: PhoneCallDebrief;

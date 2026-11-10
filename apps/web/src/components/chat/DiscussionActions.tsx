@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Clock3, MessageSquareOff, ThumbsUp, CircleHelp, Reply } from 'lucide-react';
+import { Clock3, MessageSquareOff, ThumbsUp, CircleHelp, Reply } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useApiMutation } from '@/hooks/useApiMutation';

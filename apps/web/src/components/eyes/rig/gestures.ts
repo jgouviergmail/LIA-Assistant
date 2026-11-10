@@ -5,12 +5,11 @@
  * exactly the set of properties the rig now writes every frame — a keyframe
  * REPLACES the property it animates, so the two could not coexist. Expressed
  * as tapes they compose instead: a half-blink during joy lowers the lid over
- * joy's dome rather than cancelling it, and a bounce lifts an eye from
+ * joy's dome rather than cancelling it, and a brow raise starts from
  * wherever the expression put it (hence `relative`).
  *
- * Gaze wander supplies a target to the same rig. Comic gestures also use
- * tapes, so interruptions preserve position and velocity instead of removing
- * a CSS animation halfway through its transform.
+ * Gaze wander supplies a target to the same rig. Conversational accents use
+ * tapes too, preserving position and velocity when interrupted.
  */
 
 import {
@@ -28,8 +27,9 @@ import type { SpringConfig } from '@/components/eyes/rig/spring';
 const BLINK_SPRING: SpringConfig = { frequency: 6.2, damping: 0.72 };
 const SLOW_BLINK_SPRING: SpringConfig = { frequency: 2.2, damping: 0.9 };
 const LID_SPRING: SpringConfig = { frequency: 3.6, damping: 0.95 };
-/** A hop rings: low damping is the whole point of a bounce. */
-const HOP_SPRING: SpringConfig = { frequency: 2.6, damping: 0.42 };
+/** Attention lands cleanly, without ringing after the thought has passed. */
+const ATTENTION_SPRING: SpringConfig = { frequency: 3.6, damping: 0.88 };
+const ACCENT_SPRING: SpringConfig = { frequency: 3.8, damping: 1 };
 /** Lips pressing together are quick and firm; a corner tugging is light and
  * rings a little, like the smile it almost was. */
 const PRESS_SPRING: SpringConfig = { frequency: 4.5, damping: 0.85 };
@@ -118,45 +118,6 @@ function lidBeat(
   ];
 }
 
-/** A relative beat on one channel of both eyes, the right one trailing. */
-function eyeBeat(
-  base: 'ty' | 'sy',
-  peak: number,
-  settle: number,
-  durationMs: number,
-  trailMs: number
-): Tape[] {
-  const keys = (offset: number) => [
-    { atMs: offset, value: peak },
-    { atMs: 230 + offset, value: settle },
-  ];
-  return [
-    {
-      channel: `${base}L`,
-      keys: keys(0),
-      durationMs,
-      spring: HOP_SPRING,
-      relative: true,
-    },
-    {
-      channel: `${base}R`,
-      keys: keys(trailMs),
-      durationMs: durationMs + trailMs,
-      spring: HOP_SPRING,
-      relative: true,
-    },
-  ];
-}
-
-/**
- * The tapes an idle gesture plays.
- *
- * Returns an empty list for the gestures the rig does not own: the two gaze
- * moves (a target, not a beat) and the slapstick beats (CSS, on independent
- * properties). Total tape duration never exceeds `GESTURE_DURATION_MS` for
- * that gesture, so the motion and the state the host holds agree — a beat
- * still playing after the host cleared its gesture would be an orphan.
- */
 /**
  * How much a gesture's SIZE may vary from one performance to the next.
  *
@@ -193,98 +154,12 @@ function browsFollow(
   return bothSides(base, keys, durationMs, spring);
 }
 
-/** Small comic beats use the same interruptible channels as the rest of the face. */
-function comicTapes(gesture: 'swap' | 'bump' | 'spin' | 'jelly'): Tape[] {
-  const duration = GESTURE_DURATION_MS[gesture];
-  const soft = { frequency: 2.2, damping: 0.95 };
-  const end = duration - 180;
-  if (gesture === 'jelly')
-    return [
-      ...bothSides(
-        'sy',
-        [
-          [100, -0.08],
-          [duration * 0.5, 0.04],
-          [end - 40, 0],
-        ],
-        duration - 40,
-        soft
-      ),
-      relative(
-        'mouthW',
-        [
-          [160, 0.04],
-          [end, 0],
-        ],
-        duration,
-        soft
-      ),
-    ];
-  if (gesture === 'spin')
-    return [
-      relative(
-        'tilt',
-        [
-          [100, -5],
-          [duration * 0.5, 5],
-          [end, 0],
-        ],
-        duration,
-        soft
-      ),
-      relative(
-        'browArcL',
-        [
-          [160, 0.12],
-          [end, 0],
-        ],
-        duration,
-        soft
-      ),
-    ];
-  const travel = gesture === 'swap' ? 0.18 : -0.09;
-  return [
-    relative(
-      'txL',
-      [
-        [120, travel],
-        [end, 0],
-      ],
-      duration,
-      soft
-    ),
-    relative(
-      'txR',
-      [
-        [160, -travel],
-        [end, 0],
-      ],
-      duration,
-      soft
-    ),
-    relative(
-      'mouthSkew',
-      [
-        [260, 0.08],
-        [end, 0],
-      ],
-      duration,
-      soft
-    ),
-  ];
-}
-
 export function tapesForGesture(gesture: IdleGesture, scale = 1): Tape[] {
   return scaleGestureTapes(gestureTapes(gesture), scale);
 }
 
 function gestureTapes(gesture: IdleGesture): Tape[] {
   switch (gesture) {
-    case 'swap':
-    case 'bump':
-    case 'spin':
-    case 'jelly':
-      return comicTapes(gesture);
     case 'slow-blink':
       // A sigh is an exhale: the mouth narrows with the lids and lets go as
       // they reopen. Without it the eyes sigh and the mouth sits it out.
@@ -336,23 +211,30 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
           LID_SPRING
         ),
       ];
-    case 'bounce':
+    case 'nod':
+      // One thought, one nod: anticipation, acknowledgement, then a quiet
+      // return. Pitch belongs to the head, so the eyes never jump separately.
       return [
-        ...eyeBeat('ty', -0.11, 0.02, 500, 90),
-        ...eyeBeat('sy', 0.06, -0.03, 500, 90),
-        // Follow-through: the mouth is dragged along a beat late and
-        // overshoots on the way back. A hop that leaves the mouth behind is
-        // two eyes jumping, not a face.
-        {
-          channel: 'mouthY',
-          keys: [
-            { atMs: 60, value: 0.03 },
-            { atMs: 290, value: -0.005 },
+        follow(
+          'headPitch',
+          [
+            [0, -0.05],
+            [120, 0.24],
+            [350, 0.24],
+            [520, 0],
           ],
-          durationMs: 590,
-          spring: HOP_SPRING,
-          relative: true,
-        },
+          1040,
+          ACCENT_SPRING
+        ),
+        ...browsFollow(
+          'browY',
+          [
+            [150, -0.012],
+            [460, 0],
+          ],
+          1000,
+          ACCENT_SPRING
+        ),
       ];
     case 'brow':
       // Asymmetric by design — "oh?" is one brow, never two. It is the BROW
@@ -365,14 +247,14 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
           channel: 'browYR',
           keys: [{ atMs: 0, value: -0.06 }],
           durationMs: 420,
-          spring: HOP_SPRING,
+          spring: ATTENTION_SPRING,
           relative: true,
         },
         {
           channel: 'browArcR',
           keys: [{ atMs: 0, value: 0.45 }],
           durationMs: 420,
-          spring: HOP_SPRING,
+          spring: ATTENTION_SPRING,
           relative: true,
         },
       ];
@@ -445,7 +327,7 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
             [230, 0],
           ],
           500,
-          HOP_SPRING
+          ATTENTION_SPRING
         ),
         ...browsFollow(
           'browArc',
@@ -454,7 +336,7 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
             [230, 0],
           ],
           500,
-          HOP_SPRING
+          ATTENTION_SPRING
         ),
       ];
     case 'perk':
@@ -465,41 +347,42 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
           channel: 'mass',
           keys: [{ atMs: 0, value: 1.07 }],
           durationMs: 300,
-          spring: HOP_SPRING,
+          spring: ATTENTION_SPRING,
         },
-        ...browsFollow('browY', [[0, -0.035]], 500, HOP_SPRING),
-        ...browsFollow('browArc', [[0, 0.22]], 500, HOP_SPRING),
+        ...browsFollow('browY', [[0, -0.035]], 500, ATTENTION_SPRING),
+        ...browsFollow('browArc', [[0, 0.22]], 500, ATTENTION_SPRING),
       ];
-    case 'tilt':
-      // A head tilt with a corner of the mouth and one brow in on it — the
-      // "oh really?" of a face, in one beat.
+    case 'consider':
+      // A thoughtful inclination holds one side before returning; it never
+      // rocks through the opposite side or repeats as an idle flourish.
       return [
-        {
-          channel: 'tilt',
-          keys: [
-            { atMs: 0, value: 3.5 },
-            { atMs: 300, value: -2.2 },
+        follow(
+          'tilt',
+          [
+            [0, 2.8],
+            [400, 2.8],
+            [650, 0],
           ],
-          durationMs: 700,
-          spring: { frequency: 2, damping: 0.5 },
-        },
+          1150,
+          ACCENT_SPRING
+        ),
         follow(
           'mouthSkew',
           [
-            [40, 0.12],
-            [420, 0],
+            [100, 0.1],
+            [620, 0],
           ],
-          700,
-          TUG_SPRING
+          1100,
+          ACCENT_SPRING
         ),
         follow(
           'browArcL',
           [
-            [40, 0.18],
-            [420, 0],
+            [60, 0.16],
+            [580, 0],
           ],
-          700,
-          TUG_SPRING
+          1100,
+          ACCENT_SPRING
         ),
       ];
     default:
@@ -507,7 +390,7 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
   }
 }
 
-/** Gestures whose motion the rig owns (the rest are CSS or gaze targets). */
+/** Gestures whose motion the rig owns (the rest are gaze or scene requests). */
 export const RIG_OWNED_GESTURES = Object.keys(GESTURE_DURATION_MS).filter(
   gesture => tapesForGesture(gesture as IdleGesture).length > 0
 ) as readonly IdleGesture[];

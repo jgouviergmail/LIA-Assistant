@@ -11,7 +11,7 @@
 
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Image as ImageIcon, Images } from 'lucide-react';
+import { FileText, Image as ImageIcon, Images } from '@/lib/icons';
 
 import { AttachSourcePickerDialog, type PickerWords } from './AttachSourcePickerDialog';
 import type { AddServerAttachmentOutcome, ServerAttachmentMeta } from '@/hooks/useFileUpload';

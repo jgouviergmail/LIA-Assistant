@@ -443,6 +443,13 @@ class LiveSessionStartResponse(LiveCredentialResponse):
         "delegated", description="How this session runs; the client routes tool calls on it."
     )
     tool_names: list[str] = Field(default_factory=list)
+    expression: Literal["prose", "cues"] = Field(
+        "prose",
+        description=(
+            "How this session's voice expresses itself (ADR-373): words alone, or cues "
+            "written inside its words, which the client never shows in a caption."
+        ),
+    )
     expires_at: datetime = Field(
         ...,
         description="The session's cap; moved by every extension (explicit, or automatic when unlimited).",

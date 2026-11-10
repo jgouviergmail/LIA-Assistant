@@ -26,6 +26,8 @@ from src.core.config import settings
 from src.domains.agents.peer.catalogue_manifests import (
     send_peer_message_catalogue_manifest,
 )
+from src.domains.agents.registry.catalogue import is_initiative_eligible
+from src.domains.agents.registry.confirmation_rule import requires_confirmation
 
 
 def _constraint_value(parameter_name: str, kind: str) -> object:
@@ -41,6 +43,14 @@ class TestSendPeerMessageManifestContract:
 
     def test_message_max_length_matches_the_enforced_setting(self) -> None:
         assert _constraint_value("message", "max_length") == settings.peers_message_max_chars
+
+    def test_communication_is_direct_but_never_an_initiative(self) -> None:
+        manifest = send_peer_message_catalogue_manifest
+        assert manifest.mutation_policy == "direct"
+        assert manifest.mutation_policy_reason
+        assert not requires_confirmation(manifest)
+        assert not is_initiative_eligible(manifest)
+        assert "queued" in manifest.description.lower()
 
     def test_send_manifest_declares_self_contained_resolution(self) -> None:
         description = send_peer_message_catalogue_manifest.description

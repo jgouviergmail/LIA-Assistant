@@ -189,3 +189,35 @@ it.each(['en', 'fr'] as const)(
     expect(screen.queryByRole('alert')).toBeNull();
   }
 );
+
+it('draws each ingestion token as a card panel in the nested API fold', async () => {
+  // Charter « Grounds alternate »: a nested fold is the background, its records the card.
+  const served = get.getMockImplementation();
+  get.mockImplementation(async (path: string) =>
+    path === '/sms/tokens'
+      ? {
+          tokens: [
+            {
+              id: 'token-1',
+              source_id: 'source-1',
+              resource: 'sms',
+              label: 'Synthetic phone',
+              token_prefix: 'lia_sms_ab12',
+              scopes: ['sms:ingest'],
+              created_at: '2026-10-19T00:00:00Z',
+              last_used_at: null,
+              revoked_at: null,
+            },
+          ],
+          total: 1,
+          as_of: '2026-10-19T00:00:00Z',
+          next_cursor: null,
+        }
+      : served?.(path)
+  );
+  await open('fr');
+  await screen.findByText(fr.sms.api, { selector: 'summary span' });
+  const api = unfold(fr.sms.api);
+  expect(api).toHaveClass('bg-background');
+  expect((await within(api).findByText('Synthetic phone')).closest('li')).toHaveClass('bg-card');
+});

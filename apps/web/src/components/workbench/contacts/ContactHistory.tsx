@@ -10,6 +10,11 @@
  * has nothing: no connector leaves its column out, a read that failed says so, and neither is ever
  * shown as nothing found. Meetings whose organiser nobody named stand in one list rather than in a
  * guessed one, and how far back the calendar was read is said: a window is not the whole calendar.
+ *
+ * Since 2026-11-07 the contact's numbers are asked too: the calls LIA placed to them open in the
+ * calls list, saying how each went, and the texts they sent open on the SMS page, each showing how
+ * it begins. A contact with numbers alone has exchanges; a source the contact gave nothing to look
+ * under, or that nothing feeds, leaves its column out, and a bound that hid older records is said.
  */
 import {
   ArrowDownLeft,
@@ -18,10 +23,12 @@ import {
   CalendarDays,
   History,
   Mail,
+  MessageSquareText,
+  PhoneOutgoing,
   UserRound,
   Users,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -31,10 +38,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWorkbenchItem } from '@/hooks/useWorkbenchItem';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import { historyDay, historyMailHref, historyMeetingHref } from '@/lib/workbench/contacts';
+import { formatNumber } from '@/lib/format';
+import {
+  historyCallHref,
+  historyDay,
+  historyMailHref,
+  historyMeetingHref,
+  historyTextHref,
+} from '@/lib/workbench/contacts';
 import type {
+  ContactHistoryCall,
   ContactHistoryMail,
   ContactHistoryMeeting,
+  ContactHistorySource,
+  ContactHistoryText,
   WorkbenchContactHistory,
 } from '@/lib/workbench/types';
 
@@ -47,13 +64,25 @@ export interface ContactHistoryProps {
   name: string;
   /** Its addresses, within the published bound. */
   addresses: readonly string[];
+  /** Its numbers, within the published bound. */
+  phones: readonly string[];
 }
 
 interface Line {
   key: string;
   label: string;
+  /** A word beside the label: how a call went. */
+  note?: string;
   when: string | null;
   href: string;
+}
+
+/**
+ * Whether a source has a column: one that was read, or failed. One nothing feeds, or nobody asked,
+ * has nothing to say, and neither has one the answer does not name.
+ */
+function shown(source: ContactHistorySource | undefined): boolean {
+  return source === 'used' || source === 'unavailable';
 }
 
 function Lines({
@@ -85,6 +114,9 @@ function Lines({
                 className="-mx-1 flex min-h-9 items-center gap-3 rounded-md px-1 text-sm transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="min-w-0 flex-1 truncate">{line.label}</span>
+                {line.note && (
+                  <span className="shrink-0 text-xs text-muted-foreground">{line.note}</span>
+                )}
                 {line.when && (
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {line.when}
@@ -122,8 +154,12 @@ function Column({
 /** The words of the history, and a line's day, in the reader's zone and language. */
 interface Reading {
   word: (key: string, values?: Record<string, string | number>) => string;
+  /** A count in the reader's own writing. */
+  count: (value: number) => string;
   mailLines: (rows: readonly ContactHistoryMail[], sent: boolean) => Line[];
   meetingLines: (rows: readonly ContactHistoryMeeting[]) => Line[];
+  callLines: (rows: readonly ContactHistoryCall[]) => Line[];
+  textLines: (rows: readonly ContactHistoryText[]) => Line[];
 }
 
 function MailColumn({
@@ -212,14 +248,76 @@ function MeetingColumn({
   );
 }
 
-export function ContactHistory({ lng, name, addresses }: ContactHistoryProps) {
+/** The calls LIA placed to the contact's numbers: never the person's own calls. */
+function CallsColumn({
+  item,
+  reading: { word, count, callLines },
+}: {
+  item: WorkbenchContactHistory;
+  reading: Reading;
+}) {
+  return (
+    <Column icon={PhoneOutgoing} title={word('calls')}>
+      {item.telephony === 'unavailable' ? (
+        <p className="p-3 text-sm text-muted-foreground">{word('calls_unavailable')}</p>
+      ) : (
+        <>
+          <Lines
+            icon={PhoneOutgoing}
+            title={word('placed')}
+            empty={word('no_call')}
+            lines={callLines(item.calls)}
+          />
+          {item.calls_cut && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              {word('calls_cut', { calls: count(item.calls_window) })}
+            </p>
+          )}
+        </>
+      )}
+    </Column>
+  );
+}
+
+/** The texts the contact's numbers sent the person. */
+function TextsColumn({
+  item,
+  reading: { word, count, textLines },
+}: {
+  item: WorkbenchContactHistory;
+  reading: Reading;
+}) {
+  return (
+    <Column icon={MessageSquareText} title={word('texts')}>
+      {item.sms === 'unavailable' ? (
+        <p className="p-3 text-sm text-muted-foreground">{word('texts_unavailable')}</p>
+      ) : (
+        <>
+          <Lines
+            icon={ArrowDownLeft}
+            title={word('texts_received')}
+            empty={word('no_text')}
+            lines={textLines(item.texts)}
+          />
+          {item.texts_cut && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              {word('texts_cut', { senders: count(item.texts_window) })}
+            </p>
+          )}
+        </>
+      )}
+    </Column>
+  );
+}
+
+export function ContactHistory({ lng, name, addresses, phones }: ContactHistoryProps) {
   const { t } = useTranslation(lng);
   const { user } = useAuth();
   const zone = user?.timezone;
-  const asked = addresses.length > 0;
+  const asked = addresses.length > 0 || phones.length > 0;
   const { item, loading, refresh } = useWorkbenchItem<WorkbenchContactHistory>(
     asked ? HISTORY_PATH : null,
-    { address: addresses }
+    { address: addresses, phone: phones }
   );
   const word = (key: string, values?: Record<string, string | number>) =>
     t(`workbench.contacts.history.${key}`, values);
@@ -236,10 +334,11 @@ export function ContactHistory({ lng, name, addresses }: ContactHistoryProps) {
       </p>
     );
   }
-  if (item.mail === 'disabled' && item.calendar === 'disabled') return null;
+  if (![item.mail, item.calendar, item.telephony, item.sms].some(shown)) return null;
 
   const reading: Reading = {
     word,
+    count: value => formatNumber(value, lng),
     mailLines: (rows, sent) =>
       rows.map(row => ({
         key: row.id,
@@ -254,6 +353,23 @@ export function ContactHistory({ lng, name, addresses }: ContactHistoryProps) {
         when: historyDay(row, new Date(), zone, lng),
         href: historyMeetingHref(row, lng),
       })),
+    callLines: rows =>
+      rows.map(row => ({
+        key: row.id,
+        label: row.purpose || word('call_no_purpose'),
+        note: row.outcome
+          ? t(`settings.telephony.calls.outcome.${row.outcome}`)
+          : t(`settings.telephony.calls.status.${row.status}`),
+        when: historyDay(row, new Date(), zone, lng),
+        href: historyCallHref(row.id, lng),
+      })),
+    textLines: rows =>
+      rows.map(row => ({
+        key: row.id,
+        label: row.truncated ? `${row.excerpt}…` : row.excerpt,
+        when: historyDay(row, new Date(), zone, lng),
+        href: historyTextHref(row.id, lng),
+      })),
   };
 
   return (
@@ -263,10 +379,10 @@ export function ContactHistory({ lng, name, addresses }: ContactHistoryProps) {
         {word('title')}
       </h3>
       <div className="grid items-start gap-3 @2xl:grid-cols-2">
-        {item.mail !== 'disabled' && <MailColumn item={item} reading={reading} />}
-        {item.calendar !== 'disabled' && (
-          <MeetingColumn item={item} name={name} reading={reading} />
-        )}
+        {shown(item.mail) && <MailColumn item={item} reading={reading} />}
+        {shown(item.calendar) && <MeetingColumn item={item} name={name} reading={reading} />}
+        {shown(item.telephony) && <CallsColumn item={item} reading={reading} />}
+        {shown(item.sms) && <TextsColumn item={item} reading={reading} />}
       </div>
     </section>
   );

@@ -1,7 +1,7 @@
 """Catalogue manifests for Peers tools (peers program, Lot 6).
 
 User-to-user connections from chat: relay a message assistant-to-assistant
-(HITL draft, spec A3), list connections, and read what a connected peer
+(direct, explicitly requested), list connections, and read what a connected peer
 chose to share (calendar availability, task titles — spec A1). Internal
 tools (no OAuth on the caller side — the peer's connectors are resolved
 server-side under the execution-time share check).
@@ -28,8 +28,8 @@ PEER_AGENT_MANIFEST = AgentManifest(
         "instance: relay a message to a connected user through their own "
         "assistant ('tell Marie that…', 'ask Paul how things are going'), "
         "list who the user is connected to, check a connected user's "
-        "availability or shared tasks. Sending requires user confirmation "
-        "(draft). NOT for the user's own contacts/emails (use contact/email)."
+        "availability or shared tasks. A requested send is queued directly; "
+        "delivery is asynchronous. NOT for the user's own contacts/emails (use contact/email)."
     ),
     tools=[
         "send_peer_message_tool",
@@ -52,13 +52,18 @@ PEER_AGENT_MANIFEST = AgentManifest(
 
 send_peer_message_catalogue_manifest = ToolManifest(
     name="send_peer_message_tool",
-    mutation_policy="draft",
+    mutation_policy="direct",
+    mutation_policy_reason=(
+        "The user requested direct messaging to accepted peers without a second confirmation; "
+        "the effect gate requires identified execution and a durable claim before admission."
+    ),
+    initiative_eligible=False,
     agent="peer_agent",
     description=(
         "Relays a message to a CONNECTED user of this instance: their own "
         "assistant will convey it in its own voice and language, naming the "
-        "sender. Returns a draft the user must confirm — nothing is sent "
-        "before confirmation. Use when the user asks to tell/ask something "
+        "sender. The requested message is queued directly, without a confirmation card. "
+        "A queue receipt is not proof of delivery. Use when the user asks to tell/ask something "
         "to a person they are connected with ('pass a message to…', 'tell…', "
         "'ask…'). ALSO the way to REPLY to a relayed message: "
         "relays are stateless (no message_id/thread) — a reply is simply a "
@@ -111,12 +116,12 @@ send_peer_message_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="success",
             type="boolean",
-            description="Whether the draft was created",
+            description="Whether the message was admitted to the delivery queue",
         ),
         OutputFieldSchema(
             path="message",
             type="string",
-            description="Draft confirmation message shown to the user",
+            description="Queue admission or refusal, never an assertion of delivery",
             semantic_type="Text",
         ),
     ],
@@ -129,8 +134,7 @@ send_peer_message_catalogue_manifest = ToolManifest(
     permissions=PermissionProfile(
         required_scopes=[],
         data_classification="CONFIDENTIAL",
-        # Draft-based (A3): the PEER_MESSAGE draft IS the confirmation —
-        # hitl_required stays False (test_hitl_required_consistency doctrine).
+        # Direct admission is journaled by the effect gate without a card.
         hitl_required=False,
     ),
     semantic_keywords=[

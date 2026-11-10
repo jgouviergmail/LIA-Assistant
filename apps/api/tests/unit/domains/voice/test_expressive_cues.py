@@ -13,24 +13,32 @@ markdown link) is never performed.
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
 from src.domains.voice import expressive_cues
 from src.domains.voice.expressive_cues import (
     DELIVERY_CUES,
+    ELEVENLABS_AGENT_TAGS,
+    ELEVENLABS_AUDIO_TAGS,
     ELEVENLABS_SSML_BREAK,
     EVENT_CUES,
     FISH_S1_CUES,
     FISH_S2_CUES,
     GEMINI_VOCAL_TAGS,
+    NO_CUES,
+    PERSONA_CUES,
     AuthoredCues,
     AuthoredSentence,
     Cue,
     CueDialect,
     cue_dialect,
+    dialect_named,
     neutralize_literal,
+    strip_transcript_cues,
 )
 from src.domains.voice.families import TtsControl, controls_for
 from tests.support.voice_clock import retirement_day, speak_on
@@ -84,24 +92,35 @@ class TestTheDialects:
             ("fishaudio", "s2.1-pro"),
             ("fishaudio", "s2.1-pro-free"),
             ("fishaudio", "s2-pro"),
-            ("fishaudio", "drama-3"),
         ],
     )
-    def test_a_bracket_engine_performs_every_cue(self, provider: str, model: str) -> None:
-        assert cue_dialect(provider, model).performs() == DELIVERY_CUES | EVENT_CUES
+    def test_a_bracket_engine_measured_on_persona_tags_performs_the_whole_vocabulary(
+        self, provider: str, model: str
+    ) -> None:
+        """Measured 2026-11-07: none of the persona tags was read aloud (ADR-373)."""
+        assert cue_dialect(provider, model).performs() == frozenset(Cue)
+
+    def test_drama_performs_no_persona_cue(self) -> None:
+        """Its direction syntax is undocumented and was never measured (ADR-345
+        refused to direct it in words): a persona cue would risk being said."""
+        assert cue_dialect("fishaudio", "drama-3").performs() == DELIVERY_CUES | EVENT_CUES
 
     @pytest.mark.parametrize("model", ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"])
     def test_gemini_3_8_performs_events_inline_and_a_delivery_as_its_style(
         self, model: str
     ) -> None:
         """Google: inline ``<…>`` tags for point-in-time vocal events only; a
-        sustained delivery belongs to the turn's ``speech_metadata.style``."""
+        sustained delivery — a character's manner included — belongs to the
+        turn's ``speech_metadata.style`` (measured 2026-11-07: every persona
+        style accepted, « slow » and « rushed » moving the duration)."""
         dialect = cue_dialect("gemini", model)
 
-        assert dialect.performs() == DELIVERY_CUES | EVENT_CUES
+        assert dialect.performs() == frozenset(Cue)
         assert dialect.render(Cue.LAUGHS) == "<laugh>"
         assert dialect.render(Cue.WARM) is None
         assert dialect.style(Cue.WARM) == "warm"
+        assert dialect.render(Cue.SARCASTIC) is None
+        assert dialect.style(Cue.SARCASTIC) == "sarcastic"
         assert dialect.style(Cue.LAUGHS) is None
 
     def test_fish_s1_speaks_its_own_closed_set_in_parentheses(
@@ -136,6 +155,17 @@ class TestTheDialects:
             ("elevenlabs", "eleven_v4", Cue.CONCERNED, "[concerned]"),
             ("fishaudio", "drama-3", Cue.CHUCKLES, "[small laugh]"),
             ("fishaudio", "drama-3", Cue.CONCERNED, "[concerned]"),
+            # A persona cue, as each engine's vendor documents it.
+            ("elevenlabs", "eleven_v4", Cue.SARCASTIC, "[sarcastically]"),
+            ("elevenlabs", "eleven_v4", Cue.WEARY, "[tired]"),
+            ("elevenlabs", "eleven_v3_conversational", Cue.SOFT, "[softly]"),
+            ("fishaudio", "s2.1-pro", Cue.SARCASTIC, "[sarcastic]"),
+            # Fish's own words: « Frustrated — annoyed, exasperated », « Soft tone —
+            # gentle, quiet », « In a hurry tone — rushed, urgent ».
+            ("fishaudio", "s2.1-pro", Cue.ANNOYED, "[frustrated]"),
+            ("fishaudio", "s2.1-pro", Cue.SOFT, "[soft tone]"),
+            ("fishaudio", "s2.1-pro", Cue.RUSHED, "[in a hurry tone]"),
+            ("fishaudio", "s2-pro", Cue.WEARY, "[tired]"),
         ],
     )
     def test_each_engine_has_its_own_dictionary(
@@ -153,8 +183,11 @@ class TestTheTableHoldsTogether:
     )
 
     @pytest.mark.parametrize("dialect", _DIALECTS, ids=lambda dialect: dialect.name)
-    def test_a_style_is_a_delivery_and_never_also_spelled_inline(self, dialect: CueDialect) -> None:
-        assert set(dialect.styles) <= DELIVERY_CUES
+    def test_a_style_colours_a_whole_sentence_and_is_never_also_spelled_inline(
+        self, dialect: CueDialect
+    ) -> None:
+        """A style is how a whole sentence is said: a delivery, or a character's manner."""
+        assert set(dialect.styles) <= DELIVERY_CUES | PERSONA_CUES
         assert set(dialect.styles).isdisjoint(dialect.spellings)
 
     def test_a_style_only_reaches_a_model_that_takes_one(self) -> None:
@@ -170,8 +203,88 @@ class TestTheTableHoldsTogether:
             assert TtsControl.STYLE_PROMPT in controls_for(provider, prefix), prefix
 
     def test_every_canonical_cue_has_a_dialect_that_performs_it(self) -> None:
-        performed = frozenset().union(*(dialect.performs() for dialect in self._DIALECTS))
+        dialects = (*self._DIALECTS, ELEVENLABS_AGENT_TAGS)
+        performed = frozenset().union(*(dialect.performs() for dialect in dialects))
         assert performed == frozenset(Cue)
+
+
+class TestTheLiveVoicesVocabulary:
+    """An agent's voice reads LIA's whole vocabulary, persona cues included (ADR-373).
+
+    Every spelling is a tag the vendor documents (« v3 audio tags », last
+    updated 2026-10-15; its help centre's emotion tags). The comment writer is
+    offered the persona cues on the engines measured to perform them
+    (2026-11-07); the radio writes none.
+    """
+
+    _TTS_DIALECTS = TestTheTableHoldsTogether._DIALECTS
+
+    @pytest.mark.parametrize(
+        ("cue", "spelled"),
+        [
+            (Cue.SARCASTIC, "[sarcastically]"),
+            (Cue.DISMISSIVE, "[dismissive]"),
+            (Cue.CHEEKY, "[cheeky]"),
+            (Cue.MISCHIEVOUS, "[mischievously]"),
+            (Cue.ANNOYED, "[annoyed]"),
+            (Cue.WEARY, "[tired]"),
+            (Cue.SOFT, "[softly]"),
+            (Cue.SLOW, "[slowly]"),
+            (Cue.RUSHED, "[rushed]"),
+            (Cue.BOOMING, "[booming]"),
+            (Cue.WHISPERING, "[whispers]"),
+            (Cue.WARM, "[warm]"),
+            (Cue.SHORT_PAUSE, "…"),
+        ],
+    )
+    def test_the_agent_dialect_spells_each_cue_as_the_vendor_documents_it(
+        self, cue: Cue, spelled: str
+    ) -> None:
+        assert ELEVENLABS_AGENT_TAGS.render(cue) == spelled
+
+    def test_the_agent_dialect_performs_the_whole_vocabulary(self) -> None:
+        assert ELEVENLABS_AGENT_TAGS.performs() == frozenset(Cue)
+        assert PERSONA_CUES.isdisjoint(DELIVERY_CUES | EVENT_CUES)
+
+    def test_the_agent_and_the_speech_engines_of_one_vendor_spell_from_one_table(self) -> None:
+        """Both read the vendor's v3/v4 tags: one spelling per cue, never two."""
+        assert ELEVENLABS_AGENT_TAGS.spellings == cue_dialect("elevenlabs", "eleven_v4").spellings
+
+    @pytest.mark.parametrize("dialect", _TTS_DIALECTS, ids=lambda dialect: dialect.name)
+    def test_a_persona_cue_reaches_only_an_engine_measured_to_perform_it(
+        self, dialect: CueDialect
+    ) -> None:
+        measured = {ELEVENLABS_AUDIO_TAGS.name, FISH_S2_CUES.name, GEMINI_VOCAL_TAGS.name}
+        if dialect.name in measured:
+            assert PERSONA_CUES <= dialect.performs()
+        else:
+            assert not dialect.performs() & PERSONA_CUES
+
+    def test_a_comment_writer_performs_a_persona_cue_its_engine_spells(self) -> None:
+        cues = AuthoredCues(cue_dialect("elevenlabs", "eleven_v4"), budget=2)
+        assert cues.render("[sarcastic] Bon. [weary]").text == "[sarcastically] Bon. [tired]"
+
+    def test_a_persona_cue_an_engine_cannot_perform_is_dropped_never_read(self) -> None:
+        cues = AuthoredCues(cue_dialect("fishaudio", "drama-3"), budget=2)
+        assert cues.render("[sarcastic] Bon.").text == "Bon."
+
+    def test_a_persona_cue_is_a_style_engines_direction_for_its_sentence(self) -> None:
+        cues = AuthoredCues(cue_dialect("gemini", "gemini-3.8-flash-tts"), budget=2)
+        assert cues.render("[weary] Encore un mail.") == AuthoredSentence(
+            "Encore un mail.", style="weary"
+        )
+
+    @pytest.mark.parametrize(
+        "dialect",
+        [*_TTS_DIALECTS, ELEVENLABS_AGENT_TAGS, NO_CUES],
+        ids=lambda dialect: dialect.name,
+    )
+    def test_a_dialect_is_found_again_by_its_name(self, dialect: CueDialect) -> None:
+        assert dialect_named(dialect.name) is dialect
+
+    def test_an_unknown_dialect_name_reads_as_no_cues(self) -> None:
+        """A record a newer release wrote is read as words alone, never guessed."""
+        assert dialect_named("written_by_a_newer_release") is NO_CUES
 
 
 class TestAuthoredText:
@@ -338,3 +451,21 @@ class TestLiteralText:
         self, text: str, read: str
     ) -> None:
         assert neutralize_literal(text, cue_dialect("elevenlabs", "eleven_v4")) == read
+
+
+# -- a cues session's transcript, as the person heard it (ADR-373) ---------------------------
+
+_CUE_STRIP_CORPUS = Path(__file__).with_name("cue_strip_corpus.json")
+
+
+def _strip_cases() -> list[dict[str, object]]:
+    loaded = json.loads(_CUE_STRIP_CORPUS.read_text(encoding="utf-8"))
+    return list(loaded["strip"])
+
+
+@pytest.mark.parametrize("case", _strip_cases(), ids=lambda case: str(case["id"]))
+def test_a_cues_transcript_is_stripped_as_the_shared_corpus_says(case: dict[str, object]) -> None:
+    """The browser's twin (``lib/live/cue-strip.ts``) reads the SAME corpus."""
+    text, tags = strip_transcript_cues(str(case["input"]))
+    assert text == case["expected"]
+    assert list(tags) == case["tags"]

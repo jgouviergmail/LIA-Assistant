@@ -9,6 +9,7 @@ Created: 2026-03-14
 """
 
 import os
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, UploadFile, status
@@ -53,6 +54,7 @@ from src.domains.rag_spaces.schemas import (
     RAGReindexStatusResponse,
     RAGSpaceCreate,
     RAGSpaceDetailResponse,
+    RAGSpaceListQuery,
     RAGSpaceListResponse,
     RAGSpaceResponse,
     RAGSpaceToggleResponse,
@@ -227,14 +229,15 @@ async def check_system_space_staleness(
     summary="List user's RAG spaces",
 )
 async def list_spaces(
+    criteria: Annotated[RAGSpaceListQuery, Query()],
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> RAGSpaceListResponse:
     """List all RAG spaces for the current user with computed stats."""
     service = RAGSpaceService(db)
-    spaces = await service.list_spaces(user.id)
+    spaces = await service.list_spaces(user.id, criteria)
     return RAGSpaceListResponse(
-        spaces=[RAGSpaceResponse(**s) for s in spaces],
+        spaces=spaces,
         total=len(spaces),
     )
 
@@ -299,13 +302,14 @@ async def update_space(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> RAGSpaceResponse:
-    """Update space name and/or description."""
+    """Update the owned space's metadata or favorite preference."""
     service = RAGSpaceService(db)
     result = await service.update_space_with_stats(
         space_id=space_id,
         user_id=user.id,
         name=data.name,
         description=data.description,
+        is_favorite=data.is_favorite,
     )
     return RAGSpaceResponse(**result)
 

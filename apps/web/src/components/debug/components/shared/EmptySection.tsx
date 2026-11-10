@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 import { DebugSection } from './DebugSection';
 import { DebugChip } from './DebugChip';
 

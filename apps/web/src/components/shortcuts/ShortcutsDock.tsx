@@ -26,7 +26,7 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { ChevronsDownUp, GripHorizontal, Pin } from 'lucide-react';
+import { ChevronsDownUp, GripHorizontal, Pin } from '@/lib/icons';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';

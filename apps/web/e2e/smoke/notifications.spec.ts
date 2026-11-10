@@ -248,7 +248,9 @@ async function metadataIsReadable(page: Page, messages: Locator): Promise<void> 
       page,
       [date, badge, body],
       ([dateBox, badgeBox, bodyBox]) =>
-        below(dateBox, badgeBox) && below(badgeBox, bodyBox) && Math.abs(badgeBox.x - dateBox.x) <= 2,
+        below(dateBox, badgeBox) &&
+        below(badgeBox, bodyBox) &&
+        Math.abs(badgeBox.x - dateBox.x) <= 2,
       'the date titles the row; the priority leads the line below it'
     );
     await expectLayout(
@@ -377,7 +379,17 @@ test.describe('Notifications — targeted presentation', () => {
         box(page.getByRole('heading', { level: 1 })),
         box(activity),
       ]);
-      expect(action.y).toBeGreaterThanOrEqual(heading.y + heading.height - 1);
+      if (width < 1024) {
+        expect(action.y, 'the header actions follow the title on a phone').toBeGreaterThanOrEqual(
+          heading.y + heading.height - 1
+        );
+      } else {
+        // The shared page heading puts its actions in a column of their own
+        // beside the title on a large screen (SectionHeader, 2026-11-09).
+        expect(action.x, 'the header actions stand right of the title').toBeGreaterThanOrEqual(
+          heading.x + heading.width - 1
+        );
+      }
       await expectNoOverflow(page, `${width}/${theme}: folded`);
       await capture(page, testInfo, 'notifications-folded');
 
@@ -441,7 +453,7 @@ test.describe('Notifications — targeted presentation', () => {
     });
   }
 
-  test('offer decisions remain single-flight and return focus; other families retain their real rows', async ({
+  test('proposal decisions remain single-flight and return focus; other families retain their real rows', async ({
     page,
     authenticate,
     mockApi,
@@ -460,19 +472,19 @@ test.describe('Notifications — targeted presentation', () => {
     const user = await authenticate({ language: 'fr', theme: 'light' });
     await mockApi(
       notificationsRoutes(user, reads, {
-        includeOffer: true,
-        offerDecisionGate: decisionGate,
-        offerDecisions: decisions,
+        includeProposal: true,
+        proposalDecisionGate: decisionGate,
+        proposalDecisions: decisions,
       })
     );
     await ready(page);
     const offers = await openFamily(page, 'offers');
     const accept = offers.getByRole('button', {
-      name: copy('notifications_hub.sections.offers.accept'),
+      name: copy('habits.proposals.automate_need.accept'),
       exact: true,
     });
     const dismiss = offers.getByRole('button', {
-      name: copy('notifications_hub.sections.offers.dismiss'),
+      name: copy('habits.proposals.later'),
       exact: true,
     });
     await expect(accept).toBeVisible();
@@ -480,15 +492,15 @@ test.describe('Notifications — targeted presentation', () => {
     const [acceptBox, dismissBox] = await Promise.all([box(accept), box(dismiss)]);
     expect(Math.abs(acceptBox.width - dismissBox.width)).toBeLessThanOrEqual(1);
     expect(dismissBox.y).toBeGreaterThanOrEqual(acceptBox.y + acceptBox.height - 1);
-    await capture(page, testInfo, 'notifications-offer-mobile-light');
+    await capture(page, testInfo, 'notifications-proposal-mobile-light');
     await dismiss.focus();
     await page.keyboard.press('Enter');
     await expect.poll(() => decisions.length).toBe(1);
     await expect(dismiss).toHaveAttribute('aria-busy', 'true');
-    await expect(dismiss).toHaveAccessibleName(copy('notifications_hub.sections.offers.dismiss'));
+    await expect(dismiss).toHaveAccessibleName(copy('habits.proposals.later'));
     await expect(dismiss).toBeFocused();
     await page.keyboard.press('Enter');
-    expect(decisions).toEqual(['thumbs_down']);
+    expect(decisions).toEqual(['dismiss']);
     releaseDecision();
     await expect(
       offers.getByText(copy('notifications_hub.sections.offers.empty'), { exact: true })
@@ -512,6 +524,39 @@ test.describe('Notifications — targeted presentation', () => {
     );
     expect(accessibility.blocking, accessibility.summary).toHaveLength(0);
   });
+  test('accepting a proposal carries it out and says so; the inbox empties', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    const reads: NotificationRead[] = [];
+    const decisions: string[] = [];
+    await page.setViewportSize({ width: 390, height: 900 });
+    await prepareTheme(page, 'light');
+    await prepareNotificationReadingView(page);
+    const user = await authenticate({ language: 'fr', theme: 'light' });
+    await mockApi(
+      notificationsRoutes(user, reads, { includeProposal: true, proposalDecisions: decisions })
+    );
+    await ready(page);
+    const offers = await openFamily(page, 'offers');
+    // The sentence is phrased from the facts, in the reader's language.
+    await expect(offers.getByText('07:30', { exact: false })).toBeVisible();
+    const accept = offers.getByRole('button', {
+      name: copy('habits.proposals.automate_need.accept'),
+      exact: true,
+    });
+    await accept.click();
+    await expect.poll(() => decisions).toEqual(['accept']);
+    await expect(page.getByText(copy('habits.proposals.automate_need.done'))).toBeVisible();
+    await expect(
+      offers.getByText(copy('notifications_hub.sections.offers.empty'), { exact: true })
+    ).toBeVisible();
+    await expectNoOverflow(page, 'proposal accepted');
+    await capture(page, testInfo, 'notifications-proposal-accepted-mobile-light');
+    const accessibility = await scanPage(page, testInfo, 'notifications-proposal-accepted');
+    expect(accessibility.blocking, accessibility.summary).toHaveLength(0);
+  });
   test('routine pages contain different rows without unsupported server pagination', async ({
     page,
     authenticate,
@@ -525,10 +570,10 @@ test.describe('Notifications — targeted presentation', () => {
     const routines = await openFamily(page, 'scheduled');
     await expect(routines.getByRole('listitem')).toHaveCount(10);
     await expect(routines.getByText(notificationRoutineName(0), { exact: true })).toBeVisible();
-    await expect(routines.getByText(notificationRoutineName(10), { exact: true })).toHaveCount(0);
-    await expect(
-      routines.getByText(copy('notifications_hub.routine_disabled'), { exact: true })
-    ).toBeVisible();
+    // The default display order puts dated runs first; disabled and condition
+    // routines have no next run and remain visible on the final page.
+    await expect(routines.getByText(notificationRoutineName(1), { exact: true })).toHaveCount(0);
+    await expect(routines.getByText(notificationRoutineName(11), { exact: true })).toBeVisible();
     await expect(routines.getByText(/2027|2028/)).toHaveCount(0);
     await pagerIsBelowRows(routines);
     await expect(routines.getByRole('listitem').locator('svg')).toHaveCount(0);
@@ -538,7 +583,12 @@ test.describe('Notifications — targeted presentation', () => {
     });
     await pager.getByRole('button', { name: copy('common.next'), exact: true }).click();
     await expect(routines.getByRole('listitem')).toHaveCount(2);
-    await expect(routines.getByText(notificationRoutineName(10), { exact: true })).toBeVisible();
+    await expect(routines.getByText(notificationRoutineName(1), { exact: true })).toBeVisible();
+    await expect(routines.getByText(notificationRoutineName(2), { exact: true })).toBeVisible();
+    await expect(
+      routines.getByText(copy('notifications_hub.routine_disabled'), { exact: true })
+    ).toBeVisible();
+    await expect(routines.getByText(/2027|2028/)).toHaveCount(0);
     await expect(routines.getByText(notificationRoutineName(0), { exact: true })).toHaveCount(0);
     await expectReadOnly(reads, ['/notifications/hub-counts', '/scheduled-actions']);
     await familySummary(page, 'scheduled').click();
@@ -565,8 +615,8 @@ test.describe('Notifications — targeted presentation', () => {
     await expect(messages.getByText(notificationPeerName(10), { exact: true })).toBeVisible();
     await expect(messages.getByRole('listitem')).toHaveCount(2);
     expect(reads.filter(read => read.path === '/peers/messages').map(read => read.query)).toEqual([
-      'limit=10&offset=0',
-      'limit=10&offset=10',
+      'limit=10&offset=0&q=',
+      'limit=10&offset=10&q=',
     ]);
     const interests = await openFamily(page, 'interests');
     await expect(interests.getByRole('alert')).toHaveText(
@@ -576,6 +626,9 @@ test.describe('Notifications — targeted presentation', () => {
       interests.getByText(copy('notifications_hub.sections.interests.empty'), { exact: true })
     ).toHaveCount(0);
     await familySummary(page, 'interests').click();
+    // Wait for Disclosure to unmount its body: native toggle events may
+    // coalesce a close/open issued within the same browser task.
+    await expect(interests.getByRole('alert')).toHaveCount(0);
     const summary = familySummary(page, 'interests');
     await summary.focus();
     await page.keyboard.press('Enter');

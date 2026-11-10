@@ -79,6 +79,7 @@ from src.domains.live.schemas import (
 )
 from src.domains.users.models import User
 from src.domains.users.preference_cas import PreferenceWriteReceipt
+from src.domains.voice.expressive_cues import NO_CUES, CueDialect
 from src.infrastructure.media.wav import wav_bytes
 from src.infrastructure.observability.metrics_live import (
     live_voice_samples_total,
@@ -249,11 +250,12 @@ class LiveConnectorService:
         now: datetime,
         personality: str,
         psyche_block: str = "",
+        cue_dialect: CueDialect = NO_CUES,
     ) -> LiveSetupInputs:
         """The ONE rendering of a session setup — what the session opens with and what the probe replays.
 
-        The probe renders it without the personality and without the inner
-        state (colour, never a gate); a session start hands both.
+        The probe renders it without the personality, the inner state and the
+        cues (colour, never a gate); a session start hands all three.
         """
         capabilities: LiveModelCapabilities = provider.capabilities_of(chosen.model)
         return LiveSetupInputs(
@@ -272,6 +274,7 @@ class LiveConnectorService:
                     native_delegation=provider.delegation_wire == "native",
                     psyche_block=psyche_block,
                     tone_notes=settings.expressivity_enabled,
+                    cue_dialect=cue_dialect,
                 )
             ),
             tool_declaration=delegation_tool_declaration(display_name),
@@ -279,6 +282,7 @@ class LiveConnectorService:
             preferences=self.preferences(user),
             trigger_tokens=settings.live_context_trigger_tokens,
             target_tokens=settings.live_context_target_tokens,
+            cue_dialect=cue_dialect.name,
         )
 
     async def _check_choice(

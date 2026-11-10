@@ -365,6 +365,7 @@ export function scaleMimic(tapes: readonly Tape[], scale: number): Tape[] {
 /** One drawn performance: which mimic, which side, what size. */
 export interface MouthLifeDraw {
   readonly mimic: MouthMimic;
+  readonly side: 1 | -1;
   readonly tapes: Tape[];
 }
 
@@ -418,6 +419,7 @@ export function drawMouthMimic(
   const scale = MOUTH_LIFE_SCALE_MIN + random() * MOUTH_LIFE_SCALE_SPAN;
   return {
     mimic,
+    side,
     tapes: warpTapes(scaleMimic(mimicTapes(mimic, side), scale), random),
   };
 }

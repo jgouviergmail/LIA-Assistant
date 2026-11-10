@@ -24,6 +24,8 @@ const messageId = '00000000-0000-4000-8000-00000000c405';
 
 for (const sample of [
   { width: 1280, language: 'fr', theme: 'light' },
+  { width: 1280, language: 'fr', theme: 'dark' },
+  { width: 390, language: 'fr', theme: 'light' },
   { width: 390, language: 'en', theme: 'dark' },
   { width: 320, language: 'fr', theme: 'oled' },
 ]) {

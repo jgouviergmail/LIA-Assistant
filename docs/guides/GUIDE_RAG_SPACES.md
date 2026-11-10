@@ -34,6 +34,9 @@ RAG Spaces allows users to create personal knowledge spaces containing their own
 
 **Key features**:
 - Multiple spaces per user with activation/deactivation toggle
+- The list searches by space name or filename (including processing/error files),
+  and orders by name, newest creation, file count or active then inactive by name.
+  The standalone page and Settings share the same controls.
 - Background document processing with status tracking
 - Hybrid search (semantic similarity + BM25 keyword matching)
 - Full cost transparency (embedding costs per document and per query)
@@ -41,7 +44,38 @@ RAG Spaces allows users to create personal knowledge spaces containing their own
 
 ---
 
+## Organizing spaces
+
+The application menu opens knowledge spaces immediately after Meetings, using
+its library icon on desktop and mobile. The management screen (also embedded
+in Settings) groups matching spaces into **Favorites** and **Other spaces**.
+The star persists the account owner's `is_favorite` preference through the
+existing `PATCH /rag-spaces/{space_id}` endpoint. It does not activate the space
+or change retrieval. Managed spaces can also be favorites.
+
+The **Managed by LIA** filter selects spaces whose `kind` declares an owning
+domain. It combines with name/filename search and ordering across the complete
+metadata list. Changing a favorite retains the current filters and restores
+focus to its star after the refreshed group is rendered. Failed writes leave
+the confirmed preference unchanged and show an error.
+
 ## Configuration
+
+The management listing accepts `q`, `field=name|filename` and
+`sort=name|recent|files|active` on `GET /rag-spaces`. The query bound is declared
+by `RAGSpaceListQuery` in [schemas.py](../../apps/api/src/domains/rag_spaces/schemas.py).
+[SpaceListingRepository](../../apps/api/src/domains/rag_spaces/listing.py) reads
+one account-scoped metadata aggregate: no document body, ready-only filter,
+per-space query, or creation-quota ceiling on historical rows. Search uses
+the shared display normalizer (literal substring, not the person's identity
+normalizer); filenames never leave this listing response. Ordering ties end
+on the space ID. This list performs no model call or indexing work.
+
+On the client, a criteria change cancels the prior read; the list remains
+loading until that criteria's response arrives. A failed read is shown as a
+failure with retry. Mutations invalidate the current filtered list rather
+than guessing whether the modified space still belongs in it. Account
+changes retire data, callbacks, the filter and any open form.
 
 All settings are in `src/core/config/rag_spaces.py` with defaults in `src/core/constants.py`.
 
@@ -234,6 +268,25 @@ third party and it travels into a `Content-Disposition` header.
 |---|---|---|
 | Full sync | link, manual sync, reaper re-drive | reads the history id **before** listing the label's threads (a message arriving mid-listing is replayed by the next pass instead of falling in the gap), ingests each thread, removes the documents whose thread left the label, completes with an EXACT `COUNT(*)` of READY documents |
 | Incremental | a Gmail push notification (ADR-261) | replays `history.list` from the source's anchor, revisits only the threads the history names (label added/removed, message added to an indexed thread), and falls back to a full sync when the anchor is missing or expired |
+
+**Two independent bounds**: `RAG_SPACES_MAX_DOCS_PER_SPACE` controls the
+space's total document capacity; `RAG_MAIL_MAX_THREADS_PER_SYNC` controls
+the number of threads a full Gmail label sync lists. Raising the first
+does not raise the second. Their accepted ranges live in
+`apps/api/src/core/config/rag_spaces.py`. Full listing pagination scales
+with the thread budget, allowing sparse provider pages while bounding
+non-progressing listings. The incremental history sweep keeps its own page
+bound. A truncated full listing reports an incomplete sync, retains unseen
+documents and the previous history anchor, and does not resume at its cutoff:
+another full sync starts from the first page. To index a larger label, raise
+the Gmail bound as well as the space capacity, recreate the API container so
+the new environment is applied, then request synchronization again.
+
+While documents index or a source synchronizes, the detail page refreshes
+in place. Only the initial load replaces the content with a loading indicator;
+background reads preserve the mounted rows, document selection and focus.
+An open edit form retains its unsaved text and submits only the fields edited
+since it opened. Closing and reopening the form reads the latest space values.
 
 Both call `ingest_thread`, which skips an unchanged thread by its newest
 message stamp and replaces a changed one — and both create the PENDING

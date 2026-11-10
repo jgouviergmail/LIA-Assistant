@@ -1149,3 +1149,36 @@ Guards: `test_standing_choice_gate.py`, `test_confirmation_readers_guard.py`,
 `test_reactive_individuals.py`, `test_confirmation_strategy_wiring.py`,
 `test_mcp_sub_loop_pending_drafts.py` (the gated task now asks first; the net still hands its
 confirmations up).
+
+## Amendment 2026-11-09 — direct peer messages, without fabricated approval
+
+A native `direct` policy represents an explicitly requested communication that
+requires no second confirmation. It needs a written reason, an identified run
+and call, and a durable effect claim. Missing identity or unavailable accounting
+refuses the call. No `approved=True` is manufactured. Proactive calls are refused;
+unattended calls keep the existing carrier/pre-approval boundary. MCP annotation
+resolution never produces this native exception. The peer send is excluded from
+initiative selection.
+
+`send_peer_message_tool` now resolves a unique accepted peer and calls the shared
+`peers/message_command.py` admission command. It returns **pending**, not delivered.
+The command takes the canonical account fences before the connection lock, verifies
+membership, activity and blocks, then checks both quotas and inserts atomically.
+The effect register's existing run/step or tool-call identity prevents automatic
+re-enqueue, including an unknown result after commit. Two separately requested
+messages with identical words remain two acts.
+
+Historical `PEER_MESSAGE` cards retain their executor. The executor gate requires
+the exact approved digest, reference and durable claim; execution uses the same
+current admission command. This exception does not remove another tool's or a
+FOR_EACH batch's confirmation.
+
+Delivery has a separate durable key: the unique peer-message row. Its owner token,
+monotonic generation and renewable lease fence every transition. The archive and
+`delivered` transition commit together before optional push/channel notifications.
+An archive retry reuses the encrypted prepared rendition; an unknown model outcome
+is terminal, never a fresh generation. See the [retention amendment](ADR-186-Relayed-Message-Retention.md).
+
+Evidence: `test_direct_authority.py`, the strict-draft family matrix, peer manifest
+and MCP policy guards, and `tests/integration/test_peer_message_command.py` (real
+PostgreSQL, concurrent actors, cancellation, crash boundaries and migration cycle).

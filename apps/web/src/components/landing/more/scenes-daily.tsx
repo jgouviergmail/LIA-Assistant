@@ -42,7 +42,7 @@ import {
   ToggleRight,
   Volume2,
   Users,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { HealthDial } from '@/components/dashboard/cards/HealthDial';
 import { cn } from '@/lib/utils';

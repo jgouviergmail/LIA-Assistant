@@ -19,7 +19,7 @@
  */
 
 import { DashboardLink as Link } from './DashboardNavigation';
-import { Settings2 } from 'lucide-react';
+import { Settings2 } from '@/lib/icons';
 
 import { useTranslation } from 'react-i18next';
 

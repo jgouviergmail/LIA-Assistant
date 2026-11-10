@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, HeartPulse, Footprints } from 'lucide-react';
+import { Heart, HeartPulse, Footprints } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { HealthDial, HEALTH_TONE_INK } from './HealthDial';

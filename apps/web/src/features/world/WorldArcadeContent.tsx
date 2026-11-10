@@ -1,6 +1,6 @@
 'use client';
 import { memo, useCallback } from 'react';
-import { Bot, Play, RotateCcw, UsersRound } from 'lucide-react';
+import { Bot, Play, RotateCcw, UsersRound } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

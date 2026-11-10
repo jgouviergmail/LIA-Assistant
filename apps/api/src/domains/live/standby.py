@@ -43,6 +43,7 @@ from src.domains.live.schemas import (
     LiveWakeResponse,
 )
 from src.domains.live.setup_render import render_setup_inputs
+from src.domains.voice.expressive_cues import dialect_named
 from src.domains.voice_sessions.session import VoiceSession, as_voice_session_mode
 from src.domains.voice_sessions.transcript import VoiceTranscript
 from src.infrastructure.observability.metrics_live import (
@@ -205,6 +206,8 @@ async def wake(
         now=now,
         personality=await service._personality_of(user.id),
         psyche_block=await service._inner_state_of(user.id, timezone),
+        # The wire the session STARTED on: never a fresh read (ADR-373).
+        cue_dialect=dialect_named(kept.cue_dialect),
     )
     # The wire the session opened on stays the session's.
     inputs = replace(inputs, audio_transport=kept.audio_transport)
@@ -214,7 +217,9 @@ async def wake(
         refused("provider_error")
 
     # An agent-bound provider learns a tool set that changed meanwhile before
-    # the credential exists; a vendor refusal leaves the session asleep.
+    # the credential exists; a vendor refusal leaves the session asleep. The
+    # render's reads end before the vendor is asked (ADR-304).
+    await service.db.commit()
     try:
         await service._sync_agent(provider, connector, api_key, inputs, language=language)
     except Exception:

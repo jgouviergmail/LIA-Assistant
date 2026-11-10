@@ -1,6 +1,6 @@
-"""Automation configuration module (P12, ADR-140).
+"""Automation configuration module (P12, ADR-140; recurring needs ADR-375).
 
-Recurrence-detection thresholds for the automation suggestion. Every value
+The request ledger's storage bounds and the recurring-need bars. Every value
 is env-overridable (``RECURRENCE_*``). Defaults imported from
 ``src.core.constants`` (config never imports domains).
 
@@ -14,18 +14,14 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
-    RECURRENCE_DAILY_DENSITY_MIN_DEFAULT,
+    RECURRENCE_AUTOMATE_MIN_DAYS_DEFAULT,
+    RECURRENCE_AUTOMATE_SHARE_DEFAULT,
     RECURRENCE_DAY_HOURS_CAP_DEFAULT,
-    RECURRENCE_INTERMITTENT_R_MIN_DEFAULT,
     RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT,
-    RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT,
-    RECURRENCE_LOCK_HALF_R_MIN_DEFAULT,
-    RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT,
-    RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT,
-    RECURRENCE_LOCK_R_MIN_DEFAULT,
     RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT,
-    RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT,
-    RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT,
+    RECURRENCE_NEED_MIN_WEEKS_DEFAULT,
+    RECURRENCE_NEED_RECENT_DAYS_DEFAULT,
+    RECURRENCE_PART_OF_DAY_SHARE_DEFAULT,
     RECURRENCE_WEEKEND_TOLERANCE_DEFAULT,
     RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT,
     RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT,
@@ -34,17 +30,17 @@ from src.core.constants import (
 
 
 class AutomationSettings(BaseSettings):
-    """Env-overridable settings for the recurrence→automation suggestion.
+    """Env-overridable settings for the request ledger and the recurring needs.
 
-    v2 (ADR-214): per-day ledger storage and shape LOCKS. A user-facing
-    suggestion only fires when a lock holds — thresholds calibrated by the
-    habits-plan simulation harness (§4.2: 0% false suggestions on
-    spread/sporadic usage, 90.7% weekly detection vs 0% before).
+    ADR-375: a need is a domain asked on enough distinct days — the hour is a
+    descriptor, never a condition (the ADR-214 shape LOCKS are retired).
+    Calibrated by ``scripts/habits/measure_proposals.py``.
     """
 
     recurrence_suggestion_enabled: bool = Field(
         default=True,
-        description="Enable the recurrence detector + automation suggestion.",
+        description="Let LIA show a habit proposal under a chat answer (ADR-375). Learning, "
+        "the proposals inbox and the nightly sync do not depend on it.",
     )
     recurrence_window_days: int = Field(
         default=RECURRENCE_WINDOW_DAYS_DEFAULT,
@@ -56,116 +52,110 @@ class AutomationSettings(BaseSettings):
         default=RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT,
         ge=2,
         le=14,
-        description="Distinct days with the same request shape for the habit to EXIST "
-        "(internal — a suggestion additionally requires a lock).",
+        description="Distinct days a domain must be asked on for a recurring need to EXIST.",
     )
-    recurrence_suggestion_cooldown_days: int = Field(
-        default=RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT,
-        ge=7,
-        le=180,
-        description="Never re-suggest the same shape within this cooldown.",
+    recurrence_need_min_weeks: int = Field(
+        default=RECURRENCE_NEED_MIN_WEEKS_DEFAULT,
+        ge=1,
+        le=8,
+        description="Distinct ISO weeks a recurring need's days must span (ADR-375).",
+    )
+    recurrence_need_recent_days: int = Field(
+        default=RECURRENCE_NEED_RECENT_DAYS_DEFAULT,
+        ge=1,
+        le=60,
+        description="A recurring need lapses when its latest ask is older than this.",
+    )
+    recurrence_automate_share: float = Field(
+        default=RECURRENCE_AUTOMATE_SHARE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Share of the person's active days a need must cover before LIA "
+        "proposes automating it (weekly needs are judged on their weekday instead).",
+    )
+    recurrence_automate_min_days: int = Field(
+        default=RECURRENCE_AUTOMATE_MIN_DAYS_DEFAULT,
+        ge=2,
+        le=60,
+        description="Need days required, with the share, before proposing an automation.",
+    )
+    recurrence_part_of_day_share: float = Field(
+        default=RECURRENCE_PART_OF_DAY_SHARE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Share of asks that must fall in one part of the day to name it.",
     )
     recurrence_ledger_max_entries: int = Field(
         default=RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT,
         ge=7,
         le=100,
-        description="Cap on stored DAY entries per (user, shape) — v2 stores days, "
-        "not raw occurrences (the occurrence cap starved the spread lock).",
+        description="Cap on stored DAY entries per (user, domain) — v2 stores days, "
+        "not raw occurrences.",
     )
     recurrence_day_hours_cap: int = Field(
         default=RECURRENCE_DAY_HOURS_CAP_DEFAULT,
         ge=1,
         le=24,
-        description="Cap on stored occurrence hours per day entry.",
-    )
-    recurrence_lock_min_occurrences: int = Field(
-        default=RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT,
-        ge=4,
-        le=50,
-        description="Occurrences required before a time-lock may be claimed.",
-    )
-    recurrence_lock_min_spread_days: int = Field(
-        default=RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT,
-        ge=5,
-        le=60,
-        description="First-to-last day spread required for a time-lock.",
-    )
-    recurrence_lock_r_min: float = Field(
-        default=RECURRENCE_LOCK_R_MIN_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Circular concentration (R) required for a time-lock.",
-    )
-    recurrence_lock_half_r_min: float = Field(
-        default=RECURRENCE_LOCK_HALF_R_MIN_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Split-half consistency: R required on each half.",
-    )
-    recurrence_lock_half_agree_hours: float = Field(
-        default=RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT,
-        ge=0.5,
-        le=12.0,
-        description="Split-half consistency: max circular distance between half means.",
-    )
-    recurrence_shape_min_span_days: int = Field(
-        default=RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT,
-        ge=7,
-        le=60,
-        description="Calendar SPAN (days, first to last occurrence) before a "
-        "time-lock shape is labeled (too early mislabels daily as workdays — "
-        "measured). Replaces RECURRENCE_SHAPE_MIN_DAYS (distinct days) since "
-        "2026-09-11; the old key is ignored.",
-    )
-    recurrence_daily_density_min: float = Field(
-        default=RECURRENCE_DAILY_DENSITY_MIN_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Distinct-day density over the eligible span below which "
-        "a proven time lock is labeled 'intermittent' (never 'daily').",
-    )
-    recurrence_intermittent_r_min: float = Field(
-        default=RECURRENCE_INTERMITTENT_R_MIN_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description="Circular R required for the 'intermittent' label — an "
-        "hour promised without a calendar must beat the waking-arc's own "
-        "concentration (uniform 8-22h reaches R 0.8 by luck at light volume).",
+        description="Cap on stored DISTINCT clock hours per day entry (one per hour, ADR-375).",
     )
     recurrence_weekend_tolerance: int = Field(
         default=RECURRENCE_WEEKEND_TOLERANCE_DEFAULT,
         ge=0,
         le=4,
-        description="Weekend days tolerated in a 'workdays' labeling.",
+        description="Weekend days tolerated before a need's cadence stops being 'weekdays'.",
     )
     recurrence_weekly_min_same_dow: int = Field(
         default=RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT,
         ge=3,
         le=10,
-        description="Distinct same-weekday days required for a weekly lock.",
+        description="Distinct same-weekday days required for a weekly cadence.",
     )
     recurrence_weekly_dow_fraction: float = Field(
         default=RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT,
         ge=0.5,
         le=1.0,
-        description="Fraction of distinct days on the modal weekday for a weekly lock.",
+        description="Fraction of a need's days on its modal weekday for a weekly cadence.",
     )
 
     @model_validator(mode="after")
     def _ledger_cap_covers_the_window(self) -> AutomationSettings:
         """Refuse a day-entry cap below the observation window.
 
-        The ledger stores one entry per day and trims to the cap; the locks
+        The ledger stores one entry per day and trims to the cap; the needs
         read the window. A cap below the window silently shortens EVERY
-        window — a weekly ritual needs its fifth slot, and the v1 occurrence
-        cap starved the spread lock exactly this way (ADR-214). Loud, like
-        the sibling settings validators: learning on a truncated ledger is
-        the silent failure this subsystem has already paid for once.
+        window — a weekly need needs its fifth slot, and the v1 occurrence
+        cap starved the detector exactly this way (ADR-214). Loud, like the
+        sibling settings validators: learning on a truncated ledger is the
+        silent failure this subsystem has already paid for once.
         """
         if self.recurrence_ledger_max_entries < self.recurrence_window_days:
             raise ValueError(
                 "RECURRENCE_LEDGER_MAX_ENTRIES must be >= RECURRENCE_WINDOW_DAYS "
                 f"(got entries={self.recurrence_ledger_max_entries}, "
                 f"window={self.recurrence_window_days})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _need_bars_fit_the_window(self) -> AutomationSettings:
+        """Refuse need bars no window could ever satisfy (ADR-375).
+
+        A recency or automation bar wider than the window, or an existence bar
+        above the automation one, silently turns a learning rule off: loud at
+        boot, like the ledger cap above.
+        """
+        window = self.recurrence_window_days
+        if (
+            self.recurrence_need_recent_days > window
+            or self.recurrence_automate_min_days > window
+            or self.recurrence_min_distinct_days > self.recurrence_automate_min_days
+        ):
+            raise ValueError(
+                "Need bars must fit the window: RECURRENCE_NEED_RECENT_DAYS and "
+                "RECURRENCE_AUTOMATE_MIN_DAYS <= RECURRENCE_WINDOW_DAYS, and "
+                "RECURRENCE_MIN_DISTINCT_DAYS <= RECURRENCE_AUTOMATE_MIN_DAYS "
+                f"(got recent={self.recurrence_need_recent_days}, "
+                f"automate_min={self.recurrence_automate_min_days}, "
+                f"min={self.recurrence_min_distinct_days}, window={window})"
             )
         return self

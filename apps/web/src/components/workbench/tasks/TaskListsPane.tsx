@@ -12,7 +12,7 @@
  * lists (the descriptor says so). The views across the lists stand above them.
  */
 import Link from 'next/link';
-import { CalendarClock, ListChecks, Plus } from 'lucide-react';
+import { CalendarClock, ListChecks, Plus } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';

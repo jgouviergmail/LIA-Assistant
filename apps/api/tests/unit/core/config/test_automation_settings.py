@@ -23,16 +23,32 @@ class TestAutomationSettings:
         # 71 % at d28 falling to 64 % at d42). Day-entry cap = window days.
         assert settings.recurrence_window_days == 35
         assert settings.recurrence_min_distinct_days == 4
-        assert settings.recurrence_suggestion_cooldown_days == 30
         assert settings.recurrence_ledger_max_entries == 35
-
-    def test_lock_thresholds_composed(self):
-        assert settings.recurrence_lock_min_occurrences == 6
-        assert settings.recurrence_lock_r_min == 0.8
-        assert settings.recurrence_shape_min_span_days == 10
-        assert settings.recurrence_daily_density_min == 0.6
-        assert settings.recurrence_intermittent_r_min == 0.9
         assert settings.recurrence_weekly_min_same_dow == 4
+
+    @pytest.mark.parametrize(
+        "retired",
+        [
+            "recurrence_suggestion_cooldown_days",
+            "recurrence_lock_min_occurrences",
+            "recurrence_lock_min_spread_days",
+            "recurrence_lock_r_min",
+            "recurrence_lock_half_r_min",
+            "recurrence_lock_half_agree_hours",
+            "recurrence_shape_min_span_days",
+            "recurrence_daily_density_min",
+            "recurrence_intermittent_r_min",
+            "habits_deviation_offer_cooldown_days",
+            "habits_deviation_stop_after_ignored",
+            "habits_deviation_grace_hours",
+            "heartbeat_offers_window_days",
+        ],
+    )
+    def test_the_locked_hour_settings_are_retired(self, retired):
+        """ADR-375: the hour is a descriptor, never a condition — the lock, the
+        missed-routine offer and their bars left together, and a deployment
+        still carrying one of these keys feeds nothing into the new rules."""
+        assert not hasattr(settings, retired)
 
     def test_the_distinct_days_labeling_key_is_retired(self):
         """``recurrence_shape_min_days`` counted DISTINCT days; the 2026-09-11
@@ -67,3 +83,34 @@ class TestLedgerCapCoversTheWindow:
 
     def test_shipped_defaults_are_coherent(self):
         assert settings.recurrence_ledger_max_entries >= settings.recurrence_window_days
+
+
+@pytest.mark.unit
+class TestNeedBarsFitTheWindow:
+    """ADR-375: a need bar no window can satisfy silently turns learning off."""
+
+    def test_defaults_boot_and_are_composed(self):
+        assert settings.recurrence_need_min_weeks == 2
+        assert settings.recurrence_need_recent_days == 14
+        assert settings.recurrence_automate_share == 0.4
+        assert settings.recurrence_automate_min_days == 12
+        assert settings.recurrence_part_of_day_share == 0.6
+
+    @pytest.mark.parametrize(
+        ("env", "value"),
+        [
+            ("RECURRENCE_NEED_RECENT_DAYS", "36"),
+            ("RECURRENCE_AUTOMATE_MIN_DAYS", "36"),
+        ],
+    )
+    def test_a_bar_wider_than_the_window_refuses_to_boot(self, monkeypatch, env, value):
+        monkeypatch.setenv("RECURRENCE_WINDOW_DAYS", "35")
+        monkeypatch.setenv(env, value)
+        with pytest.raises(ValidationError, match="Need bars must fit the window"):
+            AutomationSettings()
+
+    def test_an_existence_bar_above_the_automation_bar_refuses_to_boot(self, monkeypatch):
+        monkeypatch.setenv("RECURRENCE_MIN_DISTINCT_DAYS", "13")
+        monkeypatch.setenv("RECURRENCE_AUTOMATE_MIN_DAYS", "12")
+        with pytest.raises(ValidationError, match="Need bars must fit the window"):
+            AutomationSettings()

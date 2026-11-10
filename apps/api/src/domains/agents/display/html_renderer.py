@@ -451,7 +451,15 @@ class HtmlRenderer:
             # Filter out empty cards (e.g., routes with no destination)
             if card_html.strip():
                 card_parts.append(card_html)
-        return fold_card_collection(card_parts, ctx.max_items, ctx.language), len(card_parts)
+        return (
+            fold_card_collection(
+                card_parts,
+                ctx.max_items,
+                ctx.language,
+                initial_limit=component.collection_initial_limit,
+            ),
+            len(card_parts),
+        )
 
     def _render_single_card_without_separator(
         self,

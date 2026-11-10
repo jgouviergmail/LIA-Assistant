@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.llm.pricing_service import ModelPrice
 from src.domains.llm_config import jev_settings as module
 from src.domains.llm_config.jev_registry import JevUsage
-from src.domains.llm_config.jev_settings import DecisionConfiguration, load_jev_snapshot
+from src.domains.llm_config.jev_settings import DecisionConfiguration, JevRouting, load_jev_snapshot
 
 pytestmark = pytest.mark.unit
 
@@ -24,8 +24,12 @@ async def test_off_never_even_loads_credentials(global_on: bool, local_on: bool)
     with (
         patch.object(
             module,
-            "read_flags",
-            AsyncMock(return_value={"global": global_on, "meeting_template": local_on}),
+            "read_routing",
+            AsyncMock(
+                return_value=JevRouting(
+                    flags={"global": global_on, "meeting_template": local_on}, thresholds={}
+                )
+            ),
         ),
         patch.object(module, "read_configuration", AsyncMock()) as configuration,
         patch("src.infrastructure.database.get_db_context", _session),
@@ -52,12 +56,12 @@ async def test_next_operation_reads_the_new_switch_and_old_snapshot_is_stable() 
     )
     flags = AsyncMock(
         side_effect=[
-            {"global": True, "meeting_template": True},
-            {"global": False, "meeting_template": True},
+            JevRouting(flags={"global": True, "meeting_template": True}, thresholds={}),
+            JevRouting(flags={"global": False, "meeting_template": True}, thresholds={}),
         ]
     )
     with (
-        patch.object(module, "read_flags", flags),
+        patch.object(module, "read_routing", flags),
         patch.object(module, "read_configuration", AsyncMock(return_value=("ready", config))),
         patch("src.infrastructure.database.get_db_context", _session),
     ):
@@ -70,7 +74,9 @@ async def test_next_operation_reads_the_new_switch_and_old_snapshot_is_stable() 
 
 async def test_database_outage_chooses_existing_path() -> None:
     with (
-        patch.object(module, "read_flags", AsyncMock(side_effect=OSError("database unavailable"))),
+        patch.object(
+            module, "read_routing", AsyncMock(side_effect=OSError("database unavailable"))
+        ),
         patch("src.infrastructure.database.get_db_context", _session),
     ):
         snapshot = await load_jev_snapshot(JevUsage.MEETING_TEMPLATE)
@@ -80,12 +86,12 @@ async def test_database_outage_chooses_existing_path() -> None:
 
 
 async def test_slow_configuration_read_is_bounded() -> None:
-    async def slow_flags(db: AsyncSession) -> dict[str, bool]:
+    async def slow_flags(db: AsyncSession) -> JevRouting:
         await asyncio.sleep(10)
-        return {}
+        return JevRouting(flags={}, thresholds={})
 
     with (
-        patch.object(module, "read_flags", slow_flags),
+        patch.object(module, "read_routing", slow_flags),
         patch.object(module, "CONFIGURATION_TIMEOUT_SECONDS", 0.01, create=True),
         patch("src.infrastructure.database.get_db_context", _session),
     ):

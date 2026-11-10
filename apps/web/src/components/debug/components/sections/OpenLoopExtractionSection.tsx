@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { ListTodo } from 'lucide-react';
+import { ListTodo } from '@/lib/icons';
 import { DebugChip, DebugSection, EmptySection, MetricRow } from '../shared';
 import { ExtractionLLMFooter } from './MemoryDetectionSection';
 import type { OpenLoopExtractionMetrics } from '@/types/chat';

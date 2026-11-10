@@ -110,7 +110,7 @@ describe('EyesFace hybrid companion boundary', () => {
     }
   );
 
-  it.each(RIG_EYE_STYLE_IDS.filter(style => style !== 'smiley'))(
+  it.each(RIG_EYE_STYLE_IDS)(
     'composes %s on the actual monitor while retaining the native face',
     styleId => {
       const { container } = render(
@@ -199,8 +199,6 @@ describe('EyesFace hybrid companion boundary', () => {
         />
       );
       expect(rigRoot(container)).toHaveClass('lia-eyes--xl');
-      if (styleId === 'smiley')
-        expect(rigRoot(container)).toHaveAttribute('data-smiley-variant', 'male');
       if (HYBRID_EYE_STYLE_IDS.some(character => character === styleId)) {
         expect(container.querySelector(`[data-character="${styleId}"]`)).toHaveAttribute(
           'data-spirit-companion',
@@ -257,7 +255,7 @@ describe('EyesFace hybrid companion boundary', () => {
         gaze={null}
         size="sm"
         life={false}
-        gesture="bounce"
+        gesture="nod"
         emote="!"
         emoteLeaving
         accessory="sparkle"
@@ -269,7 +267,7 @@ describe('EyesFace hybrid companion boundary', () => {
     advanceFrames(320);
     expect(mouth?.getAttribute('d')).not.toBe(neutral);
     expect(root).toHaveAttribute('data-family', 'lively');
-    expect(root).toHaveAttribute('data-gesture', 'bounce');
+    expect(root).toHaveAttribute('data-gesture', 'nod');
     expect(container.querySelector('.lia-emote')).toHaveTextContent('!');
     expect(container.querySelector('.lia-emote')).toHaveClass('is-leaving');
     expect(container.querySelector('.lia-accessory')).toHaveAttribute('data-accessory', 'sparkle');
@@ -353,23 +351,4 @@ describe('EyesFace hybrid companion boundary', () => {
     expect(rigRoot(container)).toHaveAttribute('data-expression', 'fear');
     expect(container.querySelectorAll('.lia-eyes')).toHaveLength(1);
   });
-
-  it.each(['female', 'male'] as const)(
-    'keeps %s Smiley on its native renderer with its original body and iris boundaries',
-    variant => {
-      const { container } = render(
-        <EyesFace styleId="smiley" variant={variant} expression="joy" gaze={null} size="sm" />
-      );
-      expect(rigRoot(container)).toHaveAttribute('data-smiley-variant', variant);
-      expect(container.querySelectorAll('.lia-eye-shape')).toHaveLength(2);
-      expect(container.querySelectorAll('.lia-eye-blink')).toHaveLength(2);
-      expect(container.querySelector('[data-spirit-companion]')).toBeNull();
-      expect(container.querySelectorAll('.lia-eye-pupil-clip > .lia-eye-pupil')).toHaveLength(2);
-      const boundary = container.querySelector('.lia-raster-face-mask');
-      expect(boundary?.querySelectorAll('.lia-eye-shape')).toHaveLength(2);
-      expect(boundary?.querySelector('[data-rig-mouth]')).not.toBeNull();
-      expect(boundary?.querySelector('[data-rig-brow]')).toBeNull();
-      expect(activeFrameSubscribers()).toBe(1);
-    }
-  );
 });

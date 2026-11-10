@@ -33,6 +33,7 @@ from collections.abc import AsyncIterable, AsyncIterator
 from contextlib import suppress
 from typing import Any, Final, TypeVar
 
+from src.infrastructure.async_utils import cancel_and_join
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -106,17 +107,11 @@ async def iter_with_keepalive(
                 raise item
             yield item
     finally:
-        if not consumer.done():
-            consumer.cancel()
         try:
-            # CancelledError is expected when the wrapper finishes (early
-            # break / client disconnect): suppress so the cancel does not
-            # leak past the caller's loop. StopAsyncIteration is defensive:
-            # an early generator close can surface it — treat it as a clean
-            # end-of-stream. suppress() intercepts both before the Exception
-            # handler below, exactly like the specific handlers it replaces.
-            with suppress(asyncio.CancelledError, StopAsyncIteration):
-                await consumer
+            # Join resource cleanup through repeated cancellation. A new owner
+            # cancellation still propagates; an early iterator close is normal.
+            with suppress(StopAsyncIteration):
+                await cancel_and_join(consumer)
         except Exception as exc:
             # The consumer already routed its own errors through the queue
             # and yielded them via `raise item`. Anything still raised here

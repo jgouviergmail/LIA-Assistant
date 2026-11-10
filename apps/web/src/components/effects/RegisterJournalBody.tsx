@@ -20,7 +20,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/lib/icons';
 
 import {
   RegisterError,

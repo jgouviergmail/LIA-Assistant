@@ -49,7 +49,7 @@ LLM_CHOKEPOINTS: tuple[tuple[str, str], ...] = (
     ("domains/agents/application/interest_embeddings.py", "prepare_interest_embedding"),
     ("domains/user_mcp/connection_embeddings.py", "build_connection_embeddings"),
     (
-        "domains/agents/application/memory_creation_embeddings.py",
+        "domains/memories/creation_embeddings.py",
         "prepare_memory_creation_embeddings",
     ),
     ("infrastructure/llm/jev_runtime.py", "choose_many_with_jev"),

@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Wrench } from 'lucide-react';
+import { Wrench } from '@/lib/icons';
 import { validateToolScores } from '../../validation/validators';
 import {
   DebugSection,

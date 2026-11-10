@@ -19,8 +19,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sms_identity_ses
 
 
 @pytest.mark.usefixtures("committed_user_ids")
+@pytest.mark.parametrize("endpoint, query", [("search", "cafe"), ("display-search", "caf")])
 async def test_personal_search_and_detail_are_readable_without_assistant_consent(
-    async_client, db_session, async_engine, committed_user_ids, caplog
+    async_client, db_session, async_engine, committed_user_ids, caplog, endpoint, query
 ):
     # Release owner/key locks before independent identity and recorder connections.
     owner = await commit_owner(async_engine, committed_user_ids)
@@ -36,7 +37,7 @@ async def test_personal_search_and_detail_are_readable_without_assistant_consent
     assert SmsPreferences.from_stored(test_user.sms_preferences).assistant_enabled is False
     app.dependency_overrides[get_current_active_session] = lambda: test_user
     try:
-        response = await async_client.post("/api/v1/sms/search", json={"query": "cafe"})
+        response = await async_client.post(f"/api/v1/sms/{endpoint}", json={"query": query})
         assert response.status_code == 200
         page = response.json()
         assert page["total"] == 1 and page["items"][0]["body"] == "Café demain"
@@ -51,9 +52,10 @@ async def test_personal_search_and_detail_are_readable_without_assistant_consent
         app.dependency_overrides.pop(get_current_active_session, None)
 
 
-async def test_ingestion_token_cannot_read_personal_archive(async_client):
+@pytest.mark.parametrize("endpoint", ["search", "display-search"])
+async def test_ingestion_token_cannot_read_personal_archive(async_client, endpoint):
     response = await async_client.post(
-        "/api/v1/sms/search", json={}, headers={"Authorization": "Bearer pi_test"}
+        f"/api/v1/sms/{endpoint}", json={}, headers={"Authorization": "Bearer pi_test"}
     )
     assert response.status_code == 401
 

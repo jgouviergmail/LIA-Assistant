@@ -20,7 +20,6 @@ import type { Page } from '@playwright/test';
 
 import { expect, test } from '../fixtures';
 import { installApiCatchAll, registerRoutes } from '../fixtures/api-mock';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 
 // The public /demo route localizes from Accept-Language: pin the browser to
 // French so the role-name selectors below are deterministic (the locale sweep
@@ -324,7 +323,6 @@ test.describe('guided showroom — responsive and locales', () => {
       proxy: apiNetworkGuard.proxy,
     });
     const page = await context.newPage();
-    await installOfflineFonts(page);
     await installApiCatchAll(page);
     await registerRoutes(page, [DISABLED_DEMO_LINK_MOCK]);
     const offenders = armNetworkOracle(page);

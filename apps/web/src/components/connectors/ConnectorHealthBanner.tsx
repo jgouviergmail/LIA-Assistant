@@ -28,7 +28,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/lib/icons';
 import type { ConnectorHealthItem } from '@/hooks/useConnectorHealth';
 import type { Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';

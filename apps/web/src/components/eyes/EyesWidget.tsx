@@ -20,7 +20,7 @@
  */
 
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Scaling, X } from 'lucide-react';
+import { Scaling, X } from '@/lib/icons';
 
 import { useTranslation } from 'react-i18next';
 import { useAvatarRuntime } from '@/lib/avatars/runtime';

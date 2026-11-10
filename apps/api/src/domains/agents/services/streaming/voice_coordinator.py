@@ -39,6 +39,7 @@ from src.domains.agents.services.streaming.voice_stream_helpers import (
     _should_start_voice,
     _stream_voice_chunks_to_queue,
 )
+from src.domains.personalities.constants import default_personality_prompt
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_voice import voice_fallback_total
 
@@ -151,6 +152,15 @@ class VoiceStreamCoordinator:
         immediately without waiting for a page reload.
         """
         return self._tts_snapshot_for_done
+
+    def _personality(self) -> str:
+        """The personality the spoken comment is written in (ADR-373).
+
+        The written answer falls back to the default personality when the
+        person's could not be read; the comment speaks in the same one, never
+        in an empty profile.
+        """
+        return self._ctx.personality_instruction or default_personality_prompt()
 
     async def on_router_decision(self, intention: str) -> None:
         """Start the chat-mode progressive TTS pipeline when applicable.
@@ -290,7 +300,7 @@ class VoiceStreamCoordinator:
                     _stream_voice_chunks_to_queue(
                         voice_service=self._voice_service_parallel,
                         context_summary=voice_context,
-                        personality_instruction=self._ctx.personality_instruction or "",
+                        personality_instruction=self._personality(),
                         user_language=self._ctx.user_language,
                         current_datetime=now_in_timezone(self._ctx.user_timezone).isoformat(),
                         user_query=self._ctx.user_message,
@@ -696,7 +706,7 @@ class VoiceStreamCoordinator:
                             or _sanitize_and_truncate_for_tts(
                                 response_content, settings.voice_context_max_chars
                             ),
-                            personality_instruction=self._ctx.personality_instruction or "",
+                            personality_instruction=self._personality(),
                             user_language=self._ctx.user_language,
                             current_datetime=current_dt,
                             user_query=self._ctx.user_message,

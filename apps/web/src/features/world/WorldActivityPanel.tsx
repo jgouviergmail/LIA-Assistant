@@ -1,6 +1,6 @@
 'use client';
 import type { ReactNode, Ref, RefObject } from 'react';
-import { ArrowLeft, Bot, LayoutGrid, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Bot, LayoutGrid, type LucideIcon } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

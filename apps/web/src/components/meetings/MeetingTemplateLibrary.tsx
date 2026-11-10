@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { Copy, Eye, FolderPlus, LibraryBig, Pencil, Sparkles, Trash2 } from 'lucide-react';
+import { Copy, Eye, FolderPlus, LibraryBig, Pencil, Sparkles, Trash2 } from '@/lib/icons';
 
 import { TemplateCategoryGlyph } from '@/components/meetings/templateCategoryIcons';
 import {

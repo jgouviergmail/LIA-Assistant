@@ -79,6 +79,7 @@ const { FakeService } = vi.hoisted(() => {
 vi.mock('@/lib/voice-input-service', () => ({ VoiceInputService: FakeService }));
 
 import { useVoiceInput } from '../useVoiceInput';
+import { VOICE_RECORDING_SETUP_TIMEOUT_MS } from '@/lib/constants';
 
 // --- browser audio stubs -----------------------------------------------------
 
@@ -223,6 +224,18 @@ describe('useVoiceInput — pre-warming', () => {
 });
 
 describe('useVoiceInput — recording', () => {
+  it('two mounted composers cannot capture the microphone concurrently', async () => {
+    const first = await setup();
+    const onError = vi.fn();
+    const second = await setup({ onError });
+    await act(() => first.result.current.startRecording());
+    await act(() => second.result.current.startRecording());
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledOnce();
+    first.unmount();
+    await act(() => second.result.current.startRecording());
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+  });
   it('arms the microphone with the expected capture settings', async () => {
     const { result } = await setup();
 
@@ -285,6 +298,41 @@ describe('useVoiceInput — recording', () => {
 });
 
 describe('useVoiceInput — cancelling during startup', () => {
+  it('a timed-out permission request stops its late stream and owns no timer afterwards', async () => {
+    let release: (stream: MediaStream) => void = () => {};
+    getUserMedia.mockReturnValue(
+      new Promise<MediaStream>(resolve => {
+        release = resolve;
+      })
+    );
+    const { result } = await setup();
+    vi.useFakeTimers();
+    act(() => {
+      void result.current.startRecording();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(VOICE_RECORDING_SETUP_TIMEOUT_MS + 1));
+    expect(result.current.state).toBe('idle');
+    await act(async () => release(makeStream()));
+    expect(trackStop).toHaveBeenCalledOnce();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('a microphone granted after unmount is stopped without constructing an audio graph', async () => {
+    let release: (stream: MediaStream) => void = () => {};
+    getUserMedia.mockReturnValue(
+      new Promise<MediaStream>(resolve => {
+        release = resolve;
+      })
+    );
+    const { result, unmount } = await setup();
+    act(() => {
+      void result.current.startRecording();
+    });
+    unmount();
+    await act(async () => release(makeStream()));
+    expect(trackStop).toHaveBeenCalledOnce();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+  });
   it('aborts the startup when the button is released too early', async () => {
     // The microphone never answers: the hook stays in `connecting`.
     let releaseMic: (stream: MediaStream) => void = () => {};
@@ -327,6 +375,8 @@ describe('useVoiceInput — results and failures', () => {
     expect(result.current.durationSeconds).toBe(2.5);
     expect(result.current.state).toBe('idle');
     expect(onTranscription).toHaveBeenCalledWith('bonjour LIA', { stt_provider: 'elevenlabs' });
+    expect(trackStop).toHaveBeenCalledOnce();
+    expect(contextClose).toHaveBeenCalledOnce();
   });
 
   it('surfaces a service error and returns to idle', async () => {
@@ -336,11 +386,17 @@ describe('useVoiceInput — results and failures', () => {
       await result.current.startRecording();
     });
 
-    act(() => service().config.onError?.(new Error('socket died')));
+    const active = service();
+    act(() => active.config.onError?.(new Error('socket died')));
 
     expect(result.current.error?.message).toBe('socket died');
     expect(result.current.state).toBe('idle');
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'socket died' }));
+    expect(trackStop).toHaveBeenCalledOnce();
+    expect(active.disposed).toBe(true);
+    const other = await setup();
+    await act(() => other.result.current.startRecording());
+    expect(other.result.current.isRecording).toBe(true);
   });
 
   it('reports a microphone the user refused', async () => {

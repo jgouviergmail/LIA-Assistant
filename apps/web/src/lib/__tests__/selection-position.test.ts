@@ -4,6 +4,22 @@ import { placeSelectionMenu, selectionMenuSpace } from '../selection-position';
 const viewport = { top: 0, left: 0, width: 800, height: 600 };
 
 describe('selection menu free space', () => {
+  it('keeps actions reachable when a large editor covers every edge of the viewport', () => {
+    const anchor = { top: -100, bottom: 900, left: 0, width: 320 };
+    const small = { top: 100, left: 0, width: 320, height: 300 };
+    const size = { width: 304, height: 250 };
+    const space = selectionMenuSpace(anchor, size, small);
+    expect(space).not.toBeNull();
+    expect(space!.height).toBeGreaterThanOrEqual(44);
+    expect(space!.height).toBeLessThan(size.height);
+    const position = placeSelectionMenu(
+      anchor,
+      { width: space!.width, height: space!.height },
+      space!
+    );
+    expect(position.top).toBeGreaterThanOrEqual(small.top);
+    expect(position.top + space!.height).toBeLessThanOrEqual(small.top + small.height);
+  });
   it('uses a side when selected text spans the viewport height', () => {
     const anchor = { top: -20, bottom: 620, left: 400, width: 200 };
     const size = { width: 200, height: 100 };

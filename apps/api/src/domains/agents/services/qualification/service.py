@@ -3,13 +3,14 @@
 import asyncio
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from time import perf_counter
 from uuid import UUID
 
 from src.core.constants import (
-    JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
     JEV_CLASSIFICATION_CLAIM_POLL_SECONDS,
     JEV_CLASSIFICATION_CLAIM_TTL_SECONDS,
     JEV_CLASSIFICATION_EMAIL_TTL_SECONDS,
@@ -17,7 +18,6 @@ from src.core.constants import (
     JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES,
     JEV_CLASSIFICATION_MAX_CONCURRENT_BATCHES,
     JEV_CLASSIFICATION_MAX_ITEMS,
-    JEV_CLASSIFICATION_MIN_CONFIDENCE,
     JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS,
     JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
     JEV_CLASSIFICATION_TIMEOUT_SECONDS,
@@ -43,8 +43,10 @@ from src.domains.agents.services.qualification.contracts import (
     ClassificationObservation,
 )
 from src.domains.agents.services.qualification.policy import classify_answers
+from src.domains.llm_config.jev_gates import gate_defaults
 from src.domains.llm_config.jev_registry import JevUsage
 from src.domains.llm_config.jev_settings import JevSnapshot, load_jev_snapshot
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
 from src.infrastructure.llm.decision_types import DecisionAttempt
 from src.infrastructure.llm.jev_debug_models import context_preview
 from src.infrastructure.llm.jev_debug_store import record_action
@@ -54,7 +56,6 @@ from src.infrastructure.locks.redis_claim import acquire_claim, held_claim
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
-    jev_decisions_total,
 )
 from src.infrastructure.utils.shared_flight import CLAIM_PREFIX
 
@@ -62,6 +63,7 @@ logger = get_logger(__name__)
 _PROMPTS: tuple[PromptName, ...] = (
     "jev_email_category_question",
     "jev_email_priority_question",
+    "jev_email_reply_expected_question",
     "jev_event_category_question",
 )
 
@@ -76,31 +78,52 @@ class ClassificationOperation:
     timezone: str
 
 
-def policy_fingerprint() -> str:
+def policy_fingerprint(
+    usage: JevUsage = JevUsage.EMAIL_CLASSIFICATION,
+    thresholds: Mapping[str, Decimal] | None = None,
+) -> str:
+    """The hash a cached label is bound to: prompts, rules, TTLs and EFFECTIVE thresholds.
+
+    The shipped thresholds keep the base the qualified records were taken under
+    (``threshold`` and ``alert_threshold``); a threshold moved away from its default
+    (ADR-374) joins as an override, so a label published under another threshold is
+    never served from the cache.
+
+    Args:
+        usage: The classification usage whose thresholds the operation resolved.
+        thresholds: The operation's resolved thresholds; the defaults when ``None``.
+
+    Returns:
+        The SHA-256 hex digest.
+    """
+    shipped = gate_defaults(JevUsage.EMAIL_CLASSIFICATION)
+    defaults = gate_defaults(usage)
+    overrides = {
+        key: str(value) for key, value in (thresholds or {}).items() if value != defaults.get(key)
+    }
+    policy: dict[str, object] = {
+        "version": CLASSIFICATION_VERSION,
+        "probability_contract": CHOICE_PROBABILITY_CONTRACT,
+        "threshold": float(shipped["category"]),
+        "alert_threshold": float(shipped["alert"]),
+        # A rule that decides before the model is policy too: a cached
+        # label must not outlive the rule it was published under.
+        "provider_rules": {
+            "commercial_labels": sorted(JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS),
+            "spam_label": JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
+            "event_types": JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES,
+        },
+        "ttls": [
+            JEV_CLASSIFICATION_EMAIL_TTL_SECONDS,
+            JEV_CLASSIFICATION_EVENT_TTL_SECONDS,
+            JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS,
+        ],
+        "prompts": [load_prompt(name, version="v1") for name in _PROMPTS],
+    }
+    if overrides:
+        policy["threshold_overrides"] = {usage.value: overrides}
     return hashlib.sha256(
-        json.dumps(
-            {
-                "version": CLASSIFICATION_VERSION,
-                "probability_contract": CHOICE_PROBABILITY_CONTRACT,
-                "threshold": JEV_CLASSIFICATION_MIN_CONFIDENCE,
-                "alert_threshold": JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
-                # A rule that decides before the model is policy too: a cached
-                # label must not outlive the rule it was published under.
-                "provider_rules": {
-                    "commercial_labels": sorted(JEV_CLASSIFICATION_PROVIDER_COMMERCIAL_LABELS),
-                    "spam_label": JEV_CLASSIFICATION_PROVIDER_SPAM_LABEL,
-                    "event_types": JEV_CLASSIFICATION_EVENT_TYPE_CATEGORIES,
-                },
-                "ttls": [
-                    JEV_CLASSIFICATION_EMAIL_TTL_SECONDS,
-                    JEV_CLASSIFICATION_EVENT_TTL_SECONDS,
-                    JEV_CLASSIFICATION_UNKNOWN_TTL_SECONDS,
-                ],
-                "prompts": [load_prompt(name, version="v1") for name in _PROMPTS],
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-        ).encode()
+        json.dumps(policy, ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
 
 
@@ -133,7 +156,7 @@ async def qualify_observations(
     instant = now or datetime.now(UTC)
     operation = ClassificationOperation(user_id, run_id, usage, snapshot, instant, timezone)
     try:
-        policy = policy_fingerprint()
+        policy = policy_fingerprint(usage, snapshot.thresholds)
         keys = {
             value.identity: classification_cache_key(
                 value,
@@ -249,7 +272,7 @@ async def _evaluate(
             stop.set()
         accepted = _accepted_annotations(operation, batch, attempt)
         outcome = _application_outcome(accepted, attempt.outcome)
-        jev_decisions_total.labels(usage=operation.usage, outcome=outcome).inc()
+        count_jev_outcome(operation.usage, outcome)
         jev_decision_duration_seconds.labels(usage=operation.usage, outcome=outcome).observe(
             perf_counter() - started
         )
@@ -272,7 +295,10 @@ def _application_outcome(values: dict[str, ContentClassification], native_outcom
         return native_outcome
     known = any(
         value.category != "unknown"
-        or (isinstance(value, EmailClassification) and value.priority != "unknown")
+        or (
+            isinstance(value, EmailClassification)
+            and (value.priority != "unknown" or value.reply_expected is not None)
+        )
         for value in values.values()
     )
     return "classified" if known else "uncertain"
@@ -283,14 +309,17 @@ def _accepted_annotations(
     batch: ClassificationBatch,
     attempt: DecisionAttempt,
 ) -> dict[str, ContentClassification]:
-    if attempt.outcome != "success" or set(attempt.answers) != set(batch.questions):
+    # Choice answers and Noul answers travel apart; together they answer every question.
+    if attempt.outcome != "success" or {*attempt.answers, *attempt.nouls} != set(batch.questions):
         return {}
     return {
         value.identity: classify_answers(
             value,
             category=attempt.answers.get(f"i{index}_category"),
             priority=attempt.answers.get(f"i{index}_priority"),
+            reply=attempt.nouls.get(f"i{index}_reply"),
             now=operation.now,
+            thresholds=attempt.thresholds,
         )
         for index, value in enumerate(batch.members)
     }

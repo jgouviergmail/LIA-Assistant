@@ -9,7 +9,7 @@
  * for a reader to select and a screen reader to read. The reader chooses the size; nothing else
  * here acts, and a link in the file is not followed: its download stays beside it.
  */
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus } from '@/lib/icons';
 import { useEffect, useRef, useState } from 'react';
 
 import './pdf-text-layer.css';

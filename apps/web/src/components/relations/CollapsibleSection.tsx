@@ -26,7 +26,7 @@
  */
 
 import { useId, useState } from 'react';
-import { ChevronDown, RefreshCw, type LucideIcon } from 'lucide-react';
+import { ChevronDown, RefreshCw, type LucideIcon } from '@/lib/icons';
 
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';

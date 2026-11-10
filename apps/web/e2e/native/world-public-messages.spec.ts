@@ -6,7 +6,6 @@ import AxeBuilder from '@axe-core/playwright';
 import fr from '../../locales/fr/translation.json';
 import en from '../../locales/en/translation.json';
 import es from '../../locales/es/translation.json';
-import { installOfflineFonts } from '../fixtures/offline-fonts';
 import { enterWorld, setNativeWorldName } from '../fixtures/world-admission';
 
 test('public audience reaches present people in their own language, stays distinct from private chat and has no newcomer replay', async ({
@@ -40,7 +39,6 @@ test('public audience reaches present people in their own language, stays distin
       data: { index },
     });
     expect(signed.status()).toBe(200);
-    await installOfflineFonts(page);
     await setNativeWorldName(page, name);
     await page.goto(worldProofUrl(proofBaseURL, language).href);
     await enterWorld(page);

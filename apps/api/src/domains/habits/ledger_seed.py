@@ -111,22 +111,23 @@ async def seed_ledger_from_outcomes(
                 {"user_id": str(user_id), "tz": tz_name, "since": since},
             )
 
-        per_signature: dict[str, dict[str, list[float]]] = {}
+        # Provenance travels with the payload (ADR-214 amendment): a candidate
+        # rebuilt from history says so on the settings screen.
+        per_signature: dict[str, dict[str, Any]] = {}
         for domain, local_date, local_hour in result.all():
-            signature = recurrence_store.build_signature(str(domain))
-            hours = per_signature.setdefault(signature, {}).setdefault(str(local_date), [])
-            if len(hours) < int(settings.recurrence_day_hours_cap):
-                hours.append(round(float(local_hour), 2))
+            data = per_signature.setdefault(
+                recurrence_store.build_signature(str(domain)),
+                {"days": {}, "origin": recurrence_store.ORIGIN_SEED},
+            )
+            recurrence_store.add_day_hour(
+                data,
+                str(local_date),
+                float(local_hour),
+                cap=int(settings.recurrence_day_hours_cap),
+            )
 
         seeded = 0
-        for signature, days in per_signature.items():
-            # Provenance travels with the payload (ADR-214 amendment): a
-            # candidate rebuilt from history says so on the settings screen.
-            data: dict[str, Any] = {
-                "days": days,
-                "suggested_at": None,
-                "origin": recurrence_store.ORIGIN_SEED,
-            }
+        for signature, data in per_signature.items():
             recurrence_store.trim(data, int(settings.recurrence_ledger_max_entries))
             written = await recurrence_store.store_if_absent(
                 redis,

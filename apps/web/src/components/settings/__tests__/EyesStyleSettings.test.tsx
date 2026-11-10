@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe('EyesStyleSettings', () => {
-  it.each(RIG_EYE_STYLE_IDS.filter(style => style !== 'smiley'))(
+  it.each(RIG_EYE_STYLE_IDS)(
     'persists %s and pauses its monitor previews outside hover',
     styleId => {
       render(<EyesStyleSettings lng="en" />);
@@ -54,7 +54,7 @@ describe('EyesStyleSettings', () => {
       expect(activeFrameSubscribers()).toBe(0);
     }
   );
-  it.each(['smiley', ...HYBRID_EYE_STYLE_IDS] as const)(
+  it.each([...HYBRID_EYE_STYLE_IDS] as const)(
     'offers %s and restores its persisted selection',
     async id => {
       render(<EyesStyleSettings lng="en" />);
@@ -77,7 +77,7 @@ describe('EyesStyleSettings', () => {
     }
   );
 
-  it.each(['smiley', ...HYBRID_EYE_STYLE_IDS])(
+  it.each([...HYBRID_EYE_STYLE_IDS])(
     'keeps both %s variants static until their option is hovered or focused',
     id => {
       render(<EyesStyleSettings lng="en" />);
@@ -115,27 +115,6 @@ describe('EyesStyleSettings', () => {
       expect(spirit.querySelectorAll('img')).toHaveLength(0);
     }
   );
-
-  it('shows neutral feminine and masculine Smiley portraits without changing the saved preference', () => {
-    document.cookie = 'lia_gender=male; path=/';
-    useEyesWidgetStore.getState().setStyle('moss');
-    render(<EyesStyleSettings lng="fr" />);
-    const option = screen.getByRole('button', { name: 'eyes.styles.smiley.name' });
-    expect(option).toHaveTextContent('eyes.variants.female');
-    expect(option).toHaveTextContent('eyes.variants.male');
-    const portraits = [...option.querySelectorAll('.lia-eyes')];
-    expect(portraits.map(face => face.getAttribute('data-smiley-variant'))).toEqual([
-      'female',
-      'male',
-    ]);
-    expect(portraits.map(face => face.getAttribute('data-expression'))).toEqual([
-      'neutral',
-      'neutral',
-    ]);
-    expect(useEyesWidgetStore.getState().style).toBe('moss');
-    expect(document.cookie).toContain('lia_gender=male');
-    expect(activeFrameSubscribers()).toBe(0);
-  });
 
   it('renders one accessible option per registry style', () => {
     render(<EyesStyleSettings lng="en" />);

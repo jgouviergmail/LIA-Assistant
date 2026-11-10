@@ -7,7 +7,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Plug } from 'lucide-react';
+import { Plug } from '@/lib/icons';
 import { ConnectorIcon } from './ConnectorIcon';
 
 interface AvailableConnectorCardProps {

@@ -8,7 +8,7 @@ import { renderWithProviders, screen } from '@/__tests__/test-utils';
 import type { LLMUsage } from '@/types/llm-usage';
 
 import { AssistPanel, HeardWords, VoiceCost } from '../AssistPanel';
-import type { AssistCall, AssistState } from '../useAssistCall';
+import type { AssistCall, AssistState } from '@/hooks/useAssistCall';
 
 interface Answer {
   text: string;
@@ -43,6 +43,45 @@ beforeEach(() => {
 
 describe('AssistPanel — a voice', () => {
   const HEARD = { audio: 'SUQz', cut: false, cost_eur: 0.002, usage: null };
+  it('keeps a playable source through Strict Mode and replaces it when the answer changes', () => {
+    const { rerender } = renderWithProviders(
+      <HeardWords lng="en" label="Read aloud" answer={HEARD} />,
+      { reactStrictMode: true }
+    );
+    const player = screen.getByLabelText<HTMLAudioElement>('Read aloud');
+    expect(player).toHaveAttribute('src', 'data:audio/mpeg;base64,SUQz');
+    rerender(<HeardWords lng="en" label="Read aloud" answer={{ ...HEARD, audio: 'bmV3' }} />);
+    expect(player).toHaveAttribute('src', 'data:audio/mpeg;base64,bmV3');
+  });
+
+  it('releases an audio request even while its metadata is loading', () => {
+    const { unmount } = renderWithProviders(
+      <HeardWords lng="en" label="Read aloud" answer={HEARD} />
+    );
+    const player = screen.getByLabelText<HTMLAudioElement>('Read aloud');
+    Object.defineProperty(player, 'networkState', {
+      configurable: true,
+      value: HTMLMediaElement.NETWORK_LOADING,
+    });
+    const load = vi.spyOn(player, 'load').mockImplementation(() => {});
+    expect(player.readyState).toBe(0);
+    unmount();
+    expect(load).toHaveBeenCalledOnce();
+  });
+  it('releases the current audio when its bubble closes', () => {
+    const { unmount } = renderWithProviders(
+      <HeardWords lng="en" label="Read aloud" answer={HEARD} />
+    );
+    const player = screen.getByLabelText<HTMLAudioElement>('Read aloud');
+    const pause = vi.spyOn(player, 'pause').mockImplementation(() => {});
+    const load = vi.spyOn(player, 'load').mockImplementation(() => {});
+    Object.defineProperty(player, 'paused', { configurable: true, value: false });
+    Object.defineProperty(player, 'readyState', { configurable: true, value: 1 });
+    unmount();
+    expect(pause).toHaveBeenCalledOnce();
+    expect(load).toHaveBeenCalledOnce();
+    expect(player).not.toHaveAttribute('src');
+  });
 
   it('gives the person a player they hold, and says when only the beginning is read', () => {
     const { rerender } = renderWithProviders(

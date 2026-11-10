@@ -17,13 +17,21 @@ produced here.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Final
 
 from src.core.constants import LIVE_DELEGATION_TOOL_NAME
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 
+#: The ElevenLabs agent reads ``{{name}}`` in a prompt as a dynamic variable it
+#: must be given at the start. Every brace followed by another of its kind is
+#: broken apart, so a run of any length stays text — a doubled brace never
+#: reaches that vendor from a value.
+_DOUBLED_OPEN: Final[re.Pattern[str]] = re.compile(r"\{(?=\{)")
+_DOUBLED_CLOSE: Final[re.Pattern[str]] = re.compile(r"\}(?=\})")
 _BLOCK: Final = "voice_delegation_block"
+_PERSONALITY: Final = "voice_personality_block"
 _LINES: Final = "live_lines"
 _TONES: Final = "live_tone_lines"
 #: The lines a delegation bridge returns to the voice as tool results —
@@ -85,26 +93,32 @@ def tone_lines() -> dict[str, str]:
     return dict(parse_prompt_sections(read_prompt_file(_TONES), 2))
 
 
-def personality_block(lines: dict[str, str], personality: str) -> str:
-    """The personality line of a mandate: the configured instruction, or the default manner.
+def personality_block(personality: str, *, user_name: str) -> str:
+    """Who the voice is, and the order the personality applies in.
 
-    One instruction per context, emitted from the file (ADR-284): the four
-    voice mandates — the browser's two, the phone's two — render this the
-    same way from their own lines file, so a frame that forgets the default
-    line cannot leave the placeholder empty.
+    ONE block, one wording, for the four mandates a person hears LIA
+    through — the browser's two, the phone's two (owner, 2026-11-07): the
+    configured instruction verbatim, then its precedence — facts and acts
+    first, the personality over every word and over the delivery, an inner
+    state as a mere shade, the frame's length rules as bounds rather than a
+    style. Without a configured instruction, LIA's default manner stands
+    in, so no frame ever holds an empty slot. A frame bound for a vendor
+    that reads ``{{…}}`` neutralises the WHOLE block itself.
 
     Args:
-        lines: The mandate's lines (``personality`` / ``no_personality``).
-        personality: What the person configured, already neutralised by a
-            frame that needs it; "" when none could be read.
+        personality: What the person configured, verbatim; "" when none
+            could be read.
+        user_name: What the voice calls the person.
 
     Returns:
-        The rendered line.
+        The rendered block, without a trailing newline (the frame places it).
     """
-    configured = personality.strip()
-    if configured:
-        return lines["personality"].format(personality=configured)
-    return lines["no_personality"]
+    configured = personality.strip() or voice_lines()["default_personality"]
+    return (
+        read_prompt_file(_PERSONALITY)
+        .format(personality=configured, user_name=user_name)
+        .rstrip("\n")
+    )
 
 
 def delegation_verb(lines: dict[str, str], *, native: bool) -> str:
@@ -179,6 +193,22 @@ def delegation_request_schema() -> dict[str, Any]:
     }
 
 
+def neutralise_vendor_syntax(value: str) -> str:
+    """Break any ``{{…}}`` inside a VALUE so an ElevenLabs agent reads it as text.
+
+    Both frames bound for that vendor read it — the phone's override, value by
+    value (its baked third-party prompt keeps the vendor's own ``{{user_name}}``),
+    and the browser's initiation frame, whole (LIA renders all of it).
+
+    Args:
+        value: Text bound for the vendor's prompt.
+
+    Returns:
+        The same text with adjacent braces separated by a space.
+    """
+    return _DOUBLED_CLOSE.sub("} ", _DOUBLED_OPEN.sub("{ ", value))
+
+
 __all__ = [
     "BRIDGE_LINE_KEYS",
     "REQUEST_PARAMETER",
@@ -187,6 +217,7 @@ __all__ = [
     "delegation_request_schema",
     "delegation_tool_description",
     "delegation_verb",
+    "neutralise_vendor_syntax",
     "personality_block",
     "render_delegation_block",
     "tone_lines",

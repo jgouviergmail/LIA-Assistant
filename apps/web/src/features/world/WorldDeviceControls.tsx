@@ -20,7 +20,7 @@ import {
   Smartphone,
   ArrowLeft,
   PanelsTopLeft,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {

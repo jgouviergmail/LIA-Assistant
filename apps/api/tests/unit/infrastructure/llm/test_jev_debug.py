@@ -1,6 +1,7 @@
 """Native diagnostics are bounded, interpretable and independent of the paid path."""
 
 import importlib
+import json
 from datetime import UTC, datetime
 from fnmatch import fnmatch
 from unittest.mock import AsyncMock, patch
@@ -82,6 +83,39 @@ def test_historical_trace_remains_readable_and_failure_reason_is_a_closed_code()
         )
 
 
+async def test_a_trace_an_earlier_version_wrote_is_skipped_not_a_failed_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment retires a trace field; the hour of traces before it stays readable."""
+    store = importlib.import_module("src.infrastructure.llm.jev_debug_store")
+    models = importlib.import_module("src.infrastructure.llm.jev_debug_models")
+    from src.core.security.utils import encrypt_data
+
+    current = models.JevCallTrace(
+        id=uuid4(),
+        run_id="synthetic-run",
+        caller="jev_email_classification",
+        usage="email_classification",
+        started_at=datetime.now(UTC),
+        requested_model="jev-1.14.0",
+        context=models.context_preview("synthetic"),
+    )
+    # Written before ADR-374 retired the collection previews' coverage field.
+    earlier = {**json.loads(current.model_dump_json()), "id": str(uuid4())}
+    earlier["collection_coverage"] = None
+
+    class _Redis:
+        async def eval(self, *_args: object) -> list[str]:
+            return [encrypt_data(json.dumps(earlier)), encrypt_data(current.model_dump_json())]
+
+    async def _redis() -> _Redis:
+        return _Redis()
+
+    monkeypatch.setattr(store, "get_redis_cache", _redis)
+    page = await store.read_traces(uuid4())
+    assert [call.id for call in page.calls] == [current.id]
+
+
 @pytest.mark.parametrize("action", ["fallback", "preview"])
 def test_trace_round_trip_keeps_caller_response_and_action(action: str) -> None:
     module = importlib.import_module("src.infrastructure.llm.jev_debug_models")
@@ -96,13 +130,11 @@ def test_trace_round_trip_keeps_caller_response_and_action(action: str) -> None:
         outcome="low_confidence",
         action=action,
         action_target="meeting_synthesis",
-        applied_decisions={"q0": "unknown"},
         decision_labels={"q0": "Source title"},
     )
     restored = module.JevCallTrace.model_validate_json(trace.model_dump_json())
     assert restored.caller == "meeting_template_selection"
     assert restored.action == action
-    assert restored.applied_decisions == {"q0": "unknown"}
     assert restored.decision_labels == {"q0": "Source title"}
     assert restored.run_id == "meeting-run"
     assert restored.context.text == '{\n  "state": "synthetic"\n}'

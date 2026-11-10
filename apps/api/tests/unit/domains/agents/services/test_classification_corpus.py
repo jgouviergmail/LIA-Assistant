@@ -12,9 +12,9 @@ from tests.fixtures.classification_corpus import Corpus, score
 
 pytestmark = pytest.mark.unit
 FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
-CALIBRATION_SHA = "cc908d49c5d577ed7ac8c67438f6cc0ec763d621c4aff83cd934149fefe391e9"
-HOLDOUT_SHA = "13ba5a9c3101b74acd19b02f8a4a1138b7fec6234adbec32df917c73ed7ba7ba"
-ADVERSARIAL_SHA = "d9bf446014a7645d9a96c5a84caf373753b472cbb1967c6597f8d989e779e858"
+CALIBRATION_SHA = "7dc6bdf6efdb3052d59e7d9ca08a4daed0dd56931fa298fa7ddaa0386d44ae9e"
+HOLDOUT_SHA = "e51bf184eb0e7a253fa2a2e6dcca34be871dcaeb53fbf4d8da912e7fac0f7108"
+ADVERSARIAL_SHA = "1c48e14a88847182c387e6bd7c967019e8c6321fd12ee7cf7180909ce4b34586"
 
 
 @pytest.mark.parametrize("split,digest", [("cases", CALIBRATION_SHA), ("holdout", HOLDOUT_SHA)])
@@ -46,6 +46,13 @@ def test_corpus_is_frozen_and_covers_each_language_label_and_abstention(
         "critical",
         "unknown",
     }
+    # Whether a reply is expected (lot F): both answers, and the undecidable left out.
+    assert {case.expected_reply for case in corpus.items if case.kind == "email"} == {
+        True,
+        False,
+        None,
+    }
+    assert all(case.expected_reply is None for case in corpus.items if case.kind == "event")
     assert not score(corpus, {}).passed
     assert score(corpus, {}).positive_coverage == 0
 
@@ -89,7 +96,11 @@ def test_quality_scoring_rejects_one_false_phishing_label_even_with_good_global_
         }
         if case.kind == "email":
             predictions[case.id] = EmailClassification.model_validate(
-                {**fields, "priority": case.expected_priority}
+                {
+                    **fields,
+                    "priority": case.expected_priority,
+                    "reply_expected": case.expected_reply,
+                }
             )
         else:
             predictions[case.id] = EventClassification.model_validate(fields)
@@ -99,3 +110,31 @@ def test_quality_scoring_rejects_one_false_phishing_label_even_with_good_global_
     report = score(corpus, predictions)
     assert not report.passed and report.wrong_accepted == 1
     assert report.per_class["email.category.phishing_scam"].false_positives == 1
+
+
+def test_quality_scoring_rejects_one_reply_wrongly_said_expected() -> None:
+    corpus = Corpus.read(FIXTURES / "jev_classification_cases.json")
+    predictions = {}
+    for case in corpus.items:
+        fields = {
+            "category": case.expected_category,
+            "evidence_scope": case.evidence_scope,
+            "evaluated_at": corpus.reference_time,
+            "valid_until": corpus.reference_time + timedelta(seconds=30),
+        }
+        if case.kind == "email":
+            predictions[case.id] = EmailClassification.model_validate(
+                {
+                    **fields,
+                    "priority": case.expected_priority,
+                    "reply_expected": case.expected_reply,
+                }
+            )
+        else:
+            predictions[case.id] = EventClassification.model_validate(fields)
+    assert score(corpus, predictions).passed
+    silent = next(case for case in corpus.items if case.expected_reply is False)
+    predictions[silent.id] = predictions[silent.id].model_copy(update={"reply_expected": True})
+    report = score(corpus, predictions)
+    assert not report.passed and report.wrong_accepted == 1
+    assert report.per_class["email.reply.true"].false_positives == 1

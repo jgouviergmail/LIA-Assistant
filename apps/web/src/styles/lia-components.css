@@ -872,12 +872,35 @@ html.dark[data-oled] {
 
 /* --- Type Badge: small colored label (contacts, files) --- */
 .lia-tbadge {
+  display: inline-block;
   font-size: calc(0.625rem * var(--lia-text-scale, 1));
   padding: var(--lia-space-2xs) var(--lia-space-xs);
   border-radius: var(--lia-radius-sm);
   font-weight: 600;
   flex-shrink: 0;
-  margin-left: auto;
+  margin-inline: 0;
+}
+
+/* Archived contacts have sibling links and badges rather than a grouped value.
+   A hanging icon preserves the text indent while the qualifier follows the text. */
+.lia-contact .lia-d-row:has(> .lia-tbadge):not(:has(> .lia-contact__value)) {
+  --lia-contact-archive-indent: calc(16px * var(--lia-text-scale, 1) + var(--lia-space-sm));
+  display: block;
+  padding-inline-start: var(--lia-contact-archive-indent);
+  overflow-wrap: anywhere;
+}
+
+.lia-contact
+  .lia-d-row:has(> .lia-tbadge):not(:has(> .lia-contact__value))
+  > .material-symbols-outlined {
+  float: inline-start;
+  margin-inline-start: calc(-1 * var(--lia-contact-archive-indent));
+}
+
+.lia-contact .lia-contact__value > .lia-tbadge,
+.lia-contact .lia-d-row:has(> .lia-tbadge):not(:has(> .lia-contact__value)) > .lia-tbadge {
+  margin-inline-start: 0.35em;
+  max-inline-size: calc(100% - 0.35em);
 }
 
 .lia-tbadge--work {
@@ -1387,6 +1410,58 @@ html.dark[data-oled] {
    the guard (`public-icon-font.guard.test.ts`), not as a 4 MB download. */
 .landing-page .material-symbols-outlined {
   font-family: var(--font-public-symbols);
+}
+
+/* Legacy card markers keep their inherited sizes while the account chooses
+   trusted SVG artwork. No ligature text means no icon-font download for them. */
+.material-symbols-outlined.lia-symbol-icon {
+  font-family: inherit;
+  vertical-align: middle;
+}
+
+.lia-symbol-icon > svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+/* An archived ligature outside the catalogue keeps its exact glyph. Only its
+   paint follows the chosen style; no unrelated symbol or supplied SVG is used. */
+.material-symbols-outlined.lia-symbol-legacy-color {
+  --lia-symbol-color-start: #1976d2;
+  --lia-symbol-color-end: #874bd8;
+  background-image: linear-gradient(
+    135deg,
+    var(--lia-symbol-color-start),
+    var(--lia-symbol-color-end)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.lia-symbol-legacy-color[data-icon-style='flex'] {
+  --lia-symbol-color-start: #247bbd;
+  --lia-symbol-color-end: #13a3bb;
+}
+
+.dark .lia-symbol-legacy-color {
+  --lia-symbol-color-start: #5eb7ff;
+  --lia-symbol-color-end: #c99aff;
+}
+
+.dark .lia-symbol-legacy-color[data-icon-style='flex'] {
+  --lia-symbol-color-start: #87c6f5;
+  --lia-symbol-color-end: #73dfe5;
+}
+
+@media (forced-colors: active) {
+  .material-symbols-outlined.lia-symbol-legacy-color {
+    background-image: none;
+    color: CanvasText;
+    -webkit-text-fill-color: currentColor;
+  }
 }
 
 /* Icon container for consistent sizing and alignment */
@@ -3920,9 +3995,8 @@ a.lia-email__sender-email:hover {
   scroll-behavior: smooth;
 }
 
-/* Air-quality / pollen strip (2026-08): the forecast and hourly layouts have
-   no collapsible details block, so the enrichment renders inline below the
-   strip. Same separator geometry as __stats, so the card keeps one rhythm. */
+/* Supplied air quality and pollen stay visible in each reading and on series
+   cards, independently of the extended-details disclosure. */
 .lia-weather__environment {
   display: flex;
   flex-direction: column;
@@ -5761,6 +5835,28 @@ details.lia-collapsible > summary::marker {
   color: var(--lia-text-muted);
 }
 
+/* Email filenames must be readable by touch, including stored card markup. */
+.lia-email .lia-attachment {
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.lia-email .lia-attachment__icon,
+.lia-email .lia-attachment__size {
+  flex: none;
+}
+
+.lia-email .lia-attachment__name {
+  flex: 1 1 10ch;
+  min-width: 0;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* File type icons - all use theme color */
 .lia-attachment--pdf .lia-attachment__icon,
 .lia-attachment--doc .lia-attachment__icon,
@@ -6473,6 +6569,13 @@ a:focus-visible {
   display: block;
   object-fit: cover;
   max-height: 400px; /* Desktop default, CSS Container Query overrides for mobile */
+}
+
+/* Reserve the map/Street View preview before lazy loading, including archived
+   HTML without dimensions. A decoded image keeps its own intrinsic ratio;
+   the text-only error fallback must not inherit this reserved image area. */
+img.lia-route__map-image {
+  aspect-ratio: auto 2 / 1;
 }
 
 /* Traffic condition modifiers - using theme variables */

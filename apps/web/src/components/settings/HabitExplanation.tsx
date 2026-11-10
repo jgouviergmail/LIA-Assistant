@@ -4,13 +4,13 @@
  * Why LIA claims this habit — the interests-explanation doctrine applied to
  * habits (ADR-214): inputs and enforced thresholds, never a score.
  *
- * For a recurring habit the block shows the ledger's REAL occurrence dates —
- * the exact basis of the lock. The ledger keeps no message ids on purpose,
+ * For a recurring need the block shows the ledger's REAL occurrence dates —
+ * the exact basis of the need (ADR-375). The ledger keeps no message ids on purpose,
  * so no conversation links are shown: fabricated references would be false
  * provenance (stated program deviation).
  */
 
-import { Scale } from 'lucide-react';
+import { Scale } from '@/lib/icons';
 import { useState } from 'react';
 
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

@@ -47,7 +47,7 @@ for (const width of [390, 1280]) {
         },
       },
       {
-        url: '**/api/v1/sms/search',
+        url: '**/api/v1/sms/display-search',
         method: 'POST',
         handler: async route => {
           const query = route.request().postDataJSON();
@@ -84,7 +84,8 @@ for (const width of [390, 1280]) {
     const first = disclosure.getByRole('listitem').first().getByRole('paragraph');
     await expect(first).toContainText(messages[0].body);
     await expect(first.locator(':scope > :first-child')).toHaveText(messages[0].display_name);
-    await expect(disclosure.getByRole('search')).toHaveCount(0);
+    await expect(disclosure.getByRole('search')).toBeVisible();
+    await expect(disclosure.getByRole('searchbox')).toHaveCount(0);
     await expect(disclosure.getByRole('button', { name: 'Par expéditeur' })).toHaveCount(0);
     const next = disclosure.getByRole('button', { name: 'Suivant', exact: true });
     await next.focus();
@@ -92,7 +93,10 @@ for (const width of [390, 1280]) {
     await expect(disclosure.getByRole('listitem')).toHaveCount(2);
     await expect(next).toBeFocused();
     await expect(disclosure.getByText('SMS reçu 11')).toBeVisible();
-    expect(reads).toEqual([{ limit: 10 }, { limit: 10, cursor: 'opaque-second-page' }]);
+    expect(reads).toEqual([
+      { limit: 10, sort: 'recent' },
+      { limit: 10, sort: 'recent', cursor: 'opaque-second-page' },
+    ]);
     await disclosure.getByRole('button', { name: 'Précédent', exact: true }).click();
     await expect(disclosure.getByRole('listitem')).toHaveCount(10);
     await expectNoOverflow(page, 'SMS alerts');

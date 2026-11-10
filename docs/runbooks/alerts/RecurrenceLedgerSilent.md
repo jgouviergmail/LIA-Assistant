@@ -2,13 +2,12 @@
 
 **Sévérité** : warning
 **Composant** : habits
-**Impact** : les demandes récurrentes ne peuvent plus être apprises. Le
+**Impact** : les besoins récurrents ne peuvent plus être appris. Le
 registre (ledger Redis) qui compte « même type de demande, jour après jour »
 ne reçoit aucune occurrence alors que des tours actionnables humains ont bien
 eu lieu. Sans occurrences : aucun candidat « en observation » dans le panneau
-Habitudes, aucun verrou de forme (quotidien / jours ouvrés / hebdomadaire /
-intermittent), aucune habitude récurrente promue, aucune suggestion
-d'automatisation.
+Habitudes, aucun besoin récurrent, et aucune proposition « automatiser » dans
+la boîte Propositions ni sous une réponse du chat (ADR-375).
 
 ---
 
@@ -32,7 +31,7 @@ Trois compteurs, cinq questions :
 |---|---|---|
 | `product_outcomes_total{action, E3}` | y a-t-il eu du trafic actionnable **humain** ? | le routeur, une fois par tour humain (les runs automatisés n'écrivent rien) — la même valeur dont le tableau de bord produit dérive |
 | `recurrence_ledger_writes_total{written}` | le ledger a-t-il **écrit** ? | l'écriture elle-même (`record_occurrence`), pas la porte qui la remet au fond |
-| `post_response_extraction_scheduled_total{recurrence, feature_disabled}` | la fonctionnalité est-elle coupée au déploiement ? | la porte, quand `HABITS_ENABLED=false` — le ledger est de l'**apprentissage** (ADR-214), jamais gouverné par `RECURRENCE_SUGGESTION_ENABLED`, qui ne décide que de l'offre dans le chat |
+| `post_response_extraction_scheduled_total{recurrence, feature_disabled}` | la fonctionnalité est-elle coupée au déploiement ? | la porte, quand `HABITS_ENABLED=false` — le ledger est de l'**apprentissage** (ADR-214), jamais gouverné par `RECURRENCE_SUGGESTION_ENABLED`, qui ne décide que de la carte de proposition sous une réponse du chat (ADR-375) |
 | `recurrence_ledger_writes_total{user_disabled}` | la personne a-t-elle coupé « Apprendre mes habitudes » ? | la tâche de fond, quand la porte d'apprentissage (`habits/learning_gate.py`) refuse — un refus de la personne, jamais un ledger affamé |
 | `recurrence_ledger_writes_total{feature_disabled}` | l'opérateur a-t-il coupé la capacité après le démarrage ? | la tâche de fond, quand l'interrupteur ADR-280 `habits` est fermé (lu à l'acte, sans redémarrage) |
 
@@ -154,10 +153,10 @@ familles de clés ADR-260) — pas la porte.
    monte sur un tour actionnable réel, puis que le panneau Habitudes montre un
    candidat « en observation ».
 4. Si le ledger contenait des lignes figées antérieures à la panne, les
-   purger **avant** le déploiement du correctif : un verrou calculé sur des
-   données mortes serait promu au premier tour du domaine concerné
-   (mesuré 2026-09-11 : `web_search` portait un verrou `daily@3.1h` issu d'un
-   ancien seed défectueux, sans cooldown).
+   purger **avant** le déploiement du correctif : un besoin calculé sur des
+   données mortes ouvrirait une proposition la nuit suivante (mesuré
+   2026-09-11 : `web_search` portait une forme `daily@3.1h` issue d'un ancien
+   seed défectueux).
 5. Au démarrage, `RECURRENCE_LEDGER_MAX_ENTRIES < RECURRENCE_WINDOW_DAYS` est
    **refusé** (le cap de jours tronquerait chaque fenêtre) : un `.env`
    partiellement mis à jour ne boote pas, il ne s'affame pas en silence.
@@ -165,7 +164,8 @@ familles de clés ADR-260) — pas la porte.
 ## Références
 
 - ADR-214 — Habitudes utilisateur (apprentissage déterministe), amendements
-  du 2026-09-11 (a, b, c)
+  du 2026-09-11 (a, b, c) et du 2026-11-08
+- ADR-375 — l'usage appris devient des propositions (besoins récurrents)
 - ADR-280 — l'interrupteur `habits` est lu à l'acte (amendement 2026-09-11)
 - ADR-255 — deux lectures d'une déclaration divergent toujours
 - `apps/api/tests/unit/test_qi_attr_contract_guard.py` — garde de classe

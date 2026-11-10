@@ -26,7 +26,7 @@ import {
   UserRound,
   Users,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import { Disclosure } from '@/components/ui/disclosure';
 import { Label } from '@/components/ui/label';

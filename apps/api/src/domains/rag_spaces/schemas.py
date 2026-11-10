@@ -11,9 +11,9 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictBool
 
-from src.core.constants import RAG_SPACES_BULK_MAX
+from src.core.constants import DISPLAY_SEARCH_MAX_LENGTH, RAG_SPACES_BULK_MAX
 
 
 def _trim_space_name(value: object) -> object:
@@ -54,6 +54,9 @@ class RAGSpaceUpdate(BaseModel):
         max_length=2000,
         description="Updated space description",
     )
+    is_favorite: StrictBool | None = Field(
+        default=None, description="Whether the owner keeps this space among favorites"
+    )
 
 
 class RAGSpaceResponse(BaseModel):
@@ -65,6 +68,7 @@ class RAGSpaceResponse(BaseModel):
     name: str
     description: str | None
     is_active: bool
+    is_favorite: bool = Field(default=False, description="Owner's favorite display preference")
     kind: str | None = Field(
         default=None,
         description=(
@@ -99,6 +103,22 @@ class RAGSpaceListResponse(BaseModel):
 
     spaces: list[RAGSpaceResponse]
     total: int
+
+
+class RAGSpaceListQuery(BaseModel):
+    """Literal display-text filtering over every file state, with a stable ordering."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    q: str = Field(
+        default="",
+        max_length=DISPLAY_SEARCH_MAX_LENGTH,
+        description="Literal display-text substring",
+    )
+    field: Literal["name", "filename"] = Field(default="name", description="Metadata to search")
+    sort: Literal["name", "recent", "files", "active"] = Field(
+        default="name", description="Name, newest creation, file count, or active then name"
+    )
 
 
 # ============================================================================

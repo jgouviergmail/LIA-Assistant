@@ -277,7 +277,8 @@ describe('HeartbeatHistory — presentation keeps the delivered words', () => {
   );
 });
 
-/** Kept in step with HeartbeatSourceLabel in heartbeat/schemas.py. */
+/** Kept in step with HeartbeatSourceLabel in heartbeat/schemas.py, plus HABITS: no
+ * longer emitted (ADR-375), still read in the history of earlier notifications. */
 const BACKEND_SOURCE_LABELS = [
   'UPCOMING_CALENDAR_EVENTS',
   'PENDING_TASKS',

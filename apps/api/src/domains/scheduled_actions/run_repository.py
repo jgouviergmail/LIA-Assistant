@@ -49,6 +49,7 @@ class ScheduledActionRunRepository:
         attempts: int,
         manual: bool,
         error: str | None = None,
+        run_id: str | None = None,
     ) -> ScheduledActionRun:
         """Insert one run row and flush it into the caller's transaction.
 
@@ -62,6 +63,7 @@ class ScheduledActionRunRepository:
             attempts: Pipeline attempts made; 0 when the pipeline never ran.
             manual: Whether the user started it.
             error: The failure message, truncated here.
+            run_id: The turn the run executed (ADR-375), ``None`` when it never ran.
 
         Returns:
             The flushed row.
@@ -76,6 +78,7 @@ class ScheduledActionRunRepository:
             attempts=attempts,
             manual=manual,
             error=error[:RUN_ERROR_MAX_LENGTH] if error else None,
+            run_id=run_id,
         )
         self.db.add(row)
         await self.db.flush()

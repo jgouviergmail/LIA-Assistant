@@ -8,12 +8,10 @@ from typing import get_args
 import httpx
 import pytest
 
-from src.core.constants import (
-    JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE,
-    JEV_CLASSIFICATION_MIN_CONFIDENCE,
-)
 from src.core.content_classification import EmailCategory, EmailPriority
 from src.domains.agents.services.qualification.policy import accepted_choice
+from src.domains.llm_config.jev_gates import gate_defaults
+from src.domains.llm_config.jev_registry import JevUsage
 from src.infrastructure.llm.typesafe_client import (
     ChoiceAnswer,
     ChoiceQuestion,
@@ -22,6 +20,8 @@ from src.infrastructure.llm.typesafe_client import (
 )
 
 pytestmark = pytest.mark.unit
+_THRESHOLD = float(gate_defaults(JevUsage.EMAIL_CLASSIFICATION)["category"])
+_ALERT_THRESHOLD = float(gate_defaults(JevUsage.EMAIL_CLASSIFICATION)["alert"])
 
 
 async def test_recorded_cent_rounded_batch_preserves_other_answers_and_its_single_charge() -> None:
@@ -55,13 +55,13 @@ async def test_recorded_cent_rounded_batch_preserves_other_answers_and_its_singl
         assert answer.confidence <= body["answers"][key]["confidence"]
     # i0: the provider's own 0.91 applies (the 0.9125 concentration never raises it).
     assert accepted_choice(result.answers["i0_category"], get_args(EmailCategory)) == (
-        "personal" if 0.91 >= JEV_CLASSIFICATION_MIN_CONFIDENCE else "unknown"
+        "personal" if 0.91 >= _THRESHOLD else "unknown"
     )
     assert accepted_choice(result.answers["i0_priority"], get_args(EmailPriority)) == "normal"
     assert accepted_choice(result.answers["i2_category"], get_args(EmailCategory)) == "professional"
     # i3: the 0.99 deficit mass concentrates to 0.9875, BELOW the provider's 0.99.
     assert accepted_choice(result.answers["i3_category"], get_args(EmailCategory)) == (
-        "phishing_scam" if 0.9875 >= JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE else "unknown"
+        "phishing_scam" if 0.9875 >= _ALERT_THRESHOLD else "unknown"
     )
     assert (
         accepted_choice(result.answers["i4_category"], get_args(EmailCategory)) == "phishing_scam"
@@ -131,7 +131,7 @@ def _winner_at(concentration: float, options: int = 5) -> float:
 
 @pytest.mark.parametrize("deficit", [0.0, 1e-12])
 def test_classification_uses_the_same_exact_concentration_boundary(deficit: float) -> None:
-    winner = _winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE)
+    winner = _winner_at(_THRESHOLD)
     answer = ChoiceAnswer(
         type="choice",
         choice="professional",
@@ -152,7 +152,7 @@ def test_classification_uses_the_same_exact_concentration_boundary(deficit: floa
 def test_overfull_rounded_distribution_cannot_promote_a_phishing_alert() -> None:
     # Cent-rounded and summing to 1.01: the raw winner sits exactly ON the alert
     # level, the excess mass must lower it below rather than let it through.
-    winner = round(_winner_at(JEV_CLASSIFICATION_ALERT_MIN_CONFIDENCE), 2)
+    winner = round(_winner_at(_ALERT_THRESHOLD), 2)
     answer = ChoiceAnswer(
         type="choice",
         choice="phishing_scam",
@@ -196,8 +196,8 @@ def test_overfull_rounded_distribution_cannot_promote_a_phishing_alert() -> None
         (
             "professional",
             {
-                "unknown": round(1.01 - round(_winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE), 2), 2),
-                "professional": round(_winner_at(JEV_CLASSIFICATION_MIN_CONFIDENCE), 2),
+                "unknown": round(1.01 - round(_winner_at(_THRESHOLD), 2), 2),
+                "professional": round(_winner_at(_THRESHOLD), 2),
                 "personal": 0.0,
                 "spam": 0.0,
                 "phishing_scam": 0.0,

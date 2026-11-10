@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MailCheck, AlertTriangle } from 'lucide-react';
+import { MailCheck, AlertTriangle } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 

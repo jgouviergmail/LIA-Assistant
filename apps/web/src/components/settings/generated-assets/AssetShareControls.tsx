@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send } from '@/lib/icons';
 
 import { EmailShareButton } from '@/components/email-share/EmailShareButton';
 import { ShareImageDialog } from '@/components/peers/ShareImageDialog';

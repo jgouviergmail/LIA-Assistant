@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { useFontFamily, type FontFamilyName } from '@/lib/font-context';
 import { FONT_DEFINITIONS } from '@/constants/fonts';
-import { Check, Type } from 'lucide-react';
+import { Check, Type } from '@/lib/icons';
 import { InfoBox } from '@/components/ui/info-box';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';

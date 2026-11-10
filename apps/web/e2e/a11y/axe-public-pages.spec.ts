@@ -60,6 +60,14 @@ for (const theme of THEMES) {
         'the landing must expose its optional explanations'
       ).toBeGreaterThan(0);
 
+      // The proposal uses tinted paper: its values must remain in the scan,
+      // rather than making a contrast regression disappear by hiding the card.
+      const proposal = page.locator('.lia-card.lia-draft').first();
+      await expect(proposal).toBeVisible();
+      for (const label of ['Correspondant', 'Téléphone', 'Objectif']) {
+        await expect(proposal.getByText(label, { exact: true })).toBeVisible();
+      }
+
       const { blocking, summary } = await scanPage(page, testInfo, `/landing-${theme}`);
       expect(blocking, `axe violations on / (${theme}):\n${summary}`).toHaveLength(0);
 

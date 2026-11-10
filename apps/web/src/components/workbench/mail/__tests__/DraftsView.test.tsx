@@ -47,6 +47,7 @@ function page(overrides: Partial<WorkbenchPageState<MailDraftSummary>> = {}) {
     loadMore: vi.fn().mockResolvedValue(undefined),
     refresh: vi.fn().mockResolvedValue(undefined),
     replaceItem: vi.fn(),
+    keepItem: vi.fn(),
     ...overrides,
   };
 }

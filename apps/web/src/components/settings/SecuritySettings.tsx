@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Fingerprint, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Fingerprint, KeyRound, Pencil, Plus, Trash2 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';

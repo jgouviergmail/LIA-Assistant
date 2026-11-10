@@ -161,6 +161,73 @@ function lampCard(name: string): HTMLElement {
 }
 
 describe('LightsTool — the question to LIA', () => {
+  it.each([true, false])(
+    'opens and focuses the exact card lamp at desktop=%s without acting',
+    async desktop => {
+      media.desktop = desktop;
+      nav.search = 'light=hall';
+      screenOf();
+
+      const lamp = await screen.findByRole('group', { name: 'Hall' });
+      await waitFor(() => expect(lamp).toHaveFocus());
+      expect(screen.getByRole('region', { name: 'Living room' })).toBeInTheDocument();
+      expect(api.post).not.toHaveBeenCalled();
+      if (!desktop) {
+        expect(
+          screen.getByRole('link', { name: 'workbench.lights.back_to_rooms' })
+        ).toHaveAttribute('href', '/en/dashboard/tools/lights');
+      }
+    }
+  );
+
+  it('names a missing card lamp instead of opening the default room', async () => {
+    nav.search = 'light=missing';
+    screenOf();
+
+    expect(await screen.findByText('workbench.states.light_target_missing')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Sofa' })).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('opens an encoded orphan lamp in Other lights and returns focus to its list entry', async () => {
+    const orphan = { ...BRIDGE.lights[0], id: 'lamp /?&', name: 'Porch', room_id: null };
+    const bridge = { ...BRIDGE, lights: [...BRIDGE.lights, orphan] };
+    api.get.mockImplementation((path: string) =>
+      Promise.resolve(path === '/workbench' ? rail() : bridge)
+    );
+    media.desktop = false;
+    nav.search = new URLSearchParams({ light: orphan.id }).toString();
+    const view = screenOf();
+
+    const lamp = await screen.findByRole('group', { name: 'Porch' });
+    await waitFor(() => expect(lamp).toHaveFocus());
+    expect(
+      screen.getByRole('region', { name: 'workbench.lights.other_lights' })
+    ).toBeInTheDocument();
+    nav.search = '';
+    view.rerender(
+      <WorkbenchShell lng="en">
+        <LightsTool lng="en" />
+      </WorkbenchShell>
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'workbench.lights.other_lights' })).toHaveFocus()
+    );
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed bridge read instead of claiming the card lamp is missing', async () => {
+    nav.search = 'light=hall';
+    api.get.mockImplementation((path: string) =>
+      path === '/workbench' ? Promise.resolve(rail()) : Promise.reject(new Error('network'))
+    );
+    screenOf();
+
+    expect(await screen.findByText('workbench.states.error_title')).toBeInTheDocument();
+    expect(screen.queryByText('workbench.states.light_target_missing')).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('ends the open room’s title, as every detail’s bar does, and sends nothing', async () => {
     const { user } = screenOf();
 
@@ -540,7 +607,7 @@ describe("LightsTool — a room's tone", () => {
     await user.click(card.getByText('workbench.lights.customize'));
     const picker = card.getByLabelText<HTMLInputElement>('workbench.lights.colour');
     fireEvent.input(picker, { target: { value: '#00ff00' } });
-    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    fireEvent.change(picker, { target: { value: '#00ff00' } });
 
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith(

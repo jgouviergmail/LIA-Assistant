@@ -11,6 +11,8 @@ from src.core.constants import (
     IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
     USER_FONT_SIZE_MAX_PX,
     USER_FONT_SIZE_MIN_PX,
+    USER_THEME_MINUTE_MAX,
+    IconStyle,
 )
 from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.i18n import _
@@ -64,11 +66,29 @@ class UserUpdate(
     personality_id: UUID | None = Field(None, description="User's preferred LLM personality ID")
     theme: str | None = Field(
         None,
-        description="User display mode: 'light', 'dark', or 'system'",
+        description="User display mode: light, dark, system, oled or auto",
+    )
+    theme_light_start_minute: int | None = Field(
+        None,
+        strict=True,
+        ge=0,
+        le=USER_THEME_MINUTE_MAX,
+        description="Light mode starts at this minute of the day in the account timezone",
+    )
+    theme_dark_start_minute: int | None = Field(
+        None,
+        strict=True,
+        ge=0,
+        le=USER_THEME_MINUTE_MAX,
+        description="Absolute black starts at this minute of the day in the account timezone",
     )
     color_theme: str | None = Field(
         None,
         description="User color theme: 'default', 'ocean', 'forest', 'sunset', 'slate'",
+    )
+    icon_style: IconStyle | None = Field(
+        None,
+        description="Interface icon style: 'lucide', 'fluent', or 'flex'",
     )
     font_family: str | None = Field(
         None,
@@ -126,7 +146,16 @@ class UserUpdate(
 
     model_config = {"from_attributes": True, "use_enum_values": True}
 
-    @field_validator("theme", "color_theme", "font_family", "font_size", mode="before")
+    @field_validator(
+        "theme",
+        "color_theme",
+        "icon_style",
+        "font_family",
+        "font_size",
+        "theme_light_start_minute",
+        "theme_dark_start_minute",
+        mode="before",
+    )
     @classmethod
     def refuse_explicit_null_display_preference(cls, value: object) -> object:
         """Refuse a display preference SENT as null: its column is NOT NULL.
@@ -141,6 +170,16 @@ class UserUpdate(
         if value is None:
             raise ValueError("must not be null")
         return value
+
+    @model_validator(mode="after")
+    def validate_theme_boundaries(self) -> UserUpdate:
+        """Refuse equal explicit boundaries; partial writes are merged by the service."""
+        if (
+            self.theme_light_start_minute is not None
+            and self.theme_light_start_minute == self.theme_dark_start_minute
+        ):
+            raise ValueError("theme schedule boundaries must differ")
+        return self
 
 
 class UserProfile(UserBase, LanguageValidatorMixin):

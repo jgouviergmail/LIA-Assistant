@@ -7,7 +7,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationError
 
+from src.domains.llm_config.jev_gates import gate_passes
 from src.domains.llm_config.jev_registry import JevUsage
+from src.domains.llm_config.jev_statistics_sink import count_jev_outcome
 from src.domains.meetings.native_spend import record_selection_charge
 from src.domains.meetings.prompts import MeetingPromptError, load_meeting_prompt
 from src.domains.meetings.template_service import ResolvedTemplate
@@ -18,14 +20,7 @@ from src.infrastructure.llm.jev_runtime import choose_with_jev
 from src.infrastructure.llm.typesafe_client import ChoiceQuestion
 from src.infrastructure.observability.metrics_jev import (
     jev_decision_duration_seconds,
-    jev_decisions_total,
 )
-
-# Re-chosen on jev-1.14.0 (2026-10-26, scripts/analysis/jev_lot1_replay.py on
-# tests/fixtures/jev_meeting_cases.json): no wrong template at any level from 0.70;
-# 0.80 and 0.85 tie at 17 of 19 (the other two rightly answer « none ») where 0.95
-# kept 9, so the stricter tie. A wrong template is reformattable (ADR-259).
-MIN_CONFIDENCE = 0.85
 
 
 class _ChoicePrompt(BaseModel):
@@ -58,9 +53,7 @@ async def select_template_with_jev(
             load_meeting_prompt("meeting_jev_selection_prompt")
         )
     except MeetingPromptError, ValidationError:
-        jev_decisions_total.labels(
-            usage=JevUsage.MEETING_TEMPLATE, outcome="prompt_unavailable"
-        ).inc()
+        count_jev_outcome(JevUsage.MEETING_TEMPLATE, "prompt_unavailable")
         return NativeTemplateSelection()
     by_key = {f"c{index}": candidate for index, candidate in enumerate(candidates)}
     question = ChoiceQuestion(
@@ -91,9 +84,14 @@ async def select_template_with_jev(
             chosen = by_key.get(attempt.answer.choice)
             if chosen is None:
                 outcome = "no_match"
-            elif attempt.answer.confidence < MIN_CONFIDENCE:
+            elif not gate_passes(
+                attempt.thresholds,
+                JevUsage.MEETING_TEMPLATE,
+                "template",
+                attempt.answer.confidence,
+            ):
                 chosen, outcome = None, "low_confidence"
-        jev_decisions_total.labels(usage=JevUsage.MEETING_TEMPLATE, outcome=outcome).inc()
+        count_jev_outcome(JevUsage.MEETING_TEMPLATE, outcome)
         jev_decision_duration_seconds.labels(
             usage=JevUsage.MEETING_TEMPLATE, outcome=outcome
         ).observe(perf_counter() - started)

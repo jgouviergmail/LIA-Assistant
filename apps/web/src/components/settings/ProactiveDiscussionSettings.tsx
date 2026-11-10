@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Database, MessagesSquare } from 'lucide-react';
+import { Activity, Database, MessagesSquare } from '@/lib/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useProactiveDiscussions } from '@/hooks/useProactiveDiscussions';
 import { useTranslation } from '@/i18n/client';

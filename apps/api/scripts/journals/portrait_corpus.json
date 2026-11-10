@@ -667,16 +667,20 @@
   },
   "recurring": [
    {
-    "key": "weekly_team_recap",
-    "shape": "every Friday afternoon",
-    "trigger_hour": 16.5,
-    "usual_intent": "summarise the support tickets of the week"
+    "key": "email",
+    "cadence": "weekly",
+    "weekday": 4,
+    "usual_hour": 16.5,
+    "part_of_day": "afternoon",
+    "usual_intent": "search"
    },
    {
-    "key": "sunday_workshop_plan",
-    "shape": "Sunday morning",
-    "trigger_hour": 9.0,
-    "usual_intent": "plan the week-end workshop session"
+    "key": "event",
+    "cadence": "weekly",
+    "weekday": 6,
+    "usual_hour": 9.0,
+    "part_of_day": "morning",
+    "usual_intent": "create"
    }
   ]
  },

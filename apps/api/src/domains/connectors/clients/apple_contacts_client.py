@@ -25,6 +25,7 @@ import httpx
 import structlog
 
 from src.core.config import settings
+from src.core.content_source import content_source_binding
 from src.core.field_names import FIELD_CACHED_AT
 from src.core.read_budget import source_http_hooks
 from src.domains.connectors.clients.apple_carddav_xml import (
@@ -256,7 +257,7 @@ class AppleContactsClient(AppleContactGroupsMixin, BaseAppleClient):
                 (``cached_directory``); None for the shared entry.
 
         Returns:
-            The persons (names, addresses, numbers), and whether the book was cut.
+            The persons (names, addresses, numbers, birthdays), and whether the book was cut.
         """
         if cache_scope is not None:
             return await self._execute_with_retry(
@@ -393,25 +394,24 @@ class AppleContactsClient(AppleContactGroupsMixin, BaseAppleClient):
         so a cache hit can report WHEN the payload was written — the same
         contract as ``GooglePeopleClient``/``GoogleGmailClient``, which
         ``calculate_cache_age_seconds`` relies on to expose data freshness.
-        Entries written before the envelope existed are plain lists and are
-        still readable (``cached_at`` unknown → ``None``).
+        The key is bound to the Apple principal. Older unscoped entries are
+        never attributed to whichever account happens to be connected now.
 
         Returns:
             Tuple of (contacts list, from_cache flag, cache write timestamp).
         """
-        cache_key = f"apple_contacts:{self.user_id}:all"
+        binding = content_source_binding(self)
+        cache_key = f"apple_contacts:{self.user_id}:all:{binding}"
 
         # Check cache
-        if use_cache:
+        if use_cache and binding:
             try:
                 redis = await get_redis_session()
                 cached = await redis.get(cache_key)
                 if cached:
                     payload = json.loads(cached)
-                    if isinstance(payload, dict):
-                        return payload.get("contacts", []), True, payload.get(FIELD_CACHED_AT)
-                    # Legacy entry (bare list): freshness unknown, never faked.
-                    return payload, True, None
+                    if isinstance(payload, dict) and isinstance(payload.get("contacts"), list):
+                        return payload["contacts"], True, payload.get(FIELD_CACHED_AT)
             except Exception as e:
                 logger.debug("apple_contacts_cache_read_error", error=str(e))
 
@@ -462,11 +462,14 @@ class AppleContactsClient(AppleContactGroupsMixin, BaseAppleClient):
         # Cache all contacts with their write timestamp (freshness contract)
         try:
             redis = await get_redis_session()
-            await redis.set(
-                cache_key,
-                json.dumps({"contacts": contacts, FIELD_CACHED_AT: datetime.now(UTC).isoformat()}),
-                ex=settings.apple_contacts_cache_ttl,
-            )
+            if binding:
+                await redis.set(
+                    cache_key,
+                    json.dumps(
+                        {"contacts": contacts, FIELD_CACHED_AT: datetime.now(UTC).isoformat()}
+                    ),
+                    ex=settings.apple_contacts_cache_ttl,
+                )
         except Exception as e:
             logger.debug("apple_contacts_cache_write_error", error=str(e))
 
@@ -476,7 +479,10 @@ class AppleContactsClient(AppleContactGroupsMixin, BaseAppleClient):
         """Invalidate the full contacts cache after mutations."""
         try:
             redis = await get_redis_session()
-            await redis.delete(f"apple_contacts:{self.user_id}:all")
+            await redis.delete(
+                f"apple_contacts:{self.user_id}:all",
+                f"apple_contacts:{self.user_id}:all:{content_source_binding(self)}",
+            )
         except Exception as e:
             logger.debug("cache_invalidation_error", error=str(e))
         # And the directory the recipient suggestions read (Google/Microsoft parity).

@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/lib/icons';
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,0 +1,2 @@
+execution_authority_missing|Direct communication requires an identified execution. Nothing was sent.
+direct_communication_unattended|This execution has no authority for direct communication. Nothing was sent.

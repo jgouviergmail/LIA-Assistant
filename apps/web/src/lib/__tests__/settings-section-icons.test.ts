@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import * as lucide from 'lucide-react';
+import * as lucide from '@/lib/icons';
 import { describe, expect, it } from 'vitest';
 
 import { SETTINGS_SECTION_ICONS } from '../settings-section-icons';
@@ -34,7 +34,7 @@ const WRAPPED: Readonly<Partial<Record<SettingsSectionToken, string>>> = {
 /** lucide local name → canonical export name, from the file's own imports. */
 function lucideAliases(source: string): Map<string, string> {
   const aliases = new Map<string, string>();
-  for (const importMatch of source.matchAll(/import\s*\{([^}]+)\}\s*from\s*'lucide-react'/gs)) {
+  for (const importMatch of source.matchAll(/import\s*\{([^}]+)\}\s*from\s*'@\/lib\/icons'/gs)) {
     for (const spec of importMatch[1].split(',')) {
       const [name, alias] = spec.split(/\s+as\s+/).map(part => part.trim());
       if (name) aliases.set(alias ?? name, name);
@@ -70,7 +70,7 @@ describe('SETTINGS_SECTION_ICONS', () => {
     const canonical = lucideAliases(source).get(identifier);
     expect(canonical, `${file}: ${identifier} is not imported from lucide-react`).toBeDefined();
 
-    const expected = (lucide as unknown as Record<string, unknown>)[canonical as string];
+    const expected = Object.entries(lucide).find(([name]) => name === canonical)?.[1];
     expect(expected, `lucide-react has no export named ${canonical}`).toBeDefined();
     expect(
       SETTINGS_SECTION_ICONS[token],

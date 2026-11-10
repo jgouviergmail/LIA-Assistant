@@ -58,8 +58,6 @@ describe('a character has a quiet welcoming rest, not a new emotion', () => {
       });
       expect(rig.values()).toEqual(baseline.values());
     }
-    const smiley = createEyeRig({ characterId: 'oscar', reducedMotion: true });
-    expect(smiley.values()).toEqual(createEyeRig({ reducedMotion: true }).values());
   });
 
   it('yields its courtesy to signed temperament and leaves activity and speech unchanged', () => {

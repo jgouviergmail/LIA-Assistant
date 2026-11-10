@@ -23,10 +23,18 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CHANNELS, CHANNEL_KEYS, formatChannel } from '@/components/eyes/rig/channels';
+import {
+  CHANNELS,
+  CHANNEL_KEYS,
+  LIMB_CHANNELS,
+  formatChannel,
+  restChannelValues,
+} from '@/components/eyes/rig/channels';
 import { STYLE_LID_MODE } from '@/components/eyes/rig/poses';
 import { RIG_EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
 import { SVG_CHANNELS } from '../face-geometry';
+import { updateLimbUniforms } from '../../volume/limb-skin';
+import { BODY_SUPPORT_CHANNELS, createBodyStageWriter } from '../body-stage-writer';
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
 
@@ -75,9 +83,42 @@ describe('eyes.css × rig boundary', () => {
       key =>
         !CHANNELS[key].internal &&
         !referenced.has(CHANNELS[key].cssVar) &&
-        !SVG_CHANNELS.includes(key)
+        !SVG_CHANNELS.includes(key) &&
+        !LIMB_CHANNELS.some(limb => limb === key) &&
+        !BODY_SUPPORT_CHANNELS.some(support => support === key)
     );
     expect(orphans).toEqual([]);
+  });
+
+  it('proves every non-CSS limb channel reaches its own native GPU joint', () => {
+    // A declared list alone would hide dead channels. Exercise the real packing
+    // door independently for every joint, including absence of cross-talk.
+    for (const [index, channel] of LIMB_CHANNELS.entries()) {
+      const skin = {
+        vertices: new Float32Array(0),
+        joints: new Float32Array(LIMB_CHANNELS.length * 4),
+        limits: new Float32Array(LIMB_CHANNELS.length).fill(20),
+      };
+      const values = restChannelValues();
+      values[channel] = 9;
+      updateLimbUniforms(skin, values);
+      for (let other = 0; other < LIMB_CHANNELS.length; other += 1)
+        expect(skin.joints[other * 4 + 2]).toBeCloseTo(other === index ? Math.PI / 20 : 0, 6);
+    }
+  });
+
+  it('proves every non-CSS contact channel changes the painted native body stage', () => {
+    for (const channel of BODY_SUPPORT_CHANNELS) {
+      const root = document.createElement('span');
+      root.dataset.volumeCharacter = 'bip';
+      root.dataset.volumeVariant = 'female';
+      const writer = createBodyStageWriter(root);
+      const values = { ...restChannelValues(), bodySx: 1.1, bodySy: 0.9, bodyRoll: 8 };
+      writer.write(values);
+      const before = root.style.cssText;
+      writer.write({ ...values, [channel]: channel === 'bodySupport' ? 0 : -1 });
+      expect(root.style.cssText, channel).not.toBe(before);
+    }
   });
 
   it('holds INTERNAL channels to account too — one nothing reads is dead', () => {

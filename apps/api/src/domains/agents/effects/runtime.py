@@ -36,6 +36,7 @@ from src.domains.agents.effects.draft_approval import valid_draft_approval
 from src.domains.agents.effects.gate import (
     ERROR_CONFIRMATION_IMPOSSIBLE,
     ERROR_CONFIRMATION_MISSING,
+    STRICT_LEDGER_POLICIES,
     GateAction,
     GateDecision,
     decide_effect,
@@ -46,7 +47,7 @@ from src.domains.agents.effects.labels import build_effect_label
 from src.domains.agents.effects.outcome import ToolOutcome, read_outcome, succeeded_only
 from src.domains.agents.effects.preapproval import preapproved_scope
 from src.domains.agents.effects.schemas import ClaimRequest, EffectSourceName
-from src.domains.agents.effects.scope import EffectScope, current_scope
+from src.domains.agents.effects.scope import EffectScope, current_scope, has_execution_identity
 from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
 from src.domains.agents.expressivity.activity import observe_activity
@@ -429,6 +430,8 @@ def _build_request(
 
     context = runtime_context_if_running()
     if context is None:
+        return None
+    if policy == "direct" and not has_execution_identity(scope):
         return None
 
     source: EffectSourceName = resolve_source(context, scope=scope)
@@ -848,9 +851,9 @@ async def _unrecorded_or_refused(
 ) -> dict[str, Any] | None:
     """Decide what an effect that could NOT be recorded is allowed to do.
 
-    The owner's split (2026-09-03): what the user had to confirm is recorded or
-    not done at all; what they never had to confirm must not be blocked by OUR
-    bookkeeping — but the gap is counted and logged, never silent.
+    Confirmed effects and explicitly direct communications require a durable
+    claim. Historical reversible/artefact effects retain their fail-open
+    bookkeeping rule; the gap remains counted and logged.
 
     Args:
         tool_name: The capability about to act.
@@ -861,7 +864,7 @@ async def _unrecorded_or_refused(
     Returns:
         A refusal payload when the effect must not happen, else None.
     """
-    if policy == "confirm":
+    if policy in STRICT_LEDGER_POLICIES:
         effect_refusals_total.labels(reason="ledger_unavailable").inc()
         logger.error("effect_refused_ledger_unavailable", tool_name=tool_name)
         return _refusal_output(
@@ -1041,16 +1044,16 @@ def gated_executor(draft_type: str, executor: ExecutorFnT, *, strict: bool = Fal
     Args:
         draft_type: The draft family, used as the tool name in the ledger.
         executor: ``(draft_content, user_id, deps) -> result``.
-        strict: Require exact approval and durable claim for application commands.
+        strict: Require exact approval and durable claim for strict draft families.
 
     Returns:
         The gated executor, carrying :data:`EFFECT_GATED_ATTR`.
     """
     # The family declaration is mandatory even if a caller omits the option.
-    strict = strict or draft_type == "application_action"
+    strict = strict or draft_type in {"application_action", "peer_message"}
     if getattr(executor, EFFECT_GATED_ATTR, False):
         if strict and not getattr(executor, _DURABLE_DRAFT_CLAIM_ATTR, False):
-            raise ValueError("A legacy executor gate cannot serve an application command")
+            raise ValueError("A legacy executor gate cannot serve a strict draft family")
         return executor
 
     @functools.wraps(executor)

@@ -11,7 +11,7 @@ import {
   Leaf,
   Snowflake,
   Wind,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { useRouter } from 'next/navigation';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';

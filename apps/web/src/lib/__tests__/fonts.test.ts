@@ -14,6 +14,7 @@
  * source tree itself.
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -22,11 +23,50 @@ import { describe, expect, it } from 'vitest';
 import { readSources, SRC_ROOT } from '@/__tests__/source-scan';
 
 const FONTS_TS = resolve(__dirname, '../fonts.ts');
+const SYMBOLS_DIR = resolve(SRC_ROOT, '../public/fonts/material-symbols');
+const SYMBOLS_CSS = readFileSync(resolve(SYMBOLS_DIR, 'material-symbols.css'), 'utf8');
+const LAYOUT = readFileSync(resolve(SRC_ROOT, 'app/[lng]/layout.tsx'), 'utf8');
+const GLOBAL_CSS = readFileSync(resolve(SRC_ROOT, 'styles/globals.css'), 'utf8');
 
 /** Every `.ts`/`.tsx` file of `src/`, tests included — read at collection (`source-scan.ts`). */
 const SOURCES = readSources(file => /\.(ts|tsx)$/.test(file.relative));
 
 describe('self-hosted fonts contract', () => {
+  it('serves the full historical icon face from the app origin without CDN hints', () => {
+    expect(LAYOUT).not.toMatch(/fonts\.(?:googleapis|gstatic)\.com/);
+    expect(GLOBAL_CSS).toContain(
+      "@import '../../public/fonts/material-symbols/material-symbols.css'"
+    );
+    expect(
+      GLOBAL_CSS.indexOf('../../public/fonts/material-symbols/material-symbols.css')
+    ).toBeGreaterThan(GLOBAL_CSS.indexOf("@import './lia-components.css'"));
+    expect(SYMBOLS_CSS).toContain(
+      "src: url('/fonts/material-symbols/MaterialSymbolsOutlined.woff2') format('woff2')"
+    );
+    expect(SYMBOLS_CSS).not.toContain('https://');
+    expect(SYMBOLS_CSS).toContain("font-family: 'Material Symbols Outlined'");
+    expect(SYMBOLS_CSS).toContain('font-weight: 100 700');
+    expect(SYMBOLS_CSS).toContain('font-display: swap');
+    expect(SYMBOLS_CSS).toContain("-webkit-font-feature-settings: 'liga'");
+    expect(SYMBOLS_CSS).toContain('font-size: 24px');
+  });
+
+  it('retains the reviewed variable font and Apache license byte for byte in one canonical location', () => {
+    const digest = (file: string) =>
+      createHash('sha256')
+        .update(readFileSync(resolve(SYMBOLS_DIR, file)))
+        .digest('hex');
+    expect(digest('MaterialSymbolsOutlined.woff2')).toBe(
+      '96c9913f4d415adeefcc3fa13f4f75912648f6f426be8b50e5e20c035b17cdf3'
+    );
+    expect(digest('LICENSE')).toBe(
+      '58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd'
+    );
+    expect(
+      existsSync(resolve(SRC_ROOT, '../e2e/fixtures/fonts/MaterialSymbolsOutlined.woff2'))
+    ).toBe(false);
+  });
+
   it('no source file imports next/font/google (build-time network dependency)', () => {
     // Match the import form only — prose MENTIONS of the module id (this
     // guard, the fonts.ts docstring explaining the remediation) are fine.

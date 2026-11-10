@@ -14,7 +14,8 @@
  * equal (the row) or every left equal (the list) — anything else is the
  * intermediate state the bar exists to remove. The worst case is served: a
  * connection (« Write »), a card with two mailboxes (a menu), an address and a
- * number with an active telephony connector — five entries.
+ * number, on an instance that offers telephony and an account holding an active
+ * telephony connector (both read, owner D2 2026-11-07) — five entries.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,6 +23,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 
 import { test, expect } from '../fixtures';
+import { appConfig } from '../fixtures/dashboard-shell';
 import { relationContextPayload, relationsData } from '../fixtures/relations';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
@@ -52,6 +54,11 @@ const routes = [
         },
       },
     },
+  },
+  {
+    // The instance offers telephony: the operator's switch is read with the connector.
+    url: '**/api/v1/config',
+    json: { ...appConfig, capabilities: { telephony: { enabled: true, family: 'media' } } },
   },
   {
     // An ACTIVE telephony connector: the number is offered a call.

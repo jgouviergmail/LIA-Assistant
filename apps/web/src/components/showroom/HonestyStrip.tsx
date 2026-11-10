@@ -23,7 +23,7 @@
  *    lines are not titles and keep their line's colour").
  */
 
-import { FlaskConical, Info, ShieldCheck } from 'lucide-react';
+import { FlaskConical, Info, ShieldCheck } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 /** Distinct shapes: recognisable at a glance even without colour. */

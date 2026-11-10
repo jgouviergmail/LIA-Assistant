@@ -11,7 +11,6 @@ const WORKBENCH = resolve(__dirname, '../..');
 
 /** The stars that are no sign of LIA, each with why. */
 const NOT_THE_MARK: Readonly<Record<string, string>> = {
-  'assist/AssistStars.tsx': 'the mark itself',
   'lights/ScenePicker.tsx': 'a Hue scene that moves by itself: an effect of the lamps, no model',
 };
 

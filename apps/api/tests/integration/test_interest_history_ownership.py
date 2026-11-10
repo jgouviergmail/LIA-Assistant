@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.interests.notifications_router import get_interest_notification_history
+from src.domains.shared.display_query import DisplayQuery
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
@@ -58,7 +59,7 @@ async def test_history_preserves_owned_messages_without_a_foreign_topic(
         )
         await async_session.commit()
     result = await get_interest_notification_history(
-        limit=20, offset=0, user=test_user, db=async_session
+        limit=20, offset=0, criteria=DisplayQuery(), user=test_user, db=async_session
     )
     assert result.total == 1 and len(result.notifications) == 1
     assert result.notifications[0].content == (

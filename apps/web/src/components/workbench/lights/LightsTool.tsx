@@ -16,7 +16,7 @@
  */
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Lightbulb, Power, PowerOff } from 'lucide-react';
+import { ArrowLeft, Lightbulb, Power, PowerOff } from '@/lib/icons';
 import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -78,7 +78,9 @@ export function LightsTool({ lng }: { lng: Language }) {
 
 function ReadyLights({ lng }: { lng: Language }) {
   const { t } = useTranslation(lng);
-  const asked = useSearchParams().get('room');
+  const params = useSearchParams();
+  const requestedLight = params.get('light');
+  const requestedRoom = params.get('room');
   const desktop = useMediaQuery(WORKBENCH_DESKTOP);
   const {
     bridge: read,
@@ -94,10 +96,12 @@ function ReadyLights({ lng }: { lng: Language }) {
   // 2026-10-31) — sorted once here, so the list, the room opened by default and the
   // lamps all follow it.
   const bridge = useMemo(() => (read ? inNameOrder(read, lng) : null), [read, lng]);
+  const target = lightTarget(bridge, requestedLight, requestedRoom, desktop);
+  const asked = target.roomId;
   const back = useRef<HTMLAnchorElement>(null);
   // Below lg the room replaces the list: its way back takes the focus, and the
   // room's card gets it back when the list returns (whichever way it closed).
-  const linkRef = useDrillDownFocus(asked, { enabled: !desktop, opened: back });
+  const linkRef = useDrillDownFocus(asked, { enabled: target.followFocus, opened: back });
 
   const href = useCallback(
     (room: string | null) =>
@@ -131,7 +135,7 @@ function ReadyLights({ lng }: { lng: Language }) {
       />
     );
   }
-  const selection = openSelection(bridge, asked, desktop);
+  const selection = openSelection(bridge, asked, target.defaultOpen);
   const empty = bridge.rooms.length === 0 && selection.orphans.length === 0;
 
   return (
@@ -139,6 +143,11 @@ function ReadyLights({ lng }: { lng: Language }) {
       <WorkbenchToolHeader lng={lng} tool="lights" onRefresh={reread}>
         {!empty && <AllSwitchButton lng={lng} bridge={bridge} onSwitch={switchAll} />}
       </WorkbenchToolHeader>
+      {target.missing && (
+        <p role="alert" className="rounded-lg border p-3 text-sm">
+          {t('workbench.states.light_target_missing')}
+        </p>
+      )}
       {empty ? (
         <EmptyState
           icon={Lightbulb}
@@ -168,6 +177,7 @@ function ReadyLights({ lng }: { lng: Language }) {
               shownBelowLg={asked !== null}
               back={back}
               backHref={href(null)}
+              targetedLight={target.lightId}
               onLightChange={(lightId, change) => act(() => setLight(lightId, change))}
               onRecall={(scene, play) => act(() => recallScene(scene.id, play))}
             />
@@ -176,6 +186,43 @@ function ReadyLights({ lng }: { lng: Language }) {
       )}
     </>
   );
+}
+
+/** Resolve a card's lamp against the received bridge; never substitute a default room. */
+function lightTarget(
+  bridge: WorkbenchLights | null,
+  lightId: string | null,
+  roomId: string | null,
+  desktop: boolean
+) {
+  if (!lightId) {
+    return {
+      roomId,
+      lightId: undefined,
+      missing: false,
+      followFocus: !desktop,
+      defaultOpen: desktop,
+    };
+  }
+  const light = bridge?.lights.find(item => item.id === lightId);
+  if (!light) {
+    return {
+      roomId: null,
+      lightId: undefined,
+      missing: bridge !== null,
+      followFocus: false,
+      defaultOpen: false,
+    };
+  }
+  const room = bridge?.rooms.find(item => item.kind !== 'zone' && item.light_ids.includes(lightId));
+  const resolvedRoom = room?.id ?? (light.room_id === null ? OTHER_LIGHTS : null);
+  return {
+    roomId: resolvedRoom,
+    lightId: light.id,
+    missing: bridge !== null && resolvedRoom === null,
+    followFocus: false,
+    defaultOpen: false,
+  };
 }
 
 /**
@@ -329,10 +376,12 @@ function LampGroups({
   lng,
   lights,
   onLightChange,
+  targetedLight,
 }: {
   lng: Language;
   lights: readonly WorkbenchLight[];
   onLightChange: (lightId: string, change: LightChangeBody) => Promise<void>;
+  targetedLight?: string;
 }) {
   const { t } = useTranslation(lng);
   const { answering, silent } = lampsByAnswer(lights);
@@ -345,6 +394,7 @@ function LampGroups({
           key={light.id}
           lng={lng}
           light={light}
+          targeted={targetedLight === light.id}
           onChange={change => onLightChange(light.id, change)}
         />
       ))}
@@ -378,6 +428,7 @@ interface RoomDetailProps {
   backHref: string;
   onLightChange: (lightId: string, change: LightChangeBody) => Promise<void>;
   onRecall: SceneRecallAct;
+  targetedLight?: string;
 }
 
 /** The open room: its scenes and each of its lamps. */
@@ -390,6 +441,7 @@ function RoomDetail({
   backHref,
   onLightChange,
   onRecall,
+  targetedLight,
 }: RoomDetailProps) {
   const { t } = useTranslation(lng);
   const { ask } = useToolBridges(lng);
@@ -427,7 +479,12 @@ function RoomDetail({
         scenes={scenes.filter(scene => scene.room_id === selection.openRoom?.id)}
         onRecall={onRecall}
       />
-      <LampGroups lng={lng} lights={selection.openLights} onLightChange={onLightChange} />
+      <LampGroups
+        lng={lng}
+        lights={selection.openLights}
+        onLightChange={onLightChange}
+        targetedLight={targetedLight}
+      />
       <p className="text-xs text-muted-foreground">{t('workbench.lights.release_hint')}</p>
     </section>
   );

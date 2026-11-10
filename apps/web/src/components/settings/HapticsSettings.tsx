@@ -1,6 +1,6 @@
 'use client';
 
-import { Vibrate } from 'lucide-react';
+import { Vibrate } from '@/lib/icons';
 import { useSyncExternalStore } from 'react';
 
 import { Label } from '@/components/ui/label';

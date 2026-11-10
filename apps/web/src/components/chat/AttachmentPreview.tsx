@@ -13,7 +13,7 @@
 
 'use client';
 
-import { X, FileText, Loader2 } from 'lucide-react';
+import { X, FileText, Loader2 } from '@/lib/icons';
 import type { PendingAttachment } from '@/hooks/useFileUpload';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { useTranslation } from 'react-i18next';

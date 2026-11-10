@@ -7,7 +7,7 @@
  * retry on the same template, a delete — rather than an empty page.
  */
 
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { RefreshCw, Trash2 } from '@/lib/icons';
 
 import { MeetingProgress } from '@/components/meetings/MeetingProgress';
 import { type MeetingActions, meetingErrorLabel } from '@/components/meetings/useMeetingActions';

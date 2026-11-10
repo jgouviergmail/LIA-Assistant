@@ -15,7 +15,7 @@ import { SeatDashboardIntent, dashboardOfferOpen, type SeatScope } from './seat-
 import { WorldSeatedDashboard } from './WorldSeatedDashboard';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut } from '@/lib/icons';
 import { seatContext } from './seat-context';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';

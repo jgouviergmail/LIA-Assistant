@@ -44,7 +44,7 @@
  * - **A skipped run says nothing.** Quota refused it or the conversation was
  *   busy: reporting « échoué » would accuse LIA of something it never tried.
  */
-import { AlertTriangle, Bell, BellOff, Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bell, BellOff, Pencil, Trash2 } from '@/lib/icons';
 import { useTranslation } from 'react-i18next';
 
 import { Badge } from '@/components/ui/badge';

@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 
 import { act, renderWithProviders, screen } from '@/__tests__/test-utils';
 import { AppConfigSeedContext, type AppConfig } from '@/hooks/useAppConfig';
+import { useHomeTools } from '@/components/dashboard/HomeTools';
 import type { UseBriefingResult } from '@/hooks/useBriefing';
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -41,7 +42,15 @@ const { briefing } = vi.hoisted(() => {
 });
 vi.mock('@/hooks/useBriefing', () => ({ useBriefing: () => briefing }));
 vi.mock('@/components/dashboard/TodayBriefing', () => ({
-  TodayBriefing: ({ aboveBriefing }: { aboveBriefing?: ReactNode }) => <>{aboveBriefing}</>,
+  TodayBriefing: function TodayBriefing({ aboveBriefing }: { aboveBriefing?: ReactNode }) {
+    const { offered } = useHomeTools();
+    return (
+      <>
+        {aboveBriefing}
+        <section aria-label="home tools" data-offered={String(offered)} />
+      </>
+    );
+  },
 }));
 vi.mock('@/components/radio/RadioDashboardCard', () => ({
   RadioDashboardCard: ({ enabled }: { enabled: boolean }) => (
@@ -69,17 +78,32 @@ const SEED: AppConfig = {
 };
 
 let configReads: number;
+let workbenchReads: number;
+let answerConfig: ((config: AppConfig) => void) | undefined;
 
 beforeEach(() => {
   configReads = 0;
+  workbenchReads = 0;
+  answerConfig = undefined;
   vi.stubGlobal(
     'fetch',
     vi.fn<typeof fetch>(input => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const path = new URL(url, 'https://lia.example.test').pathname;
+      if (path === '/api/v1/workbench') {
+        workbenchReads += 1;
+        return new Promise<Response>(() => {});
+      }
       if (path !== '/api/v1/config') throw new Error(`Unexpected API read: ${path}`);
       configReads += 1;
-      return new Promise<Response>(() => {});
+      return new Promise<Response>(resolve => {
+        answerConfig = config =>
+          resolve(
+            new Response(JSON.stringify(config), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
+      });
     })
   );
 });
@@ -89,6 +113,35 @@ afterEach(() => {
 });
 
 describe('the home page configuration read', () => {
+  it('shares the seed and its fresh capability verdict with the home tools', async () => {
+    const offeredSeed: AppConfig = {
+      ...SEED,
+      features: { ...SEED.features, workbench_enabled: true },
+    };
+    renderWithProviders(
+      <AppConfigSeedContext.Provider value={offeredSeed}>
+        <DashboardPage params={Promise.resolve({ lng: 'fr' })} />
+      </AppConfigSeedContext.Provider>
+    );
+    expect(screen.getByRole('region', { name: 'home tools' })).toHaveAttribute(
+      'data-offered',
+      'true'
+    );
+    await act(async () => {});
+    expect(workbenchReads).toBe(1);
+    const reply = answerConfig;
+    if (!reply) throw new Error('The dashboard did not request its configuration');
+    await act(async () => {
+      reply({ ...offeredSeed, capabilities: { workbench: { enabled: false, family: 'work' } } });
+    });
+    expect(screen.getByRole('region', { name: 'home tools' })).toHaveAttribute(
+      'data-offered',
+      'false'
+    );
+    expect(screen.getByRole('region', { name: 'radio' })).toHaveAttribute('data-enabled', 'true');
+    expect(configReads).toBe(1);
+    expect(workbenchReads).toBe(1);
+  });
   it('sends one /config request: the dashboard body’s', async () => {
     renderWithProviders(<DashboardPage params={Promise.resolve({ lng: 'fr' })} />);
     await act(async () => {});

@@ -26,7 +26,7 @@
  *   produces while they are still choosing it.
  */
 
-import { CalendarClock, SlidersHorizontal } from 'lucide-react';
+import { CalendarClock, SlidersHorizontal } from '@/lib/icons';
 import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 

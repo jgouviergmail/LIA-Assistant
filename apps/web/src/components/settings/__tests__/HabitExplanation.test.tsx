@@ -31,7 +31,7 @@ function payload(over: Partial<HabitExplanationPayload> = {}): HabitExplanationP
   return {
     kind: 'recurring_request',
     key: 'email+contact',
-    payload: { shape: 'weekly' },
+    payload: { version: 2, cadence: 'weekly', weekday: 0 },
     positive_signals: 3,
     negative_signals: 0,
     status: 'active',

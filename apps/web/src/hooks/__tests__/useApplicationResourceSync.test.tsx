@@ -17,7 +17,7 @@ describe('application resource invalidation', () => {
       publishApplicationResources('one', new Set(['chat_shortcuts']));
     });
     await waitFor(() =>
-      expect(warning).toHaveBeenCalledWith('settings.application_tools.sync_failed')
+      expect(warning).toHaveBeenCalledWith('common.refresh_failed')
     );
     expect(reset).not.toHaveBeenCalled();
     act(() => {

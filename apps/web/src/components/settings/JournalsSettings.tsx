@@ -12,7 +12,7 @@ import {
   Settings2,
   RefreshCw,
   Flag,
-} from 'lucide-react';
+} from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
 import { Button } from '@/components/ui/button';

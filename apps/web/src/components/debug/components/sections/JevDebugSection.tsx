@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Cpu, RefreshCw } from 'lucide-react';
+import { Cpu, RefreshCw } from '@/lib/icons';
 import { Accordion } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { useJevDebug } from '@/hooks/useJevDebug';
@@ -11,7 +11,6 @@ import type { Language } from '@/i18n/settings';
 import type { JevCallTrace, JevChoicePreview } from '@/types/jev';
 import { DebugSection } from '../shared/DebugSection';
 import { JevContext } from './JevContext';
-import { JevCollectionCoverage } from './JevCollectionCoverage';
 import { JevObservedResult } from './JevObservedResult';
 
 const prefix = 'chat.debug_panel.jev.';
@@ -57,17 +56,14 @@ function JevAnswer({ response, lng }: { response: JevChoicePreview; lng: Languag
 
 function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
   const { t } = useTranslation(lng);
-  // Retained traces from the previous version used "selected" for a preview.
-  const action =
-    call.action === 'selected' && call.action_target === 'result_preview' ? 'preview' : call.action;
   return (
     <article className="min-w-0 space-y-3 rounded-lg border p-3 text-xs [overflow-wrap:anywhere]">
       <header className="space-y-2">
         <h3 className="text-sm font-semibold">
           {t(`settings.admin.jev.usages.${call.usage}`, { defaultValue: call.caller })}
         </h3>
-        <p className="font-semibold">{t(prefix + 'actions.' + action)}</p>
-        <p className="text-muted-foreground">{t(prefix + 'actionHelp.' + action)}</p>
+        <p className="font-semibold">{t(prefix + 'actions.' + call.action)}</p>
+        <p className="text-muted-foreground">{t(prefix + 'actionHelp.' + call.action)}</p>
         <p className="text-muted-foreground">
           <time dateTime={call.started_at}>{new Date(call.started_at).toLocaleString(lng)}</time>
         </p>
@@ -126,7 +122,6 @@ function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
         </dl>
       </details>
       <JevContext context={call.context} lng={lng} />
-      <JevCollectionCoverage call={call} lng={lng} />
       <div className="space-y-2">
         <h3 className="font-semibold">{t(prefix + 'response')}</h3>
         {call.response ? (
@@ -135,13 +130,6 @@ function JevCall({ call, lng }: { call: JevCallTrace; lng: Language }) {
           Object.entries(call.responses ?? {}).map(([key, response]) => (
             <div key={key} className="space-y-2 border-t pt-2">
               <p className="font-semibold">{call.decision_labels?.[key] ?? key}</p>
-              {call.applied_decisions?.[key] && (
-                <p className="rounded bg-muted p-2 font-semibold">
-                  {t(prefix + 'appliedDecision', {
-                    verdict: t('chat.result_preview.' + call.applied_decisions[key]),
-                  })}
-                </p>
-              )}
               <JevAnswer response={response} lng={lng} />
             </div>
           ))

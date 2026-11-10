@@ -3,17 +3,28 @@
 Models:
 - UserHabitProfile: per-user rhythm profile, recomputed nightly (derived data).
 - UserHabit: discrete learned habits with feedback signals and user status.
+- HabitProposal: what LIA offers from what it learned, and the person's
+  decision (ADR-375).
 
-Both tables are registered in the GDPR purge map (``users/user_data_map.py``),
+Every table is registered in the GDPR purge map (``users/user_data_map.py``),
 the account deletion service and the account export.
 """
 
 import uuid
 from datetime import date, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +61,35 @@ class HabitStatus(str, Enum):
     ACTIVE = "active"
     PAUSED = "paused"
     BLOCKED = "blocked"
+
+
+class ProposalKind(StrEnum):
+    """What a proposal offers (ADR-375) — the column's CHECK freezes this list.
+
+    The registry of actions is keyed by it and checked complete at boot.
+    """
+
+    AUTOMATE_NEED = "automate_need"
+    SHIFT_ROUTINE = "shift_routine"
+    FIX_ROUTINE = "fix_routine"
+    EXTEND_NOTIFICATION_WINDOW = "extend_notification_window"
+    REVIEW_NOTIFICATIONS = "review_notifications"
+    CONNECT_SOURCE = "connect_source"
+
+
+class ProposalStatus(StrEnum):
+    """Where a proposal stands.
+
+    - OPEN: shown to the person, waiting for a decision.
+    - ACCEPTED: the person accepted; may reopen after ``resurface_after``.
+    - DISMISSED: « later »; reopens after ``resurface_after`` if still true.
+    - REFUSED: « never »; a tombstone, never reopened.
+    """
+
+    OPEN = "open"
+    ACCEPTED = "accepted"
+    DISMISSED = "dismissed"
+    REFUSED = "refused"
 
 
 class UserActivityDay(BaseModel):
@@ -154,15 +194,11 @@ class UserHabit(BaseModel):
         key: Stable identity of the habit within its kind (e.g.
             ``"weekday:8-10"`` or the recurrence signature ``"email"``).
         payload: Kind-specific payload (schema versioned).
-        positive_signals: Feedback ramp-up (accepted offer, thumbs up).
-        negative_signals: Feedback ramp-down (dismissed offer, thumbs down,
-            implicit non-uptake of deviation offers).
+        positive_signals: Feedback ramp-up (a proposal built on it accepted).
+        negative_signals: Feedback ramp-down (a proposal built on it refused).
         status: ``HabitStatus`` value — BLOCKED rows are tombstones that
             prevent relearning of the key.
         last_observed_at: Last time the underlying behaviour was seen.
-        muted_until_reproof: Deviation stop-rule marker — after 2 consecutive
-            ignored offers the type-1 remark goes silent for this habit until
-            a fresh positive occurrence resets it.
     """
 
     __tablename__ = "user_habits"
@@ -196,12 +232,6 @@ class UserHabit(BaseModel):
         nullable=False,
     )
 
-    muted_until_reproof: Mapped[bool] = mapped_column(
-        nullable=False,
-        default=False,
-        comment="Deviation stop-rule: type-1 offers muted until re-occurrence.",
-    )
-
     user: Mapped[User] = relationship()
 
     __table_args__ = (
@@ -214,3 +244,76 @@ class UserHabit(BaseModel):
         return (
             f"<UserHabit(id={self.id}, kind={self.kind}, key='{self.key}', status={self.status})>"
         )
+
+
+class HabitProposal(BaseModel):
+    """One proposal LIA offers from what it learned, and the person's decision (ADR-375).
+
+    One row per (person, kind, key): the nightly sync opens it, refreshes its
+    facts while it is open, removes it when it stops being true, and reopens a
+    « later » or an accepted one once ``resurface_after`` has passed. A
+    refusal stays: the row is the tombstone. The payload holds FACTS only
+    (days, hours, counts, ids) — the sentence is rendered by the reader in the
+    person's language, never stored.
+
+    Attributes:
+        user_id: Owner.
+        kind: ``ProposalKind`` value.
+        key: Identity within the kind (a domain, a routine id, a category).
+        payload: The facts the card shows and the action reads.
+        status: ``ProposalStatus`` value.
+        resurface_after: When a dismissed or accepted proposal may reopen.
+        decided_at: When the person decided.
+        chat_shown_at: When the chat last showed it under an answer.
+    """
+
+    __tablename__ = "habit_proposals"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    key: Mapped[str] = mapped_column(String(200), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        comment="Facts the card shows and the action reads (no sentence, no message text).",
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=ProposalStatus.OPEN.value,
+    )
+    resurface_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When a dismissed or accepted proposal may reopen; NULL never.",
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    chat_shown_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the chat last showed it under an answer.",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "key", name="uq_habit_proposals_user_kind_key"),
+        Index("ix_habit_proposals_user_status", "user_id", "status"),
+        CheckConstraint(
+            "status IN ('open', 'accepted', 'dismissed', 'refused')",
+            name="ck_habit_proposals_status",
+        ),
+        CheckConstraint(
+            "kind IN ('automate_need', 'shift_routine', 'fix_routine', "
+            "'extend_notification_window', 'review_notifications', 'connect_source')",
+            name="ck_habit_proposals_kind",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<HabitProposal(kind={self.kind}, key={self.key}, status={self.status})>"

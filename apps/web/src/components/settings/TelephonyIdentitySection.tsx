@@ -27,7 +27,7 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { CheckCircle2, PhoneCall, Smartphone } from 'lucide-react';
+import { CheckCircle2, PhoneCall, Smartphone } from '@/lib/icons';
 
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';

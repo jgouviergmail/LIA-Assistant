@@ -33,12 +33,8 @@ import { cn } from '@/lib/utils';
 import { copyText } from '@/lib/workbench/copy';
 import { parentOf } from '@/lib/workbench/files';
 import { WORKBENCH_DESKTOP, WORKBENCH_PANE_HEIGHT } from '@/lib/workbench/tools';
-import { DRIVE_ORIGIN } from '@/lib/workbench/mail-compose';
-import type {
-  AttachableFile,
-  WorkbenchActOutcome,
-  WorkbenchFileDetail,
-} from '@/lib/workbench/types';
+import { driveAttachment } from '@/lib/workbench/mail-compose';
+import type { WorkbenchActOutcome, WorkbenchFileDetail } from '@/lib/workbench/types';
 
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
@@ -226,7 +222,11 @@ function FilePane({
   const { user } = useAuth();
   const { availability } = useWorkbench();
   const { ask, go, offers } = useToolBridges(lng);
-  const { panel: assistPanel, ...assist } = useFileAssist(lng, open.item);
+  const { panel: assistPanel, ...assist } = useFileAssist(
+    lng,
+    open.item,
+    availability.limits.download_max_bytes
+  );
   const { address, inTrash } = screen;
   if (!address.file) {
     return (
@@ -264,7 +264,7 @@ function FilePane({
         onShare={file => onAct({ kind: 'share', item: file })}
         onMail={
           offers('compose')
-            ? file => go({ kind: 'compose', to: '', file: attachableOf(file) })
+            ? file => go({ kind: 'compose', to: '', file: driveAttachment(file) })
             : undefined
         }
         onCopyLink={copyLink}
@@ -275,16 +275,4 @@ function FilePane({
       />
     </div>
   );
-}
-
-/** A file as a new message carries it: read on the drive when the message leaves. */
-function attachableOf(file: WorkbenchFileDetail): AttachableFile {
-  return {
-    id: file.id,
-    filename: file.name,
-    mime_type: file.mime_type,
-    size: file.size ?? 0,
-    origin: DRIVE_ORIGIN,
-    expires_at: null,
-  };
 }

@@ -23,12 +23,10 @@ counters never see them. LLM config: reuses the ``heartbeat_message`` slot
 (same task class — short, cheap personality rewrite) under its own
 ``llm_type`` metric label, so observability stays distinct.
 
-Failure taxonomy (typed codes, never raw exception text): ``llm_error`` /
-``dispatch_error`` count as attempts (retry until the cap, then ``failed`` +
-sender notice); ``cancelled_*`` codes end the message silently for the
-recipient and notify the sender neutrally. A dispatch that reached no channel
-the recipient finds later — an SSE event alone — is a ``dispatch_error`` too,
-never a delivery (audit AC-003).
+Generation failures are terminal: provider retries remain in the client. An
+unknown generation is never reissued. An archive failure retries the retained
+rendition under a new fenced claim. Archive and delivery settlement commit
+atomically before any optional external notification.
 """
 
 from __future__ import annotations
@@ -36,29 +34,27 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from time import time
-from typing import TYPE_CHECKING, NamedTuple
-from uuid import uuid4
+from typing import NamedTuple
+from uuid import UUID
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
+from src.core.constants import PEERS_DELIVERY_BATCH_SIZE
 from src.core.i18n import get_language_name
-from src.core.i18n_proactive import ProactiveMessages
 from src.core.llm_usage import LLMBillingRecord
 from src.domains.agents.prompts import load_prompt
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.peers.capability_notifications import maintain_capability_transfers
 from src.domains.peers.constants import (
-    PEER_CONNECTION_TASK_TYPE,
-    PEER_MESSAGE_TASK_TYPE,
-    PEER_META_MESSAGE_FLAG,
-    PEER_META_SENDER_ID,
-    PEER_META_SENDER_NAME,
     PEER_UNKNOWN_DISPLAY_NAME,
 )
-from src.domains.peers.models import PeerConnectionStatus, PeerMessage
+from src.domains.peers.delivery_repository import PeerDeliveryRepository
+from src.domains.peers.models import PeerMessage
 from src.domains.peers.repository import PeersRepository
 from src.domains.users.models import User
+from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.cache.pricing_cache import capture_pricing_snapshot
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
@@ -67,14 +63,9 @@ from src.infrastructure.llm.usage_metadata import (
     model_name_of,
 )
 from src.infrastructure.observability.metrics_registry import peers_messages_total
-from src.infrastructure.proactive.notification import NotificationDispatcher
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from src.infrastructure.scheduler.peer_delivery_runner import run_delivery
 
 logger = structlog.get_logger(__name__)
-
-_STALE_CLAIM_MINUTES = 10  # crash-recovery horizon (scheduled_actions default)
 
 
 class _DeliveryText(NamedTuple):
@@ -191,7 +182,7 @@ async def _generate_delivery_text(
             llm_type="peer_message_delivery",
             messages=[
                 SystemMessage(content=system_prompt),
-                HumanMessage(content="Deliver the relayed message now."),
+                HumanMessage(content=load_prompt("peer_message_delivery_request")),
             ],
             session_id=f"peer_msg_{message.id}",
             user_id=str(message.sender_id),
@@ -217,292 +208,85 @@ async def _generate_delivery_text(
         )
 
 
-async def _revalidation_cancel_code(
-    repo: PeersRepository,
-    message: PeerMessage,
-    sender: User | None,
-    recipient: User | None,
-) -> str | None:
-    """Return a typed cancel code when the message may no longer be delivered."""
-    from src.domains.usage_limits.service import UsageLimitService
-
-    if recipient is None or not recipient.is_active or recipient.deleted_at:
-        return "cancelled_recipient_gone"
-    if sender is None or not sender.is_active or sender.deleted_at:
-        return "cancelled_sender_gone"
-    # The retention horizon is stamped at ENQUEUE and the reaper clears texts
-    # whatever the status — and it runs immediately before the claim, in this
-    # very sweep. A message deferred past its horizon (a recipient who never
-    # resolves a HITL, an account suspended for weeks) therefore arrives here
-    # with nothing left to relay. Handing "" to the recipient's assistant would
-    # have it invent a message, and the sender would be told it was delivered.
-    if not (message.content or "").strip():
-        return "cancelled_content_expired"
-    connection = await repo.get_by_id(message.connection_id)
-    if connection is None or connection.status != PeerConnectionStatus.ACCEPTED.value:
-        return "cancelled_not_connected"
-    if await repo.has_block_between(message.sender_id, message.recipient_id):
-        return "cancelled_blocked"
-    if await UsageLimitService.is_user_blocked_for_llm(
-        message.sender_id, layer="peer_message_delivery"
-    ):
-        return "cancelled_sender_blocked"  # spec §9d: sender pays, sender at cap
-    return None
-
-
-async def _notify_sender(sender: User, body: str, message: PeerMessage, db: AsyncSession) -> None:
-    """Best-effort sender notice (delivered / failed / cancelled)."""
-    try:
-        await NotificationDispatcher().dispatch(
-            user=sender,
-            content=body,
-            task_type=PEER_CONNECTION_TASK_TYPE,
-            target_id=str(message.id),
-            metadata={"peer_message_notice": True},
-            db=db,
-            title=ProactiveMessages.notification_title(PEER_CONNECTION_TASK_TYPE, sender.language),
-        )
-    except Exception as exc:  # noqa: BLE001 — notice must never sink the delivery
-        logger.warning(
-            "peers_sender_notice_failed",
-            message_id=str(message.id),
-            error_type=type(exc).__name__,
-        )
-
-
-async def _cancel_and_notify(
-    repo: PeersRepository,
-    message: PeerMessage,
-    cancel_code: str,
-    sender: User | None,
-    recipient: User | None,
-    db: AsyncSession,
+async def _generate_and_account(
+    message: PeerMessage, sender: User, recipient: User, count: int
 ) -> str:
-    """Cancel a claimed message and give the sender a neutral notice.
-
-    The cancel is committed before the notice: the notice is best-effort, and a
-    notice whose archive failed in the database aborted the transaction the
-    cancel was pending in — the sweep's COMMIT then rolled it back in silence,
-    and the message was claimed again ten minutes later.
-    """
-    await repo.cancel_message(message.id, cancel_code)
-    await db.commit()
-    if sender is not None and cancel_code != "cancelled_sender_gone":
-        await _notify_sender(
-            sender,
-            ProactiveMessages.peer_message_failed_body(
-                (recipient.full_name if recipient else None) or "?", sender.language
-            ),
-            message,
-            db,
-        )
-    logger.info("peers_message_cancelled", message_id=str(message.id), code=cancel_code)
-    return cancel_code
-
-
-async def _record_retryable_failure(
-    message: PeerMessage,
-    error_code: str,
-    log_event: str,
-    exc: Exception,
-    sender: User,
-    recipient: User,
-) -> str:
-    """Record one real delivery failure; notify the sender only at the cap.
-
-    On a session of its own: a database error in the dispatch's archive aborts
-    the claim session's transaction (measured on PostgreSQL: 25P02 on the next
-    statement, and a COMMIT that rolls back in silence), and a failure that
-    cannot be counted never reaches its cap — the message would be retried for
-    ever.
-    """
-    async with get_db_context() as accounting:
-        status = await PeersRepository(accounting).mark_message_failed(
-            message.id, error_code, max_attempts=settings.peers_delivery_max_attempts
-        )
-        logger.warning(
-            log_event,
-            message_id=str(message.id),
-            error_type=type(exc).__name__,
-            status=status,
-        )
-        if status == "failed":
-            await _notify_sender(
-                sender,
-                ProactiveMessages.peer_message_failed_body(
-                    recipient.full_name or "?", sender.language
-                ),
-                message,
-                accounting,
-            )
-    return status
-
-
-async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str:
-    """Deliver ONE claimed (``delivering``) message end to end.
-
-    Args:
-        message: Row claimed by ``claim_pending_messages`` in this session.
-        db: The claiming session (transitions stay on the claim transaction).
-
-    Returns:
-        Outcome code: ``delivered``, ``pending`` (will retry), ``failed`` or a
-        ``cancelled_*`` code.
-    """
+    """Keep successful spend on the same sender ledger as paid failures."""
     from src.infrastructure.proactive.tracking import track_proactive_tokens
 
-    repo = PeersRepository(db)
-    sender = await db.get(User, message.sender_id)
-    recipient = await db.get(User, message.recipient_id)
-
-    cancel_code = await _revalidation_cancel_code(repo, message, sender, recipient)
-    if cancel_code is not None:
-        return await _cancel_and_notify(repo, message, cancel_code, sender, recipient, db)
-
-    # sender/recipient are proven non-None past revalidation.
-    assert sender is not None and recipient is not None  # noqa: S101 — narrowing
-    now = datetime.now(UTC)
-    relay_count = await repo.count_messages_today_for_pair(
-        message.sender_id, message.recipient_id, now=now
+    generated = await _generate_delivery_text(message, sender, recipient, count)
+    usage = generated.usage
+    await track_proactive_tokens(
+        user_id=message.sender_id,
+        task_type="peer_message",
+        target_id=str(message.id),
+        conversation_id=None,
+        tokens_in=usage.prompt,
+        tokens_out=usage.completion,
+        tokens_cache=usage.cached,
+        tokens_cache_write=usage.cache_write,
+        model_name=generated.model_name,
+        billing_records=generated.billing_records,
+        source="scheduled",
     )
-    # The model answers with no transaction open (ADR-304): the reads above are
-    # committed, so no pooled connection sits idle in a transaction while it answers.
-    await db.commit()
-    try:
-        generated = await _generate_delivery_text(message, sender, recipient, relay_count)
-        text, usage, model_name = generated.text, generated.usage, generated.model_name
-    except Exception as exc:  # noqa: BLE001 — typed retryable failure
-        return await _record_retryable_failure(
-            message, "llm_error", "peers_delivery_generation_failed", exc, sender, recipient
-        )
+    return generated.text
 
-    # Spec §9: the sender pays — tracked BEFORE dispatch so a dispatch retry
-    # can never double-book the same generation.
-    with suppress(Exception):  # tracking failure must not lose the delivery
-        await track_proactive_tokens(
-            user_id=message.sender_id,
-            task_type="peer_message",
-            target_id=str(message.id),
-            conversation_id=None,
-            tokens_in=usage.prompt,
-            tokens_out=usage.completion,
-            tokens_cache=usage.cached,
-            tokens_cache_write=usage.cache_write,
-            # It used to be None, which priced every relayed message at zero.
-            model_name=model_name,
-            billing_records=generated.billing_records,
-            source="scheduled",
-        )
 
-    try:
-        await NotificationDispatcher().dispatch(
-            user=recipient,
-            content=text,
-            task_type=PEER_MESSAGE_TASK_TYPE,
-            target_id=str(message.id),
-            metadata={
-                PEER_META_MESSAGE_FLAG: True,
-                PEER_META_SENDER_ID: str(message.sender_id),
-                # Chat quick-actions (Lot 7): reply prefill + block need the
-                # sender identity without a lookup. Recipient's own archive —
-                # the name already appears in the title/body. The Relations CRM
-                # reads it back too, as the fallback when the account is gone.
-                PEER_META_SENDER_NAME: sender.full_name or PEER_UNKNOWN_DISPLAY_NAME,
-            },
-            db=db,
-            title=ProactiveMessages.notification_title(PEER_MESSAGE_TASK_TYPE, recipient.language),
-            require_durable=True,
-        )
-    except Exception as exc:  # noqa: BLE001 — typed retryable failure
-        return await _record_retryable_failure(
-            message, "dispatch_error", "peers_delivery_dispatch_failed", exc, sender, recipient
-        )
-
-    # The rendered text is recorded, not discarded (ADR-186): the recipient's
-    # CRM reads it from the ledger, which outlives their conversation archive.
-    await repo.mark_message_delivered(message.id, now=datetime.now(UTC), delivered_text=text)
-    await _notify_sender(
-        sender,
-        ProactiveMessages.peer_message_delivered_body(recipient.full_name or "?", sender.language),
-        message,
-        db,
-    )
-    logger.info("peers_message_delivered", message_id=str(message.id))
-    return "delivered"
+async def deliver_claimed_message(message: PeerMessage) -> str:
+    """Serve one committed claim through the fenced delivery state machine."""
+    return await run_delivery(message, _generate_and_account)
 
 
 async def sweep_pending_deliveries() -> dict[str, int]:
-    """Scheduler sweep: recover stale claims, then deliver pending messages.
-
-    Also expires stale pending REQUESTS (spec §5.2) and clears message texts
-    past their retention horizon (ADR-186) — one periodic job owns every peers
-    time-based transition.
-
-    Returns:
-        Counters for logging/metrics: claimed / delivered / retried / failed /
-        cancelled / recovered / expired_requests / purged_texts.
-    """
-    counters = {
-        "claimed": 0,
-        "delivered": 0,
-        "retried": 0,
-        "failed": 0,
-        "cancelled": 0,
-        "recovered": 0,
-        "expired_requests": 0,
-        "pruned_access_log": 0,
-        "purged_texts": 0,
-    }
+    """Retain records, recover expired leases, then claim one message at a time."""
+    counters = dict.fromkeys(
+        (
+            "claimed",
+            "delivered",
+            "retried",
+            "failed",
+            "cancelled",
+            "lost",
+            "recovered",
+            "expired_requests",
+            "pruned_access_log",
+            "purged_texts",
+        ),
+        0,
+    )
     await maintain_capability_transfers()
-    if not settings.peers_enabled:
-        return counters
     async with get_db_context() as db:
         repo = PeersRepository(db)
-        counters["recovered"] = await repo.recover_stale_delivering(
-            older_than=datetime.now(UTC) - timedelta(minutes=_STALE_CLAIM_MINUTES)
-        )
+        counters["recovered"] = await PeerDeliveryRepository(db).recover_stale_delivering()
         counters["expired_requests"] = await repo.expire_stale_pending(
             older_than=datetime.now(UTC) - timedelta(days=settings.peers_request_expiry_days)
         )
         counters["pruned_access_log"] = await repo.prune_access_log(
             older_than=datetime.now(UTC) - timedelta(days=settings.peers_access_log_retention_days)
         )
-        # Retention reaper (ADR-186): the rows stay, their words do not.
         counters["purged_texts"] = await repo.purge_expired_message_texts(now=datetime.now(UTC))
-        messages = await repo.claim_pending_messages()
-        counters["claimed"] = len(messages)
-        await db.commit()
-
-        for message in messages:
-            try:
-                outcome = await deliver_claimed_message(message, db)
-            except Exception as exc:  # noqa: BLE001 — one message never kills the sweep
-                logger.error(
-                    "peers_delivery_unexpected_error",
-                    message_id=str(message.id),
-                    error_type=type(exc).__name__,
-                )
-                outcome = await repo.mark_message_failed(
-                    message.id,
-                    "unexpected_error",
-                    max_attempts=settings.peers_delivery_max_attempts,
-                )
-            if outcome == "delivered":
-                counters["delivered"] += 1
-                metric_label = "delivered"
-            elif outcome == "pending":
-                counters["retried"] += 1
-                metric_label = "retried"
-            elif outcome == "failed":
-                counters["failed"] += 1
-                metric_label = "failed"
-            else:
-                counters["cancelled"] += 1
-                metric_label = "cancelled"
-            with suppress(Exception):  # metrics must never fail the sweep
-                peers_messages_total.labels(outcome=metric_label).inc()
+    if not await is_capability_enabled(PlatformCapability.PEERS):
+        return counters
+    attempted: list[UUID] = []
+    for _ in range(PEERS_DELIVERY_BATCH_SIZE):
+        async with get_db_context() as db:
+            messages = await PeerDeliveryRepository(db).claim_pending_messages(
+                exclude=tuple(attempted)
+            )
             await db.commit()
-
+        if not messages:
+            break
+        counters["claimed"] += 1
+        attempted.append(messages[0].id)
+        outcome = await deliver_claimed_message(messages[0])
+        category = (
+            ("retried" if outcome == "pending" else outcome)
+            if outcome in {"delivered", "pending", "failed", "lost"}
+            else "cancelled"
+        )
+        counters[category] += 1
+        if category != "lost":
+            peers_messages_total.labels(outcome=category).inc()
     if any(counters.values()):
         logger.info("peers_delivery_sweep_done", **counters)
     return counters
@@ -514,13 +298,4 @@ def kick_delivery_soon() -> None:
     Fire-and-forget: the periodic sweep remains the durable guarantee; this
     only shortens the happy-path latency. Never raises.
     """
-    import asyncio
-
-    with suppress(RuntimeError):  # no running loop (sync test context)
-        loop = asyncio.get_running_loop()
-        task = loop.create_task(sweep_pending_deliveries(), name=f"peers_kick_{uuid4().hex[:8]}")
-        # Surface unexpected crashes in logs instead of silent task death.
-        task.add_done_callback(
-            lambda t: t.exception()
-            and logger.warning("peers_kick_failed", error_type=type(t.exception()).__name__)
-        )
+    safe_fire_and_forget(sweep_pending_deliveries(), name="peer_delivery_kick")

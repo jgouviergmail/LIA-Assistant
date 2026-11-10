@@ -629,23 +629,17 @@ def _types(chunks: list[ChatStreamChunk]) -> list[str]:
 
 
 @pytest.mark.asyncio
-async def test_char_hidden_legacy_preview_does_not_advance_answer_timing() -> None:
-    harness = Harness(
-        script=[
-            _router("actionable"),
-            _chunk("result_preview", metadata={"collection": {"items": [{"verdict": "match"}]}}),
-            _token("Answer"),
-        ]
-    )
+async def test_char_delivery_measurement_follows_the_first_answer_token() -> None:
+    harness = Harness(script=[_router("actionable"), _token("Answer")])
     with (
         pytest.MonkeyPatch.context() as mp,
         patch("src.domains.agents.services.streaming.journey_timing.logger") as log,
     ):
         chunks = await harness.run(mp)
-    assert _types(chunks) == ["router_decision", "result_preview", "token", "done"]
+    assert _types(chunks) == ["router_decision", "token", "done"]
     log.info.assert_called_once()
     measurement = log.info.call_args.kwargs
-    assert measurement["first_visible_preview_ms"] is None
+    assert "first_visible_preview_ms" not in measurement
     assert measurement["first_useful_ms"] == measurement["first_answer_token_ms"]
     assert measurement["duration_ms"] >= measurement["first_answer_token_ms"]
     assert measurement["cost_eur"] == chunks[-1].metadata["cost_eur"]

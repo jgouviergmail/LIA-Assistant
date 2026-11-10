@@ -46,9 +46,9 @@ import {
   Users,
   Volume2,
   Wrench,
-} from 'lucide-react';
+} from '@/lib/icons';
 
-import { AssistStars } from '@/components/workbench/assist/AssistStars';
+import { AssistStars } from '@/components/selection-assist/AssistStars';
 import { cn } from '@/lib/utils';
 
 import {
@@ -1533,10 +1533,65 @@ function PricedAnswerScene({ active, labels }: SceneProps) {
   );
 }
 
+type CardToolPhase = 'card' | 'press' | 'open';
+const CARD_TOOL_STEPS: readonly TimelineStep<CardToolPhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 1100, state: 'press' },
+  { at: 1800, state: 'open' },
+];
+
+/**
+ * A mail card in the chat is clicked by its title, and the Tools open that
+ * very message beside it, its row highlighted: the card names the record,
+ * the tool holds it.
+ */
+function CardOpensToolScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(CARD_TOOL_STEPS, { active });
+  const open = phase === 'open';
+  return (
+    <div className={cn(STAGE, 'flex-row gap-3')}>
+      <div className="w-32 space-y-1.5 rounded-lg border border-border bg-background p-2 shadow-sm">
+        <span
+          className={cn(
+            'flex items-center gap-1.5 text-px-10 font-medium',
+            phase === 'card' ? 'text-foreground/80' : 'text-primary underline'
+          )}
+        >
+          <Mail className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{labels.card}</span>
+        </span>
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-2/3" />
+      </div>
+      <div
+        className={cn(
+          'w-28 space-y-1.5 rounded-lg border border-border bg-background p-2 shadow-sm transition-all duration-500 motion-reduce:transition-none',
+          open ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
+        )}
+      >
+        <span className="flex items-center gap-1.5 text-px-10 font-semibold text-primary">
+          <Wrench className="h-3 w-3" aria-hidden="true" />
+          {labels.tool}
+        </span>
+        <div className="rounded bg-primary/10 px-1.5 py-1">
+          <SkeletonLine w="w-full" className="bg-primary/30" />
+        </div>
+        <SkeletonLine w="w-3/4" />
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'press' ? 'left-[24%] top-[36%] opacity-100' : 'left-[40%] top-[72%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   discussion_reactions: DiscussionReactionsScene,
   card_details: CardDetailsScene,
   card_compose: CardComposeScene,
+  card_opens_tool: CardOpensToolScene,
   voice_follows_answer: VoiceFollowsAnswerScene,
   expressive_eyes: ExpressiveEyesScene,
   living_face: LivingFaceScene,

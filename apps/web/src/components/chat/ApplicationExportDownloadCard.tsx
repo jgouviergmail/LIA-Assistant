@@ -2,7 +2,7 @@
 
 import { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download } from 'lucide-react';
+import { Download } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useApplicationAccountLifetime } from '@/hooks/useApplicationAccountLifetime';

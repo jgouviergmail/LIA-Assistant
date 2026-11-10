@@ -10,6 +10,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.core.constants import REMINDER_CONTENT_MAX_CHARS
 from src.core.recurrence import RecurrenceSpec
 from src.domains.reminders.models import ReminderStatus
 
@@ -94,7 +95,12 @@ class ReminderUpdate(BaseModel):
     "clear the schedule" has no meaning for a reminder that must fire.
     """
 
-    content: str | None = Field(None, min_length=1, max_length=2000)
+    content: str | None = Field(
+        None,
+        min_length=1,
+        max_length=REMINDER_CONTENT_MAX_CHARS,
+        description="The reminder's revised content.",
+    )
     trigger_at: datetime | None = Field(
         None, description="New instant to arm (local time); recomputed from the recurrence."
     )

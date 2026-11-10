@@ -13,7 +13,7 @@ import { useDashboardRoute } from './DashboardNavigation';
  */
 
 import { useState } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X } from '@/lib/icons';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 

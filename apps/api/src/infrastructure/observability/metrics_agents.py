@@ -690,34 +690,6 @@ context_disambiguation_answers_total = Counter(
 )
 
 
-# ADR-062: Initiative Phase metrics
-initiative_evaluations_total = Counter(
-    "initiative_evaluations_total",
-    "Initiative phase evaluations",
-    ["decision"],  # "act" | "skip" | "prefilter_skip"
-)
-
-initiative_actions_executed_total = Counter(
-    "initiative_actions_executed_total", "Initiative actions executed", ["tool_name"]
-)
-
-# Audit 2026-08-19 lot 0: prod showed decision=act evaluations with zero
-# executions and only a logger.warning to explain the gap.
-initiative_actions_rejected_total = Counter(
-    "initiative_actions_rejected_total",
-    "Initiative actions rejected by the read-only validation",
-    ["reason"],  # non_readonly | duplicate
-)
-
-# ADR-214 amendment (2026-09-03): the recurrence evaluation is guarded like
-# the recurrence recording — a scheduled run never evaluates, so LIA cannot
-# propose to automate her own automation.
-recurrence_evaluation_skipped_total = Counter(
-    "recurrence_evaluation_skipped_total",
-    "Recurrence-suggestion evaluations skipped before any ledger read",
-    ["reason"],  # automated_source | feature_disabled | user_disabled | paused | blocked
-)
-
 # ADR-214 amendment (2026-09-11): the gate counts ``scheduled`` when it HANDS
 # the write to the background; only the write can say it landed. The
 # RecurrenceLedgerSilent alert reads this counter, so a broken Redis cannot
@@ -726,18 +698,6 @@ recurrence_ledger_writes_total = Counter(
     "recurrence_ledger_writes_total",
     "Recurrence ledger occurrence writes by outcome",
     ["outcome"],  # written | redis_unavailable | failed | user_disabled
-)
-
-initiative_duration_seconds = Histogram(
-    "initiative_duration_seconds",
-    "Initiative phase total duration",
-    buckets=[0.1, 0.5, 1.0, 2.0, 3.0, 5.0],
-)
-
-# UXR Lot 4 (A2): tappable follow-up chips emitted under assistant answers.
-initiative_followups_total = Counter(
-    "initiative_followups_total",
-    "Follow-up suggestions emitted by the initiative node",
 )
 
 context_resolution_duration_seconds = Histogram(

@@ -52,6 +52,18 @@ class APIMessages:
     - Domain-specific (memories, conversations, connectors)
     """
 
+    @staticmethod
+    def theme_schedule_boundaries_must_differ(language: SupportedLanguage | None = None) -> str:
+        """An automatic display interval needs two distinct civil times."""
+        return {
+            "en": "Light mode and absolute black must start at different times.",
+            "fr": "Le mode clair et le noir absolu doivent commencer à des heures différentes.",
+            "de": "Heller Modus und absolutes Schwarz müssen zu unterschiedlichen Zeiten beginnen.",
+            "es": "El modo claro y el negro absoluto deben comenzar a horas diferentes.",
+            "it": "La modalità chiara e il nero assoluto devono iniziare a orari diversi.",
+            "zh-CN": "浅色模式和纯黑模式的开始时间必须不同。",
+        }[resolve_language(language)]
+
     # =========================================================================
     # AUTHENTICATION & AUTHORIZATION
     # =========================================================================

@@ -12,7 +12,7 @@
  * relation's sheet) so a correction behaves identically wherever it is made.
  */
 
-import { Check, X } from 'lucide-react';
+import { Check, X } from '@/lib/icons';
 import { useState } from 'react';
 
 import { useTranslation } from '@/i18n/client';

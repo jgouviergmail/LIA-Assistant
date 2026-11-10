@@ -21,7 +21,7 @@ import {
   ListTodo,
   ShieldOff,
   UserMinus,
-} from 'lucide-react';
+} from '@/lib/icons';
 
 import {
   Accordion,

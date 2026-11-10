@@ -14,7 +14,7 @@
  * A sentence in the box can be read by LIA into those very criteria (ADR-372), and what
  * the page weighs waits with the chips.
  */
-import { CalendarRange, ChevronDown, ListFilter, Paperclip, Search, X } from 'lucide-react';
+import { CalendarRange, ChevronDown, ListFilter, Paperclip, Search, X } from '@/lib/icons';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';

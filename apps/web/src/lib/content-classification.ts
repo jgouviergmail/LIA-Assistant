@@ -1,7 +1,8 @@
 import { z } from '@/lib/zod';
 
 const stamp = {
-  version: z.literal('email-event-v1-phishing'),
+  // v2 adds whether an e-mail expects a reply (ADR-374); an archived v1 is still read.
+  version: z.enum(['email-event-v1-phishing', 'email-event-v2-reply']),
   evidence_scope: z.enum(['metadata', 'snippet', 'body', 'summary', 'partial_body', 'event']),
   evaluated_at: z.string().datetime({ offset: true }),
   valid_until: z.string().datetime({ offset: true }),
@@ -13,6 +14,8 @@ const classification = z.discriminatedUnion('kind', [
       kind: z.literal('email'),
       category: z.enum(['unknown', 'professional', 'personal', 'spam', 'phishing_scam']),
       priority: z.enum(['unknown', 'normal', 'urgent', 'critical']),
+      /** Undecided when absent or null; always false for spam and phishing. */
+      reply_expected: z.boolean().nullable().optional(),
     })
     .strict(),
   z

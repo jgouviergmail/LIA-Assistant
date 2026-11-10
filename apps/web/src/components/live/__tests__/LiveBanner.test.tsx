@@ -69,6 +69,19 @@ describe('LiveBanner', () => {
     expect(session.end).toHaveBeenCalledWith('ended');
   });
 
+  it('never shows a line that says nothing, such as a cue alone (ADR-373)', async () => {
+    live();
+    const store = useLiveStore.getState();
+    const heard = (text: string) => text.replace(/\[[^\]]*\]/g, '').trim();
+    store.pushCaption('assistant', 'You have two meetings.', true, heard);
+    store.pushCaption('assistant', '[sighs]', true, heard);
+    renderWithProviders(<LiveBanner session={session} onStopAll={vi.fn()} />);
+    // Folded, the last line that SAID something is the one shown.
+    expect(screen.getByText('You have two meetings.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'live.captions.show' }));
+    expect(screen.getAllByText('live.captions.lia')).toHaveLength(1);
+  });
+
   it('folds the captions behind a named icon button, the meter under the last caption', () => {
     live();
     const store = useLiveStore.getState();

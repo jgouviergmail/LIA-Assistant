@@ -163,10 +163,14 @@ def _assert_effect_completeness(registry: Any) -> None:
         assert_treatment_domain_completeness,
     )
     from src.domains.tool_assists.catalogue import assert_assist_registry_completeness
+    from src.domains.tool_assists.passage import assert_passage_origins_complete
+    from src.domains.tool_assists.selection import assert_selection_actions_complete
 
     guards: tuple[BootGuard, ...] = (
         ("effect_gate_incomplete", "Effect gate", assert_effect_gate_completeness),
         ("tool_assists_incomplete", "Tool assists", assert_assist_registry_completeness),
+        ("selection_actions_incomplete", "Selection actions", assert_selection_actions_complete),
+        ("passage_origins_incomplete", "Passage origins", assert_passage_origins_complete),
         (
             "effect_labels_incomplete",
             "Effect labels",

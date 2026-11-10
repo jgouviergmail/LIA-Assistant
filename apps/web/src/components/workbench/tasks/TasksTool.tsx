@@ -11,15 +11,14 @@
  * Focus is never left to chance: below `lg` the opening detail takes it from
  * the row it hides, and whichever way the detail closes (its button, « back »)
  * the task's row gets it back — the quick-add field when the task is gone. What
- * another tool hands over waits in that field, for the person to confirm. A view
+ * another tool hands over opens in a form, reviewed whole before it exists. A view
  * (`?view=`) stands in the place of a list and gathers what every list holds for
  * one stretch of the account's days.
  */
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckSquare, ListChecks, ListX, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CheckSquare, ListChecks, ListX, MoreVertical, Pencil, Plus, Trash2 } from '@/lib/icons';
 import {
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -50,7 +49,6 @@ import { useWorkbenchTaskActs, type WorkbenchTaskActs } from '@/hooks/useWorkben
 import { useWorkbenchTasks, type WorkbenchTasksState } from '@/hooks/useWorkbenchTasks';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
-import type { WorkbenchHandoff } from '@/lib/workbench/handoff';
 import { cn } from '@/lib/utils';
 import { workbenchRefusal } from '@/lib/workbench/errors';
 import {
@@ -75,12 +73,13 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useWorkbench } from '../WorkbenchShell';
 import { WorkbenchToolHeader } from '../WorkbenchToolHeader';
 import { WorkbenchUnavailable, unavailableKind } from '../WorkbenchUnavailable';
-import { useHandoff, useToolBridges } from '../useToolBridges';
+import { useToolBridges } from '../useToolBridges';
 import {
   PANE_SEPARATOR_CLASS,
   useWorkbenchPane,
   type WorkbenchPaneState,
 } from '../useWorkbenchPane';
+import { HandedTaskReview } from './HandedTaskReview';
 import { NewTaskListDialog, RenameTaskListDialog } from './NewTaskListDialog';
 import { useQuickAddAssist, useTaskAssist, type AddStep } from '../assist/useTaskAssist';
 import { TaskEditor } from './TaskEditor';
@@ -89,6 +88,7 @@ import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskRow, type RowSelection } from './TaskRow';
 import { TaskSelectionBar } from './TaskSelectionBar';
 import { TaskViewPane } from './TaskViewPane';
+import { useKeptTask } from './useKeptTask';
 import { useTaskDoors, type TaskDoors } from './useTaskDoors';
 import { useTaskSelection, type TaskSelection } from './useTaskSelection';
 import { useToolConfirm } from '../ToolForm';
@@ -134,17 +134,13 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
   // On a large screen the person sizes the lists and the task's detail.
   const listsPane = useWorkbenchPane(lng, 'tasks.lists');
   const editorPane = useWorkbenchPane(lng, 'tasks.editor');
-  const today = dayIn(user?.timezone, new Date());
+  const timezone = user?.timezone;
+  const today = dayIn(timezone, new Date());
   const tree = useMemo(() => taskTree(tasks.items), [tasks.items]);
   const left = openCount(tasks.items, tasks.nextToken);
   const openList = lists.items.find(list => list.id === listId) ?? null;
   const managesLists = tool.features.includes('list_management');
-  const [handed, setHanded] = useState<HandedTask | null>(null);
   const { ask } = useToolBridges(lng);
-  useHandoff('task', true, setHanded);
-  useEffect(() => {
-    if (handed) quickAdd.current?.focus();
-  }, [handed]);
 
   // Whichever way the detail closed, its task's row gets the focus back.
   const linkRef = useDrillDownFocus(openTaskId, { fallback: quickAdd });
@@ -181,6 +177,8 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
     [tell]
   );
   const selection = useTaskSelection(lng, listId, acts, tell);
+  // A task the address names past the pages read (the home's): read alone, kept in the list.
+  useKeptTask(openTaskId, listId, tasks, tell);
 
   const closeTask = useCallback(
     () => router.replace(hrefOf(listId ? { list: listId } : {}), { scroll: false }),
@@ -273,8 +271,6 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
               selection={selection}
               doors={doors}
               quickAdd={quickAdd}
-              handed={handed}
-              onHandedAdded={() => setHanded(null)}
               act={act}
               tree={tree}
               today={today}
@@ -297,7 +293,7 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
             pane={editorPane}
             desktop={desktop}
             today={today}
-            timezone={user?.timezone}
+            timezone={timezone}
             onClose={closeTask}
             onAsk={task => ask(t('workbench.ask.task', { title: task.title }))}
             onMove={destination => void doors.moveOpen(openTask, destination)}
@@ -325,6 +321,15 @@ function ReadyTasks({ lng, tool }: { lng: Language; tool: WorkbenchToolAvailabil
           onRename={title => act(() => acts.renameList(openList, title))}
         />
       )}
+      <HandedTaskReview
+        lng={lng}
+        tool={tool}
+        lists={lists.items}
+        listId={listId}
+        today={today}
+        timezone={timezone}
+        addTask={body => act(() => state.addTask(body))}
+      />
       {confirmDialog}
     </>
   );
@@ -396,9 +401,6 @@ interface OpenListProps {
   selection: TaskSelection;
   doors: TaskDoors;
   quickAdd: RefObject<HTMLInputElement | null>;
-  /** What another tool handed over, for the person to confirm. */
-  handed: HandedTask | null;
-  onHandedAdded: () => void;
   /** Runs an act and says its refusal. */
   act: (run: () => Promise<unknown>) => Promise<void>;
   tree: ReturnType<typeof taskTree>;
@@ -423,8 +425,6 @@ function OpenList({
   selection,
   doors,
   quickAdd,
-  handed,
-  onHandedAdded,
   act,
   tree,
   today,
@@ -474,26 +474,23 @@ function OpenList({
         />
       )}
       <TaskQuickAdd
-        key={handed?.title}
         ref={quickAdd}
         lng={lng}
         labelKey="workbench.tasks.new_task"
         placeholderKey="workbench.tasks.new_task_placeholder"
         maxLength={tool.bounds.title_max_chars}
-        initialTitle={handed?.title}
         assist={quickAddAssist}
         onAdd={async (title, key, read) => {
           const named = lists.items.find(list => list.title === read?.listName);
           await act(() =>
             state.addTask({
               title,
-              notes: read?.notes ?? (handed?.notes || undefined),
-              due: read?.due ?? (handed?.due || undefined),
+              notes: read?.notes,
+              due: read?.due,
               list_id: named?.id,
               idempotency_key: key,
             })
           );
-          onHandedAdded();
         }}
       />
       <TaskList
@@ -532,9 +529,6 @@ interface OpenTaskPaneProps {
   onMove: (destination: string) => void;
 }
 
-/** What another tool handed the quick add, for the person to confirm. */
-type HandedTask = Omit<Extract<WorkbenchHandoff, { kind: 'task' }>, 'kind'>;
-
 /** What a step of the open task is, where its provider keeps some: To Do's own, or a subtask. */
 function stepAdder(
   tool: WorkbenchToolAvailability,
@@ -571,7 +565,7 @@ function OpenTaskPane({
 }: OpenTaskPaneProps) {
   const { listId, lists, tasks } = state;
   const addStep = stepAdder(tool, openTask, state, acts, act);
-  const { panel: assistPanel, ...assist } = useTaskAssist(lng, openTask, addStep);
+  const { panel: assistPanel, ...assist } = useTaskAssist(lng, openTask, addStep, timezone);
   const quiet = (run: () => Promise<unknown>) => void act(run).catch(() => undefined);
   /** One place up or down among its siblings; nothing where it has nowhere to go. */
   const stepping = (by: -1 | 1) => {

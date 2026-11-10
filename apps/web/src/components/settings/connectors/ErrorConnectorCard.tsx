@@ -6,7 +6,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from '@/lib/icons';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ConnectorIcon } from './ConnectorIcon';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';

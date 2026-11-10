@@ -11,7 +11,7 @@
  * sentence the API named, shown where the reader is.
  */
 import { useReducer, useState } from 'react';
-import { Library } from 'lucide-react';
+import { Library } from '@/lib/icons';
 import { toast } from 'sonner';
 
 import {

@@ -1,5 +1,5 @@
 'use client';
-import { Files, ListTodo } from 'lucide-react';
+import { Files, ListTodo } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';

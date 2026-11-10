@@ -638,6 +638,15 @@ in a guessed one, and another person's meeting answers neither list. A failed so
 read as empty. On Google the lists are measured, on Graph the searches and `self` only, and iCloud
 follows its documentation.
 
+Since 2026-11-07 a contact's NUMBERS are asked too (`contacts_lines`): the five latest calls LIA
+placed to them and the five latest texts they sent, read on LIA's own records, each on a session of
+its own. A number is stored encrypted (a call) or keyed by the digest of one spelling (a text), so it
+is matched, never looked up: the latest records are read newest first under a stated bound and
+matched by the rule each domain already owns (`same_line`, `sent_from_lines`). A source the contact
+gives nothing to look under says `not_requested`, distinct from `disabled` (switched off, or no
+record of that kind at all) and from `unavailable`; a contact with numbers alone has exchanges. The
+answer names neither number nor sender, and is `no-store`.
+
 Amendment 2026-11-06 (release review): three things an installation sees and a developer's machine
 does not. A scope added to a connector is a scope every refresh of a grant then holds it to, and a
 row that fails goes to ERROR: `MailboxSettings.ReadWrite` would have stopped every mailbox consented
@@ -671,5 +680,28 @@ Amendment 2026-11-06 (owner): what a person does by hand still involves no model
 `domains/workbench/` still holds none. What a click asks of LIA from these screens is decided in
 [ADR-372](ADR-372-What-LIA-Does-From-The-Tools-A-Click-A-Call-A-Proposal.md): its own bounded context, a proposal the person finishes by hand, filed and billed
 as an act of LIA.
+
+Amendment 2026-11-07 (owner): the home's cards open their items here. Where the instance offers
+the Tools, a click on an agenda, mail, task, document or birthday item opens it in its tool, on the
+address that tool already reads, and the operator's switch keeps the chat. Each card's « More
+actions » holds at most five acts, direct ones first: the Tools' own routes (mark read, archive,
+done, postpone to tomorrow, download), a hand-over to another tool where that tool is connected
+(a file to a new message, a sender to the contacts), a plain link (a map, a video call, a call), a
+reminder — none involves a model or files a row (D5); LIA's acts follow, through the chat. What a
+card names for this travels with its item (the calendar read, the list's real id, the contact), and
+the two the screens must resolve are resolved there: the `primary` alias, and a task past the pages
+read (`GET /workbench/tasks/task`). See [BRIEFING_DOMAIN.md](../technical/BRIEFING_DOMAIN.md).
+
+Amendment 2026-11-07 (owner, measured): a task's due day, one door. Measured on Graph, To Do
+keeps the instant of midnight in the zone it is GIVEN and answers it in UTC; given UTC, it keeps the
+UTC date, so a day the Tools wrote as its UTC instant was the day before east of Greenwich, and the
+home's card, the heartbeat and the radio read a To Do due as its UTC date. A day is now written to
+To Do as its midnight on the account's wall with the zone named (`due_zone` on both clients; Google
+keeps a date and takes none), and every reader of a task's day goes through `core/task_due`: a
+Google due is the date it names in every zone, a To Do due its instant read in the account's zone —
+the Tools, the home's card, the heartbeat (overdue once the day has passed, never on the day), the
+radio and the assistant's told day. The assistant still writes a day as its UTC midnight (read
+right east of Greenwich, a day early west of it), and the chat's task card reads its due itself:
+both are left as they are, said.
 
 Technical reference: [WORKBENCH.md](../technical/WORKBENCH.md).

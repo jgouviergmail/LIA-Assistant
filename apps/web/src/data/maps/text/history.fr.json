@@ -1562,6 +1562,26 @@
     "372": {
       "title": "Depuis les Outils, un clic, un appel, une proposition",
       "summary": "Résumer un message, proposer une réponse, lire une carte de visite : un clic demande une seule chose à LIA et reçoit une proposition que la personne relit, jamais une écriture chez son fournisseur. L’acte est tracé et facturé à qui a cliqué, et rien n’ajoute de contrôle à un écran qui n’a pas la place : la dernière icône de chaque barre ouvre la liste."
+    },
+    "373": {
+      "title": "La personnalité gouverne la voix",
+      "summary": "Une session vocale ElevenLabs réglée sur une personnalité cynique parlait comme un assistant enjoué : les balises d'expression du portail imposaient l'enthousiasme et les cadres de LIA demandaient de la chaleur. Désormais chaque voix de la personne, en Live, en Live direct, au téléphone et dans le commentaire vocal du chat, parle dans la personnalité choisie, le fond d'abord, les faits intacts ; LIA écrit elle-même sur l'agent la palette de balises, le message d'accueil et ses outils. Un appel à un tiers reste cordial."
+    },
+    "374": {
+      "title": "JEV garde ce que quelqu'un lit, et ses seuils se règlent",
+      "summary": "Les aperçus de résultats qu'aucun écran n'affichait plus et la porte JEV de l'initiative, qui ne distinguait rien, sont retirés, et l'évaluateur d'initiative continue de voir chaque tour outillé. Chaque seuil JEV devient un réglage borné, modifiable depuis l'écran d'administration, et chaque jugement payé est compté dans la durée, pour qu'un seuil se décide sur ce qui arrive vraiment et non sur un corpus."
+    },
+    "375": {
+      "title": "Ce que LIA apprend de l'usage devient des propositions",
+      "summary": "L'heure ne conditionne plus une demande récurrente : un besoin se reconnaît aux jours où il revient, et l'heure ne fait que préremplir. Six sortes de propositions naissent de ce que LIA enregistre déjà — automatiser un besoin, déplacer une routine relancée à la main, élargir les heures de notification, connecter une source… — et un clic les accepte et les exécute. Le chat en montre au plus une sous une réponse, choisie par le code."
+    },
+    "376": {
+      "title": "Une carte ouvre sa fiche dans les Outils, sur une preuve signée de sa source",
+      "summary": "Un e-mail, un événement, un contact, une tâche, un fichier ou une lampe montrés dans le chat s'ouvrent dans les Outils. La carte porte une destination signée, liée au compte et à la source qui a répondu ; au clic, le serveur revérifie cette source et refuse en le disant si le compte a changé, plutôt que d'ouvrir une autre fiche qui porterait le même identifiant."
+    },
+    "377": {
+      "title": "Le compte choisit comment l'interface est dessinée",
+      "summary": "Toutes les icônes passent par une seule porte qui dessine le style choisi par le compte, Lucide, Fluent Color ou Streamline Flex, sans changer le sens d'aucun symbole, et le contraste élevé du système garde ses couleurs. Le thème peut aussi passer seul du clair au noir absolu aux heures choisies, à l'horloge du compte, sans qu'une minuterie écrive jamais le profil."
     }
   }
 }

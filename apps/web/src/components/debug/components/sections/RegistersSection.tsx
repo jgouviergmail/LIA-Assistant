@@ -19,7 +19,7 @@
  */
 
 import React from 'react';
-import { BookMarked } from 'lucide-react';
+import { BookMarked } from '@/lib/icons';
 
 import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { TONE_TEXT } from '../../utils/tones';

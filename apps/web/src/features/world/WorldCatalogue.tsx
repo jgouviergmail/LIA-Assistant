@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowUpRight, BookOpen, Bot, Globe, Search } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Bot, Globe, Search } from '@/lib/icons';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

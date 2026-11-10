@@ -30,7 +30,7 @@ async def test_habit_details_keep_current_owned_source_evidence_and_real_dates(
         user_id=test_user.id,
         kind="active_window" if scenario == "window" else "recurring_request",
         key="source-key",
-        payload={"version": 1, "offer_dates": ["2026-10-01"]},
+        payload={"version": 1},
         status="blocked",
         last_observed_at=datetime.now(UTC),
     )

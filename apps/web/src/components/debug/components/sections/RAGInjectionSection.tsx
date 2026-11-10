@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { FileSearch } from 'lucide-react';
+import { FileSearch } from '@/lib/icons';
 import {
   DebugChip,
   DebugSection,

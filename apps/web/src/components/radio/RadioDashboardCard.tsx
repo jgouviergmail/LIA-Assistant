@@ -10,7 +10,7 @@
  * in, off air and once the session is over, the listener's own name for it
  * (the one the next session will carry), else their language's.
  */
-import { Radio } from 'lucide-react';
+import { Radio } from '@/lib/icons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
