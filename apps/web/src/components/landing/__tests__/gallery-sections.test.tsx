@@ -32,7 +32,6 @@ import applicationProof from '../../../../public/screenshots/proof/manifest.json
 import extendedProof from '../../../../public/screenshots/proof/extended-manifest.json';
 import monitoringProof from '../../../../public/screenshots/proof/grafana-manifest.json';
 import worldProof from '../../../../public/screenshots/proof/world-manifest.json';
-import toolsProof from '../../../../public/screenshots/proof/tools-manifest.json';
 
 /** Thumbnails are the only per-slide named controls: one per view. */
 function thumbnailNames(): string[] {
@@ -85,18 +84,31 @@ describe('ScreenshotsSection', () => {
     expect(thumbnail).not.toHaveAttribute('srcset');
   });
 
-  it('starts with the personal hub and offers all 31 distinct application views', async () => {
+  it('starts with daily workflows and offers all 41 distinct application views', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection />);
 
     const names = thumbnailNames();
-    expect(names).toHaveLength(31);
-    expect(new Set(names).size).toBe(31);
-    expect(applicationProof.images).toHaveLength(12);
+    expect(names).toHaveLength(41);
+    expect(new Set(names).size).toBe(41);
+    expect(applicationProof.images).toHaveLength(13);
     const extendedImages: { file: string }[] = extendedProof.images;
-    expect(extendedImages).toHaveLength(18);
-    expect(names[0]).toBe('landing.screenshots.proof.dashboard');
-    expect(names[1]).toBe('landing.screenshots.proof.dossier');
+    expect(extendedImages).toHaveLength(27);
+    expect(names.slice(0, 11)).toEqual(
+      [
+        'dashboard',
+        'dashboard_actions',
+        'tools',
+        'tools_mail_menu',
+        'tools_mail_assist',
+        'tools_calendar',
+        'tools_tasks',
+        'tools_contacts',
+        'tools_files',
+        'tools_lights',
+        'dossier',
+      ].map(key => `landing.screenshots.proof.${key}`)
+    );
     // The World capture belongs to its chapter (7) and is not repeated here.
     expect(names).not.toContain('landing.screenshots.proof.world');
     expect(names).toContain('landing.screenshots.proof.radio');
@@ -126,22 +138,25 @@ describe('ScreenshotsSection', () => {
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
   });
 
-  it('shows the Tools capture in its chapter alone, at its own revision', () => {
+  it('shows the same current Tools capture in its chapter and workflow gallery', () => {
     const chapter = render(<ScreenshotsSection view="tools" />);
 
     expectStageVariants(
       screen.getByRole('img', { name: 'landing.screenshots.proof.tools' }),
       'tools',
-      toolsProof.revision
+      extendedProof.revision
     );
-    expect(toolsProof.images[0]).toMatchObject({ file: 'tools.png', width: 1600, height: 1000 });
+    expect(extendedProof.images.find(image => image.file === 'tools.png')).toMatchObject({
+      width: 1440,
+      height: 1100,
+    });
     chapter.unmount();
 
     render(<ScreenshotsSection />);
-    expect(thumbnailNames()).not.toContain('landing.screenshots.proof.tools');
+    expect(thumbnailNames()).toContain('landing.screenshots.proof.tools');
   });
 
-  it('opens the owner-supplied world JPEG at its original revision in full screen', async () => {
+  it('opens the fictional World session capture at its original revision in full screen', async () => {
     const user = userEvent.setup();
     render(<ScreenshotsSection view="world" />);
     const src = `/screenshots/proof/lia-world.jpg?v=${worldProof.revision}`;
@@ -150,7 +165,7 @@ describe('ScreenshotsSection', () => {
       'lia-world',
       worldProof.revision
     );
-    expect(worldProof.images[0]).toMatchObject({ width: 2054, height: 1038 });
+    expect(worldProof.images[0]).toMatchObject({ width: 1600, height: 1050 });
     await user.click(screen.getByRole('button', { name: 'common.expand_image' }));
     expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', src);
     await user.keyboard('{Escape}');

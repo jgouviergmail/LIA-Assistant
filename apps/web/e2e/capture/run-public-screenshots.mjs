@@ -67,15 +67,15 @@ if (['capture', 'typecheck'].includes(mode)) {
         compilerOptions: {
           outDir: path.join(output, 'compiled'),
           rootDir: path.join(repo, 'apps/web'),
-          module: 'commonjs',
-          moduleResolution: 'node',
+          module: 'Node16',
+          moduleResolution: 'Node16',
           target: 'ES2022',
           strict: true,
           esModuleInterop: true,
           skipLibCheck: true,
-          baseUrl: path.join(repo, 'apps/web'),
           paths: {
-            '@/*': ['src/*'],
+            '@/*': [path.join(repo, 'apps/web/src/*')],
+            zod: [path.join(packageRoot, 'node_modules/zod')],
             '@playwright/test': [path.join(packageRoot, 'node_modules/@playwright/test')],
           },
           typeRoots: [path.join(packageRoot, 'node_modules/@types')],
@@ -184,6 +184,7 @@ if (['capture', 'typecheck'].includes(mode)) {
     )
   );
   const cliArgs = [
+    '--offline',
     '--yes',
     '--package',
     '@playwright/cli@0.1.22',
@@ -329,7 +330,8 @@ if (['capture', 'typecheck'].includes(mode)) {
           variant: 'male',
           size: 'xl',
           gaze: 'Real pointer movements towards the centre and upper content; native motion enabled.',
-          responsivePreview: 'The mobile PWA view preserves native avoidance and compaction.',
+          responsivePreview:
+            'The dashboard and FAQ use the native minimize control to keep the demonstrated content clear.',
         },
         visualReview,
         images,

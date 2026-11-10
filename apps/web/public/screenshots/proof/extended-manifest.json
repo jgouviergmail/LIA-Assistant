@@ -1,6 +1,6 @@
 {
-  "revision": "42749832136450f1",
-  "capturedAt": "2026-10-16T23:03:20.075Z",
+  "revision": "527d9b88396add0a",
+  "capturedAt": "2026-11-10T11:20:34.300Z",
   "fixtureTime": "2026-10-12T07:30:00Z",
   "locale": "en",
   "theme": "light",
@@ -16,380 +16,666 @@
     "direction": "Real pointer movement, alternating centre-directed and near-forward views; no rig channel was injected."
   },
   "data": "Real application routes and controls with handwritten fictional demonstration data. No real account, backend, model, connector, billable call or external action was exercised.",
-  "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
+  "sourceCommit": "297142e989cd16f11a48567a025177ec6bb92ee0",
   "sourceIncludesLocalChanges": true,
   "browser": {
     "engine": "Chromium headless shell",
-    "directory": "chromium_headless_shell-1243",
+    "directory": "chromium_headless_shell-1248",
     "backgroundNetworkingDisabled": true
   },
   "transportGuard": {
     "blockedRequests": []
   },
-  "retainedCapture": {
-    "previousReportCapturedAt": "2026-10-16T23:00:16.756Z",
-    "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
-    "images": [
-      {
-        "file": "psyche.png",
-        "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "psyche-evolution.png",
-        "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
-        "width": 1440,
-        "height": 820,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "memory-library.png",
-        "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "portrait.png",
-        "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "routine-studio.png",
-        "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
-        "width": 1440,
-        "height": 1440,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "routine-week.png",
-        "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "workboard.png",
-        "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
-        "width": 1440,
-        "height": 900,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "workboard-dossier.png",
-        "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "knowledge-library.png",
-        "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
-        "width": 1440,
-        "height": 820,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "meeting-transcript.png",
-        "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "meeting-templates.png",
-        "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "connections.png",
-        "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "skills-library.png",
-        "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "model-routing.png",
-        "sha256": "8015c3e5445a67d1210cff104e96b5b49e6b1e2dc3bb62a3f0cef492e6aa25ce",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "consumption.png",
-        "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      },
-      {
-        "file": "journal.png",
-        "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
-        "width": 1440,
-        "height": 1100,
-        "capturedAt": "2026-10-16T22:36:48.555Z"
-      }
-    ]
-  },
   "visualReview": {
-    "reviewedAt": "2026-10-16T23:04:32.8968566Z",
-    "reviewer": "/root/capture_scenario_audit",
-    "method": "Direct visual inspection of the two final compact native PNGs; sixteen prior pixel approvals retained only after exact SHA-256 verification.",
-    "fixtureTime": "2026-10-12T07:30:00Z",
-    "retainedPriorApprovals": 16,
+    "reviewedAt": "2026-11-10T11:21:13.183444+00:00",
+    "method": "Visual inspection of the browser captures and corrected retakes; native layouts, readable content, fictional identities, coherent examples and no visible application error. Floating companion minimized through the native control where it obscures the demonstrated content.",
     "images": [
       {
         "file": "psyche.png",
-        "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
+        "sha256": "9667f6a1913f1e6914bfcd92da9c05b689b82bce0bbb2ef25fa7c13bdc30b499",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "psyche-evolution.png",
-        "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
+        "sha256": "190e4c5cb28ae85a9891e4674c0e6c54da6ae80a263994ef659c2f1b26b74b08",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "memory-library.png",
-        "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
+        "sha256": "57d4d45b0ff7b145fbe9d9e134f2e61c4018fd37ceadd8abfd500d92edf2c017",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "portrait.png",
-        "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
+        "sha256": "d953c17b9b91d781aa58c39f5b4a6aa4a0df2d487f0897eaf8a899ecb6f733f3",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "routine-studio.png",
-        "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
+        "sha256": "89b105aed90d0d3017adfdbe2b57edb3e0e22258b317af2ed8b747a3fc1f03ce",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "routine-week.png",
-        "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
+        "sha256": "c19db176a0e27c65e248757db7976b4a4e6eb0d913ef1bf1c9ed5c4ed2b9868a",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "workboard.png",
-        "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
+        "sha256": "9b4c7c55c84c5922debc1e6ee2698a4262d648217e14f1c31313e936fe37bdc7",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "workboard-dossier.png",
-        "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
+        "sha256": "d7884596f516fbf6bdc0f6853422948183f1733f4286e296b501eef3f0c676f7",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "knowledge-library.png",
-        "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
+        "sha256": "433b7eef120f3f5f5c6659c41c8016a5b3b85f5bcab7efa04731366b1a5c9253",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "meeting-transcript.png",
-        "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
+        "sha256": "31c5a1ee97a14602cff94e345c26ad37917388e40b6d376875391ad2a64ee3b3",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "meeting-templates.png",
-        "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
+        "sha256": "64e0427e81d9f07ed807c17111cba2e3a704a61b37b5d36a1ee199d3617b20bd",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "connections.png",
-        "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
+        "sha256": "b5b904556314beffa639d3e4ed117da57aa1a15819381a0635cb6c28b9a8dc86",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "skills-library.png",
-        "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
+        "sha256": "001a38462f5189a7de69013bbfd481b451039e666d7b8514b4479c4e67e42308",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "model-routing.png",
-        "sha256": "8015c3e5445a67d1210cff104e96b5b49e6b1e2dc3bb62a3f0cef492e6aa25ce",
+        "sha256": "2745928c15f934c8cf4a41124cce31814efd9da57f189e1219a7c9cddf6ded51",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "consumption.png",
-        "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
+        "sha256": "1617194e4d848979cc2b81388dd9300e396a984964ab0c5f56947cb4c699579e",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "journal.png",
-        "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
+        "sha256": "a7bbe47b1792f490ecd92a94a0626afcce51ed7189813c6ac98a2925bdf557ef",
         "approved": true,
-        "note": "Inspected final pixels: English light UI, populated intended content, complete male BIP XL body inside viewport, native expression and real-pointer gaze; no blocking text occlusion or broken state.",
         "avatarPainted": true
       },
       {
         "file": "avatar-picker.png",
-        "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab",
+        "sha256": "f6d250e89b01b04ece2d16f57feaa9c75dc13a5ef0f1e83a34bcb66af5ab0a33",
         "approved": true,
-        "avatarPainted": true,
-        "note": "Inspected final 1440x1300 pixels: current BIP selected and labelled, ten complete real preview cards visible, no empty avatar box, complete floating male BIP XL looking toward content."
+        "avatarPainted": true
       },
       {
         "file": "meetings-list.png",
-        "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf",
+        "sha256": "4ff776439db2501600144e01be5a12bd00f69e7f6161badd946b1a8d11e80768",
         "approved": true,
-        "avatarPainted": true,
-        "note": "Inspected final 1440x1300 pixels: toolbar and three complete native meeting rows visible, two ready/indexed and one writing minutes; durations, participants/actions and formats readable; floating male BIP XL painted and unclipped."
+        "avatarPainted": true
+      },
+      {
+        "file": "tools.png",
+        "sha256": "f9d7331f88301c6bb4449b65c162774a4f64d8a0fca58e88a0f28b89bc1dbd73",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-mail-menu.png",
+        "sha256": "7274b2e39bc825fd1a91f4105b6accce8a85efba88ffcff3baf5b151fa720d15",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-mail-assist.png",
+        "sha256": "492debdb84704b5c88d1f1ec04212528aa330dc97849840e420672f21b030e65",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-calendar.png",
+        "sha256": "40463429c2e96e666b6e39f02bb349bb67924daecadc8b1b5a957865782af76a",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-tasks.png",
+        "sha256": "70a2f9fa1a58ad10ffa765eb7795532889c69a265a5d5d3120364881208a5151",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-contacts.png",
+        "sha256": "c5ae8b3a06b9c897bb7ee3e6cac7bdd2c3db00102c88630d059e37911997b1cf",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-files.png",
+        "sha256": "cf56bb7d9b40114274948a85cd5a3b45656b66d36c1880db43f5220a8de8287c",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "tools-lights.png",
+        "sha256": "58757e855d2e88a9af5cdece5c7115edac27483e22f50c5532ab7354f8e0206d",
+        "approved": true,
+        "avatarPainted": true
+      },
+      {
+        "file": "dashboard-actions.png",
+        "sha256": "b1ca4df7c8ea3b4fb059640da69e461f931acc4897a7cc61cde0f6230337e6a4",
+        "approved": true,
+        "avatarPainted": true
       }
     ]
   },
   "images": [
     {
       "file": "psyche.png",
-      "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533",
+      "sha256": "9667f6a1913f1e6914bfcd92da9c05b689b82bce0bbb2ef25fa7c13bdc30b499",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "psyche-evolution.png",
-      "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77",
+      "sha256": "190e4c5cb28ae85a9891e4674c0e6c54da6ae80a263994ef659c2f1b26b74b08",
       "width": 1440,
       "height": 820
     },
     {
       "file": "memory-library.png",
-      "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7",
+      "sha256": "57d4d45b0ff7b145fbe9d9e134f2e61c4018fd37ceadd8abfd500d92edf2c017",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "portrait.png",
-      "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516",
+      "sha256": "d953c17b9b91d781aa58c39f5b4a6aa4a0df2d487f0897eaf8a899ecb6f733f3",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "routine-studio.png",
-      "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de",
+      "sha256": "89b105aed90d0d3017adfdbe2b57edb3e0e22258b317af2ed8b747a3fc1f03ce",
       "width": 1440,
       "height": 1440
     },
     {
       "file": "routine-week.png",
-      "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce",
+      "sha256": "c19db176a0e27c65e248757db7976b4a4e6eb0d913ef1bf1c9ed5c4ed2b9868a",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "workboard.png",
-      "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d",
+      "sha256": "9b4c7c55c84c5922debc1e6ee2698a4262d648217e14f1c31313e936fe37bdc7",
       "width": 1440,
       "height": 900
     },
     {
       "file": "workboard-dossier.png",
-      "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce",
+      "sha256": "d7884596f516fbf6bdc0f6853422948183f1733f4286e296b501eef3f0c676f7",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "knowledge-library.png",
-      "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a",
+      "sha256": "433b7eef120f3f5f5c6659c41c8016a5b3b85f5bcab7efa04731366b1a5c9253",
       "width": 1440,
       "height": 820
     },
     {
       "file": "meeting-transcript.png",
-      "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2",
+      "sha256": "31c5a1ee97a14602cff94e345c26ad37917388e40b6d376875391ad2a64ee3b3",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "meeting-templates.png",
-      "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b",
+      "sha256": "64e0427e81d9f07ed807c17111cba2e3a704a61b37b5d36a1ee199d3617b20bd",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "connections.png",
-      "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b",
+      "sha256": "b5b904556314beffa639d3e4ed117da57aa1a15819381a0635cb6c28b9a8dc86",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "skills-library.png",
-      "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e",
+      "sha256": "001a38462f5189a7de69013bbfd481b451039e666d7b8514b4479c4e67e42308",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "model-routing.png",
-      "sha256": "8015c3e5445a67d1210cff104e96b5b49e6b1e2dc3bb62a3f0cef492e6aa25ce",
+      "sha256": "2745928c15f934c8cf4a41124cce31814efd9da57f189e1219a7c9cddf6ded51",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "consumption.png",
-      "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2",
+      "sha256": "1617194e4d848979cc2b81388dd9300e396a984964ab0c5f56947cb4c699579e",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "journal.png",
-      "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901",
+      "sha256": "a7bbe47b1792f490ecd92a94a0626afcce51ed7189813c6ac98a2925bdf557ef",
       "width": 1440,
       "height": 1100
     },
     {
       "file": "avatar-picker.png",
-      "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab",
+      "sha256": "f6d250e89b01b04ece2d16f57feaa9c75dc13a5ef0f1e83a34bcb66af5ab0a33",
       "width": 1440,
       "height": 1300
     },
     {
       "file": "meetings-list.png",
-      "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf",
+      "sha256": "4ff776439db2501600144e01be5a12bd00f69e7f6161badd946b1a8d11e80768",
       "width": 1440,
       "height": 1300
+    },
+    {
+      "file": "tools.png",
+      "sha256": "f9d7331f88301c6bb4449b65c162774a4f64d8a0fca58e88a0f28b89bc1dbd73",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-mail-menu.png",
+      "sha256": "7274b2e39bc825fd1a91f4105b6accce8a85efba88ffcff3baf5b151fa720d15",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-mail-assist.png",
+      "sha256": "492debdb84704b5c88d1f1ec04212528aa330dc97849840e420672f21b030e65",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-calendar.png",
+      "sha256": "40463429c2e96e666b6e39f02bb349bb67924daecadc8b1b5a957865782af76a",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-tasks.png",
+      "sha256": "70a2f9fa1a58ad10ffa765eb7795532889c69a265a5d5d3120364881208a5151",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-contacts.png",
+      "sha256": "c5ae8b3a06b9c897bb7ee3e6cac7bdd2c3db00102c88630d059e37911997b1cf",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-files.png",
+      "sha256": "cf56bb7d9b40114274948a85cd5a3b45656b66d36c1880db43f5220a8de8287c",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "tools-lights.png",
+      "sha256": "58757e855d2e88a9af5cdece5c7115edac27483e22f50c5532ab7354f8e0206d",
+      "width": 1440,
+      "height": 1100
+    },
+    {
+      "file": "dashboard-actions.png",
+      "sha256": "b1ca4df7c8ea3b4fb059640da69e461f931acc4897a7cc61cde0f6230337e6a4",
+      "width": 1440,
+      "height": 1100
     }
   ],
   "scenes": [
+    {
+      "name": "tools",
+      "route": "/en/dashboard/tools/mail?id=capture-mail-0",
+      "exercised": [
+        "native mailbox, eight fictional messages, thread reader, labels and two attachments"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [
+        "morgan@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.83,
+        "gazeY": -0.545,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.582366943359375,
+          "y": 752.55908203125,
+          "width": 165.22589111328125,
+          "height": 165.22589111328125,
+          "right": 189.80825805664062,
+          "bottom": 917.7849731445312
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-mail-menu",
+      "route": "/en/dashboard/tools/mail?id=capture-mail-0",
+      "exercised": [
+        "native contextual menu opened through its real button; no action submitted"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [
+        "morgan@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.859,
+        "gazeY": -0.567,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 20.190101623535156,
+          "y": 748.848388671875,
+          "width": 173.70416259765625,
+          "height": 173.70416259765625,
+          "right": 193.8942642211914,
+          "bottom": 922.5525512695312
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-mail-assist",
+      "route": "/en/dashboard/tools/mail?id=capture-mail-0",
+      "exercised": [
+        "native summary action and result panel, key points, proposed actions and cost"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran.",
+        "summary response and cost are fictional; no model called"
+      ],
+      "emails": [
+        "morgan@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.842,
+        "gazeY": -0.548,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.332778930664062,
+          "y": 752.2554931640625,
+          "width": 165.72506713867188,
+          "height": 165.72503662109375,
+          "right": 190.05784606933594,
+          "bottom": 917.9805297851562
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-calendar",
+      "route": "/en/dashboard/tools/calendar",
+      "exercised": [
+        "native weekly calendar, two calendars, eleven appointments and task deadlines"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.829,
+        "gazeY": -0.545,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 18.675498962402344,
+          "y": 746.824462890625,
+          "width": 177.03961181640625,
+          "height": 177.0396728515625,
+          "right": 195.7151107788086,
+          "bottom": 923.8641357421875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-tasks",
+      "route": "/en/dashboard/tools/tasks?list=atlas",
+      "exercised": [
+        "native task lists, eight dated tasks and completion controls"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.828,
+        "gazeY": -0.545,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.249588012695312,
+          "y": 752.047607421875,
+          "width": 165.89144897460938,
+          "height": 165.8914794921875,
+          "right": 190.1410369873047,
+          "bottom": 917.9390869140625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-contacts",
+      "route": "/en/dashboard/tools/contacts?contact=people%2Fcapture-0",
+      "exercised": [
+        "native contacts, seven fictional people, two groups and an open contact card"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [
+        "morgan@example.test",
+        "sam@example.test",
+        "camille@example.test",
+        "theo@example.test",
+        "ines@example.test",
+        "jamie@example.test",
+        "robin@example.test",
+        "morgan@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.828,
+        "gazeY": -0.545,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.08319091796875,
+          "y": 751.8238525390625,
+          "width": 166.2242431640625,
+          "height": 166.2242431640625,
+          "right": 190.30743408203125,
+          "bottom": 918.048095703125
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-files",
+      "route": "/en/dashboard/tools/files?file=capture-file-3",
+      "exercised": [
+        "native Drive browser, two folders, six documents, spreadsheet preview and storage quota"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.828,
+        "gazeY": -0.545,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.249588012695312,
+          "y": 752.047607421875,
+          "width": 165.89144897460938,
+          "height": 165.8914794921875,
+          "right": 190.1410369873047,
+          "bottom": 917.9390869140625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "tools-lights",
+      "route": "/en/dashboard/tools/lights",
+      "exercised": [
+        "native Hue controls, two rooms, four lamps and three scenes; no device command"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.83,
+        "gazeY": -0.546,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.582366943359375,
+          "y": 752.55908203125,
+          "width": 165.22589111328125,
+          "height": 165.22589111328125,
+          "right": 189.80825805664062,
+          "bottom": 917.7849731445312
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "dashboard-actions",
+      "route": "/en/dashboard",
+      "exercised": [
+        "native appointment menu, directions, reminder and preparation actions; no action submitted"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [
+        "studio@example.test",
+        "team@example.test",
+        "morgan@example.test"
+      ],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": -0.864,
+        "gazeY": -0.573,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 1245.3057861328125,
+          "y": 768.0065307617188,
+          "width": 164.560302734375,
+          "height": 164.56036376953125,
+          "right": 1409.8660888671875,
+          "bottom": 932.56689453125
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
     {
       "name": "psyche",
       "route": "/en/dashboard/settings?section=psyche",
@@ -405,17 +691,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.83,
-        "gazeY": -0.745,
+        "gazeX": 0.828,
+        "gazeY": -0.741,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 22.907556533813477,
-          "y": 858.6221923828125,
-          "width": 168.45196533203125,
-          "height": 168.451904296875,
-          "right": 191.35952186584473,
-          "bottom": 1027.0740966796875
+          "x": 23.331539154052734,
+          "y": 859.4132080078125,
+          "width": 167.60462951660156,
+          "height": 167.6046142578125,
+          "right": 190.9361686706543,
+          "bottom": 1027.017822265625
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -439,17 +725,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.846,
-        "gazeY": -0.623,
+        "gazeX": 0.861,
+        "gazeY": -0.65,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 19.238616943359375,
-          "y": 573.84814453125,
-          "width": 176.2789764404297,
-          "height": 176.27899169921875,
-          "right": 195.51759338378906,
-          "bottom": 750.1271362304688
+          "x": 22.82276153564453,
+          "y": 579.2447509765625,
+          "width": 168.62142944335938,
+          "height": 168.6214599609375,
+          "right": 191.4441909790039,
+          "bottom": 747.8662109375
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -473,17 +759,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.854,
-        "gazeY": -0.76,
+        "gazeX": 0.828,
+        "gazeY": -0.741,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
           "x": 23.83361053466797,
-          "y": 859.7696533203125,
+          "y": 859.0656127929688,
           "width": 166.723388671875,
-          "height": 166.723388671875,
+          "height": 166.72344970703125,
           "right": 190.55699920654297,
-          "bottom": 1026.4930419921875
+          "bottom": 1025.7890625
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -507,22 +793,89 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.023,
-        "gazeY": -0.224,
+        "gazeX": -0.022,
+        "gazeY": -0.221,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 24.08319091796875,
-          "y": 859.4332275390625,
-          "width": 166.2242431640625,
-          "height": 166.2242431640625,
-          "right": 190.30743408203125,
-          "bottom": 1025.657470703125
+          "x": 24.415977478027344,
+          "y": 859.8807373046875,
+          "width": 165.55868530273438,
+          "height": 165.5587158203125,
+          "right": 189.97466278076172,
+          "bottom": 1025.439453125
         },
         "requestedGaze": "forward",
         "pointer": {
-          "x": 107.19530868530273,
-          "y": 790.4085693359375
+          "x": 107.1953125,
+          "y": 792.0540771484375
+        }
+      }
+    },
+    {
+      "name": "journal",
+      "route": "/en/dashboard/settings?section=journals",
+      "exercised": [
+        "real journal groups and existing entries, abstraction levels and evidence metadata",
+        "visible observations tied to the same Atlas project"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.874,
+        "gazeY": -0.771,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 24.332778930664062,
+          "y": 860.120849609375,
+          "width": 165.72506713867188,
+          "height": 165.72509765625,
+          "right": 190.05784606933594,
+          "bottom": 1025.845947265625
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
+        }
+      }
+    },
+    {
+      "name": "routine-week",
+      "route": "/en/dashboard/settings?section=scheduled-actions",
+      "exercised": [
+        "real weekly schedule with populated weekday chips, run outcomes and condition-routine list"
+      ],
+      "illustrated": [
+        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
+      ],
+      "emails": [],
+      "avatarDomBoundsInViewport": 1,
+      "avatar": {
+        "size": "xl",
+        "fontSize": "64px",
+        "gazeX": 0.831,
+        "gazeY": -0.745,
+        "asset": "url('/avatars/bip/v1/male/body.webp')",
+        "visible": true,
+        "bounds": {
+          "x": 23.08484649658203,
+          "y": 858.1548461914062,
+          "width": 168.22091674804688,
+          "height": 168.22088623046875,
+          "right": 191.3057632446289,
+          "bottom": 1026.375732421875
+        },
+        "requestedGaze": "toward-screen-centre",
+        "pointer": {
+          "x": 720,
+          "y": 506
         }
       }
     },
@@ -541,55 +894,22 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.015,
-        "gazeY": -0.192,
+        "gazeX": 0.019,
+        "gazeY": -0.195,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 19.087932586669922,
-          "y": 1103.7923583984375,
-          "width": 175.8733367919922,
-          "height": 175.873291015625,
-          "right": 194.9612693786621,
-          "bottom": 1279.6656494140625
+          "x": 20.677444458007812,
+          "y": 1105.39599609375,
+          "width": 173.2899169921875,
+          "height": 173.2899169921875,
+          "right": 193.9673614501953,
+          "bottom": 1278.6859130859375
         },
         "requestedGaze": "forward",
         "pointer": {
-          "x": 107.19530868530273,
-          "y": 1040.4659423828125
-        }
-      }
-    },
-    {
-      "name": "routine-week",
-      "route": "/en/dashboard/settings?section=scheduled-actions",
-      "exercised": [
-        "real weekly schedule with populated weekday chips, run outcomes and condition-routine list"
-      ],
-      "illustrated": [
-        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
-      ],
-      "emails": [],
-      "avatarDomBoundsInViewport": 1,
-      "avatar": {
-        "size": "xl",
-        "fontSize": "64px",
-        "gazeX": 0.827,
-        "gazeY": -0.742,
-        "asset": "url('/avatars/bip/v1/male/body.webp')",
-        "visible": true,
-        "bounds": {
-          "x": 23.500823974609375,
-          "y": 858.6181640625,
-          "width": 167.38897705078125,
-          "height": 167.388916015625,
-          "right": 190.88980102539062,
-          "bottom": 1026.007080078125
-        },
-        "requestedGaze": "toward-screen-centre",
-        "pointer": {
-          "x": 720,
-          "y": 506
+          "x": 107.1953125,
+          "y": 1040.5457763671875
         }
       }
     },
@@ -607,8 +927,8 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.861,
-        "gazeY": -0.672,
+        "gazeX": -0.862,
+        "gazeY": -0.671,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
@@ -641,17 +961,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.839,
-        "gazeY": -0.582,
+        "gazeX": -0.844,
+        "gazeY": -0.58,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1244.8897705078125,
-          "y": 767.6712036132812,
-          "width": 165.392333984375,
-          "height": 165.39227294921875,
-          "right": 1410.2821044921875,
-          "bottom": 933.0634765625
+          "x": 1245.3057861328125,
+          "y": 768.2625732421875,
+          "width": 164.560302734375,
+          "height": 164.560302734375,
+          "right": 1409.8660888671875,
+          "bottom": 932.8228759765625
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -675,17 +995,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.847,
-        "gazeY": -0.639,
+        "gazeX": -0.857,
+        "gazeY": -0.634,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.1917724609375,
-          "y": 580.3604736328125,
-          "width": 165.225830078125,
-          "height": 165.225830078125,
-          "right": 1415.4176025390625,
-          "bottom": 745.5863037109375
+          "x": 1250.8572998046875,
+          "y": 581.25537109375,
+          "width": 163.894775390625,
+          "height": 163.894775390625,
+          "right": 1414.7520751953125,
+          "bottom": 745.150146484375
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -709,17 +1029,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.861,
-        "gazeY": -0.744,
+        "gazeX": -0.871,
+        "gazeY": -0.741,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.9405517578125,
-          "y": 861.3352661132812,
-          "width": 163.7283935546875,
-          "height": 163.72833251953125,
-          "right": 1414.6689453125,
-          "bottom": 1025.0635986328125
+          "x": 1250.4412841796875,
+          "y": 860.6000366210938,
+          "width": 164.726806640625,
+          "height": 164.72674560546875,
+          "right": 1415.1680908203125,
+          "bottom": 1025.3267822265625
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -743,22 +1063,22 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.018,
-        "gazeY": -0.239,
+        "gazeX": -0.023,
+        "gazeY": -0.222,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.69091796875,
-          "y": 860.9036254882812,
-          "width": 164.2275390625,
-          "height": 164.22760009765625,
-          "right": 1414.91845703125,
-          "bottom": 1025.1312255859375
+          "x": 1249.692626953125,
+          "y": 859.4332275390625,
+          "width": 166.22412109375,
+          "height": 166.2242431640625,
+          "right": 1415.916748046875,
+          "bottom": 1025.657470703125
         },
         "requestedGaze": "forward",
         "pointer": {
           "x": 1332.8046875,
-          "y": 782.8211669921875
+          "y": 791.4949951171875
         }
       }
     },
@@ -777,22 +1097,22 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.001,
-        "gazeY": -0.251,
+        "gazeX": -0.018,
+        "gazeY": -0.224,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 24.831954956054688,
-          "y": 860.72802734375,
-          "width": 164.72671508789062,
-          "height": 164.726806640625,
-          "right": 189.5586700439453,
-          "bottom": 1025.454833984375
+          "x": 25.08154296875,
+          "y": 860.9036254882812,
+          "width": 164.2275390625,
+          "height": 164.22760009765625,
+          "right": 189.30908203125,
+          "bottom": 1025.1312255859375
         },
         "requestedGaze": "forward",
         "pointer": {
-          "x": 107.1953125,
-          "y": 779.7211303710938
+          "x": 107.19530868530273,
+          "y": 790.5841674804688
         }
       }
     },
@@ -811,17 +1131,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.85,
-        "gazeY": -0.749,
+        "gazeX": -0.866,
+        "gazeY": -0.742,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.4412841796875,
-          "y": 860.72802734375,
-          "width": 164.726806640625,
-          "height": 164.726806640625,
-          "right": 1415.1680908203125,
-          "bottom": 1025.454833984375
+          "x": 1250.8572998046875,
+          "y": 861.1273803710938,
+          "width": 163.894775390625,
+          "height": 163.89483642578125,
+          "right": 1414.7520751953125,
+          "bottom": 1025.022216796875
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -845,17 +1165,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.855,
-        "gazeY": -0.747,
+        "gazeX": -0.868,
+        "gazeY": -0.742,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.69091796875,
-          "y": 861.0956420898438,
-          "width": 164.2275390625,
-          "height": 164.22760009765625,
-          "right": 1414.91845703125,
-          "bottom": 1025.3232421875
+          "x": 1250.774169921875,
+          "y": 861.0474853515625,
+          "width": 164.06103515625,
+          "height": 164.0611572265625,
+          "right": 1414.835205078125,
+          "bottom": 1025.108642578125
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -876,57 +1196,24 @@
       ],
       "emails": [
         "studio@example.test",
-        "team@example.test"
+        "team@example.test",
+        "morgan@example.test"
       ],
       "avatarDomBoundsInViewport": 1,
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.857,
-        "gazeY": 0.541,
+        "gazeX": -0.875,
+        "gazeY": 0.544,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.8572998046875,
-          "y": 153.64601135253906,
-          "width": 163.894775390625,
-          "height": 163.89476013183594,
-          "right": 1414.7520751953125,
-          "bottom": 317.540771484375
-        },
-        "requestedGaze": "toward-screen-centre",
-        "pointer": {
-          "x": 720,
-          "y": 506
-        }
-      }
-    },
-    {
-      "name": "journal",
-      "route": "/en/dashboard/settings?section=journals",
-      "exercised": [
-        "real journal groups and existing entries, abstraction levels and evidence metadata",
-        "visible observations tied to the same Atlas project"
-      ],
-      "illustrated": [
-        "All account, activity and content values are fictional examples; no model, connector or backend operation ran."
-      ],
-      "emails": [],
-      "avatarDomBoundsInViewport": 1,
-      "avatar": {
-        "size": "xl",
-        "fontSize": "64px",
-        "gazeX": 0.857,
-        "gazeY": -0.759,
-        "asset": "url('/avatars/bip/v1/male/body.webp')",
-        "visible": true,
-        "bounds": {
-          "x": 19.25786590576172,
-          "y": 854.2249145507812,
-          "width": 175.87490844726562,
-          "height": 175.87493896484375,
-          "right": 195.13277435302734,
-          "bottom": 1030.099853515625
+          "x": 1249.0269775390625,
+          "y": 150.92892456054688,
+          "width": 167.555419921875,
+          "height": 167.55535888671875,
+          "right": 1416.5823974609375,
+          "bottom": 318.4842834472656
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -939,7 +1226,7 @@
       "name": "avatar-picker",
       "route": "/en/dashboard/settings?section=eyes-style",
       "exercised": [
-        "real avatar-style catalogue with fifteen available styles and at least eight complete native preview cards in view",
+        "real avatar-style catalogue, matching its published count, with at least eight complete native preview cards in view",
         "selected BIP choice, feminine and masculine hybrid variants, current-style panel and maximum XL floating male BIP",
         "appearance read from isolated device-local preferences; no account setting or provider operation changed"
       ],
@@ -951,17 +1238,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": 0.83,
-        "gazeY": -0.791,
+        "gazeX": 0.832,
+        "gazeY": -0.797,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 24.596454620361328,
-          "y": 1060.2403564453125,
-          "width": 165.20347595214844,
-          "height": 165.2034912109375,
-          "right": 189.79993057250977,
-          "bottom": 1225.44384765625
+          "x": 23.08484649658203,
+          "y": 1058.0908203125,
+          "width": 168.22091674804688,
+          "height": 168.220947265625,
+          "right": 191.3057632446289,
+          "bottom": 1226.311767578125
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {
@@ -986,17 +1273,17 @@
       "avatar": {
         "size": "xl",
         "fontSize": "64px",
-        "gazeX": -0.849,
-        "gazeY": -0.8,
+        "gazeX": -0.866,
+        "gazeY": -0.793,
         "asset": "url('/avatars/bip/v1/male/body.webp')",
         "visible": true,
         "bounds": {
-          "x": 1250.358154296875,
-          "y": 1060.584228515625,
-          "width": 164.89306640625,
-          "height": 164.89306640625,
-          "right": 1415.251220703125,
-          "bottom": 1225.477294921875
+          "x": 1248.94384765625,
+          "y": 1059.3544921875,
+          "width": 167.7216796875,
+          "height": 167.7216796875,
+          "right": 1416.66552734375,
+          "bottom": 1227.076171875
         },
         "requestedGaze": "toward-screen-centre",
         "pointer": {

@@ -1,21 +1,22 @@
 {
-  "revision": "0799b5d5aff7de12",
-  "capturedAt": "2026-11-07T01:47:31.000Z",
+  "revision": "527d9b88396add0a",
+  "capturedAt": "2026-11-10T11:20:34.300Z",
+  "fixtureTime": "2026-10-12T07:30:00Z",
   "locale": "en",
   "theme": "light",
   "viewport": {
-    "width": 1600,
-    "height": 1000
+    "width": 1440,
+    "height": 1100
   },
-  "data": "Real application route and controls with handwritten fictional demonstration data. No real account, backend, model, connector, billable call or external action was used.",
-  "sourceCommit": "503c4cbb4c3ee40ecd977889c24a4320194e0f71",
+  "data": "Real application route and controls with fictional demonstration data; captured with the extended workflow campaign.",
+  "sourceCommit": "297142e989cd16f11a48567a025177ec6bb92ee0",
   "sourceIncludesLocalChanges": true,
   "images": [
     {
       "file": "tools.png",
-      "sha256": "0799b5d5aff7de12c921090f2dfcfe9a590fa865879e5e1215b115625584295c",
-      "width": 1600,
-      "height": 1000
+      "sha256": "f9d7331f88301c6bb4449b65c162774a4f64d8a0fca58e88a0f28b89bc1dbd73",
+      "width": 1440,
+      "height": 1100
     }
   ]
 }

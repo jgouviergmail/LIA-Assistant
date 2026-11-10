@@ -1,64 +1,78 @@
 {
-  "revision": "15041a73f400568c",
-  "providedAt": "2026-10-11T21:34:49Z",
-  "capturedAt": null,
-  "provenance": "Original PNG screenshots supplied by the project owner in this conversation for the homepage.",
+  "revision": "9f6ec424086e6ad2",
+  "capturedAt": "2026-11-10T11:01:57.923Z",
+  "locale": "en",
   "theme": "Grafana light",
-  "imageTreatment": "Copied byte for byte. No cropping, retouching, generated graphics or raster resizing.",
-  "navigation": "No left navigation visible in the three supplied images.",
-  "data": "Values shown in the supplied screenshots. No query fixtures were injected into these images. No live dashboard session, metric collection, benchmark, data provenance or capture timestamp independently verified in this campaign.",
+  "viewport": {
+    "width": 1600,
+    "height": 1200
+  },
+  "sourceCommit": "297142e989cd16f11a48567a025177ec6bb92ee0",
+  "sourceIncludesLocalChanges": true,
   "images": [
     {
       "file": "grafana-overview.png",
-      "providedFilename": "codex-clipboard-677d5a4a-a4c1-49f4-9865-93ef20fb9d5a.png",
-      "sha256": "1adecad4734d18dfa4891f3d97d82ac88396c8565e32ea952d8953a1ed82572c",
-      "width": 2177,
-      "height": 1142
+      "sha256": "9e8194fa797f10f89d5a51da6c16bb9b97192be8ce1485f7205277a1f347898f",
+      "width": 1600,
+      "height": 1200
     },
     {
       "file": "grafana-costs.png",
-      "providedFilename": "codex-clipboard-34620c7f-18a4-48fe-8799-e60640b0bcbc.png",
-      "sha256": "cbcf2fde1e15461dd9b7cb6a1f07f1c695e745a3eac9cd0abbd7e431bea78468",
-      "width": 2178,
-      "height": 1142
+      "sha256": "c307d640e6631739d4ebc2a7400a73a0058354e6bc1e8684bc6292933c5e7c8b",
+      "width": 1600,
+      "height": 1200
     },
     {
       "file": "grafana-activity.png",
-      "providedFilename": "codex-clipboard-fb660ee7-fac7-47bb-961d-877967b4022e.png",
-      "sha256": "a45cb0b3f6e167e0a06744b6454062782e83cecc83fe01836b74f4bf043f2260",
-      "width": 2179,
-      "height": 1144
+      "sha256": "8edbcc30d29aab6ad81c974c573143fd5bc7771b1ec7ba747a42ae3266796e19",
+      "width": 1600,
+      "height": 1200
     }
   ],
   "scenes": [
     {
-      "file": "grafana-overview.png",
-      "dashboard": "Infrastructure and host/container resources",
-      "dashboardSource": "infrastructure/observability/grafana/dashboards/03-infra-resources.json",
-      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
-      "exercised": [],
+      "name": "grafana-overview",
+      "uid": "03-infra-resources",
+      "route": "/d/03-infra-resources/03-infrastructure-and-resources",
+      "source": "infrastructure/observability/grafana/dashboards/03-infra-resources.json",
+      "sourceSha256": "7fd04972d0eaeff66aa051c8eeb0e1858cdfb561aaf1b6203f928611982d1770",
+      "data": "Fictional demonstration metrics injected into the real provisioned Grafana query contract",
+      "exercised": [
+        "real Grafana dashboard route and row expansion",
+        "real Grafana panels rendering controlled query frames"
+      ],
       "illustrated": [
-        "Dashboard panels and values as shown in the original project-provided screenshot."
+        "all metric values, volumes and performance are fictional"
       ]
     },
     {
-      "file": "grafana-costs.png",
-      "dashboard": "LLM tokens, costs and cache",
-      "dashboardSource": "infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json",
-      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
-      "exercised": [],
+      "name": "grafana-costs",
+      "uid": "05-llm-tokens-cost",
+      "route": "/d/05-llm-tokens-cost/05-llm-tokens-and-cost",
+      "source": "infrastructure/observability/grafana/dashboards/05-llm-tokens-cost.json",
+      "sourceSha256": "2be0fae1149a95d61108dc03f1d59e8c3543d4eeb30647de1138e3d21b03aff4",
+      "data": "Fictional demonstration metrics injected into the real provisioned Grafana query contract",
+      "exercised": [
+        "real Grafana dashboard route and row expansion",
+        "real Grafana panels rendering controlled query frames"
+      ],
       "illustrated": [
-        "Dashboard panels and values as shown in the original project-provided screenshot."
+        "all metric values, volumes and performance are fictional"
       ]
     },
     {
-      "file": "grafana-activity.png",
-      "dashboard": "Request origins, account activity and tool usage",
-      "dashboardSource": "infrastructure/observability/grafana/dashboards/17-user-analytics-geo.json",
-      "sourceRelationship": "Corresponding dashboard implementation in this repository; the captured instance and revision were not independently verified.",
-      "exercised": [],
+      "name": "grafana-activity",
+      "uid": "17-user-analytics-geo",
+      "route": "/d/17-user-analytics-geo/17-user-analytics-and-geolocation",
+      "source": "infrastructure/observability/grafana/dashboards/17-user-analytics-geo.json",
+      "sourceSha256": "879ef7d86e0df78cfb84f4c0f433b1c62a1f1749582c55c37f058828c2e33bae",
+      "data": "Fictional demonstration metrics injected into the real provisioned Grafana query contract",
+      "exercised": [
+        "real Grafana dashboard route and row expansion",
+        "real Grafana panels rendering controlled query frames"
+      ],
       "illustrated": [
-        "Dashboard panels and values as shown in the original project-provided screenshot."
+        "all metric values, volumes and performance are fictional"
       ]
     }
   ]

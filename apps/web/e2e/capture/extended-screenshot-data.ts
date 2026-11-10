@@ -30,6 +30,7 @@ import type {
 import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
 import { appConfig } from '../fixtures/dashboard-shell';
 import { surfaceMemoryLimits } from '../fixtures/settings-surfaces';
+import { WORKFLOW_NAMES, workflowScreenshotRoutes } from './workflow-screenshot-data';
 import {
   landingProofRoutes,
   MEETING_ID,
@@ -58,6 +59,7 @@ export const EXTENDED_NAMES = [
   'journal',
   'avatar-picker',
   'meetings-list',
+  ...WORKFLOW_NAMES,
 ] as const;
 export type ExtendedName = (typeof EXTENDED_NAMES)[number];
 const OWNER = '00000000-0000-4000-8000-000000000001';
@@ -927,8 +929,14 @@ export function extendedScreenshotRoutes(): LandingProofRoute[] {
           tool_approval_enabled: true,
           rag_spaces_drive_sync_enabled: true,
           rag_spaces_mail_sync_enabled: true,
+          workbench_enabled: true,
+          tool_assists_enabled: true,
         },
-        capabilities: { skills: { enabled: true, family: 'knowledge' } },
+        capabilities: {
+          skills: { enabled: true, family: 'knowledge' },
+          workbench: { enabled: true, family: 'work' },
+          tool_assists: { enabled: true, family: 'work' },
+        },
       },
     },
     { url: { regex: '\\/api\\/v1\\/psyche\\/state(?:\\?.*)?$' }, json: EXTENDED_PSYCHE },
@@ -1021,8 +1029,11 @@ export function extendedScreenshotRoutes(): LandingProofRoute[] {
     },
     { url: '**/api/v1/skills', json: EXTENDED_SKILLS },
     { url: '**/api/v1/plugins', json: { plugins: [], total: 0 } },
+    { url: '**/api/v1/mcp/servers', json: { servers: [], total: 0 } },
+    { url: '**/api/v1/mcp/admin-servers', json: [] },
     { url: '**/api/v1/admin/llm-config/types', json: { configs: modelSlots } },
     { url: '**/api/v1/admin/llm-config/metadata/models*', json: modelMetadata },
     { url: '**/api/v1/chat/users/me/statistics', json: EXTENDED_STATISTICS },
+    ...workflowScreenshotRoutes(),
   ];
 }

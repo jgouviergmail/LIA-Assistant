@@ -14865,13 +14865,22 @@
         "faq": "FAQ — Durchsuchbares Hilfezentrum mit kategorisierten Fragen"
       },
       "proof": {
+        "dashboard_actions": "Termine direkt im Dashboard bearbeiten",
+        "tools_mail_menu": "E-Mail-Aktionen im Kontextmenü",
+        "tools_mail_assist": "Eine E-Mail mit LIA neben der Originalnachricht zusammenfassen",
+        "tools_calendar": "Die Woche in Ihren Kalendern planen",
+        "tools_tasks": "Aufgaben nach Liste und Fälligkeit organisieren",
+        "tools_contacts": "Kontakte finden und ihre Details ansehen",
+        "tools_files": "Dokumente, Ordner und geteilte Dateien durchsuchen",
+        "tools_lights": "Räume, Leuchten und Szenen steuern",
+        "weather": "Wetterkarten mit Luftqualität und Pollen",
         "dashboard": "Dein persönlicher Überblick: Tageszusammenfassung, Kalender, E-Mails, Aufgaben und Erinnerungen an einem Ort.",
         "tools": "Deine Tools: die Mails, ihre Ordner und eine geöffnete Nachricht, ohne Umweg über den Chat.",
         "administration": "Limits für die Instanz und ihre Konten einstellen",
         "approval": "Eine Aktion im Chat prüfen und freigeben",
         "dossier": "Eine Entscheidung mit E-Mails, Dokumenten und Meetingprotokollen vorbereiten",
         "grafana_costs": "Grafana: Tokens, Kosten und Cache",
-        "grafana_activity": "Grafana: Aktivität, Herkunft der Anfragen und verwendete Tools",
+        "grafana_activity": "Grafana: Konten, Gespräche und Anfrageaktivität",
         "grafana_overview": "Grafana: Ressourcen der Instanz und Container",
         "knowledge": "Wissen mit Dokumenten und synchronisierten Quellen organisieren",
         "memory": "Erinnerungen einsehen und bearbeiten",
@@ -14896,11 +14905,11 @@
         "consumption": "Verbrauch · Nutzung, Kosten und die zugehörigen Vorgänge einsehen.",
         "journal": "Persönliches Journal · gespeicherte Reflexionen und ihren Kontext wiederfinden.",
         "places": "Google Places · einen vollständigen Ortseintrag mit Öffnungszeiten und praktischen Angaben ansehen.",
-        "maps": "Google Maps · einen Standort mit Karte, Koordinaten und Adresse prüfen.",
+        "maps": "Google Maps · einen Standort mit Karte und Adresse prüfen.",
         "routes": "Routen · einen Fußweg mit Karte, Entfernung und Gehzeit ansehen.",
         "avatar_picker": "Avatar-Auswahl · Begleiterstile ansehen und LIAs Aussehen auswählen.",
         "meetings_list": "Besprechungsliste · Aufzeichnungen und Berichte mit ihrem Verarbeitungsstatus ansehen.",
-        "world": "LIAs Welt · gemeinsames Haus mit Garten, Avatar und Begleiter (französische Oberfläche)."
+        "world": "LIAs Welt · gemeinsames Haus mit Garten, Avatar und Begleiter."
       }
     },
     "presentation": {
@@ -15215,7 +15224,7 @@
       "tabs_label": "Ansicht wählen",
       "tab_screens": "Die Anwendung im Einsatz",
       "tab_slides": "Die Präsentation (15 Slides)",
-      "provenance": "Screenshots der Anwendung auf Englisch und von LIAs Welt auf Französisch, bereitgestellt vom Projektinhaber. Es sind Demonstrationsansichten, keine Leistungsmessungen."
+      "provenance": "Aufnahmen der echten Anwendung und von Grafana mit fiktiven Demodaten. Sie zeigen die Oberfläche, keine gemessene Leistung."
     },
     "motion": {
       "pause": "Animationen pausieren"

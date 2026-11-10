@@ -14865,6 +14865,15 @@
         "faq": "FAQ — Centro de ayuda con búsqueda y categorías"
       },
       "proof": {
+        "dashboard_actions": "Actuar sobre una cita desde el panel",
+        "tools_mail_menu": "Acciones del correo en su menú contextual",
+        "tools_mail_assist": "Resumir un correo con LIA junto al mensaje original",
+        "tools_calendar": "Planificar la semana en tus calendarios",
+        "tools_tasks": "Organizar tareas por lista y fecha límite",
+        "tools_contacts": "Buscar contactos y consultar sus datos",
+        "tools_files": "Explorar documentos, carpetas y archivos compartidos",
+        "tools_lights": "Controlar habitaciones, luces y escenas",
+        "weather": "Tarjetas del tiempo con calidad del aire y polen",
         "dashboard": "Tu espacio personal: resumen del día, agenda, correos, tareas y recordatorios en un solo lugar.",
         "tools": "Tus herramientas: el correo, sus carpetas y un mensaje abierto, sin pasar por el chat.",
         "dossier": "Preparar una decisión con correo, documentos y actas",
@@ -14875,7 +14884,7 @@
         "administration": "Establecer límites para la instancia y sus cuentas",
         "grafana_overview": "Grafana: recursos de la instancia y los contenedores",
         "grafana_costs": "Grafana: tokens, costes y caché",
-        "grafana_activity": "Grafana: actividad, origen de las solicitudes y herramientas utilizadas",
+        "grafana_activity": "Grafana: cuentas, conversaciones y actividad de solicitudes",
         "relations": "Relaciones · recupera conversaciones, datos útiles y compromisos pendientes antes de retomar el contacto.",
         "meetings": "Acta detallada · consulta participantes, resumen, decisiones y acciones asignadas.",
         "radio": "Radio personal · consulta el programa, su transcripción y las fuentes disponibles.",
@@ -14896,11 +14905,11 @@
         "consumption": "Consumo · consulta el uso, los costes y las operaciones correspondientes.",
         "journal": "Diario personal · revisa las reflexiones y el contexto guardados con el tiempo.",
         "places": "Google Places · consulta la ficha completa de un lugar, con horarios e información práctica.",
-        "maps": "Google Maps · consulta una ubicación con su mapa, coordenadas y dirección.",
+        "maps": "Google Maps · consulta una ubicación con su mapa y dirección.",
         "routes": "Rutas · consulta un itinerario a pie con su mapa, distancia y duración.",
         "avatar_picker": "Selector de avatares · explora los estilos de compañeros y elige la apariencia de LIA.",
         "meetings_list": "Lista de reuniones · consulta grabaciones e informes con sus estados de procesamiento.",
-        "world": "El mundo de LIA · casa y jardín compartidos, avatar y compañero (interfaz en francés)."
+        "world": "El mundo de LIA · casa y jardín compartidos, avatar y compañero."
       }
     },
     "presentation": {
@@ -15215,7 +15224,7 @@
       "tabs_label": "Elegir una vista",
       "tab_screens": "La aplicación en uso",
       "tab_slides": "La presentación (15 diapositivas)",
-      "provenance": "Capturas de la aplicación en inglés y del mundo de LIA en francés, proporcionadas por el responsable del proyecto. Son vistas de demostración, no mediciones de rendimiento."
+      "provenance": "Capturas de la aplicación real y de Grafana con datos ficticios de demostración. Ilustran la interfaz, no el rendimiento medido."
     },
     "motion": {
       "pause": "Pausar las animaciones"

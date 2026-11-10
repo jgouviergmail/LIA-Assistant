@@ -126,6 +126,11 @@ async function capture(page: Page, input: CaptureInput) {
     );
   };
   const save = async (name: string, fullPage = false) => {
+    const minimized = ['dashboard-wide', 'dashboard-narrow'].includes(name);
+    if (minimized && (await page.locator('.lia-eyes-widget [data-character]').count())) {
+      await page.locator('.lia-eyes-widget').hover();
+      await page.getByRole('button', { name: 'Hide the eyes', exact: true }).click();
+    }
     const viewport = page.viewportSize();
     if (fullPage && viewport) {
       // Full-page capture otherwise paints fixed backdrops only to the old
@@ -203,7 +208,7 @@ async function capture(page: Page, input: CaptureInput) {
     }
     const widget = page.locator('.lia-eyes-widget .lia-eyes--xl');
     if (
-      !['faq', 'dashboard-narrow'].includes(name) &&
+      !['faq', 'dashboard-narrow', 'dashboard-wide'].includes(name) &&
       !(await widget.filter({ visible: true }).count())
     )
       throw new Error(`Maximum-size robot missing in ${name}`);
@@ -214,12 +219,29 @@ async function capture(page: Page, input: CaptureInput) {
 
   await ready('/en/dashboard', 'Design review');
   await save('homepage', true);
+  await page.setViewportSize({ width: 1600, height: 1500 });
+  await page
+    .getByRole('heading', { name: 'My dashboard', exact: true })
+    .evaluate(element =>
+      window.scrollTo({
+        top: element.getBoundingClientRect().top + window.scrollY - 85,
+        behavior: 'instant',
+      })
+    );
   await save('dashboard-wide');
   await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole('heading', { name: 'My dashboard', exact: true })
+    .evaluate(element =>
+      window.scrollTo({
+        top: element.getBoundingClientRect().top + window.scrollY - 85,
+        behavior: 'instant',
+      })
+    );
   await save('dashboard-narrow');
   await page.setViewportSize({ width: 1600, height: 1100 });
 
-  await page.setViewportSize({ width: 1600, height: 1400 });
+  await page.setViewportSize({ width: 1600, height: 1600 });
   await ready('/en/dashboard/chat', 'Design review');
   if ((await page.locator('.lia-card.lia-event').count()) !== 2)
     throw new Error('Daily agenda must use two authentic EventCard renderings');
@@ -311,14 +333,12 @@ async function capture(page: Page, input: CaptureInput) {
   const rail = page.getByRole('navigation', { name: 'Settings sections' });
   await page.locator('#settings-section-personality').waitFor({ state: 'visible' });
   await save('settings-features');
-  await rail.getByRole('button', { name: 'User Administration', exact: true }).click();
+  await rail.getByRole('button', { name: 'User admin', exact: true }).click();
   await page.locator('#settings-section-admin-users').waitFor({ state: 'visible' });
   await save('settings-administration');
 
-  await ready('/en/dashboard/settings?section=memories', 'Long-term Memory');
-  await rail
-    .getByRole('button', { name: 'Long-term Memory', exact: true })
-    .scrollIntoViewIfNeeded();
+  await ready('/en/dashboard/settings?section=memories', 'Memory');
+  await rail.getByRole('button', { name: 'Memory', exact: true }).scrollIntoViewIfNeeded();
   const preferences = page.getByRole('button', { name: /Preferences \(/ });
   if (await preferences.count()) await preferences.first().click();
   await page.getByText('I prefer concise answers', { exact: false }).waitFor({ state: 'visible' });
@@ -350,7 +370,7 @@ export function createCaptureCode(
   baseUrl: string,
   outputDir: string,
   skillFrame: { title: string; html: string; aspect_ratio: number },
-  eventCards: string,
+  eventCards: string
 ): string {
   const routes = publicScreenshotRoutes(eventCards).flatMap(route =>
     route.json !== undefined

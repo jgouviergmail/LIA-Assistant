@@ -1,6 +1,6 @@
 {
-  "revision": "ba487d47f4830831",
-  "capturedAt": "2026-10-16T23:02:56.488Z",
+  "revision": "6fdd8b3673576098",
+  "capturedAt": "2026-11-10T11:18:29.894Z",
   "fixtureTime": "2026-10-12T07:30:00Z",
   "locale": "en",
   "theme": "light",
@@ -17,11 +17,11 @@
     "preferences": "Real maximum XL preference through isolated browser localStorage and male cookie. Real mouse moves toward the screen centre renew native cursor gaze. Character, size, hybrid renderer and body asset checked before every capture; each PNG still requires pixel review."
   },
   "data": "Real frontend routes, handwritten fictional personal and venue data, and separately recorded real public geographical assets. Native domain cards are exact production backend renderer output from synthetic payloads; response prose uses the prompt HTML vocabulary. No account, backend server, model or external action was exercised during browser capture. Radio playback used only a local silent WAV; no generated voice was heard.",
-  "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
+  "sourceCommit": "297142e989cd16f11a48567a025177ec6bb92ee0",
   "sourceIncludesLocalChanges": true,
   "browser": {
     "engine": "Chromium headless shell",
-    "directory": "chromium_headless_shell-1243",
+    "directory": "chromium_headless_shell-1248",
     "backgroundNetworkingDisabled": true
   },
   "transportGuard": {
@@ -89,33 +89,8 @@
       "attribution": "Native Google logo and map-data attribution retained in both unmodified PNGs.",
       "capturePolicy": "Prepare these public geographical assets once; browser capture fulfils the app's media proxy locally and makes no Google request."
     },
-    "cardsSource": "apps/web/e2e/fixtures/maps/cards.json",
-    "cardsSha256": "a197971522228f87d5a24a18ba1b07f7a679b31f98fcc3f6c223f8681e1e6583",
-    "renderers": [
-      {
-        "source": "apps/api/src/domains/agents/display/components/place_card.py",
-        "sha256": "a7582dc09147456e986ae11eb5b4b6d6a7efeb1cb49e77ebb350930cf3dd70c5"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/components/location_card.py",
-        "sha256": "939b721789d1611c116f87bdb73e0c71a1850ac82fd34a9838c4b631a6606dbc"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/components/route_card.py",
-        "sha256": "6e5d8934f509edee25f3fee274d775d57b13326121b045c045f97b4e4477c1c3"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/components/route_journey.py",
-        "sha256": "e2ad2b5d070fea4d320aab0e5ba26bfe7f1d76c8c3975b622bddbfadabe422de"
-      }
-    ]
-  },
-  "nativeCards": {
-    "source": "apps/web/e2e/fixtures/native-cards.json",
-    "sourceSha256": "b7f113e85b84e82838b3d269bb5f879b0290119c68f97311dfe2b611268687e2",
-    "generator": "apps/web/e2e/capture/render_native_cards.py",
-    "generatorSha256": "c7b5efbd38fc8725929c8c0bb066a40a50f339b22cf4abf1966282b01260518d",
-    "policy": "Production HtmlRenderer.render(events) and HtmlRenderer.render_multi(files/emails), without editing their HTML. Fictional complete provider-shaped inputs. The capture clock is fixed; inherited environment removed; empty cwd; socket connections forbidden. No account, provider call, backend server, credential file or .env read.",
+    "dataSource": "apps/web/e2e/fixtures/maps/cards.json",
+    "dataSha256": "697b7a1f42b6e0fae24c8130f63888577391c62f3a30a4e56a321093cfda79f3",
     "renderers": [
       {
         "source": "apps/api/src/domains/agents/display/__init__.py",
@@ -131,15 +106,15 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/card_collection.py",
-        "sha256": "9863870c07f7fa8b8f4c75cd77a503d80ba31fb7171245d2cea0e584f3be5470"
+        "sha256": "134b0fa29485ff2f0f2aa43aa623aefdeea87bdc02f52330d18529705b549290"
       },
       {
-        "source": "apps/api/src/domains/agents/display/collection_preview.py",
-        "sha256": "537ccebdf7d6cb475066aadda82e96efc01be79bd7c3a21b669a0a5d20c00b14"
+        "source": "apps/api/src/domains/agents/display/card_navigation.py",
+        "sha256": "0e8d8c9027eac86550b621f8df3a7a2f96c8c005e29974fbb7327e2b3f7a2bc3"
       },
       {
         "source": "apps/api/src/domains/agents/display/component_registry.py",
-        "sha256": "cb110521e2fbc4d00a46bcb56b4a7fc771e6cee1f3d0b72e0bbc4f480632d110"
+        "sha256": "e2c9273f70b25ebc21d072e5cdd89ef8fa0026d889cc74cceea42f892b42b7d1"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/__init__.py",
@@ -147,19 +122,19 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/article_card.py",
-        "sha256": "219abf7e1594a92618858a29563fbc8a4e1cfa271cba152d351851a1cdf3f772"
+        "sha256": "1a6045c5e9bec074513ac22bfff316eb03bd408d2a1602905f373b48f47eb430"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/article_details.py",
-        "sha256": "5ecfc010d49f30f3d9db15fd481d4cd9843f5067a08ac3dcf2d869f7443b757a"
+        "sha256": "5a729100a8137bca738a51e5e6b926ad5820185777a0a68e092f0278a0fa4e26"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/base.py",
-        "sha256": "bf100582ad095f843373a663e7f3a0b6a5766acaf80763632ac95321db5c9982"
+        "sha256": "7b239ef5080a606502952942bd7b09429df87d1df90485ec908d1f15bf01629b"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/calendar_card.py",
-        "sha256": "b5952484463f3a5a24060edc5b4427f88710785eb8fd8ced2f2d0e50520014c6"
+        "sha256": "b973d796a753247b56a56601d9fd6b464e7fa01d748384c0bbd8eba0fcd4dcb0"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/calendar_details.py",
@@ -178,16 +153,20 @@
         "sha256": "592dbd9f40b5e307fb0ad2d12d5d025d2a150e0ac242cd29748af47f7cf3fec4"
       },
       {
+        "source": "apps/api/src/domains/agents/display/components/classification_badges.py",
+        "sha256": "6d95d9fbd658be532293f9a2a5dc1c8b17fa4f8d51df150d75c083f8f860829c"
+      },
+      {
         "source": "apps/api/src/domains/agents/display/components/conference_details.py",
         "sha256": "323e2ff800decc250fb9f494752faeba32d0f77daec2e35c61ac5ecf90dcd761"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/contact_card.py",
-        "sha256": "b2ce68e2a198eb3d7de92e5f4d7b00e64060e751ee3d3f705f4589ea4423a7d4"
+        "sha256": "4538bf47db6975d287e2dca9995c748655b3d04f7e3ca03d19f650e05cd018e0"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/contact_details.py",
-        "sha256": "ec33fb8966da3a2b16e455d641357d2bef9df56392c602383dde466e2ab1c2eb"
+        "sha256": "8ddf93a23f924b096597ef2057c369dadf76f60e6c881225df60ef15d84cc521"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/contact_facts.py",
@@ -199,7 +178,11 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/email_card.py",
-        "sha256": "6d192e940481dd219b61101f86bd1b3c0b18df83630cbb89d9278e0efe462cab"
+        "sha256": "42dabc9eab681ef8a8fc2d2fe0c5d1ab3109f8bb502068c58ec25b019306715a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_parties.py",
+        "sha256": "5433cc5c9b1724d5743db9e75e0d2de1df0cdb16c4e9724595e2e18e313b2297"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/environment_row.py",
@@ -207,7 +190,15 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/event_card.py",
-        "sha256": "de979ffe7d658b7838bcd5d7138096063020b79d25e78d503607580a371e168a"
+        "sha256": "703e45dfef771e126fb3d100594267c0239c3d3ca509daeac264521614285cf0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_presentation.py",
+        "sha256": "8e386e4dae6c5a972c53b5197688641e8e4d409e56ddbde2d05db43b2488d33e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_schedule.py",
+        "sha256": "d8f7665bcb2d1092fa28f06fb78a9270e20c51867077850ac39ef6e89bfcd2c7"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/file_details.py",
@@ -215,7 +206,7 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/file_item.py",
-        "sha256": "444bd8f074c2c40fb9ea3e34c30076d2510133697cb44de64f566bc16cd37ca8"
+        "sha256": "dd0bc0eb940efd1dadbdb876c6df6980ba5437d33d6b1542de911ca7a2375ab0"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/folded_synthesis.py",
@@ -231,7 +222,11 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/location_card.py",
-        "sha256": "939b721789d1611c116f87bdb73e0c71a1850ac82fd34a9838c4b631a6606dbc"
+        "sha256": "4e26d318bdbed26040107ab665e32fc3c2b25ec1f49aa6574933172e5274a0ba"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/location_map.py",
+        "sha256": "785ded7238da84d2fcb6cbb0c06940889572b1af52d04e0a6f6562c97028cf7d"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/map_hero.py",
@@ -247,11 +242,15 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/mcp_result_card.py",
-        "sha256": "0e74cecdee485962cbbca1b0149e963b009fd39e25c4fd6eede4da9d23f9b771"
+        "sha256": "bd1bb20dc8faf87ea52280e2fcf7b498387b9d5c30649e3730b715fcbbcedd43"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/page_app_sentinel.py",
+        "sha256": "e3a18a2e9269d0c74b7e9e4257ceb8688e27e1b3a7e95cc0edbb78a09c6e2e69"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/place_card.py",
-        "sha256": "a7582dc09147456e986ae11eb5b4b6d6a7efeb1cb49e77ebb350930cf3dd70c5"
+        "sha256": "13c7b992a9ebeee905ab262d41cad94a8e56272797fd6ce3872fc336a5bc5b1a"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/place_dates.py",
@@ -263,7 +262,7 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/place_hours.py",
-        "sha256": "ed82b1daaad6d66674c7a7f6d1fb639f28af189d2fccdd8c98202afd27231dc2"
+        "sha256": "0453ef0cab95d3092a28374f1824e90784bdb1b04ae41a085e792cea3530763f"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/place_photo.py",
@@ -275,7 +274,7 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/reminder_card.py",
-        "sha256": "b247fd6c142a3942da2e3494cafad410c41cead6c21ef9c73c329726825b5163"
+        "sha256": "9750f17f4c690650e1703958f4294576b3cb81b64f8abe3af000669e6ca1c321"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/research_content.py",
@@ -283,11 +282,11 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/route_card.py",
-        "sha256": "6e5d8934f509edee25f3fee274d775d57b13326121b045c045f97b4e4477c1c3"
+        "sha256": "d89bd40751fc60240dfc9335e58e9a8a42ad03fd39b63850a5ace8ea879e5510"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/route_journey.py",
-        "sha256": "e2ad2b5d070fea4d320aab0e5ba26bfe7f1d76c8c3975b622bddbfadabe422de"
+        "sha256": "bb46a09c17c3f48fa47270290709618842641bf510ff8e59fc6d2a61e566f566"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/route_map.py",
@@ -295,15 +294,19 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/search_result_card.py",
-        "sha256": "d6801198285f2bd917ddb006bd5540d7dd7866c041fbdf62d21338cb62b2a7af"
+        "sha256": "7fa2105ff514ea60afa6ef8ae29d0f4ce63a5e574cc3afef23eade4c47fc2b68"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/skill_app_sentinel.py",
         "sha256": "c3c28dbf3c35d01a57cf31852fc38d9d751f05b78b121637cb778dbbf76fb7c9"
       },
       {
+        "source": "apps/api/src/domains/agents/display/components/sms_card.py",
+        "sha256": "55b1d9a9f13c84497be63b2a0372825fa3409349e4392ab373afd0ad8152eb27"
+      },
+      {
         "source": "apps/api/src/domains/agents/display/components/snapshot_cards.py",
-        "sha256": "c6d2db5cca0c0f2f072d6c13dcbdebff61b074ba3b5fae77f92d37eb168c96b9"
+        "sha256": "5ac9ef24dba7d28c99d2a936e639df62c0f39b7af6d89e5e175637a0d33cbb38"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/source_attribution.py",
@@ -311,7 +314,7 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/source_details.py",
-        "sha256": "fe0ba6e6d3e8e050752545ac48697930bb79593ee9f10e07fca461e5f03bbefd"
+        "sha256": "e7a17e4ad3700faa34c6eb7668355fbd7fa10da7beaa355e194a587291525e17"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/source_recurrence.py",
@@ -319,15 +322,15 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/task_details.py",
-        "sha256": "d2c50d43a284859802b4d5d7a2b734281895b8493eb7a7c89d2c8c7c95b874bd"
+        "sha256": "245028082d6863c91d2f5769e0b3a4d2b807e0a54e27a2d96ff42ec5ef7bb134"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/task_item.py",
-        "sha256": "671b12aec102592212ca4f1c25b10301a811d9560efc57be9f0f80a0028c9111"
+        "sha256": "f56714768dbfd4d5f80c5ee59e161885782894080cfe46486b15b5642027717d"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/ticket_details.py",
-        "sha256": "d3ca6dfecf30261c78822fcdbcb8c0db3f8ae84453817a9eabe8ca45a573af12"
+        "sha256": "b5f40e7f124dd5ec58b58ba5a21d3fefe9e8d7891bb0010808f8a216a8d4fbae"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/ticket_fields.py",
@@ -335,7 +338,7 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/weather_card.py",
-        "sha256": "17d30a48c5efc4ce5b45e4aa6bb84195354816ddcf64097f0c10fda4f2b5e273"
+        "sha256": "144b10ec18fffe7730e16adb2ac18615181e2cfee85853e382dba8697492b50c"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/weather_collection.py",
@@ -343,23 +346,19 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/components/weather_details.py",
-        "sha256": "445f16c036539a7dfa8e67876860413f60c9bfb3217432d5ddf5fa44dbabffee"
+        "sha256": "0465789e30f9dc1b2792070306cfc966fcd25a29909777fe70f14c63b3d24ad4"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/weather_series.py",
-        "sha256": "0c58995702aa8ccd35b2a87a4193bb52bdb10a2e0faa69c2f170702c36e3bd9a"
+        "sha256": "3a446aea88623d33799af9c7062f72f6324863b4015fb8cb0081352a87eadd28"
       },
       {
         "source": "apps/api/src/domains/agents/display/components/web_search_card.py",
-        "sha256": "c1c2c29ed3e702a081c24f4000951c97e80814e1cc8f384aa1f2bca16db5d0cf"
+        "sha256": "b1e17fec7e1580b4becbd4b8d2a9ca30400c79da7cb1ee49dda04df86b6d5c1a"
       },
       {
         "source": "apps/api/src/domains/agents/display/config.py",
         "sha256": "b19052254757b4233b770a95fa6ea56719e31c8a54eb8a4c8f5dbbaf778eaa84"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/document_preview.py",
-        "sha256": "4fd294d743a322a74171881d71950b15840543b03eb5a8be5d9a2becdc5004e3"
       },
       {
         "source": "apps/api/src/domains/agents/display/escaping.py",
@@ -367,31 +366,19 @@
       },
       {
         "source": "apps/api/src/domains/agents/display/filter_evidence.py",
-        "sha256": "b5b0bc678f68f0d46768c7225e115f9a8858230a112d0a29ffbcada12bfb4dcc"
+        "sha256": "ffa0ad00c2607aa358ede1c85de794ac2f13a704bbae7cf4fa06c72293bd7d69"
       },
       {
         "source": "apps/api/src/domains/agents/display/html_renderer.py",
-        "sha256": "3375e2f4865fe90e7367ebe36ed55a320cdc1bcfb43d0bdc93c1b4ef71a70c08"
+        "sha256": "da97c4db96ac19b54c8eafbbb01e384be004f4d43ca1da411530a845423ac468"
       },
       {
         "source": "apps/api/src/domains/agents/display/icons.py",
         "sha256": "a2b4419bebe2b10d0ca93f2b40a80b185f837a99b54ef5dfd4f8843e82b9e545"
       },
       {
-        "source": "apps/api/src/domains/agents/display/jev_collection_time.py",
-        "sha256": "3986b13f6852f9f319c8f831627daa9f33fb5d909df80ef841a0471f1dc9843f"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/jev_qualification.py",
-        "sha256": "6252d4f1f2a6cb833c2ec8925f26586e2518dfef867122a6091c9c75bb3e0fd5"
-      },
-      {
-        "source": "apps/api/src/domains/agents/display/jev_snapshot.py",
-        "sha256": "f39b0db56fe1f2902c4c8e5fcb4ef1779b1c06233ac6732c3a74a6db2075f075"
-      },
-      {
         "source": "apps/api/src/domains/agents/display/llm_serializer.py",
-        "sha256": "e372684038ca3bf0a96d6b828ccc2a6ee604b19aebe423870128d8df4d31ebff"
+        "sha256": "db80a09ee6c9346b2221d28e2879abeab7b9c43d5d30e305dc5ef862e9334148"
       },
       {
         "source": "apps/api/src/domains/agents/display/mailbox_draft.py",
@@ -402,12 +389,349 @@
         "sha256": "6e556b33f4b72bf9f24a994a7ab9a738fef5aa735f587a16962c0f2cf7cc804a"
       },
       {
+        "source": "apps/api/src/domains/agents/display/places_position.py",
+        "sha256": "7041b3d5cc1b85de3b34b3902b1242db405c3b43aaf0ef434b0ada764bb18ff6"
+      },
+      {
         "source": "apps/api/src/domains/agents/display/plain_text.py",
         "sha256": "60b5bb18f850a1968cdf8f09114560791b440c79093a9dcecf709f54300afccf"
       },
       {
         "source": "apps/api/src/domains/agents/display/sentinel_filter.py",
-        "sha256": "dbadf9d3b2fe830229f0a06027e515ce7d3313105d9204b808967096a8da196e"
+        "sha256": "fc0e5d1f3f414fdaa0a1b3d5498fd35e2d4e12491c6cd085b054f5446baf35db"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/ticket_labels.py",
+        "sha256": "213e32fe51feb78cc53f689a22fdea8a2c923e0e83769354bb2bd4982d2054d4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/ticket_run_labels.py",
+        "sha256": "86395d10e303dcd65b948475bfa3f2df1d7ab03ebdb872dfc49c472875d4f1bd"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/urls.py",
+        "sha256": "3d79b84590644e5d6acebea52c84399db7707cad49545d2fceeb5a47b610bc03"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/values.py",
+        "sha256": "6cfb7f83f92dac4edcac947b19da91cd9936fae98dc1a76902fd037b65dfff17"
+      }
+    ]
+  },
+  "nativeCards": {
+    "source": "apps/web/e2e/fixtures/native-cards.json",
+    "sourceSha256": "abf9dde8297dc7594dc9b682f51c77a480784388e93e9c4360c2069b678d964b",
+    "generator": "apps/web/e2e/capture/render_native_cards.py",
+    "generatorSha256": "a224a6ad1b25d5145093079c53cf7dc9e3e39255f5953739730a7680374a5a6e",
+    "policy": "Production HtmlRenderer.render(events) and HtmlRenderer.render_multi(files/emails), without editing their HTML. Fictional complete provider-shaped inputs. The capture clock is fixed; inherited environment removed; empty cwd; socket connections forbidden. No account, provider call, backend server, credential file or .env read.",
+    "renderers": [
+      {
+        "source": "apps/api/src/domains/agents/display/__init__.py",
+        "sha256": "6640798a52072f1bff0d2a117f4de075a1c826b8bc7a5ba0964cc148f150a6d4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/binding_filter.py",
+        "sha256": "55a466cbf7b29e3f78a1380b8775cb6963dcfc4dfe15f9ccd437574c228de292"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/card_actions.py",
+        "sha256": "ca46f563d4d641a05ec91130488483db4f59e50ec4957485a373c34bd5abddb8"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/card_collection.py",
+        "sha256": "134b0fa29485ff2f0f2aa43aa623aefdeea87bdc02f52330d18529705b549290"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/card_navigation.py",
+        "sha256": "0e8d8c9027eac86550b621f8df3a7a2f96c8c005e29974fbb7327e2b3f7a2bc3"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/component_registry.py",
+        "sha256": "e2c9273f70b25ebc21d072e5cdd89ef8fa0026d889cc74cceea42f892b42b7d1"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/__init__.py",
+        "sha256": "c1ef96c45926a5537ca882170fcc82d5cfb4b14973be4cf3d2692bdb5be436a1"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/article_card.py",
+        "sha256": "1a6045c5e9bec074513ac22bfff316eb03bd408d2a1602905f373b48f47eb430"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/article_details.py",
+        "sha256": "5a729100a8137bca738a51e5e6b926ad5820185777a0a68e092f0278a0fa4e26"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/base.py",
+        "sha256": "7b239ef5080a606502952942bd7b09429df87d1df90485ec908d1f15bf01629b"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_card.py",
+        "sha256": "b973d796a753247b56a56601d9fd6b464e7fa01d748384c0bbd8eba0fcd4dcb0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_details.py",
+        "sha256": "57619df4e465016aaf7270a5f41bce12483edc950850292d2f43ad99e6ad293b"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/calendar_facts.py",
+        "sha256": "636fc029938ddc7b9dded61556d5c973ba580e63de133f9ad95888c00ccb158c"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/card_chips.py",
+        "sha256": "eba9601d08c3274468d2d37c6d6c2ca596f0733ecd0d5219f33abd2db88e2bf9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/card_content.py",
+        "sha256": "592dbd9f40b5e307fb0ad2d12d5d025d2a150e0ac242cd29748af47f7cf3fec4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/classification_badges.py",
+        "sha256": "6d95d9fbd658be532293f9a2a5dc1c8b17fa4f8d51df150d75c083f8f860829c"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/conference_details.py",
+        "sha256": "323e2ff800decc250fb9f494752faeba32d0f77daec2e35c61ac5ecf90dcd761"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_card.py",
+        "sha256": "4538bf47db6975d287e2dca9995c748655b3d04f7e3ca03d19f650e05cd018e0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_details.py",
+        "sha256": "8ddf93a23f924b096597ef2057c369dadf76f60e6c881225df60ef15d84cc521"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/contact_facts.py",
+        "sha256": "9c5cf07b9286ff0c9c68eb4f79f01f048be92b2ce7d5e048cbdb4533b0a73105"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_body.py",
+        "sha256": "af63c3c278e29f79977c1c7679de8ee7f21d2c29aa75514d71ea642a789f3106"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_card.py",
+        "sha256": "42dabc9eab681ef8a8fc2d2fe0c5d1ab3109f8bb502068c58ec25b019306715a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/email_parties.py",
+        "sha256": "5433cc5c9b1724d5743db9e75e0d2de1df0cdb16c4e9724595e2e18e313b2297"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/environment_row.py",
+        "sha256": "d712ac9796c1f0aa9fd41d94a223cd7b6654a16c7cd342af9eb0fec736f96a66"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_card.py",
+        "sha256": "703e45dfef771e126fb3d100594267c0239c3d3ca509daeac264521614285cf0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_presentation.py",
+        "sha256": "8e386e4dae6c5a972c53b5197688641e8e4d409e56ddbde2d05db43b2488d33e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/event_schedule.py",
+        "sha256": "d8f7665bcb2d1092fa28f06fb78a9270e20c51867077850ac39ef6e89bfcd2c7"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/file_details.py",
+        "sha256": "dc520830a872b327daa050b591c5fbd2815baab1307ef5187310dfaab2d68152"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/file_item.py",
+        "sha256": "dd0bc0eb940efd1dadbdb876c6df6980ba5437d33d6b1542de911ca7a2375ab0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/folded_synthesis.py",
+        "sha256": "2183e32587c6ba9840a6bd952a2537f4808993aea945a5873d0da8f6ffaff4b2"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/html_flatten.py",
+        "sha256": "8dd79ba2b65d006b6f7a0d5accabdc8c7769e05a939247d4d0a404192fb2df05"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/light_details.py",
+        "sha256": "dfe6bc4fd3fe610966260a0916385d355d4762f321d5a1f820cf85d422d56443"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/location_card.py",
+        "sha256": "4e26d318bdbed26040107ab665e32fc3c2b25ec1f49aa6574933172e5274a0ba"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/location_map.py",
+        "sha256": "785ded7238da84d2fcb6cbb0c06940889572b1af52d04e0a6f6562c97028cf7d"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/map_hero.py",
+        "sha256": "4831106a4876fc994dbbc9ba4811754be9d207dcd067030a7855f8acde17de6e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_app_sentinel.py",
+        "sha256": "fa220c5aeb9345cff7b2cd4c818045d07669729c4b88511530c7d682ed3d61eb"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_details.py",
+        "sha256": "83f379fb0a41299415cd2d69b07f50dffa04ca30d2491eac63526ebd9df70217"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/mcp_result_card.py",
+        "sha256": "bd1bb20dc8faf87ea52280e2fcf7b498387b9d5c30649e3730b715fcbbcedd43"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/page_app_sentinel.py",
+        "sha256": "e3a18a2e9269d0c74b7e9e4257ceb8688e27e1b3a7e95cc0edbb78a09c6e2e69"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_card.py",
+        "sha256": "13c7b992a9ebeee905ab262d41cad94a8e56272797fd6ce3872fc336a5bc5b1a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_dates.py",
+        "sha256": "fc71b7ab8ace84c0eec313ef644eb1acd56332fc256ba21849e9f19538b55b03"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_details.py",
+        "sha256": "ad15ddd144b20d4bd730fdb8f705819edeb7e054f99a1738278bfc3161f8e6b2"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_hours.py",
+        "sha256": "0453ef0cab95d3092a28374f1824e90784bdb1b04ae41a085e792cea3530763f"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_photo.py",
+        "sha256": "f897d7861908522dc0630ce535d73277d7207c9dc7ed0eba7a7600b1a8557c3e"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/place_reviews.py",
+        "sha256": "1bd411c4e675c9bbd95253f3c83d68226cbfe0d682f2f96ff79c63974d1e0bf9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/reminder_card.py",
+        "sha256": "9750f17f4c690650e1703958f4294576b3cb81b64f8abe3af000669e6ca1c321"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/research_content.py",
+        "sha256": "e7bed194fd6d406dcd994ca03cfcc0d5bd4e6f1b4dc6bd9df8f9ac85033f8097"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_card.py",
+        "sha256": "d89bd40751fc60240dfc9335e58e9a8a42ad03fd39b63850a5ace8ea879e5510"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_journey.py",
+        "sha256": "bb46a09c17c3f48fa47270290709618842641bf510ff8e59fc6d2a61e566f566"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/route_map.py",
+        "sha256": "7157f4fdb2927aef7613c5491e27ba54f3c8dbe2eea57d590c6a328d36827c06"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/search_result_card.py",
+        "sha256": "7fa2105ff514ea60afa6ef8ae29d0f4ce63a5e574cc3afef23eade4c47fc2b68"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/skill_app_sentinel.py",
+        "sha256": "c3c28dbf3c35d01a57cf31852fc38d9d751f05b78b121637cb778dbbf76fb7c9"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/sms_card.py",
+        "sha256": "55b1d9a9f13c84497be63b2a0372825fa3409349e4392ab373afd0ad8152eb27"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/snapshot_cards.py",
+        "sha256": "5ac9ef24dba7d28c99d2a936e639df62c0f39b7af6d89e5e175637a0d33cbb38"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_attribution.py",
+        "sha256": "8c3e02963981fe970d5699df6382c65e5bb89511acf225fe37af66e574f542fb"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_details.py",
+        "sha256": "e7a17e4ad3700faa34c6eb7668355fbd7fa10da7beaa355e194a587291525e17"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/source_recurrence.py",
+        "sha256": "fd2ff0ffdf22752670ef2297d2105c7f297f5e5ac795baa7ee292d4717b87627"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/task_details.py",
+        "sha256": "245028082d6863c91d2f5769e0b3a4d2b807e0a54e27a2d96ff42ec5ef7bb134"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/task_item.py",
+        "sha256": "f56714768dbfd4d5f80c5ee59e161885782894080cfe46486b15b5642027717d"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/ticket_details.py",
+        "sha256": "b5f40e7f124dd5ec58b58ba5a21d3fefe9e8d7891bb0010808f8a216a8d4fbae"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/ticket_fields.py",
+        "sha256": "d243ac0633882769a526464319b53ac0a12657d0da61e905aac02f8ab3bb53e7"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_card.py",
+        "sha256": "144b10ec18fffe7730e16adb2ac18615181e2cfee85853e382dba8697492b50c"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_collection.py",
+        "sha256": "1d094babf427402a026950602f774147aefdfe641df5a55c8f0b5af0af3eeb0b"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_details.py",
+        "sha256": "0465789e30f9dc1b2792070306cfc966fcd25a29909777fe70f14c63b3d24ad4"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/weather_series.py",
+        "sha256": "3a446aea88623d33799af9c7062f72f6324863b4015fb8cb0081352a87eadd28"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/components/web_search_card.py",
+        "sha256": "b1e17fec7e1580b4becbd4b8d2a9ca30400c79da7cb1ee49dda04df86b6d5c1a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/config.py",
+        "sha256": "b19052254757b4233b770a95fa6ea56719e31c8a54eb8a4c8f5dbbaf778eaa84"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/escaping.py",
+        "sha256": "5c414cc1231d6a98d8ad7464434a29c7205c831eb2dcd0b618be102c70d548d5"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/filter_evidence.py",
+        "sha256": "ffa0ad00c2607aa358ede1c85de794ac2f13a704bbae7cf4fa06c72293bd7d69"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/html_renderer.py",
+        "sha256": "da97c4db96ac19b54c8eafbbb01e384be004f4d43ca1da411530a845423ac468"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/icons.py",
+        "sha256": "a2b4419bebe2b10d0ca93f2b40a80b185f837a99b54ef5dfd4f8843e82b9e545"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/llm_serializer.py",
+        "sha256": "db80a09ee6c9346b2221d28e2879abeab7b9c43d5d30e305dc5ef862e9334148"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/mailbox_draft.py",
+        "sha256": "693c1a43cca52f1fa1a8ef6aa15309f88658fda06e49546b597aceac4ff149a0"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/model_history.py",
+        "sha256": "6e556b33f4b72bf9f24a994a7ab9a738fef5aa735f587a16962c0f2cf7cc804a"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/places_position.py",
+        "sha256": "7041b3d5cc1b85de3b34b3902b1242db405c3b43aaf0ef434b0ada764bb18ff6"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/plain_text.py",
+        "sha256": "60b5bb18f850a1968cdf8f09114560791b440c79093a9dcecf709f54300afccf"
+      },
+      {
+        "source": "apps/api/src/domains/agents/display/sentinel_filter.py",
+        "sha256": "fc0e5d1f3f414fdaa0a1b3d5498fd35e2d4e12491c6cd085b054f5446baf35db"
       },
       {
         "source": "apps/api/src/domains/agents/display/ticket_labels.py",
@@ -428,168 +752,167 @@
     ]
   },
   "visualReview": {
-    "reviewedAt": "2026-10-16T23:04:01.402Z",
-    "reviewer": "Codex visual inspection",
-    "method": "Opened every final PNG and inspected the pixels. Verified native domain cards against production HtmlRenderer output and exact renderer/source hashes, actual English/light UI, populated information, male BIP body paint at the real XL preference, complete Google logo/copyright, compact folded route details, and native disclosure states. Every approval binds to the exact SHA-256 bytes; DOM visibility alone was not treated as proof of painted pixels.",
+    "reviewedAt": "2026-11-10T11:21:13.154137+00:00",
+    "method": "Visual inspection of the browser captures and corrected retakes; native layouts, readable content, fictional identities, coherent examples and no visible application error. Floating companion minimized through the native control where it obscures the demonstrated content.",
     "images": [
       {
         "file": "dossier.png",
-        "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82",
+        "sha256": "b6a11097bb839bf4fade4735905758e42982bdc04aa41129606162d892b59a90",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Compact synthesis and both complete native production FileItem/EmailCard outputs, including source metadata, native details disclosures and actions. Real native scroll keeps the cards above the composer. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "approval.png",
-        "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d",
+        "sha256": "c7aaf10f976f8d4aa786f1d3fdd73ab0566973242720bdfac6f8940c8f0f61b3",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Response prose and the actual React pending-draft card with confirm/modify/cancel controls. No handwritten domain card markup. Male BIP XL and native question expression painted."
+        "avatarPainted": true
       },
       {
         "file": "knowledge.png",
-        "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1",
+        "sha256": "f1741e98978379f322b2813b635302e2b3f2687f4b210eb623986323517bcf06",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Four populated indexed-document rows and both linked source sections visible. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "skill.png",
-        "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839",
+        "sha256": "160a5d0a49098ff5fca34df52c759f115025d6e8c14484489be83711057bc466",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Actual Python-generated Weekend Budget Studio frame, all five cost categories and two trip days. Native slider changed budget to EUR900; total584 and margin316 are visible. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "memory.png",
-        "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba",
+        "sha256": "b3a111d59d11c046feeef3397c6992f669a05ac25c2bd0710338cfba2595db9d",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Complete actual memory editor with content, nuance, trigger, weight, importance and controls. Male BIP XL visibly painted beneath the authentic modal backdrop."
+        "avatarPainted": true
       },
       {
         "file": "administration.png",
-        "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4",
+        "sha256": "87086184f929d33535c049f49e3dcb1e513cb72cafcc1972ea3070a2de291d3f",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Instance ceiling plus all three populated demo user rows visible. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "relations.png",
-        "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1",
+        "sha256": "1911b9d630f1d5d69bb150793ea0ec26c52ec41490403d4db42fd3423f2cc002",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Complete debrief, both commitments and both exchanged emails visible through native scrolling. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "meetings.png",
-        "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a",
+        "sha256": "95205cb4591565f5a05a959968311fd1849e8dce0aa136db8b3493e335fa946c",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Actual React MeetingDetail page with participants, summary, decisions, owner/due actions and transcript/export controls. No handwritten appointment-card markup. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "radio.png",
-        "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b",
+        "sha256": "169ce8160c5721d416ad686e789c0eade7d12a545d53c80768660d5b33cf7d99",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Native paused player, populated opening transcript, source and article visible. Only a local silent WAV was decoded. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "places.png",
-        "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4",
+        "sha256": "da81dedbef594f81ec420f5c82b0b74fd2bfee0fd34b734192b036119b920d6e",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Exactly one complete production PlaceCard with rating, price, address, current opening status and all populated hours/accessibility/payment disclosures expanded. Male BIP XL painted."
+        "avatarPainted": true
       },
       {
         "file": "maps.png",
-        "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662",
+        "sha256": "b7d445bec53880c1423f19e0bca2a60a8951e75346b3f460d39858f177e38a34",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Actual LocationCard with the complete unmodified recorded Google map, meeting marker, address and coordinates. Complete Google logo and Map data attribution visible; BIP XL stays away from attribution."
+        "avatarPainted": true
       },
       {
         "file": "routes.png",
-        "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a",
+        "sha256": "0bf8523901d14222db7cd2374a05dd09f86cf161aff9e9315f8046541c2d751f",
         "approved": true,
-        "avatarPainted": true,
-        "notes": "Compact actual RouteCard with complete unmodified Google map, attribution, received2.685km/38min route, both endpoints and Open in Maps action. All17 received steps remain in the fixture, natively folded in the image. Male BIP XL painted."
+        "avatarPainted": true
+      },
+      {
+        "file": "weather.png",
+        "sha256": "cfede9c84799f02ac0a7121b8f84a5be80299b11f0b748ca5d2e7caa4e5c3673",
+        "approved": true,
+        "avatarPainted": true
       }
     ]
   },
   "images": [
     {
       "file": "dossier.png",
-      "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82",
+      "sha256": "b6a11097bb839bf4fade4735905758e42982bdc04aa41129606162d892b59a90",
       "width": 1600,
-      "height": 1400
+      "height": 1600
     },
     {
       "file": "approval.png",
-      "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d",
+      "sha256": "c7aaf10f976f8d4aa786f1d3fdd73ab0566973242720bdfac6f8940c8f0f61b3",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "knowledge.png",
-      "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1",
+      "sha256": "f1741e98978379f322b2813b635302e2b3f2687f4b210eb623986323517bcf06",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "skill.png",
-      "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839",
+      "sha256": "160a5d0a49098ff5fca34df52c759f115025d6e8c14484489be83711057bc466",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "memory.png",
-      "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba",
+      "sha256": "b3a111d59d11c046feeef3397c6992f669a05ac25c2bd0710338cfba2595db9d",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "administration.png",
-      "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4",
+      "sha256": "87086184f929d33535c049f49e3dcb1e513cb72cafcc1972ea3070a2de291d3f",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "relations.png",
-      "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1",
+      "sha256": "1911b9d630f1d5d69bb150793ea0ec26c52ec41490403d4db42fd3423f2cc002",
       "width": 1600,
-      "height": 1100
+      "height": 1700
     },
     {
       "file": "meetings.png",
-      "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a",
+      "sha256": "95205cb4591565f5a05a959968311fd1849e8dce0aa136db8b3493e335fa946c",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "radio.png",
-      "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b",
+      "sha256": "169ce8160c5721d416ad686e789c0eade7d12a545d53c80768660d5b33cf7d99",
       "width": 1600,
       "height": 1100
     },
     {
       "file": "places.png",
-      "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4",
+      "sha256": "da81dedbef594f81ec420f5c82b0b74fd2bfee0fd34b734192b036119b920d6e",
       "width": 1600,
       "height": 1400
     },
     {
       "file": "maps.png",
-      "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662",
+      "sha256": "b7d445bec53880c1423f19e0bca2a60a8951e75346b3f460d39858f177e38a34",
       "width": 1100,
       "height": 1100
     },
     {
       "file": "routes.png",
-      "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a",
+      "sha256": "0bf8523901d14222db7cd2374a05dd09f86cf161aff9e9315f8046541c2d751f",
       "width": 1100,
       "height": 1300
+    },
+    {
+      "file": "weather.png",
+      "sha256": "cfede9c84799f02ac0a7121b8f84a5be80299b11f0b748ca5d2e7caa4e5c3673",
+      "width": 1600,
+      "height": 1100
     }
   ],
   "scenes": [
@@ -598,7 +921,7 @@
       "route": "/en/dashboard/chat",
       "viewport": {
         "width": 1600,
-        "height": 1400
+        "height": 1600
       },
       "exercised": [
         "real chat route, native HtmlRenderer.render_multi output for one FileItem and one EmailCard; compact synthesis and active-space indicator"
@@ -606,7 +929,24 @@
       "illustrated": [
         "fictional cross-source comparison and complete source payloads; calendar is synthesis context, its native EventCards are illustrated in the public agenda campaign; no inference, document fetch, email lookup or calendar query performed"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
+    },
+    {
+      "name": "weather",
+      "route": "/en/dashboard/chat",
+      "viewport": {
+        "width": 1600,
+        "height": 1100
+      },
+      "exercised": [
+        "native weather card, current conditions, air quality and pollen visible on its main face"
+      ],
+      "illustrated": [
+        "fictional weather observations; no provider called"
+      ],
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "approval",
@@ -621,7 +961,8 @@
       "illustrated": [
         "draft contents; no decision submitted, no email sent"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "knowledge",
@@ -636,7 +977,8 @@
       "illustrated": [
         "document contents, completed synchronization and embedding costs; no indexing performed"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 0,
+      "floatingCompanionMinimized": true
     },
     {
       "name": "skill",
@@ -651,7 +993,8 @@
       "illustrated": [
         "assistant introduction and estimated travel costs are fictional; no installed system skill, booking lookup, model or provider call"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "memory",
@@ -666,7 +1009,8 @@
       "illustrated": [
         "existing remembered preferences and metadata; changes not saved"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 1,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "administration",
@@ -681,14 +1025,15 @@
       "illustrated": [
         "all usage, account and budget values are fictional; no quota saved"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 0,
+      "floatingCompanionMinimized": true
     },
     {
       "name": "relations",
       "route": "/en/dashboard/relations",
       "viewport": {
         "width": 1600,
-        "height": 1100
+        "height": 1700
       },
       "exercised": [
         "real Relations overview and person detail; opening commitments and exchanged-email sections; real debrief, scope and contact/peer affordances"
@@ -696,7 +1041,8 @@
       "illustrated": [
         "all identity, relationship context, commitments, messages and debrief are fictional; no connector lookup, inference, call or relay"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 0,
+      "floatingCompanionMinimized": true
     },
     {
       "name": "meetings",
@@ -711,7 +1057,8 @@
       "illustrated": [
         "report, transcript availability, local engine, indexing and cost metadata are fictional; no audio recording, transcription, synthesis, export or email"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 0,
+      "floatingCompanionMinimized": true
     },
     {
       "name": "radio",
@@ -726,7 +1073,8 @@
       "illustrated": [
         "programme, sources, articles and cost estimates are fictional; no news verification, voice generation, personal-data fetch or provider access"
       ],
-      "avatarDomBoundsInViewport": 1
+      "avatarDomBoundsInViewport": 0,
+      "floatingCompanionMinimized": true
     },
     {
       "name": "places",
@@ -741,7 +1089,8 @@
       "illustrated": [
         "one fictional venue name, rating, schedule and services; no second hidden venue, Google Places query, call or booking"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "maps",
@@ -756,7 +1105,8 @@
       "illustrated": [
         "public landmark rather than current device location; no account GPS, geocoding or Google request during browser capture"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     },
     {
       "name": "routes",
@@ -771,7 +1121,8 @@
       "illustrated": [
         "public Bellecour-to-Part-Dieu geographical fixture recorded separately; complete steps remain in the fixture; no live navigation, current travel condition claim or Google request during browser capture"
       ],
-      "avatarDomBoundsInViewport": 2
+      "avatarDomBoundsInViewport": 2,
+      "floatingCompanionMinimized": false
     }
   ]
 }

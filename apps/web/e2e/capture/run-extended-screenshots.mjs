@@ -34,6 +34,15 @@ const names = [
   'journal',
   'avatar-picker',
   'meetings-list',
+  'tools',
+  'tools-mail-menu',
+  'tools-mail-assist',
+  'tools-calendar',
+  'tools-tasks',
+  'tools-contacts',
+  'tools-files',
+  'tools-lights',
+  'dashboard-actions',
 ];
 const selectedNames = selection?.startsWith('--only=')
   ? selection.slice('--only='.length).split(',')
@@ -184,14 +193,14 @@ if (mode === 'capture' || mode === 'typecheck') {
         compilerOptions: {
           outDir: compiled,
           rootDir: path.join(repo, 'apps/web'),
-          module: 'commonjs',
-          moduleResolution: 'node',
+          module: 'Node16',
+          moduleResolution: 'Node16',
           target: 'ES2022',
           strict: true,
           esModuleInterop: true,
           skipLibCheck: true,
-          baseUrl: packageRoot,
           paths: {
+            zod: [path.join(packageRoot, 'node_modules/zod')],
             '@playwright/test': [path.join(packageRoot, 'node_modules/@playwright/test')],
             '@/*': [path.join(repo, 'apps/web/src/*')],
           },
@@ -246,12 +255,7 @@ if (mode === 'capture' || mode === 'typecheck') {
   const program = path.join(output, 'extended-capture-program.js');
   fs.writeFileSync(
     program,
-    createExtendedCaptureCode(
-      baseUrl,
-      output,
-      usedCopy,
-      selection ? selectedNames : undefined
-    )
+    createExtendedCaptureCode(baseUrl, output, usedCopy, selection ? selectedNames : undefined)
   );
   const guard = await createApiNetworkGuard();
   const browserDir = fs
@@ -299,6 +303,7 @@ if (mode === 'capture' || mode === 'typecheck') {
     )
   );
   const cliArgs = [
+    '--offline',
     '--yes',
     '--package',
     '@playwright/cli@0.1.22',
@@ -431,7 +436,7 @@ if (mode === 'capture' || mode === 'typecheck') {
     throw new Error('Every captured PNG must have a visual approval matching its SHA-256');
   if (mode === 'validate') {
     console.log(
-      'Eighteen extended images, complete report, transport boundaries, hashes and visual approvals are valid.'
+      `${images.length} extended images, complete report, transport boundaries, hashes and visual approvals are valid.`
     );
     process.exit(0);
   }
@@ -465,5 +470,26 @@ if (mode === 'capture' || mode === 'typecheck') {
       2
     ) + '\n'
   );
-  console.log(`Published eighteen extended app views. Revision: ${revision}`);
+  // Keep the standalone chapter's public provenance current for deployed builds.
+  const toolsImage = images.find(image => image.file === 'tools.png');
+  fs.writeFileSync(
+    path.join(destination, 'tools-manifest.json'),
+    JSON.stringify(
+      {
+        revision,
+        capturedAt: report.capturedAt,
+        fixtureTime: report.fixtureTime,
+        locale: report.locale,
+        theme: report.theme,
+        viewport: report.viewport,
+        data: 'Real application route and controls with fictional demonstration data; captured with the extended workflow campaign.',
+        sourceCommit: report.sourceCommit,
+        sourceIncludesLocalChanges: report.sourceIncludesLocalChanges,
+        images: [toolsImage],
+      },
+      null,
+      2
+    ) + '\n'
+  );
+  console.log(`Published ${images.length} extended app views. Revision: ${revision}`);
 }

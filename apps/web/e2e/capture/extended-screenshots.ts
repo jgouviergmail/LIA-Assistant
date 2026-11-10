@@ -62,6 +62,12 @@ async function capture(page: Page, input: CaptureInput) {
     });
   }
   await page.route('**/api/v1/notifications/stream', () => undefined);
+  await page.route('**/api/v1/workbench/contacts/photo?*', route =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="#e2e8f0"/><text x="64" y="80" text-anchor="middle" font-family="sans-serif" font-size="44" fill="#334155">MD</text></svg>',
+    })
+  );
   await page.routeWebSocket('**/*', socket => socket.close());
   await page.routeWebSocket('**/api/v1/voice/ws/audio?ticket=*', socket => {
     socket.onMessage(message => {
@@ -157,24 +163,29 @@ async function capture(page: Page, input: CaptureInput) {
   const placeAvatar = async (name: ExtendedName) => {
     // Real pointer drag through the production control. Keep its complete XL
     // drag frame inside the current viewport after a responsive resize.
-    if (await page.getByRole('dialog').count()) return;
+    if ((await page.getByRole('dialog').count()) || (await page.getByRole('menu').count())) return;
     const widget = page.locator('.lia-eyes-widget');
     const box = await widget.boundingBox();
     const viewport = page.viewportSize();
     if (!box || !viewport) throw new Error('Missing companion drag frame');
-    const leftSide = [
-      'psyche',
-      'psyche-evolution',
-      'memory-library',
-      'journal',
-      'routine-week',
-      'portrait',
-      'connections',
-      'avatar-picker',
-    ].includes(name);
+    const leftSide =
+      [
+        'psyche',
+        'psyche-evolution',
+        'memory-library',
+        'journal',
+        'routine-week',
+        'portrait',
+        'connections',
+        'avatar-picker',
+      ].includes(name) || name.startsWith('tools');
     const target = {
       x: leftSide ? 18 : viewport.width - box.width - 18,
-      y: name === 'consumption' ? 100 : viewport.height - box.height - 68,
+      y: name.startsWith('tools')
+        ? viewport.height - 400
+        : name === 'consumption'
+          ? 100
+          : viewport.height - box.height - 68,
     };
     const start = { x: box.x + box.width / 2, y: box.y + box.height * 0.7 };
     await page.mouse.move(start.x, start.y);
@@ -316,6 +327,71 @@ async function capture(page: Page, input: CaptureInput) {
   };
 
   if (!input.onlyNames) {
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await ready(
+      '/en/dashboard/tools/mail?id=capture-mail-0',
+      'Atlas launch — decisions for Monday'
+    );
+    const reader = page.getByRole('article', { name: 'Atlas launch — decisions for Monday' });
+    await reader.getByText('The prototype passed Friday', { exact: false }).waitFor();
+    await save('tools', [
+      'native mailbox, eight fictional messages, thread reader, labels and two attachments',
+    ]);
+    await reader.getByRole('button', { name: 'More actions', exact: true }).click();
+    await page.getByRole('menu').waitFor();
+    await save('tools-mail-menu', [
+      'native contextual menu opened through its real button; no action submitted',
+    ]);
+    await page.keyboard.press('Escape');
+    await reader.getByRole('button', { name: 'Ask LIA', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Sum it up', exact: true }).click();
+    await reader.getByRole('region', { name: 'Summary' }).waitFor();
+    await save(
+      'tools-mail-assist',
+      ['native summary action and result panel, key points, proposed actions and cost'],
+      ['summary response and cost are fictional; no model called']
+    );
+    await ready('/en/dashboard/tools/calendar', 'Project Atlas');
+    await page.getByText('Design review', { exact: true }).first().waitFor();
+    await save('tools-calendar', [
+      'native weekly calendar, two calendars, eleven appointments and task deadlines',
+    ]);
+    await ready('/en/dashboard/tools/tasks?list=atlas', 'Confirm the supplier delivery date');
+    await save('tools-tasks', ['native task lists, eight dated tasks and completion controls']);
+    await ready('/en/dashboard/tools/contacts', 'Morgan Demo');
+    await page.getByText('Morgan Demo', { exact: true }).first().click();
+    await page.getByText('Project coordinator', { exact: false }).waitFor();
+    await save('tools-contacts', [
+      'native contacts, seven fictional people, two groups and an open contact card',
+    ]);
+    await ready('/en/dashboard/tools/files', 'Launch checklist.pdf');
+    await page.getByText('Launch budget.xlsx', { exact: true }).click();
+    await page.getByText('Contingency', { exact: true }).waitFor();
+    await save('tools-files', [
+      'native Drive browser, two folders, six documents, spreadsheet preview and storage quota',
+    ]);
+    await ready('/en/dashboard/tools/lights', 'Living room');
+    await page.getByText('Customize', { exact: true }).first().click();
+    await save('tools-lights', [
+      'native Hue controls, two rooms, four lamps and three scenes; no device command',
+    ]);
+    await ready('/en/dashboard', 'Design review');
+    await position('My dashboard');
+    const eventRow = page
+      .locator('li')
+      .filter({ has: page.getByText('Design review', { exact: true }) })
+      .first();
+    await eventRow
+      .getByRole('button', { name: input.copy['dashboard.briefing.actions.more'], exact: true })
+      .click();
+    await page.getByRole('menu').waitFor();
+    await save('dashboard-actions', [
+      'native appointment menu, directions, reminder and preparation actions; no action submitted',
+    ]);
+    await page.keyboard.press('Escape');
+  }
+
+  if (!input.onlyNames) {
     await ready('/en/dashboard/settings?section=psyche', 'LIA is calm, curious');
     await position(input.copy['psyche.presentation.point']);
     await save('psyche', [
@@ -344,7 +420,7 @@ async function capture(page: Page, input: CaptureInput) {
     ]);
     await page.setViewportSize({ width: 1440, height: 1100 });
 
-    await ready('/en/dashboard/settings?section=memories', 'Long-term Memory');
+    await ready('/en/dashboard/settings?section=memories', 'Memory');
     await openButton(input.copy['memories.categories.procedural'], false);
     await openButton(input.copy['memories.categories.preference'], false);
     await page
@@ -352,7 +428,7 @@ async function capture(page: Page, input: CaptureInput) {
         exact: true,
       })
       .waitFor({ state: 'visible' });
-    await position('Long-term Memory');
+    await position('Memory');
     await save('memory-library', [
       'real category disclosures, pinned standing instructions and remembered preferences',
       'edit, pin and delete affordances; no memory saved',
@@ -532,8 +608,15 @@ async function capture(page: Page, input: CaptureInput) {
     )
       throw new Error('The real avatar catalogue must show BIP selected');
     const choices = avatarGallery.locator('button[aria-describedby]');
-    if ((await choices.count()) !== 15)
-      throw new Error('The current fifteen-style catalogue did not load');
+    await avatarGallery
+      .getByText(
+        input.copy['settings.eyes_style.catalogue_count_other'].replace(
+          '{{count}}',
+          String(await choices.count())
+        ),
+        { exact: true }
+      )
+      .waitFor({ state: 'visible' });
     let completeVisibleChoices = 0;
     for (const choice of await choices.all()) {
       const preview = choice.locator('.lia-eyes, [data-renderer="hybrid"]').first();
@@ -544,7 +627,7 @@ async function capture(page: Page, input: CaptureInput) {
     if (completeVisibleChoices < 8)
       throw new Error('At least eight complete native style previews must be visible');
     await save('avatar-picker', [
-      'real avatar-style catalogue with fifteen available styles and at least eight complete native preview cards in view',
+      'real avatar-style catalogue, matching its published count, with at least eight complete native preview cards in view',
       'selected BIP choice, feminine and masculine hybrid variants, current-style panel and maximum XL floating male BIP',
       'appearance read from isolated device-local preferences; no account setting or provider operation changed',
     ]);
@@ -605,7 +688,7 @@ export function createExtendedCaptureCode(
     meetingId: MEETING_ID,
     onlyNames,
   };
-  if (EXTENDED_NAMES.length !== 18)
-    throw new Error('Eighteen extended application scenes are required');
+  if (new Set(EXTENDED_NAMES).size !== EXTENDED_NAMES.length)
+    throw new Error('Each extended application scene must have a unique name');
   return `async page => (${capture.toString()})(page, ${JSON.stringify(input)})`;
 }

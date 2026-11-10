@@ -14945,6 +14945,15 @@
         "faq": "FAQ — Searchable help center with categorized Q&A"
       },
       "proof": {
+        "dashboard_actions": "Act on an appointment directly from the dashboard",
+        "tools_mail_menu": "Mail actions in their contextual menu",
+        "tools_mail_assist": "Summarize an email with LIA, beside the original message",
+        "tools_calendar": "Plan the week across your calendars",
+        "tools_tasks": "Organize tasks by list and due date",
+        "tools_contacts": "Find contacts and inspect their details",
+        "tools_files": "Browse documents, folders and shared files",
+        "tools_lights": "Control rooms, lights and scenes",
+        "weather": "Weather cards with air quality and pollen",
         "dashboard": "Your personal hub: daily summary, calendar, emails, tasks and reminders in one place.",
         "tools": "Your tools: the mail, its folders and an open message, without going through the chat.",
         "dossier": "Prepare a decision with mail, documents and meeting notes",
@@ -14955,7 +14964,7 @@
         "administration": "Set instance and account limits",
         "grafana_overview": "Grafana: instance and container resources",
         "grafana_costs": "Grafana: tokens, costs and cache",
-        "grafana_activity": "Grafana: activity, request origins and tools used",
+        "grafana_activity": "Grafana: accounts, conversations and request activity",
         "relations": "Relations · review conversations, useful facts and open commitments before getting back in touch.",
         "meetings": "Detailed meeting report · inspect participants, summary, decisions and assigned actions.",
         "radio": "Personal Radio · see the programme, its transcript and the sources you can inspect.",
@@ -14977,10 +14986,10 @@
         "journal": "Personal journal · revisit the reflections and context kept over time.",
         "avatar_picker": "Avatar picker · preview companion styles and choose LIA’s appearance.",
         "places": "Google Places · inspect a complete place card with opening hours and practical details.",
-        "maps": "Google Maps · inspect a location with its map, coordinates and address.",
+        "maps": "Google Maps · inspect a location with its map and address.",
         "routes": "Routes · read a walking itinerary with its map, distance and travel time.",
         "meetings_list": "Meetings list · browse recordings and reports with their processing states.",
-        "world": "LIA World · a shared house and garden, your avatar and companion (French interface)."
+        "world": "LIA World · a shared house and garden, your avatar and companion."
       }
     },
     "presentation": {
@@ -15295,7 +15304,7 @@
       "tabs_label": "Choose a view",
       "tab_screens": "The application in use",
       "tab_slides": "The deck (15 slides)",
-      "provenance": "Screenshots of the app in English and of LIA World in French, supplied by the project owner. These are demonstration views, not performance measurements."
+      "provenance": "Captures from the actual application and Grafana, with fictional demonstration data. They illustrate the interface, not measured performance."
     },
     "motion": {
       "pause": "Pause the animations"

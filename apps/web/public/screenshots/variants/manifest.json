@@ -8,147 +8,183 @@
   "sources": {
     "dashboard-wide": {
       "original": "/screenshots/dashboard-wide.png",
-      "sha256": "380319fcf7f9191cbd796408383a5c859d146eed4b04d45c754167d51eeca1e7"
+      "sha256": "526d392633ec274c44d0472086eb542de2660369740e2bafd3acafde08b9505b"
     },
-    "dossier": {
-      "original": "/screenshots/proof/dossier.png",
-      "sha256": "b2f43281bc1e55f825fe0b35be07409fe5e6af63d8552cdb24703c09a8c74c82"
-    },
-    "relations": {
-      "original": "/screenshots/proof/relations.png",
-      "sha256": "858aab85d4f4a745cffefb31ff7bcc06c4d87d34f2e939b8ee215299623bbad1"
-    },
-    "radio": {
-      "original": "/screenshots/proof/radio.png",
-      "sha256": "19adfa141897aff48fd269aaf0ded066b9c9b947628122e123a8f7963c65f90b"
-    },
-    "places": {
-      "original": "/screenshots/proof/places.png",
-      "sha256": "98663abe581a65f2307e46fe12aeb1d60ac72635f3fa1346e075732d1c0a69f4"
-    },
-    "maps": {
-      "original": "/screenshots/proof/maps.png",
-      "sha256": "8fe9cf3c4add901bb98c677c71fa954c805c140797cb933cd706831738628662"
-    },
-    "routes": {
-      "original": "/screenshots/proof/routes.png",
-      "sha256": "0faed007bc02ded2fc3ede29d88c8ea6ac4369addac5c204ccb19ada1643df1a"
-    },
-    "memory-library": {
-      "original": "/screenshots/proof/memory-library.png",
-      "sha256": "7ff59464e68ec190393e8f2bd1bcdf4759fe4c10c44ef709cfb05060bb1a0df7"
-    },
-    "memory": {
-      "original": "/screenshots/proof/memory.png",
-      "sha256": "327bbb6adba4320a22d2205cabaa6688e46eed53fe130132ab0967803c012eba"
-    },
-    "portrait": {
-      "original": "/screenshots/proof/portrait.png",
-      "sha256": "51884b490ccf9f34f76c9ec12393163fff4edbef80e343418f67336a826b8516"
-    },
-    "avatar-picker": {
-      "original": "/screenshots/proof/avatar-picker.png",
-      "sha256": "c6b66484e9ba0680eba9cd7b3f44f411951ed3cb438b1344175676e20d39e0ab"
-    },
-    "psyche": {
-      "original": "/screenshots/proof/psyche.png",
-      "sha256": "17d5fabe14f61d7f4d25aaf7b84202a0b7db1300c820708c9bfbfcf89f306533"
-    },
-    "psyche-evolution": {
-      "original": "/screenshots/proof/psyche-evolution.png",
-      "sha256": "fdd6838f910aaac2a8deaba9ead0392c524be8a7c7cced9f268497cf1bd47d77"
-    },
-    "journal": {
-      "original": "/screenshots/proof/journal.png",
-      "sha256": "f12a2c3274889829cf07ba77f7e2e6d4c630af12d578471692369183c95a5901"
-    },
-    "routine-studio": {
-      "original": "/screenshots/proof/routine-studio.png",
-      "sha256": "712354031d717570e35b7cc2eb964608bd65882fd580ff94403af1758ff6b7de"
-    },
-    "routine-week": {
-      "original": "/screenshots/proof/routine-week.png",
-      "sha256": "c870c350c5982f3821d81efebdad8638a0c8193397a7b1c96910f5e22cf317ce"
-    },
-    "workboard": {
-      "original": "/screenshots/proof/workboard.png",
-      "sha256": "a6c81d2421cb4e88fb27f2cd73b93169f531774f3f233582cfb664d98b33ef2d"
-    },
-    "workboard-dossier": {
-      "original": "/screenshots/proof/workboard-dossier.png",
-      "sha256": "e40f1671e94f12415e8b330dbf196b42eb8b5dbcd56938acb07b9581a039e1ce"
-    },
-    "knowledge-library": {
-      "original": "/screenshots/proof/knowledge-library.png",
-      "sha256": "da931e3f71d6741f85a5facc9c21fd424c35974117a6df0d3214c06b5501a80a"
-    },
-    "knowledge": {
-      "original": "/screenshots/proof/knowledge.png",
-      "sha256": "ccd850ba796a55a0eb487b9e152948070b0e0abad750aefcbb6f4bf180f179a1"
-    },
-    "meetings-list": {
-      "original": "/screenshots/proof/meetings-list.png",
-      "sha256": "7324db3d9abcdb3ecd8b62545617df22e36cfb1a13cebfce6084d85033c154cf"
-    },
-    "meetings": {
-      "original": "/screenshots/proof/meetings.png",
-      "sha256": "5d2129a61ea927f099c3a3cd39eef95f71059e9be460918f7d09f127c913075a"
-    },
-    "meeting-transcript": {
-      "original": "/screenshots/proof/meeting-transcript.png",
-      "sha256": "3e462d326a4ba83788b22f3ac04381590164a10178d56a1163e8f9714e087ef2"
-    },
-    "meeting-templates": {
-      "original": "/screenshots/proof/meeting-templates.png",
-      "sha256": "931b2c3aaa1cffa6ccdffdb887b5e281401831b7d50513be3977e51fbb9cab6b"
-    },
-    "approval": {
-      "original": "/screenshots/proof/approval.png",
-      "sha256": "4923efc20dadc162e08bb99171e7ba4d9557ca7af6aaf224ad88895b53e3fe0d"
-    },
-    "connections": {
-      "original": "/screenshots/proof/connections.png",
-      "sha256": "d8312421bd316fef8c329fad6980d062a11015fcebbcca82fcf5165b46bf972b"
-    },
-    "skills-library": {
-      "original": "/screenshots/proof/skills-library.png",
-      "sha256": "d7abda308b2f0f8399a13976fd6d1b75242910ce1fa1148580f2c55124ccf31e"
-    },
-    "skill": {
-      "original": "/screenshots/proof/skill.png",
-      "sha256": "b5da49e4815d13bd054f7b76d9651c4104fd50a4822a90fb7ba2c05c4b44e839"
-    },
-    "model-routing": {
-      "original": "/screenshots/proof/model-routing.png",
-      "sha256": "8015c3e5445a67d1210cff104e96b5b49e6b1e2dc3bb62a3f0cef492e6aa25ce"
-    },
-    "consumption": {
-      "original": "/screenshots/proof/consumption.png",
-      "sha256": "6ed0e97dc20d7e3f2111702d762383145c0ab17ac037819a29c7a2756ac9d2b2"
-    },
-    "administration": {
-      "original": "/screenshots/proof/administration.png",
-      "sha256": "597c6e8b67e234ca5c66c0015e7fd4c0c8f1f4999a46f438afa5d8f8047d3fd4"
+    "dashboard-actions": {
+      "original": "/screenshots/proof/dashboard-actions.png",
+      "sha256": "b1ca4df7c8ea3b4fb059640da69e461f931acc4897a7cc61cde0f6230337e6a4"
     },
     "tools": {
       "original": "/screenshots/proof/tools.png",
-      "sha256": "0799b5d5aff7de12c921090f2dfcfe9a590fa865879e5e1215b115625584295c"
+      "sha256": "f9d7331f88301c6bb4449b65c162774a4f64d8a0fca58e88a0f28b89bc1dbd73"
+    },
+    "tools-mail-menu": {
+      "original": "/screenshots/proof/tools-mail-menu.png",
+      "sha256": "7274b2e39bc825fd1a91f4105b6accce8a85efba88ffcff3baf5b151fa720d15"
+    },
+    "tools-mail-assist": {
+      "original": "/screenshots/proof/tools-mail-assist.png",
+      "sha256": "492debdb84704b5c88d1f1ec04212528aa330dc97849840e420672f21b030e65"
+    },
+    "tools-calendar": {
+      "original": "/screenshots/proof/tools-calendar.png",
+      "sha256": "40463429c2e96e666b6e39f02bb349bb67924daecadc8b1b5a957865782af76a"
+    },
+    "tools-tasks": {
+      "original": "/screenshots/proof/tools-tasks.png",
+      "sha256": "70a2f9fa1a58ad10ffa765eb7795532889c69a265a5d5d3120364881208a5151"
+    },
+    "tools-contacts": {
+      "original": "/screenshots/proof/tools-contacts.png",
+      "sha256": "c5ae8b3a06b9c897bb7ee3e6cac7bdd2c3db00102c88630d059e37911997b1cf"
+    },
+    "tools-files": {
+      "original": "/screenshots/proof/tools-files.png",
+      "sha256": "cf56bb7d9b40114274948a85cd5a3b45656b66d36c1880db43f5220a8de8287c"
+    },
+    "tools-lights": {
+      "original": "/screenshots/proof/tools-lights.png",
+      "sha256": "58757e855d2e88a9af5cdece5c7115edac27483e22f50c5532ab7354f8e0206d"
+    },
+    "dossier": {
+      "original": "/screenshots/proof/dossier.png",
+      "sha256": "b6a11097bb839bf4fade4735905758e42982bdc04aa41129606162d892b59a90"
+    },
+    "relations": {
+      "original": "/screenshots/proof/relations.png",
+      "sha256": "1911b9d630f1d5d69bb150793ea0ec26c52ec41490403d4db42fd3423f2cc002"
+    },
+    "radio": {
+      "original": "/screenshots/proof/radio.png",
+      "sha256": "169ce8160c5721d416ad686e789c0eade7d12a545d53c80768660d5b33cf7d99"
+    },
+    "weather": {
+      "original": "/screenshots/proof/weather.png",
+      "sha256": "cfede9c84799f02ac0a7121b8f84a5be80299b11f0b748ca5d2e7caa4e5c3673"
+    },
+    "places": {
+      "original": "/screenshots/proof/places.png",
+      "sha256": "da81dedbef594f81ec420f5c82b0b74fd2bfee0fd34b734192b036119b920d6e"
+    },
+    "maps": {
+      "original": "/screenshots/proof/maps.png",
+      "sha256": "b7d445bec53880c1423f19e0bca2a60a8951e75346b3f460d39858f177e38a34"
+    },
+    "routes": {
+      "original": "/screenshots/proof/routes.png",
+      "sha256": "0bf8523901d14222db7cd2374a05dd09f86cf161aff9e9315f8046541c2d751f"
+    },
+    "memory-library": {
+      "original": "/screenshots/proof/memory-library.png",
+      "sha256": "57d4d45b0ff7b145fbe9d9e134f2e61c4018fd37ceadd8abfd500d92edf2c017"
+    },
+    "memory": {
+      "original": "/screenshots/proof/memory.png",
+      "sha256": "b3a111d59d11c046feeef3397c6992f669a05ac25c2bd0710338cfba2595db9d"
+    },
+    "portrait": {
+      "original": "/screenshots/proof/portrait.png",
+      "sha256": "d953c17b9b91d781aa58c39f5b4a6aa4a0df2d487f0897eaf8a899ecb6f733f3"
+    },
+    "avatar-picker": {
+      "original": "/screenshots/proof/avatar-picker.png",
+      "sha256": "f6d250e89b01b04ece2d16f57feaa9c75dc13a5ef0f1e83a34bcb66af5ab0a33"
+    },
+    "psyche": {
+      "original": "/screenshots/proof/psyche.png",
+      "sha256": "9667f6a1913f1e6914bfcd92da9c05b689b82bce0bbb2ef25fa7c13bdc30b499"
+    },
+    "psyche-evolution": {
+      "original": "/screenshots/proof/psyche-evolution.png",
+      "sha256": "190e4c5cb28ae85a9891e4674c0e6c54da6ae80a263994ef659c2f1b26b74b08"
+    },
+    "journal": {
+      "original": "/screenshots/proof/journal.png",
+      "sha256": "a7bbe47b1792f490ecd92a94a0626afcce51ed7189813c6ac98a2925bdf557ef"
+    },
+    "routine-studio": {
+      "original": "/screenshots/proof/routine-studio.png",
+      "sha256": "89b105aed90d0d3017adfdbe2b57edb3e0e22258b317af2ed8b747a3fc1f03ce"
+    },
+    "routine-week": {
+      "original": "/screenshots/proof/routine-week.png",
+      "sha256": "c19db176a0e27c65e248757db7976b4a4e6eb0d913ef1bf1c9ed5c4ed2b9868a"
+    },
+    "workboard": {
+      "original": "/screenshots/proof/workboard.png",
+      "sha256": "9b4c7c55c84c5922debc1e6ee2698a4262d648217e14f1c31313e936fe37bdc7"
+    },
+    "workboard-dossier": {
+      "original": "/screenshots/proof/workboard-dossier.png",
+      "sha256": "d7884596f516fbf6bdc0f6853422948183f1733f4286e296b501eef3f0c676f7"
+    },
+    "knowledge-library": {
+      "original": "/screenshots/proof/knowledge-library.png",
+      "sha256": "433b7eef120f3f5f5c6659c41c8016a5b3b85f5bcab7efa04731366b1a5c9253"
+    },
+    "knowledge": {
+      "original": "/screenshots/proof/knowledge.png",
+      "sha256": "f1741e98978379f322b2813b635302e2b3f2687f4b210eb623986323517bcf06"
+    },
+    "meetings-list": {
+      "original": "/screenshots/proof/meetings-list.png",
+      "sha256": "4ff776439db2501600144e01be5a12bd00f69e7f6161badd946b1a8d11e80768"
+    },
+    "meetings": {
+      "original": "/screenshots/proof/meetings.png",
+      "sha256": "95205cb4591565f5a05a959968311fd1849e8dce0aa136db8b3493e335fa946c"
+    },
+    "meeting-transcript": {
+      "original": "/screenshots/proof/meeting-transcript.png",
+      "sha256": "31c5a1ee97a14602cff94e345c26ad37917388e40b6d376875391ad2a64ee3b3"
+    },
+    "meeting-templates": {
+      "original": "/screenshots/proof/meeting-templates.png",
+      "sha256": "64e0427e81d9f07ed807c17111cba2e3a704a61b37b5d36a1ee199d3617b20bd"
+    },
+    "approval": {
+      "original": "/screenshots/proof/approval.png",
+      "sha256": "c7aaf10f976f8d4aa786f1d3fdd73ab0566973242720bdfac6f8940c8f0f61b3"
+    },
+    "connections": {
+      "original": "/screenshots/proof/connections.png",
+      "sha256": "b5b904556314beffa639d3e4ed117da57aa1a15819381a0635cb6c28b9a8dc86"
+    },
+    "skills-library": {
+      "original": "/screenshots/proof/skills-library.png",
+      "sha256": "001a38462f5189a7de69013bbfd481b451039e666d7b8514b4479c4e67e42308"
+    },
+    "skill": {
+      "original": "/screenshots/proof/skill.png",
+      "sha256": "160a5d0a49098ff5fca34df52c759f115025d6e8c14484489be83711057bc466"
+    },
+    "model-routing": {
+      "original": "/screenshots/proof/model-routing.png",
+      "sha256": "2745928c15f934c8cf4a41124cce31814efd9da57f189e1219a7c9cddf6ded51"
+    },
+    "consumption": {
+      "original": "/screenshots/proof/consumption.png",
+      "sha256": "1617194e4d848979cc2b81388dd9300e396a984964ab0c5f56947cb4c699579e"
+    },
+    "administration": {
+      "original": "/screenshots/proof/administration.png",
+      "sha256": "87086184f929d33535c049f49e3dcb1e513cb72cafcc1972ea3070a2de291d3f"
     },
     "lia-world": {
       "original": "/screenshots/proof/lia-world.jpg",
-      "sha256": "f5d7ac542d8135c9a81baca445787246fe4f568b5abfbe8f9e34702067f2bab6"
+      "sha256": "7e3f9ea1bad93d73752f88074135813d080fa6b91da86e13a19d76814fb12d51"
     },
     "grafana-overview": {
       "original": "/screenshots/proof/grafana-overview.png",
-      "sha256": "1adecad4734d18dfa4891f3d97d82ac88396c8565e32ea952d8953a1ed82572c"
+      "sha256": "9e8194fa797f10f89d5a51da6c16bb9b97192be8ce1485f7205277a1f347898f"
     },
     "grafana-costs": {
       "original": "/screenshots/proof/grafana-costs.png",
-      "sha256": "cbcf2fde1e15461dd9b7cb6a1f07f1c695e745a3eac9cd0abbd7e431bea78468"
+      "sha256": "c307d640e6631739d4ebc2a7400a73a0058354e6bc1e8684bc6292933c5e7c8b"
     },
     "grafana-activity": {
       "original": "/screenshots/proof/grafana-activity.png",
-      "sha256": "a45cb0b3f6e167e0a06744b6454062782e83cecc83fe01836b74f4bf043f2260"
+      "sha256": "8edbcc30d29aab6ad81c974c573143fd5bc7771b1ec7ba747a42ae3266796e19"
     }
   }
 }

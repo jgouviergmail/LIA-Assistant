@@ -742,17 +742,21 @@ Define the deployment's identity, permissions, business sources, usage rules, in
 Browse the views that interest you; open any image at full resolution.
 
 <details>
-<summary><strong>Start here — conversation, Relations, personal Radio and LIA World</strong></summary>
+<summary><strong>Start here — your dashboard, conversations, Relations and personal Radio</strong></summary>
+
+
 
 <p align="center">
-  <a href="docs/assets/screenshot-lia-world.jpg"><img src="docs/assets/screenshot-lia-world.jpg" alt="LIA World — isometric campus, LIA companion, private home and rooms leading to native functions" width="1000" /></a>
-  <br /><em>LIA World — a shared campus and a private place for your assistant.</em>
-</p>
-
-<p align="center">
-  <a href="docs/assets/screenshot-homepage.png"><img src="docs/assets/screenshot-homepage.png" alt="Personal home dashboard — daily briefing, agenda, mail, tasks and reminders" width="1000" /></a>
+  <a href="apps/web/public/screenshots/dashboard-wide.png"><img src="apps/web/public/screenshots/dashboard-wide.png" alt="Personal home dashboard — daily briefing, agenda, mail, tasks and reminders" width="1000" /></a>
   <br /><em>Your personal hub — the day’s priorities, appointments and useful context in one place.</em>
 </p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/dashboard-actions.png"><img src="apps/web/public/screenshots/proof/dashboard-actions.png" alt="Dashboard — appointment menu with directions, reminder and meeting preparation" width="1000" /></a>
+  <br /><em>Act from a dashboard card: get directions, set a reminder or prepare an appointment.</em>
+</p>
+
+
 
 <p align="center">
   <a href="apps/web/public/screenshots/proof/dossier.png"><img src="apps/web/public/screenshots/proof/dossier.png" alt="Chat — project sources, conflicting dates and practical next steps" width="1000" /></a>
@@ -769,10 +773,65 @@ Browse the views that interest you; open any image at full resolution.
   <br /><em>Follow a personal programme with its transcript and inspectable sources.</em>
 </p>
 
+<p align="center">
+  <a href="docs/assets/screenshot-lia-world.jpg"><img src="docs/assets/screenshot-lia-world.jpg" alt="LIA World — isometric campus, LIA companion, private home and rooms leading to native functions" width="1000" /></a>
+  <br /><em>LIA World — a shared campus and a private place for your assistant.</em>
+</p>
+
 </details>
 
 <details>
-<summary><strong>Places, maps and routes in rich conversations</strong></summary>
+<summary><strong>Your tools — mail, calendar, tasks, contacts, files and lights</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools.png"><img src="apps/web/public/screenshots/proof/tools.png" alt="Mail — inbox, open message, attachments and labels" width="1000" /></a>
+  <br /><em>Read and manage your mailbox with the message and its attachments beside the list.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-mail-menu.png"><img src="apps/web/public/screenshots/proof/tools-mail-menu.png" alt="Mail — contextual menu on an open message" width="1000" /></a>
+  <br /><em>Open the real action menu for replies, labels and mailbox operations.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-mail-assist.png"><img src="apps/web/public/screenshots/proof/tools-mail-assist.png" alt="Mail — LIA summary, key points and suggested next steps" width="1000" /></a>
+  <br /><em>Ask LIA to summarize the message without leaving your mailbox.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-calendar.png"><img src="apps/web/public/screenshots/proof/tools-calendar.png" alt="Calendar — week view, two calendars and appointments" width="1000" /></a>
+  <br /><em>Plan the week across your calendars, with appointments and task deadlines in view.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-tasks.png"><img src="apps/web/public/screenshots/proof/tools-tasks.png" alt="Tasks — project lists, deadlines and completion controls" width="1000" /></a>
+  <br /><em>Organize a project’s next steps and mark completed work.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-contacts.png"><img src="apps/web/public/screenshots/proof/tools-contacts.png" alt="Contacts — address book and open contact details" width="1000" /></a>
+  <br /><em>Find a contact and read their details and recent exchanges.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-files.png"><img src="apps/web/public/screenshots/proof/tools-files.png" alt="Files — Drive browser and spreadsheet preview" width="1000" /></a>
+  <br /><em>Browse your files and inspect a budget directly in the application.</em>
+</p>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/tools-lights.png"><img src="apps/web/public/screenshots/proof/tools-lights.png" alt="Lights — rooms, brightness, colour and scenes" width="1000" /></a>
+  <br /><em>Adjust connected lights through the native room and lamp controls.</em>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Native cards — weather, places, maps and routes</strong></summary>
+
+<p align="center">
+  <a href="apps/web/public/screenshots/proof/weather.png"><img src="apps/web/public/screenshots/proof/weather.png" alt="Weather — native card with air quality, pollen and conditions" width="1000" /></a>
+  <br /><em>Read current conditions, air quality and pollen together on the weather card.</em>
+</p>
 
 <p align="center">
   <a href="apps/web/public/screenshots/proof/places.png"><img src="apps/web/public/screenshots/proof/places.png" alt="Google Places — complete place card with opening hours and practical details" width="1000" /></a>
@@ -780,8 +839,8 @@ Browse the views that interest you; open any image at full resolution.
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/maps.png"><img src="apps/web/public/screenshots/proof/maps.png" alt="Google Maps — location card with geographic map, coordinates and address" width="1000" /></a>
-  <br /><em>Inspect a location with its geographic map, coordinates and address in the conversation.</em>
+  <a href="apps/web/public/screenshots/proof/maps.png"><img src="apps/web/public/screenshots/proof/maps.png" alt="Google Maps — location card with geographic map and address" width="1000" /></a>
+  <br /><em>Inspect a location with its geographic map and address in the conversation.</em>
 </p>
 
 <p align="center">
@@ -936,16 +995,12 @@ Browse the views that interest you; open any image at full resolution.
 
 </details>
 
-The [Administration & Monitoring](#administration--monitoring) section below includes the three Grafana views supplied by the project.
+The [Administration & Monitoring](#administration--monitoring) section below includes the current provisioned Grafana dashboards with fictional metric values.
 
 <details>
 <summary><strong>Capture notes, manifests and reproduction commands</strong></summary>
 
-The World illustration above is the owner's supplied French application capture,
-published with this release. It is an unmodified illustration of the current
-interface; its visible account name is part of that supplied image. Its
-[provenance manifest](apps/web/public/screenshots/proof/world-manifest.json)
-distinguishes it from the automated fictional-data captures below.
+The World view is captured from the current application's canvas with fictional people and an isolated session. Its [provenance manifest](apps/web/public/screenshots/proof/world-manifest.json) records the unmodified screenshot.
 
 Explore the real application interface in English and light mode, filled with fictional demonstration data. The geographic maps and walking route use [real Google Maps imagery and geographic data](apps/web/e2e/fixtures/maps/provenance.json), prepared separately and served locally with attribution. The browser captures exercise the actual pages, controls and widgets without model inference, provider calls, connected accounts or external actions. Radio uses a local silent audio fixture. The interactive budget is a custom skill example produced by an executed [Python fixture generator](apps/web/e2e/capture/render_trip_budget.py); its estimates are illustrative and no booking is made.
 
@@ -1032,7 +1087,7 @@ A panel embedded in the chat, organised into six groups; an empty section shows 
 
 ### See the instance from the operator's side
 
-These three Grafana screenshots were supplied by the project owner and reproduced unchanged. Their figures show the supplied dashboard state; the [Grafana manifest](apps/web/public/screenshots/proof/grafana-manifest.json) records their origin and dimensions.
+These screenshots show the current provisioned Grafana dashboards with fictional metric values served locally. They illustrate the interface, not measured production performance. The [Grafana manifest](apps/web/public/screenshots/proof/grafana-manifest.json) records their sources and dimensions.
 
 <p align="center">
   <a href="apps/web/public/screenshots/proof/grafana-overview.png"><img src="apps/web/public/screenshots/proof/grafana-overview.png" alt="Grafana — Host CPU, memory, disk, network and container resources" width="1200" /></a>
@@ -1045,8 +1100,8 @@ These three Grafana screenshots were supplied by the project owner and reproduce
 </p>
 
 <p align="center">
-  <a href="apps/web/public/screenshots/proof/grafana-activity.png"><img src="apps/web/public/screenshots/proof/grafana-activity.png" alt="Grafana — Request origins and rates, account activity, tool usage and router intents" width="1200" /></a>
-  <br /><em>Grafana — request origins and rates, account activity, tool usage and router intents.</em>
+  <a href="apps/web/public/screenshots/proof/grafana-activity.png"><img src="apps/web/public/screenshots/proof/grafana-activity.png" alt="Grafana — Accounts, conversations, logins and request activity" width="1200" /></a>
+  <br /><em>Grafana — accounts, conversations, logins and request activity.</em>
 </p>
 
 </details>

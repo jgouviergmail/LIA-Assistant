@@ -1,11 +1,11 @@
 {
-  "revision": "1cdb536680f3b466",
-  "capturedAt": "2026-10-16T23:00:09.121Z",
+  "revision": "528f8f971dc19f10",
+  "capturedAt": "2026-11-10T11:16:13.980Z",
   "fixtureTime": "2026-10-12T07:30:00Z",
   "locale": "en",
   "theme": "light",
   "data": "Fictional demonstration data only; no account or backend access.",
-  "sourceCommit": "04137b040016b060e491c29f840efdb3c50dcfdb",
+  "sourceCommit": "297142e989cd16f11a48567a025177ec6bb92ee0",
   "sourceIncludesLocalChanges": true,
   "transportGuard": {
     "blockedRequests": []
@@ -15,93 +15,93 @@
     "variant": "male",
     "size": "xl",
     "gaze": "Real pointer movements towards the centre and upper content; native motion enabled.",
-    "responsivePreview": "The mobile PWA view preserves native avoidance and compaction."
+    "responsivePreview": "The dashboard and FAQ use the native minimize control to keep the demonstrated content clear."
   },
   "visualReview": {
-    "reviewedAt": "2026-10-16T23:02:11.2934477Z",
-    "method": "Every final PNG opened and visually inspected after native EventCard replacement and removal of the game; English light UI, complete populated content, legible cards, genuine maximum-size BIP, native mobile/FAQ exceptions.",
+    "reviewedAt": "2026-11-10T11:21:13.139760+00:00",
+    "method": "Visual inspection of the browser captures and corrected retakes; native layouts, readable content, fictional identities, coherent examples and no visible application error. Floating companion minimized through the native control where it obscures the demonstrated content.",
     "images": [
       {
         "file": "homepage.png",
-        "sha256": "a52358dae090826afe9623805bce3d92db6116799b87fbdb8480e48cc877d0bf",
+        "sha256": "c02566f52e43a943cdff62a9884544f668fd831faf29ea78a879afdad091a593",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "chat.png",
-        "sha256": "f6d9767e3b900c8dace44f2ea7f61162ab654c473cc56fc571e596fa8c2dee65",
+        "sha256": "0c57e2f730b4e1c113dfb0eaf81dd44414ab46c534524d5b98cac48bbb3deb78",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "chat-debug-panel.png",
-        "sha256": "7e3db3305b216a34f8af7b05ffdb2c89d66d0a348e4f033dadb997bc3875923a",
+        "sha256": "ad0dee680117c1238198f094187e3f1bc777b838854cad608d2d17af216f7a68",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "chat-interactive-skills.png",
-        "sha256": "5887b5443dc9c9e33dc006164f664061207ef9f80d6287ce64dc3a192630648f",
+        "sha256": "ba8fd62a74d0ed512cbfe6d19dbb15e19f9689518e773a06a0958eec73c7f94e",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-preferences.png",
-        "sha256": "f43b2c3c252c90521a6038696f5db8ae4323688bec74175464cb5e008907a22e",
+        "sha256": "d871632489d50fa0a9f4f9f1b671ed6e618ba09f68544880968e93b8d4ac2629",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-features.png",
-        "sha256": "2fbb8cfb84e09ae3a9f7247c12e8944879b7c89870133dbd932904933224c4c1",
+        "sha256": "3ff6ab14ed912bd310354884c8bd1e39bcd260ee5285f1d4927ded82860d9dce",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-features-memory.png",
-        "sha256": "dd8618551160a6133eacc5d7c8380913d3e89332b15f3bb264ec79dbe704239d",
+        "sha256": "0668edd3508c9998ecb82dcc40efb8eefb2acd8d38cf315a3ceaf8b6700c3624",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-features-psyche.png",
-        "sha256": "fa841fea7449655693280a65d51e46d01ea67a45819d6f65add5fe1ab40d8637",
+        "sha256": "f216a122a3a01373b86644a18305dee9f37f9b7f5d03a1a81f8aeb1be3f03fba",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-administration.png",
-        "sha256": "60ed3de94925ffdc58b8725080792633a950a4821e0a2dc186fae2eaabfec9ad",
+        "sha256": "af0ddf70fcd2c1573fd5616ef521e577f37f636f760d629d37f03920fd364f49",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-administration-oneclick.png",
-        "sha256": "24946d690e5d86b4959722b8ad39329694c77fadd4b42945b23b811867a4397e",
+        "sha256": "3da154299fc637ca48357ef3a918f140c870596bd17fcb6e8d97978d1901a6d6",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "settings-administration-llm.png",
-        "sha256": "740080f263cc462fa335c728fead1189d5a99a64ea481a34b08a0f6fa4bfc0dd",
+        "sha256": "651f7f12559ded684d58402b82151348945c71468696a0bf099e7d5abde7ce20",
         "approved": true,
         "avatarPainted": true
       },
       {
         "file": "faq.png",
-        "sha256": "b569d7be40f6d5bf2c05e195d8db193abe8c6efa293bbfb67fb8f893f63bc373",
+        "sha256": "66c4059b8789ca2452e9d39b46b402795963a3af3d29c83cf63914bc85d40a13",
         "approved": true,
         "avatarPainted": false
       },
       {
         "file": "dashboard-wide.png",
-        "sha256": "380319fcf7f9191cbd796408383a5c859d146eed4b04d45c754167d51eeca1e7",
+        "sha256": "526d392633ec274c44d0472086eb542de2660369740e2bafd3acafde08b9505b",
         "approved": true,
-        "avatarPainted": true
+        "avatarPainted": false
       },
       {
         "file": "dashboard-narrow.png",
-        "sha256": "e051e56c72e410923e6a153ccf7a56c198ff6f04d5c4c189a59b0f42f589f58b",
+        "sha256": "bf25823f90e929459b203b738b421d3b25644855b9b3eb26bd17e092fef15295",
         "approved": true,
         "avatarPainted": false
       }
@@ -110,85 +110,85 @@
   "images": [
     {
       "file": "homepage.png",
-      "sha256": "a52358dae090826afe9623805bce3d92db6116799b87fbdb8480e48cc877d0bf",
+      "sha256": "c02566f52e43a943cdff62a9884544f668fd831faf29ea78a879afdad091a593",
       "width": 1600,
-      "height": 3421
+      "height": 3379
     },
     {
       "file": "chat.png",
-      "sha256": "f6d9767e3b900c8dace44f2ea7f61162ab654c473cc56fc571e596fa8c2dee65",
+      "sha256": "0c57e2f730b4e1c113dfb0eaf81dd44414ab46c534524d5b98cac48bbb3deb78",
       "width": 1600,
-      "height": 1400
+      "height": 1600
     },
     {
       "file": "chat-debug-panel.png",
-      "sha256": "7e3db3305b216a34f8af7b05ffdb2c89d66d0a348e4f033dadb997bc3875923a",
+      "sha256": "ad0dee680117c1238198f094187e3f1bc777b838854cad608d2d17af216f7a68",
       "width": 1600,
-      "height": 1400
+      "height": 1600
     },
     {
       "file": "chat-interactive-skills.png",
-      "sha256": "5887b5443dc9c9e33dc006164f664061207ef9f80d6287ce64dc3a192630648f",
+      "sha256": "ba8fd62a74d0ed512cbfe6d19dbb15e19f9689518e773a06a0958eec73c7f94e",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-preferences.png",
-      "sha256": "f43b2c3c252c90521a6038696f5db8ae4323688bec74175464cb5e008907a22e",
+      "sha256": "d871632489d50fa0a9f4f9f1b671ed6e618ba09f68544880968e93b8d4ac2629",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-features.png",
-      "sha256": "2fbb8cfb84e09ae3a9f7247c12e8944879b7c89870133dbd932904933224c4c1",
+      "sha256": "3ff6ab14ed912bd310354884c8bd1e39bcd260ee5285f1d4927ded82860d9dce",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-features-memory.png",
-      "sha256": "dd8618551160a6133eacc5d7c8380913d3e89332b15f3bb264ec79dbe704239d",
+      "sha256": "0668edd3508c9998ecb82dcc40efb8eefb2acd8d38cf315a3ceaf8b6700c3624",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-features-psyche.png",
-      "sha256": "fa841fea7449655693280a65d51e46d01ea67a45819d6f65add5fe1ab40d8637",
+      "sha256": "f216a122a3a01373b86644a18305dee9f37f9b7f5d03a1a81f8aeb1be3f03fba",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-administration.png",
-      "sha256": "60ed3de94925ffdc58b8725080792633a950a4821e0a2dc186fae2eaabfec9ad",
+      "sha256": "af0ddf70fcd2c1573fd5616ef521e577f37f636f760d629d37f03920fd364f49",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-administration-oneclick.png",
-      "sha256": "24946d690e5d86b4959722b8ad39329694c77fadd4b42945b23b811867a4397e",
+      "sha256": "3da154299fc637ca48357ef3a918f140c870596bd17fcb6e8d97978d1901a6d6",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "settings-administration-llm.png",
-      "sha256": "740080f263cc462fa335c728fead1189d5a99a64ea481a34b08a0f6fa4bfc0dd",
+      "sha256": "651f7f12559ded684d58402b82151348945c71468696a0bf099e7d5abde7ce20",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "faq.png",
-      "sha256": "b569d7be40f6d5bf2c05e195d8db193abe8c6efa293bbfb67fb8f893f63bc373",
+      "sha256": "66c4059b8789ca2452e9d39b46b402795963a3af3d29c83cf63914bc85d40a13",
       "width": 1600,
       "height": 1200
     },
     {
       "file": "dashboard-wide.png",
-      "sha256": "380319fcf7f9191cbd796408383a5c859d146eed4b04d45c754167d51eeca1e7",
+      "sha256": "526d392633ec274c44d0472086eb542de2660369740e2bafd3acafde08b9505b",
       "width": 1600,
-      "height": 1100
+      "height": 1500
     },
     {
       "file": "dashboard-narrow.png",
-      "sha256": "e051e56c72e410923e6a153ccf7a56c198ff6f04d5c4c189a59b0f42f589f58b",
+      "sha256": "bf25823f90e929459b203b738b421d3b25644855b9b3eb26bd17e092fef15295",
       "width": 390,
       "height": 844
     }

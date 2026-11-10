@@ -41,9 +41,19 @@ export interface CaptureView {
 // Capture campaigns describe provenance; they must not dictate browsing order.
 export const APPLICATION_VIEWS = [
   { key: 'dashboard', file: 'dashboard-wide', campaign: 'home' },
+  { key: 'dashboard_actions', file: 'dashboard-actions', campaign: 'extended' },
+  { key: 'tools', file: 'tools', campaign: 'extended' },
+  { key: 'tools_mail_menu', file: 'tools-mail-menu', campaign: 'extended' },
+  { key: 'tools_mail_assist', file: 'tools-mail-assist', campaign: 'extended' },
+  { key: 'tools_calendar', file: 'tools-calendar', campaign: 'extended' },
+  { key: 'tools_tasks', file: 'tools-tasks', campaign: 'extended' },
+  { key: 'tools_contacts', file: 'tools-contacts', campaign: 'extended' },
+  { key: 'tools_files', file: 'tools-files', campaign: 'extended' },
+  { key: 'tools_lights', file: 'tools-lights', campaign: 'extended' },
   { key: 'dossier', file: 'dossier', campaign: 'application' },
   { key: 'relations', file: 'relations', campaign: 'application' },
   { key: 'radio', file: 'radio', campaign: 'application' },
+  { key: 'weather', file: 'weather', campaign: 'application' },
   { key: 'places', file: 'places', campaign: 'application' },
   { key: 'maps', file: 'maps', campaign: 'application' },
   { key: 'routes', file: 'routes', campaign: 'application' },
@@ -81,7 +91,6 @@ export const MONITORING_VIEWS = [
 
 // Shown by their landing chapter alone, never repeated in the gallery.
 export const CHAPTER_VIEWS = [
-  { key: 'tools', file: 'tools', campaign: 'tools' },
   { key: 'world', file: 'lia-world', campaign: 'world' },
 ] as const satisfies readonly CaptureView[];
 

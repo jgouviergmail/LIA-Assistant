@@ -14860,6 +14860,15 @@
         "faq": "常见问题 — 可搜索的分类帮助中心"
       },
       "proof": {
+        "dashboard_actions": "直接在仪表盘中处理日程",
+        "tools_mail_menu": "在上下文菜单中操作邮件",
+        "tools_mail_assist": "在原始邮件旁使用 LIA 生成摘要",
+        "tools_calendar": "通过日历规划一周",
+        "tools_tasks": "按列表和截止日期管理任务",
+        "tools_contacts": "查找联系人并查看详细信息",
+        "tools_files": "浏览文档、文件夹和共享文件",
+        "tools_lights": "控制房间、灯光和场景",
+        "weather": "展示空气质量和花粉信息的天气卡片",
         "dashboard": "你的个人中心：每日摘要、日程、邮件、任务与提醒，一处查看。",
         "tools": "你的工具：邮件、文件夹和打开的邮件，无需经过聊天。",
         "dossier": "结合邮件、文档与会议纪要准备决策",
@@ -14870,7 +14879,7 @@
         "administration": "设置实例及账户额度",
         "grafana_overview": "Grafana：实例与容器资源",
         "grafana_costs": "Grafana：token、费用与缓存",
-        "grafana_activity": "Grafana：活动、请求来源与使用的工具",
+        "grafana_activity": "Grafana：账户、对话和请求活动",
         "relations": "人际关系 · 再次联系前，查阅交流、相关事实与尚未完成的承诺。",
         "meetings": "详细会议报告 · 查看参与者、摘要、决策与分配的行动事项。",
         "radio": "个人 Radio · 查看节目、文字稿与可查阅的来源。",
@@ -14891,11 +14900,11 @@
         "consumption": "用量 · 查看使用情况、费用及相关操作。",
         "journal": "个人日记 · 回顾长期保存的思考与背景信息。",
         "places": "Google Places · 查看地点的完整信息卡、营业时间与实用详情。",
-        "maps": "Google Maps · 查看位置及其地图、坐标和地址。",
+        "maps": "Google Maps · 查看位置及其地图和地址。",
         "routes": "路线 · 查看步行路线及其地图、距离和预计用时。",
         "avatar_picker": "头像选择 · 预览伙伴的不同风格并选择 LIA 的外观。",
         "meetings_list": "会议列表 · 浏览录音、报告及其处理状态。",
-        "world": "LIA 的世界 · 共享房屋与花园、你的角色和伙伴（法语界面）。"
+        "world": "LIA 的世界 · 共享房屋与花园、你的角色和伙伴。"
       }
     },
     "presentation": {
@@ -15210,7 +15219,7 @@
       "tabs_label": "选择视图",
       "tab_screens": "应用使用场景",
       "tab_slides": "演示文稿（15 页）",
-      "provenance": "应用的英文界面截图和 LIA 世界的法文界面截图，由项目负责人提供。这些是演示画面，不是性能测量。"
+      "provenance": "实际应用和 Grafana 的截图，使用虚构的演示数据。展示的是界面，而非实测性能。"
     },
     "motion": {
       "pause": "暂停动画"

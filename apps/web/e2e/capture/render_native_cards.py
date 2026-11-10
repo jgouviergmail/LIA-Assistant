@@ -133,6 +133,10 @@ def render(repo: Path) -> dict:
     # into an empty directory; settings cannot discover a workspace .env.
     from src.domains.agents.display.config import DisplayConfig
     from src.domains.agents.display.html_renderer import HtmlRenderer
+    from src.domains.agents.display.components.base import RenderContext
+    from src.domains.agents.display.components.place_card import PlaceCard
+    from src.domains.agents.display.components.location_card import LocationCard
+    from src.domains.agents.display.components.route_card import RouteCard
 
     class CaptureDateTimeMeta(type):
         def __instancecheck__(cls, instance):
@@ -154,6 +158,38 @@ def render(repo: Path) -> dict:
     with patch("src.domains.agents.display.components.base.datetime", CaptureDateTime):
         agenda = renderer.render("events", inputs["publicAgenda"], config)
         dossier = renderer.render_multi(inputs["dossier"], config)
+        geographic_data = json.loads(
+            (repo / "apps/web/e2e/fixtures/maps/cards.json").read_text(encoding="utf-8")
+        )["data"]
+        context = RenderContext(language="en", timezone="Europe/Paris")
+        geography = {
+            "places": PlaceCard().render(geographic_data["places"][0], context),
+            "maps": LocationCard().render(geographic_data["maps"], context),
+            "routes": RouteCard().render(geographic_data["routes"], context),
+        }
+        weather = renderer.render(
+            "weathers",
+            {
+                "weather": [
+                    {
+                        "type": "current",
+                        "location": "Lyon",
+                        "description": "Clear sky",
+                        "temperature": "21°C",
+                        "feels_like": "20°C",
+                        "humidity": "54%",
+                        "wind_speed": "8 km/h",
+                        "uv_index": 3,
+                        "visibility": "10 km",
+                        "clouds": 10,
+                        "aqi_category": "Good",
+                        "aqi_label": "AQI (FR)",
+                        "pollen": [{"name": "Ragweed", "category": "Low", "index": 1}],
+                    }
+                ]
+            },
+            config,
+        )
     if "10:00 AM - 11:00 AM" not in agenda or "2:30 PM - 3:00 PM" not in agenda:
         raise RuntimeError(
             "Native appointment time formatting must match the real renderer"
@@ -165,6 +201,8 @@ def render(repo: Path) -> dict:
         "timezone": "Europe/Paris",
         "publicAgendaHtml": agenda,
         "dossierHtml": dossier,
+        "geography": geography,
+        "weatherHtml": weather,
         "payloads": inputs,
         "renderers": [
             {

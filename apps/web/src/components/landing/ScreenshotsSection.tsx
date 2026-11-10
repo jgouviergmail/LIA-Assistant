@@ -23,8 +23,8 @@ import worldProof from '../../../public/screenshots/proof/world-manifest.json';
 import toolsProof from '../../../public/screenshots/proof/tools-manifest.json';
 
 /**
- * Real frontend views with fictional data, plus World and Grafana captures
- * supplied by the project. Each campaign records its own provenance.
+ * Real application, World and Grafana views with fictional data.
+ * Each campaign records its own provenance.
  * The shared carousel provides navigation and full-screen inspection; the
  * views and their static variants are declared in `lib/landing/captures.ts`.
  */

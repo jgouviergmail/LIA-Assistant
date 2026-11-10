@@ -14871,6 +14871,15 @@
         "faq": "FAQ — Centre d'aide avec recherche et catégories"
       },
       "proof": {
+        "dashboard_actions": "Agir sur un rendez-vous depuis le dashboard",
+        "tools_mail_menu": "Les actions d’un e-mail dans leur menu contextuel",
+        "tools_mail_assist": "Résumer un e-mail avec LIA, à côté du message original",
+        "tools_calendar": "Organiser la semaine dans ses calendriers",
+        "tools_tasks": "Organiser ses tâches par liste et échéance",
+        "tools_contacts": "Retrouver ses contacts et consulter leurs coordonnées",
+        "tools_files": "Parcourir documents, dossiers et fichiers partagés",
+        "tools_lights": "Piloter les pièces, les lumières et les scènes",
+        "weather": "Des cartes météo avec qualité de l’air et pollen",
         "dashboard": "Ton hub personnel : synthèse du jour, agenda, e-mails, tâches et rappels au même endroit.",
         "tools": "Tes outils : le courrier, ses dossiers et un message ouvert, sans passer par le chat.",
         "dossier": "Préparer une décision avec mails, documents et réunion",
@@ -14881,7 +14890,7 @@
         "administration": "Régler les plafonds de l’instance et de ses comptes",
         "grafana_overview": "Grafana : ressources de l’instance et des conteneurs",
         "grafana_costs": "Grafana : tokens, coûts et cache",
-        "grafana_activity": "Grafana : activité, origine des requêtes et outils utilisés",
+        "grafana_activity": "Grafana : comptes, conversations et activité des requêtes",
         "relations": "Relations · retrouve les échanges, les faits utiles et les engagements ouverts avant de reprendre contact.",
         "meetings": "Compte rendu détaillé · retrouve les participants, la synthèse, les décisions et les actions attribuées.",
         "radio": "Radio personnelle · retrouve le programme, sa transcription et les sources consultables.",
@@ -14902,11 +14911,11 @@
         "consumption": "Consommation · consulte les usages, les coûts et les opérations correspondantes.",
         "journal": "Journal personnel · retrouve les réflexions et le contexte conservés au fil du temps.",
         "places": "Google Places · consulte une fiche de lieu complète, ses horaires et ses informations pratiques.",
-        "maps": "Google Maps · consulte une position avec sa carte, ses coordonnées et son adresse.",
+        "maps": "Google Maps · consulte une position avec sa carte et son adresse.",
         "routes": "Itinéraires · consulte un trajet à pied avec sa carte, sa distance et sa durée.",
         "avatar_picker": "Galerie d’avatars · découvre les styles de compagnons et choisis l’apparence de LIA.",
         "meetings_list": "Liste des réunions · retrouve les enregistrements et comptes rendus selon leur état de traitement.",
-        "world": "Le monde de LIA · une maison et son jardin partagés, ton avatar et ton compagnon (interface en français)."
+        "world": "Le monde de LIA · une maison et son jardin partagés, ton avatar et ton compagnon."
       }
     },
     "presentation": {
@@ -15221,7 +15230,7 @@
       "tabs_label": "Choisir une vue",
       "tab_screens": "L’application en situation",
       "tab_slides": "La présentation (15 slides)",
-      "provenance": "Captures de l’application en anglais et du monde de LIA en français, fournies par le porteur du projet. Ce sont des vues de démonstration, pas des mesures de performance."
+      "provenance": "Captures de l’application et de Grafana avec des données de démonstration fictives. Elles illustrent l’interface, pas des performances mesurées."
     },
     "motion": {
       "pause": "Mettre les animations en pause"

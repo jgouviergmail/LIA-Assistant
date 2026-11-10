@@ -1,5 +1,5 @@
 /** Public capture data. Handwritten examples only; never reads an account or .env. */
-import { dashboardShellMocks, briefingWindowsMock } from '../fixtures/dashboard-shell';
+import { appConfig, dashboardShellMocks, briefingWindowsMock } from '../fixtures/dashboard-shell';
 import { loadedChatRoutes } from '../fixtures/chat';
 import { makeTestUser } from '../fixtures/test-user';
 import type { MockRoute } from '../fixtures/api-mock';
@@ -12,6 +12,7 @@ import type {
 import type { PsycheHistoryEntry, PsycheState } from '../../src/types/psyche';
 import { psycheEfficacyProfile } from '../fixtures/psyche-efficacy';
 import { surfaceMemoryLimits } from '../fixtures/settings-surfaces';
+import { workflowScreenshotRoutes } from './workflow-screenshot-data';
 
 export const CAPTURE_TIME = '2026-10-12T07:30:00Z';
 const query = 'Help me prepare my day and show my next two appointments.';
@@ -28,12 +29,60 @@ const section = <T extends SectionData>(data: T): CardSection<T> => ({
 
 const appointments = [
   {
+    id: 'demo-event-design',
+    calendar_id: 'primary',
+    start_at: '2026-10-12T08:00:00Z',
     title: 'Design review',
     start_local: '10:00',
     end_local: '11:00',
     location: 'Demo Studio — meeting room A',
   },
-  { title: 'Project check-in', start_local: '14:30', end_local: '15:00', location: 'Video call' },
+  {
+    id: 'demo-event-checkin',
+    calendar_id: 'primary',
+    start_at: '2026-10-12T12:30:00Z',
+    title: 'Project check-in',
+    start_local: '14:30',
+    end_local: '15:00',
+    location: 'Video call',
+    conference_url: 'https://example.test/meet/atlas',
+  },
+  {
+    id: 'demo-event-supplier',
+    calendar_id: 'primary',
+    start_at: '2026-10-13T08:00:00Z',
+    title: 'Supplier planning',
+    start_local: '10:00',
+    end_local: '10:45',
+    location: 'Video call',
+  },
+  {
+    id: 'demo-event-feedback',
+    calendar_id: 'primary',
+    start_at: '2026-10-13T13:00:00Z',
+    title: 'Prototype feedback',
+    start_local: '15:00',
+    end_local: '16:00',
+    location: 'Demo Studio — workshop',
+  },
+  {
+    id: 'demo-event-focus',
+    calendar_id: 'primary',
+    start_at: '2026-10-14T07:00:00Z',
+    title: 'Launch checklist',
+    start_local: '09:00',
+    end_local: '10:00',
+    location: 'Home office',
+  },
+  {
+    id: 'demo-event-photo',
+    calendar_id: 'personal',
+    start_at: '2026-10-14T16:00:00Z',
+    title: 'Photography walk',
+    start_local: '18:00',
+    end_local: '19:00',
+    location: 'Riverside meeting point',
+  },
 ];
 /** The tickets the demo person holds — « my tickets », grouped like a live card. */
 const DEMO_TICKETS: WorkboardTicketItem[] = [
@@ -66,8 +115,8 @@ const cards: CardsBundle = {
     temperature_min_c: 14,
     temperature_max_c: 23,
     forecast_alert: null,
-    air_quality: null,
-    pollen: [],
+    air_quality: { value: null, category: 'Good', index_label: 'AQI (FR)' },
+    pollen: [{ name: 'Ragweed', category: 'Low', index: 1 }],
     daily_forecast: [0, 1, 2, 3, 4].map(day => ({
       date_iso: `2026-10-${String(12 + day).padStart(2, '0')}`,
       temp_min_c: 13 + day,
@@ -81,23 +130,46 @@ const cards: CardsBundle = {
     total_unread_today: 3,
     items: [
       {
+        id: 'demo-mail-design',
         sender_name: 'Demo Studio',
         sender_email: 'studio@example.test',
         subject: 'Design review — agenda and notes',
         received_local: '09:05',
       },
       {
+        id: 'demo-mail-project',
         sender_name: 'Demo Team',
         sender_email: 'team@example.test',
         subject: 'Project update for this week',
         received_local: '08:40',
       },
+      {
+        id: 'demo-mail-supplier',
+        sender_name: 'Morgan Demo',
+        sender_email: 'morgan@example.test',
+        subject: 'Atlas delivery — confirmation needed',
+        received_local: '08:15',
+      },
     ],
   }),
   birthdays: section({
     items: [
-      { contact_name: 'Sam Demo', date_iso: '1991-10-12', days_until: 0, age_at_next: 35 },
-      { contact_name: 'Morgan Demo', date_iso: '1996-10-15', days_until: 3, age_at_next: 30 },
+      {
+        contact_name: 'Sam Demo',
+        date_iso: '1991-10-12',
+        days_until: 0,
+        age_at_next: 35,
+        contact_id: 'demo-sam',
+        email: 'sam@example.test',
+      },
+      {
+        contact_name: 'Morgan Demo',
+        date_iso: '1996-10-15',
+        days_until: 3,
+        age_at_next: 30,
+        contact_id: 'demo-morgan',
+        email: 'morgan@example.test',
+      },
     ],
   }),
   reminders: section({
@@ -107,6 +179,18 @@ const cards: CardsBundle = {
         content: 'Bring the notebook to the design review',
         trigger_at_local: '09:45',
         repeats: false,
+      },
+      {
+        id: 'demo-reminder-supplier',
+        content: 'Confirm the supplier’s proposed delivery date',
+        trigger_at_local: '13:00',
+        repeats: false,
+      },
+      {
+        id: 'demo-reminder-break',
+        content: 'Take a short walk after the afternoon review',
+        trigger_at_local: '16:00',
+        repeats: true,
       },
     ],
   }),
@@ -415,6 +499,15 @@ export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
   return [
     ...dashboardShellMocks,
     ...loadedChatRoutes(),
+    ...workflowScreenshotRoutes(),
+    {
+      url: '**/api/v1/config',
+      json: {
+        ...appConfig,
+        features: { ...appConfig.features, workbench_enabled: true },
+        capabilities: { workbench: { enabled: true, family: 'work' } },
+      },
+    },
     {
       url: /\/api\/v1\/psyche\/state(?:\?initialize=false)?$/,
       json: {
@@ -588,14 +681,17 @@ export function publicScreenshotRoutes(eventCards = ''): MockRoute[] {
         context_threshold: 100000,
       },
     },
-    { url: '**/api/v1/briefing/cards/initial', json: {
-      windows: briefingWindowsMock,
-      cards,
-      pending: [],
-      act: 'e2e-act',
-      act_expires_at: '2099-01-01T00:00:00Z',
-      section_concurrency: 4,
-    } },
+    {
+      url: '**/api/v1/briefing/cards/initial',
+      json: {
+        windows: briefingWindowsMock,
+        cards,
+        pending: [],
+        act: 'e2e-act',
+        act_expires_at: '2099-01-01T00:00:00Z',
+        section_concurrency: 4,
+      },
+    },
     {
       url: '**/api/v1/briefing/text',
       method: 'POST',
