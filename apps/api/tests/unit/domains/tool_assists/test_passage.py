@@ -14,7 +14,6 @@ from uuid import uuid4
 import pytest
 from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
-from src.domains.tool_assists.passage import PassageAct, act_on_passage
 
 from src.core.config import settings
 from src.core.constants import DYNAMIC_CONTEXT_MARKER
@@ -24,6 +23,7 @@ from src.core.i18n import get_language_name
 from src.domains.agents.prompts import load_prompt
 from src.domains.tool_assists import passage
 from src.domains.tool_assists.door import AssistRun
+from src.domains.tool_assists.passage import PassageAct, act_on_passage
 from src.domains.tool_assists.schemas import PassageAssist
 from src.domains.tool_assists.text import WrittenText
 
