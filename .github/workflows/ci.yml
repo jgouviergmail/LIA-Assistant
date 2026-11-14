@@ -105,7 +105,12 @@ jobs:
     # docs/a11y/AT_CAMPAIGN.md. See apps/web/e2e/README.md.
     name: E2E + a11y smoke (Playwright)
     runs-on: ubuntu-24.04
-    timeout-minutes: 80
+    # Re-measured 2026-11-14 (AC-033a): the suite grew from 44 min (2026-11-04)
+    # to 71 min for the last green run (v4.6.0: 64.5 min of base suite, then the
+    # two showroom passes), and a runner 22 % slower on every spec alike cut the
+    # same 1,398 tests at 80 min with 14 left. 140 min is twice the longest
+    # green run, as the rule asks: a hang detector, not a performance target.
+    timeout-minutes: 140
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-noble
     steps:

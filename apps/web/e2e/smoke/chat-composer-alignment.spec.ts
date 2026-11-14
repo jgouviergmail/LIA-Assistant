@@ -142,6 +142,12 @@ test.describe('composer alignment', () => {
     await mockApi(ROUTES);
     await page.goto('/fr/dashboard/chat');
     await expect(page.locator('form textarea').first()).toBeVisible({ timeout: 30_000 });
+    // The indicator appears only once `/rag-spaces` answers, after the field: measured
+    // before it, the pair is not there yet (a loaded CI runner read -1, 2026-11-14).
+    await expect(
+      page.getByTestId('active-spaces-indicator'),
+      'the indicator must render with an active space'
+    ).toBeVisible({ timeout: 20_000 });
 
     const overlap = await page.evaluate(() => {
       const link = document.querySelector('[data-testid="active-spaces-indicator"]');

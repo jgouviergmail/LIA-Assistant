@@ -78,6 +78,7 @@ interface Sample {
 const GAZE_SETTLE_MS = 800;
 /** The reading walk this guards against swept the eyes over more than a unit, every 1.4 s. */
 const GAZE_HELD_SPAN = 0.2;
+const READING_WALK_PERIOD_MS = 1400;
 
 declare global {
   interface Window {
@@ -244,7 +245,17 @@ test.describe('a mouth that opens on the voice it hears', () => {
       const spoken = samples.filter(sample => sample.speaking);
       const settled = spoken.filter(sample => sample.t >= spoken[0].t + GAZE_SETTLE_MS);
       const gazes = settled.map(sample => sample.gazeX);
-      expect(settled.length, 'frames of a face that speaks').toBeGreaterThan(30);
+      // Enough of it to see such a walk, in whatever frames the runner paints: two of
+      // its periods at least, four frames to a period. A fixed count measured the
+      // runner instead: a loaded CI runner painted a sculpted head 30 times over this
+      // stretch, one under the floor it had (2026-11-14).
+      const stretch = settled.length > 1 ? settled[settled.length - 1].t - settled[0].t : 0;
+      expect(stretch, 'a face heard speaking long enough to judge').toBeGreaterThan(
+        2 * READING_WALK_PERIOD_MS
+      );
+      expect(settled.length, 'frames of a face that speaks').toBeGreaterThanOrEqual(
+        (4 * stretch) / READING_WALK_PERIOD_MS
+      );
       expect(Math.max(...gazes) - Math.min(...gazes)).toBeLessThan(GAZE_HELD_SPAN);
 
       // And the picture follows: a mouth painted open on a tone, shut in a silence.
