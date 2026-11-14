@@ -19,6 +19,9 @@ from src.infrastructure.mcp.rate_limit import (
 )
 from src.infrastructure.mcp.user_pool import PoolEntry, UserMCPClientPool, _surface_root_cause
 
+#: One second of the monotonic clock the cooldown reads, in nanoseconds.
+_SECOND_NS = 1_000_000_000
+
 
 @pytest.mark.parametrize(
     "message, delay",
@@ -111,9 +114,9 @@ async def test_http_discovery_quota_stops_reconnect_before_transport() -> None:
         "src.infrastructure.mcp.user_pool._ephemeral_client", return_value=connection
     ) as connect:
         with pytest.raises(MCPRateLimitError):
-            await pool.get_or_connect(*key, "https://example.test/mcp", None, 5)
+            await pool.get_or_connect(*key, "https://example.test/mcp", httpx2.Auth(), 5)
         with pytest.raises(MCPRateLimitError) as blocked:
-            await pool.get_or_connect(*key, "https://example.test/mcp", None, 5)
+            await pool.get_or_connect(*key, "https://example.test/mcp", httpx2.Auth(), 5)
     assert blocked.value.retry_after == 11
     cooldown.record.assert_awaited_once_with(key, 12)
     assert pool.size == 0
@@ -221,6 +224,32 @@ async def test_shared_deadline_remains_known_when_redis_goes_down() -> None:
         assert 22 < await cooldown.remaining(key) <= 23
 
 
+@pytest.mark.parametrize("instant_s", [4088.1, 1048568.1])
+async def test_a_shared_deadline_is_restated_exactly_at_any_clock_instant(
+    instant_s: float,
+) -> None:
+    """Redis's 23 000 ms come back as 23 s, and the refusal announces 23 s.
+
+    At these instants ``(now + 23.0) - now`` exceeds 23 in float seconds, and a
+    refusal rounds its delay up to the second: a deadline kept in float seconds
+    announced 24. Both clocks read the same instant, whichever the cooldown reads.
+    """
+    assert (instant_s + 23.0) - instant_s > 23  # an instant float seconds overshoot at
+    redis = AsyncMock(spec=Redis)
+    redis.pttl = AsyncMock(return_value=23000)
+    with (
+        patch("src.infrastructure.mcp.rate_limit.time.monotonic", return_value=instant_s),
+        patch(
+            "src.infrastructure.mcp.rate_limit.time.monotonic_ns",
+            return_value=round(instant_s * _SECOND_NS),
+        ),
+        patch("src.infrastructure.mcp.rate_limit.get_redis_cache", AsyncMock(return_value=redis)),
+    ):
+        remaining = await MCPServerCooldown().remaining((uuid4(), uuid4()))
+    assert remaining == 23
+    assert MCPRateLimitError(remaining).retry_after == 23
+
+
 async def test_record_adopts_longer_shared_deadline_before_outage_and_reconnect() -> None:
     redis = AsyncMock(spec=Redis)
     redis.eval = AsyncMock(return_value=23000)
@@ -250,16 +279,16 @@ async def test_pending_redis_read_cannot_erase_a_newer_local_refusal(read_fails:
     cooldown = MCPServerCooldown()
     key = (uuid4(), uuid4())
     with (
-        patch("src.infrastructure.mcp.rate_limit.time.monotonic", return_value=100),
+        patch("src.infrastructure.mcp.rate_limit.time.monotonic_ns", return_value=100 * _SECOND_NS),
         patch("src.infrastructure.mcp.rate_limit.get_redis_cache", AsyncMock(return_value=redis)),
     ):
-        cooldown._deadlines[key] = 105
+        cooldown._deadlines[key] = 105 * _SECOND_NS
         reading = asyncio.create_task(cooldown.remaining(key))
         await started.wait()
         await cooldown.record(key, 600)
         release.set()
         assert await reading == 600
-        assert cooldown._deadlines[key] == 700
+        assert cooldown._deadlines[key] == 700 * _SECOND_NS
 
 
 async def test_pending_redis_record_can_merge_after_expired_local_state_is_pruned() -> None:
@@ -276,12 +305,14 @@ async def test_pending_redis_record_can_merge_after_expired_local_state_is_prune
     cooldown = MCPServerCooldown()
     key = (uuid4(), uuid4())
     with (
-        patch("src.infrastructure.mcp.rate_limit.time.monotonic", return_value=100) as clock,
+        patch(
+            "src.infrastructure.mcp.rate_limit.time.monotonic_ns", return_value=100 * _SECOND_NS
+        ) as clock,
         patch("src.infrastructure.mcp.rate_limit.get_redis_cache", AsyncMock(return_value=redis)),
     ):
         recording = asyncio.create_task(cooldown.record(key, 1))
         await started.wait()
-        clock.return_value = 102
+        clock.return_value = 102 * _SECOND_NS
         cooldown.forget_local(key)
         assert key not in cooldown._deadlines
         release.set()

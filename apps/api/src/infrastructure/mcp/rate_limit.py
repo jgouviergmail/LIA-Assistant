@@ -34,6 +34,8 @@ if remaining < delay then
 end
 return math.max(remaining, delay)
 """
+_NANOSECONDS_PER_SECOND = 1_000_000_000
+_NANOSECONDS_PER_MILLISECOND = 1_000_000
 
 
 class MCPToolExecutionError(RuntimeError):
@@ -98,30 +100,56 @@ def quota_error(exc: BaseException, fallback: float) -> MCPRateLimitError | None
 
 
 class MCPServerCooldown:
-    """Redis owns the shared TTL; local deadlines cover Redis outages."""
+    """Redis owns the shared TTL; local deadlines cover Redis outages.
+
+    Deadlines are integer nanoseconds of the monotonic clock, so a remaining
+    time is an exact difference, converted to seconds once: the milliseconds
+    Redis states come back unchanged. In float seconds ``(now + 23.0) - now``
+    exceeds 23 at some instants of the clock and, ``MCPRateLimitError``
+    rounding a delay up to the second, a 23-second refusal would read 24.
+    """
 
     def __init__(self) -> None:
-        self._deadlines: dict[tuple[UUID, UUID], float] = {}
+        self._deadlines: dict[tuple[UUID, UUID], int] = {}
 
     async def remaining(self, key: tuple[UUID, UUID]) -> float:
-        ttl = 0
+        """Return how long the server must still be left alone.
+
+        Args:
+            key: The ``(user_id, server_id)`` pair the refusal concerns.
+
+        Returns:
+            Seconds before the server may be called again, ``0.0`` once it may.
+        """
+        ttl_ms = 0
         try:
             redis = await get_redis_cache()
-            ttl = await redis.pttl(self._redis_key(key))
+            ttl_ms = await redis.pttl(self._redis_key(key))
         except RedisError:
             logger.debug("mcp_cooldown_read_unavailable", exc_info=True)
-        now = time.monotonic()
-        if ttl > 0:
+        now = time.monotonic_ns()
+        if ttl_ms > 0:
             # Another task may record a longer refusal while Redis is read.
             # Merge with the current deadline, never a pre-await snapshot.
-            self._deadlines[key] = max(self._deadlines.get(key, 0.0), now + ttl / 1000)
-        local = max(0.0, self._deadlines.get(key, 0.0) - now)
+            self._deadlines[key] = max(
+                self._deadlines.get(key, 0), now + ttl_ms * _NANOSECONDS_PER_MILLISECOND
+            )
+        local = max(0, self._deadlines.get(key, 0) - now)
         if not local:
             self._deadlines.pop(key, None)
-        return local
+        return local / _NANOSECONDS_PER_SECOND
 
     async def record(self, key: tuple[UUID, UUID], retry_after: float) -> None:
-        self._deadlines[key] = max(self._deadlines.get(key, 0.0), time.monotonic() + retry_after)
+        """Hold a provider refusal here and, through Redis, in every worker.
+
+        Args:
+            key: The ``(user_id, server_id)`` pair the refusal concerns.
+            retry_after: Seconds the server asked to be left alone.
+        """
+        self._deadlines[key] = max(
+            self._deadlines.get(key, 0),
+            time.monotonic_ns() + math.ceil(retry_after * _NANOSECONDS_PER_SECOND),
+        )
         try:
             redis = await get_redis_cache()
             remaining_ms = int(
@@ -130,14 +158,19 @@ class MCPServerCooldown:
                 )
             )
             self._deadlines[key] = max(
-                self._deadlines.get(key, 0.0), time.monotonic() + remaining_ms / 1000
+                self._deadlines.get(key, 0),
+                time.monotonic_ns() + remaining_ms * _NANOSECONDS_PER_MILLISECOND,
             )
         except RedisError:
             logger.debug("mcp_cooldown_write_unavailable", exc_info=True)
 
     def forget_local(self, key: tuple[UUID, UUID]) -> None:
-        """Prune expired state; a reconnect must retain a known provider refusal."""
-        if self._deadlines.get(key, 0.0) <= time.monotonic():
+        """Prune expired state; a reconnect must retain a known provider refusal.
+
+        Args:
+            key: The ``(user_id, server_id)`` pair whose local deadline may go.
+        """
+        if self._deadlines.get(key, 0) <= time.monotonic_ns():
             self._deadlines.pop(key, None)
 
     @staticmethod

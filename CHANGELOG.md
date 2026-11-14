@@ -165,6 +165,9 @@ searched without a key of your own.
   as text or with a stray bracket (ADR-100 amendment).
 - 🔐 **A personal MCP server switched to OAuth** offers **Connect via OAuth** again, and tokens are
   never stored on a server edited while you were consenting.
+- ⏳ **A quota pause asked by an MCP server** is announced for the delay the server gave: read back
+  from the pause shared between workers, a 23-second wait could be stated as 24 seconds at some
+  instants of the clock.
 - 🖱️ **A list opened inside a dialog** no longer freezes the page, and a list or a switch keeps the
   keyboard focus while it saves.
 - 🧭 **With a capability switched off by the administrator**, no screen keeps offering it or opens on
