@@ -779,7 +779,7 @@ services:
 
   # Redis (cache and queues)
   langfuse-redis:
-    image: redis:7
+    image: redis:8
     container_name: lia-langfuse-redis-dev
     profiles: ["langfuse"]  # Opt-in only (see task dev:langfuse)
     restart: unless-stopped
