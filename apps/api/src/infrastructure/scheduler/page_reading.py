@@ -77,7 +77,9 @@ _JSON: Final = "application/json"
 def _parser() -> lxml_html.HTMLParser:
     """A parser of one's own: lxml parsers are not shared across threads.
 
-    No limit on a deep page (the body is bounded in bytes), no comment kept.
+    As deep as libxml2 goes (the body is bounded in bytes): the 2.14 the Linux
+    wheel carries into the images keeps 2047 levels under ``huge_tree`` and drops
+    what lies deeper, never an error. No comment kept.
     """
     return lxml_html.HTMLParser(huge_tree=True, remove_comments=True, remove_pis=True)
 
@@ -155,7 +157,8 @@ def _unread(tag: str, element: etree._Element) -> bool:
 def _markup_text(text: str) -> str:
     """The visible text of a page, a line break at each block's edges.
 
-    Walked iteratively: a page nested thousands deep reads like any other.
+    Walked iteratively: a page nested deeper than Python's recursion limit reads
+    like any other, as deep as the parser keeps it (``_parser``).
     """
     try:
         root = lxml_html.document_fromstring(text, parser=_parser())

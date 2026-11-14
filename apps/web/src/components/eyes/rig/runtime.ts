@@ -61,11 +61,7 @@ import {
   type Tape,
 } from '@/components/eyes/rig/tape';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
-import {
-  SPEECH_OPEN_MAX,
-  VOICE_ATTACK_MS,
-  VOICE_RELEASE_MS,
-} from '@/components/eyes/rig/speech';
+import { SPEECH_OPEN_MAX, VOICE_ATTACK_MS, VOICE_RELEASE_MS } from '@/components/eyes/rig/speech';
 import {
   createLifeRandom,
   drawMouthLifeDelayMs,
@@ -112,6 +108,15 @@ const BODY_HOME_SPRING = { frequency: 2.2, damping: 1 };
 /** Grounded acting leans at most 12 degrees. Beyond this margin the drawn sole
  * cannot carry weight, including when a new scene interrupts a full turn. */
 const GROUND_CONTACT_MAX_ROLL_DEG = 15;
+/**
+ * The channels a body space BOUNDS when a scene is directed (`directedValue`,
+ * `bodySceneTapes`, a flight's height): a scene that travels was planned against
+ * the room it started in, and a new room stops it. A scene that only squashes,
+ * leans or rolls where it stands planned nothing against the room and plays on;
+ * its paint is projected into the new one anyway (`projectBodyMotion`). Every
+ * body scene carries both channels, so every one of them still yields.
+ */
+const SPACE_BOUND_CHANNELS: ReadonlySet<ChannelKey> = new Set(['bodyX', 'bodyY']);
 
 export interface RigPose {
   readonly expression: EyeExpression;
@@ -1285,7 +1290,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
         )
       )
         return;
-      if (sketch.some(active => active.tape.channel.startsWith('body'))) interruptPerformance();
+      if (sketch.some(active => SPACE_BOUND_CHANNELS.has(active.tape.channel)))
+        interruptPerformance();
       bodySpace = { ...next };
       lastSettling = true;
     },

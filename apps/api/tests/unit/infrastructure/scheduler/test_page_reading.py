@@ -9,6 +9,7 @@ is replaced at its seam, its own guarantees having their own tests.
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 
 import pytest
@@ -82,9 +83,21 @@ class TestWhatAPersonReads:
         assert _lines(body, "application/json") == ["{", '"price": 349.99,', '"stock": "in"', "}"]
 
     def test_a_deeply_nested_page_is_read_without_recursion(self) -> None:
-        deep = "<div>" * 5000 + "deep" + "</div>" * 5000
+        # Deeper than Python's recursion limit, where a recursive walk raises, and
+        # within what the parser keeps on every platform (see the next test).
+        depth = 1500
+        assert depth > sys.getrecursionlimit()
+        deep = "<div>" * depth + "deep" + "</div>" * depth
 
         assert _lines(deep) == ["deep"]
+
+    def test_a_page_deeper_than_the_parser_keeps_is_cut_never_an_error(self) -> None:
+        # libxml2 2.14, which the Linux wheel of lxml carries into the images, keeps
+        # 2047 levels under huge_tree and drops what lies deeper; the 2.11 of the
+        # Windows wheel keeps them all (measured 2026-11-14, lxml 6.1.3).
+        deep = "<div>" * 5000 + "deep" + "</div>" * 5000
+
+        assert _lines(deep) in (["deep"], [])
 
     def test_an_empty_or_unparseable_page_has_no_lines(self) -> None:
         assert _lines("") == []

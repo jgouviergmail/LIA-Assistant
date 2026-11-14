@@ -265,6 +265,33 @@ describe('when something starts falling from the sky', () => {
     expect(drop).toBeGreaterThan(0.5);
   });
 
+  it.each(['rain', 'snow'] as const)(
+    'keeps greeting the %s when the companion is docked again under it',
+    weather => {
+      // The chat docks the companion between the header's controls, and solves
+      // that spot again as they arrive: every move hands the rig a new body space
+      // (`bindBodyMotion`). A greeting only squashes the body where it stands —
+      // nothing in it was planned against the old room — so it plays on and its
+      // prop lands (measured in CI, 2026-11-14: the dock moved 58 px under the
+      // first flake, which then never landed and was never greeted again).
+      const clock = createSketchClock();
+      const rig = resting(42, clock);
+      run(rig, 800);
+      rig.setContext(under(weather));
+      run(rig, 160);
+      const scene = arrivalScene(weather);
+      expect(clock.scene).toBe(scene);
+      rig.setBodySpace({ minX: -0.2, maxX: 0.5, minY: -0.6, maxY: 0.1, roaming: false });
+      expect(clock.scene).toBe(scene);
+      expect(clock.interrupted).toBe(0);
+      let landed = 0;
+      run(rig, GREETING_MS, () => {
+        landed = Math.max(landed, rig.values().weatherDrop, rig.values().weatherFlake);
+      });
+      expect(landed).toBeGreaterThanOrEqual(1);
+    }
+  );
+
   it('pursues the flake: on its way down the eyes never stop to wait for it', () => {
     // Steps would make the eyes hop from one place to the next, resting between:
     // the flake moves all along, and so do they (2026-11-13).
@@ -498,6 +525,13 @@ describe('in the cold', () => {
       );
   });
 
+  /**
+   * Sixty faces run to their first scene, twice: 1.6 to 3.1 s each alone, 15.5 and
+   * 17.9 s in a loaded full run (measured 2026-11-14), past the suite's 15 s, which
+   * is calibrated on a 3.3 s worst case. The cost is the simulation's own.
+   */
+  const SIXTY_FACES_TIMEOUT_MS = 60_000;
+
   it.each([
     ['with its flags', under('cold')],
     // The props read a context that carries no flags by its dominant feeling
@@ -505,32 +539,36 @@ describe('in the cold', () => {
     ['by its dominant feeling alone', { ...NEUTRAL_CONTEXT, weather: 'cold' as const }],
     // A cold rain: the dominant feeling is the rain, the cold is in the flags.
     ['in a cold rain', under('rain', { weatherFlags: ['rain', 'cold'] })],
-  ])('is what the rig draws from, %s: a cold face sneezes first more often', (_, cold) => {
-    // The first scene of sixty faces, cold and mild, on the same seeds: the
-    // rig hands the picker the weather it was given, or the two counts match.
-    // A greeting of weather starting to fall is no draw: it is skipped. In the
-    // cold the face also shivers, so a reaction to the cold is either scene.
-    const firstColdReactions = (context: ActingContext) => {
-      let reacted = 0;
-      for (let seed = 1; seed <= 60; seed += 1) {
-        const rig = resting(seed * 131);
-        rig.setContext(context);
-        let first: string | null = null;
-        for (let at = 0; at < 45_000 && first === null; at += 16) {
-          rig.step(16);
-          const scene = rig.sketchClock().scene;
-          if (scene && !isGreeting(scene)) first = scene;
+  ])(
+    'is what the rig draws from, %s: a cold face sneezes first more often',
+    (_, cold) => {
+      // The first scene of sixty faces, cold and mild, on the same seeds: the
+      // rig hands the picker the weather it was given, or the two counts match.
+      // A greeting of weather starting to fall is no draw: it is skipped. In the
+      // cold the face also shivers, so a reaction to the cold is either scene.
+      const firstColdReactions = (context: ActingContext) => {
+        let reacted = 0;
+        for (let seed = 1; seed <= 60; seed += 1) {
+          const rig = resting(seed * 131);
+          rig.setContext(context);
+          let first: string | null = null;
+          for (let at = 0; at < 45_000 && first === null; at += 16) {
+            rig.step(16);
+            const scene = rig.sketchClock().scene;
+            if (scene && !isGreeting(scene)) first = scene;
+          }
+          expect(first, `seed ${seed}`).not.toBeNull();
+          if (first === 'sneeze' || first === 'weather-shiver') reacted += 1;
         }
-        expect(first, `seed ${seed}`).not.toBeNull();
-        if (first === 'sneeze' || first === 'weather-shiver') reacted += 1;
-      }
-      return reacted;
-    };
-    const mild = firstColdReactions(under(null));
-    const chilled = firstColdReactions(cold);
-    expect(chilled).toBeGreaterThanOrEqual(8);
-    expect(chilled).toBeGreaterThan(mild * 2);
-  });
+        return reacted;
+      };
+      const mild = firstColdReactions(under(null));
+      const chilled = firstColdReactions(cold);
+      expect(chilled).toBeGreaterThanOrEqual(8);
+      expect(chilled).toBeGreaterThan(mild * 2);
+    },
+    SIXTY_FACES_TIMEOUT_MS
+  );
 });
 
 /** A scene that greets weather starting to fall, as opposed to one a resting face draws. */

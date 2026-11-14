@@ -1380,6 +1380,36 @@ test.describe('the first drop and the first flake land where they should', () =>
       expect(await avatar.getAttribute('data-weather-props')).not.toMatch(/\bflake\b/);
     });
 
+  test('the first flake still lands when the companion is docked again under it', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // The chat docks the companion between the header's controls and solves that
+    // spot again as they arrive. In CI it moved 58 px while the flake was on its
+    // way (2026-11-14): the new body space stopped the greeting, and the flake
+    // never landed. Moved here on purpose, mid-fall, the way the dock moves it.
+    await authenticate();
+    const avatar = await openUnder(
+      page,
+      mockApi,
+      { temperature_c: -1, condition_code: 'Snow', wind_speed_kmh: 5 },
+      { style: 'cozmo', variant: 'male', size: 'xl' }
+    );
+    await playing(page, avatar, 'weather-catch-flake');
+    await page.clock.runFor(480);
+    await page
+      .locator('.lia-eyes-widget')
+      .last()
+      .evaluate(host => {
+        host.style.left = `${parseFloat(getComputedStyle(host).left) - 58}px`;
+      });
+    await page.clock.runFor(16);
+    expect(await avatar.getAttribute('data-scene')).toBe('weather-catch-flake');
+    await loaded(page, '/avatars/context/v1/snow.webp');
+    await landed(page, avatar, '--rig-weather-flake');
+  });
+
   test('carries nothing under reduced motion: the weather is simply there', async ({
     page,
     authenticate,
